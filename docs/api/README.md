@@ -88,3 +88,5 @@ external assignment, bilateral consent, disclosure or fulfilment authority.
 Unreleased supplier workflow candidates: [supplier stock intake](supply-stock.md) and [independent employer Staff/account identity](workforce-independent-identity.md). Their operating, collaboration and release gates remain explicit in those contracts.
 
 The unreleased [independent operating duty contract](operating-duties.md) records implemented administrative/projection boundaries and remaining product consumers.
+
+- [Supplier trade](supplier-trade.md): current source facts, pharmacy scope/withdrawal and bilateral consent; remaining effective-grant/fulfilment/financial consumers are explicitly not complete.

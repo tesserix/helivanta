@@ -219,6 +219,7 @@ jobs:
           node scripts/generate-stock-products.mjs --check
           node scripts/generate-supply-stock.mjs --check
           node scripts/generate-operating-assignments.mjs --check
+          node scripts/generate-supplier-trade.mjs --check
           node scripts/generate-workforce-independent-identity.mjs --check
       - name: Verify Staff operational access source inventory
         run: |

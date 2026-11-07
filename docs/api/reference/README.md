@@ -474,6 +474,8 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | PUT    | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence/:file`                                              | `pharmacy.licence.manage`         | false             | false      |
 | GET    | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence`                                                    | `pharmacy.licence.evidence.read`  | true              | false      |
 | POST   | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/review`                                                      | `pharmacy.licence.review`         | false             | false      |
+| GET    | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/revocations/:revocation`                                     | `pharmacy.licence.review`         | false             | false      |
+| PUT    | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/revocations/:revocation`                                     | `pharmacy.licence.review`         | false             | false      |
 | PUT    | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id`                                                             | `pharmacy.licence.manage`         | false             | false      |
 | GET    | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences`                                                                 | `pharmacy.catalogue.read`         | true              | false      |
 | GET    | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/opd-encounters`                                                           | `pharmacy.sale.create`            | false             | false      |
@@ -533,6 +535,12 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET    | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations/in-force`                                               | `pharmacy.tax.manage`             | false             | false      |
 | GET    | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations`                                                        | `pharmacy.tax.manage`             | true              | false      |
 | POST   | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations`                                                        | `pharmacy.tax.manage`             | false             | false      |
+| GET    | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/commands/:command`                                     | `pharmacy.trading_scope.read`     | false             | false      |
+| PUT    | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/commands/:command`                                     | `pharmacy.trading_scope.review`   | false             | false      |
+| GET    | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/proposal-receipt`                                      | `pharmacy.trading_scope.read`     | false             | false      |
+| GET    | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id`                                                       | `pharmacy.trading_scope.read`     | false             | false      |
+| PUT    | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id`                                                       | `pharmacy.trading_scope.prepare`  | false             | false      |
+| GET    | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes`                                                           | `pharmacy.trading_scope.read`     | true              | false      |
 | GET    | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet`                                                                          | `pharmacy.catalogue.read`         | false             | false      |
 | PUT    | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet`                                                                          | `pharmacy.access.manage`          | false             | false      |
 | GET    | `/v1/pharmacy/pharmacies/:pharmacy/outlets`                                                                                  | `pharmacy.catalogue.read`         | true              | false      |
@@ -610,6 +618,8 @@ Migration table declarations:
 - `0032_pharmacy`: `pharmacy_opd_encounters`.
 - `0033_pharmacy`: `pharmacy_item_categories`, `pharmacy_product_category_declarations`, `pharmacy_product_category_reviews`.
 - `0034_pharmacy_staff_department_bindings`: `pharmacy_staff_department_bindings`, `pharmacy_staff_binding_commands`, `pharmacy_staff_binding_audit`.
+- `0035_pharmacy_trading_scope`: `pharmacy_trading_scopes`, `pharmacy_trading_scope_commands`.
+- `0036_pharmacy_trading_source`: `pharmacy_licence_revocations`.
 
 ## payments
 
@@ -763,82 +773,89 @@ Migration table declarations:
 
 Source: [backend/internal/modules/supply/module.go](../../../backend/internal/modules/supply/module.go). Payloads: `backend/internal/modules/supply/contract/`, owning handlers, and [schema index](../schemas.md).
 
-| Method | Path                                                                                                    | Permission                        | Cursor pagination | Page total |
-| ------ | ------------------------------------------------------------------------------------------------------- | --------------------------------- | ----------------- | ---------- |
-| GET    | `/v1/supply/parties/:party/access-limits/revisions`                                                     | `supply.party.access.manage`      | true              | false      |
-| GET    | `/v1/supply/parties/:party/access-limits`                                                               | `supply.party.access.manage`      | false             | false      |
-| PUT    | `/v1/supply/parties/:party/access-limits`                                                               | `supply.party.access.manage`      | false             | false      |
-| DELETE | `/v1/supply/parties/:party/access/:subject/:role`                                                       | `supply.party.access.manage`      | false             | false      |
-| PUT    | `/v1/supply/parties/:party/access/:subject/:role`                                                       | `supply.party.access.manage`      | false             | false      |
-| GET    | `/v1/supply/parties/:party/access/grants`                                                               | `supply.party.access.manage`      | true              | false      |
-| GET    | `/v1/supply/parties/:party/access`                                                                      | `supply.directory.read`           | false             | false      |
-| GET    | `/v1/supply/parties/:party/corporate-structure/revisions`                                               | `supply.party.read`               | true              | false      |
-| GET    | `/v1/supply/parties/:party/corporate-structure`                                                         | `supply.party.read`               | false             | false      |
-| PUT    | `/v1/supply/parties/:party/corporate-structure`                                                         | `supply.organization.manage`      | false             | false      |
-| GET    | `/v1/supply/parties/:party/grants/:grant/revisions`                                                     | `supply.party.access.manage`      | true              | false      |
-| GET    | `/v1/supply/parties/:party/grants/:grant`                                                               | `supply.party.access.manage`      | false             | false      |
-| PUT    | `/v1/supply/parties/:party/grants/:grant`                                                               | `supply.party.access.manage`      | false             | false      |
-| GET    | `/v1/supply/parties/:party/grants`                                                                      | `supply.party.access.manage`      | true              | false      |
-| PUT    | `/v1/supply/parties/:party/licenses/:license/evidence/:file/content`                                    | `supply.evidence.write`           | false             | false      |
-| GET    | `/v1/supply/parties/:party/licenses/:license/evidence/:file/download`                                   | `supply.evidence.read`            | false             | false      |
-| POST   | `/v1/supply/parties/:party/licenses/:license/evidence/:file/retry/:attempt`                             | `supply.evidence.write`           | false             | false      |
-| POST   | `/v1/supply/parties/:party/licenses/:license/evidence/:file/revoke`                                     | `supply.evidence.write`           | false             | false      |
-| PUT    | `/v1/supply/parties/:party/licenses/:license/evidence/:file`                                            | `supply.evidence.write`           | false             | false      |
-| GET    | `/v1/supply/parties/:party/licenses/:license/evidence`                                                  | `supply.evidence.read`            | true              | false      |
-| GET    | `/v1/supply/parties/:party/licenses/:license/review`                                                    | `supply.license.read`             | false             | false      |
-| PUT    | `/v1/supply/parties/:party/licenses/:license/reviews/:review`                                           | `supply.license.submit`           | false             | false      |
-| GET    | `/v1/supply/parties/:party/licenses/:license/reviews`                                                   | `supply.license.read`             | true              | false      |
-| GET    | `/v1/supply/parties/:party/licenses/:license/revisions`                                                 | `supply.license.read`             | true              | false      |
-| GET    | `/v1/supply/parties/:party/licenses/:license`                                                           | `supply.license.read`             | false             | false      |
-| PUT    | `/v1/supply/parties/:party/licenses/:license`                                                           | `supply.license.write`            | false             | false      |
-| GET    | `/v1/supply/parties/:party/licenses`                                                                    | `supply.license.read`             | true              | false      |
-| GET    | `/v1/supply/parties/:party/operating-locations/:premise/bins/:bin/revisions`                            | `supply.operations.read`          | true              | false      |
-| GET    | `/v1/supply/parties/:party/operating-locations/:premise/bins/:bin`                                      | `supply.operations.read`          | false             | false      |
-| PUT    | `/v1/supply/parties/:party/operating-locations/:premise/bins/:bin`                                      | `supply.operations.write`         | false             | false      |
-| GET    | `/v1/supply/parties/:party/operating-locations/:premise/bins`                                           | `supply.operations.read`          | true              | false      |
-| GET    | `/v1/supply/parties/:party/operating-locations/:premise/stock/products/by-gtin/:gtin`                   | `public`                          | false             | false      |
-| GET    | `/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/identity-checks/:check` | `public`                          | false             | false      |
-| PUT    | `/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/identity-checks/:check` | `public`                          | false             | false      |
-| GET    | `/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt`                        | `public`                          | false             | false      |
-| PUT    | `/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt`                        | `public`                          | false             | false      |
-| GET    | `/v1/supply/parties/:party/operating-locations/:premise/stock/receipts`                                 | `public`                          | true              | false      |
-| GET    | `/v1/supply/parties/:party/operating-locations/:premise`                                                | `supply.operations.read`          | false             | false      |
-| GET    | `/v1/supply/parties/:party/operating-locations`                                                         | `supply.operations.read`          | true              | false      |
-| GET    | `/v1/supply/parties/:party/platform-identity`                                                           | `supply.party.read`               | false             | false      |
-| GET    | `/v1/supply/parties/:party/premises/:premise/bins/:bin/revisions`                                       | `supply.bin.read`                 | true              | false      |
-| GET    | `/v1/supply/parties/:party/premises/:premise/bins/:bin`                                                 | `supply.bin.read`                 | false             | false      |
-| PUT    | `/v1/supply/parties/:party/premises/:premise/bins/:bin`                                                 | `supply.bin.write`                | false             | false      |
-| GET    | `/v1/supply/parties/:party/premises/:premise/bins`                                                      | `supply.bin.read`                 | true              | false      |
-| GET    | `/v1/supply/parties/:party/premises/:premise/delivery-drivers`                                          | `supply.delivery.write`           | true              | false      |
-| GET    | `/v1/supply/parties/:party/premises/:premise/delivery-tasks/:delivery/revisions`                        | `supply.delivery.read`            | true              | false      |
-| GET    | `/v1/supply/parties/:party/premises/:premise/delivery-tasks/:delivery`                                  | `supply.delivery.read`            | false             | false      |
-| PUT    | `/v1/supply/parties/:party/premises/:premise/delivery-tasks/:delivery`                                  | `supply.delivery.write`           | false             | false      |
-| GET    | `/v1/supply/parties/:party/premises/:premise/delivery-tasks`                                            | `supply.delivery.read`            | true              | false      |
-| PUT    | `/v1/supply/parties/:party/premises/:premise/my-deliveries/:delivery/actions/:action`                   | `supply.delivery.assigned.action` | false             | false      |
-| GET    | `/v1/supply/parties/:party/premises/:premise/my-deliveries/:delivery`                                   | `supply.delivery.assigned.read`   | false             | false      |
-| GET    | `/v1/supply/parties/:party/premises/:premise/my-deliveries`                                             | `supply.delivery.assigned.read`   | true              | false      |
-| GET    | `/v1/supply/parties/:party/premises/:premise/revisions`                                                 | `supply.premise.read`             | true              | false      |
-| GET    | `/v1/supply/parties/:party/premises/:premise`                                                           | `supply.premise.read`             | false             | false      |
-| PUT    | `/v1/supply/parties/:party/premises/:premise`                                                           | `supply.premise.write`            | false             | false      |
-| GET    | `/v1/supply/parties/:party/premises`                                                                    | `supply.premise.read`             | true              | false      |
-| GET    | `/v1/supply/parties/:party/revisions`                                                                   | `supply.party.read`               | true              | false      |
-| POST   | `/v1/supply/parties/:party/support/:support/decision`                                                   | `supply.support.manage`           | false             | false      |
-| GET    | `/v1/supply/parties/:party/support/:support/diagnostics`                                                | `supply.support.read`             | false             | false      |
-| GET    | `/v1/supply/parties/:party/support/:support/revisions`                                                  | `supply.support.read`             | true              | false      |
-| POST   | `/v1/supply/parties/:party/support/:support/revoke`                                                     | `supply.support.revoke`           | false             | false      |
-| GET    | `/v1/supply/parties/:party/support/:support`                                                            | `supply.support.read`             | false             | false      |
-| PUT    | `/v1/supply/parties/:party/support/:support`                                                            | `supply.support.manage`           | false             | false      |
-| GET    | `/v1/supply/parties/:party/support`                                                                     | `supply.support.read`             | true              | false      |
-| GET    | `/v1/supply/parties/:party/territories/:territory/revisions`                                            | `supply.territory.read`           | true              | false      |
-| GET    | `/v1/supply/parties/:party/territories/:territory`                                                      | `supply.territory.read`           | false             | false      |
-| PUT    | `/v1/supply/parties/:party/territories/:territory`                                                      | `supply.territory.write`          | false             | false      |
-| GET    | `/v1/supply/parties/:party/territories`                                                                 | `supply.territory.read`           | true              | false      |
-| GET    | `/v1/supply/parties/:party`                                                                             | `supply.party.read`               | false             | false      |
-| PUT    | `/v1/supply/parties/:party`                                                                             | `supply.party.write`              | false             | false      |
-| GET    | `/v1/supply/parties`                                                                                    | `supply.directory.read`           | true              | false      |
+| Method | Path                                                                                                    | Permission                          | Cursor pagination | Page total |
+| ------ | ------------------------------------------------------------------------------------------------------- | ----------------------------------- | ----------------- | ---------- |
+| GET    | `/v1/supply/parties/:party/access-limits/revisions`                                                     | `supply.party.access.manage`        | true              | false      |
+| GET    | `/v1/supply/parties/:party/access-limits`                                                               | `supply.party.access.manage`        | false             | false      |
+| PUT    | `/v1/supply/parties/:party/access-limits`                                                               | `supply.party.access.manage`        | false             | false      |
+| DELETE | `/v1/supply/parties/:party/access/:subject/:role`                                                       | `supply.party.access.manage`        | false             | false      |
+| PUT    | `/v1/supply/parties/:party/access/:subject/:role`                                                       | `supply.party.access.manage`        | false             | false      |
+| GET    | `/v1/supply/parties/:party/access/grants`                                                               | `supply.party.access.manage`        | true              | false      |
+| GET    | `/v1/supply/parties/:party/access`                                                                      | `supply.directory.read`             | false             | false      |
+| GET    | `/v1/supply/parties/:party/corporate-structure/revisions`                                               | `supply.party.read`                 | true              | false      |
+| GET    | `/v1/supply/parties/:party/corporate-structure`                                                         | `supply.party.read`                 | false             | false      |
+| PUT    | `/v1/supply/parties/:party/corporate-structure`                                                         | `supply.organization.manage`        | false             | false      |
+| GET    | `/v1/supply/parties/:party/grants/:grant/revisions`                                                     | `supply.party.access.manage`        | true              | false      |
+| GET    | `/v1/supply/parties/:party/grants/:grant`                                                               | `supply.party.access.manage`        | false             | false      |
+| PUT    | `/v1/supply/parties/:party/grants/:grant`                                                               | `supply.party.access.manage`        | false             | false      |
+| GET    | `/v1/supply/parties/:party/grants`                                                                      | `supply.party.access.manage`        | true              | false      |
+| PUT    | `/v1/supply/parties/:party/licenses/:license/evidence/:file/content`                                    | `supply.evidence.write`             | false             | false      |
+| GET    | `/v1/supply/parties/:party/licenses/:license/evidence/:file/download`                                   | `supply.evidence.read`              | false             | false      |
+| POST   | `/v1/supply/parties/:party/licenses/:license/evidence/:file/retry/:attempt`                             | `supply.evidence.write`             | false             | false      |
+| POST   | `/v1/supply/parties/:party/licenses/:license/evidence/:file/revoke`                                     | `supply.evidence.write`             | false             | false      |
+| PUT    | `/v1/supply/parties/:party/licenses/:license/evidence/:file`                                            | `supply.evidence.write`             | false             | false      |
+| GET    | `/v1/supply/parties/:party/licenses/:license/evidence`                                                  | `supply.evidence.read`              | true              | false      |
+| GET    | `/v1/supply/parties/:party/licenses/:license/review`                                                    | `supply.license.read`               | false             | false      |
+| PUT    | `/v1/supply/parties/:party/licenses/:license/reviews/:review`                                           | `supply.license.submit`             | false             | false      |
+| GET    | `/v1/supply/parties/:party/licenses/:license/reviews`                                                   | `supply.license.read`               | true              | false      |
+| GET    | `/v1/supply/parties/:party/licenses/:license/revisions`                                                 | `supply.license.read`               | true              | false      |
+| GET    | `/v1/supply/parties/:party/licenses/:license`                                                           | `supply.license.read`               | false             | false      |
+| PUT    | `/v1/supply/parties/:party/licenses/:license`                                                           | `supply.license.write`              | false             | false      |
+| GET    | `/v1/supply/parties/:party/licenses`                                                                    | `supply.license.read`               | true              | false      |
+| GET    | `/v1/supply/parties/:party/operating-locations/:premise/bins/:bin/revisions`                            | `supply.operations.read`            | true              | false      |
+| GET    | `/v1/supply/parties/:party/operating-locations/:premise/bins/:bin`                                      | `supply.operations.read`            | false             | false      |
+| PUT    | `/v1/supply/parties/:party/operating-locations/:premise/bins/:bin`                                      | `supply.operations.write`           | false             | false      |
+| GET    | `/v1/supply/parties/:party/operating-locations/:premise/bins`                                           | `supply.operations.read`            | true              | false      |
+| GET    | `/v1/supply/parties/:party/operating-locations/:premise/stock/products/by-gtin/:gtin`                   | `public`                            | false             | false      |
+| GET    | `/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/identity-checks/:check` | `public`                            | false             | false      |
+| PUT    | `/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/identity-checks/:check` | `public`                            | false             | false      |
+| GET    | `/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt`                        | `public`                            | false             | false      |
+| PUT    | `/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt`                        | `public`                            | false             | false      |
+| GET    | `/v1/supply/parties/:party/operating-locations/:premise/stock/receipts`                                 | `public`                            | true              | false      |
+| GET    | `/v1/supply/parties/:party/operating-locations/:premise`                                                | `supply.operations.read`            | false             | false      |
+| GET    | `/v1/supply/parties/:party/operating-locations`                                                         | `supply.operations.read`            | true              | false      |
+| GET    | `/v1/supply/parties/:party/platform-identity`                                                           | `supply.party.read`                 | false             | false      |
+| GET    | `/v1/supply/parties/:party/premises/:premise/bins/:bin/revisions`                                       | `supply.bin.read`                   | true              | false      |
+| GET    | `/v1/supply/parties/:party/premises/:premise/bins/:bin`                                                 | `supply.bin.read`                   | false             | false      |
+| PUT    | `/v1/supply/parties/:party/premises/:premise/bins/:bin`                                                 | `supply.bin.write`                  | false             | false      |
+| GET    | `/v1/supply/parties/:party/premises/:premise/bins`                                                      | `supply.bin.read`                   | true              | false      |
+| GET    | `/v1/supply/parties/:party/premises/:premise/delivery-drivers`                                          | `supply.delivery.write`             | true              | false      |
+| GET    | `/v1/supply/parties/:party/premises/:premise/delivery-tasks/:delivery/revisions`                        | `supply.delivery.read`              | true              | false      |
+| GET    | `/v1/supply/parties/:party/premises/:premise/delivery-tasks/:delivery`                                  | `supply.delivery.read`              | false             | false      |
+| PUT    | `/v1/supply/parties/:party/premises/:premise/delivery-tasks/:delivery`                                  | `supply.delivery.write`             | false             | false      |
+| GET    | `/v1/supply/parties/:party/premises/:premise/delivery-tasks`                                            | `supply.delivery.read`              | true              | false      |
+| PUT    | `/v1/supply/parties/:party/premises/:premise/my-deliveries/:delivery/actions/:action`                   | `supply.delivery.assigned.action`   | false             | false      |
+| GET    | `/v1/supply/parties/:party/premises/:premise/my-deliveries/:delivery`                                   | `supply.delivery.assigned.read`     | false             | false      |
+| GET    | `/v1/supply/parties/:party/premises/:premise/my-deliveries`                                             | `supply.delivery.assigned.read`     | true              | false      |
+| GET    | `/v1/supply/parties/:party/premises/:premise/revisions`                                                 | `supply.premise.read`               | true              | false      |
+| GET    | `/v1/supply/parties/:party/premises/:premise`                                                           | `supply.premise.read`               | false             | false      |
+| PUT    | `/v1/supply/parties/:party/premises/:premise`                                                           | `supply.premise.write`              | false             | false      |
+| GET    | `/v1/supply/parties/:party/premises`                                                                    | `supply.premise.read`               | true              | false      |
+| GET    | `/v1/supply/parties/:party/revisions`                                                                   | `supply.party.read`                 | true              | false      |
+| POST   | `/v1/supply/parties/:party/support/:support/decision`                                                   | `supply.support.manage`             | false             | false      |
+| GET    | `/v1/supply/parties/:party/support/:support/diagnostics`                                                | `supply.support.read`               | false             | false      |
+| GET    | `/v1/supply/parties/:party/support/:support/revisions`                                                  | `supply.support.read`               | true              | false      |
+| POST   | `/v1/supply/parties/:party/support/:support/revoke`                                                     | `supply.support.revoke`             | false             | false      |
+| GET    | `/v1/supply/parties/:party/support/:support`                                                            | `supply.support.read`               | false             | false      |
+| PUT    | `/v1/supply/parties/:party/support/:support`                                                            | `supply.support.manage`             | false             | false      |
+| GET    | `/v1/supply/parties/:party/support`                                                                     | `supply.support.read`               | true              | false      |
+| GET    | `/v1/supply/parties/:party/territories/:territory/revisions`                                            | `supply.territory.read`             | true              | false      |
+| GET    | `/v1/supply/parties/:party/territories/:territory`                                                      | `supply.territory.read`             | false             | false      |
+| PUT    | `/v1/supply/parties/:party/territories/:territory`                                                      | `supply.territory.write`            | false             | false      |
+| GET    | `/v1/supply/parties/:party/territories`                                                                 | `supply.territory.read`             | true              | false      |
+| GET    | `/v1/supply/parties/:party`                                                                             | `supply.party.read`                 | false             | false      |
+| PUT    | `/v1/supply/parties/:party`                                                                             | `supply.party.write`                | false             | false      |
+| GET    | `/v1/supply/parties`                                                                                    | `supply.directory.read`             | true              | false      |
+| GET    | `/v1/supply/relationships/:relationship/commands/:command`                                              | `supply.trade_relationship.read`    | false             | false      |
+| PUT    | `/v1/supply/relationships/:relationship/commands/:command`                                              | `supply.trade_relationship.review`  | false             | false      |
+| GET    | `/v1/supply/relationships/:relationship/proposal-receipt`                                               | `supply.trade_relationship.read`    | false             | false      |
+| GET    | `/v1/supply/relationships/:relationship`                                                                | `supply.trade_relationship.read`    | false             | false      |
+| PUT    | `/v1/supply/relationships/:relationship`                                                                | `supply.trade_relationship.prepare` | false             | false      |
+| GET    | `/v1/supply/trading-sources/:product/:organization/locations/:location/relationships`                   | `supply.trade_relationship.read`    | true              | false      |
 
 Published subjects:
 
+- `helivanta.in.supply.relationship_exchange.v1`
 - `helivanta.in.supply.stock_identity_recorded.v1`
 - `helivanta.in.supply.stock_receipt_recorded.v1`
 - `helivanta.in.supply.support_access_changed.v1`
@@ -856,7 +873,12 @@ Published subjects:
 
 Subscriptions:
 
+- `supply-relationship-exchange` ← `helivanta.in.supply.relationship_exchange.v1`; after-commit hook: false.
 - `supply-evidence-scan` ← `helivanta.in.supply.evidence_scan_requested.v1`; after-commit hook: true.
+
+Directed allowlist: `helivanta.in.supply.relationship_exchange.v1`.
+
+Directed-write provenance tables: `supply_trade_relationships`, `supply_trade_relationship_history`.
 
 Migration table declarations:
 

@@ -208,6 +208,7 @@ type HarnessOptions struct {
 	Membership                  authz.MembershipChecker
 	ScopedAuthorizer            func(*tenantdb.DB) authz.ScopedAuthorizer
 	OperatingAuthorizer         func(*tenantdb.DB) authz.OperatingScopeAuthorizer
+	SourceAdministration        func(*tenantdb.DB) authz.SourceAdministrationGuard
 	Resolver                    authz.Resolver
 	// Revocation defaults to a checker that answers "never revoked" for
 	// every subject — see neverRevoked's doc comment. Set it explicitly
@@ -331,14 +332,20 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	if opts.ScopedAuthorizer != nil {
 		scopedAuthorizer = opts.ScopedAuthorizer(db)
 	}
+	var sourceAdministration authz.SourceAdministrationGuard
+	if opts.SourceAdministration != nil {
+		sourceAdministration = opts.SourceAdministration(db)
+	}
 	var operatingAuthorizer authz.OperatingScopeAuthorizer
 	if opts.OperatingAuthorizer != nil {
 		operatingAuthorizer = opts.OperatingAuthorizer(db)
 	}
 	deps := platform.Deps{
+		SourceAdministration:        sourceAdministration,
 		OperatingAuthorizer:         operatingAuthorizer,
 		IndependentStaff:            platform.IndependentStaffIdentities(opts.Modules, db),
 		OperatingLocations:          platform.OperatingLocations(opts.Modules, db),
+		TradingEndpoints:            platform.TradingEndpoints(opts.Modules, db, platform.DepartmentReferences(opts.Modules, db)),
 		Membership:                  membership,
 		StaffActors:                 platform.StaffActors(opts.Modules, db),
 		StockProducts:               platform.StockProducts(opts.Modules, db),

@@ -31,6 +31,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/patientmaster"
 	"github.com/tesserix/helivanta/internal/modules/payments"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
+	"github.com/tesserix/helivanta/internal/modules/supply"
 	"github.com/tesserix/helivanta/internal/modules/workspace"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
@@ -42,6 +43,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/ratelimit"
 	"github.com/tesserix/helivanta/pkg/session"
+	"github.com/tesserix/helivanta/pkg/suppliertrade"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"github.com/tesserix/helivanta/pkg/transit"
 	"github.com/tesserix/helivanta/pkg/workloadidentity"
@@ -398,10 +400,17 @@ func run() error {
 		return errors.New("invalid MediConnect current claim owner configuration")
 	}
 	scopedAuthorizer := iam.NewScopedAuthorizer(db, fga)
+	sourceChecks, sourceCaller, err := supplierTradeSourceIdentity()
+	if err != nil {
+		return err
+	}
 	deps := platform.Deps{
+		SourceChecks:                sourceChecks,
+		SourceAdministration:        iam.NewSourceAdministrationGuard(db, fga),
 		OperatingAuthorizer:         iam.NewOperatingAuthorizer(db, fga, platform.IndependentStaffIdentities(registry.All(), db), platform.OperatingLocations(registry.All(), db)),
 		IndependentStaff:            platform.IndependentStaffIdentities(registry.All(), db),
 		OperatingLocations:          platform.OperatingLocations(registry.All(), db),
+		TradingEndpoints:            platform.TradingEndpoints(registry.All(), db, platform.DepartmentReferences(registry.All(), db)),
 		Membership:                  currentAuthorization,
 		StaffActors:                 platform.StaffActors(registry.All(), db),
 		StockProducts:               platform.StockProducts(registry.All(), db),
@@ -446,6 +455,9 @@ func run() error {
 		IdleTimeout: idleTimeout,
 	}
 
+	if sourceCaller != nil {
+		srv.Engine.POST(suppliertrade.SourceCheckPath, supply.NewTradingSourceCheckHandler(deps, sourceCaller))
+	}
 	if os.Getenv("MEDICONNECT_CLAIM_VERIFICATION_ENABLED") == "true" {
 		account := os.Getenv("MEDICONNECT_CLAIM_CALLER")
 		if account == "" {

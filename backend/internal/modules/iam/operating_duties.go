@@ -153,6 +153,9 @@ func (h *operatingHandlers) employerAccess(ctx context.Context, tenant string, s
 	return h.staff.WithIndependentEmployerAccess(ctx, authz.IndependentEmployerScope{TenantID: tenant, EmployerKind: scope.EmployerKind, EmployerID: scope.EmployerID}, minimum, action)
 }
 func (h *operatingHandlers) actorProof(ctx context.Context, p authn.Principal, permission authz.Permission) (authz.Membership, error) {
+	return h.actorProofFor(ctx, p, permission, func(role authz.Role) bool { return operatingAdministrationRole(permission, role) })
+}
+func (h *operatingHandlers) actorProofFor(ctx context.Context, p authn.Principal, permission authz.Permission, roleAllowed func(authz.Role) bool) (authz.Membership, error) {
 	if h.graph == nil {
 		return authz.Membership{}, authz.ErrScopedAuthorizationUnavailable
 	}
@@ -161,7 +164,7 @@ func (h *operatingHandlers) actorProof(ctx context.Context, p authn.Principal, p
 		return authz.Membership{}, authz.ErrScopedAuthorizationUnavailable
 	}
 	for _, member := range members {
-		if !operatingAdministrationRole(permission, member.Role) {
+		if roleAllowed != nil && !roleAllowed(member.Role) {
 			continue
 		}
 		ready, err := h.graph.IsMembershipReady(ctx, member)

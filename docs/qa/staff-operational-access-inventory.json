@@ -1,9 +1,9 @@
 {
   "format_version": 1,
-  "registry_sha256": "6c6055d47639ef2923d70470c400e8272be364b21ed4c981859c56a99e1ffc14",
+  "registry_sha256": "2f2cf60a46d4053c1bd1bf971295b5bdf57a4e38c8e4ca2753deac5a7239e3a5",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 908,
+    "total": 923,
     "unclassified": 846
   },
   "entries": [
@@ -710,6 +710,40 @@
         "after_commit": true
       },
       "review": null
+    },
+    {
+      "id": "consumer supply supply-relationship-exchange helivanta.in.supply.relationship_exchange.v1",
+      "kind": "consumer",
+      "module": "supply",
+      "registration": {
+        "source": "backend/internal/modules/supply/module.go",
+        "name": "supply-relationship-exchange",
+        "subject": "helivanta.in.supply.relationship_exchange.v1",
+        "after_commit": false
+      },
+      "review": {
+        "id": "consumer supply supply-relationship-exchange helivanta.in.supply.relationship_exchange.v1",
+        "registration_sha256": "32ec88ee81fea491fe2e7122dfa3ef82ce5505c20f058215d9bc7ee4b3ce773c",
+        "authority_kind": "system_continuation",
+        "resource_scope": "Authenticated directed origin/destination, exact relationship/terms digest and monotonic source epoch; local recipient projection only.",
+        "rationale": "The recipient consumer validates typed exchange provenance and immutable terms, serializes its own aggregate and stores append-only local history. Both consents and acknowledgement are required; late or duplicate messages do not revive terminal state. This is consent protocol state, never current source/recipient/stock authority.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/supply/trade_relationship_store.go",
+            "sha256": "9b76667c8ab94a72c13cbeae7e8fcfd16d842156878cc612331f0844a11c63aa",
+            "symbol": "func tradeRelationshipConsumer("
+          },
+          {
+            "path": "backend/pkg/suppliertrade/relationship.go",
+            "sha256": "813922b0914d5d317fe6a8940a7d00c734e99c9d240110d939f945ba7ff032dc",
+            "symbol": "func ApplyRelationshipExchange("
+          }
+        ],
+        "remaining": [
+          "Complete and verify actual runtime/CI cases, current reciprocal relationship claims, effective named/group grants and minimized projections; a source classification is not runtime acceptance.",
+          "Complete both owner fulfilment paths, hospital discrepancy/receipt and financial composition plus real shared-environment web acceptance before claiming the full supplier workflow."
+        ]
+      }
     },
     {
       "id": "consumer workforce workforce-assignment-scope helivanta.in.iam.assignment_scope_requested.v1",
@@ -3256,16 +3290,16 @@
         "registration_sha256": "1c254a43bb5fb60319a090f4f5918f2706fb94c25cc34901bb10a3635cd2fbe9",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant/actor, typed independent employer, exact Staff record and immutable duty or decision.",
-        "rationale": "The duty owner refreshes administrative membership/credential authority and requires current private employer access. Preparation/review binds exact source, Staff/account and membership revisions; immutable recovery remains actor-bound. Approval is pending projection, not physical, professional, legal, hospital or trading authority. This is an unreleased source review, not runtime acceptance.",
+        "rationale": "The duty owner refreshes administrative membership/credential authority and requires current private employer access. Preparation/review binds exact source, Staff/account and membership revisions; immutable recovery remains actor-bound. Approval is pending projection, not physical, professional, legal, hospital or trading authority. This is an unreleased source review, not runtime acceptance. Source rechecked for supplier consent: the existing actorProof wrapper preserves its operating-administration role filter. The extracted actorProofFor helper lets the separate administrative guard resolve an explicitly granted tenant capability; it does not grant operational Staff or trading authority. Membership/credential locking and exact operating-duty source checks remain unchanged. Source rechecked for supplier consent: the existing actorProof wrapper preserves its operating-administration role filter. The extracted actorProofFor helper lets the separate administrative guard resolve an explicitly granted tenant capability; it does not grant operational Staff or trading authority. Membership/credential locking and exact operating-duty source checks remain unchanged.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/operating_duties.go",
-            "sha256": "a4620fd42021314f00121e86c8c93226e1c14146afda27ba94158eec6d70146f",
+            "sha256": "cad549bb53c030f2372a2468b34a978c20cc8d2e163aac16ad727523485128c0",
             "symbol": "func (h *operatingHandlers) transaction("
           },
           {
             "path": "backend/internal/modules/iam/operating_duties.go",
-            "sha256": "a4620fd42021314f00121e86c8c93226e1c14146afda27ba94158eec6d70146f",
+            "sha256": "cad549bb53c030f2372a2468b34a978c20cc8d2e163aac16ad727523485128c0",
             "symbol": "func (h *operatingHandlers) employerAccess("
           },
           {
@@ -3299,16 +3333,16 @@
         "registration_sha256": "04c695dcf1fe43e05ebb5672b778044fc047b68584cd8634881946d474c5af57",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant/actor, typed independent employer, exact Staff record and immutable duty or decision.",
-        "rationale": "The duty owner refreshes administrative membership/credential authority and requires current private employer access. Preparation/review binds exact source, Staff/account and membership revisions; immutable recovery remains actor-bound. Approval is pending projection, not physical, professional, legal, hospital or trading authority. This is an unreleased source review, not runtime acceptance.",
+        "rationale": "The duty owner refreshes administrative membership/credential authority and requires current private employer access. Preparation/review binds exact source, Staff/account and membership revisions; immutable recovery remains actor-bound. Approval is pending projection, not physical, professional, legal, hospital or trading authority. This is an unreleased source review, not runtime acceptance. Source rechecked for supplier consent: the existing actorProof wrapper preserves its operating-administration role filter. The extracted actorProofFor helper lets the separate administrative guard resolve an explicitly granted tenant capability; it does not grant operational Staff or trading authority. Membership/credential locking and exact operating-duty source checks remain unchanged. Source rechecked for supplier consent: the existing actorProof wrapper preserves its operating-administration role filter. The extracted actorProofFor helper lets the separate administrative guard resolve an explicitly granted tenant capability; it does not grant operational Staff or trading authority. Membership/credential locking and exact operating-duty source checks remain unchanged.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/operating_duties.go",
-            "sha256": "a4620fd42021314f00121e86c8c93226e1c14146afda27ba94158eec6d70146f",
+            "sha256": "cad549bb53c030f2372a2468b34a978c20cc8d2e163aac16ad727523485128c0",
             "symbol": "func (h *operatingHandlers) transaction("
           },
           {
             "path": "backend/internal/modules/iam/operating_duties.go",
-            "sha256": "a4620fd42021314f00121e86c8c93226e1c14146afda27ba94158eec6d70146f",
+            "sha256": "cad549bb53c030f2372a2468b34a978c20cc8d2e163aac16ad727523485128c0",
             "symbol": "func (h *operatingHandlers) employerAccess("
           },
           {
@@ -3342,16 +3376,16 @@
         "registration_sha256": "5d8e96e121eab593327a18407df9a1ad9c34199ada9d16846411f8a0cebac386",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant/actor, typed independent employer, exact Staff record and immutable duty or decision.",
-        "rationale": "The duty owner refreshes administrative membership/credential authority and requires current private employer access. Preparation/review binds exact source, Staff/account and membership revisions; immutable recovery remains actor-bound. Approval is pending projection, not physical, professional, legal, hospital or trading authority. This is an unreleased source review, not runtime acceptance.",
+        "rationale": "The duty owner refreshes administrative membership/credential authority and requires current private employer access. Preparation/review binds exact source, Staff/account and membership revisions; immutable recovery remains actor-bound. Approval is pending projection, not physical, professional, legal, hospital or trading authority. This is an unreleased source review, not runtime acceptance. Source rechecked for supplier consent: the existing actorProof wrapper preserves its operating-administration role filter. The extracted actorProofFor helper lets the separate administrative guard resolve an explicitly granted tenant capability; it does not grant operational Staff or trading authority. Membership/credential locking and exact operating-duty source checks remain unchanged. Source rechecked for supplier consent: the existing actorProof wrapper preserves its operating-administration role filter. The extracted actorProofFor helper lets the separate administrative guard resolve an explicitly granted tenant capability; it does not grant operational Staff or trading authority. Membership/credential locking and exact operating-duty source checks remain unchanged.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/operating_duties.go",
-            "sha256": "a4620fd42021314f00121e86c8c93226e1c14146afda27ba94158eec6d70146f",
+            "sha256": "cad549bb53c030f2372a2468b34a978c20cc8d2e163aac16ad727523485128c0",
             "symbol": "func (h *operatingHandlers) transaction("
           },
           {
             "path": "backend/internal/modules/iam/operating_duties.go",
-            "sha256": "a4620fd42021314f00121e86c8c93226e1c14146afda27ba94158eec6d70146f",
+            "sha256": "cad549bb53c030f2372a2468b34a978c20cc8d2e163aac16ad727523485128c0",
             "symbol": "func (h *operatingHandlers) employerAccess("
           },
           {
@@ -3385,16 +3419,16 @@
         "registration_sha256": "0dd18e4304bb6d3d30d6e5ef5b8252c1a897b8b1c8dc572fe8315f484d54b056",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant/actor, typed independent employer, exact Staff record and immutable duty or decision.",
-        "rationale": "The duty owner refreshes administrative membership/credential authority and requires current private employer access. Preparation/review binds exact source, Staff/account and membership revisions; immutable recovery remains actor-bound. Approval is pending projection, not physical, professional, legal, hospital or trading authority. This is an unreleased source review, not runtime acceptance.",
+        "rationale": "The duty owner refreshes administrative membership/credential authority and requires current private employer access. Preparation/review binds exact source, Staff/account and membership revisions; immutable recovery remains actor-bound. Approval is pending projection, not physical, professional, legal, hospital or trading authority. This is an unreleased source review, not runtime acceptance. Source rechecked for supplier consent: the existing actorProof wrapper preserves its operating-administration role filter. The extracted actorProofFor helper lets the separate administrative guard resolve an explicitly granted tenant capability; it does not grant operational Staff or trading authority. Membership/credential locking and exact operating-duty source checks remain unchanged. Source rechecked for supplier consent: the existing actorProof wrapper preserves its operating-administration role filter. The extracted actorProofFor helper lets the separate administrative guard resolve an explicitly granted tenant capability; it does not grant operational Staff or trading authority. Membership/credential locking and exact operating-duty source checks remain unchanged.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/operating_duties.go",
-            "sha256": "a4620fd42021314f00121e86c8c93226e1c14146afda27ba94158eec6d70146f",
+            "sha256": "cad549bb53c030f2372a2468b34a978c20cc8d2e163aac16ad727523485128c0",
             "symbol": "func (h *operatingHandlers) transaction("
           },
           {
             "path": "backend/internal/modules/iam/operating_duties.go",
-            "sha256": "a4620fd42021314f00121e86c8c93226e1c14146afda27ba94158eec6d70146f",
+            "sha256": "cad549bb53c030f2372a2468b34a978c20cc8d2e163aac16ad727523485128c0",
             "symbol": "func (h *operatingHandlers) employerAccess("
           },
           {
@@ -3926,16 +3960,16 @@
         "registration_sha256": "81164f5cabffc1338573ea7cd79aca7708c82646bb6f4624257cf001e1423504",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant/actor, typed independent employer, exact Staff record and immutable duty or decision.",
-        "rationale": "The duty owner refreshes administrative membership/credential authority and requires current private employer access. Preparation/review binds exact source, Staff/account and membership revisions; immutable recovery remains actor-bound. Approval is pending projection, not physical, professional, legal, hospital or trading authority. This is an unreleased source review, not runtime acceptance.",
+        "rationale": "The duty owner refreshes administrative membership/credential authority and requires current private employer access. Preparation/review binds exact source, Staff/account and membership revisions; immutable recovery remains actor-bound. Approval is pending projection, not physical, professional, legal, hospital or trading authority. This is an unreleased source review, not runtime acceptance. Source rechecked for supplier consent: the existing actorProof wrapper preserves its operating-administration role filter. The extracted actorProofFor helper lets the separate administrative guard resolve an explicitly granted tenant capability; it does not grant operational Staff or trading authority. Membership/credential locking and exact operating-duty source checks remain unchanged. Source rechecked for supplier consent: the existing actorProof wrapper preserves its operating-administration role filter. The extracted actorProofFor helper lets the separate administrative guard resolve an explicitly granted tenant capability; it does not grant operational Staff or trading authority. Membership/credential locking and exact operating-duty source checks remain unchanged.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/operating_duties.go",
-            "sha256": "a4620fd42021314f00121e86c8c93226e1c14146afda27ba94158eec6d70146f",
+            "sha256": "cad549bb53c030f2372a2468b34a978c20cc8d2e163aac16ad727523485128c0",
             "symbol": "func (h *operatingHandlers) transaction("
           },
           {
             "path": "backend/internal/modules/iam/operating_duties.go",
-            "sha256": "a4620fd42021314f00121e86c8c93226e1c14146afda27ba94158eec6d70146f",
+            "sha256": "cad549bb53c030f2372a2468b34a978c20cc8d2e163aac16ad727523485128c0",
             "symbol": "func (h *operatingHandlers) employerAccess("
           },
           {
@@ -3969,16 +4003,16 @@
         "registration_sha256": "95ac4980fd78a49d1b51467a07f9b24b12bb2a69bdd6ef8c7ddc661b8e586548",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant/actor, typed independent employer, exact Staff record and immutable duty or decision.",
-        "rationale": "The duty owner refreshes administrative membership/credential authority and requires current private employer access. Preparation/review binds exact source, Staff/account and membership revisions; immutable recovery remains actor-bound. Approval is pending projection, not physical, professional, legal, hospital or trading authority. This is an unreleased source review, not runtime acceptance.",
+        "rationale": "The duty owner refreshes administrative membership/credential authority and requires current private employer access. Preparation/review binds exact source, Staff/account and membership revisions; immutable recovery remains actor-bound. Approval is pending projection, not physical, professional, legal, hospital or trading authority. This is an unreleased source review, not runtime acceptance. Source rechecked for supplier consent: the existing actorProof wrapper preserves its operating-administration role filter. The extracted actorProofFor helper lets the separate administrative guard resolve an explicitly granted tenant capability; it does not grant operational Staff or trading authority. Membership/credential locking and exact operating-duty source checks remain unchanged. Source rechecked for supplier consent: the existing actorProof wrapper preserves its operating-administration role filter. The extracted actorProofFor helper lets the separate administrative guard resolve an explicitly granted tenant capability; it does not grant operational Staff or trading authority. Membership/credential locking and exact operating-duty source checks remain unchanged.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/operating_duties.go",
-            "sha256": "a4620fd42021314f00121e86c8c93226e1c14146afda27ba94158eec6d70146f",
+            "sha256": "cad549bb53c030f2372a2468b34a978c20cc8d2e163aac16ad727523485128c0",
             "symbol": "func (h *operatingHandlers) transaction("
           },
           {
             "path": "backend/internal/modules/iam/operating_duties.go",
-            "sha256": "a4620fd42021314f00121e86c8c93226e1c14146afda27ba94158eec6d70146f",
+            "sha256": "cad549bb53c030f2372a2468b34a978c20cc8d2e163aac16ad727523485128c0",
             "symbol": "func (h *operatingHandlers) employerAccess("
           },
           {
@@ -6797,6 +6831,54 @@
       "review": null
     },
     {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/revocations/:revocation",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/revocations/:revocation",
+        "permission": "pharmacy.licence.review",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/revocations/:revocation",
+        "registration_sha256": "ddd79e1aa4f05cf784b81c91b0904cf80775f20e9d0c5c8deb78c9bbefe6fcad",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified current tenant/actor, exact private pharmacy organization/outlet, licence and state/category fact record.",
+        "rationale": "The source-administration owner checks live membership/credentials through commit, followed by exact product outlet authorization. Scope approval requires a distinct account and reviewed available licence evidence. Immutable proposal/decision or revocation receipts bind original actor and intent. These facts do not establish professional, hospital Staff, clinical or trading authority; licence withdrawal denies current uses and preserves history.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/iam/source_administration.go",
+            "sha256": "1557df82c7fb0efb073b5eee7919f3f352cb779057e39496075513e1d1ca084a",
+            "symbol": "func (g *sourceAdministrationGuard) WithSourceAdministration("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/trading_scopes.go",
+            "sha256": "8916623930deb014490b586fed928d1c0145c1397f3e6b5b7aa55ad78455c4eb",
+            "symbol": "func (h *tradingScopeHandlers) transaction("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/trading_scopes.sql",
+            "sha256": "8401063281c81e528db82174ebc3c502d241780b14d35786ffc76782de1d394b",
+            "symbol": "CREATE FUNCTION pharmacy_trading_scope_state_guard()"
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/licence_revocations.go",
+            "sha256": "325b63c31815fe13eb5d332532d2322154b0de8f1ea37b9373a7c9778e2665ec",
+            "symbol": "func (h *tradingScopeHandlers) revokeLicence("
+          }
+        ],
+        "remaining": [
+          "Complete and verify actual runtime/CI cases, current reciprocal relationship claims, effective named/group grants and minimized projections; a source classification is not runtime acceptance.",
+          "Complete both owner fulfilment paths, hospital discrepancy/receipt and financial composition plus real shared-environment web acceptance before claiming the full supplier workflow."
+        ]
+      }
+    },
+    {
       "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/opd-encounters",
       "kind": "http",
       "module": "pharmacy",
@@ -7469,6 +7551,198 @@
       "review": null
     },
     {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes",
+        "permission": "pharmacy.trading_scope.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes",
+        "registration_sha256": "2effef8cb9dec5e63407b1dfb263cebea532282ce74a131ffa060c6fd4f4b5fa",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified current tenant/actor, exact private pharmacy organization/outlet, licence and state/category fact record.",
+        "rationale": "The source-administration owner checks live membership/credentials through commit, followed by exact product outlet authorization. Scope approval requires a distinct account and reviewed available licence evidence. Immutable proposal/decision or revocation receipts bind original actor and intent. These facts do not establish professional, hospital Staff, clinical or trading authority; licence withdrawal denies current uses and preserves history.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/iam/source_administration.go",
+            "sha256": "1557df82c7fb0efb073b5eee7919f3f352cb779057e39496075513e1d1ca084a",
+            "symbol": "func (g *sourceAdministrationGuard) WithSourceAdministration("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/trading_scopes.go",
+            "sha256": "8916623930deb014490b586fed928d1c0145c1397f3e6b5b7aa55ad78455c4eb",
+            "symbol": "func (h *tradingScopeHandlers) transaction("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/trading_scopes.sql",
+            "sha256": "8401063281c81e528db82174ebc3c502d241780b14d35786ffc76782de1d394b",
+            "symbol": "CREATE FUNCTION pharmacy_trading_scope_state_guard()"
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/licence_revocations.go",
+            "sha256": "325b63c31815fe13eb5d332532d2322154b0de8f1ea37b9373a7c9778e2665ec",
+            "symbol": "func (h *tradingScopeHandlers) revokeLicence("
+          }
+        ],
+        "remaining": [
+          "Complete and verify actual runtime/CI cases, current reciprocal relationship claims, effective named/group grants and minimized projections; a source classification is not runtime acceptance.",
+          "Complete both owner fulfilment paths, hospital discrepancy/receipt and financial composition plus real shared-environment web acceptance before claiming the full supplier workflow."
+        ]
+      }
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id",
+        "permission": "pharmacy.trading_scope.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id",
+        "registration_sha256": "3888a5e37ccb54e8bf5d73dde502d3aa2f74fe42e38c8c011292f6fd7b0e4f38",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified current tenant/actor, exact private pharmacy organization/outlet, licence and state/category fact record.",
+        "rationale": "The source-administration owner checks live membership/credentials through commit, followed by exact product outlet authorization. Scope approval requires a distinct account and reviewed available licence evidence. Immutable proposal/decision or revocation receipts bind original actor and intent. These facts do not establish professional, hospital Staff, clinical or trading authority; licence withdrawal denies current uses and preserves history.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/iam/source_administration.go",
+            "sha256": "1557df82c7fb0efb073b5eee7919f3f352cb779057e39496075513e1d1ca084a",
+            "symbol": "func (g *sourceAdministrationGuard) WithSourceAdministration("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/trading_scopes.go",
+            "sha256": "8916623930deb014490b586fed928d1c0145c1397f3e6b5b7aa55ad78455c4eb",
+            "symbol": "func (h *tradingScopeHandlers) transaction("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/trading_scopes.sql",
+            "sha256": "8401063281c81e528db82174ebc3c502d241780b14d35786ffc76782de1d394b",
+            "symbol": "CREATE FUNCTION pharmacy_trading_scope_state_guard()"
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/licence_revocations.go",
+            "sha256": "325b63c31815fe13eb5d332532d2322154b0de8f1ea37b9373a7c9778e2665ec",
+            "symbol": "func (h *tradingScopeHandlers) revokeLicence("
+          }
+        ],
+        "remaining": [
+          "Complete and verify actual runtime/CI cases, current reciprocal relationship claims, effective named/group grants and minimized projections; a source classification is not runtime acceptance.",
+          "Complete both owner fulfilment paths, hospital discrepancy/receipt and financial composition plus real shared-environment web acceptance before claiming the full supplier workflow."
+        ]
+      }
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/commands/:command",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/commands/:command",
+        "permission": "pharmacy.trading_scope.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/commands/:command",
+        "registration_sha256": "cdb77b676963e196fa0676d1099399c54c95eb669a13e10ce46842caa16e655c",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified current tenant/actor, exact private pharmacy organization/outlet, licence and state/category fact record.",
+        "rationale": "The source-administration owner checks live membership/credentials through commit, followed by exact product outlet authorization. Scope approval requires a distinct account and reviewed available licence evidence. Immutable proposal/decision or revocation receipts bind original actor and intent. These facts do not establish professional, hospital Staff, clinical or trading authority; licence withdrawal denies current uses and preserves history.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/iam/source_administration.go",
+            "sha256": "1557df82c7fb0efb073b5eee7919f3f352cb779057e39496075513e1d1ca084a",
+            "symbol": "func (g *sourceAdministrationGuard) WithSourceAdministration("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/trading_scopes.go",
+            "sha256": "8916623930deb014490b586fed928d1c0145c1397f3e6b5b7aa55ad78455c4eb",
+            "symbol": "func (h *tradingScopeHandlers) transaction("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/trading_scopes.sql",
+            "sha256": "8401063281c81e528db82174ebc3c502d241780b14d35786ffc76782de1d394b",
+            "symbol": "CREATE FUNCTION pharmacy_trading_scope_state_guard()"
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/licence_revocations.go",
+            "sha256": "325b63c31815fe13eb5d332532d2322154b0de8f1ea37b9373a7c9778e2665ec",
+            "symbol": "func (h *tradingScopeHandlers) revokeLicence("
+          }
+        ],
+        "remaining": [
+          "Complete and verify actual runtime/CI cases, current reciprocal relationship claims, effective named/group grants and minimized projections; a source classification is not runtime acceptance.",
+          "Complete both owner fulfilment paths, hospital discrepancy/receipt and financial composition plus real shared-environment web acceptance before claiming the full supplier workflow."
+        ]
+      }
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/proposal-receipt",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/proposal-receipt",
+        "permission": "pharmacy.trading_scope.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/proposal-receipt",
+        "registration_sha256": "4382ab165d335f6a27f6104c23150b601b43c180b7acfa452a823a61d0ca0737",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified current tenant/actor, exact private pharmacy organization/outlet, licence and state/category fact record.",
+        "rationale": "The source-administration owner checks live membership/credentials through commit, followed by exact product outlet authorization. Scope approval requires a distinct account and reviewed available licence evidence. Immutable proposal/decision or revocation receipts bind original actor and intent. These facts do not establish professional, hospital Staff, clinical or trading authority; licence withdrawal denies current uses and preserves history.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/iam/source_administration.go",
+            "sha256": "1557df82c7fb0efb073b5eee7919f3f352cb779057e39496075513e1d1ca084a",
+            "symbol": "func (g *sourceAdministrationGuard) WithSourceAdministration("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/trading_scopes.go",
+            "sha256": "8916623930deb014490b586fed928d1c0145c1397f3e6b5b7aa55ad78455c4eb",
+            "symbol": "func (h *tradingScopeHandlers) transaction("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/trading_scopes.sql",
+            "sha256": "8401063281c81e528db82174ebc3c502d241780b14d35786ffc76782de1d394b",
+            "symbol": "CREATE FUNCTION pharmacy_trading_scope_state_guard()"
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/licence_revocations.go",
+            "sha256": "325b63c31815fe13eb5d332532d2322154b0de8f1ea37b9373a7c9778e2665ec",
+            "symbol": "func (h *tradingScopeHandlers) revokeLicence("
+          }
+        ],
+        "remaining": [
+          "Complete and verify actual runtime/CI cases, current reciprocal relationship claims, effective named/group grants and minimized projections; a source classification is not runtime acceptance.",
+          "Complete both owner fulfilment paths, hospital discrepancy/receipt and financial composition plus real shared-environment web acceptance before claiming the full supplier workflow."
+        ]
+      }
+    },
+    {
       "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/stock/positions",
       "kind": "http",
       "module": "pharmacy",
@@ -8113,6 +8387,54 @@
       "review": null
     },
     {
+      "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/revocations/:revocation",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "PUT",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/revocations/:revocation",
+        "permission": "pharmacy.licence.review",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/revocations/:revocation",
+        "registration_sha256": "d158c3a4e2442546e36266ccd8f28f9e95c35b5d457c8413470331708636f19f",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified current tenant/actor, exact private pharmacy organization/outlet, licence and state/category fact record.",
+        "rationale": "The source-administration owner checks live membership/credentials through commit, followed by exact product outlet authorization. Scope approval requires a distinct account and reviewed available licence evidence. Immutable proposal/decision or revocation receipts bind original actor and intent. These facts do not establish professional, hospital Staff, clinical or trading authority; licence withdrawal denies current uses and preserves history.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/iam/source_administration.go",
+            "sha256": "1557df82c7fb0efb073b5eee7919f3f352cb779057e39496075513e1d1ca084a",
+            "symbol": "func (g *sourceAdministrationGuard) WithSourceAdministration("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/trading_scopes.go",
+            "sha256": "8916623930deb014490b586fed928d1c0145c1397f3e6b5b7aa55ad78455c4eb",
+            "symbol": "func (h *tradingScopeHandlers) transaction("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/trading_scopes.sql",
+            "sha256": "8401063281c81e528db82174ebc3c502d241780b14d35786ffc76782de1d394b",
+            "symbol": "CREATE FUNCTION pharmacy_trading_scope_state_guard()"
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/licence_revocations.go",
+            "sha256": "325b63c31815fe13eb5d332532d2322154b0de8f1ea37b9373a7c9778e2665ec",
+            "symbol": "func (h *tradingScopeHandlers) revokeLicence("
+          }
+        ],
+        "remaining": [
+          "Complete and verify actual runtime/CI cases, current reciprocal relationship claims, effective named/group grants and minimized projections; a source classification is not runtime acceptance.",
+          "Complete both owner fulfilment paths, hospital discrepancy/receipt and financial composition plus real shared-environment web acceptance before claiming the full supplier workflow."
+        ]
+      }
+    },
+    {
       "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id",
       "kind": "http",
       "module": "pharmacy",
@@ -8287,6 +8609,102 @@
         "counted": false
       },
       "review": null
+    },
+    {
+      "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "PUT",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id",
+        "permission": "pharmacy.trading_scope.prepare",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id",
+        "registration_sha256": "06b8eb09e9fb5b20d95b609acdb173f50165ae1edbbb7515e8640a2b27eff4c4",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified current tenant/actor, exact private pharmacy organization/outlet, licence and state/category fact record.",
+        "rationale": "The source-administration owner checks live membership/credentials through commit, followed by exact product outlet authorization. Scope approval requires a distinct account and reviewed available licence evidence. Immutable proposal/decision or revocation receipts bind original actor and intent. These facts do not establish professional, hospital Staff, clinical or trading authority; licence withdrawal denies current uses and preserves history.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/iam/source_administration.go",
+            "sha256": "1557df82c7fb0efb073b5eee7919f3f352cb779057e39496075513e1d1ca084a",
+            "symbol": "func (g *sourceAdministrationGuard) WithSourceAdministration("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/trading_scopes.go",
+            "sha256": "8916623930deb014490b586fed928d1c0145c1397f3e6b5b7aa55ad78455c4eb",
+            "symbol": "func (h *tradingScopeHandlers) transaction("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/trading_scopes.sql",
+            "sha256": "8401063281c81e528db82174ebc3c502d241780b14d35786ffc76782de1d394b",
+            "symbol": "CREATE FUNCTION pharmacy_trading_scope_state_guard()"
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/licence_revocations.go",
+            "sha256": "325b63c31815fe13eb5d332532d2322154b0de8f1ea37b9373a7c9778e2665ec",
+            "symbol": "func (h *tradingScopeHandlers) revokeLicence("
+          }
+        ],
+        "remaining": [
+          "Complete and verify actual runtime/CI cases, current reciprocal relationship claims, effective named/group grants and minimized projections; a source classification is not runtime acceptance.",
+          "Complete both owner fulfilment paths, hospital discrepancy/receipt and financial composition plus real shared-environment web acceptance before claiming the full supplier workflow."
+        ]
+      }
+    },
+    {
+      "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/commands/:command",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "PUT",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/commands/:command",
+        "permission": "pharmacy.trading_scope.review",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/commands/:command",
+        "registration_sha256": "7a103953d8ec9d0ab10dd36fdd0522f39870d784efaf02ae1fff2df90d0bda21",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified current tenant/actor, exact private pharmacy organization/outlet, licence and state/category fact record.",
+        "rationale": "The source-administration owner checks live membership/credentials through commit, followed by exact product outlet authorization. Scope approval requires a distinct account and reviewed available licence evidence. Immutable proposal/decision or revocation receipts bind original actor and intent. These facts do not establish professional, hospital Staff, clinical or trading authority; licence withdrawal denies current uses and preserves history.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/iam/source_administration.go",
+            "sha256": "1557df82c7fb0efb073b5eee7919f3f352cb779057e39496075513e1d1ca084a",
+            "symbol": "func (g *sourceAdministrationGuard) WithSourceAdministration("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/trading_scopes.go",
+            "sha256": "8916623930deb014490b586fed928d1c0145c1397f3e6b5b7aa55ad78455c4eb",
+            "symbol": "func (h *tradingScopeHandlers) transaction("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/trading_scopes.sql",
+            "sha256": "8401063281c81e528db82174ebc3c502d241780b14d35786ffc76782de1d394b",
+            "symbol": "CREATE FUNCTION pharmacy_trading_scope_state_guard()"
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/licence_revocations.go",
+            "sha256": "325b63c31815fe13eb5d332532d2322154b0de8f1ea37b9373a7c9778e2665ec",
+            "symbol": "func (h *tradingScopeHandlers) revokeLicence("
+          }
+        ],
+        "remaining": [
+          "Complete and verify actual runtime/CI cases, current reciprocal relationship claims, effective named/group grants and minimized projections; a source classification is not runtime acceptance.",
+          "Complete both owner fulfilment paths, hospital discrepancy/receipt and financial composition plus real shared-environment web acceptance before claiming the full supplier workflow."
+        ]
+      }
     },
     {
       "id": "http privacy GET /v1/privacy/officer",
@@ -9457,6 +9875,198 @@
       "review": null
     },
     {
+      "id": "http supply GET /v1/supply/relationships/:relationship",
+      "kind": "http",
+      "module": "supply",
+      "registration": {
+        "source": "backend/internal/modules/supply/module.go",
+        "method": "GET",
+        "path": "/v1/supply/relationships/:relationship",
+        "permission": "supply.trade_relationship.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http supply GET /v1/supply/relationships/:relationship",
+        "registration_sha256": "1cbeb18c24ca239b5e0cf61c32945fbca334d11fb01c09554d7dbc765950d653",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified current tenant/actor and exact owned source product/organization/location plus immutable relationship/command.",
+        "rationale": "Administrative membership and session authority plus actual private product ownership guard preparation, disclosure and consent. Approvals check canonical platform identity and fresh peer/local source facts outside/inside the appropriate transaction boundaries; local state and authority are reacquired before commit. Receipt recovery is actor/intent-bound. Active consent is not an effective partner grant, physical stock or financial authority.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/supply/trade_relationships.go",
+            "sha256": "3950dad15d1df74d175740572dc80c831e3a162fc190ee65ded4978cf7a52ccd",
+            "symbol": "func (h *relationshipHandlers) readLocal("
+          },
+          {
+            "path": "backend/internal/modules/supply/trade_relationships.go",
+            "sha256": "3950dad15d1df74d175740572dc80c831e3a162fc190ee65ded4978cf7a52ccd",
+            "symbol": "func (h *relationshipHandlers) decide("
+          },
+          {
+            "path": "backend/internal/modules/iam/source_administration.go",
+            "sha256": "1557df82c7fb0efb073b5eee7919f3f352cb779057e39496075513e1d1ca084a",
+            "symbol": "func (g *sourceAdministrationGuard) WithSourceAdministration("
+          },
+          {
+            "path": "backend/internal/platform/trading_endpoints.go",
+            "sha256": "938e44502c2ba8690285acf1aeaf41238a3f437e81e0b52b7f9816e80033d77b",
+            "symbol": "func (g tradingEndpointOwners) WithTradingAdministration("
+          }
+        ],
+        "remaining": [
+          "Complete and verify actual runtime/CI cases, current reciprocal relationship claims, effective named/group grants and minimized projections; a source classification is not runtime acceptance.",
+          "Complete both owner fulfilment paths, hospital discrepancy/receipt and financial composition plus real shared-environment web acceptance before claiming the full supplier workflow."
+        ]
+      }
+    },
+    {
+      "id": "http supply GET /v1/supply/relationships/:relationship/commands/:command",
+      "kind": "http",
+      "module": "supply",
+      "registration": {
+        "source": "backend/internal/modules/supply/module.go",
+        "method": "GET",
+        "path": "/v1/supply/relationships/:relationship/commands/:command",
+        "permission": "supply.trade_relationship.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http supply GET /v1/supply/relationships/:relationship/commands/:command",
+        "registration_sha256": "e58963ddf79247bf244480a657e4fa5cda9e7e4879fa08f1b3ec86af24a28c50",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified current tenant/actor and exact owned source product/organization/location plus immutable relationship/command.",
+        "rationale": "Administrative membership and session authority plus actual private product ownership guard preparation, disclosure and consent. Approvals check canonical platform identity and fresh peer/local source facts outside/inside the appropriate transaction boundaries; local state and authority are reacquired before commit. Receipt recovery is actor/intent-bound. Active consent is not an effective partner grant, physical stock or financial authority.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/supply/trade_relationships.go",
+            "sha256": "3950dad15d1df74d175740572dc80c831e3a162fc190ee65ded4978cf7a52ccd",
+            "symbol": "func (h *relationshipHandlers) readLocal("
+          },
+          {
+            "path": "backend/internal/modules/supply/trade_relationships.go",
+            "sha256": "3950dad15d1df74d175740572dc80c831e3a162fc190ee65ded4978cf7a52ccd",
+            "symbol": "func (h *relationshipHandlers) decide("
+          },
+          {
+            "path": "backend/internal/modules/iam/source_administration.go",
+            "sha256": "1557df82c7fb0efb073b5eee7919f3f352cb779057e39496075513e1d1ca084a",
+            "symbol": "func (g *sourceAdministrationGuard) WithSourceAdministration("
+          },
+          {
+            "path": "backend/internal/platform/trading_endpoints.go",
+            "sha256": "938e44502c2ba8690285acf1aeaf41238a3f437e81e0b52b7f9816e80033d77b",
+            "symbol": "func (g tradingEndpointOwners) WithTradingAdministration("
+          }
+        ],
+        "remaining": [
+          "Complete and verify actual runtime/CI cases, current reciprocal relationship claims, effective named/group grants and minimized projections; a source classification is not runtime acceptance.",
+          "Complete both owner fulfilment paths, hospital discrepancy/receipt and financial composition plus real shared-environment web acceptance before claiming the full supplier workflow."
+        ]
+      }
+    },
+    {
+      "id": "http supply GET /v1/supply/relationships/:relationship/proposal-receipt",
+      "kind": "http",
+      "module": "supply",
+      "registration": {
+        "source": "backend/internal/modules/supply/module.go",
+        "method": "GET",
+        "path": "/v1/supply/relationships/:relationship/proposal-receipt",
+        "permission": "supply.trade_relationship.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http supply GET /v1/supply/relationships/:relationship/proposal-receipt",
+        "registration_sha256": "cb044a41d2e2af71384c8241c5cd129fa0cc6b7eb7520a87cab49fc30a4ad381",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified current tenant/actor and exact owned source product/organization/location plus immutable relationship/command.",
+        "rationale": "Administrative membership and session authority plus actual private product ownership guard preparation, disclosure and consent. Approvals check canonical platform identity and fresh peer/local source facts outside/inside the appropriate transaction boundaries; local state and authority are reacquired before commit. Receipt recovery is actor/intent-bound. Active consent is not an effective partner grant, physical stock or financial authority.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/supply/trade_relationships.go",
+            "sha256": "3950dad15d1df74d175740572dc80c831e3a162fc190ee65ded4978cf7a52ccd",
+            "symbol": "func (h *relationshipHandlers) readLocal("
+          },
+          {
+            "path": "backend/internal/modules/supply/trade_relationships.go",
+            "sha256": "3950dad15d1df74d175740572dc80c831e3a162fc190ee65ded4978cf7a52ccd",
+            "symbol": "func (h *relationshipHandlers) decide("
+          },
+          {
+            "path": "backend/internal/modules/iam/source_administration.go",
+            "sha256": "1557df82c7fb0efb073b5eee7919f3f352cb779057e39496075513e1d1ca084a",
+            "symbol": "func (g *sourceAdministrationGuard) WithSourceAdministration("
+          },
+          {
+            "path": "backend/internal/platform/trading_endpoints.go",
+            "sha256": "938e44502c2ba8690285acf1aeaf41238a3f437e81e0b52b7f9816e80033d77b",
+            "symbol": "func (g tradingEndpointOwners) WithTradingAdministration("
+          }
+        ],
+        "remaining": [
+          "Complete and verify actual runtime/CI cases, current reciprocal relationship claims, effective named/group grants and minimized projections; a source classification is not runtime acceptance.",
+          "Complete both owner fulfilment paths, hospital discrepancy/receipt and financial composition plus real shared-environment web acceptance before claiming the full supplier workflow."
+        ]
+      }
+    },
+    {
+      "id": "http supply GET /v1/supply/trading-sources/:product/:organization/locations/:location/relationships",
+      "kind": "http",
+      "module": "supply",
+      "registration": {
+        "source": "backend/internal/modules/supply/module.go",
+        "method": "GET",
+        "path": "/v1/supply/trading-sources/:product/:organization/locations/:location/relationships",
+        "permission": "supply.trade_relationship.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": {
+        "id": "http supply GET /v1/supply/trading-sources/:product/:organization/locations/:location/relationships",
+        "registration_sha256": "66e9df70ecd25b06f4631782f062649ffd1e91041367ce4cd48685cdfc35fae0",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified current tenant/actor and exact owned source product/organization/location plus immutable relationship/command.",
+        "rationale": "Administrative membership and session authority plus actual private product ownership guard preparation, disclosure and consent. Approvals check canonical platform identity and fresh peer/local source facts outside/inside the appropriate transaction boundaries; local state and authority are reacquired before commit. Receipt recovery is actor/intent-bound. Active consent is not an effective partner grant, physical stock or financial authority.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/supply/trade_relationships.go",
+            "sha256": "3950dad15d1df74d175740572dc80c831e3a162fc190ee65ded4978cf7a52ccd",
+            "symbol": "func (h *relationshipHandlers) readLocal("
+          },
+          {
+            "path": "backend/internal/modules/supply/trade_relationships.go",
+            "sha256": "3950dad15d1df74d175740572dc80c831e3a162fc190ee65ded4978cf7a52ccd",
+            "symbol": "func (h *relationshipHandlers) decide("
+          },
+          {
+            "path": "backend/internal/modules/iam/source_administration.go",
+            "sha256": "1557df82c7fb0efb073b5eee7919f3f352cb779057e39496075513e1d1ca084a",
+            "symbol": "func (g *sourceAdministrationGuard) WithSourceAdministration("
+          },
+          {
+            "path": "backend/internal/platform/trading_endpoints.go",
+            "sha256": "938e44502c2ba8690285acf1aeaf41238a3f437e81e0b52b7f9816e80033d77b",
+            "symbol": "func (g tradingEndpointOwners) WithTradingAdministration("
+          }
+        ],
+        "remaining": [
+          "Complete and verify actual runtime/CI cases, current reciprocal relationship claims, effective named/group grants and minimized projections; a source classification is not runtime acceptance.",
+          "Complete both owner fulfilment paths, hospital discrepancy/receipt and financial composition plus real shared-environment web acceptance before claiming the full supplier workflow."
+        ]
+      }
+    },
+    {
       "id": "http supply POST /v1/supply/parties/:party/licenses/:license/evidence/:file/retry/:attempt",
       "kind": "http",
       "module": "supply",
@@ -9871,6 +10481,102 @@
         "counted": false
       },
       "review": null
+    },
+    {
+      "id": "http supply PUT /v1/supply/relationships/:relationship",
+      "kind": "http",
+      "module": "supply",
+      "registration": {
+        "source": "backend/internal/modules/supply/module.go",
+        "method": "PUT",
+        "path": "/v1/supply/relationships/:relationship",
+        "permission": "supply.trade_relationship.prepare",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http supply PUT /v1/supply/relationships/:relationship",
+        "registration_sha256": "5c0354e81c983f04bf76127b3107069de781dc9830700449de7e2584e06ca112",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified current tenant/actor and exact owned source product/organization/location plus immutable relationship/command.",
+        "rationale": "Administrative membership and session authority plus actual private product ownership guard preparation, disclosure and consent. Approvals check canonical platform identity and fresh peer/local source facts outside/inside the appropriate transaction boundaries; local state and authority are reacquired before commit. Receipt recovery is actor/intent-bound. Active consent is not an effective partner grant, physical stock or financial authority.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/supply/trade_relationships.go",
+            "sha256": "3950dad15d1df74d175740572dc80c831e3a162fc190ee65ded4978cf7a52ccd",
+            "symbol": "func (h *relationshipHandlers) readLocal("
+          },
+          {
+            "path": "backend/internal/modules/supply/trade_relationships.go",
+            "sha256": "3950dad15d1df74d175740572dc80c831e3a162fc190ee65ded4978cf7a52ccd",
+            "symbol": "func (h *relationshipHandlers) decide("
+          },
+          {
+            "path": "backend/internal/modules/iam/source_administration.go",
+            "sha256": "1557df82c7fb0efb073b5eee7919f3f352cb779057e39496075513e1d1ca084a",
+            "symbol": "func (g *sourceAdministrationGuard) WithSourceAdministration("
+          },
+          {
+            "path": "backend/internal/platform/trading_endpoints.go",
+            "sha256": "938e44502c2ba8690285acf1aeaf41238a3f437e81e0b52b7f9816e80033d77b",
+            "symbol": "func (g tradingEndpointOwners) WithTradingAdministration("
+          }
+        ],
+        "remaining": [
+          "Complete and verify actual runtime/CI cases, current reciprocal relationship claims, effective named/group grants and minimized projections; a source classification is not runtime acceptance.",
+          "Complete both owner fulfilment paths, hospital discrepancy/receipt and financial composition plus real shared-environment web acceptance before claiming the full supplier workflow."
+        ]
+      }
+    },
+    {
+      "id": "http supply PUT /v1/supply/relationships/:relationship/commands/:command",
+      "kind": "http",
+      "module": "supply",
+      "registration": {
+        "source": "backend/internal/modules/supply/module.go",
+        "method": "PUT",
+        "path": "/v1/supply/relationships/:relationship/commands/:command",
+        "permission": "supply.trade_relationship.review",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http supply PUT /v1/supply/relationships/:relationship/commands/:command",
+        "registration_sha256": "4f5fd949f5dae39bce00997b01a23a200d3a81a0fecf6edb5333aabe9ff5f088",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified current tenant/actor and exact owned source product/organization/location plus immutable relationship/command.",
+        "rationale": "Administrative membership and session authority plus actual private product ownership guard preparation, disclosure and consent. Approvals check canonical platform identity and fresh peer/local source facts outside/inside the appropriate transaction boundaries; local state and authority are reacquired before commit. Receipt recovery is actor/intent-bound. Active consent is not an effective partner grant, physical stock or financial authority.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/supply/trade_relationships.go",
+            "sha256": "3950dad15d1df74d175740572dc80c831e3a162fc190ee65ded4978cf7a52ccd",
+            "symbol": "func (h *relationshipHandlers) readLocal("
+          },
+          {
+            "path": "backend/internal/modules/supply/trade_relationships.go",
+            "sha256": "3950dad15d1df74d175740572dc80c831e3a162fc190ee65ded4978cf7a52ccd",
+            "symbol": "func (h *relationshipHandlers) decide("
+          },
+          {
+            "path": "backend/internal/modules/iam/source_administration.go",
+            "sha256": "1557df82c7fb0efb073b5eee7919f3f352cb779057e39496075513e1d1ca084a",
+            "symbol": "func (g *sourceAdministrationGuard) WithSourceAdministration("
+          },
+          {
+            "path": "backend/internal/platform/trading_endpoints.go",
+            "sha256": "938e44502c2ba8690285acf1aeaf41238a3f437e81e0b52b7f9816e80033d77b",
+            "symbol": "func (g tradingEndpointOwners) WithTradingAdministration("
+          }
+        ],
+        "remaining": [
+          "Complete and verify actual runtime/CI cases, current reciprocal relationship claims, effective named/group grants and minimized projections; a source classification is not runtime acceptance.",
+          "Complete both owner fulfilment paths, hospital discrepancy/receipt and financial composition plus real shared-environment web acceptance before claiming the full supplier workflow."
+        ]
+      }
     },
     {
       "id": "http workforce DELETE /v1/workforce/hospitals/:hospital/access/:subject",

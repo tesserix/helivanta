@@ -3183,6 +3183,24 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/revocations/:revocation",
+          "permission": "pharmacy.licence.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/revocations/:revocation",
+          "permission": "pharmacy.licence.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "PUT",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id",
           "permission": "pharmacy.licence.manage",
@@ -3715,6 +3733,60 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/commands/:command",
+          "permission": "pharmacy.trading_scope.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/commands/:command",
+          "permission": "pharmacy.trading_scope.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/proposal-receipt",
+          "permission": "pharmacy.trading_scope.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id",
+          "permission": "pharmacy.trading_scope.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id",
+          "permission": "pharmacy.trading_scope.prepare",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes",
+          "permission": "pharmacy.trading_scope.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet",
           "permission": "pharmacy.catalogue.read",
           "authentication_required": true,
@@ -3846,6 +3918,18 @@
         },
         {
           "permission": "pharmacy.tax.manage",
+          "roles": ["pharmacy_owner"]
+        },
+        {
+          "permission": "pharmacy.trading_scope.read",
+          "roles": ["pharmacy_owner"]
+        },
+        {
+          "permission": "pharmacy.trading_scope.prepare",
+          "roles": ["pharmacy_owner"]
+        },
+        {
+          "permission": "pharmacy.trading_scope.review",
           "roles": ["pharmacy_owner"]
         },
         {
@@ -4272,6 +4356,19 @@
             "pharmacy_staff_binding_commands",
             "pharmacy_staff_binding_audit"
           ]
+        },
+        {
+          "id": "0035_pharmacy_trading_scope",
+          "sql_sha256": "43834528047824648c5665af46f84ec6d4752ceeae7db519ca70f35762c18652",
+          "creates_tables": [
+            "pharmacy_trading_scopes",
+            "pharmacy_trading_scope_commands"
+          ]
+        },
+        {
+          "id": "0036_pharmacy_trading_source",
+          "sql_sha256": "92e6df848d0721522370348509593e04d46f0b1a422030771d44b541ae1f9844",
+          "creates_tables": ["pharmacy_licence_revocations"]
         }
       ]
     },
@@ -5863,9 +5960,86 @@
           "membership_required": true,
           "paginated": true,
           "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/relationships/:relationship/commands/:command",
+          "permission": "supply.trade_relationship.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/supply/relationships/:relationship/commands/:command",
+          "permission": "supply.trade_relationship.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/relationships/:relationship/proposal-receipt",
+          "permission": "supply.trade_relationship.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/relationships/:relationship",
+          "permission": "supply.trade_relationship.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/supply/relationships/:relationship",
+          "permission": "supply.trade_relationship.prepare",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/trading-sources/:product/:organization/locations/:location/relationships",
+          "permission": "supply.trade_relationship.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
         }
       ],
       "grants": [
+        {
+          "permission": "supply.trade_relationship.read",
+          "roles": [
+            "supply_admin",
+            "supply_compliance",
+            "supply_auditor",
+            "pharmacy_owner",
+            "supply_owner"
+          ]
+        },
+        {
+          "permission": "supply.trade_relationship.prepare",
+          "roles": ["supply_admin", "pharmacy_owner", "supply_owner"]
+        },
+        {
+          "permission": "supply.trade_relationship.review",
+          "roles": [
+            "supply_admin",
+            "supply_compliance",
+            "pharmacy_owner",
+            "supply_owner"
+          ]
+        },
         {
           "permission": "supply.support.revoke",
           "roles": ["supply_admin", "supply_support", "supply_owner"]
@@ -6062,6 +6236,7 @@
         }
       ],
       "publishes": [
+        "helivanta.in.supply.relationship_exchange.v1",
         "helivanta.in.supply.stock_identity_recorded.v1",
         "helivanta.in.supply.stock_receipt_recorded.v1",
         "helivanta.in.supply.support_access_changed.v1",
@@ -6077,9 +6252,17 @@
         "helivanta.in.supply.evidence_changed.v1",
         "helivanta.in.supply.license_review_changed.v1"
       ],
-      "directed_subjects": [],
-      "directed_write_tables": [],
+      "directed_subjects": ["helivanta.in.supply.relationship_exchange.v1"],
+      "directed_write_tables": [
+        "supply_trade_relationships",
+        "supply_trade_relationship_history"
+      ],
       "consumers": [
+        {
+          "name": "supply-relationship-exchange",
+          "subject": "helivanta.in.supply.relationship_exchange.v1",
+          "after_commit": false
+        },
         {
           "name": "supply-evidence-scan",
           "subject": "helivanta.in.supply.evidence_scan_requested.v1",
@@ -6172,6 +6355,11 @@
         {
           "id": "0011_supply_employer_guard",
           "sql_sha256": "4765e6f85aec9cbe32c059ae7dac1cebd08947811cab219f72aa97fddde0b35b",
+          "creates_tables": []
+        },
+        {
+          "id": "0012_supply_trading_source",
+          "sql_sha256": "6e136cdec11a20e8974cb8f3566d284349bd339c3ea915462c26821864c4a0a6",
           "creates_tables": []
         }
       ]

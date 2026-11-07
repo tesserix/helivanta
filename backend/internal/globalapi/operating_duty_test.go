@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
@@ -66,6 +68,7 @@ func (g *operatingProjectionGate) ProjectOperatingAssignment(ctx context.Context
 }
 
 type operatingDutyFixture struct {
+	handler    http.Handler
 	authority  authz.OperatingScopeAuthorizer
 	principal  authn.Principal
 	graph      *authz.Client
@@ -78,17 +81,35 @@ type operatingDutyFixture struct {
 }
 
 func newOperatingDutyFixture(t *testing.T) operatingDutyFixture {
+	return newOperatingDutyFixtureWithOwners(t, nil)
+}
+func newOperatingDutyFixtureWithOwners(t *testing.T, documents *attachments.GCS, extra ...platform.Module) operatingDutyFixture {
 	t.Helper()
 	graph, err := authz.NewClient(t.Context(), testinfra.StartOpenFGA(t), testinfra.IsolationKey(t))
 	require.NoError(t, err)
 	admin := []authz.Permission{iam.PermMemberManage, iam.PermOperatingRead, iam.PermOperatingPrepare, iam.PermOperatingReview, iam.PermOperatingRevoke, workforce.PermSupplierManage, workforce.PermIndependentLoginManage, workforce.PermIndependentLoginReview, supply.PermPartyWrite, supply.PermOrganizationManage, supply.PermPremiseWrite, drugmaster.PermStockReferenceRead}
 	projection := &operatingProjectionGate{Client: graph}
-	modules := []platform.Module{iam.New(nil), supply.New(), workforce.New(), drugmaster.New()}
+	modules := append([]platform.Module{iam.New(nil), supply.New(), workforce.New(), drugmaster.New()}, extra...)
+	for _, m := range modules {
+		for _, grant := range m.Permissions() {
+			admin = append(admin, grant.Permission)
+		}
+	}
 	authenticatedAt := time.Now().Add(-time.Minute)
-	backend, db, _, fixtureCtx := testutil.NewHarness(t, testutil.HarnessOptions{Verifier: operatingVerifier{at: authenticatedAt}, Writer: projection, Roles: graph, OperatingAuthorizer: func(db *tenantdb.DB) authz.OperatingScopeAuthorizer {
+	backend, db, _, fixtureCtx := testutil.NewHarness(t, testutil.HarnessOptions{Documents: documents, PharmacyEvidenceEnabled: documents != nil, SourceAdministration: func(db *tenantdb.DB) authz.SourceAdministrationGuard {
+		return iam.NewSourceAdministrationGuard(db, graph)
+	}, Verifier: operatingVerifier{at: authenticatedAt}, Writer: projection, Roles: graph, OperatingAuthorizer: func(db *tenantdb.DB) authz.OperatingScopeAuthorizer {
 		return iam.NewOperatingAuthorizer(db, graph, platform.IndependentStaffIdentities(modules, db), platform.OperatingLocations(modules, db))
 	}, Tokens: map[string]string{"owner": testutil.TenantA, "reviewer": testutil.TenantA, "receiver": testutil.TenantA, "foreign": testutil.TenantB}, Perms: map[string][]authz.Permission{"owner": admin, "reviewer": admin, "foreign": admin}, Modules: modules})
 
+	for _, m := range modules {
+		for _, grant := range m.Permissions() {
+			require.NoError(t, graph.GrantPermission(t.Context(), testutil.TenantA, grant.Permission, authz.RoleTenantAdmin))
+			for _, role := range grant.Roles {
+				require.NoError(t, graph.GrantPermission(t.Context(), testutil.TenantA, grant.Permission, role))
+			}
+		}
+	}
 	// The request fixture's resolver is not proof: install the registered admin grants in real OpenFGA.
 	for _, permission := range []authz.Permission{iam.PermOperatingRead, iam.PermOperatingPrepare, iam.PermOperatingReview, iam.PermOperatingRevoke} {
 		require.NoError(t, graph.GrantPermission(t.Context(), testutil.TenantA, permission, authz.RoleTenantAdmin))
@@ -99,7 +120,7 @@ func newOperatingDutyFixture(t *testing.T) operatingDutyFixture {
 	}
 	server := httptest.NewServer(backend)
 	t.Cleanup(server.Close)
-	gateway, err := New(Config{Development: true, Timeout: 5 * time.Second, Upstreams: map[string]string{"platform": server.URL, "workforce": server.URL, "supply": server.URL}})
+	gateway, err := New(Config{Development: true, Timeout: 5 * time.Second, Upstreams: map[string]string{"platform": server.URL, "workforce": server.URL, "supply": server.URL, "pharmacy": server.URL}})
 	require.NoError(t, err)
 	call := func(method, path, actor string, input any, status int) string {
 		body := ""
@@ -151,7 +172,7 @@ func newOperatingDutyFixture(t *testing.T) operatingDutyFixture {
 	now := time.Now().UTC().Truncate(time.Second)
 	input := iam.OperatingDutyInput{Scope: iam.OperatingDutyScope{EmployerKind: "supplier", EmployerID: party, LocationID: premise, ExpectedEmployerVersion: 1, ExpectedLocationVersion: 1}, Identity: iam.OperatingDutyIdentity{StaffID: staff, StaffVersion: 1, LinkID: link, LinkVersion: 2}, Subject: "user-receiver", TemplateKey: "supply.inventory_receiver.v1", Reason: "TEST scoped warehouse receiving duty", ValidFrom: now.Add(-time.Minute), ExpiresAt: now.Add(time.Hour)}
 	duty := "/v1/iam/operating-duties/" + uuid.Must(uuid.NewV7()).String()
-	return operatingDutyFixture{call: call, input: input, duty: duty, graph: graph, projection: projection, db: db, ctx: fixtureCtx, authority: iam.NewOperatingAuthorizer(db, graph, platform.IndependentStaffIdentities(modules, db), platform.OperatingLocations(modules, db)), principal: authn.Principal{TenantID: testutil.TenantA, Subject: "user-receiver", AuthTime: authenticatedAt, IdleDeadline: authenticatedAt.Add(time.Hour)}}
+	return operatingDutyFixture{handler: gateway, call: call, input: input, duty: duty, graph: graph, projection: projection, db: db, ctx: fixtureCtx, authority: iam.NewOperatingAuthorizer(db, graph, platform.IndependentStaffIdentities(modules, db), platform.OperatingLocations(modules, db)), principal: authn.Principal{TenantID: testutil.TenantA, Subject: "user-receiver", AuthTime: authenticatedAt, IdleDeadline: authenticatedAt.Add(time.Hour)}}
 }
 func TestIndependentOperatingDutyPreparationBindsCurrentSourceAndIdentity(t *testing.T) {
 	fixture := newOperatingDutyFixture(t)
@@ -450,4 +471,33 @@ func TestIndependentOperatingDutyDirectoryIsBoundedAndEmployerPrivate(t *testing
 	require.Contains(t, final, `"has_more":false`)
 	f.call("DELETE", "/v1/workforce/suppliers/"+f.input.Scope.EmployerID.String()+"/access/user-reviewer", "owner", nil, 204)
 	f.call("GET", list, "reviewer", nil, 404)
+}
+
+func TestCurrentSourceAdministrationPreservesCredentialAndPrivatePurposeBoundaries(t *testing.T) {
+	f := newOperatingDutyFixture(t)
+	guard := iam.NewSourceAdministrationGuard(f.db, f.projection.Client)
+	p := authn.Principal{TenantID: testutil.TenantA, Subject: "user-owner", AuthTime: time.Now().Add(-time.Minute), IdleDeadline: time.Now().Add(time.Hour)}
+	calls := 0
+	action := func(ctx context.Context) error {
+		calls++
+		return f.db.WithTenantCommand(ctx, p.TenantID, func(tx *gorm.DB) error {
+			var access, command string
+			if err := tx.Raw(`SELECT COALESCE(current_setting('app.iam_operating_access',true),''),COALESCE(current_setting('app.iam_operating_command',true),'')`).Row().Scan(&access, &command); err != nil {
+				return err
+			}
+			require.Empty(t, access)
+			require.Empty(t, command)
+			return nil
+		})
+	}
+	require.NoError(t, guard.WithSourceAdministration(t.Context(), p, iam.PermOperatingRead, action))
+	require.Equal(t, 1, calls)
+	denied := p
+	denied.Subject = "user-receiver"
+	require.ErrorIs(t, guard.WithSourceAdministration(t.Context(), denied, iam.PermOperatingRead, action), authz.ErrScopedCommandDenied)
+	require.NoError(t, f.db.WithSystem(t.Context(), func(tx *gorm.DB) error {
+		return iam.NewRevocationChecker(f.db).RevokeTx(tx, "user-owner", time.Now().UTC(), "sign_out", "user-owner")
+	}))
+	require.ErrorIs(t, guard.WithSourceAdministration(t.Context(), p, iam.PermOperatingRead, action), authz.ErrScopedCredentialRevoked)
+	require.Equal(t, 1, calls)
 }

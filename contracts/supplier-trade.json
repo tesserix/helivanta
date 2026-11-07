@@ -1,0 +1,537 @@
+{
+  "maximum_validity_days": 366,
+  "models": {
+    "SupplierTradeEndpoint": [
+      {
+        "name": "tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "product",
+        "type": "string",
+        "enum": ["supply", "pharmacy"]
+      },
+      {
+        "name": "organization_id",
+        "type": "uuid"
+      },
+      {
+        "name": "location_id",
+        "type": "uuid"
+      },
+      {
+        "name": "organization_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "location_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "licence_id",
+        "type": "uuid"
+      },
+      {
+        "name": "licence_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "jurisdiction",
+        "type": "string",
+        "enum": ["IN-MH", "IN-OD"]
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "binding_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "binding_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991,
+        "optional": true
+      },
+      {
+        "name": "registration_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "registration_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991,
+        "optional": true
+      }
+    ],
+    "SupplierTradeTerms": [
+      {
+        "name": "seller",
+        "type": "SupplierTradeEndpoint"
+      },
+      {
+        "name": "buyer",
+        "type": "SupplierTradeEndpoint"
+      },
+      {
+        "name": "category",
+        "type": "string",
+        "policy_field": "category"
+      },
+      {
+        "name": "currency",
+        "type": "string",
+        "enum": ["INR"]
+      },
+      {
+        "name": "valid_from",
+        "type": "time"
+      },
+      {
+        "name": "expires_at",
+        "type": "time"
+      },
+      {
+        "name": "terms_reference",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 200
+      }
+    ],
+    "SupplierTradeEndpointReference": [
+      {
+        "name": "endpoint",
+        "type": "SupplierTradeEndpoint"
+      },
+      {
+        "name": "category",
+        "type": "string",
+        "policy_field": "category"
+      },
+      {
+        "name": "operation",
+        "type": "string",
+        "enum": ["listing", "order", "dispatch"]
+      },
+      {
+        "name": "licence_review_id",
+        "type": "uuid"
+      },
+      {
+        "name": "licence_review_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "policy_version",
+        "type": "uuid"
+      }
+    ],
+    "PharmacyTradingScopeInput": [
+      {
+        "name": "licence_id",
+        "type": "uuid"
+      },
+      {
+        "name": "jurisdiction",
+        "type": "string",
+        "enum": ["IN-MH", "IN-OD"]
+      },
+      {
+        "name": "category",
+        "type": "string",
+        "policy_field": "category"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "attest_premise_and_licence_scope",
+        "type": "bool",
+        "required_true": "Confirm the exact premise and licensed scope."
+      }
+    ],
+    "PharmacyTradingScopeCommand": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "decision",
+        "type": "string",
+        "enum": ["approve", "reject", "revoke"]
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "attest_premise_and_licence_scope",
+        "type": "bool"
+      }
+    ],
+    "PharmacyTradingScope": [
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "pharmacy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "outlet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "input",
+        "type": "PharmacyTradingScopeInput"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["pending_review", "approved", "rejected", "revoked"]
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "prepared_by",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "PharmacyTradingScopeReceipt": [
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "input",
+        "type": "PharmacyTradingScopeCommand"
+      },
+      {
+        "name": "result",
+        "type": "PharmacyTradingScope"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "PharmacyLicenceRevocationInput": [
+      {
+        "name": "reason",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 500
+      }
+    ],
+    "PharmacyLicenceRevocation": [
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "outlet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "licence_id",
+        "type": "uuid"
+      },
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "input",
+        "type": "PharmacyLicenceRevocationInput"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "revoked_at",
+        "type": "time"
+      }
+    ],
+    "SupplierTradeSourceCheckInput": [
+      {
+        "name": "request_id",
+        "type": "uuid"
+      },
+      {
+        "name": "endpoint",
+        "type": "SupplierTradeEndpoint"
+      },
+      {
+        "name": "category",
+        "type": "string",
+        "policy_field": "category"
+      },
+      {
+        "name": "operation",
+        "type": "string",
+        "enum": ["listing", "order", "dispatch"]
+      }
+    ],
+    "SupplierTradeSourceCheckResult": [
+      {
+        "name": "request_id",
+        "type": "uuid"
+      },
+      {
+        "name": "verification_kind",
+        "type": "string",
+        "enum": ["local_source_eligibility"]
+      },
+      {
+        "name": "eligible",
+        "type": "bool"
+      },
+      {
+        "name": "reference",
+        "type": "SupplierTradeEndpointReference",
+        "optional": true
+      },
+      {
+        "name": "observed_at",
+        "type": "time"
+      }
+    ],
+    "SupplierRelationshipInput": [
+      {
+        "name": "terms",
+        "type": "SupplierTradeTerms"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 500
+      }
+    ],
+    "SupplierRelationshipCommand": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "decision",
+        "type": "string",
+        "enum": ["approve", "reject", "suspend"]
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 500
+      }
+    ],
+    "SupplierRelationship": [
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "side",
+        "type": "string",
+        "enum": ["seller", "buyer"]
+      },
+      {
+        "name": "terms",
+        "type": "SupplierTradeTerms"
+      },
+      {
+        "name": "terms_sha256",
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "pending_review",
+          "offered",
+          "incoming",
+          "accepted_pending_ack",
+          "active",
+          "rejected",
+          "suspended"
+        ]
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "authority_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "remote_epoch",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740991
+      },
+      {
+        "name": "prepared_by",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "signed_by",
+        "type": "string",
+        "optional": true,
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "remote_signed_by",
+        "type": "string",
+        "optional": true,
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "SupplierRelationshipReceipt": [
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "input",
+        "type": "SupplierRelationshipCommand"
+      },
+      {
+        "name": "result",
+        "type": "SupplierRelationship"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "SupplierRelationshipExchange": [
+      {
+        "name": "relationship_id",
+        "type": "uuid"
+      },
+      {
+        "name": "terms",
+        "type": "SupplierTradeTerms"
+      },
+      {
+        "name": "terms_sha256",
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      },
+      {
+        "name": "source_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "source_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "phase",
+        "type": "string",
+        "enum": ["offered", "accepted", "activated", "rejected", "suspended"]
+      },
+      {
+        "name": "signatory_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      }
+    ]
+  }
+}

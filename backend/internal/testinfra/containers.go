@@ -329,13 +329,20 @@ func pgForensics(ctx context.Context, name string) string {
 // the same privileges it holds in dev.
 func newDatabase(t *testing.T) string {
 	t.Helper()
-	ctx := context.Background()
 	name := fmt.Sprintf("hms_test_%d", pgSeq.Add(1))
+	if err := prepareDatabase(context.Background(), name); err != nil {
+		t.Fatal(err)
+	}
+	dropOnCleanup(t, name)
+	return name
+}
 
+// prepareDatabase creates name and gives it the harness's grants.
+func prepareDatabase(ctx context.Context, name string) error {
 	// CREATE DATABASE cannot run inside a transaction block, and psql
 	// wraps a multi-statement -c in one, so it gets an -c of its own.
 	if err := runSQL(ctx, "hms", `CREATE DATABASE `+name+` OWNER hms_owner;`); err != nil {
-		t.Fatalf("create database %s: %v%s", name, err, pgForensics(ctx, name))
+		return fmt.Errorf("create database %s: %w%s", name, err, pgForensics(ctx, name))
 	}
 	// If this is skipped the database still exists and still accepts
 	// connections, so the harness looks healthy and the failure lands much
@@ -371,9 +378,12 @@ func newDatabase(t *testing.T) string {
 		  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hms_app;
 		ALTER DEFAULT PRIVILEGES FOR ROLE hms_owner IN SCHEMA public
 		  GRANT USAGE, SELECT ON SEQUENCES TO hms_app;`); err != nil {
-		t.Fatalf("grant on %s: %v%s", name, err, pgForensics(ctx, name))
+		return fmt.Errorf("grant on %s: %w%s", name, err, pgForensics(ctx, name))
 	}
+	return nil
+}
 
+func dropOnCleanup(t *testing.T, name string) {
 	t.Cleanup(func() {
 		// Best effort, and the ONLY place here that may ignore psql's exit
 		// code — deliberately, not by the oversight runSQL exists to
@@ -382,7 +392,6 @@ func newDatabase(t *testing.T) string {
 		// failure here must not fail an otherwise passing test.
 		_ = runSQL(context.Background(), "hms", `DROP DATABASE IF EXISTS `+name+` WITH (FORCE);`)
 	})
-	return name
 }
 
 // One NATS server is shared by every test in a binary, like Postgres and
@@ -544,13 +553,16 @@ func StartProductionOwnerPostgres(t *testing.T) (string, string, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	name := strings.TrimPrefix(parsed.Path, "/")
-	if err := runSQL(t.Context(), name, `ALTER DATABASE `+name+` OWNER TO helivanta;
- ALTER SCHEMA public OWNER TO helivanta;
- ALTER DEFAULT PRIVILEGES FOR ROLE helivanta IN SCHEMA public GRANT SELECT,INSERT,UPDATE,DELETE ON TABLES TO hms_app;
- ALTER DEFAULT PRIVILEGES FOR ROLE helivanta IN SCHEMA public GRANT USAGE,SELECT ON SEQUENCES TO hms_app;`); err != nil {
+	if err := ownByProduction(t.Context(), strings.TrimPrefix(parsed.Path, "/")); err != nil {
 		t.Fatal(err)
 	}
 	parsed.User = url.UserPassword("helivanta", productionOwnerPassword)
 	return app, parsed.String(), system
+}
+
+func ownByProduction(ctx context.Context, name string) error {
+	return runSQL(ctx, name, `ALTER DATABASE `+name+` OWNER TO helivanta;
+ ALTER SCHEMA public OWNER TO helivanta;
+ ALTER DEFAULT PRIVILEGES FOR ROLE helivanta IN SCHEMA public GRANT SELECT,INSERT,UPDATE,DELETE ON TABLES TO hms_app;
+ ALTER DEFAULT PRIVILEGES FOR ROLE helivanta IN SCHEMA public GRANT USAGE,SELECT ON SEQUENCES TO hms_app;`)
 }

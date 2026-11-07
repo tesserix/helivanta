@@ -169,6 +169,42 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/hospitals/:hospital/supplier-grant-offers/:id/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/iam/hospitals/:hospital/supplier-grant-offers/:id/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/hospitals/:hospital/supplier-grant-offers/:id",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/hospitals/:hospital/supplier-grant-offers",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/identity-assignment-proposals",
           "permission": "public",
           "authentication_required": true,
@@ -490,6 +526,60 @@
           "membership_required": true,
           "paginated": false,
           "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/supplier-access-assignment-proposals",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/supplier-grants/:id/commands/:command",
+          "permission": "iam.supplier_grant.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/iam/supplier-grants/:id/commands/:command",
+          "permission": "iam.supplier_grant.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/supplier-grants/:id",
+          "permission": "iam.supplier_grant.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/iam/supplier-grants/:id",
+          "permission": "iam.supplier_grant.prepare",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/supplier-sources/:product/:organization/locations/:location/grants",
+          "permission": "iam.supplier_grant.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
         }
       ],
       "grants": [
@@ -555,9 +645,53 @@
         {
           "permission": "iam.credential.revoke",
           "roles": []
+        },
+        {
+          "permission": "iam.supplier_grant.read",
+          "roles": [
+            "supply_owner",
+            "supply_admin",
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "iam.supplier_grant.prepare",
+          "roles": [
+            "supply_owner",
+            "supply_admin",
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "iam.supplier_grant.review",
+          "roles": [
+            "supply_owner",
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "iam.supplier_grant.accept",
+          "roles": []
+        },
+        {
+          "permission": "iam.supplier_grant.inbox.read",
+          "roles": []
+        },
+        {
+          "permission": "partner.catalogue.read",
+          "roles": []
+        },
+        {
+          "permission": "partner.shipment.read",
+          "roles": []
+        },
+        {
+          "permission": "partner.invoice.read",
+          "roles": []
         }
       ],
       "publishes": [
+        "helivanta.in.iam.supplier_grant_exchange.v1",
         "helivanta.in.iam.operating_assignment_changed.v1",
         "helivanta.in.iam.partner_group_hospital_scope_requested.v1",
         "helivanta.in.iam.partner_group_changed.v1",
@@ -569,9 +703,19 @@
         "helivanta.in.iam.member_revoked.v1",
         "helivanta.in.iam.credential_revoked.v1"
       ],
-      "directed_subjects": [],
-      "directed_write_tables": [],
+      "directed_subjects": [
+        "helivanta.in.iam.supplier_grant_exchange.v1"
+      ],
+      "directed_write_tables": [
+        "iam_supplier_grants",
+        "iam_supplier_grant_history"
+      ],
       "consumers": [
+        {
+          "name": "iam-supplier-grant-exchange",
+          "subject": "helivanta.in.iam.supplier_grant_exchange.v1",
+          "after_commit": false
+        },
         {
           "name": "iam-partner-group-hospital-scope",
           "subject": "helivanta.in.workforce.partner_group_hospital_scope_observed.v1",
@@ -865,6 +1009,22 @@
             "iam_operating_commands",
             "iam_operating_projection_acks"
           ]
+        },
+        {
+          "id": "0039_iam_supplier_grants",
+          "sql_sha256": "65ded563df48c058bd4415ef568ba91fde39da455caa11e3f45462fdde85b54f",
+          "creates_tables": [
+            "iam_supplier_grants",
+            "iam_supplier_grant_commands",
+            "iam_supplier_grant_history",
+            "iam_supplier_grant_bases",
+            "iam_supplier_grant_projection_acks"
+          ]
+        },
+        {
+          "id": "0040_iam_supplier_access_templates",
+          "sql_sha256": "9004858c26577f5b7d6fe2992c1e55b6ccf44984bcb25c230a730f28030149b4",
+          "creates_tables": []
         }
       ]
     },

@@ -135,6 +135,7 @@ function Assignments({ identity }: { identity: Identity }) {
   const postingLifecycleCatalog = useVerifiedStaffCatalog(scope, "staff-posting-lifecycle-v1");
   const postingSourceCatalog = useVerifiedStaffCatalog(scope, "staff-posting-source-v1");
   const partnerMembershipCatalog = useVerifiedStaffCatalog(scope, "partner-membership-v1");
+  const supplierAccessCatalog = useVerifiedStaffCatalog(scope, "hospital-supplier-access-v1");
   const pharmacyBindingCatalog = useVerifiedStaffCatalog(scope, "pharmacy-department-bindings-v1");
   const postingDepartmentCatalog = useVerifiedStaffCatalog(
     scope,
@@ -164,21 +165,23 @@ function Assignments({ identity }: { identity: Identity }) {
     postingDepartmentCatalog.supported;
   const templateKeys =
     staffAccessTemplateCatalogs[
-      family === "partner_membership"
-        ? "partner-membership-v1"
-        : family === "pharmacy_binding"
-          ? "pharmacy-department-bindings-v1"
-          : family === "posting"
-            ? postingCatalogName
-            : family === "intake"
-              ? "hr-intake-v1"
-              : family === "employment"
-                ? "employment-v1"
-                : family === "activation"
-                  ? "employment-activation-v1"
-                  : leaveDepartmentCatalog.supported
-                    ? "staff-department-leave-reviews-v1"
-                    : "legacy-v1"
+      family === "supplier_access"
+        ? "hospital-supplier-access-v1"
+        : family === "partner_membership"
+          ? "partner-membership-v1"
+          : family === "pharmacy_binding"
+            ? "pharmacy-department-bindings-v1"
+            : family === "posting"
+              ? postingCatalogName
+              : family === "intake"
+                ? "hr-intake-v1"
+                : family === "employment"
+                  ? "employment-v1"
+                  : family === "activation"
+                    ? "employment-activation-v1"
+                    : leaveDepartmentCatalog.supported
+                      ? "staff-department-leave-reviews-v1"
+                      : "legacy-v1"
     ];
   const intakeSupported = catalog.supported;
   const employmentSupported = employmentCatalog.supported;
@@ -200,25 +203,28 @@ function Assignments({ identity }: { identity: Identity }) {
     (family === "activation" && !activationSupported) ||
     (family === "posting" && !postingSupported) ||
     (family === "pharmacy_binding" && !pharmacyBindingCatalog.supported) ||
-    (family === "partner_membership" && !partnerMembershipCatalog.supported);
+    (family === "partner_membership" && !partnerMembershipCatalog.supported) ||
+    (family === "supplier_access" && !supplierAccessCatalog.supported);
   return (
     <Panel className="space-y-4">
       <p>
-        {family === "partner_membership"
-          ? "Partner team membership roles read, prepare or independently review named hospital members against current Staff, account-link and posting sources. They cannot publish groups, self-enrol, grant supplier access, or operate stock, clinical or financial records."
-          : family === "leave"
-            ? "Active leave-review assignments enable the Review leave page when the account also has an independently approved staff link. Both must remain current. A department leave reviewer decides leave only for Staff whose every current posting is in that department or its sub-units. These assignments grant no hospital administration, payroll or clinical authority."
-            : family === "pharmacy_binding"
-              ? "Pharmacy relationship preparers and independent reviewers link a hospital-owned outlet to its canonical department. They require a current reviewed Staff account and separate outlet editor access. These assignments grant no dispensing, professional, clinical or private HR access."
-              : family === "posting"
-                ? "Verified posting roles separate draft reading and preparation, proposal submission, independent review and hospital management attestation. Each requires a current reviewed digital Staff account. These assignments grant no operating or clinical access."
-                : family === "identity"
-                  ? "Identity manager and reviewer assignments have separate permissions for one hospital. They require a current staff account link and grant no hospital administration, payroll or clinical authority."
-                  : family === "employment"
-                    ? "Employment reviewers independently examine appointment terms and selected evidence at one hospital. They require a current reviewed staff account link. Approval of terms does not activate employment, login access, payroll or clinical authority."
-                    : family === "activation"
-                      ? "Employment activators use independently approved terms for one hospital and require separate current enrollment authority and a reviewed staff account link. This assignment alone grants no login, clinical or payroll access."
-                      : "HR intake administrators prepare Staff profiles, employment drafts and protected evidence at one hospital. They require a current reviewed staff account link and cannot approve employment, grant access, or manage payroll or clinical care."}
+        {family === "supplier_access"
+          ? "Supplier collaboration assignments let current hospital Staff open specifically approved supplier catalogues, shipments or invoices. Reviewers accept supplier offers for their hospital. These assignments do not approve their own access or grant supplier stock, clinical or financial decision authority."
+          : family === "partner_membership"
+            ? "Partner team membership roles read, prepare or independently review named hospital members against current Staff, account-link and posting sources. They cannot publish groups, self-enrol, grant supplier access, or operate stock, clinical or financial records."
+            : family === "leave"
+              ? "Active leave-review assignments enable the Review leave page when the account also has an independently approved staff link. Both must remain current. A department leave reviewer decides leave only for Staff whose every current posting is in that department or its sub-units. These assignments grant no hospital administration, payroll or clinical authority."
+              : family === "pharmacy_binding"
+                ? "Pharmacy relationship preparers and independent reviewers link a hospital-owned outlet to its canonical department. They require a current reviewed Staff account and separate outlet editor access. These assignments grant no dispensing, professional, clinical or private HR access."
+                : family === "posting"
+                  ? "Verified posting roles separate draft reading and preparation, proposal submission, independent review and hospital management attestation. Each requires a current reviewed digital Staff account. These assignments grant no operating or clinical access."
+                  : family === "identity"
+                    ? "Identity manager and reviewer assignments have separate permissions for one hospital. They require a current staff account link and grant no hospital administration, payroll or clinical authority."
+                    : family === "employment"
+                      ? "Employment reviewers independently examine appointment terms and selected evidence at one hospital. They require a current reviewed staff account link. Approval of terms does not activate employment, login access, payroll or clinical authority."
+                      : family === "activation"
+                        ? "Employment activators use independently approved terms for one hospital and require separate current enrollment authority and a reviewed staff account link. This assignment alone grants no login, clinical or payroll access."
+                        : "HR intake administrators prepare Staff profiles, employment drafts and protected evidence at one hospital. They require a current reviewed staff account link and cannot approve employment, grant access, or manage payroll or clinical care."}
       </p>
       <p>
         Proposing and reviewing require current tenant administrator membership and a hospital
@@ -238,6 +244,9 @@ function Assignments({ identity }: { identity: Identity }) {
           options={[
             { value: "leave", label: "Leave review" },
             { value: "identity", label: "Staff identity checks" },
+            ...(supplierAccessCatalog.supported || family === "supplier_access"
+              ? [{ value: "supplier_access", label: "Supplier collaboration" }]
+              : []),
             ...(partnerMembershipCatalog.supported || family === "partner_membership"
               ? [{ value: "partner_membership", label: "Partner team memberships" }]
               : []),
@@ -311,6 +320,8 @@ function Assignments({ identity }: { identity: Identity }) {
             void postingReviewCatalog.refetch();
             void postingManagementCatalog.refetch();
             void pharmacyBindingCatalog.refetch();
+            void supplierAccessCatalog.refetch();
+            void partnerMembershipCatalog.refetch();
             void postingDepartmentCatalog.refetch();
           }}
         >

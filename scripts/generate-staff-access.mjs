@@ -134,6 +134,25 @@ for (const migration of migrations) {
           "Pharmacy binding templates require their exact role and Staff source permissions",
         );
     }
+    if (template?.family === "supplier_access") {
+      const role = template.key?.match(/^iam\.supplier_(viewer|reviewer)\.v[1-9][0-9]*$/)?.[1];
+      const permissions = [
+        "iam.supplier_grant.inbox.read",
+        ...(role === "viewer"
+          ? ["partner.catalogue.read", "partner.shipment.read", "partner.invoice.read"]
+          : ["iam.supplier_grant.accept"]),
+        "workforce.partner_member_source.use",
+        "workforce.posting_source.use",
+        "workforce.staff_actor.use",
+      ];
+      if (
+        !role ||
+        JSON.stringify(template.permissions) !== JSON.stringify(permissions) ||
+        JSON.stringify(template.scope_kinds) !== JSON.stringify(["hospital"]) ||
+        JSON.stringify(template.establishment_kinds) !== JSON.stringify(["hospital"])
+      )
+        throw new Error("Supplier templates require exact hospital-scoped permissions");
+    }
     if (template?.family === "partner_membership") {
       const role = template.key?.match(
         /^iam\.partner_group_member_(reader|preparer|reviewer)\.v[1-9][0-9]*$/,
@@ -217,11 +236,15 @@ for (const migration of migrations) {
       !declaredFields.every((field) => Object.hasOwn(template, field)) ||
       typeof template.key !== "string" ||
       template.key.length > templateLimits.key ||
-      !(template.family === "partner_membership"
-        ? /^iam\.partner_group_member_(reader|preparer|reviewer)\.v[1-9][0-9]*$/.test(template.key)
-        : template.family === "pharmacy_binding"
-          ? /^pharmacy\.department_binding_(preparer|reviewer)\.v[1-9][0-9]*$/.test(template.key)
-          : /^workforce\.[a-z_]+\.v[1-9][0-9]*$/.test(template.key)) ||
+      !(template.family === "supplier_access"
+        ? /^iam\.supplier_(viewer|reviewer)\.v[1-9][0-9]*$/.test(template.key)
+        : template.family === "partner_membership"
+          ? /^iam\.partner_group_member_(reader|preparer|reviewer)\.v[1-9][0-9]*$/.test(
+              template.key,
+            )
+          : template.family === "pharmacy_binding"
+            ? /^pharmacy\.department_binding_(preparer|reviewer)\.v[1-9][0-9]*$/.test(template.key)
+            : /^workforce\.[a-z_]+\.v[1-9][0-9]*$/.test(template.key)) ||
       keys.has(template.key) ||
       ![
         "leave",
@@ -232,6 +255,7 @@ for (const migration of migrations) {
         "posting",
         "pharmacy_binding",
         "partner_membership",
+        "supplier_access",
       ].includes(template.family) ||
       typeof template.name !== "string" ||
       !template.name ||
@@ -246,11 +270,16 @@ for (const migration of migrations) {
         : template.family !== "posting" &&
           template.family !== "pharmacy_binding" &&
           template.family !== "partner_membership" &&
+          template.family !== "supplier_access" &&
           template.family !== "leave" &&
           template.permissions.length !== 1) ||
       !template.permissions.every(
         (permission) =>
           /^workforce\.[a-z_.]+$/.test(permission) ||
+          (template.family === "supplier_access" &&
+            /^(iam\.supplier_grant\.(inbox\.read|accept)|partner\.(catalogue|shipment|invoice)\.read)$/.test(
+              permission,
+            )) ||
           (template.family === "partner_membership" &&
             /^iam\.partner_group\.members\.(read|prepare|review)$/.test(permission)) ||
           (template.family === "pharmacy_binding" &&

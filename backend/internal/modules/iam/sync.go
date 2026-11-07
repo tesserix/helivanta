@@ -111,6 +111,7 @@ func (h *fgaSyncHandlers) project(ctx context.Context, evt events.Event) error {
 func (*Module) Consumers(deps platform.Deps) []events.Consumer {
 	sync := &fgaSyncHandlers{db: deps.DB, authz: deps.Authz, reconcile: deps.Reconcile}
 	return []events.Consumer{
+		supplierGrantConsumer(),
 		partnerGroupHospitalObservationConsumer(),
 		proposalScopeConsumer(deps),
 		proposalDepartmentScopeConsumer(deps),

@@ -30,6 +30,10 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/hospitals/:hospital/partner-groups` | `public` | true | false |
 | GET | `/v1/iam/hospitals/:hospital/partner-member-candidates` | `public` | true | false |
 | GET | `/v1/iam/hospitals/:hospital/partner-member-capabilities` | `public` | false | false |
+| GET | `/v1/iam/hospitals/:hospital/supplier-grant-offers/:id/commands/:command` | `public` | false | false |
+| PUT | `/v1/iam/hospitals/:hospital/supplier-grant-offers/:id/commands/:command` | `public` | false | false |
+| GET | `/v1/iam/hospitals/:hospital/supplier-grant-offers/:id` | `public` | false | false |
+| GET | `/v1/iam/hospitals/:hospital/supplier-grant-offers` | `public` | true | false |
 | GET | `/v1/iam/identity-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/intake-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/me/permissions` | `no_tenant_membership` | false | false |
@@ -66,9 +70,16 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/roles` | `iam.member.manage` | false | false |
 | GET | `/v1/iam/staff-access-templates` | `public` | false | false |
 | POST | `/v1/iam/subjects/:subject/revoke` | `iam.credential.revoke` | false | false |
+| GET | `/v1/iam/supplier-access-assignment-proposals` | `public` | true | false |
+| GET | `/v1/iam/supplier-grants/:id/commands/:command` | `iam.supplier_grant.read` | false | false |
+| PUT | `/v1/iam/supplier-grants/:id/commands/:command` | `iam.supplier_grant.review` | false | false |
+| GET | `/v1/iam/supplier-grants/:id` | `iam.supplier_grant.read` | false | false |
+| PUT | `/v1/iam/supplier-grants/:id` | `iam.supplier_grant.prepare` | false | false |
+| GET | `/v1/iam/supplier-sources/:product/:organization/locations/:location/grants` | `iam.supplier_grant.read` | true | false |
 
 Published subjects:
 
+- `helivanta.in.iam.supplier_grant_exchange.v1`
 - `helivanta.in.iam.operating_assignment_changed.v1`
 - `helivanta.in.iam.partner_group_hospital_scope_requested.v1`
 - `helivanta.in.iam.partner_group_changed.v1`
@@ -82,6 +93,7 @@ Published subjects:
 
 Subscriptions:
 
+- `iam-supplier-grant-exchange` ← `helivanta.in.iam.supplier_grant_exchange.v1`; after-commit hook: false.
 - `iam-partner-group-hospital-scope` ← `helivanta.in.workforce.partner_group_hospital_scope_observed.v1`; after-commit hook: false.
 - `iam-assignment-scope` ← `helivanta.in.workforce.assignment_scope_verified.v1`; after-commit hook: false.
 - `iam-assignment-department-scope` ← `helivanta.in.organization.assignment_department_verified.v1`; after-commit hook: false.
@@ -90,6 +102,10 @@ Subscriptions:
 - `iam-fga-sync` ← `helivanta.in.iam.member_granted.v1`; after-commit hook: true.
 - `iam-fga-sync-revoke` ← `helivanta.in.iam.member_revoked.v1`; after-commit hook: true.
 - Fanout broadcast ← `helivanta.in.iam.credential_revoked.v1`.
+
+Directed allowlist: `helivanta.in.iam.supplier_grant_exchange.v1`.
+
+Directed-write provenance tables: `iam_supplier_grants`, `iam_supplier_grant_history`.
 
 Migration table declarations:
 
@@ -109,6 +125,7 @@ Migration table declarations:
 - `0036_iam_partner_members`: `iam_partner_members`, `iam_partner_group_cohorts`, `iam_partner_member_commands`.
 - `0037_iam_partner_grant_drafts`: `iam_partner_grant_drafts`.
 - `0038_iam_operating_duties`: `iam_operating_duties`, `iam_operating_duty_history`, `iam_operating_snapshots`, `iam_operating_commands`, `iam_operating_projection_acks`.
+- `0039_iam_supplier_grants`: `iam_supplier_grants`, `iam_supplier_grant_commands`, `iam_supplier_grant_history`, `iam_supplier_grant_bases`, `iam_supplier_grant_projection_acks`.
 
 ## reference
 

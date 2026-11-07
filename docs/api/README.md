@@ -90,3 +90,4 @@ Unreleased supplier workflow candidates: [supplier stock intake](supply-stock.md
 The unreleased [independent operating duty contract](operating-duties.md) records implemented administrative/projection boundaries and remaining product consumers.
 
 - [Supplier trade](supplier-trade.md): current source facts, pharmacy scope/withdrawal and bilateral consent; remaining effective-grant/fulfilment/financial consumers are explicitly not complete.
+- [Supplier access](supplier-access.md): source offers, hospital consent, current recipient and record-scoped projection gates; no supplier tenant membership.

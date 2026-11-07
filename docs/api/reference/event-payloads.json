@@ -923,6 +923,151 @@
       "type": "object"
     }
   },
+  "helivanta.in.iam.supplier_grant_exchange.v1": {
+    "source": "backend/internal/modules/iam/contract/supplier_access_types_generated.go:30",
+    "go_type": "SupplierGrantExchangeData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "grant_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "home_basis_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "input": {
+          "properties": {
+            "expires_at": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "recipient_group_id": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "recipient_kind": {
+              "type": "string"
+            },
+            "recipient_subject": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "relationship_id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "template_key": {
+              "type": "string"
+            },
+            "terms_sha256": {
+              "type": "string"
+            },
+            "valid_from": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          "required": [
+            "relationship_id",
+            "terms_sha256",
+            "recipient_kind",
+            "template_key",
+            "valid_from",
+            "expires_at",
+            "reason"
+          ],
+          "type": "object"
+        },
+        "input_sha256": {
+          "type": "string"
+        },
+        "phase": {
+          "type": "string"
+        },
+        "scope": {
+          "properties": {
+            "hospital_id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "recipient_tenant_id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "source_location_id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "source_organization_id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "source_product": {
+              "type": "string"
+            },
+            "source_tenant_id": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          "required": [
+            "source_tenant_id",
+            "recipient_tenant_id",
+            "hospital_id",
+            "source_product",
+            "source_organization_id",
+            "source_location_id"
+          ],
+          "type": "object"
+        },
+        "sender_epoch": {
+          "type": "integer"
+        },
+        "sender_tenant_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "signatory_subject": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "grant_id",
+        "scope",
+        "input",
+        "input_sha256",
+        "sender_tenant_id",
+        "sender_epoch",
+        "phase",
+        "signatory_subject"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.lab.result_ready.v1": {
     "source": "backend/internal/modules/lab/contract/events.go:10",
     "go_type": "ResultReadyData",

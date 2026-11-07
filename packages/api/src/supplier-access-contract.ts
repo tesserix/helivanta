@@ -174,6 +174,13 @@ export const SupplierGrantCommandReceiptContract = z
       .min(1)
       .max(200)
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    expected_version: z.number().int().min(1).max(9007199254740990),
+    operation: z.enum(["approve", "reject", "suspend"]),
+    reason: z
+      .string()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     grant: SupplierGrantContract,
     created_at: z.string().datetime({ offset: true }),
   })

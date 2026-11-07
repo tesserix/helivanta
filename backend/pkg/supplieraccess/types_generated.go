@@ -82,11 +82,14 @@ type SupplierGrantHospitalDecisionInput struct {
 }
 
 type SupplierGrantCommandReceipt struct {
-	ID           uuid.UUID     `json:"id"`
-	GrantID      uuid.UUID     `json:"grant_id"`
-	ActorSubject string        `json:"actor_subject"`
-	Grant        SupplierGrant `json:"grant"`
-	CreatedAt    time.Time     `json:"created_at"`
+	ID              uuid.UUID     `json:"id"`
+	GrantID         uuid.UUID     `json:"grant_id"`
+	ActorSubject    string        `json:"actor_subject"`
+	ExpectedVersion int64         `json:"expected_version"`
+	Operation       string        `json:"operation"`
+	Reason          string        `json:"reason"`
+	Grant           SupplierGrant `json:"grant"`
+	CreatedAt       time.Time     `json:"created_at"`
 }
 
 const maximumValidityDays = 366

@@ -113,6 +113,17 @@ func validState(r SupplierGrant) bool {
 	hash, err := InputHash(r.Scope, r.Input)
 	return err == nil && hash == r.InputSha256 && v7(r.ID) && r.Version >= 1 && r.Version <= maximumVersion && r.AuthorityEpoch >= 1 && r.AuthorityEpoch <= maximumVersion && r.RemoteEpoch >= 0 && r.RemoteEpoch <= maximumVersion && !r.CreatedAt.IsZero() && !r.UpdatedAt.Before(r.CreatedAt) && ((r.Side == "source" && r.OwnerTenantID == r.Scope.SourceTenantID) || (r.Side == "hospital" && r.OwnerTenantID == r.Scope.RecipientTenantID))
 }
+func ValidateRecord(r SupplierGrant) error {
+	if !validState(r) || (r.Side == "source" && !slices.Contains([]string{"pending_review", "offered", "approved", "rejected", "suspended"}, r.Status)) || (r.Side == "hospital" && !slices.Contains([]string{"incoming", "accepted_pending_ack", "approved", "rejected", "suspended"}, r.Status)) {
+		return ErrInvalid
+	}
+	if r.Status == "approved" || r.Status == "accepted_pending_ack" {
+		if r.SignedBy == nil || !subject(*r.SignedBy) || r.RemoteSignedBy == nil || !subject(*r.RemoteSignedBy) || *r.SignedBy == *r.RemoteSignedBy || r.HomeBasisSha256 == nil || !digestPattern.MatchString(*r.HomeBasisSha256) || r.RemoteEpoch < 1 {
+			return ErrInvalid
+		}
+	}
+	return nil
+}
 func exchange(r SupplierGrant, phase, actor string) *SupplierGrantExchange {
 	return &SupplierGrantExchange{GrantID: r.ID, Scope: r.Scope, Input: normalized(r.Input), InputSha256: r.InputSha256, SenderTenantID: r.OwnerTenantID, SenderEpoch: r.AuthorityEpoch, Phase: phase, SignatorySubject: actor, HomeBasisSha256: r.HomeBasisSha256}
 }
@@ -263,5 +274,5 @@ func Apply(current *SupplierGrant, e SupplierGrantExchange, destination uuid.UUI
 }
 func Current(grant SupplierGrant, relationship suppliertrade.Relationship, at time.Time) bool {
 	scope, err := scopeFor(relationship)
-	return err == nil && validState(grant) && suppliertrade.RelationshipCurrent(relationship, at) && grant.Scope == scope && grant.Input.RelationshipID == relationship.ID && grant.Input.TermsSha256 == relationship.TermsSha256 && grant.Status == "approved" && grant.SignedBy != nil && subject(*grant.SignedBy) && grant.RemoteSignedBy != nil && subject(*grant.RemoteSignedBy) && *grant.SignedBy != *grant.RemoteSignedBy && grant.HomeBasisSha256 != nil && digestPattern.MatchString(*grant.HomeBasisSha256) && !at.Before(grant.Input.ValidFrom) && at.Before(grant.Input.ExpiresAt)
+	return err == nil && ValidateRecord(grant) == nil && suppliertrade.RelationshipCurrent(relationship, at) && grant.Scope == scope && grant.Input.RelationshipID == relationship.ID && grant.Input.TermsSha256 == relationship.TermsSha256 && grant.Status == "approved" && !at.Before(grant.Input.ValidFrom) && at.Before(grant.Input.ExpiresAt)
 }

@@ -2,12 +2,12 @@ name: Supplier workflow regression tests
 on:
   pull_request:
     paths:
-      - 'backend/pkg/supplieraccess/**'
-      - 'backend/pkg/suppliertrade/**'
-      - 'backend/internal/modules/iam/**'
-      - 'backend/internal/modules/supply/**'
-      - 'backend/internal/modules/pharmacy/**'
-      - '.github/workflows/supplier-workflow.yml'
+      - "backend/pkg/supplieraccess/**"
+      - "backend/pkg/suppliertrade/**"
+      - "backend/internal/modules/iam/**"
+      - "backend/internal/modules/supply/**"
+      - "backend/internal/modules/pharmacy/**"
+      - ".github/workflows/supplier-workflow.yml"
 permissions:
   contents: read
 concurrency:
@@ -30,3 +30,7 @@ jobs:
           cache-dependency-path: backend/go.sum
       - name: Effective supplier grant consent
         run: go test -race ./pkg/supplieraccess
+      - name: Durable bilateral supplier grant protocol
+        run: go test -race ./internal/modules/iam -run '^TestSupplierGrantProtocol'
+      - name: Supplier grant projection isolation
+        run: go test -race ./pkg/authz -run '^TestPartnerAssignment'

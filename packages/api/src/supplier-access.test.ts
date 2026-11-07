@@ -78,7 +78,14 @@ it("recovers a specific actor-bound decision with GET and rejects changed review
     grant_id: id,
     actor_subject: scope.subject,
     ...decision,
-    grant: { ...row, status: "offered", version: 2, authority_epoch: 2, signed_by: scope.subject },
+    grant: {
+      ...row,
+      prepared_by: "TEST-source-proposer",
+      status: "offered",
+      version: 2,
+      authority_epoch: 2,
+      signed_by: scope.subject,
+    },
     created_at: input.valid_from,
   };
   const request = vi.fn<typeof fetch>().mockImplementation(async () => Response.json(receipt));

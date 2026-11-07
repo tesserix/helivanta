@@ -3,6 +3,7 @@ package iam
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -50,7 +51,7 @@ func TestOperatingBoundaryRequiresExactReviewedIdentityScopeAndPrecision(t *test
 		"service subject":          func(in *OperatingDutyInput) { in.Subject = "service:receiver" },
 		"missing reason":           func(in *OperatingDutyInput) { in.Reason = " " },
 		"control character":        func(in *OperatingDutyInput) { in.Reason = "review\x00hidden" },
-		"oversized reason":         func(in *OperatingDutyInput) { in.Reason = string(make([]rune, 501)) },
+		"oversized reason":         func(in *OperatingDutyInput) { in.Reason = strings.Repeat("x", 501) },
 		"missing start":            func(in *OperatingDutyInput) { in.ValidFrom = time.Time{} },
 		"reversed validity":        func(in *OperatingDutyInput) { in.ExpiresAt = in.ValidFrom.Add(-time.Second) },
 		"unbounded validity":       func(in *OperatingDutyInput) { in.ExpiresAt = in.ValidFrom.Add(8784*time.Hour + time.Second) },

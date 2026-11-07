@@ -113,3 +113,105 @@ ordinary staff now use their current hospital capabilities, with command-time
 reauthorization. Unit coverage includes an empty tenant-wide permission list with
 a valid scoped role. No mocked tenant-wide permission is required for the browser
 scenario. The screenshot uses only synthetic fixture data.
+
+## Supplier grant preparation — 7 November 2026
+
+This checkpoint implements private supplier proposal preparation only. It does
+not implement effective grants, bilateral acceptance, partner disclosure, stock
+fulfilment or financial reconciliation. The delivery ledger retains those open
+stages and the canonical onboarding prerequisite.
+
+Commands actually run in the isolated supplier worktree:
+
+- `pnpm --filter @helivanta/api test`: the latest run passed 932 tests in 93 files.
+- `pnpm --filter @helivanta/shell test`: the unchanged full rerun passed 1,725
+  tests in 195 files at the UUID checkpoint (351.61 seconds).
+  The first run had three timeout-related failures in two
+  unchanged files; those files also passed independently, with 11 tests.
+- API and shell `type-check`, ESLint and the production shell build passed.
+- `go test -race ./internal/archtest ./cmd/contractdocs`: passed, including the
+  full architecture suite (84.228 seconds).
+- Affected-package `go vet` and `go build ./...` passed. The final repository
+  `golangci-lint run ./...` passed with zero findings.
+- `go test -race ./internal/modules/iam -run TestPartnerGrantDraft -count=1
+-timeout=5m`: passed. Actual Postgres tests cover invalid inputs, explicit nulls,
+  immutable exact recovery, changed intent, tenant/cursor isolation, missing
+  governance authority, audit withholding and creation rollback. Direct database
+  UPDATE/DELETE attempts cannot change or remove saved evidence.
+- Two additional SDK regression cases first failed on uppercase recipient UUIDs
+  returned in canonical lowercase by the owner. The SDK now uses canonical
+  contract metadata to compare UUID identity, while retaining exact subject,
+  text, role and nanosecond timestamp checks. A different recipient is rejected.
+  API typecheck/lint and the shell typecheck/production build passed after the fix.
+- Timestamp precision regression: excess fractional digits first passed frontend
+  validation and returned 200 instead of 400 through the owner. Canonical
+  generation now bounds both owners to nine digits before Go normalization.
+  Positive one-nanosecond validity and the exact 366-day ceiling are retained;
+  one nanosecond beyond the ceiling is refused. The two frontend boundary
+  regressions first failed on millisecond rounding and now use the same generated
+  nanosecond calculation as recovery. API typecheck/lint, all 932 API tests and
+  owner race tests passed after the correction.
+- The stricter wire-time check initially rejected the form's local date-time
+  values. The existing component test and real browser reproduced the
+  regression. The form now converts local input to UTC before inherited
+  canonical refinements, and its submit path uses that validated output.
+  Component, typecheck/lint, production build and final actual-owner browser
+  checks passed; the browser run took 11.214 seconds. The latest full shell
+  rerun and complete remote CI are pending.
+- The creation rollback assertion was mutation-tested: deliberately omitting the
+  creation audit produced the expected failing assertion (expected 503, actual
+  200). Restoring the audit made the draft suite pass. No mutation remains.
+- `go test -race ./internal/globalapi -run
+TestSupplierGrantDraftThroughActualOwnerAndGraph -count=1 -timeout=5m -v`,
+  with the browser URL configured, passed after the UUID fix in 10.720 seconds against the built
+  shell and actual Global API/IAM/OpenFGA/PharmaConnect/Postgres. The browser
+  saved once, lost the successful response and recovered by GET with one PUT;
+  the graph outage returned 503 and no operating authority. Only synthetic
+  accounts were used. OIDC sign-in and positive profile integration were not
+  exercised; the fixture's unavailable profile reader correctly returned 503.
+- Canonical grant generation, contractdocs parity, operational inventory parity
+  and `git diff --check` passed. Inventory parity does not certify operating
+  authorization; 840 existing surfaces remain unclassified.
+
+The earlier full IAM race run failed the unchanged
+`TestAssignmentProjectionAcknowledgesOnlyCurrentScope` case with expected 202,
+actual 504. Its unchanged isolated rerun passed (34.194 seconds). The fresh full
+`go test -race ./internal/modules/iam/... -count=1 -timeout=30m` passed (679.301
+seconds for IAM, plus contract/loginclient). Neither its deadline nor assertions
+were weakened. This full run preceded the network dependency and timestamp
+corrections; complete final-tree CI remains required.
+Remote CI, merge, image publication and Kargo promotion are not established by
+these local checks.
+
+The broader post-dependency local Global API run hit its ten-minute package
+budget during the unchanged employment-review matrix. The active matrix subcase
+had run 25 seconds when the package alarm fired; this local full run is not
+green. Its companion full authorization package passed (13.582 seconds), and
+the separate supplier browser regression passed (11.435 seconds). Complete CI
+uses the repository's existing twenty-minute coverage budget. No assertion or
+production deadline was changed.
+
+Image release gates for PR #1615 found HIGH CVE-2026-78661 in `x/net v0.61.0`
+and HIGH musl/zlib findings in the pinned shell runtime. The candidate updates
+`x/net` to `v0.62.0`; subsequent Go build/vet and `govulncheck` passed with zero
+reachable vulnerabilities. That is not a claim of a clean container image.
+The shared runtime rebuild selected only `node-runtime-24` and did not publish:
+its bundled `brace-expansion@5.0.9` failed the gate. The one-line owner fix is
+[base-docker-images PR #34](https://github.com/tesserix/base-docker-images/pull/34),
+with 31 resolver/selection tests and the targeted build/scan using `push=false`
+passing. It merged as `cf8bdef2`; its main-branch Node 24 runtime publication
+passed the security gate in run `42316119001`. The candidate pins that source's
+published multi-platform digest
+`sha256:056b09f9ad7e806f3c7e00c60eccfb69f7328bdd05da11bdd1d4eda2f457c9a7`.
+Application API image checks passed after the network dependency update; final
+shell image scans and remote CI remain required before release. No exclusion
+or severity gate was changed.
+
+The browser helper now waits for in-flight routes before closing its context.
+This fixes an observed fixture teardown failure after the acceptance assertions
+had passed. Failures still return nonzero, with credential-free diagnostics;
+the final post-fix browser run passed with every assertion retained.
+
+Read-only production discovery reconfirmed API, Global API and shell at
+`62f3f7fd180f5ce9800d70807217b1cb2131d54a`, two ready replicas each, and the
+previous Kargo promotion succeeded. No production change occurred.

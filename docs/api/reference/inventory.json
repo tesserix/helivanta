@@ -313,6 +313,33 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/partner-grant-drafts/:id",
+          "permission": "iam.assignment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/iam/partner-grant-drafts/:id",
+          "permission": "iam.assignment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/partner-grant-drafts",
+          "permission": "iam.assignment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/partner-groups/:id/commands/:command",
           "permission": "iam.assignment.manage",
           "authentication_required": true,
@@ -724,6 +751,13 @@
             "iam_partner_members",
             "iam_partner_group_cohorts",
             "iam_partner_member_commands"
+          ]
+        },
+        {
+          "id": "0037_iam_partner_grant_drafts",
+          "sql_sha256": "0f883727860da0a08d4d323f982e619120463fb3a61967e1e40916fe14f3d8f0",
+          "creates_tables": [
+            "iam_partner_grant_drafts"
           ]
         }
       ]

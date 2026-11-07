@@ -158,3 +158,6 @@ export * from "./pharmacy-staff-binding-queries";
 export * from "./partner-group-contract";
 export * from "./partner-groups";
 export * from "./partner-members";
+
+export * from "./partner-grant-contract";
+export * from "./partner-grants";

@@ -1,9 +1,9 @@
 {
   "format_version": 1,
-  "registry_sha256": "8f01a396747d7e4930af5cd12e4c2717c4b7439aea51433871dea437a8077043",
+  "registry_sha256": "1ef438b46dbb049120159051e62d85ead9ed49630832e3de7038abe7ad8ec95b",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 865,
+    "total": 868,
     "unclassified": 840
   },
   "entries": [
@@ -3166,6 +3166,100 @@
       "review": null
     },
     {
+      "id": "http iam GET /v1/iam/partner-grant-drafts",
+      "kind": "http",
+      "module": "iam",
+      "registration": {
+        "source": "backend/internal/modules/iam/module.go",
+        "method": "GET",
+        "path": "/v1/iam/partner-grant-drafts",
+        "permission": "iam.assignment.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": {
+        "id": "http iam GET /v1/iam/partner-grant-drafts",
+        "registration_sha256": "4f26c915903bc5422b81980e71d9127508d1e0757595bc58b2ac2ecf322bd2a1",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified session tenant; immutable supplier access intent only. Recipient and relationship references remain unverified.",
+        "rationale": "Declared iam.assignment.manage plus refreshed account and expected tenant/subject preconditions. grantDraftTransaction locks current governance membership and credential revocation through the owner-only forced-RLS transaction. Creation/recovery bind actor and membership epoch; reads require committed audit. Every record is pending_verification and operating_access_enabled=false, with no graph projection, external publication, stock or financial act. Canonical timestamp precision recheck: bounded raw time fields reject unsupported fractional digits before Go normalization; exact duration boundaries use nanoseconds. Governance admission, locks and disclosure audit are unchanged.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/iam/module.go",
+            "sha256": "9dd70882d52112359ed2c3c96f748b983c268946abdd7c91f1bc302533472952",
+            "symbol": "m.registerPartnerGrantDrafts(g, deps)"
+          },
+          {
+            "path": "backend/internal/modules/iam/partner_grant_drafts.go",
+            "sha256": "a6a54286b4dd34736b06df834bb51c8acc1977d92c1b93efc58b4a6e9d57f4a5",
+            "symbol": "func (h *partnerGroupHandlers) grantDraftTransaction("
+          },
+          {
+            "path": "backend/internal/modules/iam/membership_commands.go",
+            "sha256": "955fc41a9aef6788d6ca128722fe92bb04e2d0d68f32294fa3a8058fa9ff21d0",
+            "symbol": "func membershipActor("
+          },
+          {
+            "path": "backend/internal/modules/iam/partner_grant_drafts.sql",
+            "sha256": "0f883727860da0a08d4d323f982e619120463fb3a61967e1e40916fe14f3d8f0",
+            "symbol": "CREATE POLICY tenant_isolation ON iam_partner_grant_drafts"
+          }
+        ],
+        "remaining": [
+          "This preparation is not bilateral consent or an active external assignment. Current relationship, recipient, product-owner disclosure and fulfilment remain required consuming work."
+        ]
+      }
+    },
+    {
+      "id": "http iam GET /v1/iam/partner-grant-drafts/:id",
+      "kind": "http",
+      "module": "iam",
+      "registration": {
+        "source": "backend/internal/modules/iam/module.go",
+        "method": "GET",
+        "path": "/v1/iam/partner-grant-drafts/:id",
+        "permission": "iam.assignment.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http iam GET /v1/iam/partner-grant-drafts/:id",
+        "registration_sha256": "76596787f52e677707e3c4a9b7ed43d202d02bac9d05baa178c0f1e79fff73fb",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified session tenant; immutable supplier access intent only. Recipient and relationship references remain unverified.",
+        "rationale": "Declared iam.assignment.manage plus refreshed account and expected tenant/subject preconditions. grantDraftTransaction locks current governance membership and credential revocation through the owner-only forced-RLS transaction. Creation/recovery bind actor and membership epoch; reads require committed audit. Every record is pending_verification and operating_access_enabled=false, with no graph projection, external publication, stock or financial act. Canonical timestamp precision recheck: bounded raw time fields reject unsupported fractional digits before Go normalization; exact duration boundaries use nanoseconds. Governance admission, locks and disclosure audit are unchanged.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/iam/module.go",
+            "sha256": "9dd70882d52112359ed2c3c96f748b983c268946abdd7c91f1bc302533472952",
+            "symbol": "m.registerPartnerGrantDrafts(g, deps)"
+          },
+          {
+            "path": "backend/internal/modules/iam/partner_grant_drafts.go",
+            "sha256": "a6a54286b4dd34736b06df834bb51c8acc1977d92c1b93efc58b4a6e9d57f4a5",
+            "symbol": "func (h *partnerGroupHandlers) grantDraftTransaction("
+          },
+          {
+            "path": "backend/internal/modules/iam/membership_commands.go",
+            "sha256": "955fc41a9aef6788d6ca128722fe92bb04e2d0d68f32294fa3a8058fa9ff21d0",
+            "symbol": "func membershipActor("
+          },
+          {
+            "path": "backend/internal/modules/iam/partner_grant_drafts.sql",
+            "sha256": "0f883727860da0a08d4d323f982e619120463fb3a61967e1e40916fe14f3d8f0",
+            "symbol": "CREATE POLICY tenant_isolation ON iam_partner_grant_drafts"
+          }
+        ],
+        "remaining": [
+          "This preparation is not bilateral consent or an active external assignment. Current relationship, recipient, product-owner disclosure and fulfilment remain required consuming work."
+        ]
+      }
+    },
+    {
       "id": "http iam GET /v1/iam/partner-groups",
       "kind": "http",
       "module": "iam",
@@ -3312,11 +3406,11 @@
         "registration_sha256": "2ecc32405c08d9ad3e1137a1068ce51e39722af7837263cdadd229432000391c",
         "authority_kind": "mixed",
         "resource_scope": "Verified caller session and its current tenant membership; no hospital employment or operational object is selected.",
-        "rationale": "Cookie-only renewal checks current upstream active identity and tenant role binding, preserves subject, authentication time and idle deadline, and fails closed on unreadable identity or roles. The same session can serve governance and hospital operations, so this is mixed authority. Renewal does not establish reviewed hospital employment and cannot replace owner-side effective-cutoff checks. Rechecked 2026-11-04: IAM module only appends immutable role-catalog migration 0025; existing routes, grants and scope enforcement are unchanged. New submitter/reviewer templates are independently assigned hospital-scoped prerequisites and grant no operating or Pharma authority. Runtime acceptance remains open. Candidate source rechecked against catalog release e9ea7281: existing registrations/grants remain unchanged; the nine additional proposal/discovery routes, additive 0075 migration and preserved legacy source wrapper are reviewed in docs/qa/2026-11-04-posting-proposal-source-review.md. Classification and open lifecycle obligations remain unchanged; new proposal surfaces remain unclassified. Source rechecked for leave routing 0078 on 2026-11-04: module.go only appends the migration embed/manifest and the GET/PUT hr/leave-routing registrations; this route registration, its permissions and its guards are unchanged, and the new restrictive policy covers leave requests only. Where scoped_leave.go is pinned, only leave-decision preparation changed (route-step narrowing and desk evidence); lockReviewedLeaveActor and lockStaffActorLink are byte-identical. Runtime obligations remain open. Candidate IAM 0026 adds a separate closed management-review template and Workforce declares its permission; existing catalog snapshots and this route authority remain unchanged, and positive approval remains blocked. Source rechecked for the 2026-11-05 cutoff candidate: Workforce module additions are two separately scoped cutoff routes, the permission/event and migration 0084; IAM only appends migration 0027. Existing classified route registrations are unchanged. posting_drafts.go extracts the unchanged tenant/subject/ID parser; original draft paths still require the DepartmentReferences dependency and retain the same owner checks. Cutoff authoring alone omits that structural dependency so stale target responsibility can be revoked. New cutoff/chain operating surfaces remain unclassified; no runtime or lifecycle completion is inferred. Source rechecked for #429 department posting review (IAM 0030/0031, Workforce 0087), integrated into release #1565, on 2026-11-05: Router.handle, IAM Routes and the pinned posting-draft symbols are byte-identical to the release branch; workforce Routes keeps every release registration and only adds the department-scope dependency and moves the posting inbox, review source and decision receipt to handler-scoped admission; authorityCandidates also returns scope_kind/department_id while every caller binds scope_kind and a request without a department path still selects hospital grants only; DepartmentReferences keeps the same fail-closed owner binding. This route's registration and authority are unchanged; department-scoped surfaces remain unclassified and runtime obligations remain open. Source rechecked for #1596 department leave review (IAM 0032, Workforce 0089) on 2026-11-06: IAM Routes is byte-identical; only the migration list adds 0032. This route's registration and authority are unchanged. Source rechecked for reviewed hospital partner teams (PR #1614) on 2026-11-07: the IAM and Workforce module changes append partner-group/member registrations, scoped permission declarations, additive migrations and the Workforce-owned partner-source factory. Existing reviewed route registrations and their admission paths remain unchanged. The candidate directory read context is entered only by the guarded partner producer and restored before its caller; its read extension preserves prior UPDATE/DELETE checks. Source classification remains separate from runtime cutoff acceptance, and the existing remaining obligations are unchanged.",
+        "rationale": "Cookie-only renewal checks current upstream active identity and tenant role binding, preserves subject, authentication time and idle deadline, and fails closed on unreadable identity or roles. The same session can serve governance and hospital operations, so this is mixed authority. Renewal does not establish reviewed hospital employment and cannot replace owner-side effective-cutoff checks. Rechecked 2026-11-04: IAM module only appends immutable role-catalog migration 0025; existing routes, grants and scope enforcement are unchanged. New submitter/reviewer templates are independently assigned hospital-scoped prerequisites and grant no operating or Pharma authority. Runtime acceptance remains open. Candidate source rechecked against catalog release e9ea7281: existing registrations/grants remain unchanged; the nine additional proposal/discovery routes, additive 0075 migration and preserved legacy source wrapper are reviewed in docs/qa/2026-11-04-posting-proposal-source-review.md. Classification and open lifecycle obligations remain unchanged; new proposal surfaces remain unclassified. Source rechecked for leave routing 0078 on 2026-11-04: module.go only appends the migration embed/manifest and the GET/PUT hr/leave-routing registrations; this route registration, its permissions and its guards are unchanged, and the new restrictive policy covers leave requests only. Where scoped_leave.go is pinned, only leave-decision preparation changed (route-step narrowing and desk evidence); lockReviewedLeaveActor and lockStaffActorLink are byte-identical. Runtime obligations remain open. Candidate IAM 0026 adds a separate closed management-review template and Workforce declares its permission; existing catalog snapshots and this route authority remain unchanged, and positive approval remains blocked. Source rechecked for the 2026-11-05 cutoff candidate: Workforce module additions are two separately scoped cutoff routes, the permission/event and migration 0084; IAM only appends migration 0027. Existing classified route registrations are unchanged. posting_drafts.go extracts the unchanged tenant/subject/ID parser; original draft paths still require the DepartmentReferences dependency and retain the same owner checks. Cutoff authoring alone omits that structural dependency so stale target responsibility can be revoked. New cutoff/chain operating surfaces remain unclassified; no runtime or lifecycle completion is inferred. Source rechecked for #429 department posting review (IAM 0030/0031, Workforce 0087), integrated into release #1565, on 2026-11-05: Router.handle, IAM Routes and the pinned posting-draft symbols are byte-identical to the release branch; workforce Routes keeps every release registration and only adds the department-scope dependency and moves the posting inbox, review source and decision receipt to handler-scoped admission; authorityCandidates also returns scope_kind/department_id while every caller binds scope_kind and a request without a department path still selects hospital grants only; DepartmentReferences keeps the same fail-closed owner binding. This route's registration and authority are unchanged; department-scoped surfaces remain unclassified and runtime obligations remain open. Source rechecked for #1596 department leave review (IAM 0032, Workforce 0089) on 2026-11-06: IAM Routes is byte-identical; only the migration list adds 0032. This route's registration and authority are unchanged. Source rechecked for reviewed hospital partner teams (PR #1614) on 2026-11-07: the IAM and Workforce module changes append partner-group/member registrations, scoped permission declarations, additive migrations and the Workforce-owned partner-source factory. Existing reviewed route registrations and their admission paths remain unchanged. The candidate directory read context is entered only by the guarded partner producer and restored before its caller; its read extension preserves prior UPDATE/DELETE checks. Source classification remains separate from runtime cutoff acceptance, and the existing remaining obligations are unchanged. Rechecked for supplier grant preparation on 2026-11-07: IAM Routes only appends three owner-tenant governance draft routes, and Migrations appends the immutable draft table. Existing route registration, role declarations and authorization helpers are unchanged.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "fdaf2463d61e217ae8c33f3c4670639e7f42322e50d29ccd098cab30815269dc",
+            "sha256": "9dd70882d52112359ed2c3c96f748b983c268946abdd7c91f1bc302533472952",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -3356,11 +3450,11 @@
         "registration_sha256": "32a6b108e5f8d60109a85dac6bd2ad376bcabf21c4870fcdbc6f97d2b022f87b",
         "authority_kind": "mixed",
         "resource_scope": "Authenticated caller’s own subject and existing tenant claim; no target subject or hospital is accepted.",
-        "rationale": "Activity extends only the signed idle deadline while retaining subject, tenant and original authentication time. Entry credential verification still checks revocation and idle expiry. It does not inspect employment or require tenant membership. Shared governance and operational session use makes this mixed authority, not an employment exemption or a grant. Rechecked 2026-11-04: IAM module only appends immutable role-catalog migration 0025; existing routes, grants and scope enforcement are unchanged. New submitter/reviewer templates are independently assigned hospital-scoped prerequisites and grant no operating or Pharma authority. Runtime acceptance remains open. Candidate source rechecked against catalog release e9ea7281: existing registrations/grants remain unchanged; the nine additional proposal/discovery routes, additive 0075 migration and preserved legacy source wrapper are reviewed in docs/qa/2026-11-04-posting-proposal-source-review.md. Classification and open lifecycle obligations remain unchanged; new proposal surfaces remain unclassified. Source rechecked for leave routing 0078 on 2026-11-04: module.go only appends the migration embed/manifest and the GET/PUT hr/leave-routing registrations; this route registration, its permissions and its guards are unchanged, and the new restrictive policy covers leave requests only. Where scoped_leave.go is pinned, only leave-decision preparation changed (route-step narrowing and desk evidence); lockReviewedLeaveActor and lockStaffActorLink are byte-identical. Runtime obligations remain open. Candidate IAM 0026 adds a separate closed management-review template and Workforce declares its permission; existing catalog snapshots and this route authority remain unchanged, and positive approval remains blocked. Source rechecked for the 2026-11-05 cutoff candidate: Workforce module additions are two separately scoped cutoff routes, the permission/event and migration 0084; IAM only appends migration 0027. Existing classified route registrations are unchanged. posting_drafts.go extracts the unchanged tenant/subject/ID parser; original draft paths still require the DepartmentReferences dependency and retain the same owner checks. Cutoff authoring alone omits that structural dependency so stale target responsibility can be revoked. New cutoff/chain operating surfaces remain unclassified; no runtime or lifecycle completion is inferred. Source rechecked for #429 department posting review (IAM 0030/0031, Workforce 0087), integrated into release #1565, on 2026-11-05: Router.handle, IAM Routes and the pinned posting-draft symbols are byte-identical to the release branch; workforce Routes keeps every release registration and only adds the department-scope dependency and moves the posting inbox, review source and decision receipt to handler-scoped admission; authorityCandidates also returns scope_kind/department_id while every caller binds scope_kind and a request without a department path still selects hospital grants only; DepartmentReferences keeps the same fail-closed owner binding. This route's registration and authority are unchanged; department-scoped surfaces remain unclassified and runtime obligations remain open. Source rechecked for #1596 department leave review (IAM 0032, Workforce 0089) on 2026-11-06: IAM Routes is byte-identical; only the migration list adds 0032. This route's registration and authority are unchanged. Source rechecked for reviewed hospital partner teams (PR #1614) on 2026-11-07: the IAM and Workforce module changes append partner-group/member registrations, scoped permission declarations, additive migrations and the Workforce-owned partner-source factory. Existing reviewed route registrations and their admission paths remain unchanged. The candidate directory read context is entered only by the guarded partner producer and restored before its caller; its read extension preserves prior UPDATE/DELETE checks. Source classification remains separate from runtime cutoff acceptance, and the existing remaining obligations are unchanged.",
+        "rationale": "Activity extends only the signed idle deadline while retaining subject, tenant and original authentication time. Entry credential verification still checks revocation and idle expiry. It does not inspect employment or require tenant membership. Shared governance and operational session use makes this mixed authority, not an employment exemption or a grant. Rechecked 2026-11-04: IAM module only appends immutable role-catalog migration 0025; existing routes, grants and scope enforcement are unchanged. New submitter/reviewer templates are independently assigned hospital-scoped prerequisites and grant no operating or Pharma authority. Runtime acceptance remains open. Candidate source rechecked against catalog release e9ea7281: existing registrations/grants remain unchanged; the nine additional proposal/discovery routes, additive 0075 migration and preserved legacy source wrapper are reviewed in docs/qa/2026-11-04-posting-proposal-source-review.md. Classification and open lifecycle obligations remain unchanged; new proposal surfaces remain unclassified. Source rechecked for leave routing 0078 on 2026-11-04: module.go only appends the migration embed/manifest and the GET/PUT hr/leave-routing registrations; this route registration, its permissions and its guards are unchanged, and the new restrictive policy covers leave requests only. Where scoped_leave.go is pinned, only leave-decision preparation changed (route-step narrowing and desk evidence); lockReviewedLeaveActor and lockStaffActorLink are byte-identical. Runtime obligations remain open. Candidate IAM 0026 adds a separate closed management-review template and Workforce declares its permission; existing catalog snapshots and this route authority remain unchanged, and positive approval remains blocked. Source rechecked for the 2026-11-05 cutoff candidate: Workforce module additions are two separately scoped cutoff routes, the permission/event and migration 0084; IAM only appends migration 0027. Existing classified route registrations are unchanged. posting_drafts.go extracts the unchanged tenant/subject/ID parser; original draft paths still require the DepartmentReferences dependency and retain the same owner checks. Cutoff authoring alone omits that structural dependency so stale target responsibility can be revoked. New cutoff/chain operating surfaces remain unclassified; no runtime or lifecycle completion is inferred. Source rechecked for #429 department posting review (IAM 0030/0031, Workforce 0087), integrated into release #1565, on 2026-11-05: Router.handle, IAM Routes and the pinned posting-draft symbols are byte-identical to the release branch; workforce Routes keeps every release registration and only adds the department-scope dependency and moves the posting inbox, review source and decision receipt to handler-scoped admission; authorityCandidates also returns scope_kind/department_id while every caller binds scope_kind and a request without a department path still selects hospital grants only; DepartmentReferences keeps the same fail-closed owner binding. This route's registration and authority are unchanged; department-scoped surfaces remain unclassified and runtime obligations remain open. Source rechecked for #1596 department leave review (IAM 0032, Workforce 0089) on 2026-11-06: IAM Routes is byte-identical; only the migration list adds 0032. This route's registration and authority are unchanged. Source rechecked for reviewed hospital partner teams (PR #1614) on 2026-11-07: the IAM and Workforce module changes append partner-group/member registrations, scoped permission declarations, additive migrations and the Workforce-owned partner-source factory. Existing reviewed route registrations and their admission paths remain unchanged. The candidate directory read context is entered only by the guarded partner producer and restored before its caller; its read extension preserves prior UPDATE/DELETE checks. Source classification remains separate from runtime cutoff acceptance, and the existing remaining obligations are unchanged. Rechecked for supplier grant preparation on 2026-11-07: IAM Routes only appends three owner-tenant governance draft routes, and Migrations appends the immutable draft table. Existing route registration, role declarations and authorization helpers are unchanged.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "fdaf2463d61e217ae8c33f3c4670639e7f42322e50d29ccd098cab30815269dc",
+            "sha256": "9dd70882d52112359ed2c3c96f748b983c268946abdd7c91f1bc302533472952",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -3416,11 +3510,11 @@
         "registration_sha256": "591fcb4cdb5035f951e633928f1261d54eaee7abef6fb09ef9ff36b6d1c218d0",
         "authority_kind": "mixed",
         "resource_scope": "Authenticated caller’s global credential subject, across every device and tenant; no target subject is accepted.",
-        "rationale": "Self sign-out writes a global subject revocation watermark and invalidation intent in one transaction, then invalidates the serving replica cache. It remains available after tenant membership removal. This shared credential termination is mixed authority and is unsuitable as a hospital suspension or exit mechanism because its effect crosses hospital and tenant boundaries. Rechecked 2026-11-04: IAM module only appends immutable role-catalog migration 0025; existing routes, grants and scope enforcement are unchanged. New submitter/reviewer templates are independently assigned hospital-scoped prerequisites and grant no operating or Pharma authority. Runtime acceptance remains open. Candidate source rechecked against catalog release e9ea7281: existing registrations/grants remain unchanged; the nine additional proposal/discovery routes, additive 0075 migration and preserved legacy source wrapper are reviewed in docs/qa/2026-11-04-posting-proposal-source-review.md. Classification and open lifecycle obligations remain unchanged; new proposal surfaces remain unclassified. Source rechecked for leave routing 0078 on 2026-11-04: module.go only appends the migration embed/manifest and the GET/PUT hr/leave-routing registrations; this route registration, its permissions and its guards are unchanged, and the new restrictive policy covers leave requests only. Where scoped_leave.go is pinned, only leave-decision preparation changed (route-step narrowing and desk evidence); lockReviewedLeaveActor and lockStaffActorLink are byte-identical. Runtime obligations remain open. Candidate IAM 0026 adds a separate closed management-review template and Workforce declares its permission; existing catalog snapshots and this route authority remain unchanged, and positive approval remains blocked. Source rechecked for the 2026-11-05 cutoff candidate: Workforce module additions are two separately scoped cutoff routes, the permission/event and migration 0084; IAM only appends migration 0027. Existing classified route registrations are unchanged. posting_drafts.go extracts the unchanged tenant/subject/ID parser; original draft paths still require the DepartmentReferences dependency and retain the same owner checks. Cutoff authoring alone omits that structural dependency so stale target responsibility can be revoked. New cutoff/chain operating surfaces remain unclassified; no runtime or lifecycle completion is inferred. Source rechecked for #429 department posting review (IAM 0030/0031, Workforce 0087), integrated into release #1565, on 2026-11-05: Router.handle, IAM Routes and the pinned posting-draft symbols are byte-identical to the release branch; workforce Routes keeps every release registration and only adds the department-scope dependency and moves the posting inbox, review source and decision receipt to handler-scoped admission; authorityCandidates also returns scope_kind/department_id while every caller binds scope_kind and a request without a department path still selects hospital grants only; DepartmentReferences keeps the same fail-closed owner binding. This route's registration and authority are unchanged; department-scoped surfaces remain unclassified and runtime obligations remain open. Source rechecked for #1596 department leave review (IAM 0032, Workforce 0089) on 2026-11-06: IAM Routes is byte-identical; only the migration list adds 0032. This route's registration and authority are unchanged. Source rechecked for reviewed hospital partner teams (PR #1614) on 2026-11-07: the IAM and Workforce module changes append partner-group/member registrations, scoped permission declarations, additive migrations and the Workforce-owned partner-source factory. Existing reviewed route registrations and their admission paths remain unchanged. The candidate directory read context is entered only by the guarded partner producer and restored before its caller; its read extension preserves prior UPDATE/DELETE checks. Source classification remains separate from runtime cutoff acceptance, and the existing remaining obligations are unchanged.",
+        "rationale": "Self sign-out writes a global subject revocation watermark and invalidation intent in one transaction, then invalidates the serving replica cache. It remains available after tenant membership removal. This shared credential termination is mixed authority and is unsuitable as a hospital suspension or exit mechanism because its effect crosses hospital and tenant boundaries. Rechecked 2026-11-04: IAM module only appends immutable role-catalog migration 0025; existing routes, grants and scope enforcement are unchanged. New submitter/reviewer templates are independently assigned hospital-scoped prerequisites and grant no operating or Pharma authority. Runtime acceptance remains open. Candidate source rechecked against catalog release e9ea7281: existing registrations/grants remain unchanged; the nine additional proposal/discovery routes, additive 0075 migration and preserved legacy source wrapper are reviewed in docs/qa/2026-11-04-posting-proposal-source-review.md. Classification and open lifecycle obligations remain unchanged; new proposal surfaces remain unclassified. Source rechecked for leave routing 0078 on 2026-11-04: module.go only appends the migration embed/manifest and the GET/PUT hr/leave-routing registrations; this route registration, its permissions and its guards are unchanged, and the new restrictive policy covers leave requests only. Where scoped_leave.go is pinned, only leave-decision preparation changed (route-step narrowing and desk evidence); lockReviewedLeaveActor and lockStaffActorLink are byte-identical. Runtime obligations remain open. Candidate IAM 0026 adds a separate closed management-review template and Workforce declares its permission; existing catalog snapshots and this route authority remain unchanged, and positive approval remains blocked. Source rechecked for the 2026-11-05 cutoff candidate: Workforce module additions are two separately scoped cutoff routes, the permission/event and migration 0084; IAM only appends migration 0027. Existing classified route registrations are unchanged. posting_drafts.go extracts the unchanged tenant/subject/ID parser; original draft paths still require the DepartmentReferences dependency and retain the same owner checks. Cutoff authoring alone omits that structural dependency so stale target responsibility can be revoked. New cutoff/chain operating surfaces remain unclassified; no runtime or lifecycle completion is inferred. Source rechecked for #429 department posting review (IAM 0030/0031, Workforce 0087), integrated into release #1565, on 2026-11-05: Router.handle, IAM Routes and the pinned posting-draft symbols are byte-identical to the release branch; workforce Routes keeps every release registration and only adds the department-scope dependency and moves the posting inbox, review source and decision receipt to handler-scoped admission; authorityCandidates also returns scope_kind/department_id while every caller binds scope_kind and a request without a department path still selects hospital grants only; DepartmentReferences keeps the same fail-closed owner binding. This route's registration and authority are unchanged; department-scoped surfaces remain unclassified and runtime obligations remain open. Source rechecked for #1596 department leave review (IAM 0032, Workforce 0089) on 2026-11-06: IAM Routes is byte-identical; only the migration list adds 0032. This route's registration and authority are unchanged. Source rechecked for reviewed hospital partner teams (PR #1614) on 2026-11-07: the IAM and Workforce module changes append partner-group/member registrations, scoped permission declarations, additive migrations and the Workforce-owned partner-source factory. Existing reviewed route registrations and their admission paths remain unchanged. The candidate directory read context is entered only by the guarded partner producer and restored before its caller; its read extension preserves prior UPDATE/DELETE checks. Source classification remains separate from runtime cutoff acceptance, and the existing remaining obligations are unchanged. Rechecked for supplier grant preparation on 2026-11-07: IAM Routes only appends three owner-tenant governance draft routes, and Migrations appends the immutable draft table. Existing route registration, role declarations and authorization helpers are unchanged.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "fdaf2463d61e217ae8c33f3c4670639e7f42322e50d29ccd098cab30815269dc",
+            "sha256": "9dd70882d52112359ed2c3c96f748b983c268946abdd7c91f1bc302533472952",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -3568,6 +3662,53 @@
         "counted": false
       },
       "review": null
+    },
+    {
+      "id": "http iam PUT /v1/iam/partner-grant-drafts/:id",
+      "kind": "http",
+      "module": "iam",
+      "registration": {
+        "source": "backend/internal/modules/iam/module.go",
+        "method": "PUT",
+        "path": "/v1/iam/partner-grant-drafts/:id",
+        "permission": "iam.assignment.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http iam PUT /v1/iam/partner-grant-drafts/:id",
+        "registration_sha256": "4d5d7d74258816fb860563ee1bddfdff2267bc74102220651117026bbf8b78ee",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified session tenant; immutable supplier access intent only. Recipient and relationship references remain unverified.",
+        "rationale": "Declared iam.assignment.manage plus refreshed account and expected tenant/subject preconditions. grantDraftTransaction locks current governance membership and credential revocation through the owner-only forced-RLS transaction. Creation/recovery bind actor and membership epoch; reads require committed audit. Every record is pending_verification and operating_access_enabled=false, with no graph projection, external publication, stock or financial act. Canonical timestamp precision recheck: bounded raw time fields reject unsupported fractional digits before Go normalization; exact duration boundaries use nanoseconds. Governance admission, locks and disclosure audit are unchanged.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/iam/module.go",
+            "sha256": "9dd70882d52112359ed2c3c96f748b983c268946abdd7c91f1bc302533472952",
+            "symbol": "m.registerPartnerGrantDrafts(g, deps)"
+          },
+          {
+            "path": "backend/internal/modules/iam/partner_grant_drafts.go",
+            "sha256": "a6a54286b4dd34736b06df834bb51c8acc1977d92c1b93efc58b4a6e9d57f4a5",
+            "symbol": "func (h *partnerGroupHandlers) grantDraftTransaction("
+          },
+          {
+            "path": "backend/internal/modules/iam/membership_commands.go",
+            "sha256": "955fc41a9aef6788d6ca128722fe92bb04e2d0d68f32294fa3a8058fa9ff21d0",
+            "symbol": "func membershipActor("
+          },
+          {
+            "path": "backend/internal/modules/iam/partner_grant_drafts.sql",
+            "sha256": "0f883727860da0a08d4d323f982e619120463fb3a61967e1e40916fe14f3d8f0",
+            "symbol": "CREATE POLICY tenant_isolation ON iam_partner_grant_drafts"
+          }
+        ],
+        "remaining": [
+          "This preparation is not bilateral consent or an active external assignment. Current relationship, recipient, product-owner disclosure and fulfilment remain required consuming work."
+        ]
+      }
     },
     {
       "id": "http iam PUT /v1/iam/partner-groups/:id",

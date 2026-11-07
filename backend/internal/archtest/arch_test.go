@@ -351,6 +351,8 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /iam/partner-grant-drafts/:id": "one immutable owner-tenant proposal; collections use signed cursor pagination",
+
 	"GET /iam/partner-groups/:id":                                                                   "one tenant-scoped partner group; directory and history are cursor-paginated",
 	"GET /iam/partner-groups/:id/commands/:command":                                                 "one immutable exact partner-group command receipt",
 	"GET /iam/hospitals/:hospital/partner-member-capabilities":                                      "one hospital-scoped response with two fixed capability booleans",

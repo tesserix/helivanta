@@ -46,6 +46,9 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/membership-enrollments/:id` | `iam.member.manage` | false | false |
 | PUT | `/v1/iam/membership-enrollments/:id` | `iam.member.manage` | false | false |
 | GET | `/v1/iam/membership-enrollments` | `iam.member.manage` | true | false |
+| GET | `/v1/iam/partner-grant-drafts/:id` | `iam.assignment.manage` | false | false |
+| PUT | `/v1/iam/partner-grant-drafts/:id` | `iam.assignment.manage` | false | false |
+| GET | `/v1/iam/partner-grant-drafts` | `iam.assignment.manage` | true | false |
 | GET | `/v1/iam/partner-groups/:id/commands/:command` | `iam.assignment.manage` | false | false |
 | PUT | `/v1/iam/partner-groups/:id/commands/:command` | `public` | false | false |
 | GET | `/v1/iam/partner-groups/:id` | `iam.assignment.manage` | false | false |
@@ -96,6 +99,7 @@ Migration table declarations:
 - `0031_iam_department_assignment_scope`: `iam_assignment_department_verifications`.
 - `0034_iam_partner_groups`: `iam_partner_groups`, `iam_partner_group_scope_observations`, `iam_partner_group_commands`.
 - `0036_iam_partner_members`: `iam_partner_members`, `iam_partner_group_cohorts`, `iam_partner_member_commands`.
+- `0037_iam_partner_grant_drafts`: `iam_partner_grant_drafts`.
 
 ## reference
 

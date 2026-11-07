@@ -1,0 +1,48 @@
+name: Release - Production
+
+# Running this workflow is the production approval: it moves release/prod, and
+# Kargo auto-promotes every new release/prod commit. See docs/deployment/production-release.md.
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Commit already on deploy to release (blank releases the deploy head)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-prod
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Advance release/prod
+    # A dispatch from another branch would run that branch's copy of the release script.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Log in to GHCR
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify images and advance release/prod
+        env:
+          COMMIT: ${{ inputs.commit }}
+        run: bash scripts/release-prod.sh ${COMMIT:+"$COMMIT"}

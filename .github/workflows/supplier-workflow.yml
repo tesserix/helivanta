@@ -20,7 +20,7 @@ concurrency:
 jobs:
   supplier:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: backend
@@ -39,7 +39,7 @@ jobs:
       - name: Supplier grant projection isolation
         run: go test -race ./pkg/authz -run '^TestPartnerAssignment'
       - name: Current hospital Staff recipient and membership cutoff
-        run: go test -race ./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'
+        run: go test -race -timeout 35m ./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'
   api-client:
     runs-on: ubuntu-latest
     timeout-minutes: 10

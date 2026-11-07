@@ -1046,12 +1046,17 @@ test("establishment kinds must be a reviewed ordered subset before writes", asyn
 });
 
 test("templates before 0034 stay hospital-rooted and cannot declare an establishment kind", async (t) => {
-  for (const index of [0, -2]) {
-    await t.test(String(index), async (t) => {
+  for (const migrationId of [
+    "0014_iam_staff_templates",
+    "0032_iam_department_leave_review_templates",
+  ]) {
+    await t.test(migrationId, async (t) => {
       await rejectsBeforeWrites(
         t,
         async (contract) => {
-          contract.template_migrations.at(index).templates[0].establishment_kinds = ["hospital"];
+          const historical = contract.template_migrations.find((entry) => entry.id === migrationId);
+          assert.ok(historical, "the pre-0034 history fixture must exist");
+          historical.templates[0].establishment_kinds = ["hospital"];
         },
         /establishment kinds/i,
       );

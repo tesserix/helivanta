@@ -140,6 +140,8 @@ jobs:
           provenance: false
           tags: ${{ env.PUBLISH != 'true' && 'local/helivanta-api:pr-scan' || steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Kargo reads manifest annotations, not labels: its Freight criteria match this revision to release/prod.
+          annotations: ${{ env.PUBLISH == 'true' && steps.meta.outputs.annotations || '' }}
           cache-from: type=registry,ref=${{ steps.cache.outputs.ref }}
           # cache write needs GHCR auth (main only); read-only cache-from still works
           cache-to: ${{ env.PUBLISH == 'true' && format('type=registry,ref={0},mode=max', steps.cache.outputs.ref) || '' }}
@@ -353,6 +355,8 @@ jobs:
           provenance: false
           tags: ${{ env.PUBLISH != 'true' && 'local/helivanta-shell:pr-scan' || steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Kargo reads manifest annotations, not labels: its Freight criteria match this revision to release/prod.
+          annotations: ${{ env.PUBLISH == 'true' && steps.meta.outputs.annotations || '' }}
           build-args: |
             NEXT_PUBLIC_ZITADEL_ISSUER_URL=${{ env.SHELL_ZITADEL_ISSUER_URL }}
             NEXT_PUBLIC_ZITADEL_CLIENT_ID=${{ env.SHELL_ZITADEL_CLIENT_ID }}

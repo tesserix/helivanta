@@ -4,14 +4,22 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"go.temporal.io/sdk/client"
+	"maps"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/bootstrap"
 	"github.com/tesserix/helivanta/internal/mediconnectclaims"
@@ -253,6 +261,67 @@ func CursorSealer(t testing.TB) *pagination.Sealer {
 	return sealer
 }
 
+// migrationKey hashes the whole list, so only byte-identical migrations share a template (#1620).
+func migrationKey(migs []tenantdb.Migration) (string, error) {
+	raw, err := json.Marshal(migs)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:]), nil
+}
+
+func migrateTemplate(migs []tenantdb.Migration) testinfra.TemplateBuild {
+	return func(app, admin, system string) (err error) {
+		db, err := tenantdb.OpenWithSystem(app, admin, system)
+		if err != nil {
+			return err
+		}
+		defer func() { err = errors.Join(err, db.Close()) }()
+		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		defer cancel()
+		if err = db.Migrate(ctx, migs); err != nil {
+			return err
+		}
+		// LintRLS reads only the catalog, which every clone copies from this closed template.
+		bad, err := db.LintRLS(ctx)
+		if err != nil {
+			return err
+		}
+		if len(bad) > 0 {
+			return fmt.Errorf("tenant tables must carry forced RLS: %s", strings.Join(bad, "; "))
+		}
+		return nil
+	}
+}
+
+// verifyCloneLedger fails closed: a clone whose ledger differs from its migrations came from the wrong template.
+func verifyCloneLedger(ctx context.Context, db *tenantdb.DB, migs []tenantdb.Migration) error {
+	var applied []string
+	if err := db.WithSystem(ctx, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT id FROM schema_migrations`).Scan(&applied).Error
+	}); err != nil {
+		return err
+	}
+	pending := make(map[string]bool, len(migs))
+	for _, m := range migs {
+		pending[m.ID] = true
+	}
+	unexpected := []string{}
+	for _, id := range applied {
+		if !pending[id] {
+			unexpected = append(unexpected, id)
+		}
+		delete(pending, id)
+	}
+	missing := slices.Sorted(maps.Keys(pending))
+	slices.Sort(unexpected)
+	if len(missing) > 0 || len(unexpected) > 0 {
+		return fmt.Errorf("clone ledger differs from its migrations: missing %v, unexpected %v", missing, unexpected)
+	}
+	return nil
+}
+
 func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
 	t.Helper()
 
@@ -281,28 +350,28 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 		idleTimeout = TestSessionTTL
 	}
 
-	start := testinfra.StartPostgres
-	if opts.ProductionOwner {
-		start = testinfra.StartProductionOwnerPostgres
+	migs := bootstrap.PlatformMigrations()
+	for _, m := range opts.Modules {
+		migs = append(migs, m.Migrations()...)
 	}
-	appDSN, adminDSN, systemDSN := start(t)
+	key, err := migrationKey(migs)
+	require.NoError(t, err)
+	owner := testinfra.HarnessOwner
+	if opts.ProductionOwner {
+		owner = testinfra.ProductionOwner
+	}
+	appDSN, adminDSN, systemDSN := testinfra.StartMigratedPostgres(t, owner, key, migrateTemplate(migs))
 	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	t.Cleanup(cancel)
 
-	migs := bootstrap.PlatformMigrations()
-	for _, m := range opts.Modules {
-		migs = append(migs, m.Migrations()...)
-	}
-	require.NoError(t, db.Migrate(ctx, migs))
-	bad, err := db.LintRLS(ctx)
-	require.NoError(t, err)
-	require.Empty(t, bad, "tenant tables must carry forced RLS")
+	// The template already ran Migrate and LintRLS, the first of main.go's two boot-time controls (#932).
+	require.NoError(t, verifyCloneLedger(ctx, db, migs))
 
-	// Both boot-time controls cmd/api/main.go runs, run here too (#932).
-	// The union is taken across exactly the modules under test, so a
+	// The second control is per clone: its table list comes from the
+	// modules under test, which the template key does not cover. A
 	// module declaring a directed-write table whose provenance columns
 	// are nullable fails in its own package's tests instead of only at
 	// production boot.

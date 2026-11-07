@@ -18,9 +18,11 @@ Every other Staff surface stays hospital-only. These include enrollment,
 identity, login links, employment, credentials, leave, rosters, payroll and
 postings. Their tables refuse a pharmacy establishment in the database.
 
-Slice 3 is split. Slice 3b delivers IAM for pharmacies: proposal input, the
-`pharmacy_id` verifier version, a pharmacy-assignable template, the root
-picker, and identity and login links on the pharmacy family.
+Slice 3 is split. Slice 3b-i delivers account links on the pharmacy family
+([plan](2026-11-08-pharmacy-login-links.md)). Slice 3b-ii delivers IAM for
+pharmacies: proposal input, the `pharmacy_id` verifier version, a
+pharmacy-assignable template, the root picker, and identity on the pharmacy
+family.
 
 ## Actors and objects
 

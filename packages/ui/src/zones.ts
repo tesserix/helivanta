@@ -347,6 +347,12 @@ export const ZONES: Zone[] = [
         icon: Building2,
         permission: "supply.directory.read",
       },
+      {
+        label: "Supplier Staff",
+        href: "/supply/staff",
+        icon: Contact,
+        permission: "supply.directory.read",
+      },
     ],
   },
   {

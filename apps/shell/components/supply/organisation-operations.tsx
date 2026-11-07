@@ -30,6 +30,7 @@ import {
   RefreshButton,
 } from "@helivanta/ui";
 import { WarehouseBins } from "./warehouse-bins";
+import { WarehouseStock } from "./warehouse-stock";
 import { dateTimeInputISO, dateTimeInputValue, formatAbsoluteTime } from "./time-input";
 
 const baseFor = (scope: SupplyRegistryScope) => `/supply/parties/${scope.partyId}`;
@@ -55,7 +56,7 @@ function OperationsPanel({ scope, roles }: { scope: SupplyRegistryScope; roles: 
   const { can } = usePermissions();
   const [selection, setSelection] = useState<{
     id: string;
-    view: "bins" | "control" | "assigned";
+    view: "bins" | "control" | "assigned" | "stock";
   } | null>(null);
   const target = useRef<HTMLDivElement>(null);
   const locations = useApiPagedQuery<SupplyOperatingLocation>(
@@ -81,11 +82,16 @@ function OperationsPanel({ scope, roles }: { scope: SupplyRegistryScope; roles: 
         "regulator",
       ].includes(role),
     );
+  const stock =
+    can("supply.operations.read") &&
+    roles.some((role) =>
+      ["administrator", "warehouse", "inventory", "auditor", "regulator"].includes(role),
+    );
   const writableBins =
     can("supply.operations.write") &&
     roles.some((role) => ["administrator", "inventory"].includes(role));
   const selected = locations.items.find((row) => row.id === selection?.id);
-  function select(id: string, view: "bins" | "control" | "assigned") {
+  function select(id: string, view: "bins" | "control" | "assigned" | "stock") {
     setSelection({ id, view });
     requestAnimationFrame(() => {
       target.current?.scrollIntoView({ block: "start", behavior: "instant" });
@@ -145,6 +151,17 @@ function OperationsPanel({ scope, roles }: { scope: SupplyRegistryScope; roles: 
                         Storage bins
                       </Button>
                     )}
+                  {stock &&
+                    row.allowed_actions.includes("read_stock") &&
+                    ["warehouse", "depot"].includes(row.kind) && (
+                      <Button
+                        variant="outline"
+                        aria-label={`Stock ${row.code}`}
+                        onClick={() => select(row.id, "stock")}
+                      >
+                        Stock receipts
+                      </Button>
+                    )}
                   {control && row.allowed_actions.includes("read_deliveries") && (
                     <Button
                       variant="outline"
@@ -182,10 +199,24 @@ function OperationsPanel({ scope, roles }: { scope: SupplyRegistryScope; roles: 
         {!locations.isError &&
           selected &&
           selection &&
-          (selected.status !== "active" && selection.view !== "control" ? (
+          (selected.status !== "active" &&
+          selection.view !== "control" &&
+          selection.view !== "stock" ? (
             <p role="status" className="text-sm text-muted-foreground">
               This location is archived. Only delivery history is available.
             </p>
+          ) : selection.view === "stock" ? (
+            stock && selected.allowed_actions.includes("read_stock") ? (
+              <WarehouseStock
+                scope={{ ...scope, premiseId: selected.id }}
+                location={selected}
+                roles={roles}
+                canWrite={writableBins && selected.allowed_actions.includes("receive_stock")}
+                onClose={() => setSelection(null)}
+              />
+            ) : (
+              <p role="status">Stock access is unavailable.</p>
+            )
           ) : selection.view === "bins" ? (
             <WarehouseBins
               key={`${scope.tenantId}:${scope.subject}:${selected.id}`}

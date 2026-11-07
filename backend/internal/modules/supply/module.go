@@ -128,10 +128,10 @@ func (*Module) Permissions() []authz.Grant {
 	return grants
 }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_supply", SQL: partySchema}, {ID: "0002_supply", SQL: registrationSchema}, {ID: "0003_supply", SQL: evidenceSchema}, {ID: "0004_supply", SQL: reviewSchema}, {ID: "0005_supply", SQL: binSchema}, {ID: "0006_supply", SQL: branchSchema}, {ID: "0007_supply", SQL: accessScopeSchema + corporateSchema + territorySchema}, {ID: "0008_supply", SQL: operationsSchema + deliveryTaskSchema + supportAccessSchema + accessLimitsSchema}, {ID: "0009_supply", SQL: indiaOnlySchema}}
+	return []tenantdb.Migration{{ID: "0001_supply", SQL: partySchema}, {ID: "0002_supply", SQL: registrationSchema}, {ID: "0003_supply", SQL: evidenceSchema}, {ID: "0004_supply", SQL: reviewSchema}, {ID: "0005_supply", SQL: binSchema}, {ID: "0006_supply", SQL: branchSchema}, {ID: "0007_supply", SQL: accessScopeSchema + corporateSchema + territorySchema}, {ID: "0008_supply", SQL: operationsSchema + deliveryTaskSchema + supportAccessSchema + accessLimitsSchema}, {ID: "0009_supply", SQL: indiaOnlySchema}, {ID: "0010_supply_stock", SQL: stockSchema}, {ID: "0011_supply_employer_guard", SQL: employerGuardSchema}}
 }
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {
-	h := &handlers{db: deps.DB, bus: deps.Bus, identity: deps.OrganizationIdentity, roles: deps.Roles}
+	h := &handlers{operating: deps.OperatingAuthorizer, db: deps.DB, bus: deps.Bus, identity: deps.OrganizationIdentity, roles: deps.Roles, stockProducts: deps.StockProducts}
 	g := r.Group("/supply")
 	g.PUT("/parties/:party/premises/:premise/bins/:bin", PermBinWrite, h.putBin)
 	g.GET("/parties/:party/premises/:premise/bins/:bin", PermBinRead, h.getBin)
@@ -155,6 +155,7 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.GET("/parties/:party/access", PermDirectoryRead, h.getAccess)
 	registerAccessRoutes(g, h)
 	registerOperatingRoutes(g, h)
+	registerStockRoutes(g, h)
 	g.PUT("/parties/:party/operating-locations/:premise/bins/:bin", PermOperatingWrite, h.putOperatingBin)
 	registerDeliveryRoutes(g, h)
 	registerSupportAccessRoutes(g, h)
@@ -178,7 +179,7 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.ListRoute(g, "/parties/:party/licenses/:license/revisions", PermLicenseRead, h.listLicenseRevisions)
 }
 func (*Module) Publishes() []string {
-	return []string{supplycontract.SubjectSupportAccessChanged, supplycontract.SubjectDeliveryTaskChanged, supplycontract.SubjectCorporateUpdated, supplycontract.SubjectTerritoryUpdated, supplycontract.SubjectBinUpdated, supplycontract.SubjectPartyUpdated, supplycontract.SubjectPartyAccessChanged, supplycontract.SubjectPremiseUpdated, supplycontract.SubjectLicenseDeclared, supplycontract.SubjectEvidenceScanRequested, supplycontract.SubjectEvidenceChanged, supplycontract.SubjectLicenseReviewChanged}
+	return []string{supplycontract.SubjectStockIdentityRecorded, supplycontract.SubjectStockReceiptRecorded, supplycontract.SubjectSupportAccessChanged, supplycontract.SubjectDeliveryTaskChanged, supplycontract.SubjectCorporateUpdated, supplycontract.SubjectTerritoryUpdated, supplycontract.SubjectBinUpdated, supplycontract.SubjectPartyUpdated, supplycontract.SubjectPartyAccessChanged, supplycontract.SubjectPremiseUpdated, supplycontract.SubjectLicenseDeclared, supplycontract.SubjectEvidenceScanRequested, supplycontract.SubjectEvidenceChanged, supplycontract.SubjectLicenseReviewChanged}
 }
 func (*Module) DirectedSubjects() []string    { return nil }
 func (*Module) DirectedWriteTables() []string { return nil }

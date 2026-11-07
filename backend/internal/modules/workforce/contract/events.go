@@ -449,3 +449,14 @@ const SubjectPostingDraftChanged = "helivanta.in.workforce.posting_draft_changed
 const SubjectPostingProposalChanged = "helivanta.in.workforce.posting_proposal_changed.v1"
 
 const SubjectPostingCutoffChanged = "helivanta.in.workforce.posting_cutoff_changed.v1"
+
+const SubjectIndependentLoginLinkChanged = "helivanta.in.workforce.independent_login_link_changed.v1"
+
+type IndependentLoginLinkChangedData struct {
+	EmployerKind string `json:"employer_kind"`
+	EmployerID   string `json:"employer_id"`
+	StaffID      string `json:"staff_id"`
+	LinkID       string `json:"link_id"`
+	Version      int64  `json:"version"`
+	Status       string `json:"status"`
+}

@@ -1,0 +1,62 @@
+{
+  "models": {
+    "Reference": [
+      {
+        "name": "product_id",
+        "type": "uuid"
+      },
+      {
+        "name": "version_id",
+        "type": "uuid"
+      },
+      {
+        "name": "formulation_id",
+        "type": "uuid"
+      },
+      {
+        "name": "formulation_version_id",
+        "type": "uuid"
+      },
+      {
+        "name": "brand_name",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "manufacturer",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "formulation_label",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "pack_size",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "unit_of_issue",
+        "type": "string",
+        "min": 1,
+        "max": 100
+      },
+      {
+        "name": "regulatory_class",
+        "type": "string",
+        "min": 1,
+        "max": 100
+      },
+      {
+        "name": "ndps",
+        "type": "bool"
+      }
+    ]
+  }
+}

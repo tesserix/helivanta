@@ -84,3 +84,7 @@ The deployed [hospital partner-group contract](partner-groups.md) covers shared 
 The deployed [supplier access preparation contract](partner-grants.md) records
 typed named-person/group intent for either stock owner. It provides no effective
 external assignment, bilateral consent, disclosure or fulfilment authority.
+
+Unreleased supplier workflow candidates: [supplier stock intake](supply-stock.md) and [independent employer Staff/account identity](workforce-independent-identity.md). Their operating, collaboration and release gates remain explicit in those contracts.
+
+The unreleased [independent operating duty contract](operating-duties.md) records implemented administrative/projection boundaries and remaining product consumers.

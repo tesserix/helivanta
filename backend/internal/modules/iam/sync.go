@@ -115,6 +115,7 @@ func (*Module) Consumers(deps platform.Deps) []events.Consumer {
 		proposalScopeConsumer(deps),
 		proposalDepartmentScopeConsumer(deps),
 		assignmentProjectionConsumer(deps),
+		operatingProjectionConsumer(deps),
 		{Name: "iam-fga-sync", Subject: iamcontract.SubjectMemberGranted, Handle: sync.handle, AfterCommit: sync.project},
 		{Name: "iam-fga-sync-revoke", Subject: iamcontract.SubjectMemberRevoked, Handle: sync.handle, AfterCommit: sync.project},
 	}

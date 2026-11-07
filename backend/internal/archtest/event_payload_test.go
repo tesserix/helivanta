@@ -43,6 +43,23 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"iam.OperatingDutyChangedData.DutyID":                    "opaque operating-duty identifier; worker rereads owner state; no target account, Staff name, permissions or reason",
+	"iam.OperatingDutyChangedData.Version":                   "monotonic owner revision; no personal, clinical or commercial payload",
+	"supply.StockReceiptRecordedData.PartyID":                "opaque stock-owner resource reference; no quantity, product labels or commercial details; authorized lookup required",
+	"supply.StockReceiptRecordedData.PremiseID":              "opaque stock-owner resource reference; no quantity, product labels or commercial details; authorized lookup required",
+	"supply.StockReceiptRecordedData.ReceiptID":              "opaque stock-owner resource reference; no quantity, product labels or commercial details; authorized lookup required",
+	"supply.StockIdentityRecordedData.PartyID":               "opaque stock-owner resource reference; no quantity, product labels or commercial details; authorized lookup required",
+	"supply.StockIdentityRecordedData.PremiseID":             "opaque stock-owner resource reference; no quantity, product labels or commercial details; authorized lookup required",
+	"supply.StockIdentityRecordedData.ReceiptID":             "opaque stock-owner resource reference; no quantity, product labels or commercial details; authorized lookup required",
+	"supply.StockIdentityRecordedData.CheckID":               "opaque product observation identifier; no product or actor data",
+	"supply.StockIdentityRecordedData.Version":               "monotonic observation sequence; no personal or clinical data",
+	"workforce.IndependentLoginLinkChangedData.EmployerKind": "typed independent establishment/link lifecycle reference; no account subject, staff name or reason; authorized lookup required",
+	"workforce.IndependentLoginLinkChangedData.EmployerID":   "typed independent establishment/link lifecycle reference; no account subject, staff name or reason; authorized lookup required",
+	"workforce.IndependentLoginLinkChangedData.StaffID":      "typed independent establishment/link lifecycle reference; no account subject, staff name or reason; authorized lookup required",
+	"workforce.IndependentLoginLinkChangedData.LinkID":       "typed independent establishment/link lifecycle reference; no account subject, staff name or reason; authorized lookup required",
+	"workforce.IndependentLoginLinkChangedData.Version":      "typed independent establishment/link lifecycle reference; no account subject, staff name or reason; authorized lookup required",
+	"workforce.IndependentLoginLinkChangedData.Status":       "typed independent establishment/link lifecycle reference; no account subject, staff name or reason; authorized lookup required",
+
 	"iam.PartnerGroupHospitalScopeRequestedData.GroupID":                   "opaque group correlation; no member identity or private reason",
 	"iam.PartnerGroupHospitalScopeRequestedData.HospitalID":                "opaque requested hospital scope; no patient data or authority",
 	"iam.PartnerGroupChangedData.GroupID":                                  "opaque group reference; owner reads require authorization",

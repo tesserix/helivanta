@@ -163,3 +163,14 @@ export * from "./partner-members";
 
 export * from "./partner-grant-contract";
 export * from "./partner-grants";
+
+export * from "./supply-stock";
+export * from "./supply-stock-contract";
+
+export * from "./independent-staff-identity";
+
+export * from "./supplier-staff";
+
+export * from "./supplier-staff-queries";
+export * from "./independent-staff-identity-queries";
+export * from "./operating-duties";

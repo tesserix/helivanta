@@ -399,11 +399,17 @@ func run() error {
 	}
 	scopedAuthorizer := iam.NewScopedAuthorizer(db, fga)
 	deps := platform.Deps{
+		OperatingAuthorizer:         iam.NewOperatingAuthorizer(db, fga, platform.IndependentStaffIdentities(registry.All(), db), platform.OperatingLocations(registry.All(), db)),
+		IndependentStaff:            platform.IndependentStaffIdentities(registry.All(), db),
+		OperatingLocations:          platform.OperatingLocations(registry.All(), db),
+		Membership:                  currentAuthorization,
 		StaffActors:                 platform.StaffActors(registry.All(), db),
+		StockProducts:               platform.StockProducts(registry.All(), db),
 		StaffPostingSources:         platform.StaffPostingSources(registry.All(), db),
 		PartnerMembers:              platform.PartnerMembers(registry.All(), db),
 		DepartmentReferences:        platform.DepartmentReferences(registry.All(), db),
 		PharmacyEmployers:           platform.PharmacyEmployers(registry.All(), db),
+		SupplierEmployers:           platform.SupplierEmployers(registry.All(), db),
 		DepartmentScopes:            platform.DepartmentScopes(registry.All(), db),
 		ScopedAuthorizer:            scopedAuthorizer,
 		EmploymentActivationEnabled: cfg.EmploymentActivationEnabled,

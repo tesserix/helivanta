@@ -351,6 +351,22 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /iam/operating-duties/:id":                                                                          "one private typed operating duty lifecycle record",
+	"GET /iam/operating-duties/:id/proposal-receipt":                                                         "one immutable actor-bound operating duty preparation receipt",
+	"GET /iam/operating-duties/:id/commands/:command":                                                        "one immutable actor-bound operating duty decision receipt",
+	"GET /drugmaster/products/by-gtin/:gtin/stock-reference":                                                 "one current published stock reference for one exact GTIN",
+	"GET /supply/parties/:party/operating-locations/:premise/stock/products/by-gtin/:gtin":                   "one current stock-purpose reference at the authorized source location",
+	"GET /supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt":                        "one immutable physical receipt at the authorized source location",
+	"GET /supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/identity-checks/:check": "one immutable product observation for one physical receipt",
+	"GET /workforce/suppliers/:supplier":                                                                     "one owned supplier employer registration",
+	"GET /workforce/suppliers/:supplier/staff/:id":                                                           "one private supplier Staff directory record",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/account-links/:link":                                      "one private reviewed account-link state",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/account-links/:link/proposal-receipt":                     "one immutable attributable account-link proposal receipt",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/account-links/:link/commands/:command":                    "one immutable actor-bound account-link decision receipt",
+	"GET /workforce/suppliers/:supplier/staff/:id/account-links/:link":                                       "one private reviewed account-link state",
+	"GET /workforce/suppliers/:supplier/staff/:id/account-links/:link/proposal-receipt":                      "one immutable attributable account-link proposal receipt",
+	"GET /workforce/suppliers/:supplier/staff/:id/account-links/:link/commands/:command":                     "one immutable actor-bound account-link decision receipt",
+
 	"GET /iam/partner-grant-drafts/:id": "one immutable owner-tenant proposal; collections use signed cursor pagination",
 
 	"GET /iam/partner-groups/:id":                                                                   "one tenant-scoped partner group; directory and history are cursor-paginated",

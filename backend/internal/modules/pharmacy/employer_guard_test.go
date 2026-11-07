@@ -115,3 +115,46 @@ func TestPharmacyEmployerGuardHoldsTheOrganizationUntilTheCommandEnds(t *testing
 	}))
 	require.NoError(t, lockedOut())
 }
+
+func TestIndependentOperatingLocationKeepsOutletAndEmployerOwnersTogether(t *testing.T) {
+	_, db, _, ctx := catalogueSetup(t)
+	independent := seedEmployerOrganization(t, db, testutil.TenantA, "TEST-SOURCE-OWNED", "independent")
+	hospital := seedEmployerOrganization(t, db, testutil.TenantA, "TEST-SOURCE-HOSPITAL", "hospital_owned")
+	seedOutlet := func(root uuid.UUID) uuid.UUID {
+		outlet := uuid.Must(uuid.NewV7())
+		require.NoError(t, db.WithTenant(tenantdb.WithActor(ctx, "user-editor"), testutil.TenantA, func(tx *gorm.DB) error {
+			return tx.Exec(`INSERT INTO pharmacy_outlets(id,tenant_id,pharmacy_id,code,name,country_code,timezone)VALUES(?,?,?,?,?,'IN','Asia/Kolkata')`, outlet, testutil.TenantA, root, "TEST-OUTLET", "TEST Stock Source").Error
+		}))
+		return outlet
+	}
+	outlet, hospitalOutlet := seedOutlet(independent), seedOutlet(hospital)
+	guard := pharmacy.New().OperatingLocations(db)
+	scope := authz.OperatingLocationScope{TenantID: testutil.TenantA, EmployerKind: "pharmacy", EmployerID: independent, LocationID: outlet}
+	_, err := guard.CurrentOperatingLocation(ctx, scope)
+	require.ErrorIs(t, err, authz.ErrScopedAuthorizationUnavailable)
+	var fact authz.OperatingLocationReference
+	read := func(scope authz.OperatingLocationScope) error {
+		return db.WithGuardedTenantCommand(tenantdb.WithActor(ctx, "user-editor"), testutil.TenantA, time.Now().Add(5*time.Second), func(*gorm.DB) error { return nil }, func(commandCtx context.Context) error {
+			var err error
+			fact, err = guard.CurrentOperatingLocation(commandCtx, scope)
+			return err
+		})
+	}
+	require.NoError(t, read(scope))
+	require.Equal(t, scope, fact.Scope)
+	require.Equal(t, int64(1), fact.EmployerVersion)
+	require.Equal(t, int64(1), fact.LocationVersion)
+	for name, change := range map[string]func(*authz.OperatingLocationScope){
+		"different outlet owner": func(s *authz.OperatingLocationScope) { s.LocationID = hospitalOutlet },
+		"hospital employer":      func(s *authz.OperatingLocationScope) { s.EmployerID = hospital; s.LocationID = hospitalOutlet },
+		"wrong stock owner":      func(s *authz.OperatingLocationScope) { s.EmployerKind = "supplier" },
+		"unknown outlet":         func(s *authz.OperatingLocationScope) { s.LocationID = uuid.Must(uuid.NewV7()) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			request := scope
+			change(&request)
+			require.ErrorIs(t, read(request), authz.ErrScopedCommandDenied)
+			require.Zero(t, fact)
+		})
+	}
+}

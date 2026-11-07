@@ -433,3 +433,13 @@ includes the current ownership tree, actor roles and endpoint/recovery contract.
 Its [editable draw.io diagram](diagrams/09-independent-membership.drawio) and
 [SVG preview](diagrams/09-independent-membership.svg) distinguish candidate
 membership behavior from pending supplier integrations.
+
+### Unreleased receiving-duty candidate
+
+[Operating duties](../../api/operating-duties.md) and
+[SupplyConnect stock intake](../../api/supply-stock.md) describe the current
+candidate. Its [editable receiving-duty diagram](diagrams/10-receiving-duties.drawio)
+and [SVG preview](diagrams/10-receiving-duties.svg) distinguish implemented
+receiving behavior from the unfinished hospital collaboration and fulfilment
+workflow. See the [delivery ledger](independent-collaboration-delivery.md) before
+inferring full workflow or production availability.

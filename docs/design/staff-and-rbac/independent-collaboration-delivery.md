@@ -123,3 +123,28 @@ These checks validate hospital recipient-team management. The external supplier
 relationship, typed independent employer operations, bilateral disclosure,
 physical stock/financial composition and production release entries above remain
 open. No readiness marker or operating licence has been activated.
+
+## Unreleased receiving-duty continuation — 7 November 2026
+
+The isolated `feat/independent-supplier-workflow-20261107` candidate now contains
+SupplyConnect quarantined intake and append-only product observations, the
+supplier employer/private Staff directory, typed reviewed Staff/account links,
+and Shared IAM operating duties. Current source-owner locks, Staff/link and
+membership revisions, independent review, exact graph acknowledgement and
+credential checks guard each source-scoped stock action. Scoped barcode lookup
+uses the existing drug-master owner; it creates no product or stock master.
+
+The Staff UI adds a private paginated duty directory, source/account selection,
+proposal/review/revocation and exact GET recovery after response loss. Its
+component tests cover lost preparation and review responses, stale-write rejection
+and hiding private data after current read refusal. Candidate documentation is
+[operating duties](../../api/operating-duties.md) and
+[stock intake](../../api/supply-stock.md); the
+[receiving-duty diagram](diagrams/10-receiving-duties.drawio) distinguishes current
+candidate behavior from the remaining workflow.
+
+This does not close any missing bilateral grant, disclosure, fulfilment or
+financial-composition row above. PharmaConnect's receiving template still lacks
+its actual product consumer. Receiver-only browser navigation and real OIDC
+acceptance also remain open. No new migration, production promotion or deployment
+is established by these source changes or synthetic tests.

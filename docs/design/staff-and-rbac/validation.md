@@ -227,3 +227,26 @@ ready application/worker containers matching the published manifests, service
 readiness and anonymous denial/redirect checks. These checks establish the
 preparation checkpoint rollout. Effective grants, bilateral disclosure,
 fulfilment and financial composition remain open.
+
+## Unreleased supplier receiving candidate — 7 November 2026
+
+The isolated continuation branch implements quarantined SupplyConnect receipts,
+product observations, independent Staff identity and source-scoped receiving
+duties. This is not full supplier-workflow acceptance or deployment evidence.
+
+Commands actually run for this continuation:
+
+- `go test -race ./internal/globalapi -run 'TestIndependent(OperatingDuty|OperatingAuthority|Receiver|StockCommand)' -count=1 -timeout 30m` from `backend/`: passed, 83.851 seconds. Uses actual owner modules, PostgreSQL and OpenFGA behind Global API, with a synthetic token verifier. Covers scoped receiving and barcode lookup, current source/identity/membership checks, independent review, projection acknowledgement, immediate revocation and credential cutoff. It does not exercise real OIDC sign-in.
+- `go test -race ./internal/modules/supply ./internal/modules/drugmaster -count=1 -timeout 30m`: passed, 168.025 and 32.498 seconds.
+- `pnpm --filter @helivanta/api test`: 98 files, 978 tests passed, including exact owner/actor/intent recovery and scoped stock lookup.
+- Shell Vitest selection: `independent-operating-duties`, `independent-staff-links`, `employer-registration`, supplier/pharmacy `staff-source` and `warehouse-stock`: six files, 26 tests passed after lint corrections. These are component tests, including lost responses and current-access refusal; they are not a complete browser trade journey.
+- `go build ./...`, `go vet ./...`, API/shell `tsc --noEmit`, API/shell lint and `API_URL=http://localhost:8081 pnpm --filter @helivanta/shell build`: passed. An initial shell build without required `API_URL` failed configuration validation, then passed with the explicit local Global API origin.
+- `go run ./cmd/contractdocs` and `go run ./cmd/contractdocs -check`: passed. Architecture suite passed before final documentation-only updates.
+- Canonical generators checked with `--check`: `stock-products`, `supply-stock`, `operating-assignments`, `workforce-independent-identity` and `workforce-establishments`: passed.
+- The receiving-duty SVG was rendered using Playwright Chromium at 1480×1160 and visually inspected. Editable diagrams.net source is retained beside it.
+
+QA used the isolated `helivanta-staff-qa` Docker profile, not production. No
+migration or Kargo promotion was performed. Effective bilateral grants,
+PharmaConnect's scoped product consumer, qualified release, owner balances,
+reservations/dispatch, hospital receipt/discrepancies and financial composition
+remain outside this verified candidate.

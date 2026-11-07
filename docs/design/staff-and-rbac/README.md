@@ -443,3 +443,8 @@ and [SVG preview](diagrams/10-receiving-duties.svg) distinguish implemented
 receiving behavior from the unfinished hospital collaboration and fulfilment
 workflow. See the [delivery ledger](independent-collaboration-delivery.md) before
 inferring full workflow or production availability.
+
+The [supplier source/consent contract](../../api/supplier-trade.md) and
+[editable consent diagram](diagrams/11-supplier-source-consent.drawio) describe
+the subsequent unreleased dependency. Consent and current source facts remain
+separate from effective staff grants, partner disclosure and fulfilment.

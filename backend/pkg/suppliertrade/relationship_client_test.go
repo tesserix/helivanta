@@ -139,3 +139,48 @@ func TestRelationshipClientRejectsBadIntentAndUnavailableCredentialsBeforeTransp
 		require.ErrorIs(t, err, ErrUnavailable)
 	}
 }
+
+func TestRelationshipClientRejectsTransportAndProtocolFailuresWithoutRedirects(t *testing.T) {
+	for name, change := range map[string]func(*http.Response){
+		"redirect": func(r *http.Response) {
+			r.StatusCode = http.StatusFound
+			r.Header.Set("Location", "https://untrusted.example.invalid/collect")
+		},
+		"rejected caller":   func(r *http.Response) { r.StatusCode = http.StatusUnauthorized },
+		"owner unavailable": func(r *http.Response) { r.StatusCode = http.StatusServiceUnavailable },
+		"wrong media type":  func(r *http.Response) { r.Header.Set("Content-Type", "text/plain") },
+		"unknown field": func(r *http.Response) {
+			r.Body = io.NopCloser(bytes.NewBufferString(`{"eligible":true,"grant_all":true}`))
+		},
+		"duplicate key": func(r *http.Response) {
+			r.Body = io.NopCloser(bytes.NewBufferString(`{"eligible":false,"eligible":true}`))
+		},
+		"malformed JSON": func(r *http.Response) { r.Body = io.NopCloser(bytes.NewBufferString(`{"eligible":`)) },
+		"oversized body": func(r *http.Response) { r.Body = io.NopCloser(bytes.NewReader(bytes.Repeat([]byte(" "), 17<<10))) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			calls := 0
+			client, err := NewCurrentSourceClient("https://source.example.invalid"+SourceCheckPath, responseTransport(func(r *http.Request) (*http.Response, error) {
+				calls++
+				require.Equal(t, "source.example.invalid", r.URL.Host)
+				var input RelationshipCheckInput
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&input))
+				raw, e := json.Marshal(relationshipReply(input))
+				require.NoError(t, e)
+				response := &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}}, Body: io.NopCloser(bytes.NewReader(raw))}
+				change(response)
+				return response, nil
+			}), func(context.Context) (string, error) { return "TEST-WORKLOAD", nil })
+			require.NoError(t, err)
+			_, err = client.CheckRelationship(t.Context(), relationshipCheckFixture())
+			require.ErrorIs(t, err, ErrUnavailable)
+			require.Equal(t, 1, calls, "credentials must not follow a redirect")
+		})
+	}
+	t.Run("transport failure", func(t *testing.T) {
+		client, err := NewCurrentSourceClient("https://source.example.invalid"+SourceCheckPath, responseTransport(func(*http.Request) (*http.Response, error) { return nil, errors.New("peer disconnected") }), func(context.Context) (string, error) { return "TEST-WORKLOAD", nil })
+		require.NoError(t, err)
+		_, err = client.CheckRelationship(t.Context(), relationshipCheckFixture())
+		require.ErrorIs(t, err, ErrUnavailable)
+	})
+}

@@ -9,6 +9,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/suppliertrade"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
+	"sync/atomic"
 	"time"
 )
 
@@ -24,6 +25,7 @@ type verifiedRelationship struct {
 	local      suppliertrade.Relationship
 	peer       suppliertrade.RelationshipCheckResult
 	verifiedAt time.Time
+	consumed   atomic.Bool
 }
 
 func (p *verifiedRelationship) Snapshot() suppliertrade.Relationship {
@@ -111,6 +113,12 @@ func (g *relationshipAuthority) VerifyRelationship(ctx context.Context, scope su
 func (g *relationshipAuthority) WithVerifiedRelationship(ctx context.Context, proof suppliertrade.RelationshipAuthorization, action func(context.Context, suppliertrade.Relationship) error) error {
 	token, ok := proof.(*verifiedRelationship)
 	if !ok || token == nil || token.owner != g || g.db == nil || action == nil || !g.db.GuardedCommandActive(ctx) || time.Since(token.verifiedAt) < 0 || time.Since(token.verifiedAt) > 5*time.Second {
+		return suppliertrade.ErrUnavailable
+	}
+	if !token.consumed.CompareAndSwap(false, true) {
+		return suppliertrade.ErrUnavailable
+	}
+	if err := g.db.ConstrainGuardedCommand(ctx, token.scope.TenantID, token.verifiedAt.Add(5*time.Second)); err != nil {
 		return suppliertrade.ErrUnavailable
 	}
 	return g.db.WithTenantCommand(ctx, token.scope.TenantID, func(tx *gorm.DB) error {

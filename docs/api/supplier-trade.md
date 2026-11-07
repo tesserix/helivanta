@@ -114,7 +114,10 @@ current peer consent and both source endpoints before issuing a private,
 short-lived proof. Consumers must reacquire local relationship/source authority
 through `WithVerifiedRelationship` before committing. The proof is tied to the
 issuing owner instance and expires after five seconds; snapshots are copied so a
-consumer cannot alter the verified terms. Network verification runs before local
+consumer cannot alter the verified terms. Each proof can be consumed by one
+guarded command attempt; retries require fresh verification. Proof expiry constrains the
+owner transaction through commit, including time spent waiting for local locks.
+Network verification runs before local
 transaction locks. Missing peer configuration fails closed. The projected token,
 TokenReview RBAC and consumer integrations remain release prerequisites.
 

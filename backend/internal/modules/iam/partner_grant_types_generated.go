@@ -36,7 +36,9 @@ type PartnerGrantDraft struct {
 }
 
 const partnerGrantMaximumValidityDays = 366
+const partnerGrantMaximumTimestampFractionDigits = 9
 
+var partnerGrantTimestampInputFields = []string{"valid_from", "expires_at"}
 var partnerGrantInputEnums = map[string][]string{"owner_product": {"pharmacy", "supply"},
 	"recipient_kind":           {"subject", "group"},
 	"template_key":             {"partner.catalogue_viewer.v1", "partner.shipment_reader.v1", "partner.invoice_viewer.v1"},

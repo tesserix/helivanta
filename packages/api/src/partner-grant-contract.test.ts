@@ -21,6 +21,31 @@ const input = {
 };
 
 describe("partner grant preparation contract", () => {
+  it("refuses timestamp precision beyond the owner's nanosecond representation", () => {
+    expect(
+      PartnerGrantDraftInputContract.safeParse({
+        ...input,
+        expires_at: "2026-11-08T00:00:00.0000000001Z",
+      }).success,
+    ).toBe(false);
+  });
+  it("accepts a positive validity interval at nanosecond precision", () => {
+    expect(
+      PartnerGrantDraftInputContract.safeParse({
+        ...input,
+        valid_from: "2026-11-07T00:00:00.000000001Z",
+        expires_at: "2026-11-07T00:00:00.000000002Z",
+      }).success,
+    ).toBe(true);
+  });
+  it("refuses one nanosecond beyond the maximum validity", () => {
+    expect(
+      PartnerGrantDraftInputContract.safeParse({
+        ...input,
+        expires_at: "2027-11-08T00:00:00.000000001Z",
+      }).success,
+    ).toBe(false);
+  });
   it("accepts a hospital group or one named account with a single stock owner", () => {
     expect(PartnerGrantDraftInputContract.safeParse(input).success).toBe(true);
     const named = { ...input };

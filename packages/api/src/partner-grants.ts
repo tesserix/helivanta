@@ -7,6 +7,7 @@ import {
   PartnerGrantDraftContract,
   PartnerGrantDraftInputContract,
   partnerGrantUUIDInputFields,
+  partnerGrantTimestampNanos,
   type PartnerGrantDraftInput,
 } from "./partner-grant-contract";
 
@@ -30,14 +31,6 @@ function owned(scope: PartnerGrantDraftScope, response: unknown, id?: string) {
   return value;
 }
 
-function instant(value: string) {
-  const match = value.match(/T\d{2}:\d{2}:\d{2}(?:\.(\d{1,9}))?(?:Z|[+-]\d{2}:\d{2})$/);
-  const millis = Date.parse(value);
-  if (!match || !Number.isFinite(millis))
-    throw new Error("The draft contains unsupported timestamp precision.");
-  return BigInt(millis) * 1_000_000n + BigInt((match[1] ?? "").padEnd(9, "0").slice(3));
-}
-
 function submitted(
   scope: PartnerGrantDraftScope,
   input: PartnerGrantDraftInput,
@@ -48,7 +41,7 @@ function submitted(
   for (const key of Object.keys(input) as (keyof PartnerGrantDraftInput)[]) {
     const same =
       key === "valid_from" || key === "expires_at"
-        ? instant(value.input[key]) === instant(input[key])
+        ? partnerGrantTimestampNanos(value.input[key]) === partnerGrantTimestampNanos(input[key])
         : partnerGrantUUIDInputFields.has(key) &&
             typeof value.input[key] === "string" &&
             typeof input[key] === "string"

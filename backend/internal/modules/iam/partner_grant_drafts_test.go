@@ -66,6 +66,8 @@ func TestPartnerGrantDraftRetainsExactTypedIntentWithoutOperatingAuthority(t *te
 	require.Empty(t, call("GET", "/v1/iam/partner-grant-drafts?limit=1", "foreign", nil, 200)["data"])
 
 	for _, change := range []map[string]any{
+		{"expires_at": time.Now().UTC().Add(time.Hour).Format("2006-01-02T15:04:05") + ".0000000001Z"},
+		{"expires_at": input["valid_from"].(time.Time).Add(366*24*time.Hour + time.Nanosecond)},
 		{"recipient_subject": "synthetic-peer"}, {"recipient_subject": nil}, {"owner_tenant_id": testutil.TenantB}, {"operating_access_enabled": true}, {"recipient_group_id": nil}, {"owner_product": "hospital"}, {"template_key": "pharmacy.admin"}, {"source_jurisdiction": "IN-KA"}, {"destination_jurisdiction": "IN-DL"}, {"relationship_version": 0}, {"owner_organization_id": uuid.NewString()}, {"expires_at": time.Now().Add(-2 * time.Hour)}, {"expires_at": time.Now().Add(367 * 24 * time.Hour)}, {"reason": "\nSynthetic"},
 	} {
 		invalid := maps.Clone(input)
@@ -86,6 +88,14 @@ func TestPartnerGrantDraftRetainsExactTypedIntentWithoutOperatingAuthority(t *te
 	require.Equal(t, prepared["id"], second["data"].([]any)[0].(map[string]any)["id"])
 	call("GET", "/v1/iam/partner-grant-drafts?limit=1&cursor="+url.QueryEscape(cursor), "foreign", nil, 400)
 	call("GET", "/v1/iam/partner-grant-drafts?owner_tenant_id="+testutil.TenantB, "admin", nil, 400)
+	start := time.Now().UTC().Add(time.Hour).Truncate(time.Second).Add(time.Nanosecond)
+	for _, duration := range []time.Duration{time.Nanosecond, 366 * 24 * time.Hour} {
+		bounded := maps.Clone(input)
+		bounded["valid_from"], bounded["expires_at"] = start, start.Add(duration)
+		retained := call("PUT", "/v1/iam/partner-grant-drafts/"+uuid.Must(uuid.NewV7()).String(), "admin", bounded, 200)["input"].(map[string]any)
+		require.Equal(t, start.Format(time.RFC3339Nano), retained["valid_from"])
+		require.Equal(t, start.Add(duration).Format(time.RFC3339Nano), retained["expires_at"])
+	}
 	var count int64
 	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error { return tx.Table("iam_partner_grant_drafts").Count(&count).Error }))
 	require.Zero(t, count, "without the owner purpose, forced RLS hides proposal contents")

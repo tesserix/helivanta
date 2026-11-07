@@ -1339,7 +1339,7 @@
       "registration_sha256": "76596787f52e677707e3c4a9b7ed43d202d02bac9d05baa178c0f1e79fff73fb",
       "authority_kind": "governance_recovery",
       "resource_scope": "Verified session tenant; immutable supplier access intent only. Recipient and relationship references remain unverified.",
-      "rationale": "Declared iam.assignment.manage plus refreshed account and expected tenant/subject preconditions. grantDraftTransaction locks current governance membership and credential revocation through the owner-only forced-RLS transaction. Creation/recovery bind actor and membership epoch; reads require committed audit. Every record is pending_verification and operating_access_enabled=false, with no graph projection, external publication, stock or financial act.",
+      "rationale": "Declared iam.assignment.manage plus refreshed account and expected tenant/subject preconditions. grantDraftTransaction locks current governance membership and credential revocation through the owner-only forced-RLS transaction. Creation/recovery bind actor and membership epoch; reads require committed audit. Every record is pending_verification and operating_access_enabled=false, with no graph projection, external publication, stock or financial act. Canonical timestamp precision recheck: bounded raw time fields reject unsupported fractional digits before Go normalization; exact duration boundaries use nanoseconds. Governance admission, locks and disclosure audit are unchanged.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/module.go",
@@ -1348,7 +1348,7 @@
         },
         {
           "path": "backend/internal/modules/iam/partner_grant_drafts.go",
-          "sha256": "08e945c0a78d263e2dd8b3010b217fef95ca64f3a5b8643b58825f7cbe6ccdbc",
+          "sha256": "a6a54286b4dd34736b06df834bb51c8acc1977d92c1b93efc58b4a6e9d57f4a5",
           "symbol": "func (h *partnerGroupHandlers) grantDraftTransaction("
         },
         {
@@ -1371,7 +1371,7 @@
       "registration_sha256": "4d5d7d74258816fb860563ee1bddfdff2267bc74102220651117026bbf8b78ee",
       "authority_kind": "governance_recovery",
       "resource_scope": "Verified session tenant; immutable supplier access intent only. Recipient and relationship references remain unverified.",
-      "rationale": "Declared iam.assignment.manage plus refreshed account and expected tenant/subject preconditions. grantDraftTransaction locks current governance membership and credential revocation through the owner-only forced-RLS transaction. Creation/recovery bind actor and membership epoch; reads require committed audit. Every record is pending_verification and operating_access_enabled=false, with no graph projection, external publication, stock or financial act.",
+      "rationale": "Declared iam.assignment.manage plus refreshed account and expected tenant/subject preconditions. grantDraftTransaction locks current governance membership and credential revocation through the owner-only forced-RLS transaction. Creation/recovery bind actor and membership epoch; reads require committed audit. Every record is pending_verification and operating_access_enabled=false, with no graph projection, external publication, stock or financial act. Canonical timestamp precision recheck: bounded raw time fields reject unsupported fractional digits before Go normalization; exact duration boundaries use nanoseconds. Governance admission, locks and disclosure audit are unchanged.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/module.go",
@@ -1380,7 +1380,7 @@
         },
         {
           "path": "backend/internal/modules/iam/partner_grant_drafts.go",
-          "sha256": "08e945c0a78d263e2dd8b3010b217fef95ca64f3a5b8643b58825f7cbe6ccdbc",
+          "sha256": "a6a54286b4dd34736b06df834bb51c8acc1977d92c1b93efc58b4a6e9d57f4a5",
           "symbol": "func (h *partnerGroupHandlers) grantDraftTransaction("
         },
         {
@@ -1403,7 +1403,7 @@
       "registration_sha256": "4f26c915903bc5422b81980e71d9127508d1e0757595bc58b2ac2ecf322bd2a1",
       "authority_kind": "governance_recovery",
       "resource_scope": "Verified session tenant; immutable supplier access intent only. Recipient and relationship references remain unverified.",
-      "rationale": "Declared iam.assignment.manage plus refreshed account and expected tenant/subject preconditions. grantDraftTransaction locks current governance membership and credential revocation through the owner-only forced-RLS transaction. Creation/recovery bind actor and membership epoch; reads require committed audit. Every record is pending_verification and operating_access_enabled=false, with no graph projection, external publication, stock or financial act.",
+      "rationale": "Declared iam.assignment.manage plus refreshed account and expected tenant/subject preconditions. grantDraftTransaction locks current governance membership and credential revocation through the owner-only forced-RLS transaction. Creation/recovery bind actor and membership epoch; reads require committed audit. Every record is pending_verification and operating_access_enabled=false, with no graph projection, external publication, stock or financial act. Canonical timestamp precision recheck: bounded raw time fields reject unsupported fractional digits before Go normalization; exact duration boundaries use nanoseconds. Governance admission, locks and disclosure audit are unchanged.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/module.go",
@@ -1412,7 +1412,7 @@
         },
         {
           "path": "backend/internal/modules/iam/partner_grant_drafts.go",
-          "sha256": "08e945c0a78d263e2dd8b3010b217fef95ca64f3a5b8643b58825f7cbe6ccdbc",
+          "sha256": "a6a54286b4dd34736b06df834bb51c8acc1977d92c1b93efc58b4a6e9d57f4a5",
           "symbol": "func (h *partnerGroupHandlers) grantDraftTransaction("
         },
         {

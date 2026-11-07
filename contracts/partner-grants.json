@@ -1,5 +1,6 @@
 {
   "maximum_validity_days": 366,
+  "maximum_timestamp_fraction_digits": 9,
   "models": {
     "PartnerGrantDraftInput": [
       {

@@ -258,5 +258,17 @@ func validPartnerGrantDraftPresence(raw []byte) bool {
 			return false
 		}
 	}
+	for _, field := range partnerGrantTimestampInputFields {
+		var timestamp string
+		if json.Unmarshal(supplied[field], &timestamp) != nil || strings.Contains(timestamp, ",") {
+			return false
+		}
+		if fraction := strings.IndexByte(timestamp, '.'); fraction >= 0 {
+			digits := strings.IndexAny(timestamp[fraction+1:], "Z+-")
+			if digits < 0 || digits > partnerGrantMaximumTimestampFractionDigits {
+				return false
+			}
+		}
+	}
 	return true
 }

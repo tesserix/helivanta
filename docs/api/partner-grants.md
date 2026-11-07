@@ -39,6 +39,9 @@ future. Historical GET and exact PUT recovery remain authorized independently
 of expiry. Recovery binds the original actor, canonical intent and membership
 incarnation; rejoining an administrator account cannot replay an old incarnation
 as a new preparation. Different intent under the same identifier is `409`.
+Timestamp fractions are limited to nine digits. The owner rejects excess
+precision before normalization; shared frontend validation and recovery compare
+exact nanoseconds, including the validity bounds.
 
 Audit and creation commit atomically; audit failure withholds both writes and
 read disclosure. This metadata-only preparation emits no external offer, graph

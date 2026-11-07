@@ -4,8 +4,9 @@ let material = "";
 for await (const chunk of process.stdin) material += chunk;
 const fixture = JSON.parse(material);
 const browser = await chromium.launch({ headless: true });
+let context;
 try {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1200 } });
+  context = await browser.newContext({ viewport: { width: 1440, height: 1200 } });
   await context.addCookies([
     { name: "helivanta_session", value: fixture.token, url: fixture.app_url },
   ]);
@@ -72,6 +73,16 @@ try {
   console.log(
     "PASS: browser → Global API → actual IAM/OpenFGA and pharmacy/Postgres; a typed grant proposal commits once, GET recovers a lost response, and no operating access is emitted.",
   );
+} catch (error) {
+  console.error(`Supplier browser acceptance failed (${error?.name ?? "UnknownError"}).`);
+  process.exitCode = 1;
 } finally {
-  await browser.close();
+  try {
+    await context?.unrouteAll({ behavior: "wait" });
+  } catch {
+    console.error("Supplier browser API forwarding did not finish cleanly.");
+    process.exitCode = 1;
+  } finally {
+    await browser.close();
+  }
 }

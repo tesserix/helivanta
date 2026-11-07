@@ -125,7 +125,8 @@ Commands actually run in the isolated supplier worktree:
 
 - `pnpm --filter @helivanta/api test`: the latest run passed 929 tests in 93 files.
 - `pnpm --filter @helivanta/shell test`: the unchanged full rerun passed 1,725
-  tests in 195 files. The first run had three timeout-related failures in two
+  tests in 195 files, including a full post-fix run (351.61 seconds).
+  The first run had three timeout-related failures in two
   unchanged files; those files also passed independently, with 11 tests.
 - API and shell `type-check`, ESLint and the production shell build passed.
 - `go test -race ./internal/archtest ./cmd/contractdocs`: passed, including the
@@ -147,7 +148,7 @@ Commands actually run in the isolated supplier worktree:
   200). Restoring the audit made the draft suite pass. No mutation remains.
 - `go test -race ./internal/globalapi -run
 TestSupplierGrantDraftThroughActualOwnerAndGraph -count=1 -timeout=5m -v`,
-  with the browser URL configured, passed in 10.295 seconds against the built
+  with the browser URL configured, passed after the UUID fix in 10.720 seconds against the built
   shell and actual Global API/IAM/OpenFGA/PharmaConnect/Postgres. The browser
   saved once, lost the successful response and recovered by GET with one PUT;
   the graph outage returned 503 and no operating authority. Only synthetic
@@ -159,10 +160,28 @@ TestSupplierGrantDraftThroughActualOwnerAndGraph -count=1 -timeout=5m -v`,
 
 The earlier full IAM race run failed the unchanged
 `TestAssignmentProjectionAcknowledgesOnlyCurrentScope` case with expected 202,
-actual 504. Its unchanged isolated rerun passed (34.194 seconds). A fresh full
-IAM race run is pending; neither its deadline nor assertions were weakened.
+actual 504. Its unchanged isolated rerun passed (34.194 seconds). The fresh full
+`go test -race ./internal/modules/iam/... -count=1 -timeout=30m` passed (679.301
+seconds for IAM, plus contract/loginclient). Neither its deadline nor assertions
+were weakened. This full run preceded the image-scan-driven x/net update.
 Remote CI, merge, image publication and Kargo promotion are not established by
 these local checks.
+
+Image release gates for PR #1615 found HIGH CVE-2026-78661 in `x/net v0.61.0`
+and HIGH musl/zlib findings in the pinned shell runtime. The candidate updates
+`x/net` to `v0.62.0`; subsequent Go build/vet and `govulncheck` passed with zero
+reachable vulnerabilities. That is not a claim of a clean container image.
+The shared runtime rebuild selected only `node-runtime-24` and did not publish:
+its bundled `brace-expansion@5.0.9` failed the gate. The one-line owner fix is
+[base-docker-images PR #34](https://github.com/tesserix/base-docker-images/pull/34),
+with 31 resolver/selection tests passing and a targeted build/scan using
+`push=false`. A verified replacement digest, final application scans and remote
+CI are still required before release; no exclusion or severity gate was changed.
+
+The browser helper now waits for in-flight routes before closing its context.
+This fixes an observed fixture teardown failure after the acceptance assertions
+had passed. Failures still return nonzero, with credential-free diagnostics;
+the final post-fix browser run passed with every assertion retained.
 
 Read-only production discovery reconfirmed API, Global API and shell at
 `62f3f7fd180f5ce9800d70807217b1cb2131d54a`, two ready replicas each, and the

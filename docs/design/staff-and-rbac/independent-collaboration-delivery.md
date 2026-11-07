@@ -28,8 +28,10 @@ canonical source-ID refusal, cross-tenant/cursor isolation, changed intent,
 invalid scope and expiry, audit failure, exact SDK response/timestamp matching
 and browser-component recovery of a deliberately lost response without a second
 PUT. The [validation record](validation.md#supplier-grant-preparation--7-november-2026)
-records the actual browser run and package checks. It is local, unmerged and
-undeployed; the final IAM package rerun and remote CI remain pending.
+records the actual browser run and package checks. The candidate is in
+[PR #1615](https://github.com/tesserix/helivanta/pull/1615), unmerged and undeployed.
+The final local IAM package rerun passed; remote CI and image security checks
+remain release gates.
 
 Source discovery also confirmed that SupplyConnect has no wholesale stock ledger
 and that independent pharmacy Workforce routes currently register the employer

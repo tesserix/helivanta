@@ -6672,7 +6672,7 @@
         },
         {
           "id": "0013_supply_trade_relationships",
-          "sql_sha256": "158a77379cc53ad8cb725a74b44206688e95c99036999fe1a6a603360d55f9cf",
+          "sql_sha256": "c9e191cc995716a73222b9539a329b177c249ede7a164cd50f70df730b8ecb48",
           "creates_tables": [
             "supply_trade_relationships",
             "supply_trade_relationship_commands",

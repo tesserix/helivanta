@@ -134,6 +134,8 @@ Those consumers must use current authority and retain their own idempotent
 command/evidence histories. Source-fact, consent protocol and component tests must
 not be reported as full journey acceptance.
 
-After the user's local-runtime restriction, only static build/vet, formatting and
-contract generation run locally. Runtime/unit/E2E execution belongs to CI and the
-shared pre-GA web environment using dedicated synthetic users and records.
+Local validation builds affected targets, runs isolated unit/architecture checks
+and removes generated build outputs before merge. It does not start local app
+servers, containers or an integration environment. Database-backed and browser
+journeys run in CI and the shared pre-GA web environment with dedicated synthetic
+users and records.

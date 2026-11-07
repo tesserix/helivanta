@@ -994,6 +994,12 @@ func TestEventPayloadPHIFieldsAreAllowlisted(t *testing.T) {
 // thing a reviewer's eye lands on.
 func TestEventPayloadPHIAllowlistIsPinnedExactly(t *testing.T) {
 	require.Equal(t, map[string]string{
+		"iam.SupplierGrantExchangeData.Input":              "immutable grant input includes the nominated account and review rationale; exact bilateral tenant-directed protocol only, never a broadcast or log",
+		"iam.SupplierGrantExchangeData.SignatorySubject":   "authenticated signatory needed to reject self-acceptance and attribute bilateral consent; restricted directed exchange, no contact or identity documents",
+		"iam.SupplierGrantInput.RecipientSubject":          "exact nominated hospital account required to bind named-person consent; directed recipient tenant only, never a supplier membership",
+		"iam.SupplierGrantInput.Reason":                    "bounded consent rationale retained for attributable review; restricted bilateral exchange and audit, no clinical purpose or patient data requested",
+		"supply.RelationshipExchangeData.SignatorySubject": "authenticated commercial signatory needed for attributable independent consent and self-review rejection; directed bilateral exchange only, no contacts or identity evidence",
+
 		"patientmaster.RegistrationReference.PatientID":         "exact known patient reference in authenticated hospital-scoped owner HTTP only, with committed read audit; never published as an event or used as record disclosure authority",
 		"mediconnect.ClaimCheckRequest.Relationship":            "exact relationship bound to patient/subject in workload-authenticated private owner HTTP only; never broadcast or logged",
 		"mediconnect.ClaimCheckRequest.Subject":                 "exact owner-subject selection in workload-authenticated internal HTTP only; never published as an event",

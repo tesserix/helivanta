@@ -74,7 +74,7 @@ jobs:
       - run: go build ./...
       - name: Supplier architecture and tenant preconditions
         run: |
-          go test -race ./internal/archtest -run '^(TestModulesDoNotImportEachOther|TestEveryCollectionGETIsPaginated|TestEventPayloadPHIFieldsAreAllowlisted|TestDeclaredPermissionsMatchTheApprovedMatrix)$'
+          go test -race ./internal/archtest
           go test -race ./internal/modules/pharmacy -run '^(TestTradingCommandsRejectChangedTenantBeforeBodyValidation|TestPharmacyOperationalRolesHaveSeparateCapabilities|TestPharmacyExpectedTenantRejectsEveryRouteFamilyWithoutSideEffects)$'
           go test -race ./internal/modules/iam -run '^(TestMigrationIDIsPhaseScoped|TestMembershipMigrationPreservesEvidenceWithoutInventingContinuity|TestEstablishmentRootBackfillKeepsHospitalGrants)$'
       - name: Effective supplier grant consent tests

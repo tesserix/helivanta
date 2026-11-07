@@ -82,7 +82,7 @@ func (c *CurrentSourceClient) CheckRelationship(ctx context.Context, input Relat
 	if !result.Eligible {
 		return empty, ErrIneligible
 	}
-	if result.AuthorityEpoch < 1 || result.RemoteEpoch < 1 || (input.Purpose == "new_business" && result.AuthorityEpoch != input.ExpectedAuthorityEpoch) {
+	if result.AuthorityEpoch < 1 || result.AuthorityEpoch > 9007199254740991 || result.RemoteEpoch < 1 || result.RemoteEpoch > 9007199254740991 || (input.Purpose == "new_business" && result.AuthorityEpoch != input.ExpectedAuthorityEpoch) {
 		return empty, ErrUnavailable
 	}
 	return result, nil

@@ -129,8 +129,17 @@ func ApplyRelationshipExchange(current *Relationship, e RelationshipExchange, de
 		if r.OwnerTenantID != destination || r.ID != e.RelationshipID || r.Side != side || r.TermsSha256 != digest {
 			return empty, nil, ErrInvalid
 		}
-		if e.SourceEpoch <= r.RemoteEpoch {
+		if e.SourceEpoch < r.RemoteEpoch {
 			return r, nil, nil
+		}
+		if e.SourceEpoch == r.RemoteEpoch {
+			// Activation acknowledges the seller's existing decision epoch.
+			if side != "buyer" || e.Phase != "activated" || r.Status != "accepted_pending_ack" {
+				return r, nil, nil
+			}
+			if r.RemoteSignedBy == nil || *r.RemoteSignedBy != e.SignatorySubject {
+				return empty, nil, ErrInvalid
+			}
 		}
 		if r.Version >= 9007199254740991 {
 			return r, nil, ErrConflict

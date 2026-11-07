@@ -2407,7 +2407,7 @@
       "registration_sha256": "32ec88ee81fea491fe2e7122dfa3ef82ce5505c20f058215d9bc7ee4b3ce773c",
       "authority_kind": "system_continuation",
       "resource_scope": "Authenticated directed origin/destination, exact relationship/terms digest and monotonic source epoch; local recipient projection only.",
-      "rationale": "The recipient consumer validates typed exchange provenance and immutable terms, serializes its own aggregate and stores append-only local history. Both consents and acknowledgement are required; late or duplicate messages do not revive terminal state. This is consent protocol state, never current source/recipient/stock authority.",
+      "rationale": "The recipient consumer validates typed exchange provenance and immutable terms, serializes its own aggregate and stores append-only local history. Both consents and acknowledgement are required; late or duplicate messages do not revive terminal state. This is consent protocol state, never current source/recipient/stock authority. CI exposed the missing same-decision-epoch activation acknowledgement: the buyer now accepts that sole forward transition only while awaiting acknowledgement and only from the already recorded seller signatory. Older epochs, repeated offers/acknowledgements and terminal states remain non-authorizing; replay and signatory cases are explicit regression tests.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/supply/trade_relationship_store.go",
@@ -2416,7 +2416,7 @@
         },
         {
           "path": "backend/pkg/suppliertrade/relationship.go",
-          "sha256": "813922b0914d5d317fe6a8940a7d00c734e99c9d240110d939f945ba7ff032dc",
+          "sha256": "d7985712327ddcb0f36904e6194c335a01b3e40b72f022b4cdfa5105466a23c6",
           "symbol": "func ApplyRelationshipExchange("
         }
       ],

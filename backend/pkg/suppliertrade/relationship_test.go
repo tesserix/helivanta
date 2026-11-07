@@ -30,10 +30,23 @@ func TestBilateralConsentNeverBecomesAuthorityFromAnOfferOrLateAcknowledgement(t
 	require.NoError(t, err)
 	require.True(t, RelationshipCurrent(seller, at))
 	require.NotNil(t, ack)
+	require.Equal(t, offer.SourceEpoch, ack.SourceEpoch)
+	replayed, _, err := ApplyRelationshipExchange(&buyer, *offer, terms.Buyer.TenantID, at)
+	require.NoError(t, err)
+	require.Equal(t, buyer, replayed)
+	forged := *ack
+	forged.SignatorySubject = "TEST-unrelated-seller"
+	_, _, err = ApplyRelationshipExchange(&buyer, forged, terms.Buyer.TenantID, at)
+	require.ErrorIs(t, err, ErrInvalid)
+	previousVersion := buyer.Version
 	buyer, reply, err = ApplyRelationshipExchange(&buyer, *ack, terms.Buyer.TenantID, at)
 	require.NoError(t, err)
 	require.Nil(t, reply)
 	require.True(t, RelationshipCurrent(buyer, at))
+	require.Equal(t, previousVersion+1, buyer.Version)
+	replayed, _, err = ApplyRelationshipExchange(&buyer, *ack, terms.Buyer.TenantID, at)
+	require.NoError(t, err)
+	require.Equal(t, buyer, replayed)
 	require.Equal(t, seller.AuthorityEpoch, buyer.RemoteEpoch)
 	require.Equal(t, buyer.AuthorityEpoch, seller.RemoteEpoch)
 	suspended, stop, err := DecideRelationship(seller, seller.Version, "suspend", "TEST-source-reviewer", at)

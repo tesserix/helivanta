@@ -174,9 +174,14 @@ reachable vulnerabilities. That is not a claim of a clean container image.
 The shared runtime rebuild selected only `node-runtime-24` and did not publish:
 its bundled `brace-expansion@5.0.9` failed the gate. The one-line owner fix is
 [base-docker-images PR #34](https://github.com/tesserix/base-docker-images/pull/34),
-with 31 resolver/selection tests passing and a targeted build/scan using
-`push=false`. A verified replacement digest, final application scans and remote
-CI are still required before release; no exclusion or severity gate was changed.
+with 31 resolver/selection tests and the targeted build/scan using `push=false`
+passing. It merged as `cf8bdef2`; its main-branch Node 24 runtime publication
+passed the security gate in run `42316119001`. The candidate pins that source's
+published multi-platform digest
+`sha256:056b09f9ad7e806f3c7e00c60eccfb69f7328bdd05da11bdd1d4eda2f457c9a7`.
+Application API image checks passed after the network dependency update; final
+shell image scans and remote CI remain required before release. No exclusion
+or severity gate was changed.
 
 The browser helper now waits for in-flight routes before closing its context.
 This fixes an observed fixture teardown failure after the acceptance assertions

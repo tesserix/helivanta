@@ -19,7 +19,7 @@ CREATE INDEX supply_trade_relationships_buyer_page ON supply_trade_relationships
 CREATE INDEX supply_trade_relationships_page ON supply_trade_relationships(tenant_id,created_at DESC,id DESC);
 ALTER TABLE supply_trade_relationships ENABLE ROW LEVEL SECURITY;
 ALTER TABLE supply_trade_relationships FORCE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation ON supply_trade_relationships USING(hms_tenant_visible(tenant_id))WITH CHECK(hms_tenant_visible(tenant_id));
+CREATE POLICY tenant_isolation ON supply_trade_relationships USING(hms_tenant_visible(tenant_id))WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);
 CREATE TABLE supply_trade_relationship_commands(
  tenant_id uuid NOT NULL,id uuid NOT NULL CHECK(substring(id::text,15,1)='7'),relationship_id uuid NOT NULL,
  actor_subject text NOT NULL CHECK(length(btrim(actor_subject))BETWEEN 1 AND 200),input jsonb NOT NULL,receipt jsonb NOT NULL,
@@ -27,7 +27,7 @@ CREATE TABLE supply_trade_relationship_commands(
 );
 ALTER TABLE supply_trade_relationship_commands ENABLE ROW LEVEL SECURITY;
 ALTER TABLE supply_trade_relationship_commands FORCE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation ON supply_trade_relationship_commands USING(hms_tenant_visible(tenant_id))WITH CHECK(hms_tenant_visible(tenant_id));
+CREATE POLICY tenant_isolation ON supply_trade_relationship_commands USING(hms_tenant_visible(tenant_id))WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);
 CREATE TABLE supply_trade_relationship_history(
  tenant_id uuid NOT NULL,origin_tenant_id uuid NOT NULL,origin_record_id uuid NOT NULL,relationship_id uuid NOT NULL,version bigint NOT NULL,body jsonb NOT NULL,
  actor_subject text NOT NULL,source_event_id uuid,created_at timestamptz NOT NULL,
@@ -35,7 +35,7 @@ CREATE TABLE supply_trade_relationship_history(
 );
 ALTER TABLE supply_trade_relationship_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE supply_trade_relationship_history FORCE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation ON supply_trade_relationship_history USING(hms_tenant_visible(tenant_id))WITH CHECK(hms_tenant_visible(tenant_id));
+CREATE POLICY tenant_isolation ON supply_trade_relationship_history USING(hms_tenant_visible(tenant_id))WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);
 CREATE TRIGGER supply_trade_commands_immutable BEFORE UPDATE OR DELETE OR TRUNCATE ON supply_trade_relationship_commands FOR EACH STATEMENT EXECUTE FUNCTION supply_history_immutable();
 CREATE TRIGGER supply_trade_history_immutable BEFORE UPDATE OR DELETE OR TRUNCATE ON supply_trade_relationship_history FOR EACH STATEMENT EXECUTE FUNCTION supply_history_immutable();
 CREATE TRIGGER supply_trade_relationship_audit AFTER INSERT OR UPDATE ON supply_trade_relationships FOR EACH ROW EXECUTE FUNCTION audit_record_change();

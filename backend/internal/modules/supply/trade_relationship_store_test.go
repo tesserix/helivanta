@@ -17,6 +17,7 @@ import (
 
 func TestDirectedRelationshipProtocolPersistsBothConsentsAndNeverReactivatesFromReplay(t *testing.T) {
 	_, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Modules: []platform.Module{supply.New()}})
+	verifyRelationshipProofBoundaries(t, db)
 	sellerID, buyerID := uuid.MustParse(testutil.TenantA), uuid.MustParse(testutil.TenantB)
 	hospital, binding, registration := uuid.New(), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 	two := int64(2)
@@ -73,9 +74,34 @@ func TestDirectedRelationshipProtocolPersistsBothConsentsAndNeverReactivatesFrom
 	buyer := wait(buyerID, "active")
 	require.Equal(t, seller.AuthorityEpoch, buyer.RemoteEpoch)
 	require.Equal(t, buyer.AuthorityEpoch, seller.RemoteEpoch)
+	checker := relationshipCheckerForTest(t, db)
+	for _, state := range []suppliertrade.Relationship{seller, buyer} {
+		result, err := checker.CheckRelationship(t.Context(), relationshipCheckForTest(state, "new_business"))
+		require.NoError(t, err)
+		require.Equal(t, state.AuthorityEpoch, result.AuthorityEpoch)
+		require.Equal(t, state.RemoteEpoch, result.RemoteEpoch)
+	}
+	wrongEpoch := relationshipCheckForTest(seller, "new_business")
+	wrongEpoch.ExpectedAuthorityEpoch++
+	_, err = checker.CheckRelationship(t.Context(), wrongEpoch)
+	require.ErrorIs(t, err, suppliertrade.ErrIneligible)
+	wrongTerms := relationshipCheckForTest(seller, "new_business")
+	wrongTerms.TermsSha256 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	_, err = checker.CheckRelationship(t.Context(), wrongTerms)
+	require.ErrorIs(t, err, suppliertrade.ErrIneligible)
+	foreign := relationshipCheckForTest(seller, "new_business")
+	foreign.OwnerTenantID = uuid.New()
+	_, err = checker.CheckRelationship(t.Context(), foreign)
+	require.ErrorIs(t, err, suppliertrade.ErrIneligible)
 	change(sellerID, "suspend", "TEST-supplier-signatory")
 	buyer = wait(buyerID, "suspended")
 	require.False(t, suppliertrade.RelationshipCurrent(buyer, time.Now()))
+	for _, state := range []suppliertrade.Relationship{wait(sellerID, "suspended"), buyer} {
+		_, err = checker.CheckRelationship(t.Context(), relationshipCheckForTest(state, "new_business"))
+		require.ErrorIs(t, err, suppliertrade.ErrIneligible)
+		_, err = checker.CheckRelationship(t.Context(), relationshipCheckForTest(state, "retained_transaction"))
+		require.NoError(t, err)
+	}
 	// Redelivery with a different transport id must still be a business no-op.
 	old := suppliertrade.RelationshipExchange{RelationshipID: id, Terms: seller.Terms, TermsSha256: seller.TermsSha256, SourceTenantID: sellerID, SourceEpoch: seller.AuthorityEpoch, Phase: "activated", SignatorySubject: "TEST-supplier-signatory"}
 	payload, err := json.Marshal(old)

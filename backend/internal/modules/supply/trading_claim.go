@@ -9,7 +9,6 @@ import (
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/suppliertrade"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
-	"github.com/tesserix/helivanta/pkg/workloadidentity"
 	"gorm.io/gorm"
 	"io"
 	"net/http"
@@ -29,25 +28,11 @@ func NewTradingSourceCheckHandler(deps platform.Deps, caller tradeClaimCaller) g
 			respond.Error(c, 503, "source_check_unavailable", "Current source verification is not configured.")
 			return
 		}
-		values := c.Request.Header.Values(suppliertrade.SourceCallerHeader)
-		if len(values) != 1 || c.GetHeader("Authorization") != "" || c.GetHeader("Cookie") != "" || c.Request.URL.RawQuery != "" {
-			respond.Error(c, 401, "caller_required", "A dedicated authenticated source-check caller is required.")
+		ctx, cancel, ok := tradeCallerContext(c, caller)
+		if !ok {
 			return
 		}
-		ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
 		defer cancel()
-		if err := caller.Verify(ctx, values[0]); err != nil {
-			if errors.Is(err, workloadidentity.ErrRejected) {
-				respond.Error(c, 401, "caller_rejected", "The source-check caller was rejected.")
-			} else {
-				respond.Error(c, 503, "caller_unavailable", "The source-check caller could not be verified.")
-			}
-			return
-		}
-		if c.ContentType() != "application/json" {
-			respond.BadRequest(c, errors.New("use application/json"))
-			return
-		}
 		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 16<<10)
 		raw, err := io.ReadAll(c.Request.Body)
 		if err != nil || !utf8.Valid(raw) {

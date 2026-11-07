@@ -17,12 +17,13 @@ import (
 )
 
 func tradeCallerContext(c *gin.Context, caller tradeClaimCaller) (context.Context, context.CancelFunc, bool) {
+	c.Header("Cache-Control", "no-store")
 	if caller == nil {
 		respond.Error(c, 503, "peer_unavailable", "Current peer verification is not configured.")
 		return nil, nil, false
 	}
 	values := c.Request.Header.Values(suppliertrade.SourceCallerHeader)
-	if len(values) != 1 || c.GetHeader("Authorization") != "" || c.GetHeader("Cookie") != "" || c.Request.URL.RawQuery != "" || c.ContentType() != "application/json" {
+	if len(values) != 1 || len(c.Request.Header.Values("Authorization")) != 0 || len(c.Request.Header.Values("Cookie")) != 0 || c.Request.URL.RawQuery != "" || c.ContentType() != "application/json" {
 		respond.Error(c, 401, "caller_required", "A dedicated authenticated peer caller is required.")
 		return nil, nil, false
 	}

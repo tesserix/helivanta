@@ -27,9 +27,15 @@ const row = {
   updated_at: "2026-11-02T00:00:00Z",
 };
 afterEach(() => vi.unstubAllGlobals());
+// Hospital-family cases answer pharmacy employer discovery with no access.
+function routed(answer: (url: string, init?: RequestInit) => Promise<Response>) {
+  return vi.fn(async (url: string, init?: RequestInit) =>
+    url.includes("/workforce/pharmacies?") ? Response.json(page([])) : answer(url, init),
+  );
+}
 
 it("uses canonical hospital Staff in Pharma without implying outlet or dispensing authority", async () => {
-  const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+  const fetcher = routed(async (url: string, init?: RequestInit) => {
     if (init?.method && init.method !== "GET") throw new Error("Staff source must be read-only");
     return Response.json(
       url.endsWith("/permissions")
@@ -99,7 +105,7 @@ it.each([403, 404, 409] as const)(
     let denied = false;
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (url: string) => {
+      routed(async (url: string) => {
         if (url.endsWith("/permissions")) return Response.json(identity());
         if (url.includes("/staff?"))
           return denied
@@ -136,7 +142,7 @@ it.each([403, 404, 409] as const)(
 it("shows an unavailable source as a failure and never as an empty Staff directory", async () => {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (url: string) =>
+    routed(async (url: string) =>
       url.endsWith("/permissions")
         ? Response.json(identity())
         : url.includes("/staff?")
@@ -156,7 +162,7 @@ it("shows an unavailable source as a failure and never as an empty Staff directo
 it("rejects another hospital's response instead of borrowing its Staff", async () => {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (url: string) =>
+    routed(async (url: string) =>
       Response.json(
         url.endsWith("/permissions")
           ? identity()
@@ -172,7 +178,7 @@ it("rejects another hospital's response instead of borrowing its Staff", async (
 });
 
 it("continues through an empty hospital page without claiming all hospital access is absent", async () => {
-  const fetcher = vi.fn(async (url: string) =>
+  const fetcher = routed(async (url: string) =>
     Response.json(
       url.endsWith("/permissions")
         ? identity()
@@ -194,7 +200,7 @@ it("switches canonical source hospitals without retaining the previous Staff row
   const other = "33333333-3333-4333-8333-333333333333";
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (url: string) =>
+    routed(async (url: string) =>
       Response.json(
         url.endsWith("/permissions")
           ? identity()
@@ -227,4 +233,151 @@ it("switches canonical source hospitals without retaining the previous Staff row
     await screen.findByRole("cell", { name: "Synthetic second source Pharmacist" }),
   ).toBeInTheDocument();
   expect(screen.queryByText(row.display_name)).not.toBeInTheDocument();
+});
+
+const pharmacy = "019ddddd-dddd-7ddd-8ddd-dddddddddddd";
+const pharmacyRow = {
+  id: "019ccccc-cccc-7ccc-8ccc-cccccccccccc",
+  pharmacy_id: pharmacy,
+  display_name: "Synthetic employed Pharmacist",
+  employee_code: "SYN-PH-001",
+  job_category: "pharmacist",
+  employment_status: "active",
+  created_at: "2026-11-07T00:00:00Z",
+  updated_at: "2026-11-07T00:00:00Z",
+};
+const employerSource = (access_level: "manager" | "reader") => ({
+  pharmacy_id: pharmacy,
+  name: "Synthetic Standalone Pharmacy",
+  access_level,
+  created_at: "2026-11-07T00:00:00Z",
+});
+// A tenant with one standalone pharmacy employer and no hospital Staff access.
+function employerTenant(
+  access: "manager" | "reader",
+  staff: (url: string, init?: RequestInit) => Response = () => Response.json(page([pharmacyRow])),
+) {
+  return vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.endsWith("/permissions")) return Response.json(identity());
+    if (url.includes(`/workforce/pharmacies/${pharmacy}/staff`)) return staff(url, init);
+    if (url.includes("/workforce/pharmacies?"))
+      return Response.json(page([employerSource(access)]));
+    if (url.includes("/workforce/hospitals?")) return Response.json(page([]));
+    throw new Error(`Unexpected request ${url}`);
+  });
+}
+
+it("reads a standalone pharmacy's own Staff from the pharmacy family under the expected account", async () => {
+  const fetcher = employerTenant("reader");
+  vi.stubGlobal("fetch", fetcher);
+  renderSource();
+  expect(await screen.findByRole("cell", { name: pharmacyRow.display_name })).toBeInTheDocument();
+  const discovery = fetcher.mock.calls.find(([url]) => url.includes("/workforce/pharmacies?"));
+  expect(discovery?.[0]).toBe("/api/v1/workforce/pharmacies?limit=50");
+  const request = fetcher.mock.calls.find(([url]) => url.includes("/staff?"));
+  expect(request?.[0]).toBe(`/api/v1/workforce/pharmacies/${pharmacy}/staff?limit=50`);
+  expect(request?.[1]?.cache).toBe("no-store");
+  expect(new Headers(request?.[1]?.headers).get("X-Helivanta-Expected-Tenant")).toBe(tenant);
+  expect(new Headers(request?.[1]?.headers).get("X-Helivanta-Expected-Subject")).toBe(subject);
+  expect(fetcher.mock.calls.some(([url]) => url.includes("/workforce/hospitals/"))).toBe(false);
+  expect(screen.queryByRole("button", { name: /edit|add staff/i })).not.toBeInTheDocument();
+  expect(screen.getByText("No shared Staff access on this page")).toBeInTheDocument();
+});
+
+it("lets a pharmacy Workforce manager edit a record against its current version", async () => {
+  const renamed = { ...pharmacyRow, display_name: "Synthetic renamed Pharmacist" };
+  const writes: RequestInit[] = [];
+  const fetcher = employerTenant("manager", (url, init) => {
+    if (init?.method === "PUT") {
+      writes.push(init);
+      return Response.json({ ...renamed, version: 3, directory_context_version: "v1" });
+    }
+    if (url.includes("/staff?"))
+      return Response.json(page([writes.length ? renamed : pharmacyRow]));
+    return Response.json({ ...pharmacyRow, version: 2, directory_context_version: "v1" });
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = renderSource();
+  expect(await screen.findByRole("button", { name: "Add staff" })).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: `Edit ${pharmacyRow.display_name}` }));
+  const name = await screen.findByLabelText("Full name");
+  expect(fetcher.mock.calls.map(([url]) => url)).toContain(
+    `/api/v1/workforce/pharmacies/${pharmacy}/staff/${pharmacyRow.id}?directory_context=v1`,
+  );
+  await user.clear(name);
+  await user.type(name, renamed.display_name);
+  await user.click(screen.getByRole("button", { name: "Save staff" }));
+  expect(await screen.findByRole("cell", { name: renamed.display_name })).toBeInTheDocument();
+  expect(writes).toHaveLength(1);
+  expect(JSON.parse(String(writes[0]?.body))).toEqual({
+    employee_code: pharmacyRow.employee_code,
+    display_name: renamed.display_name,
+    job_category: pharmacyRow.job_category,
+    employment_status: pharmacyRow.employment_status,
+    expected_version: 2,
+    directory_context_version: "v1",
+  });
+  expect(new Headers(writes[0]?.headers).get("X-Helivanta-Expected-Subject")).toBe(subject);
+  await waitFor(() => expect(screen.queryByLabelText("Full name")).not.toBeInTheDocument());
+});
+
+it("keeps the draft on a version conflict and reloads the current record only after confirmation", async () => {
+  let current = { ...pharmacyRow, version: 2, directory_context_version: "v1" };
+  const fetcher = employerTenant("manager", (url, init) => {
+    if (init?.method === "PUT")
+      return Response.json(
+        { error: "staff_version_conflict", message: "This Staff record changed." },
+        { status: 409 },
+      );
+    if (url.includes("/staff?")) return Response.json(page([pharmacyRow]));
+    return Response.json(current);
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = renderSource();
+  await user.click(await screen.findByRole("button", { name: `Edit ${pharmacyRow.display_name}` }));
+  const name = await screen.findByLabelText("Full name");
+  await user.clear(name);
+  await user.type(name, "Synthetic draft name");
+  await user.click(screen.getByRole("button", { name: "Save staff" }));
+  expect(await screen.findByText("This Staff record changed.")).toBeInTheDocument();
+  expect(screen.getByLabelText("Full name")).toHaveValue("Synthetic draft name");
+  current = { ...current, display_name: "Synthetic changed elsewhere", version: 4 };
+  await user.click(screen.getByRole("button", { name: "Reload current record" }));
+  await user.click(await screen.findByRole("button", { name: "Discard edits and reload" }));
+  await waitFor(() =>
+    expect(screen.getByLabelText("Full name")).toHaveValue("Synthetic changed elsewhere"),
+  );
+  const reads = fetcher.mock.calls.filter(
+    ([url, init]) => url.includes(`/staff/${pharmacyRow.id}?`) && init?.method !== "PUT",
+  );
+  expect(reads).toHaveLength(2);
+});
+
+it("says Workforce access ended when the pharmacy directory answers 404, never an empty directory", async () => {
+  vi.stubGlobal(
+    "fetch",
+    employerTenant("manager", () =>
+      Response.json({ error: "not_found", message: "pharmacy not found" }, { status: 404 }),
+    ),
+  );
+  renderSource();
+  await waitFor(() =>
+    expect(screen.getByRole("alert")).toHaveTextContent("Your account or Staff access changed"),
+  );
+  expect(
+    screen.queryByText("No Staff records are in this pharmacy's directory yet."),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Add staff" })).not.toBeInTheDocument();
+});
+
+it("refuses a pharmacy page carrying another establishment's Staff", async () => {
+  vi.stubGlobal(
+    "fetch",
+    employerTenant("reader", () =>
+      Response.json(page([{ ...pharmacyRow, pharmacy_id: hospital }])),
+    ),
+  );
+  renderSource();
+  expect(await screen.findByRole("alert")).toHaveTextContent("Could not load staff");
+  expect(screen.queryByText(pharmacyRow.display_name)).not.toBeInTheDocument();
 });

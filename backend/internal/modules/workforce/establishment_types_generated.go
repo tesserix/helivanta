@@ -13,3 +13,27 @@ type PharmacyEmployer struct {
 	OwnershipType string    `json:"ownership_type"`
 	CreatedAt     time.Time `json:"created_at"`
 }
+
+type PharmacyStaff struct {
+	ID               uuid.UUID `json:"id"`
+	PharmacyID       uuid.UUID `json:"pharmacy_id"`
+	EmployeeCode     string    `json:"employee_code"`
+	DisplayName      string    `json:"display_name"`
+	JobCategory      string    `json:"job_category"`
+	EmploymentStatus string    `json:"employment_status"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+}
+
+type PharmacyAccess struct {
+	PharmacyID uuid.UUID `json:"pharmacy_id"`
+	Subject    string    `json:"subject"`
+	Level      string    `json:"level"`
+}
+
+type PharmacyStaffSource struct {
+	PharmacyID  uuid.UUID `json:"pharmacy_id"`
+	Name        string    `json:"name"`
+	AccessLevel string    `json:"access_level"`
+	CreatedAt   time.Time `json:"created_at"`
+}

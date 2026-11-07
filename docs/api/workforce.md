@@ -7,11 +7,42 @@ hospital directory and hospital-local Staff list, using exact original
 `X-Helivanta-Expected-Tenant` and `X-Helivanta-Expected-Subject` assertions.
 Pharmacy membership is not hospital Staff authority. The shared SDK bounds and
 validates the existing responses, normalizes UUID scope comparisons and rejects
-foreign or duplicate records and inconsistent continuation. No new backend API,
-permission, migration or event is added. The source UI is read-only; creation and
-editing stay in the canonical Staff workspace. See the
+foreign or duplicate records and inconsistent continuation. The hospital source
+is read-only; creation and editing stay in the canonical Staff workspace. See the
 [local Pharma acceptance and remaining scope](../qa/2026-11-02-pharma-shared-staff-local.md).
 This is not an outlet posting or a dispensing/credential authorization contract.
+
+The same screen also lists pharmacy employers, described next.
+
+## Pharmacy employer Staff directory (#19 slice 3a)
+
+Design: [ADR-0054](../adr/0054-typed-employing-establishments.md),
+[standalone pharmacy employers](../superpowers/specs/2026-11-04-standalone-pharmacy-employers.md)
+and the [slice plan](../superpowers/plans/2026-11-07-pharmacy-staff-directory.md).
+
+A standalone pharmacy registered with `PUT /v1/workforce/pharmacies/:pharmacy`
+keeps its own Staff directory. Every response names `pharmacy_id` and never
+`hospital_id`. A hospital ID on these routes, or a pharmacy ID on a hospital
+route, answers 404.
+
+| Route                                                             | Authorization                          | Notes                                                                          |
+| ----------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------ |
+| `GET /v1/workforce/pharmacies`                                    | Tenant membership                      | Pharmacies where the caller has an access row, with `access_level`. Paginated. |
+| `GET /v1/workforce/pharmacies/:pharmacy/staff`                    | Access row, checked in the transaction | 404 without a row, never an empty page.                                        |
+| `GET`/`PUT /v1/workforce/pharmacies/:pharmacy/staff/:id`          | Reader to read, manager to write       | `directory_context=v1` is required; 400 without it. `hr_intake` answers 400.   |
+| `PUT`/`DELETE /v1/workforce/pharmacies/:pharmacy/access/:subject` | `workforce.hospital.manage`            | Grants or revokes `reader` or `manager`.                                       |
+
+Record reads and writes follow [versioned directory editing](#versioned-basic-directory-editing):
+account assertion headers, `expected_version`, `409 staff_version_conflict` on a
+stale edit, and an unchanged save keeps its version. Enrollment, identity, login
+links, employment, credentials, leave, rosters, payroll and postings stay
+hospital-only, and their tables refuse a pharmacy establishment.
+
+On `/pharmacy/staff`, the caller picks one of their pharmacy employers. A manager
+can add and edit records; a reader sees the directory only. A 404 means the
+caller's access ended: the screen says so and offers to reopen. Registering a
+pharmacy as an employer also grants the registrant manager access. IAM roles on
+a pharmacy, HR lifecycle and branch postings are later slices.
 
 ## Scoped employment-review workspace
 

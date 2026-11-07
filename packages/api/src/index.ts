@@ -58,6 +58,8 @@ export * from "./pharmacy";
 export * from "./pharmacy-affiliations";
 export * from "./pharmacy-employers";
 export * from "./pharmacy-employer-queries";
+export * from "./pharmacy-staff";
+export * from "./pharmacy-staff-queries";
 export * from "./billing";
 export * from "./pharmacy-stock-export";
 export * from "./pharmacy-daily-report";

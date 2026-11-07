@@ -1,5 +1,23 @@
 # Staff Management delivery tracker
 
+## Pharmacy employer Staff directory (#19 slice 3a) — 2026-11-07
+
+Workforce 0092 lets a registered standalone pharmacy hold Staff and access rows,
+and makes every Staff child table refuse a pharmacy itself. The pharmacy family
+adds discovery, a paginated directory, versioned record read and edit, and
+reader or manager access grants. Responses name `pharmacy_id` only. A hospital ID
+on the family, or a pharmacy ID on a hospital route, answers 404, and a caller
+without an access row gets 404, never an empty page. The assignment-scope verifier
+answers `eligible=false` for a pharmacy. Registration grants the registrant
+manager access and keeps a retry if that grant fails. `/pharmacy/staff` lists the
+caller's pharmacy employers: a manager adds and edits records, a reader only reads,
+and a 404 says access changed. Evidence: Workforce guard inventory, refusal matrix,
+verifier, route and race tests against Postgres testcontainers, archtest,
+contractdocs, the generated Go and Zod contracts, and SDK and panel Vitest tests.
+IAM on a pharmacy (slice 3b), HR lifecycle (slice 4) and branch postings (slice 5)
+remain open. This is not deployed runtime acceptance. Counts are unchanged at
+**10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Department leave review candidate (#1596, ADR-0055 slice 2) — 2026-11-06
 
 A hospital can grant leave review over one department and its current sub-units

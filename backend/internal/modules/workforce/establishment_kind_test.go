@@ -16,6 +16,7 @@ import (
 	iamcontract "github.com/tesserix/helivanta/internal/modules/iam/contract"                   //nolint:depguard // published contract under test
 	organizationcontract "github.com/tesserix/helivanta/internal/modules/organization/contract" //nolint:depguard // published contract under test
 	"github.com/tesserix/helivanta/internal/modules/workforce"                                  //nolint:depguard // module under test
+	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"       //nolint:depguard // published contract under test
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
@@ -76,13 +77,13 @@ func (h *establishmentHarness) pharmacy(t *testing.T, ownership string) string {
 type withoutEstablishmentKind struct{ platform.Module }
 
 func (m withoutEstablishmentKind) Migrations() []tenantdb.Migration {
-	var kept []tenantdb.Migration
-	for _, migration := range m.Module.Migrations() {
-		if migration.ID != establishmentKindMigration {
-			kept = append(kept, migration)
-		}
-	}
-	return kept
+	all := m.Module.Migrations()
+	return all[:establishmentKindIndex(all)]
+}
+
+// establishmentKindIndex lets the fixture model a database that predates 0088, which never holds a later migration.
+func establishmentKindIndex(all []tenantdb.Migration) int {
+	return slices.IndexFunc(all, func(m tenantdb.Migration) bool { return m.ID == establishmentKindMigration })
 }
 
 func TestEstablishmentKindMigrationReadsExistingHospitalsAsHospitals(t *testing.T) {
@@ -91,14 +92,9 @@ func TestEstablishmentKindMigrationReadsExistingHospitalsAsHospitals(t *testing.
 	require.NoError(t, h.tx(t, h.hospital, func(tx *gorm.DB) error {
 		return tx.Exec(`INSERT INTO workforce_hospitals(tenant_id,id,name) VALUES(?,?,'Synthetic Establishment Hospital')`, testutil.TenantA, h.hospital).Error
 	}))
-	var migration []tenantdb.Migration
-	for _, candidate := range workforce.New().Migrations() {
-		if candidate.ID == establishmentKindMigration {
-			migration = append(migration, candidate)
-		}
-	}
-	require.Len(t, migration, 1)
-	require.NoError(t, h.db.Migrate(t.Context(), migration))
+	all := workforce.New().Migrations()
+	require.Positive(t, establishmentKindIndex(all))
+	require.NoError(t, h.db.Migrate(t.Context(), all[establishmentKindIndex(all):]))
 	var row struct {
 		EstablishmentKind     string
 		PharmacyOwnershipType *string
@@ -163,21 +159,58 @@ func TestEstablishmentIdentityCannotChange(t *testing.T) {
 	require.JSONEq(t, `{"id":"`+h.hospital+`","name":"Synthetic Renamed Hospital"}`, response.Body.String())
 }
 
+// pharmacyStaff writes a pharmacy's manager grant and one Staff record, the two rows a pharmacy establishment admits.
+func (h *establishmentHarness) pharmacyStaff(t *testing.T, pharmacy string) string {
+	t.Helper()
+	staff := uuid.Must(uuid.NewV7()).String()
+	require.NoError(t, h.tx(t, pharmacy, func(tx *gorm.DB) error {
+		if err := tx.Exec(`INSERT INTO workforce_hospital_access(tenant_id,hospital_id,subject,level) VALUES(?,?,'user-admin','manager')`, testutil.TenantA, pharmacy).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`INSERT INTO workforce_staff(tenant_id,hospital_id,id,employee_code,display_name,job_category,employment_status) VALUES(?,?,?,'SYN-PHARMACY','Synthetic pharmacist','pharmacist','active')`, testutil.TenantA, pharmacy, staff).Error
+	}))
+	return staff
+}
+
+func TestPharmacyEstablishmentAdmitsStaffAndAccess(t *testing.T) {
+	h := newEstablishmentHarness(t, workforce.New())
+	pharmacy := h.pharmacy(t, "independent")
+	staff := h.pharmacyStaff(t, pharmacy)
+	var epochs int64
+	require.NoError(t, h.tx(t, pharmacy, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.workforce_generation','read',true),set_config('app.workforce_generation_staff',?,true)`, staff).Error; err != nil {
+			return err
+		}
+		return tx.Table("workforce_identity_epochs").Where("tenant_id=? AND hospital_id=? AND staff_id=?", testutil.TenantA, pharmacy, staff).Count(&epochs).Error
+	}))
+	require.EqualValues(t, 1, epochs)
+	unregistered := uuid.Must(uuid.NewV7()).String()
+	for name, refused := range map[string]struct{ statement, code string }{
+		"access grant": {`INSERT INTO workforce_hospital_access(tenant_id,hospital_id,subject,level) VALUES(?,?,'user-admin','manager')`, "23503"},
+		"staff record": {`INSERT INTO workforce_staff(tenant_id,hospital_id,id,employee_code,display_name,job_category,employment_status) VALUES(?,?,gen_random_uuid(),'SYN-NOWHERE','Synthetic nowhere','other','active')`, "42501"},
+	} {
+		err := h.tx(t, unregistered, func(tx *gorm.DB) error { return tx.Exec(refused.statement, testutil.TenantA, unregistered).Error })
+		var refusal *pgconn.PgError
+		require.True(t, errors.As(err, &refusal), "%s: an unregistered establishment must be refused, got %v", name, err)
+		require.Equal(t, refused.code, refusal.Code, "%s: %s", name, refusal.Message)
+	}
+}
+
 func TestEstablishmentTablesRefuseAPharmacyEstablishment(t *testing.T) {
 	h := newEstablishmentHarness(t, workforce.New())
 	pharmacy := h.pharmacy(t, "chain")
+	staff := h.pharmacyStaff(t, pharmacy)
 	unregistered := uuid.Must(uuid.NewV7()).String()
 	for name, write := range map[string]struct {
 		establishment string
 		statement     string
 		args          []any
 	}{
-		"staff":                              {pharmacy, `INSERT INTO workforce_staff(tenant_id,hospital_id,id,employee_code,display_name,job_category,employment_status) VALUES(?,?,?,'SYN-PHARMACY','Synthetic pharmacist','pharmacist','active')`, []any{testutil.TenantA, pharmacy, uuid.Must(uuid.NewV7()).String()}},
-		"access grant":                       {pharmacy, `INSERT INTO workforce_hospital_access(tenant_id,hospital_id,subject,level) VALUES(?,?,'user-pharmacy','manager')`, []any{testutil.TenantA, pharmacy}},
 		"hr master":                          {pharmacy, `INSERT INTO workforce_hr_masters(tenant_id,hospital_id,id,kind,code,name,active,version,revision_id) VALUES(?,?,?,'department','SYN-RX','Synthetic dispensary',true,1,?)`, []any{testutil.TenantA, pharmacy, uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()}},
 		"leave routing":                      {pharmacy, `INSERT INTO workforce_leave_routing_revisions(tenant_id,hospital_id,version,mode,source_reference,reviewed_by_subject) VALUES(?,?,1,'hospital','Synthetic pharmacy routing','user-admin')`, []any{testutil.TenantA, pharmacy}},
 		"leave routing without registry row": {unregistered, `INSERT INTO workforce_leave_routing_revisions(tenant_id,hospital_id,version,mode,source_reference,reviewed_by_subject) VALUES(?,?,1,'hospital','Synthetic missing routing','user-admin')`, []any{testutil.TenantA, unregistered}},
-		"access grant moves to pharmacy":     {h.hospital, `UPDATE workforce_hospital_access SET hospital_id=? WHERE tenant_id=? AND hospital_id=?`, []any{pharmacy, testutil.TenantA, h.hospital}},
+		"enrollment profile":                 {pharmacy, `INSERT INTO workforce_enrollment_profile(tenant_id,hospital_id,staff_id) VALUES(?,?,?)`, []any{testutil.TenantA, pharmacy, staff}},
+		"staff identifiers":                  {pharmacy, `INSERT INTO workforce_staff_identifiers(tenant_id,hospital_id,staff_id,version) VALUES(?,?,?,0)`, []any{testutil.TenantA, pharmacy, staff}},
 	} {
 		err := h.tx(t, write.establishment, func(tx *gorm.DB) error { return tx.Exec(write.statement, write.args...).Error })
 		var refusal *pgconn.PgError
@@ -189,9 +222,19 @@ func TestEstablishmentTablesRefuseAPharmacyEstablishment(t *testing.T) {
 		if err := tx.Exec(`INSERT INTO workforce_hospital_access(tenant_id,hospital_id,subject,level) VALUES(?,?,'user-hospital-reader','reader')`, testutil.TenantA, h.hospital).Error; err != nil {
 			return err
 		}
+		hospitalStaff := uuid.Must(uuid.NewV7()).String()
+		if err := tx.Exec(`INSERT INTO workforce_staff(tenant_id,hospital_id,id,employee_code,display_name,job_category,employment_status) VALUES(?,?,?,'SYN-HOSPITAL','Synthetic nurse','nurse','active')`, testutil.TenantA, h.hospital, hospitalStaff).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec(`INSERT INTO workforce_enrollment_profile(tenant_id,hospital_id,staff_id) VALUES(?,?,?)`, testutil.TenantA, h.hospital, hospitalStaff).Error; err != nil {
+			return err
+		}
 		return tx.Exec(`INSERT INTO workforce_leave_routing_revisions(tenant_id,hospital_id,version,mode,source_reference,reviewed_by_subject) VALUES(?,?,1,'hospital','Synthetic hospital routing','user-admin')`, testutil.TenantA, h.hospital).Error
 	}))
 }
+
+// pharmacyAdmittingTables are the reviewed tables a pharmacy establishment writes; every other one refuses it.
+var pharmacyAdmittingTables = []string{"workforce_hospital_access", "workforce_identity_epochs", "workforce_staff"}
 
 func TestEveryEstablishmentTableIsGuardedOrReachedThroughAGuardedTable(t *testing.T) {
 	h := newEstablishmentHarness(t, workforce.New())
@@ -202,12 +245,15 @@ func TestEveryEstablishmentTableIsGuardedOrReachedThroughAGuardedTable(t *testin
 		}))
 		return missing
 	}
-	require.Empty(t, inventory())
+	require.Equal(t, pharmacyAdmittingTables, inventory())
 	require.NoError(t, h.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "9000_workforce_inventory_probe", SQL: `CREATE TABLE workforce_inventory_probe(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,FOREIGN KEY(tenant_id,hospital_id) REFERENCES workforce_hospitals(tenant_id,id));
 CREATE TABLE workforce_inventory_orphan(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL);
-CREATE TABLE workforce_inventory_reached(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,staff_id uuid NOT NULL,FOREIGN KEY(tenant_id,hospital_id,staff_id) REFERENCES workforce_staff(tenant_id,hospital_id,id));
-CREATE TABLE workforce_inventory_unmapped(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,staff_hospital uuid NOT NULL,staff_id uuid NOT NULL,FOREIGN KEY(tenant_id,staff_hospital,staff_id) REFERENCES workforce_staff(tenant_id,hospital_id,id));`}}))
-	require.Equal(t, []string{"workforce_inventory_orphan", "workforce_inventory_probe", "workforce_inventory_unmapped"}, inventory())
+CREATE TABLE workforce_inventory_staff_child(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,staff_id uuid NOT NULL,FOREIGN KEY(tenant_id,hospital_id,staff_id) REFERENCES workforce_staff(tenant_id,hospital_id,id));
+CREATE TABLE workforce_inventory_reached(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,staff_id uuid NOT NULL,FOREIGN KEY(tenant_id,hospital_id,staff_id) REFERENCES workforce_enrollment_profile(tenant_id,hospital_id,staff_id));
+CREATE TABLE workforce_inventory_unmapped(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,staff_hospital uuid NOT NULL,staff_id uuid NOT NULL,FOREIGN KEY(tenant_id,staff_hospital,staff_id) REFERENCES workforce_enrollment_profile(tenant_id,hospital_id,staff_id));`}}))
+	want := append([]string{"workforce_inventory_orphan", "workforce_inventory_probe", "workforce_inventory_staff_child", "workforce_inventory_unmapped"}, pharmacyAdmittingTables...)
+	slices.Sort(want)
+	require.Equal(t, want, inventory())
 }
 
 // unguardedEstablishmentTables lists Workforce tables with a hospital_id that no guard trigger or guarded foreign key covers.
@@ -325,4 +371,35 @@ func TestPartnerGroupObservationReportsOnlyHospitalsAsExisting(t *testing.T) {
 			require.Equal(t, []bool{candidate.exists}, observed, "duplicates preserve one exact hospital-kind observation")
 		})
 	}
+}
+
+func TestAssignmentScopeVerifierAnswersForHospitalsOnly(t *testing.T) {
+	h := newEstablishmentHarness(t, workforce.New())
+	pharmacy := h.pharmacy(t, "independent")
+	h.pharmacyStaff(t, pharmacy)
+	var consumer events.Consumer
+	for _, candidate := range h.module.Consumers(platform.Deps{Bus: h.bus}) {
+		if candidate.Name == "workforce-assignment-scope" {
+			consumer = candidate
+		}
+	}
+	require.NotNil(t, consumer.Handle)
+	verify := func(establishment string) bool {
+		request := uuid.Must(uuid.NewV7())
+		raw, err := json.Marshal(iamcontract.AssignmentScopeRequestedData{ProposalID: uuid.Must(uuid.NewV7()), RequestID: request, HospitalID: uuid.MustParse(establishment), ActorSubject: "user-admin"})
+		require.NoError(t, err)
+		event := events.Event{Type: iamcontract.SubjectAssignmentScopeRequested, Version: 1, TenantID: testutil.TenantA, Data: raw}
+		require.NoError(t, h.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error { return consumer.Handle(t.Context(), tx, event) }))
+		var payloads []string
+		require.NoError(t, h.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+			return tx.Raw(`SELECT payload->>'data' FROM outbox_events WHERE subject=? AND payload->'data'->>'request_id'=?`, workforcecontract.SubjectAssignmentScopeVerified, request.String()).Scan(&payloads).Error
+		}))
+		require.Len(t, payloads, 1)
+		var verified workforcecontract.AssignmentScopeVerifiedData
+		require.NoError(t, json.Unmarshal([]byte(payloads[0]), &verified))
+		require.Equal(t, uuid.MustParse(establishment), verified.HospitalID)
+		return verified.Eligible
+	}
+	require.True(t, verify(h.hospital))
+	require.False(t, verify(pharmacy))
 }

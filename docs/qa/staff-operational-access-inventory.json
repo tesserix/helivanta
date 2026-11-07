@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "1ef438b46dbb049120159051e62d85ead9ed49630832e3de7038abe7ad8ec95b",
+  "registry_sha256": "fd6eca85d008cc909f9358a44248cf888c82e786b8f9485548f8597da7e4e5da",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 868,
-    "unclassified": 840
+    "total": 874,
+    "unclassified": 846
   },
   "entries": [
     {
@@ -9271,6 +9271,22 @@
       "review": null
     },
     {
+      "id": "http workforce DELETE /v1/workforce/pharmacies/:pharmacy/access/:subject",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "method": "DELETE",
+        "path": "/v1/workforce/pharmacies/:pharmacy/access/:subject",
+        "permission": "workforce.hospital.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http workforce GET /v1/workforce/employment-review-scopes",
       "kind": "http",
       "module": "workforce",
@@ -9293,7 +9309,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "6b5c4d92aff5f88aa8e196ea17c6782bc3c9f879f9ac8ae4b02074d5c94aa074",
+            "sha256": "e13e1ef81b21c01fdb582031bc1d33d4426bd6e3c5a683ad2893cd2d5aac2c2d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -9398,7 +9414,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "6b5c4d92aff5f88aa8e196ea17c6782bc3c9f879f9ac8ae4b02074d5c94aa074",
+            "sha256": "e13e1ef81b21c01fdb582031bc1d33d4426bd6e3c5a683ad2893cd2d5aac2c2d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -9461,7 +9477,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "6b5c4d92aff5f88aa8e196ea17c6782bc3c9f879f9ac8ae4b02074d5c94aa074",
+            "sha256": "e13e1ef81b21c01fdb582031bc1d33d4426bd6e3c5a683ad2893cd2d5aac2c2d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11581,7 +11597,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "6b5c4d92aff5f88aa8e196ea17c6782bc3c9f879f9ac8ae4b02074d5c94aa074",
+            "sha256": "e13e1ef81b21c01fdb582031bc1d33d4426bd6e3c5a683ad2893cd2d5aac2c2d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11665,7 +11681,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "6b5c4d92aff5f88aa8e196ea17c6782bc3c9f879f9ac8ae4b02074d5c94aa074",
+            "sha256": "e13e1ef81b21c01fdb582031bc1d33d4426bd6e3c5a683ad2893cd2d5aac2c2d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11775,7 +11791,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "6b5c4d92aff5f88aa8e196ea17c6782bc3c9f879f9ac8ae4b02074d5c94aa074",
+            "sha256": "e13e1ef81b21c01fdb582031bc1d33d4426bd6e3c5a683ad2893cd2d5aac2c2d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11889,7 +11905,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "6b5c4d92aff5f88aa8e196ea17c6782bc3c9f879f9ac8ae4b02074d5c94aa074",
+            "sha256": "e13e1ef81b21c01fdb582031bc1d33d4426bd6e3c5a683ad2893cd2d5aac2c2d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -12202,7 +12218,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "6b5c4d92aff5f88aa8e196ea17c6782bc3c9f879f9ac8ae4b02074d5c94aa074",
+            "sha256": "e13e1ef81b21c01fdb582031bc1d33d4426bd6e3c5a683ad2893cd2d5aac2c2d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -12261,7 +12277,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "6b5c4d92aff5f88aa8e196ea17c6782bc3c9f879f9ac8ae4b02074d5c94aa074",
+            "sha256": "e13e1ef81b21c01fdb582031bc1d33d4426bd6e3c5a683ad2893cd2d5aac2c2d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -12320,7 +12336,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "6b5c4d92aff5f88aa8e196ea17c6782bc3c9f879f9ac8ae4b02074d5c94aa074",
+            "sha256": "e13e1ef81b21c01fdb582031bc1d33d4426bd6e3c5a683ad2893cd2d5aac2c2d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -12379,7 +12395,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "6b5c4d92aff5f88aa8e196ea17c6782bc3c9f879f9ac8ae4b02074d5c94aa074",
+            "sha256": "e13e1ef81b21c01fdb582031bc1d33d4426bd6e3c5a683ad2893cd2d5aac2c2d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -12438,7 +12454,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "6b5c4d92aff5f88aa8e196ea17c6782bc3c9f879f9ac8ae4b02074d5c94aa074",
+            "sha256": "e13e1ef81b21c01fdb582031bc1d33d4426bd6e3c5a683ad2893cd2d5aac2c2d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -12539,6 +12555,22 @@
       "review": null
     },
     {
+      "id": "http workforce GET /v1/workforce/pharmacies",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "method": "GET",
+        "path": "/v1/workforce/pharmacies",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http workforce GET /v1/workforce/pharmacies/:pharmacy",
       "kind": "http",
       "module": "workforce",
@@ -12547,6 +12579,38 @@
         "method": "GET",
         "path": "/v1/workforce/pharmacies/:pharmacy",
         "permission": "workforce.hospital.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http workforce GET /v1/workforce/pharmacies/:pharmacy/staff",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "method": "GET",
+        "path": "/v1/workforce/pharmacies/:pharmacy/staff",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http workforce GET /v1/workforce/pharmacies/:pharmacy/staff/:id",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "method": "GET",
+        "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id",
+        "permission": "public",
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,
@@ -13301,7 +13365,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "6b5c4d92aff5f88aa8e196ea17c6782bc3c9f879f9ac8ae4b02074d5c94aa074",
+            "sha256": "e13e1ef81b21c01fdb582031bc1d33d4426bd6e3c5a683ad2893cd2d5aac2c2d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -13380,7 +13444,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "6b5c4d92aff5f88aa8e196ea17c6782bc3c9f879f9ac8ae4b02074d5c94aa074",
+            "sha256": "e13e1ef81b21c01fdb582031bc1d33d4426bd6e3c5a683ad2893cd2d5aac2c2d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -13459,7 +13523,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "6b5c4d92aff5f88aa8e196ea17c6782bc3c9f879f9ac8ae4b02074d5c94aa074",
+            "sha256": "e13e1ef81b21c01fdb582031bc1d33d4426bd6e3c5a683ad2893cd2d5aac2c2d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -14252,7 +14316,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "6b5c4d92aff5f88aa8e196ea17c6782bc3c9f879f9ac8ae4b02074d5c94aa074",
+            "sha256": "e13e1ef81b21c01fdb582031bc1d33d4426bd6e3c5a683ad2893cd2d5aac2c2d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -14579,7 +14643,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "6b5c4d92aff5f88aa8e196ea17c6782bc3c9f879f9ac8ae4b02074d5c94aa074",
+            "sha256": "e13e1ef81b21c01fdb582031bc1d33d4426bd6e3c5a683ad2893cd2d5aac2c2d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -14761,7 +14825,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "6b5c4d92aff5f88aa8e196ea17c6782bc3c9f879f9ac8ae4b02074d5c94aa074",
+            "sha256": "e13e1ef81b21c01fdb582031bc1d33d4426bd6e3c5a683ad2893cd2d5aac2c2d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -14837,6 +14901,38 @@
         "method": "PUT",
         "path": "/v1/workforce/pharmacies/:pharmacy",
         "permission": "workforce.hospital.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http workforce PUT /v1/workforce/pharmacies/:pharmacy/access/:subject",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "method": "PUT",
+        "path": "/v1/workforce/pharmacies/:pharmacy/access/:subject",
+        "permission": "workforce.hospital.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http workforce PUT /v1/workforce/pharmacies/:pharmacy/staff/:id",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "method": "PUT",
+        "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id",
+        "permission": "public",
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,

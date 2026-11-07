@@ -5,11 +5,18 @@ import { z } from "zod";
 import { Button } from "@tesserix/web";
 import {
   isEnrollmentAccessChanged,
+  pharmacyStaffKey,
+  savePharmacyStaffRecord,
   useApiQuery,
+  usePharmacyStaffPage,
+  usePharmacyStaffRecord,
+  usePharmacyStaffSourcesPage,
   useStaffDirectoryPage,
   useStaffHospitalsPage,
   type EnrollmentRequestScope,
   type Hospital,
+  type PharmacyStaff,
+  type PharmacyStaffSource as EmployerSource,
 } from "@helivanta/api";
 import {
   Field,
@@ -19,7 +26,9 @@ import {
   RequestFailure,
   SelectControl,
   StaffDirectory,
+  useConfirmLeave,
 } from "@helivanta/ui";
+import { StaffRecordForm } from "@/components/workforce/staff-record-form";
 
 const identitySchema = z.object({
   tenant_id: z
@@ -74,7 +83,7 @@ function StaffSourceAccount({ onRestart }: { onRestart: () => void }) {
     );
   const scope = { tenantId: parsed.data.tenant_id, subject: parsed.data.subject };
   return (
-    <StaffSourceHospitals
+    <StaffSources
       key={`${scope.tenantId}:${scope.subject}`}
       scope={scope}
       onContextChanged={() => setChanged(true)}
@@ -83,6 +92,217 @@ function StaffSourceAccount({ onRestart }: { onRestart: () => void }) {
 }
 
 type SourceProps = { scope: EnrollmentRequestScope; onContextChanged: () => void };
+function StaffSources(props: SourceProps) {
+  return (
+    <>
+      <PageHeading description="Keep your pharmacy's own Staff records and read hospital Staff records available to you." />
+      <EmployerSources {...props} />
+      <StaffSourceHospitals {...props} />
+    </>
+  );
+}
+
+// A standalone pharmacy registered as an employer keeps its own directory (ADR-0054).
+function EmployerSources({ scope, onContextChanged }: SourceProps) {
+  const [cursor, setCursor] = useState<string | null>(null);
+  const query = usePharmacyStaffSourcesPage(scope, cursor);
+  useEffect(() => {
+    if (isEnrollmentAccessChanged(query.error)) onContextChanged();
+  }, [query.error, onContextChanged]);
+  return (
+    <section className="mb-10">
+      <Panel className="mb-5 space-y-2">
+        <h2 className="font-semibold">Pharmacy employer Staff</h2>
+        <p className="text-sm text-muted-foreground">
+          Staff employed by standalone pharmacies registered as employers. Being listed here does
+          not assign someone to an outlet or authorize dispensing.
+        </p>
+      </Panel>
+      {query.isPending ? (
+        <p role="status">Loading pharmacy employers…</p>
+      ) : query.isError ? (
+        <RequestFailure
+          message="Could not load pharmacy employers."
+          retry={query.refetch}
+          error={query.error}
+        />
+      ) : query.data.data.length > 0 ? (
+        <EmployerSourcePage
+          key={cursor ?? "first"}
+          {...{ scope, onContextChanged }}
+          sources={query.data.data}
+        />
+      ) : (
+        <Panel>
+          <h3 className="font-semibold">No pharmacy employer access on this page</h3>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Whoever registers a pharmacy as an employer becomes its first Staff manager. Ask them
+            for access to its Staff records.
+          </p>
+        </Panel>
+      )}
+      {!query.isPending && !query.isError && (
+        <nav aria-label="Pharmacy employers" className="mt-4 flex gap-2">
+          {cursor && (
+            <Button variant="outline" onClick={() => setCursor(null)}>
+              First pharmacy page
+            </Button>
+          )}
+          {query.data.page.has_more && query.data.page.next_cursor && (
+            <Button variant="outline" onClick={() => setCursor(query.data.page.next_cursor)}>
+              Next pharmacy page
+            </Button>
+          )}
+        </nav>
+      )}
+    </section>
+  );
+}
+
+function EmployerSourcePage({
+  scope,
+  onContextChanged,
+  sources,
+}: SourceProps & { sources: EmployerSource[] }) {
+  const id = useId();
+  const [selected, setSelected] = useState("");
+  const source = selected ? sources.find((item) => item.pharmacy_id === selected) : sources[0];
+  return (
+    <>
+      <div className="mb-5 max-w-xl">
+        <Field id={id} label="Pharmacy employer">
+          <SelectControl
+            id={id}
+            value={source?.pharmacy_id ?? ""}
+            onValueChange={setSelected}
+            options={sources.map((item) => ({ value: item.pharmacy_id, label: item.name }))}
+          />
+        </Field>
+      </div>
+      {source ? (
+        <Employer
+          key={`${scope.tenantId}:${scope.subject}:${source.pharmacy_id}`}
+          {...{ scope, onContextChanged, source }}
+        />
+      ) : (
+        <p>Choose a currently accessible pharmacy employer.</p>
+      )}
+    </>
+  );
+}
+
+function Employer({ scope, onContextChanged, source }: SourceProps & { source: EmployerSource }) {
+  const confirmLeave = useConfirmLeave();
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [editing, setEditing] = useState<PharmacyStaff | "new" | null>(null);
+  const query = usePharmacyStaffPage(scope, source.pharmacy_id, cursor);
+  // The access level is display only; the API checks the manager row on every write.
+  const manager = source.access_level === "manager";
+  useEffect(() => {
+    if (isEnrollmentAccessChanged(query.error)) onContextChanged();
+  }, [query.error, onContextChanged]);
+  return (
+    <>
+      <StaffDirectory<PharmacyStaff>
+        title={source.name}
+        description={
+          manager
+            ? "Pharmacy Staff directory · you manage these records"
+            : "Pharmacy Staff directory"
+        }
+        emptyDescription="No Staff records are in this pharmacy's directory yet."
+        scopeDescription="Showing this pharmacy's own Staff records; no outlet assignment is implied"
+        rows={query.data?.data ?? []}
+        isPending={query.isPending}
+        isError={query.isError}
+        error={query.error}
+        retry={() => query.refetch()}
+        headerActions={
+          manager && (
+            <Button onClick={() => confirmLeave(() => setEditing("new"))}>Add staff</Button>
+          )
+        }
+        rowActions={
+          manager
+            ? (row) => (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Edit ${row.display_name}`}
+                  onClick={() => confirmLeave(() => setEditing(row))}
+                >
+                  Edit
+                </Button>
+              )
+            : undefined
+        }
+        onFirstPage={cursor ? () => setCursor(null) : undefined}
+        onNextPage={
+          query.data?.page.has_more && query.data.page.next_cursor
+            ? () => setCursor(query.data!.page.next_cursor)
+            : undefined
+        }
+      />
+      {manager && editing && (
+        <EmployerStaffEditor
+          key={editing === "new" ? "new" : editing.id}
+          {...{ scope, onContextChanged, source }}
+          staff={editing === "new" ? undefined : editing}
+          onClose={() => setEditing(null)}
+        />
+      )}
+    </>
+  );
+}
+
+function EmployerStaffEditor({
+  scope,
+  onContextChanged,
+  source,
+  staff,
+  onClose,
+}: SourceProps & { source: EmployerSource; staff?: PharmacyStaff; onClose: () => void }) {
+  const [id] = useState(() => staff?.id ?? crypto.randomUUID());
+  const [reload, setReload] = useState(0);
+  const record = usePharmacyStaffRecord(scope, source.pharmacy_id, id, reload, !!staff);
+  useEffect(() => {
+    if (isEnrollmentAccessChanged(record.error)) onContextChanged();
+  }, [record.error, onContextChanged]);
+  if (staff && record.isPending)
+    return (
+      <Panel role="status" className="mt-6">
+        Loading current Staff record…
+      </Panel>
+    );
+  if (staff && record.isError)
+    return (
+      <div className="mt-6 space-y-3">
+        <RequestFailure
+          message="The current Staff record is not available. Retry before editing."
+          retry={record.refetch}
+          error={record.error}
+        />
+        <Button variant="ghost" onClick={onClose}>
+          Cancel
+        </Button>
+      </div>
+    );
+  return (
+    <StaffRecordForm
+      key={reload}
+      establishmentName={source.name}
+      staff={staff ? record.data : undefined}
+      invalidate={[pharmacyStaffKey(scope, source.pharmacy_id)]}
+      onClose={onClose}
+      onContextChanged={onContextChanged}
+      onReload={() => setReload((value) => value + 1)}
+      save={(value, expectedVersion) =>
+        savePharmacyStaffRecord(scope, source.pharmacy_id, id, value, expectedVersion)
+      }
+    />
+  );
+}
+
 function StaffSourceHospitals({ scope, onContextChanged }: SourceProps) {
   const [cursor, setCursor] = useState<string | null>(null);
   const query = useStaffHospitalsPage(scope, cursor);
@@ -90,8 +310,7 @@ function StaffSourceHospitals({ scope, onContextChanged }: SourceProps) {
     if (isEnrollmentAccessChanged(query.error)) onContextChanged();
   }, [query.error, onContextChanged]);
   return (
-    <>
-      <PageHeading description="Read canonical Staff records available to you for pharmacy onboarding." />
+    <section>
       <Panel className="mb-5 space-y-2">
         <h2 className="font-semibold">Shared Staff source</h2>
         <p className="text-sm text-muted-foreground">
@@ -142,7 +361,7 @@ function StaffSourceHospitals({ scope, onContextChanged }: SourceProps) {
           )}
         </nav>
       )}
-    </>
+    </section>
   );
 }
 

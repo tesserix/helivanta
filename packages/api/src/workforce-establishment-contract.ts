@@ -18,3 +18,63 @@ export const PharmacyEmployerContract = z
   })
   .strict();
 export type PharmacyEmployer = z.infer<typeof PharmacyEmployerContract>;
+
+export const PharmacyStaffContract = z
+  .object({
+    id: identifier,
+    pharmacy_id: identifier,
+    employee_code: z
+      .string()
+      .min(1)
+      .max(40)
+      .regex(new RegExp("^[A-Za-z0-9_-]{1,40}$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    display_name: z
+      .string()
+      .trim()
+      .min(1)
+      .max(150)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    job_category: z.enum([
+      "doctor",
+      "nurse",
+      "pharmacist",
+      "lab_technician",
+      "receptionist",
+      "administration",
+      "other",
+    ]),
+    employment_status: z.enum(["active", "inactive"]),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type PharmacyStaff = z.infer<typeof PharmacyStaffContract>;
+
+export const PharmacyAccessContract = z
+  .object({
+    pharmacy_id: identifier,
+    subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    level: z.enum(["reader", "manager"]),
+  })
+  .strict();
+export type PharmacyAccess = z.infer<typeof PharmacyAccessContract>;
+
+export const PharmacyStaffSourceContract = z
+  .object({
+    pharmacy_id: identifier,
+    name: z
+      .string()
+      .trim()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    access_level: z.enum(["reader", "manager"]),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type PharmacyStaffSource = z.infer<typeof PharmacyStaffSourceContract>;

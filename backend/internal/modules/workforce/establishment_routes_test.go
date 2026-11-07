@@ -13,14 +13,12 @@ import (
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
-// grantPharmacyAccess simulates a later slice lifting the access guard, so only the route admission keeps the hospital family closed.
+// grantPharmacyAccess writes a pharmacy manager grant, so only the route admission keeps the hospital family closed.
 func (h *establishmentHarness) grantPharmacyAccess(t *testing.T, pharmacy string) {
 	t.Helper()
-	require.NoError(t, h.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_lifted_access_" + pharmacy, SQL: `
- SELECT set_config('app.tenant_id','` + testutil.TenantA + `',true),set_config('app.workforce_subject','user-admin',true),set_config('app.workforce_hospital','` + pharmacy + `',true);
- ALTER TABLE workforce_hospital_access DISABLE TRIGGER workforce_hospital_establishment;
- INSERT INTO workforce_hospital_access(tenant_id,hospital_id,subject,level) VALUES('` + testutil.TenantA + `','` + pharmacy + `','user-admin','manager');
- ALTER TABLE workforce_hospital_access ENABLE TRIGGER workforce_hospital_establishment;`}}))
+	require.NoError(t, h.tx(t, pharmacy, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO workforce_hospital_access(tenant_id,hospital_id,subject,level) VALUES(?,?,'user-admin','manager')`, testutil.TenantA, pharmacy).Error
+	}))
 }
 
 func (h *establishmentHarness) accessRows(t *testing.T, establishment string) int64 {
@@ -41,6 +39,7 @@ func TestHospitalRoutesRefuseAPharmacyEstablishment(t *testing.T) {
 		{"PUT", "/v1/workforce/hospitals/" + pharmacy + "/access/user-other", `{"level":"reader"}`},
 		{"DELETE", "/v1/workforce/hospitals/" + pharmacy + "/access/user-admin", ""},
 		{"GET", "/v1/workforce/hospitals/" + pharmacy + "/staff", ""},
+		{"PUT", "/v1/workforce/hospitals/" + pharmacy + "/staff/" + uuid.Must(uuid.NewV7()).String(), `{"employee_code":"SYN-1","display_name":"Synthetic pharmacist","job_category":"pharmacist","employment_status":"active"}`},
 	} {
 		t.Run(call.method+" "+call.path, func(t *testing.T) {
 			response := testutil.Do(h.router, call.method, call.path, "admin", call.body)

@@ -9593,6 +9593,51 @@
           "counted": false
         },
         {
+          "method": "DELETE",
+          "path": "/v1/workforce/pharmacies/:pharmacy/access/:subject",
+          "permission": "workforce.hospital.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/pharmacies/:pharmacy/access/:subject",
+          "permission": "workforce.hospital.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/workforce/pharmacies/:pharmacy",
           "permission": "workforce.hospital.manage",
@@ -9608,6 +9653,15 @@
           "authentication_required": true,
           "membership_required": true,
           "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/pharmacies",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
           "counted": false
         },
         {
@@ -10906,6 +10960,11 @@
         {
           "id": "0091_workforce_partner_member_candidates",
           "sql_sha256": "b6011ea1074379fafe488f21925ab8d0744ad35bd0591ebea5c695786abc7150",
+          "creates_tables": []
+        },
+        {
+          "id": "0092_workforce_pharmacy_staff_directory",
+          "sql_sha256": "2a796d859170b50eda3aea8a5f6f25ef872fb231e17260b3f1ddfb02b676c7ef",
           "creates_tables": []
         }
       ]

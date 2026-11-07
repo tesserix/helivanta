@@ -10,6 +10,7 @@ import (
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/suppliertrade"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
 	"testing"
 	"time"
@@ -27,7 +28,7 @@ func TestDirectedRelationshipProtocolPersistsBothConsentsAndNeverReactivatesFrom
 	state, err := suppliertrade.PrepareRelationship(id, terms, "TEST-maker", time.Now())
 	require.NoError(t, err)
 	input.Terms = state.Terms
-	require.NoError(t, db.WithTenant(t.Context(), sellerID.String(), func(tx *gorm.DB) error {
+	require.NoError(t, db.WithTenant(tenantdb.WithActor(t.Context(), "TEST-maker"), sellerID.String(), func(tx *gorm.DB) error {
 		if err := supply.TestRelationshipLock(tx, sellerID, id); err != nil {
 			return err
 		}
@@ -35,7 +36,7 @@ func TestDirectedRelationshipProtocolPersistsBothConsentsAndNeverReactivatesFrom
 	}))
 	change := func(tenant uuid.UUID, decision, actor string) {
 		t.Helper()
-		require.NoError(t, db.WithTenant(t.Context(), tenant.String(), func(tx *gorm.DB) error {
+		require.NoError(t, db.WithTenant(tenantdb.WithActor(t.Context(), actor), tenant.String(), func(tx *gorm.DB) error {
 			if err := supply.TestRelationshipLock(tx, tenant, id); err != nil {
 				return err
 			}
@@ -108,7 +109,7 @@ func TestDirectedRelationshipProtocolPersistsBothConsentsAndNeverReactivatesFrom
 	payload, err := json.Marshal(old)
 	require.NoError(t, err)
 	replayID := uuid.Must(uuid.NewV7())
-	require.NoError(t, db.WithTenant(t.Context(), sellerID.String(), func(tx *gorm.DB) error {
+	require.NoError(t, db.WithTenant(tenantdb.WithActor(t.Context(), "TEST-supplier-signatory"), sellerID.String(), func(tx *gorm.DB) error {
 		return events.Enqueue(tx, supply.TestRelationshipExchangeSubject, events.Event{ID: replayID.String(), Type: supply.TestRelationshipExchangeSubject, Version: 1, TenantID: sellerID.String(), DestinationTenantID: buyerID.String(), Data: payload})
 	}))
 	require.Eventually(t, func() bool {

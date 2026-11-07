@@ -532,6 +532,7 @@ test-web:
 
 test-scripts:
 	bash scripts/preflight.test.sh
+	bash scripts/release-prod.test.sh
 
 # shellcheck over every shell script in the repo, discovered rather than
 # listed, with a digest-pinned shellcheck (#924). See scripts/lint-shell.sh.

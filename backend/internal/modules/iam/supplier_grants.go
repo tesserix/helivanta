@@ -86,7 +86,7 @@ func supplierGrantError(c *gin.Context, err error) {
 	var pg *pgconn.PgError
 	switch {
 	case errors.Is(err, supplieraccess.ErrInvalid):
-		respond.BadRequest(c, err)
+		respond.BadRequest(c, supplieraccess.ErrInvalid)
 	case errors.Is(err, gorm.ErrRecordNotFound), errors.Is(err, suppliertrade.ErrIneligible):
 		respond.NotFound(c, "supplier grant")
 	case errors.Is(err, supplieraccess.ErrConflict), errors.Is(err, suppliertrade.ErrConflict), errors.As(err, &pg) && (pg.Code == "23505" || pg.Code == "23514"):

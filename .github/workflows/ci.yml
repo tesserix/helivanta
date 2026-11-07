@@ -76,7 +76,7 @@ jobs:
         run: |
           go test -race ./internal/archtest
           go test -race ./internal/modules/pharmacy -run '^(TestTradingCommandsRejectChangedTenantBeforeBodyValidation|TestPharmacyOperationalRolesHaveSeparateCapabilities|TestPharmacyExpectedTenantRejectsEveryRouteFamilyWithoutSideEffects)$'
-          go test -race ./internal/modules/iam -run '^(TestMigrationIDIsPhaseScoped|TestMembershipMigrationPreservesEvidenceWithoutInventingContinuity|TestEstablishmentRootBackfillKeepsHospitalGrants)$'
+          go test -race ./internal/modules/iam -run '^(TestAccessBoundary.*|TestOperatingBoundary.*|TestMigrationIDIsPhaseScoped|TestMembershipMigrationPreservesEvidenceWithoutInventingContinuity|TestEstablishmentRootBackfillKeepsHospitalGrants)$'
       - name: Effective supplier grant consent tests
         run: go test -race ./pkg/supplieraccess
       - name: Supplier consent and peer boundary tests

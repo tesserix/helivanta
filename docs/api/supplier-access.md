@@ -56,6 +56,10 @@ reauthorizes the current caller and returns the retained decision, including its
 reason and resulting version. Sensitive reads are audited; unavailable authority
 returns an explicit error and never a fabricated empty directory or approval.
 
+Validation errors use the stable `invalid_request` code and a safe public message.
+Wrapped provider and storage details, recipient identities and private evidence
+are never copied into error responses.
+
 ## Effective disclosure boundary
 
 The closed templates are catalogue view, shipment read and invoice view. Each

@@ -1240,8 +1240,14 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hr-intake-scopes` | `public` | true | false |
 | GET | `/v1/workforce/leave-review-scopes` | `public` | true | false |
 | GET | `/v1/workforce/person-review-scopes` | `public` | true | false |
+| DELETE | `/v1/workforce/pharmacies/:pharmacy/access/:subject` | `workforce.hospital.manage` | false | false |
+| PUT | `/v1/workforce/pharmacies/:pharmacy/access/:subject` | `workforce.hospital.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id` | `public` | false | false |
+| PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id` | `public` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff` | `public` | true | false |
 | GET | `/v1/workforce/pharmacies/:pharmacy` | `workforce.hospital.manage` | false | false |
 | PUT | `/v1/workforce/pharmacies/:pharmacy` | `workforce.hospital.manage` | false | false |
+| GET | `/v1/workforce/pharmacies` | `public` | true | false |
 | GET | `/v1/workforce/posting-cutoff-scopes` | `public` | true | false |
 | GET | `/v1/workforce/posting-review-scopes` | `public` | true | false |
 | GET | `/v1/workforce/posting-scopes` | `public` | true | false |

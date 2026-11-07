@@ -248,27 +248,36 @@ func (h *handlers) putAccess(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if subject, level, ok := h.putEstablishmentAccess(c, p, establishment{hospitalEstablishmentKind, hospital}); ok {
+		respond.OK(c, gin.H{"hospital_id": hospital, "subject": subject, "level": level})
+	}
+}
+
+func (h *handlers) putEstablishmentAccess(c *gin.Context, p authn.Principal, e establishment) (string, string, bool) {
 	var in struct {
 		Level string `json:"level" binding:"required,oneof=reader manager"`
 	}
 	if !decode(c, &in) {
-		return
+		return "", "", false
 	}
 	subject := c.Param("subject")
 	if len(subject) > 200 || strings.TrimSpace(subject) == "" {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "invalid subject")
-		return
+		return "", "", false
 	}
-	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
+	err := h.transaction(c.Request.Context(), p, e.id, func(tx *gorm.DB) error {
+		if err := e.requireKind(tx, p.TenantID); err != nil {
+			return err
+		}
 		return tx.Exec(`INSERT INTO workforce_hospital_access (tenant_id, hospital_id, subject, level) VALUES (?, ?, ?, ?)
 		 ON CONFLICT (tenant_id, hospital_id, subject) DO UPDATE SET level = EXCLUDED.level, updated_at = now()
-		 WHERE workforce_hospital_access.level IS DISTINCT FROM EXCLUDED.level`, p.TenantID, hospital, subject, in.Level).Error
+		 WHERE workforce_hospital_access.level IS DISTINCT FROM EXCLUDED.level`, p.TenantID, e.id, subject, in.Level).Error
 	})
 	if err != nil {
 		respondError(c, err)
-		return
+		return "", "", false
 	}
-	respond.OK(c, gin.H{"hospital_id": hospital, "subject": subject, "level": in.Level})
+	return subject, in.Level, true
 }
 
 func (h *handlers) deleteAccess(c *gin.Context) {
@@ -276,15 +285,15 @@ func (h *handlers) deleteAccess(c *gin.Context) {
 	if !ok {
 		return
 	}
-	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
-		var n int64
-		if err := tx.Table("workforce_hospitals").Where("tenant_id = ? AND id = ? AND establishment_kind = 'hospital'", p.TenantID, hospital).Count(&n).Error; err != nil {
+	h.deleteEstablishmentAccess(c, p, establishment{hospitalEstablishmentKind, hospital})
+}
+
+func (h *handlers) deleteEstablishmentAccess(c *gin.Context, p authn.Principal, e establishment) {
+	err := h.transaction(c.Request.Context(), p, e.id, func(tx *gorm.DB) error {
+		if err := e.requireKind(tx, p.TenantID); err != nil {
 			return err
 		}
-		if n == 0 {
-			return gorm.ErrRecordNotFound
-		}
-		return tx.Exec(`DELETE FROM workforce_hospital_access WHERE tenant_id = ? AND hospital_id = ? AND subject = ?`, p.TenantID, hospital, c.Param("subject")).Error
+		return tx.Exec(`DELETE FROM workforce_hospital_access WHERE tenant_id = ? AND hospital_id = ? AND subject = ?`, p.TenantID, e.id, c.Param("subject")).Error
 	})
 	if err != nil {
 		respondError(c, err)
@@ -304,31 +313,40 @@ func (h *handlers) putStaff(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if row, ok := h.putDirectoryStaff(c, p, establishment{hospitalEstablishmentKind, hospital}, projection); ok {
+		respondDirectoryStaff(c, row, projection)
+	}
+}
+
+func (h *handlers) putDirectoryStaff(c *gin.Context, p authn.Principal, e establishment, projection bool) (staff, bool) {
+	var row staff
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil || id == uuid.Nil {
 		respond.NotFound(c, "staff")
-		return
+		return row, false
 	}
 	var in staffDirectoryInput
 	if !decode(c, &in) {
-		return
+		return row, false
 	}
 	if (projection && (in.ExpectedVersion == nil || in.DirectoryContextVersion != staffDirectoryContextVersion)) || (!projection && in.metadataSupplied) {
 		respond.Error(c, 400, "invalid_request", "This Staff directory request is not supported. Refresh and retry.")
-		return
+		return row, false
 	}
 	in.DisplayName = strings.TrimSpace(in.DisplayName)
 	if !employeeCode.MatchString(in.EmployeeCode) || in.DisplayName == "" {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "invalid staff fields")
-		return
+		return row, false
 	}
-	var row staff
-	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
-		if err := lockDirectoryManager(tx, p, hospital); err != nil {
+	err = h.transaction(c.Request.Context(), p, e.id, func(tx *gorm.DB) error {
+		if err := e.requireKind(tx, p.TenantID); err != nil {
+			return err
+		}
+		if err := lockDirectoryManager(tx, p, e.id); err != nil {
 			return err
 		}
 		if projection {
-			if err := checkDirectoryVersion(tx, p, hospital, id, in); err != nil {
+			if err := checkDirectoryVersion(tx, p, e.id, id, in); err != nil {
 				return err
 			}
 		}
@@ -338,25 +356,25 @@ func (h *handlers) putStaff(c *gin.Context) {
 		 display_name = EXCLUDED.display_name, job_category = EXCLUDED.job_category, employment_status = EXCLUDED.employment_status, updated_at = now()
 		 WHERE (workforce_staff.employee_code, workforce_staff.display_name, workforce_staff.job_category, workforce_staff.employment_status)
 		 IS DISTINCT FROM (EXCLUDED.employee_code, EXCLUDED.display_name, EXCLUDED.job_category, EXCLUDED.employment_status)`,
-			p.TenantID, hospital, id, in.EmployeeCode, in.DisplayName, in.JobCategory, in.EmploymentStatus).Error; err != nil {
+			p.TenantID, e.id, id, in.EmployeeCode, in.DisplayName, in.JobCategory, in.EmploymentStatus).Error; err != nil {
 			return err
 		}
 		if in.EmploymentStatus == "inactive" {
-			if err := h.revokeInactiveStaffLinks(tx, p, hospital, id); err != nil {
+			if err := h.revokeInactiveStaffLinks(tx, p, e.id, id); err != nil {
 				return err
 			}
 		}
-		return tx.Select(staffColumns+", version").Where("tenant_id = ? AND hospital_id = ? AND id = ?", p.TenantID, hospital, id).First(&row).Error
+		return tx.Select(staffColumns+", version").Where("tenant_id = ? AND hospital_id = ? AND id = ?", p.TenantID, e.id, id).First(&row).Error
 	})
 	if errors.Is(err, errStaffDirectoryVersion) {
 		respond.Error(c, 409, "staff_version_conflict", "This Staff record changed. Your draft has been kept. Reload the current record before saving.")
-		return
+		return row, false
 	}
 	if err != nil {
 		respondError(c, err)
-		return
+		return row, false
 	}
-	respondDirectoryStaff(c, row, projection)
+	return row, true
 }
 
 func (h *handlers) getStaff(c *gin.Context) {
@@ -375,13 +393,17 @@ func (h *handlers) getStaff(c *gin.Context) {
 	}
 	var row staff
 	err = h.intakeReadTransaction(c, p, hospital, func(tx *gorm.DB) error {
-		return tx.Select(staffColumns+", version").Where("tenant_id = ? AND hospital_id = ? AND id = ?", p.TenantID, hospital, id).First(&row).Error
+		return readDirectoryStaff(tx, p.TenantID, establishment{hospitalEstablishmentKind, hospital}, id, &row)
 	})
 	if err != nil {
 		respondIntakeError(c, err)
 		return
 	}
 	respondDirectoryStaff(c, row, projection)
+}
+
+func readDirectoryStaff(tx *gorm.DB, tenant string, e establishment, id uuid.UUID, row *staff) error {
+	return e.staffRows(tx, tenant).Select(staffColumns+", version").Where("id = ?", id).First(row).Error
 }
 
 func (h *handlers) listStaff(c *gin.Context, params pagination.Params) ([]staff, error) {
@@ -396,14 +418,21 @@ func (h *handlers) listStaff(c *gin.Context, params pagination.Params) ([]staff,
 	}
 	var rows []staff
 	err = h.intakeReadTransaction(c, p, hospital, func(tx *gorm.DB) error {
-		return tenantdb.ApplyKeyset(tx, params).Select(staffColumns).Where("tenant_id = ? AND hospital_id = ?", p.TenantID, hospital).Find(&rows).Error
+		return listDirectoryStaff(tx, p.TenantID, establishment{hospitalEstablishmentKind, hospital}, params, &rows)
 	})
 	if err != nil {
-		if _, projected := c.Request.URL.Query()[hrIntakeQuery]; projected {
+		if _, projected := c.Request.URL.Query()[hrIntakeQuery]; projected || errors.Is(err, gorm.ErrRecordNotFound) {
 			respondIntakeError(c, err)
 			return nil, nil
 		}
 		return nil, errors.New("workforce list operation failed")
 	}
 	return rows, nil
+}
+
+func listDirectoryStaff(tx *gorm.DB, tenant string, e establishment, params pagination.Params, rows *[]staff) error {
+	if err := e.refuseOtherKind(tx, tenant); err != nil {
+		return err
+	}
+	return e.staffRows(tenantdb.ApplyKeyset(tx, params), tenant).Select(staffColumns).Find(rows).Error
 }

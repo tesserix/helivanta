@@ -1,9 +1,11 @@
 "use client";
 import { Button } from "@tesserix/web";
 import {
+  grantPharmacyManagerAccess,
   pharmacyEmployerKey,
   registerPharmacyEmployer,
   useApiMutation,
+  useApiQuery,
   usePharmacyEmployer,
   type PharmacyOrganization,
 } from "@helivanta/api";
@@ -20,11 +22,27 @@ export function PharmacyEmployer({
 }) {
   const standalone = pharmacy.ownership_type !== "hospital_owned";
   const employer = usePharmacyEmployer(tenantId, pharmacy.id, standalone && canManage);
-  const register = useApiMutation(() => registerPharmacyEmployer(pharmacy.id), {
-    successToast: "Pharmacy registered as employer",
-    invalidate: [pharmacyEmployerKey(tenantId, pharmacy.id)],
-    suppressErrorToast: true,
-  });
+  const identity = useApiQuery<{ subject: string }>(
+    ["iam", "me", "permissions"],
+    "/iam/me/permissions",
+    { enabled: standalone && canManage },
+  );
+  // Both writes are idempotent PUTs, so a retry after a failed grant repeats them safely.
+  const register = useApiMutation(
+    async () => {
+      const subject = identity.data?.subject;
+      if (!subject) throw new Error("Your account could not be verified. Reload and try again.");
+      const registered = await registerPharmacyEmployer(pharmacy.id);
+      await grantPharmacyManagerAccess(pharmacy.id, subject);
+      return registered;
+    },
+    {
+      successToast: "Pharmacy registered with you as its Staff manager",
+      invalidate: [pharmacyEmployerKey(tenantId, pharmacy.id)],
+      invalidateOnError: true,
+      suppressErrorToast: true,
+    },
+  );
   return (
     <Panel aria-labelledby="pharmacy-employer" className="mt-6">
       <h3 id="pharmacy-employer" className="font-semibold">
@@ -47,10 +65,30 @@ export function PharmacyEmployer({
           error={employer.error}
         />
       ) : employer.data ? (
-        <p className="mt-2 text-sm leading-6">
-          Registered as an employer on{" "}
-          {new Date(employer.data.created_at).toLocaleDateString("en-IN", { dateStyle: "medium" })}.
-        </p>
+        <div className="mt-2 space-y-3">
+          <p className="text-sm leading-6">
+            Registered as an employer on{" "}
+            {new Date(employer.data.created_at).toLocaleDateString("en-IN", {
+              dateStyle: "medium",
+            })}
+            .
+          </p>
+          {register.isError && (
+            <>
+              <p role="alert" className="text-sm text-destructive">
+                {register.error.message}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={register.isPending}
+                onClick={() => register.mutate()}
+              >
+                Retry manager access
+              </Button>
+            </>
+          )}
+        </div>
       ) : (
         <div className="mt-2 space-y-3">
           <p className="text-sm leading-6 text-muted-foreground">
@@ -62,7 +100,11 @@ export function PharmacyEmployer({
               {register.error.message}
             </p>
           )}
-          <Button type="button" disabled={register.isPending} onClick={() => register.mutate()}>
+          <Button
+            type="button"
+            disabled={register.isPending || !identity.data}
+            onClick={() => register.mutate()}
+          >
             {register.isPending ? "Registering…" : "Register as employer"}
           </Button>
         </div>

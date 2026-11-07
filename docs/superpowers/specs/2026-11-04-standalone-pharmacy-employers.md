@@ -136,10 +136,11 @@ a sibling outlet or the whole establishment.
 - Self-supervision, cycles, interval gaps and cross-establishment supervisors
   are refused.
 
-**Pharma consumer.** For a standalone organization, `/pharmacy/staff` reads the
-pharmacy family with the caller's current Workforce scope. For a
-`hospital_owned` organization, it keeps the hospital family. Neither reading
-grants HR access from pharmacy membership.
+**Pharma consumer.** `/pharmacy/staff` lists the registered pharmacy employers
+the caller has Workforce access to, from `GET /workforce/pharmacies`, and reads
+the chosen one's pharmacy family directory. Only standalone organizations can be
+registered. A `hospital_owned` organization's Staff stay in the hospital family
+source. Neither reading grants HR access from pharmacy membership.
 
 ## Delivery slices
 

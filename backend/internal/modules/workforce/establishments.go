@@ -24,6 +24,45 @@ const (
 // pharmacyEstablishment is the only identifier the pharmacy transaction accepts, so a hospital ID cannot reach it.
 type pharmacyEstablishment uuid.UUID
 
+// establishment pairs an ID with the family whose route admitted it; shared Staff and access cores re-check that kind.
+type establishment struct {
+	kind string
+	id   uuid.UUID
+}
+
+func (p pharmacyEstablishment) establishment() establishment {
+	return establishment{kind: pharmacyEstablishmentKind, id: uuid.UUID(p)}
+}
+
+// requireKind runs inside the command, because admission ran before it and an unregistered ID may since have been registered as the other kind.
+func (e establishment) requireKind(tx *gorm.DB, tenant string) error {
+	var found []int
+	if err := tx.Raw(`SELECT 1 FROM workforce_hospitals WHERE tenant_id=? AND id=? AND establishment_kind=? FOR KEY SHARE`, tenant, e.id, e.kind).Scan(&found).Error; err != nil {
+		return err
+	}
+	if len(found) == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+// refuseOtherKind replays admission inside a read: an unregistered ID keeps its empty answer, the other kind is 404.
+func (e establishment) refuseOtherKind(tx *gorm.DB, tenant string) error {
+	var found []int
+	if err := tx.Raw(`SELECT 1 FROM workforce_hospitals WHERE tenant_id=? AND id=? AND establishment_kind<>?`, tenant, e.id, e.kind).Scan(&found).Error; err != nil {
+		return err
+	}
+	if len(found) > 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+// staffRows filters by kind in the reading statement itself, so a registration after refuseOtherKind never surfaces.
+func (e establishment) staffRows(tx *gorm.DB, tenant string) *gorm.DB {
+	return tx.Where("tenant_id = ? AND hospital_id IN (SELECT id FROM workforce_hospitals WHERE tenant_id = ? AND id = ? AND establishment_kind = ?)", tenant, tenant, e.id, e.kind)
+}
+
 // establishmentAdmission answers 404 for an ID registered as another kind and leaves unregistered IDs to the handler.
 func (h *handlers) establishmentAdmission(kind string) gin.HandlerFunc {
 	return func(c *gin.Context) {

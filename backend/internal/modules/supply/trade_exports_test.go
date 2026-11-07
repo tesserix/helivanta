@@ -29,3 +29,8 @@ func RelationshipProofFixtureForTest(db *tenantdb.DB) (suppliertrade.CurrentRela
 func RelationshipSnapshotForTest(local suppliertrade.Relationship) suppliertrade.RelationshipAuthorization {
 	return &verifiedRelationship{local: local}
 }
+
+func RelationshipAuthorizationForTest(db *tenantdb.DB, local suppliertrade.Relationship, at time.Time) (suppliertrade.CurrentRelationshipGuard, suppliertrade.RelationshipAuthorization) {
+	owner := &relationshipAuthority{db: db}
+	return owner, &verifiedRelationship{owner: owner, local: local, verifiedAt: at, scope: suppliertrade.RelationshipScope{TenantID: local.OwnerTenantID.String(), ID: local.ID, TermsSha256: local.TermsSha256, Purpose: "retained_transaction"}}
+}

@@ -59,3 +59,31 @@ func TestRelationshipProofSnapshotCannotMutateVerifiedEndpointReferences(t *test
 		require.Equal(t, int64(3), *ep.RegistrationVersion)
 	}
 }
+
+func verifyRelationshipProofConsumption(t *testing.T, db *tenantdb.DB, state suppliertrade.Relationship) {
+	t.Helper()
+	t.Run("proof cannot authorize multiple commands", func(t *testing.T) {
+		guard, proof := supply.RelationshipAuthorizationForTest(db, state, time.Now())
+		calls := 0
+		require.NoError(t, db.WithGuardedTenantCommand(t.Context(), state.OwnerTenantID.String(), time.Now().Add(time.Minute), func(*gorm.DB) error { return nil }, func(ctx context.Context) error {
+			consume := func(context.Context, suppliertrade.Relationship) error { calls++; return nil }
+			require.NoError(t, guard.WithVerifiedRelationship(ctx, proof, consume))
+			require.ErrorIs(t, guard.WithVerifiedRelationship(ctx, proof, consume), suppliertrade.ErrUnavailable)
+			return nil
+		}))
+		require.Equal(t, 1, calls)
+	})
+	t.Run("proof expiry constrains the transaction through commit", func(t *testing.T) {
+		guard, proof := supply.RelationshipAuthorizationForTest(db, state, time.Now().Add(-4*time.Second))
+		called := false
+		err := db.WithGuardedTenantCommand(t.Context(), state.OwnerTenantID.String(), time.Now().Add(3*time.Second), func(*gorm.DB) error { return nil }, func(ctx context.Context) error {
+			return guard.WithVerifiedRelationship(ctx, proof, func(ctx context.Context, _ suppliertrade.Relationship) error {
+				called = true
+				<-ctx.Done()
+				return context.Cause(ctx)
+			})
+		})
+		require.True(t, called)
+		require.ErrorIs(t, err, tenantdb.ErrGuardedCommandExpired)
+	})
+}

@@ -75,7 +75,7 @@ jobs:
       - name: Supplier consent and peer boundary tests
         run: go test -race ./pkg/suppliertrade
       - name: Supplier proof and workload caller tests
-        run: go test -race ./internal/modules/supply -run 'TestRelationshipProof|TestTradeClaimCaller'
+        run: go test -race ./internal/modules/supply -run 'TestRelationshipProof|TestTradeClaim|TestDirectedRelationshipProtocol'
       - name: golangci-lint
         # Cold package loading exceeded five minutes in run 38894793923.
         timeout-minutes: 30

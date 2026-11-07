@@ -61,6 +61,6 @@ func TestSupplierGrantRequiresIndependentSourceReviewHospitalAcceptanceAndExactA
 	require.Equal(t, "approved", hospital.Status)
 	require.Equal(t, source.AuthorityEpoch, hospital.RemoteEpoch)
 	require.Equal(t, hospital.AuthorityEpoch, source.RemoteEpoch)
-	require.Equal(t, homeBasis, source.HomeBasisSha256)
-	require.Equal(t, homeBasis, hospital.HomeBasisSha256)
+	require.Equal(t, &homeBasis, source.HomeBasisSha256)
+	require.Equal(t, &homeBasis, hospital.HomeBasisSha256)
 }

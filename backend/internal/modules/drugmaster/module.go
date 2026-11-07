@@ -17,6 +17,7 @@ import (
 // PermCatalogueRead reads published catalogue content. Nothing in the API
 // writes it: content arrives only as an approved release (spec D3).
 const PermCatalogueRead authz.Permission = "drugmaster.catalogue.read"
+const PermStockReferenceRead authz.Permission = "drugmaster.stock_reference.read"
 
 //go:embed drugmaster.sql
 var schema string
@@ -34,7 +35,7 @@ func New() *Module { return &Module{} }
 func (m *Module) Name() string { return "drugmaster" }
 
 func (m *Module) Permissions() []authz.Grant {
-	return []authz.Grant{{Permission: PermCatalogueRead, Roles: []authz.Role{authz.RoleDoctor, authz.RoleNurse, authz.RolePharmacist}}}
+	return []authz.Grant{{Permission: PermCatalogueRead, Roles: []authz.Role{authz.RoleDoctor, authz.RoleNurse, authz.RolePharmacist}}, {Permission: PermStockReferenceRead, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner, authz.RolePharmacyPurchasing, authz.RolePharmacyInventory, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyInventory, authz.RoleSupplyWarehouse, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor, authz.RoleSupplyRegulator}}}
 }
 
 func (m *Module) Migrations() []tenantdb.Migration {
@@ -48,6 +49,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.GET("/formulations/:id", PermCatalogueRead, h.formulation)
 	g.GET("/products/:id", PermCatalogueRead, h.product)
 	g.GET("/products/by-gtin/:gtin", PermCatalogueRead, h.productByGTIN)
+	g.GET("/products/by-gtin/:gtin/stock-reference", PermStockReferenceRead, h.stockReferenceByGTIN)
 }
 
 // Publishes declares the release events. They are written by

@@ -8,6 +8,7 @@ import {
   pharmacyStaffKey,
   savePharmacyStaffRecord,
   useApiQuery,
+  usePermissions,
   usePharmacyStaffPage,
   usePharmacyStaffRecord,
   usePharmacyStaffSourcesPage,
@@ -28,6 +29,8 @@ import {
   StaffDirectory,
   useConfirmLeave,
 } from "@helivanta/ui";
+import { IndependentOperatingDuties } from "@/components/workforce/independent-operating-duties";
+import { IndependentStaffLinks } from "@/components/workforce/independent-staff-links";
 import { StaffRecordForm } from "@/components/workforce/staff-record-form";
 
 const identitySchema = z.object({
@@ -262,6 +265,7 @@ function EmployerStaffEditor({
   staff,
   onClose,
 }: SourceProps & { source: EmployerSource; staff?: PharmacyStaff; onClose: () => void }) {
+  const { can } = usePermissions();
   const [id] = useState(() => staff?.id ?? crypto.randomUUID());
   const [reload, setReload] = useState(0);
   const record = usePharmacyStaffRecord(scope, source.pharmacy_id, id, reload, !!staff);
@@ -288,18 +292,54 @@ function EmployerStaffEditor({
       </div>
     );
   return (
-    <StaffRecordForm
-      key={reload}
-      establishmentName={source.name}
-      staff={staff ? record.data : undefined}
-      invalidate={[pharmacyStaffKey(scope, source.pharmacy_id)]}
-      onClose={onClose}
-      onContextChanged={onContextChanged}
-      onReload={() => setReload((value) => value + 1)}
-      save={(value, expectedVersion) =>
-        savePharmacyStaffRecord(scope, source.pharmacy_id, id, value, expectedVersion)
-      }
-    />
+    <>
+      <StaffRecordForm
+        key={reload}
+        establishmentName={source.name}
+        staff={staff ? record.data : undefined}
+        invalidate={[pharmacyStaffKey(scope, source.pharmacy_id)]}
+        onClose={onClose}
+        onContextChanged={onContextChanged}
+        onReload={() => setReload((value) => value + 1)}
+        save={(value, expectedVersion) =>
+          savePharmacyStaffRecord(scope, source.pharmacy_id, id, value, expectedVersion)
+        }
+      />
+      {staff &&
+        record.data &&
+        (can("workforce.independent_login.manage") ||
+          can("workforce.independent_login.review")) && (
+          <IndependentStaffLinks
+            scope={{
+              ...scope,
+              employerKind: "pharmacy",
+              employerId: source.pharmacy_id,
+              staffId: staff.id,
+            }}
+            staffVersion={record.data.version}
+            canManage={
+              can("workforce.independent_login.manage") &&
+              record.data.employment_status === "active"
+            }
+            canReview={
+              can("workforce.independent_login.review") &&
+              record.data.employment_status === "active"
+            }
+          />
+        )}
+      {staff && record.data && can("iam.operating.read") && (
+        <IndependentOperatingDuties
+          scope={{
+            ...scope,
+            employerKind: "pharmacy",
+            employerId: source.pharmacy_id,
+            staffId: staff.id,
+          }}
+          staffVersion={record.data.version}
+          staffActive={record.data.employment_status === "active"}
+        />
+      )}
+    </>
   );
 }
 

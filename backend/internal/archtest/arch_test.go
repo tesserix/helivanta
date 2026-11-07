@@ -351,6 +351,35 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /iam/supplier-grants/:id":                                                            "one source-private supplier grant; collection uses ListRoute",
+	"GET /iam/supplier-grants/:id/commands/:command":                                          "one actor-bound immutable grant decision receipt",
+	"GET /iam/hospitals/:hospital/supplier-grants/:id":                                        "one hospital-scoped recipient grant projection",
+	"GET /iam/hospitals/:hospital/supplier-grant-offers/:id":                                  "one hospital-private offer; collection uses ListRoute",
+	"GET /iam/hospitals/:hospital/supplier-grant-offers/:id/commands/:command":                "one actor-bound hospital consent receipt",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id":                   "one outlet trading scope; collection uses ListRoute",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/proposal-receipt":  "one immutable trading-scope proposal receipt",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/commands/:command": "one immutable trading-scope review receipt",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/revocations/:revocation": "one immutable licence revocation receipt",
+	"GET /supply/relationships/:relationship":                                                 "one bilateral relationship; collection uses ListRoute",
+	"GET /supply/relationships/:relationship/proposal-receipt":                                "one immutable bilateral relationship proposal",
+	"GET /supply/relationships/:relationship/commands/:command":                               "one actor-bound bilateral decision receipt",
+
+	"GET /iam/operating-duties/:id":                                                                          "one private typed operating duty lifecycle record",
+	"GET /iam/operating-duties/:id/proposal-receipt":                                                         "one immutable actor-bound operating duty preparation receipt",
+	"GET /iam/operating-duties/:id/commands/:command":                                                        "one immutable actor-bound operating duty decision receipt",
+	"GET /drugmaster/products/by-gtin/:gtin/stock-reference":                                                 "one current published stock reference for one exact GTIN",
+	"GET /supply/parties/:party/operating-locations/:premise/stock/products/by-gtin/:gtin":                   "one current stock-purpose reference at the authorized source location",
+	"GET /supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt":                        "one immutable physical receipt at the authorized source location",
+	"GET /supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/identity-checks/:check": "one immutable product observation for one physical receipt",
+	"GET /workforce/suppliers/:supplier":                                                                     "one owned supplier employer registration",
+	"GET /workforce/suppliers/:supplier/staff/:id":                                                           "one private supplier Staff directory record",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/account-links/:link":                                      "one private reviewed account-link state",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/account-links/:link/proposal-receipt":                     "one immutable attributable account-link proposal receipt",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/account-links/:link/commands/:command":                    "one immutable actor-bound account-link decision receipt",
+	"GET /workforce/suppliers/:supplier/staff/:id/account-links/:link":                                       "one private reviewed account-link state",
+	"GET /workforce/suppliers/:supplier/staff/:id/account-links/:link/proposal-receipt":                      "one immutable attributable account-link proposal receipt",
+	"GET /workforce/suppliers/:supplier/staff/:id/account-links/:link/commands/:command":                     "one immutable actor-bound account-link decision receipt",
+
 	"GET /iam/partner-grant-drafts/:id": "one immutable owner-tenant proposal; collections use signed cursor pagination",
 
 	"GET /iam/partner-groups/:id":                                                                   "one tenant-scoped partner group; directory and history are cursor-paginated",

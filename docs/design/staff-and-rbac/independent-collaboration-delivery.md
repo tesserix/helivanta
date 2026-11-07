@@ -43,15 +43,15 @@ made during discovery. The remaining rows below are not closed by preparation.
 
 ## Dependency order and completion evidence
 
-| Work                                                       | Owner                                                                                 | Required final evidence                                                                                                                                                                          | Current state                                                                           |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
-| Publishable hospital groups and direct reviewed membership | Shared IAM; Workforce retains Staff/link/posting eligibility                          | Real-owner group proposal/review, current source-bound membership, immediate reductions, no nesting/self-enrolment, private directory isolation, UI and recovery                                 | Released hospital team publication/membership; supplier activation gates remain open    |
-| Named-person/group partner assignments                     | Shared IAM                                                                            | Typed recipient, exact relationship/action/field/validity scope, independent approvals, current home eligibility, revocation/epoch and graph-failure tests                                       | Missing                                                                                 |
-| Bilateral commercial relationship                          | SupplyConnect relationship owner; each source retains its premise/legal/licence facts | Both exact legal identities and locations, same immutable terms and revisions, live identity, reviewed current category/activity/jurisdiction evidence; both approvals and unilateral suspension | Missing                                                                                 |
-| Authorized partner disclosure                              | Source product                                                                        | Audience/purpose/actor/object-bound machine contract; minimized hospital-specific projections, reauthorized pages and files; no foreign-tenant SQL or browser tenant switch                      | Missing                                                                                 |
-| Orders and fulfilment                                      | Hospital procurement, supplier's source owner, receiving stock owner                  | Exact units/lines, independent order approval, source dispatch, receiving discrepancy/quarantine, safe receipt, duplicate/reordered event and ambiguous-commit recovery                          | Existing stock foundations; composition missing                                         |
-| Invoice/credit/settlement reconciliation                   | Existing source invoice and payable owners                                            | Traceable source references and amounts, independent approval, unresolved/partial states, no inferred payment from receipt                                                                       | Missing composition                                                                     |
-| Merge and production delivery                              | Application CI, Kargo `kargo-helivanta/prod`                                          | Required CI green, exact merged tree and image revision, verified freight, completed promotion and healthy API/Global API/shell, production-safe smoke evidence                                  | Preparation checkpoint released; full collaboration implementation/release remains open |
+| Work                                                       | Owner                                                                                 | Required final evidence                                                                                                                                                                          | Current state                                                                               |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| Publishable hospital groups and direct reviewed membership | Shared IAM; Workforce retains Staff/link/posting eligibility                          | Real-owner group proposal/review, current source-bound membership, immediate reductions, no nesting/self-enrolment, private directory isolation, UI and recovery                                 | Released hospital team publication/membership; supplier activation gates remain open        |
+| Named-person/group partner assignments                     | Shared IAM                                                                            | Typed recipient, exact relationship/action/field/validity scope, independent approvals, current home eligibility, revocation/epoch and graph-failure tests                                       | Unreleased grant consent/current-eligibility protocol; product disclosure consumers missing |
+| Bilateral commercial relationship                          | SupplyConnect relationship owner; each source retains its premise/legal/licence facts | Both exact legal identities and locations, same immutable terms and revisions, live identity, reviewed current category/activity/jurisdiction evidence; both approvals and unilateral suspension | Unreleased source/consent implementation; runtime and full consumer acceptance remain open  |
+| Authorized partner disclosure                              | Source product                                                                        | Audience/purpose/actor/object-bound machine contract; minimized hospital-specific projections, reauthorized pages and files; no foreign-tenant SQL or browser tenant switch                      | Missing                                                                                     |
+| Orders and fulfilment                                      | Hospital procurement, supplier's source owner, receiving stock owner                  | Exact units/lines, independent order approval, source dispatch, receiving discrepancy/quarantine, safe receipt, duplicate/reordered event and ambiguous-commit recovery                          | Existing stock foundations; composition missing                                             |
+| Invoice/credit/settlement reconciliation                   | Existing source invoice and payable owners                                            | Traceable source references and amounts, independent approval, unresolved/partial states, no inferred payment from receipt                                                                       | Missing composition                                                                         |
+| Merge and production delivery                              | Application CI, Kargo `kargo-helivanta/prod`                                          | Required CI green, exact merged tree and image revision, verified freight, completed promotion and healthy API/Global API/shell, production-safe smoke evidence                                  | Preparation checkpoint released; full collaboration implementation/release remains open     |
 
 Every increment must include its canonical contract, owning handlers, migrations,
 Global API route coverage, SDK/UI, audit/outbox/recovery, negative tests and design
@@ -123,3 +123,50 @@ These checks validate hospital recipient-team management. The external supplier
 relationship, typed independent employer operations, bilateral disclosure,
 physical stock/financial composition and production release entries above remain
 open. No readiness marker or operating licence has been activated.
+
+## Unreleased receiving-duty continuation — 7 November 2026
+
+The isolated `feat/independent-supplier-workflow-20261107` candidate now contains
+SupplyConnect quarantined intake and append-only product observations, the
+supplier employer/private Staff directory, typed reviewed Staff/account links,
+and Shared IAM operating duties. Current source-owner locks, Staff/link and
+membership revisions, independent review, exact graph acknowledgement and
+credential checks guard each source-scoped stock action. Scoped barcode lookup
+uses the existing drug-master owner; it creates no product or stock master.
+
+The Staff UI adds a private paginated duty directory, source/account selection,
+proposal/review/revocation and exact GET recovery after response loss. Its
+component tests cover lost preparation and review responses, stale-write rejection
+and hiding private data after current read refusal. Candidate documentation is
+[operating duties](../../api/operating-duties.md) and
+[stock intake](../../api/supply-stock.md); the
+[receiving-duty diagram](diagrams/10-receiving-duties.drawio) distinguishes current
+candidate behavior from the remaining workflow.
+
+This does not close any missing effective grant, disclosure, fulfilment or
+financial-composition row above. PharmaConnect's receiving template still lacks
+its actual product consumer. Receiver-only browser navigation and real OIDC
+acceptance also remain open. No new migration, production promotion or deployment
+is established by these source changes or synthetic tests.
+
+## Unreleased source and consent continuation — 7 November 2026
+
+The same candidate adds versioned local trading-source checks, independently
+reviewed Pharmacy outlet scope and append-only licence revocation, and the
+SupplyConnect bilateral-consent aggregate. Seller offer, hospital acceptance and
+seller acknowledgement preserve local consent epochs and directed event
+provenance. Activation acknowledgement is a forward transition within the
+seller's existing decision epoch; duplicate offers, repeated acknowledgements
+and late messages cannot reactivate a terminal relationship.
+
+Machine-only current-consent checks distinguish new business from previously
+established consent for retained transaction purposes. Consumers still need
+their own current user, recipient, object and field-release authority. See the
+[owner contract](../../api/supplier-trade.md) and editable
+[source and consent diagram](diagrams/11-supplier-source-consent.drawio).
+
+CI has exercised the consent state machine and detected migration, epoch and
+caller-header regressions. Full real-owner protocol, complete Go/browser CI,
+workload-identity GitOps configuration and shared-environment acceptance remain
+release gates. These are dependency implementations; they do not activate
+supplier grants or complete stock, receiving or financial composition.

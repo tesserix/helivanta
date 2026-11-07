@@ -72,6 +72,17 @@ jobs:
         working-directory: .
         run: "! grep -rn --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=docs --exclude-dir=.superpowers --exclude=ci.yml 'MedCora' . || (echo 'MedCora is a rejected alias (issue 12) - use MediCore' && exit 1)"
       - run: go build ./...
+      - name: Supplier architecture and tenant preconditions
+        run: |
+          go test -race ./internal/archtest
+          go test -race ./internal/modules/pharmacy -run '^(TestTradingCommandsRejectChangedTenantBeforeBodyValidation|TestPharmacyOperationalRolesHaveSeparateCapabilities|TestPharmacyExpectedTenantRejectsEveryRouteFamilyWithoutSideEffects)$'
+          go test -race ./internal/modules/iam -run '^(TestAccessBoundary.*|TestOperatingBoundary.*|TestMigrationIDIsPhaseScoped|TestMembershipMigrationPreservesEvidenceWithoutInventingContinuity|TestEstablishmentRootBackfillKeepsHospitalGrants)$'
+      - name: Effective supplier grant consent tests
+        run: go test -race ./pkg/supplieraccess
+      - name: Supplier consent and peer boundary tests
+        run: go test -race ./pkg/suppliertrade
+      - name: Supplier proof and workload caller tests
+        run: go test -race ./internal/modules/supply -run 'TestRelationshipProof|TestTradeClaim|TestDirectedRelationshipProtocol'
       - name: golangci-lint
         # Cold package loading exceeded five minutes in run 38894793923.
         timeout-minutes: 30
@@ -214,6 +225,13 @@ jobs:
         run: node scripts/generate-workforce-directory.mjs --check
       - name: Verify Workforce establishment contract
         run: node scripts/generate-workforce-establishments.mjs --check
+      - name: Verify independent supplier receiving contracts
+        run: |
+          node scripts/generate-stock-products.mjs --check
+          node scripts/generate-supply-stock.mjs --check
+          node scripts/generate-operating-assignments.mjs --check
+          node scripts/generate-supplier-trade.mjs --check
+          node scripts/generate-workforce-independent-identity.mjs --check
       - name: Verify Staff operational access source inventory
         run: |
           node --test scripts/staff-operational-access-inventory.test.mjs

@@ -115,17 +115,27 @@ func (m *Module) UserStateCheckerForTest() UserStateChecker { return m.userState
 // UserProfileReaderForTest exposes the profile reader for the same wiring assertion.
 func (m *Module) UserProfileReaderForTest() UserProfileReader { return m.profiles }
 
-// Permissions declares administrative membership, proposal and credential actions.
-// None lists a role: tenant_admin is implicit, and revoking a
-// person's credentials platform-wide is not an authority any clinical
-// role should carry.
+// Permissions keeps membership/credential administration at tenant_admin.
+// Operating administration also requires current employer access at the owner.
 func (m *Module) Permissions() []authz.Grant {
 	return []authz.Grant{
+		{Permission: PermOperatingRead, Roles: []authz.Role{authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor, authz.RolePharmacyOwner}},
+		{Permission: PermOperatingPrepare, Roles: []authz.Role{authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RolePharmacyOwner}},
+		{Permission: PermOperatingReview, Roles: []authz.Role{authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyCompliance, authz.RolePharmacyOwner}},
+		{Permission: PermOperatingRevoke, Roles: []authz.Role{authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RolePharmacyOwner}},
 		{Permission: PermMemberManage},
 		{Permission: PermAssignmentManage},
 		{Permission: PermAssignmentReview},
 		{Permission: PermPartnerGroupMemberRead}, {Permission: PermPartnerGroupMemberPrepare}, {Permission: PermPartnerGroupMemberReview},
 		{Permission: PermCredentialRevoke},
+		{Permission: PermSupplierGrantRead, Roles: []authz.Role{authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RolePharmacyOwner}},
+		{Permission: PermSupplierGrantPrepare, Roles: []authz.Role{authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RolePharmacyOwner}},
+		{Permission: PermSupplierGrantReview, Roles: []authz.Role{authz.RoleSupplyOwner, authz.RolePharmacyOwner}},
+		{Permission: PermSupplierGrantAccept},
+		{Permission: PermSupplierGrantInbox},
+		{Permission: authz.PartnerCatalogueRead},
+		{Permission: authz.PartnerShipmentRead},
+		{Permission: authz.PartnerInvoiceRead},
 	}
 }
 
@@ -290,7 +300,7 @@ ALTER TABLE login_attempt
 		ALTER TABLE iam_credential_revocations VALIDATE CONSTRAINT iam_credential_revocations_reason_check;`,
 	}, {ID: "0014_iam_staff_templates", SQL: assignmentTemplatesSchema}, {ID: "0015_iam_membership_commands", SQL: membershipCommandsSchema}, {
 		ID: "0016_iam_membership_candidate_index", ConcurrentIndexes: []tenantdb.ConcurrentIndex{{Name: "iam_members_candidate_history", Table: "iam_members", Columns: []tenantdb.IndexColumn{{Name: "tenant_id"}, {Name: "created_at", Descending: true}, {Name: "id", Descending: true}}}},
-	}, {ID: "0017_iam_membership_projection_reader", SQL: membershipProjectionReaderSchema}, {ID: "0018_iam_membership_enrollments", SQL: membershipEnrollmentsSchema}, {ID: "0019_iam_membership_recovery_admission", SQL: membershipRecoveryAdmissionSchema}, {ID: "0020_iam_hr_intake_templates", SQL: hrIntakeTemplatesSchema}, {ID: "0021_iam_employment_templates", SQL: employmentTemplatesSchema}, {ID: "0022_iam_employment_activation_templates", SQL: employmentActivationTemplatesSchema}, {ID: "0023_iam_employment_bases", SQL: employmentBasisSchema}, {ID: "0024_iam_staff_posting_templates", SQL: staffPostingTemplatesSchema}, {ID: "0025_iam_staff_posting_review_templates", SQL: staffPostingReviewTemplatesSchema}, {ID: "0026_iam_staff_posting_management_templates", SQL: staffPostingManagementTemplatesSchema}, {ID: "0027_iam_staff_posting_cutoff_templates", SQL: staffPostingCutoffTemplatesSchema}, {ID: "0028_iam_staff_posting_source_templates", SQL: staffPostingSourceTemplatesSchema}, {ID: "0029_iam_pharmacy_department_binding_templates", SQL: pharmacyDepartmentBindingTemplatesSchema}, {ID: "0030_iam_department_posting_review_templates", SQL: departmentPostingReviewTemplatesSchema}, {ID: "0031_iam_department_assignment_scope", SQL: departmentAssignmentScopeSchema}, {ID: "0032_iam_department_leave_review_templates", SQL: departmentLeaveReviewTemplatesSchema}, {ID: "0033_iam_establishment_root", SQL: establishmentRootSchema}, {ID: "0034_iam_partner_groups", SQL: partnerGroupsSchema}, {ID: "0035_iam_partner_membership_templates", SQL: partnerMembershipTemplatesSchema}, {ID: "0036_iam_partner_members", SQL: partnerMembersSchema}, {ID: "0037_iam_partner_grant_drafts", SQL: partnerGrantDraftsSchema}}
+	}, {ID: "0017_iam_membership_projection_reader", SQL: membershipProjectionReaderSchema}, {ID: "0018_iam_membership_enrollments", SQL: membershipEnrollmentsSchema}, {ID: "0019_iam_membership_recovery_admission", SQL: membershipRecoveryAdmissionSchema}, {ID: "0020_iam_hr_intake_templates", SQL: hrIntakeTemplatesSchema}, {ID: "0021_iam_employment_templates", SQL: employmentTemplatesSchema}, {ID: "0022_iam_employment_activation_templates", SQL: employmentActivationTemplatesSchema}, {ID: "0023_iam_employment_bases", SQL: employmentBasisSchema}, {ID: "0024_iam_staff_posting_templates", SQL: staffPostingTemplatesSchema}, {ID: "0025_iam_staff_posting_review_templates", SQL: staffPostingReviewTemplatesSchema}, {ID: "0026_iam_staff_posting_management_templates", SQL: staffPostingManagementTemplatesSchema}, {ID: "0027_iam_staff_posting_cutoff_templates", SQL: staffPostingCutoffTemplatesSchema}, {ID: "0028_iam_staff_posting_source_templates", SQL: staffPostingSourceTemplatesSchema}, {ID: "0029_iam_pharmacy_department_binding_templates", SQL: pharmacyDepartmentBindingTemplatesSchema}, {ID: "0030_iam_department_posting_review_templates", SQL: departmentPostingReviewTemplatesSchema}, {ID: "0031_iam_department_assignment_scope", SQL: departmentAssignmentScopeSchema}, {ID: "0032_iam_department_leave_review_templates", SQL: departmentLeaveReviewTemplatesSchema}, {ID: "0033_iam_establishment_root", SQL: establishmentRootSchema}, {ID: "0034_iam_partner_groups", SQL: partnerGroupsSchema}, {ID: "0035_iam_partner_membership_templates", SQL: partnerMembershipTemplatesSchema}, {ID: "0036_iam_partner_members", SQL: partnerMembersSchema}, {ID: "0037_iam_partner_grant_drafts", SQL: partnerGrantDraftsSchema}, {ID: "0038_iam_operating_duties", SQL: operatingTemplatesSchema + operatingDutiesSchema}, {ID: "0039_iam_supplier_grants", SQL: supplierGrantsSchema}, {ID: "0040_iam_supplier_access_templates", SQL: supplierAccessTemplatesSchema}}
 }
 
 type role struct {
@@ -444,6 +454,7 @@ func (h *memberHandlers) list(c *gin.Context, p pagination.Params) ([]member, er
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
+	registerOperatingDutyRoutes(r, deps)
 	g := r.Group("/iam")
 	members := &memberHandlers{db: deps.DB, bus: deps.Bus}
 
@@ -455,6 +466,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	m.registerMe(g, deps)
 	m.registerAssignmentProposals(g, deps)
 	m.registerPartnerGroups(g, deps)
+	m.registerSupplierGrants(g, deps)
 	m.registerPartnerGrantDrafts(g, deps)
 	m.registerPartnerMembers(g, deps)
 	m.registerMembershipCommands(g, deps)
@@ -536,7 +548,7 @@ func (m *Module) registerRenewal(r *platform.Router, deps platform.Deps) {
 
 // Publishes declares membership, assignment verification/projection and revocation events.
 func (m *Module) Publishes() []string {
-	return []string{
+	return []string{iamcontract.SubjectSupplierGrantExchange, iamcontract.SubjectOperatingDutyChanged,
 		iamcontract.SubjectPartnerGroupHospitalScopeRequested,
 		iamcontract.SubjectPartnerGroupChanged,
 		iamcontract.SubjectPartnerGroupMemberChanged,
@@ -549,13 +561,15 @@ func (m *Module) Publishes() []string {
 	}
 }
 
-// DirectedSubjects declares none: this module publishes nothing that
-// creates data in another tenant.
-func (m *Module) DirectedSubjects() []string { return nil }
+// DirectedSubjects admits the exact source/hospital supplier grant protocol.
+func (m *Module) DirectedSubjects() []string {
+	return []string{iamcontract.SubjectSupplierGrantExchange}
+}
 
-// DirectedWriteTables declares none: this module writes no table on
-// behalf of another tenant.
-func (m *Module) DirectedWriteTables() []string { return nil }
+// DirectedWriteTables retains original source provenance on consent projections.
+func (m *Module) DirectedWriteTables() []string {
+	return []string{"iam_supplier_grants", "iam_supplier_grant_history"}
+}
 
 // Broadcasts invalidates this replica's revocation cache the instant
 // another replica revokes a credential (#781). The durable truth is

@@ -15,7 +15,10 @@ and a 404 says access changed. Evidence: Workforce guard inventory, refusal matr
 verifier, route and race tests against Postgres testcontainers, archtest,
 contractdocs, the generated Go and Zod contracts, and SDK and panel Vitest tests.
 IAM on a pharmacy (slice 3b), HR lifecycle (slice 4) and branch postings (slice 5)
-remain open. This is not deployed runtime acceptance. Counts are unchanged at
+remain open. Merged as #1616 (b41fc4bd). It was promoted to production as Kargo
+freight `melting-hydra` (06bed958). The migrate job applied migrations, the prod
+stage is Healthy and Verified, and unauthenticated pharmacy-family routes answer
+401. This is not deployed runtime acceptance. Counts are unchanged at
 **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
 
 ## Department leave review candidate (#1596, ADR-0055 slice 2) — 2026-11-06

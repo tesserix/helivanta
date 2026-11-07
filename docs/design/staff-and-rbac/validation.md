@@ -125,7 +125,7 @@ Commands actually run in the isolated supplier worktree:
 
 - `pnpm --filter @helivanta/api test`: the latest run passed 932 tests in 93 files.
 - `pnpm --filter @helivanta/shell test`: the unchanged full rerun passed 1,725
-  tests in 195 files, including a full post-fix run (351.61 seconds).
+  tests in 195 files at the UUID checkpoint (351.61 seconds).
   The first run had three timeout-related failures in two
   unchanged files; those files also passed independently, with 11 tests.
 - API and shell `type-check`, ESLint and the production shell build passed.
@@ -151,6 +151,13 @@ Commands actually run in the isolated supplier worktree:
   regressions first failed on millisecond rounding and now use the same generated
   nanosecond calculation as recovery. API typecheck/lint, all 932 API tests and
   owner race tests passed after the correction.
+- The stricter wire-time check initially rejected the form's local date-time
+  values. The existing component test and real browser reproduced the
+  regression. The form now converts local input to UTC before inherited
+  canonical refinements, and its submit path uses that validated output.
+  Component, typecheck/lint, production build and final actual-owner browser
+  checks passed; the browser run took 11.214 seconds. The latest full shell
+  rerun and complete remote CI are pending.
 - The creation rollback assertion was mutation-tested: deliberately omitting the
   creation audit produced the expected failing assertion (expected 503, actual
   200). Restoring the audit made the draft suite pass. No mutation remains.
@@ -171,7 +178,8 @@ The earlier full IAM race run failed the unchanged
 actual 504. Its unchanged isolated rerun passed (34.194 seconds). The fresh full
 `go test -race ./internal/modules/iam/... -count=1 -timeout=30m` passed (679.301
 seconds for IAM, plus contract/loginclient). Neither its deadline nor assertions
-were weakened. This full run preceded the image-scan-driven x/net update.
+were weakened. This full run preceded the network dependency and timestamp
+corrections; complete final-tree CI remains required.
 Remote CI, merge, image publication and Kargo promotion are not established by
 these local checks.
 

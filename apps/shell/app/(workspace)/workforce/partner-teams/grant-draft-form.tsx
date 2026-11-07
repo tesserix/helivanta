@@ -34,7 +34,8 @@ import { accessChanged } from "./errors";
 const date = z
   .string()
   .min(1, "Choose a date and time.")
-  .refine((v) => Number.isFinite(Date.parse(v)), "Choose a valid date and time.");
+  .refine((v) => Number.isFinite(Date.parse(v)), "Choose a valid date and time.")
+  .transform((value) => new Date(value).toISOString());
 const schema = PartnerGrantDraftInputContract.safeExtend({ valid_from: date, expires_at: date });
 function localTime(value: Date) {
   return new Date(value.getTime() - value.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
@@ -151,13 +152,7 @@ export function PartnerGrantDraftForm({
         className="space-y-4"
         onSubmit={form.handleSubmit((values) => {
           if (!retained && !sourceCurrent) return;
-          const input =
-            retained ??
-            PartnerGrantDraftInputContract.parse({
-              ...values,
-              valid_from: new Date(values.valid_from).toISOString(),
-              expires_at: new Date(values.expires_at).toISOString(),
-            });
+          const input = retained ?? PartnerGrantDraftInputContract.parse(values);
           setRetained(input);
           save.mutate(input);
         })}

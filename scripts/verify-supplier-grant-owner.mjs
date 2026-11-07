@@ -5,6 +5,8 @@ for await (const chunk of process.stdin) material += chunk;
 const fixture = JSON.parse(material);
 const browser = await chromium.launch({ headless: true });
 let context;
+let page;
+let stage = "open supplier workspace";
 try {
   context = await browser.newContext({ viewport: { width: 1440, height: 1200 } });
   await context.addCookies([
@@ -27,11 +29,12 @@ try {
       await route.abort("connectionreset");
     } else await route.fulfill({ response });
   });
-  const page = await context.newPage();
+  page = await context.newPage();
   page.setDefaultTimeout(30_000);
   await page.goto(`${fixture.app_url}/workforce/partner-teams`);
   await page.getByRole("button", { name: "Supplier access preparation", exact: true }).click();
   await page.getByRole("button", { name: "Prepare supplier access", exact: true }).click();
+  stage = "choose supplier and recipient";
   async function choose(label, option) {
     await page.getByRole("combobox", { name: label, exact: true }).click();
     await page.getByRole("option", { name: option, exact: true }).click();
@@ -46,13 +49,16 @@ try {
     ["Reason", "Synthetic browser receiving-team access intent"],
   ])
     await page.getByRole("textbox", { name: label, exact: true }).fill(value);
+  stage = "save and retain an ambiguous response";
   await page.getByRole("button", { name: "Save supplier access proposal", exact: true }).click();
   await expect(page.getByText(/The save may have been recorded/)).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Reason", exact: true })).toBeDisabled();
+  stage = "recover the saved proposal";
   await page.getByRole("button", { name: "Check saved proposal", exact: true }).click();
   await expect(page.getByText(/Supplier access proposal recovered/)).toBeVisible();
   expect(lost).toBe(true);
   expect(writes).toHaveLength(1);
+  stage = "verify the owner receipt";
   const result = await context.request.get(fixture.gateway_url + writes[0], {
     headers: {
       authorization: `Bearer ${fixture.token}`,
@@ -74,7 +80,11 @@ try {
     "PASS: browser → Global API → actual IAM/OpenFGA and pharmacy/Postgres; a typed grant proposal commits once, GET recovers a lost response, and no operating access is emitted.",
   );
 } catch (error) {
-  console.error(`Supplier browser acceptance failed (${error?.name ?? "UnknownError"}).`);
+  if (page)
+    await page.screenshot({ path: "/tmp/helivanta-supplier-grant-failure.png", fullPage: true });
+  console.error(
+    `Supplier browser acceptance failed at ${stage} (${error?.name ?? "UnknownError"}).`,
+  );
   process.exitCode = 1;
 } finally {
   try {

@@ -36,8 +36,8 @@ CREATE TABLE supply_trade_relationship_history(
 ALTER TABLE supply_trade_relationship_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE supply_trade_relationship_history FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON supply_trade_relationship_history USING(hms_tenant_visible(tenant_id))WITH CHECK(hms_tenant_visible(tenant_id));
-CREATE TRIGGER supply_trade_commands_immutable BEFORE UPDATE OR DELETE OR TRUNCATE ON supply_trade_relationship_commands FOR EACH STATEMENT EXECUTE FUNCTION supply_stock_immutable();
-CREATE TRIGGER supply_trade_history_immutable BEFORE UPDATE OR DELETE OR TRUNCATE ON supply_trade_relationship_history FOR EACH STATEMENT EXECUTE FUNCTION supply_stock_immutable();
+CREATE TRIGGER supply_trade_commands_immutable BEFORE UPDATE OR DELETE OR TRUNCATE ON supply_trade_relationship_commands FOR EACH STATEMENT EXECUTE FUNCTION supply_history_immutable();
+CREATE TRIGGER supply_trade_history_immutable BEFORE UPDATE OR DELETE OR TRUNCATE ON supply_trade_relationship_history FOR EACH STATEMENT EXECUTE FUNCTION supply_history_immutable();
 CREATE TRIGGER supply_trade_relationship_audit AFTER INSERT OR UPDATE ON supply_trade_relationships FOR EACH ROW EXECUTE FUNCTION audit_record_change();
 CREATE TRIGGER supply_trade_command_audit AFTER INSERT ON supply_trade_relationship_commands FOR EACH ROW EXECUTE FUNCTION audit_record_change();
 CREATE FUNCTION supply_trade_relationship_preserve()RETURNS trigger LANGUAGE plpgsql AS $$BEGIN

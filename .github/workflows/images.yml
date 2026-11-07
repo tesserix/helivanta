@@ -221,25 +221,28 @@ jobs:
 
       - name: Build Summary
         if: always()
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
         run: |
-          echo "## Build Summary" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Application:** helivanta-api" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Architecture:** AMD64" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Branch:** ${{ github.ref_name }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Commit:** ${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-
-          if [[ "$PUBLISH" == "true" ]]; then
-            echo "**Docker Image:** Pushed to ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" >> "$GITHUB_STEP_SUMMARY"
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "**Tags:**" >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-            echo "${{ steps.meta.outputs.tags }}" >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "**Docker Image:** Built successfully (not pushed)" >> "$GITHUB_STEP_SUMMARY"
-          fi
+          {
+            echo "## Build Summary"
+            echo ""
+            echo "**Application:** helivanta-api"
+            echo "**Architecture:** AMD64"
+            echo "**Branch:** ${GITHUB_REF_NAME}"
+            echo "**Commit:** ${GITHUB_SHA}"
+            echo ""
+            if [[ "$PUBLISH" == "true" ]]; then
+              echo "**Docker Image:** Pushed to ${REGISTRY}/${IMAGE_NAME}"
+              echo ""
+              echo "**Tags:**"
+              echo '```'
+              echo "$TAGS"
+              echo '```'
+            else
+              echo "**Docker Image:** Built successfully (not pushed)"
+            fi
+          } >>"$GITHUB_STEP_SUMMARY"
 
   build-helivanta-shell:
     name: Build and Push helivanta-shell
@@ -426,32 +429,35 @@ jobs:
 
       - name: Build Summary
         if: always()
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
         run: |
-          echo "## Build Summary" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Application:** helivanta-shell" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Architecture:** AMD64" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Branch:** ${{ github.ref_name }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Commit:** ${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Baked build args (build-time, not overridable by the pod):**" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          echo "NEXT_PUBLIC_ZITADEL_ISSUER_URL=${{ env.SHELL_ZITADEL_ISSUER_URL }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "NEXT_PUBLIC_ZITADEL_CLIENT_ID=${{ env.SHELL_ZITADEL_CLIENT_ID }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "API_URL=${{ env.SHELL_API_URL }}" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-
-          if [[ "$PUBLISH" == "true" ]]; then
-            echo "**Docker Image:** Pushed to ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" >> "$GITHUB_STEP_SUMMARY"
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "**Tags:**" >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-            echo "${{ steps.meta.outputs.tags }}" >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "**Docker Image:** Built successfully (not pushed)" >> "$GITHUB_STEP_SUMMARY"
-          fi
+          {
+            echo "## Build Summary"
+            echo ""
+            echo "**Application:** helivanta-shell"
+            echo "**Architecture:** AMD64"
+            echo "**Branch:** ${GITHUB_REF_NAME}"
+            echo "**Commit:** ${GITHUB_SHA}"
+            echo ""
+            echo "**Baked build args (build-time, not overridable by the pod):**"
+            echo '```'
+            echo "NEXT_PUBLIC_ZITADEL_ISSUER_URL=${SHELL_ZITADEL_ISSUER_URL}"
+            echo "NEXT_PUBLIC_ZITADEL_CLIENT_ID=${SHELL_ZITADEL_CLIENT_ID}"
+            echo "API_URL=${SHELL_API_URL}"
+            echo '```'
+            echo ""
+            if [[ "$PUBLISH" == "true" ]]; then
+              echo "**Docker Image:** Pushed to ${REGISTRY}/${IMAGE_NAME}"
+              echo ""
+              echo "**Tags:**"
+              echo '```'
+              echo "$TAGS"
+              echo '```'
+            else
+              echo "**Docker Image:** Built successfully (not pushed)"
+            fi
+          } >>"$GITHUB_STEP_SUMMARY"
 
   # ===========================================================================
   # advance-deploy — the branch Kargo watches (#824 Task 8)

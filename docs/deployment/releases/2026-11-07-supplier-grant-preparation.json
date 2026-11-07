@@ -1,0 +1,182 @@
+{
+  "format_version": 1,
+  "date": "2026-11-07",
+  "scope": "Private non-operating supplier proposal preparation; effective grants and fulfilment remain open.",
+  "release_revision": "a9ed32e41c457f9bfb3906098c27c8335d2b2040",
+  "verified_candidate_revision": "0f8c7599a8134750eb3160a2839009d939608a30",
+  "verified_tree": "c0662eb4770159ae3f8960ff96fba54c9cece593",
+  "required_pr_ci": "https://github.com/tesserix/helivanta/actions/runs/42319397494",
+  "image_publication": "https://github.com/tesserix/helivanta/actions/runs/42323133417",
+  "kargo": {
+    "project": "kargo-helivanta",
+    "stage": "prod",
+    "freight": "1505b3a718417caaf39424d92c3b883689c1c254",
+    "alias": "eating-wolverine",
+    "promotion": "prod.01m6ssxy9nnmtfg7fej0g8b8xg.1505b3a",
+    "phase": "Succeeded"
+  },
+  "images": [
+    {
+      "name": "helivanta-api",
+      "revision": "a9ed32e41c457f9bfb3906098c27c8335d2b2040",
+      "digest": "sha256:4b83ee149ab600634ec5d548629c09a8183e4ceed747e2a8ca6a74c80e7be767"
+    },
+    {
+      "name": "helivanta-shell",
+      "revision": "a9ed32e41c457f9bfb3906098c27c8335d2b2040",
+      "digest": "sha256:041c8bcadc92c423d9992af4d9797d08ddec58c4e71f6a06730ac32163f33880"
+    }
+  ],
+  "migrations": {
+    "before": 240,
+    "after": 253,
+    "missing_ids": [],
+    "unknown_ids": [],
+    "applied_batch": [
+      {
+        "id": "0030_iam_department_posting_review_templates",
+        "sql_sha256": "ae50717dc1c11ec791fea694233f1496101f7bab3e030a4a06acdb42985baea7",
+        "creates_tables": [],
+        "owner": "iam"
+      },
+      {
+        "id": "0031_iam_department_assignment_scope",
+        "sql_sha256": "f4a61ffe831a51c1db9855d3bf6dbb0a9730a828aa4e01a8f0eba56e7e0c4603",
+        "creates_tables": ["iam_assignment_department_verifications"],
+        "owner": "iam"
+      },
+      {
+        "id": "0032_iam_department_leave_review_templates",
+        "sql_sha256": "d8926f65632b1d0e6f254950c36fde452ce1d65e4db15e4ab4664a509adf57a1",
+        "creates_tables": [],
+        "owner": "iam"
+      },
+      {
+        "id": "0033_iam_establishment_root",
+        "sql_sha256": "fae325c8269eefab706af2c7be29a3b428a69a632af8a854e32fc50f3d26d14b",
+        "creates_tables": [],
+        "owner": "iam"
+      },
+      {
+        "id": "0034_iam_partner_groups",
+        "sql_sha256": "ef69560b6dcb09e2865f99f066c8d1ab4816d2e0ebde3c635fb610e5204e3529",
+        "creates_tables": [
+          "iam_partner_groups",
+          "iam_partner_group_scope_observations",
+          "iam_partner_group_commands"
+        ],
+        "owner": "iam"
+      },
+      {
+        "id": "0035_iam_partner_membership_templates",
+        "sql_sha256": "f09222c36c0df631a229a5ab46a3fbff165e9edf864dc562f9f58f57f62d1adc",
+        "creates_tables": [],
+        "owner": "iam"
+      },
+      {
+        "id": "0036_iam_partner_members",
+        "sql_sha256": "2fc54170b70eb7a7af8915ebe02af91decaba33308d235fe135972abaf717eac",
+        "creates_tables": [
+          "iam_partner_members",
+          "iam_partner_group_cohorts",
+          "iam_partner_member_commands"
+        ],
+        "owner": "iam"
+      },
+      {
+        "id": "0037_iam_partner_grant_drafts",
+        "sql_sha256": "0f883727860da0a08d4d323f982e619120463fb3a61967e1e40916fe14f3d8f0",
+        "creates_tables": ["iam_partner_grant_drafts"],
+        "owner": "iam"
+      },
+      {
+        "id": "0087_workforce_department_posting_scope",
+        "sql_sha256": "89817bac698916e0b7087bc0b7837461e100de951be33c59838f9e4235d9a011",
+        "creates_tables": [],
+        "owner": "workforce"
+      },
+      {
+        "id": "0088_workforce_establishment_kind",
+        "sql_sha256": "bcacaeabba724a345ca117ed97cf4a9a85727478e2054454414f8f7ade2e3f5b",
+        "creates_tables": [],
+        "owner": "workforce"
+      },
+      {
+        "id": "0089_workforce_leave_department_scope",
+        "sql_sha256": "b50315b3ef54e2af900ba7128b80454d7c316b152d788441eacb1f6f2da5fb37",
+        "creates_tables": [],
+        "owner": "workforce"
+      },
+      {
+        "id": "0090_workforce_partner_group_scope",
+        "sql_sha256": "09d43ba398cc37b8e0ec1a75381f57be2e039c601b1c45a653739a1426c6a754",
+        "creates_tables": ["workforce_partner_group_observations"],
+        "owner": "workforce"
+      },
+      {
+        "id": "0091_workforce_partner_member_candidates",
+        "sql_sha256": "b6011ea1074379fafe488f21925ab8d0744ad35bd0591ebea5c695786abc7150",
+        "creates_tables": [],
+        "owner": "workforce"
+      }
+    ]
+  },
+  "forced_rls_tables": [
+    "iam_assignment_department_verifications",
+    "iam_partner_grant_drafts",
+    "iam_partner_group_cohorts",
+    "iam_partner_group_commands",
+    "iam_partner_group_scope_observations",
+    "iam_partner_groups",
+    "iam_partner_member_commands",
+    "iam_partner_members",
+    "workforce_partner_group_observations"
+  ],
+  "ready_replicas": {
+    "helivanta-api": 2,
+    "helivanta-global-api": 2,
+    "helivanta-shell": 2,
+    "helivanta-document-worker": 2,
+    "helivanta-emergency-worker": 2,
+    "helivanta-pharmacy-evidence-worker": 2,
+    "helivanta-supply-evidence-worker": 2
+  },
+  "published_manifest_matches": 14,
+  "service_smoke": [
+    {
+      "service": "api",
+      "path": "/healthz",
+      "http_status": 200
+    },
+    {
+      "service": "api",
+      "path": "/readyz",
+      "http_status": 200
+    },
+    {
+      "service": "global",
+      "path": "/healthz",
+      "http_status": 200
+    },
+    {
+      "service": "global",
+      "path": "/readyz",
+      "http_status": 200
+    },
+    {
+      "service": "global",
+      "path": "/v1/iam/partner-grant-drafts",
+      "http_status": 401
+    }
+  ],
+  "public_smoke": {
+    "login": 200,
+    "unauthenticated_partner_page": 307,
+    "unauthenticated_supplier_proposals": 401
+  },
+  "limitations": [
+    "Production authenticated owner workflow and OIDC sign-in were not exercised by these smoke tests.",
+    "No live trading authority, stock movement or financial reconciliation was activated.",
+    "Canonical onboarding-service #12 and actual participants/premises/reviewers remain prerequisites for live collaboration."
+  ]
+}

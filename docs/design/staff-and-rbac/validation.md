@@ -156,8 +156,9 @@ Commands actually run in the isolated supplier worktree:
   regression. The form now converts local input to UTC before inherited
   canonical refinements, and its submit path uses that validated output.
   Component, typecheck/lint, production build and final actual-owner browser
-  checks passed; the browser run took 11.214 seconds. The latest full shell
-  rerun and complete remote CI are pending.
+  checks passed; the browser run took 11.214 seconds. The final full shell
+  rerun passed all 1,725 tests in 383.73 seconds, and complete PR CI passed on
+  `0f8c759`.
 - The creation rollback assertion was mutation-tested: deliberately omitting the
   creation audit produced the expected failing assertion (expected 503, actual
   200). Restoring the audit made the draft suite pass. No mutation remains.
@@ -179,7 +180,8 @@ actual 504. Its unchanged isolated rerun passed (34.194 seconds). The fresh full
 `go test -race ./internal/modules/iam/... -count=1 -timeout=30m` passed (679.301
 seconds for IAM, plus contract/loginclient). Neither its deadline nor assertions
 were weakened. This full run preceded the network dependency and timestamp
-corrections; complete final-tree CI remains required.
+corrections. Complete final-tree PR CI subsequently passed; its full coverage
+suite includes the Global API and IAM packages.
 Remote CI, merge, image publication and Kargo promotion are not established by
 these local checks.
 
@@ -204,14 +206,24 @@ passed the security gate in run `42316119001`. The candidate pins that source's
 published multi-platform digest
 `sha256:056b09f9ad7e806f3c7e00c60eccfb69f7328bdd05da11bdd1d4eda2f457c9a7`.
 Application API image checks passed after the network dependency update; final
-shell image scans and remote CI remain required before release. No exclusion
-or severity gate was changed.
+shell image scans, complete PR CI and main image publication subsequently
+passed. No exclusion or severity gate was changed.
 
 The browser helper now waits for in-flight routes before closing its context.
 This fixes an observed fixture teardown failure after the acceptance assertions
 had passed. Failures still return nonzero, with credential-free diagnostics;
 the final post-fix browser run passed with every assertion retained.
 
-Read-only production discovery reconfirmed API, Global API and shell at
+Before the approved rollout, read-only discovery reconfirmed API, Global API and shell at
 `62f3f7fd180f5ce9800d70807217b1cb2131d54a`, two ready replicas each, and the
-previous Kargo promotion succeeded. No production change occurred.
+previous Kargo promotion succeeded. That discovery made no production change.
+
+### Approved preparation rollout — 7 November 2026
+
+[Production evidence](../../deployment/releases/2026-11-07-supplier-grant-preparation.md)
+records the merged release, exact freight and successful promotion, signed/scanned
+images, approved 13-migration batch (240→253), nine forced-RLS tables, all 14
+ready application/worker containers matching the published manifests, service
+readiness and anonymous denial/redirect checks. These checks establish the
+preparation checkpoint rollout. Effective grants, bilateral disclosure,
+fulfilment and financial composition remain open.

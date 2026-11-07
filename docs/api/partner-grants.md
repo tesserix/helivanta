@@ -1,5 +1,6 @@
-# Supplier access grant preparation — unreleased
+# Supplier access grant preparation
 
+Deployed in the [a9ed32e preparation release](../deployment/releases/2026-11-07-supplier-grant-preparation.md).
 Shared IAM records immutable **requested intent**, not an effective grant.
 Canonical models are in [`contracts/partner-grants.json`](../../contracts/partner-grants.json).
 Run `node scripts/generate-partner-grants.mjs` and its `--check` mode to generate

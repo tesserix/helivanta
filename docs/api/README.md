@@ -79,8 +79,8 @@ For a contract change, update its owning source, concrete examples, failure/retr
 
 The unreleased [Workforce department handoff](workforce-department-links.md) connects legacy HR revisions to canonical structural revisions with retained owner observations and no implicit Staff posting or permission.
 
-The candidate [hospital partner-group contract](partner-groups.md) covers shared IAM publication, direct reviewed hospital Staff membership, minimal owner-selected candidates and exact recovery. It grants no supplier access; the consuming collaboration and release gates remain open.
+The deployed [hospital partner-group contract](partner-groups.md) covers shared IAM publication, direct reviewed hospital Staff membership, minimal owner-selected candidates and exact recovery. It grants no supplier access; the consuming collaboration and release gates remain open.
 
-The unreleased [supplier access preparation contract](partner-grants.md) records
+The deployed [supplier access preparation contract](partner-grants.md) records
 typed named-person/group intent for either stock owner. It provides no effective
 external assignment, bilateral consent, disclosure or fulfilment authority.

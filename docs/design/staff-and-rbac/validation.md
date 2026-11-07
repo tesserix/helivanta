@@ -260,3 +260,13 @@ Gitleaks 8.30.1 initially flagged the two public receiving-template identifiers;
 only those exact values were allowlisted. A complete local history rescan then
 reported no findings, and an actual-scanner negative check still detected random
 and template-lookalike credential values. No path/rule exclusion was added.
+
+The full local IAM/authz race command completed: authz passed (12.661 seconds),
+and IAM ran for 812.746 seconds with two failures in old migration-count and
+permission-position assertions. No other IAM failure was reported. The assertions
+were updated to include candidate migration 0038 and to independently verify
+that all existing membership/credential defaults remain TenantAdmin-only while
+new operating permissions have exactly the reviewed source administrative roles.
+The affected migration/module/credential/operating-role tests then passed with
+`-race` (2.962 seconds). The full long suite was not rerun after this test-only
+correction; remote CI remains the final whole-tree check.

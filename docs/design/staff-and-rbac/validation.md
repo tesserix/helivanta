@@ -250,3 +250,13 @@ migration or Kargo promotion was performed. Effective bilateral grants,
 PharmaConnect's scoped product consumer, qualified release, owner balances,
 reservations/dispatch, hospital receipt/discrepancies and financial composition
 remain outside this verified candidate.
+
+CI follow-up for the same candidate: the source-review gate rejected changed
+whole-file registration pins. The 24 affected existing reviews were rechecked;
+their hospital/credential/grant-preparation authority remains unchanged. The 34
+new registered receiving surfaces have explicit source classifications and open
+runtime obligations. The inventory generator/check and its 15 tests passed.
+Gitleaks 8.30.1 initially flagged the two public receiving-template identifiers;
+only those exact values were allowlisted. A complete local history rescan then
+reported no findings, and an actual-scanner negative check still detected random
+and template-lookalike credential values. No path/rule exclusion was added.

@@ -40,4 +40,7 @@ regexes = [
   '''^ref_9876543210_x$''',
   # Public versioned permission-catalog identifier, not a credential.
   '''^employment-activation-v1$''',
+  # Public receiving-duty template identifiers, never credential material.
+  # Match only these exact values; keep every file and other key scanned.
+  '''^(supply|pharmacy)\.inventory_receiver\.v1$''',
 ]

@@ -351,6 +351,19 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /iam/supplier-grants/:id":                                                            "one source-private supplier grant; collection uses ListRoute",
+	"GET /iam/supplier-grants/:id/commands/:command":                                          "one actor-bound immutable grant decision receipt",
+	"GET /iam/hospitals/:hospital/supplier-grants/:id":                                        "one hospital-scoped recipient grant projection",
+	"GET /iam/hospitals/:hospital/supplier-grant-offers/:id":                                  "one hospital-private offer; collection uses ListRoute",
+	"GET /iam/hospitals/:hospital/supplier-grant-offers/:id/commands/:command":                "one actor-bound hospital consent receipt",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id":                   "one outlet trading scope; collection uses ListRoute",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/proposal-receipt":  "one immutable trading-scope proposal receipt",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/commands/:command": "one immutable trading-scope review receipt",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/revocations/:revocation": "one immutable licence revocation receipt",
+	"GET /supply/relationships/:relationship":                                                 "one bilateral relationship; collection uses ListRoute",
+	"GET /supply/relationships/:relationship/proposal-receipt":                                "one immutable bilateral relationship proposal",
+	"GET /supply/relationships/:relationship/commands/:command":                               "one actor-bound bilateral decision receipt",
+
 	"GET /iam/operating-duties/:id":                                                                          "one private typed operating duty lifecycle record",
 	"GET /iam/operating-duties/:id/proposal-receipt":                                                         "one immutable actor-bound operating duty preparation receipt",
 	"GET /iam/operating-duties/:id/commands/:command":                                                        "one immutable actor-bound operating duty decision receipt",

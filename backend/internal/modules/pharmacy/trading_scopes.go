@@ -143,6 +143,9 @@ func tradeScopeError(c *gin.Context, err error) {
 	}
 }
 func (h *tradingScopeHandlers) prepare(c *gin.Context) {
+	if _, _, ok := pharmacyPrincipal(c); !ok {
+		return
+	}
 	id, ok := tradingScopeID(c)
 	if !ok {
 		return
@@ -210,6 +213,9 @@ func scopeLicenceCurrent(tx *gorm.DB, tenant string, outlet, licence uuid.UUID) 
 	return err
 }
 func (h *tradingScopeHandlers) decide(c *gin.Context) {
+	if _, _, ok := pharmacyPrincipal(c); !ok {
+		return
+	}
 	id, ok := tradingScopeID(c)
 	if !ok {
 		return

@@ -44,6 +44,9 @@ func loadLicenceRevocation(tx *gorm.DB, p authn.Principal, outlet, licence, id u
 	return result, nil
 }
 func (h *tradingScopeHandlers) revokeLicence(c *gin.Context) {
+	if _, _, ok := pharmacyPrincipal(c); !ok {
+		return
+	}
 	id, licence, ok := licenceRevocationID(c)
 	if !ok {
 		return

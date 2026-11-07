@@ -7037,7 +7037,7 @@
         "registration_sha256": "ddd79e1aa4f05cf784b81c91b0904cf80775f20e9d0c5c8deb78c9bbefe6fcad",
         "authority_kind": "governance_recovery",
         "resource_scope": "Verified current tenant/actor, exact private pharmacy organization/outlet, licence and state/category fact record.",
-        "rationale": "The source-administration owner checks live membership/credentials through commit, followed by exact product outlet authorization. Scope approval requires a distinct account and reviewed available licence evidence. Immutable proposal/decision or revocation receipts bind original actor and intent. These facts do not establish professional, hospital Staff, clinical or trading authority; licence withdrawal denies current uses and preserves history.",
+        "rationale": "The source-administration owner checks live membership/credentials through commit, followed by exact product outlet authorization. Scope approval requires a distinct account and reviewed available licence evidence. Immutable proposal/decision or revocation receipts bind original actor and intent. These facts do not establish professional, hospital Staff, clinical or trading authority; licence withdrawal denies current uses and preserves history. Trading-scope and withdrawal commands reject a stale verified-tenant precondition before body validation; existing product and current-source authority checks remain required.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/source_administration.go",
@@ -7046,7 +7046,7 @@
           },
           {
             "path": "backend/internal/modules/pharmacy/trading_scopes.go",
-            "sha256": "8916623930deb014490b586fed928d1c0145c1397f3e6b5b7aa55ad78455c4eb",
+            "sha256": "5f0822c4327cc90625f795f015b5c8190c9f01a659796668bb9c4c95cf4c1db7",
             "symbol": "func (h *tradingScopeHandlers) transaction("
           },
           {
@@ -7056,7 +7056,7 @@
           },
           {
             "path": "backend/internal/modules/pharmacy/licence_revocations.go",
-            "sha256": "325b63c31815fe13eb5d332532d2322154b0de8f1ea37b9373a7c9778e2665ec",
+            "sha256": "a96757ef2776b89574279124231aafaba880504343b424715ff6e3e595c743d5",
             "symbol": "func (h *tradingScopeHandlers) revokeLicence("
           }
         ],
@@ -7757,7 +7757,7 @@
         "registration_sha256": "2effef8cb9dec5e63407b1dfb263cebea532282ce74a131ffa060c6fd4f4b5fa",
         "authority_kind": "governance_recovery",
         "resource_scope": "Verified current tenant/actor, exact private pharmacy organization/outlet, licence and state/category fact record.",
-        "rationale": "The source-administration owner checks live membership/credentials through commit, followed by exact product outlet authorization. Scope approval requires a distinct account and reviewed available licence evidence. Immutable proposal/decision or revocation receipts bind original actor and intent. These facts do not establish professional, hospital Staff, clinical or trading authority; licence withdrawal denies current uses and preserves history.",
+        "rationale": "The source-administration owner checks live membership/credentials through commit, followed by exact product outlet authorization. Scope approval requires a distinct account and reviewed available licence evidence. Immutable proposal/decision or revocation receipts bind original actor and intent. These facts do not establish professional, hospital Staff, clinical or trading authority; licence withdrawal denies current uses and preserves history. Trading-scope and withdrawal commands reject a stale verified-tenant precondition before body validation; existing product and current-source authority checks remain required.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/source_administration.go",
@@ -7766,7 +7766,7 @@
           },
           {
             "path": "backend/internal/modules/pharmacy/trading_scopes.go",
-            "sha256": "8916623930deb014490b586fed928d1c0145c1397f3e6b5b7aa55ad78455c4eb",
+            "sha256": "5f0822c4327cc90625f795f015b5c8190c9f01a659796668bb9c4c95cf4c1db7",
             "symbol": "func (h *tradingScopeHandlers) transaction("
           },
           {
@@ -7776,7 +7776,7 @@
           },
           {
             "path": "backend/internal/modules/pharmacy/licence_revocations.go",
-            "sha256": "325b63c31815fe13eb5d332532d2322154b0de8f1ea37b9373a7c9778e2665ec",
+            "sha256": "a96757ef2776b89574279124231aafaba880504343b424715ff6e3e595c743d5",
             "symbol": "func (h *tradingScopeHandlers) revokeLicence("
           }
         ],
@@ -7805,7 +7805,7 @@
         "registration_sha256": "3888a5e37ccb54e8bf5d73dde502d3aa2f74fe42e38c8c011292f6fd7b0e4f38",
         "authority_kind": "governance_recovery",
         "resource_scope": "Verified current tenant/actor, exact private pharmacy organization/outlet, licence and state/category fact record.",
-        "rationale": "The source-administration owner checks live membership/credentials through commit, followed by exact product outlet authorization. Scope approval requires a distinct account and reviewed available licence evidence. Immutable proposal/decision or revocation receipts bind original actor and intent. These facts do not establish professional, hospital Staff, clinical or trading authority; licence withdrawal denies current uses and preserves history.",
+        "rationale": "The source-administration owner checks live membership/credentials through commit, followed by exact product outlet authorization. Scope approval requires a distinct account and reviewed available licence evidence. Immutable proposal/decision or revocation receipts bind original actor and intent. These facts do not establish professional, hospital Staff, clinical or trading authority; licence withdrawal denies current uses and preserves history. Trading-scope and withdrawal commands reject a stale verified-tenant precondition before body validation; existing product and current-source authority checks remain required.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/source_administration.go",
@@ -7814,7 +7814,7 @@
           },
           {
             "path": "backend/internal/modules/pharmacy/trading_scopes.go",
-            "sha256": "8916623930deb014490b586fed928d1c0145c1397f3e6b5b7aa55ad78455c4eb",
+            "sha256": "5f0822c4327cc90625f795f015b5c8190c9f01a659796668bb9c4c95cf4c1db7",
             "symbol": "func (h *tradingScopeHandlers) transaction("
           },
           {
@@ -7824,7 +7824,7 @@
           },
           {
             "path": "backend/internal/modules/pharmacy/licence_revocations.go",
-            "sha256": "325b63c31815fe13eb5d332532d2322154b0de8f1ea37b9373a7c9778e2665ec",
+            "sha256": "a96757ef2776b89574279124231aafaba880504343b424715ff6e3e595c743d5",
             "symbol": "func (h *tradingScopeHandlers) revokeLicence("
           }
         ],
@@ -7853,7 +7853,7 @@
         "registration_sha256": "cdb77b676963e196fa0676d1099399c54c95eb669a13e10ce46842caa16e655c",
         "authority_kind": "governance_recovery",
         "resource_scope": "Verified current tenant/actor, exact private pharmacy organization/outlet, licence and state/category fact record.",
-        "rationale": "The source-administration owner checks live membership/credentials through commit, followed by exact product outlet authorization. Scope approval requires a distinct account and reviewed available licence evidence. Immutable proposal/decision or revocation receipts bind original actor and intent. These facts do not establish professional, hospital Staff, clinical or trading authority; licence withdrawal denies current uses and preserves history.",
+        "rationale": "The source-administration owner checks live membership/credentials through commit, followed by exact product outlet authorization. Scope approval requires a distinct account and reviewed available licence evidence. Immutable proposal/decision or revocation receipts bind original actor and intent. These facts do not establish professional, hospital Staff, clinical or trading authority; licence withdrawal denies current uses and preserves history. Trading-scope and withdrawal commands reject a stale verified-tenant precondition before body validation; existing product and current-source authority checks remain required.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/source_administration.go",
@@ -7862,7 +7862,7 @@
           },
           {
             "path": "backend/internal/modules/pharmacy/trading_scopes.go",
-            "sha256": "8916623930deb014490b586fed928d1c0145c1397f3e6b5b7aa55ad78455c4eb",
+            "sha256": "5f0822c4327cc90625f795f015b5c8190c9f01a659796668bb9c4c95cf4c1db7",
             "symbol": "func (h *tradingScopeHandlers) transaction("
           },
           {
@@ -7872,7 +7872,7 @@
           },
           {
             "path": "backend/internal/modules/pharmacy/licence_revocations.go",
-            "sha256": "325b63c31815fe13eb5d332532d2322154b0de8f1ea37b9373a7c9778e2665ec",
+            "sha256": "a96757ef2776b89574279124231aafaba880504343b424715ff6e3e595c743d5",
             "symbol": "func (h *tradingScopeHandlers) revokeLicence("
           }
         ],
@@ -7901,7 +7901,7 @@
         "registration_sha256": "4382ab165d335f6a27f6104c23150b601b43c180b7acfa452a823a61d0ca0737",
         "authority_kind": "governance_recovery",
         "resource_scope": "Verified current tenant/actor, exact private pharmacy organization/outlet, licence and state/category fact record.",
-        "rationale": "The source-administration owner checks live membership/credentials through commit, followed by exact product outlet authorization. Scope approval requires a distinct account and reviewed available licence evidence. Immutable proposal/decision or revocation receipts bind original actor and intent. These facts do not establish professional, hospital Staff, clinical or trading authority; licence withdrawal denies current uses and preserves history.",
+        "rationale": "The source-administration owner checks live membership/credentials through commit, followed by exact product outlet authorization. Scope approval requires a distinct account and reviewed available licence evidence. Immutable proposal/decision or revocation receipts bind original actor and intent. These facts do not establish professional, hospital Staff, clinical or trading authority; licence withdrawal denies current uses and preserves history. Trading-scope and withdrawal commands reject a stale verified-tenant precondition before body validation; existing product and current-source authority checks remain required.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/source_administration.go",
@@ -7910,7 +7910,7 @@
           },
           {
             "path": "backend/internal/modules/pharmacy/trading_scopes.go",
-            "sha256": "8916623930deb014490b586fed928d1c0145c1397f3e6b5b7aa55ad78455c4eb",
+            "sha256": "5f0822c4327cc90625f795f015b5c8190c9f01a659796668bb9c4c95cf4c1db7",
             "symbol": "func (h *tradingScopeHandlers) transaction("
           },
           {
@@ -7920,7 +7920,7 @@
           },
           {
             "path": "backend/internal/modules/pharmacy/licence_revocations.go",
-            "sha256": "325b63c31815fe13eb5d332532d2322154b0de8f1ea37b9373a7c9778e2665ec",
+            "sha256": "a96757ef2776b89574279124231aafaba880504343b424715ff6e3e595c743d5",
             "symbol": "func (h *tradingScopeHandlers) revokeLicence("
           }
         ],
@@ -8593,7 +8593,7 @@
         "registration_sha256": "d158c3a4e2442546e36266ccd8f28f9e95c35b5d457c8413470331708636f19f",
         "authority_kind": "governance_recovery",
         "resource_scope": "Verified current tenant/actor, exact private pharmacy organization/outlet, licence and state/category fact record.",
-        "rationale": "The source-administration owner checks live membership/credentials through commit, followed by exact product outlet authorization. Scope approval requires a distinct account and reviewed available licence evidence. Immutable proposal/decision or revocation receipts bind original actor and intent. These facts do not establish professional, hospital Staff, clinical or trading authority; licence withdrawal denies current uses and preserves history.",
+        "rationale": "The source-administration owner checks live membership/credentials through commit, followed by exact product outlet authorization. Scope approval requires a distinct account and reviewed available licence evidence. Immutable proposal/decision or revocation receipts bind original actor and intent. These facts do not establish professional, hospital Staff, clinical or trading authority; licence withdrawal denies current uses and preserves history. Trading-scope and withdrawal commands reject a stale verified-tenant precondition before body validation; existing product and current-source authority checks remain required.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/source_administration.go",
@@ -8602,7 +8602,7 @@
           },
           {
             "path": "backend/internal/modules/pharmacy/trading_scopes.go",
-            "sha256": "8916623930deb014490b586fed928d1c0145c1397f3e6b5b7aa55ad78455c4eb",
+            "sha256": "5f0822c4327cc90625f795f015b5c8190c9f01a659796668bb9c4c95cf4c1db7",
             "symbol": "func (h *tradingScopeHandlers) transaction("
           },
           {
@@ -8612,7 +8612,7 @@
           },
           {
             "path": "backend/internal/modules/pharmacy/licence_revocations.go",
-            "sha256": "325b63c31815fe13eb5d332532d2322154b0de8f1ea37b9373a7c9778e2665ec",
+            "sha256": "a96757ef2776b89574279124231aafaba880504343b424715ff6e3e595c743d5",
             "symbol": "func (h *tradingScopeHandlers) revokeLicence("
           }
         ],
@@ -8817,7 +8817,7 @@
         "registration_sha256": "06b8eb09e9fb5b20d95b609acdb173f50165ae1edbbb7515e8640a2b27eff4c4",
         "authority_kind": "governance_recovery",
         "resource_scope": "Verified current tenant/actor, exact private pharmacy organization/outlet, licence and state/category fact record.",
-        "rationale": "The source-administration owner checks live membership/credentials through commit, followed by exact product outlet authorization. Scope approval requires a distinct account and reviewed available licence evidence. Immutable proposal/decision or revocation receipts bind original actor and intent. These facts do not establish professional, hospital Staff, clinical or trading authority; licence withdrawal denies current uses and preserves history.",
+        "rationale": "The source-administration owner checks live membership/credentials through commit, followed by exact product outlet authorization. Scope approval requires a distinct account and reviewed available licence evidence. Immutable proposal/decision or revocation receipts bind original actor and intent. These facts do not establish professional, hospital Staff, clinical or trading authority; licence withdrawal denies current uses and preserves history. Trading-scope and withdrawal commands reject a stale verified-tenant precondition before body validation; existing product and current-source authority checks remain required.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/source_administration.go",
@@ -8826,7 +8826,7 @@
           },
           {
             "path": "backend/internal/modules/pharmacy/trading_scopes.go",
-            "sha256": "8916623930deb014490b586fed928d1c0145c1397f3e6b5b7aa55ad78455c4eb",
+            "sha256": "5f0822c4327cc90625f795f015b5c8190c9f01a659796668bb9c4c95cf4c1db7",
             "symbol": "func (h *tradingScopeHandlers) transaction("
           },
           {
@@ -8836,7 +8836,7 @@
           },
           {
             "path": "backend/internal/modules/pharmacy/licence_revocations.go",
-            "sha256": "325b63c31815fe13eb5d332532d2322154b0de8f1ea37b9373a7c9778e2665ec",
+            "sha256": "a96757ef2776b89574279124231aafaba880504343b424715ff6e3e595c743d5",
             "symbol": "func (h *tradingScopeHandlers) revokeLicence("
           }
         ],
@@ -8865,7 +8865,7 @@
         "registration_sha256": "7a103953d8ec9d0ab10dd36fdd0522f39870d784efaf02ae1fff2df90d0bda21",
         "authority_kind": "governance_recovery",
         "resource_scope": "Verified current tenant/actor, exact private pharmacy organization/outlet, licence and state/category fact record.",
-        "rationale": "The source-administration owner checks live membership/credentials through commit, followed by exact product outlet authorization. Scope approval requires a distinct account and reviewed available licence evidence. Immutable proposal/decision or revocation receipts bind original actor and intent. These facts do not establish professional, hospital Staff, clinical or trading authority; licence withdrawal denies current uses and preserves history.",
+        "rationale": "The source-administration owner checks live membership/credentials through commit, followed by exact product outlet authorization. Scope approval requires a distinct account and reviewed available licence evidence. Immutable proposal/decision or revocation receipts bind original actor and intent. These facts do not establish professional, hospital Staff, clinical or trading authority; licence withdrawal denies current uses and preserves history. Trading-scope and withdrawal commands reject a stale verified-tenant precondition before body validation; existing product and current-source authority checks remain required.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/source_administration.go",
@@ -8874,7 +8874,7 @@
           },
           {
             "path": "backend/internal/modules/pharmacy/trading_scopes.go",
-            "sha256": "8916623930deb014490b586fed928d1c0145c1397f3e6b5b7aa55ad78455c4eb",
+            "sha256": "5f0822c4327cc90625f795f015b5c8190c9f01a659796668bb9c4c95cf4c1db7",
             "symbol": "func (h *tradingScopeHandlers) transaction("
           },
           {
@@ -8884,7 +8884,7 @@
           },
           {
             "path": "backend/internal/modules/pharmacy/licence_revocations.go",
-            "sha256": "325b63c31815fe13eb5d332532d2322154b0de8f1ea37b9373a7c9778e2665ec",
+            "sha256": "a96757ef2776b89574279124231aafaba880504343b424715ff6e3e595c743d5",
             "symbol": "func (h *tradingScopeHandlers) revokeLicence("
           }
         ],

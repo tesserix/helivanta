@@ -6,8 +6,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/tesserix/helivanta/internal/bootstrap"
 	supplycontract "github.com/tesserix/helivanta/internal/modules/supply/contract" //nolint:depguard // own module and data-only contract
-	"github.com/tesserix/helivanta/internal/modules/workspace"                      //nolint:depguard // actual policy owner for trading-source integration
 	"github.com/tesserix/helivanta/pkg/events"
 	"gorm.io/gorm"
 	"image"
@@ -50,8 +50,12 @@ func newEvidenceScenarioConfigured(t *testing.T, owned bool) evidenceScenario {
 	permissions := []authz.Permission{supply.PermDirectoryRead, supply.PermPartyRead, supply.PermPartyWrite, supply.PermAccessManage, supply.PermPremiseRead, supply.PermPremiseWrite, supply.PermLicenseRead, supply.PermLicenseWrite, authz.Permission("supply.license.review"), authz.Permission("supply.license.submit"), authz.Permission("supply.evidence.read"), authz.Permission("supply.evidence.write")}
 	modules := []platform.Module{supply.New()}
 	if owned {
-		permissions = append(permissions, supply.PermOrganizationManage, workspace.PermCountryPolicyManage, workspace.PermCountryPolicyRead, workspace.PermCountryPolicyReview)
-		modules = append(modules, workspace.New())
+		permissions = append(permissions, supply.PermOrganizationManage, "workspace.country_policy.manage", "workspace.country_policy.read", "workspace.country_policy.review")
+		for _, module := range bootstrap.Modules(nil, nil) {
+			if module.Name() == "workspace" {
+				modules = append(modules, module)
+			}
+		}
 	}
 	r, db, bus, _ := testutil.NewHarness(t, testutil.HarnessOptions{Roles: accessMembership{},
 		Tokens:  map[string]string{"owner": testutil.TenantA, "auditor": testutil.TenantA, "foreign": testutil.TenantB},

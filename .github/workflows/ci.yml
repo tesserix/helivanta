@@ -72,6 +72,11 @@ jobs:
         working-directory: .
         run: "! grep -rn --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=docs --exclude-dir=.superpowers --exclude=ci.yml 'MedCora' . || (echo 'MedCora is a rejected alias (issue 12) - use MediCore' && exit 1)"
       - run: go build ./...
+      - name: Supplier architecture and tenant preconditions
+        run: |
+          go test -race ./internal/archtest -run '^(TestModulesDoNotImportEachOther|TestEveryCollectionGETIsPaginated|TestEventPayloadPHIFieldsAreAllowlisted|TestDeclaredPermissionsMatchTheApprovedMatrix)$'
+          go test -race ./internal/modules/pharmacy -run '^(TestTradingCommandsRejectChangedTenantBeforeBodyValidation|TestPharmacyOperationalRolesHaveSeparateCapabilities|TestPharmacyExpectedTenantRejectsEveryRouteFamilyWithoutSideEffects)$'
+          go test -race ./internal/modules/iam -run '^(TestMigrationIDIsPhaseScoped|TestMembershipMigrationPreservesEvidenceWithoutInventingContinuity|TestEstablishmentRootBackfillKeepsHospitalGrants)$'
       - name: Effective supplier grant consent tests
         run: go test -race ./pkg/supplieraccess
       - name: Supplier consent and peer boundary tests

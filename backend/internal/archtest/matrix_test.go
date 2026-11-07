@@ -190,6 +190,21 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 // bug class — a role mapping change must be a deliberate, reviewable edit
 // here.
 var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
+	iam.PermSupplierGrantRead:        {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RolePharmacyOwner},
+	iam.PermSupplierGrantPrepare:     {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RolePharmacyOwner},
+	iam.PermSupplierGrantReview:      {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RolePharmacyOwner},
+	iam.PermSupplierGrantAccept:      {authz.RoleTenantAdmin},
+	iam.PermSupplierGrantInbox:       {authz.RoleTenantAdmin},
+	authz.PartnerCatalogueRead:       {authz.RoleTenantAdmin},
+	authz.PartnerShipmentRead:        {authz.RoleTenantAdmin},
+	authz.PartnerInvoiceRead:         {authz.RoleTenantAdmin},
+	pharmacy.PermTradingScopeRead:    {authz.RoleTenantAdmin, authz.RolePharmacyOwner},
+	pharmacy.PermTradingScopePrepare: {authz.RoleTenantAdmin, authz.RolePharmacyOwner},
+	pharmacy.PermTradingScopeReview:  {authz.RoleTenantAdmin, authz.RolePharmacyOwner},
+	supply.PermRelationshipRead:      {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor, authz.RolePharmacyOwner},
+	supply.PermRelationshipPrepare:   {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RolePharmacyOwner},
+	supply.PermRelationshipReview:    {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyCompliance, authz.RolePharmacyOwner},
+
 	iam.PermPartnerGroupMemberRead:    {authz.RoleTenantAdmin},
 	iam.PermPartnerGroupMemberPrepare: {authz.RoleTenantAdmin},
 	iam.PermPartnerGroupMemberReview:  {authz.RoleTenantAdmin},

@@ -54,6 +54,10 @@ Paths under `/v1/pharmacy/pharmacies/{pharmacy}/outlets/{outlet}`:
 - `PUT/GET /licences/{id}/revocations/{revocation}` records or recovers an
   attributable licence withdrawal, preserving the historical licence and review.
 
+Commands check the verified tenant and reject a stale expected-tenant header with
+`409 session_changed` before parsing the request body. No stock, consent or
+licence action runs under a switched workspace.
+
 Scope lifecycle is pending review → approved/rejected, then approved → revoked.
 Approval requires a distinct account, a current independently reviewed licence
 and available evidence. Input, proposal receipt and command history are retained.

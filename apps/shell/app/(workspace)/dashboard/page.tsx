@@ -17,6 +17,7 @@ const DESCRIPTIONS: Record<string, string> = {
   "pharmacy:Inventory": "Stock on hand, receiving, expiry and the product catalogue",
   "pharmacy:Purchasing": "Supplier bills, payments and outstanding balances",
   "pharmacy:Setup": "Pharmacy outlets and who can access them",
+  "/supply/staff": "Independent supplier Staff records and reviewed accounts",
   "/supply/parties": "Organisations, suppliers, premises and independent licence review",
   "/lab": "Orders, samples & results",
 };

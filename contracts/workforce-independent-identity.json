@@ -1,0 +1,123 @@
+{
+  "models": {
+    "IndependentIdentityScope": [
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "employer_kind",
+        "type": "string",
+        "enum": ["pharmacy", "supplier"]
+      },
+      {
+        "name": "employer_id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      }
+    ],
+    "IndependentLinkView": [
+      {
+        "name": "scope",
+        "type": "IndependentIdentityScope"
+      },
+      {
+        "name": "staff_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "link",
+        "type": "IndependentLinkData"
+      }
+    ],
+    "IndependentLinkProposal": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "scope",
+        "type": "IndependentIdentityScope"
+      },
+      {
+        "name": "input",
+        "type": "IndependentLinkInput"
+      },
+      {
+        "name": "prepared_by",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "IndependentLinkCommand": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "link_id",
+        "type": "uuid"
+      },
+      {
+        "name": "scope",
+        "type": "IndependentIdentityScope"
+      },
+      {
+        "name": "input",
+        "type": "IndependentLinkDecisionInput"
+      },
+      {
+        "name": "result",
+        "type": "IndependentLinkView"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ]
+  },
+  "model_projections": [
+    {
+      "model": "IndependentLinkInput",
+      "source": "loginLinkInput",
+      "prepend": [
+        {
+          "name": "expected_staff_version",
+          "type": "int64",
+          "min": 1,
+          "max": 9007199254740991
+        }
+      ]
+    },
+    {
+      "model": "IndependentLinkData",
+      "source": "loginLink"
+    },
+    {
+      "model": "IndependentLinkDecisionInput",
+      "source": "loginLinkDecisionInput",
+      "overrides": {
+        "expected_version": {
+          "pointer": false,
+          "max": 9007199254740990
+        }
+      }
+    }
+  ]
+}

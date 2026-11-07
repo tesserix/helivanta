@@ -30,6 +30,7 @@ import { PartyRegistration } from "./party-registration";
 import { PlatformIdentity } from "./platform-identity";
 import { OrganisationStructure } from "./organisation-structure";
 import { OrganisationAccess } from "./organisation-access";
+import { SupplierEmployerRegistration } from "./employer-registration";
 import { OrganisationOperations } from "./organisation-operations";
 import { OrganisationSupport } from "./organisation-support";
 import { WorkspaceConnections } from "../workspace-connections";
@@ -515,6 +516,7 @@ function PrivateParty({
             country={party.country_code}
             roles={roles}
           />
+          <SupplierEmployerRegistration scope={{ ...scope, partyId: id }} />
           <OrganisationAccess
             key={`access:${scope.tenantId}:${scope.subject}:${id}`}
             scope={{ ...scope, partyId: id }}

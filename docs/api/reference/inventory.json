@@ -169,6 +169,51 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/hospitals/:hospital/supplier-grant-offers/:id/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/iam/hospitals/:hospital/supplier-grant-offers/:id/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/hospitals/:hospital/supplier-grant-offers/:id",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/hospitals/:hospital/supplier-grant-offers",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/hospitals/:hospital/supplier-grants/:id",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/identity-assignment-proposals",
           "permission": "public",
           "authentication_required": true,
@@ -313,6 +358,60 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/operating-duties/:id/commands/:command",
+          "permission": "iam.operating.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/iam/operating-duties/:id/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/operating-duties/:id/proposal-receipt",
+          "permission": "iam.operating.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/operating-duties/:id",
+          "permission": "iam.operating.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/iam/operating-duties/:id",
+          "permission": "iam.operating.prepare",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/operating-employers/:kind/:employer/staff/:staff/duties",
+          "permission": "iam.operating.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/partner-grant-drafts/:id",
           "permission": "iam.assignment.manage",
           "authentication_required": true,
@@ -436,9 +535,98 @@
           "membership_required": true,
           "paginated": false,
           "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/supplier-access-assignment-proposals",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/supplier-grants/:id/commands/:command",
+          "permission": "iam.supplier_grant.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/iam/supplier-grants/:id/commands/:command",
+          "permission": "iam.supplier_grant.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/supplier-grants/:id",
+          "permission": "iam.supplier_grant.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/iam/supplier-grants/:id",
+          "permission": "iam.supplier_grant.prepare",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/supplier-sources/:product/:organization/locations/:location/grants",
+          "permission": "iam.supplier_grant.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
         }
       ],
       "grants": [
+        {
+          "permission": "iam.operating.read",
+          "roles": [
+            "supply_owner",
+            "supply_admin",
+            "supply_compliance",
+            "supply_auditor",
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "iam.operating.prepare",
+          "roles": [
+            "supply_owner",
+            "supply_admin",
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "iam.operating.review",
+          "roles": [
+            "supply_owner",
+            "supply_admin",
+            "supply_compliance",
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "iam.operating.revoke",
+          "roles": [
+            "supply_owner",
+            "supply_admin",
+            "pharmacy_owner"
+          ]
+        },
         {
           "permission": "iam.member.manage",
           "roles": []
@@ -466,9 +654,54 @@
         {
           "permission": "iam.credential.revoke",
           "roles": []
+        },
+        {
+          "permission": "iam.supplier_grant.read",
+          "roles": [
+            "supply_owner",
+            "supply_admin",
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "iam.supplier_grant.prepare",
+          "roles": [
+            "supply_owner",
+            "supply_admin",
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "iam.supplier_grant.review",
+          "roles": [
+            "supply_owner",
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "iam.supplier_grant.accept",
+          "roles": []
+        },
+        {
+          "permission": "iam.supplier_grant.inbox.read",
+          "roles": []
+        },
+        {
+          "permission": "partner.catalogue.read",
+          "roles": []
+        },
+        {
+          "permission": "partner.shipment.read",
+          "roles": []
+        },
+        {
+          "permission": "partner.invoice.read",
+          "roles": []
         }
       ],
       "publishes": [
+        "helivanta.in.iam.supplier_grant_exchange.v1",
+        "helivanta.in.iam.operating_assignment_changed.v1",
         "helivanta.in.iam.partner_group_hospital_scope_requested.v1",
         "helivanta.in.iam.partner_group_changed.v1",
         "helivanta.in.iam.partner_group_member_changed.v1",
@@ -479,9 +712,19 @@
         "helivanta.in.iam.member_revoked.v1",
         "helivanta.in.iam.credential_revoked.v1"
       ],
-      "directed_subjects": [],
-      "directed_write_tables": [],
+      "directed_subjects": [
+        "helivanta.in.iam.supplier_grant_exchange.v1"
+      ],
+      "directed_write_tables": [
+        "iam_supplier_grants",
+        "iam_supplier_grant_history"
+      ],
       "consumers": [
+        {
+          "name": "iam-supplier-grant-exchange",
+          "subject": "helivanta.in.iam.supplier_grant_exchange.v1",
+          "after_commit": false
+        },
         {
           "name": "iam-partner-group-hospital-scope",
           "subject": "helivanta.in.workforce.partner_group_hospital_scope_observed.v1",
@@ -500,6 +743,11 @@
         {
           "name": "iam-assignment-projection",
           "subject": "helivanta.in.iam.assignment_projection_requested.v1",
+          "after_commit": true
+        },
+        {
+          "name": "iam-operating-projection",
+          "subject": "helivanta.in.iam.operating_assignment_changed.v1",
           "after_commit": true
         },
         {
@@ -759,6 +1007,33 @@
           "creates_tables": [
             "iam_partner_grant_drafts"
           ]
+        },
+        {
+          "id": "0038_iam_operating_duties",
+          "sql_sha256": "a38aef93b4e0625feef8314422b9841605319af79db456b84b1a576df4c76987",
+          "creates_tables": [
+            "iam_operating_duties",
+            "iam_operating_duty_history",
+            "iam_operating_snapshots",
+            "iam_operating_commands",
+            "iam_operating_projection_acks"
+          ]
+        },
+        {
+          "id": "0039_iam_supplier_grants",
+          "sql_sha256": "65ded563df48c058bd4415ef568ba91fde39da455caa11e3f45462fdde85b54f",
+          "creates_tables": [
+            "iam_supplier_grants",
+            "iam_supplier_grant_commands",
+            "iam_supplier_grant_history",
+            "iam_supplier_grant_bases",
+            "iam_supplier_grant_projection_acks"
+          ]
+        },
+        {
+          "id": "0040_iam_supplier_access_templates",
+          "sql_sha256": "9004858c26577f5b7d6fe2992c1e55b6ccf44984bcb25c230a730f28030149b4",
+          "creates_tables": []
         }
       ]
     },
@@ -1550,6 +1825,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/drugmaster/products/by-gtin/:gtin/stock-reference",
+          "permission": "drugmaster.stock_reference.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/drugmaster/products/by-gtin/:gtin",
           "permission": "drugmaster.catalogue.read",
           "authentication_required": true,
@@ -1574,6 +1858,23 @@
             "doctor",
             "nurse",
             "pharmacist"
+          ]
+        },
+        {
+          "permission": "drugmaster.stock_reference.read",
+          "roles": [
+            "pharmacist",
+            "pharmacy_owner",
+            "pharmacy_purchasing",
+            "pharmacy_inventory",
+            "supply_owner",
+            "supply_admin",
+            "supply_purchasing",
+            "supply_inventory",
+            "supply_warehouse",
+            "supply_compliance",
+            "supply_auditor",
+            "supply_regulator"
           ]
         }
       ],
@@ -3164,6 +3465,24 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/revocations/:revocation",
+          "permission": "pharmacy.licence.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/revocations/:revocation",
+          "permission": "pharmacy.licence.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "PUT",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id",
           "permission": "pharmacy.licence.manage",
@@ -3696,6 +4015,60 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/commands/:command",
+          "permission": "pharmacy.trading_scope.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/commands/:command",
+          "permission": "pharmacy.trading_scope.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/proposal-receipt",
+          "permission": "pharmacy.trading_scope.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id",
+          "permission": "pharmacy.trading_scope.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id",
+          "permission": "pharmacy.trading_scope.prepare",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes",
+          "permission": "pharmacy.trading_scope.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet",
           "permission": "pharmacy.catalogue.read",
           "authentication_required": true,
@@ -3854,6 +4227,24 @@
         },
         {
           "permission": "pharmacy.tax.manage",
+          "roles": [
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "pharmacy.trading_scope.read",
+          "roles": [
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "pharmacy.trading_scope.prepare",
+          "roles": [
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "pharmacy.trading_scope.review",
           "roles": [
             "pharmacy_owner"
           ]
@@ -4356,6 +4747,21 @@
             "pharmacy_staff_department_bindings",
             "pharmacy_staff_binding_commands",
             "pharmacy_staff_binding_audit"
+          ]
+        },
+        {
+          "id": "0035_pharmacy_trading_scope",
+          "sql_sha256": "43834528047824648c5665af46f84ec6d4752ceeae7db519ca70f35762c18652",
+          "creates_tables": [
+            "pharmacy_trading_scopes",
+            "pharmacy_trading_scope_commands"
+          ]
+        },
+        {
+          "id": "0036_pharmacy_trading_source",
+          "sql_sha256": "3be15612e4050c0e0018d7521ae4ebfe6f03a16efe38eae676c5feedc82f0df0",
+          "creates_tables": [
+            "pharmacy_licence_revocations"
           ]
         }
       ]
@@ -5615,6 +6021,60 @@
         },
         {
           "method": "GET",
+          "path": "/v1/supply/parties/:party/operating-locations/:premise/stock/products/by-gtin/:gtin",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/identity-checks/:check",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/identity-checks/:check",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/parties/:party/operating-locations/:premise/stock/receipts",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/supply/parties/:party/operating-locations/:premise",
           "permission": "supply.operations.read",
           "authentication_required": true,
@@ -5918,9 +6378,90 @@
           "membership_required": true,
           "paginated": true,
           "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/relationships/:relationship/commands/:command",
+          "permission": "supply.trade_relationship.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/supply/relationships/:relationship/commands/:command",
+          "permission": "supply.trade_relationship.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/relationships/:relationship/proposal-receipt",
+          "permission": "supply.trade_relationship.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/relationships/:relationship",
+          "permission": "supply.trade_relationship.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/supply/relationships/:relationship",
+          "permission": "supply.trade_relationship.prepare",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/trading-sources/:product/:organization/locations/:location/relationships",
+          "permission": "supply.trade_relationship.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
         }
       ],
       "grants": [
+        {
+          "permission": "supply.trade_relationship.read",
+          "roles": [
+            "supply_admin",
+            "supply_compliance",
+            "supply_auditor",
+            "pharmacy_owner",
+            "supply_owner"
+          ]
+        },
+        {
+          "permission": "supply.trade_relationship.prepare",
+          "roles": [
+            "supply_admin",
+            "pharmacy_owner",
+            "supply_owner"
+          ]
+        },
+        {
+          "permission": "supply.trade_relationship.review",
+          "roles": [
+            "supply_admin",
+            "supply_compliance",
+            "pharmacy_owner",
+            "supply_owner"
+          ]
+        },
         {
           "permission": "supply.support.revoke",
           "roles": [
@@ -6163,6 +6704,9 @@
         }
       ],
       "publishes": [
+        "helivanta.in.supply.relationship_exchange.v1",
+        "helivanta.in.supply.stock_identity_recorded.v1",
+        "helivanta.in.supply.stock_receipt_recorded.v1",
         "helivanta.in.supply.support_access_changed.v1",
         "helivanta.in.supply.delivery_task_changed.v1",
         "helivanta.in.supply.corporate_updated.v1",
@@ -6176,9 +6720,19 @@
         "helivanta.in.supply.evidence_changed.v1",
         "helivanta.in.supply.license_review_changed.v1"
       ],
-      "directed_subjects": [],
-      "directed_write_tables": [],
+      "directed_subjects": [
+        "helivanta.in.supply.relationship_exchange.v1"
+      ],
+      "directed_write_tables": [
+        "supply_trade_relationships",
+        "supply_trade_relationship_history"
+      ],
       "consumers": [
+        {
+          "name": "supply-relationship-exchange",
+          "subject": "helivanta.in.supply.relationship_exchange.v1",
+          "after_commit": false
+        },
         {
           "name": "supply-evidence-scan",
           "subject": "helivanta.in.supply.evidence_scan_requested.v1",
@@ -6266,6 +6820,33 @@
           "id": "0009_supply",
           "sql_sha256": "6d2be243ae5f3f7c6c66d68b2a955e6156a75a533f62810b989615c9dd2b1e54",
           "creates_tables": []
+        },
+        {
+          "id": "0010_supply_stock",
+          "sql_sha256": "02a912e09d03454d539244942b01c82610292951609f0f1e746cf9ccbcff579c",
+          "creates_tables": [
+            "supply_stock_receipts",
+            "supply_stock_identity_checks"
+          ]
+        },
+        {
+          "id": "0011_supply_employer_guard",
+          "sql_sha256": "4765e6f85aec9cbe32c059ae7dac1cebd08947811cab219f72aa97fddde0b35b",
+          "creates_tables": []
+        },
+        {
+          "id": "0012_supply_trading_source",
+          "sql_sha256": "6e136cdec11a20e8974cb8f3566d284349bd339c3ea915462c26821864c4a0a6",
+          "creates_tables": []
+        },
+        {
+          "id": "0013_supply_trade_relationships",
+          "sql_sha256": "c9e191cc995716a73222b9539a329b177c249ede7a164cd50f70df730b8ecb48",
+          "creates_tables": [
+            "supply_trade_relationships",
+            "supply_trade_relationship_commands",
+            "supply_trade_relationship_history"
+          ]
         }
       ]
     },
@@ -9612,6 +10193,60 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link/proposal-receipt",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link",
+          "permission": "workforce.independent_login.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id",
           "permission": "public",
           "authentication_required": true,
@@ -9699,9 +10334,156 @@
           "membership_required": true,
           "paginated": true,
           "counted": false
+        },
+        {
+          "method": "DELETE",
+          "path": "/v1/workforce/suppliers/:supplier/access/:subject",
+          "permission": "workforce.supplier.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/suppliers/:supplier/access/:subject",
+          "permission": "workforce.supplier.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/suppliers/:supplier/staff/:id/account-links/:link/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/suppliers/:supplier/staff/:id/account-links/:link/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/suppliers/:supplier/staff/:id/account-links/:link/proposal-receipt",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/suppliers/:supplier/staff/:id/account-links/:link",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/suppliers/:supplier/staff/:id/account-links/:link",
+          "permission": "workforce.independent_login.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/suppliers/:supplier/staff/:id/account-links",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/suppliers/:supplier/staff/:id",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/suppliers/:supplier/staff/:id",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/suppliers/:supplier/staff",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/suppliers/:supplier",
+          "permission": "workforce.supplier.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/suppliers/:supplier",
+          "permission": "workforce.supplier.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/suppliers",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
         }
       ],
       "grants": [
+        {
+          "permission": "workforce.independent_login.manage",
+          "roles": [
+            "supply_owner",
+            "supply_admin",
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "workforce.independent_login.review",
+          "roles": [
+            "supply_owner",
+            "supply_admin",
+            "supply_compliance",
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "workforce.supplier.manage",
+          "roles": []
+        },
         {
           "permission": "workforce.partner_member_source.use",
           "roles": []
@@ -9888,6 +10670,7 @@
         }
       ],
       "publishes": [
+        "helivanta.in.workforce.independent_login_link_changed.v1",
         "helivanta.in.workforce.partner_group_hospital_scope_observed.v1",
         "helivanta.in.workforce.posting_cutoff_changed.v1",
         "helivanta.in.workforce.posting_proposal_changed.v1",
@@ -10966,6 +11749,18 @@
           "id": "0092_workforce_pharmacy_staff_directory",
           "sql_sha256": "2a796d859170b50eda3aea8a5f6f25ef872fb231e17260b3f1ddfb02b676c7ef",
           "creates_tables": []
+        },
+        {
+          "id": "0093_workforce_supplier_staff",
+          "sql_sha256": "de4134e0899e978087c1be59fb3e0e65a698c803cbcaf624504b08f6dff1f86c",
+          "creates_tables": []
+        },
+        {
+          "id": "0094_workforce_independent_identity",
+          "sql_sha256": "68f777d7552b291f33bf9aa6322b1f4f3938752cca2ee39ce4d70d901be6ccf1",
+          "creates_tables": [
+            "workforce_independent_link_commands"
+          ]
         }
       ]
     },

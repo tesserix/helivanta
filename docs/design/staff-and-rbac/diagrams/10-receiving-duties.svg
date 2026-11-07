@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1480" height="1160" viewBox="0 0 1480 1160" role="img" aria-labelledby="title desc">
+<title id="title">Independent supplier receiving — implementation boundary</title>
+<desc id="desc">Workforce owns Staff identity, IAM owns duties, and stock owners remain separate. Supply receiving is an unreleased candidate. Full hospital collaboration and fulfilment remain unfinished.</desc>
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10" fill="#66758c"/></marker></defs>
+<rect width="1480" height="1160" fill="#fff"/>
+<text x="40" y="52" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#17243b">Independent supplier receiving</text>
+<text x="40" y="85" font-family="Arial, sans-serif" font-size="17" font-weight="400" fill="#27354b">Unreleased implementation candidate · India / Maharashtra / Odisha · 7 November 2026</text>
+<rect x="40" y="130" width="440" height="230" rx="12" fill="#e9f5f0" stroke="#21765c" stroke-width="1.5"/>
+<text x="58" y="164" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#27354b">Workforce · employer and identity</text>
+<text x="58" y="201" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Employer: supplier / pharmacy organization</text>
+<text x="58" y="228" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Private Staff directory and current version</text>
+<text x="58" y="255" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Reviewed named-account link and current version</text>
+<text x="58" y="282" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Employer access remains private to its owner</text>
+<rect x="520" y="130" width="440" height="230" rx="12" fill="#eaf1ff" stroke="#345ca8" stroke-width="1.5"/>
+<text x="538" y="164" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#27354b">Shared IAM · operating authority</text>
+<text x="538" y="201" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">One exact source location and reviewed Staff link</text>
+<text x="538" y="228" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Immutable preparation and decision receipts</text>
+<text x="538" y="255" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Uninterrupted membership and independent review</text>
+<text x="538" y="282" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">No hospital identity inferred from a supplier ID</text>
+<rect x="1000" y="130" width="440" height="230" rx="12" fill="#eef2fa" stroke="#4f5d7b" stroke-width="1.5"/>
+<text x="1018" y="164" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#27354b">Product owners · separate stock</text>
+<text x="1018" y="201" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">SupplyConnect owns warehouse / depot stock</text>
+<text x="1018" y="228" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">PharmaConnect owns outlet stock</text>
+<text x="1018" y="255" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Drug master owns product and pack identity</text>
+<text x="1018" y="282" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">A role never transfers stock ownership</text>
+<rect x="40" y="440" width="320" height="130" rx="12" fill="#e9f5f0" stroke="#21765c" stroke-width="1.5"/>
+<text x="58" y="474" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#27354b">1 · Prepare</text>
+<text x="58" y="511" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Current employer manager</text>
+<text x="58" y="538" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Exact source and Staff / account versions</text>
+<text x="58" y="565" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Bounded validity and attributable reason</text>
+<rect x="400" y="440" width="320" height="130" rx="12" fill="#e9f5f0" stroke="#21765c" stroke-width="1.5"/>
+<text x="418" y="474" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#27354b">2 · Independent review</text>
+<text x="418" y="511" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Current separate reviewer</text>
+<text x="418" y="538" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Maker and target aliases excluded</text>
+<text x="418" y="565" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Approve, reject, withdraw or revoke</text>
+<rect x="760" y="440" width="320" height="130" rx="12" fill="#fff4d9" stroke="#9a701b" stroke-width="1.5"/>
+<text x="778" y="474" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#27354b">3 · Pending activation</text>
+<text x="778" y="511" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Immutable outbox and snapshot</text>
+<text x="778" y="538" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Publish to OpenFGA outside DB locks</text>
+<text x="778" y="565" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Current basis rechecked before ACK</text>
+<rect x="1120" y="440" width="320" height="130" rx="12" fill="#e9f5f0" stroke="#21765c" stroke-width="1.5"/>
+<text x="1138" y="474" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#27354b">4 · Current action check</text>
+<text x="1138" y="511" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Exact graph ACK, epoch and validity</text>
+<text x="1138" y="538" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Current Staff / source / membership</text>
+<text x="1138" y="565" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Credential cutoff through commit</text>
+<rect x="40" y="660" width="860" height="180" rx="12" fill="#e9f5f0" stroke="#21765c" stroke-width="1.5"/>
+<text x="58" y="694" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#27354b">SupplyConnect · implemented candidate consumer</text>
+<text x="58" y="731" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Exact warehouse barcode lookup → published stock-purpose reference</text>
+<text x="58" y="758" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Physical receipt → immutable original quarantine evidence</text>
+<text x="58" y="785" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Product / pack observation → append-only verified identity evidence</text>
+<text x="58" y="812" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Immediate duty cutoff; audit and recovery; no available stock inferred</text>
+<rect x="940" y="660" width="500" height="180" rx="12" fill="#f1f3f7" stroke="#758096" stroke-width="1.5"/>
+<text x="958" y="694" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#27354b">PharmaConnect · consumer remains open</text>
+<text x="958" y="731" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Its outlet stock remains the sole owner</text>
+<text x="958" y="758" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Receiving template exists in Shared IAM</text>
+<text x="958" y="785" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Actual scoped product consumer and receiver</text>
+<text x="958" y="812" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">browser acceptance remain unfinished</text>
+<rect x="40" y="950" width="1400" height="150" rx="12" fill="#f1f3f7" stroke="#758096" stroke-width="1.5"/>
+<text x="58" y="984" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#27354b">Remaining full supplier workflow · not implemented by receiving duties</text>
+<text x="58" y="1021" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Bilateral relationship → hospital named / group grants → minimized authorized disclosure</text>
+<text x="58" y="1048" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Qualified release → owner balance and reservation → dispatch → destination quarantine / discrepancy / receipt</text>
+<text x="58" y="1075" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Invoice / credit / payable / settlement composition → complete acceptance → exact reviewed Kargo release</text>
+<path d="M482,245.0 H515" stroke="#66758c" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+<path d="M962,245.0 H995" stroke="#66758c" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+<path d="M362,505.0 H395" stroke="#66758c" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+<path d="M722,505.0 H755" stroke="#66758c" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+<path d="M1082,505.0 H1115" stroke="#66758c" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+<path d="M1280.0,570 V610 H470.0 V654" stroke="#66758c" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+<text x="40" y="900" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Green: current candidate behavior     Amber: asynchronous activation     Grey: unfinished consumer or workflow</text>
+<text x="40" y="1135" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#27354b">Receiving records are quarantined evidence. Administrative access is not professional, licence, clinical or financial authority.</text>
+</svg>

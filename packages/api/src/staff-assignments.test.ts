@@ -205,3 +205,24 @@ it.each(["reader", "preparer", "reviewer"])(
     );
   },
 );
+
+it.each(["viewer", "reviewer"])(
+  "lists supplier %s capability assignments in the supplier family",
+  async (role) => {
+    const record = { ...proposal, input: { ...input, template_key: `iam.supplier_${role}.v1` } };
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json({ data: [record], page: { has_more: false, next_cursor: null } }),
+      );
+    vi.stubGlobal("fetch", fetch);
+    const result = await listStaffAssignments(
+      { tenantId, subject: "reviewer" },
+      { family: "supplier_access" },
+    );
+    expect(result.data).toEqual([record]);
+    expect(new URL(fetch.mock.calls[0]![0], "https://example.invalid").pathname).toBe(
+      "/api/v1/iam/supplier-access-assignment-proposals",
+    );
+  },
+);

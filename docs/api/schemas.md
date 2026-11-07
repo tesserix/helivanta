@@ -147,3 +147,18 @@ with `node scripts/generate-workforce-staff-actors.mjs` and `--check`. Its only
 fields are hospital ID and current hospital name; it grants no Staff directory
 or operating access. Pharmacy outlet-choice metadata belongs to the existing
 `pharmacy-staff-bindings.json` contract and generator.
+
+## Independent supplier workflow candidate
+
+- `contracts/stock-products.json` → `node scripts/generate-stock-products.mjs`: published owner stock-reference models.
+- `contracts/supply-stock.json` → `node scripts/generate-supply-stock.mjs`: quarantined physical receipts and append-only identity observations.
+- `contracts/workforce-establishments.json` → `node scripts/generate-workforce-establishments.mjs`: typed pharmacy/supplier employer and private directory models, with supplier fields derived from the existing canonical directory definition.
+- `contracts/workforce-independent-identity.json` → `node scripts/generate-workforce-independent-identity.mjs`: reviewed independent identity envelopes; common account-link fields/statuses derive from the hospital-neutral definitions in `workforce-login-links.json`.
+
+All commands support `--check`. These candidates do not complete or activate supplier collaboration; see [the current identity boundary](workforce-independent-identity.md) and [stock contract](supply-stock.md).
+
+- `contracts/operating-assignments.json` → `node scripts/generate-operating-assignments.mjs`: typed independent operating duties, immutable decisions and closed receiving templates. Generates Go/Zod and the matching SQL permission function; supports `--check`.
+
+- `contracts/supplier-trade.json` → `node scripts/generate-supplier-trade.mjs`: shared source/consent wire models, pharmacy scope input validation and the directed relationship contract. Categories derive from trading-policy; supports `--check`.
+
+Supplier access is separately canonical in `contracts/supplier-access.json` (Shared IAM consent and closed record permissions). Run `node scripts/generate-supplier-access.mjs` and `--check`; it emits `backend/pkg/supplieraccess/types_generated.go`, the data-only IAM event DTO and `packages/api/src/supplier-access-contract.ts`. Hospital capability templates remain in the immutable `contracts/staff-access.json` migration history and use `generate-staff-access.mjs`.

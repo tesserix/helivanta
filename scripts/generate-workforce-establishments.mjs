@@ -7,6 +7,11 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const contract = JSON.parse(
   await readFile(path.join(root, "contracts/workforce-establishments.json"), "utf8"),
 );
+for (const projection of contract.root_projections ?? []) {
+  contract.models[projection.model] = contract.models[projection.source].map((field) =>
+    field.name === "pharmacy_id" ? { ...field, name: projection.root_field } : { ...field },
+  );
+}
 const output = emitModels(contract.models);
 await writeGenerated(
   root,

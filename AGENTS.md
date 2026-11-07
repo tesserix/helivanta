@@ -96,6 +96,13 @@ consumer compatibility. Implementation summaries and PRs must identify the
 contracts consulted or changed, validation evidence and unresolved review items;
 do not claim enterprise, clinical or regulatory readiness beyond that evidence.
 
+## Local validation before merge
+
+Before merging, build the affected application targets locally and run the
+applicable local checks. Remove the generated build artifacts created by the
+validation after it passes. Preserve source files, dependencies, shared caches
+and unrelated work. A passing CI run does not replace this local build gate.
+
 ## Repository visibility
 
 `tesserix/helivanta` must remain public. Never make it private, including as

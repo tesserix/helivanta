@@ -259,6 +259,40 @@ export const staffAccessTemplates = [
     scope_kinds: ["hospital"],
     establishment_kinds: ["hospital"],
   },
+  {
+    key: "iam.supplier_viewer.v1",
+    name: "Hospital supplier collaboration viewer",
+    description:
+      "Read only explicitly reviewed supplier grants for this current hospital Staff member; no supplier tenant membership, stock mutation or financial decision authority.",
+    family: "supplier_access",
+    permissions: [
+      "iam.supplier_grant.inbox.read",
+      "partner.catalogue.read",
+      "partner.shipment.read",
+      "partner.invoice.read",
+      "workforce.partner_member_source.use",
+      "workforce.posting_source.use",
+      "workforce.staff_actor.use",
+    ],
+    scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
+  },
+  {
+    key: "iam.supplier_reviewer.v1",
+    name: "Hospital supplier grant reviewer",
+    description:
+      "Accept or reduce supplier offers for the hospital after independent source review and current recipient eligibility checks; cannot grant source stock or clinical authority.",
+    family: "supplier_access",
+    permissions: [
+      "iam.supplier_grant.inbox.read",
+      "iam.supplier_grant.accept",
+      "workforce.partner_member_source.use",
+      "workforce.posting_source.use",
+      "workforce.staff_actor.use",
+    ],
+    scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
+  },
 ] as const;
 export const staffAccessTemplateCatalogs = {
   "legacy-v1": [
@@ -393,4 +427,5 @@ export const staffAccessTemplateCatalogs = {
     "iam.partner_group_member_preparer.v1",
     "iam.partner_group_member_reviewer.v1",
   ],
+  "hospital-supplier-access-v1": ["iam.supplier_viewer.v1", "iam.supplier_reviewer.v1"],
 } as const;

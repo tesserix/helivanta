@@ -28,10 +28,12 @@ import (
 )
 
 type handlers struct {
+	membership                  authz.MembershipChecker
 	staffActors                 authz.CurrentStaffActorGuard
 	departmentReferences        authz.DepartmentReferenceGuard
 	departmentScopes            authz.DepartmentScopeGuard
 	pharmacyEmployers           authz.PharmacyEmployerGuard
+	supplierEmployers           authz.SupplierEmployerGuard
 	employmentActivationEnabled bool
 	scopeAuthority              authz.ScopedAuthorizer
 	roles                       platform.RoleLister

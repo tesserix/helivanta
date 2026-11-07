@@ -23,6 +23,9 @@ const establishmentRootMigration = "0033_iam_establishment_root"
 
 type beforeEstablishmentRoot struct{ *iam.Module }
 
+func (beforeEstablishmentRoot) DirectedWriteTables() []string { return nil }
+func (beforeEstablishmentRoot) DirectedSubjects() []string    { return nil }
+
 func (m beforeEstablishmentRoot) Migrations() []tenantdb.Migration {
 	all := m.Module.Migrations()
 	for i, migration := range all {

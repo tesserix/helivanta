@@ -934,6 +934,54 @@
       ],
       "definitions_sha256": "1f1add41268cd206d02dcaa50edc2eef2fa555ea7b01817e2c3b56d36d5f3885",
       "sql_sha256": "f09222c36c0df631a229a5ab46a3fbff165e9edf864dc562f9f58f57f62d1adc"
+    },
+    {
+      "id": "0040_iam_supplier_access_templates",
+      "file": "assignment_supplier_access_templates_generated.sql",
+      "templates": [
+        {
+          "key": "iam.supplier_viewer.v1",
+          "name": "Hospital supplier collaboration viewer",
+          "description": "Read only explicitly reviewed supplier grants for this current hospital Staff member; no supplier tenant membership, stock mutation or financial decision authority.",
+          "family": "supplier_access",
+          "permissions": [
+            "iam.supplier_grant.inbox.read",
+            "partner.catalogue.read",
+            "partner.shipment.read",
+            "partner.invoice.read",
+            "workforce.partner_member_source.use",
+            "workforce.posting_source.use",
+            "workforce.staff_actor.use"
+          ],
+          "scope_kinds": [
+            "hospital"
+          ],
+          "establishment_kinds": [
+            "hospital"
+          ]
+        },
+        {
+          "key": "iam.supplier_reviewer.v1",
+          "name": "Hospital supplier grant reviewer",
+          "description": "Accept or reduce supplier offers for the hospital after independent source review and current recipient eligibility checks; cannot grant source stock or clinical authority.",
+          "family": "supplier_access",
+          "permissions": [
+            "iam.supplier_grant.inbox.read",
+            "iam.supplier_grant.accept",
+            "workforce.partner_member_source.use",
+            "workforce.posting_source.use",
+            "workforce.staff_actor.use"
+          ],
+          "scope_kinds": [
+            "hospital"
+          ],
+          "establishment_kinds": [
+            "hospital"
+          ]
+        }
+      ],
+      "definitions_sha256": "4b6102f180d972c5f54c32209ab7947aabe4b15c5588b94af174eba5e37a66d2",
+      "sql_sha256": "9004858c26577f5b7d6fe2992c1e55b6ccf44984bcb25c230a730f28030149b4"
     }
   ],
   "template_catalogs": [
@@ -1120,6 +1168,15 @@
         "iam.partner_group_member_reviewer.v1"
       ],
       "definitions_sha256": "1f1add41268cd206d02dcaa50edc2eef2fa555ea7b01817e2c3b56d36d5f3885"
+    },
+    {
+      "key": "hospital-supplier-access-v1",
+      "name": "Hospital supplier collaboration",
+      "template_keys": [
+        "iam.supplier_viewer.v1",
+        "iam.supplier_reviewer.v1"
+      ],
+      "definitions_sha256": "4b6102f180d972c5f54c32209ab7947aabe4b15c5588b94af174eba5e37a66d2"
     }
   ]
 }

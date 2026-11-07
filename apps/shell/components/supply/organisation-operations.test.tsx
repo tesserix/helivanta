@@ -60,6 +60,38 @@ const delivery = {
   source_reference: "TEST PRIVATE SOURCE",
   driver_subject: "TEST OTHER DRIVER",
 };
+
+it("opens warehouse receipts only through current stock capabilities", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.endsWith("permissions"))
+        return Response.json({
+          tenant_id: scope.tenantId,
+          subject: scope.subject,
+          data: [
+            "supply.operations.read",
+            "supply.operations.write",
+            "drugmaster.stock_reference.read",
+          ],
+        });
+      if (url.endsWith("/operating-locations"))
+        return Response.json(
+          page([
+            {
+              ...location,
+              allowed_actions: ["read_bins", "manage_bins", "read_stock", "receive_stock"],
+            },
+          ]),
+        );
+      return Response.json(page([]));
+    }),
+  );
+  renderWithProviders(<OrganisationOperations scope={scope} roles={["inventory"]} />);
+  const user = (await import("@testing-library/user-event")).default.setup();
+  await user.click(await screen.findByRole("button", { name: "Stock TEST-WAREHOUSE" }));
+  expect(await screen.findByRole("form", { name: "Record physical receipt" })).toBeInTheDocument();
+});
 it("uses assigned delivery projection and retries the exact versioned driver command", async () => {
   const writes: Array<{ url: string; body: string }> = [];
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {

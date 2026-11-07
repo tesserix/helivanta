@@ -11,6 +11,8 @@ import (
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/organizationidentity"
 	"github.com/tesserix/helivanta/pkg/session"
+	"github.com/tesserix/helivanta/pkg/stockproduct"
+	"github.com/tesserix/helivanta/pkg/suppliertrade"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"github.com/tesserix/helivanta/pkg/transit"
 )
@@ -44,12 +46,23 @@ type RoleLister interface {
 // Deps is everything a module may depend on. Modules must not reach
 // around it. Projections use events; authoritative decisions use published owner APIs (ADR-0041).
 type Deps struct {
+	TradingEndpoints     suppliertrade.CurrentEndpointGuard
+	SourceChecks         suppliertrade.SourceChecker
+	TradingRelationships suppliertrade.CurrentRelationshipGuard
+	PartnerScopes        authz.PartnerScopeAuthorizer
+	SourceAdministration authz.SourceAdministrationGuard
+	OperatingAuthorizer  authz.OperatingScopeAuthorizer
+	IndependentStaff     authz.CurrentIndependentStaffGuard
+	OperatingLocations   authz.CurrentOperatingLocationGuard
+	Membership           authz.MembershipChecker
+	StockProducts        stockproduct.Guard
 	StaffActors          authz.CurrentStaffActorGuard
 	StaffPostingSources  authz.CurrentStaffPostingSourceGuard
 	PartnerMembers       authz.CurrentPartnerMemberGuard
 	DepartmentReferences authz.DepartmentReferenceGuard
 	DepartmentScopes     authz.DepartmentScopeGuard
 	PharmacyEmployers    authz.PharmacyEmployerGuard
+	SupplierEmployers    authz.SupplierEmployerGuard
 	ScopedAuthorizer     authz.ScopedAuthorizer
 	OrganizationIdentity *organizationidentity.Client
 	DB                   *tenantdb.DB

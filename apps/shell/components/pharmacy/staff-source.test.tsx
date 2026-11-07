@@ -381,3 +381,31 @@ it("refuses a pharmacy page carrying another establishment's Staff", async () =>
   expect(await screen.findByRole("alert")).toHaveTextContent("Could not load staff");
   expect(screen.queryByText(pharmacyRow.display_name)).not.toBeInTheDocument();
 });
+
+it("opens reviewed independent accounts for a pharmacy manager with identity permission", async () => {
+  const source = employerTenant("manager", (url) =>
+    url.includes("/staff?")
+      ? Response.json(page([pharmacyRow]))
+      : Response.json({ ...pharmacyRow, version: 2, directory_context_version: "v1" }),
+  );
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/permissions"))
+        return Response.json({
+          ...identity(),
+          data: [
+            ...identity().data,
+            "workforce.independent_login.manage",
+            "workforce.independent_login.review",
+          ],
+        });
+      if (url.includes("/account-links")) return Response.json(page([]));
+      return source(url, init);
+    }),
+  );
+  const { user } = renderSource();
+  await user.click(await screen.findByRole("button", { name: `Edit ${pharmacyRow.display_name}` }));
+  await screen.findByText("Reviewed accounts");
+  expect(screen.getByRole("button", { name: "Propose account link" })).toBeInTheDocument();
+});

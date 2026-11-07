@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/tesserix/helivanta/internal/modules/supply"
+	"github.com/tesserix/helivanta/internal/modules/supply" //nolint:depguard // external test exercises its own module
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/events"

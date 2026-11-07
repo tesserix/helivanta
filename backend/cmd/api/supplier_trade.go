@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/tesserix/helivanta/pkg/suppliertrade"
 	"github.com/tesserix/helivanta/pkg/workloadidentity"
+	"io"
 	"k8s.io/client-go/rest"
 	"os"
 	"path/filepath"
@@ -33,7 +34,17 @@ func supplierTradeSourceIdentity() (*suppliertrade.CurrentSourceClient, *workloa
 		if err := ctx.Err(); err != nil {
 			return "", err
 		}
-		raw, err := os.ReadFile(path)
+		root, err := os.OpenRoot("/var/run/secrets")
+		if err != nil {
+			return "", suppliertrade.ErrUnavailable
+		}
+		defer func() { _ = root.Close() }()
+		file, err := root.Open(strings.TrimPrefix(filepath.Clean(path), "/var/run/secrets/"))
+		if err != nil {
+			return "", suppliertrade.ErrUnavailable
+		}
+		defer func() { _ = file.Close() }()
+		raw, err := io.ReadAll(io.LimitReader(file, 8193))
 		if err != nil {
 			return "", suppliertrade.ErrUnavailable
 		}

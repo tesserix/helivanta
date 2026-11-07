@@ -6669,6 +6669,15 @@
           "id": "0012_supply_trading_source",
           "sql_sha256": "6e136cdec11a20e8974cb8f3566d284349bd339c3ea915462c26821864c4a0a6",
           "creates_tables": []
+        },
+        {
+          "id": "0013_supply_trade_relationships",
+          "sql_sha256": "158a77379cc53ad8cb725a74b44206688e95c99036999fe1a6a603360d55f9cf",
+          "creates_tables": [
+            "supply_trade_relationships",
+            "supply_trade_relationship_commands",
+            "supply_trade_relationship_history"
+          ]
         }
       ]
     },

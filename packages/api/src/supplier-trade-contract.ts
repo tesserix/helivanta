@@ -280,3 +280,40 @@ export const SupplierRelationshipExchangeContract = z
   })
   .strict();
 export type SupplierRelationshipExchange = z.infer<typeof SupplierRelationshipExchangeContract>;
+
+export const SupplierRelationshipCheckInputContract = z
+  .object({
+    request_id: identifier,
+    owner_tenant_id: identifier,
+    peer_tenant_id: identifier,
+    relationship_id: identifier,
+    terms_sha256: z
+      .string()
+      .regex(new RegExp("^[a-f0-9]{64}$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    purpose: z.enum(["new_business", "retained_transaction"]),
+    expected_authority_epoch: z.number().int().min(0).max(9007199254740991),
+  })
+  .strict();
+export type SupplierRelationshipCheckInput = z.infer<typeof SupplierRelationshipCheckInputContract>;
+
+export const SupplierRelationshipCheckResultContract = z
+  .object({
+    request_id: identifier,
+    owner_tenant_id: identifier,
+    peer_tenant_id: identifier,
+    relationship_id: identifier,
+    terms_sha256: z
+      .string()
+      .regex(new RegExp("^[a-f0-9]{64}$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    purpose: z.enum(["new_business", "retained_transaction"]),
+    eligible: z.boolean(),
+    authority_epoch: z.number().int().min(0).max(9007199254740991),
+    remote_epoch: z.number().int().min(0).max(9007199254740991),
+    observed_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type SupplierRelationshipCheckResult = z.infer<
+  typeof SupplierRelationshipCheckResultContract
+>;

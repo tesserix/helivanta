@@ -131,7 +131,7 @@ func (*Module) Permissions() []authz.Grant {
 	return grants
 }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_supply", SQL: partySchema}, {ID: "0002_supply", SQL: registrationSchema}, {ID: "0003_supply", SQL: evidenceSchema}, {ID: "0004_supply", SQL: reviewSchema}, {ID: "0005_supply", SQL: binSchema}, {ID: "0006_supply", SQL: branchSchema}, {ID: "0007_supply", SQL: accessScopeSchema + corporateSchema + territorySchema}, {ID: "0008_supply", SQL: operationsSchema + deliveryTaskSchema + supportAccessSchema + accessLimitsSchema}, {ID: "0009_supply", SQL: indiaOnlySchema}, {ID: "0010_supply_stock", SQL: stockSchema}, {ID: "0011_supply_employer_guard", SQL: employerGuardSchema}, {ID: "0012_supply_trading_source", SQL: tradingSourceSchema}}
+	return []tenantdb.Migration{{ID: "0001_supply", SQL: partySchema}, {ID: "0002_supply", SQL: registrationSchema}, {ID: "0003_supply", SQL: evidenceSchema}, {ID: "0004_supply", SQL: reviewSchema}, {ID: "0005_supply", SQL: binSchema}, {ID: "0006_supply", SQL: branchSchema}, {ID: "0007_supply", SQL: accessScopeSchema + corporateSchema + territorySchema}, {ID: "0008_supply", SQL: operationsSchema + deliveryTaskSchema + supportAccessSchema + accessLimitsSchema}, {ID: "0009_supply", SQL: indiaOnlySchema}, {ID: "0010_supply_stock", SQL: stockSchema}, {ID: "0011_supply_employer_guard", SQL: employerGuardSchema}, {ID: "0012_supply_trading_source", SQL: tradingSourceSchema}, {ID: "0013_supply_trade_relationships", SQL: tradeRelationshipsSchema}}
 }
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	h := &handlers{operating: deps.OperatingAuthorizer, db: deps.DB, bus: deps.Bus, identity: deps.OrganizationIdentity, roles: deps.Roles, stockProducts: deps.StockProducts}

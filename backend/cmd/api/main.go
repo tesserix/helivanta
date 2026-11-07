@@ -455,8 +455,11 @@ func run() error {
 		IdleTimeout: idleTimeout,
 	}
 
+	deps.TradingRelationships = supply.NewRelationshipAuthority(db, deps.TradingEndpoints, sourceChecks, deps.OrganizationIdentity)
+
 	if sourceCaller != nil {
 		srv.Engine.POST(suppliertrade.SourceCheckPath, supply.NewTradingSourceCheckHandler(deps, sourceCaller))
+		srv.Engine.POST(suppliertrade.RelationshipCheckPath, supply.NewRelationshipCheckHandler(deps, sourceCaller))
 	}
 	if os.Getenv("MEDICONNECT_CLAIM_VERIFICATION_ENABLED") == "true" {
 		account := os.Getenv("MEDICONNECT_CLAIM_CALLER")

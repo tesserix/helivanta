@@ -48,6 +48,7 @@ type RoleLister interface {
 type Deps struct {
 	TradingEndpoints     suppliertrade.CurrentEndpointGuard
 	SourceChecks         suppliertrade.SourceChecker
+	TradingRelationships suppliertrade.CurrentRelationshipGuard
 	SourceAdministration authz.SourceAdministrationGuard
 	OperatingAuthorizer  authz.OperatingScopeAuthorizer
 	IndependentStaff     authz.CurrentIndependentStaffGuard

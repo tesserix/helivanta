@@ -49,7 +49,7 @@ func (c *CurrentSourceClient) Check(ctx context.Context, input SourceCheckInput)
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	credential, err := c.token(ctx)
-	if err != nil || credential == "" || len(credential) > 8192 || strings.ContainsAny(credential, " \r\n\t") {
+	if err != nil || !validPeerCredential(credential) {
 		return EndpointReference{}, ErrUnavailable
 	}
 	input.RequestID, err = uuid.NewV7()
@@ -73,7 +73,7 @@ func (c *CurrentSourceClient) Check(ctx context.Context, input SourceCheckInput)
 	if err != nil {
 		return EndpointReference{}, ErrUnavailable
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	media, _, mediaErr := mime.ParseMediaType(response.Header.Get("Content-Type"))
 	if response.StatusCode != http.StatusOK || mediaErr != nil || media != "application/json" {
 		return EndpointReference{}, ErrUnavailable
@@ -109,4 +109,8 @@ func (c *CurrentSourceClient) Check(ctx context.Context, input SourceCheckInput)
 // SourceChecker reads fresh local-owner facts. Callers still need bilateral and recipient authority.
 type SourceChecker interface {
 	Check(context.Context, SourceCheckInput) (EndpointReference, error)
+}
+
+func validPeerCredential(value string) bool {
+	return value != "" && len(value) <= 8192 && !strings.ContainsAny(value, " \r\n\t")
 }

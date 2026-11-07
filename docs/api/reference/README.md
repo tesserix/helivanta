@@ -890,6 +890,7 @@ Migration table declarations:
 - `0007_supply`: `supply_access_grants`, `supply_access_grant_revisions`, `supply_corporate_structures`, `supply_corporate_revisions`, `supply_territories`, `supply_territory_representatives`, `supply_territory_revisions`.
 - `0008_supply`: `supply_delivery_tasks`, `supply_delivery_revisions`, `supply_delivery_commands`, `supply_support_access`, `supply_support_access_revisions`, `supply_operational_access_limits`, `supply_operational_access_limit_revisions`.
 - `0010_supply_stock`: `supply_stock_receipts`, `supply_stock_identity_checks`.
+- `0013_supply_trade_relationships`: `supply_trade_relationships`, `supply_trade_relationship_commands`, `supply_trade_relationship_history`.
 
 ## lab
 

@@ -101,6 +101,23 @@ origin/destination, exact terms and monotonic remote epoch. Duplicates, reorderi
 and late acknowledgements cannot revive a suspended/rejected relationship. A
 seller's rejected unpublished draft is not disclosed to the counterparty.
 
+`POST /v1/supply/internal/relationship/check` uses the same workload caller and
+fresh nonce protocol as source checks. It returns only the exact relationship's
+consent eligibility and local/remote authority epochs, never its terms or staff
+directory. `new_business` requires current bilateral consent, matching epochs
+and term validity. `retained_transaction` proves previously established consent;
+it grants no user access and does not establish any outstanding stock or financial
+obligation. Those records require their own owner authorization.
+
+The in-process relationship guard checks canonical organization identities,
+current peer consent and both source endpoints before issuing a private,
+short-lived proof. Consumers must reacquire local relationship/source authority
+through `WithVerifiedRelationship` before committing. The proof is tied to the
+issuing owner instance and expires after five seconds; snapshots are copied so a
+consumer cannot alter the verified terms. Network verification runs before local
+transaction locks. Missing peer configuration fails closed. The projected token,
+TokenReview RBAC and consumer integrations remain release prerequisites.
+
 ## Acceptance still required
 
 This source/consent implementation does not close effective named/group grants,

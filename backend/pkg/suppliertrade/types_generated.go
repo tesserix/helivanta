@@ -155,6 +155,29 @@ type SupplierRelationshipExchange struct {
 	SignatorySubject string             `json:"signatory_subject"`
 }
 
+type SupplierRelationshipCheckInput struct {
+	RequestID              uuid.UUID `json:"request_id"`
+	OwnerTenantID          uuid.UUID `json:"owner_tenant_id"`
+	PeerTenantID           uuid.UUID `json:"peer_tenant_id"`
+	RelationshipID         uuid.UUID `json:"relationship_id"`
+	TermsSha256            string    `json:"terms_sha256"`
+	Purpose                string    `json:"purpose"`
+	ExpectedAuthorityEpoch int64     `json:"expected_authority_epoch"`
+}
+
+type SupplierRelationshipCheckResult struct {
+	RequestID      uuid.UUID `json:"request_id"`
+	OwnerTenantID  uuid.UUID `json:"owner_tenant_id"`
+	PeerTenantID   uuid.UUID `json:"peer_tenant_id"`
+	RelationshipID uuid.UUID `json:"relationship_id"`
+	TermsSha256    string    `json:"terms_sha256"`
+	Purpose        string    `json:"purpose"`
+	Eligible       bool      `json:"eligible"`
+	AuthorityEpoch int64     `json:"authority_epoch"`
+	RemoteEpoch    int64     `json:"remote_epoch"`
+	ObservedAt     time.Time `json:"observed_at"`
+}
+
 const maximumValidityDays = 366
 
 var categories = []string{"otc", "prescription", "controlled", "cold_chain"}

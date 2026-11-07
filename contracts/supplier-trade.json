@@ -9,7 +9,10 @@
       {
         "name": "product",
         "type": "string",
-        "enum": ["supply", "pharmacy"]
+        "enum": [
+          "supply",
+          "pharmacy"
+        ]
       },
       {
         "name": "organization_id",
@@ -44,7 +47,10 @@
       {
         "name": "jurisdiction",
         "type": "string",
-        "enum": ["IN-MH", "IN-OD"]
+        "enum": [
+          "IN-MH",
+          "IN-OD"
+        ]
       },
       {
         "name": "hospital_id",
@@ -93,7 +99,9 @@
       {
         "name": "currency",
         "type": "string",
-        "enum": ["INR"]
+        "enum": [
+          "INR"
+        ]
       },
       {
         "name": "valid_from",
@@ -124,7 +132,11 @@
       {
         "name": "operation",
         "type": "string",
-        "enum": ["listing", "order", "dispatch"]
+        "enum": [
+          "listing",
+          "order",
+          "dispatch"
+        ]
       },
       {
         "name": "licence_review_id",
@@ -149,7 +161,10 @@
       {
         "name": "jurisdiction",
         "type": "string",
-        "enum": ["IN-MH", "IN-OD"]
+        "enum": [
+          "IN-MH",
+          "IN-OD"
+        ]
       },
       {
         "name": "category",
@@ -179,7 +194,11 @@
       {
         "name": "decision",
         "type": "string",
-        "enum": ["approve", "reject", "revoke"]
+        "enum": [
+          "approve",
+          "reject",
+          "revoke"
+        ]
       },
       {
         "name": "reason",
@@ -217,7 +236,12 @@
       {
         "name": "status",
         "type": "string",
-        "enum": ["pending_review", "approved", "rejected", "revoked"]
+        "enum": [
+          "pending_review",
+          "approved",
+          "rejected",
+          "revoked"
+        ]
       },
       {
         "name": "version",
@@ -326,7 +350,11 @@
       {
         "name": "operation",
         "type": "string",
-        "enum": ["listing", "order", "dispatch"]
+        "enum": [
+          "listing",
+          "order",
+          "dispatch"
+        ]
       }
     ],
     "SupplierTradeSourceCheckResult": [
@@ -337,7 +365,9 @@
       {
         "name": "verification_kind",
         "type": "string",
-        "enum": ["local_source_eligibility"]
+        "enum": [
+          "local_source_eligibility"
+        ]
       },
       {
         "name": "eligible",
@@ -376,7 +406,11 @@
       {
         "name": "decision",
         "type": "string",
-        "enum": ["approve", "reject", "suspend"]
+        "enum": [
+          "approve",
+          "reject",
+          "suspend"
+        ]
       },
       {
         "name": "reason",
@@ -398,7 +432,10 @@
       {
         "name": "side",
         "type": "string",
-        "enum": ["seller", "buyer"]
+        "enum": [
+          "seller",
+          "buyer"
+        ]
       },
       {
         "name": "terms",
@@ -524,13 +561,107 @@
       {
         "name": "phase",
         "type": "string",
-        "enum": ["offered", "accepted", "activated", "rejected", "suspended"]
+        "enum": [
+          "offered",
+          "accepted",
+          "activated",
+          "rejected",
+          "suspended"
+        ]
       },
       {
         "name": "signatory_subject",
         "type": "string",
         "min": 1,
         "max": 200
+      }
+    ],
+    "SupplierRelationshipCheckInput": [
+      {
+        "name": "request_id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "peer_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "relationship_id",
+        "type": "uuid"
+      },
+      {
+        "name": "terms_sha256",
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      },
+      {
+        "name": "purpose",
+        "type": "string",
+        "enum": [
+          "new_business",
+          "retained_transaction"
+        ]
+      },
+      {
+        "name": "expected_authority_epoch",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740991
+      }
+    ],
+    "SupplierRelationshipCheckResult": [
+      {
+        "name": "request_id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "peer_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "relationship_id",
+        "type": "uuid"
+      },
+      {
+        "name": "terms_sha256",
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      },
+      {
+        "name": "purpose",
+        "type": "string",
+        "enum": [
+          "new_business",
+          "retained_transaction"
+        ]
+      },
+      {
+        "name": "eligible",
+        "type": "bool"
+      },
+      {
+        "name": "authority_epoch",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740991
+      },
+      {
+        "name": "remote_epoch",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740991
+      },
+      {
+        "name": "observed_at",
+        "type": "time"
       }
     ]
   }

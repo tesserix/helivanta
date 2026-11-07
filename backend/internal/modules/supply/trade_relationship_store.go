@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/google/uuid"
-	supplycontract "github.com/tesserix/helivanta/internal/modules/supply/contract"
+	supplycontract "github.com/tesserix/helivanta/internal/modules/supply/contract" //nolint:depguard // own data-only event contract
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/suppliertrade"
 	"gorm.io/gorm"

@@ -358,3 +358,39 @@ func (h *supplierGrantHandlers) decideHospital(c *gin.Context) {
 	}
 	respond.OK(c, result)
 }
+
+func (h *supplierGrantHandlers) getHospitalGrant(c *gin.Context) {
+	p, hospital, id, ok := supplierHomePrincipal(c)
+	if !ok {
+		return
+	}
+	if c.Request.URL.RawQuery != "" {
+		respond.BadRequest(c, supplieraccess.ErrInvalid)
+		return
+	}
+	if h.recipients == nil {
+		supplierGrantError(c, authz.ErrScopedAuthorizationUnavailable)
+		return
+	}
+	var record supplieraccess.SupplierGrant
+	err := h.homeTransaction(c, p, hospital, PermSupplierGrantInbox, func(_ context.Context, tx *gorm.DB, _ authz.StaffActorReference) error {
+		var e error
+		record, e = homeGrant(tx, p, hospital, id)
+		return e
+	})
+	if err != nil {
+		supplierGrantError(c, err)
+		return
+	}
+	template, ok := supplieraccess.TemplateFor(record.Input.TemplateKey)
+	if !ok {
+		supplierGrantError(c, authz.ErrScopedAuthorizationUnavailable)
+		return
+	}
+	err = h.recipients.WithCurrentPartnerRecipient(c.Request.Context(), authz.PartnerScopeRequest{Principal: p, HospitalID: hospital, GrantID: id, Product: record.Scope.SourceProduct, Permission: authz.Permission(template.Permission)}, func(context.Context) error { return nil })
+	if err != nil {
+		supplierGrantError(c, err)
+		return
+	}
+	respond.OK(c, supplieraccess.SupplierGrantSummary{ID: record.ID, Scope: record.Scope, Input: record.Input, ConsentStatus: "approved", Version: record.Version, SourceAccessState: "not_evaluated", CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt})
+}

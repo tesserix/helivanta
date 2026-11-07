@@ -456,6 +456,7 @@ func run() error {
 	}
 
 	deps.TradingRelationships = supply.NewRelationshipAuthority(db, deps.TradingEndpoints, sourceChecks, deps.OrganizationIdentity)
+	deps.PartnerScopes = iam.NewPartnerScopeAuthorizer(deps)
 
 	if sourceCaller != nil {
 		srv.Engine.POST(suppliertrade.SourceCheckPath, supply.NewTradingSourceCheckHandler(deps, sourceCaller))

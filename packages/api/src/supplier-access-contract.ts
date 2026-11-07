@@ -186,3 +186,17 @@ export const SupplierGrantCommandReceiptContract = z
   })
   .strict();
 export type SupplierGrantCommandReceipt = z.infer<typeof SupplierGrantCommandReceiptContract>;
+
+export const SupplierGrantSummaryContract = z
+  .object({
+    id: identifier,
+    scope: SupplierGrantScopeContract,
+    input: SupplierGrantInputContract,
+    consent_status: z.enum(["approved"]),
+    version: z.number().int().min(1).max(9007199254740991),
+    source_access_state: z.enum(["not_evaluated"]),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type SupplierGrantSummary = z.infer<typeof SupplierGrantSummaryContract>;

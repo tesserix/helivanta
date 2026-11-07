@@ -34,6 +34,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | PUT | `/v1/iam/hospitals/:hospital/supplier-grant-offers/:id/commands/:command` | `public` | false | false |
 | GET | `/v1/iam/hospitals/:hospital/supplier-grant-offers/:id` | `public` | false | false |
 | GET | `/v1/iam/hospitals/:hospital/supplier-grant-offers` | `public` | true | false |
+| GET | `/v1/iam/hospitals/:hospital/supplier-grants/:id` | `public` | false | false |
 | GET | `/v1/iam/identity-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/intake-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/me/permissions` | `no_tenant_membership` | false | false |

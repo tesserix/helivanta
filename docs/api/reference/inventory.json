@@ -205,6 +205,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/hospitals/:hospital/supplier-grants/:id",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/identity-assignment-proposals",
           "permission": "public",
           "authentication_required": true,

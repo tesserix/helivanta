@@ -49,6 +49,7 @@ type Deps struct {
 	TradingEndpoints     suppliertrade.CurrentEndpointGuard
 	SourceChecks         suppliertrade.SourceChecker
 	TradingRelationships suppliertrade.CurrentRelationshipGuard
+	PartnerScopes        authz.PartnerScopeAuthorizer
 	SourceAdministration authz.SourceAdministrationGuard
 	OperatingAuthorizer  authz.OperatingScopeAuthorizer
 	IndependentStaff     authz.CurrentIndependentStaffGuard

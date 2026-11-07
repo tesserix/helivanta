@@ -3,10 +3,14 @@ on:
   pull_request:
     paths:
       - "backend/pkg/supplieraccess/**"
+      - "packages/api/src/supplier-access*"
+      - "contracts/supplier-access.json"
       - "backend/pkg/suppliertrade/**"
       - "backend/internal/modules/iam/**"
       - "backend/internal/modules/supply/**"
       - "backend/internal/modules/pharmacy/**"
+      - "backend/internal/globalapi/supplier_recipient_test.go"
+      - "backend/internal/globalapi/workforce_person_review_test.go"
       - ".github/workflows/supplier-workflow.yml"
 permissions:
   contents: read
@@ -34,3 +38,18 @@ jobs:
         run: go test -race ./internal/modules/iam -run '^TestSupplierGrantProtocol'
       - name: Supplier grant projection isolation
         run: go test -race ./pkg/authz -run '^TestPartnerAssignment'
+      - name: Current hospital Staff recipient and membership cutoff
+        run: go test -race ./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'
+  api-client:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Supplier grant client context and exact recovery
+        run: pnpm --dir packages/api exec vitest run src/supplier-access.test.ts

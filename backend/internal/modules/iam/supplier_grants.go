@@ -43,15 +43,18 @@ type supplierGrantHandlers struct {
 	products      suppliertrade.CurrentEndpointGuard
 	relationships suppliertrade.CurrentRelationshipGuard
 	members       *partnerMemberHandlers
+	recipients    authz.PartnerRecipientSource
 }
 
 func (m *Module) registerSupplierGrants(r *platform.Router, deps platform.Deps) {
 	h := &supplierGrantHandlers{db: deps.DB, admins: deps.SourceAdministration, products: deps.TradingEndpoints, relationships: deps.TradingRelationships, members: &partnerMemberHandlers{partnerGroupHandlers: &partnerGroupHandlers{db: deps.DB, bus: deps.Bus}, authority: deps.ScopedAuthorizer, source: deps.PartnerMembers}}
+	h.recipients, _ = deps.PartnerScopes.(authz.PartnerRecipientSource)
 	r.PUT("/supplier-grants/:id", PermSupplierGrantPrepare, h.prepare)
 	r.GET("/supplier-grants/:id", PermSupplierGrantRead, h.getSource)
 	r.PUT("/supplier-grants/:id/commands/:command", PermSupplierGrantReview, h.decideSource)
 	r.GET("/supplier-grants/:id/commands/:command", PermSupplierGrantRead, h.sourceReceipt)
 	platform.ListRoute(r, "/supplier-sources/:product/:organization/locations/:location/grants", PermSupplierGrantRead, h.listSource)
+	r.GET("/hospitals/:hospital/supplier-grants/:id", authz.Public, h.getHospitalGrant)
 	home := "/hospitals/:hospital/supplier-grant-offers"
 	r.GET(home+"/:id", authz.Public, h.getHospitalOffer)
 	platform.ListRoute(r, home, authz.Public, h.listHospitalOffers)

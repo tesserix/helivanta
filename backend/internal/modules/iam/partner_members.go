@@ -96,11 +96,14 @@ func partnerMemberHash(subject string, input any) (string, error) {
 	return hex.EncodeToString(sum[:]), nil
 }
 func (h *partnerMemberHandlers) transaction(c *gin.Context, p authn.Principal, r partnerMemberRoute, permission authz.Permission, action func(context.Context, *gorm.DB, authz.StaffActorReference) error) error {
+	return h.transactionContext(c.Request.Context(), p, r, permission, action)
+}
+func (h *partnerMemberHandlers) transactionContext(base context.Context, p authn.Principal, r partnerMemberRoute, permission authz.Permission, action func(context.Context, *gorm.DB, authz.StaffActorReference) error) error {
 	guard, ok := h.authority.(authz.CompoundScopedCommandGuard)
 	if !ok || h.source == nil || p.IdleDeadline.IsZero() {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
-	ctx, cancel := context.WithDeadline(c.Request.Context(), p.IdleDeadline)
+	ctx, cancel := context.WithDeadline(base, p.IdleDeadline)
 	defer cancel()
 	checks := []authz.ScopeCheck{}
 	for _, perm := range []authz.Permission{permission, authz.PartnerMemberSourceUse, authz.StaffPostingSourceUse, authz.StaffActorUse} {

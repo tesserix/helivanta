@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "c455eaa105077ca19059eb60d9900d3fd412d8d22d7c5f537965d2f761b9bd18",
+  "registry_sha256": "b732ae3791d40f4cf2c15510190f7fef28a7bfd45bd011487be7ee963d7ba3d0",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 934,
-    "unclassified": 857
+    "total": 935,
+    "unclassified": 858
   },
   "entries": [
     {
@@ -3163,6 +3163,22 @@
         "source": "backend/internal/modules/iam/module.go",
         "method": "GET",
         "path": "/v1/iam/hospitals/:hospital/supplier-grant-offers/:id/commands/:command",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http iam GET /v1/iam/hospitals/:hospital/supplier-grants/:id",
+      "kind": "http",
+      "module": "iam",
+      "registration": {
+        "source": "backend/internal/modules/iam/module.go",
+        "method": "GET",
+        "path": "/v1/iam/hospitals/:hospital/supplier-grants/:id",
         "permission": "public",
         "authentication_required": true,
         "membership_required": true,

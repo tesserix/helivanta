@@ -92,6 +92,17 @@ type SupplierGrantCommandReceipt struct {
 	CreatedAt       time.Time     `json:"created_at"`
 }
 
+type SupplierGrantSummary struct {
+	ID                uuid.UUID          `json:"id"`
+	Scope             SupplierGrantScope `json:"scope"`
+	Input             SupplierGrantInput `json:"input"`
+	ConsentStatus     string             `json:"consent_status"`
+	Version           int64              `json:"version"`
+	SourceAccessState string             `json:"source_access_state"`
+	CreatedAt         time.Time          `json:"created_at"`
+	UpdatedAt         time.Time          `json:"updated_at"`
+}
+
 const maximumValidityDays = 366
 
 var templates = map[string]Template{"partner.catalogue_viewer.v1": {Permission: "partner.catalogue.read", GroupPurposes: []string{"procurement", "receiving"}}, "partner.shipment_reader.v1": {Permission: "partner.shipment.read", GroupPurposes: []string{"procurement", "receiving"}}, "partner.invoice_viewer.v1": {Permission: "partner.invoice.read", GroupPurposes: []string{"finance"}}}

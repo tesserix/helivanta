@@ -43,6 +43,6 @@ END $$;
 DO $$DECLARE prior text;BEGIN
  SELECT pg_get_expr(polqual,polrelid)INTO STRICT prior FROM pg_policy WHERE polrelid='pharmacy_trading_scopes'::regclass AND polname='tenant_isolation';
  EXECUTE format('ALTER POLICY tenant_isolation ON pharmacy_trading_scopes USING((%s)OR(pharmacy_trade_source_scope(tenant_id,outlet_id)AND id=NULLIF(current_setting(''app.pharmacy_trade_registration'',true),'''')::uuid))',prior);
- SELECT pg_get_expr(polqual,polrelid)INTO STRICT prior FROM pg_policy WHERE polrelid='pharmacy_staff_department_bindings'::regclass AND polname='tenant_isolation';
- EXECUTE format('ALTER POLICY tenant_isolation ON pharmacy_staff_department_bindings USING((%s)OR(pharmacy_trade_source_scope(tenant_id,outlet_id)AND id=NULLIF(current_setting(''app.pharmacy_trade_binding'',true),'''')::uuid AND hospital_id=NULLIF(current_setting(''app.pharmacy_trade_hospital'',true),'''')::uuid))',prior);
+ SELECT pg_get_expr(polqual,polrelid)INTO STRICT prior FROM pg_policy WHERE polrelid='pharmacy_staff_department_bindings'::regclass AND polname='pharmacy_staff_binding_scope';
+ EXECUTE format('ALTER POLICY pharmacy_staff_binding_scope ON pharmacy_staff_department_bindings USING((%s)OR(pharmacy_trade_source_scope(tenant_id,outlet_id)AND id=NULLIF(current_setting(''app.pharmacy_trade_binding'',true),'''')::uuid AND hospital_id=NULLIF(current_setting(''app.pharmacy_trade_hospital'',true),'''')::uuid))',prior);
 END $$;

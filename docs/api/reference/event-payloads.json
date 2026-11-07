@@ -75,7 +75,11 @@
           "type": "string"
         }
       },
-      "required": ["request_id", "amount_minor", "currency"],
+      "required": [
+        "request_id",
+        "amount_minor",
+        "currency"
+      ],
       "type": "object"
     }
   },
@@ -447,7 +451,12 @@
           "type": "string"
         }
       },
-      "required": ["molecule_id", "inn_name", "atc_code", "release_id"],
+      "required": [
+        "molecule_id",
+        "inn_name",
+        "atc_code",
+        "release_id"
+      ],
       "type": "object"
     }
   },
@@ -530,7 +539,12 @@
           "type": "string"
         }
       },
-      "required": ["base_id", "case_id", "case_version", "status"],
+      "required": [
+        "base_id",
+        "case_id",
+        "case_version",
+        "status"
+      ],
       "type": "object"
     }
   },
@@ -553,7 +567,12 @@
           "type": "string"
         }
       },
-      "required": ["base_id", "case_id", "case_version", "status"],
+      "required": [
+        "base_id",
+        "case_id",
+        "case_version",
+        "status"
+      ],
       "type": "object"
     }
   },
@@ -573,7 +592,11 @@
           "type": "integer"
         }
       },
-      "required": ["base_id", "grant_id", "verification_version"],
+      "required": [
+        "base_id",
+        "grant_id",
+        "verification_version"
+      ],
       "type": "object"
     }
   },
@@ -593,7 +616,11 @@
           "type": "integer"
         }
       },
-      "required": ["base_id", "dispatch_id", "version"],
+      "required": [
+        "base_id",
+        "dispatch_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -613,7 +640,11 @@
           "type": "string"
         }
       },
-      "required": ["base_id", "resource_id", "operation"],
+      "required": [
+        "base_id",
+        "resource_id",
+        "operation"
+      ],
       "type": "object"
     }
   },
@@ -636,7 +667,12 @@
           "type": "integer"
         }
       },
-      "required": ["base_id", "dispatch_id", "request_id", "version"],
+      "required": [
+        "base_id",
+        "dispatch_id",
+        "request_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -663,7 +699,12 @@
           "type": "string"
         }
       },
-      "required": ["proposal_id", "request_id", "hospital_id", "department_id"],
+      "required": [
+        "proposal_id",
+        "request_id",
+        "hospital_id",
+        "department_id"
+      ],
       "type": "object"
     }
   },
@@ -678,7 +719,9 @@
           "type": "string"
         }
       },
-      "required": ["proposal_id"],
+      "required": [
+        "proposal_id"
+      ],
       "type": "object"
     }
   },
@@ -704,7 +747,12 @@
           "type": "string"
         }
       },
-      "required": ["proposal_id", "request_id", "hospital_id", "actor_subject"],
+      "required": [
+        "proposal_id",
+        "request_id",
+        "hospital_id",
+        "actor_subject"
+      ],
       "type": "object"
     }
   },
@@ -718,7 +766,9 @@
           "type": "string"
         }
       },
-      "required": ["subject"],
+      "required": [
+        "subject"
+      ],
       "type": "object"
     }
   },
@@ -735,7 +785,10 @@
           "type": "string"
         }
       },
-      "required": ["subject", "role_key"],
+      "required": [
+        "subject",
+        "role_key"
+      ],
       "type": "object"
     }
   },
@@ -752,7 +805,10 @@
           "type": "string"
         }
       },
-      "required": ["subject", "role_key"],
+      "required": [
+        "subject",
+        "role_key"
+      ],
       "type": "object"
     }
   },
@@ -769,7 +825,10 @@
           "type": "integer"
         }
       },
-      "required": ["duty_id", "version"],
+      "required": [
+        "duty_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -794,7 +853,12 @@
           "type": "integer"
         }
       },
-      "required": ["group_id", "hospital_id", "version", "status"],
+      "required": [
+        "group_id",
+        "hospital_id",
+        "version",
+        "status"
+      ],
       "type": "object"
     }
   },
@@ -813,7 +877,10 @@
           "type": "string"
         }
       },
-      "required": ["group_id", "hospital_id"],
+      "required": [
+        "group_id",
+        "hospital_id"
+      ],
       "type": "object"
     }
   },
@@ -869,7 +936,10 @@
           "type": "string"
         }
       },
-      "required": ["order_id", "visit_id"],
+      "required": [
+        "order_id",
+        "visit_id"
+      ],
       "type": "object"
     }
   },
@@ -892,7 +962,12 @@
           "type": "string"
         }
       },
-      "required": ["consent_id", "account_id", "notice_id", "purpose"],
+      "required": [
+        "consent_id",
+        "account_id",
+        "notice_id",
+        "purpose"
+      ],
       "type": "object"
     }
   },
@@ -915,7 +990,12 @@
           "type": "string"
         }
       },
-      "required": ["consent_id", "account_id", "notice_id", "purpose"],
+      "required": [
+        "consent_id",
+        "account_id",
+        "notice_id",
+        "purpose"
+      ],
       "type": "object"
     }
   },
@@ -929,7 +1009,9 @@
           "type": "string"
         }
       },
-      "required": ["account_id"],
+      "required": [
+        "account_id"
+      ],
       "type": "object"
     }
   },
@@ -1059,7 +1141,13 @@
           "type": "integer"
         }
       },
-      "required": ["patient_id", "hospital_id", "record_id", "version", "kind"],
+      "required": [
+        "patient_id",
+        "hospital_id",
+        "record_id",
+        "version",
+        "kind"
+      ],
       "type": "object"
     }
   },
@@ -1214,7 +1302,12 @@
           "type": "string"
         }
       },
-      "required": ["order_id", "admission_id", "hospital_id", "withdrawn_at"],
+      "required": [
+        "order_id",
+        "admission_id",
+        "hospital_id",
+        "withdrawn_at"
+      ],
       "type": "object"
     }
   },
@@ -1234,7 +1327,11 @@
           "type": "string"
         }
       },
-      "required": ["encounter_id", "hospital_id", "patient_id"],
+      "required": [
+        "encounter_id",
+        "hospital_id",
+        "patient_id"
+      ],
       "type": "object"
     }
   },
@@ -1289,7 +1386,12 @@
           "type": "string"
         }
       },
-      "required": ["visit_id", "patient_name", "department", "patient_id"],
+      "required": [
+        "visit_id",
+        "patient_name",
+        "department",
+        "patient_id"
+      ],
       "type": "object"
     }
   },
@@ -1437,7 +1539,12 @@
           "type": "integer"
         }
       },
-      "required": ["hospital_id", "node_id", "revision_id", "version"],
+      "required": [
+        "hospital_id",
+        "node_id",
+        "revision_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -1456,7 +1563,10 @@
           "type": "string"
         }
       },
-      "required": ["request_id", "hospital_id"],
+      "required": [
+        "request_id",
+        "hospital_id"
+      ],
       "type": "object"
     }
   },
@@ -1473,7 +1583,10 @@
           "type": "integer"
         }
       },
-      "required": ["consent_id", "version"],
+      "required": [
+        "consent_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -1490,7 +1603,10 @@
           "type": "integer"
         }
       },
-      "required": ["authority_id", "version"],
+      "required": [
+        "authority_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -1546,7 +1662,11 @@
           "type": "string"
         }
       },
-      "required": ["request_id", "affiliation_id", "state"],
+      "required": [
+        "request_id",
+        "affiliation_id",
+        "state"
+      ],
       "type": "object"
     }
   },
@@ -1563,7 +1683,10 @@
           "type": "integer"
         }
       },
-      "required": ["authority_id", "version"],
+      "required": [
+        "authority_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -1580,7 +1703,10 @@
           "type": "string"
         }
       },
-      "required": ["patient_id", "hospital_id"],
+      "required": [
+        "patient_id",
+        "hospital_id"
+      ],
       "type": "object"
     }
   },
@@ -1637,7 +1763,10 @@
           "type": "integer"
         }
       },
-      "required": ["notice_id", "version"],
+      "required": [
+        "notice_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -1654,7 +1783,10 @@
           "type": "integer"
         }
       },
-      "required": ["recipient_id", "version"],
+      "required": [
+        "recipient_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -1674,7 +1806,11 @@
           "type": "string"
         }
       },
-      "required": ["requester", "request_id", "intent_id"],
+      "required": [
+        "requester",
+        "request_id",
+        "intent_id"
+      ],
       "type": "object"
     }
   },
@@ -1694,7 +1830,11 @@
           "type": "string"
         }
       },
-      "required": ["requester", "request_id", "intent_id"],
+      "required": [
+        "requester",
+        "request_id",
+        "intent_id"
+      ],
       "type": "object"
     }
   },
@@ -1717,7 +1857,12 @@
           "type": "string"
         }
       },
-      "required": ["requester", "request_id", "intent_id", "reason"],
+      "required": [
+        "requester",
+        "request_id",
+        "intent_id",
+        "reason"
+      ],
       "type": "object"
     }
   },
@@ -1918,7 +2063,12 @@
           "type": "string"
         }
       },
-      "required": ["request_id", "hospital_id", "decision_id", "applied"],
+      "required": [
+        "request_id",
+        "hospital_id",
+        "decision_id",
+        "applied"
+      ],
       "type": "object"
     }
   },
@@ -2021,7 +2171,12 @@
           "type": "string"
         }
       },
-      "required": ["pharmacy_id", "outlet_id", "batch_id", "incident_id"],
+      "required": [
+        "pharmacy_id",
+        "outlet_id",
+        "batch_id",
+        "incident_id"
+      ],
       "type": "object"
     }
   },
@@ -2085,7 +2240,11 @@
                 "type": "integer"
               }
             },
-            "required": ["product_id", "batch_id", "quantity_units"],
+            "required": [
+              "product_id",
+              "batch_id",
+              "quantity_units"
+            ],
             "type": "object"
           },
           "type": "array"
@@ -2129,7 +2288,10 @@
           "type": "string"
         }
       },
-      "required": ["dispense_id", "visit_id"],
+      "required": [
+        "dispense_id",
+        "visit_id"
+      ],
       "type": "object"
     }
   },
@@ -2184,7 +2346,12 @@
           "type": "integer"
         }
       },
-      "required": ["outlet_id", "licence_id", "file_id", "scan_attempt"],
+      "required": [
+        "outlet_id",
+        "licence_id",
+        "file_id",
+        "scan_attempt"
+      ],
       "type": "object"
     }
   },
@@ -2204,7 +2371,11 @@
           "type": "string"
         }
       },
-      "required": ["pharmacy_id", "outlet_id", "payable_id"],
+      "required": [
+        "pharmacy_id",
+        "outlet_id",
+        "payable_id"
+      ],
       "type": "object"
     }
   },
@@ -2224,7 +2395,11 @@
           "type": "string"
         }
       },
-      "required": ["request_id", "amount_minor", "currency"],
+      "required": [
+        "request_id",
+        "amount_minor",
+        "currency"
+      ],
       "type": "object"
     }
   },
@@ -2311,7 +2486,12 @@
           "type": "integer"
         }
       },
-      "required": ["outlet_id", "prescription_id", "file_id", "scan_attempt"],
+      "required": [
+        "outlet_id",
+        "prescription_id",
+        "file_id",
+        "scan_attempt"
+      ],
       "type": "object"
     }
   },
@@ -2340,7 +2520,11 @@
                 "type": "integer"
               }
             },
-            "required": ["product_id", "batch_id", "quantity_units"],
+            "required": [
+              "product_id",
+              "batch_id",
+              "quantity_units"
+            ],
             "type": "object"
           },
           "type": "array"
@@ -2389,7 +2573,12 @@
           "type": "string"
         }
       },
-      "required": ["pharmacy_id", "outlet_id", "payable_id", "settlement_id"],
+      "required": [
+        "pharmacy_id",
+        "outlet_id",
+        "payable_id",
+        "settlement_id"
+      ],
       "type": "object"
     }
   },
@@ -2534,7 +2723,10 @@
           "type": "integer"
         }
       },
-      "required": ["request_id", "version"],
+      "required": [
+        "request_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -2551,7 +2743,10 @@
           "type": "string"
         }
       },
-      "required": ["ping_id", "message"],
+      "required": [
+        "ping_id",
+        "message"
+      ],
       "type": "object"
     }
   },
@@ -2565,7 +2760,9 @@
           "type": "string"
         }
       },
-      "required": ["ping_id"],
+      "required": [
+        "ping_id"
+      ],
       "type": "object"
     }
   },
@@ -2588,7 +2785,12 @@
           "type": "integer"
         }
       },
-      "required": ["party_id", "premise_id", "bin_id", "version"],
+      "required": [
+        "party_id",
+        "premise_id",
+        "bin_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -2605,7 +2807,10 @@
           "type": "integer"
         }
       },
-      "required": ["party_id", "version"],
+      "required": [
+        "party_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -2692,7 +2897,12 @@
           "type": "integer"
         }
       },
-      "required": ["party_id", "license_id", "file_id", "scan_attempt"],
+      "required": [
+        "party_id",
+        "license_id",
+        "file_id",
+        "scan_attempt"
+      ],
       "type": "object"
     }
   },
@@ -2712,7 +2922,11 @@
           "type": "integer"
         }
       },
-      "required": ["party_id", "license_id", "version"],
+      "required": [
+        "party_id",
+        "license_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -2735,7 +2949,12 @@
           "type": "integer"
         }
       },
-      "required": ["party_id", "license_id", "review_id", "version"],
+      "required": [
+        "party_id",
+        "license_id",
+        "review_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -2755,7 +2974,11 @@
           "type": "string"
         }
       },
-      "required": ["party_id", "access_id", "operation"],
+      "required": [
+        "party_id",
+        "access_id",
+        "operation"
+      ],
       "type": "object"
     }
   },
@@ -2772,7 +2995,10 @@
           "type": "integer"
         }
       },
-      "required": ["party_id", "version"],
+      "required": [
+        "party_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -2792,7 +3018,11 @@
           "type": "integer"
         }
       },
-      "required": ["party_id", "premise_id", "version"],
+      "required": [
+        "party_id",
+        "premise_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -3114,7 +3344,11 @@
           "type": "string"
         }
       },
-      "required": ["party_id", "premise_id", "receipt_id"],
+      "required": [
+        "party_id",
+        "premise_id",
+        "receipt_id"
+      ],
       "type": "object"
     }
   },
@@ -3137,7 +3371,12 @@
           "type": "integer"
         }
       },
-      "required": ["party_id", "support_id", "version", "operation"],
+      "required": [
+        "party_id",
+        "support_id",
+        "version",
+        "operation"
+      ],
       "type": "object"
     }
   },
@@ -3157,7 +3396,11 @@
           "type": "integer"
         }
       },
-      "required": ["party_id", "territory_id", "version"],
+      "required": [
+        "party_id",
+        "territory_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -3183,7 +3426,12 @@
           "type": "string"
         }
       },
-      "required": ["proposal_id", "request_id", "hospital_id", "eligible"],
+      "required": [
+        "proposal_id",
+        "request_id",
+        "hospital_id",
+        "eligible"
+      ],
       "type": "object"
     }
   },
@@ -3206,7 +3454,12 @@
           "type": "integer"
         }
       },
-      "required": ["hospital_id", "correction_id", "status", "version"],
+      "required": [
+        "hospital_id",
+        "correction_id",
+        "status",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -3258,7 +3511,11 @@
           "type": "string"
         }
       },
-      "required": ["hospital_id", "punch_id", "action"],
+      "required": [
+        "hospital_id",
+        "punch_id",
+        "action"
+      ],
       "type": "object"
     }
   },
@@ -3278,7 +3535,11 @@
           "type": "integer"
         }
       },
-      "required": ["hospital_id", "revision_id", "version"],
+      "required": [
+        "hospital_id",
+        "revision_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -3403,7 +3664,10 @@
           "type": "integer"
         }
       },
-      "required": ["hospital_id", "version"],
+      "required": [
+        "hospital_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -3636,7 +3900,12 @@
           "type": "string"
         }
       },
-      "required": ["hospital_id", "staff_id", "file_id", "scan_attempt"],
+      "required": [
+        "hospital_id",
+        "staff_id",
+        "file_id",
+        "scan_attempt"
+      ],
       "type": "object"
     }
   },
@@ -3659,7 +3928,12 @@
           "type": "integer"
         }
       },
-      "required": ["hospital_id", "exchange_id", "status", "version"],
+      "required": [
+        "hospital_id",
+        "exchange_id",
+        "status",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -3711,7 +3985,11 @@
           "type": "integer"
         }
       },
-      "required": ["hospital_id", "staff_id", "version"],
+      "required": [
+        "hospital_id",
+        "staff_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -3737,7 +4015,13 @@
           "type": "integer"
         }
       },
-      "required": ["hospital_id", "staff_id", "case_id", "version", "status"],
+      "required": [
+        "hospital_id",
+        "staff_id",
+        "case_id",
+        "version",
+        "status"
+      ],
       "type": "object"
     }
   },
@@ -3895,7 +4179,13 @@
           "type": "integer"
         }
       },
-      "required": ["hospital_id", "staff_id", "link_id", "version", "status"],
+      "required": [
+        "hospital_id",
+        "staff_id",
+        "link_id",
+        "version",
+        "status"
+      ],
       "type": "object"
     }
   },
@@ -3949,7 +4239,11 @@
           "type": "string"
         }
       },
-      "required": ["request_id", "hospital_id", "exists"],
+      "required": [
+        "request_id",
+        "hospital_id",
+        "exists"
+      ],
       "type": "object"
     }
   },
@@ -3972,7 +4266,12 @@
           "type": "integer"
         }
       },
-      "required": ["hospital_id", "request_id", "status", "version"],
+      "required": [
+        "hospital_id",
+        "request_id",
+        "status",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -3992,7 +4291,11 @@
           "type": "integer"
         }
       },
-      "required": ["hospital_id", "revision_id", "version"],
+      "required": [
+        "hospital_id",
+        "revision_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -4021,7 +4324,11 @@
           "type": "string"
         }
       },
-      "required": ["group_id", "hospital_id", "exists"],
+      "required": [
+        "group_id",
+        "hospital_id",
+        "exists"
+      ],
       "type": "object"
     }
   },
@@ -4188,7 +4495,12 @@
           "type": "integer"
         }
       },
-      "required": ["hospital_id", "roster_id", "revision_id", "version"],
+      "required": [
+        "hospital_id",
+        "roster_id",
+        "revision_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -4211,7 +4523,12 @@
           "type": "integer"
         }
       },
-      "required": ["hospital_id", "config_id", "revision_id", "version"],
+      "required": [
+        "hospital_id",
+        "config_id",
+        "revision_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -4231,7 +4548,11 @@
           "type": "integer"
         }
       },
-      "required": ["hospital_id", "revision_id", "version"],
+      "required": [
+        "hospital_id",
+        "revision_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -4318,7 +4639,12 @@
           "type": "integer"
         }
       },
-      "required": ["hospital_id", "shift_id", "revision_id", "version"],
+      "required": [
+        "hospital_id",
+        "shift_id",
+        "revision_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -4341,7 +4667,12 @@
           "type": "string"
         }
       },
-      "required": ["hospital_id", "staff_id", "revision_id", "field"],
+      "required": [
+        "hospital_id",
+        "staff_id",
+        "revision_id",
+        "field"
+      ],
       "type": "object"
     }
   },
@@ -4396,7 +4727,12 @@
           "type": "integer"
         }
       },
-      "required": ["hospital_id", "staff_id", "revision_id", "version"],
+      "required": [
+        "hospital_id",
+        "staff_id",
+        "revision_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -4419,7 +4755,12 @@
           "type": "integer"
         }
       },
-      "required": ["hospital_id", "staff_id", "revision_id", "version"],
+      "required": [
+        "hospital_id",
+        "staff_id",
+        "revision_id",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -4550,7 +4891,12 @@
           "type": "integer"
         }
       },
-      "required": ["hospital_id", "staff_id", "tax_year", "version"],
+      "required": [
+        "hospital_id",
+        "staff_id",
+        "tax_year",
+        "version"
+      ],
       "type": "object"
     }
   },
@@ -4580,7 +4926,12 @@
           ]
         }
       },
-      "required": ["scope_id", "version_id", "action", "revision"],
+      "required": [
+        "scope_id",
+        "version_id",
+        "action",
+        "revision"
+      ],
       "type": "object"
     }
   }

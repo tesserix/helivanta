@@ -505,7 +505,11 @@
         },
         {
           "permission": "iam.operating.prepare",
-          "roles": ["supply_owner", "supply_admin", "pharmacy_owner"]
+          "roles": [
+            "supply_owner",
+            "supply_admin",
+            "pharmacy_owner"
+          ]
         },
         {
           "permission": "iam.operating.review",
@@ -518,7 +522,11 @@
         },
         {
           "permission": "iam.operating.revoke",
-          "roles": ["supply_owner", "supply_admin", "pharmacy_owner"]
+          "roles": [
+            "supply_owner",
+            "supply_admin",
+            "pharmacy_owner"
+          ]
         },
         {
           "permission": "iam.member.manage",
@@ -600,12 +608,17 @@
           "after_commit": true
         }
       ],
-      "broadcasts": ["helivanta.in.iam.credential_revoked.v1"],
+      "broadcasts": [
+        "helivanta.in.iam.credential_revoked.v1"
+      ],
       "migrations": [
         {
           "id": "0001_iam",
           "sql_sha256": "39245da9b198dba3fd4308bafb9db386012b8546c092451bcf234bfd1e8fa9f5",
-          "creates_tables": ["iam_roles", "iam_members"]
+          "creates_tables": [
+            "iam_roles",
+            "iam_members"
+          ]
         },
         {
           "id": "0002_iam",
@@ -615,12 +628,16 @@
         {
           "id": "0003_iam",
           "sql_sha256": "a49616d80ff5a87253bacad3235f7d20da96bf531d3fd7bab9d86f71fd45a1af",
-          "creates_tables": ["iam_credential_revocations"]
+          "creates_tables": [
+            "iam_credential_revocations"
+          ]
         },
         {
           "id": "0004_iam",
           "sql_sha256": "f2534ae9fdc4c117b764404c562fe49efb26c52289afc0ffaad9b8f931ed063d",
-          "creates_tables": ["login_attempt"]
+          "creates_tables": [
+            "login_attempt"
+          ]
         },
         {
           "id": "0005_iam",
@@ -648,7 +665,9 @@
         {
           "id": "0009_iam_assignment_decisions",
           "sql_sha256": "175b9b23aabe093f11ab980a6aeeb771c5b41d03bab4d7844104a78d5c8d027e",
-          "creates_tables": ["iam_assignment_decisions"]
+          "creates_tables": [
+            "iam_assignment_decisions"
+          ]
         },
         {
           "id": "0010_iam_assignment_projection",
@@ -684,7 +703,9 @@
         {
           "id": "0015_iam_membership_commands",
           "sql_sha256": "05596ad13bb1ba5830d5da6a665620dfa34994357a3ec79249b9921bd197856a",
-          "creates_tables": ["iam_membership_commands"]
+          "creates_tables": [
+            "iam_membership_commands"
+          ]
         },
         {
           "id": "0016_iam_membership_candidate_index",
@@ -719,7 +740,9 @@
         {
           "id": "0018_iam_membership_enrollments",
           "sql_sha256": "72b9e92d0a5810d722afd39f0f291051fc3254cbf60338d4162bbf37cb3483bb",
-          "creates_tables": ["iam_membership_enrollments"]
+          "creates_tables": [
+            "iam_membership_enrollments"
+          ]
         },
         {
           "id": "0019_iam_membership_recovery_admission",
@@ -788,7 +811,9 @@
         {
           "id": "0031_iam_department_assignment_scope",
           "sql_sha256": "f4a61ffe831a51c1db9855d3bf6dbb0a9730a828aa4e01a8f0eba56e7e0c4603",
-          "creates_tables": ["iam_assignment_department_verifications"]
+          "creates_tables": [
+            "iam_assignment_department_verifications"
+          ]
         },
         {
           "id": "0032_iam_department_leave_review_templates",
@@ -826,7 +851,9 @@
         {
           "id": "0037_iam_partner_grant_drafts",
           "sql_sha256": "0f883727860da0a08d4d323f982e619120463fb3a61967e1e40916fe14f3d8f0",
-          "creates_tables": ["iam_partner_grant_drafts"]
+          "creates_tables": [
+            "iam_partner_grant_drafts"
+          ]
         },
         {
           "id": "0038_iam_operating_duties",
@@ -878,8 +905,12 @@
         "helivanta.in.reference.pinged.v1",
         "helivanta.in.reference.ping_forwarded.v1"
       ],
-      "directed_subjects": ["helivanta.in.reference.ping_forwarded.v1"],
-      "directed_write_tables": ["reference_forwarded_pings"],
+      "directed_subjects": [
+        "helivanta.in.reference.ping_forwarded.v1"
+      ],
+      "directed_write_tables": [
+        "reference_forwarded_pings"
+      ],
       "consumers": [
         {
           "name": "reference-receipts",
@@ -897,7 +928,10 @@
         {
           "id": "0001_reference",
           "sql_sha256": "e0a36616e42d923b3039f83f47a5dae79b2e6972ccff030f82d086ab3933a56b",
-          "creates_tables": ["reference_pings", "reference_ping_receipts"]
+          "creates_tables": [
+            "reference_pings",
+            "reference_ping_receipts"
+          ]
         },
         {
           "id": "0002_reference",
@@ -907,7 +941,9 @@
         {
           "id": "0003_reference",
           "sql_sha256": "a839f575b16017d838f87358be51fc2810449722c38f7b8ee14504803da47db5",
-          "creates_tables": ["reference_forwarded_pings"]
+          "creates_tables": [
+            "reference_forwarded_pings"
+          ]
         }
       ]
     },
@@ -1409,23 +1445,35 @@
         },
         {
           "permission": "emergency.receiving.read",
-          "roles": ["emergency_receiver"]
+          "roles": [
+            "emergency_receiver"
+          ]
         },
         {
           "permission": "emergency.receiving.act",
-          "roles": ["emergency_receiver"]
+          "roles": [
+            "emergency_receiver"
+          ]
         },
         {
           "permission": "emergency.crew.read",
-          "roles": ["emergency_crew"]
+          "roles": [
+            "emergency_crew"
+          ]
         },
         {
           "permission": "emergency.crew.act",
-          "roles": ["emergency_crew"]
+          "roles": [
+            "emergency_crew"
+          ]
         },
         {
           "permission": "emergency.base.read",
-          "roles": ["emergency_dispatcher", "emergency_supervisor", "doctor"]
+          "roles": [
+            "emergency_dispatcher",
+            "emergency_supervisor",
+            "doctor"
+          ]
         },
         {
           "permission": "emergency.base.manage",
@@ -1433,31 +1481,51 @@
         },
         {
           "permission": "emergency.case.read",
-          "roles": ["emergency_dispatcher", "emergency_supervisor", "doctor"]
+          "roles": [
+            "emergency_dispatcher",
+            "emergency_supervisor",
+            "doctor"
+          ]
         },
         {
           "permission": "emergency.case.intake",
-          "roles": ["emergency_dispatcher", "emergency_supervisor"]
+          "roles": [
+            "emergency_dispatcher",
+            "emergency_supervisor"
+          ]
         },
         {
           "permission": "emergency.dispatch.manage",
-          "roles": ["emergency_dispatcher", "emergency_supervisor"]
+          "roles": [
+            "emergency_dispatcher",
+            "emergency_supervisor"
+          ]
         },
         {
           "permission": "emergency.case.close",
-          "roles": ["emergency_supervisor"]
+          "roles": [
+            "emergency_supervisor"
+          ]
         },
         {
           "permission": "emergency.fleet.read",
-          "roles": ["emergency_dispatcher", "emergency_supervisor"]
+          "roles": [
+            "emergency_dispatcher",
+            "emergency_supervisor"
+          ]
         },
         {
           "permission": "emergency.fleet.manage",
-          "roles": ["emergency_supervisor"]
+          "roles": [
+            "emergency_supervisor"
+          ]
         },
         {
           "permission": "emergency.fleet.check",
-          "roles": ["emergency_dispatcher", "emergency_supervisor"]
+          "roles": [
+            "emergency_dispatcher",
+            "emergency_supervisor"
+          ]
         },
         {
           "permission": "emergency.clinical.manage",
@@ -1465,7 +1533,9 @@
         },
         {
           "permission": "emergency.case.assess",
-          "roles": ["doctor"]
+          "roles": [
+            "doctor"
+          ]
         }
       ],
       "publishes": [
@@ -1477,7 +1547,9 @@
         "helivanta.in.emergency.dispatch_changed.v1",
         "helivanta.in.emergency.receiving_changed.v1"
       ],
-      "directed_subjects": ["helivanta.in.emergency.receiving_changed.v1"],
+      "directed_subjects": [
+        "helivanta.in.emergency.receiving_changed.v1"
+      ],
       "directed_write_tables": [],
       "consumers": [
         {
@@ -1613,7 +1685,11 @@
       "grants": [
         {
           "permission": "drugmaster.catalogue.read",
-          "roles": ["doctor", "nurse", "pharmacist"]
+          "roles": [
+            "doctor",
+            "nurse",
+            "pharmacist"
+          ]
         },
         {
           "permission": "drugmaster.stock_reference.read",
@@ -1992,15 +2068,23 @@
       "grants": [
         {
           "permission": "medicore.visit.create",
-          "roles": ["doctor"]
+          "roles": [
+            "doctor"
+          ]
         },
         {
           "permission": "medicore.visit.read",
-          "roles": ["doctor", "nurse"]
+          "roles": [
+            "doctor",
+            "nurse"
+          ]
         },
         {
           "permission": "medicore.visit.update",
-          "roles": ["doctor", "nurse"]
+          "roles": [
+            "doctor",
+            "nurse"
+          ]
         },
         {
           "permission": "medicore.access.manage",
@@ -2012,27 +2096,44 @@
         },
         {
           "permission": "medicore.admission.manage",
-          "roles": ["receptionist", "nurse"]
+          "roles": [
+            "receptionist",
+            "nurse"
+          ]
         },
         {
           "permission": "medicore.discharge.order",
-          "roles": ["doctor"]
+          "roles": [
+            "doctor"
+          ]
         },
         {
           "permission": "medicore.allergy.read",
-          "roles": ["doctor", "nurse"]
+          "roles": [
+            "doctor",
+            "nurse"
+          ]
         },
         {
           "permission": "medicore.allergy.record",
-          "roles": ["doctor", "nurse"]
+          "roles": [
+            "doctor",
+            "nurse"
+          ]
         },
         {
           "permission": "medicore.observation.read",
-          "roles": ["doctor", "nurse"]
+          "roles": [
+            "doctor",
+            "nurse"
+          ]
         },
         {
           "permission": "medicore.observation.record",
-          "roles": ["doctor", "nurse"]
+          "roles": [
+            "doctor",
+            "nurse"
+          ]
         }
       ],
       "publishes": [
@@ -2066,7 +2167,9 @@
         {
           "id": "0001_medicore",
           "sql_sha256": "c590e4c6627a3b3016a88f4b63a9e8b59a507e4919765741dc5ce0637f00c7f6",
-          "creates_tables": ["medicore_visits"]
+          "creates_tables": [
+            "medicore_visits"
+          ]
         },
         {
           "id": "0002_medicore",
@@ -2121,7 +2224,9 @@
         {
           "id": "0008_medicore",
           "sql_sha256": "32dc29d9ea1727cdf47ae515f0eb855c3065fd88217a36e080e6f1fc56c5264c",
-          "creates_tables": ["medicore_discharge_orders"]
+          "creates_tables": [
+            "medicore_discharge_orders"
+          ]
         },
         {
           "id": "0009_medicore",
@@ -2315,12 +2420,16 @@
         {
           "id": "0001_mediconnect",
           "sql_sha256": "08db27b6b7f51bafbd3a9e8adb543b514c59cf75e0a735cf8c123a44c151cfdd",
-          "creates_tables": ["mediconnect_accounts"]
+          "creates_tables": [
+            "mediconnect_accounts"
+          ]
         },
         {
           "id": "0002_mediconnect",
           "sql_sha256": "f64b12dc508e1e0852cf1cdd0bbe037b630e9a52afee8bb05996e8c5d4afd2da",
-          "creates_tables": ["mediconnect_link_requests"]
+          "creates_tables": [
+            "mediconnect_link_requests"
+          ]
         },
         {
           "id": "0003_mediconnect",
@@ -2330,7 +2439,9 @@
         {
           "id": "0004_mediconnect",
           "sql_sha256": "80c1492d8ee0af6b7afff94fd424508bb65d6f5ad3640d407512da9ebd6e87e3",
-          "creates_tables": ["mediconnect_review_submissions"]
+          "creates_tables": [
+            "mediconnect_review_submissions"
+          ]
         },
         {
           "id": "0005_mediconnect",
@@ -2484,7 +2595,9 @@
           "roles": []
         }
       ],
-      "publishes": ["helivanta.in.privacy.deadline_changed.v1"],
+      "publishes": [
+        "helivanta.in.privacy.deadline_changed.v1"
+      ],
       "directed_subjects": [],
       "directed_write_tables": [],
       "consumers": [
@@ -3864,19 +3977,29 @@
         },
         {
           "permission": "pharmacy.accounts.read",
-          "roles": ["pharmacy_owner", "pharmacy_purchasing"]
+          "roles": [
+            "pharmacy_owner",
+            "pharmacy_purchasing"
+          ]
         },
         {
           "permission": "pharmacy.accounts.write",
-          "roles": ["pharmacy_owner", "pharmacy_purchasing"]
+          "roles": [
+            "pharmacy_owner",
+            "pharmacy_purchasing"
+          ]
         },
         {
           "permission": "pharmacy.accounts.payment",
-          "roles": ["pharmacy_owner"]
+          "roles": [
+            "pharmacy_owner"
+          ]
         },
         {
           "permission": "pharmacy.accounts.adjust",
-          "roles": ["pharmacy_owner"]
+          "roles": [
+            "pharmacy_owner"
+          ]
         },
         {
           "permission": "pharmacy.stock.read",
@@ -3889,15 +4012,26 @@
         },
         {
           "permission": "pharmacy.stock.receive",
-          "roles": ["pharmacist", "pharmacy_owner", "pharmacy_inventory"]
+          "roles": [
+            "pharmacist",
+            "pharmacy_owner",
+            "pharmacy_inventory"
+          ]
         },
         {
           "permission": "pharmacy.stock.correct",
-          "roles": ["pharmacy_owner", "pharmacy_inventory"]
+          "roles": [
+            "pharmacy_owner",
+            "pharmacy_inventory"
+          ]
         },
         {
           "permission": "pharmacy.stock.quarantine",
-          "roles": ["pharmacist", "pharmacy_owner", "pharmacy_inventory"]
+          "roles": [
+            "pharmacist",
+            "pharmacy_owner",
+            "pharmacy_inventory"
+          ]
         },
         {
           "permission": "pharmacy.catalogue.read",
@@ -3910,91 +4044,144 @@
         },
         {
           "permission": "pharmacy.catalogue.write",
-          "roles": ["pharmacist", "pharmacy_owner", "pharmacy_purchasing"]
+          "roles": [
+            "pharmacist",
+            "pharmacy_owner",
+            "pharmacy_purchasing"
+          ]
         },
         {
           "permission": "pharmacy.access.manage",
-          "roles": ["pharmacy_owner"]
+          "roles": [
+            "pharmacy_owner"
+          ]
         },
         {
           "permission": "pharmacy.tax.manage",
-          "roles": ["pharmacy_owner"]
+          "roles": [
+            "pharmacy_owner"
+          ]
         },
         {
           "permission": "pharmacy.trading_scope.read",
-          "roles": ["pharmacy_owner"]
+          "roles": [
+            "pharmacy_owner"
+          ]
         },
         {
           "permission": "pharmacy.trading_scope.prepare",
-          "roles": ["pharmacy_owner"]
+          "roles": [
+            "pharmacy_owner"
+          ]
         },
         {
           "permission": "pharmacy.trading_scope.review",
-          "roles": ["pharmacy_owner"]
+          "roles": [
+            "pharmacy_owner"
+          ]
         },
         {
           "permission": "pharmacy.licence.manage",
-          "roles": ["pharmacy_owner"]
+          "roles": [
+            "pharmacy_owner"
+          ]
         },
         {
           "permission": "pharmacy.licence.review",
-          "roles": ["pharmacy_owner"]
+          "roles": [
+            "pharmacy_owner"
+          ]
         },
         {
           "permission": "pharmacy.licence.evidence.read",
-          "roles": ["pharmacy_owner"]
+          "roles": [
+            "pharmacy_owner"
+          ]
         },
         {
           "permission": "pharmacy.schedule.declare",
-          "roles": ["pharmacist", "pharmacy_owner"]
+          "roles": [
+            "pharmacist",
+            "pharmacy_owner"
+          ]
         },
         {
           "permission": "pharmacy.schedule.review",
-          "roles": ["pharmacist", "pharmacy_owner"]
+          "roles": [
+            "pharmacist",
+            "pharmacy_owner"
+          ]
         },
         {
           "permission": "pharmacy.category.declare",
-          "roles": ["pharmacist", "pharmacy_owner"]
+          "roles": [
+            "pharmacist",
+            "pharmacy_owner"
+          ]
         },
         {
           "permission": "pharmacy.category.review",
-          "roles": ["pharmacist", "pharmacy_owner"]
+          "roles": [
+            "pharmacist",
+            "pharmacy_owner"
+          ]
         },
         {
           "permission": "pharmacy.price_control.declare",
-          "roles": ["pharmacist", "pharmacy_owner"]
+          "roles": [
+            "pharmacist",
+            "pharmacy_owner"
+          ]
         },
         {
           "permission": "pharmacy.price_control.review",
-          "roles": ["pharmacist", "pharmacy_owner"]
+          "roles": [
+            "pharmacist",
+            "pharmacy_owner"
+          ]
         },
         {
           "permission": "pharmacy.service_charge.declare",
-          "roles": ["pharmacy_owner"]
+          "roles": [
+            "pharmacy_owner"
+          ]
         },
         {
           "permission": "pharmacy.service_charge.review",
-          "roles": ["pharmacy_owner"]
+          "roles": [
+            "pharmacy_owner"
+          ]
         },
         {
           "permission": "pharmacy.stock.release",
-          "roles": ["pharmacist"]
+          "roles": [
+            "pharmacist"
+          ]
         },
         {
           "permission": "pharmacy.sale.create",
-          "roles": ["pharmacist"]
+          "roles": [
+            "pharmacist"
+          ]
         },
         {
           "permission": "pharmacy.sale.read",
-          "roles": ["pharmacist", "pharmacy_owner"]
+          "roles": [
+            "pharmacist",
+            "pharmacy_owner"
+          ]
         },
         {
           "permission": "pharmacy.prescription.record",
-          "roles": ["pharmacist"]
+          "roles": [
+            "pharmacist"
+          ]
         },
         {
           "permission": "pharmacy.prescription.read",
-          "roles": ["pharmacist"]
+          "roles": [
+            "pharmacist"
+          ]
         },
         {
           "permission": "pharmacy.sale.discount",
@@ -4002,27 +4189,40 @@
         },
         {
           "permission": "pharmacy.discount.manage",
-          "roles": ["pharmacy_owner"]
+          "roles": [
+            "pharmacy_owner"
+          ]
         },
         {
           "permission": "pharmacy.sale.return",
-          "roles": ["pharmacist"]
+          "roles": [
+            "pharmacist"
+          ]
         },
         {
           "permission": "pharmacy.dispense.read",
-          "roles": ["pharmacist", "doctor"]
+          "roles": [
+            "pharmacist",
+            "doctor"
+          ]
         },
         {
           "permission": "pharmacy.dispense.fulfil",
-          "roles": ["pharmacist"]
+          "roles": [
+            "pharmacist"
+          ]
         },
         {
           "permission": "pharmacy.medication.read",
-          "roles": ["pharmacist"]
+          "roles": [
+            "pharmacist"
+          ]
         },
         {
           "permission": "pharmacy.medication.write",
-          "roles": ["pharmacist"]
+          "roles": [
+            "pharmacist"
+          ]
         }
       ],
       "publishes": [
@@ -4132,7 +4332,10 @@
         {
           "id": "0001_pharmacy",
           "sql_sha256": "86bdc2dee325c40caff6b440c0736edd05f498f7c50eba4db54f2bc8f0ad8ac8",
-          "creates_tables": ["pharmacy_medications", "pharmacy_dispenses"]
+          "creates_tables": [
+            "pharmacy_medications",
+            "pharmacy_dispenses"
+          ]
         },
         {
           "id": "0002_pharmacy",
@@ -4177,7 +4380,9 @@
         {
           "id": "0007_pharmacy",
           "sql_sha256": "1ef283443073774ce930133efe9d45874b496845655b80a792b810a3dea6b717",
-          "creates_tables": ["pharmacy_batch_safety_incidents"]
+          "creates_tables": [
+            "pharmacy_batch_safety_incidents"
+          ]
         },
         {
           "id": "0008_pharmacy",
@@ -4221,7 +4426,9 @@
         {
           "id": "0014_pharmacy",
           "sql_sha256": "842f06213a2915b6b33bb86b434ebbb8f6d81b518713081cd467d51d1c3ebc3f",
-          "creates_tables": ["pharmacy_stock_releases"]
+          "creates_tables": [
+            "pharmacy_stock_releases"
+          ]
         },
         {
           "id": "0015_pharmacy",
@@ -4245,12 +4452,16 @@
         {
           "id": "0017_pharmacy",
           "sql_sha256": "28745d8350ea61cd0f5a7ce581c3c535808994e5520512a90ff41f46c0945bdc",
-          "creates_tables": ["pharmacy_prescription_lines"]
+          "creates_tables": [
+            "pharmacy_prescription_lines"
+          ]
         },
         {
           "id": "0018_pharmacy",
           "sql_sha256": "c8fee8c37465b2fdd0cac78f007f969eb479145d2b5a67ddb992648396006694",
-          "creates_tables": ["pharmacy_outlet_discount_ceilings"]
+          "creates_tables": [
+            "pharmacy_outlet_discount_ceilings"
+          ]
         },
         {
           "id": "0019_pharmacy",
@@ -4270,7 +4481,9 @@
         {
           "id": "0021_pharmacy",
           "sql_sha256": "abfde4f76dfd7b2098b7f157b0c93bb11b85bfff4d284447f48498b9ad99d252",
-          "creates_tables": ["pharmacy_payment_requests"]
+          "creates_tables": [
+            "pharmacy_payment_requests"
+          ]
         },
         {
           "id": "0022_pharmacy",
@@ -4293,7 +4506,9 @@
         {
           "id": "0025_pharmacy",
           "sql_sha256": "d079b32fe62cb49c8f7fd9a890161535817388198945d379c4beefe47e25b1e0",
-          "creates_tables": ["pharmacy_registered_patients"]
+          "creates_tables": [
+            "pharmacy_registered_patients"
+          ]
         },
         {
           "id": "0026_pharmacy",
@@ -4303,12 +4518,16 @@
         {
           "id": "0027_pharmacy",
           "sql_sha256": "5a48a0176bcc6c394f26f4a08a42dbaaa2836ecf9be9d28f41b9f63d4910e4b2",
-          "creates_tables": ["pharmacy_bed_occupancies"]
+          "creates_tables": [
+            "pharmacy_bed_occupancies"
+          ]
         },
         {
           "id": "0028_pharmacy",
           "sql_sha256": "10222074c9038b23a9ebd8087f54afcaee58cf103a6220a013a6b092d053d599",
-          "creates_tables": ["pharmacy_unused_payment_refunds"]
+          "creates_tables": [
+            "pharmacy_unused_payment_refunds"
+          ]
         },
         {
           "id": "0029_pharmacy",
@@ -4321,7 +4540,9 @@
         {
           "id": "0030_pharmacy",
           "sql_sha256": "54a28bbe60f8d9e803e441b86a87581a41bb772ae86234732cc4a0adb6b5dc34",
-          "creates_tables": ["pharmacy_licence_evidence"]
+          "creates_tables": [
+            "pharmacy_licence_evidence"
+          ]
         },
         {
           "id": "0031_pharmacy",
@@ -4337,7 +4558,9 @@
         {
           "id": "0032_pharmacy",
           "sql_sha256": "80a006ba3f0e2d9769223669b52132643079a3b58664d8a77e0d1d7a966d9abd",
-          "creates_tables": ["pharmacy_opd_encounters"]
+          "creates_tables": [
+            "pharmacy_opd_encounters"
+          ]
         },
         {
           "id": "0033_pharmacy",
@@ -4367,8 +4590,10 @@
         },
         {
           "id": "0036_pharmacy_trading_source",
-          "sql_sha256": "92e6df848d0721522370348509593e04d46f0b1a422030771d44b541ae1f9844",
-          "creates_tables": ["pharmacy_licence_revocations"]
+          "sql_sha256": "3be15612e4050c0e0018d7521ae4ebfe6f03a16efe38eae676c5feedc82f0df0",
+          "creates_tables": [
+            "pharmacy_licence_revocations"
+          ]
         }
       ]
     },
@@ -5090,7 +5315,10 @@
       "grants": [
         {
           "permission": "billing.account.read",
-          "roles": ["nurse", "receptionist"]
+          "roles": [
+            "nurse",
+            "receptionist"
+          ]
         },
         {
           "permission": "billing.access.manage",
@@ -5102,11 +5330,15 @@
         },
         {
           "permission": "billing.bill.issue",
-          "roles": ["receptionist"]
+          "roles": [
+            "receptionist"
+          ]
         },
         {
           "permission": "billing.cash.collect",
-          "roles": ["receptionist"]
+          "roles": [
+            "receptionist"
+          ]
         },
         {
           "permission": "billing.counter.manage",
@@ -5239,7 +5471,9 @@
         {
           "id": "0004_billing",
           "sql_sha256": "63d7af7e6540e1728ec0f59c313bfcb9990497ca057ba20a03c8e811f26ec611",
-          "creates_tables": ["billing_discharge_orders"]
+          "creates_tables": [
+            "billing_discharge_orders"
+          ]
         },
         {
           "id": "0005_billing",
@@ -5253,7 +5487,9 @@
         {
           "id": "0006_billing",
           "sql_sha256": "6e1079e3fde89b7ff517d7a7361c80a6dee8c6768162e98347c39481fc9fdd58",
-          "creates_tables": ["billing_deposit_applications"]
+          "creates_tables": [
+            "billing_deposit_applications"
+          ]
         },
         {
           "id": "0007_billing",
@@ -5266,7 +5502,9 @@
         {
           "id": "0008_billing",
           "sql_sha256": "49e759e2b90483181372d677174e22bd5aaaea885418ec0d57edee3874ae426f",
-          "creates_tables": ["billing_account_positions"]
+          "creates_tables": [
+            "billing_account_positions"
+          ]
         },
         {
           "id": "0009_billing",
@@ -5289,27 +5527,38 @@
         {
           "id": "0011_billing",
           "sql_sha256": "76b7a02c72f46db02fa9f05f9e1e4e7e5521b0697cf3b9c908e583cd422f7f02",
-          "creates_tables": ["billing_upi_requests"]
+          "creates_tables": [
+            "billing_upi_requests"
+          ]
         },
         {
           "id": "0012_billing",
           "sql_sha256": "56e57f77fb94564c8e23ba9892d7d3177b686ff70fb964a0a39a4ac4bb635aa3",
-          "creates_tables": ["billing_discount_reasons", "billing_discounts"]
+          "creates_tables": [
+            "billing_discount_reasons",
+            "billing_discounts"
+          ]
         },
         {
           "id": "0013_billing",
           "sql_sha256": "bcc2afbd8cf8acdc7a13bb5a74fa52f22d3c24de130978f21ff6ade3cc35bdc8",
-          "creates_tables": ["billing_cash_pickups"]
+          "creates_tables": [
+            "billing_cash_pickups"
+          ]
         },
         {
           "id": "0014_billing",
           "sql_sha256": "567a1f0183be0003df57dbf3ffaeb71b74110da5697842ce9150bafcb54e5f74",
-          "creates_tables": ["billing_cash_handovers"]
+          "creates_tables": [
+            "billing_cash_handovers"
+          ]
         },
         {
           "id": "0015_billing",
           "sql_sha256": "6ef9b130103b1556e11569c5833ff49361238e4503ea37256b9fdec1c1253976",
-          "creates_tables": ["billing_counter_modes"]
+          "creates_tables": [
+            "billing_counter_modes"
+          ]
         },
         {
           "id": "0016_billing",
@@ -6029,7 +6278,11 @@
         },
         {
           "permission": "supply.trade_relationship.prepare",
-          "roles": ["supply_admin", "pharmacy_owner", "supply_owner"]
+          "roles": [
+            "supply_admin",
+            "pharmacy_owner",
+            "supply_owner"
+          ]
         },
         {
           "permission": "supply.trade_relationship.review",
@@ -6042,7 +6295,11 @@
         },
         {
           "permission": "supply.support.revoke",
-          "roles": ["supply_admin", "supply_support", "supply_owner"]
+          "roles": [
+            "supply_admin",
+            "supply_support",
+            "supply_owner"
+          ]
         },
         {
           "permission": "supply.operations.read",
@@ -6061,7 +6318,11 @@
         },
         {
           "permission": "supply.operations.write",
-          "roles": ["supply_admin", "supply_inventory", "supply_owner"]
+          "roles": [
+            "supply_admin",
+            "supply_inventory",
+            "supply_owner"
+          ]
         },
         {
           "permission": "supply.delivery.read",
@@ -6075,23 +6336,38 @@
         },
         {
           "permission": "supply.delivery.write",
-          "roles": ["supply_admin", "supply_dispatcher", "supply_owner"]
+          "roles": [
+            "supply_admin",
+            "supply_dispatcher",
+            "supply_owner"
+          ]
         },
         {
           "permission": "supply.delivery.assigned.read",
-          "roles": ["supply_driver"]
+          "roles": [
+            "supply_driver"
+          ]
         },
         {
           "permission": "supply.delivery.assigned.action",
-          "roles": ["supply_driver"]
+          "roles": [
+            "supply_driver"
+          ]
         },
         {
           "permission": "supply.support.read",
-          "roles": ["supply_admin", "supply_support", "supply_owner"]
+          "roles": [
+            "supply_admin",
+            "supply_support",
+            "supply_owner"
+          ]
         },
         {
           "permission": "supply.support.manage",
-          "roles": ["supply_admin", "supply_owner"]
+          "roles": [
+            "supply_admin",
+            "supply_owner"
+          ]
         },
         {
           "permission": "supply.territory.read",
@@ -6107,7 +6383,10 @@
         },
         {
           "permission": "supply.territory.write",
-          "roles": ["supply_admin", "supply_owner"]
+          "roles": [
+            "supply_admin",
+            "supply_owner"
+          ]
         },
         {
           "permission": "supply.bin.read",
@@ -6121,11 +6400,17 @@
         },
         {
           "permission": "supply.bin.write",
-          "roles": ["supply_admin", "supply_purchasing", "supply_owner"]
+          "roles": [
+            "supply_admin",
+            "supply_purchasing",
+            "supply_owner"
+          ]
         },
         {
           "permission": "supply.license.review",
-          "roles": ["supply_compliance"]
+          "roles": [
+            "supply_compliance"
+          ]
         },
         {
           "permission": "supply.license.submit",
@@ -6169,15 +6454,25 @@
         },
         {
           "permission": "supply.party.write",
-          "roles": ["supply_admin", "supply_purchasing", "supply_owner"]
+          "roles": [
+            "supply_admin",
+            "supply_purchasing",
+            "supply_owner"
+          ]
         },
         {
           "permission": "supply.organization.manage",
-          "roles": ["supply_admin", "supply_owner"]
+          "roles": [
+            "supply_admin",
+            "supply_owner"
+          ]
         },
         {
           "permission": "supply.party.access.manage",
-          "roles": ["supply_admin", "supply_owner"]
+          "roles": [
+            "supply_admin",
+            "supply_owner"
+          ]
         },
         {
           "permission": "supply.premise.read",
@@ -6192,7 +6487,11 @@
         },
         {
           "permission": "supply.premise.write",
-          "roles": ["supply_admin", "supply_purchasing", "supply_owner"]
+          "roles": [
+            "supply_admin",
+            "supply_purchasing",
+            "supply_owner"
+          ]
         },
         {
           "permission": "supply.license.read",
@@ -6252,7 +6551,9 @@
         "helivanta.in.supply.evidence_changed.v1",
         "helivanta.in.supply.license_review_changed.v1"
       ],
-      "directed_subjects": ["helivanta.in.supply.relationship_exchange.v1"],
+      "directed_subjects": [
+        "helivanta.in.supply.relationship_exchange.v1"
+      ],
       "directed_write_tables": [
         "supply_trade_relationships",
         "supply_trade_relationship_history"
@@ -6296,17 +6597,24 @@
         {
           "id": "0003_supply",
           "sql_sha256": "b8d76de4167ce55a076b71220f53137e5bf77d09cd8e9288851b2fb7b861fe57",
-          "creates_tables": ["supply_license_evidence"]
+          "creates_tables": [
+            "supply_license_evidence"
+          ]
         },
         {
           "id": "0004_supply",
           "sql_sha256": "8c7a9b74b0491a6873429bfb1d135a73a994ccdf8d4c691748673d5bb6b9ab73",
-          "creates_tables": ["supply_license_reviews"]
+          "creates_tables": [
+            "supply_license_reviews"
+          ]
         },
         {
           "id": "0005_supply",
           "sql_sha256": "7178bbe62817b92e41377451ffc48b585be345f9475db596a5073831a59df736",
-          "creates_tables": ["supply_bins", "supply_bin_revisions"]
+          "creates_tables": [
+            "supply_bins",
+            "supply_bin_revisions"
+          ]
         },
         {
           "id": "0006_supply",
@@ -6399,14 +6707,21 @@
       "grants": [
         {
           "permission": "lab.order.read",
-          "roles": ["lab_tech", "doctor"]
+          "roles": [
+            "lab_tech",
+            "doctor"
+          ]
         },
         {
           "permission": "lab.order.fulfil",
-          "roles": ["lab_tech"]
+          "roles": [
+            "lab_tech"
+          ]
         }
       ],
-      "publishes": ["helivanta.in.lab.result_ready.v1"],
+      "publishes": [
+        "helivanta.in.lab.result_ready.v1"
+      ],
       "directed_subjects": [],
       "directed_write_tables": [],
       "consumers": [
@@ -6421,7 +6736,9 @@
         {
           "id": "0001_lab",
           "sql_sha256": "db12bf97f99d01e80672de709d69c81faf7069e529810b98c8b1472065cb2115",
-          "creates_tables": ["lab_orders"]
+          "creates_tables": [
+            "lab_orders"
+          ]
         },
         {
           "id": "0002_lab",
@@ -6917,15 +7234,25 @@
         },
         {
           "permission": "patient.pharmacy-lookup",
-          "roles": ["pharmacist"]
+          "roles": [
+            "pharmacist"
+          ]
         },
         {
           "permission": "patient.read",
-          "roles": ["receptionist", "doctor", "nurse", "pharmacist", "lab_tech"]
+          "roles": [
+            "receptionist",
+            "doctor",
+            "nurse",
+            "pharmacist",
+            "lab_tech"
+          ]
         },
         {
           "permission": "patient.register",
-          "roles": ["receptionist"]
+          "roles": [
+            "receptionist"
+          ]
         },
         {
           "permission": "patient.registration.replay",
@@ -7001,22 +7328,30 @@
         {
           "id": "0004_patientmaster",
           "sql_sha256": "637081381dc76806674f9a5f4c3fffef78be58cb5a762098827c0309f8a5a0c1",
-          "creates_tables": ["patient_reported_blood_groups"]
+          "creates_tables": [
+            "patient_reported_blood_groups"
+          ]
         },
         {
           "id": "0005_patientmaster",
           "sql_sha256": "b6c9386fa2e6b3c6de32b8600cc8152ac7eebc95919f9027d0e33fbf711b1c83",
-          "creates_tables": ["patient_link_reviews"]
+          "creates_tables": [
+            "patient_link_reviews"
+          ]
         },
         {
           "id": "0006_patientmaster",
           "sql_sha256": "c5913b414e37fc4e43d9e8ab8479287098f0ee7560549738d31383f1e9264661",
-          "creates_tables": ["patient_consent_authorities"]
+          "creates_tables": [
+            "patient_consent_authorities"
+          ]
         },
         {
           "id": "0007_patientmaster",
           "sql_sha256": "270a88fc0d9a509fccaf8d05cea86567c1aa7de0d79427a669873fbc8eb61e2f",
-          "creates_tables": ["patient_sharing_notices"]
+          "creates_tables": [
+            "patient_sharing_notices"
+          ]
         },
         {
           "id": "0008_patientmaster",
@@ -7031,7 +7366,9 @@
         {
           "id": "0009_patientmaster",
           "sql_sha256": "a1bec562e0a093f8831cb4aea82198bc68ff614d94f239c838a1be34fb6ccc1f",
-          "creates_tables": ["patient_proxy_authorities"]
+          "creates_tables": [
+            "patient_proxy_authorities"
+          ]
         },
         {
           "id": "0010_patientmaster",
@@ -9950,7 +10287,11 @@
       "grants": [
         {
           "permission": "workforce.independent_login.manage",
-          "roles": ["supply_owner", "supply_admin", "pharmacy_owner"]
+          "roles": [
+            "supply_owner",
+            "supply_admin",
+            "pharmacy_owner"
+          ]
         },
         {
           "permission": "workforce.independent_login.review",
@@ -10274,7 +10615,10 @@
         {
           "id": "0005_workforce_shifts",
           "sql_sha256": "cc098805a168ea33de4c06aed34b98de5d301b38b4e48761c723e6b8ddd81377",
-          "creates_tables": ["workforce_shifts", "workforce_shift_revisions"]
+          "creates_tables": [
+            "workforce_shifts",
+            "workforce_shift_revisions"
+          ]
         },
         {
           "id": "0006_workforce_roster_config",
@@ -10299,7 +10643,9 @@
         {
           "id": "0007_workforce_documents",
           "sql_sha256": "5df61257fbb643b9e1434a104f71fbc42da74e5dfb7469b567ea18e6e1c324d6",
-          "creates_tables": ["workforce_documents"]
+          "creates_tables": [
+            "workforce_documents"
+          ]
         },
         {
           "id": "0008_workforce_document_worker",
@@ -11002,12 +11348,16 @@
         {
           "id": "0069_workforce_organization_observations",
           "sql_sha256": "96d9941ae249eaa0bf85c16c3c8dd911b947d1bbd1fbca3b7610be81654fc006",
-          "creates_tables": ["workforce_organization_observations"]
+          "creates_tables": [
+            "workforce_organization_observations"
+          ]
         },
         {
           "id": "0070_workforce_department_links",
           "sql_sha256": "79221361e672f8eb7f21c21cb4d95b88363278b621cffb5241d6a5945a28b2d4",
-          "creates_tables": ["workforce_department_links"]
+          "creates_tables": [
+            "workforce_department_links"
+          ]
         },
         {
           "id": "0071_workforce_credential_subject_independence",
@@ -11113,12 +11463,16 @@
         {
           "id": "0079_workforce_posting_supervision_intents",
           "sql_sha256": "55d2dbd2512a7a6ed155be5138be03a3c8e101fc0d6577fb3a204bc493b65b62",
-          "creates_tables": ["workforce_posting_supervision_intents"]
+          "creates_tables": [
+            "workforce_posting_supervision_intents"
+          ]
         },
         {
           "id": "0080_workforce_posting_root_approvals",
           "sql_sha256": "ad45e9b8c5ec9a8718f9d386d4377d7c02826742ebf1c6b7545b1a05143deb59",
-          "creates_tables": ["workforce_posting_management_reviews"]
+          "creates_tables": [
+            "workforce_posting_management_reviews"
+          ]
         },
         {
           "id": "0081_workforce_posting_chain_approvals",
@@ -11169,7 +11523,9 @@
         {
           "id": "0084_workforce_posting_cutoffs",
           "sql_sha256": "2612b4c23033e4d82a6af199fd3f31a95f99e82fe01f5b0937b4697a94e7c5a4",
-          "creates_tables": ["workforce_posting_cutoffs"]
+          "creates_tables": [
+            "workforce_posting_cutoffs"
+          ]
         },
         {
           "id": "0085_workforce_posting_lifecycle_reviews",
@@ -11202,7 +11558,9 @@
         {
           "id": "0090_workforce_partner_group_scope",
           "sql_sha256": "09d43ba398cc37b8e0ec1a75381f57be2e039c601b1c45a653739a1426c6a754",
-          "creates_tables": ["workforce_partner_group_observations"]
+          "creates_tables": [
+            "workforce_partner_group_observations"
+          ]
         },
         {
           "id": "0091_workforce_partner_member_candidates",
@@ -11222,7 +11580,9 @@
         {
           "id": "0094_workforce_independent_identity",
           "sql_sha256": "68f777d7552b291f33bf9aa6322b1f4f3938752cca2ee39ce4d70d901be6ccf1",
-          "creates_tables": ["workforce_independent_link_commands"]
+          "creates_tables": [
+            "workforce_independent_link_commands"
+          ]
         }
       ]
     },
@@ -11332,14 +11692,21 @@
         },
         {
           "permission": "workspace.country_policy.read",
-          "roles": ["supply_compliance", "supply_auditor"]
+          "roles": [
+            "supply_compliance",
+            "supply_auditor"
+          ]
         },
         {
           "permission": "workspace.country_policy.review",
-          "roles": ["supply_compliance"]
+          "roles": [
+            "supply_compliance"
+          ]
         }
       ],
-      "publishes": ["helivanta.in.workspace.country_policy_changed.v1"],
+      "publishes": [
+        "helivanta.in.workspace.country_policy_changed.v1"
+      ],
       "directed_subjects": [],
       "directed_write_tables": [],
       "consumers": [],
@@ -11348,7 +11715,10 @@
         {
           "id": "0001_workspace",
           "sql_sha256": "63c0d916e78b9f832e63d997d73872cfa23b06061f823e0b36b0a3fac99e94e2",
-          "creates_tables": ["workspace_branding", "workspace_branding_audit"]
+          "creates_tables": [
+            "workspace_branding",
+            "workspace_branding_audit"
+          ]
         },
         {
           "id": "0002_workspace_country_policies",
@@ -11514,7 +11884,9 @@
         {
           "id": "0004_organization_department_observations",
           "sql_sha256": "b71de41656408682f9b40c60f79bdd54d98465e16bfdef21c03f6e580f0578af",
-          "creates_tables": ["organization_department_observations"]
+          "creates_tables": [
+            "organization_department_observations"
+          ]
         }
       ]
     }
@@ -11545,7 +11917,10 @@
     {
       "id": "0001_events_outbox",
       "sql_sha256": "fd543862639663b38d798a5b812b12b66daa0a5050f9dee4b082910e6295fdd0",
-      "creates_tables": ["outbox_events", "processed_events"]
+      "creates_tables": [
+        "outbox_events",
+        "processed_events"
+      ]
     },
     {
       "id": "0002_events_outbox_tenant",
@@ -11570,7 +11945,9 @@
     {
       "id": "0001_audit_events",
       "sql_sha256": "ee72dd3b467474c08383fc46bc30daf8396a39393b4ab9d73863d95106c4aba7",
-      "creates_tables": ["audit_events"]
+      "creates_tables": [
+        "audit_events"
+      ]
     }
   ]
 }

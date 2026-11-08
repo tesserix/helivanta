@@ -166,3 +166,10 @@ A prior receiving boundary test failed because its gateway fixture registered no
 Pharmacy upstream. d9cfe27f adds the real Pharmacy module/upstream while retaining
 missing Workforce/department owners for its intended unavailable-owner cases.
 No assertion or authorization gate was weakened.
+
+The selector DB regression at 34fb819a passed Supply and caught a Pharmacy defect:
+`pharmacy_sellable_buckets` already returns quantities net of active supplier
+holds. The new selector subtracted those holds again, hiding the remaining 40
+units after reserving 60. Selectors now reuse the owner's net quantity directly;
+the 100 → 40 stock/shelf assertions remain unchanged. Native build and affected
+lint pass; the database rerun remains required.

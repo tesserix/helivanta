@@ -5,6 +5,7 @@ import {
   decideSupplierOrder,
   recoverSupplierOrderCommand,
   getSourceSupplierOrder,
+  getSourceSupplierReviewAccess,
   decideSourceSupplierOrder,
   recoverSourceSupplierOrderCommand,
 } from "./supplier-orders";
@@ -205,4 +206,41 @@ it("discovers exact independent and hospital pharmacy source orders through expl
     getSourceSupplierOrder({ ...hospitalScope, product: "supply" }, id),
   ).rejects.toThrow();
   expect(fetch).not.toHaveBeenCalled();
+});
+
+it("checks source review admission against the exact current account and owner scope", async () => {
+  const source = {
+    tenantId: terms.seller.tenant_id,
+    subject: "TEST-reviewer",
+    product: "supply" as const,
+    organizationId: terms.seller.organization_id,
+    locationId: terms.seller.location_id,
+  };
+  const admission = {
+    owner_tenant_id: source.tenantId,
+    order_id: id,
+    organization_id: source.organizationId,
+    location_id: source.locationId,
+    product: source.product,
+    actor_subject: source.subject,
+    actor_staff_id: id,
+    observed_at: "2026-11-09T00:00:00Z",
+  };
+  const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => admission });
+  vi.stubGlobal("fetch", fetch);
+  await expect(getSourceSupplierReviewAccess(source, id)).resolves.toMatchObject(admission);
+  expect(fetch).toHaveBeenCalledWith(
+    `/api/v1/supply/stock-owners/${source.product}/organizations/${source.organizationId}/locations/${source.locationId}/supplier-orders/${id}/review-access`,
+    expect.objectContaining({ cache: "no-store" }),
+  );
+  fetch.mockResolvedValue({
+    ok: true,
+    json: async () => ({ ...admission, actor_subject: "TEST-different" }),
+  });
+  await expect(getSourceSupplierReviewAccess(source, id)).rejects.toThrow();
+  fetch.mockResolvedValue({
+    ok: true,
+    json: async () => ({ ...admission, location_id: "0199e000-0000-7000-8000-000000000099" }),
+  });
+  await expect(getSourceSupplierReviewAccess(source, id)).rejects.toThrow();
 });

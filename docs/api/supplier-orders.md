@@ -216,3 +216,11 @@ not require inventory administration. `SupplierStockChoice` and
 `SupplierStockLocationChoice` are generated from the canonical fulfilment schema.
 Counts are observed free-stock hints after active holds, not reservation evidence;
 actual reserve and dispatch commands retain current owner locks and validation.
+
+Current source order acceptance access can be checked with
+`GET {explicit-source-order-base}/:order/review-access`. This uses the same current
+operating or hospital department permission and Staff admission as source
+acceptance. It returns the canonical `SupplierOrderReviewAccess`, bound to the
+verified subject, Staff identity and exact owner/order scope with an observation
+time. It records an audited read, not an approval or a transferable capability.
+The eventual review command still rechecks authority and all business references.

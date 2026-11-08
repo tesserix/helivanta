@@ -173,3 +173,59 @@ holds. The new selector subtracted those holds again, hiding the remaining 40
 units after reserving 60. Selectors now reuse the owner's net quantity directly;
 the 100 → 40 stock/shelf assertions remain unchanged. Native build and affected
 lint pass; the database rerun remains required.
+
+### Source Staff workbench checkpoint
+
+Source fulfilment is now reachable from warehouse operations and an independent
+pharmacy's selected outlet. It uses real owner order/line/lot/shelf selectors,
+source order acceptance/rejection, bounded allocation pages and partial dispatch
+or hold release. The private inventory grant check is not used as source authority.
+Hospital-owned pharmacy sources still need their department workbench.
+
+Acceptance inputs are displayed only after a new exact-order source review-access
+read passes current review-purpose Staff and operating/department permission checks.
+It is a non-transferable observation, not approval; writes still reauthorize. The
+canonical source review-access model and registered scoped routes are aligned.
+
+The workbench freezes ID/input across uncertain responses, recovers original
+receipts independently from live balances, blocks leaving unresolved actions,
+and suppresses previous-scope records after access errors/scope changes. A first
+owner invalid-input/current-state rejection refreshes data and permits an edited
+new intent; a later rejection after an uncertain result keeps the original frozen
+intent. Tests exercise lost reservation, partial dispatch and source acceptance
+responses, duplicate clicks, read-only review denial, scope isolation and retry
+rejection. The 59 affected screen tests, 1,043 API tests and 312 shared UI tests pass.
+Native typechecks, scoped lint, Go build/vet and the shell production build passed
+before the final retry-state follow-up; final validation remains required.
+
+The previous full Go CI coverage gate reported Supply at 67% against its unchanged
+70% floor. A new owner API scenario uses real IAM, Workforce, OpenFGA reviewed duty
+activation/revocation and owner HTTP handlers for source pages, cursor binding,
+immutable review recovery, dispatched shipment/receiving projections and supplier
+responses. Only retained business records are seeded. The test also covers source
+review versus fulfilment roles, graph outage and immediate revoke cutoff. It is
+compiled/linted natively and awaits CI; no coverage waiver is introduced.
+
+Source response replay is now bound to its exact order as well as response ID;
+a wrong-order replay remains opaque rather than returning success for another
+order's supplier acknowledgement. Buyer delivery of supplier responses is still
+unfinished: the existing response handler persists only the source annotation.
+It needs a durable owner event/projection and authorized buyer read before full
+collaboration can be claimed. Hospital receiving selectors, workbench, purpose-
+scoped physical quarantine release and full positive API/browser flows also remain.
+
+The source workbench's confirmation copy distinguishes an original recorded
+operation from current availability. It does not describe an expired or later
+changed allocation as currently reserved merely because recovery succeeded.
+A post-uncertainty rejection cannot clear the original intent. The new current
+review-access endpoint prevents an ordinary source reader from entering an order
+acceptance flow without verified review-purpose admission.
+
+Final validation for the source workbench checkpoint: native shell production
+build passed with the CI API rewrite origin; `.next` and shell TypeScript build
+cache were removed. All 59 affected screen tests, 1,043 API tests, 312 shared UI
+tests, source/shell typechecks, affected ESLint, Go build/vet/golangci-lint,
+canonical generators, route documentation, access inventory and collection-route
+architecture assertions passed. The real source Staff API scenario compiles and
+lints; its database runtime and coverage contribution await CI. No local app or
+container was started, and no merge/deployment is claimed.

@@ -106,7 +106,7 @@ func (h *purchaseOrderHandlers) respondReceiving(c *gin.Context) {
 			Response, Reason, ActorSubject string
 			ActorStaffID                   uuid.UUID
 		}
-		if err := tx.Table("supply_supplier_discrepancy_responses").Where("tenant_id=? AND id=?", p.TenantID, response).Scan(&old).Error; err != nil {
+		if err := tx.Table("supply_supplier_discrepancy_responses").Where("tenant_id=? AND order_id=? AND id=?", p.TenantID, id, response).Scan(&old).Error; err != nil {
 			return err
 		}
 		if len(old) == 1 {

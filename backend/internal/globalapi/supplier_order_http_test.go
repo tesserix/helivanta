@@ -73,7 +73,7 @@ func TestSupplierOrderHTTPRejectsChangedContextMalformedCommandsAndUnavailableOw
 		)
 	}
 	for _, root := range []string{sourceList, hospitalList} {
-		cases = append(cases, requestCase{name: "explicit source authority outage " + root, method: "GET", path: root + "/" + order, status: 503})
+		cases = append(cases, requestCase{name: "explicit source authority outage " + root, method: "GET", path: root + "/" + order, status: 503}, requestCase{name: "source review owner unavailable " + root, method: "GET", path: root + "/" + order + "/review-access", status: 503})
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

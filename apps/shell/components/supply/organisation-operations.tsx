@@ -30,6 +30,7 @@ import {
   RefreshButton,
 } from "@helivanta/ui";
 import { WarehouseBins } from "./warehouse-bins";
+import { SourceFulfilment } from "../suppliers/source-fulfilment";
 import { WarehouseStock } from "./warehouse-stock";
 import { dateTimeInputISO, dateTimeInputValue, formatAbsoluteTime } from "./time-input";
 
@@ -56,7 +57,7 @@ function OperationsPanel({ scope, roles }: { scope: SupplyRegistryScope; roles: 
   const { can } = usePermissions();
   const [selection, setSelection] = useState<{
     id: string;
-    view: "bins" | "control" | "assigned" | "stock";
+    view: "bins" | "control" | "assigned" | "stock" | "fulfilment";
   } | null>(null);
   const target = useRef<HTMLDivElement>(null);
   const locations = useApiPagedQuery<SupplyOperatingLocation>(
@@ -91,7 +92,7 @@ function OperationsPanel({ scope, roles }: { scope: SupplyRegistryScope; roles: 
     can("supply.operations.write") &&
     roles.some((role) => ["administrator", "inventory"].includes(role));
   const selected = locations.items.find((row) => row.id === selection?.id);
-  function select(id: string, view: "bins" | "control" | "assigned" | "stock") {
+  function select(id: string, view: "bins" | "control" | "assigned" | "stock" | "fulfilment") {
     setSelection({ id, view });
     requestAnimationFrame(() => {
       target.current?.scrollIntoView({ block: "start", behavior: "instant" });
@@ -151,6 +152,17 @@ function OperationsPanel({ scope, roles }: { scope: SupplyRegistryScope; roles: 
                         Storage bins
                       </Button>
                     )}
+                  {can("supply.supplier_order.read") &&
+                    row.status === "active" &&
+                    ["warehouse", "depot"].includes(row.kind) && (
+                      <Button
+                        variant="outline"
+                        aria-label={`Supplier fulfilment ${row.code}`}
+                        onClick={() => select(row.id, "fulfilment")}
+                      >
+                        Supplier fulfilment
+                      </Button>
+                    )}
                   {stock &&
                     row.allowed_actions.includes("read_stock") &&
                     ["warehouse", "depot"].includes(row.kind) && (
@@ -196,7 +208,18 @@ function OperationsPanel({ scope, roles }: { scope: SupplyRegistryScope; roles: 
         </>
       )}
       <div ref={target} className="scroll-mt-32">
-        {!locations.isError &&
+        {selection?.view === "fulfilment" ? (
+          <SourceFulfilment
+            scope={{
+              tenantId: scope.tenantId,
+              subject: scope.subject,
+              product: "supply",
+              organizationId: scope.partyId,
+              locationId: selection.id,
+            }}
+          />
+        ) : (
+          !locations.isError &&
           selected &&
           selection &&
           (selected.status !== "active" &&
@@ -243,7 +266,8 @@ function OperationsPanel({ scope, roles }: { scope: SupplyRegistryScope; roles: 
               }
               onClose={() => setSelection(null)}
             />
-          ))}
+          ))
+        )}
       </div>
     </section>
   );

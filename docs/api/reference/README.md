@@ -842,6 +842,7 @@ Source: [backend/internal/modules/supply/module.go](../../../backend/internal/mo
 | GET | `/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments` | `public` | true | false |
 | GET | `/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/commands/:command` | `public` | false | false |
 | PUT | `/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/commands/:command` | `public` | false | false |
+| GET | `/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/review-access` | `public` | false | false |
 | PUT | `/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/shipments/:shipment/receiving/responses/:response` | `public` | false | false |
 | GET | `/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/shipments/:shipment/receiving` | `public` | false | false |
 | GET | `/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/shipments` | `public` | true | false |
@@ -935,6 +936,7 @@ Source: [backend/internal/modules/supply/module.go](../../../backend/internal/mo
 | PUT | `/v1/supply/relationships/:relationship` | `supply.trade_relationship.prepare` | false | false |
 | GET | `/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/commands/:command` | `public` | false | false |
 | PUT | `/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/commands/:command` | `public` | false | false |
+| GET | `/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/review-access` | `public` | false | false |
 | PUT | `/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/shipments/:shipment/receiving/responses/:response` | `public` | false | false |
 | GET | `/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/shipments/:shipment/receiving` | `public` | false | false |
 | GET | `/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/shipments` | `public` | true | false |

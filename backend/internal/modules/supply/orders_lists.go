@@ -217,6 +217,7 @@ func registerOrderLists(r *platform.Router, h *purchaseOrderHandlers) {
 	platform.ResourceListRoute(r, hospital, authz.Public, 50, h.listSeller)
 	for _, base := range []string{source, hospital} {
 		r.GET(base+"/:order", authz.Public, h.getSeller)
+		r.GET(base+"/:order/review-access", authz.Public, h.sourceReviewAccess)
 		r.GET(base+"/:order/commands/:command", authz.Public, h.getSellerCommand)
 		r.PUT(base+"/:order/commands/:command", authz.Public, h.decideSeller)
 	}

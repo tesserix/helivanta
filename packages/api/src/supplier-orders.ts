@@ -2,6 +2,7 @@ import { z } from "zod";
 import { apiFetch } from "./client";
 import { membershipRequestOptions } from "./membership-commands";
 import {
+  SupplierOrderReviewAccessContract,
   SupplierOrderContract,
   SupplierOrderInputContract,
   SupplierOrderDecisionInputContract,
@@ -247,3 +248,28 @@ export const supplierSourceOrderKey = (scope: SupplierSourceOrderScope, order: s
   scope.departmentId ?? "",
   order,
 ];
+
+export async function getSourceSupplierReviewAccess(
+  scope: SupplierSourceOrderScope,
+  order: string,
+  signal?: AbortSignal,
+) {
+  const value = SupplierOrderReviewAccessContract.parse(
+    await apiFetch(`${supplierSourceOrdersRoot(scope)}/${record.parse(order)}/review-access`, {
+      ...membershipRequestOptions(scope),
+      signal,
+    }),
+  );
+  if (
+    value.owner_tenant_id !== scope.tenantId ||
+    value.order_id !== order ||
+    value.organization_id !== scope.organizationId ||
+    value.location_id !== scope.locationId ||
+    value.product !== scope.product ||
+    value.hospital_id !== scope.hospitalId ||
+    value.department_id !== scope.departmentId ||
+    value.actor_subject !== scope.subject
+  )
+    throw new Error("Source review access does not match the selected account and order scope.");
+  return value;
+}

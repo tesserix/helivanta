@@ -1158,3 +1158,16 @@ describe("Outlets & access", () => {
     expect(address().has("open")).toBe(false);
   });
 });
+
+it("opens supplier fulfilment from the selected outlet without requiring its private inventory grant", async () => {
+  const fetcher = mockPharmacy("reader", 404, "IN", ["supply.supplier_order.read"]);
+  renderWorkspace("supplier-orders");
+  await screen.findByText("No supplier orders at this location.");
+  expect(fetcher).toHaveBeenCalledWith(
+    expect.stringContaining(
+      `/supply/stock-owners/pharmacy/organizations/${pharmacy}/locations/${outlet}/supplier-orders?`,
+    ),
+    expect.objectContaining({ cache: "no-store" }),
+  );
+  expect(fetcher.mock.calls.some(([url]) => url.endsWith("/access"))).toBe(false);
+});

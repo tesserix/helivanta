@@ -33,6 +33,7 @@ import {
   Network,
   ShoppingCart,
   PackagePlus,
+  Truck,
   Palette,
   CreditCard,
   Pill,
@@ -236,6 +237,13 @@ export const ZONES: Zone[] = [
         href: "/pharmacy/stock",
         icon: Boxes,
         permission: "pharmacy.stock.read",
+      },
+      {
+        section: "Inventory",
+        label: "Supplier fulfilment",
+        href: "/pharmacy/supplier-orders",
+        icon: Truck,
+        permission: "supply.supplier_order.read",
       },
       {
         section: "Inventory",

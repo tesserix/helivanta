@@ -66,8 +66,3 @@ type ShipmentSafety interface {
 type HospitalSourceAuthority interface {
 	WithOutlet(context.Context, authn.Principal, uuid.UUID, uuid.UUID, uuid.UUID, func(context.Context, supplierorder.Actor) error) error
 }
-
-// StockCancellation releases only undispatched owner commitments under the order owner's retained cancellation fence.
-type StockCancellation interface {
-	ReleaseOrder(context.Context, supplierorder.SupplierOrder) error
-}

@@ -164,6 +164,48 @@ func TestOwnerAllocationBudgetsSerializeAndRecoverOriginalIntent(t *testing.T) {
 				require.ErrorIs(t, err, gorm.ErrRecordNotFound)
 				return nil
 			}))
+			pending, err := supplierorder.Apply(&order, supplierorder.SupplierOrderExchange{OrderID: order.ID, Terms: order.Terms, Input: order.Input, InputSha256: order.InputSha256, SourceTenantID: order.Terms.Buyer.TenantID, SourceEpoch: order.RemoteEpoch + 1, Phase: "cancel_requested", SignatorySubject: "TEST-buyer-canceller"}, tenant, time.Now())
+			require.NoError(t, err)
+			canceller := platform.SupplierStockCancellation([]platform.Module{supply.New(), pharmacy.New()}, platform.Deps{DB: db})
+			cancel := func(fail bool) error {
+				ctx := tenantdb.WithActor(t.Context(), "system:supplier-fulfilment")
+				return db.WithTenant(ctx, tenant.String(), func(tx *gorm.DB) error {
+					if err := canceller.ReleaseOrder(ctx, tx, pending); err != nil {
+						return err
+					}
+					if fail {
+						return rollback
+					}
+					return nil
+				})
+			}
+			require.ErrorIs(t, cancel(true), rollback)
+			require.NoError(t, run(t.Context(), func(tx *gorm.DB) error {
+				current, err := store.Current(tx, tenant, created.Plan.ID)
+				if err != nil {
+					return err
+				}
+				require.Equal(t, int64(60), current.ReservedUnits)
+				return nil
+			}))
+			require.NoError(t, cancel(false))
+			require.NoError(t, cancel(false))
+			require.NoError(t, run(t.Context(), func(tx *gorm.DB) error {
+				current, err := store.Current(tx, tenant, created.Plan.ID)
+				if err != nil {
+					return err
+				}
+				require.Zero(t, current.ReservedUnits)
+				require.Equal(t, int64(60), current.ReleasedUnits)
+				require.Equal(t, int64(2), current.Version)
+				original, err := store.Original(tx, tenant, created.Plan.ID, in, actor)
+				if err != nil {
+					return err
+				}
+				require.Equal(t, int64(60), original.ReservedUnits)
+				require.Equal(t, int64(1), original.Version)
+				return nil
+			}))
 		})
 	}
 }

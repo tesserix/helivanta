@@ -7,6 +7,12 @@ on:
       - "contracts/supplier-access.json"
       - "backend/pkg/suppliertrade/**"
       - "backend/pkg/supplierorder/**"
+      - "backend/pkg/supplierfulfilment/**"
+      - "backend/internal/supplierstock/**"
+      - "contracts/supplier-fulfilment.json"
+      - "contracts/supplier-stock-schema.sql.tmpl"
+      - "packages/api/src/supplier-fulfilment*"
+      - "backend/internal/globalapi/supplier_fulfilment_test.go"
       - "contracts/supplier-orders.json"
       - "packages/api/src/supplier-orders*"
       - "backend/internal/modules/iam/**"
@@ -44,6 +50,10 @@ jobs:
           go test -race ./internal/modules/supply -run '^TestDirectedRelationshipProtocolPersistsBothConsentsAndNeverReactivatesFromReplay$'
           go test -race ./internal/modules/pharmacy -run '^TestOrderProductFactsKeepPrivateOwnerVersionUnitsAndPurpose$'
           go test -race ./internal/globalapi -run '^TestSupplierOrderHTTPRejectsChangedContextMalformedCommandsAndUnavailableOwners$'
+      - name: Fulfilment quantities and receiving evidence
+        run: go test -race ./pkg/supplierfulfilment ./internal/supplierstock
+      - name: Real owner stock allocation and original recovery
+        run: go test -race -timeout 35m ./internal/globalapi -run '^TestOwnerAllocationBudgetsSerializeAndRecoverOriginalIntent$'
       - name: Durable bilateral supplier grant protocol
         run: go test -race ./internal/modules/iam -run '^TestSupplierGrantProtocol'
       - name: Warehouse product identity and independent quality review

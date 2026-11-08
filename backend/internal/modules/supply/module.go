@@ -213,7 +213,7 @@ func (*Module) DirectedWriteTables() []string {
 	return []string{"supply_supplier_receiving_updates", "supply_supplier_shipments", "supply_trade_relationships", "supply_trade_relationship_history", "supply_purchase_orders", "supply_purchase_order_history"}
 }
 func (*Module) Consumers(deps platform.Deps) []events.Consumer {
-	result := append([]events.Consumer{tradeRelationshipConsumer(), purchaseOrderConsumer()}, fulfilmentConsumers()...)
+	result := append([]events.Consumer{tradeRelationshipConsumer(), purchaseOrderConsumer(deps.SupplierStockCancellation)}, fulfilmentConsumers()...)
 	if deps.Workflows != nil {
 		result = append(result, EvidenceScanConsumer(deps.Workflows))
 	}

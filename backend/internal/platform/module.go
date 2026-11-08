@@ -63,7 +63,7 @@ type Deps struct {
 	ReceivingAuthority        supplierfulfilment.ReceivingAuthority
 	SupplierShipmentSafety    supplierfulfilment.ShipmentSafety
 	HospitalSourceAuthority   supplierfulfilment.HospitalSourceAuthority
-	SupplierStockCancellation supplierfulfilment.StockCancellation
+	SupplierStockCancellation StockCancellation
 	StaffActors               authz.CurrentStaffActorGuard
 	PurchaseOrderActors       authz.CurrentPurchaseOrderActorGuard
 	StaffPostingSources       authz.CurrentStaffPostingSourceGuard

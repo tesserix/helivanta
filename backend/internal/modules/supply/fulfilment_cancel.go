@@ -10,17 +10,15 @@ import (
 	"gorm.io/gorm"
 )
 
-type warehouseCancellation struct{ db *tenantdb.DB }
+type warehouseCancellation struct{}
 
-func (*Module) StockCancellation(deps platform.Deps) f.StockCancellation {
-	return warehouseCancellation{db: deps.DB}
+func (*Module) StockCancellation(deps platform.Deps) platform.StockCancellation {
+	return warehouseCancellation{}
 }
-func (g warehouseCancellation) ReleaseOrder(ctx context.Context, o supplierorder.SupplierOrder) error {
-	if g.db == nil || !g.db.GuardedCommandActive(ctx) || tenantdb.ActorFrom(ctx) != "system:supplier-fulfilment" {
+func (g warehouseCancellation) ReleaseOrder(ctx context.Context, tx *gorm.DB, o supplierorder.SupplierOrder) error {
+	if tx == nil || tenantdb.ActorFrom(ctx) != "system:supplier-fulfilment" {
 		return f.ErrUnavailable
 	}
-	return g.db.WithTenantCommand(ctx, o.OwnerTenantID.String(), func(tx *gorm.DB) error {
-		s := supplierstock.Store{Owner: supplierstock.Warehouse}
-		return s.Frame(tx, supplierstock.Scope{TenantID: o.OwnerTenantID, OrganizationID: o.Terms.Seller.OrganizationID, LocationID: o.Terms.Seller.LocationID, OrderID: o.ID, Subject: "system:supplier-fulfilment", Mode: "cancel"}, func() error { return s.Cancel(tx, o) })
-	})
+	s := supplierstock.Store{Owner: supplierstock.Warehouse}
+	return s.Frame(tx, supplierstock.Scope{TenantID: o.OwnerTenantID, OrganizationID: o.Terms.Seller.OrganizationID, LocationID: o.Terms.Seller.LocationID, OrderID: o.ID, Subject: "system:supplier-fulfilment", Mode: "cancel"}, func() error { return s.Cancel(tx, o) })
 }

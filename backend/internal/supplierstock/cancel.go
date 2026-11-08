@@ -10,7 +10,7 @@ import (
 
 // Cancel is called only inside the source order owner's cancellation publication fence.
 func (s Store) Cancel(tx *gorm.DB, o supplierorder.SupplierOrder) error {
-	if s.validate() != nil || supplierorder.ValidateRecord(o) != nil || o.Side != "seller" || o.Status != "cancellation_requested" || o.Terms.Seller.Product != string(s.Owner) {
+	if s.validate() != nil || supplierorder.ValidateRecord(o) != nil || o.Side != "seller" || (o.Status != "cancellation_requested" && o.Status != "cancelled") || o.RemotePhase != "cancel_requested" || o.Terms.Seller.Product != string(s.Owner) {
 		return f.ErrInvalid
 	}
 	var rows []struct{ ID uuid.UUID }

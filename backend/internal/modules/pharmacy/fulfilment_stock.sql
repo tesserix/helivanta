@@ -60,5 +60,5 @@ CREATE TRIGGER pharmacy_supplier_dispatch_guard BEFORE INSERT ON pharmacy_stock_
 
 DO $$DECLARE prior text;BEGIN
  SELECT pg_get_expr(polqual,polrelid)INTO STRICT prior FROM pg_policy WHERE polrelid='pharmacy_staff_department_bindings'::regclass AND polname='pharmacy_staff_binding_scope';
- EXECUTE format('ALTER POLICY pharmacy_staff_binding_scope ON pharmacy_staff_department_bindings USING((%s)OR(pharmacy_operating_stock_scope(tenant_id,outlet_id,''read'')AND current_setting(''app.pharmacy_stock_permission'',true)=''pharmacy.stock.fulfil''AND hospital_id=NULLIF(current_setting(''app.pharmacy_fulfilment_hospital'',true),)::uuid AND department_id=NULLIF(current_setting(app.pharmacy_fulfilment_department,true),)::uuid))',prior);
+ EXECUTE format($policy$ALTER POLICY pharmacy_staff_binding_scope ON pharmacy_staff_department_bindings USING((%s)OR(pharmacy_operating_stock_scope(tenant_id,outlet_id,'read')AND current_setting('app.pharmacy_stock_permission',true)='pharmacy.stock.fulfil'AND hospital_id=NULLIF(current_setting('app.pharmacy_fulfilment_hospital',true),'')::uuid AND department_id=NULLIF(current_setting('app.pharmacy_fulfilment_department',true),'')::uuid))$policy$,prior);
 END $$;

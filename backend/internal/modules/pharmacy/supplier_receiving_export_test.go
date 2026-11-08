@@ -33,3 +33,7 @@ func ApplySupplierReceivingReleaseForTest(ctx context.Context, tx *gorm.DB, deps
 	h := &supplierReceiving{owner: &catalogueHandlers{db: deps.DB, bus: deps.Bus, supplierSafety: deps.SupplierShipmentSafety}}
 	return h.applyReceivingRelease(ctx, tx, p, s, shipment, receipt, id, in, actor)
 }
+
+var TestReceivingBatchChoices = receivingBatchChoices
+
+var TestOutletLocalDate = outletLocalDate

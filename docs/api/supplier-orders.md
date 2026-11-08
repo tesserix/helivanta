@@ -292,3 +292,20 @@ Supplier responses now use `ReceivingSharedResponse` in directed delivery and
 buyer history; private source Staff identity remains only in source records.
 Source and buyer parsers remain strict. The received-response table has non-null
 generated origin tenant/record provenance and immutable-history enforcement.
+
+Receiving progress uses the canonical `ReceivingCurrent` envelope: `not_recorded`
+requires a null summary, and `recorded` requires a verified summary. The SDK now
+parses that owner response and returns the summary or null; malformed or foreign
+scope envelopes fail closed. A current explicit Pharma hospital reviewer may read
+receiving without the separate operator-use grant; fallback occurs only after an
+explicit scoped denial, never when authorization is unavailable.
+
+Product choices include an exact ingredient/strength/unit, formulation and route
+inspection description from the owning catalogue. The bounded product child
+`GET /receiving/product-choices/:product/batches` returns existing destination lots
+for the shipment's exact lot number, active product, unit and pack. The SDK binds
+these choices to that product and shipment; expiry, version and MRP remain visible
+for inspection and owner validation. Existing batches retain their immutable facts.
+Physical release validation and exact recovery-object route classification are
+covered by native checks; fixture tax effectiveness now comes from the outlet's
+current owner date rather than a fixed date that becomes invalid over time.

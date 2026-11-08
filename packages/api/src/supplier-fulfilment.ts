@@ -13,6 +13,8 @@ import {
   type SupplierSourceOrderScope,
 } from "./supplier-orders";
 import {
+  ReceivingBatchChoiceContract,
+  ReceivingCurrentContract,
   ReceivingReleaseContract,
   ReceivingReleaseInputContract,
   type ReceivingReleaseInput,
@@ -404,12 +406,15 @@ export async function readHospitalSupplierReceiving(
   shipment: string,
   signal?: AbortSignal,
 ) {
-  const value = ReceivingSummaryContract.parse(
+  const current = ReceivingCurrentContract.parse(
     await apiFetch(`${receivingBase(scope, shipment)}/receiving`, {
       ...membershipRequestOptions(scope),
       signal,
     }),
   );
+  if ((current.state === "not_recorded") !== (current.summary === null)) fail();
+  const value = current.summary;
+  if (value === null) return null;
   if (
     !same(value.owner_tenant_id, scope.tenantId) ||
     !same(value.shipment_id, shipment) ||
@@ -972,4 +977,25 @@ export async function recoverHospitalSupplierRelease(
     membershipRequestOptions(scope),
   );
   return checkHospitalRelease(scope, shipment, receipt, id, intent, value);
+}
+
+export function listHospitalReceivingBatchChoicesPage(
+  scope: HospitalSupplierReceivingScope,
+  shipment: Shipment,
+  product: string,
+  request: SupplierPageRequest = {},
+  signal?: AbortSignal,
+) {
+  buyerShipment(scope, shipment);
+  return page(
+    `${receivingBase(scope, shipment.id)}/receiving/product-choices/${identifier.parse(product)}/batches`,
+    scope,
+    ReceivingBatchChoiceContract,
+    (v) => {
+      checkReceivingChoice(scope, shipment.id, v);
+      if (!same(v.product_id, product) || v.lot_number !== shipment.lot_number) fail();
+    },
+    request,
+    signal,
+  );
 }

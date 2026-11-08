@@ -54,3 +54,16 @@ func TestHospitalReceivingRegistersReceiptBoundPhysicalRelease(t *testing.T) {
 	}
 	t.Fatal("reviewed hospital receiving needs a receipt-bound physical release command")
 }
+
+func TestHospitalReceivingRegistersProductLotBatchChoices(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := platform.NewRouter(gin.New().Group("/v1/pharmacy"), receivingChoiceMembership{})
+	supplierReceivingRoutes(r, platform.Deps{})
+	for _, route := range r.Declared() {
+		if route.Path == "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receiving/product-choices/:product/batches" {
+			require.True(t, route.Paginated)
+			return
+		}
+	}
+	t.Fatal("receivers need the exact destination lot before choosing an existing or new batch")
+}

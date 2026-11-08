@@ -516,6 +516,11 @@ export const ReceivingProductChoiceContract = z
       .max(200)
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     pack_size: z.number().int().min(1).max(1000000000),
+    identity_description: z
+      .string()
+      .min(1)
+      .max(10000)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     created_at: z.string().datetime({ offset: true }),
   })
   .strict();
@@ -608,3 +613,36 @@ export const ReceivingSharedResponseContract = z
   })
   .strict();
 export type ReceivingSharedResponse = z.infer<typeof ReceivingSharedResponseContract>;
+
+export const ReceivingCurrentContract = z
+  .object({
+    summary: ReceivingSummaryContract.nullable(),
+    state: z.enum(["not_recorded", "recorded"]),
+  })
+  .strict();
+export type ReceivingCurrent = z.infer<typeof ReceivingCurrentContract>;
+
+export const ReceivingBatchChoiceContract = z
+  .object({
+    id: identifier,
+    owner_tenant_id: identifier,
+    shipment_id: identifier,
+    pharmacy_id: identifier,
+    outlet_id: identifier,
+    product_id: identifier,
+    product_version: z.number().int().min(1).max(9007199254740991),
+    lot_number: z
+      .string()
+      .min(1)
+      .max(100)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    expires_on: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    mrp_minor: z.number().int().min(0).max(9007199254740991).nullable(),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type ReceivingBatchChoice = z.infer<typeof ReceivingBatchChoiceContract>;

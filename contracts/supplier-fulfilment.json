@@ -1130,6 +1130,12 @@
         "max": 1000000000
       },
       {
+        "name": "identity_description",
+        "type": "string",
+        "min": 1,
+        "max": 10000
+      },
+      {
         "name": "created_at",
         "type": "time"
       }
@@ -1320,6 +1326,77 @@
         "min": 1,
         "max": 200,
         "format": "text"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "ReceivingCurrent": [
+      {
+        "name": "summary",
+        "type": "ReceivingSummary",
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "state",
+        "type": "string",
+        "enum": [
+          "not_recorded",
+          "recorded"
+        ]
+      }
+    ],
+    "ReceivingBatchChoice": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "shipment_id",
+        "type": "uuid"
+      },
+      {
+        "name": "pharmacy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "outlet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "product_id",
+        "type": "uuid"
+      },
+      {
+        "name": "product_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "lot_number",
+        "type": "string",
+        "min": 1,
+        "max": 100
+      },
+      {
+        "name": "expires_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "mrp_minor",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740991,
+        "pointer": true,
+        "nullable": true
       },
       {
         "name": "created_at",

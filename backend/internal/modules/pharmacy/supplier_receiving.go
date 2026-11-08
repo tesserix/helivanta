@@ -162,7 +162,7 @@ func (h *supplierReceiving) current(c *gin.Context) {
 		supplierstock.Error(c, err)
 		return
 	}
-	respond.OK(c, gin.H{"summary": result, "state": map[bool]string{true: "not_recorded", false: "recorded"}[result == nil]})
+	respond.OK(c, f.ReceivingCurrent{Summary: result, State: map[bool]string{true: "not_recorded", false: "recorded"}[result == nil]})
 }
 func (h *supplierReceiving) read(tx *gorm.DB, tenant, shipment, id uuid.UUID, actor supplierorder.Actor, in *f.ReceivingInput) (f.ReceivingReceipt, error) {
 	var row struct {

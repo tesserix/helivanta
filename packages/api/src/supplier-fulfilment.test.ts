@@ -1,6 +1,8 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import {
+  listHospitalReceivingBatchChoicesPage,
+  readHospitalSupplierReceiving,
   releaseHospitalSupplierReceipt,
   recoverHospitalSupplierRelease,
   listHospitalReceivingProductChoicesPage,
@@ -728,6 +730,7 @@ it("binds receiving choices to the exact shipment and fixed stock status", async
     ...common,
     version: 1,
     brand_name: "TEST brand",
+ identity_description:"TEST molecule 500 mg · capsule · oral",
     generic_name: "TEST generic",
     manufacturer: "TEST maker",
     dosage_form: "capsule",
@@ -820,4 +823,90 @@ it("binds physical release and original recovery to its receipt, actor and froze
   await expect(
     recoverHospitalSupplierRelease(buyer, receipt.shipment_id, receipt.id, result.id, input),
   ).rejects.toThrow();
+});
+
+it("reads the owner's recorded/not-recorded receiving envelope and fails closed on contradictions", async () => {
+  reply({ state: "not_recorded", summary: null });
+  await expect(readHospitalSupplierReceiving(buyer, receipt.shipment_id)).resolves.toBeNull();
+  const summary = {
+    id: id(97),
+    owner_tenant_id: buyer.tenantId,
+    shipment_id: receipt.shipment_id,
+    order_id: receipt.order_id,
+    version: 2,
+    counted_units: 5,
+    accepted_units: 4,
+    rejected_units: 1,
+    short_units: 0,
+    closed: false,
+    reason: "TEST count",
+    actor_subject: buyer.subject,
+    recorded_at: "2026-11-09T01:00:00Z",
+  };
+  reply({ state: "recorded", summary });
+  await expect(readHospitalSupplierReceiving(buyer, receipt.shipment_id)).resolves.toEqual(summary);
+  for (const bad of [
+    { state: "recorded", summary: null },
+    { state: "not_recorded", summary },
+    { state: "recorded", summary: { ...summary, owner_tenant_id: id(99) } },
+    { state: "recorded", summary: { ...summary, counted_units: 6 } },
+  ]) {
+    reply(bad);
+    await expect(readHospitalSupplierReceiving(buyer, receipt.shipment_id)).rejects.toThrow();
+  }
+});
+
+it("checks destination batch choices against the shipment, product and exact source lot", async () => {
+  const shipment = {
+    id: receipt.shipment_id,
+    allocation_id: plan.id,
+    order_id: plan.order_id,
+    line_id: plan.input.line_id,
+    order_input_sha256: plan.order_input_sha256,
+    source_tenant_id: source.tenantId,
+    source_organization_id: source.organizationId,
+    source_location_id: source.locationId,
+    buyer_tenant_id: buyer.tenantId,
+    hospital_id: buyer.hospitalId,
+    buyer_organization_id: buyer.pharmacyId,
+    buyer_location_id: buyer.outletId,
+    product: plan.product,
+    unit_code: "capsule",
+    quantity_units: 5,
+    lot_number: "TEST-LOT",
+    expires_on: "2030-12-31",
+    handoff_reference: "TEST handoff",
+    actor_subject: source.subject,
+    product_description: "TEST medicine",
+    pack_size: 10,
+    dispatched_at: "2026-11-08T12:00:00Z",
+  };
+  const batch = {
+    id: id(94),
+    owner_tenant_id: buyer.tenantId,
+    shipment_id: shipment.id,
+    pharmacy_id: buyer.pharmacyId,
+    outlet_id: buyer.outletId,
+    product_id: id(95),
+    product_version: 1,
+    lot_number: shipment.lot_number,
+    expires_on: shipment.expires_on,
+    mrp_minor: 12500,
+    created_at: "2026-11-08T12:00:00Z",
+  };
+  reply({ data: [batch], page: { has_more: false, next_cursor: null } });
+  await expect(
+    listHospitalReceivingBatchChoicesPage(buyer, shipment, batch.product_id),
+  ).resolves.toMatchObject({ data: [batch] });
+  for (const change of [
+    { product_id: id(99) },
+    { lot_number: "TEST-other" },
+    { shipment_id: id(99) },
+    { outlet_id: id(99) },
+  ]) {
+    reply({ data: [{ ...batch, ...change }], page: { has_more: false, next_cursor: null } });
+    await expect(
+      listHospitalReceivingBatchChoicesPage(buyer, shipment, batch.product_id),
+    ).rejects.toThrow();
+  }
 });

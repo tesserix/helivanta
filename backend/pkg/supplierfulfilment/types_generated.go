@@ -269,19 +269,20 @@ type ReceivingResponseRecord struct {
 }
 
 type ReceivingProductChoice struct {
-	ID            uuid.UUID `json:"id"`
-	OwnerTenantID uuid.UUID `json:"owner_tenant_id"`
-	ShipmentID    uuid.UUID `json:"shipment_id"`
-	PharmacyID    uuid.UUID `json:"pharmacy_id"`
-	OutletID      uuid.UUID `json:"outlet_id"`
-	Version       int64     `json:"version"`
-	BrandName     string    `json:"brand_name"`
-	GenericName   string    `json:"generic_name"`
-	Manufacturer  string    `json:"manufacturer"`
-	DosageForm    string    `json:"dosage_form"`
-	UnitCode      string    `json:"unit_code"`
-	PackSize      int64     `json:"pack_size"`
-	CreatedAt     time.Time `json:"created_at"`
+	ID                  uuid.UUID `json:"id"`
+	OwnerTenantID       uuid.UUID `json:"owner_tenant_id"`
+	ShipmentID          uuid.UUID `json:"shipment_id"`
+	PharmacyID          uuid.UUID `json:"pharmacy_id"`
+	OutletID            uuid.UUID `json:"outlet_id"`
+	Version             int64     `json:"version"`
+	BrandName           string    `json:"brand_name"`
+	GenericName         string    `json:"generic_name"`
+	Manufacturer        string    `json:"manufacturer"`
+	DosageForm          string    `json:"dosage_form"`
+	UnitCode            string    `json:"unit_code"`
+	PackSize            int64     `json:"pack_size"`
+	IdentityDescription string    `json:"identity_description"`
+	CreatedAt           time.Time `json:"created_at"`
 }
 
 type ReceivingLocationChoice struct {
@@ -332,6 +333,25 @@ type ReceivingSharedResponse struct {
 	Reason               string    `json:"reason"`
 	ActorSubject         string    `json:"actor_subject"`
 	CreatedAt            time.Time `json:"created_at"`
+}
+
+type ReceivingCurrent struct {
+	Summary *ReceivingSummary `json:"summary"`
+	State   string            `json:"state"`
+}
+
+type ReceivingBatchChoice struct {
+	ID             uuid.UUID `json:"id"`
+	OwnerTenantID  uuid.UUID `json:"owner_tenant_id"`
+	ShipmentID     uuid.UUID `json:"shipment_id"`
+	PharmacyID     uuid.UUID `json:"pharmacy_id"`
+	OutletID       uuid.UUID `json:"outlet_id"`
+	ProductID      uuid.UUID `json:"product_id"`
+	ProductVersion int64     `json:"product_version"`
+	LotNumber      string    `json:"lot_number"`
+	ExpiresOn      string    `json:"expires_on"`
+	MrpMinor       *int64    `json:"mrp_minor"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 const maximumLeaseSeconds = 86400

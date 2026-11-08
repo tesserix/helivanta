@@ -246,6 +246,20 @@ func TestSupplierReceivingCorrectionRepositoryRetainsEvidenceAndRollsBackCustody
 		return nil
 	}))
 	require.NoError(t, command(reviewer, "review", func(tx *gorm.DB) error {
+		batches, err := pharmacy.TestReceivingBatchChoices(tx, shipment, product, pagination.Params{Limit: 1})
+		if err != nil {
+			return err
+		}
+		require.Len(t, batches, 1)
+		require.Equal(t, *original.Input.DestinationBatchID, batches[0].ID)
+		require.Equal(t, shipment.LotNumber, batches[0].LotNumber)
+		foreignLot := shipment
+		foreignLot.LotNumber = "TEST-OTHER-LOT"
+		absent, err := pharmacy.TestReceivingBatchChoices(tx, foreignLot, product, pagination.Params{Limit: 1})
+		if err != nil {
+			return err
+		}
+		require.Empty(t, absent)
 		receipt, err := pharmacy.ReadSupplierReceiptForTest(tx, tenant, shipment.ID, original.ID, reviewer, nil)
 		if err != nil {
 			return err
@@ -312,7 +326,14 @@ func TestSupplierReceivingCorrectionRepositoryRetainsEvidenceAndRollsBackCustody
 	require.ErrorIs(t, release(reviewer, releaseID, releaseInput, nil), f.ErrUnavailable, "source safety outage must fail closed")
 	safety.err = nil
 	require.Error(t, release(reviewer, releaseID, releaseInput, nil), "unclassified product cannot be released")
-	tax := testutil.Do(r, "POST", root+"/catalogue/products/"+product.String()+"/tax-classifications", "receiver", classificationBody("30041010", "taxable", "5", "", "2026-11-01", ""))
+	var today string
+	require.NoError(t, command(reviewer, "read", func(tx *gorm.DB) error {
+		var err error
+		today, err = pharmacy.TestOutletLocalDate(tx, tenant.String(), outlet)
+		return err
+	}))
+
+	tax := testutil.Do(r, "POST", root+"/catalogue/products/"+product.String()+"/tax-classifications", "receiver", classificationBody("30041010", "taxable", "5", "", today, ""))
 	require.Equal(t, 201, tax.Code, tax.Body.String())
 	schedule := id()
 	declared := testutil.Do(r, "PUT", root+"/catalogue/products/"+product.String()+"/schedule/"+schedule.String(), "receiver", `{"regulatory_class":"H","ndps":false,"source":"TEST pack label"}`)

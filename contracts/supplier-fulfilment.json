@@ -143,7 +143,11 @@
       {
         "name": "status",
         "type": "string",
-        "enum": ["reserved", "released", "dispatched"]
+        "enum": [
+          "reserved",
+          "released",
+          "dispatched"
+        ]
       },
       {
         "name": "lot_number",
@@ -207,7 +211,10 @@
       {
         "name": "decision",
         "type": "string",
-        "enum": ["release", "dispatch"]
+        "enum": [
+          "release",
+          "dispatch"
+        ]
       },
       {
         "name": "handoff_reference",
@@ -593,7 +600,12 @@
       {
         "name": "effective_status",
         "type": "string",
-        "enum": ["reserved", "expired", "released", "dispatched"]
+        "enum": [
+          "reserved",
+          "expired",
+          "released",
+          "dispatched"
+        ]
       },
       {
         "name": "effective_reserved_units",
@@ -823,7 +835,9 @@
       {
         "name": "state",
         "type": "string",
-        "enum": ["review_recorded"]
+        "enum": [
+          "review_recorded"
+        ]
       }
     ],
     "SupplierStockChoice": [
@@ -965,7 +979,10 @@
       {
         "name": "response",
         "type": "string",
-        "enum": ["confirmed", "disputed"]
+        "enum": [
+          "confirmed",
+          "disputed"
+        ]
       },
       {
         "name": "reason",
@@ -1007,7 +1024,10 @@
       {
         "name": "source_product",
         "type": "string",
-        "enum": ["supply", "pharmacy"]
+        "enum": [
+          "supply",
+          "pharmacy"
+        ]
       },
       {
         "name": "summary_version",
@@ -1018,7 +1038,10 @@
       {
         "name": "response",
         "type": "string",
-        "enum": ["confirmed", "disputed"]
+        "enum": [
+          "confirmed",
+          "disputed"
+        ]
       },
       {
         "name": "reason",
@@ -1037,6 +1060,120 @@
       {
         "name": "actor_staff_id",
         "type": "uuid"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "ReceivingProductChoice": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "shipment_id",
+        "type": "uuid"
+      },
+      {
+        "name": "pharmacy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "outlet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "brand_name",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "generic_name",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "manufacturer",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "dosage_form",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "unit_code",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "pack_size",
+        "type": "int64",
+        "min": 1,
+        "max": 1000000000
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "ReceivingLocationChoice": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "shipment_id",
+        "type": "uuid"
+      },
+      {
+        "name": "pharmacy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "outlet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "code",
+        "type": "string",
+        "min": 1,
+        "max": 40
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "stock_status",
+        "type": "string",
+        "enum": [
+          "quarantine",
+          "sellable"
+        ]
       },
       {
         "name": "created_at",

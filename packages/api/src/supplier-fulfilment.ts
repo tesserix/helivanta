@@ -13,6 +13,8 @@ import {
   type SupplierSourceOrderScope,
 } from "./supplier-orders";
 import {
+  ReceivingProductChoiceContract,
+  ReceivingLocationChoiceContract,
   ReceivingResponseInputContract,
   ReceivingResponseRecordContract,
   type ReceivingResponseInput,
@@ -869,4 +871,53 @@ export async function readSourceSupplierReceiving(
   )
     fail();
   return value;
+}
+
+function checkReceivingChoice(
+  scope: HospitalSupplierReceivingScope,
+  shipment: string,
+  value: { owner_tenant_id: string; shipment_id: string; pharmacy_id: string; outlet_id: string },
+) {
+  if (
+    !same(value.owner_tenant_id, scope.tenantId) ||
+    !same(value.shipment_id, shipment) ||
+    !same(value.pharmacy_id, scope.pharmacyId) ||
+    !same(value.outlet_id, scope.outletId)
+  )
+    fail();
+}
+export function listHospitalReceivingProductChoicesPage(
+  scope: HospitalSupplierReceivingScope,
+  shipment: string,
+  request: SupplierPageRequest = {},
+  signal?: AbortSignal,
+) {
+  return page(
+    `${receivingBase(scope, shipment)}/receiving/product-choices`,
+    scope,
+    ReceivingProductChoiceContract,
+    (v) => checkReceivingChoice(scope, shipment, v),
+    request,
+    signal,
+  );
+}
+export function listHospitalReceivingLocationsPage(
+  scope: HospitalSupplierReceivingScope,
+  shipment: string,
+  status: "quarantine" | "sellable",
+  request: SupplierPageRequest = {},
+  signal?: AbortSignal,
+) {
+  const kind = z.enum(["quarantine", "sellable"]).parse(status);
+  return page(
+    `${receivingBase(scope, shipment)}/receiving/${kind}-locations`,
+    scope,
+    ReceivingLocationChoiceContract,
+    (v) => {
+      checkReceivingChoice(scope, shipment, v);
+      if (v.stock_status !== kind) fail();
+    },
+    request,
+    signal,
+  );
 }

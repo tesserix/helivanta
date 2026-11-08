@@ -1,6 +1,8 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import {
+  listHospitalReceivingProductChoicesPage,
+  listHospitalReceivingLocationsPage,
   listSupplierAllocationsPage,
   reserveSupplierAllocation,
   readSupplierAllocation,
@@ -704,4 +706,56 @@ it("keeps a supplier's response separate from hospital counts and checks both re
       reason: response.reason,
     }),
   ).rejects.toThrow();
+});
+
+it("binds receiving choices to the exact shipment and fixed stock status", async () => {
+  const common = {
+    id: id(30),
+    owner_tenant_id: buyer.tenantId,
+    shipment_id: id(14),
+    pharmacy_id: buyer.pharmacyId,
+    outlet_id: buyer.outletId,
+    created_at: "2026-11-08T12:00:00Z",
+  };
+  const product = {
+    ...common,
+    version: 1,
+    brand_name: "TEST brand",
+    generic_name: "TEST generic",
+    manufacturer: "TEST maker",
+    dosage_form: "capsule",
+    unit_code: "capsule",
+    pack_size: 10,
+  };
+  const fetch = reply({ data: [product], page: { has_more: false, next_cursor: null } });
+  await expect(
+    listHospitalReceivingProductChoicesPage(buyer, id(14), { limit: 1 }),
+  ).resolves.toMatchObject({ data: [product] });
+  expect(fetch).toHaveBeenCalledWith(
+    expect.stringContaining(`/supplier-shipments/${id(14)}/receiving/product-choices?limit=1`),
+    expect.anything(),
+  );
+  for (const field of ["owner_tenant_id", "shipment_id", "pharmacy_id", "outlet_id"]) {
+    reply({
+      data: [{ ...product, [field]: id(99) }],
+      page: { has_more: false, next_cursor: null },
+    });
+    await expect(listHospitalReceivingProductChoicesPage(buyer, id(14))).rejects.toThrow();
+  }
+  for (const status of ["quarantine", "sellable"] as const) {
+    const location = { ...common, code: "TEST-Q", name: "TEST location", stock_status: status };
+    const request = reply({ data: [location], page: { has_more: false, next_cursor: null } });
+    await expect(
+      listHospitalReceivingLocationsPage(buyer, id(14), status, { limit: 1 }),
+    ).resolves.toMatchObject({ data: [location] });
+    expect(request).toHaveBeenCalledWith(
+      expect.stringContaining(`/receiving/${status}-locations?limit=1`),
+      expect.anything(),
+    );
+    reply({
+      data: [{ ...location, stock_status: status === "sellable" ? "quarantine" : "sellable" }],
+      page: { has_more: false, next_cursor: null },
+    });
+    await expect(listHospitalReceivingLocationsPage(buyer, id(14), status)).rejects.toThrow();
+  }
 });

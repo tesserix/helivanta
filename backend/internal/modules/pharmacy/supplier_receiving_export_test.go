@@ -23,3 +23,6 @@ func ApplySupplierCorrectionForTest(tx *gorm.DB, s f.BuyerScope, shipment f.Ship
 
 var TestSupplierReceiptPage = receiptPage
 var TestSupplierCorrectionPage = correctionPage
+
+var TestReceivingProductChoices = receivingProductChoices
+var TestReceivingLocationChoices = receivingLocationChoices

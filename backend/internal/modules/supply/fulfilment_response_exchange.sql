@@ -19,7 +19,7 @@ CREATE POLICY tenant_isolation ON supply_supplier_received_responses USING(
  current_setting('app.supply_order_mode',true)='exchange'AND source_tenant_id::text=current_setting('app.supply_order_origin',true)AND order_id=NULLIF(current_setting('app.supply_order_id',true),'')::uuid AND current_setting('app.actor_subject',true)='system:supplier-responses'
  OR current_setting('app.supply_order_mode',true)IN('buyer_read','buyer_write')AND EXISTS(SELECT 1 FROM supply_purchase_orders p WHERE p.tenant_id=supply_supplier_received_responses.tenant_id AND p.id=supply_supplier_received_responses.order_id AND p.side='buyer')
  ))WITH CHECK(
- hms_tenant_visible(tenant_id)AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid
+ tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid
  AND current_setting('app.supply_order_mode',true)='exchange'AND source_tenant_id::text=current_setting('app.supply_order_origin',true)
  AND order_id=NULLIF(current_setting('app.supply_order_id',true),'')::uuid AND current_setting('app.actor_subject',true)='system:supplier-responses'
 );

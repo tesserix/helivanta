@@ -24,6 +24,10 @@ import (
 // an entry is therefore a diff a reviewer sees and must justify, not a
 // pattern match that can silently start admitting a new field.
 var eventPayloadPHIAllowlist = map[string]string{
+	"supply.SupplierReceivingResponseExchangeData.Reason":       "bounded supplier response rationale required for hospital discrepancy reconciliation; directed to the exact buyer only, no patient content requested",
+	"supply.SupplierReceivingResponseExchangeData.ActorSubject": "authenticated supplier signatory required to attribute a disputed or confirmed receiving response to its source; exact bilateral exchange only",
+	"supply.SupplierReceivingResponseExchangeData.ActorStaffID": "reviewed source Staff reference pins the immutable response to its accountable actor and original recovery; exact buyer only, no Staff profile or contact fields",
+
 	"supply.SupplierDispatchRecordedData.HandoffReference":   "bounded transport document reference needed for matching physical custody; restricted bilateral exchange, no patient data requested",
 	"supply.SupplierDispatchRecordedData.ActorSubject":       "authenticated physical-operation actor needed for accountable handoff and receiving; exact bilateral exchange only, no contact or private Staff UUID",
 	"supply.SupplierShipmentExchangeData.HandoffReference":   "bounded transport document reference needed for matching physical custody; restricted bilateral exchange, no patient data requested",
@@ -63,6 +67,18 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"supply.SupplierReceivingResponseExchangeData.ID":                   "commercial response identity, contracting scope, version, fixed decision or timestamp; no patient or Staff profile data; exact buyer only",
+	"supply.SupplierReceivingResponseExchangeData.OwnerTenantID":        "commercial response identity, contracting scope, version, fixed decision or timestamp; no patient or Staff profile data; exact buyer only",
+	"supply.SupplierReceivingResponseExchangeData.BuyerTenantID":        "commercial response identity, contracting scope, version, fixed decision or timestamp; no patient or Staff profile data; exact buyer only",
+	"supply.SupplierReceivingResponseExchangeData.OrderID":              "commercial response identity, contracting scope, version, fixed decision or timestamp; no patient or Staff profile data; exact buyer only",
+	"supply.SupplierReceivingResponseExchangeData.ShipmentID":           "commercial response identity, contracting scope, version, fixed decision or timestamp; no patient or Staff profile data; exact buyer only",
+	"supply.SupplierReceivingResponseExchangeData.SourceOrganizationID": "commercial response identity, contracting scope, version, fixed decision or timestamp; no patient or Staff profile data; exact buyer only",
+	"supply.SupplierReceivingResponseExchangeData.SourceLocationID":     "commercial response identity, contracting scope, version, fixed decision or timestamp; no patient or Staff profile data; exact buyer only",
+	"supply.SupplierReceivingResponseExchangeData.SourceProduct":        "commercial response identity, contracting scope, version, fixed decision or timestamp; no patient or Staff profile data; exact buyer only",
+	"supply.SupplierReceivingResponseExchangeData.SummaryVersion":       "commercial response identity, contracting scope, version, fixed decision or timestamp; no patient or Staff profile data; exact buyer only",
+	"supply.SupplierReceivingResponseExchangeData.Response":             "commercial response identity, contracting scope, version, fixed decision or timestamp; no patient or Staff profile data; exact buyer only",
+	"supply.SupplierReceivingResponseExchangeData.CreatedAt":            "commercial response identity, contracting scope, version, fixed decision or timestamp; no patient or Staff profile data; exact buyer only",
+
 	"supply.SupplierDispatchRecordedData.ID":                     "immutable commercial stock, shipment, product or quantity evidence; no clinical record or personal identity; exact contracting tenants only",
 	"supply.SupplierDispatchRecordedData.AllocationID":           "immutable commercial stock, shipment, product or quantity evidence; no clinical record or personal identity; exact contracting tenants only",
 	"supply.SupplierDispatchRecordedData.OrderID":                "immutable commercial stock, shipment, product or quantity evidence; no clinical record or personal identity; exact contracting tenants only",

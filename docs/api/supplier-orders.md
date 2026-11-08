@@ -245,3 +245,24 @@ The record's `owner_tenant_id` identifies the supplier author; `buyer_tenant_id`
 identifies the recipient projection. Readers must compare `summary_version` with
 the effective hospital summary rather than presenting old supplier replies as
 current confirmation. ADR 0067 records delivery, isolation and rollback decisions.
+
+### Hospital receiving inspection choices
+
+The shipment receiving root now declares bounded `GET /receiving/product-choices`,
+`/receiving/quarantine-locations` and `/receiving/sellable-locations` pages.
+Each read uses current hospital/department Staff authority, exact Supply shipment
+proof and the destination Pharma owner transaction; it writes receiving read audit.
+The limit is 50, and sealed cursors bind the caller and full shipment route.
+Product candidates are active destination products with the shipment's exact unit
+and pack size. These filters do not establish ingredient, strength or formulation
+equivalence: the receiver must inspect the immutable shipment and destination
+identity before confirmation. Location routes fix the stock status on the server.
+The strict SDK rejects foreign tenant, outlet, pharmacy or shipment choices and
+wrong-status locations. These APIs do not grant private catalogue/inventory editor
+access or complete the hospital workbench and physical release acceptance.
+
+Supplier-response migration write policy pins the exact destination tenant;
+read visibility does not authorize cross-tenant inserts. The event privacy
+classification explicitly records its commercial fields and restricted actor and
+reason evidence. Native classification checks pass; full migration and broker
+execution remain CI checks.

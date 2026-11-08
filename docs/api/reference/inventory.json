@@ -2969,6 +2969,33 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receiving/product-choices",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receiving/quarantine-locations",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receiving/sellable-locations",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receiving",
           "permission": "public",
           "authentication_required": true,
@@ -7773,7 +7800,7 @@
         },
         {
           "id": "0017_supply_supplier_response_exchange",
-          "sql_sha256": "39bbdca0151290405b713a6bf47574e8243f88c270901957ee6e0162e7557c06",
+          "sql_sha256": "9feaa512faf2a48d45c4aa4607f26926f9077524bd3d59e13025158cf237be28",
           "creates_tables": [
             "supply_supplier_received_responses"
           ]

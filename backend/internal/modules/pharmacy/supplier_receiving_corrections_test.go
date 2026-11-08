@@ -65,6 +65,54 @@ func TestSupplierReceivingCorrectionRepositoryRetainsEvidenceAndRollsBackCustody
 			return action(tx)
 		})
 	}
+
+	shelf := id()
+	call(root+"/stock/locations/"+shelf.String(), `{"code":"TEST-S","name":"TEST sellable","stock_status":"sellable"}`)
+	for i, pack := range []int{1, 20} {
+		call(root+"/catalogue/products/"+id().String(), fmt.Sprintf(`{"expected_version":0,"sku":"TEST-INCOMPATIBLE-%d","brand_name":"TEST other capsule","generic_name":"TEST other molecule","dosage_form":"capsule","route":"oral","manufacturer":"TEST Manufacturer","marketing_company":"TEST Marketing","ingredients":[{"name":"TEST molecule","strength":"500","unit":"mg"}],"pack_size":%d,"unit_of_issue":"capsule","currency":"INR","mrp_minor":12500,"status":"active"}`, i, pack))
+	}
+	require.NoError(t, command(receiver, "read", func(tx *gorm.DB) error {
+		products, err := pharmacy.TestReceivingProductChoices(tx, shipment, pagination.Params{Limit: 1})
+		if err != nil {
+			return err
+		}
+		require.Len(t, products, 1)
+		require.Equal(t, product, products[0].ID)
+		require.Equal(t, shipment.ID, products[0].ShipmentID)
+		require.Equal(t, int64(10), products[0].PackSize)
+		next, err := pharmacy.TestReceivingProductChoices(tx, shipment, pagination.Params{Limit: 1, After: &pagination.Cursor{CreatedAt: products[0].CreatedAt, ID: products[0].ID}})
+		if err != nil {
+			return err
+		}
+		require.Empty(t, next)
+		for _, choice := range []struct {
+			status string
+			id     uuid.UUID
+		}{{"quarantine", q}, {"sellable", shelf}} {
+			locations, err := pharmacy.TestReceivingLocationChoices(tx, shipment, pagination.Params{Limit: 1}, choice.status)
+			if err != nil {
+				return err
+			}
+			require.Len(t, locations, 1)
+			require.Equal(t, choice.id, locations[0].ID)
+			require.Equal(t, choice.status, locations[0].StockStatus)
+			foreign := shipment
+			foreign.BuyerTenantID = uuid.MustParse(testutil.TenantB)
+			hidden, err := pharmacy.TestReceivingLocationChoices(tx, foreign, pagination.Params{Limit: 1}, choice.status)
+			if err != nil {
+				return err
+			}
+			require.Empty(t, hidden)
+		}
+		foreign := shipment
+		foreign.BuyerLocationID = id()
+		hidden, err := pharmacy.TestReceivingProductChoices(tx, foreign, pagination.Params{Limit: 1})
+		if err != nil {
+			return err
+		}
+		require.Empty(t, hidden)
+		return nil
+	}))
 	var original f.ReceivingReceipt
 	require.NoError(t, command(receiver, "record", func(tx *gorm.DB) error {
 		at, err := supplierstock.Clock(tx)

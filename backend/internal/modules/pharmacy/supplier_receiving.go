@@ -33,6 +33,7 @@ func supplierReceivingRoutes(r *platform.Router, deps platform.Deps) {
 	h := &supplierReceiving{db: deps.DB, authority: deps.ReceivingAuthority, safety: deps.SupplierShipmentSafety}
 	base := "/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment"
 	h.registerLists(r, base)
+	h.registerChoices(r, base)
 	r.GET(base+"/receiving", authz.Public, h.current)
 	r.PUT(base+"/receipts/:receipt", authz.Public, h.receive)
 	r.GET(base+"/receipts/:receipt", authz.Public, h.receipt)

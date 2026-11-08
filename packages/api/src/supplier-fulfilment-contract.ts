@@ -481,3 +481,65 @@ export const ReceivingResponseRecordContract = z
   })
   .strict();
 export type ReceivingResponseRecord = z.infer<typeof ReceivingResponseRecordContract>;
+
+export const ReceivingProductChoiceContract = z
+  .object({
+    id: identifier,
+    owner_tenant_id: identifier,
+    shipment_id: identifier,
+    pharmacy_id: identifier,
+    outlet_id: identifier,
+    version: z.number().int().min(1).max(9007199254740991),
+    brand_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    generic_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    manufacturer: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    dosage_form: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    unit_code: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    pack_size: z.number().int().min(1).max(1000000000),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type ReceivingProductChoice = z.infer<typeof ReceivingProductChoiceContract>;
+
+export const ReceivingLocationChoiceContract = z
+  .object({
+    id: identifier,
+    owner_tenant_id: identifier,
+    shipment_id: identifier,
+    pharmacy_id: identifier,
+    outlet_id: identifier,
+    code: z
+      .string()
+      .min(1)
+      .max(40)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    name: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    stock_status: z.enum(["quarantine", "sellable"]),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type ReceivingLocationChoice = z.infer<typeof ReceivingLocationChoiceContract>;

@@ -442,6 +442,8 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation` | `public` | false | false |
 | PUT | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation` | `public` | false | false |
 | GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations` | `public` | true | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/lines/:line/stock-choices/:stock/locations` | `public` | true | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/lines/:line/stock-choices` | `public` | true | false |
 | GET | `/v1/pharmacy/hospitals/:hospital/staff-binding-outlet-choices` | `pharmacy.staff_binding.read` | true | false |
 | GET | `/v1/pharmacy/insights` | `pharmacy.dispense.read` | false | false |
 | GET | `/v1/pharmacy/medications` | `pharmacy.medication.read` | true | false |
@@ -581,6 +583,8 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation` | `public` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation` | `public` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations` | `public` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/lines/:line/stock-choices/:stock/locations` | `public` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/lines/:line/stock-choices` | `public` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations/in-force` | `pharmacy.tax.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations` | `pharmacy.tax.manage` | true | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations` | `pharmacy.tax.manage` | false | false |
@@ -889,6 +893,7 @@ Source: [backend/internal/modules/supply/module.go](../../../backend/internal/mo
 | GET | `/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation` | `public` | false | false |
 | PUT | `/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation` | `public` | false | false |
 | GET | `/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations` | `public` | true | false |
+| GET | `/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/lines/:line/stock-choices` | `public` | true | false |
 | GET | `/v1/supply/parties/:party/operating-locations/:premise` | `supply.operations.read` | false | false |
 | GET | `/v1/supply/parties/:party/operating-locations` | `supply.operations.read` | true | false |
 | GET | `/v1/supply/parties/:party/platform-identity` | `supply.party.read` | false | false |

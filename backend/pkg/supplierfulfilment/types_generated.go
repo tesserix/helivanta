@@ -212,5 +212,38 @@ type ReceivingClearance struct {
 	State          string    `json:"state"`
 }
 
+type SupplierStockChoice struct {
+	ID             uuid.UUID                          `json:"id"`
+	OwnerTenantID  uuid.UUID                          `json:"owner_tenant_id"`
+	OrderID        uuid.UUID                          `json:"order_id"`
+	LineID         uuid.UUID                          `json:"line_id"`
+	OrganizationID uuid.UUID                          `json:"organization_id"`
+	LocationID     uuid.UUID                          `json:"location_id"`
+	Product        supplierorder.SupplierOrderProduct `json:"product"`
+	LotNumber      string                             `json:"lot_number"`
+	ExpiresOn      string                             `json:"expires_on"`
+	Description    string                             `json:"description"`
+	UnitCode       string                             `json:"unit_code"`
+	PackSize       int64                              `json:"pack_size"`
+	AvailableUnits int64                              `json:"available_units"`
+	CreatedAt      time.Time                          `json:"created_at"`
+	ObservedAt     time.Time                          `json:"observed_at"`
+}
+
+type SupplierStockLocationChoice struct {
+	ID             uuid.UUID `json:"id"`
+	OwnerTenantID  uuid.UUID `json:"owner_tenant_id"`
+	OrderID        uuid.UUID `json:"order_id"`
+	LineID         uuid.UUID `json:"line_id"`
+	OrganizationID uuid.UUID `json:"organization_id"`
+	LocationID     uuid.UUID `json:"location_id"`
+	StockID        uuid.UUID `json:"stock_id"`
+	Code           string    `json:"code"`
+	Name           string    `json:"name"`
+	AvailableUnits int64     `json:"available_units"`
+	CreatedAt      time.Time `json:"created_at"`
+	ObservedAt     time.Time `json:"observed_at"`
+}
+
 const maximumLeaseSeconds = 86400
 const maximumUnits = 1000000000

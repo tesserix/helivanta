@@ -205,3 +205,14 @@ the same-origin Global API with no-store and expected tenant/subject headers.
 Its request tests check paths against the registered inventory. Discovery database
 assertions, positive owner API tests and browser acceptance remain delivery gates;
 these contracts alone do not establish a finished deployed workflow.
+
+Stock selection for an accepted source line uses the physical owner's allocation
+root with `/allocations/:allocation` replaced by
+`/lines/:line/stock-choices`. Pharmacy also exposes
+`/lines/:line/stock-choices/:stock/locations` for sellable shelves. Both use the
+current reservation-purpose order proof, the owner's operating/hospital Staff
+admission, owner RLS and audited resource-bound pagination (maximum 50). They do
+not require inventory administration. `SupplierStockChoice` and
+`SupplierStockLocationChoice` are generated from the canonical fulfilment schema.
+Counts are observed free-stock hints after active holds, not reservation evidence;
+actual reserve and dispatch commands retain current owner locks and validation.

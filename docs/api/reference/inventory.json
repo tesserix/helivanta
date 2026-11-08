@@ -3031,6 +3031,24 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/lines/:line/stock-choices/:stock/locations",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/lines/:line/stock-choices",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "scope_kind": "hospital",
           "scope_parameter": "hospital",
           "method": "GET",
@@ -4289,6 +4307,24 @@
         {
           "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/lines/:line/stock-choices/:stock/locations",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/lines/:line/stock-choices",
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
@@ -6648,6 +6684,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/lines/:line/stock-choices",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/supply/parties/:party/operating-locations/:premise",
           "permission": "supply.operations.read",
           "authentication_required": true,
@@ -7641,7 +7686,7 @@
         },
         {
           "id": "0016_supply_supplier_fulfilment",
-          "sql_sha256": "01761ca66cd13cf96ab19125e33d43a8c55e353406175d0610c13ad0dc03805d",
+          "sql_sha256": "bb47e239606f4d89167789efd3f0cdbaa552e93a84c0205370f98026d23911be",
           "creates_tables": [
             "supply_supplier_allocations",
             "supply_supplier_holds",

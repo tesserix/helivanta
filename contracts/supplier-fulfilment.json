@@ -825,6 +825,135 @@
         "type": "string",
         "enum": ["review_recorded"]
       }
+    ],
+    "SupplierStockChoice": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "order_id",
+        "type": "uuid"
+      },
+      {
+        "name": "line_id",
+        "type": "uuid"
+      },
+      {
+        "name": "organization_id",
+        "type": "uuid"
+      },
+      {
+        "name": "location_id",
+        "type": "uuid"
+      },
+      {
+        "name": "product",
+        "type": "SupplierOrderProduct"
+      },
+      {
+        "name": "lot_number",
+        "type": "string",
+        "min": 1,
+        "max": 100
+      },
+      {
+        "name": "expires_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "description",
+        "type": "string",
+        "min": 1,
+        "max": 2000
+      },
+      {
+        "name": "unit_code",
+        "type": "string",
+        "min": 1,
+        "max": 100
+      },
+      {
+        "name": "pack_size",
+        "type": "int64",
+        "min": 1,
+        "max": 1000000000
+      },
+      {
+        "name": "available_units",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740991
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "observed_at",
+        "type": "time"
+      }
+    ],
+    "SupplierStockLocationChoice": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "order_id",
+        "type": "uuid"
+      },
+      {
+        "name": "line_id",
+        "type": "uuid"
+      },
+      {
+        "name": "organization_id",
+        "type": "uuid"
+      },
+      {
+        "name": "location_id",
+        "type": "uuid"
+      },
+      {
+        "name": "stock_id",
+        "type": "uuid"
+      },
+      {
+        "name": "code",
+        "type": "string",
+        "min": 1,
+        "max": 100
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "available_units",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740991
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "observed_at",
+        "type": "time"
+      }
     ]
   }
 }

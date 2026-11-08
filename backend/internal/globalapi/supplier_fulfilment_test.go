@@ -99,6 +99,38 @@ func TestOwnerAllocationBudgetsSerializeAndRecoverOriginalIntent(t *testing.T) {
 					return store.Frame(tx, scope, func() error { return fn(tx) })
 				})
 			}
+
+			source := f.SourceScope{TenantID: tenant, OrderID: order.ID, OrganizationID: fixture.organization, LocationID: fixture.location, Product: string(owner)}
+			choices := supply.SupplierStock(platform.Deps{}).Choices
+			if owner == supplierstock.Outlet {
+				choices = pharmacy.SupplierStock(platform.Deps{}).Choices
+			}
+			require.NoError(t, run(t.Context(), func(tx *gorm.DB) error {
+				rows, err := choices(tx, source, order.Input.Lines[0], pagination.Params{Limit: 1})
+				if err != nil {
+					return err
+				}
+				require.Len(t, rows, 1)
+				require.Equal(t, fixture.stock, rows[0].ID)
+				require.Equal(t, int64(100), rows[0].AvailableUnits)
+				require.Equal(t, "TEST-LOT", rows[0].LotNumber)
+				require.Equal(t, source.OrderID, rows[0].OrderID)
+				more, err := choices(tx, source, order.Input.Lines[0], pagination.Params{Limit: 1, After: &pagination.Cursor{TenantID: tenant.String(), ID: rows[0].ID, CreatedAt: rows[0].CreatedAt}})
+				if err != nil {
+					return err
+				}
+				require.Empty(t, more)
+				if owner == supplierstock.Outlet {
+					locations, err := pharmacy.SupplierStock(platform.Deps{}).Locations(tx, source, order.Input.Lines[0], fixture.stock, pagination.Params{Limit: 1})
+					if err != nil {
+						return err
+					}
+					require.Len(t, locations, 1)
+					require.Equal(t, *fixture.bucket, locations[0].ID)
+					require.Equal(t, "TEST-SHELF", locations[0].Code)
+				}
+				return nil
+			}))
 			stock := func(*gorm.DB, f.AllocationPlan) (f.StockEvidence, error) {
 				return f.StockEvidence{LotNumber: "TEST-LOT", ExpiresOn: "2030-12-31", AvailableUnits: 100, Description: "TEST repository fact fixture", PackSize: 10}, nil
 			}
@@ -126,6 +158,24 @@ func TestOwnerAllocationBudgetsSerializeAndRecoverOriginalIntent(t *testing.T) {
 			}
 			require.Equal(t, 1, success)
 			require.Equal(t, 1, conflicts)
+
+			require.NoError(t, run(t.Context(), func(tx *gorm.DB) error {
+				rows, err := choices(tx, source, order.Input.Lines[0], pagination.Params{Limit: 1})
+				if err != nil {
+					return err
+				}
+				require.Len(t, rows, 1)
+				require.Equal(t, int64(40), rows[0].AvailableUnits, "choices subtract the active physical hold")
+				if owner == supplierstock.Outlet {
+					locations, err := pharmacy.SupplierStock(platform.Deps{}).Locations(tx, source, order.Input.Lines[0], fixture.stock, pagination.Params{Limit: 1})
+					if err != nil {
+						return err
+					}
+					require.Len(t, locations, 1)
+					require.Equal(t, int64(40), locations[0].AvailableUnits)
+				}
+				return nil
+			}))
 			var created f.Allocation
 			require.NoError(t, run(t.Context(), func(tx *gorm.DB) error {
 				for _, id := range ids {

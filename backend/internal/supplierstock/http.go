@@ -10,6 +10,7 @@ import (
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/pagination"
 	f "github.com/tesserix/helivanta/pkg/supplierfulfilment"
 	"github.com/tesserix/helivanta/pkg/supplierorder"
 	"github.com/tesserix/helivanta/pkg/suppliertrade"
@@ -22,12 +23,14 @@ import (
 
 // Adapter keeps every physical decision and operating/hospital admission in its owning module.
 type Adapter interface {
+	Choices(*gorm.DB, f.SourceScope, supplierorder.SupplierOrderLine, pagination.Params) ([]StockChoice, error)
 	Admit(context.Context, authn.Principal, f.SourceScope, func(context.Context, supplierorder.Actor) error) error
 	Snapshot(*gorm.DB, f.AllocationPlan) (f.StockEvidence, error)
 	Lock(*gorm.DB, f.Allocation) error
 	Apply(*gorm.DB, f.AllocationCommandReceipt) error
 }
 type HTTP struct {
+	Locations                        StockLocations
 	Owner                            Owner
 	DB                               *tenantdb.DB
 	Orders                           f.CurrentOrderGuard
@@ -37,6 +40,7 @@ type HTTP struct {
 
 func (h HTTP) Register(r *platform.Router, base string) {
 	h.registerList(r, base)
+	h.registerChoices(r, base)
 	r.PUT(base, authz.Public, h.create)
 	r.GET(base, authz.Public, h.current)
 	r.GET(base+"/creation-receipt", authz.Public, h.original)

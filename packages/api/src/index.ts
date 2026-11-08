@@ -188,6 +188,8 @@ export * from "./supplier-fulfilment";
 export type {
   Allocation,
   AllocationView,
+  SupplierStockChoice,
+  SupplierStockLocationChoice,
   AllocationCommandReceipt,
   ReserveInput,
   AllocationDecisionInput,

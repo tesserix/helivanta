@@ -27,8 +27,12 @@ type warehouseFulfilment struct {
 	bus       *events.Bus
 }
 
+// SupplierStock returns the physical owner adapter used by the registered fulfilment API.
+func SupplierStock(deps platform.Deps) *warehouseFulfilment {
+	return &warehouseFulfilment{db: deps.DB, operating: deps.OperatingAuthorizer, bus: deps.Bus}
+}
 func registerSupplierFulfilment(r *platform.Router, deps platform.Deps) {
-	adapter := &warehouseFulfilment{db: deps.DB, operating: deps.OperatingAuthorizer, bus: deps.Bus}
+	adapter := SupplierStock(deps)
 	(supplierstock.HTTP{Owner: supplierstock.Warehouse, DB: deps.DB, Orders: deps.FulfilmentOrders, Adapter: adapter, OrganizationParam: "party", LocationParam: "premise"}).Register(r, "/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation")
 }
 func (h *warehouseFulfilment) Admit(ctx context.Context, p authn.Principal, s f.SourceScope, action func(context.Context, supplierorder.Actor) error) error {
@@ -70,6 +74,10 @@ func (h *warehouseFulfilment) Snapshot(tx *gorm.DB, p f.AllocationPlan) (f.Stock
 	if err := h.Lock(tx, f.Allocation{Plan: p}); err != nil {
 		return f.StockEvidence{}, err
 	}
+	return warehouseSupplierEvidence(tx, p)
+}
+
+func warehouseSupplierEvidence(tx *gorm.DB, p f.AllocationPlan) (f.StockEvidence, error) {
 	var receipt wholesaleReceiptRow
 	if err := tx.Raw(`SELECT `+wholesaleReceiptColumns+` FROM supply_stock_receipts WHERE tenant_id=? AND party_id=? AND premise_id=? AND id=?`, p.OwnerTenantID, p.SourceOrganizationID, p.SourceLocationID, p.Input.StockID).Scan(&receipt).Error; err != nil {
 		return f.StockEvidence{}, err

@@ -374,3 +374,66 @@ export const ReceivingClearanceContract = z
   })
   .strict();
 export type ReceivingClearance = z.infer<typeof ReceivingClearanceContract>;
+
+export const SupplierStockChoiceContract = z
+  .object({
+    id: identifier,
+    owner_tenant_id: identifier,
+    order_id: identifier,
+    line_id: identifier,
+    organization_id: identifier,
+    location_id: identifier,
+    product: SupplierOrderProductContract,
+    lot_number: z
+      .string()
+      .min(1)
+      .max(100)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    expires_on: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    description: z
+      .string()
+      .min(1)
+      .max(2000)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    unit_code: z
+      .string()
+      .min(1)
+      .max(100)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    pack_size: z.number().int().min(1).max(1000000000),
+    available_units: z.number().int().min(0).max(9007199254740991),
+    created_at: z.string().datetime({ offset: true }),
+    observed_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type SupplierStockChoice = z.infer<typeof SupplierStockChoiceContract>;
+
+export const SupplierStockLocationChoiceContract = z
+  .object({
+    id: identifier,
+    owner_tenant_id: identifier,
+    order_id: identifier,
+    line_id: identifier,
+    organization_id: identifier,
+    location_id: identifier,
+    stock_id: identifier,
+    code: z
+      .string()
+      .min(1)
+      .max(100)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    name: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    available_units: z.number().int().min(0).max(9007199254740991),
+    created_at: z.string().datetime({ offset: true }),
+    observed_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type SupplierStockLocationChoice = z.infer<typeof SupplierStockLocationChoiceContract>;

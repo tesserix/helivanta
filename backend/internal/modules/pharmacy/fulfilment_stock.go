@@ -30,10 +30,14 @@ type outletFulfilment struct {
 	departments authz.DepartmentReferenceGuard
 }
 
+// SupplierStock returns the physical owner adapter used by the registered fulfilment API.
+func SupplierStock(deps platform.Deps) *outletFulfilment {
+	return &outletFulfilment{db: deps.DB, operating: deps.OperatingAuthorizer, bus: deps.Bus, hospital: deps.HospitalSourceAuthority, departments: deps.DepartmentReferences}
+}
 func registerSupplierFulfilment(r *platform.Router, deps platform.Deps) {
-	a := &outletFulfilment{db: deps.DB, operating: deps.OperatingAuthorizer, bus: deps.Bus, hospital: deps.HospitalSourceAuthority, departments: deps.DepartmentReferences}
-	(supplierstock.HTTP{Owner: supplierstock.Outlet, DB: deps.DB, Orders: deps.FulfilmentOrders, Adapter: a, OrganizationParam: "pharmacy", LocationParam: "outlet"}).Register(r, "/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation")
-	(supplierstock.HTTP{Owner: supplierstock.Outlet, DB: deps.DB, Orders: deps.FulfilmentOrders, Adapter: a, OrganizationParam: "pharmacy", LocationParam: "outlet"}).Register(r, "/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation")
+	a := SupplierStock(deps)
+	(supplierstock.HTTP{Owner: supplierstock.Outlet, Locations: a.Locations, DB: deps.DB, Orders: deps.FulfilmentOrders, Adapter: a, OrganizationParam: "pharmacy", LocationParam: "outlet"}).Register(r, "/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation")
+	(supplierstock.HTTP{Owner: supplierstock.Outlet, Locations: a.Locations, DB: deps.DB, Orders: deps.FulfilmentOrders, Adapter: a, OrganizationParam: "pharmacy", LocationParam: "outlet"}).Register(r, "/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation")
 }
 func (h *outletFulfilment) Admit(ctx context.Context, p authn.Principal, s f.SourceScope, action func(context.Context, supplierorder.Actor) error) error {
 	if h.db == nil || h.operating == nil || s.TenantID.String() != p.TenantID || s.Product != "pharmacy" {
@@ -86,13 +90,21 @@ func (h *outletFulfilment) Snapshot(tx *gorm.DB, p f.AllocationPlan) (f.StockEvi
 	if err := tx.Raw(`SELECT COALESCE(SUM(on_hand),0) FROM pharmacy_sellable_buckets(?,?,?,?::date) WHERE location_id=? AND batch_id=?`, p.OwnerTenantID, p.SourceLocationID, p.Product.ProductID, today, *p.Input.StockLocationID, p.Input.StockID).Scan(&available).Error; err != nil {
 		return f.StockEvidence{}, err
 	}
-	ingredients, err := json.Marshal(product.Ingredients)
+
+	description, err := supplierProductDescription(product)
 	if err != nil {
 		return f.StockEvidence{}, err
 	}
-	description := fmt.Sprintf("%s | %s | %s | %s | %s | %s | pack %d %s", product.BrandName, product.GenericName, product.Manufacturer, product.DosageForm, product.Route, string(ingredients), product.PackSize, product.UnitOfIssue)
 	return f.StockEvidence{LotNumber: batch.BatchFields.LotNumber, ExpiresOn: batch.BatchFields.ExpiresOn, AvailableUnits: available, Description: description, PackSize: int64(product.PackSize)}, nil
 }
+func supplierProductDescription(product catalogueProduct) (string, error) {
+	ingredients, err := json.Marshal(product.Ingredients)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s | %s | %s | %s | %s | %s | pack %d %s", product.BrandName, product.GenericName, product.Manufacturer, product.DosageForm, product.Route, string(ingredients), product.PackSize, product.UnitOfIssue), nil
+}
+
 func (h *outletFulfilment) Apply(tx *gorm.DB, r f.AllocationCommandReceipt) error {
 	if h.bus == nil {
 		return f.ErrUnavailable

@@ -15,6 +15,8 @@ import {
   recordHospitalSupplierClearance,
   listHospitalSupplierCorrectionsPage,
   listHospitalSupplierShipmentsPage,
+  listSupplierStockChoicesPage,
+  listSupplierStockLocationsPage,
   supplierStockWorkflowKey,
   hospitalSupplierReceivingKey,
 } from "./supplier-fulfilment";
@@ -49,7 +51,7 @@ const plan = {
   hospital_id: id(5),
   buyer_organization_id: id(8),
   buyer_location_id: id(7),
-  product: { owner: "supply", product_id: id(20), version_id: id(21) },
+  product: { owner: "supply" as const, product_id: id(20), version_id: id(21) },
   unit_code: "unit",
   input: {
     expected_order_version: 1,
@@ -538,4 +540,88 @@ it("normalizes frozen reservation expiry to the stock owner's microsecond precis
   await expect(recoverSupplierAllocation(source, id(10), id(9), input)).resolves.toMatchObject(
     stored,
   );
+});
+
+it("selects current physical stock for the exact owner order line without inventory admin routes", async () => {
+  const line = {
+    id: plan.input.line_id,
+    product: plan.product,
+    quantity_units: plan.line_quantity_units,
+    unit_code: plan.unit_code,
+  };
+  const choice = {
+    id: plan.input.stock_id,
+    owner_tenant_id: source.tenantId,
+    order_id: plan.order_id,
+    line_id: line.id,
+    organization_id: source.organizationId,
+    location_id: source.locationId,
+    product: plan.product,
+    lot_number: allocation.lot_number,
+    expires_on: allocation.expires_on,
+    description: allocation.product_description,
+    unit_code: line.unit_code,
+    pack_size: 1,
+    available_units: 100,
+    created_at: plan.created_at,
+    observed_at: view.observed_at,
+  };
+  const fetch = reply({ data: [choice], page: { has_more: false, next_cursor: null } });
+  await expect(listSupplierStockChoicesPage(source, plan.order_id, line)).resolves.toMatchObject({
+    data: [choice],
+  });
+  expect(fetch).toHaveBeenCalledWith(
+    expect.stringContaining(`/supplier-orders/${plan.order_id}/lines/${line.id}/stock-choices?`),
+    expect.objectContaining({ cache: "no-store" }),
+  );
+  reply({ data: [{ ...choice, line_id: id(99) }], page: { has_more: false, next_cursor: null } });
+  await expect(listSupplierStockChoicesPage(source, plan.order_id, line)).rejects.toThrow();
+  reply({
+    data: [{ ...choice, product: { ...plan.product, version_id: id(99) } }],
+    page: { has_more: false, next_cursor: null },
+  });
+  await expect(listSupplierStockChoicesPage(source, plan.order_id, line)).rejects.toThrow();
+});
+it("uses a separate sellable shelf page only for the pharmacy stock owner", async () => {
+  const scope = { ...source, product: "pharmacy" as const },
+    line = {
+      id: plan.input.line_id,
+      product: { owner: "pharmacy" as const, product_id: id(20), version: 1 },
+      quantity_units: 100,
+      unit_code: "capsule",
+    };
+  const location = {
+    id: id(40),
+    owner_tenant_id: scope.tenantId,
+    order_id: plan.order_id,
+    line_id: line.id,
+    organization_id: scope.organizationId,
+    location_id: scope.locationId,
+    stock_id: plan.input.stock_id,
+    code: "TEST-SHELF",
+    name: "TEST sellable shelf",
+    available_units: 40,
+    created_at: plan.created_at,
+    observed_at: view.observed_at,
+  };
+  const fetch = reply({ data: [location], page: { has_more: false, next_cursor: null } });
+  await expect(
+    listSupplierStockLocationsPage(scope, plan.order_id, line, location.stock_id),
+  ).resolves.toMatchObject({ data: [location] });
+  expect(fetch).toHaveBeenCalledWith(
+    expect.stringContaining(`/stock-choices/${location.stock_id}/locations?`),
+    expect.objectContaining({ cache: "no-store" }),
+  );
+  reply({
+    data: [{ ...location, stock_id: id(99) }],
+    page: { has_more: false, next_cursor: null },
+  });
+  await expect(
+    listSupplierStockLocationsPage(scope, plan.order_id, line, location.stock_id),
+  ).rejects.toThrow();
+  fetch.mockClear();
+  await expect(
+    listSupplierStockLocationsPage(source, plan.order_id, line, location.stock_id),
+  ).rejects.toThrow();
+  expect(fetch).not.toHaveBeenCalled();
 });

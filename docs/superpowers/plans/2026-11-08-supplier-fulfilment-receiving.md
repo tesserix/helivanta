@@ -144,3 +144,25 @@ The source client regression covers hospital source acceptance and recovery as w
 as exact independent source lookup. Full API tests passed 107 files / 1,040 tests;
 focused source/fulfilment tests passed 23 tests after command assertions were added.
 API typechecking and scoped ESLint passed. No user workspace or rollout is asserted.
+
+### Owner stock-selection prerequisite
+
+Added exact accepted-order-line stock selectors, guarded by the same current
+order/consent publication and physical-owner Staff admission as reservation.
+Supply choices retain current released identity/quality facts for the exact source
+product version; Pharmacy choices are sellable batches followed by bounded shelf
+choices. Observed quantities subtract active holds. No inventory-admin permissions
+were added. ADR 0066 records scope, sizing assumptions and failure behavior.
+
+The native route regression failed before registration and passed afterward. The
+SDK selector regressions failed before implementation; all 17 focused fulfilment
+SDK tests and 1,042 full API tests now pass. Native Go build/vet, affected lint,
+canonical generators, route inventory and pagination architecture checks passed.
+New DB assertions use the actual owner selector adapters against both owners'
+physical stock fixtures, including continuation and free stock after a 60-unit
+hold. These await CI; they do not prove current Staff API admission or full dispatch.
+
+A prior receiving boundary test failed because its gateway fixture registered no
+Pharmacy upstream. d9cfe27f adds the real Pharmacy module/upstream while retaining
+missing Workforce/department owners for its intended unavailable-owner cases.
+No assertion or authorization gate was weakened.

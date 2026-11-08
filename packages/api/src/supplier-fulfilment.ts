@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { apiFetch } from "./client";
-import { SupplierOrderContract } from "./supplier-orders-contract";
+import {
+  SupplierOrderContract,
+  SupplierOrderLineContract,
+  SupplierOrderProductContract,
+  type SupplierOrderLine,
+} from "./supplier-orders-contract";
 import { membershipRequestOptions } from "./membership-commands";
 import {
   supplierSourceOrdersRoot,
@@ -8,6 +13,8 @@ import {
   type SupplierSourceOrderScope,
 } from "./supplier-orders";
 import {
+  SupplierStockChoiceContract,
+  SupplierStockLocationChoiceContract,
   AllocationContract,
   AllocationViewContract,
   AllocationCommandReceiptContract,
@@ -634,3 +641,72 @@ export function hospitalSupplierReceivingKey(
     ...parts,
   ] as const;
 }
+
+function stockChoicesBase(scope: SupplierStockScope, order: string, line: SupplierOrderLine) {
+  const current = SupplierOrderLineContract.parse(line);
+  if (current.product.owner !== scope.product) fail();
+  return `${stockBase(scope)}/supplier-orders/${identifier.parse(order)}/lines/${identifier.parse(current.id)}/stock-choices`;
+}
+function checkChoice(
+  scope: SupplierStockScope,
+  order: string,
+  line: SupplierOrderLine,
+  value: {
+    owner_tenant_id: string;
+    order_id: string;
+    line_id: string;
+    organization_id: string;
+    location_id: string;
+    available_units: number;
+  },
+) {
+  if (
+    !same(value.owner_tenant_id, scope.tenantId) ||
+    !same(value.order_id, order) ||
+    !same(value.line_id, line.id) ||
+    !same(value.organization_id, scope.organizationId) ||
+    !same(value.location_id, scope.locationId) ||
+    value.available_units < 1
+  )
+    fail();
+}
+export const listSupplierStockChoicesPage = async (
+  scope: SupplierStockScope,
+  order: string,
+  line: SupplierOrderLine,
+  request: SupplierPageRequest = {},
+  signal?: AbortSignal,
+) =>
+  page(
+    stockChoicesBase(scope, order, line),
+    scope,
+    SupplierStockChoiceContract,
+    (value) => {
+      checkChoice(scope, order, line, value);
+      sameIntent(SupplierOrderProductContract, value.product, line.product);
+      if (value.unit_code !== line.unit_code) fail();
+    },
+    request,
+    signal,
+  );
+export const listSupplierStockLocationsPage = async (
+  scope: SupplierStockScope,
+  order: string,
+  line: SupplierOrderLine,
+  stock: string,
+  request: SupplierPageRequest = {},
+  signal?: AbortSignal,
+) => {
+  if (scope.product !== "pharmacy") fail();
+  return page(
+    `${stockChoicesBase(scope, order, line)}/${identifier.parse(stock)}/locations`,
+    scope,
+    SupplierStockLocationChoiceContract,
+    (value) => {
+      checkChoice(scope, order, line, value);
+      if (!same(value.stock_id, stock)) fail();
+    },
+    request,
+    signal,
+  );
+};

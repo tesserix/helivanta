@@ -321,11 +321,35 @@ CREATE TRIGGER workforce_hospital_establishment BEFORE INSERT ON workforce_docum
 	}
 }
 
+func TestEmploymentTermsAdmitAPharmacyAndRefuseASupplier(t *testing.T) {
+	h := newEstablishmentHarness(t, workforce.New())
+	pharmacy := h.pharmacy(t, "independent")
+	staff := h.pharmacyStaff(t, pharmacy)
+	supplier, supplierStaff := h.supplierStaff(t)
+	draft := func(establishment, staffID string) error {
+		return h.tx(t, establishment, func(tx *gorm.DB) error {
+			return tx.Exec(`INSERT INTO workforce_employment_period_drafts(tenant_id,hospital_id,staff_id,id,revision_id,version,staff_version,employment_epoch,engagement_kind,duration,starts_at,contracting_party,reason,evidence_reference,proposed_by_subject,actor_subject,input_hash)
+ SELECT tenant_id,hospital_id,id,?,?,1,version,employment_epoch,'employee','ongoing','2026-12-01T00:00:00Z','','Synthetic terms','SYN-TERMS-1','user-admin','user-admin',repeat('a',64) FROM workforce_staff WHERE tenant_id=? AND hospital_id=? AND id=?`,
+				uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String(), testutil.TenantA, establishment, staffID).Error
+		})
+	}
+	require.NoError(t, draft(pharmacy, staff))
+	var revisions int64
+	require.NoError(t, h.tx(t, pharmacy, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT count(*) FROM workforce_employment_period_history WHERE tenant_id=? AND hospital_id=? AND staff_id=?`, testutil.TenantA, pharmacy, staff).Scan(&revisions).Error
+	}))
+	require.Equal(t, int64(1), revisions, "the pharmacy draft keeps its revision")
+	var refusal *pgconn.PgError
+	err := draft(supplier, supplierStaff)
+	require.True(t, errors.As(err, &refusal), "supplier draft: expected a refusal, got %v", err)
+	require.Equal(t, []string{"23503", "workforce_hospital_establishment"}, []string{refusal.Code, refusal.ConstraintName}, refusal.Message)
+}
+
 // pharmacyEnrollmentTables admit a hospital or a pharmacy, and refuse a supplier.
-var pharmacyEnrollmentTables = []string{"workforce_document_contributors", "workforce_enrollment_addresses", "workforce_enrollment_credentials", "workforce_enrollment_emergency_contacts", "workforce_enrollment_experiences", "workforce_enrollment_profile", "workforce_enrollment_qualifications"}
+var pharmacyEnrollmentTables = []string{"workforce_document_contributors", "workforce_employment_evidence_bindings", "workforce_employment_period_drafts", "workforce_enrollment_addresses", "workforce_enrollment_credentials", "workforce_enrollment_emergency_contacts", "workforce_enrollment_experiences", "workforce_enrollment_profile", "workforce_enrollment_qualifications"}
 
 // pharmacyAdmittingTables are the reviewed tables a non-hospital establishment writes; every other one refuses it.
-var pharmacyAdmittingTables = slices.Sorted(slices.Values(append(slices.Clone(pharmacyEnrollmentTables), "workforce_documents", "workforce_hospital_access", "workforce_identity_epochs", "workforce_login_link_history", "workforce_login_links", "workforce_staff")))
+var pharmacyAdmittingTables = slices.Sorted(slices.Values(append(slices.Clone(pharmacyEnrollmentTables), "workforce_documents", "workforce_employment_evidence_history", "workforce_employment_period_history", "workforce_hospital_access", "workforce_identity_epochs", "workforce_login_link_history", "workforce_login_links", "workforce_staff")))
 
 func TestLoginLinksAdmitEachEstablishmentOnlyThroughItsOwnIdentityBasis(t *testing.T) {
 	h := newEstablishmentHarness(t, workforce.New())

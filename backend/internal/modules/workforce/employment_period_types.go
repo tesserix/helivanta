@@ -97,3 +97,121 @@ type EmploymentPeriodWithdrawInput struct {
 	ExpectedVersion *int64    `json:"expected_version"`
 	Reason          string    `json:"reason"`
 }
+
+type pharmacyEmploymentPeriodSource struct {
+	PharmacyID      uuid.UUID `json:"pharmacy_id"`
+	StaffID         uuid.UUID `json:"staff_id"`
+	StaffVersion    int64     `json:"staff_version"`
+	EmploymentEpoch int64     `json:"employment_epoch"`
+}
+
+type pharmacyEmploymentPeriodDraft struct {
+	ID                uuid.UUID  `json:"id"`
+	RevisionID        uuid.UUID  `json:"revision_id"`
+	PharmacyID        uuid.UUID  `json:"pharmacy_id"`
+	StaffID           uuid.UUID  `json:"staff_id"`
+	Version           int64      `json:"version"`
+	Status            string     `json:"status"`
+	StaffVersion      int64      `json:"staff_version"`
+	EmploymentEpoch   int64      `json:"employment_epoch"`
+	EngagementKind    string     `json:"engagement_kind"`
+	Duration          string     `json:"duration"`
+	StartsAt          time.Time  `json:"starts_at"`
+	EndsAt            *time.Time `json:"ends_at,omitempty"`
+	ContractingParty  string     `json:"contracting_party"`
+	SponsorID         string     `json:"sponsor_id"`
+	Reason            string     `json:"reason"`
+	EvidenceReference string     `json:"evidence_reference"`
+	ProposedBySubject string     `json:"proposed_by_subject"`
+	ActorSubject      string     `json:"actor_subject"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
+}
+
+type pharmacyEmploymentEvidenceBinding struct {
+	ID                    uuid.UUID `json:"id"`
+	RevisionID            uuid.UUID `json:"revision_id"`
+	PharmacyID            uuid.UUID `json:"pharmacy_id"`
+	StaffID               uuid.UUID `json:"staff_id"`
+	PeriodID              uuid.UUID `json:"period_id"`
+	PeriodRevisionID      uuid.UUID `json:"period_revision_id"`
+	PeriodVersion         int64     `json:"period_version"`
+	Version               int64     `json:"version"`
+	Status                string    `json:"status"`
+	StaffVersion          int64     `json:"staff_version"`
+	EmploymentEpoch       int64     `json:"employment_epoch"`
+	DocumentID            uuid.UUID `json:"document_id"`
+	DocumentRecordVersion int64     `json:"document_record_version"`
+	Filename              string    `json:"filename"`
+	ContentType           string    `json:"content_type"`
+	Size                  int64     `json:"size"`
+	Sha256                string    `json:"sha256"`
+	SourceGeneration      string    `json:"source_generation"`
+	ReleasedGeneration    string    `json:"released_generation"`
+	ScanAttempt           int64     `json:"scan_attempt"`
+	ScannedAt             time.Time `json:"scanned_at"`
+	ProposedBySubject     string    `json:"proposed_by_subject"`
+	ActorSubject          string    `json:"actor_subject"`
+	Reason                string    `json:"reason"`
+	CreatedAt             time.Time `json:"created_at"`
+	UpdatedAt             time.Time `json:"updated_at"`
+}
+
+func pharmacyEmploymentPeriodSourceView(r EmploymentPeriodSource) pharmacyEmploymentPeriodSource {
+	return pharmacyEmploymentPeriodSource{PharmacyID: r.HospitalID,
+		StaffID:         r.StaffID,
+		StaffVersion:    r.StaffVersion,
+		EmploymentEpoch: r.EmploymentEpoch}
+}
+
+func pharmacyEmploymentPeriodDraftView(r EmploymentPeriodDraft) pharmacyEmploymentPeriodDraft {
+	return pharmacyEmploymentPeriodDraft{ID: r.ID,
+		RevisionID:        r.RevisionID,
+		PharmacyID:        r.HospitalID,
+		StaffID:           r.StaffID,
+		Version:           r.Version,
+		Status:            r.Status,
+		StaffVersion:      r.StaffVersion,
+		EmploymentEpoch:   r.EmploymentEpoch,
+		EngagementKind:    r.EngagementKind,
+		Duration:          r.Duration,
+		StartsAt:          r.StartsAt,
+		EndsAt:            r.EndsAt,
+		ContractingParty:  r.ContractingParty,
+		SponsorID:         r.SponsorID,
+		Reason:            r.Reason,
+		EvidenceReference: r.EvidenceReference,
+		ProposedBySubject: r.ProposedBySubject,
+		ActorSubject:      r.ActorSubject,
+		CreatedAt:         r.CreatedAt,
+		UpdatedAt:         r.UpdatedAt}
+}
+
+func pharmacyEmploymentEvidenceBindingView(r EmploymentEvidenceBinding) pharmacyEmploymentEvidenceBinding {
+	return pharmacyEmploymentEvidenceBinding{ID: r.ID,
+		RevisionID:            r.RevisionID,
+		PharmacyID:            r.HospitalID,
+		StaffID:               r.StaffID,
+		PeriodID:              r.PeriodID,
+		PeriodRevisionID:      r.PeriodRevisionID,
+		PeriodVersion:         r.PeriodVersion,
+		Version:               r.Version,
+		Status:                r.Status,
+		StaffVersion:          r.StaffVersion,
+		EmploymentEpoch:       r.EmploymentEpoch,
+		DocumentID:            r.DocumentID,
+		DocumentRecordVersion: r.DocumentRecordVersion,
+		Filename:              r.Filename,
+		ContentType:           r.ContentType,
+		Size:                  r.Size,
+		Sha256:                r.Sha256,
+		SourceGeneration:      r.SourceGeneration,
+		ReleasedGeneration:    r.ReleasedGeneration,
+		ScanAttempt:           r.ScanAttempt,
+		ScannedAt:             r.ScannedAt,
+		ProposedBySubject:     r.ProposedBySubject,
+		ActorSubject:          r.ActorSubject,
+		Reason:                r.Reason,
+		CreatedAt:             r.CreatedAt,
+		UpdatedAt:             r.UpdatedAt}
+}

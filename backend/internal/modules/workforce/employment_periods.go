@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
+	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
@@ -36,26 +37,46 @@ type employmentPeriodRevision struct{ EmploymentPeriodDraft }
 
 func (r employmentPeriodRevision) PageKey() (time.Time, uuid.UUID) { return r.UpdatedAt, r.ID }
 
-func employmentPeriodScope(c *gin.Context) (authn.Principal, uuid.UUID, uuid.UUID, uuid.UUID, bool) {
-	p, hospital, ok := profileScope(c)
-	if !ok {
-		return p, hospital, uuid.Nil, uuid.Nil, false
-	}
+// employmentRecord is one Staff record's employment terms in the establishment whose route admitted it.
+type employmentRecord struct {
+	p             authn.Principal
+	owner         establishment
+	staff, period uuid.UUID
+	authority     establishmentAuthority
+}
+
+// establishmentAuthority opens the admitting family's authorized transaction for the permissions a route needs.
+type establishmentAuthority func(required []authz.Permission, fn func(*gorm.DB) error) error
+
+func employmentIDs(c *gin.Context, p authn.Principal, owner establishment) (employmentRecord, bool) {
+	r := employmentRecord{p: p, owner: owner}
 	staff, err := uuid.Parse(c.Param("id"))
 	if err != nil || staff == uuid.Nil {
 		respond.NotFound(c, "staff")
-		return p, hospital, staff, uuid.Nil, false
+		return r, false
 	}
-	var id uuid.UUID
+	r.staff = staff
 	if c.Param("period") != "" {
-		id, err = uuid.Parse(c.Param("period"))
-		if err != nil || id.Version() != 7 {
+		r.period, err = uuid.Parse(c.Param("period"))
+		if err != nil || r.period.Version() != 7 {
 			respond.NotFound(c, "employment draft")
-			return p, hospital, staff, id, false
+			return r, false
 		}
 	}
 	c.Header("Cache-Control", "no-store")
-	return p, hospital, staff, id, true
+	return r, true
+}
+
+func (h *handlers) hospitalEmployment(c *gin.Context) (employmentRecord, bool) {
+	p, hospital, ok := profileScope(c)
+	if !ok {
+		return employmentRecord{}, false
+	}
+	r, ok := employmentIDs(c, p, establishment{kind: hospitalEstablishmentKind, id: hospital})
+	r.authority = func(required []authz.Permission, fn func(*gorm.DB) error) error {
+		return h.intakeTransaction(c, p, hospital, required, func(tx *gorm.DB, _ bool) error { return fn(tx) })
+	}
+	return r, ok
 }
 
 func employmentPeriodSource(tx *gorm.DB, p authn.Principal, hospital, staff uuid.UUID) (EmploymentPeriodSource, error) {
@@ -66,23 +87,55 @@ func employmentPeriodSource(tx *gorm.DB, p authn.Principal, hospital, staff uuid
 func employmentPeriodAudit(tx *gorm.DB, p authn.Principal, hospital, resource uuid.UUID, action string, version int64) error {
 	return tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,?,?,jsonb_build_object('version',?::bigint))`, p.TenantID, hospital, p.Subject, action, resource, version).Error
 }
-func (h *handlers) employmentPeriodTransaction(c *gin.Context, p authn.Principal, hospital, staff uuid.UUID, fn func(*gorm.DB, EmploymentPeriodSource) error) error {
-	return h.employmentPeriodAuthority(c, p, hospital, staff, []authz.Permission{PermEnrollmentManage}, fn)
+func (r employmentRecord) transaction(fn func(*gorm.DB, EmploymentPeriodSource) error) error {
+	return r.authorized([]authz.Permission{PermEnrollmentManage}, fn)
 }
 
-func (h *handlers) employmentPeriodAuthority(c *gin.Context, p authn.Principal, hospital, staff uuid.UUID, required []authz.Permission, fn func(*gorm.DB, EmploymentPeriodSource) error) error {
-	return h.intakeTransaction(c, p, hospital, required, func(tx *gorm.DB, _ bool) error {
-		// Match enrollment's hospital lock before Staff/sponsor row locks.
-		if err := tx.Exec(`SELECT workforce_lock_supervision(?::uuid,?::uuid)`, p.TenantID, hospital).Error; err != nil {
+func (r employmentRecord) authorized(required []authz.Permission, fn func(*gorm.DB, EmploymentPeriodSource) error) error {
+	return r.authority(required, func(tx *gorm.DB) error {
+		// Match enrollment's establishment lock before Staff/sponsor row locks.
+		if err := tx.Exec(`SELECT workforce_lock_supervision(?::uuid,?::uuid)`, r.p.TenantID, r.owner.id).Error; err != nil {
 			return err
 		}
-		source, err := employmentPeriodSource(tx, p, hospital, staff)
+		source, err := employmentPeriodSource(tx, r.p, r.owner.id, r.staff)
 		if err != nil {
 			return err
 		}
 		return fn(tx, source)
 	})
 }
+
+// employmentRoute answers in the admitting family's view, so a pharmacy answer never names a hospital_id.
+func employmentRoute[S, T, V any](scope func(*gin.Context) (S, bool), command func(*gin.Context, S) (T, bool), view func(T) V) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if s, ok := scope(c); ok {
+			if result, ok := command(c, s); ok {
+				respond.OK(c, view(result))
+			}
+		}
+	}
+}
+
+func employmentListRoute[S, T any, V platform.Keyed](scope func(*gin.Context) (S, bool), command func(*gin.Context, S, pagination.Params) ([]T, bool), view func(T) V) platform.ListHandler[V] {
+	return func(c *gin.Context, params pagination.Params) ([]V, error) {
+		s, ok := scope(c)
+		if !ok {
+			return nil, nil
+		}
+		rows, ok := command(c, s, params)
+		if !ok {
+			return nil, nil
+		}
+		views := make([]V, 0, len(rows))
+		for _, row := range rows {
+			views = append(views, view(row))
+		}
+		return views, nil
+	}
+}
+
+func asIs[T any](value T) T { return value }
+
 func respondEmploymentPeriodError(c *gin.Context, err error) {
 	if errors.Is(err, errEmploymentPeriodConflict) {
 		respond.Error(c, 409, "employment_draft_conflict", "The employment draft or Staff source changed. Reload before saving.")
@@ -90,21 +143,18 @@ func respondEmploymentPeriodError(c *gin.Context, err error) {
 	}
 	respondIntakeError(c, err)
 }
-func (h *handlers) getEmploymentPeriodSource(c *gin.Context) {
-	p, hospital, staff, _, ok := employmentPeriodScope(c)
-	if !ok {
-		return
-	}
+func employmentSource(c *gin.Context, r employmentRecord) (EmploymentPeriodSource, bool) {
+	p, hospital, staff := r.p, r.owner.id, r.staff
 	var result EmploymentPeriodSource
-	err := h.employmentPeriodTransaction(c, p, hospital, staff, func(tx *gorm.DB, source EmploymentPeriodSource) error {
+	err := r.transaction(func(tx *gorm.DB, source EmploymentPeriodSource) error {
 		result = source
 		return employmentPeriodAudit(tx, p, hospital, staff, "workforce.employment_source.read", source.StaffVersion)
 	})
 	if err != nil {
 		respondEmploymentPeriodError(c, err)
-		return
+		return result, false
 	}
-	respond.OK(c, result)
+	return result, true
 }
 func normalizeEmploymentPeriod(in *EmploymentPeriodDraftInput, staff uuid.UUID) bool {
 	in.ContractingParty = strings.TrimSpace(in.ContractingParty)
@@ -146,28 +196,25 @@ func normalizeEmploymentPeriod(in *EmploymentPeriodDraftInput, staff uuid.UUID) 
 	}
 	return !contains(in.EngagementKind, "contractor", "agency_worker") || (in.ContractingParty != "" && in.SponsorID != "")
 }
-func (h *handlers) putEmploymentPeriodDraft(c *gin.Context) {
-	p, hospital, staff, id, ok := employmentPeriodScope(c)
-	if !ok {
-		return
-	}
+func saveEmploymentPeriod(c *gin.Context, r employmentRecord) (EmploymentPeriodDraft, bool) {
+	p, hospital, staff, id := r.p, r.owner.id, r.staff, r.period
+	var result EmploymentPeriodDraft
 	var in EmploymentPeriodDraftInput
 	if !decodeSized(c, &in, 8<<10) {
-		return
+		return result, false
 	}
 	if !normalizeEmploymentPeriod(&in, staff) {
 		respond.Error(c, 400, "invalid_request", "Enter valid employment terms, dates, evidence reference and contractor sponsor.")
-		return
+		return result, false
 	}
 	raw, err := json.Marshal(in)
 	if err != nil {
 		respondError(c, err)
-		return
+		return result, false
 	}
 	digest := sha256.Sum256(raw)
 	intent := hex.EncodeToString(digest[:])
-	var result EmploymentPeriodDraft
-	err = h.employmentPeriodTransaction(c, p, hospital, staff, func(tx *gorm.DB, source EmploymentPeriodSource) error {
+	err = r.transaction(func(tx *gorm.DB, source EmploymentPeriodSource) error {
 		var receipt employmentPeriodRecord
 		err := tx.Table("workforce_employment_period_history").Select(employmentPeriodColumns).Where("tenant_id=? AND hospital_id=? AND revision_id=?", p.TenantID, hospital, in.CommandID).Take(&receipt).Error
 		if err == nil {
@@ -221,24 +268,21 @@ func (h *handlers) putEmploymentPeriodDraft(c *gin.Context) {
 	})
 	if err != nil {
 		respondEmploymentPeriodError(c, err)
-		return
+		return result, false
 	}
-	respond.OK(c, result)
+	return result, true
 }
 
 type staffRecordForEmployment struct{ ID uuid.UUID }
 
-func (h *handlers) getEmploymentPeriodDraft(c *gin.Context) {
-	p, hospital, staff, id, ok := employmentPeriodScope(c)
-	if !ok {
-		return
-	}
+func employmentPeriod(c *gin.Context, r employmentRecord) (EmploymentPeriodDraft, bool) {
+	p, hospital, staff, id := r.p, r.owner.id, r.staff, r.period
+	var result EmploymentPeriodDraft
 	lifecycle, valid := employmentLifecycleProjection(c)
 	if !valid {
-		return
+		return result, false
 	}
-	var result EmploymentPeriodDraft
-	err := h.employmentPeriodTransaction(c, p, hospital, staff, func(tx *gorm.DB, _ EmploymentPeriodSource) error {
+	err := r.transaction(func(tx *gorm.DB, _ EmploymentPeriodSource) error {
 		query := tx.Table("workforce_employment_period_drafts")
 		if !lifecycle {
 			query = query.Where("status='draft'")
@@ -250,21 +294,18 @@ func (h *handlers) getEmploymentPeriodDraft(c *gin.Context) {
 	})
 	if err != nil {
 		respondEmploymentPeriodError(c, err)
-		return
+		return result, false
 	}
-	respond.OK(c, result)
+	return result, true
 }
-func (h *handlers) listEmploymentPeriodDrafts(c *gin.Context, params pagination.Params) ([]EmploymentPeriodDraft, error) {
-	p, hospital, staff, _, ok := employmentPeriodScope(c)
-	if !ok {
-		return nil, nil
-	}
+func employmentPeriods(c *gin.Context, r employmentRecord, params pagination.Params) ([]EmploymentPeriodDraft, bool) {
+	p, hospital, staff := r.p, r.owner.id, r.staff
 	lifecycle, valid := employmentLifecycleProjection(c)
 	if !valid {
-		return nil, nil
+		return nil, false
 	}
 	rows := []EmploymentPeriodDraft{}
-	err := h.employmentPeriodTransaction(c, p, hospital, staff, func(tx *gorm.DB, _ EmploymentPeriodSource) error {
+	err := r.transaction(func(tx *gorm.DB, _ EmploymentPeriodSource) error {
 		query := tx
 		if !lifecycle {
 			query = query.Where("status='draft'")
@@ -276,21 +317,18 @@ func (h *handlers) listEmploymentPeriodDrafts(c *gin.Context, params pagination.
 	})
 	if err != nil {
 		respondEmploymentPeriodError(c, err)
-		return nil, nil
+		return nil, false
 	}
-	return rows, nil
+	return rows, true
 }
-func (h *handlers) employmentPeriodHistory(c *gin.Context, params pagination.Params) ([]employmentPeriodRevision, error) {
-	p, hospital, staff, id, ok := employmentPeriodScope(c)
-	if !ok {
-		return nil, nil
-	}
+func employmentPeriodHistory(c *gin.Context, r employmentRecord, params pagination.Params) ([]employmentPeriodRevision, bool) {
+	p, hospital, staff, id := r.p, r.owner.id, r.staff, r.period
 	lifecycle, valid := employmentLifecycleProjection(c)
 	if !valid {
-		return nil, nil
+		return nil, false
 	}
 	rows := []employmentPeriodRevision{}
-	err := h.employmentPeriodTransaction(c, p, hospital, staff, func(tx *gorm.DB, _ EmploymentPeriodSource) error {
+	err := r.transaction(func(tx *gorm.DB, _ EmploymentPeriodSource) error {
 		var current EmploymentPeriodDraft
 		if err := tx.Table("workforce_employment_period_drafts").Select("id,version").Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", p.TenantID, hospital, staff, id).Take(&current).Error; err != nil {
 			return err
@@ -306,7 +344,7 @@ func (h *handlers) employmentPeriodHistory(c *gin.Context, params pagination.Par
 	})
 	if err != nil {
 		respondEmploymentPeriodError(c, err)
-		return nil, nil
+		return nil, false
 	}
-	return rows, nil
+	return rows, true
 }

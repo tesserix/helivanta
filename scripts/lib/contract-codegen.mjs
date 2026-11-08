@@ -3,7 +3,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 
-const pascal = (value) =>
+export const pascal = (value) =>
   value
     .split("_")
     .map((word) =>

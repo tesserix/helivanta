@@ -511,6 +511,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/purchase-order-assignment-proposals",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/roles",
           "permission": "iam.member.manage",
           "authentication_required": true,
@@ -579,6 +588,15 @@
           "authentication_required": true,
           "membership_required": true,
           "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/supplier-receiving-assignment-proposals",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
           "counted": false
         },
         {
@@ -5028,7 +5046,7 @@
         },
         {
           "id": "0039_pharmacy_supplier_fulfilment",
-          "sql_sha256": "55b0d637485e109ede35e289035a8a8e2113a6daf2a310cab81790c1907231ca",
+          "sql_sha256": "4db2f12a9d194dd772206ed55384bd29008038b481383ff3053e0395da771f14",
           "creates_tables": [
             "pharmacy_supplier_allocations",
             "pharmacy_supplier_holds",
@@ -7399,7 +7417,7 @@
         },
         {
           "id": "0016_supply_supplier_fulfilment",
-          "sql_sha256": "6f6843bb37b7ae30051dbe79f28e30fa0bd6b3e9689cc2d504e3e7889ab03ec2",
+          "sql_sha256": "6db71a8f89d1c2fb71c5f1f3cd4f283431a8f3904e946b3e2eb9cbd6eef8ae0c",
           "creates_tables": [
             "supply_supplier_allocations",
             "supply_supplier_holds",

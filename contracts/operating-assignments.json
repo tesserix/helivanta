@@ -11,10 +11,7 @@
       {
         "name": "employer_kind",
         "type": "string",
-        "enum": [
-          "pharmacy",
-          "supplier"
-        ]
+        "enum": ["pharmacy", "supplier"]
       },
       {
         "name": "label",
@@ -39,10 +36,7 @@
       {
         "name": "employer_kind",
         "type": "string",
-        "enum": [
-          "pharmacy",
-          "supplier"
-        ]
+        "enum": ["pharmacy", "supplier"]
       },
       {
         "name": "employer_id",
@@ -158,12 +152,7 @@
       {
         "name": "decision",
         "type": "string",
-        "enum": [
-          "approve",
-          "reject",
-          "withdraw",
-          "revoke"
-        ]
+        "enum": ["approve", "reject", "withdraw", "revoke"]
       },
       {
         "name": "reason",

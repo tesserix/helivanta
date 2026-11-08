@@ -68,6 +68,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/partner-membership-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/pharmacy-binding-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/posting-assignment-proposals` | `public` | true | false |
+| GET | `/v1/iam/purchase-order-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/roles` | `iam.member.manage` | false | false |
 | GET | `/v1/iam/staff-access-templates` | `public` | false | false |
 | POST | `/v1/iam/subjects/:subject/revoke` | `iam.credential.revoke` | false | false |
@@ -76,6 +77,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | PUT | `/v1/iam/supplier-grants/:id/commands/:command` | `iam.supplier_grant.review` | false | false |
 | GET | `/v1/iam/supplier-grants/:id` | `iam.supplier_grant.read` | false | false |
 | PUT | `/v1/iam/supplier-grants/:id` | `iam.supplier_grant.prepare` | false | false |
+| GET | `/v1/iam/supplier-receiving-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/supplier-sources/:product/:organization/locations/:location/grants` | `iam.supplier_grant.read` | true | false |
 
 Published subjects:

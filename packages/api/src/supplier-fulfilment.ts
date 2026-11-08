@@ -2,7 +2,11 @@ import { z } from "zod";
 import { apiFetch } from "./client";
 import { SupplierOrderContract } from "./supplier-orders-contract";
 import { membershipRequestOptions } from "./membership-commands";
-import type { SupplierBuyerOrderScope, SupplierSourceOrderScope } from "./supplier-orders";
+import {
+  supplierSourceOrdersRoot,
+  type SupplierBuyerOrderScope,
+  type SupplierSourceOrderScope,
+} from "./supplier-orders";
 import {
   AllocationContract,
   AllocationViewContract,
@@ -30,10 +34,7 @@ import {
   type ReceivingClearanceInput,
 } from "./supplier-fulfilment-contract";
 
-export type SupplierStockScope = SupplierSourceOrderScope & {
-  hospitalId?: string;
-  departmentId?: string;
-};
+export type SupplierStockScope = SupplierSourceOrderScope;
 export type HospitalSupplierReceivingScope = SupplierBuyerOrderScope & { pharmacyId: string };
 export type SupplierPageRequest = { limit?: number; cursor?: string | null };
 const identifier = AllocationContract.shape.plan.shape.id;
@@ -518,11 +519,9 @@ export const listHospitalSupplierShipmentsPage = (
   );
 
 function sourceOrderBase(scope: SupplierStockScope) {
-  stockBase(scope);
-  if (scope.hospitalId !== undefined)
-    return `/supply/hospitals/${identifier.parse(scope.hospitalId)}/departments/${identifier.parse(scope.departmentId)}/pharmacies/${identifier.parse(scope.organizationId)}/outlets/${identifier.parse(scope.locationId)}/supplier-orders`;
-  return `/supply/stock-owners/${scope.product}/organizations/${identifier.parse(scope.organizationId)}/locations/${identifier.parse(scope.locationId)}/supplier-orders`;
+  return supplierSourceOrdersRoot(scope);
 }
+
 export const listHospitalSupplierOrdersPage = (
   scope: HospitalSupplierReceivingScope,
   request: SupplierPageRequest = {},

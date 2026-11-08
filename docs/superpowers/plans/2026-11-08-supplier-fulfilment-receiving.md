@@ -126,3 +126,21 @@ was started. Generated `.next` and shell TypeScript build cache were removed.
 The supplier CI job at 60a4a296 completed successfully, including the current
 hospital Staff/membership-cutoff fixture. New discovery DB assertions still await
 this checkpoint's CI. The repository remains public.
+
+### Explicit source client and RLS gate follow-up
+
+CI migration startup correctly rejected a second permissive source-shipment policy.
+The source-read branch is now in the table's single tenant-isolation policy, with
+the original exchange-only write check (exact order, remote buyer origin and system
+shipment actor) preserved. This fix is pushed as bb5e64f4; its integration rerun is
+pending. The gate was not weakened or waived.
+
+Commercial source reads, acceptance and immutable command recovery now use the
+explicit product/organization/location or hospital/department/pharmacy/outlet path.
+The source scope and cache key include hospital and department. Partial hospital
+scope and hospital Supply-owner paths fail before network access. Stock workflows
+reuse the same source-order root; actual physical stock routes remain in the owner.
+The source client regression covers hospital source acceptance and recovery as well
+as exact independent source lookup. Full API tests passed 107 files / 1,040 tests;
+focused source/fulfilment tests passed 23 tests after command assertions were added.
+API typechecking and scoped ESLint passed. No user workspace or rollout is asserted.

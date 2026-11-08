@@ -24,12 +24,25 @@ export type SupplierSourceOrderScope = {
   product: "supply" | "pharmacy";
   organizationId: string;
   locationId: string;
+  hospitalId?: string;
+  departmentId?: string;
 };
 const id = z.uuid().refine((value) => value !== "00000000-0000-0000-0000-000000000000");
 const record = id.refine(
   (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value),
   "Choose an exact record.",
 );
+export function supplierSourceOrdersRoot(scope: SupplierSourceOrderScope) {
+  const product = z.enum(["supply", "pharmacy"]).parse(scope.product);
+  const organization = record.parse(scope.organizationId),
+    location = record.parse(scope.locationId);
+  if (scope.hospitalId !== undefined || scope.departmentId !== undefined) {
+    if (product !== "pharmacy")
+      throw new Error("Hospital supplier scope requires its governed pharmacy outlet.");
+    return `/supply/hospitals/${id.parse(scope.hospitalId)}/departments/${record.parse(scope.departmentId)}/pharmacies/${organization}/outlets/${location}/supplier-orders`;
+  }
+  return `/supply/stock-owners/${product}/organizations/${organization}/locations/${location}/supplier-orders`;
+}
 function buyerBase(scope: SupplierBuyerOrderScope, order: string) {
   return `/supply/hospitals/${id.parse(scope.hospitalId)}/departments/${record.parse(scope.departmentId)}/outlets/${record.parse(scope.outletId)}/purchase-orders/${record.parse(order)}`;
 }
@@ -57,7 +70,8 @@ function sourceOwned(scope: SupplierSourceOrderScope, orderId: string, value: un
     row.terms.seller.tenant_id !== scope.tenantId ||
     row.terms.seller.product !== scope.product ||
     row.terms.seller.organization_id !== scope.organizationId ||
-    row.terms.seller.location_id !== scope.locationId
+    row.terms.seller.location_id !== scope.locationId ||
+    row.terms.seller.hospital_id !== scope.hospitalId
   )
     throw new Error("The order belongs to another supplier or stock location.");
   return row;
@@ -127,7 +141,7 @@ export async function getSourceSupplierOrder(
   return sourceOwned(
     scope,
     order,
-    await apiFetch(`/supply/supplier-orders/${record.parse(order)}`, {
+    await apiFetch(`${supplierSourceOrdersRoot(scope)}/${record.parse(order)}`, {
       ...membershipRequestOptions(scope),
       signal,
     }),
@@ -193,7 +207,7 @@ export async function decideSourceSupplierOrder(
     throw new Error("Supplier cancellation needs stock-owner reconciliation.");
   const raw = SupplierOrderCommandReceiptContract.parse(
     await apiFetch(
-      `/supply/supplier-orders/${record.parse(order)}/commands/${record.parse(command)}`,
+      `${supplierSourceOrdersRoot(scope)}/${record.parse(order)}/commands/${record.parse(command)}`,
       { ...membershipRequestOptions(scope), method: "PUT", body: JSON.stringify(body) },
     ),
   );
@@ -207,7 +221,7 @@ export async function recoverSourceSupplierOrderCommand(
 ) {
   const raw = SupplierOrderCommandReceiptContract.parse(
     await apiFetch(
-      `/supply/supplier-orders/${record.parse(order)}/commands/${record.parse(command)}`,
+      `${supplierSourceOrdersRoot(scope)}/${record.parse(order)}/commands/${record.parse(command)}`,
       membershipRequestOptions(scope),
     ),
   );
@@ -229,5 +243,7 @@ export const supplierSourceOrderKey = (scope: SupplierSourceOrderScope, order: s
   scope.product,
   scope.organizationId,
   scope.locationId,
+  scope.hospitalId ?? "",
+  scope.departmentId ?? "",
   order,
 ];

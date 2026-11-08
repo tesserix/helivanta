@@ -2,9 +2,11 @@ import { NavigationGuardProvider } from "@helivanta/ui";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
+import AccessPage from "./access/page";
 import PharmacyRelationships from "./pharmacy-relationships/page";
 import { PostingCutoffPage as PostingCutoffs } from "./posting-cutoff-page";
 import PostingReviews from "./posting-reviews/page";
+import StaffPostings from "./postings/page";
 
 // #1595: these pages verify the account before opening a workspace. Their
 // identity read has no "Staff access changed" branch, so it is the one
@@ -13,6 +15,8 @@ const pages = [
   ["pharmacy relationships", PharmacyRelationships, "Your account could not be verified."],
   ["posting cutoffs", PostingCutoffs, "Your posting cutoff account could not be verified."],
   ["posting reviews", PostingReviews, "Your posting review account could not be verified."],
+  ["postings", StaffPostings, "Your posting account could not be verified."],
+  ["assignment access", AccessPage, "Could not verify assignment access."],
 ] as const;
 afterEach(() => vi.unstubAllGlobals());
 

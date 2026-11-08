@@ -3,8 +3,6 @@
 // converts them. retry-legacy.test.mjs fails when a listed file no longer
 // breaks the rule, so this list only shrinks and is deleted when empty.
 export const RETRY_LEGACY = [
-  "app/(workspace)/workforce/access/page.tsx",
   "app/(workspace)/workforce/posting-proposal-decision.tsx",
   "app/(workspace)/workforce/posting-review-workspace.tsx",
-  "app/(workspace)/workforce/postings/page.tsx",
 ];

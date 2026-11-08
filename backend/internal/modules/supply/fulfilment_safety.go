@@ -17,7 +17,7 @@ func (*Module) ShipmentSafety(deps platform.Deps) f.ShipmentSafety {
 	return warehouseShipmentSafety{deps: deps}
 }
 func (g warehouseShipmentSafety) WithSafeShipment(ctx context.Context, s f.Shipment, action func(context.Context) error) error {
-	if g.deps.DB == nil || g.deps.StockProducts == nil || action == nil || tenantdb.ActorFrom(ctx) == "" || f.ValidateShipment(s) != nil || s.Product.Owner != "supply" || s.Product.VersionID == nil {
+	if g.deps.DB == nil || g.deps.StockProducts == nil || action == nil || tenantdb.ActorFrom(ctx) == "" || f.ValidateShipment(s) != nil || s.Product.Owner != "supply" || s.Product.VersionID == nil || s.MrpMinor != nil {
 		return f.ErrUnavailable
 	}
 	return g.deps.DB.WithTenant(ctx, s.SourceTenantID.String(), func(tx *gorm.DB) (err error) {
@@ -33,6 +33,9 @@ func (g warehouseShipmentSafety) WithSafeShipment(ctx context.Context, s f.Shipm
 		}
 		store := supplierstock.Store{Owner: supplierstock.Warehouse}
 		return store.Frame(tx, supplierstock.Scope{TenantID: s.SourceTenantID, OrganizationID: s.SourceOrganizationID, LocationID: s.SourceLocationID, AllocationID: s.AllocationID, Subject: tenantdb.ActorFrom(ctx), Mode: "safety"}, func() error {
+			if err := store.VerifyShipment(tx, s); err != nil {
+				return err
+			}
 			a, e := store.Current(tx, s.SourceTenantID, s.AllocationID)
 			if e != nil {
 				return e

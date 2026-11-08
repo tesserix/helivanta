@@ -7241,7 +7241,7 @@
         "helivanta.in.supply.order_exchange.v1"
       ],
       "directed_write_tables": [
-        "supply_supplier_dispatched_shipments",
+        "supply_supplier_receiving_updates",
         "supply_supplier_shipments",
         "supply_trade_relationships",
         "supply_trade_relationship_history",
@@ -7417,7 +7417,7 @@
         },
         {
           "id": "0016_supply_supplier_fulfilment",
-          "sql_sha256": "6db71a8f89d1c2fb71c5f1f3cd4f283431a8f3904e946b3e2eb9cbd6eef8ae0c",
+          "sql_sha256": "9fc84ec8bf173e95121dbc1f995f4defd31bf913efa68c03f412ea8a1676f2db",
           "creates_tables": [
             "supply_supplier_allocations",
             "supply_supplier_holds",

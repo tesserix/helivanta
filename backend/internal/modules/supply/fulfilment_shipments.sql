@@ -1,5 +1,6 @@
 CREATE TABLE supply_supplier_shipments(
  tenant_id uuid NOT NULL,id uuid NOT NULL,order_id uuid NOT NULL,hospital_id uuid NOT NULL,department_id uuid,pharmacy_id uuid NOT NULL,outlet_id uuid NOT NULL,source_tenant_id uuid NOT NULL,source_product text NOT NULL CHECK(source_product IN('supply','pharmacy')),body jsonb NOT NULL,actor_subject text NOT NULL,created_at timestamptz NOT NULL,updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ origin_tenant_id uuid GENERATED ALWAYS AS(source_tenant_id)STORED NOT NULL,origin_record_id uuid GENERATED ALWAYS AS(id)STORED NOT NULL,
  PRIMARY KEY(tenant_id,id),FOREIGN KEY(tenant_id,order_id)REFERENCES supply_purchase_orders(tenant_id,id)ON DELETE RESTRICT,
  CHECK(jsonb_typeof(body)='object'AND body->>'id'IS NOT DISTINCT FROM id::text AND body->>'order_id'IS NOT DISTINCT FROM order_id::text AND body->>'buyer_tenant_id'IS NOT DISTINCT FROM tenant_id::text AND body->>'source_tenant_id'IS NOT DISTINCT FROM source_tenant_id::text AND body->>'hospital_id'IS NOT DISTINCT FROM hospital_id::text AND body->>'buyer_organization_id'IS NOT DISTINCT FROM pharmacy_id::text AND body->>'buyer_location_id'IS NOT DISTINCT FROM outlet_id::text AND body#>>'{product,owner}'IS NOT DISTINCT FROM source_product)
 );

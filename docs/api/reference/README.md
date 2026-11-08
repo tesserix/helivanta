@@ -954,7 +954,7 @@ Subscriptions:
 
 Directed allowlist: `helivanta.in.supply.supplier_receiving_exchange.v1`, `helivanta.in.supply.supplier_shipment_exchange.v1`, `helivanta.in.supply.relationship_exchange.v1`, `helivanta.in.supply.order_exchange.v1`.
 
-Directed-write provenance tables: `supply_supplier_dispatched_shipments`, `supply_supplier_shipments`, `supply_trade_relationships`, `supply_trade_relationship_history`, `supply_purchase_orders`, `supply_purchase_order_history`.
+Directed-write provenance tables: `supply_supplier_receiving_updates`, `supply_supplier_shipments`, `supply_trade_relationships`, `supply_trade_relationship_history`, `supply_purchase_orders`, `supply_purchase_order_history`.
 
 Migration table declarations:
 

@@ -10,6 +10,7 @@ import (
 	f "github.com/tesserix/helivanta/pkg/supplierfulfilment"
 	"github.com/tesserix/helivanta/pkg/supplierorder"
 	"gorm.io/gorm"
+	"reflect"
 	"time"
 )
 
@@ -288,4 +289,24 @@ func (s Store) Held(tx *gorm.DB, tenant, location, stock, bucket uuid.UUID) (int
 	var total int64
 	err := tx.Table(s.Owner.table("holds")).Select("COALESCE(SUM(reserved_units),0)").Where("tenant_id=? AND location_id=? AND stock_id=? AND stock_location_id=? AND expires_at>clock_timestamp() AND reserved_units>0", tenant, location, stock, bucket).Scan(&total).Error
 	return total, err
+}
+
+// VerifyShipment re-derives disclosure evidence from the stock owner's immutable dispatch command.
+func (s Store) VerifyShipment(tx *gorm.DB, shipment f.Shipment) error {
+	if s.validate() != nil || f.ValidateShipment(shipment) != nil || shipment.Product.Owner != string(s.Owner) {
+		return f.ErrInvalid
+	}
+	var row struct{ Body json.RawMessage }
+	if err := tx.Table(s.Owner.table("commands")).Select("body").Where("tenant_id=? AND allocation_id=? AND id=?", shipment.SourceTenantID, shipment.AllocationID, shipment.ID).Take(&row).Error; err != nil {
+		return err
+	}
+	var receipt f.AllocationCommandReceipt
+	if supplierorder.DecodeObject(row.Body, &receipt) != nil {
+		return f.ErrUnavailable
+	}
+	derived, err := f.ShipmentFor(receipt, shipment.MrpMinor)
+	if err != nil || !reflect.DeepEqual(derived, shipment) {
+		return f.ErrUnavailable
+	}
+	return nil
 }

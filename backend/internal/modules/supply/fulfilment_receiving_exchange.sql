@@ -1,5 +1,6 @@
 CREATE TABLE supply_supplier_receiving_updates(
  tenant_id uuid NOT NULL,shipment_id uuid NOT NULL,version bigint NOT NULL,order_id uuid NOT NULL,source_product text NOT NULL,source_organization_id uuid NOT NULL,source_location_id uuid NOT NULL,buyer_tenant_id uuid NOT NULL,body jsonb NOT NULL,source_event_id uuid NOT NULL,actor_subject text NOT NULL,created_at timestamptz NOT NULL,updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ origin_tenant_id uuid GENERATED ALWAYS AS(buyer_tenant_id)STORED NOT NULL,origin_record_id uuid GENERATED ALWAYS AS((body->>'id')::uuid)STORED NOT NULL,
  PRIMARY KEY(tenant_id,shipment_id,version),UNIQUE(tenant_id,source_event_id),
  CHECK(body->>'shipment_id'IS NOT DISTINCT FROM shipment_id::text AND body->>'order_id'IS NOT DISTINCT FROM order_id::text AND body->>'owner_tenant_id'IS NOT DISTINCT FROM buyer_tenant_id::text AND body->>'version'IS NOT DISTINCT FROM version::text)
 );

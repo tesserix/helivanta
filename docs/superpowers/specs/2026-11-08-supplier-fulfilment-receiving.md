@@ -153,3 +153,23 @@ confers no physical stock commitment; the department pharmacy fulfiller retains
 that separate responsibility. Ordinary supplier receiving readers see immutable
 receipts from other authorized colleagues; retrying a recording command remains
 bound to its original subject and Staff identity.
+
+
+## Shipment and receiving evidence discovery
+
+Buyer shipment lists require current department goods-read, current Staff and the
+Pharma receiving purpose, and validate the current owning outlet binding for each
+returned shipment's order. Source shipment lists require current commercial read
+for the exact stock owner organization/location/order; a retained source projection
+is separately protected by RLS. Receiving receipt and correction lists require
+current receiving-read authority and the exact hospital department/outlet/shipment.
+Original receipt pages preserve the original counts and actors; corrections remain
+separate immutable evidence with their own reviewer and versions.
+
+All discovery pages use the shared resource-bound cursor wrapper with limit 50,
+reject unknown/duplicate query parameters, and reauthorize/audit each page. Forward
+Pharma migration 0041 adds indexes for the bounded evidence reads. The canonical
+contract now includes clearance request/response models. A `review_recorded`
+clearance does not itself release stock or certify drug/legal/prescribing safety.
+The current stock owner still checks provenance, current summary/clearance and
+source safety before the existing quarantine-release action.

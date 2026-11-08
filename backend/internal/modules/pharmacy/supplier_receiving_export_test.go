@@ -20,3 +20,6 @@ func PostSupplierQuarantineForTest(tx *gorm.DB, p authn.Principal, s f.Shipment,
 func ApplySupplierCorrectionForTest(tx *gorm.DB, s f.BuyerScope, shipment f.Shipment, receipt, id uuid.UUID, in f.ReceivingCorrectionInput, actor supplierorder.Actor) (f.ReceivingCorrection, error) {
 	return (&supplierReceiving{}).applyCorrection(tx, s, shipment, receipt, id, in, actor)
 }
+
+var TestSupplierReceiptPage = receiptPage
+var TestSupplierCorrectionPage = correctionPage

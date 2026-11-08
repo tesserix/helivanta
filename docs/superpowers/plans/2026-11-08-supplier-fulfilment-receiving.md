@@ -83,3 +83,46 @@ contract generators/checks, API typechecking, Go build/vet and affected lint pas
 Database/API discovery and allocation continuation assertions run in CI. Shipment
 and receiving discovery, strict fulfilment client, usable workspaces and full
 positive API/browser acceptance remain required. No merge or deployment is claimed.
+
+### Shipment and receiving discovery/client checkpoint
+
+The prior checkpoint's CI passed both stock owners' physical allocation/recovery,
+reviewed receiving corrections with stock-custody rollback, bilateral grants,
+quality and grant-projection isolation. Remaining CI was still running when this
+entry was written. The scanner classified the public catalog identifier
+`department-supplier-commercial-v1` as a generic key; the exact public identifier
+now has a narrow allowlist entry. Native full-history redacted scanning passed.
+
+Buyer shipment discovery reauthorizes every returned order and its current Pharma
+department binding. Source shipment discovery uses the exact commercial order and
+source organization/location under owner RLS. Hospital receipt and correction
+pages retain original immutable evidence rather than rewriting earlier receipts.
+IAM 0046 and Pharma 0041 are additive migrations. Forward Pharma 0041 indexes
+receiving evidence for bounded continuations.
+
+The strict fulfilment SDK now supports both owners' reservation, current state,
+original recovery, partial dispatch/release and immutable command recovery;
+hospital receiving, original receipts, correction history, closure, independent
+clearance review and shipment/order discovery. A clearance is a review record;
+physical quarantine release still belongs to the stock owner's existing command.
+Clearance input and output now use the canonical fulfilment contract and generated
+Go/Zod schemas instead of a local map/wire struct. Every mocked SDK request is
+checked against the generated route inventory, which caught and corrected the
+pharmacy prefix and nonexistent receiving creation-receipt endpoint.
+
+Native SDK tests cover foreign scopes, both physical owner paths, hospital source
+versus recipient identity, immutable input/actor/version recovery, false expiry,
+duplicate/oversized pages, receiving/correction intent, closure and clearance.
+Database discovery assertions and positive API/browser acceptance remain pending.
+No new user workspace, merge or deployment is claimed by this checkpoint.
+
+Validation for this client/discovery checkpoint: full API suite 107 files / 1,037
+tests passed before the final two precision/cache regressions; focused fulfilment
+suite 15 tests passed afterward. API/shell typechecks, scoped ESLint, Go build/vet,
+scoped golangci-lint, resource-query native regression, schema/route generators and
+access inventory checks passed. The shell production build passed with the same
+`API_URL=http://127.0.0.1:8081` rewrite configuration used in CI; no local server
+was started. Generated `.next` and shell TypeScript build cache were removed.
+The supplier CI job at 60a4a296 completed successfully, including the current
+hospital Staff/membership-cutoff fixture. New discovery DB assertions still await
+this checkpoint's CI. The repository remains public.

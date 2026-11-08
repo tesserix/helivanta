@@ -18,6 +18,7 @@ import (
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/pagination"
 	f "github.com/tesserix/helivanta/pkg/supplierfulfilment"
 	"github.com/tesserix/helivanta/pkg/supplierorder"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
@@ -201,6 +202,33 @@ func TestSupplierReceivingCorrectionRepositoryRetainsEvidenceAndRollsBackCustody
 			return err
 		}
 		require.Equal(t, original.ID, receipt.ID)
+		receipts, err := pharmacy.TestSupplierReceiptPage(tx, scope, pagination.Params{Limit: 1})
+		if err != nil {
+			return err
+		}
+		require.Len(t, receipts, 1)
+		require.Equal(t, original.ID, receipts[0].ID)
+		require.Equal(t, int64(20), receipts[0].Input.AcceptedUnits, "discovery preserves original counts")
+		next, err := pharmacy.TestSupplierReceiptPage(tx, scope, pagination.Params{Limit: 1, After: &pagination.Cursor{TenantID: tenant.String(), ID: receipts[0].ID, CreatedAt: receipts[0].CreatedAt}})
+		if err != nil {
+			return err
+		}
+		require.Empty(t, next)
+		corrections, err := pharmacy.TestSupplierCorrectionPage(tx, scope, original.ID, pagination.Params{Limit: 1})
+		if err != nil {
+			return err
+		}
+		require.Len(t, corrections, 1)
+		require.Equal(t, correctionID, corrections[0].ID)
+		require.Equal(t, int64(18), corrections[0].Input.AcceptedUnits)
+		wrong := scope
+		wrong.ShipmentID = id()
+		missing, err := pharmacy.TestSupplierReceiptPage(tx, wrong, pagination.Params{Limit: 1})
+		if err != nil {
+			return err
+		}
+		require.Empty(t, missing)
+
 		_, err = pharmacy.ReadSupplierReceiptForTest(tx, tenant, shipment.ID, original.ID, reviewer, &original.Input)
 		require.ErrorIs(t, err, f.ErrConflict, "command recovery must remain bound to its original actor")
 		return nil

@@ -32,6 +32,7 @@ type supplierReceiving struct {
 func supplierReceivingRoutes(r *platform.Router, deps platform.Deps) {
 	h := &supplierReceiving{db: deps.DB, authority: deps.ReceivingAuthority, safety: deps.SupplierShipmentSafety}
 	base := "/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment"
+	h.registerLists(r, base)
 	r.GET(base+"/receiving", authz.Public, h.current)
 	r.PUT(base+"/receipts/:receipt", authz.Public, h.receive)
 	r.GET(base+"/receipts/:receipt", authz.Public, h.receipt)
@@ -48,7 +49,7 @@ func receivingID(c *gin.Context, name string, anyUUID bool) (uuid.UUID, bool) {
 	}
 	return v, true
 }
-func receivingScope(c *gin.Context) (authn.Principal, f.BuyerScope, bool) {
+func receivingScope(c *gin.Context, list ...bool) (authn.Principal, f.BuyerScope, bool) {
 	c.Header("Cache-Control", "no-store")
 	if !authn.Refresh(c) {
 		return authn.Principal{}, f.BuyerScope{}, false
@@ -64,9 +65,17 @@ func receivingScope(c *gin.Context) (authn.Principal, f.BuyerScope, bool) {
 			return p, f.BuyerScope{}, false
 		}
 	}
-	if c.Request.URL.RawQuery != "" {
+	if c.Request.URL.RawQuery != "" && (len(list) == 0 || !list[0]) {
 		respond.BadRequest(c, errors.New("receiving commands do not accept query parameters"))
 		return p, f.BuyerScope{}, false
+	}
+	if len(list) > 0 && list[0] {
+		for key, values := range c.Request.URL.Query() {
+			if (key != "limit" && key != "cursor") || len(values) != 1 || values[0] == "" {
+				respond.BadRequest(c, f.ErrInvalid)
+				return p, f.BuyerScope{}, false
+			}
+		}
 	}
 	hospital, ok := receivingID(c, "hospital", true)
 	if !ok {

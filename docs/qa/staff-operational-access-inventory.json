@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "2c5e3d7dc688dc20367f373259c264ddf14025b52a053b7b699c7228c5f6c1d3",
+  "registry_sha256": "3610fdb686ed5b57ec59ec8447f777dcfa2458aa2589783abfaefed51fe35686",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1004,
-    "unclassified": 908
+    "total": 1009,
+    "unclassified": 913
   },
   "entries": [
     {
@@ -6473,6 +6473,22 @@
       "review": null
     },
     {
+      "id": "http pharmacy GET /v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http pharmacy GET /v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt",
       "kind": "http",
       "module": "pharmacy",
@@ -6484,6 +6500,22 @@
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/corrections",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/corrections",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
         "counted": false
       },
       "review": null
@@ -10174,6 +10206,22 @@
       }
     },
     {
+      "id": "http supply GET /v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments",
+      "kind": "http",
+      "module": "supply",
+      "registration": {
+        "source": "backend/internal/modules/supply/module.go",
+        "method": "GET",
+        "path": "/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http supply GET /v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders",
       "kind": "http",
       "module": "supply",
@@ -10217,6 +10265,22 @@
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http supply GET /v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/shipments",
+      "kind": "http",
+      "module": "supply",
+      "registration": {
+        "source": "backend/internal/modules/supply/module.go",
+        "method": "GET",
+        "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/shipments",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
         "counted": false
       },
       "review": null
@@ -11511,6 +11575,22 @@
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http supply GET /v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/shipments",
+      "kind": "http",
+      "module": "supply",
+      "registration": {
+        "source": "backend/internal/modules/supply/module.go",
+        "method": "GET",
+        "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/shipments",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
         "counted": false
       },
       "review": null

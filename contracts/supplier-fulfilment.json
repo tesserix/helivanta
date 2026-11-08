@@ -789,6 +789,42 @@
         "name": "created_at",
         "type": "time"
       }
+    ],
+    "ReceivingClearanceInput": [
+      {
+        "name": "expected_summary_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      }
+    ],
+    "ReceivingClearance": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "receipt_id",
+        "type": "uuid"
+      },
+      {
+        "name": "summary_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "state",
+        "type": "string",
+        "enum": ["review_recorded"]
+      }
     ]
   }
 }

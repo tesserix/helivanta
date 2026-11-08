@@ -166,3 +166,42 @@ transport provenance, matching established relationship terms, remote epochs and
 monotonic transitions. Cancellation after source acceptance remains pending until
 stock-owner compensation exists; it never asserts release merely because an event
 was received. The candidate exposes no successful reservation or dispatch result.
+
+
+### Scoped fulfilment and receiving discovery
+
+Buyer purchase-order pages use
+`GET /v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders`.
+Buyer shipment pages use the same base with `/supplier-shipments`.
+Independent commercial source pages use
+`/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders`;
+hospital pharmacy source pages use
+`/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders`.
+Both source bases provide exact `/:order`, `/:order/commands/:command`,
+`/:order/shipments` and `/:order/shipments/:shipment/receiving` routes.
+Hospital source order acceptance and reconciliation use the separate department
+pharmacy commercial reviewer template; physical stock authority remains separate.
+
+Physical allocation pages belong to the actual stock owner: Supply party/premise
+or Pharmacy pharmacy/outlet, with an explicit hospital/department variant for a
+hospital-owned source. Each allocation collection is the exact registered
+allocation path with `/:allocation` removed. Hospital receipt pages use
+`GET /v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts`;
+correction history adds `/:receipt/corrections`. Original receipts remain unchanged.
+The latest correction and current receiving summary describe effective receiving;
+ordinary receipt disclosure does not permit another actor to retry its command.
+
+These collections accept only `limit` (1–50) and `cursor`, reject unknown/duplicate
+query values, and audit sensitive page reads. Cursor continuation binds the
+verified subject, full route, all resource parameters and filters. Every page
+rechecks current owner authorization; hospital source rows also recheck the current
+Pharma department binding. Empty discovery is not proof of a grant or affiliation.
+Clearance input/output are canonical `ReceivingClearanceInput` and
+`ReceivingClearance`: `review_recorded` records independent review. Physical stock
+release still uses the stock owner's quarantine-release command and safety guard.
+
+The client implementation is in `packages/api/src/supplier-fulfilment.ts` and uses
+the same-origin Global API with no-store and expected tenant/subject headers.
+Its request tests check paths against the registered inventory. Discovery database
+assertions, positive owner API tests and browser acceptance remain delivery gates;
+these contracts alone do not establish a finished deployed workflow.

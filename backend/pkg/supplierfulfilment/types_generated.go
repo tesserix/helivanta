@@ -200,5 +200,17 @@ type ReceivingCorrection struct {
 	CreatedAt               time.Time                `json:"created_at"`
 }
 
+type ReceivingClearanceInput struct {
+	ExpectedSummaryVersion int64  `json:"expected_summary_version"`
+	Reason                 string `json:"reason"`
+}
+
+type ReceivingClearance struct {
+	ID             uuid.UUID `json:"id"`
+	ReceiptID      uuid.UUID `json:"receipt_id"`
+	SummaryVersion int64     `json:"summary_version"`
+	State          string    `json:"state"`
+}
+
 const maximumLeaseSeconds = 86400
 const maximumUnits = 1000000000

@@ -351,3 +351,26 @@ export const ReceivingCorrectionContract = z
   })
   .strict();
 export type ReceivingCorrection = z.infer<typeof ReceivingCorrectionContract>;
+
+export const ReceivingClearanceInputContract = z
+  .object({
+    expected_summary_version: z.number().int().min(1).max(9007199254740991),
+    reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type ReceivingClearanceInput = z.infer<typeof ReceivingClearanceInputContract>;
+
+export const ReceivingClearanceContract = z
+  .object({
+    id: identifier,
+    receipt_id: identifier,
+    summary_version: z.number().int().min(1).max(9007199254740991),
+    state: z.enum(["review_recorded"]),
+  })
+  .strict();
+export type ReceivingClearance = z.infer<typeof ReceivingClearanceContract>;

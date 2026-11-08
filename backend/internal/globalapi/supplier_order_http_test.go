@@ -62,7 +62,7 @@ func TestSupplierOrderHTTPRejectsChangedContextMalformedCommandsAndUnavailableOw
 	buyerList := strings.TrimSuffix(buyer, "/"+order)
 	sourceList := "/v1/supply/stock-owners/pharmacy/organizations/" + outlet + "/locations/" + outlet + "/supplier-orders"
 	hospitalList := "/v1/supply/hospitals/" + hospital + "/departments/" + department + "/pharmacies/" + outlet + "/outlets/" + outlet + "/supplier-orders"
-	for _, list := range []string{buyerList, sourceList, hospitalList} {
+	for _, list := range []string{buyerList, sourceList, hospitalList, sourceList + "/" + order + "/shipments", hospitalList + "/" + order + "/shipments", "/v1/supply/hospitals/" + hospital + "/departments/" + department + "/outlets/" + outlet + "/supplier-shipments", "/v1/pharmacy/hospitals/" + hospital + "/departments/" + department + "/outlets/" + outlet + "/supplier-shipments/" + order + "/receipts", "/v1/pharmacy/hospitals/" + hospital + "/departments/" + department + "/outlets/" + outlet + "/supplier-shipments/" + order + "/receipts/" + order + "/corrections"} {
 		cases = append(cases,
 			requestCase{name: "list authority outage " + list, method: "GET", path: list + "?limit=1", status: 503},
 			requestCase{name: "list bounds " + list, method: "GET", path: list + "?limit=51", status: 400},

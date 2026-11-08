@@ -21,3 +21,12 @@ CREATE POLICY tenant_isolation ON supply_supplier_dispatched_shipments USING(hms
 CREATE INDEX ON supply_supplier_dispatched_shipments(tenant_id,order_id,id);
 CREATE TRIGGER supply_supplier_dispatched_immutable BEFORE UPDATE OR DELETE OR TRUNCATE ON supply_supplier_dispatched_shipments FOR EACH STATEMENT EXECUTE FUNCTION supply_history_immutable();
 CREATE TRIGGER supply_supplier_dispatched_audit AFTER INSERT ON supply_supplier_dispatched_shipments FOR EACH ROW EXECUTE FUNCTION audit_record_change();
+
+CREATE POLICY supplier_source_read ON supply_supplier_dispatched_shipments FOR SELECT USING(
+ hms_tenant_visible(tenant_id)AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid
+ AND current_setting('app.supply_order_mode',true)IN('seller_read','seller_write')
+ AND body#>>'{product,owner}'=current_setting('app.supply_order_product',true)
+ AND body->>'source_organization_id'=current_setting('app.supply_order_organization',true)
+ AND body->>'source_location_id'=current_setting('app.supply_order_location',true)
+);
+CREATE INDEX ON supply_supplier_dispatched_shipments(tenant_id,order_id,created_at DESC,id DESC);

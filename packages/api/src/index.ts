@@ -184,3 +184,21 @@ export * from "./supply-stock-quality";
 
 export * from "./supplier-orders";
 export * from "./supplier-orders-contract";
+export * from "./supplier-fulfilment";
+export type {
+  Allocation,
+  AllocationView,
+  AllocationCommandReceipt,
+  ReserveInput,
+  AllocationDecisionInput,
+  Shipment,
+  ReceivingInput,
+  ReceivingReceipt,
+  ReceivingSummary,
+  ReceivingCorrection,
+  ReceivingCorrectionInput,
+  ReceivingClosure,
+  ReceivingClosureInput,
+  ReceivingClearance,
+  ReceivingClearanceInput,
+} from "./supplier-fulfilment-contract";

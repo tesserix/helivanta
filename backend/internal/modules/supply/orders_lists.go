@@ -209,6 +209,7 @@ func (h *purchaseOrderHandlers) withHospitalSellerEndpoint(ctx context.Context, 
 }
 
 func registerOrderLists(r *platform.Router, h *purchaseOrderHandlers) {
+	registerShipmentLists(r, h)
 	platform.ResourceListRoute(r, "/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders", authz.Public, 50, h.listBuyer)
 	source := "/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders"
 	platform.ResourceListRoute(r, source, authz.Public, 50, h.listSeller)

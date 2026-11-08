@@ -14,10 +14,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type clearanceInput struct {
-	ExpectedSummaryVersion int64  `json:"expected_summary_version"`
-	Reason                 string `json:"reason"`
-}
+type clearanceInput = f.ReceivingClearanceInput
 
 func (h *supplierReceiving) clearance(c *gin.Context) {
 	p, s, ok := receivingScope(c)
@@ -40,7 +37,7 @@ func (h *supplierReceiving) clearance(c *gin.Context) {
 		supplierstock.Error(c, f.ErrInvalid)
 		return
 	}
-	var result map[string]any
+	var result f.ReceivingClearance
 	err := h.with(c, p, s, f.ReviewReceiving, func(ctx context.Context, tx *gorm.DB, shipment f.Shipment, actor supplierorder.Actor) error {
 		var row struct{ Body json.RawMessage }
 		if err := tx.Table("pharmacy_supplier_receipts").Select("body").Where("tenant_id=? AND id=? AND shipment_id=?", s.TenantID, receipt, s.ShipmentID).Take(&row).Error; err != nil {
@@ -67,7 +64,7 @@ func (h *supplierReceiving) clearance(c *gin.Context) {
 			if v.ReceiptID != receipt || v.SummaryVersion != in.ExpectedSummaryVersion || v.Reason != in.Reason || v.ActorSubject != actor.Subject || v.ActorStaffID != actor.StaffID {
 				return f.ErrConflict
 			}
-			result = map[string]any{"id": id, "receipt_id": receipt, "summary_version": v.SummaryVersion, "state": "review_recorded"}
+			result = f.ReceivingClearance{ID: id, ReceiptID: receipt, SummaryVersion: v.SummaryVersion, State: "review_recorded"}
 			return nil
 		}
 		head, err := readReceivingHead(tx, s.TenantID, s.ShipmentID)
@@ -91,7 +88,7 @@ func (h *supplierReceiving) clearance(c *gin.Context) {
 			if err = tx.Exec(`UPDATE pharmacy_supplier_batch_sources SET clearance_version=? WHERE tenant_id=? AND receipt_id=?`, head.Version, s.TenantID, receipt).Error; err != nil {
 				return err
 			}
-			result = map[string]any{"id": id, "receipt_id": receipt, "summary_version": head.Version, "state": "review_recorded"}
+			result = f.ReceivingClearance{ID: id, ReceiptID: receipt, SummaryVersion: head.Version, State: "review_recorded"}
 			return nil
 		})
 	})

@@ -47,18 +47,32 @@ export function useApiPagedQuery<T>(
   path: string,
   opts: { poll?: boolean; request?: ApiQueryRequest; enabled?: boolean; gcTime?: number } = {},
 ): UseApiPagedQueryResult<T> {
-  const query = useInfiniteQuery({
-    queryKey: [...key, path, opts.request?.body ?? null],
-    enabled: opts.enabled,
-    ...(opts.gcTime === undefined ? {} : { gcTime: opts.gcTime }),
-    initialPageParam: null as string | null,
-    queryFn: ({ pageParam, signal }) =>
+  return usePagedQuery<T>(
+    [...key, path, opts.request?.body ?? null],
+    (cursor, signal) =>
       apiFetch<Page<T>>(
-        pageParam
-          ? `${path}${path.includes("?") ? "&" : "?"}cursor=${encodeURIComponent(pageParam)}`
+        cursor
+          ? `${path}${path.includes("?") ? "&" : "?"}cursor=${encodeURIComponent(cursor)}`
           : path,
         { ...opts.request, signal },
       ),
+    opts,
+  );
+}
+
+/** usePagedQuery accumulates pages from a caller's reader, for an SDK reader that validates each page. */
+export function usePagedQuery<T>(
+  queryKey: unknown[],
+  fetchPage: (cursor: string | null, signal: AbortSignal) => Promise<Page<T>>,
+  opts: { poll?: boolean; enabled?: boolean; gcTime?: number; retry?: false } = {},
+): UseApiPagedQueryResult<T> {
+  const query = useInfiniteQuery({
+    queryKey,
+    enabled: opts.enabled,
+    ...(opts.gcTime === undefined ? {} : { gcTime: opts.gcTime }),
+    ...(opts.retry === undefined ? {} : { retry: opts.retry }),
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam, signal }) => fetchPage(pageParam, signal),
     getNextPageParam: (last) => (last.page.has_more ? last.page.next_cursor : undefined),
     refetchInterval: opts.poll ? POLL_INTERVAL_MS : undefined,
   });

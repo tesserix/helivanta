@@ -1369,6 +1369,8 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link` | `public` | false | false |
 | PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link` | `workforce.independent_login.manage` | false | false |
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links` | `public` | true | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/enrollment` | `workforce.enrollment.manage` | false | false |
+| PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/enrollment` | `workforce.enrollment.manage` | false | false |
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id` | `public` | false | false |
 | PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id` | `public` | false | false |
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff` | `public` | true | false |

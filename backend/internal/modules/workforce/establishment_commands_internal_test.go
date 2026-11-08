@@ -1,6 +1,7 @@
 package workforce
 
 import (
+	"encoding/json"
 	"net/http/httptest"
 	"slices"
 	"strings"
@@ -111,4 +112,65 @@ func TestHospitalCommandsRefuseAPharmacyRegisteredAfterAdmission(t *testing.T) {
 		}))
 		require.Len(t, read, want, kind)
 	}
+}
+
+// The enrollment core re-checks the admitted kind, so a hospital request reaching a pharmacy after admission writes nothing.
+func TestEnrollmentCoreRefusesAPharmacyRegisteredAfterAdmission(t *testing.T) {
+	appDSN, ownerDSN, _ := testinfra.StartPostgres(t)
+	db, err := tenantdb.Open(appDSN, ownerDSN)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+	require.NoError(t, db.Migrate(t.Context(), slices.Concat(tenantdb.Migrations(), events.Migrations(), audit.Migrations(), New().Migrations())))
+	pharmacy := uuid.Must(uuid.NewV7())
+	staffID := uuid.Must(uuid.NewV7())
+	p := authn.Principal{Subject: "user-admin", TenantID: establishmentRaceTenant}
+	h := &handlers{db: db}
+	require.NoError(t, h.transaction(t.Context(), p, pharmacy, func(tx *gorm.DB) error {
+		if err := tx.Exec(`INSERT INTO workforce_hospitals(tenant_id,id,name,establishment_kind,pharmacy_ownership_type) VALUES(?,?,'Synthetic Race Pharmacy','pharmacy','independent')`, establishmentRaceTenant, pharmacy).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`INSERT INTO workforce_hospital_access(tenant_id,hospital_id,subject,level) VALUES(?,?,'user-admin','manager')`, establishmentRaceTenant, pharmacy).Error
+	}))
+	authority := func(fn func(*gorm.DB, bool) error) error {
+		return h.transaction(t.Context(), p, pharmacy, func(tx *gorm.DB) error {
+			if err := enrollmentScope(tx, p, pharmacy); err != nil {
+				return err
+			}
+			return fn(tx, false)
+		})
+	}
+	input := func() *enrollmentInput {
+		var in enrollmentInput
+		require.NoError(t, json.Unmarshal([]byte(`{"expected_version":0,"staff":{"employee_code":"SYN-RACE","display_name":"Synthetic race","job_category":"pharmacist","employment_status":"active"},"profile":{"designation":"Synthetic pharmacist"}}`), &in))
+		require.True(t, in.normalizeAndValidate(staffID))
+		return &in
+	}
+	rows := func() []string {
+		var found []string
+		require.NoError(t, h.transaction(t.Context(), p, pharmacy, func(tx *gorm.DB) error {
+			if err := enrollmentScope(tx, p, pharmacy); err != nil {
+				return err
+			}
+			return tx.Raw(`SELECT 'staff' FROM workforce_staff WHERE tenant_id=? AND hospital_id=? UNION ALL SELECT 'profile' FROM workforce_enrollment_profile WHERE tenant_id=? AND hospital_id=?
+			 UNION ALL SELECT action FROM workforce_audit WHERE tenant_id=? AND hospital_id=? AND action LIKE 'workforce.enrollment.%' ORDER BY 1`, establishmentRaceTenant, pharmacy, establishmentRaceTenant, pharmacy, establishmentRaceTenant, pharmacy).Scan(&found).Error
+		}))
+		return found
+	}
+	asHospital := establishment{kind: hospitalEstablishmentKind, id: pharmacy}
+	_, err = h.writeEnrollmentFor(p, asHospital, staffID, input(), authority)
+	require.ErrorIs(t, err, gorm.ErrRecordNotFound)
+	require.Empty(t, rows())
+
+	asPharmacy := establishment{kind: pharmacyEstablishmentKind, id: pharmacy}
+	written, err := h.writeEnrollmentFor(p, asPharmacy, staffID, input(), authority)
+	require.NoError(t, err, "the admitted kind writes, so the refusal above is the kind check")
+	require.Equal(t, "Synthetic pharmacist", written.Profile.Designation)
+	require.Equal(t, []string{"profile", "staff", "workforce.enrollment.changed"}, rows())
+
+	_, err = h.readEnrollmentFor(p, asHospital, staffID, authority)
+	require.ErrorIs(t, err, gorm.ErrRecordNotFound)
+	read, err := h.readEnrollmentFor(p, asPharmacy, staffID, authority)
+	require.NoError(t, err)
+	require.Equal(t, written, read)
+	require.Equal(t, []string{"profile", "staff", "workforce.enrollment.changed", "workforce.enrollment.read"}, rows())
 }

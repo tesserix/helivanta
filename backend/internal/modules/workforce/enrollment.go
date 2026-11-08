@@ -278,6 +278,24 @@ func respondEnrollment(c *gin.Context, result enrollment, profileMasters, qualif
 	respond.OK(c, enrollmentResponse(result, profileMasters, qualificationMasters, contactMasters, requestContext))
 }
 
+// enrollmentAuthority opens the enrollment transaction under one establishment family's authority.
+type enrollmentAuthority func(fn func(tx *gorm.DB, delegated bool) error) error
+
+func (h *handlers) hospitalEnrollmentAuthority(c *gin.Context, p authn.Principal, hospital uuid.UUID) enrollmentAuthority {
+	return func(fn func(*gorm.DB, bool) error) error {
+		return h.intakeTransaction(c, p, hospital, []authz.Permission{PermEnrollmentManage}, fn)
+	}
+}
+
+// enrollmentSession requires each expected header exactly once, so a protected record never opens in a stale account.
+func enrollmentSession(c *gin.Context) bool {
+	if len(c.Request.Header.Values("X-Helivanta-Expected-Tenant")) != 1 || len(c.Request.Header.Values("X-Helivanta-Expected-Subject")) != 1 {
+		respond.Error(c, 409, "session_changed", "Open protected Staff records in your current account and workspace.")
+		return false
+	}
+	return true
+}
+
 func (h *handlers) getEnrollment(c *gin.Context) {
 	p, hospital, ok := profileScope(c)
 	if !ok {
@@ -299,8 +317,7 @@ func (h *handlers) getEnrollment(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if requestContext && (len(c.Request.Header.Values("X-Helivanta-Expected-Tenant")) != 1 || len(c.Request.Header.Values("X-Helivanta-Expected-Subject")) != 1) {
-		respond.Error(c, 409, "session_changed", "Open protected Staff records in your current account and workspace.")
+	if requestContext && !enrollmentSession(c) {
 		return
 	}
 	id, err := uuid.Parse(c.Param("id"))
@@ -308,24 +325,33 @@ func (h *handlers) getEnrollment(c *gin.Context) {
 		respond.NotFound(c, "staff")
 		return
 	}
-	var result enrollment
-	err = h.intakeTransaction(c, p, hospital, []authz.Permission{PermEnrollmentManage}, func(tx *gorm.DB, _ bool) error {
-		var row staff
-		if err := tx.Clauses(clause.Locking{Strength: "SHARE"}).Select(staffColumns+", version").Where("tenant_id = ? AND hospital_id = ? AND id = ?", p.TenantID, hospital, id).First(&row).Error; err != nil {
-			return err
-		}
-		var err error
-		result, err = readEnrollment(tx, p.TenantID, hospital, id, row)
-		if err != nil {
-			return err
-		}
-		return tx.Exec(`INSERT INTO workforce_audit (tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES (?, ?, ?, 'workforce.enrollment.read', ?, '{}'::jsonb)`, p.TenantID, hospital, p.Subject, id).Error
-	})
+	result, err := h.readEnrollmentFor(p, establishment{kind: hospitalEstablishmentKind, id: hospital}, id, h.hospitalEnrollmentAuthority(c, p, hospital))
 	if err != nil {
 		respondIntakeError(c, err)
 		return
 	}
 	respondEnrollment(c, result, projection, qualificationProjection, contactProjection, requestContext)
+}
+
+// readEnrollmentFor re-checks the admitted kind first, because a registration may land between admission and this transaction.
+func (h *handlers) readEnrollmentFor(p authn.Principal, e establishment, id uuid.UUID, authority enrollmentAuthority) (enrollment, error) {
+	var result enrollment
+	err := authority(func(tx *gorm.DB, _ bool) error {
+		if err := e.requireKind(tx, p.TenantID); err != nil {
+			return err
+		}
+		var row staff
+		if err := tx.Clauses(clause.Locking{Strength: "SHARE"}).Select(staffColumns+", version").Where("tenant_id = ? AND hospital_id = ? AND id = ?", p.TenantID, e.id, id).First(&row).Error; err != nil {
+			return err
+		}
+		var err error
+		result, err = readEnrollment(tx, p.TenantID, e.id, id, row)
+		if err != nil {
+			return err
+		}
+		return tx.Exec(`INSERT INTO workforce_audit (tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES (?, ?, ?, 'workforce.enrollment.read', ?, '{}'::jsonb)`, p.TenantID, e.id, p.Subject, id).Error
+	})
+	return result, err
 }
 
 func enrollmentRow(value any, tenant string, hospital, id uuid.UUID) (map[string]any, error) {
@@ -413,8 +439,7 @@ func (h *handlers) putEnrollment(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if requestContext && (len(c.Request.Header.Values("X-Helivanta-Expected-Tenant")) != 1 || len(c.Request.Header.Values("X-Helivanta-Expected-Subject")) != 1) {
-		respond.Error(c, 409, "session_changed", "Open protected Staff records in your current account and workspace.")
+	if requestContext && !enrollmentSession(c) {
 		return
 	}
 	id, err := uuid.Parse(c.Param("id"))
@@ -434,16 +459,29 @@ func (h *handlers) putEnrollment(c *gin.Context) {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "invalid enrollment fields")
 		return
 	}
+	result, err := h.writeEnrollmentFor(p, establishment{kind: hospitalEstablishmentKind, id: hospital}, id, &in, h.hospitalEnrollmentAuthority(c, p, hospital))
+	if err != nil {
+		respondEnrollmentWriteError(c, err)
+		return
+	}
+	respondEnrollment(c, result, projection, qualificationProjection, contactProjection, requestContext)
+}
+
+// writeEnrollmentFor re-checks the admitted kind before any lock or write, so a hospital request never writes a pharmacy record.
+func (h *handlers) writeEnrollmentFor(p authn.Principal, e establishment, id uuid.UUID, in *enrollmentInput, authority enrollmentAuthority) (enrollment, error) {
 	var result enrollment
-	err = h.intakeTransaction(c, p, hospital, []authz.Permission{PermEnrollmentManage}, func(tx *gorm.DB, delegated bool) error {
-		if err := tx.Exec(`SELECT workforce_lock_supervision(?::uuid, ?::uuid)`, p.TenantID, hospital).Error; err != nil {
+	err := authority(func(tx *gorm.DB, delegated bool) error {
+		if err := e.requireKind(tx, p.TenantID); err != nil {
 			return err
 		}
-		if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended(?, 0))`, p.TenantID+":"+hospital.String()+":"+id.String()).Error; err != nil {
+		if err := tx.Exec(`SELECT workforce_lock_supervision(?::uuid, ?::uuid)`, p.TenantID, e.id).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended(?, 0))`, p.TenantID+":"+e.id.String()+":"+id.String()).Error; err != nil {
 			return err
 		}
 		var row staff
-		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Select(staffColumns+", version").Where("tenant_id = ? AND hospital_id = ? AND id = ?", p.TenantID, hospital, id).First(&row).Error
+		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Select(staffColumns+", version").Where("tenant_id = ? AND hospital_id = ? AND id = ?", p.TenantID, e.id, id).First(&row).Error
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
@@ -453,27 +491,27 @@ func (h *handlers) putEnrollment(c *gin.Context) {
 		var existing enrollment
 		if err == nil {
 			var loadErr error
-			existing, loadErr = readEnrollment(tx, p.TenantID, hospital, id, row)
+			existing, loadErr = readEnrollment(tx, p.TenantID, e.id, id, row)
 			if loadErr != nil {
 				return loadErr
 			}
 		} else if *in.ExpectedVersion != 0 {
 			return gorm.ErrRecordNotFound
 		}
-		if err := validateMasterReferences(tx, p, hospital, &in.Profile, existing.Profile, in.providedReferences); err != nil {
+		if err := validateMasterReferences(tx, p, e.id, &in.Profile, existing.Profile, in.providedReferences); err != nil {
 			return err
 		}
-		if err := validateQualificationReferences(tx, p, hospital, in.Qualifications, existing.Qualifications, in.providedQualificationReferences); err != nil {
+		if err := validateQualificationReferences(tx, p, e.id, in.Qualifications, existing.Qualifications, in.providedQualificationReferences); err != nil {
 			return err
 		}
-		if err := validateContactReferences(tx, p, hospital, in.EmergencyContacts, existing.EmergencyContacts, in.providedContactReferences); err != nil {
+		if err := validateContactReferences(tx, p, e.id, in.EmergencyContacts, existing.EmergencyContacts, in.providedContactReferences); err != nil {
 			return err
 		}
 		if !in.normalizeAndValidate(id) {
 			return errEnrollmentFields
 		}
 		if err == nil {
-			if sameEnrollment(existing, in) {
+			if sameEnrollment(existing, *in) {
 				result = existing
 				return nil
 			}
@@ -484,38 +522,45 @@ func (h *handlers) putEnrollment(c *gin.Context) {
 		if err := tx.Exec(`INSERT INTO workforce_staff (tenant_id,hospital_id,id,employee_code,display_name,job_category,employment_status)
 		 VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (tenant_id,hospital_id,id) DO UPDATE SET employee_code = EXCLUDED.employee_code,
 		 display_name = EXCLUDED.display_name, job_category = EXCLUDED.job_category, employment_status = EXCLUDED.employment_status, updated_at = clock_timestamp()`,
-			p.TenantID, hospital, id, in.Staff.EmployeeCode, in.Staff.DisplayName, in.Staff.JobCategory, in.Staff.EmploymentStatus).Error; err != nil {
+			p.TenantID, e.id, id, in.Staff.EmployeeCode, in.Staff.DisplayName, in.Staff.JobCategory, in.Staff.EmploymentStatus).Error; err != nil {
 			return err
 		}
 		if in.Staff.EmploymentStatus == "inactive" {
-			if err := h.revokeInactiveStaffLinks(tx, p, hospital, id); err != nil {
+			if err := h.revokeInactiveStaffLinks(tx, p, e.id, id); err != nil {
 				return err
 			}
 		}
-		if err := replaceEnrollmentRows(tx, p.TenantID, hospital, id, in); err != nil {
+		if err := replaceEnrollmentRows(tx, p.TenantID, e.id, id, *in); err != nil {
 			return err
 		}
 		// Surface the deferred reviewed-credential key here, as a mapped error, rather than at commit.
 		if err := tx.Exec(`SET CONSTRAINTS workforce_credential_validity_enrolled IMMEDIATE`).Error; err != nil {
 			return err
 		}
-		if err := tx.Select(staffColumns+", version").Where("tenant_id = ? AND hospital_id = ? AND id = ?", p.TenantID, hospital, id).First(&row).Error; err != nil {
+		if err := tx.Select(staffColumns+", version").Where("tenant_id = ? AND hospital_id = ? AND id = ?", p.TenantID, e.id, id).First(&row).Error; err != nil {
 			return err
 		}
 		if err := tx.Exec(`INSERT INTO workforce_audit (tenant_id,hospital_id,actor_subject,action,resource_id,changes)
-		 VALUES (?, ?, ?, 'workforce.enrollment.changed', ?, jsonb_build_object('version', ?::bigint))`, p.TenantID, hospital, p.Subject, id, row.Version).Error; err != nil {
+		 VALUES (?, ?, ?, 'workforce.enrollment.changed', ?, jsonb_build_object('version', ?::bigint))`, p.TenantID, e.id, p.Subject, id, row.Version).Error; err != nil {
 			return err
 		}
-		data, err := json.Marshal(workforcecontract.StaffEnrollmentChangedData{HospitalID: hospital.String(), StaffID: id.String(), Version: row.Version})
-		if err != nil {
-			return err
+		// The v1 event names a hospital_id, so a pharmacy enrollment publishes nothing until a consumer needs a pharmacy event.
+		if e.kind == hospitalEstablishmentKind {
+			data, err := json.Marshal(workforcecontract.StaffEnrollmentChangedData{HospitalID: e.id.String(), StaffID: id.String(), Version: row.Version})
+			if err != nil {
+				return err
+			}
+			if err := h.bus.Publish(tx, EnrollmentChanged, events.Event{Type: EnrollmentChanged, Version: 1, TenantID: p.TenantID, Data: data}); err != nil {
+				return err
+			}
 		}
-		if err := h.bus.Publish(tx, EnrollmentChanged, events.Event{Type: EnrollmentChanged, Version: 1, TenantID: p.TenantID, Data: data}); err != nil {
-			return err
-		}
-		result, err = readEnrollment(tx, p.TenantID, hospital, id, row)
+		result, err = readEnrollment(tx, p.TenantID, e.id, id, row)
 		return err
 	})
+	return result, err
+}
+
+func respondEnrollmentWriteError(c *gin.Context, err error) {
 	if errors.Is(err, errEnrollmentFields) {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "invalid enrollment fields")
 		return
@@ -541,12 +586,8 @@ func (h *handlers) putEnrollment(c *gin.Context) {
 		respond.ConflictWithDetail(c, "A reviewed credential changes only through a credential review, and cannot be removed.", gin.H{"reason": "credential_reviewed"})
 		return
 	}
-	if err != nil {
-		if respondMasterReferenceError(c, err) {
-			return
-		}
-		respondIntakeError(c, err)
+	if respondMasterReferenceError(c, err) {
 		return
 	}
-	respondEnrollment(c, result, projection, qualificationProjection, contactProjection, requestContext)
+	respondIntakeError(c, err)
 }

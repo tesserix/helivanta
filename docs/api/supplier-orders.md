@@ -1,9 +1,10 @@
 # Independent supplier order and fulfilment continuation
 
-This is work in progress on `feat/supplier-orders-dispatch-20261108`. The pure
-order rules and generated Go/Zod models are under development; no order route,
-stock reservation, dispatch, receiving or financial integration is established
-by these models. Do not consume an order snapshot as operating authority.
+This is work in progress on `feat/supplier-orders-dispatch-20261108`. The candidate now includes owner APIs, forced-RLS storage, immutable command
+recovery, directed exchange and SDK validation. Real-owner database/broker CI
+acceptance is pending. Stock reservation, dispatch, receiving and financial
+integration remain unimplemented. Do not consume an order snapshot as operating
+authority.
 
 ## Ownership and scope
 
@@ -109,3 +110,56 @@ label or a generic quality reason. Relevant contracts: supplier-trade,
 supplier-access, operating-duties and supply-stock; acceptance IN-PH-02/03/04/05/
 08/09/10 and ORG-AC. This document and the current source authorize no production
 migration, rollout, physical shipment or financial action.
+
+## Candidate owner APIs and authority contract
+
+Hospital routes use
+`/v1/supply/hospitals/{hospital}/departments/{department}/outlets/{outlet}/purchase-orders/{order}`.
+PUT prepares immutable intent; GET reads current state; GET `proposal-receipt`
+recovers the original actor-bound draft; PUT/GET `commands/{command}` records or
+recovers the original decision. Source routes use
+`/v1/supply/supplier-orders/{order}` with current state GET and PUT/GET
+`commands/{command}`. Collection/discovery and workboard UI remain to be added;
+these exact-resource APIs do not manufacture an available collection.
+
+Hospital actions reserve `supply.purchase_order.read`, `.prepare`, `.review` or
+`.cancel` together with **`workforce.purchase_order_actor.use`**. This is a new,
+separately injected Workforce-owned nonclinical purpose, not a relaxation of the
+reviewed governance/posting-only `workforce.staff_actor.use` interface. It shares
+only the owner's private current employment/account-generation eligibility
+implementation, enforces its own reserved permission and audit action, and does
+not confer order or stock authority alone. Department ancestry and the exact
+current hospital-owned pharmacy binding constrain new commitments. The three
+closed department-only PO templates admit hospital establishments and no clinical,
+stock or financial permission. Source acceptance/read require the separately
+reviewed `supply.order_acceptor.v1` or `pharmacy.order_acceptor.v1` operating duty
+at the exact owned stock location; ordinary tenant/admin roles are not fallback
+operating authority.
+
+New commands require the exact signed-in account/workspace headers before body
+validation. Uncertain outcomes use GET recovery with the original command and
+intent, not another write. Actual Staff IDs prevent alias-account self-review and
+remain owner-private; they are not on the directed wire. Read/recovery rechecks
+current local Staff/duty authority, while an expired or suspended relationship
+does not erase the immutable local receipt. New approval/acceptance requires a
+fresh bilateral proof and exact current source facts. Source acceptance also
+checks product identity/version/unit through the real product owner, without
+claiming stock availability. Publication fences remain on the outer command;
+warehouse product checks are sequential to avoid nesting system transactions or
+exhausting connection pools for a 100-line order.
+
+Supply migration 0015 adds exact-purpose forced RLS, immutable input/proposal
+receipts, versioned history and command identity. Pharma migration 0037 adds only
+a narrow current-product read purpose, leaving catalogue writes unchanged. IAM
+0042 adds department-only PO templates; 0043 adds source order duties. The exact
+0041 SQL bytes are frozen as `operating_templates_v2.sql`. All earlier migration
+SQL and template definitions remain immutable.
+
+The bilateral order event carries only the agreed intent/terms and authenticated
+signatory needed by the exact contracting party. Procurement notes and signatory
+identifiers are explicitly privacy-classified; no private local Staff IDs,
+patient data, balances or credentials are carried. The receiver validates actual
+transport provenance, matching established relationship terms, remote epochs and
+monotonic transitions. Cancellation after source acceptance remains pending until
+stock-owner compensation exists; it never asserts release merely because an event
+was received. The candidate exposes no successful reservation or dispatch result.

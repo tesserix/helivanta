@@ -953,12 +953,8 @@
             "workforce.posting_source.use",
             "workforce.staff_actor.use"
           ],
-          "scope_kinds": [
-            "hospital"
-          ],
-          "establishment_kinds": [
-            "hospital"
-          ]
+          "scope_kinds": ["hospital"],
+          "establishment_kinds": ["hospital"]
         },
         {
           "key": "iam.supplier_reviewer.v1",
@@ -972,16 +968,60 @@
             "workforce.posting_source.use",
             "workforce.staff_actor.use"
           ],
-          "scope_kinds": [
-            "hospital"
-          ],
-          "establishment_kinds": [
-            "hospital"
-          ]
+          "scope_kinds": ["hospital"],
+          "establishment_kinds": ["hospital"]
         }
       ],
       "definitions_sha256": "4b6102f180d972c5f54c32209ab7947aabe4b15c5588b94af174eba5e37a66d2",
       "sql_sha256": "9004858c26577f5b7d6fe2992c1e55b6ccf44984bcb25c230a730f28030149b4"
+    },
+    {
+      "id": "0042_iam_purchase_order_templates",
+      "file": "assignment_purchase_order_templates_generated.sql",
+      "templates": [
+        {
+          "key": "supply.department_purchase_order_reader.v1",
+          "name": "Department purchase order reader",
+          "description": "Read this department's own supplier purchase intents and retained decisions; no foreign catalogue disclosure, stock mutation or financial authority.",
+          "family": "purchase_order",
+          "permissions": [
+            "supply.purchase_order.read",
+            "workforce.purchase_order_actor.use"
+          ],
+          "scope_kinds": ["department"],
+          "establishment_kinds": ["hospital"]
+        },
+        {
+          "key": "supply.department_purchase_order_preparer.v1",
+          "name": "Department purchase order preparer",
+          "description": "Prepare or request cancellation of department supplier purchase intents as current Staff; cannot approve an order or perform stock or financial actions.",
+          "family": "purchase_order",
+          "permissions": [
+            "supply.purchase_order.cancel",
+            "supply.purchase_order.prepare",
+            "supply.purchase_order.read",
+            "workforce.purchase_order_actor.use"
+          ],
+          "scope_kinds": ["department"],
+          "establishment_kinds": ["hospital"]
+        },
+        {
+          "key": "supply.department_purchase_order_reviewer.v1",
+          "name": "Department purchase order reviewer",
+          "description": "Independently review department purchase intents as current Staff, with account and Staff self-review rejection; no stock dispatch, pricing, tax or payment authority.",
+          "family": "purchase_order",
+          "permissions": [
+            "supply.purchase_order.cancel",
+            "supply.purchase_order.read",
+            "supply.purchase_order.review",
+            "workforce.purchase_order_actor.use"
+          ],
+          "scope_kinds": ["department"],
+          "establishment_kinds": ["hospital"]
+        }
+      ],
+      "definitions_sha256": "d9a83dcfbacf183846cd97150437b61fcfefd79be0b6da73892d140174419cb4",
+      "sql_sha256": "755224c5b2aacd3010e74ef442977eda2b571e3926d60435a77b30f69b414df0"
     }
   ],
   "template_catalogs": [
@@ -1172,11 +1212,18 @@
     {
       "key": "hospital-supplier-access-v1",
       "name": "Hospital supplier collaboration",
-      "template_keys": [
-        "iam.supplier_viewer.v1",
-        "iam.supplier_reviewer.v1"
-      ],
+      "template_keys": ["iam.supplier_viewer.v1", "iam.supplier_reviewer.v1"],
       "definitions_sha256": "4b6102f180d972c5f54c32209ab7947aabe4b15c5588b94af174eba5e37a66d2"
+    },
+    {
+      "key": "department-purchase-orders-v1",
+      "name": "Department supplier purchase orders",
+      "template_keys": [
+        "supply.department_purchase_order_reader.v1",
+        "supply.department_purchase_order_preparer.v1",
+        "supply.department_purchase_order_reviewer.v1"
+      ],
+      "definitions_sha256": "d9a83dcfbacf183846cd97150437b61fcfefd79be0b6da73892d140174419cb4"
     }
   ]
 }

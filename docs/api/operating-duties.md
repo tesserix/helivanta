@@ -57,3 +57,10 @@ duties. It does not inherit receiving or dispatch permissions. See
 The original template SQL is retained in `operating_templates_v1.sql`; future
 catalogue expansions apply through additive migrations rather than rewriting
 migration 0038.
+
+The next order candidate adds `supply.order_acceptor.v1` and
+`pharmacy.order_acceptor.v1`, permitting source-scoped
+`supply.supplier_order.accept` and `.read` only. They grant no receiving, quality
+review, reservation, dispatch or financial authority. IAM 0043 applies the
+expanded function; `operating_templates_v2.sql` retains the exact published 0041
+function bytes. See [the supplier order candidate](supplier-orders.md).

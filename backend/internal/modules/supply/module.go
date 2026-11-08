@@ -88,6 +88,7 @@ func New() *Module           { return &Module{} }
 func (*Module) Name() string { return "supply" }
 func (*Module) Permissions() []authz.Grant {
 	grants := []authz.Grant{
+		{Permission: PermPurchaseOrderRead}, {Permission: PermPurchaseOrderPrepare}, {Permission: PermPurchaseOrderReview}, {Permission: PermPurchaseOrderCancel}, {Permission: PermSupplierOrderRead}, {Permission: PermSupplierOrderAccept},
 		{Permission: PermStockReview, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyInventory}},
 		{Permission: PermRelationshipRead, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor, authz.RolePharmacyOwner}},
 		{Permission: PermRelationshipPrepare, Roles: []authz.Role{authz.RoleSupplyAdmin, authz.RolePharmacyOwner}},
@@ -133,7 +134,7 @@ func (*Module) Permissions() []authz.Grant {
 	return grants
 }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_supply", SQL: partySchema}, {ID: "0002_supply", SQL: registrationSchema}, {ID: "0003_supply", SQL: evidenceSchema}, {ID: "0004_supply", SQL: reviewSchema}, {ID: "0005_supply", SQL: binSchema}, {ID: "0006_supply", SQL: branchSchema}, {ID: "0007_supply", SQL: accessScopeSchema + corporateSchema + territorySchema}, {ID: "0008_supply", SQL: operationsSchema + deliveryTaskSchema + supportAccessSchema + accessLimitsSchema}, {ID: "0009_supply", SQL: indiaOnlySchema}, {ID: "0010_supply_stock", SQL: stockSchema}, {ID: "0011_supply_employer_guard", SQL: employerGuardSchema}, {ID: "0012_supply_trading_source", SQL: tradingSourceSchema}, {ID: "0013_supply_trade_relationships", SQL: tradeRelationshipsSchema}, {ID: "0014_supply_stock_quality", SQL: stockQualitySchema}}
+	return []tenantdb.Migration{{ID: "0001_supply", SQL: partySchema}, {ID: "0002_supply", SQL: registrationSchema}, {ID: "0003_supply", SQL: evidenceSchema}, {ID: "0004_supply", SQL: reviewSchema}, {ID: "0005_supply", SQL: binSchema}, {ID: "0006_supply", SQL: branchSchema}, {ID: "0007_supply", SQL: accessScopeSchema + corporateSchema + territorySchema}, {ID: "0008_supply", SQL: operationsSchema + deliveryTaskSchema + supportAccessSchema + accessLimitsSchema}, {ID: "0009_supply", SQL: indiaOnlySchema}, {ID: "0010_supply_stock", SQL: stockSchema}, {ID: "0011_supply_employer_guard", SQL: employerGuardSchema}, {ID: "0012_supply_trading_source", SQL: tradingSourceSchema}, {ID: "0013_supply_trade_relationships", SQL: tradeRelationshipsSchema}, {ID: "0014_supply_stock_quality", SQL: stockQualitySchema}, {ID: "0015_supply_purchase_orders", SQL: purchaseOrdersSchema}}
 }
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	h := &handlers{operating: deps.OperatingAuthorizer, db: deps.DB, bus: deps.Bus, identity: deps.OrganizationIdentity, roles: deps.Roles, stockProducts: deps.StockProducts}
@@ -162,6 +163,7 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	registerOperatingRoutes(g, h)
 	registerStockRoutes(g, h)
 	registerStockQualityRoutes(g, h)
+	purchaseOrderRoutes(g, deps)
 	relationshipRoutes(g, deps)
 	g.PUT("/parties/:party/operating-locations/:premise/bins/:bin", PermOperatingWrite, h.putOperatingBin)
 	registerDeliveryRoutes(g, h)
@@ -186,16 +188,16 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.ListRoute(g, "/parties/:party/licenses/:license/revisions", PermLicenseRead, h.listLicenseRevisions)
 }
 func (*Module) Publishes() []string {
-	return []string{supplycontract.SubjectStockQualityRecorded, supplycontract.SubjectRelationshipExchange, supplycontract.SubjectStockIdentityRecorded, supplycontract.SubjectStockReceiptRecorded, supplycontract.SubjectSupportAccessChanged, supplycontract.SubjectDeliveryTaskChanged, supplycontract.SubjectCorporateUpdated, supplycontract.SubjectTerritoryUpdated, supplycontract.SubjectBinUpdated, supplycontract.SubjectPartyUpdated, supplycontract.SubjectPartyAccessChanged, supplycontract.SubjectPremiseUpdated, supplycontract.SubjectLicenseDeclared, supplycontract.SubjectEvidenceScanRequested, supplycontract.SubjectEvidenceChanged, supplycontract.SubjectLicenseReviewChanged}
+	return []string{supplycontract.SubjectOrderExchange, supplycontract.SubjectStockQualityRecorded, supplycontract.SubjectRelationshipExchange, supplycontract.SubjectStockIdentityRecorded, supplycontract.SubjectStockReceiptRecorded, supplycontract.SubjectSupportAccessChanged, supplycontract.SubjectDeliveryTaskChanged, supplycontract.SubjectCorporateUpdated, supplycontract.SubjectTerritoryUpdated, supplycontract.SubjectBinUpdated, supplycontract.SubjectPartyUpdated, supplycontract.SubjectPartyAccessChanged, supplycontract.SubjectPremiseUpdated, supplycontract.SubjectLicenseDeclared, supplycontract.SubjectEvidenceScanRequested, supplycontract.SubjectEvidenceChanged, supplycontract.SubjectLicenseReviewChanged}
 }
 func (*Module) DirectedSubjects() []string {
-	return []string{supplycontract.SubjectRelationshipExchange}
+	return []string{supplycontract.SubjectRelationshipExchange, supplycontract.SubjectOrderExchange}
 }
 func (*Module) DirectedWriteTables() []string {
-	return []string{"supply_trade_relationships", "supply_trade_relationship_history"}
+	return []string{"supply_trade_relationships", "supply_trade_relationship_history", "supply_purchase_orders", "supply_purchase_order_history"}
 }
 func (*Module) Consumers(deps platform.Deps) []events.Consumer {
-	result := []events.Consumer{tradeRelationshipConsumer()}
+	result := []events.Consumer{tradeRelationshipConsumer(), purchaseOrderConsumer()}
 	if deps.Workflows != nil {
 		result = append(result, EvidenceScanConsumer(deps.Workflows))
 	}

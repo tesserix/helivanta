@@ -82,6 +82,7 @@ export const SupplierOrderContract = z
     id: identifier,
     owner_tenant_id: identifier,
     side: z.enum(["buyer", "seller"]),
+    buyer_department_id: identifier.optional(),
     terms: SupplierTradeTermsContract,
     input: SupplierOrderInputContract,
     input_sha256: z
@@ -161,3 +162,19 @@ export const SupplierOrderExchangeContract = z
   })
   .strict();
 export type SupplierOrderExchange = z.infer<typeof SupplierOrderExchangeContract>;
+
+export const SupplierOrderCommandReceiptContract = z
+  .object({
+    command_id: identifier,
+    input: SupplierOrderDecisionInputContract,
+    order: SupplierOrderContract,
+    actor_subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    actor_staff_id: identifier,
+    recorded_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type SupplierOrderCommandReceipt = z.infer<typeof SupplierOrderCommandReceiptContract>;

@@ -12,6 +12,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/organizationidentity"
 	"github.com/tesserix/helivanta/pkg/session"
 	"github.com/tesserix/helivanta/pkg/stockproduct"
+	"github.com/tesserix/helivanta/pkg/supplierorder"
 	"github.com/tesserix/helivanta/pkg/suppliertrade"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"github.com/tesserix/helivanta/pkg/transit"
@@ -56,7 +57,9 @@ type Deps struct {
 	OperatingLocations   authz.CurrentOperatingLocationGuard
 	Membership           authz.MembershipChecker
 	StockProducts        stockproduct.Guard
+	OrderProducts        supplierorder.CurrentOrderProducts
 	StaffActors          authz.CurrentStaffActorGuard
+	PurchaseOrderActors  authz.CurrentPurchaseOrderActorGuard
 	StaffPostingSources  authz.CurrentStaffPostingSourceGuard
 	PartnerMembers       authz.CurrentPartnerMemberGuard
 	DepartmentReferences authz.DepartmentReferenceGuard

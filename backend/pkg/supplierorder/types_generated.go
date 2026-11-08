@@ -32,24 +32,25 @@ type SupplierOrderInput struct {
 }
 
 type SupplierOrder struct {
-	ID              uuid.UUID           `json:"id"`
-	OwnerTenantID   uuid.UUID           `json:"owner_tenant_id"`
-	Side            string              `json:"side"`
-	Terms           suppliertrade.Terms `json:"terms"`
-	Input           SupplierOrderInput  `json:"input"`
-	InputSha256     string              `json:"input_sha256"`
-	Status          string              `json:"status"`
-	Version         int64               `json:"version"`
-	AuthorityEpoch  int64               `json:"authority_epoch"`
-	RemoteEpoch     int64               `json:"remote_epoch"`
-	RemotePhase     string              `json:"remote_phase"`
-	PreparedBy      string              `json:"prepared_by"`
-	PreparedStaffID *uuid.UUID          `json:"prepared_staff_id,omitempty"`
-	SignedBy        *string             `json:"signed_by,omitempty"`
-	SignedStaffID   *uuid.UUID          `json:"signed_staff_id,omitempty"`
-	RemoteSignedBy  *string             `json:"remote_signed_by,omitempty"`
-	CreatedAt       time.Time           `json:"created_at"`
-	UpdatedAt       time.Time           `json:"updated_at"`
+	ID                uuid.UUID           `json:"id"`
+	OwnerTenantID     uuid.UUID           `json:"owner_tenant_id"`
+	Side              string              `json:"side"`
+	BuyerDepartmentID *uuid.UUID          `json:"buyer_department_id,omitempty"`
+	Terms             suppliertrade.Terms `json:"terms"`
+	Input             SupplierOrderInput  `json:"input"`
+	InputSha256       string              `json:"input_sha256"`
+	Status            string              `json:"status"`
+	Version           int64               `json:"version"`
+	AuthorityEpoch    int64               `json:"authority_epoch"`
+	RemoteEpoch       int64               `json:"remote_epoch"`
+	RemotePhase       string              `json:"remote_phase"`
+	PreparedBy        string              `json:"prepared_by"`
+	PreparedStaffID   *uuid.UUID          `json:"prepared_staff_id,omitempty"`
+	SignedBy          *string             `json:"signed_by,omitempty"`
+	SignedStaffID     *uuid.UUID          `json:"signed_staff_id,omitempty"`
+	RemoteSignedBy    *string             `json:"remote_signed_by,omitempty"`
+	CreatedAt         time.Time           `json:"created_at"`
+	UpdatedAt         time.Time           `json:"updated_at"`
 }
 
 type SupplierOrderDecisionInput struct {
@@ -67,6 +68,15 @@ type SupplierOrderExchange struct {
 	SourceEpoch      int64               `json:"source_epoch"`
 	Phase            string              `json:"phase"`
 	SignatorySubject string              `json:"signatory_subject"`
+}
+
+type SupplierOrderCommandReceipt struct {
+	CommandID    uuid.UUID                  `json:"command_id"`
+	Input        SupplierOrderDecisionInput `json:"input"`
+	Order        SupplierOrder              `json:"order"`
+	ActorSubject string                     `json:"actor_subject"`
+	ActorStaffID uuid.UUID                  `json:"actor_staff_id"`
+	RecordedAt   time.Time                  `json:"recorded_at"`
 }
 
 func productValid(p SupplierOrderProduct, owner string) bool {

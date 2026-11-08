@@ -34,3 +34,9 @@ type CurrentRelationshipGuard interface {
 	VerifyRelationship(context.Context, RelationshipScope) (RelationshipAuthorization, error)
 	WithVerifiedRelationship(context.Context, RelationshipAuthorization, func(context.Context, Relationship) error) error
 }
+
+// HospitalDepartmentGuard binds an owned hospital outlet to an exact current department.
+// It exposes no grant, stock authority or foreign department directory.
+type HospitalDepartmentGuard interface {
+	WithHospitalDepartment(context.Context, Endpoint, uuid.UUID, func(context.Context) error) error
+}

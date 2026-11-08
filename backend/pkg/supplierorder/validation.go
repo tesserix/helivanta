@@ -16,14 +16,7 @@ func ValidateInput(terms suppliertrade.Terms, in SupplierOrderInput, at time.Tim
 	if err != nil || suppliertrade.ValidateTerms(terms, at) != nil || !recordID(in.RelationshipID) || digest != in.TermsSha256 || !suppliertrade.Text(in.PurchaseOrderReference, 200) || !suppliertrade.Text(in.QuoteReference, 200) || !suppliertrade.Text(in.Reason, 500) || !in.ExpiresAt.After(at) || in.ExpiresAt.After(terms.ExpiresAt) || len(in.Lines) < 1 || len(in.Lines) > maximumLines {
 		return ErrInvalid
 	}
-	seen := map[uuid.UUID]bool{}
-	for _, line := range in.Lines {
-		if !recordID(line.ID) || seen[line.ID] || !productValid(line.Product, terms.Seller.Product) || line.QuantityUnits < 1 || line.QuantityUnits > 1000000000 || !suppliertrade.Text(line.UnitCode, 100) {
-			return ErrInvalid
-		}
-		seen[line.ID] = true
-	}
-	return nil
+	return ValidateProductLines(in.Lines, terms.Seller.Product)
 }
 
 // ValidateRecord verifies retained evidence; it does not authorize a new commitment.
@@ -33,6 +26,9 @@ func ValidateRecord(order SupplierOrder) error {
 		return ErrInvalid
 	}
 	if (order.Side == "buyer" && order.OwnerTenantID != order.Terms.Buyer.TenantID) || (order.Side == "seller" && order.OwnerTenantID != order.Terms.Seller.TenantID) || (order.Side != "buyer" && order.Side != "seller") {
+		return ErrInvalid
+	}
+	if order.BuyerDepartmentID != nil && (!recordID(*order.BuyerDepartmentID) || order.Side != "buyer") {
 		return ErrInvalid
 	}
 	if order.Side == "buyer" && (order.PreparedStaffID == nil || *order.PreparedStaffID == uuid.Nil || order.PreparedStaffID.Variant() != uuid.RFC4122) {

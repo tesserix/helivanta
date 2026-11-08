@@ -32,7 +32,7 @@ CREATE TABLE pharmacy_supplier_holds(
 );
 CREATE INDEX ON pharmacy_supplier_holds(tenant_id,location_id,stock_id,stock_location_id,expires_at)WHERE reserved_units>0;
 ALTER TABLE pharmacy_supplier_holds ENABLE ROW LEVEL SECURITY;ALTER TABLE pharmacy_supplier_holds FORCE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation ON pharmacy_supplier_holds USING(hms_tenant_visible(tenant_id)AND(pharmacy_outlet_allowed(tenant_id,location_id,false) OR pharmacy_stock_overview_allowed(tenant_id,location_id) OR pharmacy_supplier_scope(tenant_id,organization_id,location_id,allocation_id,'00000000-0000-0000-0000-000000000000',false)))WITH CHECK(pg_trigger_depth()>0 AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);
+CREATE POLICY tenant_isolation ON pharmacy_supplier_holds USING(hms_tenant_visible(tenant_id)AND(pharmacy_outlet_allowed(tenant_id,location_id,false) OR pharmacy_stock_overview_allowed(tenant_id,location_id) OR EXISTS(SELECT 1 FROM pharmacy_supplier_allocations a WHERE a.tenant_id=pharmacy_supplier_holds.tenant_id AND a.id=pharmacy_supplier_holds.allocation_id AND pharmacy_supplier_scope(a.tenant_id,a.organization_id,a.location_id,a.id,a.order_id,false))))WITH CHECK(pg_trigger_depth()>0 AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);
 CREATE FUNCTION pharmacy_supplier_allocation_guard()RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE used bigint;n bigint;
 BEGIN
@@ -49,8 +49,10 @@ CREATE TRIGGER pharmacy_supplier_allocation_guard BEFORE INSERT OR UPDATE OR DEL
 CREATE TRIGGER pharmacy_supplier_allocation_truncate BEFORE TRUNCATE ON pharmacy_supplier_allocations FOR EACH STATEMENT EXECUTE FUNCTION pharmacy_supplier_allocation_guard();
 CREATE FUNCTION pharmacy_supplier_hold_sync()RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
- INSERT INTO pharmacy_supplier_holds VALUES(NEW.tenant_id,NEW.id,NEW.organization_id,NEW.location_id,NEW.stock_id,NEW.stock_location_id,NEW.reserved_units,NEW.expires_at)
- ON CONFLICT(tenant_id,allocation_id)DO UPDATE SET reserved_units=EXCLUDED.reserved_units;
+ UPDATE pharmacy_supplier_holds SET reserved_units=NEW.reserved_units WHERE tenant_id=NEW.tenant_id AND allocation_id=NEW.id;
+ IF NOT FOUND THEN
+  INSERT INTO pharmacy_supplier_holds VALUES(NEW.tenant_id,NEW.id,NEW.organization_id,NEW.location_id,NEW.stock_id,NEW.stock_location_id,NEW.reserved_units,NEW.expires_at);
+ END IF;
  RETURN NEW;
 END $$;
 CREATE TRIGGER pharmacy_supplier_hold_sync AFTER INSERT OR UPDATE ON pharmacy_supplier_allocations FOR EACH ROW EXECUTE FUNCTION pharmacy_supplier_hold_sync();

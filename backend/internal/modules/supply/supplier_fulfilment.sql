@@ -32,7 +32,7 @@ CREATE TABLE supply_supplier_holds(
 );
 CREATE INDEX ON supply_supplier_holds(tenant_id,location_id,stock_id,stock_location_id,expires_at)WHERE reserved_units>0;
 ALTER TABLE supply_supplier_holds ENABLE ROW LEVEL SECURITY;ALTER TABLE supply_supplier_holds FORCE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation ON supply_supplier_holds USING(hms_tenant_visible(tenant_id)AND(supply_stock_scope(tenant_id,organization_id,location_id,'read') OR supply_operating_owned(tenant_id,organization_id,location_id,ARRAY['administrator','inventory','warehouse','auditor','regulator']) OR supply_supplier_scope(tenant_id,organization_id,location_id,allocation_id,'00000000-0000-0000-0000-000000000000',false)))WITH CHECK(pg_trigger_depth()>0 AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);
+CREATE POLICY tenant_isolation ON supply_supplier_holds USING(hms_tenant_visible(tenant_id)AND(supply_stock_scope(tenant_id,organization_id,location_id,'read') OR supply_operating_owned(tenant_id,organization_id,location_id,ARRAY['administrator','inventory','warehouse','auditor','regulator']) OR EXISTS(SELECT 1 FROM supply_supplier_allocations a WHERE a.tenant_id=supply_supplier_holds.tenant_id AND a.id=supply_supplier_holds.allocation_id AND supply_supplier_scope(a.tenant_id,a.organization_id,a.location_id,a.id,a.order_id,false))))WITH CHECK(pg_trigger_depth()>0 AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);
 CREATE FUNCTION supply_supplier_allocation_guard()RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE used bigint;n bigint;
 BEGIN
@@ -49,8 +49,10 @@ CREATE TRIGGER supply_supplier_allocation_guard BEFORE INSERT OR UPDATE OR DELET
 CREATE TRIGGER supply_supplier_allocation_truncate BEFORE TRUNCATE ON supply_supplier_allocations FOR EACH STATEMENT EXECUTE FUNCTION supply_supplier_allocation_guard();
 CREATE FUNCTION supply_supplier_hold_sync()RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
- INSERT INTO supply_supplier_holds VALUES(NEW.tenant_id,NEW.id,NEW.organization_id,NEW.location_id,NEW.stock_id,NEW.stock_location_id,NEW.reserved_units,NEW.expires_at)
- ON CONFLICT(tenant_id,allocation_id)DO UPDATE SET reserved_units=EXCLUDED.reserved_units;
+ UPDATE supply_supplier_holds SET reserved_units=NEW.reserved_units WHERE tenant_id=NEW.tenant_id AND allocation_id=NEW.id;
+ IF NOT FOUND THEN
+  INSERT INTO supply_supplier_holds VALUES(NEW.tenant_id,NEW.id,NEW.organization_id,NEW.location_id,NEW.stock_id,NEW.stock_location_id,NEW.reserved_units,NEW.expires_at);
+ END IF;
  RETURN NEW;
 END $$;
 CREATE TRIGGER supply_supplier_hold_sync AFTER INSERT OR UPDATE ON supply_supplier_allocations FOR EACH ROW EXECUTE FUNCTION supply_supplier_hold_sync();

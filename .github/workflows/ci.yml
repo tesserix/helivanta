@@ -115,6 +115,7 @@ jobs:
       # is followed from the moment it appears.
       - name: Record Ryuk's log during the Go tests
         run: |
+          # shellcheck disable=SC2016 # Variables expand inside the child bash process.
           nohup bash -c '
             seen=" "
             while true; do
@@ -325,8 +326,40 @@ jobs:
       # shebang (scripts/lint-shell.sh), at every severity.
       - run: make lint-shell
   secrets:
-    name: Secret scan
-    uses: tesserix/tesserix-workflows/.github/workflows/secret-scan.yml@62f7f663a98d5ef92567850dd03c8c2513c9068e # v2.3.0
+    name: Secret scan / Secret scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+        with:
+          fetch-depth: 0
+      - name: Install checksum-verified gitleaks through release API
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: 8.30.1
+          SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          cd "$RUNNER_TEMP"
+          archive="gitleaks_${VERSION}_linux_x64.tar.gz"
+          for attempt in 1 2 3; do
+            if gh release download "v${VERSION}" --repo gitleaks/gitleaks --pattern "$archive" --clobber; then
+              break
+            fi
+            if [[ "$attempt" == 3 ]]; then exit 1; fi
+            sleep "$((attempt * 2))"
+          done
+          echo "${SHA256} ${archive}" | sha256sum -c -
+          tar -xzf "$archive" gitleaks
+          sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
+          rm -f gitleaks "$archive"
+      - name: Scan committed content
+        run: |
+          if [[ -f .gitleaks-baseline.json ]]; then
+            gitleaks git . --no-banner --redact --baseline-path .gitleaks-baseline.json
+          else
+            gitleaks git . --no-banner --redact
+          fi
   e2e:
     runs-on: ubuntu-latest
     # 30 minutes, and the number is a fail-closed bound rather than a guess.

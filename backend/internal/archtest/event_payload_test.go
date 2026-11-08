@@ -1128,8 +1128,18 @@ func TestEventPayloadPHIFieldsAreAllowlisted(t *testing.T) {
 // thing a reviewer's eye lands on.
 func TestEventPayloadPHIAllowlistIsPinnedExactly(t *testing.T) {
 	require.Equal(t, map[string]string{
-		"supply.OrderExchangeData.SignatorySubject": "authenticated order signatory needed for independent bilateral consent and self-review checks; restricted exact tenant-directed exchange, never broadcast or log",
-		"supply.SupplierOrderInput.Reason":          "shared bounded procurement instructions needed by the exact contracting supplier; no patient data requested; restricted bilateral exchange and audit, never broadcast or log",
+		"pharmacy.ReceivingSummary.ActorSubject":                 "authenticated physical-operation actor needed for accountable handoff and receiving; exact bilateral exchange only, no contact or private Staff UUID",
+		"pharmacy.ReceivingSummary.Reason":                       "bounded receiving/discrepancy rationale required for supplier reconciliation; restricted bilateral exchange, no patient data requested",
+		"supply.ReceivingSummary.ActorSubject":                   "authenticated physical-operation actor needed for accountable handoff and receiving; exact bilateral exchange only, no contact or private Staff UUID",
+		"supply.ReceivingSummary.Reason":                         "bounded receiving/discrepancy rationale required for supplier reconciliation; restricted bilateral exchange, no patient data requested",
+		"pharmacy.SupplierDispatchRecordedData.ActorSubject":     "authenticated physical-operation actor needed for accountable handoff and receiving; exact bilateral exchange only, no contact or private Staff UUID",
+		"pharmacy.SupplierDispatchRecordedData.HandoffReference": "bounded transport document reference needed for matching physical custody; restricted bilateral exchange, no patient data requested",
+		"supply.SupplierDispatchRecordedData.ActorSubject":       "authenticated physical-operation actor needed for accountable handoff and receiving; exact bilateral exchange only, no contact or private Staff UUID",
+		"supply.SupplierDispatchRecordedData.HandoffReference":   "bounded transport document reference needed for matching physical custody; restricted bilateral exchange, no patient data requested",
+		"supply.SupplierShipmentExchangeData.ActorSubject":       "authenticated physical-operation actor needed for accountable handoff and receiving; exact bilateral exchange only, no contact or private Staff UUID",
+		"supply.SupplierShipmentExchangeData.HandoffReference":   "bounded transport document reference needed for matching physical custody; restricted bilateral exchange, no patient data requested",
+		"supply.OrderExchangeData.SignatorySubject":              "authenticated order signatory needed for independent bilateral consent and self-review checks; restricted exact tenant-directed exchange, never broadcast or log",
+		"supply.SupplierOrderInput.Reason":                       "shared bounded procurement instructions needed by the exact contracting supplier; no patient data requested; restricted bilateral exchange and audit, never broadcast or log",
 
 		"iam.SupplierGrantExchangeData.Input":              "immutable grant input includes the nominated account and review rationale; exact bilateral tenant-directed protocol only, never a broadcast or log",
 		"iam.SupplierGrantExchangeData.SignatorySubject":   "authenticated signatory needed to reject self-acceptance and attribute bilateral consent; restricted directed exchange, no contact or identity documents",

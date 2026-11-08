@@ -6171,6 +6171,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order/shipments/:shipment/receiving-responses",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order",
           "permission": "public",
           "authentication_required": true,
@@ -6233,12 +6242,30 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/shipments/:shipment/receiving/responses/:response",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "PUT",
           "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/shipments/:shipment/receiving/responses/:response",
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
           "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/shipments/:shipment/receiving/responses",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
           "counted": false
         },
         {
@@ -7079,12 +7106,30 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/shipments/:shipment/receiving/responses/:response",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "PUT",
           "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/shipments/:shipment/receiving/responses/:response",
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
           "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/shipments/:shipment/receiving/responses",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
           "counted": false
         },
         {
@@ -7500,6 +7545,7 @@
         }
       ],
       "publishes": [
+        "helivanta.in.supply.supplier_receiving_response_exchange.v1",
         "helivanta.in.supply.supplier_receiving_exchange.v1",
         "helivanta.in.supply.supplier_shipment_exchange.v1",
         "helivanta.in.supply.supplier_dispatch_recorded.v1",
@@ -7522,12 +7568,14 @@
         "helivanta.in.supply.license_review_changed.v1"
       ],
       "directed_subjects": [
+        "helivanta.in.supply.supplier_receiving_response_exchange.v1",
         "helivanta.in.supply.supplier_receiving_exchange.v1",
         "helivanta.in.supply.supplier_shipment_exchange.v1",
         "helivanta.in.supply.relationship_exchange.v1",
         "helivanta.in.supply.order_exchange.v1"
       ],
       "directed_write_tables": [
+        "supply_supplier_received_responses",
         "supply_supplier_receiving_updates",
         "supply_supplier_shipments",
         "supply_trade_relationships",
@@ -7544,6 +7592,11 @@
         {
           "name": "supply-purchase-order-exchange",
           "subject": "helivanta.in.supply.order_exchange.v1",
+          "after_commit": false
+        },
+        {
+          "name": "supply-supplier-receiving-responses",
+          "subject": "helivanta.in.supply.supplier_receiving_response_exchange.v1",
           "after_commit": false
         },
         {
@@ -7716,6 +7769,13 @@
             "supply_supplier_dispatched_shipments",
             "supply_supplier_receiving_updates",
             "supply_supplier_discrepancy_responses"
+          ]
+        },
+        {
+          "id": "0017_supply_supplier_response_exchange",
+          "sql_sha256": "39bbdca0151290405b713a6bf47574e8243f88c270901957ee6e0162e7557c06",
+          "creates_tables": [
+            "supply_supplier_received_responses"
           ]
         }
       ]

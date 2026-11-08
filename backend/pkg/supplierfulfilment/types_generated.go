@@ -245,5 +245,28 @@ type SupplierStockLocationChoice struct {
 	ObservedAt     time.Time `json:"observed_at"`
 }
 
+type ReceivingResponseInput struct {
+	ExpectedSummaryVersion int64  `json:"expected_summary_version"`
+	Response               string `json:"response"`
+	Reason                 string `json:"reason"`
+}
+
+type ReceivingResponseRecord struct {
+	ID                   uuid.UUID `json:"id"`
+	OwnerTenantID        uuid.UUID `json:"owner_tenant_id"`
+	BuyerTenantID        uuid.UUID `json:"buyer_tenant_id"`
+	OrderID              uuid.UUID `json:"order_id"`
+	ShipmentID           uuid.UUID `json:"shipment_id"`
+	SourceOrganizationID uuid.UUID `json:"source_organization_id"`
+	SourceLocationID     uuid.UUID `json:"source_location_id"`
+	SourceProduct        string    `json:"source_product"`
+	SummaryVersion       int64     `json:"summary_version"`
+	Response             string    `json:"response"`
+	Reason               string    `json:"reason"`
+	ActorSubject         string    `json:"actor_subject"`
+	ActorStaffID         uuid.UUID `json:"actor_staff_id"`
+	CreatedAt            time.Time `json:"created_at"`
+}
+
 const maximumLeaseSeconds = 86400
 const maximumUnits = 1000000000

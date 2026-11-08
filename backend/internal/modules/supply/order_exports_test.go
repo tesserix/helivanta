@@ -11,3 +11,5 @@ var TestPurchaseOrderConsumer = purchaseOrderConsumer
 var TestSavePurchaseOrderCommand = savePurchaseOrderCommand
 var TestRecoverPurchaseOrderCommand = recoverPurchaseOrderCommand
 var TestSamePurchaseOrderProposal = samePurchaseOrderProposal
+
+var TestBuyerResponsePage = buyerResponsePage

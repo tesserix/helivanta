@@ -15,6 +15,9 @@ import {
   recordHospitalSupplierClearance,
   listHospitalSupplierCorrectionsPage,
   listHospitalSupplierShipmentsPage,
+  listHospitalSupplierResponsesPage,
+  listSourceSupplierResponsesPage,
+  recoverSourceSupplierResponse,
   listSupplierStockChoicesPage,
   listSupplierStockLocationsPage,
   supplierStockWorkflowKey,
@@ -624,4 +627,81 @@ it("uses a separate sellable shelf page only for the pharmacy stock owner", asyn
     listSupplierStockLocationsPage(source, plan.order_id, line, location.stock_id),
   ).rejects.toThrow();
   expect(fetch).not.toHaveBeenCalled();
+});
+
+it("keeps a supplier's response separate from hospital counts and checks both response scopes", async () => {
+  const shipment = {
+    id: id(14),
+    allocation_id: plan.id,
+    order_id: plan.order_id,
+    line_id: plan.input.line_id,
+    order_input_sha256: plan.order_input_sha256,
+    source_tenant_id: source.tenantId,
+    source_organization_id: source.organizationId,
+    source_location_id: source.locationId,
+    buyer_tenant_id: buyer.tenantId,
+    hospital_id: buyer.hospitalId,
+    buyer_organization_id: buyer.pharmacyId,
+    buyer_location_id: buyer.outletId,
+    product: plan.product,
+    unit_code: plan.unit_code,
+    quantity_units: 5,
+    lot_number: allocation.lot_number,
+    expires_on: allocation.expires_on,
+    handoff_reference: "TEST handoff",
+    actor_subject: source.subject,
+    product_description: allocation.product_description,
+    pack_size: 1,
+    dispatched_at: "2026-11-08T11:58:00Z",
+  };
+  const response = {
+    id: id(80),
+    owner_tenant_id: source.tenantId,
+    buyer_tenant_id: buyer.tenantId,
+    order_id: plan.order_id,
+    shipment_id: shipment.id,
+    source_product: source.product,
+    source_organization_id: source.organizationId,
+    source_location_id: source.locationId,
+    summary_version: 2,
+    response: "disputed",
+    reason: "TEST review shortage",
+    actor_subject: source.subject,
+    actor_staff_id: id(12),
+    created_at: "2026-11-09T01:00:00Z",
+  };
+  reply({ data: [response], page: { has_more: false, next_cursor: null } });
+  await expect(listHospitalSupplierResponsesPage(buyer, shipment)).resolves.toMatchObject({
+    data: [response],
+  });
+  reply({ data: [response], page: { has_more: false, next_cursor: null } });
+  await expect(listSourceSupplierResponsesPage(source, shipment)).resolves.toMatchObject({
+    data: [response],
+  });
+  reply({
+    data: [{ ...response, owner_tenant_id: id(99) }],
+    page: { has_more: false, next_cursor: null },
+  });
+  await expect(listHospitalSupplierResponsesPage(buyer, shipment)).rejects.toThrow();
+  reply({
+    data: [{ ...response, shipment_id: id(99) }],
+    page: { has_more: false, next_cursor: null },
+  });
+  await expect(listSourceSupplierResponsesPage(source, shipment)).rejects.toThrow();
+  reply(response);
+  await expect(
+    recoverSourceSupplierResponse(source, shipment, response.id, {
+      expected_summary_version: 2,
+      response: "disputed",
+      reason: response.reason,
+    }),
+  ).resolves.toMatchObject(response);
+  reply(response);
+  await expect(
+    recoverSourceSupplierResponse({ ...source, subject: "TEST-other" }, shipment, response.id, {
+      expected_summary_version: 2,
+      response: "disputed",
+      reason: response.reason,
+    }),
+  ).rejects.toThrow();
 });

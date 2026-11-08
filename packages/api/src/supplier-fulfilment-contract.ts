@@ -437,3 +437,47 @@ export const SupplierStockLocationChoiceContract = z
   })
   .strict();
 export type SupplierStockLocationChoice = z.infer<typeof SupplierStockLocationChoiceContract>;
+
+export const ReceivingResponseInputContract = z
+  .object({
+    expected_summary_version: z.number().int().min(1).max(9007199254740991),
+    response: z.enum(["confirmed", "disputed"]),
+    reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type ReceivingResponseInput = z.infer<typeof ReceivingResponseInputContract>;
+
+export const ReceivingResponseRecordContract = z
+  .object({
+    id: identifier,
+    owner_tenant_id: identifier,
+    buyer_tenant_id: identifier,
+    order_id: identifier,
+    shipment_id: identifier,
+    source_organization_id: identifier,
+    source_location_id: identifier,
+    source_product: z.enum(["supply", "pharmacy"]),
+    summary_version: z.number().int().min(1).max(9007199254740991),
+    response: z.enum(["confirmed", "disputed"]),
+    reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    actor_subject: z
+      .string()
+      .trim()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    actor_staff_id: identifier,
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type ReceivingResponseRecord = z.infer<typeof ReceivingResponseRecordContract>;

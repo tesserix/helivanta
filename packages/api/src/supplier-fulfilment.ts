@@ -13,6 +13,10 @@ import {
   type SupplierSourceOrderScope,
 } from "./supplier-orders";
 import {
+  ReceivingResponseInputContract,
+  ReceivingResponseRecordContract,
+  type ReceivingResponseInput,
+  type Shipment,
   SupplierStockChoiceContract,
   SupplierStockLocationChoiceContract,
   AllocationContract,
@@ -712,3 +716,157 @@ export const listSupplierStockLocationsPage = async (
 };
 
 export { v7 as newSupplierWorkflowId } from "uuid";
+
+function sourceShipment(scope: SupplierStockScope, shipment: Shipment) {
+  const value = ShipmentContract.parse(shipment);
+  if (
+    !same(value.source_tenant_id, scope.tenantId) ||
+    value.product.owner !== scope.product ||
+    !same(value.source_organization_id, scope.organizationId) ||
+    !same(value.source_location_id, scope.locationId)
+  )
+    fail();
+  return value;
+}
+function buyerShipment(scope: HospitalSupplierReceivingScope, shipment: Shipment) {
+  const value = ShipmentContract.parse(shipment);
+  if (
+    !same(value.buyer_tenant_id, scope.tenantId) ||
+    !same(value.hospital_id, scope.hospitalId) ||
+    !same(value.buyer_organization_id, scope.pharmacyId) ||
+    !same(value.buyer_location_id, scope.outletId)
+  )
+    fail();
+  return value;
+}
+function checkSupplierResponse(
+  shipment: Shipment,
+  value: z.output<typeof ReceivingResponseRecordContract>,
+) {
+  if (
+    !same(value.owner_tenant_id, shipment.source_tenant_id) ||
+    !same(value.buyer_tenant_id, shipment.buyer_tenant_id) ||
+    !same(value.order_id, shipment.order_id) ||
+    !same(value.shipment_id, shipment.id) ||
+    value.source_product !== shipment.product.owner ||
+    !same(value.source_organization_id, shipment.source_organization_id) ||
+    !same(value.source_location_id, shipment.source_location_id)
+  )
+    fail();
+}
+export async function listHospitalSupplierResponsesPage(
+  scope: HospitalSupplierReceivingScope,
+  shipment: Shipment,
+  request: SupplierPageRequest = {},
+  signal?: AbortSignal,
+) {
+  buyerShipment(scope, shipment);
+  return page(
+    `/supply${hospitalBase(scope)}/purchase-orders/${shipment.order_id}/shipments/${shipment.id}/receiving-responses`,
+    scope,
+    ReceivingResponseRecordContract,
+    (value) => checkSupplierResponse(shipment, value),
+    request,
+    signal,
+  );
+}
+export async function listSourceSupplierResponsesPage(
+  scope: SupplierStockScope,
+  shipment: Shipment,
+  request: SupplierPageRequest = {},
+  signal?: AbortSignal,
+) {
+  sourceShipment(scope, shipment);
+  return page(
+    `${sourceOrderBase(scope)}/${shipment.order_id}/shipments/${shipment.id}/receiving/responses`,
+    scope,
+    ReceivingResponseRecordContract,
+    (value) => checkSupplierResponse(shipment, value),
+    request,
+    signal,
+  );
+}
+export async function recoverSourceSupplierResponse(
+  scope: SupplierStockScope,
+  shipment: Shipment,
+  id: string,
+  input: ReceivingResponseInput,
+) {
+  sourceShipment(scope, shipment);
+  const intent = ReceivingResponseInputContract.parse(input);
+  const value = ReceivingResponseRecordContract.parse(
+    await apiFetch(
+      `${sourceOrderBase(scope)}/${shipment.order_id}/shipments/${shipment.id}/receiving/responses/${identifier.parse(id)}`,
+      membershipRequestOptions(scope),
+    ),
+  );
+  checkSupplierResponse(shipment, value);
+  if (!same(value.id, id) || value.actor_subject !== scope.subject) fail();
+  sameIntent(
+    ReceivingResponseInputContract,
+    {
+      expected_summary_version: value.summary_version,
+      response: value.response,
+      reason: value.reason,
+    },
+    intent,
+  );
+  return value;
+}
+const supplierResponseAck = z
+  .object({
+    id: identifier,
+    shipment_id: identifier,
+    summary_version: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
+    response: ReceivingResponseInputContract.shape.response,
+    financial_effect: z.literal("none"),
+  })
+  .strict();
+export async function recordSourceSupplierResponse(
+  scope: SupplierStockScope,
+  shipment: Shipment,
+  id: string,
+  input: ReceivingResponseInput,
+) {
+  sourceShipment(scope, shipment);
+  const intent = ReceivingResponseInputContract.parse(input);
+  const value = supplierResponseAck.parse(
+    await apiFetch(
+      `${sourceOrderBase(scope)}/${shipment.order_id}/shipments/${shipment.id}/receiving/responses/${commandIdentifier.parse(id)}`,
+      { ...membershipRequestOptions(scope), method: "PUT", body: JSON.stringify(intent) },
+    ),
+  );
+  if (
+    !same(value.id, id) ||
+    !same(value.shipment_id, shipment.id) ||
+    value.summary_version !== intent.expected_summary_version ||
+    value.response !== intent.response
+  )
+    fail();
+  return value;
+}
+export async function readSourceSupplierReceiving(
+  scope: SupplierStockScope,
+  shipment: Shipment,
+  signal?: AbortSignal,
+) {
+  sourceShipment(scope, shipment);
+  const value = ReceivingSummaryContract.parse(
+    await apiFetch(
+      `${sourceOrderBase(scope)}/${shipment.order_id}/shipments/${shipment.id}/receiving`,
+      { ...membershipRequestOptions(scope), signal },
+    ),
+  );
+  if (
+    !same(value.owner_tenant_id, shipment.buyer_tenant_id) ||
+    !same(value.order_id, shipment.order_id) ||
+    !same(value.shipment_id, shipment.id) ||
+    value.counted_units !== value.accepted_units + value.rejected_units ||
+    value.counted_units > shipment.quantity_units ||
+    (value.closed
+      ? value.short_units !== shipment.quantity_units - value.counted_units
+      : value.short_units !== 0)
+  )
+    fail();
+  return value;
+}

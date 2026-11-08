@@ -4295,7 +4295,7 @@
     }
   },
   "helivanta.in.supply.supplier_receiving_exchange.v1": {
-    "source": "backend/internal/modules/supply/contract/fulfilment_types_generated.go:77",
+    "source": "backend/internal/modules/supply/contract/fulfilment_types_generated.go:94",
     "go_type": "SupplierReceivingExchangeData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -4377,6 +4377,83 @@
         "shipment_id",
         "source_tenant_id",
         "summary"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.supply.supplier_receiving_response_exchange.v1": {
+    "source": "backend/internal/modules/supply/contract/fulfilment_types_generated.go:61",
+    "go_type": "SupplierReceivingResponseExchangeData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "actor_staff_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "actor_subject": {
+          "type": "string"
+        },
+        "buyer_tenant_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "order_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "owner_tenant_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "response": {
+          "type": "string"
+        },
+        "shipment_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "source_location_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "source_organization_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "source_product": {
+          "type": "string"
+        },
+        "summary_version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "owner_tenant_id",
+        "buyer_tenant_id",
+        "order_id",
+        "shipment_id",
+        "source_organization_id",
+        "source_location_id",
+        "source_product",
+        "summary_version",
+        "response",
+        "reason",
+        "actor_subject",
+        "actor_staff_id",
+        "created_at"
       ],
       "type": "object"
     }

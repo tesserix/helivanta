@@ -6,25 +6,25 @@ import (
 	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	supplycontract "github.com/tesserix/helivanta/internal/modules/supply/contract" //nolint:depguard // own data-only event contract
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/events"
 	f "github.com/tesserix/helivanta/pkg/supplierfulfilment"
 	"github.com/tesserix/helivanta/pkg/supplierorder"
 	"github.com/tesserix/helivanta/pkg/suppliertrade"
 	"gorm.io/gorm"
+	"time"
 )
 
 const PermReceivingResponse authz.Permission = "supply.receiving_response.record"
 
-type discrepancyInput struct {
-	ExpectedSummaryVersion int64  `json:"expected_summary_version"`
-	Response               string `json:"response"`
-	Reason                 string `json:"reason"`
-}
+type discrepancyInput = f.ReceivingResponseInput
 
 func supplierResponseRoutes(r *platform.Router, deps platform.Deps) {
-	h := &purchaseOrderHandlers{db: deps.DB, authority: deps.ScopedAuthorizer, actors: deps.PurchaseOrderActors, departments: deps.DepartmentScopes, operating: deps.OperatingAuthorizer, endpoints: deps.TradingEndpoints}
+	h := &purchaseOrderHandlers{db: deps.DB, bus: deps.Bus, authority: deps.ScopedAuthorizer, actors: deps.PurchaseOrderActors, departments: deps.DepartmentScopes, operating: deps.OperatingAuthorizer, endpoints: deps.TradingEndpoints}
+	registerReceivingResponseLists(r, h)
 	base := "/supplier-orders/:order/shipments/:shipment/receiving"
 	r.GET(base, authz.Public, h.getSupplierReceiving)
 	r.PUT(base+"/responses/:response", authz.Public, h.respondReceiving)
@@ -67,6 +67,10 @@ func (h *purchaseOrderHandlers) getSupplierReceiving(c *gin.Context) {
 	respond.OK(c, result)
 }
 func (h *purchaseOrderHandlers) respondReceiving(c *gin.Context) {
+	if h.bus == nil {
+		purchaseOrderError(c, supplierorder.ErrUnavailable)
+		return
+	}
 	p, ok := purchaseOrderPrincipal(c)
 	if !ok {
 		return
@@ -130,7 +134,22 @@ func (h *purchaseOrderHandlers) respondReceiving(c *gin.Context) {
 		if !summary.Closed || update.Version != in.ExpectedSummaryVersion {
 			return f.ErrConflict
 		}
-		return tx.Exec(`INSERT INTO supply_supplier_discrepancy_responses(tenant_id,id,order_id,shipment_id,summary_version,source_product,source_organization_id,source_location_id,response,reason,actor_subject,actor_staff_id,created_at)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,clock_timestamp())`, p.TenantID, response, id, shipment, in.ExpectedSummaryVersion, scope.product, scope.organization, scope.location, in.Response, in.Reason, actor.Subject, actor.StaffID).Error
+		var stored struct {
+			CreatedAt     time.Time
+			SourceEventID uuid.UUID
+		}
+		if err := tx.Raw(`INSERT INTO supply_supplier_discrepancy_responses(tenant_id,id,order_id,shipment_id,summary_version,source_product,source_organization_id,source_location_id,response,reason,actor_subject,actor_staff_id,created_at)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,clock_timestamp())RETURNING created_at,source_event_id`, p.TenantID, response, id, shipment, in.ExpectedSummaryVersion, scope.product, scope.organization, scope.location, in.Response, in.Reason, actor.Subject, actor.StaffID).Scan(&stored).Error; err != nil {
+			return err
+		}
+		record := f.ReceivingResponseRecord{ID: response, OwnerTenantID: uuid.MustParse(p.TenantID), BuyerTenantID: summary.OwnerTenantID, OrderID: id, ShipmentID: shipment, SourceProduct: scope.product, SourceOrganizationID: scope.organization, SourceLocationID: scope.location, SummaryVersion: in.ExpectedSummaryVersion, Response: in.Response, Reason: in.Reason, ActorSubject: actor.Subject, ActorStaffID: actor.StaffID, CreatedAt: stored.CreatedAt}
+		if f.ValidateReceivingResponse(record) != nil {
+			return f.ErrInvalid
+		}
+		body, err := json.Marshal(record)
+		if err != nil {
+			return err
+		}
+		return h.bus.Publish(tx, supplycontract.SubjectSupplierReceivingResponseExchange, events.Event{ID: stored.SourceEventID.String(), Type: supplycontract.SubjectSupplierReceivingResponseExchange, Version: 1, OccurredAt: record.CreatedAt, TenantID: p.TenantID, DestinationTenantID: record.BuyerTenantID.String(), Data: body})
 	})
 	if err != nil {
 		if errors.Is(err, f.ErrConflict) {

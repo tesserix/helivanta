@@ -100,7 +100,7 @@ func shipmentMatchesBuyerOrder(s f.Shipment, o supplierorder.SupplierOrder) bool
 	return false
 }
 func fulfilmentConsumers() []events.Consumer {
-	return []events.Consumer{receivingForwarder(), receivingExchangeConsumer(), dispatchForwarder(supplycontract.SubjectSupplierDispatchRecorded, "supply"), dispatchForwarder(pharmacycontract.SubjectSupplierDispatchRecorded, "pharmacy"), supplierShipmentConsumer()}
+	return []events.Consumer{supplierReceivingResponseConsumer(), receivingForwarder(), receivingExchangeConsumer(), dispatchForwarder(supplycontract.SubjectSupplierDispatchRecorded, "supply"), dispatchForwarder(pharmacycontract.SubjectSupplierDispatchRecorded, "pharmacy"), supplierShipmentConsumer()}
 }
 
 func retainSourceShipment(tx *gorm.DB, s f.Shipment, raw json.RawMessage) error {

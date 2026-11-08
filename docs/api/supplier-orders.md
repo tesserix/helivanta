@@ -224,3 +224,24 @@ acceptance. It returns the canonical `SupplierOrderReviewAccess`, bound to the
 verified subject, Staff identity and exact owner/order scope with an observation
 time. It records an audited read, not an approval or a transferable capability.
 The eventual review command still rechecks authority and all business references.
+
+### Supplier receiving-response delivery
+
+`ReceivingResponseInput` and `ReceivingResponseRecord` are canonical fulfilment
+models. The existing PUT acknowledgement remains unchanged. Source response,
+attributable audit and directed outbox work commit together; replay does not emit
+another event. `helivanta.in.supply.supplier_receiving_response_exchange.v1` carries
+the source-authored record to its exact buyer. Its receiver checks sender, buyer,
+known order and dispatch, retains summary-version identity and rejects changed
+replays. It has no authority to change buyer counts, stock, release or finance.
+
+Source history is `GET {explicit-source-order-base}/:order/shipments/:shipment/receiving/responses`.
+The exact `/:response` GET binds original actor and Staff identity for retry recovery.
+Buyer history is
+`GET /v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order/shipments/:shipment/receiving-responses`.
+Both collections have limit fifty, resource-bound cursors and sensitive-read audit.
+Buyer admission includes current Staff, goods-read and Pharmacy department authority.
+The record's `owner_tenant_id` identifies the supplier author; `buyer_tenant_id`
+identifies the recipient projection. Readers must compare `summary_version` with
+the effective hospital summary rather than presenting old supplier replies as
+current confirmation. ADR 0067 records delivery, isolation and rollback decisions.

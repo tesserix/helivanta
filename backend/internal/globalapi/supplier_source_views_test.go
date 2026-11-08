@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/events"
 	f "github.com/tesserix/helivanta/pkg/supplierfulfilment"
 	"github.com/tesserix/helivanta/pkg/supplierorder"
 	"github.com/tesserix/helivanta/pkg/suppliertrade"
@@ -37,7 +38,7 @@ func TestSourceViewsUseCurrentReviewedStaffAndRetainReconciliation(t *testing.T)
 		return path
 	}
 	root := fmt.Sprintf("/v1/supply/stock-owners/supply/organizations/%s/locations/%s/supplier-orders", fixture.input.Scope.EmployerID, fixture.input.Scope.LocationID)
-	fixture.call("GET", root, "receiver", nil, 404)
+	fixture.call("GET", root, "receiver", nil, 403)
 	fulfiller := activate("supply.stock_fulfiller.v1")
 	data := supplierStockFixture{organization: fixture.input.Scope.EmployerID, location: fixture.input.Scope.LocationID, product: supplierorder.SupplierOrderProduct{Owner: "supply", ProductID: uuid.New(), VersionID: ptr(uuid.New())}}
 	order, _, _ := sourceOrder(t, "supply", data)
@@ -112,7 +113,7 @@ func TestSourceViewsUseCurrentReviewedStaffAndRetainReconciliation(t *testing.T)
 		if err != nil {
 			return err
 		}
-		return tx.Exec(`INSERT INTO supply_supplier_receiving_updates(tenant_id,shipment_id,version,order_id,source_product,source_organization_id,source_location_id,buyer_tenant_id,body,actor_subject,created_at)VALUES(?,?,?,?,?,?,?,?,?::jsonb,'system:supplier-receiving',?)`, order.OwnerTenantID, shipment.ID, summary.Version, order.ID, "supply", data.organization, data.location, summary.OwnerTenantID, string(raw), summary.RecordedAt).Error
+		return tx.Exec(`INSERT INTO supply_supplier_receiving_updates(tenant_id,shipment_id,version,order_id,source_product,source_organization_id,source_location_id,buyer_tenant_id,body,source_event_id,actor_subject,created_at)VALUES(?,?,?,?,?,?,?,?,?::jsonb,?,'system:supplier-receiving',?)`, order.OwnerTenantID, shipment.ID, summary.Version, order.ID, "supply", data.organization, data.location, summary.OwnerTenantID, string(raw), uuid.Must(uuid.NewV7()), summary.RecordedAt).Error
 	}))
 	var first struct {
 		Data []supplierorder.SupplierOrder
@@ -141,23 +142,40 @@ func TestSourceViewsUseCurrentReviewedStaffAndRetainReconciliation(t *testing.T)
 	input := map[string]any{"expected_summary_version": 1, "response": "disputed", "reason": "TEST check the hospital shortage evidence"}
 	firstResponse := fixture.call("PUT", responsePath, "receiver", input, 200)
 	require.JSONEq(t, firstResponse, fixture.call("PUT", responsePath, "receiver", input, 200))
+	require.Contains(t, fixture.call("GET", receiving+"/responses?limit=1", "receiver", nil, 200), "TEST check the hospital shortage evidence")
+	require.NoError(t, fixture.db.WithTenantCommand(tenantdb.WithActor(t.Context(), "TEST source outbox inspector"), testutil.TenantA, func(tx *gorm.DB) error {
+		var rows []struct{ Payload json.RawMessage }
+		if err := tx.Table("outbox_events").Select("payload").Where("tenant_id=? AND subject=?", testutil.TenantA, "helivanta.in.supply.supplier_receiving_response_exchange.v1").Scan(&rows).Error; err != nil {
+			return err
+		}
+		require.Len(t, rows, 1, "response and durable publication commit once, including replay")
+		var envelope events.Event
+		require.NoError(t, json.Unmarshal(rows[0].Payload, &envelope))
+		require.Equal(t, summary.OwnerTenantID.String(), envelope.DestinationTenantID)
+		var published f.ReceivingResponseRecord
+		require.NoError(t, json.Unmarshal(envelope.Data, &published))
+		require.Equal(t, summary.Version, published.SummaryVersion)
+		require.Equal(t, fixture.input.Identity.StaffID, published.ActorStaffID)
+		return nil
+	}))
+
 	fixture.call("PUT", strings.Replace(responsePath, order.ID.String(), second.ID.String(), 1), "receiver", input, 404)
 	input["reason"] = "TEST changed reconciliation intent"
 	fixture.call("PUT", responsePath, "receiver", input, 409)
-	fixture.call("GET", path+"/review-access", "receiver", nil, 404)
+	fixture.call("GET", path+"/review-access", "receiver", nil, 403)
 	acceptor := activate("supply.order_acceptor.v1")
 	var access supplierorder.SupplierOrderReviewAccess
 	require.NoError(t, json.Unmarshal([]byte(fixture.call("GET", path+"/review-access", "receiver", nil, 200)), &access))
 	require.Equal(t, fixture.input.Identity.StaffID, access.ActorStaffID)
 	require.Equal(t, "user-receiver", access.ActorSubject)
 	wrong := strings.Replace(root, data.location.String(), uuid.Must(uuid.NewV7()).String(), 1)
-	fixture.call("GET", wrong, "receiver", nil, 404)
+	fixture.call("GET", wrong, "receiver", nil, 403)
 	fixture.checks.down.Store(true)
 	fixture.call("GET", root, "receiver", nil, 503)
 	fixture.checks.down.Store(false)
 	for _, duty := range []string{fulfiller, acceptor} {
 		fixture.call("PUT", duty+"/commands/"+uuid.Must(uuid.NewV7()).String(), "owner", iam.OperatingDutyDecisionInput{ExpectedVersion: 3, Decision: "revoke", Reason: "TEST immediate source cutoff"}, 201)
 	}
-	fixture.call("GET", root, "receiver", nil, 404)
-	fixture.call("GET", path+"/commands/"+command.CommandID.String(), "receiver", nil, 404)
+	fixture.call("GET", root, "receiver", nil, 403)
+	fixture.call("GET", path+"/commands/"+command.CommandID.String(), "receiver", nil, 403)
 }

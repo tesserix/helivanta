@@ -229,3 +229,38 @@ canonical generators, route documentation, access inventory and collection-route
 architecture assertions passed. The real source Staff API scenario compiles and
 lints; its database runtime and coverage contribution await CI. No local app or
 container was started, and no merge/deployment is claimed.
+
+### Durable supplier-response checkpoint
+
+Added canonical response input/record and generated event payload, atomic source
+outbox publication, authenticated directed buyer consumer and immutable buyer
+projection, current buyer/source scoped read pages and original-actor/Staff exact
+recovery. Source response acknowledgement shape is preserved. Forward Supply
+migration 0017 adds source event identity, buyer projection and indexes; tables
+have one tenant-isolation policy with exchange-only writes. The source event is
+registered for publishing, directed delivery and receiving-table allowlisting.
+Supplier replies do not alter hospital counts, stock, release or finances.
+
+The native envelope regression failed before implementation and now passes for
+sender/recipient binding, strict fields and invalid response semantics. New
+protocol DB checks cover delivery replay/new-envelope replay, changed-body
+rejection, pagination and wrong-department/tenant disclosure. The real Staff API
+fixture checks source outbox commits once with replay. It also needed its seeded
+receiving projection's required source_event_id. Those DB assertions await CI.
+The strict SDK covers source/buyer response scopes, unchanged PUT acknowledgement,
+summary bounds and actor-bound original recovery. Native full API tests and Go
+build/lint pass; this is not full receiving-workspace or deployed acceptance.
+
+Response checkpoint validation: 1,044 full API tests passed; native sender/recipient
+regression passed with race instrumentation; affected Go packages compiled, vetted
+and linted; contractdocs and canonical generators/checks passed; shell production
+build passed with the CI rewrite origin and generated output was removed.
+Source/buyer projection DB assertions are not claimed passed until CI runs them.
+
+The previous Go job exposed two test-fixture issues before measuring the expanded
+coverage: the real owner rejects an unassigned Staff caller with 403 order_forbidden
+rather than the fixture's expected 404; and an intentionally disabled projection
+could exhaust JetStream retries while denial was inspected. Expectations now match
+purpose denial, and recovery explicitly enqueues the same duty/version as durable
+replay after restoring the graph. Activation still requires the exact graph ack;
+retry budgets, production authority and coverage thresholds are unchanged.

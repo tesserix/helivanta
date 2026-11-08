@@ -119,6 +119,7 @@ func verifyPurchaseOrderProtocol(t *testing.T, db *tenantdb.DB, seller, buyer su
 	accepted := wait(buyer.OwnerTenantID, buyerFrame("buyer_read", reviewer), "accepted")
 	require.Equal(t, order.InputSha256, accepted.InputSha256)
 	require.Equal(t, reviewer.StaffID, *accepted.SignedStaffID)
+	verifyReceivingResponseProjection(t, db, accepted, dept)
 	// Narrow scope is enforced even when the application connection knows the identifier.
 	wrong := buyerFrame("buyer_read", reviewer)
 	wrong["app.supply_order_department"] = uuid.Must(uuid.NewV7()).String()

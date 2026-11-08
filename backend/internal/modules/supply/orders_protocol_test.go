@@ -52,7 +52,8 @@ func verifyPurchaseOrderProtocol(t *testing.T, db *tenantdb.DB, seller, buyer su
 				if err != nil {
 					return err
 				}
-				next, event, err := supplierorder.Decide(current.Order, supplierorder.SupplierOrderDecisionInput{ExpectedVersion: current.Order.Version, Decision: decision, Reason: "TEST independently reviewed protocol"}, a, time.Now())
+				input := supplierorder.SupplierOrderDecisionInput{ExpectedVersion: current.Order.Version, Decision: decision, Reason: "TEST independently reviewed protocol"}
+				next, event, err := supplierorder.Decide(current.Order, input, a, time.Now())
 				if err != nil {
 					return err
 				}
@@ -60,6 +61,25 @@ func verifyPurchaseOrderProtocol(t *testing.T, db *tenantdb.DB, seller, buyer su
 				if err = supply.TestSavePurchaseOrder(tx, current, a.Subject, &a.StaffID, nil); err != nil {
 					return err
 				}
+				receipt := supplierorder.SupplierOrderCommandReceipt{CommandID: uuid.Must(uuid.NewV7()), Input: input, Order: next, ActorSubject: a.Subject, ActorStaffID: a.StaffID, RecordedAt: time.Now().UTC().Truncate(time.Microsecond)}
+				if err = supply.TestSavePurchaseOrderCommand(tx, receipt); err != nil {
+					return err
+				}
+				for _, original := range []*supplierorder.SupplierOrderDecisionInput{nil, &input} {
+					recovered, err := supply.TestRecoverPurchaseOrderCommand(tx, tenant.String(), order.ID, receipt.CommandID, a, original)
+					require.NoError(t, err)
+					require.Equal(t, receipt, recovered)
+				}
+				changed := input
+				changed.Reason = "TEST changed retry intent"
+				_, err = supply.TestRecoverPurchaseOrderCommand(tx, tenant.String(), order.ID, receipt.CommandID, a, &changed)
+				require.ErrorIs(t, err, supplierorder.ErrConflict)
+				for _, wrong := range []supplierorder.Actor{{Subject: a.Subject, StaffID: uuid.New()}, {Subject: "TEST-other-account", StaffID: a.StaffID}} {
+					_, err = supply.TestRecoverPurchaseOrderCommand(tx, tenant.String(), order.ID, receipt.CommandID, wrong, nil)
+					require.ErrorIs(t, err, supplierorder.ErrConflict)
+				}
+				_, err = supply.TestRecoverPurchaseOrderCommand(tx, tenant.String(), uuid.Must(uuid.NewV7()), receipt.CommandID, a, nil)
+				require.ErrorIs(t, err, gorm.ErrRecordNotFound)
 				if event != nil {
 					return supply.TestEnqueueOrderExchange(tx, *event)
 				}
@@ -125,6 +145,18 @@ func verifyPurchaseOrderProtocol(t *testing.T, db *tenantdb.DB, seller, buyer su
 			}
 			require.JSONEq(t, string(originalReceipt), string(row.ProposalReceipt))
 			require.Equal(t, "cancellation_requested", row.Order.Status)
+			recovered, err := supply.TestSamePurchaseOrderProposal(row, input, actor)
+			require.NoError(t, err)
+			require.Equal(t, "pending_review", recovered.Status)
+			changed := input
+			changed.QuoteReference = "TEST different quote"
+			_, err = supply.TestSamePurchaseOrderProposal(row, changed, actor)
+			require.ErrorIs(t, err, supplierorder.ErrConflict)
+			_, err = supply.TestSamePurchaseOrderProposal(row, input, supplierorder.Actor{Subject: actor.Subject, StaffID: uuid.New()})
+			require.ErrorIs(t, err, supplierorder.ErrConflict)
+			row.ProposalReceipt = json.RawMessage(`{"not_a_receipt":true}`)
+			_, err = supply.TestSamePurchaseOrderProposal(row, input, actor)
+			require.ErrorIs(t, err, supplierorder.ErrUnavailable)
 			return nil
 		})
 	}))

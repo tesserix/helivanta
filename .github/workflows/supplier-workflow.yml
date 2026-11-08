@@ -13,6 +13,7 @@ on:
       - "backend/internal/modules/supply/**"
       - "backend/internal/modules/pharmacy/**"
       - "backend/internal/globalapi/supplier_recipient_test.go"
+      - "backend/internal/globalapi/supplier_order_http_test.go"
       - "backend/internal/globalapi/workforce_person_review_test.go"
       - ".github/workflows/supplier-workflow.yml"
 permissions:
@@ -42,6 +43,7 @@ jobs:
           go test -race ./pkg/supplierorder
           go test -race ./internal/modules/supply -run '^TestDirectedRelationshipProtocolPersistsBothConsentsAndNeverReactivatesFromReplay$'
           go test -race ./internal/modules/pharmacy -run '^TestOrderProductFactsKeepPrivateOwnerVersionUnitsAndPurpose$'
+          go test -race ./internal/globalapi -run '^TestSupplierOrderHTTPRejectsChangedContextMalformedCommandsAndUnavailableOwners$'
       - name: Durable bilateral supplier grant protocol
         run: go test -race ./internal/modules/iam -run '^TestSupplierGrantProtocol'
       - name: Warehouse product identity and independent quality review

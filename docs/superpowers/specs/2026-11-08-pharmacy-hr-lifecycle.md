@@ -25,7 +25,7 @@ contractdocs and inventory, and its own approved rollout.
 | **4a**    | Enrollment: profile, addresses, emergency contacts, credentials as recorded, qualifications, experience and the reporting line | The six `workforce_enrollment_*` tables                     | 3a         |
 | 4b        | Employment periods: drafts, evidence bindings and history                                                                      | Period drafts, evidence bindings                            | 4a, 4d     |
 | 4c        | Employment reviews and generations, which make a period effective (ADR-0049)                                                   | Reviews, cohorts, contributors, evidence, generations       | 4b         |
-| 4d        | Staff documents and their classification                                                                                       | Documents, contributors                                     | 3a         |
+| 4d        | Staff documents: record choices, upload, scan, download, retry and revocation                                                  | Documents, document contributors                            | 4a         |
 | 4e        | Credential reviews, validity and reminders                                                                                     | Credential reviews, reminder policies                       | 4a, 4d     |
 | 4f        | Leave: setup, assignments, ledger, requests and reporting-line routing                                                         | Leave configuration, routing, ledger, requests, route steps | 4a, 4c     |
 
@@ -189,4 +189,166 @@ and they match `app.workforce_hospital` to the row.
 6. A person with Staff records at a hospital and at a pharmacy has two
    enrollments. Neither family's GET returns the other's record.
 7. SDK schema and hook tests, and an editor panel test using
+   `renderWithProviders`, for loading, 404, 409 and success.
+
+## 4d — Pharmacy Staff documents
+
+### Actors and authority
+
+| Actor                     | Authority kind | Scope                      | Preconditions                                                                                                                                      |
+| ------------------------- | -------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pharmacy HR manager       | Administration | One pharmacy establishment | Tenant permission `workforce.documents.manage`. A `manager` row in `workforce_hospital_access` for the pharmacy. Both are read again in each phase |
+| Pharmacy Workforce reader | Administration | One pharmacy               | None. A reader cannot list, upload or download Staff files, exactly as on a hospital                                                               |
+
+The files are HR evidence about a person: identity, employment, credential and
+qualification evidence. Pharma membership, an outlet grant and the
+PharmaConnect pharmacist role confer nothing. Delegated HR intake stays
+hospital-only, as in 4a, so `hr_intake` answers 400.
+
+### Routes
+
+All routes sit under `/v1/workforce/pharmacies/:pharmacy/staff/:id` and
+require `workforce.documents.manage` plus the pharmacy manager row.
+
+| Route                                  | Effect                                                                                          |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `GET document-records`                 | Enrollment, plus up to 20 credentials and 20 qualifications, each with its permitted categories |
+| `GET documents`                        | Cursor list of the Staff record's files                                                         |
+| `PUT documents/:file`                  | Register an upload intent; an identical replay returns it, a different one is 409               |
+| `PUT documents/:file/content`          | Upload the bytes, quarantine them and queue the scan                                            |
+| `GET documents/:file/content`          | Download released bytes, auditing the read before any byte leaves                               |
+| `PUT documents/:file/revocation`       | Revoke an available file                                                                        |
+| `PUT documents/:file/retries/:attempt` | Start the next scan attempt after an error or the 45-minute processing deadline                 |
+
+- **Shared core.** The hospital and pharmacy handlers call the existing
+  gate-generic document core. Validation, intent replay, size and digest
+  checks, content inspection, quarantine, scan, release, retry, revocation
+  and download headers are therefore identical. The core's list, revocation
+  and record-choice paths become gate-generic too.
+- **Gate.** A pharmacy document gate authorizes each phase with
+  `enrollmentScope` (the manager row, read under share lock), requires the
+  pharmacy establishment, and locks the Staff row. It never consults HR
+  intake. Its files bind only to `enrollment`, `credential` and
+  `qualification` records of the same pharmacy Staff record.
+- **Account assertions.** `X-Helivanta-Expected-Tenant` and
+  `X-Helivanta-Expected-Subject` must each appear once and equal the verified
+  principal; otherwise 409 `session_changed`. The pharmacy family has no
+  headerless client.
+- **Response.** The same document view as the hospital family, with
+  `pharmacy_id` in place of `hospital_id`. Record choices are unchanged.
+- **Events.** The internal
+  `helivanta.in.workforce.document_scan_requested.v1` and
+  `document_changed.v1` events keep their `hospital_id` field. That field
+  already names the owning establishment row: the worker's
+  `app.workforce_hospital`, the worker RLS function, the restrictive outbox
+  policy and the storage key all key on it, and no module outside workforce
+  consumes either event. The Go contract comment and the API document say so;
+  the payload shape does not change.
+- **Storage.** Object keys keep the `t/<tenant>/h/<establishment>/o/staff/...`
+  layout. A pharmacy ID and a hospital ID never collide, because both are
+  rows of one registry keyed by `(tenant_id, id)`.
+- **Audit.** `workforce.document.downloaded` and the table audit rows are
+  written under the pharmacy ID, in the same transaction as the change or
+  the final download authorization.
+
+### Status codes
+
+| Case                                                                                | Status                      |
+| ----------------------------------------------------------------------------------- | --------------------------- |
+| Unknown, foreign-tenant, hospital or supplier establishment                         | 404                         |
+| No `manager` access row, or the row is removed before a later phase commits         | 404                         |
+| Staff record, record choice or file missing, or present under another establishment | 404                         |
+| Missing `workforce.documents.manage`                                                | 403                         |
+| `hr_intake` requested                                                               | 400                         |
+| Expected tenant or subject header missing, repeated or different from the session   | 409 `session_changed`       |
+| Invalid intent, bytes, content type or attempt                                      | 400                         |
+| Intent conflict, expired intent, stale record version, wrong state or attempt       | 409                         |
+| Document storage not configured or unavailable                                      | 503 `documents_unavailable` |
+| Registry, database or authorization unavailable                                     | 503                         |
+
+### Data and enforcement
+
+Migration `0096_workforce_pharmacy_documents` (append-only):
+
+- A new guard function, `workforce_require_document_establishment()`. It
+  admits a hospital row of any record kind, and a pharmacy row only for the
+  `enrollment`, `credential` and `qualification` record kinds. Tax
+  declaration and benefit proposal evidence therefore stay hospital-only in
+  the database, not only in the handlers. It refuses with the existing
+  `workforce_hospital_establishment` constraint name.
+- The `workforce_documents` establishment trigger moves to that function.
+- The `workforce_document_contributors` trigger moves to
+  `workforce_require_enrollment_establishment()`. Contributor rows exist only
+  for enrollment identity evidence, which a pharmacy may now hold.
+- The establishment inventory test names these two tables beside the six
+  enrollment tables. A ninth table that starts admitting a pharmacy fails it.
+
+The document RLS policy is already establishment-neutral: it requires
+`app.workforce_enrollment='authorized'`, which only a manager row sets, and it
+matches `app.workforce_hospital`. The worker's scoped claim and the outbox
+policy key on the same establishment ID.
+
+### Defect fixed in the shared core
+
+`requeueDocument` chose its transaction with `staffDocuments{}` instead of the
+calling gate. A payroll or benefits evidence retry sent with `?hr_intake=v1`
+was therefore routed into the HR intake transaction and refused. The core now
+uses the caller's gate, proven by a regression test on the benefits evidence
+retry.
+
+### UI
+
+- Each pharmacy Staff record gains a "Documents" action, shown when the caller
+  holds `workforce.documents.manage` and the manager level. The API remains
+  the boundary.
+- It opens the shared document workspace (record choice, upload, list,
+  retry, revoke, download) bound to the pharmacy route family. File
+  classification is not offered.
+- A 401, 403 or 404 ends the workspace and clears the Staff source with "Your
+  account or Staff access changed", with no retry, as 4a does. Another 409
+  shows the server message and keeps the workspace open, as on a hospital.
+
+### Not covered by 4d
+
+- File classification. It references HR `document_category` master
+  revisions, and a pharmacy has no HR masters (4a).
+- Identity review of pharmacy identity evidence (person reviews), which stays
+  hospital-only until a reviewer path exists for a pharmacy.
+- Employment evidence bindings (4b) and credential reviews (4e).
+- Deployed runtime acceptance and real OIDC browser acceptance.
+
+### Numbers and failure behaviour
+
+- **Load.** Uploads are human-paced PNG or JPEG files of at most 10 MiB
+  (`attachments.MaxFileBytes`), with the hospital family's limits. A pharmacy
+  holds at most 50,000 Staff; list pages are cursor-bounded.
+- **Failure.** When storage is unavailable, registration and upload answer
+  503 and no file advances to a downloadable state. When the scanner is down,
+  files stay `scan_pending` and become retryable after 45 minutes. Pharmacy
+  and hospital requests share no lock.
+- **Rollback.** Revert the code. Restoring the hospital-only guard needs a new
+  forward migration, and only if pharmacy files must stop being writable.
+  Existing rows and stored objects stay readable to the worker.
+- **Rejected alternative.** A `pharmacy_id` v2 of the scan events. The worker,
+  outbox policy and storage key would each need a second path for one
+  establishment kind, with no consumer that needs the distinction.
+
+### Acceptance tests (red first)
+
+1. A pharmacy manager with `workforce.documents.manage` reads record choices,
+   registers an intent, uploads bytes, sees one scan request whose
+   `hospital_id` is the pharmacy ID, downloads the released file and revokes
+   it. Replays return the same response.
+2. Without an access row, with a reader row, on a hospital ID, on a supplier
+   ID and on a foreign tenant, every route answers 404. Without the
+   permission every route answers 403. `hr_intake=v1` answers 400 and a
+   changed expected subject answers 409.
+3. A hospital Staff ID, a hospital credential ID and a hospital file ID under
+   the pharmacy family answer 404, and the reverse holds on the hospital
+   family.
+4. A direct SQL insert of a pharmacy `tax_declaration` or `benefit_proposal`
+   document is refused, and a supplier document row is refused.
+5. A benefits evidence retry with `?hr_intake=v1` behaves as without it.
+6. The hospital document suites keep their behaviour.
+7. SDK schema and hook tests, and a workspace panel test using
    `renderWithProviders`, for loading, 404, 409 and success.

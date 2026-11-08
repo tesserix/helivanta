@@ -182,7 +182,9 @@ export function enrollmentInputFrom(
     | "qualifications"
     | "experiences"
     | "version"
-  > & { staff: Pick<Staff, "display_name" | "employee_code" | "job_category" | "employment_status"> },
+  > & {
+    staff: Pick<Staff, "display_name" | "employee_code" | "job_category" | "employment_status">;
+  },
 ): EnrollmentInput {
   return {
     profile: { ...EMPTY_ENROLLMENT.profile, ...document.profile },

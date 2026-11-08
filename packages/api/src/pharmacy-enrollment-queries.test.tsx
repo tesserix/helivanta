@@ -89,14 +89,18 @@ it("reads once per attempt without caching, retrying or refetching on focus", as
     { wrapper, initialProps: { attempt: 0 } },
   );
   await waitFor(() => expect(result.current.data?.version).toBe(1));
-  const query = client.getQueryCache().find({ queryKey: [...pharmacyEnrollmentKey(scope, pharmacy, staffId), 0] });
+  const query = client
+    .getQueryCache()
+    .find({ queryKey: [...pharmacyEnrollmentKey(scope, pharmacy, staffId), 0] });
   expect(query?.options).toMatchObject({ gcTime: 0, retry: false, refetchOnWindowFocus: false });
   expect(fetcher.mock.calls[0]?.[1]).toMatchObject({ cache: "no-store" });
   rerender({ attempt: 1 });
   await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
 
   fetcher.mockImplementation(() =>
-    Promise.resolve(Response.json({ error: "not_found", message: "staff not found" }, { status: 404 })),
+    Promise.resolve(
+      Response.json({ error: "not_found", message: "staff not found" }, { status: 404 }),
+    ),
   );
   rerender({ attempt: 2 });
   await waitFor(() => expect(result.current.isError).toBe(true));
@@ -121,21 +125,28 @@ it("accumulates this pharmacy's validated Staff pages as supervisor choices", as
   );
   const { result } = renderHook(() => usePharmacySupervisorChoices(scope, pharmacy), { wrapper });
   await waitFor(() => expect(result.current.hasMore).toBe(true));
-  expect(fetcher.mock.calls[0]?.[0]).toBe(`/api/v1/workforce/pharmacies/${pharmacy}/staff?limit=50`);
+  expect(fetcher.mock.calls[0]?.[0]).toBe(
+    `/api/v1/workforce/pharmacies/${pharmacy}/staff?limit=50`,
+  );
   expect(new Headers(fetcher.mock.calls[0]?.[1].headers).get("X-Helivanta-Expected-Subject")).toBe(
     scope.subject,
   );
   act(() => result.current.loadMore());
-  await waitFor(() => expect(result.current.items.map((item) => item.id)).toEqual([staffId, second]));
+  await waitFor(() =>
+    expect(result.current.items.map((item) => item.id)).toEqual([staffId, second]),
+  );
   expect(fetcher.mock.calls[1]?.[0]).toContain("cursor=c2");
   expect(client.getQueryCache().getAll()[0]?.options).toMatchObject({ gcTime: 0, retry: false });
 
   fetcher.mockResolvedValueOnce(
     Response.json({ data: [row(staffId, staffId)], page: { has_more: false, next_cursor: null } }),
   );
-  const foreign = renderHook(() => usePharmacySupervisorChoices({ ...scope, subject: "user-b" }, pharmacy), {
-    wrapper,
-  });
+  const foreign = renderHook(
+    () => usePharmacySupervisorChoices({ ...scope, subject: "user-b" }, pharmacy),
+    {
+      wrapper,
+    },
+  );
   await waitFor(() => expect(foreign.result.current.isError).toBe(true));
   expect(foreign.result.current.items).toEqual([]);
   expect(fetcher).toHaveBeenCalledTimes(3);

@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { apiFetch } from "./client";
-import { enrollmentRequestOptions, type EnrollmentInput, type EnrollmentRequestScope } from "./enrollment";
+import {
+  enrollmentRequestOptions,
+  type EnrollmentInput,
+  type EnrollmentRequestScope,
+} from "./enrollment";
 import {
   ENROLLMENT_REQUEST_CONTEXT_PROJECTION,
   enrollmentAddressSchema,

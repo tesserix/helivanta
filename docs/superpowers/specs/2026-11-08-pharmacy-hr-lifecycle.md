@@ -20,14 +20,14 @@ review. One PR cannot review them all correctly, so slice 4 is split. Each
 sub-slice is a vertical PR with its own migration, routes, SDK, UI, tests,
 contractdocs and inventory, and its own approved rollout.
 
-| Sub-slice | Surface | Tables admitted to a pharmacy | Depends on |
-| --- | --- | --- | --- |
-| **4a** | Enrollment: profile, addresses, emergency contacts, credentials as recorded, qualifications, experience and the reporting line | The six `workforce_enrollment_*` tables | 3a |
-| 4b | Employment periods: drafts, evidence bindings and history | Period drafts, evidence bindings | 4a, 4d |
-| 4c | Employment reviews and generations, which make a period effective (ADR-0049) | Reviews, cohorts, contributors, evidence, generations | 4b |
-| 4d | Staff documents and their classification | Documents, contributors | 3a |
-| 4e | Credential reviews, validity and reminders | Credential reviews, reminder policies | 4a, 4d |
-| 4f | Leave: setup, assignments, ledger, requests and reporting-line routing | Leave configuration, routing, ledger, requests, route steps | 4a, 4c |
+| Sub-slice | Surface                                                                                                                        | Tables admitted to a pharmacy                               | Depends on |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- | ---------- |
+| **4a**    | Enrollment: profile, addresses, emergency contacts, credentials as recorded, qualifications, experience and the reporting line | The six `workforce_enrollment_*` tables                     | 3a         |
+| 4b        | Employment periods: drafts, evidence bindings and history                                                                      | Period drafts, evidence bindings                            | 4a, 4d     |
+| 4c        | Employment reviews and generations, which make a period effective (ADR-0049)                                                   | Reviews, cohorts, contributors, evidence, generations       | 4b         |
+| 4d        | Staff documents and their classification                                                                                       | Documents, contributors                                     | 3a         |
+| 4e        | Credential reviews, validity and reminders                                                                                     | Credential reviews, reminder policies                       | 4a, 4d     |
+| 4f        | Leave: setup, assignments, ledger, requests and reporting-line routing                                                         | Leave configuration, routing, ledger, requests, route steps | 4a, 4c     |
 
 Payroll, duty rosters, attendance, overtime, benefits and tax stay unmounted,
 and their tables keep refusing a pharmacy. Each needs a separate review.
@@ -41,10 +41,10 @@ and a pharmacy keeps two records, and neither grants access to the other.
 
 ### Actors and authority
 
-| Actor | Authority kind | Scope | Preconditions |
-| --- | --- | --- | --- |
-| Pharmacy HR manager | Administration | One pharmacy establishment | Tenant permission `workforce.enrollment.manage`. A `manager` row in `workforce_hospital_access` for the pharmacy. Both are read again inside the command |
-| Pharmacy Workforce reader | Administration | One pharmacy | None. A reader cannot read enrollment, exactly as on a hospital |
+| Actor                     | Authority kind | Scope                      | Preconditions                                                                                                                                            |
+| ------------------------- | -------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pharmacy HR manager       | Administration | One pharmacy establishment | Tenant permission `workforce.enrollment.manage`. A `manager` row in `workforce_hospital_access` for the pharmacy. Both are read again inside the command |
+| Pharmacy Workforce reader | Administration | One pharmacy               | None. A reader cannot read enrollment, exactly as on a hospital                                                                                          |
 
 Pharma membership, a pharmacy outlet grant and the PharmaConnect pharmacist
 role confer nothing here.
@@ -57,10 +57,10 @@ the directory.
 
 ### Routes
 
-| Route | Permission | Effect |
-| --- | --- | --- |
+| Route                                                         | Permission                    | Effect                                                               |
+| ------------------------------------------------------------- | ----------------------------- | -------------------------------------------------------------------- |
 | `GET /v1/workforce/pharmacies/:pharmacy/staff/:id/enrollment` | `workforce.enrollment.manage` | Read the enrollment of one pharmacy Staff record, and audit the read |
-| `PUT /v1/workforce/pharmacies/:pharmacy/staff/:id/enrollment` | `workforce.enrollment.manage` | Create or replace it under `expected_version` |
+| `PUT /v1/workforce/pharmacies/:pharmacy/staff/:id/enrollment` | `workforce.enrollment.manage` | Create or replace it under `expected_version`                        |
 
 Both routes run through the existing establishment admission. A hospital ID
 on the pharmacy family is 404, and so is a pharmacy ID on the hospital family.
@@ -103,19 +103,19 @@ on the pharmacy family is 404, and so is a pharmacy ID on the hospital family.
 
 ### Status codes
 
-| Case | Status |
-| --- | --- |
-| Unknown, foreign-tenant, hospital or supplier establishment | 404 |
-| No `manager` access row, or the access row is removed before commit | 404 |
-| Staff record missing on GET, or present under another establishment | 404 |
-| Missing `workforce.enrollment.manage` | 403 |
-| `hr_intake` or a `*_masters` view requested, or `request_context=v1` missing | 400 |
-| Expected tenant or subject header missing, repeated or different from the session | 409 `session_changed` |
-| Master ID supplied | 404 |
-| Invalid fields or a free-text name for a selection-only field | 400 |
-| `expected_version` stale | 409 |
-| Supervisor cycle | 409 `supervisor_cycle` |
-| Registry, database or supervision lock unavailable | 503 |
+| Case                                                                              | Status                 |
+| --------------------------------------------------------------------------------- | ---------------------- |
+| Unknown, foreign-tenant, hospital or supplier establishment                       | 404                    |
+| No `manager` access row, or the access row is removed before commit               | 404                    |
+| Staff record missing on GET, or present under another establishment               | 404                    |
+| Missing `workforce.enrollment.manage`                                             | 403                    |
+| `hr_intake` or a `*_masters` view requested, or `request_context=v1` missing      | 400                    |
+| Expected tenant or subject header missing, repeated or different from the session | 409 `session_changed`  |
+| Master ID supplied                                                                | 404                    |
+| Invalid fields or a free-text name for a selection-only field                     | 400                    |
+| `expected_version` stale                                                          | 409                    |
+| Supervisor cycle                                                                  | 409 `supervisor_cycle` |
+| Registry, database or supervision lock unavailable                                | 503                    |
 
 ### Data and enforcement
 
@@ -143,8 +143,9 @@ and they match `app.workforce_hospital` to the row.
 - The pharmacy editor reuses the hospital enrollment sections, without master
   pickers or HR-intake scope. Its supervisor picker reads the pharmacy Staff
   directory.
-- A 404 ends the editor with "no longer available" and no retry. A 409 keeps
-  the draft and offers a reload.
+- A 401, 403 or 404 ends the editor and clears the whole Staff source with
+  "Your account or Staff access changed", with no retry, as the pharmacy
+  directory already does. A 409 keeps the draft and offers a confirmed reload.
 
 ### Not covered by 4a
 
@@ -179,8 +180,7 @@ and they match `app.workforce_hospital` to the row.
    ID and on a foreign tenant, both routes answer 404. Without the permission
    they answer 403.
 3. `hr_intake=v1`, each `*_masters` view and a missing `request_context=v1`
-   answer 400. A changed expected subject answers 409. A master ID answers
-   404. A hospital Staff supervisor answers 404. A cycle answers 409.
+   answer 400. A changed expected subject answers 409. A master ID answers 404. A hospital Staff supervisor answers 404. A cycle answers 409.
 4. A direct SQL insert of a pharmacy row into a non-enrollment Staff child
    table is still refused, and a supplier row in an enrollment table is
    refused.

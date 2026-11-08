@@ -460,9 +460,7 @@ function enrollmentTenant(
   enrollment: (init?: RequestInit) => Response,
 ) {
   const source = employerTenant(access, (url, init) =>
-    url.includes("/enrollment?")
-      ? enrollment(init)
-      : Response.json(page([pharmacyRow, colleague])),
+    url.includes("/enrollment?") ? enrollment(init) : Response.json(page([pharmacyRow, colleague])),
   );
   return vi.fn(async (url: string, init?: RequestInit) =>
     url.endsWith("/permissions")
@@ -530,7 +528,9 @@ it("saves a pharmacy enrollment against its version without HR masters or itself
   expect(screen.queryByRole("button", { name: "Load more HR choices" })).not.toBeInTheDocument();
   expect(fetcher.mock.calls.some(([url]) => String(url).includes("/hr/masters"))).toBe(false);
   await user.click(screen.getByRole("combobox", { name: "Supervisor" }));
-  expect(screen.getByRole("option", { name: `${colleague.display_name} · ${colleague.employee_code}` })).toBeInTheDocument();
+  expect(
+    screen.getByRole("option", { name: `${colleague.display_name} · ${colleague.employee_code}` }),
+  ).toBeInTheDocument();
   expect(
     screen.queryByRole("option", { name: new RegExp(pharmacyRow.employee_code) }),
   ).not.toBeInTheDocument();
@@ -581,7 +581,9 @@ it("keeps the enrollment draft on a version conflict and rereads only after conf
   current = enrollmentDocument(4, { ...enrollmentProfile, designation: "Changed elsewhere" });
   await user.click(screen.getByRole("button", { name: "Reload latest profile" }));
   await user.click(await screen.findByRole("button", { name: "Discard edits and reload" }));
-  await waitFor(() => expect(screen.getByLabelText("Designation")).toHaveValue("Changed elsewhere"));
+  await waitFor(() =>
+    expect(screen.getByLabelText("Designation")).toHaveValue("Changed elsewhere"),
+  );
   const reads = fetcher.mock.calls.filter(
     ([url, init]) => String(url) === enrollmentPath && init?.method !== "PUT",
   );

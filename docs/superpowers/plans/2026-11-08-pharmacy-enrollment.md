@@ -17,12 +17,12 @@ Staff child table keeps refusing it.
 
 ## Actors and objects
 
-| Actor or object | Authority kind | Scope | 404 | 403 | 503 |
-| --- | --- | --- | --- | --- | --- |
-| Pharmacy HR manager | Administration | One pharmacy | No manager access row, a hospital, supplier, unknown or foreign-tenant ID | Missing `workforce.enrollment.manage` | Registry, database or supervision lock down |
-| Pharmacy Workforce reader | Administration | One pharmacy | Always, as on a hospital | — | — |
-| Pharmacy enrollment | Workforce | Pharmacy establishment | Staff record outside the caller's access or another establishment | — | Database down |
-| Hospital HR manager | Administration | One hospital | A pharmacy ID registered after admission | Unchanged | Unchanged |
+| Actor or object           | Authority kind | Scope                  | 404                                                                       | 403                                   | 503                                         |
+| ------------------------- | -------------- | ---------------------- | ------------------------------------------------------------------------- | ------------------------------------- | ------------------------------------------- |
+| Pharmacy HR manager       | Administration | One pharmacy           | No manager access row, a hospital, supplier, unknown or foreign-tenant ID | Missing `workforce.enrollment.manage` | Registry, database or supervision lock down |
+| Pharmacy Workforce reader | Administration | One pharmacy           | Always, as on a hospital                                                  | —                                     | —                                           |
+| Pharmacy enrollment       | Workforce      | Pharmacy establishment | Staff record outside the caller's access or another establishment         | —                                     | Database down                               |
+| Hospital HR manager       | Administration | One hospital           | A pharmacy ID registered after admission                                  | Unchanged                             | Unchanged                                   |
 
 ## Decisions settled by this plan
 
@@ -63,6 +63,7 @@ Staff child table keeps refusing it.
    on a pharmacy registered after admission is therefore 404 and writes
    nothing. Before 0095 the enrollment triggers refused that write; after it
    the core does.
+
 4. **Pharmacy request shape.** `pharmacyStaffScope` refuses `hr_intake` with
    400, then checks the expected subject. Any `profile_masters`,
    `qualification_masters` or `contact_masters` query is 400.
@@ -97,11 +98,14 @@ Staff child table keeps refusing it.
     `EnrollmentForm` that takes the loaded enrollment, the supervisor
     choices, optional master choices and a save function. The hospital
     editor keeps its queries. `PharmacyEnrollmentEditor` passes no masters,
-    so every master field falls back to text, and pages supervisors from the
-    pharmacy Staff directory. `staff-source.tsx` shows "Enrollment" on a
-    record when `can("workforce.enrollment.manage")` and the access level is
-    `manager`. A 404 closes the editor as no longer available; a 409 keeps
-    the draft and offers a reload.
+    so every master field falls back to text and contract type, which is
+    selection-only, is not offered. `usePharmacySupervisorChoices` pages the
+    validated pharmacy Staff directory through `usePagedQuery`, excluding the
+    record itself. `staff-source.tsx` shows "Enrollment" on a record when
+    `can("workforce.enrollment.manage")` and the access level is `manager`.
+    A 401, 403 or 404 clears the whole Staff source with "Your account or
+    Staff access changed", as the directory and record editor already do; a
+    409 keeps the draft and offers a confirmed reload.
 
 ## Numbers and failure behaviour
 

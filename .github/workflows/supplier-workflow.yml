@@ -51,8 +51,10 @@ jobs:
           go test -race ./internal/modules/pharmacy -run '^TestOrderProductFactsKeepPrivateOwnerVersionUnitsAndPurpose$'
           go test -race ./internal/globalapi -run '^TestSupplierOrderHTTPRejectsChangedContextMalformedCommandsAndUnavailableOwners$'
       - name: Fulfilment quantities and receiving evidence
+        if: ${{ !cancelled() }}
         run: go test -race ./pkg/supplierfulfilment ./internal/supplierstock
       - name: Real owner stock allocation and original recovery
+        if: ${{ !cancelled() }}
         run: go test -race -timeout 35m ./internal/globalapi -run '^TestOwnerAllocationBudgetsSerializeAndRecoverOriginalIntent$'
       - name: Durable bilateral supplier grant protocol
         run: go test -race ./internal/modules/iam -run '^TestSupplierGrantProtocol'

@@ -35,7 +35,15 @@ CREATE TRIGGER pharmacy_supplier_receipt_immutable BEFORE UPDATE OR DELETE OR TR
 CREATE TRIGGER pharmacy_supplier_closure_immutable BEFORE UPDATE OR DELETE OR TRUNCATE ON pharmacy_supplier_receiving_closures FOR EACH STATEMENT EXECUTE FUNCTION pharmacy_supplier_evidence_immutable();
 CREATE TRIGGER pharmacy_supplier_receipt_audit AFTER INSERT ON pharmacy_supplier_receipts FOR EACH ROW EXECUTE FUNCTION audit_record_change();
 CREATE TRIGGER pharmacy_supplier_closure_audit AFTER INSERT ON pharmacy_supplier_receiving_closures FOR EACH ROW EXECUTE FUNCTION audit_record_change();
-CREATE TRIGGER pharmacy_supplier_receiving_head_audit AFTER INSERT OR UPDATE ON pharmacy_supplier_receiving_heads FOR EACH ROW EXECUTE FUNCTION audit_record_change();
+CREATE FUNCTION pharmacy_supplier_receiving_head_audit()RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE actor text:=NULLIF(current_setting('app.actor_subject',true),'');fields text[]:='{}';
+BEGIN
+ IF actor IS NULL THEN RAISE EXCEPTION 'receiving audit actor unavailable' USING ERRCODE='42501';END IF;
+ IF TG_OP='UPDATE'THEN SELECT COALESCE(array_agg(n.key ORDER BY n.key),'{}')INTO fields FROM jsonb_each(to_jsonb(NEW))n WHERE n.value IS DISTINCT FROM to_jsonb(OLD)->n.key;END IF;
+ INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id,changed_fields)VALUES(NEW.tenant_id,actor,lower(TG_OP),TG_TABLE_NAME,NEW.shipment_id,fields);
+ RETURN NULL;
+END $$;
+CREATE TRIGGER pharmacy_supplier_receiving_head_audit AFTER INSERT OR UPDATE ON pharmacy_supplier_receiving_heads FOR EACH ROW EXECUTE FUNCTION pharmacy_supplier_receiving_head_audit();
 CREATE TABLE pharmacy_supplier_receiving_clearances(
  tenant_id uuid NOT NULL,id uuid NOT NULL,receipt_id uuid NOT NULL,shipment_id uuid NOT NULL,outlet_id uuid NOT NULL,summary_version bigint NOT NULL,reason text NOT NULL CHECK(length(reason)BETWEEN 1 AND 500),actor_subject text NOT NULL,actor_staff_id uuid NOT NULL,created_at timestamptz NOT NULL,updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),PRIMARY KEY(tenant_id,id),UNIQUE(tenant_id,receipt_id,summary_version),FOREIGN KEY(tenant_id,receipt_id)REFERENCES pharmacy_supplier_receipts(tenant_id,id)ON DELETE RESTRICT
 );

@@ -10,7 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/tesserix/helivanta/internal/modules/pharmacy" //nolint:depguard // external test of the owning module
+	"github.com/tesserix/helivanta/internal/modules/pharmacy"                           //nolint:depguard // external test of the owning module
+	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract" //nolint:depguard // owner event contract under test
 	"github.com/tesserix/helivanta/internal/platform"
 
 	"github.com/tesserix/helivanta/internal/supplierstock"
@@ -34,7 +35,7 @@ func TestSupplierReceivingCorrectionRepositoryRetainsEvidenceAndRollsBackCustody
 		w := testutil.Do(r, "PUT", path, "receiver", body)
 		require.Equal(t, 200, w.Code, w.Body.String())
 	}
-	call(root, `{"code":"TEST-CORRECTIONS","name":"TEST hospital pharmacy","ownership_type":"independent"}`)
+	call(root, `{"code":"TEST-CORRECTIONS","name":"TEST hospital pharmacy","ownership_type":"hospital_owned"}`)
 	call(root+"/outlets/"+outlet.String(), `{"code":"TEST-MAIN","name":"TEST Main","country_code":"IN","timezone":"Asia/Kolkata"}`)
 	root += "/outlets/" + outlet.String()
 	call(root+"/access/user-receiver", `{"level":"editor"}`)
@@ -179,7 +180,20 @@ func TestSupplierReceivingCorrectionRepositoryRetainsEvidenceAndRollsBackCustody
 	require.NoError(t, command(reviewer, "review", func(tx *gorm.DB) error {
 		head, err := pharmacy.TestReadReceivingHead(tx, tenant, shipment.ID)
 		require.Equal(t, int64(4), head.Version)
-		return err
+		if err != nil {
+			return err
+		}
+		var audits int64
+		if err = tx.Table("audit_events").Where("tenant_id=? AND resource_type='pharmacy_supplier_receiving_heads'AND resource_id=?", tenant, shipment.ID).Count(&audits).Error; err != nil {
+			return err
+		}
+		require.Equal(t, int64(4), audits, "only committed receiving state changes create audit evidence")
+		var publications int64
+		if err = tx.Table("outbox_events").Where("tenant_id=? AND subject=? AND payload#>>'{data,summary,id}'=?", tenant, pharmacycontract.SubjectSupplierReceivingRecorded, correctionID.String()).Count(&publications).Error; err != nil {
+			return err
+		}
+		require.Equal(t, int64(1), publications, "rollback and replay must not duplicate correction publication")
+		return nil
 	}))
 	require.NoError(t, command(reviewer, "review", func(tx *gorm.DB) error {
 		receipt, err := pharmacy.ReadSupplierReceiptForTest(tx, tenant, shipment.ID, original.ID, reviewer, nil)

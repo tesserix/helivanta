@@ -63,7 +63,7 @@ func (h HTTP) request(c *gin.Context) (authn.Principal, f.SourceScope, uuid.UUID
 	for name, want := range map[string]string{"X-Helivanta-Expected-Tenant": p.TenantID, "X-Helivanta-Expected-Subject": p.Subject} {
 		v := c.Request.Header.Values(name)
 		if len(v) != 1 || v[0] != want {
-			respond.Error(c, 409, "fulfilment_context_changed", "The workspace or account changed. Refresh before continuing.")
+			respond.Error(c, 409, "session_changed", "The workspace or account changed. Refresh before continuing.")
 			return p, f.SourceScope{}, uuid.Nil, false
 		}
 	}

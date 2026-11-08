@@ -60,7 +60,7 @@ func receivingScope(c *gin.Context) (authn.Principal, f.BuyerScope, bool) {
 	for k, v := range map[string]string{"X-Helivanta-Expected-Tenant": p.TenantID, "X-Helivanta-Expected-Subject": p.Subject} {
 		values := c.Request.Header.Values(k)
 		if len(values) != 1 || values[0] != v {
-			respond.Error(c, 409, "receiving_context_changed", "The workspace or account changed. Refresh before recording goods.")
+			respond.Error(c, 409, "session_changed", "The workspace or account changed. Refresh before recording goods.")
 			return p, f.BuyerScope{}, false
 		}
 	}
@@ -164,7 +164,7 @@ func (h *supplierReceiving) read(tx *gorm.DB, tenant, shipment, id uuid.UUID, ac
 	if supplierorder.DecodeObject(row.Body, &r) != nil || r.ID != id || r.ShipmentID != shipment || r.OwnerTenantID != tenant {
 		return r, f.ErrUnavailable
 	}
-	if r.ActorSubject != actor.Subject || r.ActorStaffID != actor.StaffID {
+	if in != nil && (r.ActorSubject != actor.Subject || r.ActorStaffID != actor.StaffID) {
 		return r, f.ErrConflict
 	}
 	if in != nil {

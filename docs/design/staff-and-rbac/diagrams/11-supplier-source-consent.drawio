@@ -1,0 +1,58 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" type="device">
+  <diagram id="supplier-source-consent" name="Source ownership and bilateral consent">
+    <mxGraphModel dx="1440" dy="1220" grid="1" gridSize="10" page="1" pageScale="1" pageWidth="1440" pageHeight="1220" background="#ffffff">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="Supplier source and consent | unreleased candidate" style="rounded=1;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=18;fontFamily=Helvetica;fontSize=25;fontColor=#ffffff;fillColor=#0f172a;strokeColor=#0f172a;arcSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="25" width="1360" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="seller-lane" value="SUPPLIER TENANT" style="rounded=1;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=18;fontFamily=Helvetica;fontSize=18;fontColor=#1e293b;fillColor=#eff6ff;strokeColor=#bfdbfe;arcSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="115" width="660" height="590" as="geometry" />
+        </mxCell>
+        <mxCell id="buyer-lane" value="HOSPITAL TENANT" style="rounded=1;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=18;fontFamily=Helvetica;fontSize=18;fontColor=#1e293b;fillColor=#f0fdf4;strokeColor=#bbf7d0;arcSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="740" y="115" width="660" height="590" as="geometry" />
+        </mxCell>
+        <mxCell id="seller-facts" value="Owned source facts&#10;&#10;SupplyConnect warehouse / depot stock owner&#10;or PharmaConnect independent / hospital-owned outlet&#10;Hospital-owned sources retain department bindings.&#10;Exact identity, location, licence, version, category&#10;and reviewed Maharashtra / Odisha applicability" style="rounded=1;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=18;fontFamily=Helvetica;fontSize=17;fontColor=#1e293b;fillColor=#ffffff;strokeColor=#93c5fd;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="65" y="175" width="610" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="buyer-facts" value="Hospital-owned PharmaConnect outlet&#10;&#10;Hospital and current department remain canonical.&#10;Exact approved department binding and outlet scope.&#10;&#10;Stock belongs to this outlet; the external supplier&#10;retains its own Staff, records and stock." style="rounded=1;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=18;fontFamily=Helvetica;fontSize=17;fontColor=#1e293b;fillColor=#ffffff;strokeColor=#86efac;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="765" y="175" width="610" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="offer" value="1  SELLER REVIEW → OFFERED&#10;Independent source administration approves immutable&#10;terms. Offer alone grants no hospital user access." style="rounded=1;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=18;fontFamily=Helvetica;fontSize=17;fontColor=#1e293b;fillColor=#dbeafe;strokeColor=#60a5fa;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="65" y="390" width="610" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="accept" value="2  HOSPITAL REVIEW → ACCEPTED, AWAITING ACK&#10;Hospital accepts the same terms under its authority.&#10;The buyer is not yet active." style="rounded=1;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=18;fontFamily=Helvetica;fontSize=17;fontColor=#1e293b;fillColor=#dcfce7;strokeColor=#4ade80;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="765" y="390" width="610" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="seller-active" value="3  SELLER RECORDS ACCEPTANCE → ACTIVE&#10;Publishes activation acknowledgement within its&#10;existing decision epoch; outbox and history retained." style="rounded=1;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=18;fontFamily=Helvetica;fontSize=17;fontColor=#1e293b;fillColor=#dbeafe;strokeColor=#60a5fa;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="65" y="570" width="610" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="buyer-active" value="4  BUYER RECORDS ACKNOWLEDGEMENT → ACTIVE&#10;Exact recorded seller signatory and terms are bound.&#10;Consent is separate from current trading eligibility." style="rounded=1;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=18;fontFamily=Helvetica;fontSize=17;fontColor=#1e293b;fillColor=#dcfce7;strokeColor=#4ade80;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="765" y="570" width="610" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="offered" edge="1" parent="1" source="offer" target="accept" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#475569;strokeWidth=2;endArrow=block;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="accepted" edge="1" parent="1" source="accept" target="seller-active" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#475569;strokeWidth=2;endArrow=block;endFill=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1070" y="530" />
+              <mxPoint x="370" y="530" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="activated" edge="1" parent="1" source="seller-active" target="buyer-active" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#475569;strokeWidth=2;endArrow=block;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="current" value="CURRENT AUTHORITY AT EACH CONSUMING BOUNDARY&#10;&#10;Workload identity + fresh nonce + exact parties / terms / consent epochs.&#10;New business also checks current source facts and both canonical organization identities.&#10;Private proof: one guarded command; five-second expiry applies through commit; local state is rechecked.&#10;Suspension blocks new business. Retained-consent evidence grants no user access or financial authority." style="rounded=1;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=18;fontFamily=Helvetica;fontSize=18;fontColor=#1e293b;fillColor=#eef2ff;strokeColor=#818cf8;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="755" width="1360" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="consumers" value="CONSUMERS STILL TO COMPLETE — NO AUTHORITY INFERRED FROM THIS DIAGRAM&#10;&#10;Shared IAM named / hospital-group grants and current home Staff eligibility → minimized disclosure&#10;Each stock owner: qualified release / balances / reservation / dispatch → hospital quarantine / discrepancy / receipt&#10;Existing financial owners: source invoice / credit / payable / settlement → complete web acceptance and Kargo release" style="rounded=1;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=18;fontFamily=Helvetica;fontSize=18;fontColor=#1e293b;fillColor=#f8fafc;strokeColor=#94a3b8;arcSize=8;dashed=1;dashPattern=6 4;" vertex="1" parent="1">
+          <mxGeometry x="40" y="980" width="1360" height="175" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

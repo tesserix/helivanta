@@ -13,9 +13,14 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+// openSilent is the package's one gorm.Open, so every test pool shares its silent logger.
+func openSilent(dsn string) (*gorm.DB, error) {
+	return gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+}
+
 func openDSN(t *testing.T, dsn string) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	db, err := openSilent(dsn)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		if sqlDB, err := db.DB(); err == nil {

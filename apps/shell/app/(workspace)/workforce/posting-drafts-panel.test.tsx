@@ -260,7 +260,7 @@ it("preserves unsaved preparation while a temporary department outage recovers",
   );
   await user.type(screen.getByLabelText("Reason"), "Synthetic retained preparation");
   expect(screen.getByRole("button", { name: "Save posting draft" })).toBeDisabled();
-  await user.click(screen.getByRole("button", { name: "Retry department source" }));
+  await user.click(screen.getByRole("button", { name: "Try again" }));
   await user.click(await screen.findByLabelText("Department or sub-unit"));
   expect(
     await screen.findByRole("option", { name: "PHARMA · Synthetic Pharmacy" }),
@@ -268,4 +268,34 @@ it("preserves unsaved preparation while a temporary department outage recovers",
   expect(screen.getByLabelText("Reason")).toHaveValue("Synthetic retained preparation");
   expect(changed).not.toHaveBeenCalled();
   expect(departmentReads).toBe(2);
+});
+
+it("asks again for posting drafts after an outage", async () => {
+  const fetcher = vi.fn(async (url: string) =>
+    url.endsWith("posting-draft-source")
+      ? Response.json({
+          hospital_id: scope.hospitalId,
+          staff_id: scope.staffId,
+          staff_version: 1,
+          employment_epoch: 1,
+        })
+      : Response.json({ error: "unavailable", message: "Synthetic outage" }, { status: 503 }),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <StaffPostingDraftPanel
+        scope={scope}
+        staffLabel="Synthetic Applicant"
+        canManage={false}
+        onClose={() => {}}
+      />
+    </NavigationGuardProvider>,
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Posting drafts could not be verified.",
+  );
+  const reads = fetcher.mock.calls.length;
+  await user.click(screen.getByRole("button", { name: "Try again" }));
+  await vi.waitFor(() => expect(fetcher.mock.calls.length).toBeGreaterThan(reads));
 });

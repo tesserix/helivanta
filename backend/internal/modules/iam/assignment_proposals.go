@@ -74,6 +74,9 @@ var departmentAssignmentScopeSchema string
 //go:embed assignment_department_leave_review_templates_generated.sql
 var departmentLeaveReviewTemplatesSchema string
 
+//go:embed assignment_establishment_root.sql
+var establishmentRootSchema string
+
 type assignmentProposal struct {
 	ProposalInput   `gorm:"embedded"`
 	ID              uuid.UUID `json:"id"`
@@ -418,6 +421,18 @@ func (m *Module) registerAssignmentProposals(g *platform.Router, deps platform.D
 	platform.ListRoute(g, "/employment-activation-assignment-proposals", authz.Public, h.listEmploymentActivation)
 	platform.ListRoute(g, "/posting-assignment-proposals", authz.Public, h.listPosting)
 	platform.ListRoute(g, "/pharmacy-binding-assignment-proposals", authz.Public, h.listPharmacyBinding)
+	platform.ListRoute(g, "/partner-membership-assignment-proposals", authz.Public, func(c *gin.Context, p pagination.Params) ([]assignmentProposal, error) {
+		return h.listFamily(c, p, "partner_membership")
+	})
+	platform.ListRoute(g, "/supplier-access-assignment-proposals", authz.Public, func(c *gin.Context, p pagination.Params) ([]assignmentProposal, error) {
+		return h.listFamily(c, p, "supplier_access")
+	})
+	platform.ListRoute(g, "/purchase-order-assignment-proposals", authz.Public, func(c *gin.Context, p pagination.Params) ([]assignmentProposal, error) {
+		return h.listFamily(c, p, "purchase_order")
+	})
+	platform.ListRoute(g, "/supplier-receiving-assignment-proposals", authz.Public, func(c *gin.Context, p pagination.Params) ([]assignmentProposal, error) {
+		return h.listFamily(c, p, "supplier_receiving")
+	})
 	g.GET("/staff-access-templates", authz.Public, func(c *gin.Context) {
 		if _, _, ok := proposalScope(c); !ok {
 			return

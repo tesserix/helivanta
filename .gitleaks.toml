@@ -40,4 +40,15 @@ regexes = [
   '''^ref_9876543210_x$''',
   # Public versioned permission-catalog identifier, not a credential.
   '''^employment-activation-v1$''',
+  # Public receiving-duty template identifiers, never credential material.
+  # Match only these exact values; keep every file and other key scanned.
+  '''^(supply|pharmacy)\.inventory_receiver\.v1$''',
+  # Public supplier-order template/catalog identifiers, never credentials.
+  '''^(supply|pharmacy)\.order_acceptor\.v1$''',
+  '''^supply\.department_purchase_order_preparer\.v1$''',
+  '''^department-purchase-orders-v1$''',
+  # Public supplier commercial-role catalog key, never credential material.
+  '''^department-supplier-commercial-v1$''',
+  # Public stock-fulfilment duty identifiers; no authentication material.
+  '''^(supply|pharmacy)\.stock_fulfiller\.v1$''',
 ]

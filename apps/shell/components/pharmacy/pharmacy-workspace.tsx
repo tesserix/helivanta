@@ -26,6 +26,7 @@ import {
   useConfirmLeave,
   useNavigationPending,
 } from "@helivanta/ui";
+import { SourceFulfilment } from "../suppliers/source-fulfilment";
 import { CataloguePanel } from "./catalogue-panel";
 import { OverviewTiles, WaitingTile } from "./overview-tiles";
 import { AccountsPanel } from "./accounts-panel";
@@ -57,6 +58,7 @@ type PharmacyView =
   | "prescription-register"
   | "stock-overview"
   | "stock"
+  | "supplier-orders"
   | "receiving"
   | "safety"
   | "catalogue"
@@ -75,6 +77,8 @@ const DESCRIPTIONS: Record<PharmacyView, string> = {
     "Every Schedule G, H and H1 supply on a prescription and its returns, for inspection.",
   "stock-overview": "Stock, expiry and recorded purchase value across your accessible outlets.",
   stock: "What each outlet holds, by product and batch, with reconciliation and export.",
+  "supplier-orders":
+    "Accept supplier orders, reserve eligible stock and record attributable dispatches.",
   receiving: "Register manufacturer lots, receive them into quarantine and record movements.",
   safety: "Batches nearing expiry or under a safety concern, and their release decisions.",
   catalogue: "Product identities and their history for this pharmacy.",
@@ -287,6 +291,8 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
         <OutletPharmacy
           key={`${identity.tenant_id}:${pharmacy.id}:${outlet.id}:${outlet.timezone}`}
           outlet={outlet}
+          subject={identity.subject}
+          ownership={pharmacy.ownership_type}
           scope={{ tenantId: identity.tenant_id, pharmacyId: pharmacy.id, outletId: outlet.id }}
           view={view}
         />
@@ -358,10 +364,14 @@ function NoOutletAccess({ canGrant, scope }: { canGrant: boolean; scope: Pharmac
 }
 function OutletPharmacy({
   outlet,
+  subject,
+  ownership,
   scope,
   view,
 }: {
   outlet: PharmacyOutlet;
+  subject: string;
+  ownership: PharmacyOrganization["ownership_type"];
   scope: PharmacyScope;
   view: PharmacyView;
 }) {
@@ -369,12 +379,26 @@ function OutletPharmacy({
   const access = useApiQuery<{ level: "reader" | "editor" }>(
     pharmacyKey(scope, "access"),
     `${pharmacyRoot(scope)}/access`,
-    { gcTime: 0, refetchOnWindowFocus: true },
+    { gcTime: 0, refetchOnWindowFocus: true, enabled: view !== "supplier-orders" },
   );
   return (
     <>
       <p className="mb-4 text-xs text-muted-foreground">Times are in {outlet.timezone}.</p>
-      {access.isPending ? (
+      {view === "supplier-orders" ? (
+        ownership === "hospital_owned" ? (
+          <p>Use the hospital department workspace for a hospital-owned pharmacy source.</p>
+        ) : (
+          <SourceFulfilment
+            scope={{
+              tenantId: scope.tenantId,
+              subject,
+              product: "pharmacy",
+              organizationId: scope.pharmacyId,
+              locationId: scope.outletId,
+            }}
+          />
+        )
+      ) : access.isPending ? (
         <p role="status">Checking pharmacy access…</p>
       ) : access.error instanceof ApiError && access.error.status === 404 ? (
         // 404 is the server's settled "no grant here"; retrying cannot change it (#1285).

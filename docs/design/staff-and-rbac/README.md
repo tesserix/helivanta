@@ -424,3 +424,37 @@ Start with existing Postgres indexes/transactions, IAM/OpenFGA and outbox worker
 SR entries are proposals or, where marked, references to already settled decisions; they do not replace accepted ORG decisions. ADR-0044's no-default-clinical-access, central department ownership and posting-proposes-access decisions remain the baseline. ORG-D2/D5/D6 need their own review before any affected feature relies on them.
 
 Traceability: ORG-ST-01–07 (structure/history); ORG-AU-01–09 (authority and clinical separation); ORG-AC-01–08 (assignment, lifecycle, deny/failure and migration); IN-PH-02/04/05/06/10 (pharmacy act/evidence/outlet scope); IN-CL-10 and IN-FQ-06 via the organization authority reference. These are proposed Helivanta acceptance criteria, not regulatory certification. Country/state, service, licence and current source applicability require qualified review.
+
+### Independent collaboration implementation candidate
+
+The [delivery ledger](independent-collaboration-delivery.md) tracks the required
+end-to-end work for Maharashtra and Odisha. The [membership implementation](partner-membership-implementation.md)
+includes the current ownership tree, actor roles and endpoint/recovery contract.
+Its [editable draw.io diagram](diagrams/09-independent-membership.drawio) and
+[SVG preview](diagrams/09-independent-membership.svg) distinguish candidate
+membership behavior from pending supplier integrations.
+
+### Unreleased receiving-duty candidate
+
+[Operating duties](../../api/operating-duties.md) and
+[SupplyConnect stock intake](../../api/supply-stock.md) describe the current
+candidate. Its [editable receiving-duty diagram](diagrams/10-receiving-duties.drawio)
+and [SVG preview](diagrams/10-receiving-duties.svg) distinguish implemented
+receiving behavior from the unfinished hospital collaboration and fulfilment
+workflow. See the [delivery ledger](independent-collaboration-delivery.md) before
+inferring full workflow or production availability.
+
+The [supplier source/consent contract](../../api/supplier-trade.md) and
+[editable consent diagram](diagrams/11-supplier-source-consent.drawio) describe
+the subsequent unreleased dependency. Consent and current source facts remain
+separate from effective staff grants, partner disclosure and fulfilment.
+
+### Fulfilment and hospital receiving workbench candidate
+
+The [fulfilment specification](../../superpowers/specs/2026-11-08-supplier-fulfilment-receiving.md)
+and [owner API contract](../../api/supplier-orders.md) describe the scoped source
+and hospital workbenches. The [editable draw.io flow](diagrams/12-supplier-fulfilment-receiving.drawio)
+and [SVG preview](diagrams/12-supplier-fulfilment-receiving.svg) distinguish the two
+source stock owners, hospital quarantine receiving, independent correction and
+clearance, actual physical release and supplier-authored annotations. The diagram
+keeps financial composition and deployment/browser acceptance as separate gates.

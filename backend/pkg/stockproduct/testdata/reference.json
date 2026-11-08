@@ -1,0 +1,13 @@
+{
+  "product_id": "0199e000-0000-7000-8000-000000000001",
+  "version_id": "0199e000-0000-7000-8000-000000000002",
+  "formulation_id": "0199e000-0000-7000-8000-000000000003",
+  "formulation_version_id": "0199e000-0000-7000-8000-000000000004",
+  "brand_name": "TEST catalogue product",
+  "manufacturer": "TEST manufacturer",
+  "formulation_label": "TEST formulation",
+  "pack_size": 100,
+  "unit_of_issue": "unit",
+  "regulatory_class": "TEST category",
+  "ndps": false
+}

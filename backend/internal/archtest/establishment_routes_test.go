@@ -7,6 +7,7 @@ import (
 
 // ADR-0054: a route naming an establishment must admit only that establishment's kind.
 var establishmentFamilies = map[string]string{
+	"/workforce/suppliers/:supplier":  "supplier",
 	"/workforce/hospitals/:hospital":  "hospital",
 	"/workforce/pharmacies/:pharmacy": "pharmacy",
 }

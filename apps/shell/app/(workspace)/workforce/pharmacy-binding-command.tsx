@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
-import { Field, FormSelectField, useLeaveGuard, useZodForm } from "@helivanta/ui";
+import { Field, FormSelectField, RefreshButton, useLeaveGuard, useZodForm } from "@helivanta/ui";
 import {
   ApiError,
   StaffDepartmentBindingProposalInputContract,
@@ -230,18 +230,17 @@ export function PharmacyBindingCommand({
             </p>
           )}
           <div className="flex flex-wrap gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={save.isPending || retained !== null || departments.isFetching}
-              onClick={() => {
+            <RefreshButton
+              busy={save.isPending || retained !== null || departments.isFetching}
+              error={departments.error}
+              refresh={() => {
                 examined.current = null;
                 form.setValue("attested", false);
-                void departments.refetch();
+                return departments.refetch();
               }}
             >
               Recheck department source
-            </Button>
+            </RefreshButton>
             {cursor !== null && (
               <Button
                 type="button"

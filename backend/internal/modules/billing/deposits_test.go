@@ -59,7 +59,8 @@ func TestADepositIsHeldThenAppliedAgainstTheFinalBill(t *testing.T) {
 	w.priced(t)
 	admission, patient := uuid.NewString(), uuid.NewString()
 	bedStay := stay{uuid.NewString(), uuid.NewString(), "general"}
-	require.NoError(t, w.start(admission, patient, bedStay, time.Now().Add(-time.Hour)))
+	started, ordered := financialStayTimes(time.Now())
+	require.NoError(t, w.start(admission, patient, bedStay, started))
 	_, shiftID := w.counterWithShift(t, "clerk", "IPD-D1", 0)
 
 	// An advance beyond anything owed yet is a deposit, not a payment.
@@ -77,7 +78,7 @@ func TestADepositIsHeldThenAppliedAgainstTheFinalBill(t *testing.T) {
 	require.Equal(t, http.StatusConflict, status)
 	require.Contains(t, body, "no_final_bill")
 
-	require.NoError(t, w.orderDischarge(admission, patient, uuid.NewString(), time.Now()))
+	require.NoError(t, w.orderDischarge(admission, patient, uuid.NewString(), ordered))
 	status, body = w.post("/admissions/" + admission + "/final-bills")
 	require.Equal(t, http.StatusCreated, status, body)
 	require.Contains(t, body, `"paid_minor":0`)
@@ -140,12 +141,13 @@ func TestApplyingTwiceAtOnceNeverExceedsWhatIsHeld(t *testing.T) {
 	w := newBedWorld(t)
 	w.priced(t)
 	admission, patient := uuid.NewString(), uuid.NewString()
-	require.NoError(t, w.start(admission, patient, stay{uuid.NewString(), uuid.NewString(), "general"}, time.Now().Add(-time.Hour)))
+	started, ordered := financialStayTimes(time.Now())
+	require.NoError(t, w.start(admission, patient, stay{uuid.NewString(), uuid.NewString(), "general"}, started))
 	w.counterWithShift(t, "clerk", "IPD-D2", 0)
 	status, body := w.deposit("clerk", admission, 1000)
 	require.Equal(t, http.StatusCreated, status, body)
 	w.charge(admission, patient, 5000)
-	require.NoError(t, w.orderDischarge(admission, patient, uuid.NewString(), time.Now()))
+	require.NoError(t, w.orderDischarge(admission, patient, uuid.NewString(), ordered))
 	status, body = w.post("/admissions/" + admission + "/final-bills")
 	require.Equal(t, http.StatusCreated, status, body)
 	codes := make([]int, 6)
@@ -173,7 +175,8 @@ func TestDepositTablesHoldTheirRules(t *testing.T) {
 	w := newBedWorld(t)
 	w.priced(t)
 	admission, patient := uuid.NewString(), uuid.NewString()
-	require.NoError(t, w.start(admission, patient, stay{uuid.NewString(), uuid.NewString(), "general"}, time.Now().Add(-time.Hour)))
+	started, ordered := financialStayTimes(time.Now())
+	require.NoError(t, w.start(admission, patient, stay{uuid.NewString(), uuid.NewString(), "general"}, started))
 	w.counterWithShift(t, "clerk", "IPD-D3", 0)
 	status, body := w.deposit("clerk", admission, 1000)
 	require.Equal(t, http.StatusCreated, status, body)
@@ -195,7 +198,7 @@ func TestDepositTablesHoldTheirRules(t *testing.T) {
 	// An interim bill is not a final bill.
 	interim := w.issue(admission)
 	require.Error(t, insertApplication(interim.Number, 500), "only against a final bill")
-	require.NoError(t, w.orderDischarge(admission, patient, uuid.NewString(), time.Now()))
+	require.NoError(t, w.orderDischarge(admission, patient, uuid.NewString(), ordered))
 	status, body = w.post("/admissions/" + admission + "/final-bills")
 	require.Equal(t, http.StatusCreated, status, body)
 	require.Error(t, insertApplication(2, 1001), "never more than is held")

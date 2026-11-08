@@ -7,6 +7,7 @@ export const staffAccessTemplates = [
     family: "leave",
     permissions: ["workforce.leave.approve"],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.identity_manager.v1",
@@ -16,6 +17,7 @@ export const staffAccessTemplates = [
     family: "identity",
     permissions: ["workforce.identity_checks.manage"],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.identity_reviewer.v1",
@@ -25,6 +27,7 @@ export const staffAccessTemplates = [
     family: "identity",
     permissions: ["workforce.identity_checks.review"],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.hr_intake.v1",
@@ -34,6 +37,7 @@ export const staffAccessTemplates = [
     family: "intake",
     permissions: ["workforce.enrollment.manage", "workforce.documents.manage"],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.employment_reviewer.v1",
@@ -43,6 +47,7 @@ export const staffAccessTemplates = [
     family: "employment",
     permissions: ["workforce.employment.review"],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.employment_activator.v1",
@@ -52,6 +57,7 @@ export const staffAccessTemplates = [
     family: "activation",
     permissions: ["workforce.employment.activate"],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.posting_reader.v1",
@@ -61,6 +67,7 @@ export const staffAccessTemplates = [
     family: "posting",
     permissions: ["workforce.posting.read", "workforce.staff_actor.use"],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.posting_preparer.v1",
@@ -75,6 +82,7 @@ export const staffAccessTemplates = [
       "workforce.staff_actor.use",
     ],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.posting_submitter.v1",
@@ -91,6 +99,7 @@ export const staffAccessTemplates = [
       "workforce.staff_actor.use",
     ],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.posting_reviewer.v1",
@@ -106,6 +115,7 @@ export const staffAccessTemplates = [
       "workforce.staff_actor.use",
     ],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.posting_management_reviewer.v1",
@@ -115,6 +125,7 @@ export const staffAccessTemplates = [
     family: "posting",
     permissions: ["workforce.posting.management.review", "workforce.staff_actor.use"],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.posting_cutoff_admin.v1",
@@ -129,6 +140,7 @@ export const staffAccessTemplates = [
       "workforce.staff_actor.use",
     ],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.posting_source_consumer.v1",
@@ -138,6 +150,7 @@ export const staffAccessTemplates = [
     family: "posting",
     permissions: ["workforce.posting_source.use", "workforce.staff_actor.use"],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "pharmacy.department_binding_preparer.v1",
@@ -152,6 +165,7 @@ export const staffAccessTemplates = [
       "workforce.staff_actor.use",
     ],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "pharmacy.department_binding_reviewer.v1",
@@ -166,6 +180,7 @@ export const staffAccessTemplates = [
       "workforce.staff_actor.use",
     ],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.department_posting_reviewer.v1",
@@ -181,6 +196,7 @@ export const staffAccessTemplates = [
       "workforce.staff_actor.use",
     ],
     scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.department_leave_reviewer.v1",
@@ -194,6 +210,201 @@ export const staffAccessTemplates = [
       "workforce.staff_actor.use",
     ],
     scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
+  },
+  {
+    key: "iam.partner_group_member_reader.v1",
+    name: "Partner team membership reader",
+    description:
+      "Read reviewed hospital partner-team memberships and their current source eligibility; no private HR or supplier operating authority.",
+    family: "partner_membership",
+    permissions: [
+      "iam.partner_group.members.read",
+      "workforce.partner_member_source.use",
+      "workforce.posting_source.use",
+      "workforce.staff_actor.use",
+    ],
+    scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
+  },
+  {
+    key: "iam.partner_group_member_preparer.v1",
+    name: "Partner team membership preparer",
+    description:
+      "Prepare hospital partner-team memberships from exact current reviewed Staff, account links and postings; cannot approve them or grant supplier access.",
+    family: "partner_membership",
+    permissions: [
+      "iam.partner_group.members.read",
+      "workforce.partner_member_source.use",
+      "workforce.posting_source.use",
+      "workforce.staff_actor.use",
+      "iam.partner_group.members.prepare",
+    ],
+    scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
+  },
+  {
+    key: "iam.partner_group_member_reviewer.v1",
+    name: "Partner team membership reviewer",
+    description:
+      "Independently review hospital partner-team memberships against exact current Staff, account and posting sources; cannot grant supplier or clinical authority.",
+    family: "partner_membership",
+    permissions: [
+      "iam.partner_group.members.read",
+      "workforce.partner_member_source.use",
+      "workforce.posting_source.use",
+      "workforce.staff_actor.use",
+      "iam.partner_group.members.review",
+    ],
+    scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
+  },
+  {
+    key: "iam.supplier_viewer.v1",
+    name: "Hospital supplier collaboration viewer",
+    description:
+      "Read only explicitly reviewed supplier grants for this current hospital Staff member; no supplier tenant membership, stock mutation or financial decision authority.",
+    family: "supplier_access",
+    permissions: [
+      "iam.supplier_grant.inbox.read",
+      "partner.catalogue.read",
+      "partner.shipment.read",
+      "partner.invoice.read",
+      "workforce.partner_member_source.use",
+      "workforce.posting_source.use",
+      "workforce.staff_actor.use",
+    ],
+    scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
+  },
+  {
+    key: "iam.supplier_reviewer.v1",
+    name: "Hospital supplier grant reviewer",
+    description:
+      "Accept or reduce supplier offers for the hospital after independent source review and current recipient eligibility checks; cannot grant source stock or clinical authority.",
+    family: "supplier_access",
+    permissions: [
+      "iam.supplier_grant.inbox.read",
+      "iam.supplier_grant.accept",
+      "workforce.partner_member_source.use",
+      "workforce.posting_source.use",
+      "workforce.staff_actor.use",
+    ],
+    scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
+  },
+  {
+    key: "supply.department_purchase_order_reader.v1",
+    name: "Department purchase order reader",
+    description:
+      "Read this department's own supplier purchase intents and retained decisions; no foreign catalogue disclosure, stock mutation or financial authority.",
+    family: "purchase_order",
+    permissions: ["supply.purchase_order.read", "workforce.purchase_order_actor.use"],
+    scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
+  },
+  {
+    key: "supply.department_purchase_order_preparer.v1",
+    name: "Department purchase order preparer",
+    description:
+      "Prepare or request cancellation of department supplier purchase intents as current Staff; cannot approve an order or perform stock or financial actions.",
+    family: "purchase_order",
+    permissions: [
+      "supply.purchase_order.cancel",
+      "supply.purchase_order.prepare",
+      "supply.purchase_order.read",
+      "workforce.purchase_order_actor.use",
+    ],
+    scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
+  },
+  {
+    key: "supply.department_purchase_order_reviewer.v1",
+    name: "Department purchase order reviewer",
+    description:
+      "Independently review department purchase intents as current Staff, with account and Staff self-review rejection; no stock dispatch, pricing, tax or payment authority.",
+    family: "purchase_order",
+    permissions: [
+      "supply.purchase_order.cancel",
+      "supply.purchase_order.read",
+      "supply.purchase_order.review",
+      "workforce.purchase_order_actor.use",
+    ],
+    scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
+  },
+  {
+    key: "supply.department_goods_reader.v1",
+    name: "Department supplier goods reader",
+    description:
+      "Read or record this department’s verified supplier delivery, quarantine custody and independent receiving review; no stock sale, clinical prescribing or financial authority.",
+    family: "supplier_receiving",
+    permissions: [
+      "pharmacy.hospital_receiving.use",
+      "supply.goods_receipt.read",
+      "workforce.purchase_order_actor.use",
+    ],
+    scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
+  },
+  {
+    key: "supply.department_goods_receiver.v1",
+    name: "Department supplier goods receiver",
+    description:
+      "Read or record this department’s verified supplier delivery, quarantine custody and independent receiving review; no stock sale, clinical prescribing or financial authority.",
+    family: "supplier_receiving",
+    permissions: [
+      "pharmacy.hospital_receiving.use",
+      "supply.goods_receipt.read",
+      "supply.goods_receipt.record",
+      "workforce.purchase_order_actor.use",
+    ],
+    scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
+  },
+  {
+    key: "supply.department_goods_reviewer.v1",
+    name: "Department supplier receiving reviewer",
+    description:
+      "Read or record this department’s verified supplier delivery, quarantine custody and independent receiving review; no stock sale, clinical prescribing or financial authority.",
+    family: "supplier_receiving",
+    permissions: [
+      "pharmacy.hospital_receiving.review",
+      "supply.goods_receipt.read",
+      "supply.goods_receipt.review",
+      "workforce.purchase_order_actor.use",
+    ],
+    scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
+  },
+  {
+    key: "supply.department_goods_pharmacy_fulfiller.v1",
+    name: "Hospital-owned pharmacy fulfilment operator",
+    description:
+      "Commit only stock owned by this department’s governed pharmacy and exact outlet under current source licence/order fences; no independent partner administration, clinical prescribing or financial authority.",
+    family: "supplier_receiving",
+    permissions: [
+      "pharmacy.hospital_fulfilment.use",
+      "supply.supplier_order.read",
+      "workforce.purchase_order_actor.use",
+    ],
+    scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
+  },
+  {
+    key: "supply.department_goods_pharmacy_acceptor.v1",
+    name: "Hospital pharmacy supplier order reviewer",
+    description:
+      "Accept or reject supplier orders and reconcile hospital receiving evidence for this department’s governed pharmacy outlet; no physical stock, prescribing or financial authority.",
+    family: "supplier_receiving",
+    permissions: [
+      "supply.receiving_response.record",
+      "supply.supplier_order.accept",
+      "supply.supplier_order.read",
+      "workforce.purchase_order_actor.use",
+    ],
+    scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
   },
 ] as const;
 export const staffAccessTemplateCatalogs = {
@@ -324,4 +535,22 @@ export const staffAccessTemplateCatalogs = {
     "workforce.department_posting_reviewer.v1",
     "workforce.department_leave_reviewer.v1",
   ],
+  "partner-membership-v1": [
+    "iam.partner_group_member_reader.v1",
+    "iam.partner_group_member_preparer.v1",
+    "iam.partner_group_member_reviewer.v1",
+  ],
+  "hospital-supplier-access-v1": ["iam.supplier_viewer.v1", "iam.supplier_reviewer.v1"],
+  "department-purchase-orders-v1": [
+    "supply.department_purchase_order_reader.v1",
+    "supply.department_purchase_order_preparer.v1",
+    "supply.department_purchase_order_reviewer.v1",
+  ],
+  "department-supplier-goods-v1": [
+    "supply.department_goods_reader.v1",
+    "supply.department_goods_receiver.v1",
+    "supply.department_goods_reviewer.v1",
+    "supply.department_goods_pharmacy_fulfiller.v1",
+  ],
+  "department-supplier-commercial-v1": ["supply.department_goods_pharmacy_acceptor.v1"],
 } as const;

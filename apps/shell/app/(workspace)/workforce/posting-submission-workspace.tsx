@@ -3,7 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
-import { Field, Panel, FormSelectField, useLeaveGuard, useZodForm } from "@helivanta/ui";
+import {
+  Field,
+  Panel,
+  FormSelectField,
+  RefreshButton,
+  RequestFailure,
+  useLeaveGuard,
+  useZodForm,
+} from "@helivanta/ui";
 import {
   ApiError,
   StaffPostingProposalInputContract,
@@ -61,12 +69,12 @@ export function PostingSubmissionWorkspace(props: Props) {
       {targets.isPending ? (
         <p role="status">Loading posting Staff choices…</p>
       ) : targets.isError ? (
-        <div role="alert">
-          Staff choices could not be verified.{" "}
-          <Button disabled={props.busy} onClick={() => void targets.refetch()}>
-            Retry Staff choices
-          </Button>
-        </div>
+        <RequestFailure
+          message="Staff choices could not be verified."
+          retry={targets.refetch}
+          error={targets.error}
+          busy={props.busy}
+        />
       ) : (
         <>
           <div className="flex flex-wrap gap-3">
@@ -150,12 +158,12 @@ function SubmissionDrafts({
       {drafts.isPending ? (
         <p role="status">Loading prepared posting drafts…</p>
       ) : drafts.isError ? (
-        <div role="alert">
-          Prepared drafts could not be verified.{" "}
-          <Button disabled={props.busy} onClick={() => void drafts.refetch()}>
-            Retry prepared drafts
-          </Button>
-        </div>
+        <RequestFailure
+          message="Prepared drafts could not be verified."
+          retry={drafts.refetch}
+          error={drafts.error}
+          busy={props.busy}
+        />
       ) : (
         <>
           {drafts.data.data.map((row) => (
@@ -399,13 +407,13 @@ function PostingSubmission({
             First submission departments
           </Button>
         )}
-        <Button
-          variant="outline"
-          disabled={retained !== null || save.isPending || departments.isFetching}
-          onClick={() => void departments.refetch()}
+        <RefreshButton
+          refresh={departments.refetch}
+          error={departments.error}
+          busy={retained !== null || save.isPending || departments.isFetching}
         >
           Recheck submission department
-        </Button>
+        </RefreshButton>
       </div>
       <p className="text-sm">
         {draft.starts_at} {draft.ends_at ? `to ${draft.ends_at}` : "· ongoing"}
@@ -413,12 +421,12 @@ function PostingSubmission({
       {source.isPending || source.isFetching ? (
         <p role="status">Checking current employment source…</p>
       ) : source.isError ? (
-        <div role="alert">
-          The current employment source could not be verified.{" "}
-          <Button disabled={retained !== null} onClick={() => void source.refetch()}>
-            Retry submission source
-          </Button>
-        </div>
+        <RequestFailure
+          message="The current employment source could not be verified."
+          retry={source.refetch}
+          error={source.error}
+          busy={retained !== null}
+        />
       ) : (
         <p>
           {matches
@@ -533,19 +541,14 @@ function PostingSubmission({
               {supervisors.isPending || supervisors.isFetching ? (
                 <p role="status">Loading approved supervisor references…</p>
               ) : supervisors.isError ? (
-                <div role="alert">
-                  Supervisor references could not be verified.{" "}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      form.setValue("supervisor", null, { shouldDirty: true });
-                      void supervisors.refetch();
-                    }}
-                  >
-                    Retry supervisor references
-                  </Button>
-                </div>
+                <RequestFailure
+                  message="Supervisor references could not be verified."
+                  retry={() => {
+                    form.setValue("supervisor", null, { shouldDirty: true });
+                    return supervisors.refetch();
+                  }}
+                  error={supervisors.error}
+                />
               ) : (
                 <>
                   {supervisors.data.data

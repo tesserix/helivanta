@@ -114,6 +114,43 @@ describe("RequestFailure", () => {
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(retry).toHaveBeenCalledOnce();
   });
+
+  it.each([
+    ["Try again", new ApiError("internal", "boom", 500)],
+    ["Check access again", new ApiError("forbidden", "no", 403)],
+  ])("retries with %s inside a form without submitting it", async (name, error) => {
+    const retry = vi.fn();
+    const submit = vi.fn((event: { preventDefault: () => void }) => event.preventDefault());
+    renderWithProviders(
+      <form onSubmit={submit}>
+        <RequestFailure
+          message="Could not load."
+          retry={retry}
+          error={error}
+          recheck="Check access again"
+        />
+      </form>,
+    );
+    await userEvent.click(screen.getByRole("button", { name }));
+    expect(retry).toHaveBeenCalledOnce();
+    expect(submit).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["Try again", new ApiError("internal", "boom", 500)],
+    ["Check access again", new ApiError("forbidden", "no", 403)],
+  ])("disables %s while busy", (name, error) => {
+    renderWithProviders(
+      <RequestFailure
+        message="Could not load."
+        retry={vi.fn()}
+        error={error}
+        recheck="Check access again"
+        busy
+      />,
+    );
+    expect(screen.getByRole("button", { name })).toBeDisabled();
+  });
 });
 
 describe("firstError", () => {

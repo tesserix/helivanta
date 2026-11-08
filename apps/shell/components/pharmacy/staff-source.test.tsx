@@ -409,3 +409,216 @@ it("opens reviewed independent accounts for a pharmacy manager with identity per
   await screen.findByText("Reviewed accounts");
   expect(screen.getByRole("button", { name: "Propose account link" })).toBeInTheDocument();
 });
+
+const colleague = {
+  ...pharmacyRow,
+  id: "019eeeee-eeee-7eee-8eee-eeeeeeeeeeee",
+  display_name: "Synthetic colleague Pharmacist",
+  employee_code: "SYN-PH-002",
+};
+const enrollmentProfile = {
+  given_name: "",
+  family_name: "",
+  preferred_name: "",
+  date_of_birth: "",
+  gender: "",
+  work_email: "",
+  personal_email: "",
+  mobile_phone: "",
+  work_phone: "",
+  preferred_language: "",
+  blood_group: "",
+  engagement_type: "employee",
+  department: "Dispensary",
+  designation: "",
+  grade: "",
+  department_revision_id: "",
+  designation_revision_id: "",
+  grade_revision_id: "",
+  supervisor_id: "",
+  start_date: "",
+  end_date: "",
+  probation_end_date: "",
+  confirmation_date: "",
+  exit_reason: "",
+};
+const enrollmentDocument = (version: number, profile = enrollmentProfile) => ({
+  staff: pharmacyRow,
+  version,
+  request_context_version: "v1",
+  profile,
+  addresses: [],
+  emergency_contacts: [],
+  credentials: [],
+  qualifications: [],
+  experiences: [],
+});
+// A pharmacy manager whose identity may also carry enrollment permission.
+function enrollmentTenant(
+  access: "manager" | "reader",
+  permissions: string[],
+  enrollment: (init?: RequestInit) => Response,
+) {
+  const source = employerTenant(access, (url, init) =>
+    url.includes("/enrollment?") ? enrollment(init) : Response.json(page([pharmacyRow, colleague])),
+  );
+  return vi.fn(async (url: string, init?: RequestInit) =>
+    url.endsWith("/permissions")
+      ? Response.json({ ...identity(), data: [...identity().data, ...permissions] })
+      : source(url, init),
+  );
+}
+const enrollmentPath = `/api/v1/workforce/pharmacies/${pharmacy}/staff/${pharmacyRow.id}/enrollment?request_context=v1`;
+
+it("offers pharmacy enrollment only to a manager holding enrollment permission", async () => {
+  for (const [access, permissions] of [
+    ["manager", []],
+    ["reader", ["workforce.enrollment.manage"]],
+  ] as const) {
+    vi.stubGlobal(
+      "fetch",
+      enrollmentTenant(access, [...permissions], () => Response.json(enrollmentDocument(2))),
+    );
+    const view = renderSource();
+    expect(await screen.findByRole("cell", { name: pharmacyRow.display_name })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: `Enrollment for ${pharmacyRow.display_name}` }),
+    ).not.toBeInTheDocument();
+    view.unmount();
+  }
+  vi.stubGlobal(
+    "fetch",
+    enrollmentTenant("manager", ["workforce.enrollment.manage"], () =>
+      Response.json(enrollmentDocument(2)),
+    ),
+  );
+  renderSource();
+  expect(
+    await screen.findByRole("button", { name: `Enrollment for ${pharmacyRow.display_name}` }),
+  ).toBeInTheDocument();
+});
+
+it("saves a pharmacy enrollment against its version without HR masters or itself as supervisor", async () => {
+  const writes: RequestInit[] = [];
+  let release: () => void = () => {};
+  const held = new Promise<void>((resolve) => (release = resolve));
+  const fetcher = enrollmentTenant("manager", ["workforce.enrollment.manage"], (init) => {
+    if (init?.method === "PUT") {
+      writes.push(init);
+      return Response.json(enrollmentDocument(3));
+    }
+    return Response.json(enrollmentDocument(2));
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("/enrollment?") && init?.method !== "PUT") await held;
+      return fetcher(url, init);
+    }),
+  );
+  const { user } = renderSource();
+  await user.click(
+    await screen.findByRole("button", { name: `Enrollment for ${pharmacyRow.display_name}` }),
+  );
+  expect(await screen.findByRole("status")).toHaveTextContent("Loading protected enrollment");
+  release();
+  const designation = await screen.findByLabelText("Designation");
+  expect(screen.getByLabelText("Department")).toHaveValue("Dispensary");
+  expect(screen.queryByRole("combobox", { name: /^Contract type$/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Load more HR choices" })).not.toBeInTheDocument();
+  expect(fetcher.mock.calls.some(([url]) => String(url).includes("/hr/masters"))).toBe(false);
+  await user.click(screen.getByRole("combobox", { name: "Supervisor" }));
+  expect(
+    screen.getByRole("option", { name: `${colleague.display_name} · ${colleague.employee_code}` }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("option", { name: new RegExp(pharmacyRow.employee_code) }),
+  ).not.toBeInTheDocument();
+  await user.click(screen.getByRole("option", { name: new RegExp(colleague.employee_code) }));
+  await user.type(designation, "Pharmacist in charge");
+  await user.click(screen.getByRole("button", { name: "Save staff" }));
+  await waitFor(() => expect(screen.queryByLabelText("Designation")).not.toBeInTheDocument());
+  expect(writes).toHaveLength(1);
+  const write = fetcher.mock.calls.find(([, init]) => init?.method === "PUT");
+  expect(write?.[0]).toBe(enrollmentPath);
+  expect(new Headers(writes[0]?.headers).get("X-Helivanta-Expected-Subject")).toBe(subject);
+  const body = JSON.parse(String(writes[0]?.body));
+  expect(body).toMatchObject({
+    expected_version: 2,
+    request_context_version: "v1",
+    staff: { display_name: pharmacyRow.display_name, employee_code: pharmacyRow.employee_code },
+    profile: {
+      department: "Dispensary",
+      designation: "Pharmacist in charge",
+      supervisor_id: colleague.id,
+      contract_type: "",
+      department_revision_id: "",
+    },
+  });
+  expect(await screen.findByText("Staff enrollment saved")).toBeInTheDocument();
+});
+
+it("keeps the enrollment draft on a version conflict and rereads only after confirmation", async () => {
+  let current = enrollmentDocument(2);
+  const fetcher = enrollmentTenant("manager", ["workforce.enrollment.manage"], (init) =>
+    init?.method === "PUT"
+      ? Response.json(
+          { error: "version_conflict", message: "This enrollment changed." },
+          { status: 409 },
+        )
+      : Response.json(current),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = renderSource();
+  await user.click(
+    await screen.findByRole("button", { name: `Enrollment for ${pharmacyRow.display_name}` }),
+  );
+  const designation = await screen.findByLabelText("Designation");
+  await user.type(designation, "Synthetic draft role");
+  await user.click(screen.getByRole("button", { name: "Save staff" }));
+  expect(await screen.findByText("This enrollment changed.")).toBeInTheDocument();
+  expect(screen.getByLabelText("Designation")).toHaveValue("Synthetic draft role");
+  current = enrollmentDocument(4, { ...enrollmentProfile, designation: "Changed elsewhere" });
+  await user.click(screen.getByRole("button", { name: "Reload latest profile" }));
+  await user.click(await screen.findByRole("button", { name: "Discard edits and reload" }));
+  await waitFor(() =>
+    expect(screen.getByLabelText("Designation")).toHaveValue("Changed elsewhere"),
+  );
+  const reads = fetcher.mock.calls.filter(
+    ([url, init]) => String(url) === enrollmentPath && init?.method !== "PUT",
+  );
+  expect(reads).toHaveLength(2);
+});
+
+it("clears the pharmacy Staff source when the enrollment is no longer available", async () => {
+  vi.stubGlobal(
+    "fetch",
+    enrollmentTenant("manager", ["workforce.enrollment.manage"], () =>
+      Response.json({ error: "not_found", message: "staff not found" }, { status: 404 }),
+    ),
+  );
+  const { user } = renderSource();
+  await user.click(
+    await screen.findByRole("button", { name: `Enrollment for ${pharmacyRow.display_name}` }),
+  );
+  await waitFor(() =>
+    expect(screen.getByRole("alert")).toHaveTextContent("Your account or Staff access changed"),
+  );
+  expect(screen.queryByLabelText("Designation")).not.toBeInTheDocument();
+  expect(screen.queryByRole("cell", { name: pharmacyRow.display_name })).not.toBeInTheDocument();
+});
+
+it("refuses a pharmacy enrollment answered for another Staff record", async () => {
+  vi.stubGlobal(
+    "fetch",
+    enrollmentTenant("manager", ["workforce.enrollment.manage"], () =>
+      Response.json({ ...enrollmentDocument(2), staff: colleague }),
+    ),
+  );
+  const { user } = renderSource();
+  await user.click(
+    await screen.findByRole("button", { name: `Enrollment for ${pharmacyRow.display_name}` }),
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent("Could not load enrollment");
+  expect(screen.queryByLabelText("Designation")).not.toBeInTheDocument();
+});

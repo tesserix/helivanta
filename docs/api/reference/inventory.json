@@ -10503,6 +10503,24 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/enrollment",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/enrollment",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id",
           "permission": "public",
           "authentication_required": true,
@@ -12021,6 +12039,11 @@
           "creates_tables": [
             "workforce_independent_link_commands"
           ]
+        },
+        {
+          "id": "0095_workforce_pharmacy_enrollment",
+          "sql_sha256": "fa713de4f8e8a9dfdef7205bed28a18c4c2aff234c22322928c23bd126de3679",
+          "creates_tables": []
         }
       ]
     },

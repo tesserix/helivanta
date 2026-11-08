@@ -1,5 +1,53 @@
 # Staff Management delivery tracker
 
+## Pharmacy Staff enrollment (#19 slice 4a) — 2026-11-08
+
+A standalone pharmacy employer now keeps HR enrollment for its own Staff
+(ADR-0054, ADR-0063). See the [spec](../superpowers/specs/2026-11-08-pharmacy-hr-lifecycle.md)
+and the [plan](../superpowers/plans/2026-11-08-pharmacy-enrollment.md).
+
+- `GET` and `PUT /v1/workforce/pharmacies/:pharmacy/staff/:id/enrollment?request_context=v1`
+  require `workforce.enrollment.manage` and a `manager` row for that pharmacy,
+  both read again inside the command transaction.
+- Migration `0095_workforce_pharmacy_enrollment` lets the six
+  `workforce_enrollment_*` tables admit a pharmacy. A supplier or an
+  unregistered establishment is still refused.
+- A pharmacy has no HR masters. The response carries no masters marker and no
+  `hospital_id`. The reporting line must name a Staff record of the same
+  pharmacy, and a supervisor cycle gets 409.
+- Setting the status to inactive revokes the person's independent login. A
+  person employed by a hospital and a pharmacy keeps two enrollments, and
+  neither grants access to the other.
+- These callers get 404: a reader, a caller with no access row, a foreign
+  tenant, another pharmacy's Staff, and a hospital, supplier or unregistered
+  ID. A caller without the permission gets 403, and a changed expected account
+  gets 409 `session_changed`. A refused request writes no audit row. The HR
+  intake and masters views answer 400, so HR intake stays hospital-only.
+- In the shell, the pharmacy Staff source shows an Enrollment action only to a
+  manager with the permission. It reuses the hospital enrollment form without
+  contract type or masters. A 409 keeps the draft until a confirmed reload. A
+  401, 403 or 404 clears the source and shows "Your account or Staff access changed".
+
+**Evidence.**
+
+- Five route tests and two internal command tests pass against Postgres
+  testcontainers. They cover keep, refuse, masters and reporting line, inactive
+  revocation and two enrollments for one person. The establishment-kind guard
+  test checks that exactly the six enrollment tables carry the new trigger,
+  admit a pharmacy and refuse a supplier. The globalapi legacy-upgrade test
+  replays 0095 after the earlier deferred migrations.
+- The backend coverage gate (`-race`, 70% floor) passes. `lint-go`, `go vet`
+  and `contractdocs -check` pass, and so does the operational-access
+  inventory check.
+- 6 SDK tests and 5 new pharmacy Staff source tests pass. The full workforce app
+  suite (620 tests) is unchanged. Removing any meaningful SDK or panel guard
+  fails at least one test.
+- `pnpm turbo lint type-check test build format:check` is green.
+
+Slices 4b to 4f, slice 5, and deployed runtime and real OIDC browser acceptance
+remain open. Counts are unchanged at **10 partial, 10 awaiting audit, 1 research,
+0 fully accepted**.
+
 ## Pharmacy outlet receiving under reviewed duty (#19 slice 3b-ii) — 2026-11-08
 
 PharmaConnect now consumes ADR-0064's `pharmacy.inventory_receiver.v1` duty at

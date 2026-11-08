@@ -27,7 +27,7 @@ review, employment evidence and credential review stay hospital-only.
 
 ## Decisions settled by this plan
 
-1. **Migration `0096_workforce_pharmacy_documents`** (`pharmacy_documents.sql`):
+1. **Migration `0098_workforce_pharmacy_documents`** (`pharmacy_documents.sql`):
    - creates `workforce_require_document_establishment()`. It admits a
      registered `hospital` for every record kind, and a registered `pharmacy`
      only for `enrollment`, `credential` and `qualification`. Anything else
@@ -38,33 +38,42 @@ review, employment evidence and credential review stay hospital-only.
    - recreates the trigger on `workforce_document_contributors` on
      `workforce_require_enrollment_establishment()` (0095). Contributor rows
      are written only for enrollment identity and employment evidence;
+   - adds the `workforce_hospital_establishment` trigger on
+     `workforce_document_classification_revisions`, on
+     `workforce_require_hospital_establishment()`. A revision that clears a
+     classification has a null `classification_revision_id`, so the HR master
+     reference does not refuse it. `workforce_document_classifications` is
+     then reached through a fully NOT NULL key to a guarded table;
    - changes no RLS. `document_isolation` already ends in
      `workforce_enrollment_allowed`, which only a manager row sets, and the
      worker paths key on `app.workforce_hospital`.
-2. **Children stay hospital-only without new triggers.** Classification
-   revisions also reference `workforce_hr_master_revisions`, and
-   `workforce_hr_masters` refuses a pharmacy. Person review evidence
-   references `workforce_person_reviews`, which refuses one. Employment
-   evidence bindings and review evidence keep their own hospital trigger. The
-   inventory test proves each of these.
+2. **Every other child of a document stays hospital-only.** Classification
+   is guarded directly, as decision 1 says. Person review evidence
+   references `workforce_person_reviews`, which refuses a pharmacy.
+   Employment evidence bindings and review evidence keep their own hospital
+   trigger. The inventory test proves each of these. It caught the cleared
+   classification case after an earlier draft relied on the HR master
+   reference alone.
 3. **The inventory pins the new set.** `pharmacyAdmittingTables` gains the two
    document tables. A table reached only through them must be reported.
 4. **Gate per establishment kind.** `staffDocuments.authorize` runs
    `establishment{hospital}.requireKind` before `documentOwner`. A new
-   `pharmacyStaffDocuments` embeds `staffDocuments` and overrides `authorize`
-   to require the `pharmacy` kind. It is a distinct type, so
+   `pharmacyStaffDocuments` delegates permissions, binding, ownership and the
+   download action to `staffDocuments`, and its `authorize` requires the
+   `pharmacy` kind. It is a distinct type, so
    `intakeDocumentGate` refuses it and every pharmacy transaction is the
    plain one. A hospital route on an ID registered as a pharmacy after
    admission is therefore 404 and writes nothing.
 5. **Gate-generic core.** Each hospital handler becomes a wrapper over a core
    that takes the gate and establishment ID: `registerDocument`,
    `receiveDocument`, `sendDocument`, `requeueDocument` (existing), and new
-   `revokeFile`, `listFiles` and `recordChoices`. `documentGate` gains
+   `withdrawDocument`, `documentRows` and `recordChoices`. `documentGate` gains
    `view(document) any`. Every existing gate returns the row, and the pharmacy
    gate returns `pharmacyDocumentView(row)`.
 6. **Defect.** `requeueDocument` opens its transaction with the caller's gate
-   instead of `staffDocuments{}`. Before the fix, a benefits evidence retry
-   carrying `?hr_intake=v1` ran in the HR intake transaction.
+   instead of `staffDocuments{}`. Before the fix, a tax declaration or
+   benefits evidence retry carrying `?hr_intake=v1` ran in the HR intake
+   transaction.
 7. **Pharmacy request shape.** `pharmacyDocumentScope` runs
    `pharmacyStaffScope` (400 for `hr_intake`), then `enrollmentSession` (409
    `session_changed` unless both expected headers appear once), then parses
@@ -116,7 +125,8 @@ Each assertion runs and fails before the code that satisfies it.
    qualification document is admitted. A pharmacy `tax_declaration` or
    `benefit_proposal` document and any supplier document are refused with
    `23503 workforce_hospital_establishment`. A pharmacy classification
-   revision and person review stay impossible.
+   revision is refused by the same constraint even when it names no HR
+   master revision, and a pharmacy person review stays impossible.
 2. **Inventory.** The two tables join `pharmacyAdmittingTables`, and a probe
    child of `workforce_documents` is reported.
 3. **Pharmacy routes** (`pharmacy_documents_routes_test.go`):
@@ -132,8 +142,8 @@ Each assertion runs and fails before the code that satisfies it.
    - no storage is 503 `documents_unavailable`.
 4. **Race.** An internal test runs the hospital gate on a registered pharmacy
    ID and gets `gorm.ErrRecordNotFound`.
-5. **Defect.** A benefits evidence retry with `?hr_intake=v1` answers as
-   without it.
+5. **Defect.** A tax declaration and a benefits evidence retry with
+   `?hr_intake=v1` each answer as without it.
 6. **Hospital regression.** The document, classification, evidence and intake
    suites pass unchanged.
 7. **SDK and UI.** Vitest covers the pharmacy path and receipt refusals, the

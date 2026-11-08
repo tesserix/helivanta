@@ -62,6 +62,35 @@ No enrollment event is published for a pharmacy. Migration
 `0095_workforce_pharmacy_enrollment` admits a pharmacy only in the six
 `workforce_enrollment_*` tables.
 
+### Pharmacy Staff documents (#19 slice 4d)
+
+Design: [pharmacy HR lifecycle, 4d](../superpowers/specs/2026-11-08-pharmacy-hr-lifecycle.md#4d--pharmacy-staff-documents)
+and the [plan](../superpowers/plans/2026-11-08-pharmacy-documents.md).
+
+| Route                                                                               | Authorization                                             | Notes                                                       |
+| ----------------------------------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------- |
+| `GET /v1/workforce/pharmacies/:pharmacy/staff/:id/document-records`                 | `workforce.documents.manage` and a pharmacy `manager` row | Enrollment, up to 20 credentials and 20 qualifications      |
+| `GET /v1/workforce/pharmacies/:pharmacy/staff/:id/documents`                        | Same                                                      | Cursor list                                                 |
+| `PUT /v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file`                  | Same                                                      | Upload intent; an identical replay is 200, a different 409  |
+| `PUT`/`GET /v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file/content`    | Same                                                      | Upload to quarantine; download released bytes, audited      |
+| `PUT /v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file/revocation`       | Same                                                      | Revoke an available file                                    |
+| `PUT /v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file/retries/:attempt` | Same                                                      | Next scan attempt after an error or the processing deadline |
+
+Both account assertion headers must appear once and match the session, or the
+route answers 409 `session_changed`; `hr_intake` answers 400. The pharmacy
+family runs the hospital document core, so validation, replay, scanning,
+release, retry, revocation and download headers are the same. Files bind only
+to the `enrollment`, `credential` and `qualification` records of that pharmacy
+Staff record. Each response is the hospital document view with `pharmacy_id`
+in place of `hospital_id`. The `document_scan_requested.v1` and
+`document_changed.v1` events keep `hospital_id`, which names the owning
+establishment row, and object keys keep `t/<tenant>/h/<establishment>/…`.
+Download audit rows are written under the pharmacy ID. File classification,
+identity review, employment evidence and credential review stay hospital-only.
+Migration `0098_workforce_pharmacy_documents` admits a pharmacy in
+`workforce_documents` for those three record kinds only, and in
+`workforce_document_contributors`.
+
 ## Scoped employment-review workspace
 
 The normal HR preparation and independent-review workspace uses these additive

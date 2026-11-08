@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { NavigationGuardProvider } from "@helivanta/ui";
@@ -316,7 +316,8 @@ const employerSource = (access_level: "manager" | "reader") => ({
 // A tenant with one standalone pharmacy employer and no hospital Staff access.
 function employerTenant(
   access: "manager" | "reader",
-  staff: (url: string, init?: RequestInit) => Response = () => Response.json(page([pharmacyRow])),
+  staff: (url: string, init?: RequestInit) => Response | Promise<Response> = () =>
+    Response.json(page([pharmacyRow])),
 ) {
   return vi.fn(async (url: string, init?: RequestInit) => {
     if (url.endsWith("/permissions")) return Response.json(identity());
@@ -682,4 +683,159 @@ it("refuses a pharmacy enrollment answered for another Staff record", async () =
   );
   expect(await screen.findByRole("alert")).toHaveTextContent("Could not load enrollment");
   expect(screen.queryByLabelText("Designation")).not.toBeInTheDocument();
+});
+
+const documentFile = {
+  id: "019eeeee-eeee-7eee-8eee-eeeeeeeeeeee",
+  pharmacy_id: pharmacy,
+  staff_id: pharmacyRow.id,
+  record_id: pharmacyRow.id,
+  record_kind: "enrollment",
+  record_version: 1,
+  category: "identity_evidence",
+  filename: "synthetic-pharmacist-identity.png",
+  content_type: "image/png",
+  size: 2048,
+  sha256: "a".repeat(64),
+  status: "available",
+  scan_attempt: 1,
+  uploaded_at: "2026-11-08T00:00:00Z",
+  scanned_at: "2026-11-08T00:01:00Z",
+  failure_code: null,
+  expires_at: "2026-11-08T00:30:00Z",
+  created_at: "2026-11-08T00:00:00Z",
+  updated_at: "2026-11-08T00:01:00Z",
+};
+const documentsPath = `/api/v1/workforce/pharmacies/${pharmacy}/staff/${pharmacyRow.id}`;
+const enrollmentChoice = {
+  record_kind: "enrollment",
+  record_id: pharmacyRow.id,
+  label: "Staff enrollment",
+  categories: ["employment_evidence", "identity_evidence"],
+};
+// A pharmacy manager whose identity may also carry the Staff documents permission.
+function documentTenant(
+  access: "manager" | "reader",
+  permissions: string[],
+  documents: (url: string, init?: RequestInit) => Response | Promise<Response>,
+) {
+  const source = employerTenant(access, (url, init) =>
+    url.includes("/document") ? documents(url, init) : Response.json(page([pharmacyRow])),
+  );
+  return vi.fn(async (url: string, init?: RequestInit) =>
+    url.endsWith("/permissions")
+      ? Response.json({ ...identity(), data: [...identity().data, ...permissions] })
+      : source(url, init),
+  );
+}
+const documentAnswers = (url: string, init?: RequestInit) =>
+  url.endsWith("/document-records")
+    ? Response.json({ records: [enrollmentChoice], uploads_available: true })
+    : url.endsWith("/revocation") && init?.method === "PUT"
+      ? Response.json({ ...documentFile, status: "revoked" })
+      : Response.json(page([documentFile]));
+
+it("offers pharmacy Staff documents only to a manager holding the documents permission", async () => {
+  for (const [access, permissions] of [
+    ["manager", []],
+    ["reader", ["workforce.documents.manage"]],
+  ] as const) {
+    vi.stubGlobal("fetch", documentTenant(access, [...permissions], documentAnswers));
+    const view = renderSource();
+    expect(await screen.findByRole("cell", { name: pharmacyRow.display_name })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: `Documents for ${pharmacyRow.display_name}` }),
+    ).not.toBeInTheDocument();
+    view.unmount();
+  }
+  vi.stubGlobal(
+    "fetch",
+    documentTenant("manager", ["workforce.documents.manage"], documentAnswers),
+  );
+  renderSource();
+  expect(
+    await screen.findByRole("button", { name: `Documents for ${pharmacyRow.display_name}` }),
+  ).toBeInTheDocument();
+});
+
+it("lists and revokes a pharmacy Staff file in the pharmacy family without classification", async () => {
+  let release: () => void = () => {};
+  const held = new Promise<void>((resolve) => (release = resolve));
+  const fetcher = documentTenant("manager", ["workforce.documents.manage"], async (url, init) => {
+    if (url.endsWith("/document-records")) await held;
+    return documentAnswers(url, init);
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = renderSource();
+  await user.click(
+    await screen.findByRole("button", { name: `Documents for ${pharmacyRow.display_name}` }),
+  );
+  expect(await screen.findByText("Loading saved record choices…")).toBeInTheDocument();
+  release();
+  expect(await screen.findByText(documentFile.filename)).toBeInTheDocument();
+  expect(screen.getByText(/this pharmacy’s authorised staff-document team/)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /^Classify/ })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Revoke access" }));
+  const dialog = await screen.findByRole("dialog", { name: "Revoke file access?" });
+  await user.click(within(dialog).getByRole("button", { name: "Revoke access" }));
+  expect(await screen.findByText("Download access has been revoked.")).toBeInTheDocument();
+  const requests = fetcher.mock.calls
+    .map(([url, init]) => `${init?.method ?? "GET"} ${url}`)
+    .filter((request) => request.includes("/document"));
+  expect(requests).toEqual(
+    expect.arrayContaining([
+      `GET ${documentsPath}/document-records`,
+      `GET ${documentsPath}/documents`,
+      `PUT ${documentsPath}/documents/${documentFile.id}/revocation`,
+    ]),
+  );
+  expect(requests.every((request) => request.includes(documentsPath))).toBe(true);
+  expect(requests.some((request) => request.includes("hr_intake"))).toBe(false);
+  for (const [url, init] of fetcher.mock.calls.filter(([url]) => url.includes("/document")))
+    expect(new Headers(init?.headers).get("X-Helivanta-Expected-Subject"), url).toBe(subject);
+});
+
+it.each([
+  [404, "not_found"],
+  [409, "session_changed"],
+] as const)(
+  "clears the pharmacy Staff source when its documents answer %s",
+  async (status, error) => {
+    vi.stubGlobal(
+      "fetch",
+      documentTenant("manager", ["workforce.documents.manage"], (url, init) =>
+        url.endsWith("/documents")
+          ? Response.json({ error, message: "Synthetic cutoff" }, { status })
+          : documentAnswers(url, init),
+      ),
+    );
+    const { user } = renderSource();
+    await user.click(
+      await screen.findByRole("button", { name: `Documents for ${pharmacyRow.display_name}` }),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("Your account or Staff access changed"),
+    );
+    expect(screen.queryByText(documentFile.filename)).not.toBeInTheDocument();
+    expect(screen.queryByRole("cell", { name: pharmacyRow.display_name })).not.toBeInTheDocument();
+  },
+);
+
+it("refuses a pharmacy document list carrying another pharmacy's file", async () => {
+  vi.stubGlobal(
+    "fetch",
+    documentTenant("manager", ["workforce.documents.manage"], (url, init) =>
+      url.endsWith("/documents")
+        ? Response.json(
+            page([{ ...documentFile, pharmacy_id: "019fffff-ffff-7fff-8fff-ffffffffffff" }]),
+          )
+        : documentAnswers(url, init),
+    ),
+  );
+  const { user } = renderSource();
+  await user.click(
+    await screen.findByRole("button", { name: `Documents for ${pharmacyRow.display_name}` }),
+  );
+  expect(await screen.findByText("Could not load documents.")).toBeInTheDocument();
+  expect(screen.queryByText(documentFile.filename)).not.toBeInTheDocument();
 });

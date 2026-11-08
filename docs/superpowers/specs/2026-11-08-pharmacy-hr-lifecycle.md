@@ -268,7 +268,7 @@ require `workforce.documents.manage` plus the pharmacy manager row.
 
 ### Data and enforcement
 
-Migration `0096_workforce_pharmacy_documents` (append-only):
+Migration `0098_workforce_pharmacy_documents` (append-only):
 
 - A new guard function, `workforce_require_document_establishment()`. It
   admits a hospital row of any record kind, and a pharmacy row only for the
@@ -293,8 +293,8 @@ policy key on the same establishment ID.
 `requeueDocument` chose its transaction with `staffDocuments{}` instead of the
 calling gate. A payroll or benefits evidence retry sent with `?hr_intake=v1`
 was therefore routed into the HR intake transaction and refused. The core now
-uses the caller's gate, proven by a regression test on the benefits evidence
-retry.
+uses the caller's gate, proven by regression tests on the tax declaration and
+benefits evidence retries.
 
 ### UI
 
@@ -311,7 +311,9 @@ retry.
 ### Not covered by 4d
 
 - File classification. It references HR `document_category` master
-  revisions, and a pharmacy has no HR masters (4a).
+  revisions, and a pharmacy has no HR masters (4a). A cleared classification
+  names no master revision, so the database refuses a pharmacy
+  classification revision directly.
 - Identity review of pharmacy identity evidence (person reviews), which stays
   hospital-only until a reviewer path exists for a pharmacy.
 - Employment evidence bindings (4b) and credential reviews (4e).

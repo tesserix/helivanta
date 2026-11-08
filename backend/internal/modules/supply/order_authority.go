@@ -31,6 +31,7 @@ type buyerOrderScope struct{ hospital, department, outlet, order, command uuid.U
 type sellerOrderScope struct {
 	product                                string
 	organization, location, order, command uuid.UUID
+	hospital, department                   uuid.UUID
 }
 
 var orderFrameKeys = []string{"app.actor_subject", "app.supply_order_mode", "app.supply_order_id", "app.supply_order_hospital", "app.supply_order_department", "app.supply_order_outlet", "app.supply_order_product", "app.supply_order_organization", "app.supply_order_location", "app.supply_order_actor_staff", "app.supply_order_origin"}
@@ -106,6 +107,9 @@ func (h *purchaseOrderHandlers) buyer(ctx context.Context, p authn.Principal, sc
 	})
 }
 func (h *purchaseOrderHandlers) seller(ctx context.Context, p authn.Principal, scope sellerOrderScope, permission authz.Permission, action func(context.Context, *gorm.DB, supplierorder.Actor) error) error {
+	if scope.hospital != uuid.Nil {
+		return h.hospitalSeller(ctx, p, scope, permission, action)
+	}
 	if h.db == nil || h.operating == nil || action == nil {
 		return supplierorder.ErrUnavailable
 	}

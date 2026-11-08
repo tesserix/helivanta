@@ -30,8 +30,14 @@ const departmentLeaveReviewer = /^workforce\.department_leave_reviewer\.v[1-9][0
 const departmentPurchaseOrder =
   /^supply\.department_purchase_order_(reader|preparer|reviewer)\.v[1-9][0-9]*$/;
 const departmentReceiving =
-  /^supply\.department_goods_(reader|receiver|reviewer|pharmacy_fulfiller)\.v[1-9][0-9]*$/;
+  /^supply\.department_goods_(reader|receiver|reviewer|pharmacy_fulfiller|pharmacy_acceptor)\.v[1-9][0-9]*$/;
 const receivingPermissions = {
+  pharmacy_acceptor: [
+    "supply.receiving_response.record",
+    "supply.supplier_order.accept",
+    "supply.supplier_order.read",
+    "workforce.purchase_order_actor.use",
+  ],
   reader: [
     "pharmacy.hospital_receiving.use",
     "supply.goods_receipt.read",
@@ -353,7 +359,7 @@ for (const migration of migrations) {
         (permission) =>
           /^workforce\.[a-z_.]+$/.test(permission) ||
           (template.family === "supplier_receiving" &&
-            /^(pharmacy\.hospital_(receiving\.(use|review)|fulfilment\.use)|supply\.(goods_receipt\.(read|record|review)|supplier_order\.read))$/.test(
+            /^(pharmacy\.hospital_(receiving\.(use|review)|fulfilment\.use)|supply\.(goods_receipt\.(read|record|review)|supplier_order\.(read|accept)|receiving_response\.record))$/.test(
               permission,
             )) ||
           (template.family === "purchase_order" &&

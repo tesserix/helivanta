@@ -244,7 +244,7 @@ func (h *purchaseOrderHandlers) decideSeller(c *gin.Context) {
 		purchaseOrderError(c, supplierorder.ErrInvalid)
 		return
 	}
-	scope, err := h.lookupSeller(c.Request.Context(), p, id)
+	scope, err := h.sellerRequestScope(c, p, id)
 	if err != nil {
 		purchaseOrderError(c, err)
 		return

@@ -36,6 +36,7 @@ type HTTP struct {
 }
 
 func (h HTTP) Register(r *platform.Router, base string) {
+	h.registerList(r, base)
 	r.PUT(base, authz.Public, h.create)
 	r.GET(base, authz.Public, h.current)
 	r.GET(base+"/creation-receipt", authz.Public, h.original)
@@ -51,7 +52,7 @@ func id(c *gin.Context, name string) (uuid.UUID, bool) {
 	}
 	return v, true
 }
-func (h HTTP) request(c *gin.Context) (authn.Principal, f.SourceScope, uuid.UUID, bool) {
+func (h HTTP) request(c *gin.Context, list ...bool) (authn.Principal, f.SourceScope, uuid.UUID, bool) {
 	c.Header("Cache-Control", "no-store")
 	if !authn.Refresh(c) {
 		return authn.Principal{}, f.SourceScope{}, uuid.Nil, false
@@ -67,9 +68,17 @@ func (h HTTP) request(c *gin.Context) (authn.Principal, f.SourceScope, uuid.UUID
 			return p, f.SourceScope{}, uuid.Nil, false
 		}
 	}
-	if c.Request.URL.RawQuery != "" {
+	if c.Request.URL.RawQuery != "" && (len(list) == 0 || !list[0]) {
 		respond.BadRequest(c, errors.New("fulfilment commands do not accept query parameters"))
 		return p, f.SourceScope{}, uuid.Nil, false
+	}
+	if len(list) > 0 && list[0] {
+		for key, values := range c.Request.URL.Query() {
+			if (key != "limit" && key != "cursor") || len(values) != 1 || values[0] == "" {
+				respond.BadRequest(c, f.ErrInvalid)
+				return p, f.SourceScope{}, uuid.Nil, false
+			}
+		}
 	}
 	org, ok := id(c, h.OrganizationParam)
 	if !ok {
@@ -83,9 +92,12 @@ func (h HTTP) request(c *gin.Context) (authn.Principal, f.SourceScope, uuid.UUID
 	if !ok {
 		return p, f.SourceScope{}, uuid.Nil, false
 	}
-	allocation, ok := id(c, "allocation")
-	if !ok {
-		return p, f.SourceScope{}, uuid.Nil, false
+	allocation := uuid.Nil
+	if len(list) == 0 || !list[0] {
+		allocation, ok = id(c, "allocation")
+		if !ok {
+			return p, f.SourceScope{}, uuid.Nil, false
+		}
 	}
 	tenant, err := uuid.Parse(p.TenantID)
 	if err != nil {

@@ -45,6 +45,7 @@ export const ProposalInputContract = z
       "supply.department_goods_receiver.v1",
       "supply.department_goods_reviewer.v1",
       "supply.department_goods_pharmacy_fulfiller.v1",
+      "supply.department_goods_pharmacy_acceptor.v1",
     ]),
     reason: z
       .string()

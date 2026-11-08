@@ -43,15 +43,15 @@ explicit tenant-visibility policies, directed-projection provenance and stale
 migration fixtures. All of these gates must pass on the final commit. The owner
 allocation fixture now creates real warehouse receipts with independent identity
 and quality review, and real released pharmacy batches; it includes cancellation
-rollback/replay checks. This fixture still requires successful CI execution.
+rollback/replay checks. Both owners’ allocation, original recovery and cancellation fixture passed CI at 198952a4. The receiving correction fixture then exposed a receiving-head audit trigger that assumed an id column; receiving heads use shipment_id. The owner-local audit trigger now preserves this identity, and the correction fixture asserts committed audit and outbox counts. Its latest CI rerun remains pending.
 
 Still required before completing this slice:
 
 - Real IAM/Workforce-positive and negative admission tests for independent and
   hospital-owned supplier staff, both owners' physical dispatch, stock-sale
   competition, broker replay/outage recovery, receiving and quarantine release.
-- Independently reviewed receiving corrections with history, summary-version
-  checks and stock-custody constraints.
+- Successful CI and owner-API acceptance of the implemented independently reviewed
+  receiving corrections, history, version and quarantine-custody constraints.
 - Scoped order/allocation/shipment discovery, strict workflow SDK, usable supplier
   and hospital workspaces, and real browser acceptance tests.
 - Green final CI and local builds, merge, then separately recorded Kargo rollout
@@ -59,3 +59,27 @@ Still required before completing this slice:
 
 Financial posting, payment and invoice integration remain outside this narrowed
 fulfilment/receiving slice. This document does not assert regulatory approval.
+
+### Scoped discovery checkpoint
+
+Buyer orders now have department/outlet pages; independent suppliers have exact
+product/organization/location pages and exact order/command paths. Hospital-owned
+pharmacy sources use explicit hospital/department/pharmacy/outlet paths, current
+Staff/department permissions and Pharma owner governance for every returned order.
+Allocation pages stay in the selected physical stock owner and order. Limits are
+50; signed continuations bind subject, route, every resource parameter and filters.
+Every page reauthorizes and records the sensitive list read. Commands continue to
+reject query strings and recover immutable actor-bound evidence.
+
+IAM 0046 adds a separate department pharmacy commercial reviewer for supplier
+acceptance and receiving reconciliation. The fulfiller template retains physical
+stock authority without commercial acceptance; the reviewer cannot move stock.
+Historical template migrations remain unchanged.
+
+At this checkpoint native cursor isolation, malformed source response, source
+fixture, migration IDs and pagination/permission architecture assertions passed.
+The template-history suite passed 107 tests and access-inventory suite 15 tests;
+contract generators/checks, API typechecking, Go build/vet and affected lint passed.
+Database/API discovery and allocation continuation assertions run in CI. Shipment
+and receiving discovery, strict fulfilment client, usable workspaces and full
+positive API/browser acceptance remain required. No merge or deployment is claimed.

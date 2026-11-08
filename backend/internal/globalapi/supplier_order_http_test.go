@@ -58,6 +58,22 @@ func TestSupplierOrderHTTPRejectsChangedContextMalformedCommandsAndUnavailableOw
 	for _, path := range []string{buyer + "/commands/" + command, seller + "/commands/" + command} {
 		cases = append(cases, requestCase{name: "invalid command " + path, method: "GET", path: strings.Replace(path, command, uuid.NewString(), 1), status: 404})
 	}
+
+	buyerList := strings.TrimSuffix(buyer, "/"+order)
+	sourceList := "/v1/supply/stock-owners/pharmacy/organizations/" + outlet + "/locations/" + outlet + "/supplier-orders"
+	hospitalList := "/v1/supply/hospitals/" + hospital + "/departments/" + department + "/pharmacies/" + outlet + "/outlets/" + outlet + "/supplier-orders"
+	for _, list := range []string{buyerList, sourceList, hospitalList} {
+		cases = append(cases,
+			requestCase{name: "list authority outage " + list, method: "GET", path: list + "?limit=1", status: 503},
+			requestCase{name: "list bounds " + list, method: "GET", path: list + "?limit=51", status: 400},
+			requestCase{name: "list cursor " + list, method: "GET", path: list + "?cursor=invalid", status: 400},
+			requestCase{name: "list unknown filter " + list, method: "GET", path: list + "?scope=other", status: 400},
+			requestCase{name: "list duplicate limit " + list, method: "GET", path: list + "?limit=1&limit=2", status: 400},
+		)
+	}
+	for _, root := range []string{sourceList, hospitalList} {
+		cases = append(cases, requestCase{name: "explicit source authority outage " + root, method: "GET", path: root + "/" + order, status: 503})
+	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			req := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body))

@@ -439,6 +439,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/creation-receipt` | `public` | false | false |
 | GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation` | `public` | false | false |
 | PUT | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation` | `public` | false | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations` | `public` | true | false |
 | GET | `/v1/pharmacy/hospitals/:hospital/staff-binding-outlet-choices` | `pharmacy.staff_binding.read` | true | false |
 | GET | `/v1/pharmacy/insights` | `pharmacy.dispense.read` | false | false |
 | GET | `/v1/pharmacy/medications` | `pharmacy.medication.read` | true | false |
@@ -577,6 +578,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/creation-receipt` | `public` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation` | `public` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation` | `public` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations` | `public` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations/in-force` | `pharmacy.tax.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations` | `pharmacy.tax.manage` | true | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations` | `pharmacy.tax.manage` | false | false |
@@ -830,6 +832,13 @@ Source: [backend/internal/modules/supply/module.go](../../../backend/internal/mo
 | GET | `/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order/proposal-receipt` | `public` | false | false |
 | GET | `/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order` | `public` | false | false |
 | PUT | `/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order` | `public` | false | false |
+| GET | `/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders` | `public` | true | false |
+| GET | `/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/commands/:command` | `public` | false | false |
+| PUT | `/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/commands/:command` | `public` | false | false |
+| PUT | `/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/shipments/:shipment/receiving/responses/:response` | `public` | false | false |
+| GET | `/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/shipments/:shipment/receiving` | `public` | false | false |
+| GET | `/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order` | `public` | false | false |
+| GET | `/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders` | `public` | true | false |
 | GET | `/v1/supply/parties/:party/access-limits/revisions` | `supply.party.access.manage` | true | false |
 | GET | `/v1/supply/parties/:party/access-limits` | `supply.party.access.manage` | false | false |
 | PUT | `/v1/supply/parties/:party/access-limits` | `supply.party.access.manage` | false | false |
@@ -875,6 +884,7 @@ Source: [backend/internal/modules/supply/module.go](../../../backend/internal/mo
 | GET | `/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation/creation-receipt` | `public` | false | false |
 | GET | `/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation` | `public` | false | false |
 | PUT | `/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation` | `public` | false | false |
+| GET | `/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations` | `public` | true | false |
 | GET | `/v1/supply/parties/:party/operating-locations/:premise` | `supply.operations.read` | false | false |
 | GET | `/v1/supply/parties/:party/operating-locations` | `supply.operations.read` | true | false |
 | GET | `/v1/supply/parties/:party/platform-identity` | `supply.party.read` | false | false |
@@ -914,6 +924,12 @@ Source: [backend/internal/modules/supply/module.go](../../../backend/internal/mo
 | GET | `/v1/supply/relationships/:relationship/proposal-receipt` | `supply.trade_relationship.read` | false | false |
 | GET | `/v1/supply/relationships/:relationship` | `supply.trade_relationship.read` | false | false |
 | PUT | `/v1/supply/relationships/:relationship` | `supply.trade_relationship.prepare` | false | false |
+| GET | `/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/commands/:command` | `public` | false | false |
+| PUT | `/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/commands/:command` | `public` | false | false |
+| PUT | `/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/shipments/:shipment/receiving/responses/:response` | `public` | false | false |
+| GET | `/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/shipments/:shipment/receiving` | `public` | false | false |
+| GET | `/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order` | `public` | false | false |
+| GET | `/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders` | `public` | true | false |
 | GET | `/v1/supply/supplier-orders/:order/commands/:command` | `public` | false | false |
 | PUT | `/v1/supply/supplier-orders/:order/commands/:command` | `public` | false | false |
 | PUT | `/v1/supply/supplier-orders/:order/shipments/:shipment/receiving/responses/:response` | `public` | false | false |

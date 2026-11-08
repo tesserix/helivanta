@@ -20,6 +20,7 @@ import (
 
 func purchaseOrderRoutes(r *platform.Router, deps platform.Deps) {
 	h := &purchaseOrderHandlers{db: deps.DB, bus: deps.Bus, authority: deps.ScopedAuthorizer, actors: deps.PurchaseOrderActors, departments: deps.DepartmentScopes, operating: deps.OperatingAuthorizer, relationships: deps.TradingRelationships, endpoints: deps.TradingEndpoints, products: deps.OrderProducts}
+	registerOrderLists(r, h)
 	buyer := "/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order"
 	r.PUT(buyer, authz.Public, h.prepareBuyer)
 	r.GET(buyer, authz.Public, h.getBuyer)
@@ -31,7 +32,7 @@ func purchaseOrderRoutes(r *platform.Router, deps platform.Deps) {
 	r.PUT(source+"/commands/:command", authz.Public, h.decideSeller)
 	r.GET(source+"/commands/:command", authz.Public, h.getSellerCommand)
 }
-func purchaseOrderPrincipal(c *gin.Context) (authn.Principal, bool) {
+func purchaseOrderPrincipal(c *gin.Context, list ...bool) (authn.Principal, bool) {
 	c.Header("Cache-Control", "no-store")
 	if !authn.Refresh(c) {
 		return authn.Principal{}, false
@@ -47,7 +48,7 @@ func purchaseOrderPrincipal(c *gin.Context) (authn.Principal, bool) {
 			return p, false
 		}
 	}
-	if c.Request.URL.RawQuery != "" {
+	if c.Request.URL.RawQuery != "" && (len(list) == 0 || !list[0]) {
 		respond.BadRequest(c, supplierorder.ErrInvalid)
 		return p, false
 	}
@@ -93,6 +94,9 @@ func decodePurchaseOrder(c *gin.Context, into any) bool {
 	return true
 }
 func purchaseOrderError(c *gin.Context, err error) {
+	if c.IsAborted() {
+		return
+	}
 	var pg *pgconn.PgError
 	switch {
 	case errors.Is(err, authz.ErrScopedCredentialRevoked):
@@ -164,7 +168,7 @@ func (h *purchaseOrderHandlers) getSeller(c *gin.Context) {
 	if !ok {
 		return
 	}
-	scope, err := h.lookupSeller(c.Request.Context(), p, id)
+	scope, err := h.sellerRequestScope(c, p, id)
 	if err != nil {
 		purchaseOrderError(c, err)
 		return
@@ -197,7 +201,7 @@ func (h *purchaseOrderHandlers) getSellerCommand(c *gin.Context) {
 	if !ok {
 		return
 	}
-	scope, err := h.lookupSeller(c.Request.Context(), p, id)
+	scope, err := h.sellerRequestScope(c, p, id)
 	if err != nil {
 		purchaseOrderError(c, err)
 		return

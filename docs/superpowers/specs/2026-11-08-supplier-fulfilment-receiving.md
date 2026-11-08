@@ -136,3 +136,20 @@ or changed custody is 409, and unavailable authority fails closed with 503.
 precondition for existing clients; new workspaces supply it. The canonical models
 remain in `contracts/supplier-fulfilment.json`. This is operational recounting,
 not legal certification, a supplier return, disposal or a financial reversal.
+
+## Staff discovery and source commercial authority
+
+Order lists bind the verified buyer department/outlet or independent source
+product/organization/location. Hospital pharmacy sources use an explicit hospital,
+department, pharmacy and outlet route and the current Pharma department owner
+guard. Allocation lists stay under the actual stock owner and exact order. Pages
+are bounded to 50 and cursor continuation is bound to subject, route, all resource
+parameters and filters. Every page reauthorizes and audits the sensitive read.
+
+Hospital source acceptance and discrepancy responses use the separate department
+pharmacy commercial reviewer template introduced by IAM 0046. This template has
+supplier order read/accept, receiving response and current Staff purposes. It
+confers no physical stock commitment; the department pharmacy fulfiller retains
+that separate responsibility. Ordinary supplier receiving readers see immutable
+receipts from other authorized colleagues; retrying a recording command remains
+bound to its original subject and Staff identity.

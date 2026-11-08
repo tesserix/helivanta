@@ -23,6 +23,7 @@ CREATE TABLE supply_supplier_allocations(
  CHECK((body#>>'{plan,input,expires_at}')::timestamptz=expires_at AND(body#>>'{plan,created_at}')::timestamptz=created_at AND(body->>'updated_at')::timestamptz=updated_at)
 );
 CREATE INDEX ON supply_supplier_allocations(tenant_id,order_id,line_id);
+CREATE INDEX ON supply_supplier_allocations(tenant_id,organization_id,location_id,order_id,created_at DESC,id DESC);
 CREATE INDEX ON supply_supplier_allocations(tenant_id,organization_id,location_id,created_at DESC,id DESC);
 ALTER TABLE supply_supplier_allocations ENABLE ROW LEVEL SECURITY;ALTER TABLE supply_supplier_allocations FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON supply_supplier_allocations USING(hms_tenant_visible(tenant_id)AND supply_supplier_scope(tenant_id,organization_id,location_id,id,order_id,false))WITH CHECK(supply_supplier_scope(tenant_id,organization_id,location_id,id,order_id,true)AND actor_subject=current_setting('app.actor_subject',true));

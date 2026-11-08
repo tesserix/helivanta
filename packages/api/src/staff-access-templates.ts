@@ -391,6 +391,21 @@ export const staffAccessTemplates = [
     scope_kinds: ["department"],
     establishment_kinds: ["hospital"],
   },
+  {
+    key: "supply.department_goods_pharmacy_acceptor.v1",
+    name: "Hospital pharmacy supplier order reviewer",
+    description:
+      "Accept or reject supplier orders and reconcile hospital receiving evidence for this department’s governed pharmacy outlet; no physical stock, prescribing or financial authority.",
+    family: "supplier_receiving",
+    permissions: [
+      "supply.receiving_response.record",
+      "supply.supplier_order.accept",
+      "supply.supplier_order.read",
+      "workforce.purchase_order_actor.use",
+    ],
+    scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
+  },
 ] as const;
 export const staffAccessTemplateCatalogs = {
   "legacy-v1": [
@@ -537,4 +552,5 @@ export const staffAccessTemplateCatalogs = {
     "supply.department_goods_reviewer.v1",
     "supply.department_goods_pharmacy_fulfiller.v1",
   ],
+  "department-supplier-commercial-v1": ["supply.department_goods_pharmacy_acceptor.v1"],
 } as const;

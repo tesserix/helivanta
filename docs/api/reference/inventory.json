@@ -1077,6 +1077,11 @@
           "id": "0045_iam_supplier_receiving_templates",
           "sql_sha256": "9b3678c4bd177dd0ee98ea455ac4bdd6463b744dad522d246ae0bfc37558ab1d",
           "creates_tables": []
+        },
+        {
+          "id": "0046_iam_supplier_acceptance_templates",
+          "sql_sha256": "bdcb68a24ffe6041c92db8c1b7e57687106b9a5b877a056cab2a43d018a15672",
+          "creates_tables": []
         }
       ]
     },
@@ -2999,6 +3004,15 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "scope_kind": "hospital",
           "scope_parameter": "hospital",
           "method": "GET",
@@ -4256,6 +4270,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations/in-force",
           "permission": "pharmacy.tax.manage",
           "authentication_required": true,
@@ -5064,7 +5087,7 @@
         },
         {
           "id": "0039_pharmacy_supplier_fulfilment",
-          "sql_sha256": "3e601e8b9649e9fbbd9fef52dfc451da02898ce6bc1afc0b4f7b87cf0a3b1974",
+          "sql_sha256": "d9957c8b5cecc58403212504a2890d4f6ac74a309599cdcf703074ec2543dc7d",
           "creates_tables": [
             "pharmacy_supplier_allocations",
             "pharmacy_supplier_holds",
@@ -6107,6 +6130,69 @@
         },
         {
           "method": "GET",
+          "path": "/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/shipments/:shipment/receiving/responses/:response",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/shipments/:shipment/receiving",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/supply/parties/:party/access-limits/revisions",
           "permission": "supply.party.access.manage",
           "authentication_required": true,
@@ -6512,6 +6598,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/supply/parties/:party/operating-locations/:premise",
           "permission": "supply.operations.read",
           "authentication_required": true,
@@ -6859,6 +6954,60 @@
           "authentication_required": true,
           "membership_required": true,
           "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/shipments/:shipment/receiving/responses/:response",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/shipments/:shipment/receiving",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
           "counted": false
         },
         {
@@ -7442,7 +7591,7 @@
         },
         {
           "id": "0016_supply_supplier_fulfilment",
-          "sql_sha256": "f720611ed2a9a82c3f8e36d6ee56b56814a3c692698b59cad0a9724858661134",
+          "sql_sha256": "7a0e038414b31d8294ac186e84a08a16dca3c595178cbe6ce0cb1ecaeb5d0606",
           "creates_tables": [
             "supply_supplier_allocations",
             "supply_supplier_holds",

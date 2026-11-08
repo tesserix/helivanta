@@ -15,6 +15,7 @@ import (
 	"github.com/tesserix/helivanta/internal/supplierstock"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/stockproduct"
 	f "github.com/tesserix/helivanta/pkg/supplierfulfilment"
 	"github.com/tesserix/helivanta/pkg/supplierorder"
@@ -146,6 +147,25 @@ func TestOwnerAllocationBudgetsSerializeAndRecoverOriginalIntent(t *testing.T) {
 				_, err = store.Original(tx, tenant, created.Plan.ID, in, supplierorder.Actor{Subject: actor.Subject, StaffID: uuid.New()})
 				require.ErrorIs(t, err, f.ErrConflict)
 				return nil
+			}))
+
+			require.NoError(t, run(t.Context(), func(tx *gorm.DB) error {
+				scope := f.SourceScope{TenantID: tenant, OrderID: order.ID, OrganizationID: order.Terms.Seller.OrganizationID, LocationID: order.Terms.Seller.LocationID, Product: string(owner)}
+				rows, err := store.List(tx, scope, pagination.Params{Limit: 1})
+				if err != nil {
+					return err
+				}
+				require.Len(t, rows, 1)
+				require.Equal(t, created.Plan.ID, rows[0].Plan.ID)
+				next, err := store.List(tx, scope, pagination.Params{Limit: 1, After: &pagination.Cursor{TenantID: tenant.String(), ID: rows[0].Plan.ID, CreatedAt: rows[0].Plan.CreatedAt}})
+				if err != nil {
+					return err
+				}
+				require.Empty(t, next)
+				scope.OrderID = uuid.Must(uuid.NewV7())
+				rows, err = store.List(tx, scope, pagination.Params{Limit: 1})
+				require.Empty(t, rows)
+				return err
 			}))
 			rollback := errors.New("TEST dependency failed before commit")
 			next := in

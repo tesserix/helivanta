@@ -28,6 +28,11 @@ func supplierResponseRoutes(r *platform.Router, deps platform.Deps) {
 	base := "/supplier-orders/:order/shipments/:shipment/receiving"
 	r.GET(base, authz.Public, h.getSupplierReceiving)
 	r.PUT(base+"/responses/:response", authz.Public, h.respondReceiving)
+	for _, root := range []string{"/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders", "/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders"} {
+		path := root + "/:order/shipments/:shipment/receiving"
+		r.GET(path, authz.Public, h.getSupplierReceiving)
+		r.PUT(path+"/responses/:response", authz.Public, h.respondReceiving)
+	}
 }
 func (h *purchaseOrderHandlers) getSupplierReceiving(c *gin.Context) {
 	p, ok := purchaseOrderPrincipal(c)
@@ -42,7 +47,7 @@ func (h *purchaseOrderHandlers) getSupplierReceiving(c *gin.Context) {
 	if !ok {
 		return
 	}
-	scope, err := h.lookupSeller(c.Request.Context(), p, id)
+	scope, err := h.sellerRequestScope(c, p, id)
 	if err != nil {
 		purchaseOrderError(c, err)
 		return
@@ -86,7 +91,7 @@ func (h *purchaseOrderHandlers) respondReceiving(c *gin.Context) {
 		purchaseOrderError(c, supplierorder.ErrInvalid)
 		return
 	}
-	scope, err := h.lookupSeller(c.Request.Context(), p, id)
+	scope, err := h.sellerRequestScope(c, p, id)
 	if err != nil {
 		purchaseOrderError(c, err)
 		return

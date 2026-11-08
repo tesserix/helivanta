@@ -25,7 +25,7 @@ import (
 )
 
 func TestSupplierReceivingCorrectionRepositoryRetainsEvidenceAndRollsBackCustodyFailures(t *testing.T) {
-	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"receiver": testutil.TenantA}, Perms: map[string][]authz.Permission{"receiver": {pharmacy.PermCatalogueRead, pharmacy.PermCatalogueWrite, pharmacy.PermAccessManage, pharmacy.PermStockRead, pharmacy.PermStockReceive}}, Modules: []platform.Module{pharmacy.New()}})
+	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"receiver": testutil.TenantA}, Perms: map[string][]authz.Permission{"receiver": {pharmacy.PermCatalogueRead, pharmacy.PermCatalogueWrite, pharmacy.PermAccessManage, pharmacy.PermStockRead, pharmacy.PermStockReceive, pharmacy.PermStockCorrect}}, Modules: []platform.Module{pharmacy.New()}})
 	id := func() uuid.UUID { return uuid.Must(uuid.NewV7()) }
 	tenant := uuid.MustParse(testutil.TenantA)
 	org, outlet, product, q := id(), id(), id(), id()
@@ -171,7 +171,7 @@ func TestSupplierReceivingCorrectionRepositoryRetainsEvidenceAndRollsBackCustody
 		return nil
 	}))
 	require.NoError(t, closeReceiving(3))
-	call(root+"/stock/movements/"+id().String(), fmt.Sprintf(`{"location_id":%q,"batch_id":%q,"kind":"correction","quantity_units":-1,"reason":"TEST physical adjustment","source_reference":"TEST-adjustment"}`, q, *original.Input.DestinationBatchID))
+	call(root+"/stock/corrections/"+id().String(), fmt.Sprintf(`{"location_id":%q,"batch_id":%q,"kind":"correction","quantity_units":-1,"reason":"TEST physical adjustment","source_reference":"TEST-adjustment"}`, q, *original.Input.DestinationBatchID))
 	input.ExpectedSummaryVersion = 4
 	input.ExpectedReceiptVersion = 2
 	input.CountedUnits = 27

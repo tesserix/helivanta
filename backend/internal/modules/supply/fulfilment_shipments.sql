@@ -17,16 +17,20 @@ CREATE TABLE supply_supplier_dispatched_shipments(
  CHECK(body->>'id'IS NOT DISTINCT FROM id::text AND body->>'order_id'IS NOT DISTINCT FROM order_id::text AND body->>'source_tenant_id'IS NOT DISTINCT FROM tenant_id::text AND body->>'buyer_tenant_id'IS NOT DISTINCT FROM buyer_tenant_id::text)
 );
 ALTER TABLE supply_supplier_dispatched_shipments ENABLE ROW LEVEL SECURITY;ALTER TABLE supply_supplier_dispatched_shipments FORCE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation ON supply_supplier_dispatched_shipments USING(hms_tenant_visible(tenant_id)AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid AND current_setting('app.supply_order_mode',true)='exchange'AND order_id=NULLIF(current_setting('app.supply_order_id',true),'')::uuid AND buyer_tenant_id::text=current_setting('app.supply_order_origin',true))WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid AND current_setting('app.supply_order_mode',true)='exchange'AND order_id=NULLIF(current_setting('app.supply_order_id',true),'')::uuid AND buyer_tenant_id::text=current_setting('app.supply_order_origin',true)AND current_setting('app.actor_subject',true)='system:supplier-shipments');
+CREATE POLICY tenant_isolation ON supply_supplier_dispatched_shipments USING(
+ hms_tenant_visible(tenant_id)AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid
+ AND(
+  current_setting('app.supply_order_mode',true)='exchange'
+    AND order_id=NULLIF(current_setting('app.supply_order_id',true),'')::uuid
+    AND buyer_tenant_id::text=current_setting('app.supply_order_origin',true)
+  OR current_setting('app.supply_order_mode',true)IN('seller_read','seller_write')
+    AND body#>>'{product,owner}'=current_setting('app.supply_order_product',true)
+    AND body->>'source_organization_id'=current_setting('app.supply_order_organization',true)
+    AND body->>'source_location_id'=current_setting('app.supply_order_location',true)
+ )
+)WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid AND current_setting('app.supply_order_mode',true)='exchange'AND order_id=NULLIF(current_setting('app.supply_order_id',true),'')::uuid AND buyer_tenant_id::text=current_setting('app.supply_order_origin',true)AND current_setting('app.actor_subject',true)='system:supplier-shipments');
 CREATE INDEX ON supply_supplier_dispatched_shipments(tenant_id,order_id,id);
 CREATE TRIGGER supply_supplier_dispatched_immutable BEFORE UPDATE OR DELETE OR TRUNCATE ON supply_supplier_dispatched_shipments FOR EACH STATEMENT EXECUTE FUNCTION supply_history_immutable();
 CREATE TRIGGER supply_supplier_dispatched_audit AFTER INSERT ON supply_supplier_dispatched_shipments FOR EACH ROW EXECUTE FUNCTION audit_record_change();
 
-CREATE POLICY supplier_source_read ON supply_supplier_dispatched_shipments FOR SELECT USING(
- hms_tenant_visible(tenant_id)AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid
- AND current_setting('app.supply_order_mode',true)IN('seller_read','seller_write')
- AND body#>>'{product,owner}'=current_setting('app.supply_order_product',true)
- AND body->>'source_organization_id'=current_setting('app.supply_order_organization',true)
- AND body->>'source_location_id'=current_setting('app.supply_order_location',true)
-);
 CREATE INDEX ON supply_supplier_dispatched_shipments(tenant_id,order_id,created_at DESC,id DESC);

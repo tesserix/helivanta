@@ -25,7 +25,7 @@ CREATE TABLE supply_supplier_allocations(
 CREATE INDEX ON supply_supplier_allocations(tenant_id,order_id,line_id);
 CREATE INDEX ON supply_supplier_allocations(tenant_id,organization_id,location_id,created_at DESC,id DESC);
 ALTER TABLE supply_supplier_allocations ENABLE ROW LEVEL SECURITY;ALTER TABLE supply_supplier_allocations FORCE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation ON supply_supplier_allocations USING(supply_supplier_scope(tenant_id,organization_id,location_id,id,order_id,false))WITH CHECK(supply_supplier_scope(tenant_id,organization_id,location_id,id,order_id,true)AND actor_subject=current_setting('app.actor_subject',true));
+CREATE POLICY tenant_isolation ON supply_supplier_allocations USING(hms_tenant_visible(tenant_id)AND supply_supplier_scope(tenant_id,organization_id,location_id,id,order_id,false))WITH CHECK(supply_supplier_scope(tenant_id,organization_id,location_id,id,order_id,true)AND actor_subject=current_setting('app.actor_subject',true));
 CREATE TABLE supply_supplier_holds(
  tenant_id uuid NOT NULL,allocation_id uuid NOT NULL,organization_id uuid NOT NULL,location_id uuid NOT NULL,stock_id uuid NOT NULL,stock_location_id uuid NOT NULL,reserved_units bigint NOT NULL CHECK(reserved_units BETWEEN 0 AND 1000000000),expires_at timestamptz NOT NULL,
  PRIMARY KEY(tenant_id,allocation_id),FOREIGN KEY(tenant_id,allocation_id,organization_id,location_id,stock_id,stock_location_id,expires_at)REFERENCES supply_supplier_allocations(tenant_id,id,organization_id,location_id,stock_id,stock_location_id,expires_at)ON DELETE RESTRICT

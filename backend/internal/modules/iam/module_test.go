@@ -1,6 +1,8 @@
 package iam_test
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -15,9 +17,12 @@ func TestMigrationIDIsPhaseScoped(t *testing.T) {
 	for i, migration := range migs {
 		ids[i] = migration.ID
 	}
-	require.Len(t, ids, 43)
+	require.Len(t, ids, 45)
 	require.Equal(t, "0042_iam_purchase_order_templates", migs[41].ID)
 	require.Equal(t, "0043_iam_order_operating_templates", migs[42].ID)
+	require.Equal(t, "0044_iam_fulfilment_operating_templates", migs[43].ID)
+	require.Equal(t, "0045_iam_supplier_receiving_templates", migs[44].ID)
+	require.Equal(t, "0432bdd5d479ab23cdaccbe033fe76d5f896e91be1c433f423e92da0d33e4d1c", fmt.Sprintf("%x", sha256.Sum256([]byte(migs[42].SQL))), "the published operating-template migration must remain byte-for-byte immutable")
 	require.Equal(t, "0041_iam_stock_quality_template", migs[40].ID)
 	require.NotEmpty(t, migs[40].SQL)
 	require.Equal(t, "0038_iam_operating_duties", migs[37].ID)

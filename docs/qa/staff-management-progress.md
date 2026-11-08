@@ -1,5 +1,61 @@
 # Staff Management delivery tracker
 
+## Pharmacy Staff documents (#19 slice 4d) — 2026-11-08
+
+A standalone pharmacy employer now keeps the HR files of its own Staff:
+identity and employment evidence on the enrollment, and evidence on recorded
+credentials and qualifications (ADR-0054). See the
+[spec](../superpowers/specs/2026-11-08-pharmacy-hr-lifecycle.md) and the
+[plan](../superpowers/plans/2026-11-08-pharmacy-documents.md).
+
+- Under `/v1/workforce/pharmacies/:pharmacy/staff/:id`, the routes for record
+  choices, list, intent, upload, download, revocation and scan retry require
+  `workforce.documents.manage` and a `manager` row for that pharmacy.
+  Responses name `pharmacy_id` and no `hospital_id`.
+- Migration `0098_workforce_pharmacy_documents` admits a pharmacy on
+  `workforce_documents` for `enrollment`, `credential` and `qualification`
+  only. Contributor rows stay on the enrollment guard. Classification
+  revisions get a direct hospital guard, because a cleared classification
+  names no HR master revision. The guard inventory caught this case.
+- Hospital document gates now require the hospital kind, so a hospital route
+  on an ID registered as a pharmacy after admission answers 404 and writes
+  nothing.
+- Defect fixed: a tax declaration or benefits evidence scan retry carrying
+  `?hr_intake=v1` ran in the HR intake transaction. It now runs in the Staff
+  document transaction, as without the query.
+- These callers get 404 on every route: a reader, a caller with no access row,
+  a foreign tenant, a hospital, supplier or unregistered ID, and a hospital
+  Staff, record or file under the pharmacy family (and the reverse). A caller
+  without the permission gets 403, `hr_intake` gets 400, a missing or changed
+  expected account gets 409 `session_changed`, and no storage gets 503
+  `documents_unavailable` with no intent written.
+- Scan events and object keys keep `hospital_id`, which names the owning
+  establishment row. Download audit rows carry the pharmacy ID.
+- In the shell, a pharmacy manager with the permission sees a Documents action
+  on each Staff record. It opens the shared document workspace without
+  classification or HR intake. A 401, 403 or 404 clears the source and shows
+  "Your account or Staff access changed".
+
+**Evidence.**
+
+- Seven new backend tests pass against Postgres testcontainers: three
+  pharmacy route tests, the establishment-kind document guard, the gate race
+  test, and the two intake-query retry regressions. Each one, and the guard
+  inventory, failed before its code. The guard test also fails without the
+  classification trigger alone, admitting the cleared classification row.
+- The full workforce document, classification, evidence and intake suites
+  pass unchanged.
+- `lint-go`, `go build`, `go vet` and `contractdocs -check` pass, and so do the
+  workforce documents generator check and the operational-access inventory
+  check.
+- 6 new SDK tests and 4 new pharmacy Staff source tests pass. Shell Vitest (996
+  tests) and `pnpm turbo lint type-check test build format:check` are green.
+
+File classification, identity review, employment evidence and credential
+review for a pharmacy, slices 4b, 4c, 4e and 4f, slice 5, and deployed runtime
+and real OIDC browser acceptance remain open. Counts are unchanged at
+**10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Pharmacy Staff enrollment (#19 slice 4a) — 2026-11-08
 
 A standalone pharmacy employer now keeps HR enrollment for its own Staff
@@ -43,6 +99,15 @@ and the [plan](../superpowers/plans/2026-11-08-pharmacy-enrollment.md).
   suite (620 tests) is unchanged. Removing any meaningful SDK or panel guard
   fails at least one test.
 - `pnpm turbo lint type-check test build format:check` is green.
+
+**Rollout.** Merged as #1631 (`17aefcaa`). [Release run 42472706234](https://github.com/tesserix/helivanta/actions/runs/42472706234)
+shipped it with #1630 (slice 3b-ii), #1628, #1625 and #1624, and the supply
+commits `4980728d`, `99cf6cef` and `341f67f7`. Kargo freight
+`pining-nightingale` (`5456858`) auto-promoted in Promotion
+`prod.01m6xeacvt9f1vwsnc90pf3z99.5456858`. The migrate job started 11:22:30Z
+and logged "migrations applied". Every Helivanta deployment runs the
+`17aefcaa` digests with ready pods, and the prod stage is Ready, Healthy and
+Verified. Unauthenticated pharmacy enrollment and IAM proposal routes answer 401. This is not deployed runtime acceptance.
 
 Slices 4b to 4f, slice 5, and deployed runtime and real OIDC browser acceptance
 remain open. Counts are unchanged at **10 partial, 10 awaiting audit, 1 research,

@@ -31,6 +31,7 @@ import {
 } from "@helivanta/ui";
 import { IndependentOperatingDuties } from "@/components/workforce/independent-operating-duties";
 import { IndependentStaffLinks } from "@/components/workforce/independent-staff-links";
+import { PharmacyEnrollmentEditor } from "./pharmacy-enrollment-editor";
 import { StaffRecordForm } from "@/components/workforce/staff-record-form";
 
 const identitySchema = z.object({
@@ -196,11 +197,14 @@ function EmployerSourcePage({
 
 function Employer({ scope, onContextChanged, source }: SourceProps & { source: EmployerSource }) {
   const confirmLeave = useConfirmLeave();
+  const { can } = usePermissions();
   const [cursor, setCursor] = useState<string | null>(null);
   const [editing, setEditing] = useState<PharmacyStaff | "new" | null>(null);
+  const [enrolling, setEnrolling] = useState<PharmacyStaff | null>(null);
   const query = usePharmacyStaffPage(scope, source.pharmacy_id, cursor);
   // The access level is display only; the API checks the manager row on every write.
   const manager = source.access_level === "manager";
+  const enrolls = manager && can("workforce.enrollment.manage");
   useEffect(() => {
     if (isEnrollmentAccessChanged(query.error)) onContextChanged();
   }, [query.error, onContextChanged]);
@@ -222,20 +226,51 @@ function Employer({ scope, onContextChanged, source }: SourceProps & { source: E
         retry={() => query.refetch()}
         headerActions={
           manager && (
-            <Button onClick={() => confirmLeave(() => setEditing("new"))}>Add staff</Button>
+            <Button
+              onClick={() =>
+                confirmLeave(() => {
+                  setEnrolling(null);
+                  setEditing("new");
+                })
+              }
+            >
+              Add staff
+            </Button>
           )
         }
         rowActions={
           manager
             ? (row) => (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label={`Edit ${row.display_name}`}
-                  onClick={() => confirmLeave(() => setEditing(row))}
-                >
-                  Edit
-                </Button>
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Edit ${row.display_name}`}
+                    onClick={() =>
+                      confirmLeave(() => {
+                        setEnrolling(null);
+                        setEditing(row);
+                      })
+                    }
+                  >
+                    Edit
+                  </Button>
+                  {enrolls && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Enrollment for ${row.display_name}`}
+                      onClick={() =>
+                        confirmLeave(() => {
+                          setEditing(null);
+                          setEnrolling(row);
+                        })
+                      }
+                    >
+                      Enrollment
+                    </Button>
+                  )}
+                </>
               )
             : undefined
         }
@@ -252,6 +287,15 @@ function Employer({ scope, onContextChanged, source }: SourceProps & { source: E
           {...{ scope, onContextChanged, source }}
           staff={editing === "new" ? undefined : editing}
           onClose={() => setEditing(null)}
+        />
+      )}
+      {enrolls && enrolling && (
+        <PharmacyEnrollmentEditor
+          key={enrolling.id}
+          {...{ scope, onContextChanged }}
+          pharmacy={source}
+          staff={enrolling}
+          onClose={() => setEnrolling(null)}
         />
       )}
     </>

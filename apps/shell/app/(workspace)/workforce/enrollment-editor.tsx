@@ -35,6 +35,7 @@ import {
   EMPTY_EXPERIENCES,
   JOB_LABELS,
   type HRMaster,
+  type UseApiPagedQueryResult,
   type EnrollmentInput,
   type StaffEnrollment,
   type Hospital,
@@ -150,31 +151,18 @@ export function EnrollmentEditor({
       </div>
     );
   const value: EnrollmentInput = query.data
-    ? {
-        profile: { ...EMPTY_ENROLLMENT.profile, ...query.data.profile },
-        addresses: query.data.addresses,
-        emergency_contacts: query.data.emergency_contacts,
-        credentials: query.data.credentials,
-        qualifications: query.data.qualifications,
-        experiences: query.data.experiences,
-        staff: {
-          display_name: query.data.staff.display_name,
-          employee_code: query.data.staff.employee_code,
-          job_category: query.data.staff.job_category,
-          employment_status: query.data.staff.employment_status,
-        },
-        expected_version: query.data.version,
-      }
+    ? enrollmentInputFrom(query.data)
     : scope.hrIntake === true
       ? { ...EMPTY_ENROLLMENT, staff: { ...EMPTY_ENROLLMENT.staff, employment_status: "inactive" } }
       : EMPTY_ENROLLMENT;
   return (
-    <EnrollmentForm
+    <HospitalEnrollmentForm
       key={`${id}:${reload}`}
       hospital={hospital}
       scope={scope}
       onContextChanged={onContextChanged}
       path={path}
+      self={id}
       editing={!!staff}
       value={value}
       onClose={onClose}
@@ -183,9 +171,40 @@ export function EnrollmentEditor({
   );
 }
 
-function EnrollmentForm({
+/** enrollmentInputFrom turns a read enrollment into the draft whose expected_version guards its save. */
+export function enrollmentInputFrom(
+  document: Pick<
+    StaffEnrollment,
+    | "profile"
+    | "addresses"
+    | "emergency_contacts"
+    | "credentials"
+    | "qualifications"
+    | "experiences"
+    | "version"
+  > & { staff: Pick<Staff, "display_name" | "employee_code" | "job_category" | "employment_status"> },
+): EnrollmentInput {
+  return {
+    profile: { ...EMPTY_ENROLLMENT.profile, ...document.profile },
+    addresses: document.addresses,
+    emergency_contacts: document.emergency_contacts,
+    credentials: document.credentials,
+    qualifications: document.qualifications,
+    experiences: document.experiences,
+    staff: {
+      display_name: document.staff.display_name,
+      employee_code: document.staff.employee_code,
+      job_category: document.staff.job_category,
+      employment_status: document.staff.employment_status,
+    },
+    expected_version: document.version,
+  };
+}
+
+function HospitalEnrollmentForm({
   hospital,
   path,
+  self,
   editing,
   value,
   onClose,
@@ -197,14 +216,12 @@ function EnrollmentForm({
   scope: EnrollmentRequestScope;
   onContextChanged: () => void;
   path: string;
+  self: string;
   editing: boolean;
   value: EnrollmentInput;
   onClose: () => void;
   onReload: () => void;
 }) {
-  const form = useZodForm(enrollmentSchema, value);
-  const firstAddressUse = form.watch("addresses.0.use") ?? "current";
-  const [confirmReload, setConfirmReload] = useState(false);
   const supervisors = useApiPagedQuery<Staff>(
     [
       "workforce",
@@ -229,10 +246,78 @@ function EnrollmentForm({
     withStaffIntakeScope(`/workforce/hospitals/${hospital.id}/hr/masters`, scope),
     { gcTime: 0, request: enrollmentRequestOptions(scope) },
   );
+  const save = useApiMutation(
+    (input: EnrollmentInput) =>
+      apiFetch<StaffEnrollment>(path, {
+        ...enrollmentRequestOptions(scope),
+        method: "PUT",
+        body: JSON.stringify({
+          ...input,
+          request_context_version: ENROLLMENT_REQUEST_CONTEXT_PROJECTION.version,
+        }),
+      }),
+    {
+      invalidate: [["workforce", "staff", hospital.id]],
+      successToast: "Staff enrollment saved",
+      onSuccess: onClose,
+      suppressErrorToast: true,
+    },
+  );
+  const accessChanged = [supervisors.error, masters.error, save.error].some(
+    isEnrollmentAccessChanged,
+  );
   useEffect(() => {
-    if (isEnrollmentAccessChanged(supervisors.error) || isEnrollmentAccessChanged(masters.error))
-      onContextChanged();
-  }, [supervisors.error, masters.error, onContextChanged]);
+    if (accessChanged) onContextChanged();
+  }, [accessChanged, onContextChanged]);
+  return (
+    <EnrollmentForm
+      {...{ self, editing, value, onClose, onReload, supervisors, masters, save, accessChanged }}
+      employer={hospital.name}
+      hrIntake={scope.hrIntake === true}
+    />
+  );
+}
+
+type EnrollmentSupervisor = Pick<
+  Staff,
+  "id" | "display_name" | "employee_code" | "employment_status"
+>;
+
+/** EnrollmentForm edits one enrollment; its employer supplies the choices and the save, and no masters means free text. */
+export function EnrollmentForm({
+  employer,
+  self,
+  editing,
+  value,
+  onClose,
+  onReload,
+  hrIntake,
+  supervisors,
+  masters,
+  save,
+  accessChanged,
+}: {
+  employer: string;
+  self: string;
+  editing: boolean;
+  value: EnrollmentInput;
+  onClose: () => void;
+  onReload: () => void;
+  hrIntake: boolean;
+  supervisors: UseApiPagedQueryResult<EnrollmentSupervisor>;
+  masters: UseApiPagedQueryResult<HRMaster> | null;
+  save: {
+    mutate: (input: EnrollmentInput) => void;
+    isPending: boolean;
+    isError: boolean;
+    error: Error | null;
+  };
+  accessChanged: boolean;
+}) {
+  const form = useZodForm(enrollmentSchema, value);
+  const firstAddressUse = form.watch("addresses.0.use") ?? "current";
+  const [confirmReload, setConfirmReload] = useState(false);
+  const masterChoices = masters?.items ?? [];
   const sectionRef = useRef<HTMLElement>(null);
   const addresses = useFieldArray({
     control: form.control,
@@ -259,26 +344,6 @@ function EnrollmentForm({
     name: "experiences",
     keyName: "fieldKey",
   });
-  const save = useApiMutation(
-    (input: EnrollmentInput) =>
-      apiFetch<StaffEnrollment>(path, {
-        ...enrollmentRequestOptions(scope),
-        method: "PUT",
-        body: JSON.stringify({
-          ...input,
-          request_context_version: ENROLLMENT_REQUEST_CONTEXT_PROJECTION.version,
-        }),
-      }),
-    {
-      invalidate: [["workforce", "staff", hospital.id]],
-      successToast: "Staff enrollment saved",
-      onSuccess: onClose,
-      suppressErrorToast: true,
-    },
-  );
-  useEffect(() => {
-    if (isEnrollmentAccessChanged(save.error)) onContextChanged();
-  }, [save.error, onContextChanged]);
   useEffect(() => {
     sectionRef.current?.scrollIntoView?.({
       behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
@@ -305,7 +370,7 @@ function EnrollmentForm({
     );
     const revision = form.watch(revisionKey) ?? "";
     const name = form.watch(nameKey);
-    const choices = masters.items.filter((row) => row.kind === kind && row.active);
+    const choices = masterChoices.filter((row) => row.kind === kind && row.active);
     const tooLong = (row: HRMaster) =>
       isContact && Array.from(row.name).length > ENROLLMENT_CONTACT_RELATIONSHIP_MAX_LENGTH;
     if (!choices.length && !revision) return field(nameKey, label);
@@ -361,7 +426,8 @@ function EnrollmentForm({
     const nameKey = `profile.${key}` as const;
     const revision = form.watch(revisionKey) ?? "";
     const name = form.watch(nameKey) ?? "";
-    const choices = masters.items.filter((row) => row.kind === kind && row.active);
+    const choices = masterChoices.filter((row) => row.kind === kind && row.active);
+    if (!masters && spec.selectionOnly && !revision) return null;
     if (!choices.length && !revision && !spec.selectionOnly) return field(nameKey, label);
     const recorded = revision ? (value.profile[key] ?? "") : name;
     const id = `enrollment-${key}-choice`;
@@ -457,12 +523,7 @@ function EnrollmentForm({
   };
   const cardClass = "scroll-mt-24 rounded-2xl border bg-card p-5 sm:p-6";
   const rowClass = "grid gap-4 rounded-xl border bg-muted/15 p-4 sm:grid-cols-2 lg:grid-cols-3";
-  if (
-    isEnrollmentAccessChanged(save.error) ||
-    isEnrollmentAccessChanged(supervisors.error) ||
-    isEnrollmentAccessChanged(masters.error)
-  )
-    return null;
+  if (accessChanged) return null;
   return (
     <section ref={sectionRef} aria-labelledby="staff-editor-heading" className="mt-8 scroll-mt-24">
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
@@ -471,7 +532,7 @@ function EnrollmentForm({
             {editing ? "Edit staff enrollment" : "Enroll a staff member"}
           </h3>
           <p className="mt-2 text-sm text-muted-foreground">
-            {hospital.name} · Personal details stay within authorized enrollment access.
+            {employer} · Personal details stay within authorized enrollment access.
           </p>
         </div>
         <Button variant="ghost" onClick={onClose} disabled={save.isPending}>
@@ -542,7 +603,7 @@ function EnrollmentForm({
           <section id="staff-employment" className={cardClass}>
             {sectionHeading(
               "employment",
-              scope.hrIntake === true
+              hrIntake
                 ? "Employment activation and status changes require independent review."
                 : "Employment details do not grant application access or clinical privileges.",
             )}
@@ -559,7 +620,7 @@ function EnrollmentForm({
                   { value: "active", label: "Active" },
                   { value: "inactive", label: "Inactive" },
                 ],
-                scope.hrIntake === true,
+                hrIntake,
               )}
               {select(
                 "profile.engagement_type",
@@ -574,7 +635,7 @@ function EnrollmentForm({
               {select("profile.supervisor_id", "Supervisor", [
                 { value: "", label: "Not assigned" },
                 ...supervisors.items
-                  .filter((row) => !path.includes(`/staff/${row.id}/`))
+                  .filter((row) => row.id.toLowerCase() !== self.toLowerCase())
                   .map((row) => ({
                     value: row.id,
                     label: `${row.display_name} · ${row.employee_code}${row.employment_status === "inactive" ? " · Inactive" : ""}`,
@@ -597,7 +658,7 @@ function EnrollmentForm({
               {masterField("exit_reason", "Exit reason")}
             </div>
           </section>
-          {masters.hasMore && (
+          {masters?.hasMore && (
             <Button
               type="button"
               variant="outline"
@@ -608,7 +669,7 @@ function EnrollmentForm({
               Load more HR choices
             </Button>
           )}
-          {masters.isError && (
+          {masters?.isError && (
             <RequestFailure
               message="Could not load HR choices. Existing text and recorded assignments are preserved."
               retry={masters.retry}
@@ -823,7 +884,7 @@ function EnrollmentForm({
           <div className="max-w-xl text-sm text-muted-foreground">
             {save.isError ? (
               <p role="alert" className="text-destructive">
-                {save.error.message}
+                {save.error?.message}
               </p>
             ) : (
               "Required: full name and employee code. Optional sections can be completed later."

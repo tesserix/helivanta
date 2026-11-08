@@ -53,3 +53,34 @@ type WholesaleIdentityCheck struct {
 	ActorSubject      string                 `json:"actor_subject"`
 	CreatedAt         time.Time              `json:"created_at"`
 }
+
+type WholesaleQualityInput struct {
+	ExpectedVersion int64     `json:"expected_version"`
+	IdentityCheckID uuid.UUID `json:"identity_check_id"`
+	IdentityVersion int64     `json:"identity_version"`
+	Decision        string    `json:"decision"`
+	Reason          string    `json:"reason"`
+}
+
+type WholesaleQualityDecision struct {
+	ID                uuid.UUID             `json:"id"`
+	OwnerTenantID     uuid.UUID             `json:"owner_tenant_id"`
+	PartyID           uuid.UUID             `json:"party_id"`
+	PremiseID         uuid.UUID             `json:"premise_id"`
+	ReceiptID         uuid.UUID             `json:"receipt_id"`
+	Input             WholesaleQualityInput `json:"input"`
+	Version           int64                 `json:"version"`
+	Status            string                `json:"status"`
+	ReleasedBaseUnits int64                 `json:"released_base_units"`
+	ActorSubject      string                `json:"actor_subject"`
+	CreatedAt         time.Time             `json:"created_at"`
+}
+
+type WholesaleStockInspection struct {
+	OwnerTenantID uuid.UUID                 `json:"owner_tenant_id"`
+	PartyID       uuid.UUID                 `json:"party_id"`
+	PremiseID     uuid.UUID                 `json:"premise_id"`
+	ReceiptID     uuid.UUID                 `json:"receipt_id"`
+	Identity      *WholesaleIdentityCheck   `json:"identity,omitempty"`
+	Quality       *WholesaleQualityDecision `json:"quality,omitempty"`
+}

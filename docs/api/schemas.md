@@ -162,3 +162,9 @@ All commands support `--check`. These candidates do not complete or activate sup
 - `contracts/supplier-trade.json` → `node scripts/generate-supplier-trade.mjs`: shared source/consent wire models, pharmacy scope input validation and the directed relationship contract. Categories derive from trading-policy; supports `--check`.
 
 Supplier access is separately canonical in `contracts/supplier-access.json` (Shared IAM consent and closed record permissions). Run `node scripts/generate-supplier-access.mjs` and `--check`; it emits `backend/pkg/supplieraccess/types_generated.go`, the data-only IAM event DTO and `packages/api/src/supplier-access-contract.ts`. Hospital capability templates remain in the immutable `contracts/staff-access.json` migration history and use `generate-staff-access.mjs`.
+
+Operating-duty template expansions preserve the original SQL in
+`backend/internal/modules/iam/operating_templates_v1.sql`; the generator's
+current `CREATE OR REPLACE` function applies through additive IAM migration 0041.
+Supply-stock quality and inspection models remain in `supply-stock.json` and its
+existing generator. Do not edit generated Go/Zod models or the v1 SQL snapshot.

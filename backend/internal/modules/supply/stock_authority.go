@@ -88,12 +88,12 @@ func (h *handlers) stockOwnerTransaction(ctx context.Context, p authn.Principal,
 	}
 	return h.transaction(ctx, p, party, false, false, action)
 }
-func (h *handlers) withStockProduct(c *gin.Context, p authn.Principal, party, premise, version uuid.UUID, action func(context.Context, stockproduct.Reference) error) error {
+func (h *handlers) withStockProduct(c *gin.Context, p authn.Principal, party, premise, version uuid.UUID, permission authz.Permission, action func(context.Context, stockproduct.Reference) error) error {
 	permissions, ok := authz.RefreshPermissions(c)
 	if !ok {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
-	if permissions.Has(PermOperatingWrite) {
+	if permissions.Has(permission) {
 		err := h.stockProducts.WithCurrentStockProduct(c.Request.Context(), version, action)
 		if err == nil || !errors.Is(err, gorm.ErrRecordNotFound) || h.operating == nil {
 			return err
@@ -103,7 +103,7 @@ func (h *handlers) withStockProduct(c *gin.Context, p authn.Principal, party, pr
 	if !ok {
 		return stockproduct.ErrUnavailable
 	}
-	return h.managedStock(c.Request.Context(), p, party, premise, PermOperatingWrite, func(ctx context.Context, _ *gorm.DB) error {
+	return h.managedStock(c.Request.Context(), p, party, premise, permission, func(ctx context.Context, _ *gorm.DB) error {
 		return command.WithCurrentStockProductInCommand(ctx, p.TenantID, version, action)
 	})
 }

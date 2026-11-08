@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import {
   getStockProductReference,
   newWholesaleReceiptId,
@@ -16,6 +16,8 @@ import {
 } from "@helivanta/api";
 import { Field, RequestFailure, useZodForm } from "@helivanta/ui";
 import { Button, Input, Textarea } from "@tesserix/web";
+
+import { WarehouseQuality } from "./warehouse-quality";
 
 type Props = {
   scope: WholesaleStockScope;
@@ -49,6 +51,7 @@ function WarehouseStockPanel({ scope, location, roles, canWrite, onClose }: Prop
     location.status === "active";
   const query = useWholesaleReceipts(scope, allowed);
   const form = useZodForm(WholesaleReceiptInputContract, defaults);
+  const [selected, setSelected] = useState<string | null>(null);
   const [barcode, setBarcode] = useState("");
   const [product, setProduct] = useState<Awaited<
     ReturnType<typeof getStockProductReference>
@@ -137,19 +140,48 @@ function WarehouseStockPanel({ scope, location, roles, canWrite, onClose }: Prop
               <th>Count</th>
               <th>Expiry</th>
               <th>Intake state</th>
+              <th>Inspection</th>
             </tr>
           </thead>
           <tbody>
             {receipts.map((receipt) => (
-              <tr key={receipt.id}>
-                <td>{receipt.input.source_reference}</td>
-                <td>{receipt.input.lot_number}</td>
-                <td>
-                  {receipt.input.quantity_units} {receipt.input.unit_code}
-                </td>
-                <td>{receipt.input.expires_on}</td>
-                <td>Received in quarantine</td>
-              </tr>
+              <Fragment key={receipt.id}>
+                <tr>
+                  <td>{receipt.input.source_reference}</td>
+                  <td>{receipt.input.lot_number}</td>
+                  <td>
+                    {receipt.input.quantity_units} {receipt.input.unit_code}
+                  </td>
+                  <td>{receipt.input.expires_on}</td>
+                  <td>Received in quarantine</td>
+                  <td>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setSelected(selected === receipt.id ? null : receipt.id)}
+                    >
+                      Inspect stock
+                    </Button>
+                  </td>
+                </tr>
+                {selected === receipt.id && (
+                  <tr>
+                    <td colSpan={6}>
+                      <WarehouseQuality
+                        scope={scope}
+                        receipt={receipt}
+                        canCheck={canReceive}
+                        canReview={
+                          canWrite &&
+                          can("supply.stock.review") &&
+                          roles.some((role) => role === "administrator" || role === "inventory") &&
+                          location.status === "active"
+                        }
+                      />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             ))}
           </tbody>
         </table>

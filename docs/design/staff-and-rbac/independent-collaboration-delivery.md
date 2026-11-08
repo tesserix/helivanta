@@ -170,3 +170,20 @@ caller-header regressions. Full real-owner protocol, complete Go/browser CI,
 workload-identity GitOps configuration and shared-environment acceptance remain
 release gates. These are dependency implementations; they do not activate
 supplier grants or complete stock, receiving or financial composition.
+
+## Fulfilment continuation — stock-quality checkpoint, 8 November 2026
+
+The current continuation adds SupplyConnect's independent release/hold decision,
+current product/count/version checks, immutable decision/audit/outbox evidence,
+strict SDK recovery and warehouse inspection forms. A separately reviewed
+stock-quality duty preserves the receiver/reviewer separation. Local Go build/vet/lint, native quality and migration race tests, 47 static
+architecture cases, 996 SDK tests, affected component tests and forced shell/
+AmbulanceConnect production builds passed. Generated outputs were removed;
+real-owner integration and final CI remain pending. This paragraph is implementation status,
+not deployment or full fulfilment acceptance.
+
+Next fulfilment work remains source-owner reservation/dispatch for both
+SupplyConnect and PharmaConnect, independent order approval and effective
+relationship/grant consumption, destination receiving/discrepancy reconciliation,
+and source-linked invoice/payable/credit/settlement composition. Historical
+quality evidence alone is not an effective grant or availability promise.

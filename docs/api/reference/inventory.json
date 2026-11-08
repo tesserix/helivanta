@@ -1034,6 +1034,11 @@
           "id": "0040_iam_supplier_access_templates",
           "sql_sha256": "9004858c26577f5b7d6fe2992c1e55b6ccf44984bcb25c230a730f28030149b4",
           "creates_tables": []
+        },
+        {
+          "id": "0041_iam_stock_quality_template",
+          "sql_sha256": "769cae644cabf077871b6c979a69a1645cd1767fc9c2f2c3fbbbd86f3d618964",
+          "creates_tables": []
         }
       ]
     },
@@ -6048,6 +6053,33 @@
         },
         {
           "method": "GET",
+          "path": "/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/inspection",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/quality-decisions/:decision",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/quality-decisions/:decision",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt",
           "permission": "public",
           "authentication_required": true,
@@ -6436,6 +6468,14 @@
       ],
       "grants": [
         {
+          "permission": "supply.stock.review",
+          "roles": [
+            "supply_admin",
+            "supply_inventory",
+            "supply_owner"
+          ]
+        },
+        {
           "permission": "supply.trade_relationship.read",
           "roles": [
             "supply_admin",
@@ -6704,6 +6744,7 @@
         }
       ],
       "publishes": [
+        "helivanta.in.supply.stock_quality_recorded.v1",
         "helivanta.in.supply.relationship_exchange.v1",
         "helivanta.in.supply.stock_identity_recorded.v1",
         "helivanta.in.supply.stock_receipt_recorded.v1",
@@ -6846,6 +6887,13 @@
             "supply_trade_relationships",
             "supply_trade_relationship_commands",
             "supply_trade_relationship_history"
+          ]
+        },
+        {
+          "id": "0014_supply_stock_quality",
+          "sql_sha256": "68034b11c2b778512ec5660fcb271509c93d1d1ac6e8d68b8c8b47082ae8e6b7",
+          "creates_tables": [
+            "supply_stock_quality_decisions"
           ]
         }
       ]

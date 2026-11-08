@@ -15,7 +15,9 @@ func TestMigrationIDIsPhaseScoped(t *testing.T) {
 	for i, migration := range migs {
 		ids[i] = migration.ID
 	}
-	require.Len(t, ids, 40)
+	require.Len(t, ids, 41)
+	require.Equal(t, "0041_iam_stock_quality_template", migs[40].ID)
+	require.NotEmpty(t, migs[40].SQL)
 	require.Equal(t, "0038_iam_operating_duties", migs[37].ID)
 	require.NotEmpty(t, migs[37].SQL)
 	require.Equal(t, "0039_iam_supplier_grants", migs[38].ID)
@@ -166,4 +168,12 @@ func TestModuleDeclaresCredentialRevoke(t *testing.T) {
 	}
 	require.NotNil(t, found, "iam.credential.revoke must be declared")
 	require.Empty(t, found.Roles, "iam.credential.revoke must list no system roles; only tenant_admin's implicit grant may hold it")
+}
+
+func TestStockQualityTemplateExpansionPreservesReceivingPermissions(t *testing.T) {
+	migrations := iam.New(nil).Migrations()
+	require.NotContains(t, migrations[37].SQL, "supply.stock.review")
+	require.Contains(t, migrations[40].SQL, "CREATE OR REPLACE FUNCTION iam_operating_template_permissions")
+	require.Contains(t, migrations[40].SQL, "supply.stock_quality_reviewer.v1")
+	require.Contains(t, migrations[40].SQL, "supply.inventory_receiver.v1")
 }

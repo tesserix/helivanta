@@ -100,3 +100,52 @@ export const WholesaleIdentityCheckContract = z
   })
   .strict();
 export type WholesaleIdentityCheck = z.infer<typeof WholesaleIdentityCheckContract>;
+
+export const WholesaleQualityInputContract = z
+  .object({
+    expected_version: z.number().int().min(0).max(9007199254740990),
+    identity_check_id: identifier,
+    identity_version: z.number().int().min(1).max(9007199254740991),
+    decision: z.enum(["release", "hold"]),
+    reason: z
+      .string()
+      .min(1)
+      .max(500)
+      .regex(new RegExp("^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type WholesaleQualityInput = z.infer<typeof WholesaleQualityInputContract>;
+
+export const WholesaleQualityDecisionContract = z
+  .object({
+    id: identifier,
+    owner_tenant_id: identifier,
+    party_id: identifier,
+    premise_id: identifier,
+    receipt_id: identifier,
+    input: WholesaleQualityInputContract,
+    version: z.number().int().min(1).max(9007199254740991),
+    status: z.enum(["released", "held"]),
+    released_base_units: z.number().int().min(0).max(9007199254740991),
+    actor_subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type WholesaleQualityDecision = z.infer<typeof WholesaleQualityDecisionContract>;
+
+export const WholesaleStockInspectionContract = z
+  .object({
+    owner_tenant_id: identifier,
+    party_id: identifier,
+    premise_id: identifier,
+    receipt_id: identifier,
+    identity: WholesaleIdentityCheckContract.optional(),
+    quality: WholesaleQualityDecisionContract.optional(),
+  })
+  .strict();
+export type WholesaleStockInspection = z.infer<typeof WholesaleStockInspectionContract>;

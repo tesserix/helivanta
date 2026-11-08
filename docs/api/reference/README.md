@@ -827,6 +827,9 @@ Source: [backend/internal/modules/supply/module.go](../../../backend/internal/mo
 | GET | `/v1/supply/parties/:party/operating-locations/:premise/stock/products/by-gtin/:gtin` | `public` | false | false |
 | GET | `/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/identity-checks/:check` | `public` | false | false |
 | PUT | `/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/identity-checks/:check` | `public` | false | false |
+| GET | `/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/inspection` | `public` | false | false |
+| GET | `/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/quality-decisions/:decision` | `public` | false | false |
+| PUT | `/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/quality-decisions/:decision` | `public` | false | false |
 | GET | `/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt` | `public` | false | false |
 | PUT | `/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt` | `public` | false | false |
 | GET | `/v1/supply/parties/:party/operating-locations/:premise/stock/receipts` | `public` | true | false |
@@ -873,6 +876,7 @@ Source: [backend/internal/modules/supply/module.go](../../../backend/internal/mo
 
 Published subjects:
 
+- `helivanta.in.supply.stock_quality_recorded.v1`
 - `helivanta.in.supply.relationship_exchange.v1`
 - `helivanta.in.supply.stock_identity_recorded.v1`
 - `helivanta.in.supply.stock_receipt_recorded.v1`
@@ -909,6 +913,7 @@ Migration table declarations:
 - `0008_supply`: `supply_delivery_tasks`, `supply_delivery_revisions`, `supply_delivery_commands`, `supply_support_access`, `supply_support_access_revisions`, `supply_operational_access_limits`, `supply_operational_access_limit_revisions`.
 - `0010_supply_stock`: `supply_stock_receipts`, `supply_stock_identity_checks`.
 - `0013_supply_trade_relationships`: `supply_trade_relationships`, `supply_trade_relationship_commands`, `supply_trade_relationship_history`.
+- `0014_supply_stock_quality`: `supply_stock_quality_decisions`.
 
 ## lab
 

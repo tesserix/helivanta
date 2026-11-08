@@ -127,3 +127,13 @@ type StockIdentityRecordedData struct {
 	CheckID   string `json:"check_id"`
 	Version   int64  `json:"version"`
 }
+
+const SubjectStockQualityRecorded = "helivanta.in.supply.stock_quality_recorded.v1"
+
+type StockQualityRecordedData struct {
+	PartyID    string `json:"party_id"`
+	PremiseID  string `json:"premise_id"`
+	ReceiptID  string `json:"receipt_id"`
+	DecisionID string `json:"decision_id"`
+	Version    int64  `json:"version"`
+}

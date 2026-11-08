@@ -242,6 +242,7 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	supply.PermTerritoryRead:      {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyFinance, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor, authz.RoleSupplySales},
 	supply.PermTerritoryWrite:     {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin},
 	supply.PermOperatingRead:      {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyWarehouse, authz.RoleSupplyInventory, authz.RoleSupplyPicker, authz.RoleSupplyPacker, authz.RoleSupplyDispatcher, authz.RoleSupplyDriver, authz.RoleSupplyAuditor, authz.RoleSupplyRegulator},
+	supply.PermStockReview:        {authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyInventory, authz.RoleTenantAdmin},
 	supply.PermOperatingWrite:     {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyInventory},
 	supply.PermDeliveryRead:       {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyDispatcher, authz.RoleSupplyAuditor, authz.RoleSupplyRegulator},
 	supply.PermDeliveryWrite:      {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyDispatcher},

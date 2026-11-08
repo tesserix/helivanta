@@ -24,6 +24,9 @@ import (
 // an entry is therefore a diff a reviewer sees and must justify, not a
 // pattern match that can silently start admitting a new field.
 var eventPayloadPHIAllowlist = map[string]string{
+	"supply.OrderExchangeData.SignatorySubject": "authenticated order signatory needed for independent bilateral consent and self-review checks; restricted exact tenant-directed exchange, never broadcast or log",
+	"supply.SupplierOrderInput.Reason":          "shared bounded procurement instructions needed by the exact contracting supplier; no patient data requested; restricted bilateral exchange and audit, never broadcast or log",
+
 	"supply.RelationshipExchangeData.SignatorySubject": "authenticated commercial signatory needed for attributable independent consent and self-review rejection; directed bilateral exchange only, no contacts or identity evidence",
 
 	"iam.SupplierGrantExchangeData.Input":            "immutable grant input includes the nominated account and review rationale; exact bilateral tenant-directed protocol only, never a broadcast or log",
@@ -50,6 +53,27 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"supply.OrderExchangeData.OrderID":                 "bounded contractual product/line, unit, consent or commercial-document reference; no patient or Staff identity; exact bilateral directed purpose only",
+	"supply.OrderExchangeData.Terms":                   "bounded contractual product/line, unit, consent or commercial-document reference; no patient or Staff identity; exact bilateral directed purpose only",
+	"supply.OrderExchangeData.Input":                   "bounded contractual product/line, unit, consent or commercial-document reference; no patient or Staff identity; exact bilateral directed purpose only",
+	"supply.OrderExchangeData.InputSha256":             "bounded contractual product/line, unit, consent or commercial-document reference; no patient or Staff identity; exact bilateral directed purpose only",
+	"supply.OrderExchangeData.SourceTenantID":          "bounded contractual product/line, unit, consent or commercial-document reference; no patient or Staff identity; exact bilateral directed purpose only",
+	"supply.OrderExchangeData.SourceEpoch":             "bounded contractual product/line, unit, consent or commercial-document reference; no patient or Staff identity; exact bilateral directed purpose only",
+	"supply.OrderExchangeData.Phase":                   "bounded contractual product/line, unit, consent or commercial-document reference; no patient or Staff identity; exact bilateral directed purpose only",
+	"supply.SupplierOrderInput.RelationshipID":         "bounded contractual product/line, unit, consent or commercial-document reference; no patient or Staff identity; exact bilateral directed purpose only",
+	"supply.SupplierOrderInput.TermsSha256":            "bounded contractual product/line, unit, consent or commercial-document reference; no patient or Staff identity; exact bilateral directed purpose only",
+	"supply.SupplierOrderInput.PurchaseOrderReference": "bounded contractual product/line, unit, consent or commercial-document reference; no patient or Staff identity; exact bilateral directed purpose only",
+	"supply.SupplierOrderInput.QuoteReference":         "bounded contractual product/line, unit, consent or commercial-document reference; no patient or Staff identity; exact bilateral directed purpose only",
+	"supply.SupplierOrderInput.ExpiresAt":              "bounded contractual product/line, unit, consent or commercial-document reference; no patient or Staff identity; exact bilateral directed purpose only",
+	"supply.SupplierOrderInput.Lines":                  "bounded contractual product/line, unit, consent or commercial-document reference; no patient or Staff identity; exact bilateral directed purpose only",
+	"supply.SupplierOrderLine.ID":                      "bounded contractual product/line, unit, consent or commercial-document reference; no patient or Staff identity; exact bilateral directed purpose only",
+	"supply.SupplierOrderLine.Product":                 "bounded contractual product/line, unit, consent or commercial-document reference; no patient or Staff identity; exact bilateral directed purpose only",
+	"supply.SupplierOrderLine.QuantityUnits":           "bounded contractual product/line, unit, consent or commercial-document reference; no patient or Staff identity; exact bilateral directed purpose only",
+	"supply.SupplierOrderLine.UnitCode":                "bounded contractual product/line, unit, consent or commercial-document reference; no patient or Staff identity; exact bilateral directed purpose only",
+	"supply.SupplierOrderProduct.Owner":                "bounded contractual product/line, unit, consent or commercial-document reference; no patient or Staff identity; exact bilateral directed purpose only",
+	"supply.SupplierOrderProduct.ProductID":            "bounded contractual product/line, unit, consent or commercial-document reference; no patient or Staff identity; exact bilateral directed purpose only",
+	"supply.SupplierOrderProduct.VersionID":            "bounded contractual product/line, unit, consent or commercial-document reference; no patient or Staff identity; exact bilateral directed purpose only",
+	"supply.SupplierOrderProduct.Version":              "bounded contractual product/line, unit, consent or commercial-document reference; no patient or Staff identity; exact bilateral directed purpose only",
 	"supply.RelationshipExchangeData.RelationshipID":   "opaque bilateral commercial relationship reference",
 	"supply.RelationshipExchangeData.Terms":            "commercial consent terms; nested owner references independently classified, no patient data",
 	"supply.RelationshipExchangeData.TermsSha256":      "digest binding exact commercial terms",
@@ -999,6 +1023,9 @@ func TestEventPayloadPHIFieldsAreAllowlisted(t *testing.T) {
 // thing a reviewer's eye lands on.
 func TestEventPayloadPHIAllowlistIsPinnedExactly(t *testing.T) {
 	require.Equal(t, map[string]string{
+		"supply.OrderExchangeData.SignatorySubject": "authenticated order signatory needed for independent bilateral consent and self-review checks; restricted exact tenant-directed exchange, never broadcast or log",
+		"supply.SupplierOrderInput.Reason":          "shared bounded procurement instructions needed by the exact contracting supplier; no patient data requested; restricted bilateral exchange and audit, never broadcast or log",
+
 		"iam.SupplierGrantExchangeData.Input":              "immutable grant input includes the nominated account and review rationale; exact bilateral tenant-directed protocol only, never a broadcast or log",
 		"iam.SupplierGrantExchangeData.SignatorySubject":   "authenticated signatory needed to reject self-acceptance and attribute bilateral consent; restricted directed exchange, no contact or identity documents",
 		"iam.SupplierGrantInput.RecipientSubject":          "exact nominated hospital account required to bind named-person consent; directed recipient tenant only, never a supplier membership",

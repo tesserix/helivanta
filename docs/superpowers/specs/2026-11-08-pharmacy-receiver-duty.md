@@ -103,7 +103,7 @@ handler, through `OperatingAuthorizer.WithOperatingScope`.
 
 ## Data and enforcement
 
-Migration `0037_pharmacy_operating_receipts` (append-only):
+Migration `0038_pharmacy_operating_receipts` (append-only):
 
 - `pharmacy_operating_stock_scope(t, outlet, operation)` admits a row only when
   all of these hold:

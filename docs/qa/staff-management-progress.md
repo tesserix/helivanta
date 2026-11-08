@@ -10,7 +10,7 @@ one exact outlet. See the [spec](../superpowers/specs/2026-11-08-pharmacy-receiv
   admitted only through IAM's `WithOperatingScope`, never a tenant role.
 - It lets the receiver read products, locations, lots and receipts, record a
   lot, and record a receipt into quarantine.
-- Migration `0037_pharmacy_operating_receipts` adds forced-RLS branches. They hold
+- Migration `0038_pharmacy_operating_receipts` adds forced-RLS branches. They hold
   only under the transaction-local duty settings.
 - Each write, and each read, appends to `pharmacy_operating_stock_audit` in the
   same transaction.

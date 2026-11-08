@@ -18,6 +18,9 @@ import (
 	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/stockproduct"
+	"github.com/tesserix/helivanta/pkg/supplierorder"
+	"github.com/tesserix/helivanta/pkg/suppliertrade"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
 )
@@ -96,6 +99,25 @@ func TestWholesaleIdentityCheckThroughGlobalAPIUsesCurrentCatalogueOwner(t *test
 	require.Zero(t, location)
 	stock := root + "/operating-locations/" + premise.String() + "/stock/receipts/" + receipt.String()
 	call("PUT", stock, "owner", fmt.Sprintf(`{"product_version_id":%q,"lot_number":"TEST-LOT","expires_on":"2030-12-31","unit_code":"pack","quantity_units":100,"source_reference":"TEST-GRN:1","reason":"TEST counted 100 packs"}`, product.VersionID), http.StatusCreated)
+
+	t.Run("one hundred order lines use bounded published-owner connections", func(t *testing.T) {
+		var source stockproduct.Reference
+		require.NoError(t, drugmaster.New().StockProducts(db).WithCurrentStockProduct(t.Context(), product.VersionID, func(_ context.Context, ref stockproduct.Reference) error { source = ref; return nil }))
+		lines := make([]supplierorder.SupplierOrderLine, 100)
+		for i := range lines {
+			version := product.VersionID
+			lines[i] = supplierorder.SupplierOrderLine{ID: uuid.Must(uuid.NewV7()), Product: supplierorder.SupplierOrderProduct{Owner: "supply", ProductID: source.ProductID, VersionID: &version}, QuantityUnits: 100, UnitCode: "capsule"}
+		}
+		endpoint := suppliertrade.Endpoint{TenantID: uuid.MustParse(testutil.TenantA), Product: "supply", OrganizationID: party, LocationID: premise, OrganizationVersion: 1, LocationVersion: 1}
+		guard := supply.New().SupplierOrderProducts(db, drugmaster.New().StockProducts(db))
+		action := func(ctx context.Context) error {
+			return guard.WithCurrentOrderProducts(ctx, endpoint, lines, func(context.Context) error { return nil })
+		}
+		require.NoError(t, db.WithGuardedTenantCommand(tenantdb.WithActor(t.Context(), "TEST-product-fact-reader"), testutil.TenantA, time.Now().Add(5*time.Second), func(*gorm.DB) error { return nil }, action))
+		lines[0].UnitCode = "TEST-other-unit"
+		err := db.WithGuardedTenantCommand(tenantdb.WithActor(t.Context(), "TEST-product-fact-reader"), testutil.TenantA, time.Now().Add(5*time.Second), func(*gorm.DB) error { return nil }, action)
+		require.ErrorIs(t, err, supplierorder.ErrIneligible)
+	})
 	path := stock + "/identity-checks/" + check.String()
 	input := fmt.Sprintf(`{"expected_version":0,"product_version_id":%q,"unit_kind":"pack","expected_pack_size":10,"expected_base_units":1000,"reason":"TEST physical pack and label match"}`, product.VersionID)
 	first := call("PUT", path, "owner", input, 201)

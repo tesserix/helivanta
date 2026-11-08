@@ -179,3 +179,6 @@ export * from "./operating-duties";
 export * from "./supplier-access";
 
 export * from "./supply-stock-quality";
+
+export * from "./supplier-orders";
+export * from "./supplier-orders-contract";

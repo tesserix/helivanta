@@ -20,11 +20,18 @@ func (*Module) StaffActors(db *tenantdb.DB) authz.CurrentStaffActorGuard {
 }
 
 func (g *staffActorGuard) WithCurrentStaffActor(ctx context.Context, scope authz.StaffActorScope, action func(context.Context, authz.StaffActorReference) error) error {
+	return g.withCurrentEmployeeActor(ctx, scope, authz.StaffActorUse, action)
+}
+func (g *staffActorGuard) withCurrentEmployeeActor(ctx context.Context, scope authz.StaffActorScope, permission authz.Permission, action func(context.Context, authz.StaffActorReference) error) error {
+	if permission != authz.StaffActorUse && permission != authz.PurchaseOrderActorUse {
+		return authz.ErrScopedAuthorizationUnavailable
+	}
+
 	tenant, err := uuid.Parse(scope.TenantID)
 	if err != nil || tenant == uuid.Nil || tenant.String() != scope.TenantID || scope.HospitalID == uuid.Nil || !validLoginSubject(scope.Subject) || action == nil || g.db == nil || !g.db.GuardedCommandActive(ctx) {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
-	request := authz.ScopeRequest{TenantID: scope.TenantID, Subject: scope.Subject, HospitalID: scope.HospitalID.String(), Permission: authz.StaffActorUse, DepartmentPath: scope.DepartmentPath}
+	request := authz.ScopeRequest{TenantID: scope.TenantID, Subject: scope.Subject, HospitalID: scope.HospitalID.String(), Permission: permission, DepartmentPath: scope.DepartmentPath}
 	grant, ok := authz.ScopedCommandGrant(ctx, request)
 	if !ok || grant.AssignmentID == "" {
 		return authz.ErrScopedAuthorizationUnavailable
@@ -72,7 +79,7 @@ func (g *staffActorGuard) WithCurrentStaffActor(ctx context.Context, scope authz
 		if err != nil {
 			return err
 		}
-		if err = tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,'workforce.staff_actor.use',?,?::jsonb)`, scope.TenantID, scope.HospitalID, scope.Subject, actor.StaffID, string(data)).Error; err != nil {
+		if err = tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,?,?,?::jsonb)`, scope.TenantID, scope.HospitalID, scope.Subject, string(permission), actor.StaffID, string(data)).Error; err != nil {
 			return err
 		}
 		if err = restore(); err != nil {

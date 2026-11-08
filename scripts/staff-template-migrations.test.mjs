@@ -1164,3 +1164,34 @@ test("published templates declare their establishment kinds while historical SQL
       /establishment/,
     );
 });
+
+test("purchase order templates remain department-only and cannot acquire clinical or financial authority", async (t) => {
+  for (const [name, change] of [
+    ["stock write", (entry) => entry.permissions.push("pharmacy.stock.receive")],
+    ["financial write", (entry) => entry.permissions.push("pharmacy.accounts.payment")],
+    ["hospital-wide expansion", (entry) => (entry.scope_kinds = ["hospital", "department"])],
+    [
+      "independent pharmacy root",
+      (entry) => (entry.establishment_kinds = ["hospital", "pharmacy"]),
+    ],
+    [
+      "without actual Staff",
+      (entry) =>
+        (entry.permissions = entry.permissions.filter(
+          (value) => value !== "workforce.purchase_order_actor.use",
+        )),
+    ],
+  ])
+    await t.test(name, async (t) => {
+      const { dir, contract, contractPath } = await fixture(t);
+      const template = contract.template_migrations
+        .flatMap((entry) => entry.templates)
+        .find((entry) => entry.key === "supply.department_purchase_order_preparer.v1");
+      assert.ok(template);
+      change(template);
+      await writeFile(contractPath, JSON.stringify(contract));
+      const result = generate(dir);
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /Purchase order|department|pharmacy root/i);
+    });
+});

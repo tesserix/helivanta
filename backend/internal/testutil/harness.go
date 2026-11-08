@@ -409,6 +409,7 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	if opts.OperatingAuthorizer != nil {
 		operatingAuthorizer = opts.OperatingAuthorizer(db)
 	}
+	stockProducts := platform.StockProducts(opts.Modules, db)
 	deps := platform.Deps{
 		SourceAdministration:        sourceAdministration,
 		OperatingAuthorizer:         operatingAuthorizer,
@@ -417,7 +418,9 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 		TradingEndpoints:            platform.TradingEndpoints(opts.Modules, db, platform.DepartmentReferences(opts.Modules, db)),
 		Membership:                  membership,
 		StaffActors:                 platform.StaffActors(opts.Modules, db),
-		StockProducts:               platform.StockProducts(opts.Modules, db),
+		PurchaseOrderActors:         platform.PurchaseOrderActors(opts.Modules, db),
+		StockProducts:               stockProducts,
+		OrderProducts:               platform.OrderProducts(opts.Modules, db, stockProducts),
 		StaffPostingSources:         platform.StaffPostingSources(opts.Modules, db),
 		PartnerMembers:              platform.PartnerMembers(opts.Modules, db),
 		DepartmentReferences:        platform.DepartmentReferences(opts.Modules, db),

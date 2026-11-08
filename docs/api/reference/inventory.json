@@ -1039,6 +1039,16 @@
           "id": "0041_iam_stock_quality_template",
           "sql_sha256": "769cae644cabf077871b6c979a69a1645cd1767fc9c2f2c3fbbbd86f3d618964",
           "creates_tables": []
+        },
+        {
+          "id": "0042_iam_purchase_order_templates",
+          "sql_sha256": "755224c5b2aacd3010e74ef442977eda2b571e3926d60435a77b30f69b414df0",
+          "creates_tables": []
+        },
+        {
+          "id": "0043_iam_order_operating_templates",
+          "sql_sha256": "0432bdd5d479ab23cdaccbe033fe76d5f896e91be1c433f423e92da0d33e4d1c",
+          "creates_tables": []
         }
       ]
     },
@@ -4842,7 +4852,12 @@
           ]
         },
         {
-          "id": "0037_pharmacy_operating_receipts",
+          "id": "0037_pharmacy_order_products",
+          "sql_sha256": "35705c888d34abeaa2a5cab5fde64b2d5c67ae9da01d00a01a110f4f58ca5d65",
+          "creates_tables": []
+        },
+        {
+          "id": "0038_pharmacy_operating_receipts",
           "sql_sha256": "0d89514f07e53ee637eae7d7bc0d01d267e79bb1b948898ddf63aa99a8f79985",
           "creates_tables": [
             "pharmacy_operating_stock_audit"
@@ -5826,6 +5841,51 @@
       "routes": [
         {
           "method": "GET",
+          "path": "/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order/proposal-receipt",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/supply/parties/:party/access-limits/revisions",
           "permission": "supply.party.access.manage",
           "authentication_required": true,
@@ -6537,6 +6597,33 @@
         },
         {
           "method": "GET",
+          "path": "/v1/supply/supplier-orders/:order/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/supply/supplier-orders/:order/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/supplier-orders/:order",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/supply/trading-sources/:product/:organization/locations/:location/relationships",
           "permission": "supply.trade_relationship.read",
           "authentication_required": true,
@@ -6546,6 +6633,30 @@
         }
       ],
       "grants": [
+        {
+          "permission": "supply.purchase_order.read",
+          "roles": []
+        },
+        {
+          "permission": "supply.purchase_order.prepare",
+          "roles": []
+        },
+        {
+          "permission": "supply.purchase_order.review",
+          "roles": []
+        },
+        {
+          "permission": "supply.purchase_order.cancel",
+          "roles": []
+        },
+        {
+          "permission": "supply.supplier_order.read",
+          "roles": []
+        },
+        {
+          "permission": "supply.supplier_order.accept",
+          "roles": []
+        },
         {
           "permission": "supply.stock.review",
           "roles": [
@@ -6823,6 +6934,7 @@
         }
       ],
       "publishes": [
+        "helivanta.in.supply.order_exchange.v1",
         "helivanta.in.supply.stock_quality_recorded.v1",
         "helivanta.in.supply.relationship_exchange.v1",
         "helivanta.in.supply.stock_identity_recorded.v1",
@@ -6841,16 +6953,24 @@
         "helivanta.in.supply.license_review_changed.v1"
       ],
       "directed_subjects": [
-        "helivanta.in.supply.relationship_exchange.v1"
+        "helivanta.in.supply.relationship_exchange.v1",
+        "helivanta.in.supply.order_exchange.v1"
       ],
       "directed_write_tables": [
         "supply_trade_relationships",
-        "supply_trade_relationship_history"
+        "supply_trade_relationship_history",
+        "supply_purchase_orders",
+        "supply_purchase_order_history"
       ],
       "consumers": [
         {
           "name": "supply-relationship-exchange",
           "subject": "helivanta.in.supply.relationship_exchange.v1",
+          "after_commit": false
+        },
+        {
+          "name": "supply-purchase-order-exchange",
+          "subject": "helivanta.in.supply.order_exchange.v1",
           "after_commit": false
         },
         {
@@ -6973,6 +7093,15 @@
           "sql_sha256": "68034b11c2b778512ec5660fcb271509c93d1d1ac6e8d68b8c8b47082ae8e6b7",
           "creates_tables": [
             "supply_stock_quality_decisions"
+          ]
+        },
+        {
+          "id": "0015_supply_purchase_orders",
+          "sql_sha256": "0ac35dce5ed66b62fc5f2256a3b68731b857f276eefdb346d63e16997448ab1e",
+          "creates_tables": [
+            "supply_purchase_orders",
+            "supply_purchase_order_commands",
+            "supply_purchase_order_history"
           ]
         }
       ]
@@ -10621,6 +10750,10 @@
         },
         {
           "permission": "workforce.staff_actor.use",
+          "roles": []
+        },
+        {
+          "permission": "workforce.purchase_order_actor.use",
           "roles": []
         },
         {

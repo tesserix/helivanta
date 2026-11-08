@@ -38,6 +38,9 @@ export const ProposalInputContract = z
       "iam.partner_group_member_reviewer.v1",
       "iam.supplier_viewer.v1",
       "iam.supplier_reviewer.v1",
+      "supply.department_purchase_order_reader.v1",
+      "supply.department_purchase_order_preparer.v1",
+      "supply.department_purchase_order_reviewer.v1",
     ]),
     reason: z
       .string()

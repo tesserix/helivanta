@@ -49,3 +49,14 @@ func (g tradingEndpointOwners) WithTradingAdministration(ctx context.Context, p 
 	}
 	return owner.WithTradingAdministration(ctx, p, e, write, action)
 }
+
+func (g tradingEndpointOwners) WithHospitalDepartment(ctx context.Context, e suppliertrade.Endpoint, department uuid.UUID, action func(context.Context) error) error {
+	if e.Product != "pharmacy" || e.HospitalID == nil || department == uuid.Nil {
+		return suppliertrade.ErrIneligible
+	}
+	owner, ok := g.owners[e.Product].(suppliertrade.HospitalDepartmentGuard)
+	if !ok || owner == nil || action == nil {
+		return suppliertrade.ErrUnavailable
+	}
+	return owner.WithHospitalDepartment(ctx, e, department, action)
+}

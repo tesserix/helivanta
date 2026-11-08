@@ -293,6 +293,46 @@ export const staffAccessTemplates = [
     scope_kinds: ["hospital"],
     establishment_kinds: ["hospital"],
   },
+  {
+    key: "supply.department_purchase_order_reader.v1",
+    name: "Department purchase order reader",
+    description:
+      "Read this department's own supplier purchase intents and retained decisions; no foreign catalogue disclosure, stock mutation or financial authority.",
+    family: "purchase_order",
+    permissions: ["supply.purchase_order.read", "workforce.purchase_order_actor.use"],
+    scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
+  },
+  {
+    key: "supply.department_purchase_order_preparer.v1",
+    name: "Department purchase order preparer",
+    description:
+      "Prepare or request cancellation of department supplier purchase intents as current Staff; cannot approve an order or perform stock or financial actions.",
+    family: "purchase_order",
+    permissions: [
+      "supply.purchase_order.cancel",
+      "supply.purchase_order.prepare",
+      "supply.purchase_order.read",
+      "workforce.purchase_order_actor.use",
+    ],
+    scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
+  },
+  {
+    key: "supply.department_purchase_order_reviewer.v1",
+    name: "Department purchase order reviewer",
+    description:
+      "Independently review department purchase intents as current Staff, with account and Staff self-review rejection; no stock dispatch, pricing, tax or payment authority.",
+    family: "purchase_order",
+    permissions: [
+      "supply.purchase_order.cancel",
+      "supply.purchase_order.read",
+      "supply.purchase_order.review",
+      "workforce.purchase_order_actor.use",
+    ],
+    scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
+  },
 ] as const;
 export const staffAccessTemplateCatalogs = {
   "legacy-v1": [
@@ -428,4 +468,9 @@ export const staffAccessTemplateCatalogs = {
     "iam.partner_group_member_reviewer.v1",
   ],
   "hospital-supplier-access-v1": ["iam.supplier_viewer.v1", "iam.supplier_reviewer.v1"],
+  "department-purchase-orders-v1": [
+    "supply.department_purchase_order_reader.v1",
+    "supply.department_purchase_order_preparer.v1",
+    "supply.department_purchase_order_reviewer.v1",
+  ],
 } as const;

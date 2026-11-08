@@ -4,7 +4,7 @@ See the [specification](../specs/2026-11-08-pharmacy-receiver-duty.md). Each ste
 starts with a failing test, and each failure is shown before its fix.
 
 1. **Policy (red first).** Write a Postgres test for
-   `0037_pharmacy_operating_receipts`. It covers:
+   `0038_pharmacy_operating_receipts`. It covers:
    - stock that stays invisible without the settings, plus an architecture test
      that only one file sets `app.pharmacy_stock_access`;
    - a mismatched subject, outlet or permission;

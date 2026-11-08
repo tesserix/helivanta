@@ -404,6 +404,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	stockProducts := platform.StockProducts(registry.All(), db)
 	deps := platform.Deps{
 		SourceChecks:                sourceChecks,
 		SourceAdministration:        iam.NewSourceAdministrationGuard(db, fga),
@@ -413,7 +414,9 @@ func run() error {
 		TradingEndpoints:            platform.TradingEndpoints(registry.All(), db, platform.DepartmentReferences(registry.All(), db)),
 		Membership:                  currentAuthorization,
 		StaffActors:                 platform.StaffActors(registry.All(), db),
-		StockProducts:               platform.StockProducts(registry.All(), db),
+		PurchaseOrderActors:         platform.PurchaseOrderActors(registry.All(), db),
+		StockProducts:               stockProducts,
+		OrderProducts:               platform.OrderProducts(registry.All(), db, stockProducts),
 		StaffPostingSources:         platform.StaffPostingSources(registry.All(), db),
 		PartnerMembers:              platform.PartnerMembers(registry.All(), db),
 		DepartmentReferences:        platform.DepartmentReferences(registry.All(), db),

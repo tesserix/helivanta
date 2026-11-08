@@ -176,9 +176,10 @@ supplier grants or complete stock, receiving or financial composition.
 The current continuation adds SupplyConnect's independent release/hold decision,
 current product/count/version checks, immutable decision/audit/outbox evidence,
 strict SDK recovery and warehouse inspection forms. A separately reviewed
-stock-quality duty preserves the receiver/reviewer separation. Local unit,
-component and architecture validation and the production build are in progress;
-real-owner integration is queued for CI. This paragraph is implementation status,
+stock-quality duty preserves the receiver/reviewer separation. Local Go build/vet/lint, native quality and migration race tests, 47 static
+architecture cases, 996 SDK tests, affected component tests and forced shell/
+AmbulanceConnect production builds passed. Generated outputs were removed;
+real-owner integration and final CI remain pending. This paragraph is implementation status,
 not deployment or full fulfilment acceptance.
 
 Next fulfilment work remains source-owner reservation/dispatch for both

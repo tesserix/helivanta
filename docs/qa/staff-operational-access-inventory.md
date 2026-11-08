@@ -6,7 +6,19 @@
 This is source-review tooling. No employment guard, grant classification in a live
 database, migration, account change or runtime activation is performed by it.
 
-## Current source findings
+## Latest stock-quality source review — 8 November 2026
+
+The generated registry now contains 938 surfaces: 80 source-classified and 858
+unclassified, with no new runtime-cutoff acceptance. The quality checkpoint adds
+three source-scoped stock inspection/decision routes. Its reviewed source pins
+cover the current actor/duty path, exact receipt scope, immutable review, current
+product and local-date expiry checks. Existing stock intake/identity write rights
+remain separate from quality review. IAM migration 0038 retains its original
+SQL bytes; the template expansion is additive migration 0041. These figures
+supersede the historical counts below. The ledger is a source-review record,
+not proof of shared-environment OIDC, physical stock or full fulfilment acceptance.
+
+## Historical source findings
 
 The checked registry contains **727 registered surfaces** across module HTTP
 routes, async subscriptions, broadcasts and unauthenticated allowlist entries.

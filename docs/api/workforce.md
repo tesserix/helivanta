@@ -34,15 +34,33 @@ route, answers 404.
 
 Record reads and writes follow [versioned directory editing](#versioned-basic-directory-editing):
 account assertion headers, `expected_version`, `409 staff_version_conflict` on a
-stale edit, and an unchanged save keeps its version. Enrollment, identity, login
-links, employment, credentials, leave, rosters, payroll and postings stay
+stale edit, and an unchanged save keeps its version. Identity, login links,
+employment, credential reviews, leave, rosters, payroll and postings stay
 hospital-only, and their tables refuse a pharmacy establishment.
 
 On `/pharmacy/staff`, the caller picks one of their pharmacy employers. A manager
 can add and edit records; a reader sees the directory only. A 404 means the
 caller's access ended: the screen says so and offers to reopen. Registering a
 pharmacy as an employer also grants the registrant manager access. IAM roles on
-a pharmacy, HR lifecycle and branch postings are later slices.
+a pharmacy, the remaining HR lifecycle and branch postings are later slices.
+
+### Pharmacy Staff enrollment (#19 slice 4a)
+
+Design: [pharmacy HR lifecycle, 4a](../superpowers/specs/2026-11-08-pharmacy-hr-lifecycle.md#4a--pharmacy-staff-enrollment)
+and the [plan](../superpowers/plans/2026-11-08-pharmacy-enrollment.md).
+
+| Route                                                               | Authorization                                              | Notes                                                                |
+| ------------------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------- |
+| `GET`/`PUT /v1/workforce/pharmacies/:pharmacy/staff/:id/enrollment` | `workforce.enrollment.manage` and a pharmacy `manager` row | `request_context=v1` and both account assertion headers are required |
+
+The pharmacy family shares the hospital enrollment core: the same validation,
+`expected_version`, supervision lock, credential constraints and audited read.
+`staff` carries `pharmacy_id`, never `hospital_id`. A pharmacy has no HR
+masters, so a master ID answers 404 and each `*_masters` view answers 400, as
+does `hr_intake`. Credentials are recorded but stay unreviewed until slice 4e.
+No enrollment event is published for a pharmacy. Migration
+`0095_workforce_pharmacy_enrollment` admits a pharmacy only in the six
+`workforce_enrollment_*` tables.
 
 ## Scoped employment-review workspace
 

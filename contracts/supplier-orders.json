@@ -1,0 +1,273 @@
+{
+  "maximum_lines": 100,
+  "models": {
+    "SupplierOrderProduct": [
+      {
+        "name": "owner",
+        "type": "string",
+        "enum": ["supply", "pharmacy"]
+      },
+      {
+        "name": "product_id",
+        "type": "uuid"
+      },
+      {
+        "name": "version_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991,
+        "optional": true
+      }
+    ],
+    "SupplierOrderLine": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "product",
+        "type": "SupplierOrderProduct"
+      },
+      {
+        "name": "quantity_units",
+        "type": "int64",
+        "min": 1,
+        "max": 1000000000
+      },
+      {
+        "name": "unit_code",
+        "type": "string",
+        "min": 1,
+        "max": 100
+      }
+    ],
+    "SupplierOrderInput": [
+      {
+        "name": "relationship_id",
+        "type": "uuid"
+      },
+      {
+        "name": "terms_sha256",
+        "type": "string",
+        "min": 1,
+        "max": 64
+      },
+      {
+        "name": "purchase_order_reference",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "quote_reference",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "expires_at",
+        "type": "time"
+      },
+      {
+        "name": "lines",
+        "type": "[]SupplierOrderLine",
+        "min": 1,
+        "max": 100
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      }
+    ],
+    "SupplierOrder": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "side",
+        "type": "string",
+        "enum": ["buyer", "seller"]
+      },
+      {
+        "name": "terms",
+        "type": "SupplierTradeTerms"
+      },
+      {
+        "name": "input",
+        "type": "SupplierOrderInput"
+      },
+      {
+        "name": "input_sha256",
+        "type": "string",
+        "min": 1,
+        "max": 64
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "pending_review",
+          "offered",
+          "incoming",
+          "accepted",
+          "rejected",
+          "cancelled",
+          "cancellation_requested"
+        ]
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "authority_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "remote_epoch",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740991
+      },
+      {
+        "name": "remote_phase",
+        "type": "string",
+        "enum": [
+          "",
+          "approved",
+          "accepted",
+          "rejected",
+          "cancelled",
+          "cancel_requested"
+        ]
+      },
+      {
+        "name": "prepared_by",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "prepared_staff_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "signed_by",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "optional": true
+      },
+      {
+        "name": "signed_staff_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "remote_signed_by",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "optional": true
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "SupplierOrderDecisionInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "decision",
+        "type": "string",
+        "enum": ["approve", "reject", "cancel"]
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      }
+    ],
+    "SupplierOrderExchange": [
+      {
+        "name": "order_id",
+        "type": "uuid"
+      },
+      {
+        "name": "terms",
+        "type": "SupplierTradeTerms"
+      },
+      {
+        "name": "input",
+        "type": "SupplierOrderInput"
+      },
+      {
+        "name": "input_sha256",
+        "type": "string",
+        "min": 1,
+        "max": 64
+      },
+      {
+        "name": "source_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "source_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "phase",
+        "type": "string",
+        "enum": [
+          "approved",
+          "accepted",
+          "rejected",
+          "cancelled",
+          "cancel_requested"
+        ]
+      },
+      {
+        "name": "signatory_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      }
+    ]
+  },
+  "product_version_fields": {
+    "supply": "version_id",
+    "pharmacy": "version"
+  },
+  "product_id_versions": {
+    "pharmacy": 7
+  }
+}

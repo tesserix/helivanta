@@ -147,7 +147,7 @@ func verifyPurchaseOrderProtocol(t *testing.T, db *tenantdb.DB, seller, buyer su
 				return err
 			}
 			require.JSONEq(t, string(originalReceipt), string(row.ProposalReceipt))
-			require.Equal(t, "cancellation_requested", row.Order.Status)
+			require.Equal(t, "cancelled", row.Order.Status)
 			recovered, err := supply.TestSamePurchaseOrderProposal(row, input, actor)
 			require.NoError(t, err)
 			require.Equal(t, "pending_review", recovered.Status)

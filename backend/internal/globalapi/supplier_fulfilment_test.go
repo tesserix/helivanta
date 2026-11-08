@@ -272,7 +272,7 @@ func seedSupplierStock(t *testing.T, r *gin.Engine, db *tenantdb.DB, owner strin
 	class := uuid.Must(uuid.NewV7()).String()
 	call("PUT", productPath+"/schedule/"+class, "owner", `{"regulatory_class":"H","ndps":false,"source":"TEST pack label"}`, 201)
 	call("POST", productPath+"/schedule/"+class+"/review", "reviewer", `{"decision":"approved","reason":"TEST checked"}`, 200)
-	call("POST", productPath+"/tax-classifications", "owner", `{"classification_code":"30041010","supply_nature":"taxable","rate_percent":"5","effective_from":"2026-01-01"}`, 201)
+	call("POST", productPath+"/tax-classifications", "owner", fmt.Sprintf(`{"classification_code":"30041010","supply_nature":"taxable","rate_percent":"5","effective_from":%q}`, time.Now().In(time.FixedZone("Asia/Kolkata", 19800)).Format(time.DateOnly)), 201)
 	quarantine, sellable := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 	v.bucket = &sellable
 	call("PUT", root+"/stock/locations/"+quarantine.String(), "owner", `{"code":"TEST-Q","name":"TEST Quarantine"}`, 200)

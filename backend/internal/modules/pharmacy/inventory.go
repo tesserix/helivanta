@@ -80,7 +80,7 @@ const movementColumns = "id,tenant_id,outlet_id,location_id,batch_id,kind,quanti
 var errStockIdentity = errors.New("stock identity is immutable")
 
 func inventoryRoutes(g *platform.Router, deps platform.Deps) {
-	h := &catalogueHandlers{db: deps.DB, bus: deps.Bus, operating: deps.OperatingAuthorizer}
+	h := &catalogueHandlers{db: deps.DB, bus: deps.Bus, operating: deps.OperatingAuthorizer, supplierSafety: deps.SupplierShipmentSafety}
 	stockOverviewRoutes(g, h)
 	operatingStockRoutes(g, h)
 	s := g.Group("/pharmacies/:pharmacy/outlets/:outlet/stock")

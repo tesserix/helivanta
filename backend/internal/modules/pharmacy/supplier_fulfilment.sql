@@ -32,7 +32,7 @@ CREATE TABLE pharmacy_supplier_holds(
 );
 CREATE INDEX ON pharmacy_supplier_holds(tenant_id,location_id,stock_id,stock_location_id,expires_at)WHERE reserved_units>0;
 ALTER TABLE pharmacy_supplier_holds ENABLE ROW LEVEL SECURITY;ALTER TABLE pharmacy_supplier_holds FORCE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation ON pharmacy_supplier_holds USING(hms_tenant_visible(tenant_id)AND(pharmacy_outlet_allowed(tenant_id,location_id,false) OR pharmacy_stock_overview_allowed(tenant_id,location_id) OR pharmacy_supplier_scope(tenant_id,organization_id,location_id,allocation_id,'00000000-0000-0000-0000-000000000000',false)))WITH CHECK(pg_trigger_depth()>1 AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);
+CREATE POLICY tenant_isolation ON pharmacy_supplier_holds USING(hms_tenant_visible(tenant_id)AND(pharmacy_outlet_allowed(tenant_id,location_id,false) OR pharmacy_stock_overview_allowed(tenant_id,location_id) OR pharmacy_supplier_scope(tenant_id,organization_id,location_id,allocation_id,'00000000-0000-0000-0000-000000000000',false)))WITH CHECK(pg_trigger_depth()>0 AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);
 CREATE FUNCTION pharmacy_supplier_allocation_guard()RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE used bigint;n bigint;
 BEGIN

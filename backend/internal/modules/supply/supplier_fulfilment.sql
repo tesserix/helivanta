@@ -32,7 +32,7 @@ CREATE TABLE supply_supplier_holds(
 );
 CREATE INDEX ON supply_supplier_holds(tenant_id,location_id,stock_id,stock_location_id,expires_at)WHERE reserved_units>0;
 ALTER TABLE supply_supplier_holds ENABLE ROW LEVEL SECURITY;ALTER TABLE supply_supplier_holds FORCE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation ON supply_supplier_holds USING(hms_tenant_visible(tenant_id)AND(supply_stock_scope(tenant_id,organization_id,location_id,'read') OR supply_operating_owned(tenant_id,organization_id,location_id,ARRAY['administrator','inventory','warehouse','auditor','regulator']) OR supply_supplier_scope(tenant_id,organization_id,location_id,allocation_id,'00000000-0000-0000-0000-000000000000',false)))WITH CHECK(pg_trigger_depth()>1 AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);
+CREATE POLICY tenant_isolation ON supply_supplier_holds USING(hms_tenant_visible(tenant_id)AND(supply_stock_scope(tenant_id,organization_id,location_id,'read') OR supply_operating_owned(tenant_id,organization_id,location_id,ARRAY['administrator','inventory','warehouse','auditor','regulator']) OR supply_supplier_scope(tenant_id,organization_id,location_id,allocation_id,'00000000-0000-0000-0000-000000000000',false)))WITH CHECK(pg_trigger_depth()>0 AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);
 CREATE FUNCTION supply_supplier_allocation_guard()RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE used bigint;n bigint;
 BEGIN

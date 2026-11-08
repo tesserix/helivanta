@@ -44,17 +44,9 @@ func (h *catalogueHandlers) operatingStock(ctx context.Context, p authn.Principa
 			return authz.ErrScopedAuthorizationUnavailable
 		}
 		err := h.db.WithTenantCommand(ctx, p.TenantID, func(tx *gorm.DB) (err error) {
-			var previous string
-			if err = tx.Raw(`SELECT jsonb_object_agg(key,COALESCE(current_setting(key,true),''))::text FROM unnest(ARRAY['app.pharmacy_subject','app.pharmacy_stock_access','app.pharmacy_stock_pharmacy','app.pharmacy_stock_outlet','app.pharmacy_stock_permission'])AS key`).Scan(&previous).Error; err != nil {
-				return err
-			}
-			defer func() {
-				err = errors.Join(err, tx.Exec(`SELECT set_config(key,value,true)FROM jsonb_each_text(?::jsonb)`, previous).Error)
-			}()
-			if err = tx.Exec(`SELECT set_config('app.pharmacy_subject',?,true),set_config('app.pharmacy_stock_access','authorized',true),set_config('app.pharmacy_stock_pharmacy',?,true),set_config('app.pharmacy_stock_outlet',?,true),set_config('app.pharmacy_stock_permission',?,true)`, p.Subject, pharmacy.String(), outlet.String(), string(permission)).Error; err != nil {
-				return err
-			}
-			return action(tx, operatingStockUse{tenant: p.TenantID, subject: p.Subject, pharmacy: pharmacy, outlet: outlet, grant: grant})
+			return pharmacyStockFrame(tx, p.Subject, pharmacy, outlet, permission, func() error {
+				return action(tx, operatingStockUse{tenant: p.TenantID, subject: p.Subject, pharmacy: pharmacy, outlet: outlet, grant: grant})
+			})
 		})
 		if err != nil {
 			return operatingStockFailure{err}
@@ -101,4 +93,18 @@ func operatingStockError(c *gin.Context, err error) {
 	default:
 		respond.Error(c, http.StatusServiceUnavailable, "authorization_unavailable", "Operating authority could not be verified.")
 	}
+}
+
+func pharmacyStockFrame(tx *gorm.DB, subject string, pharmacy, outlet uuid.UUID, permission authz.Permission, action func() error) (err error) {
+	var previous string
+	if err = tx.Raw(`SELECT jsonb_object_agg(key,COALESCE(current_setting(key,true),''))::text FROM unnest(ARRAY['app.pharmacy_subject','app.pharmacy_stock_access','app.pharmacy_stock_pharmacy','app.pharmacy_stock_outlet','app.pharmacy_stock_permission'])AS key`).Scan(&previous).Error; err != nil {
+		return err
+	}
+	defer func() {
+		err = errors.Join(err, tx.Exec(`SELECT set_config(key,value,true)FROM jsonb_each_text(?::jsonb)`, previous).Error)
+	}()
+	if err = tx.Exec(`SELECT set_config('app.pharmacy_subject',?,true),set_config('app.pharmacy_stock_access','authorized',true),set_config('app.pharmacy_stock_pharmacy',?,true),set_config('app.pharmacy_stock_outlet',?,true),set_config('app.pharmacy_stock_permission',?,true)`, subject, pharmacy.String(), outlet.String(), string(permission)).Error; err != nil {
+		return err
+	}
+	return action()
 }

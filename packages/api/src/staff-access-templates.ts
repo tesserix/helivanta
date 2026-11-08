@@ -333,6 +333,79 @@ export const staffAccessTemplates = [
     scope_kinds: ["department"],
     establishment_kinds: ["hospital"],
   },
+  {
+    key: "supply.department_goods_reader.v1",
+    name: "Department supplier goods reader",
+    description:
+      "Read or record this department’s verified supplier delivery, quarantine custody and independent receiving review; no stock sale, clinical prescribing or financial authority.",
+    family: "supplier_receiving",
+    permissions: [
+      "pharmacy.hospital_receiving.use",
+      "supply.goods_receipt.read",
+      "workforce.purchase_order_actor.use",
+    ],
+    scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
+  },
+  {
+    key: "supply.department_goods_receiver.v1",
+    name: "Department supplier goods receiver",
+    description:
+      "Read or record this department’s verified supplier delivery, quarantine custody and independent receiving review; no stock sale, clinical prescribing or financial authority.",
+    family: "supplier_receiving",
+    permissions: [
+      "pharmacy.hospital_receiving.use",
+      "supply.goods_receipt.read",
+      "supply.goods_receipt.record",
+      "workforce.purchase_order_actor.use",
+    ],
+    scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
+  },
+  {
+    key: "supply.department_goods_reviewer.v1",
+    name: "Department supplier receiving reviewer",
+    description:
+      "Read or record this department’s verified supplier delivery, quarantine custody and independent receiving review; no stock sale, clinical prescribing or financial authority.",
+    family: "supplier_receiving",
+    permissions: [
+      "pharmacy.hospital_receiving.review",
+      "supply.goods_receipt.read",
+      "supply.goods_receipt.review",
+      "workforce.purchase_order_actor.use",
+    ],
+    scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
+  },
+  {
+    key: "supply.department_goods_pharmacy_fulfiller.v1",
+    name: "Hospital-owned pharmacy fulfilment operator",
+    description:
+      "Commit only stock owned by this department’s governed pharmacy and exact outlet under current source licence/order fences; no independent partner administration, clinical prescribing or financial authority.",
+    family: "supplier_receiving",
+    permissions: [
+      "pharmacy.hospital_fulfilment.use",
+      "supply.supplier_order.read",
+      "workforce.purchase_order_actor.use",
+    ],
+    scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
+  },
+  {
+    key: "supply.department_goods_pharmacy_acceptor.v1",
+    name: "Hospital pharmacy supplier order reviewer",
+    description:
+      "Accept or reject supplier orders and reconcile hospital receiving evidence for this department’s governed pharmacy outlet; no physical stock, prescribing or financial authority.",
+    family: "supplier_receiving",
+    permissions: [
+      "supply.receiving_response.record",
+      "supply.supplier_order.accept",
+      "supply.supplier_order.read",
+      "workforce.purchase_order_actor.use",
+    ],
+    scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
+  },
 ] as const;
 export const staffAccessTemplateCatalogs = {
   "legacy-v1": [
@@ -473,4 +546,11 @@ export const staffAccessTemplateCatalogs = {
     "supply.department_purchase_order_preparer.v1",
     "supply.department_purchase_order_reviewer.v1",
   ],
+  "department-supplier-goods-v1": [
+    "supply.department_goods_reader.v1",
+    "supply.department_goods_receiver.v1",
+    "supply.department_goods_reviewer.v1",
+    "supply.department_goods_pharmacy_fulfiller.v1",
+  ],
+  "department-supplier-commercial-v1": ["supply.department_goods_pharmacy_acceptor.v1"],
 } as const;

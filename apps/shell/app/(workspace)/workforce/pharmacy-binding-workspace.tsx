@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@tesserix/web";
-import { Panel, RefreshButton, RequestFailure, firstError } from "@helivanta/ui";
+import { GuardedLink, Panel, RefreshButton, RequestFailure, firstError } from "@helivanta/ui";
 import {
   usePharmacyBindingHospitals,
   usePharmacyBindingOutlets,
@@ -463,6 +463,20 @@ function RelationshipDetail({
           {intent === null && (
             <>
               <h3 className="text-lg font-semibold">Relationship detail</h3>
+              {detail.data.binding.status === "approved" &&
+                detail.data.source_state === "current" &&
+                history.isSuccess &&
+                !history.isFetching &&
+                !busy &&
+                !changed && (
+                  <GuardedLink
+                    href={`/pharmacy/hospitals/${scope.hospitalId}/departments/${detail.data.binding.department_id}/pharmacies/${scope.pharmacyId}/outlets/${scope.outletId}/supplier-operations`}
+                    className="text-sm underline underline-offset-4"
+                  >
+                    Open department supplier operations
+                  </GuardedLink>
+                )}
+
               <p role="status">
                 {changed
                   ? "Relationship changed. Recheck the current record."

@@ -178,3 +178,24 @@ export const SupplierOrderCommandReceiptContract = z
   })
   .strict();
 export type SupplierOrderCommandReceipt = z.infer<typeof SupplierOrderCommandReceiptContract>;
+
+export const SupplierOrderReviewAccessContract = z
+  .object({
+    owner_tenant_id: identifier,
+    order_id: identifier,
+    organization_id: identifier,
+    location_id: identifier,
+    product: z.enum(["supply", "pharmacy"]),
+    hospital_id: identifier.optional(),
+    department_id: identifier.optional(),
+    actor_subject: z
+      .string()
+      .trim()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    actor_staff_id: identifier,
+    observed_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type SupplierOrderReviewAccess = z.infer<typeof SupplierOrderReviewAccessContract>;

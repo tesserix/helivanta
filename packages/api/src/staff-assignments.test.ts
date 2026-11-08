@@ -226,3 +226,16 @@ it.each(["viewer", "reviewer"])(
     );
   },
 );
+
+it.each([
+  ["supplier_receiving", "/api/v1/iam/supplier-receiving-assignment-proposals"],
+  ["purchase_order", "/api/v1/iam/purchase-order-assignment-proposals"],
+] as const)("routes the %s staff family to its paginated IAM list", async (family, path) => {
+  const fetch = vi
+    .fn()
+    .mockResolvedValue(Response.json({ data: [], page: { has_more: false, next_cursor: null } }));
+  vi.stubGlobal("fetch", fetch);
+  const result = await listStaffAssignments({ tenantId, subject: "reviewer" }, { family });
+  expect(result.data).toEqual([]);
+  expect(new URL(fetch.mock.calls[0]![0], "https://example.invalid").pathname).toBe(path);
+});

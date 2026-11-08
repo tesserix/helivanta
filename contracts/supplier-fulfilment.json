@@ -1,0 +1,1435 @@
+{
+  "maximum_lease_seconds": 86400,
+  "maximum_units": 1000000000,
+  "models": {
+    "ReserveInput": [
+      {
+        "name": "expected_order_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "line_id",
+        "type": "uuid"
+      },
+      {
+        "name": "stock_id",
+        "type": "uuid"
+      },
+      {
+        "name": "stock_location_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "quantity_units",
+        "type": "int64",
+        "min": 1,
+        "max": 1000000000
+      },
+      {
+        "name": "expires_at",
+        "type": "time"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      }
+    ],
+    "AllocationPlan": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "order_id",
+        "type": "uuid"
+      },
+      {
+        "name": "order_input_sha256",
+        "type": "string",
+        "min": 1,
+        "max": 64
+      },
+      {
+        "name": "line_quantity_units",
+        "type": "int64",
+        "min": 1,
+        "max": 1000000000
+      },
+      {
+        "name": "order_authority_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "order_remote_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "source_organization_id",
+        "type": "uuid"
+      },
+      {
+        "name": "source_location_id",
+        "type": "uuid"
+      },
+      {
+        "name": "buyer_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "buyer_organization_id",
+        "type": "uuid"
+      },
+      {
+        "name": "buyer_location_id",
+        "type": "uuid"
+      },
+      {
+        "name": "product",
+        "type": "SupplierOrderProduct"
+      },
+      {
+        "name": "unit_code",
+        "type": "string",
+        "min": 1,
+        "max": 100
+      },
+      {
+        "name": "input",
+        "type": "ReserveInput"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "actor_staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "Allocation": [
+      {
+        "name": "plan",
+        "type": "AllocationPlan"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["reserved", "released", "dispatched"]
+      },
+      {
+        "name": "lot_number",
+        "type": "string",
+        "min": 1,
+        "max": 100
+      },
+      {
+        "name": "expires_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "reserved_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "dispatched_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "released_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "product_description",
+        "type": "string",
+        "min": 1,
+        "max": 2000
+      },
+      {
+        "name": "pack_size",
+        "type": "int64",
+        "min": 1,
+        "max": 1000000000
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "AllocationDecisionInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "quantity_units",
+        "type": "int64",
+        "min": 1,
+        "max": 1000000000
+      },
+      {
+        "name": "decision",
+        "type": "string",
+        "enum": ["release", "dispatch"]
+      },
+      {
+        "name": "handoff_reference",
+        "type": "string",
+        "min": 0,
+        "max": 200
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      }
+    ],
+    "AllocationCommandReceipt": [
+      {
+        "name": "command_id",
+        "type": "uuid"
+      },
+      {
+        "name": "input",
+        "type": "AllocationDecisionInput"
+      },
+      {
+        "name": "allocation",
+        "type": "Allocation"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "actor_staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "recorded_at",
+        "type": "time"
+      }
+    ],
+    "Shipment": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "allocation_id",
+        "type": "uuid"
+      },
+      {
+        "name": "order_id",
+        "type": "uuid"
+      },
+      {
+        "name": "line_id",
+        "type": "uuid"
+      },
+      {
+        "name": "order_input_sha256",
+        "type": "string",
+        "min": 1,
+        "max": 64
+      },
+      {
+        "name": "source_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "source_organization_id",
+        "type": "uuid"
+      },
+      {
+        "name": "source_location_id",
+        "type": "uuid"
+      },
+      {
+        "name": "buyer_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "buyer_organization_id",
+        "type": "uuid"
+      },
+      {
+        "name": "buyer_location_id",
+        "type": "uuid"
+      },
+      {
+        "name": "product",
+        "type": "SupplierOrderProduct"
+      },
+      {
+        "name": "unit_code",
+        "type": "string",
+        "min": 1,
+        "max": 100
+      },
+      {
+        "name": "quantity_units",
+        "type": "int64",
+        "min": 1,
+        "max": 1000000000
+      },
+      {
+        "name": "lot_number",
+        "type": "string",
+        "min": 1,
+        "max": 100
+      },
+      {
+        "name": "expires_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "mrp_minor",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000000,
+        "optional": true
+      },
+      {
+        "name": "handoff_reference",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "product_description",
+        "type": "string",
+        "min": 1,
+        "max": 2000
+      },
+      {
+        "name": "pack_size",
+        "type": "int64",
+        "min": 1,
+        "max": 1000000000
+      },
+      {
+        "name": "dispatched_at",
+        "type": "time"
+      }
+    ],
+    "ReceivingInput": [
+      {
+        "name": "destination_product_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "destination_product_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991,
+        "optional": true
+      },
+      {
+        "name": "destination_batch_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "quarantine_location_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "mrp_minor",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000000,
+        "optional": true
+      },
+      {
+        "name": "counted_units",
+        "type": "int64",
+        "min": 1,
+        "max": 1000000000
+      },
+      {
+        "name": "accepted_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "rejected_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "observed_lot_number",
+        "type": "string",
+        "min": 1,
+        "max": 100
+      },
+      {
+        "name": "observed_expires_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "identity_confirmed",
+        "type": "bool"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      }
+    ],
+    "ReceivingReceipt": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "shipment_id",
+        "type": "uuid"
+      },
+      {
+        "name": "order_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "pharmacy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "outlet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "input",
+        "type": "ReceivingInput"
+      },
+      {
+        "name": "movement_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "cumulative_counted_units",
+        "type": "int64",
+        "min": 1,
+        "max": 1000000000
+      },
+      {
+        "name": "cumulative_accepted_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "cumulative_rejected_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "actor_staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "ReceivingClosureInput": [
+      {
+        "name": "expected_counted_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      },
+      {
+        "name": "expected_summary_version",
+        "type": "int64",
+        "optional": true,
+        "min": 1,
+        "max": 9007199254740991
+      }
+    ],
+    "ReceivingClosure": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "shipment_id",
+        "type": "uuid"
+      },
+      {
+        "name": "counted_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "accepted_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "rejected_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "short_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "actor_staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "AllocationView": [
+      {
+        "name": "allocation",
+        "type": "Allocation"
+      },
+      {
+        "name": "effective_status",
+        "type": "string",
+        "enum": ["reserved", "expired", "released", "dispatched"]
+      },
+      {
+        "name": "effective_reserved_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "observed_at",
+        "type": "time"
+      }
+    ],
+    "ReceivingSummary": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "shipment_id",
+        "type": "uuid"
+      },
+      {
+        "name": "order_id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "counted_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "accepted_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "rejected_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "short_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "closed",
+        "type": "bool"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "recorded_at",
+        "type": "time"
+      }
+    ],
+    "ReceivingCorrectionInput": [
+      {
+        "name": "expected_summary_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "expected_receipt_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "counted_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "accepted_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "rejected_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "identity_confirmed",
+        "type": "bool"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 500
+      }
+    ],
+    "ReceivingCorrection": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "shipment_id",
+        "type": "uuid"
+      },
+      {
+        "name": "receipt_id",
+        "type": "uuid"
+      },
+      {
+        "name": "outlet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "input",
+        "type": "ReceivingCorrectionInput"
+      },
+      {
+        "name": "accepted_delta_units",
+        "type": "int64",
+        "min": -1000000000,
+        "max": 1000000000
+      },
+      {
+        "name": "cumulative_counted_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "cumulative_accepted_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "cumulative_rejected_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "movement_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "actor_subject",
+        "type": "string"
+      },
+      {
+        "name": "actor_staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "ReceivingClearanceInput": [
+      {
+        "name": "expected_summary_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      }
+    ],
+    "ReceivingClearance": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "receipt_id",
+        "type": "uuid"
+      },
+      {
+        "name": "summary_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "state",
+        "type": "string",
+        "enum": ["review_recorded"]
+      }
+    ],
+    "SupplierStockChoice": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "order_id",
+        "type": "uuid"
+      },
+      {
+        "name": "line_id",
+        "type": "uuid"
+      },
+      {
+        "name": "organization_id",
+        "type": "uuid"
+      },
+      {
+        "name": "location_id",
+        "type": "uuid"
+      },
+      {
+        "name": "product",
+        "type": "SupplierOrderProduct"
+      },
+      {
+        "name": "lot_number",
+        "type": "string",
+        "min": 1,
+        "max": 100
+      },
+      {
+        "name": "expires_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "description",
+        "type": "string",
+        "min": 1,
+        "max": 2000
+      },
+      {
+        "name": "unit_code",
+        "type": "string",
+        "min": 1,
+        "max": 100
+      },
+      {
+        "name": "pack_size",
+        "type": "int64",
+        "min": 1,
+        "max": 1000000000
+      },
+      {
+        "name": "available_units",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740991
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "observed_at",
+        "type": "time"
+      }
+    ],
+    "SupplierStockLocationChoice": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "order_id",
+        "type": "uuid"
+      },
+      {
+        "name": "line_id",
+        "type": "uuid"
+      },
+      {
+        "name": "organization_id",
+        "type": "uuid"
+      },
+      {
+        "name": "location_id",
+        "type": "uuid"
+      },
+      {
+        "name": "stock_id",
+        "type": "uuid"
+      },
+      {
+        "name": "code",
+        "type": "string",
+        "min": 1,
+        "max": 100
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "available_units",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740991
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "observed_at",
+        "type": "time"
+      }
+    ],
+    "ReceivingResponseInput": [
+      {
+        "name": "expected_summary_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "response",
+        "type": "string",
+        "enum": ["confirmed", "disputed"]
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      }
+    ],
+    "ReceivingResponseRecord": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "buyer_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "order_id",
+        "type": "uuid"
+      },
+      {
+        "name": "shipment_id",
+        "type": "uuid"
+      },
+      {
+        "name": "source_organization_id",
+        "type": "uuid"
+      },
+      {
+        "name": "source_location_id",
+        "type": "uuid"
+      },
+      {
+        "name": "source_product",
+        "type": "string",
+        "enum": ["supply", "pharmacy"]
+      },
+      {
+        "name": "summary_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "response",
+        "type": "string",
+        "enum": ["confirmed", "disputed"]
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "format": "text"
+      },
+      {
+        "name": "actor_staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "ReceivingProductChoice": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "shipment_id",
+        "type": "uuid"
+      },
+      {
+        "name": "pharmacy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "outlet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "brand_name",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "generic_name",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "manufacturer",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "dosage_form",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "unit_code",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "pack_size",
+        "type": "int64",
+        "min": 1,
+        "max": 1000000000
+      },
+      {
+        "name": "identity_description",
+        "type": "string",
+        "min": 1,
+        "max": 10000
+      },
+      {
+        "name": "currency",
+        "type": "string",
+        "min": 3,
+        "max": 3
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "ReceivingLocationChoice": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "shipment_id",
+        "type": "uuid"
+      },
+      {
+        "name": "pharmacy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "outlet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "code",
+        "type": "string",
+        "min": 1,
+        "max": 40
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "stock_status",
+        "type": "string",
+        "enum": ["quarantine", "sellable"]
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "ReceivingReleaseInput": [
+      {
+        "name": "expected_summary_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "to_location_id",
+        "type": "uuid"
+      },
+      {
+        "name": "quantity_units",
+        "type": "int64",
+        "min": 1,
+        "max": 1000000000
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      }
+    ],
+    "ReceivingRelease": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "shipment_id",
+        "type": "uuid"
+      },
+      {
+        "name": "receipt_id",
+        "type": "uuid"
+      },
+      {
+        "name": "pharmacy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "outlet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "batch_id",
+        "type": "uuid"
+      },
+      {
+        "name": "from_location_id",
+        "type": "uuid"
+      },
+      {
+        "name": "input",
+        "type": "ReceivingReleaseInput"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "actor_staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "ReceivingSharedResponse": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "buyer_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "order_id",
+        "type": "uuid"
+      },
+      {
+        "name": "shipment_id",
+        "type": "uuid"
+      },
+      {
+        "name": "source_organization_id",
+        "type": "uuid"
+      },
+      {
+        "name": "source_location_id",
+        "type": "uuid"
+      },
+      {
+        "name": "source_product",
+        "type": "string",
+        "enum": ["supply", "pharmacy"]
+      },
+      {
+        "name": "summary_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "response",
+        "type": "string",
+        "enum": ["confirmed", "disputed"]
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "format": "text"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "ReceivingCurrent": [
+      {
+        "name": "summary",
+        "type": "ReceivingSummary",
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "state",
+        "type": "string",
+        "enum": ["not_recorded", "recorded"]
+      }
+    ],
+    "ReceivingBatchChoice": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "shipment_id",
+        "type": "uuid"
+      },
+      {
+        "name": "pharmacy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "outlet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "product_id",
+        "type": "uuid"
+      },
+      {
+        "name": "product_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "lot_number",
+        "type": "string",
+        "min": 1,
+        "max": 100
+      },
+      {
+        "name": "expires_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "mrp_minor",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740991,
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "ReceivingClearanceEvidence": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "shipment_id",
+        "type": "uuid"
+      },
+      {
+        "name": "receipt_id",
+        "type": "uuid"
+      },
+      {
+        "name": "pharmacy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "outlet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "summary_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "state",
+        "type": "string",
+        "enum": ["review_recorded"]
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "actor_staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ]
+  }
+}

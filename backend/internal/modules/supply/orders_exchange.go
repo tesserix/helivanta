@@ -8,9 +8,11 @@ import (
 
 	"github.com/google/uuid"
 	supplycontract "github.com/tesserix/helivanta/internal/modules/supply/contract" //nolint:depguard // own data-only event contract
+	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/supplierorder"
 	"github.com/tesserix/helivanta/pkg/suppliertrade"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
 )
 
@@ -37,13 +39,13 @@ func enqueueOrderExchange(tx *gorm.DB, input supplierorder.SupplierOrderExchange
 	}
 	return events.Enqueue(tx, supplycontract.SubjectOrderExchange, events.Event{ID: id.String(), Type: supplycontract.SubjectOrderExchange, Version: 1, OccurredAt: time.Now().UTC(), TenantID: input.SourceTenantID.String(), DestinationTenantID: destination.String(), Data: raw})
 }
-func purchaseOrderConsumer() events.Consumer {
-	return events.Consumer{Name: "supply-purchase-order-exchange", Subject: supplycontract.SubjectOrderExchange, Handle: func(_ context.Context, tx *gorm.DB, event events.Event) error {
+func purchaseOrderConsumer(cancellation platform.StockCancellation) events.Consumer {
+	return events.Consumer{Name: "supply-purchase-order-exchange", Subject: supplycontract.SubjectOrderExchange, Handle: func(ctx context.Context, tx *gorm.DB, event events.Event) error {
 		var input supplierorder.SupplierOrderExchange
 		source, sourceErr := uuid.Parse(event.TenantID)
 		destination, destErr := uuid.Parse(event.DestinationTenantID)
 		eventID, eventErr := uuid.Parse(event.ID)
-		if sourceErr != nil || destErr != nil || eventErr != nil || eventID.Version() != 7 || eventID.Variant() != uuid.RFC4122 || source == uuid.Nil || destination == uuid.Nil || source == destination || event.Type != supplycontract.SubjectOrderExchange || event.Version != 1 || suppliertrade.DecodeObject(event.Data, &input) != nil || input.SourceTenantID != source {
+		if sourceErr != nil || destErr != nil || eventErr != nil || eventID.Version() != 7 || eventID.Variant() != uuid.RFC4122 || source == uuid.Nil || destination == uuid.Nil || source == destination || event.Type != supplycontract.SubjectOrderExchange || event.Version != 1 || supplierorder.DecodeObject(event.Data, &input) != nil || input.SourceTenantID != source {
 			return errors.New("invalid purchase order exchange provenance")
 		}
 		if err := purchaseOrderLock(tx, destination.String(), input.OrderID); err != nil {
@@ -65,6 +67,9 @@ func purchaseOrderConsumer() events.Consumer {
 			if !established {
 				return supplierorder.ErrIneligible
 			}
+			if err := tx.Exec(`SELECT id FROM supply_purchase_orders WHERE tenant_id=? AND id=? FOR UPDATE`, destination, input.OrderID).Error; err != nil {
+				return err
+			}
 			previous, err := loadPurchaseOrder(tx, destination.String(), input.OrderID)
 			var current *supplierorder.SupplierOrder
 			if err == nil {
@@ -80,7 +85,29 @@ func purchaseOrderConsumer() events.Consumer {
 				return nil
 			}
 			previous.Order = next
-			return savePurchaseOrder(tx, previous, "system:supplier-orders", nil, &eventID)
+			if err = savePurchaseOrder(tx, previous, "system:supplier-orders", nil, &eventID); err != nil {
+				return err
+			}
+			if next.Side == "seller" && input.Phase == "cancel_requested" && next.Status != "rejected" {
+				if cancellation == nil {
+					return supplierorder.ErrUnavailable
+				}
+				if err = cancellation.ReleaseOrder(tenantdb.WithActor(ctx, "system:supplier-fulfilment"), tx, next); err != nil {
+					return err
+				}
+				completed, ack, err := supplierorder.CompleteCancellation(next, purchaseOrderNow())
+				if err != nil {
+					return err
+				}
+				if completed.Version != next.Version {
+					previous.Order = completed
+					if err = savePurchaseOrder(tx, previous, "system:supplier-orders", nil, nil); err != nil {
+						return err
+					}
+				}
+				return enqueueOrderExchange(tx, ack)
+			}
+			return nil
 		})
 	}}
 }

@@ -5,10 +5,7 @@
       {
         "name": "owner",
         "type": "string",
-        "enum": [
-          "supply",
-          "pharmacy"
-        ]
+        "enum": ["supply", "pharmacy"]
       },
       {
         "name": "product_id",
@@ -101,10 +98,7 @@
       {
         "name": "side",
         "type": "string",
-        "enum": [
-          "buyer",
-          "seller"
-        ]
+        "enum": ["buyer", "seller"]
       },
       {
         "name": "buyer_department_id",
@@ -217,11 +211,7 @@
       {
         "name": "decision",
         "type": "string",
-        "enum": [
-          "approve",
-          "reject",
-          "cancel"
-        ]
+        "enum": ["approve", "reject", "cancel"]
       },
       {
         "name": "reason",
@@ -302,6 +292,54 @@
       },
       {
         "name": "recorded_at",
+        "type": "time"
+      }
+    ],
+    "SupplierOrderReviewAccess": [
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "order_id",
+        "type": "uuid"
+      },
+      {
+        "name": "organization_id",
+        "type": "uuid"
+      },
+      {
+        "name": "location_id",
+        "type": "uuid"
+      },
+      {
+        "name": "product",
+        "type": "string",
+        "enum": ["supply", "pharmacy"]
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "department_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "format": "text"
+      },
+      {
+        "name": "actor_staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "observed_at",
         "type": "time"
       }
     ]

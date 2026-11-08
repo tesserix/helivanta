@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1400" viewBox="0 0 1920 1400" role="img" aria-labelledby="title desc"><title id="title">Supplier fulfilment and hospital receiving</title><desc id="desc">Separate source stock owners, current Staff authority, directed durable shipment facts, hospital quarantine receiving, independent review, actual physical release and separate financial acceptance.</desc><defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L9,3 L0,6 Z" fill="#586e8b"/></marker></defs><rect width="1920" height="1400" fill="#ffffff"/><g font-family="Arial, sans-serif">
+<text x="40" y="57" font-size="32" font-weight="700" fill="#142d4e">Supplier fulfilment &amp; hospital receiving</text>
+<text x="40" y="87" font-size="17" fill="#52657c">Two source stock owners • one destination owner • attributable, immutable physical evidence</text>
+<rect x="40" y="250" width="570" height="400" rx="12" fill="#f2f6fd" stroke="#8ca9d0" stroke-width="1.5"/>
+<text x="60" y="285" font-size="22" font-weight="700" fill="#172b4d">1  Supply-owned warehouse stock</text>
+<rect x="650" y="250" width="570" height="400" rx="12" fill="#eef8f6" stroke="#82b8ad" stroke-width="1.5"/>
+<text x="670" y="285" font-size="22" font-weight="700" fill="#172b4d">2  Pharma-owned outlet stock</text>
+<rect x="1280" y="250" width="600" height="950" rx="12" fill="#f5f2fc" stroke="#b09bd3" stroke-width="1.5"/>
+<text x="1300" y="285" font-size="22" font-weight="700" fill="#172b4d">3  Hospital receiving — Pharma owner</text>
+<path d="M 310,460 L 340,460" fill="none" stroke="#586e8b" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M 920,460 L 950,460" fill="none" stroke="#586e8b" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M 185,400 L 185,420" fill="none" stroke="#586e8b" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M 795,400 L 795,420" fill="none" stroke="#586e8b" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M 465,500 L 465,530" fill="none" stroke="#586e8b" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M 1075,500 L 1075,530" fill="none" stroke="#586e8b" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M 325,610 L 325,710" fill="none" stroke="#586e8b" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M 935,610 L 935,710" fill="none" stroke="#586e8b" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M 1220,770 L 1250,770 L 1250,355 L 1300,355" fill="none" stroke="#586e8b" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M 1580,400 L 1580,435" fill="none" stroke="#586e8b" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M 1435,545 L 1435,580" fill="none" stroke="#586e8b" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M 1725,545 L 1725,580" fill="none" stroke="#586e8b" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M 1435,690 L 1435,725" fill="none" stroke="#586e8b" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M 1725,690 L 1725,725" fill="none" stroke="#586e8b" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M 1580,825 L 1580,870" fill="none" stroke="#586e8b" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M 1300,490 L 1235,490 L 1235,950 L 1220,950" fill="none" stroke="#586e8b" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="7 5"/>
+<path d="M 1220,975 L 1265,975 L 1265,1105 L 1300,1105" fill="none" stroke="#586e8b" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="7 5"/>
+<rect x="40" y="110" width="1840" height="100" rx="9" fill="#142d4e" stroke="#142d4e" stroke-width="1.5"/>
+<text x="58" y="139" fill="#ffffff" font-size="19" font-weight="700">Current authority at every boundary</text>
+<text x="58" y="164" fill="#ffffff" font-size="16">Verified Zitadel tenant + account • IAM purpose and exact scope • Workforce Staff identity</text>
+<text x="58" y="186" fill="#ffffff" font-size="16">Hospital: department and governed outlet. Independent: employer and operating location. Revocation and outages fail closed.</text>
+<rect x="60" y="310" width="530" height="90" rx="9" fill="#ffffff" stroke="#4e79ac" stroke-width="1.5"/>
+<text x="78" y="339" fill="#172b4d" font-size="19" font-weight="700">Current warehouse Staff</text>
+<text x="78" y="364" fill="#172b4d" font-size="16">One Supply ledger owns physical stock and holds.</text>
+<text x="78" y="386" fill="#172b4d" font-size="16">Current warehouse purpose and premise remain required.</text>
+<rect x="60" y="420" width="250" height="80" rx="9" fill="#e1ecfc" stroke="#4e79ac" stroke-width="1.5"/>
+<text x="78" y="449" fill="#172b4d" font-size="19" font-weight="700">Reserve a hold</text>
+<text x="78" y="474" fill="#172b4d" font-size="16">No physical debit yet.</text>
+<rect x="340" y="420" width="250" height="80" rx="9" fill="#e1ecfc" stroke="#4e79ac" stroke-width="1.5"/>
+<text x="358" y="449" fill="#172b4d" font-size="19" font-weight="700">Partial dispatch</text>
+<text x="358" y="474" fill="#172b4d" font-size="16">Debits this source only.</text>
+<rect x="60" y="530" width="530" height="80" rx="9" fill="#ffffff" stroke="#4e79ac" stroke-width="1.5"/>
+<text x="78" y="559" fill="#172b4d" font-size="19" font-weight="700">Immutable source evidence</text>
+<text x="78" y="584" fill="#172b4d" font-size="16">Bounded allocations, dispatches, hold release and recovery.</text>
+<rect x="670" y="310" width="530" height="90" rx="9" fill="#ffffff" stroke="#398e7e" stroke-width="1.5"/>
+<text x="688" y="339" fill="#172b4d" font-size="19" font-weight="700">Current pharmacy source Staff</text>
+<text x="688" y="364" fill="#172b4d" font-size="16">Independent: own outlet Staff. Hospital-owned:</text>
+<text x="688" y="386" fill="#172b4d" font-size="16">current department pharmacy fulfilment duty.</text>
+<rect x="670" y="420" width="250" height="80" rx="9" fill="#dff2ec" stroke="#398e7e" stroke-width="1.5"/>
+<text x="688" y="449" fill="#172b4d" font-size="19" font-weight="700">Reserve a hold</text>
+<text x="688" y="474" fill="#172b4d" font-size="16">No physical debit yet.</text>
+<rect x="950" y="420" width="250" height="80" rx="9" fill="#dff2ec" stroke="#398e7e" stroke-width="1.5"/>
+<text x="968" y="449" fill="#172b4d" font-size="19" font-weight="700">Partial dispatch</text>
+<text x="968" y="474" fill="#172b4d" font-size="16">Debits this source only.</text>
+<rect x="670" y="530" width="530" height="80" rx="9" fill="#ffffff" stroke="#398e7e" stroke-width="1.5"/>
+<text x="688" y="559" fill="#172b4d" font-size="19" font-weight="700">Immutable source evidence</text>
+<text x="688" y="584" fill="#172b4d" font-size="16">The pharmacy owns its ledger; warehouse tables stay separate.</text>
+<rect x="40" y="710" width="1180" height="120" rx="9" fill="#edf1f6" stroke="#6c829e" stroke-width="1.5"/>
+<text x="58" y="739" fill="#172b4d" font-size="19" font-weight="700">Directed owner facts, with durable replay</text>
+<text x="58" y="764" fill="#172b4d" font-size="16">Exact order and shipment identity • source stock owner • buyer hospital / department / outlet</text>
+<text x="58" y="786" fill="#172b4d" font-size="16">Source debit and outbox commit together. Supply owns the verified buyer shipment projection.</text>
+<text x="58" y="808" fill="#172b4d" font-size="16">PharmaConnect records destination stock through its own receiving transaction.</text>
+<rect x="40" y="890" width="1180" height="120" rx="9" fill="#e7f0fc" stroke="#4e79ac" stroke-width="1.5"/>
+<text x="58" y="919" fill="#172b4d" font-size="19" font-weight="700">Source reconciliation under a separate current response purpose</text>
+<text x="58" y="944" fill="#172b4d" font-size="16">Inspect the latest hospital receiving version; confirm or dispute with attributable evidence.</text>
+<text x="58" y="966" fill="#172b4d" font-size="16">Freeze the original command for retry or recovery. Commit the response and directed outbox atomically.</text>
+<text x="58" y="988" fill="#172b4d" font-size="16">Only the exact buyer receives the annotation. Private source Staff identity remains source-local.</text>
+<rect x="40" y="1060" width="1180" height="140" rx="9" fill="#fff5df" stroke="#c4983b" stroke-width="1.5"/>
+<text x="58" y="1089" fill="#172b4d" font-size="19" font-weight="700">Financial ownership stays separate</text>
+<text x="58" y="1114" fill="#172b4d" font-size="16">Receiving, shortage closure, clearance, stock release and supplier replies do not create invoices,</text>
+<text x="58" y="1136" fill="#172b4d" font-size="16">credit notes, payables or settlements. Full financial composition remains a separate acceptance gate.</text>
+<text x="58" y="1158" fill="#172b4d" font-size="16">These operational records preserve the evidence needed for that composition.</text>
+<rect x="1300" y="310" width="560" height="90" rx="9" fill="#ffffff" stroke="#8064b2" stroke-width="1.5"/>
+<text x="1318" y="339" fill="#172b4d" font-size="19" font-weight="700">Verify the exact dispatched shipment</text>
+<text x="1318" y="364" fill="#172b4d" font-size="16">Current hospital / department / outlet admission.</text>
+<text x="1318" y="386" fill="#172b4d" font-size="16">Owner proof and read audit; no supplied ID grants access.</text>
+<rect x="1300" y="435" width="560" height="110" rx="9" fill="#eee7fa" stroke="#8064b2" stroke-width="1.5"/>
+<text x="1318" y="464" fill="#172b4d" font-size="19" font-weight="700">Inspect and count into quarantine</text>
+<text x="1318" y="489" fill="#172b4d" font-size="16">Choose the actual destination product version and lot.</text>
+<text x="1318" y="511" fill="#172b4d" font-size="16">Inspect strength, formulation, pack, units, expiry and MRP.</text>
+<text x="1318" y="533" fill="#172b4d" font-size="16">Accepted + rejected equals the recorded physical count.</text>
+<rect x="1300" y="580" width="270" height="110" rx="9" fill="#ffffff" stroke="#8064b2" stroke-width="1.5"/>
+<text x="1318" y="609" fill="#172b4d" font-size="19" font-weight="700">Correct if required</text>
+<text x="1318" y="634" fill="#172b4d" font-size="16">Independent reviewer and</text>
+<text x="1318" y="656" fill="#172b4d" font-size="16">pinned receipt / summary versions.</text>
+<text x="1318" y="678" fill="#172b4d" font-size="16">Original evidence is preserved.</text>
+<rect x="1590" y="580" width="270" height="110" rx="9" fill="#ffffff" stroke="#8064b2" stroke-width="1.5"/>
+<text x="1608" y="609" fill="#172b4d" font-size="19" font-weight="700">Close receiving</text>
+<text x="1608" y="634" fill="#172b4d" font-size="16">Record all missing units as short.</text>
+<text x="1608" y="656" fill="#172b4d" font-size="16">Entirely short is an explicit</text>
+<text x="1608" y="678" fill="#172b4d" font-size="16">closure, without a stock receipt.</text>
+<rect x="1300" y="725" width="560" height="100" rx="9" fill="#eee7fa" stroke="#8064b2" stroke-width="1.5"/>
+<text x="1318" y="754" fill="#172b4d" font-size="19" font-weight="700">Independent clearance at the current closed version</text>
+<text x="1318" y="779" fill="#172b4d" font-size="16">The original recorder cannot review their own receipt.</text>
+<text x="1318" y="801" fill="#172b4d" font-size="16">review_recorded is review evidence; it does not move stock.</text>
+<rect x="1300" y="870" width="560" height="130" rx="9" fill="#e4f3ec" stroke="#43866b" stroke-width="1.5"/>
+<text x="1318" y="899" fill="#172b4d" font-size="19" font-weight="700">Physically release to the actual sellable shelf</text>
+<text x="1318" y="924" fill="#172b4d" font-size="16">One transaction: receipt journal + source/shelf movements + outbox.</text>
+<text x="1318" y="946" fill="#172b4d" font-size="16">Recheck provenance, product, tax, schedule, MRP, expiry and safety.</text>
+<text x="1318" y="968" fill="#172b4d" font-size="16">All releases stay within this receipt’s effective accepted units.</text>
+<text x="1318" y="990" fill="#172b4d" font-size="16">Current authority and original-actor recovery remain required.</text>
+<rect x="1300" y="1055" width="560" height="100" rx="9" fill="#e7f0fc" stroke="#4e79ac" stroke-width="1.5"/>
+<text x="1318" y="1084" fill="#172b4d" font-size="19" font-weight="700">Supplier-authored hospital annotations</text>
+<text x="1318" y="1109" fill="#172b4d" font-size="16">Version-pinned responses remain separate from effective counts.</text>
+<text x="1318" y="1131" fill="#172b4d" font-size="16">They do not alter hospital stock or financial records.</text>
+<rect x="40" y="1250" width="1840" height="100" rx="9" fill="#142d4e" stroke="#142d4e" stroke-width="1.5"/>
+<text x="58" y="1279" fill="#ffffff" font-size="19" font-weight="700">Implementation candidate • India: Maharashtra and Odisha</text>
+<text x="58" y="1304" fill="#ffffff" font-size="16">Native checks and real-owner CI provide distinct evidence. Shared environment browser acceptance and exact Kargo promotion remain release gates.</text>
+<text x="58" y="1326" fill="#ffffff" font-size="16">The diagram does not assert deployed availability, financial completion, medicine equivalence or legal certification.</text>
+</g></svg>

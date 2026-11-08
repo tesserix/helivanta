@@ -1,9 +1,12 @@
 # Independent supplier order and fulfilment continuation
 
-This is work in progress on `feat/supplier-orders-dispatch-20261108`. The candidate now includes owner APIs, forced-RLS storage, immutable command
-recovery, directed exchange and SDK validation. Real-owner database/broker CI
-acceptance is pending. Stock reservation, dispatch, receiving and financial
-integration remain unimplemented. Do not consume an order snapshot as operating
+This is work in progress on `feat/supplier-fulfilment-receiving-20261108`. The
+candidate includes owner APIs, forced-RLS storage, immutable command recovery,
+directed exchange, SDK validation and scoped web workbenches. Both stock owners
+implement reservation and dispatch; hospital receiving includes corrections,
+discrepancies, independent clearance and physical quarantine release. Final
+real-owner database/broker CI and deployed browser acceptance remain pending.
+Financial integration remains unfinished. An order snapshot is never operating
 authority.
 
 ## Ownership and scope
@@ -60,17 +63,21 @@ Approval signatures remain immutable evidence when another actor requests a
 cancellation. Version and remote-epoch checks reject conflicting/reordered
 commands, and unknown outcomes recover through original command receipts.
 
-The intended orchestration uses the existing Temporal worker for order waits,
-reservation/release and stock-owner replies. Each owner commits its own immutable
-command receipt, local stock effect, audit and outbox atomically. Order budget
-permits must be persisted before stock commands; duplicate command/line identities
-cannot allocate twice. A timeout after a stock commit leaves reconciliation
-pending until the original owner receipt is recovered. No network call or
-cross-module stock write belongs inside an order transaction. Source dispatch is
-an attributable human-confirmed physical action; a published event or successful
-reservation is not proof it happened. Hospital receipt records actual counted,
-accepted, quarantined and discrepant quantities under the destination owner's
-scope and retains the original source lineage.
+The current fulfilment design uses one source-owner transaction for each line
+budget, stock effect, immutable command receipt, audit and outbox. The accepted
+order owner provides an exact-purpose publication guard while that transaction
+commits; it does not maintain a second stock budget. This supersedes the earlier
+unimplemented reservation saga proposal. No network call or cross-module stock
+write belongs inside the stock transaction. A future process extraction requires
+a reviewed fencing protocol; the process-local guard is not an HTTP contract.
+
+Cross-tenant shipment, receiving and reply projections use durable outbox and
+idempotent consumers. A timeout recovers the original owner receipt; it does not
+create another dispatch. Source dispatch is an attributable human-confirmed
+physical action. Hospital receipt records actual counted, accepted, quarantined
+and discrepant quantities under destination-owner authority with original source
+lineage. Supplier replies annotate reconciliation without changing those facts.
+Wider orchestration and financial acceptance remain separate open gates.
 
 Before every new commitment, recheck current hospital/supplier Staff authority,
 relationship consent, exact order/line budget, source and destination evidence,
@@ -84,12 +91,12 @@ cannot place or approve an order, reserve stock, dispatch goods or post receipt.
 ## Remaining implementation and verification
 
 The candidate implements order owner APIs, permissions and reviewed Staff
-templates, forced-RLS storage, directed order consumers and the strict order SDK.
-The reservation/release Temporal activities, both stock owners' reservation and
-dispatch, hospital receiving/discrepancies, financial integration, minimized
-effective-grant disclosure, order UI and actual-owner/browser acceptance remain
-implementation work. The order checkpoint does not establish an approved live
-fulfilment workflow.
+templates, forced-RLS storage, directed order consumers, both stock owners'
+reservation/release/dispatch, hospital receiving and discrepancies, directed
+supplier replies, receipt-bound physical release, strict SDKs and operational web
+workbenches. Final CI/coverage, deployed browser acceptance, financial composition
+and wider order orchestration acceptance remain open. This candidate does not
+establish an approved live fulfilment workflow.
 The application remains a modular monolith using existing owners and worker;
 this introduces no new service or copied inventory/financial master.
 
@@ -166,3 +173,188 @@ transport provenance, matching established relationship terms, remote epochs and
 monotonic transitions. Cancellation after source acceptance remains pending until
 stock-owner compensation exists; it never asserts release merely because an event
 was received. The candidate exposes no successful reservation or dispatch result.
+
+### Scoped fulfilment and receiving discovery
+
+Buyer purchase-order pages use
+`GET /v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders`.
+Buyer shipment pages use the same base with `/supplier-shipments`.
+Independent commercial source pages use
+`/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders`;
+hospital pharmacy source pages use
+`/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders`.
+Both source bases provide exact `/:order`, `/:order/commands/:command`,
+`/:order/shipments` and `/:order/shipments/:shipment/receiving` routes.
+Hospital source order acceptance and reconciliation use the separate department
+pharmacy commercial reviewer template; physical stock authority remains separate.
+
+Physical allocation pages belong to the actual stock owner: Supply party/premise
+or Pharmacy pharmacy/outlet, with an explicit hospital/department variant for a
+hospital-owned source. Each allocation collection is the exact registered
+allocation path with `/:allocation` removed. Hospital receipt pages use
+`GET /v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts`;
+correction history adds `/:receipt/corrections`. Original receipts remain unchanged.
+The latest correction and current receiving summary describe effective receiving;
+ordinary receipt disclosure does not permit another actor to retry its command.
+
+These collections accept only `limit` (1–50) and `cursor`, reject unknown/duplicate
+query values, and audit sensitive page reads. Cursor continuation binds the
+verified subject, full route, all resource parameters and filters. Every page
+rechecks current owner authorization; hospital source rows also recheck the current
+Pharma department binding. Empty discovery is not proof of a grant or affiliation.
+Clearance input/output are canonical `ReceivingClearanceInput` and
+`ReceivingClearance`: `review_recorded` records independent review. Physical stock
+release still uses the stock owner's quarantine-release command and safety guard.
+
+The client implementation is in `packages/api/src/supplier-fulfilment.ts` and uses
+the same-origin Global API with no-store and expected tenant/subject headers.
+Its request tests check paths against the registered inventory. Discovery database
+assertions, positive owner API tests and browser acceptance remain delivery gates;
+these contracts alone do not establish a finished deployed workflow.
+
+Stock selection for an accepted source line uses the physical owner's allocation
+root with `/allocations/:allocation` replaced by
+`/lines/:line/stock-choices`. Pharmacy also exposes
+`/lines/:line/stock-choices/:stock/locations` for sellable shelves. Both use the
+current reservation-purpose order proof, the owner's operating/hospital Staff
+admission, owner RLS and audited resource-bound pagination (maximum 50). They do
+not require inventory administration. `SupplierStockChoice` and
+`SupplierStockLocationChoice` are generated from the canonical fulfilment schema.
+Counts are observed free-stock hints after active holds, not reservation evidence;
+actual reserve and dispatch commands retain current owner locks and validation.
+
+Current source order acceptance access can be checked with
+`GET {explicit-source-order-base}/:order/review-access`. This uses the same current
+operating or hospital department permission and Staff admission as source
+acceptance. It returns the canonical `SupplierOrderReviewAccess`, bound to the
+verified subject, Staff identity and exact owner/order scope with an observation
+time. It records an audited read, not an approval or a transferable capability.
+The eventual review command still rechecks authority and all business references.
+
+### Supplier receiving-response delivery
+
+`ReceivingResponseInput` and `ReceivingResponseRecord` are canonical fulfilment
+models. The existing PUT acknowledgement remains unchanged. Source response,
+attributable audit and directed outbox work commit together; replay does not emit
+another event. `helivanta.in.supply.supplier_receiving_response_exchange.v1` carries
+the source-authored record to its exact buyer. Its receiver checks sender, buyer,
+known order and dispatch, retains summary-version identity and rejects changed
+replays. It has no authority to change buyer counts, stock, release or finance.
+
+Source history is `GET {explicit-source-order-base}/:order/shipments/:shipment/receiving/responses`.
+The exact `/:response` GET binds original actor and Staff identity for retry recovery.
+Buyer history is
+`GET /v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order/shipments/:shipment/receiving-responses`.
+Both collections have limit fifty, resource-bound cursors and sensitive-read audit.
+Buyer admission includes current Staff, goods-read and Pharmacy department authority.
+The record's `owner_tenant_id` identifies the supplier author; `buyer_tenant_id`
+identifies the recipient projection. Readers must compare `summary_version` with
+the effective hospital summary rather than presenting old supplier replies as
+current confirmation. ADR 0067 records delivery, isolation and rollback decisions.
+
+### Hospital receiving inspection choices
+
+The shipment receiving root now declares bounded `GET /receiving/product-choices`,
+`/receiving/quarantine-locations` and `/receiving/sellable-locations` pages.
+Each read uses current hospital/department Staff authority, exact Supply shipment
+proof and the destination Pharma owner transaction; it writes receiving read audit.
+The limit is 50, and sealed cursors bind the caller and full shipment route.
+Product candidates are active destination products with the shipment's exact unit
+and pack size. These filters do not establish ingredient, strength or formulation
+equivalence: the receiver must inspect the immutable shipment and destination
+identity before confirmation. Location routes fix the stock status on the server.
+The strict SDK rejects foreign tenant, outlet, pharmacy or shipment choices and
+wrong-status locations. These APIs do not grant private catalogue/inventory editor
+access or complete the hospital workbench and physical release acceptance.
+
+Supplier-response migration write policy pins the exact destination tenant;
+read visibility does not authorize cross-tenant inserts. The event privacy
+classification explicitly records its commercial fields and restricted actor and
+reason evidence. Native classification checks pass; full migration and broker
+execution remain CI checks.
+
+### Receipt-bound physical quarantine release candidate
+
+`PUT /v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/releases/:release`
+uses current `ReviewReceiving` admission: goods-review and Pharma hospital-review
+permissions, current Workforce Staff, department path and exact destination owner
+binding. `ReceivingReleaseInput` supplies expected summary version, destination
+sellable location, units and reason. The batch and quarantine shelf come from the
+immutable receipt. The shipment must be closed, clearance must match its current
+summary, and the physical reviewer must differ from the original recorder.
+Cumulative release is bounded by that receipt's effective accepted quantity.
+
+Pharma's ordinary release engine posts the release, both stock movements and
+outbox entries with the new immutable receiving journal in one transaction.
+Current source safety, product, tax, schedule, MRP, incident and expiry checks
+remain required. Migration 0042 adds receipt-bound policies rather than private
+inventory-editor grants. An unrelated ordinary release cannot be adopted by
+reusing its ID. Retry binds original actor/Staff and exact input; GET at the same
+path returns retained release evidence under current review authority. The SDK's
+recovery additionally checks original account and frozen input. The journal is
+physical evidence, distinct from `review_recorded` clearance. See ADR-0068.
+
+Supplier responses now use `ReceivingSharedResponse` in directed delivery and
+buyer history; private source Staff identity remains only in source records.
+Source and buyer parsers remain strict. The received-response table has non-null
+generated origin tenant/record provenance and immutable-history enforcement.
+
+Receiving progress uses the canonical `ReceivingCurrent` envelope: `not_recorded`
+requires a null summary, and `recorded` requires a verified summary. The SDK now
+parses that owner response and returns the summary or null; malformed or foreign
+scope envelopes fail closed. A current explicit Pharma hospital reviewer may read
+receiving without the separate operator-use grant; fallback occurs only after an
+explicit scoped denial, never when authorization is unavailable.
+
+Product choices include an exact ingredient/strength/unit, formulation and route
+inspection description from the owning catalogue. The bounded product child
+`GET /receiving/product-choices/:product/batches` returns existing destination lots
+for the shipment's exact lot number, active product, unit and pack. The SDK binds
+these choices to that product and shipment; expiry, version and MRP remain visible
+for inspection and owner validation. Existing batches retain their immutable facts.
+Physical release validation and exact recovery-object route classification are
+covered by native checks; fixture tax effectiveness now comes from the outlet's
+current owner date rather than a fixed date that becomes invalid over time.
+
+Receiving receipt history now includes bounded resource pages at
+`/receipts/:receipt/clearances` and `/receipts/:receipt/releases`, each under exact
+current shipment admission and original receipt proof, with audited reads and
+caller/resource-bound cursors. The clearance page returns
+`ReceivingClearanceEvidence` with the explicit `review_recorded` state; release
+history contains actual committed release journals. These views preserve original
+review actors, reasons and versions and never reinterpret clearance as stock movement.
+The release movement RLS correlates fully qualified outer movement columns to the
+receipt journal, including signed quantity and the exact source/destination shelf.
+The owner integration test also rejects a forged mismatched movement with RLS
+SQLSTATE 42501 before an existing source-reference uniqueness constraint.
+
+Source `GET /:order/receiving-response-access` under each explicit independent or
+hospital-pharmacy source root returns one current `SupplierOrderReviewAccess`
+resource admitted with `supply.receiving_response.record`, current Staff and the
+exact order scope. Its audit action is `supplier_receiving_response_access_read`.
+It is distinct from `/:order/review-access`, which retains the source acceptance
+purpose. Both return context evidence, not a transferable authorization token;
+each subsequent command independently reauthorizes.
+
+Hospital original-command recovery is distinct from ordinary receipt disclosure:
+`GET /receipts/:receipt/creation-receipt` requires current recording purpose and
+the original account **and** Staff identity. A different linked Staff identity on
+the same account cannot adopt that proof. Ordinary `GET /receipts/:receipt` and
+bounded receipt history retain authorized colleague access. Physical release GET
+recovery likewise pins both original actor fields; ordinary release history is
+separate. The SDK uses the dedicated original-proof endpoint and still verifies
+frozen intent. Missing or foreign original proofs return 404.
+
+Progress and individual receipt reads now explicitly audit
+`pharmacy_receiving_summary_read`, `pharmacy_supplier_receipt_read`,
+`pharmacy_supplier_receipt_recovery_read` and source
+`supplier_receiving_summary_read`, in addition to existing list/read audit.
+An audit failure does not yield a successful sensitive read.
+
+The independent operating-authority guard preserves protected business callback
+errors after validating its live duty. It does not reinterpret a missing order or
+shipment as missing Staff authority, and it does not retry a failed business action
+under another duty. Current-duty, current-identity, credential, source/location,
+revocation and graph checks retain their fail-closed outcomes. The real IAM /
+Workforce / OpenFGA source scenario covers hidden objects, denied duties, outage,
+revocation, original recovery and once-only callback error propagation.

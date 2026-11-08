@@ -5,4 +5,6 @@ WHEN template='pharmacy.inventory_receiver.v1'AND kind='pharmacy'THEN '["pharmac
 WHEN template='supply.stock_quality_reviewer.v1'AND kind='supplier'THEN '["supply.operations.read","supply.stock.review","drugmaster.stock_reference.read"]'::jsonb
 WHEN template='supply.order_acceptor.v1'AND kind='supplier'THEN '["supply.supplier_order.accept","supply.supplier_order.read"]'::jsonb
 WHEN template='pharmacy.order_acceptor.v1'AND kind='pharmacy'THEN '["supply.supplier_order.accept","supply.supplier_order.read"]'::jsonb
+WHEN template='supply.stock_fulfiller.v1'AND kind='supplier'THEN '["supply.stock.fulfil","supply.supplier_order.read","supply.operations.read","drugmaster.stock_reference.read","supply.receiving_response.record"]'::jsonb
+WHEN template='pharmacy.stock_fulfiller.v1'AND kind='pharmacy'THEN '["pharmacy.stock.fulfil","supply.supplier_order.read","pharmacy.stock.read","drugmaster.stock_reference.read","supply.receiving_response.record"]'::jsonb
 ELSE NULL END $$;

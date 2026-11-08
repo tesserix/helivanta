@@ -1195,3 +1195,24 @@ test("purchase order templates remain department-only and cannot acquire clinica
       assert.match(result.stderr, /Purchase order|department|pharmacy root/i);
     });
 });
+
+test("hospital pharmacy commercial reviewers cannot commit physical stock", () => {
+  const definitions = catalog.template_migrations.flatMap((entry) => entry.templates);
+  const acceptor = definitions.find(
+    (entry) => entry.key === "supply.department_goods_pharmacy_acceptor.v1",
+  );
+  assert.ok(acceptor, "hospital suppliers need a department-scoped commercial acceptance role");
+  assert.deepEqual(acceptor.permissions, [
+    "supply.receiving_response.record",
+    "supply.supplier_order.accept",
+    "supply.supplier_order.read",
+    "workforce.purchase_order_actor.use",
+  ]);
+  assert.deepEqual(acceptor.scope_kinds, ["department"]);
+  assert.deepEqual(acceptor.establishment_kinds, ["hospital"]);
+  const fulfiller = definitions.find(
+    (entry) => entry.key === "supply.department_goods_pharmacy_fulfiller.v1",
+  );
+  assert.ok(!fulfiller.permissions.includes("supply.supplier_order.accept"));
+  assert.ok(!acceptor.permissions.includes("pharmacy.hospital_fulfilment.use"));
+});

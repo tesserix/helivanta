@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/modules/drugmaster"
 	"github.com/tesserix/helivanta/internal/modules/iam"
+	iamcontract "github.com/tesserix/helivanta/internal/modules/iam/contract"
 	"github.com/tesserix/helivanta/internal/modules/supply"
 	"github.com/tesserix/helivanta/internal/modules/workforce"
 	"github.com/tesserix/helivanta/internal/platform"
@@ -26,6 +27,7 @@ import (
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/events"
 )
 
 type operatingVerifier struct{ at time.Time }
@@ -260,6 +262,15 @@ func TestIndependentOperatingDutyProjectionRequiresExactGraphAcknowledgement(t *
 	require.NoError(t, err)
 	require.False(t, allowed)
 	fixture.projection.enabled.Store(true)
+	// The deliberately failed delivery may have exhausted broker retries while
+	// source denial was inspected. Recover through durable replay, not a larger
+	// retry budget or an assumed unexpired delivery window.
+	replay, err := json.Marshal(iamcontract.OperatingDutyChangedData{DutyID: id, Version: 2})
+	require.NoError(t, err)
+	require.NoError(t, fixture.db.WithTenantCommand(tenantdb.WithActor(t.Context(), "TEST owner projection replay"), testutil.TenantA, func(tx *gorm.DB) error {
+		return events.Enqueue(tx, iamcontract.SubjectOperatingDutyChanged, events.Event{TenantID: testutil.TenantA, Type: iamcontract.SubjectOperatingDutyChanged, Version: 1, Data: replay})
+	}))
+
 	require.Eventually(t, func() bool { return strings.Contains(call("GET", duty, "owner", nil, 200), `"status":"active"`) }, 20*time.Second, 100*time.Millisecond)
 	allowed, err = fixture.graph.CheckOperatingAssignment(t.Context(), snapshot, "user-receiver", supply.PermOperatingWrite)
 	require.NoError(t, err)

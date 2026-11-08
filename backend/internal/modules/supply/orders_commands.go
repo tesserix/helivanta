@@ -16,7 +16,7 @@ import (
 func samePurchaseOrderProposal(local localPurchaseOrder, input supplierorder.SupplierOrderInput, actor supplierorder.Actor) (supplierorder.SupplierOrder, error) {
 	var original supplierorder.SupplierOrderInput
 	var receipt supplierorder.SupplierOrder
-	if suppliertrade.DecodeObject(local.ProposalInput, &original) != nil || suppliertrade.DecodeObject(local.ProposalReceipt, &receipt) != nil {
+	if supplierorder.DecodeObject(local.ProposalInput, &original) != nil || supplierorder.DecodeObject(local.ProposalReceipt, &receipt) != nil {
 		return receipt, supplierorder.ErrUnavailable
 	}
 	left, _ := json.Marshal(original)
@@ -244,7 +244,7 @@ func (h *purchaseOrderHandlers) decideSeller(c *gin.Context) {
 		purchaseOrderError(c, supplierorder.ErrInvalid)
 		return
 	}
-	scope, err := h.lookupSeller(c.Request.Context(), p, id)
+	scope, err := h.sellerRequestScope(c, p, id)
 	if err != nil {
 		purchaseOrderError(c, err)
 		return

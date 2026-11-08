@@ -79,6 +79,19 @@ type SupplierOrderCommandReceipt struct {
 	RecordedAt   time.Time                  `json:"recorded_at"`
 }
 
+type SupplierOrderReviewAccess struct {
+	OwnerTenantID  uuid.UUID  `json:"owner_tenant_id"`
+	OrderID        uuid.UUID  `json:"order_id"`
+	OrganizationID uuid.UUID  `json:"organization_id"`
+	LocationID     uuid.UUID  `json:"location_id"`
+	Product        string     `json:"product"`
+	HospitalID     *uuid.UUID `json:"hospital_id,omitempty"`
+	DepartmentID   *uuid.UUID `json:"department_id,omitempty"`
+	ActorSubject   string     `json:"actor_subject"`
+	ActorStaffID   uuid.UUID  `json:"actor_staff_id"`
+	ObservedAt     time.Time  `json:"observed_at"`
+}
+
 func productValid(p SupplierOrderProduct, owner string) bool {
 	if p.Owner != owner || p.ProductID == uuid.Nil || p.ProductID.Variant() != uuid.RFC4122 {
 		return false

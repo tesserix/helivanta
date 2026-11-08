@@ -427,6 +427,12 @@ func (m *Module) registerAssignmentProposals(g *platform.Router, deps platform.D
 	platform.ListRoute(g, "/supplier-access-assignment-proposals", authz.Public, func(c *gin.Context, p pagination.Params) ([]assignmentProposal, error) {
 		return h.listFamily(c, p, "supplier_access")
 	})
+	platform.ListRoute(g, "/purchase-order-assignment-proposals", authz.Public, func(c *gin.Context, p pagination.Params) ([]assignmentProposal, error) {
+		return h.listFamily(c, p, "purchase_order")
+	})
+	platform.ListRoute(g, "/supplier-receiving-assignment-proposals", authz.Public, func(c *gin.Context, p pagination.Params) ([]assignmentProposal, error) {
+		return h.listFamily(c, p, "supplier_receiving")
+	})
 	g.GET("/staff-access-templates", authz.Public, func(c *gin.Context) {
 		if _, _, ok := proposalScope(c); !ok {
 			return

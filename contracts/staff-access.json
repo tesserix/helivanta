@@ -1022,6 +1022,90 @@
       ],
       "definitions_sha256": "d9a83dcfbacf183846cd97150437b61fcfefd79be0b6da73892d140174419cb4",
       "sql_sha256": "755224c5b2aacd3010e74ef442977eda2b571e3926d60435a77b30f69b414df0"
+    },
+    {
+      "id": "0045_iam_supplier_receiving_templates",
+      "file": "assignment_supplier_receiving_templates_generated.sql",
+      "templates": [
+        {
+          "key": "supply.department_goods_reader.v1",
+          "name": "Department supplier goods reader",
+          "description": "Read or record this department’s verified supplier delivery, quarantine custody and independent receiving review; no stock sale, clinical prescribing or financial authority.",
+          "family": "supplier_receiving",
+          "permissions": [
+            "pharmacy.hospital_receiving.use",
+            "supply.goods_receipt.read",
+            "workforce.purchase_order_actor.use"
+          ],
+          "scope_kinds": ["department"],
+          "establishment_kinds": ["hospital"]
+        },
+        {
+          "key": "supply.department_goods_receiver.v1",
+          "name": "Department supplier goods receiver",
+          "description": "Read or record this department’s verified supplier delivery, quarantine custody and independent receiving review; no stock sale, clinical prescribing or financial authority.",
+          "family": "supplier_receiving",
+          "permissions": [
+            "pharmacy.hospital_receiving.use",
+            "supply.goods_receipt.read",
+            "supply.goods_receipt.record",
+            "workforce.purchase_order_actor.use"
+          ],
+          "scope_kinds": ["department"],
+          "establishment_kinds": ["hospital"]
+        },
+        {
+          "key": "supply.department_goods_reviewer.v1",
+          "name": "Department supplier receiving reviewer",
+          "description": "Read or record this department’s verified supplier delivery, quarantine custody and independent receiving review; no stock sale, clinical prescribing or financial authority.",
+          "family": "supplier_receiving",
+          "permissions": [
+            "pharmacy.hospital_receiving.review",
+            "supply.goods_receipt.read",
+            "supply.goods_receipt.review",
+            "workforce.purchase_order_actor.use"
+          ],
+          "scope_kinds": ["department"],
+          "establishment_kinds": ["hospital"]
+        },
+        {
+          "key": "supply.department_goods_pharmacy_fulfiller.v1",
+          "name": "Hospital-owned pharmacy fulfilment operator",
+          "description": "Commit only stock owned by this department’s governed pharmacy and exact outlet under current source licence/order fences; no independent partner administration, clinical prescribing or financial authority.",
+          "family": "supplier_receiving",
+          "permissions": [
+            "pharmacy.hospital_fulfilment.use",
+            "supply.supplier_order.read",
+            "workforce.purchase_order_actor.use"
+          ],
+          "scope_kinds": ["department"],
+          "establishment_kinds": ["hospital"]
+        }
+      ],
+      "definitions_sha256": "32cddf479fb74877820918c0dd6b203ed67ad88a20c7b0a6bf5fb022d623267a",
+      "sql_sha256": "9b3678c4bd177dd0ee98ea455ac4bdd6463b744dad522d246ae0bfc37558ab1d"
+    },
+    {
+      "id": "0046_iam_supplier_acceptance_templates",
+      "file": "assignment_supplier_acceptance_templates_generated.sql",
+      "templates": [
+        {
+          "key": "supply.department_goods_pharmacy_acceptor.v1",
+          "name": "Hospital pharmacy supplier order reviewer",
+          "description": "Accept or reject supplier orders and reconcile hospital receiving evidence for this department’s governed pharmacy outlet; no physical stock, prescribing or financial authority.",
+          "family": "supplier_receiving",
+          "permissions": [
+            "supply.receiving_response.record",
+            "supply.supplier_order.accept",
+            "supply.supplier_order.read",
+            "workforce.purchase_order_actor.use"
+          ],
+          "scope_kinds": ["department"],
+          "establishment_kinds": ["hospital"]
+        }
+      ],
+      "definitions_sha256": "2627516cd3c3c78a2965a074f58b647cd680998ced31879bc0fc7af43e0fb447",
+      "sql_sha256": "bdcb68a24ffe6041c92db8c1b7e57687106b9a5b877a056cab2a43d018a15672"
     }
   ],
   "template_catalogs": [
@@ -1224,6 +1308,23 @@
         "supply.department_purchase_order_reviewer.v1"
       ],
       "definitions_sha256": "d9a83dcfbacf183846cd97150437b61fcfefd79be0b6da73892d140174419cb4"
+    },
+    {
+      "key": "department-supplier-goods-v1",
+      "name": "Department supplier fulfilment and receiving",
+      "template_keys": [
+        "supply.department_goods_reader.v1",
+        "supply.department_goods_receiver.v1",
+        "supply.department_goods_reviewer.v1",
+        "supply.department_goods_pharmacy_fulfiller.v1"
+      ],
+      "definitions_sha256": "32cddf479fb74877820918c0dd6b203ed67ad88a20c7b0a6bf5fb022d623267a"
+    },
+    {
+      "key": "department-supplier-commercial-v1",
+      "name": "Department pharmacy supplier order review",
+      "template_keys": ["supply.department_goods_pharmacy_acceptor.v1"],
+      "definitions_sha256": "2627516cd3c3c78a2965a074f58b647cd680998ced31879bc0fc7af43e0fb447"
     }
   ]
 }

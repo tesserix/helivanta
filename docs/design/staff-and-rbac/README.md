@@ -448,3 +448,13 @@ The [supplier source/consent contract](../../api/supplier-trade.md) and
 [editable consent diagram](diagrams/11-supplier-source-consent.drawio) describe
 the subsequent unreleased dependency. Consent and current source facts remain
 separate from effective staff grants, partner disclosure and fulfilment.
+
+### Fulfilment and hospital receiving workbench candidate
+
+The [fulfilment specification](../../superpowers/specs/2026-11-08-supplier-fulfilment-receiving.md)
+and [owner API contract](../../api/supplier-orders.md) describe the scoped source
+and hospital workbenches. The [editable draw.io flow](diagrams/12-supplier-fulfilment-receiving.drawio)
+and [SVG preview](diagrams/12-supplier-fulfilment-receiving.svg) distinguish the two
+source stock owners, hospital quarantine receiving, independent correction and
+clearance, actual physical release and supplier-authored annotations. The diagram
+keeps financial composition and deployment/browser acceptance as separate gates.

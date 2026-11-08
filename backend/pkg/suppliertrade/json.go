@@ -8,8 +8,11 @@ import (
 )
 
 // DecodeObject preserves one unambiguous bounded trade intent across owner and peer decoders.
-func DecodeObject(raw []byte, target any) error {
-	if len(raw) == 0 || len(raw) > 16<<10 || !utf8.Valid(raw) {
+func DecodeObject(raw []byte, target any) error { return DecodeBoundedObject(raw, target, 16<<10) }
+
+// DecodeBoundedObject retains the same ambiguity checks with an explicit owner contract bound.
+func DecodeBoundedObject(raw []byte, target any, limit int) error {
+	if limit < 1 || limit > 64<<10 || len(raw) == 0 || len(raw) > limit || !utf8.Valid(raw) {
 		return ErrInvalid
 	}
 	d := json.NewDecoder(bytes.NewReader(raw))

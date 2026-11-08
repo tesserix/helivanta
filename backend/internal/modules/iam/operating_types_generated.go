@@ -71,4 +71,6 @@ var operatingDutyTemplates = []OperatingDutyTemplate{
 	{Key: "supply.stock_quality_reviewer.v1", EmployerKind: "supplier", Label: "Independent warehouse stock quality review", Permissions: []string{"supply.operations.read", "supply.stock.review", "drugmaster.stock_reference.read"}, MaxValidityHours: 8784},
 	{Key: "supply.order_acceptor.v1", EmployerKind: "supplier", Label: "Warehouse supplier order acceptance", Permissions: []string{"supply.supplier_order.accept", "supply.supplier_order.read"}, MaxValidityHours: 8784},
 	{Key: "pharmacy.order_acceptor.v1", EmployerKind: "pharmacy", Label: "Outlet supplier order acceptance", Permissions: []string{"supply.supplier_order.accept", "supply.supplier_order.read"}, MaxValidityHours: 8784},
+	{Key: "supply.stock_fulfiller.v1", EmployerKind: "supplier", Label: "Warehouse reservation and physical dispatch", Permissions: []string{"supply.stock.fulfil", "supply.supplier_order.read", "supply.operations.read", "drugmaster.stock_reference.read", "supply.receiving_response.record"}, MaxValidityHours: 8784},
+	{Key: "pharmacy.stock_fulfiller.v1", EmployerKind: "pharmacy", Label: "Outlet reservation and physical dispatch", Permissions: []string{"pharmacy.stock.fulfil", "supply.supplier_order.read", "pharmacy.stock.read", "drugmaster.stock_reference.read", "supply.receiving_response.record"}, MaxValidityHours: 8784},
 }

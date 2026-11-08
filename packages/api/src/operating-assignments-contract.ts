@@ -173,4 +173,30 @@ export const operatingDutyTemplates: readonly OperatingDutyTemplate[] = [
     permissions: ["supply.supplier_order.accept", "supply.supplier_order.read"],
     max_validity_hours: 8784,
   },
+  {
+    key: "supply.stock_fulfiller.v1",
+    employer_kind: "supplier",
+    label: "Warehouse reservation and physical dispatch",
+    permissions: [
+      "supply.stock.fulfil",
+      "supply.supplier_order.read",
+      "supply.operations.read",
+      "drugmaster.stock_reference.read",
+      "supply.receiving_response.record",
+    ],
+    max_validity_hours: 8784,
+  },
+  {
+    key: "pharmacy.stock_fulfiller.v1",
+    employer_kind: "pharmacy",
+    label: "Outlet reservation and physical dispatch",
+    permissions: [
+      "pharmacy.stock.fulfil",
+      "supply.supplier_order.read",
+      "pharmacy.stock.read",
+      "drugmaster.stock_reference.read",
+      "supply.receiving_response.record",
+    ],
+    max_validity_hours: 8784,
+  },
 ];

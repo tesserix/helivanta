@@ -195,3 +195,30 @@ func Apply(current *SupplierOrder, event SupplierOrderExchange, destination uuid
 	}
 	return order, nil
 }
+
+// CompleteCancellation publishes the source acknowledgement after its stock owner releases undispatched commitments.
+func CompleteCancellation(order SupplierOrder, at time.Time) (SupplierOrder, SupplierOrderExchange, error) {
+	if ValidateRecord(order) != nil || at.IsZero() {
+		return SupplierOrder{}, SupplierOrderExchange{}, ErrInvalid
+	}
+	if order.Side != "seller" || order.RemotePhase != "cancel_requested" || (order.Status != "cancellation_requested" && order.Status != "cancelled") {
+		return SupplierOrder{}, SupplierOrderExchange{}, ErrConflict
+	}
+	next, err := copyOrder(order)
+	if err != nil {
+		return SupplierOrder{}, SupplierOrderExchange{}, err
+	}
+	if next.Status != "cancelled" {
+		if next.Version >= maximumVersion || next.AuthorityEpoch >= maximumVersion {
+			return SupplierOrder{}, SupplierOrderExchange{}, ErrConflict
+		}
+		next.Status = "cancelled"
+		next.Version++
+		next.AuthorityEpoch++
+		if stamp := at.UTC().Truncate(time.Microsecond); stamp.After(next.UpdatedAt) {
+			next.UpdatedAt = stamp
+		}
+	}
+	ack, err := exchange(next, "cancelled", "system:supplier-fulfilment")
+	return next, ack, err
+}

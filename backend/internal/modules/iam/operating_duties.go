@@ -45,7 +45,7 @@ var operatingTemplatesSchema string
 //go:embed operating_templates_v2.sql
 var operatingTemplatesCurrentSchema string
 
-//go:embed operating_templates_generated.sql
+//go:embed operating_templates_v3.sql
 var operatingTemplatesOrderSchema string
 
 type operatingHandlers struct {

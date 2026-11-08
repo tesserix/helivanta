@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/tesserix/helivanta/internal/modules/pharmacy"
 	"github.com/tesserix/helivanta/internal/modules/supply"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
@@ -15,10 +16,10 @@ import (
 
 func TestSupplierOrderHTTPRejectsChangedContextMalformedCommandsAndUnavailableOwners(t *testing.T) {
 	// Omitted Workforce/department owners represent a real dependency outage, not a successful authorization stub.
-	backend, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"owner": testutil.TenantA, "foreign": testutil.TenantB}, Modules: []platform.Module{supply.New()}})
+	backend, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"owner": testutil.TenantA, "foreign": testutil.TenantB}, Modules: []platform.Module{supply.New(), pharmacy.New()}})
 	server := httptest.NewServer(backend)
 	t.Cleanup(server.Close)
-	gateway, err := New(Config{Development: true, Timeout: 5 * time.Second, Upstreams: map[string]string{"supply": server.URL}})
+	gateway, err := New(Config{Development: true, Timeout: 5 * time.Second, Upstreams: map[string]string{"supply": server.URL, "pharmacy": server.URL}})
 	require.NoError(t, err)
 	hospital, department, outlet, order, command := uuid.NewString(), uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
 	buyer := "/v1/supply/hospitals/" + hospital + "/departments/" + department + "/outlets/" + outlet + "/purchase-orders/" + order
@@ -57,6 +58,22 @@ func TestSupplierOrderHTTPRejectsChangedContextMalformedCommandsAndUnavailableOw
 	}
 	for _, path := range []string{buyer + "/commands/" + command, seller + "/commands/" + command} {
 		cases = append(cases, requestCase{name: "invalid command " + path, method: "GET", path: strings.Replace(path, command, uuid.NewString(), 1), status: 404})
+	}
+
+	buyerList := strings.TrimSuffix(buyer, "/"+order)
+	sourceList := "/v1/supply/stock-owners/pharmacy/organizations/" + outlet + "/locations/" + outlet + "/supplier-orders"
+	hospitalList := "/v1/supply/hospitals/" + hospital + "/departments/" + department + "/pharmacies/" + outlet + "/outlets/" + outlet + "/supplier-orders"
+	for _, list := range []string{buyerList, sourceList, hospitalList, sourceList + "/" + order + "/shipments", hospitalList + "/" + order + "/shipments", "/v1/supply/hospitals/" + hospital + "/departments/" + department + "/outlets/" + outlet + "/supplier-shipments", "/v1/pharmacy/hospitals/" + hospital + "/departments/" + department + "/outlets/" + outlet + "/supplier-shipments/" + order + "/receipts", "/v1/pharmacy/hospitals/" + hospital + "/departments/" + department + "/outlets/" + outlet + "/supplier-shipments/" + order + "/receipts/" + order + "/corrections"} {
+		cases = append(cases,
+			requestCase{name: "list authority outage " + list, method: "GET", path: list + "?limit=1", status: 503},
+			requestCase{name: "list bounds " + list, method: "GET", path: list + "?limit=51", status: 400},
+			requestCase{name: "list cursor " + list, method: "GET", path: list + "?cursor=invalid", status: 400},
+			requestCase{name: "list unknown filter " + list, method: "GET", path: list + "?scope=other", status: 400},
+			requestCase{name: "list duplicate limit " + list, method: "GET", path: list + "?limit=1&limit=2", status: 400},
+		)
+	}
+	for _, root := range []string{sourceList, hospitalList} {
+		cases = append(cases, requestCase{name: "explicit source authority outage " + root, method: "GET", path: root + "/" + order, status: 503}, requestCase{name: "source review owner unavailable " + root, method: "GET", path: root + "/" + order + "/review-access", status: 503})
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

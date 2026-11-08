@@ -184,3 +184,6 @@ export * from "./supply-stock-quality";
 
 export * from "./supplier-orders";
 export * from "./supplier-orders-contract";
+export * from "./supplier-fulfilment";
+export * from "./supplier-fulfilment-contract";
+export * from "./supplier-fulfilment-queries";

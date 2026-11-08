@@ -119,6 +119,7 @@ func verifyPurchaseOrderProtocol(t *testing.T, db *tenantdb.DB, seller, buyer su
 	accepted := wait(buyer.OwnerTenantID, buyerFrame("buyer_read", reviewer), "accepted")
 	require.Equal(t, order.InputSha256, accepted.InputSha256)
 	require.Equal(t, reviewer.StaffID, *accepted.SignedStaffID)
+	verifyReceivingResponseProjection(t, db, accepted, dept)
 	// Narrow scope is enforced even when the application connection knows the identifier.
 	wrong := buyerFrame("buyer_read", reviewer)
 	wrong["app.supply_order_department"] = uuid.Must(uuid.NewV7()).String()
@@ -132,10 +133,13 @@ func verifyPurchaseOrderProtocol(t *testing.T, db *tenantdb.DB, seller, buyer su
 		require.Zero(t, n)
 		return nil
 	}))
-	// Cancellation is recorded after acceptance but never invents successful stock release.
+	// With no stock commitments, the source owner can release its empty budget and acknowledge cancellation.
 	apply(buyer.OwnerTenantID, actor, buyerFrame("buyer_write", actor), "cancel")
-	pending := wait(seller.OwnerTenantID, sourceFrame("seller_read", supplier), "cancellation_requested")
-	require.Equal(t, supplier.StaffID, *pending.SignedStaffID)
+	cancelled := wait(seller.OwnerTenantID, sourceFrame("seller_read", supplier), "cancelled")
+	require.Equal(t, supplier.StaffID, *cancelled.SignedStaffID)
+	confirmed := wait(buyer.OwnerTenantID, buyerFrame("buyer_read", reviewer), "cancelled")
+	require.Equal(t, reviewer.StaffID, *confirmed.SignedStaffID)
+	require.Equal(t, cancelled.AuthorityEpoch, confirmed.RemoteEpoch)
 	// A current authorized read keeps the original approval receipt after the later state.
 	require.NoError(t, db.WithTenant(tenantdb.WithActor(context.WithoutCancel(t.Context()), reviewer.Subject), buyer.OwnerTenantID.String(), func(tx *gorm.DB) error {
 		return supply.TestPurchaseOrderFrame(tx, buyerFrame("buyer_read", reviewer), func() error {
@@ -144,7 +148,7 @@ func verifyPurchaseOrderProtocol(t *testing.T, db *tenantdb.DB, seller, buyer su
 				return err
 			}
 			require.JSONEq(t, string(originalReceipt), string(row.ProposalReceipt))
-			require.Equal(t, "cancellation_requested", row.Order.Status)
+			require.Equal(t, "cancelled", row.Order.Status)
 			recovered, err := supply.TestSamePurchaseOrderProposal(row, input, actor)
 			require.NoError(t, err)
 			require.Equal(t, "pending_review", recovered.Status)

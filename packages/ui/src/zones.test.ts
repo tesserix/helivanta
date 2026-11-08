@@ -269,6 +269,7 @@ describe("zone icons and sections", () => {
       ["Dispensing", "Medication list", "/pharmacy/medications"],
       ["Inventory", "Stock across outlets", "/pharmacy/stock-overview"],
       ["Inventory", "Stock on hand", "/pharmacy/stock"],
+      ["Inventory", "Supplier fulfilment", "/pharmacy/supplier-orders"],
       ["Inventory", "Receiving", "/pharmacy/receiving"],
       ["Inventory", "Expiry & safety", "/pharmacy/safety"],
       ["Inventory", "Product catalogue", "/pharmacy/catalogue"],

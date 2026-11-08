@@ -83,10 +83,13 @@ cannot place or approve an order, reserve stock, dispatch goods or post receipt.
 
 ## Remaining implementation and verification
 
-The owner APIs, permissions and reviewed Staff templates, forced-RLS storage,
-directed consumers, Temporal activities, both stock owners' reservation/dispatch,
-minimized effective-grant disclosure, SDK/UI and actual-owner/browser acceptance
-remain implementation work. No endpoint or permission is declared approved here.
+The candidate implements order owner APIs, permissions and reviewed Staff
+templates, forced-RLS storage, directed order consumers and the strict order SDK.
+The reservation/release Temporal activities, both stock owners' reservation and
+dispatch, hospital receiving/discrepancies, financial integration, minimized
+effective-grant disclosure, order UI and actual-owner/browser acceptance remain
+implementation work. The order checkpoint does not establish an approved live
+fulfilment workflow.
 The application remains a modular monolith using existing owners and worker;
 this introduces no new service or copied inventory/financial master.
 

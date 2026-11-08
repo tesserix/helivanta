@@ -38,8 +38,9 @@ func (h *handlers) leaveReviewScopeCandidates(c *gin.Context, page pagination.Pa
 		if err := tx.Exec(`SELECT set_config('app.workforce_subject',?,true),set_config('app.workforce_leave_discovery','authorized',true)`, p.Subject).Error; err != nil {
 			return err
 		}
+		// Every caller offers hospital-rooted choices, so a pharmacy link is never a candidate (ADR-0054).
 		query := tx.Table("workforce_login_links l").Select("l.id,l.staff_id,l.version,l.created_at,l.hospital_id,h.name").
-			Joins("JOIN workforce_hospitals h ON h.tenant_id=l.tenant_id AND h.id=l.hospital_id").
+			Joins("JOIN workforce_hospitals h ON h.tenant_id=l.tenant_id AND h.id=l.hospital_id AND h.establishment_kind=?", hospitalEstablishmentKind).
 			Where("l.tenant_id=? AND l.subject=? AND l.status='active'", p.TenantID, p.Subject)
 		if page.After != nil {
 			query = query.Where("(l.created_at,l.id)<(?,?)", page.After.CreatedAt, page.After.ID)

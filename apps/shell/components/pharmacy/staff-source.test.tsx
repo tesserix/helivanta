@@ -256,9 +256,11 @@ const employerSource = (access_level: "manager" | "reader") => ({
 function employerTenant(
   access: "manager" | "reader",
   staff: (url: string, init?: RequestInit) => Response = () => Response.json(page([pharmacyRow])),
+  permissions: string[] = [],
 ) {
   return vi.fn(async (url: string, init?: RequestInit) => {
-    if (url.endsWith("/permissions")) return Response.json(identity());
+    if (url.endsWith("/permissions"))
+      return Response.json({ ...identity(), data: [...identity().data, ...permissions] });
     if (url.includes(`/workforce/pharmacies/${pharmacy}/staff`)) return staff(url, init);
     if (url.includes("/workforce/pharmacies?"))
       return Response.json(page([employerSource(access)]));
@@ -380,4 +382,77 @@ it("refuses a pharmacy page carrying another establishment's Staff", async () =>
   renderSource();
   expect(await screen.findByRole("alert")).toHaveTextContent("Could not load staff");
   expect(screen.queryByText(pharmacyRow.display_name)).not.toBeInTheDocument();
+});
+
+const linkPermissions = {
+  manage: "workforce.login_links.manage",
+  review: "workforce.login_links.review",
+};
+it.each([
+  ["manager", [linkPermissions.manage], true],
+  ["manager", [linkPermissions.review], true],
+  ["manager", [], false],
+  ["reader", [linkPermissions.manage, linkPermissions.review], false],
+] as const)(
+  "offers the account link to a pharmacy %s holding %j: %s",
+  async (access, permissions, offered) => {
+    vi.stubGlobal(
+      "fetch",
+      employerTenant(access, () => Response.json(page([pharmacyRow])), [...permissions]),
+    );
+    renderSource();
+    expect(await screen.findByRole("cell", { name: pharmacyRow.display_name })).toBeInTheDocument();
+    const action = screen.queryByRole("button", {
+      name: `Account link for ${pharmacyRow.display_name}`,
+    });
+    if (offered) expect(action).toBeInTheDocument();
+    else expect(action).not.toBeInTheDocument();
+  },
+);
+
+it("opens a pharmacy Staff record's account links on the pharmacy family", async () => {
+  const fetcher = employerTenant(
+    "manager",
+    (url) =>
+      Response.json(
+        page(
+          url.includes("/login-links")
+            ? [
+                {
+                  id: "019eeeee-eeee-7eee-8eee-eeeeeeeeeeee",
+                  staff_id: pharmacyRow.id,
+                  subject: "synthetic-linked-account",
+                  status: "active",
+                  version: 2,
+                  proposed_by_subject: "proposer",
+                  proposal_reason: "Verified synthetic account",
+                  actor_subject: "reviewer",
+                  reason: "Independent check",
+                  created_at: pharmacyRow.created_at,
+                  updated_at: pharmacyRow.updated_at,
+                },
+              ]
+            : [pharmacyRow],
+        ),
+      ),
+    [linkPermissions.review],
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = renderSource();
+  await user.click(
+    await screen.findByRole("button", { name: `Account link for ${pharmacyRow.display_name}` }),
+  );
+  expect(await screen.findByText("synthetic-linked-account")).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      `${pharmacyRow.display_name} · ${pharmacyRow.employee_code} · Synthetic Standalone Pharmacy`,
+    ),
+  ).toBeInTheDocument();
+  expect(screen.getByText(/does not grant application access or clinical authority/)).toBeVisible();
+  const read = fetcher.mock.calls.find(([url]) => url.includes("/login-links"));
+  expect(read?.[0]).toBe(
+    `/api/v1/workforce/pharmacies/${pharmacy}/staff/${pharmacyRow.id}/login-links?limit=50`,
+  );
+  expect(new Headers(read?.[1]?.headers).get("X-Helivanta-Expected-Tenant")).toBe(tenant);
+  expect(fetcher.mock.calls.some(([url]) => url.includes("/workforce/hospitals/"))).toBe(false);
 });

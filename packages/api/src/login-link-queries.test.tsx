@@ -3,13 +3,21 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import { useLoginLinks } from "./login-link-queries";
+import type { LoginLinkScope } from "./login-links";
 
-const scope = {
+const scope: LoginLinkScope = {
   tenantId: "11111111-1111-4111-8111-111111111111",
-  hospitalId: "22222222-2222-4222-8222-222222222222",
+  establishment: { kind: "hospital", id: "22222222-2222-4222-8222-222222222222" },
   staffId: "33333333-3333-4333-8333-333333333333",
 };
 const changed = "44444444-4444-4444-8444-444444444444";
+const changes: Record<string, LoginLinkScope> = {
+  tenantId: { ...scope, tenantId: changed },
+  "establishment id": { ...scope, establishment: { ...scope.establishment, id: changed } },
+  "establishment kind": { ...scope, establishment: { ...scope.establishment, kind: "pharmacy" } },
+  staffId: { ...scope, staffId: changed },
+  subject: scope,
+};
 const link = {
   id: "019aaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa",
   staff_id: scope.staffId,
@@ -25,7 +33,7 @@ const link = {
 };
 afterEach(() => vi.unstubAllGlobals());
 
-it.each(["tenantId", "hospitalId", "staffId", "subject"] as const)(
+it.each(Object.keys(changes))(
   "does not display cached private links after %s changes",
   async (field) => {
     let respond: ((response: Response) => void) | undefined;
@@ -59,7 +67,7 @@ it.each(["tenantId", "hospitalId", "staffId", "subject"] as const)(
     await waitFor(() =>
       expect(result.current.data?.pages[0]?.data[0]?.subject).toBe("private-original-account"),
     );
-    const nextScope = field === "subject" ? scope : { ...scope, [field]: changed };
+    const nextScope = changes[field]!;
     rerender({ scope: nextScope, subject: field === "subject" ? "another-reviewer" : "reviewer" });
     expect(result.current.data).toBeUndefined();
     await waitFor(() => expect(respond).toBeTypeOf("function"));

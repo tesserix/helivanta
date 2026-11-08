@@ -11,7 +11,12 @@ import {
 export * from "./login-link-contract";
 export { v7 as newLoginLinkId } from "uuid";
 
-export type LoginLinkScope = { tenantId: string; hospitalId: string; staffId: string };
+export type LoginLinkEstablishment = { kind: "hospital" | "pharmacy"; id: string };
+export type LoginLinkScope = {
+  tenantId: string;
+  establishment: LoginLinkEstablishment;
+  staffId: string;
+};
 type PageOptions = { cursor?: string; signal?: AbortSignal };
 const identifier = loginLinkContract.shape.id;
 const commandID = identifier.refine((value) => value[14] === "7", "Use a new command ID.");
@@ -23,16 +28,22 @@ const historyPage = z
   .object({ data: z.array(loginLinkHistoryContract), page: pageContract })
   .strict();
 
+const establishmentFamilies = { hospital: "hospitals", pharmacy: "pharmacies" } as const;
+const establishmentKind = z.enum(["hospital", "pharmacy"]);
+
 export const loginLinksKey = (scope: LoginLinkScope) => [
   "workforce",
   "login-links",
   scope.tenantId,
-  scope.hospitalId,
+  scope.establishment.kind,
+  scope.establishment.id,
   scope.staffId,
 ];
 
-export const loginLinksPath = (scope: LoginLinkScope) =>
-  `/workforce/hospitals/${identifier.parse(scope.hospitalId)}/staff/${identifier.parse(scope.staffId)}/login-links`;
+export const loginLinksPath = (scope: LoginLinkScope) => {
+  const family = establishmentFamilies[establishmentKind.parse(scope.establishment.kind)];
+  return `/workforce/${family}/${identifier.parse(scope.establishment.id)}/staff/${identifier.parse(scope.staffId)}/login-links`;
+};
 
 function requestOptions(scope: LoginLinkScope): RequestInit {
   return {

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@helivanta/api/testing";
 import type { Hospital, Staff } from "@helivanta/api";
-import { StaffLoginLinkPanel } from "./login-link-panel";
+import { StaffLoginLinkPanel, type LoginLinkEstablishmentView } from "./login-link-panel";
 
 const tenant = "11111111-1111-4111-8111-111111111111";
 const hospital: Hospital = {
@@ -11,6 +11,7 @@ const hospital: Hospital = {
   name: "Synthetic Hospital",
   access_level: "manager",
 };
+const establishment: LoginLinkEstablishmentView = { kind: "hospital", ...hospital };
 const staff: Staff = {
   id: "33333333-3333-4333-8333-333333333333",
   hospital_id: hospital.id,
@@ -61,7 +62,7 @@ it("keeps the proposal ID and body after an ambiguous failure", async () => {
     }),
   );
   const { user } = renderWithProviders(
-    <StaffLoginLinkPanel hospital={hospital} staff={staff} onClose={() => {}} />,
+    <StaffLoginLinkPanel establishment={establishment} staff={staff} onClose={() => {}} />,
   );
   await user.click(await screen.findByRole("button", { name: "Propose account link" }));
   await user.type(screen.getByLabelText("Account ID"), "candidate");
@@ -84,7 +85,9 @@ it.each(["proposer", "candidate"])("hides independent review from %s", async (su
       ),
     ),
   );
-  renderWithProviders(<StaffLoginLinkPanel hospital={hospital} staff={staff} onClose={() => {}} />);
+  renderWithProviders(
+    <StaffLoginLinkPanel establishment={establishment} staff={staff} onClose={() => {}} />,
+  );
   expect(await screen.findByText("candidate")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
@@ -105,7 +108,7 @@ it("requires a reason and submits independent review with the viewed version", a
     }),
   );
   const { user } = renderWithProviders(
-    <StaffLoginLinkPanel hospital={hospital} staff={staff} onClose={() => {}} />,
+    <StaffLoginLinkPanel establishment={establishment} staff={staff} onClose={() => {}} />,
   );
   await user.click(await screen.findByRole("button", { name: "Approve" }));
   await user.click(screen.getByRole("button", { name: "Confirm approve" }));
@@ -141,7 +144,7 @@ it("clears a draft when the staff scope changes", async () => {
         >
           Change staff
         </button>
-        <StaffLoginLinkPanel hospital={hospital} staff={current} onClose={() => {}} />
+        <StaffLoginLinkPanel establishment={establishment} staff={current} onClose={() => {}} />
       </>
     );
   }
@@ -161,7 +164,9 @@ it("shows an API failure instead of a false empty account state", async () => {
         : Response.json({ error: "authz_unavailable", message: "Unavailable" }, { status: 503 }),
     ),
   );
-  renderWithProviders(<StaffLoginLinkPanel hospital={hospital} staff={staff} onClose={() => {}} />);
+  renderWithProviders(
+    <StaffLoginLinkPanel establishment={establishment} staff={staff} onClose={() => {}} />,
+  );
   expect(await screen.findByRole("alert")).toHaveTextContent("Could not load account links");
   expect(screen.queryByText("No account has been linked.")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Propose account link" })).not.toBeInTheDocument();
@@ -195,7 +200,7 @@ it("loads private history and follows its cursor", async () => {
     }),
   );
   const { user } = renderWithProviders(
-    <StaffLoginLinkPanel hospital={hospital} staff={staff} onClose={() => {}} />,
+    <StaffLoginLinkPanel establishment={establishment} staff={staff} onClose={() => {}} />,
   );
   await user.click(await screen.findByRole("button", { name: "History" }));
   expect(await screen.findByText("reviewer: Independent check")).toBeInTheDocument();
@@ -217,7 +222,7 @@ it("withdraws loaded account links once a refreshed read is refused", async () =
     ),
   );
   const { user } = renderWithProviders(
-    <StaffLoginLinkPanel hospital={hospital} staff={staff} onClose={() => {}} />,
+    <StaffLoginLinkPanel establishment={establishment} staff={staff} onClose={() => {}} />,
   );
   expect(await screen.findByText(/candidate/)).toBeInTheDocument();
   refused = true;
@@ -227,4 +232,87 @@ it("withdraws loaded account links once a refreshed read is refused", async () =
   ).toBeInTheDocument();
   expect(screen.queryByText(/candidate/)).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /try again|refresh links/i })).toBeNull();
+});
+
+it("proposes and reviews a pharmacy Staff record's link on the pharmacy family", async () => {
+  const requests: { method: string; url: string; body: unknown }[] = [];
+  let subject = "proposer";
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("permissions"))
+        return Response.json({ tenant_id: tenant, subject, data: perms });
+      if (init?.method === "PUT" || init?.method === "POST") {
+        requests.push({ method: init.method, url, body: JSON.parse(String(init.body)) });
+        return Response.json(
+          init.method === "PUT"
+            ? { ...link, id: url.split("/").at(-1) }
+            : { ...link, status: "active", version: 2 },
+        );
+      }
+      return Response.json(page(subject === "reviewer" ? [link] : []));
+    }),
+  );
+  const pharmacy: LoginLinkEstablishmentView = {
+    kind: "pharmacy",
+    id: hospital.id,
+    name: "Synthetic Standalone Pharmacy",
+    access_level: "manager",
+  };
+  const proposal = renderWithProviders(
+    <StaffLoginLinkPanel establishment={pharmacy} staff={staff} onClose={() => {}} />,
+  );
+  expect(
+    await screen.findByText(
+      `${staff.display_name} · ${staff.employee_code} · Synthetic Standalone Pharmacy`,
+    ),
+  ).toBeInTheDocument();
+  await proposal.user.click(await screen.findByRole("button", { name: "Propose account link" }));
+  await proposal.user.type(screen.getByLabelText("Account ID"), "candidate");
+  await proposal.user.type(screen.getByLabelText("Reason"), "Verified synthetic account");
+  await proposal.user.click(screen.getByRole("button", { name: "Submit proposal" }));
+  await waitFor(() => expect(requests).toHaveLength(1));
+  proposal.unmount();
+
+  subject = "reviewer";
+  const review = renderWithProviders(
+    <StaffLoginLinkPanel establishment={pharmacy} staff={staff} onClose={() => {}} />,
+  );
+  await review.user.click(await screen.findByRole("button", { name: "Approve" }));
+  await review.user.type(screen.getByLabelText("Reason"), "Independently verified");
+  await review.user.click(screen.getByRole("button", { name: "Confirm approve" }));
+  await waitFor(() => expect(requests).toHaveLength(2));
+  const base = `/api/v1/workforce/pharmacies/${hospital.id}/staff/${staff.id}/login-links`;
+  expect(requests[0]).toMatchObject({
+    method: "PUT",
+    url: expect.stringMatching(new RegExp(`^${base}/[0-9a-f-]{36}$`)),
+    body: { subject: "candidate", reason: "Verified synthetic account" },
+  });
+  expect(requests[1]).toEqual({
+    method: "POST",
+    url: `${base}/${id}/decision`,
+    body: { expected_version: 1, decision: "approve", reason: "Independently verified" },
+  });
+});
+
+it("reads no links for an establishment the caller only reads", async () => {
+  const fetch = vi.fn(async (url: string) =>
+    Response.json(
+      url.includes("permissions")
+        ? { tenant_id: tenant, subject: "reviewer", data: perms }
+        : page([link]),
+    ),
+  );
+  vi.stubGlobal("fetch", fetch);
+  renderWithProviders(
+    <StaffLoginLinkPanel
+      establishment={{ ...establishment, kind: "pharmacy", access_level: "reader" }}
+      staff={staff}
+      onClose={() => {}}
+    />,
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Account-link access is not available",
+  );
+  expect(fetch.mock.calls.some(([url]) => url.includes("/login-links"))).toBe(false);
 });

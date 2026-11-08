@@ -38,7 +38,7 @@ import { StaffCredentialPanel } from "./credential-panel";
 import { StaffIdentitySourcePanel } from "./identity-source-panel";
 import { StaffEmploymentPeriods } from "./employment-periods-panel";
 import { StaffPostingDraftPanel } from "./posting-drafts-panel";
-import { StaffLoginLinkPanel } from "./login-link-panel";
+import { StaffLoginLinkPanel } from "@/components/workforce/login-link-panel";
 
 const inputClass =
   "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
@@ -576,7 +576,7 @@ function Directory({
         manager &&
         (can("workforce.login_links.manage") || can("workforce.login_links.review")) && (
           <StaffLoginLinkPanel
-            hospital={choice.hospital}
+            establishment={{ kind: "hospital", ...choice.hospital }}
             staff={linkStaff}
             onClose={() => setLinkStaff(null)}
           />

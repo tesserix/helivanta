@@ -360,7 +360,7 @@ func (h *handlers) putDirectoryStaff(c *gin.Context, p authn.Principal, e establ
 			return err
 		}
 		if in.EmploymentStatus == "inactive" {
-			if err := h.revokeInactiveStaffLinks(tx, p, e.id, id); err != nil {
+			if err := h.revokeInactiveStaffLinks(tx, p, e, id); err != nil {
 				return err
 			}
 		}

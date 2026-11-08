@@ -9611,6 +9611,42 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/login-links/:link/decision",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/login-links/:link/history",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/login-links/:link",
+          "permission": "workforce.login_links.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/login-links",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id",
           "permission": "public",
@@ -9900,6 +9936,7 @@
         "helivanta.in.workforce.document_classification_changed.v1",
         "helivanta.in.workforce.assignment_scope_verified.v1",
         "helivanta.in.workforce.login_link_changed.v1",
+        "helivanta.in.workforce.pharmacy_login_link_changed.v1",
         "helivanta.in.workforce.enrollment_changed.v1",
         "helivanta.in.workforce.master_changed.v1",
         "helivanta.in.workforce.shift_changed.v1",
@@ -10965,6 +11002,11 @@
         {
           "id": "0092_workforce_pharmacy_staff_directory",
           "sql_sha256": "2a796d859170b50eda3aea8a5f6f25ef872fb231e17260b3f1ddfb02b676c7ef",
+          "creates_tables": []
+        },
+        {
+          "id": "0093_workforce_pharmacy_login_links",
+          "sql_sha256": "50a20c0e72b0647db36032805d88f06a731b324ae90de481fc24fb1524f4ddf6",
           "creates_tables": []
         }
       ]

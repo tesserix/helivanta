@@ -1,6 +1,7 @@
 package workforce
 
 import (
+	"context"
 	"net/http/httptest"
 	"slices"
 	"strings"
@@ -14,12 +15,20 @@ import (
 	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/pkg/audit"
 	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 const establishmentRaceTenant = "0199e000-0000-7000-8000-0000000000a1"
+
+// raceMembers stands in for IAM membership, so a proposal reaches the transaction under test.
+type raceMembers struct{}
+
+func (raceMembers) ListRoles(context.Context, string) ([]authz.RoleBinding, error) {
+	return []authz.RoleBinding{{TenantID: establishmentRaceTenant, Role: authz.RoleStaffMember}}, nil
+}
 
 // A request admitted before a concurrent pharmacy registration reaches the handler without the admission's protection.
 func TestHospitalCommandsRefuseAPharmacyRegisteredAfterAdmission(t *testing.T) {
@@ -30,9 +39,10 @@ func TestHospitalCommandsRefuseAPharmacyRegisteredAfterAdmission(t *testing.T) {
 	require.NoError(t, db.Migrate(t.Context(), slices.Concat(tenantdb.Migrations(), events.Migrations(), audit.Migrations(), New().Migrations())))
 	pharmacy := uuid.Must(uuid.NewV7()).String()
 	staffID := uuid.Must(uuid.NewV7()).String()
+	linkID := uuid.Must(uuid.NewV7()).String()
 	inPharmacy := func(fn func(*gorm.DB) error) error {
 		return db.WithTenant(t.Context(), establishmentRaceTenant, func(tx *gorm.DB) error {
-			if err := tx.Exec(`SELECT set_config('app.workforce_subject','user-admin',true),set_config('app.workforce_hospital',?,true)`, pharmacy).Error; err != nil {
+			if err := tx.Exec(`SELECT set_config('app.workforce_subject','user-admin',true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_login_link_access','authorized',true),set_config('app.workforce_login_link_command','manage',true)`, pharmacy).Error; err != nil {
 				return err
 			}
 			return fn(tx)
@@ -46,6 +56,7 @@ func TestHospitalCommandsRefuseAPharmacyRegisteredAfterAdmission(t *testing.T) {
 			{`INSERT INTO workforce_hospitals(tenant_id,id,name,establishment_kind,pharmacy_ownership_type) VALUES(?,?,'Synthetic Race Pharmacy','pharmacy','independent')`, []any{establishmentRaceTenant, pharmacy}},
 			{`INSERT INTO workforce_hospital_access(tenant_id,hospital_id,subject,level) VALUES(?,?,'user-admin','manager')`, []any{establishmentRaceTenant, pharmacy}},
 			{`INSERT INTO workforce_staff(tenant_id,hospital_id,id,employee_code,display_name,job_category,employment_status) VALUES(?,?,?,'SYN-PHARMACY','Synthetic pharmacist','pharmacist','active')`, []any{establishmentRaceTenant, pharmacy, staffID}},
+			{`INSERT INTO workforce_login_links(tenant_id,hospital_id,staff_id,id,subject,status,version,proposed_by_subject,proposal_reason,actor_subject,reason) VALUES(?,?,?,?,'user-candidate','pending',1,'user-admin','Synthetic race link','user-admin','Synthetic race link')`, []any{establishmentRaceTenant, pharmacy, staffID, linkID}},
 		} {
 			if err := tx.Exec(insert.sql, insert.args...).Error; err != nil {
 				return err
@@ -55,10 +66,11 @@ func TestHospitalCommandsRefuseAPharmacyRegisteredAfterAdmission(t *testing.T) {
 	}))
 
 	gin.SetMode(gin.TestMode)
-	h := &handlers{db: db}
+	h := &handlers{db: db, roles: raceMembers{}}
 	e := gin.New()
 	e.Use(func(c *gin.Context) {
 		c.Set("authn.principal", authn.Principal{Subject: "user-admin", TenantID: establishmentRaceTenant})
+		c.Set("authz.permissions", authz.NewPermissionSet(PermLoginLinkManage, PermLoginLinkReview))
 		c.Next()
 	})
 	e.PUT("/hospitals/:hospital", h.putHospital)
@@ -71,6 +83,20 @@ func TestHospitalCommandsRefuseAPharmacyRegisteredAfterAdmission(t *testing.T) {
 			c.JSON(200, gin.H{"rows": len(rows), "failed": err != nil})
 		}
 	})
+	links := "/hospitals/:hospital/staff/:id/login-links"
+	e.PUT(links+"/:link", h.proposeLoginLink(hospitalLinkEstablishment))
+	e.POST(links+"/:link/decision", h.decideLoginLink(hospitalLinkEstablishment))
+	e.GET(links, func(c *gin.Context) {
+		if rows, err := h.listLoginLinks(hospitalLinkEstablishment)(c, pagination.Params{Limit: 10}); !c.IsAborted() {
+			c.JSON(200, gin.H{"rows": len(rows), "failed": err != nil})
+		}
+	})
+	e.GET(links+"/:link/history", func(c *gin.Context) {
+		if rows, err := h.loginLinkHistory(hospitalLinkEstablishment)(c, pagination.Params{Limit: 10}); !c.IsAborted() {
+			c.JSON(200, gin.H{"rows": len(rows), "failed": err != nil})
+		}
+	})
+	staffLinks := "/hospitals/" + pharmacy + "/staff/" + staffID + "/login-links"
 	for _, call := range []struct{ method, path, body string }{
 		{"PUT", "/hospitals/" + pharmacy, `{"name":"Synthetic Race Pharmacy"}`},
 		{"PUT", "/hospitals/" + pharmacy, `{"name":"Synthetic Renamed Pharmacy"}`},
@@ -81,6 +107,10 @@ func TestHospitalCommandsRefuseAPharmacyRegisteredAfterAdmission(t *testing.T) {
 		{"GET", "/hospitals/" + pharmacy + "/staff", ""},
 		{"PUT", "/hospitals/" + pharmacy + "/access/user-admin", `{"level":"reader"}`},
 		{"PUT", "/hospitals/" + pharmacy + "/access/user-other", `{"level":"manager"}`},
+		{"POST", staffLinks + "/" + linkID + "/decision", `{"expected_version":1,"decision":"revoke","reason":"Synthetic race revoke"}`},
+		{"PUT", staffLinks + "/" + uuid.Must(uuid.NewV7()).String(), `{"subject":"user-other","reason":"Synthetic race proposal"}`},
+		{"GET", staffLinks, ""},
+		{"GET", staffLinks + "/" + linkID + "/history", ""},
 	} {
 		t.Run(call.method+" "+call.path[len("/hospitals/")+len(pharmacy):]+" "+call.body, func(t *testing.T) {
 			w := httptest.NewRecorder()
@@ -89,8 +119,18 @@ func TestHospitalCommandsRefuseAPharmacyRegisteredAfterAdmission(t *testing.T) {
 		})
 	}
 	var registry struct{ Name, EstablishmentKind string }
-	var access, staffRows []string
+	var access, staffRows, linkRows []string
+	var linkEvents, linkReads int64
 	require.NoError(t, inPharmacy(func(tx *gorm.DB) error {
+		if err := tx.Raw(`SELECT id::text||':'||status||':'||version FROM workforce_login_links WHERE tenant_id=? AND hospital_id=?`, establishmentRaceTenant, pharmacy).Scan(&linkRows).Error; err != nil {
+			return err
+		}
+		if err := tx.Table("outbox_events").Where("subject IN ?", []string{LoginLinkChanged, PharmacyLoginLinkChanged}).Count(&linkEvents).Error; err != nil {
+			return err
+		}
+		if err := tx.Table("workforce_audit").Where("action='workforce.login_link.read'").Count(&linkReads).Error; err != nil {
+			return err
+		}
 		if err := tx.Raw(`SELECT name,establishment_kind FROM workforce_hospitals WHERE tenant_id=? AND id=?`, establishmentRaceTenant, pharmacy).Scan(&registry).Error; err != nil {
 			return err
 		}
@@ -102,6 +142,9 @@ func TestHospitalCommandsRefuseAPharmacyRegisteredAfterAdmission(t *testing.T) {
 	require.Equal(t, struct{ Name, EstablishmentKind string }{"Synthetic Race Pharmacy", "pharmacy"}, registry)
 	require.Equal(t, []string{"user-admin:manager"}, access)
 	require.Equal(t, []string{staffID + ":Synthetic pharmacist:active"}, staffRows)
+	require.Equal(t, []string{linkID + ":pending:1"}, linkRows)
+	require.Zero(t, linkEvents)
+	require.Zero(t, linkReads)
 
 	// The read statement's own filter is what keeps a registration landing after refuseOtherKind out of the hospital family.
 	for kind, want := range map[string]int{hospitalEstablishmentKind: 0, pharmacyEstablishmentKind: 1} {

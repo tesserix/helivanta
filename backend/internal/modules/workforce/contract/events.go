@@ -13,6 +13,17 @@ type LoginLinkChangedData struct {
 	Status     string `json:"status"`
 }
 
+// SubjectPharmacyLoginLinkChanged is a distinct subject so login_link_changed.v1 keeps naming only hospitals.
+const SubjectPharmacyLoginLinkChanged = "helivanta.in.workforce.pharmacy_login_link_changed.v1"
+
+type PharmacyLoginLinkChangedData struct {
+	PharmacyID string `json:"pharmacy_id"`
+	StaffID    string `json:"staff_id"`
+	LinkID     string `json:"link_id"`
+	Version    int64  `json:"version"`
+	Status     string `json:"status"`
+}
+
 // SubjectStaffEnrollmentChanged carries no personal enrollment data.
 const SubjectStaffEnrollmentChanged = "helivanta.in.workforce.enrollment_changed.v1"
 

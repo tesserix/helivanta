@@ -24,15 +24,24 @@ import {
   useApiQuery,
   useLoginLinks,
   useLoginLinkHistory,
-  type Hospital,
-  type Staff,
   type LoginLink,
+  type LoginLinkEstablishment,
   type LoginLinkInput,
   type LoginLinkDecisionInput,
   type LoginLinkScope,
 } from "@helivanta/api";
 
-type Props = { hospital: Hospital; staff: Staff; onClose: () => void };
+export type LoginLinkEstablishmentView = LoginLinkEstablishment & {
+  name: string;
+  access_level: "reader" | "manager";
+};
+type LinkStaff = {
+  id: string;
+  display_name: string;
+  employee_code: string;
+  employment_status: "active" | "inactive";
+};
+type Props = { establishment: LoginLinkEstablishmentView; staff: LinkStaff; onClose: () => void };
 type Identity = { tenant_id: string; subject: string; data: string[] };
 type View =
   | { kind: "propose" }
@@ -45,7 +54,7 @@ export function StaffLoginLinkPanel(props: Props) {
   if (identity.isError || !identity.data?.tenant_id || !identity.data.subject)
     return <p role="alert">Could not verify account-link access. Close and reopen this panel.</p>;
   if (
-    props.hospital.access_level !== "manager" ||
+    props.establishment.access_level !== "manager" ||
     !identity.data.data.some(
       (p) => p === "workforce.login_links.manage" || p === "workforce.login_links.review",
     )
@@ -53,17 +62,17 @@ export function StaffLoginLinkPanel(props: Props) {
     return <p role="alert">Account-link access is not available.</p>;
   return (
     <LinkPanel
-      key={`${identity.data.tenant_id}:${identity.data.subject}:${props.hospital.id}:${props.staff.id}`}
+      key={`${identity.data.tenant_id}:${identity.data.subject}:${props.establishment.kind}:${props.establishment.id}:${props.staff.id}`}
       {...props}
       identity={identity.data}
     />
   );
 }
 
-function LinkPanel({ hospital, staff, onClose, identity }: Props & { identity: Identity }) {
+function LinkPanel({ establishment, staff, onClose, identity }: Props & { identity: Identity }) {
   const scope: LoginLinkScope = {
     tenantId: identity.tenant_id,
-    hospitalId: hospital.id,
+    establishment: { kind: establishment.kind, id: establishment.id },
     staffId: staff.id,
   };
   const records = useLoginLinks(scope, identity.subject);
@@ -92,7 +101,7 @@ function LinkPanel({ hospital, staff, onClose, identity }: Props & { identity: I
             Account link
           </h3>
           <p className="text-sm text-muted-foreground">
-            {staff.display_name} · {staff.employee_code} · {hospital.name}
+            {staff.display_name} · {staff.employee_code} · {establishment.name}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

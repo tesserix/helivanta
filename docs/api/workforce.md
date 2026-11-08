@@ -18,7 +18,8 @@ The same screen also lists pharmacy employers, described next.
 
 Design: [ADR-0054](../adr/0054-typed-employing-establishments.md),
 [standalone pharmacy employers](../superpowers/specs/2026-11-04-standalone-pharmacy-employers.md)
-and the [slice plan](../superpowers/plans/2026-11-07-pharmacy-staff-directory.md).
+and the slice plans for the [directory](../superpowers/plans/2026-11-07-pharmacy-staff-directory.md)
+and [account links](../superpowers/plans/2026-11-08-pharmacy-login-links.md).
 
 A standalone pharmacy registered with `PUT /v1/workforce/pharmacies/:pharmacy`
 keeps its own Staff directory. Every response names `pharmacy_id` and never
@@ -31,12 +32,13 @@ route, answers 404.
 | `GET /v1/workforce/pharmacies/:pharmacy/staff`                    | Access row, checked in the transaction | 404 without a row, never an empty page.                                        |
 | `GET`/`PUT /v1/workforce/pharmacies/:pharmacy/staff/:id`          | Reader to read, manager to write       | `directory_context=v1` is required; 400 without it. `hr_intake` answers 400.   |
 | `PUT`/`DELETE /v1/workforce/pharmacies/:pharmacy/access/:subject` | `workforce.hospital.manage`            | Grants or revokes `reader` or `manager`.                                       |
+| `/v1/workforce/pharmacies/:pharmacy/staff/:id/login-links`        | As for hospitals, plus the manager row | See [reviewed account links](#reviewed-account-links-worktree-implementation). |
 
 Record reads and writes follow [versioned directory editing](#versioned-basic-directory-editing):
 account assertion headers, `expected_version`, `409 staff_version_conflict` on a
-stale edit, and an unchanged save keeps its version. Enrollment, identity, login
-links, employment, credentials, leave, rosters, payroll and postings stay
-hospital-only, and their tables refuse a pharmacy establishment.
+stale edit, and an unchanged save keeps its version. Enrollment, identity,
+employment, credentials, leave, rosters, payroll and postings stay hospital-only,
+and their tables refuse a pharmacy establishment.
 
 On `/pharmacy/staff`, the caller picks one of their pharmacy employers. A manager
 can add and edit records; a reader sees the directory only. A 404 means the
@@ -453,8 +455,11 @@ clinical authority. This prerequisite for #1132/#1053 does not implement scoped
 IAM assignments or self-service leave. See the [binding design](../superpowers/specs/2026-10-27-staff-login-links.md).
 
 The base path is `/v1/workforce/hospitals/{hospital}/staff/{staff}/login-links`,
-reached by web clients through Global API. All operations require verified tenant
-membership and a current hospital manager grant. The existing tenant administrator
+or `/v1/workforce/pharmacies/{pharmacy}/staff/{staff}/login-links` for a pharmacy
+Staff record, reached by web clients through Global API. Both families share the
+permissions, contract and behaviour below. An ID of the other kind answers 404.
+All operations require verified tenant membership and a current manager access
+row for that establishment. The existing tenant administrator
 has the two new administrative permissions; other system roles do not gain them.
 
 | Method and suffix       | Permission                                                  | Behavior                                                                                                                     |
@@ -473,7 +478,7 @@ The client sends `X-Helivanta-Expected-Tenant`; if supplied, exactly one value m
 match the verified tenant or the handler returns 404. It never selects a tenant.
 
 Statuses are pending, active, rejected, withdrawn and revoked. Only one pending
-or active link may exist per staff member or per subject within a hospital.
+or active link may exist per staff member or per subject within an establishment.
 Inactivation revokes pending/active links atomically, including through enrollment;
 reactivation does not restore them. Reusing a proposal ID with different content,
 conflicting bindings or stale decisions returns 409 `link_conflict`. Identical
@@ -484,7 +489,11 @@ authorized history after an ambiguous outcome. Missing permissions return 403;
 foreign/missing objects return 404. The binding cannot authorize self-service.
 
 `helivanta.in.workforce.login_link_changed.v1` carries only `hospital_id`,
-`staff_id`, `link_id`, `version` and `status`. Account subjects, names and reasons
+`staff_id`, `link_id`, `version` and `status`. A pharmacy link publishes
+`helivanta.in.workforce.pharmacy_login_link_changed.v1` with `pharmacy_id` in place
+of `hospital_id`; no module consumes either subject. A pharmacy link authorizes
+nothing yet: actor discovery, leave review and every other link consumer read
+hospital links only. Account subjects, names and reasons
 stay behind protected reads. State, history, minimized audit and outbox commit
 together. The additive migration preserves records and blocks inactive staff with
 current links; older writers that omit revocation fail this guard after links exist.

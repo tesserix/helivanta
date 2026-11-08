@@ -1242,6 +1242,10 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/person-review-scopes` | `public` | true | false |
 | DELETE | `/v1/workforce/pharmacies/:pharmacy/access/:subject` | `workforce.hospital.manage` | false | false |
 | PUT | `/v1/workforce/pharmacies/:pharmacy/access/:subject` | `workforce.hospital.manage` | false | false |
+| POST | `/v1/workforce/pharmacies/:pharmacy/staff/:id/login-links/:link/decision` | `public` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/login-links/:link/history` | `public` | true | false |
+| PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/login-links/:link` | `workforce.login_links.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/login-links` | `public` | true | false |
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id` | `public` | false | false |
 | PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id` | `public` | false | false |
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff` | `public` | true | false |
@@ -1267,6 +1271,7 @@ Published subjects:
 - `helivanta.in.workforce.document_classification_changed.v1`
 - `helivanta.in.workforce.assignment_scope_verified.v1`
 - `helivanta.in.workforce.login_link_changed.v1`
+- `helivanta.in.workforce.pharmacy_login_link_changed.v1`
 - `helivanta.in.workforce.enrollment_changed.v1`
 - `helivanta.in.workforce.master_changed.v1`
 - `helivanta.in.workforce.shift_changed.v1`

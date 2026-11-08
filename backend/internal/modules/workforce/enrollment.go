@@ -488,7 +488,7 @@ func (h *handlers) putEnrollment(c *gin.Context) {
 			return err
 		}
 		if in.Staff.EmploymentStatus == "inactive" {
-			if err := h.revokeInactiveStaffLinks(tx, p, hospital, id); err != nil {
+			if err := h.revokeInactiveStaffLinks(tx, p, establishment{kind: hospitalEstablishmentKind, id: hospital}, id); err != nil {
 				return err
 			}
 		}

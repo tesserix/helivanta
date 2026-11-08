@@ -28,6 +28,7 @@ import {
   StaffDirectory,
   useConfirmLeave,
 } from "@helivanta/ui";
+import { StaffLoginLinkPanel } from "@/components/workforce/login-link-panel";
 import { StaffRecordForm } from "@/components/workforce/staff-record-form";
 
 const identitySchema = z.object({
@@ -87,23 +88,28 @@ function StaffSourceAccount({ onRestart }: { onRestart: () => void }) {
       key={`${scope.tenantId}:${scope.subject}`}
       scope={scope}
       onContextChanged={() => setChanged(true)}
+      linkAccess={parsed.data.data.some(
+        (p) => p === "workforce.login_links.manage" || p === "workforce.login_links.review",
+      )}
     />
   );
 }
 
 type SourceProps = { scope: EnrollmentRequestScope; onContextChanged: () => void };
-function StaffSources(props: SourceProps) {
+// Display only; the link routes check the permission and the manager row on every call.
+type EmployerProps = SourceProps & { linkAccess: boolean };
+function StaffSources({ linkAccess, ...props }: EmployerProps) {
   return (
     <>
       <PageHeading description="Keep your pharmacy's own Staff records and read hospital Staff records available to you." />
-      <EmployerSources {...props} />
+      <EmployerSources {...props} linkAccess={linkAccess} />
       <StaffSourceHospitals {...props} />
     </>
   );
 }
 
 // A standalone pharmacy registered as an employer keeps its own directory (ADR-0054).
-function EmployerSources({ scope, onContextChanged }: SourceProps) {
+function EmployerSources({ scope, onContextChanged, linkAccess }: EmployerProps) {
   const [cursor, setCursor] = useState<string | null>(null);
   const query = usePharmacyStaffSourcesPage(scope, cursor);
   useEffect(() => {
@@ -129,7 +135,7 @@ function EmployerSources({ scope, onContextChanged }: SourceProps) {
       ) : query.data.data.length > 0 ? (
         <EmployerSourcePage
           key={cursor ?? "first"}
-          {...{ scope, onContextChanged }}
+          {...{ scope, onContextChanged, linkAccess }}
           sources={query.data.data}
         />
       ) : (
@@ -162,8 +168,9 @@ function EmployerSources({ scope, onContextChanged }: SourceProps) {
 function EmployerSourcePage({
   scope,
   onContextChanged,
+  linkAccess,
   sources,
-}: SourceProps & { sources: EmployerSource[] }) {
+}: EmployerProps & { sources: EmployerSource[] }) {
   const id = useId();
   const [selected, setSelected] = useState("");
   const source = selected ? sources.find((item) => item.pharmacy_id === selected) : sources[0];
@@ -182,7 +189,7 @@ function EmployerSourcePage({
       {source ? (
         <Employer
           key={`${scope.tenantId}:${scope.subject}:${source.pharmacy_id}`}
-          {...{ scope, onContextChanged, source }}
+          {...{ scope, onContextChanged, linkAccess, source }}
         />
       ) : (
         <p>Choose a currently accessible pharmacy employer.</p>
@@ -191,10 +198,16 @@ function EmployerSourcePage({
   );
 }
 
-function Employer({ scope, onContextChanged, source }: SourceProps & { source: EmployerSource }) {
+function Employer({
+  scope,
+  onContextChanged,
+  linkAccess,
+  source,
+}: EmployerProps & { source: EmployerSource }) {
   const confirmLeave = useConfirmLeave();
   const [cursor, setCursor] = useState<string | null>(null);
   const [editing, setEditing] = useState<PharmacyStaff | "new" | null>(null);
+  const [linkStaff, setLinkStaff] = useState<PharmacyStaff | null>(null);
   const query = usePharmacyStaffPage(scope, source.pharmacy_id, cursor);
   // The access level is display only; the API checks the manager row on every write.
   const manager = source.access_level === "manager";
@@ -219,20 +232,51 @@ function Employer({ scope, onContextChanged, source }: SourceProps & { source: E
         retry={() => query.refetch()}
         headerActions={
           manager && (
-            <Button onClick={() => confirmLeave(() => setEditing("new"))}>Add staff</Button>
+            <Button
+              onClick={() =>
+                confirmLeave(() => {
+                  setLinkStaff(null);
+                  setEditing("new");
+                })
+              }
+            >
+              Add staff
+            </Button>
           )
         }
         rowActions={
           manager
             ? (row) => (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label={`Edit ${row.display_name}`}
-                  onClick={() => confirmLeave(() => setEditing(row))}
-                >
-                  Edit
-                </Button>
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Edit ${row.display_name}`}
+                    onClick={() =>
+                      confirmLeave(() => {
+                        setLinkStaff(null);
+                        setEditing(row);
+                      })
+                    }
+                  >
+                    Edit
+                  </Button>
+                  {linkAccess && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Account link for ${row.display_name}`}
+                      onClick={() =>
+                        confirmLeave(() => {
+                          setEditing(null);
+                          setLinkStaff(row);
+                        })
+                      }
+                    >
+                      Account link
+                    </Button>
+                  )}
+                </>
               )
             : undefined
         }
@@ -249,6 +293,18 @@ function Employer({ scope, onContextChanged, source }: SourceProps & { source: E
           {...{ scope, onContextChanged, source }}
           staff={editing === "new" ? undefined : editing}
           onClose={() => setEditing(null)}
+        />
+      )}
+      {linkAccess && linkStaff && (
+        <StaffLoginLinkPanel
+          establishment={{
+            kind: "pharmacy",
+            id: source.pharmacy_id,
+            name: source.name,
+            access_level: source.access_level,
+          }}
+          staff={linkStaff}
+          onClose={() => setLinkStaff(null)}
         />
       )}
     </>

@@ -3,6 +3,7 @@ package workforce_test
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -233,8 +234,45 @@ func TestEstablishmentTablesRefuseAPharmacyEstablishment(t *testing.T) {
 	}))
 }
 
+func TestPharmacyLoginLinkIsReviewedAndStaysUnbound(t *testing.T) {
+	h := newEstablishmentHarness(t, workforce.New())
+	pharmacy := h.pharmacy(t, "independent")
+	staff := h.pharmacyStaff(t, pharmacy)
+	require.NoError(t, h.tx(t, pharmacy, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO workforce_hospital_access(tenant_id,hospital_id,subject,level) VALUES(?,?,'user-reviewer','manager')`, testutil.TenantA, pharmacy).Error
+	}))
+	link := uuid.Must(uuid.NewV7()).String()
+	command := func(subject, mode, statement string, args ...any) error {
+		return h.tx(t, pharmacy, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.workforce_subject',?,true),set_config('app.workforce_login_link_access','authorized',true),set_config('app.workforce_login_link_command',?,true)`, subject, mode).Error; err != nil {
+				return err
+			}
+			result := tx.Exec(statement, args...)
+			if result.Error == nil && result.RowsAffected != 1 {
+				return fmt.Errorf("%s changed %d rows", mode, result.RowsAffected)
+			}
+			return result.Error
+		})
+	}
+	require.NoError(t, command("user-admin", "manage", `INSERT INTO workforce_login_links(tenant_id,hospital_id,staff_id,id,subject,status,version,proposed_by_subject,proposal_reason,actor_subject,reason) VALUES(?,?,?,?,'user-pharmacist','pending',1,'user-admin','Synthetic pharmacy link','user-admin','Synthetic pharmacy link')`, testutil.TenantA, pharmacy, staff, link))
+	require.NoError(t, command("user-reviewer", "review", `UPDATE workforce_login_links SET status='active',version=2,actor_subject='user-reviewer',reason='Synthetic independent review' WHERE tenant_id=? AND hospital_id=? AND id=?`, testutil.TenantA, pharmacy, link))
+	var bound struct{ Status, Generations string }
+	require.NoError(t, h.tx(t, pharmacy, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.workforce_login_link_access','authorized',true)`).Error; err != nil {
+			return err
+		}
+		return tx.Raw(`SELECT l.status, (SELECT string_agg(coalesce(employment_generation_id::text,'unbound'),',' ORDER BY version) FROM workforce_login_link_history WHERE (tenant_id,hospital_id,id)=(l.tenant_id,l.hospital_id,l.id)) || ',' || coalesce(l.employment_generation_id::text,'unbound') AS generations
+ FROM workforce_login_links l WHERE l.tenant_id=? AND l.hospital_id=? AND l.id=?`, testutil.TenantA, pharmacy, link).Scan(&bound).Error
+	}))
+	require.Equal(t, struct{ Status, Generations string }{"active", "unbound,unbound,unbound"}, bound)
+	err := command("user-admin", "manage", `INSERT INTO workforce_login_links(tenant_id,hospital_id,staff_id,id,subject,status,version,proposed_by_subject,proposal_reason,actor_subject,reason,employment_generation_id) VALUES(?,?,?,?,'user-other','pending',1,'user-admin','Synthetic forged generation','user-admin','Synthetic forged generation',?)`, testutil.TenantA, pharmacy, staff, uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String())
+	var refusal *pgconn.PgError
+	require.True(t, errors.As(err, &refusal), "a forged generation must be refused, got %v", err)
+	require.Equal(t, "workforce_login_generation", refusal.ConstraintName, refusal.Message)
+}
+
 // pharmacyAdmittingTables are the reviewed tables a pharmacy establishment writes; every other one refuses it.
-var pharmacyAdmittingTables = []string{"workforce_hospital_access", "workforce_identity_epochs", "workforce_staff"}
+var pharmacyAdmittingTables = []string{"workforce_hospital_access", "workforce_identity_epochs", "workforce_login_link_history", "workforce_login_links", "workforce_staff"}
 
 func TestEveryEstablishmentTableIsGuardedOrReachedThroughAGuardedTable(t *testing.T) {
 	h := newEstablishmentHarness(t, workforce.New())
@@ -250,8 +288,11 @@ func TestEveryEstablishmentTableIsGuardedOrReachedThroughAGuardedTable(t *testin
 CREATE TABLE workforce_inventory_orphan(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL);
 CREATE TABLE workforce_inventory_staff_child(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,staff_id uuid NOT NULL,FOREIGN KEY(tenant_id,hospital_id,staff_id) REFERENCES workforce_staff(tenant_id,hospital_id,id));
 CREATE TABLE workforce_inventory_reached(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,staff_id uuid NOT NULL,FOREIGN KEY(tenant_id,hospital_id,staff_id) REFERENCES workforce_enrollment_profile(tenant_id,hospital_id,staff_id));
-CREATE TABLE workforce_inventory_unmapped(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,staff_hospital uuid NOT NULL,staff_id uuid NOT NULL,FOREIGN KEY(tenant_id,staff_hospital,staff_id) REFERENCES workforce_enrollment_profile(tenant_id,hospital_id,staff_id));`}}))
-	want := append([]string{"workforce_inventory_orphan", "workforce_inventory_probe", "workforce_inventory_staff_child", "workforce_inventory_unmapped"}, pharmacyAdmittingTables...)
+CREATE TABLE workforce_inventory_unmapped(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,staff_hospital uuid NOT NULL,staff_id uuid NOT NULL,FOREIGN KEY(tenant_id,staff_hospital,staff_id) REFERENCES workforce_enrollment_profile(tenant_id,hospital_id,staff_id));
+CREATE TABLE workforce_inventory_nullable(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,staff_id uuid,FOREIGN KEY(tenant_id,hospital_id,staff_id) REFERENCES workforce_enrollment_profile(tenant_id,hospital_id,staff_id));
+CREATE TABLE workforce_inventory_constant(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,revision_id uuid NOT NULL,kind text GENERATED ALWAYS AS ('holiday_calendar') STORED,FOREIGN KEY(tenant_id,hospital_id,revision_id,kind) REFERENCES workforce_leave_config_revisions(tenant_id,hospital_id,id,kind));
+CREATE TABLE workforce_inventory_computed(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,revision_id uuid NOT NULL,label text,kind text GENERATED ALWAYS AS (lower(label)) STORED,FOREIGN KEY(tenant_id,hospital_id,revision_id,kind) REFERENCES workforce_leave_config_revisions(tenant_id,hospital_id,id,kind));`}}))
+	want := append([]string{"workforce_inventory_computed", "workforce_inventory_nullable", "workforce_inventory_orphan", "workforce_inventory_probe", "workforce_inventory_staff_child", "workforce_inventory_unmapped"}, pharmacyAdmittingTables...)
 	slices.Sort(want)
 	require.Equal(t, want, inventory())
 }
@@ -273,16 +314,18 @@ func unguardedEstablishmentTables(t *testing.T, tx *gorm.DB) []string {
  WHERE p.proname='workforce_require_hospital_establishment' AND NOT g.tgisinternal AND g.tgenabled IN ('O','A')
   AND g.tgtype & 23 = 23 AND (cardinality(g.tgattr::int2[]) = 0 OR (SELECT array_agg(a.attnum) FROM pg_attribute a WHERE a.attrelid=c.oid AND a.attname IN ('tenant_id','hospital_id')) <@ g.tgattr::int2[])`).Scan(&guarded).Error)
 	var edges []struct {
-		Source, Target string
-		Mapped         bool
+		Source, Target   string
+		Mapped, Required bool
 	}
 	require.NoError(t, tx.Raw(`SELECT c.relname AS source, f.relname AS target,
   bool_or(la.attname='hospital_id' AND ra.attname=CASE WHEN f.relname='workforce_hospitals' THEN 'id' ELSE 'hospital_id' END)
-  AND bool_or(la.attname='tenant_id' AND ra.attname='tenant_id') AS mapped
+  AND bool_or(la.attname='tenant_id' AND ra.attname='tenant_id') AS mapped,
+  bool_and(la.attnotnull OR (la.attgenerated='s' AND pg_get_expr(d.adbin,d.adrelid) ~ '^''[a-z_]+''::text$')) AS required
  FROM pg_constraint k JOIN pg_class c ON c.oid=k.conrelid JOIN pg_class f ON f.oid=k.confrelid
  JOIN pg_namespace s ON s.oid=c.relnamespace AND s.nspname=current_schema()
  CROSS JOIN LATERAL unnest(k.conkey,k.confkey) AS m(l,r)
  JOIN pg_attribute la ON la.attrelid=k.conrelid AND la.attnum=m.l
+ LEFT JOIN pg_attrdef d ON d.adrelid=la.attrelid AND d.adnum=la.attnum
  JOIN pg_attribute ra ON ra.attrelid=k.confrelid AND ra.attnum=m.r
  WHERE k.contype='f' AND c.relname LIKE 'workforce\_%'
  GROUP BY k.oid,c.relname,f.relname`).Scan(&edges).Error)
@@ -299,7 +342,8 @@ func unguardedEstablishmentTables(t *testing.T, tx *gorm.DB) []string {
 	for changed := true; changed; {
 		changed = false
 		for _, edge := range edges {
-			if edge.Mapped && edge.Target != "workforce_hospitals" && covered[edge.Target] && !covered[edge.Source] {
+			// A null key column skips the foreign key check; only NOT NULL or constant generated columns carry the guard.
+			if edge.Mapped && edge.Required && edge.Target != "workforce_hospitals" && covered[edge.Target] && !covered[edge.Source] {
 				covered[edge.Source], changed = true, true
 			}
 		}

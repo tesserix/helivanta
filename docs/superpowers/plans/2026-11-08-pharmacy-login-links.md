@@ -48,6 +48,14 @@ confers nothing.
    reached only through that table, so both join the reviewed
    pharmacy-admitting set. Every other table that references a link keeps its
    own guard, so posting approvals and cutoffs still refuse a pharmacy.
+
+   The guard inventory also changes. It counted the link table as reached
+   through `workforce_employment_generations`, but that foreign key uses the
+   nullable `employment_generation_id`, and Postgres skips a foreign key check
+   when a key column is null. An edge now carries the guard only when every
+   local key column is `NOT NULL` or a stored generated string constant. Any
+   other generated expression counts as nullable, so the inventory fails closed.
+
 2. **Pharmacy links stay unbound to an employment generation.** The binding
    trigger accepts an unbound link only when the Staff record has no review
    cohort. Generations and cohorts both refuse a pharmacy row, so every pharmacy
@@ -94,9 +102,11 @@ confers nothing.
    `hospitalId`. The path and query key both follow the kind, so a hospital and
    a pharmacy with the same ID never share a cache entry. The response parsers
    are unchanged.
-8. **UI.** `StaffLoginLinkPanel` takes an establishment
+8. **UI.** `StaffLoginLinkPanel` moves to `components/workforce`, beside the
+   shared Staff form, because two zones now use it. It takes an establishment
    `{ kind, id, name, access_level }` and a Staff
-   `{ id, display_name, employee_code }`. The hospital page passes its hospital.
+   `{ id, display_name, employee_code, employment_status }`. The hospital page
+   passes its hospital.
    The pharmacy Employer view adds an `Account link` row action. It shows only
    for a `manager` who holds `manage` or `review`. The panel keeps its
    statement that a link grants no application access or clinical authority.
@@ -121,12 +131,17 @@ adds one registry primary key probe. No service, cache or store is added.
 Each assertion is run and shown failing before the code that satisfies it.
 
 1. **Inventory.** Adding the two link tables to `pharmacyAdmittingTables` fails
-   on `91ac5fec`, because the link table is still guarded. Migration 0093 makes
-   it pass.
-2. **Refusal matrix.** The 0092 matrix expected a pharmacy link insert to fail.
-   Allowing that insert is this slice's requirement, so the expectation moves
-   to success, and the matrix still proves that every other Staff child refuses
-   a pharmacy. The approved pharmacy link stores no generation.
+   without migration 0093, because the link table is still guarded. Migration
+   0093 makes it pass only after the edge rule above, because the nullable
+   generation edge had hidden the drop. Probe tables prove that a nullable key
+   and a computed generated key are reported, and that a constant generated key
+   still carries the guard.
+2. **Unbound link.** The 0092 matrix has no login-link entry, and it still
+   proves that every other Staff child refuses a pharmacy. A new SQL test
+   proposes a pharmacy link and has an independent manager approve it. The link
+   and both history versions store no generation, and a forged generation ID is
+   refused with `workforce_login_generation`. Without 0093 the proposal fails
+   with `workforce_hospital_establishment`.
 3. **Routes.**
    - The pharmacy family proposes, approves, lists and reads history.
    - A hospital ID on the pharmacy family, a pharmacy ID on the hospital family

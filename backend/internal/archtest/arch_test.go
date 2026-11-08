@@ -374,6 +374,8 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /iam/operating-duties/:id/commands/:command":                                                             "one immutable actor-bound operating duty decision receipt",
 	"GET /drugmaster/products/by-gtin/:gtin/stock-reference":                                                      "one current published stock reference for one exact GTIN",
 	"GET /supply/parties/:party/operating-locations/:premise/stock/products/by-gtin/:gtin":                        "one current stock-purpose reference at the authorized source location",
+	"GET /pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/batches/:id":                            "one immutable batch identity at the duty's exact outlet",
+	"GET /pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts/:id":                           "one immutable quarantined receipt at the duty's exact outlet",
 	"GET /supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/quality-decisions/:decision": "immutable source-scoped stock quality receipt; current stock access is required",
 	"GET /supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/inspection":                  "current authorized source-scoped identity and quality evidence; not trade availability",
 	"GET /supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt":                             "one immutable physical receipt at the authorized source location",

@@ -2946,6 +2946,78 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/batches/:id",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/batches/:id",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/batches",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/locations",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/products",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts/:id",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts/:id",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "DELETE",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access/:subject",
           "permission": "pharmacy.access.manage",
@@ -4783,6 +4855,13 @@
           "id": "0037_pharmacy_order_products",
           "sql_sha256": "35705c888d34abeaa2a5cab5fde64b2d5c67ae9da01d00a01a110f4f58ca5d65",
           "creates_tables": []
+        },
+        {
+          "id": "0038_pharmacy_operating_receipts",
+          "sql_sha256": "0d89514f07e53ee637eae7d7bc0d01d267e79bb1b948898ddf63aa99a8f79985",
+          "creates_tables": [
+            "pharmacy_operating_stock_audit"
+          ]
         }
       ]
     },

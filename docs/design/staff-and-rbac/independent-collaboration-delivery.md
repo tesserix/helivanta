@@ -144,9 +144,10 @@ and hiding private data after current read refusal. Candidate documentation is
 candidate behavior from the remaining workflow.
 
 This does not close any missing effective grant, disclosure, fulfilment or
-financial-composition row above. PharmaConnect's receiving template still lacks
-its actual product consumer. Receiver-only browser navigation and real OIDC
-acceptance also remain open. No new migration, production promotion or deployment
+financial-composition row above. PharmaConnect now consumes the receiving
+template at one outlet ([#19 slice 3b-ii](../../superpowers/specs/2026-11-08-pharmacy-receiver-duty.md)):
+lots and quarantined receipts only, with duty evidence on every read and write.
+Receiver self-discovery and navigation, and real OIDC acceptance, remain open. No new migration, production promotion or deployment
 is established by these source changes or synthetic tests.
 
 ## Unreleased source and consent continuation — 7 November 2026

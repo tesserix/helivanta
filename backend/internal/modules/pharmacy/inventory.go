@@ -15,6 +15,7 @@ import (
 	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
@@ -79,8 +80,9 @@ const movementColumns = "id,tenant_id,outlet_id,location_id,batch_id,kind,quanti
 var errStockIdentity = errors.New("stock identity is immutable")
 
 func inventoryRoutes(g *platform.Router, deps platform.Deps) {
-	h := &catalogueHandlers{db: deps.DB, bus: deps.Bus}
+	h := &catalogueHandlers{db: deps.DB, bus: deps.Bus, operating: deps.OperatingAuthorizer}
 	stockOverviewRoutes(g, h)
+	operatingStockRoutes(g, h)
 	s := g.Group("/pharmacies/:pharmacy/outlets/:outlet/stock")
 	s.PUT("/locations/:id", PermStockReceive, h.putLocation)
 	s.PUT("/batches/:id", PermStockReceive, h.putBatch)
@@ -248,38 +250,44 @@ func (h *catalogueHandlers) putBatch(c *gin.Context) {
 		return
 	}
 	var result stockBatch
-	err := h.transaction(c.Request.Context(), p, outlet, true, func(tx *gorm.DB) error {
-		if err := stockLock(tx, p.TenantID+":"+outlet.String()+":"+id.String()); err != nil {
-			return err
-		}
-		err := tx.Select(batchColumns).Where("tenant_id=? AND outlet_id=? AND id=?", p.TenantID, outlet, id).First(&result).Error
-		if err == nil {
-			if !sameBatch(result.BatchFields, in) {
-				return errStockIdentity
-			}
-			return nil
-		}
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return err
-		}
-		var product catalogueProduct
-		if err := tx.Raw(`SELECT id,version,status FROM pharmacy_catalogue_products WHERE tenant_id=? AND outlet_id=? AND id=? FOR SHARE`, p.TenantID, outlet, in.ProductID).Scan(&product).Error; err != nil {
-			return err
-		}
-		if product.ID == uuid.Nil {
-			return gorm.ErrRecordNotFound
-		}
-		if product.Status != "active" {
-			return errStockIdentity
-		}
-		result = stockBatch{ID: id, TenantID: uuid.MustParse(p.TenantID), OutletID: outlet, BatchFields: in, ProductVersion: product.Version}
-		return tx.Create(&result).Error
+	err := h.transaction(c.Request.Context(), p, outlet, true, func(tx *gorm.DB) (err error) {
+		result, _, err = recordBatch(tx, p.TenantID, outlet, id, in)
+		return err
 	})
 	if err != nil {
 		stockError(c, err)
 		return
 	}
 	respond.OK(c, result)
+}
+
+// recordBatch creates or replays one immutable batch identity; created is false on an identical replay.
+func recordBatch(tx *gorm.DB, tenant string, outlet, id uuid.UUID, in batchInput) (result stockBatch, created bool, err error) {
+	if err = stockLock(tx, tenant+":"+outlet.String()+":"+id.String()); err != nil {
+		return result, false, err
+	}
+	err = tx.Select(batchColumns).Where("tenant_id=? AND outlet_id=? AND id=?", tenant, outlet, id).First(&result).Error
+	if err == nil {
+		if !sameBatch(result.BatchFields, in) {
+			return result, false, errStockIdentity
+		}
+		return result, false, nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return result, false, err
+	}
+	var product catalogueProduct
+	if err = tx.Raw(`SELECT id,version,status FROM pharmacy_catalogue_products WHERE tenant_id=? AND outlet_id=? AND id=? FOR SHARE`, tenant, outlet, in.ProductID).Scan(&product).Error; err != nil {
+		return result, false, err
+	}
+	if product.ID == uuid.Nil {
+		return result, false, gorm.ErrRecordNotFound
+	}
+	if product.Status != "active" {
+		return result, false, errStockIdentity
+	}
+	result = stockBatch{ID: id, TenantID: uuid.MustParse(tenant), OutletID: outlet, BatchFields: in, ProductVersion: product.Version}
+	return result, true, tx.Create(&result).Error
 }
 
 func (h *catalogueHandlers) putReceipt(c *gin.Context)    { h.putMovement(c, "receipt") }
@@ -297,42 +305,52 @@ func (h *catalogueHandlers) putMovement(c *gin.Context, kind string) {
 	if !decodeCatalogue(c, &in) {
 		return
 	}
-	in.Reason = strings.TrimSpace(in.Reason)
-	in.SourceReference = strings.TrimSpace(in.SourceReference)
-	if in.Kind != kind || in.QuantityUnits == 0 || (kind == "receipt" && in.QuantityUnits < 0) || in.Reason == "" || in.SourceReference == "" {
+	if !validMovement(&in, kind) {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "invalid stock movement")
 		return
 	}
 	var result stockMovement
-	err := h.transaction(c.Request.Context(), p, outlet, true, func(tx *gorm.DB) error {
-		if err := stockLock(tx, p.TenantID+":"+outlet.String()+":"+id.String()); err != nil {
-			return err
-		}
-		err := tx.Select(movementColumns).Where("tenant_id=? AND outlet_id=? AND id=?", p.TenantID, outlet, id).First(&result).Error
-		if err == nil {
-			if result.MovementFields != in {
-				return errStockIdentity
-			}
-			return nil
-		}
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return err
-		}
-		result = stockMovement{ID: id, TenantID: uuid.MustParse(p.TenantID), OutletID: outlet, MovementFields: in, ActorSubject: p.Subject}
-		if err := tx.Create(&result).Error; err != nil {
-			return err
-		}
-		data, err := json.Marshal(pharmacycontract.StockMovementRecordedData{PharmacyID: currentPharmacy(c.Request.Context()).String(), OutletID: outlet.String(), MovementID: id.String(), LocationID: in.LocationID.String(), BatchID: in.BatchID.String()})
-		if err != nil {
-			return err
-		}
-		return h.bus.Publish(tx, pharmacycontract.SubjectStockMovementRecorded, events.Event{Type: "StockMovementRecorded", Version: 1, TenantID: p.TenantID, Data: data})
+	err := h.transaction(c.Request.Context(), p, outlet, true, func(tx *gorm.DB) (err error) {
+		result, _, err = h.recordMovement(tx, p, currentPharmacy(c.Request.Context()), outlet, id, in)
+		return err
 	})
 	if err != nil {
 		stockError(c, err)
 		return
 	}
 	respond.OK(c, result)
+}
+
+func validMovement(in *movementInput, kind string) bool {
+	in.Reason = strings.TrimSpace(in.Reason)
+	in.SourceReference = strings.TrimSpace(in.SourceReference)
+	return in.Kind == kind && in.QuantityUnits != 0 && (kind != "receipt" || in.QuantityUnits > 0) && in.Reason != "" && in.SourceReference != ""
+}
+
+// recordMovement creates or replays one movement and its outbox event in tx; created is false on an identical replay.
+func (h *catalogueHandlers) recordMovement(tx *gorm.DB, p authn.Principal, pharmacy, outlet, id uuid.UUID, in movementInput) (result stockMovement, created bool, err error) {
+	if err = stockLock(tx, p.TenantID+":"+outlet.String()+":"+id.String()); err != nil {
+		return result, false, err
+	}
+	err = tx.Select(movementColumns).Where("tenant_id=? AND outlet_id=? AND id=?", p.TenantID, outlet, id).First(&result).Error
+	if err == nil {
+		if result.MovementFields != in {
+			return result, false, errStockIdentity
+		}
+		return result, false, nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return result, false, err
+	}
+	result = stockMovement{ID: id, TenantID: uuid.MustParse(p.TenantID), OutletID: outlet, MovementFields: in, ActorSubject: p.Subject}
+	if err = tx.Create(&result).Error; err != nil {
+		return result, false, err
+	}
+	data, err := json.Marshal(pharmacycontract.StockMovementRecordedData{PharmacyID: pharmacy.String(), OutletID: outlet.String(), MovementID: id.String(), LocationID: in.LocationID.String(), BatchID: in.BatchID.String()})
+	if err != nil {
+		return result, false, err
+	}
+	return result, true, h.bus.Publish(tx, pharmacycontract.SubjectStockMovementRecorded, events.Event{Type: "StockMovementRecorded", Version: 1, TenantID: p.TenantID, Data: data})
 }
 
 func stockFilter(c *gin.Context, key string, required bool) (uuid.UUID, bool) {

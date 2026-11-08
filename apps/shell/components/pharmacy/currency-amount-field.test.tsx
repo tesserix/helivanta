@@ -29,3 +29,36 @@ it("keeps large audit totals exact without converting strings to floats", () => 
   expect(formatPharmacyMoney("9007199254740993", "INR")).toBe("INR 90,071,992,547,409.93");
   expect(formatPharmacyMoney("-9007199254740993", "INR")).toBe("INR -90,071,992,547,409.93");
 });
+it("refuses edits while a retained command holds the amount", async () => {
+  const entered: number[] = [];
+  const user = userEvent.setup();
+  render(
+    <CurrencyAmountField
+      id="held"
+      label="Amount"
+      currency="INR"
+      initialMinor={12525}
+      disabled
+      onChange={(minor) => entered.push(minor)}
+    />,
+  );
+  await user.type(screen.getByLabelText("Amount (INR)"), "9");
+  expect(screen.getByLabelText("Amount (INR)")).toHaveValue("125.25");
+  expect(entered).toEqual([]);
+});
+it("starts empty when no amount is known yet, rather than offering zero", async () => {
+  const entered: number[] = [];
+  const user = userEvent.setup();
+  render(
+    <CurrencyAmountField
+      id="unknown"
+      label="Amount"
+      currency="INR"
+      initialMinor={null}
+      onChange={(minor) => entered.push(minor)}
+    />,
+  );
+  expect(screen.getByLabelText("Amount (INR)")).toHaveValue("");
+  await user.type(screen.getByLabelText("Amount (INR)"), "125");
+  expect(entered.at(-1)).toBe(12500);
+});

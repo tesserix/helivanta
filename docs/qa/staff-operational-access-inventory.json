@@ -1,9 +1,9 @@
 {
   "format_version": 1,
-  "registry_sha256": "d7c1ae0c78a6345879c4f0f4f31c939ec802c464b52d1ed8622dde93ccd02d96",
+  "registry_sha256": "dd2e401d0450d59065b116fba606645c10454c7988ea76b4830e4a03866d9012",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 947,
+    "total": 955,
     "unclassified": 859
   },
   "entries": [
@@ -6479,6 +6479,324 @@
       "review": null
     },
     {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/batches",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/batches",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/batches",
+        "registration_sha256": "7ec5a52dcc767082b1b846e0ed11dd508897c15926e5d7ff20727b98b0dbd45f",
+        "authority_kind": "mixed",
+        "resource_scope": "Verified tenant/actor and exact independent or chain-owned PharmaConnect pharmacy plus outlet; only that outlet's stock records.",
+        "rationale": "Admission happens only inside the handler: the route is router-public, and operatingStock calls IAM WithOperatingScope for the exact acknowledged pharmacy.inventory_receiver.v1 duty, current Staff/link basis, uninterrupted membership and unrevoked credential, then sets only transaction-local pharmacy_operating_stock_scope settings. A hospital-owned pharmacy, sibling outlet or foreign tenant is 404. This is an independent operating assignment rather than hospital operational authority, and it confers no tenant role permission. Reads use pharmacy.stock.read, return only this outlet's records and append a pharmacy.operating_stock.read audit row in the same transaction. Catalogue reads omit MRP, schedule, tax and price controls. This is an unreleased source review, not runtime acceptance.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/pharmacy/operating_stock.go",
+            "sha256": "c67b66b9f2b0ed8927c846e0932dfa7cb816064f76ca99c5d7cebb79797439bc",
+            "symbol": "func (h *catalogueHandlers) operatingStock("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/operating_stock_routes.go",
+            "sha256": "d87c996f3af7daeea7daf88604b3c146633d8779c4d335033bb07d015404964c",
+            "symbol": "func operatingStockScope("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/operating_receipts.sql",
+            "sha256": "0d89514f07e53ee637eae7d7bc0d01d267e79bb1b948898ddf63aa99a8f79985",
+            "symbol": "CREATE FUNCTION pharmacy_operating_stock_scope("
+          },
+          {
+            "path": "backend/internal/modules/iam/operating_authority.go",
+            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "symbol": "func (a *operatingAuthority) WithOperatingScope("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/operating_stock_routes.go",
+            "sha256": "d87c996f3af7daeea7daf88604b3c146633d8779c4d335033bb07d015404964c",
+            "symbol": "func (h *catalogueHandlers) operatingRead("
+          }
+        ],
+        "remaining": [
+          "Source classification is not runtime cutoff, receiver self-discovery/navigation, real OIDC browser, clinical or regulatory acceptance; preserve the candidate tests and fail-closed duty/identity/graph behavior.",
+          "Release, correction, dispensing and drug-master barcode lookup remain outside this duty; complete fulfilment and financial consumers before claiming the full supplier workflow."
+        ]
+      }
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/batches/:id",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/batches/:id",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/batches/:id",
+        "registration_sha256": "ba3f603c02aefc381046335f48c0057f3d5e7d0e125fd82a5d12a3f4bbc01d92",
+        "authority_kind": "mixed",
+        "resource_scope": "Verified tenant/actor and exact independent or chain-owned PharmaConnect pharmacy plus outlet; only that outlet's stock records.",
+        "rationale": "Admission happens only inside the handler: the route is router-public, and operatingStock calls IAM WithOperatingScope for the exact acknowledged pharmacy.inventory_receiver.v1 duty, current Staff/link basis, uninterrupted membership and unrevoked credential, then sets only transaction-local pharmacy_operating_stock_scope settings. A hospital-owned pharmacy, sibling outlet or foreign tenant is 404. This is an independent operating assignment rather than hospital operational authority, and it confers no tenant role permission. Reads use pharmacy.stock.read, return only this outlet's records and append a pharmacy.operating_stock.read audit row in the same transaction. Catalogue reads omit MRP, schedule, tax and price controls. This is an unreleased source review, not runtime acceptance.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/pharmacy/operating_stock.go",
+            "sha256": "c67b66b9f2b0ed8927c846e0932dfa7cb816064f76ca99c5d7cebb79797439bc",
+            "symbol": "func (h *catalogueHandlers) operatingStock("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/operating_stock_routes.go",
+            "sha256": "d87c996f3af7daeea7daf88604b3c146633d8779c4d335033bb07d015404964c",
+            "symbol": "func operatingStockScope("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/operating_receipts.sql",
+            "sha256": "0d89514f07e53ee637eae7d7bc0d01d267e79bb1b948898ddf63aa99a8f79985",
+            "symbol": "CREATE FUNCTION pharmacy_operating_stock_scope("
+          },
+          {
+            "path": "backend/internal/modules/iam/operating_authority.go",
+            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "symbol": "func (a *operatingAuthority) WithOperatingScope("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/operating_stock_routes.go",
+            "sha256": "d87c996f3af7daeea7daf88604b3c146633d8779c4d335033bb07d015404964c",
+            "symbol": "func (h *catalogueHandlers) operatingRead("
+          }
+        ],
+        "remaining": [
+          "Source classification is not runtime cutoff, receiver self-discovery/navigation, real OIDC browser, clinical or regulatory acceptance; preserve the candidate tests and fail-closed duty/identity/graph behavior.",
+          "Release, correction, dispensing and drug-master barcode lookup remain outside this duty; complete fulfilment and financial consumers before claiming the full supplier workflow."
+        ]
+      }
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/locations",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/locations",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/locations",
+        "registration_sha256": "824d06b2f69cfb123a949121ed3c6cca309d270aa0b92303daf2b879703a4d83",
+        "authority_kind": "mixed",
+        "resource_scope": "Verified tenant/actor and exact independent or chain-owned PharmaConnect pharmacy plus outlet; only that outlet's stock records.",
+        "rationale": "Admission happens only inside the handler: the route is router-public, and operatingStock calls IAM WithOperatingScope for the exact acknowledged pharmacy.inventory_receiver.v1 duty, current Staff/link basis, uninterrupted membership and unrevoked credential, then sets only transaction-local pharmacy_operating_stock_scope settings. A hospital-owned pharmacy, sibling outlet or foreign tenant is 404. This is an independent operating assignment rather than hospital operational authority, and it confers no tenant role permission. Reads use pharmacy.stock.read, return only this outlet's records and append a pharmacy.operating_stock.read audit row in the same transaction. Catalogue reads omit MRP, schedule, tax and price controls. This is an unreleased source review, not runtime acceptance.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/pharmacy/operating_stock.go",
+            "sha256": "c67b66b9f2b0ed8927c846e0932dfa7cb816064f76ca99c5d7cebb79797439bc",
+            "symbol": "func (h *catalogueHandlers) operatingStock("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/operating_stock_routes.go",
+            "sha256": "d87c996f3af7daeea7daf88604b3c146633d8779c4d335033bb07d015404964c",
+            "symbol": "func operatingStockScope("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/operating_receipts.sql",
+            "sha256": "0d89514f07e53ee637eae7d7bc0d01d267e79bb1b948898ddf63aa99a8f79985",
+            "symbol": "CREATE FUNCTION pharmacy_operating_stock_scope("
+          },
+          {
+            "path": "backend/internal/modules/iam/operating_authority.go",
+            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "symbol": "func (a *operatingAuthority) WithOperatingScope("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/operating_stock_routes.go",
+            "sha256": "d87c996f3af7daeea7daf88604b3c146633d8779c4d335033bb07d015404964c",
+            "symbol": "func (h *catalogueHandlers) operatingRead("
+          }
+        ],
+        "remaining": [
+          "Source classification is not runtime cutoff, receiver self-discovery/navigation, real OIDC browser, clinical or regulatory acceptance; preserve the candidate tests and fail-closed duty/identity/graph behavior.",
+          "Release, correction, dispensing and drug-master barcode lookup remain outside this duty; complete fulfilment and financial consumers before claiming the full supplier workflow."
+        ]
+      }
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/products",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/products",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/products",
+        "registration_sha256": "9dc439931ab6f6586ae7428c601c184159ba1bcd2532c18182f98a77d43b3d4f",
+        "authority_kind": "mixed",
+        "resource_scope": "Verified tenant/actor and exact independent or chain-owned PharmaConnect pharmacy plus outlet; only that outlet's stock records.",
+        "rationale": "Admission happens only inside the handler: the route is router-public, and operatingStock calls IAM WithOperatingScope for the exact acknowledged pharmacy.inventory_receiver.v1 duty, current Staff/link basis, uninterrupted membership and unrevoked credential, then sets only transaction-local pharmacy_operating_stock_scope settings. A hospital-owned pharmacy, sibling outlet or foreign tenant is 404. This is an independent operating assignment rather than hospital operational authority, and it confers no tenant role permission. Reads use pharmacy.stock.read, return only this outlet's records and append a pharmacy.operating_stock.read audit row in the same transaction. Catalogue reads omit MRP, schedule, tax and price controls. This is an unreleased source review, not runtime acceptance.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/pharmacy/operating_stock.go",
+            "sha256": "c67b66b9f2b0ed8927c846e0932dfa7cb816064f76ca99c5d7cebb79797439bc",
+            "symbol": "func (h *catalogueHandlers) operatingStock("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/operating_stock_routes.go",
+            "sha256": "d87c996f3af7daeea7daf88604b3c146633d8779c4d335033bb07d015404964c",
+            "symbol": "func operatingStockScope("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/operating_receipts.sql",
+            "sha256": "0d89514f07e53ee637eae7d7bc0d01d267e79bb1b948898ddf63aa99a8f79985",
+            "symbol": "CREATE FUNCTION pharmacy_operating_stock_scope("
+          },
+          {
+            "path": "backend/internal/modules/iam/operating_authority.go",
+            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "symbol": "func (a *operatingAuthority) WithOperatingScope("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/operating_stock_routes.go",
+            "sha256": "d87c996f3af7daeea7daf88604b3c146633d8779c4d335033bb07d015404964c",
+            "symbol": "func (h *catalogueHandlers) operatingRead("
+          }
+        ],
+        "remaining": [
+          "Source classification is not runtime cutoff, receiver self-discovery/navigation, real OIDC browser, clinical or regulatory acceptance; preserve the candidate tests and fail-closed duty/identity/graph behavior.",
+          "Release, correction, dispensing and drug-master barcode lookup remain outside this duty; complete fulfilment and financial consumers before claiming the full supplier workflow."
+        ]
+      }
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts",
+        "registration_sha256": "db2b7149e8f9c8c6fd64d207d0133a1624839dc6264944919044c2e4c035ba21",
+        "authority_kind": "mixed",
+        "resource_scope": "Verified tenant/actor and exact independent or chain-owned PharmaConnect pharmacy plus outlet; only that outlet's stock records.",
+        "rationale": "Admission happens only inside the handler: the route is router-public, and operatingStock calls IAM WithOperatingScope for the exact acknowledged pharmacy.inventory_receiver.v1 duty, current Staff/link basis, uninterrupted membership and unrevoked credential, then sets only transaction-local pharmacy_operating_stock_scope settings. A hospital-owned pharmacy, sibling outlet or foreign tenant is 404. This is an independent operating assignment rather than hospital operational authority, and it confers no tenant role permission. Reads use pharmacy.stock.read, return only this outlet's records and append a pharmacy.operating_stock.read audit row in the same transaction. Catalogue reads omit MRP, schedule, tax and price controls. This is an unreleased source review, not runtime acceptance.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/pharmacy/operating_stock.go",
+            "sha256": "c67b66b9f2b0ed8927c846e0932dfa7cb816064f76ca99c5d7cebb79797439bc",
+            "symbol": "func (h *catalogueHandlers) operatingStock("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/operating_stock_routes.go",
+            "sha256": "d87c996f3af7daeea7daf88604b3c146633d8779c4d335033bb07d015404964c",
+            "symbol": "func operatingStockScope("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/operating_receipts.sql",
+            "sha256": "0d89514f07e53ee637eae7d7bc0d01d267e79bb1b948898ddf63aa99a8f79985",
+            "symbol": "CREATE FUNCTION pharmacy_operating_stock_scope("
+          },
+          {
+            "path": "backend/internal/modules/iam/operating_authority.go",
+            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "symbol": "func (a *operatingAuthority) WithOperatingScope("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/operating_stock_routes.go",
+            "sha256": "d87c996f3af7daeea7daf88604b3c146633d8779c4d335033bb07d015404964c",
+            "symbol": "func (h *catalogueHandlers) operatingRead("
+          }
+        ],
+        "remaining": [
+          "Source classification is not runtime cutoff, receiver self-discovery/navigation, real OIDC browser, clinical or regulatory acceptance; preserve the candidate tests and fail-closed duty/identity/graph behavior.",
+          "Release, correction, dispensing and drug-master barcode lookup remain outside this duty; complete fulfilment and financial consumers before claiming the full supplier workflow."
+        ]
+      }
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts/:id",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts/:id",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts/:id",
+        "registration_sha256": "eb3e02cf02d3a8b9e5addbd7528f01ed290c591736082b0c5d3eba34e806e3d5",
+        "authority_kind": "mixed",
+        "resource_scope": "Verified tenant/actor and exact independent or chain-owned PharmaConnect pharmacy plus outlet; only that outlet's stock records.",
+        "rationale": "Admission happens only inside the handler: the route is router-public, and operatingStock calls IAM WithOperatingScope for the exact acknowledged pharmacy.inventory_receiver.v1 duty, current Staff/link basis, uninterrupted membership and unrevoked credential, then sets only transaction-local pharmacy_operating_stock_scope settings. A hospital-owned pharmacy, sibling outlet or foreign tenant is 404. This is an independent operating assignment rather than hospital operational authority, and it confers no tenant role permission. Reads use pharmacy.stock.read, return only this outlet's records and append a pharmacy.operating_stock.read audit row in the same transaction. Catalogue reads omit MRP, schedule, tax and price controls. This is an unreleased source review, not runtime acceptance.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/pharmacy/operating_stock.go",
+            "sha256": "c67b66b9f2b0ed8927c846e0932dfa7cb816064f76ca99c5d7cebb79797439bc",
+            "symbol": "func (h *catalogueHandlers) operatingStock("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/operating_stock_routes.go",
+            "sha256": "d87c996f3af7daeea7daf88604b3c146633d8779c4d335033bb07d015404964c",
+            "symbol": "func operatingStockScope("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/operating_receipts.sql",
+            "sha256": "0d89514f07e53ee637eae7d7bc0d01d267e79bb1b948898ddf63aa99a8f79985",
+            "symbol": "CREATE FUNCTION pharmacy_operating_stock_scope("
+          },
+          {
+            "path": "backend/internal/modules/iam/operating_authority.go",
+            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "symbol": "func (a *operatingAuthority) WithOperatingScope("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/operating_stock_routes.go",
+            "sha256": "d87c996f3af7daeea7daf88604b3c146633d8779c4d335033bb07d015404964c",
+            "symbol": "func (h *catalogueHandlers) operatingRead("
+          }
+        ],
+        "remaining": [
+          "Source classification is not runtime cutoff, receiver self-discovery/navigation, real OIDC browser, clinical or regulatory acceptance; preserve the candidate tests and fail-closed duty/identity/graph behavior.",
+          "Release, correction, dispensing and drug-master barcode lookup remain outside this duty; complete fulfilment and financial consumers before claiming the full supplier workflow."
+        ]
+      }
+    },
+    {
       "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets",
       "kind": "http",
       "module": "pharmacy",
@@ -8279,6 +8597,112 @@
         "counted": false
       },
       "review": null
+    },
+    {
+      "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/batches/:id",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "PUT",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/batches/:id",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/batches/:id",
+        "registration_sha256": "832fac679528c25426167b52723ec840d4d11a6392b0cd9cf88bf6fe215533ba",
+        "authority_kind": "mixed",
+        "resource_scope": "Verified tenant/actor and exact independent or chain-owned PharmaConnect pharmacy plus outlet; only that outlet's stock records.",
+        "rationale": "Admission happens only inside the handler: the route is router-public, and operatingStock calls IAM WithOperatingScope for the exact acknowledged pharmacy.inventory_receiver.v1 duty, current Staff/link basis, uninterrupted membership and unrevoked credential, then sets only transaction-local pharmacy_operating_stock_scope settings. A hospital-owned pharmacy, sibling outlet or foreign tenant is 404. This is an independent operating assignment rather than hospital operational authority, and it confers no tenant role permission. The write uses pharmacy.stock.receive, creates or replays an immutable batch through the existing validation and stock lock, and appends duty audit evidence in the same transaction. A changed replay is 409. This is an unreleased source review, not runtime acceptance.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/pharmacy/operating_stock.go",
+            "sha256": "c67b66b9f2b0ed8927c846e0932dfa7cb816064f76ca99c5d7cebb79797439bc",
+            "symbol": "func (h *catalogueHandlers) operatingStock("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/operating_stock_routes.go",
+            "sha256": "d87c996f3af7daeea7daf88604b3c146633d8779c4d335033bb07d015404964c",
+            "symbol": "func operatingStockScope("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/operating_receipts.sql",
+            "sha256": "0d89514f07e53ee637eae7d7bc0d01d267e79bb1b948898ddf63aa99a8f79985",
+            "symbol": "CREATE FUNCTION pharmacy_operating_stock_scope("
+          },
+          {
+            "path": "backend/internal/modules/iam/operating_authority.go",
+            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "symbol": "func (a *operatingAuthority) WithOperatingScope("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/operating_stock_routes.go",
+            "sha256": "d87c996f3af7daeea7daf88604b3c146633d8779c4d335033bb07d015404964c",
+            "symbol": "func (h *catalogueHandlers) putOperatingBatch("
+          }
+        ],
+        "remaining": [
+          "Source classification is not runtime cutoff, receiver self-discovery/navigation, real OIDC browser, clinical or regulatory acceptance; preserve the candidate tests and fail-closed duty/identity/graph behavior.",
+          "Release, correction, dispensing and drug-master barcode lookup remain outside this duty; complete fulfilment and financial consumers before claiming the full supplier workflow."
+        ]
+      }
+    },
+    {
+      "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts/:id",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "PUT",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts/:id",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts/:id",
+        "registration_sha256": "4e9e4cf08cadbb803e621c901d3b4456ec8f8df854cd9abb150210d0eb1debc4",
+        "authority_kind": "mixed",
+        "resource_scope": "Verified tenant/actor and exact independent or chain-owned PharmaConnect pharmacy plus outlet; only that outlet's stock records.",
+        "rationale": "Admission happens only inside the handler: the route is router-public, and operatingStock calls IAM WithOperatingScope for the exact acknowledged pharmacy.inventory_receiver.v1 duty, current Staff/link basis, uninterrupted membership and unrevoked credential, then sets only transaction-local pharmacy_operating_stock_scope settings. A hospital-owned pharmacy, sibling outlet or foreign tenant is 404. This is an independent operating assignment rather than hospital operational authority, and it confers no tenant role permission. The write uses pharmacy.stock.receive and accepts only a receipt movement; RLS adds kind='receipt' and the existing location guard keeps it in quarantine, so release and correction stay with pharmacy.stock.release editors. The movement, outbox and duty audit commit together. This is an unreleased source review, not runtime acceptance.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/pharmacy/operating_stock.go",
+            "sha256": "c67b66b9f2b0ed8927c846e0932dfa7cb816064f76ca99c5d7cebb79797439bc",
+            "symbol": "func (h *catalogueHandlers) operatingStock("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/operating_stock_routes.go",
+            "sha256": "d87c996f3af7daeea7daf88604b3c146633d8779c4d335033bb07d015404964c",
+            "symbol": "func operatingStockScope("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/operating_receipts.sql",
+            "sha256": "0d89514f07e53ee637eae7d7bc0d01d267e79bb1b948898ddf63aa99a8f79985",
+            "symbol": "CREATE FUNCTION pharmacy_operating_stock_scope("
+          },
+          {
+            "path": "backend/internal/modules/iam/operating_authority.go",
+            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "symbol": "func (a *operatingAuthority) WithOperatingScope("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/operating_stock_routes.go",
+            "sha256": "d87c996f3af7daeea7daf88604b3c146633d8779c4d335033bb07d015404964c",
+            "symbol": "func (h *catalogueHandlers) putOperatingReceipt("
+          }
+        ],
+        "remaining": [
+          "Source classification is not runtime cutoff, receiver self-discovery/navigation, real OIDC browser, clinical or regulatory acceptance; preserve the candidate tests and fail-closed duty/identity/graph behavior.",
+          "Release, correction, dispensing and drug-master barcode lookup remain outside this duty; complete fulfilment and financial consumers before claiming the full supplier workflow."
+        ]
+      }
     },
     {
       "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet",

@@ -1,5 +1,47 @@
 # Staff Management delivery tracker
 
+## Hospital link discovery and slice 3b re-plan (#19) — 2026-11-08
+
+#1627 (slice 3b-i, pharmacy login links) was closed. #1621 (`4980728d`,
+ADR-0063, ADR-0064, ADR-0065) supersedes it: it delivers pharmacy and supplier
+account links with their own identity basis. Reconciling the two found two
+defects on main.
+
+**Defect 1: hospital pickers saw supplier and pharmacy links.**
+
+- The hospital-scope pickers selected every active login link. A reviewed
+  supplier or pharmacy account therefore became a hospital candidate.
+- Effect: four pickers listed it as a hospital scope.
+- Effect: three pickers returned 503, because the candidate reached the hospital
+  authority.
+- Fix: candidates now join only `hospital` establishments (ADR-0054).
+
+**Defect 2: the inventory counted a nullable foreign key as a guard.**
+
+- The Workforce establishment inventory counted a foreign key through a nullable
+  column as a structural guard.
+- Fix: it now admits only `NOT NULL` columns or stored generated literals.
+- The login-link tables are now on a reviewed list. A direct test proves that
+  migration 0094 admits each establishment only through its own identity basis.
+
+**Evidence.**
+
+- The new hospital-picker test and the strengthened inventory and login-guard
+  tests each fail without the fix. They pass with it against Postgres
+  testcontainers.
+- `contractdocs -check` and the inventory check pass.
+
+**Re-plan.** The original 3b-ii design is withdrawn. It would have put pharmacy
+roots on the hospital scope. ADR-0064's typed `pharmacy.inventory_receiver.v1`
+duty already covers preparation, review, projection and cutoff. What remains is
+a PharmaConnect outlet receipt route that consumes that reviewed duty, as
+SupplyConnect already does. See the
+[plan](../superpowers/plans/2026-11-08-hospital-link-discovery.md).
+
+Slices 3b-ii, 4 and 5 remain open. This is not deployed runtime acceptance.
+Counts are unchanged at
+**10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Pharmacy employer Staff directory (#19 slice 3a) — 2026-11-07
 
 Workforce 0092 lets a registered standalone pharmacy hold Staff and access rows,
@@ -17,8 +59,7 @@ contractdocs, the generated Go and Zod contracts, and SDK and panel Vitest tests
 IAM on a pharmacy (slice 3b), HR lifecycle (slice 4) and branch postings (slice 5)
 remain open. Merged as #1616 (b41fc4bd). It was promoted to production as Kargo
 freight `melting-hydra` (06bed958). The migrate job applied migrations, the prod
-stage is Healthy and Verified, and unauthenticated pharmacy-family routes answer
-401. This is not deployed runtime acceptance. Counts are unchanged at
+stage is Healthy and Verified, and unauthenticated pharmacy-family routes answer 401. This is not deployed runtime acceptance. Counts are unchanged at
 **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
 
 ## Department leave review candidate (#1596, ADR-0055 slice 2) — 2026-11-06

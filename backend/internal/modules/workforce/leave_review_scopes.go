@@ -39,7 +39,8 @@ func (h *handlers) leaveReviewScopeCandidates(c *gin.Context, page pagination.Pa
 			return err
 		}
 		query := tx.Table("workforce_login_links l").Select("l.id,l.staff_id,l.version,l.created_at,l.hospital_id,h.name").
-			Joins("JOIN workforce_hospitals h ON h.tenant_id=l.tenant_id AND h.id=l.hospital_id").
+			// Hospital pickers list only hospital-rooted links; pharmacy and supplier employers are not hospital scopes (ADR-0054).
+			Joins("JOIN workforce_hospitals h ON h.tenant_id=l.tenant_id AND h.id=l.hospital_id AND h.establishment_kind=?", hospitalEstablishmentKind).
 			Where("l.tenant_id=? AND l.subject=? AND l.status='active'", p.TenantID, p.Subject)
 		if page.After != nil {
 			query = query.Where("(l.created_at,l.id)<(?,?)", page.After.CreatedAt, page.After.ID)

@@ -344,7 +344,7 @@ it("preserves the immutable submission when its fresh admission check is unavail
   );
   expect(within(form).getByLabelText("Submission rationale")).toBeDisabled();
   available = true;
-  await user.click(await screen.findByRole("button", { name: "Recheck posting admission" }));
+  await user.click(await screen.findByRole("button", { name: "Try again" }));
   await waitFor(() =>
     expect(
       screen.queryByText(/Posting review admission could not be rechecked/),
@@ -960,7 +960,7 @@ it("asks for a reload when the department structure moves under the inbox", asyn
   expect(
     await screen.findByText(/The department structure changed. Reload the posting proposals./),
   ).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Retry proposals" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
 });
 
 for (const status of [403, 503]) {
@@ -3088,4 +3088,25 @@ it("recovers a coordinated transfer using the exact paired command after a lost 
   expect(writes[1]).toEqual(writes[0]);
   expect(JSON.parse(writes[0].body).from_posting_id).toBe(old.id);
   expect(completed.mock.calls[0][1]).toBe(true);
+});
+
+// #1595: the hospitals read's own failure, below the access-change branch.
+it("asks again for posting review hospitals after an outage", async () => {
+  let reads = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => {
+      reads += 1;
+      return Response.json({ error: "unavailable", message: "down" }, { status: 503 });
+    }),
+  );
+  const { user } = renderReview(
+    <StaffPostingReviewWorkspace scope={scope} onContextChanged={() => {}} />,
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Posting review access could not be verified.",
+  );
+  const before = reads;
+  await user.click(screen.getByRole("button", { name: "Try again" }));
+  await waitFor(() => expect(reads).toBeGreaterThan(before));
 });

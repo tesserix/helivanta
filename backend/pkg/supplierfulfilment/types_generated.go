@@ -354,5 +354,20 @@ type ReceivingBatchChoice struct {
 	CreatedAt      time.Time `json:"created_at"`
 }
 
+type ReceivingClearanceEvidence struct {
+	ID             uuid.UUID `json:"id"`
+	OwnerTenantID  uuid.UUID `json:"owner_tenant_id"`
+	ShipmentID     uuid.UUID `json:"shipment_id"`
+	ReceiptID      uuid.UUID `json:"receipt_id"`
+	PharmacyID     uuid.UUID `json:"pharmacy_id"`
+	OutletID       uuid.UUID `json:"outlet_id"`
+	SummaryVersion int64     `json:"summary_version"`
+	State          string    `json:"state"`
+	Reason         string    `json:"reason"`
+	ActorSubject   string    `json:"actor_subject"`
+	ActorStaffID   uuid.UUID `json:"actor_staff_id"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
 const maximumLeaseSeconds = 86400
 const maximumUnits = 1000000000

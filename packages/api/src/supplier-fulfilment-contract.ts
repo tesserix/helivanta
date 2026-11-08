@@ -646,3 +646,29 @@ export const ReceivingBatchChoiceContract = z
   })
   .strict();
 export type ReceivingBatchChoice = z.infer<typeof ReceivingBatchChoiceContract>;
+
+export const ReceivingClearanceEvidenceContract = z
+  .object({
+    id: identifier,
+    owner_tenant_id: identifier,
+    shipment_id: identifier,
+    receipt_id: identifier,
+    pharmacy_id: identifier,
+    outlet_id: identifier,
+    summary_version: z.number().int().min(1).max(9007199254740991),
+    state: z.enum(["review_recorded"]),
+    reason: z
+      .string()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    actor_subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    actor_staff_id: identifier,
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type ReceivingClearanceEvidence = z.infer<typeof ReceivingClearanceEvidenceContract>;

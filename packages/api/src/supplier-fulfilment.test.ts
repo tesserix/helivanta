@@ -2,6 +2,8 @@ import { afterEach, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import {
   listHospitalReceivingBatchChoicesPage,
+  listHospitalSupplierClearancesPage,
+  listHospitalSupplierReleasesPage,
   readHospitalSupplierReceiving,
   releaseHospitalSupplierReceipt,
   recoverHospitalSupplierRelease,
@@ -730,7 +732,7 @@ it("binds receiving choices to the exact shipment and fixed stock status", async
     ...common,
     version: 1,
     brand_name: "TEST brand",
- identity_description:"TEST molecule 500 mg · capsule · oral",
+    identity_description: "TEST molecule 500 mg · capsule · oral",
     generic_name: "TEST generic",
     manufacturer: "TEST maker",
     dosage_form: "capsule",
@@ -909,4 +911,65 @@ it("checks destination batch choices against the shipment, product and exact sou
       listHospitalReceivingBatchChoicesPage(buyer, shipment, batch.product_id),
     ).rejects.toThrow();
   }
+});
+
+it("keeps review evidence separate from actual physical release history", async () => {
+  const common = {
+    id: id(90),
+    owner_tenant_id: buyer.tenantId,
+    shipment_id: receipt.shipment_id,
+    receipt_id: receipt.id,
+    pharmacy_id: buyer.pharmacyId,
+    outlet_id: buyer.outletId,
+    actor_subject: "TEST-independent-reviewer",
+    actor_staff_id: id(91),
+    created_at: "2026-11-09T01:00:00Z",
+  };
+  const clearance = {
+    ...common,
+    summary_version: 4,
+    state: "review_recorded",
+    reason: "TEST reviewed",
+  };
+  reply({ data: [clearance], page: { has_more: false, next_cursor: null } });
+  await expect(
+    listHospitalSupplierClearancesPage(buyer, receipt.shipment_id, receipt.id),
+  ).resolves.toMatchObject({ data: [clearance] });
+  const release = {
+    ...common,
+    batch_id: id(92),
+    from_location_id: id(93),
+    input: {
+      expected_summary_version: 4,
+      to_location_id: id(94),
+      quantity_units: 3,
+      reason: "TEST physically shelved",
+    },
+  };
+  reply({ data: [release], page: { has_more: false, next_cursor: null } });
+  await expect(
+    listHospitalSupplierReleasesPage(buyer, receipt.shipment_id, receipt.id),
+  ).resolves.toMatchObject({ data: [release] });
+  for (const row of [clearance, release])
+    for (const field of [
+      "owner_tenant_id",
+      "shipment_id",
+      "receipt_id",
+      "pharmacy_id",
+      "outlet_id",
+    ]) {
+      reply({ data: [{ ...row, [field]: id(99) }], page: { has_more: false, next_cursor: null } });
+      await expect(
+        "state" in row
+          ? listHospitalSupplierClearancesPage(buyer, receipt.shipment_id, receipt.id)
+          : listHospitalSupplierReleasesPage(buyer, receipt.shipment_id, receipt.id),
+      ).rejects.toThrow();
+    }
+  reply({
+    data: [{ ...clearance, state: "released" }],
+    page: { has_more: false, next_cursor: null },
+  });
+  await expect(
+    listHospitalSupplierClearancesPage(buyer, receipt.shipment_id, receipt.id),
+  ).rejects.toThrow();
 });

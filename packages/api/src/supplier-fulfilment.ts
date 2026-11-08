@@ -14,6 +14,7 @@ import {
 } from "./supplier-orders";
 import {
   ReceivingBatchChoiceContract,
+  ReceivingClearanceEvidenceContract,
   ReceivingCurrentContract,
   ReceivingReleaseContract,
   ReceivingReleaseInputContract,
@@ -994,6 +995,46 @@ export function listHospitalReceivingBatchChoicesPage(
     (v) => {
       checkReceivingChoice(scope, shipment.id, v);
       if (!same(v.product_id, product) || v.lot_number !== shipment.lot_number) fail();
+    },
+    request,
+    signal,
+  );
+}
+
+export function listHospitalSupplierReleasesPage(
+  scope: HospitalSupplierReceivingScope,
+  shipment: string,
+  receipt: string,
+  request: SupplierPageRequest = {},
+  signal?: AbortSignal,
+) {
+  return page(
+    `${receivingBase(scope, shipment)}/receipts/${identifier.parse(receipt)}/releases`,
+    scope,
+    ReceivingReleaseContract,
+    (v) => {
+      checkReceivingChoice(scope, shipment, v);
+      if (!same(v.receipt_id, receipt)) fail();
+    },
+    request,
+    signal,
+  );
+}
+
+export function listHospitalSupplierClearancesPage(
+  scope: HospitalSupplierReceivingScope,
+  shipment: string,
+  receipt: string,
+  request: SupplierPageRequest = {},
+  signal?: AbortSignal,
+) {
+  return page(
+    `${receivingBase(scope, shipment)}/receipts/${identifier.parse(receipt)}/clearances`,
+    scope,
+    ReceivingClearanceEvidenceContract,
+    (v) => {
+      checkReceivingChoice(scope, shipment, v);
+      if (!same(v.receipt_id, receipt)) fail();
     },
     request,
     signal,

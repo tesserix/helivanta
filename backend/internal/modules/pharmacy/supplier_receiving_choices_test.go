@@ -67,3 +67,29 @@ func TestHospitalReceivingRegistersProductLotBatchChoices(t *testing.T) {
 	}
 	t.Fatal("receivers need the exact destination lot before choosing an existing or new batch")
 }
+
+func TestHospitalReceivingRegistersBoundedReceiptReleaseHistory(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := platform.NewRouter(gin.New().Group("/v1/pharmacy"), receivingChoiceMembership{})
+	supplierReceivingRoutes(r, platform.Deps{})
+	for _, route := range r.Declared() {
+		if route.Path == "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/releases" {
+			require.True(t, route.Paginated)
+			return
+		}
+	}
+	t.Fatal("physical releases need bounded hospital history, distinct from review evidence")
+}
+
+func TestHospitalReceivingRegistersBoundedClearanceEvidence(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := platform.NewRouter(gin.New().Group("/v1/pharmacy"), receivingChoiceMembership{})
+	supplierReceivingRoutes(r, platform.Deps{})
+	for _, route := range r.Declared() {
+		if route.Path == "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/clearances" {
+			require.True(t, route.Paginated)
+			return
+		}
+	}
+	t.Fatal("independent clearance evidence needs an attributable, bounded history")
+}

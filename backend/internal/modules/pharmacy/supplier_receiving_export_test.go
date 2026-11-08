@@ -37,3 +37,7 @@ func ApplySupplierReceivingReleaseForTest(ctx context.Context, tx *gorm.DB, deps
 var TestReceivingBatchChoices = receivingBatchChoices
 
 var TestOutletLocalDate = outletLocalDate
+
+var TestReceivingReleasePage = receivingReleasePage
+
+var TestReceivingClearancePage = receivingClearancePage

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"                           //nolint:depguard // external test of the owning module
 	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract" //nolint:depguard // owner event contract under test
@@ -344,11 +345,45 @@ func TestSupplierReceivingCorrectionRepositoryRetainsEvidenceAndRollsBackCustody
 	require.ErrorIs(t, release(reviewer, releaseID, releaseInput, rollback), rollback, "stock, journal and outbox roll back together")
 	require.NoError(t, release(reviewer, releaseID, releaseInput, nil))
 	require.NoError(t, release(reviewer, releaseID, releaseInput, nil), "retry returns original without moving twice")
+	violation := command(reviewer, "review", func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO pharmacy_stock_movements(id,tenant_id,outlet_id,location_id,batch_id,kind,quantity_units,reason,source_reference,actor_subject)VALUES(?,?,?,?,?,'release',11,?,?,?)`, id(), tenant, outlet, shelf, *original.Input.DestinationBatchID, releaseInput.Reason, "release:"+releaseID.String()+":in", reviewer.Subject).Error
+	})
+	var denied *pgconn.PgError
+	require.ErrorAs(t, violation, &denied)
+	require.Equal(t, "42501", denied.Code, "journal quantity must constrain the outer stock movement, before duplicate-reference uniqueness")
+
 	changedRelease := releaseInput
 	changedRelease.QuantityUnits = 9
 	require.ErrorIs(t, release(reviewer, releaseID, changedRelease, nil), f.ErrConflict)
 	require.ErrorIs(t, release(other, releaseID, releaseInput, nil), f.ErrConflict)
 	require.NoError(t, command(reviewer, "review", func(tx *gorm.DB) error {
+		reviews, err := pharmacy.TestReceivingClearancePage(tx, scope, shipment, original.ID, pagination.Params{Limit: 1})
+		if err != nil {
+			return err
+		}
+		require.Len(t, reviews, 1)
+		require.Equal(t, "review_recorded", reviews[0].State)
+		require.Equal(t, int64(4), reviews[0].SummaryVersion)
+		require.Equal(t, reviewer.Subject, reviews[0].ActorSubject)
+		rows, err := pharmacy.TestReceivingReleasePage(tx, scope, original.ID, pagination.Params{Limit: 1})
+		if err != nil {
+			return err
+		}
+		require.Len(t, rows, 1)
+		require.Equal(t, releaseID, rows[0].ID)
+		require.Equal(t, releaseInput, rows[0].Input)
+		next, err := pharmacy.TestReceivingReleasePage(tx, scope, original.ID, pagination.Params{Limit: 1, After: &pagination.Cursor{ID: rows[0].ID, CreatedAt: rows[0].CreatedAt}})
+		if err != nil {
+			return err
+		}
+		require.Empty(t, next)
+		foreign := scope
+		foreign.OutletID = id()
+		hidden, err := pharmacy.TestReceivingReleasePage(tx, foreign, original.ID, pagination.Params{Limit: 1})
+		if err != nil {
+			return err
+		}
+		require.Empty(t, hidden)
 		var physical int64
 		if err := tx.Table("pharmacy_stock_movements").Select("COALESCE(SUM(quantity_units),0)").Where("tenant_id=? AND outlet_id=? AND batch_id=? AND location_id=?", tenant, outlet, *original.Input.DestinationBatchID, shelf).Scan(&physical).Error; err != nil {
 			return err

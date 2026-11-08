@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/tesserix/helivanta/pkg/pagination"
 	"reflect"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -178,4 +180,57 @@ func (h *supplierReceiving) applyReceivingRelease(ctx context.Context, tx *gorm.
 	}
 	_, err = h.owner.applyRelease(ctx, tx, p, shipment.BuyerOrganizationID, s.OutletID, id, releaseInput{BatchID: result.BatchID, FromLocationID: result.FromLocationID, ToLocationID: in.ToLocationID, QuantityUnits: in.QuantityUnits, Reason: in.Reason})
 	return result, err
+}
+
+type listedReceivingRelease struct{ f.ReceivingRelease }
+
+func (v listedReceivingRelease) PageKey() (time.Time, uuid.UUID) { return v.CreatedAt, v.ID }
+func receivingReleasePage(tx *gorm.DB, s f.BuyerScope, receipt uuid.UUID, page pagination.Params) ([]listedReceivingRelease, error) {
+	var rows []struct {
+		ID   uuid.UUID
+		Body json.RawMessage
+	}
+	q := tx.Table("pharmacy_supplier_receiving_releases").Select("id,body").Where("tenant_id=? AND shipment_id=? AND outlet_id=? AND receipt_id=?", s.TenantID, s.ShipmentID, s.OutletID, receipt).Order("created_at DESC,id DESC").Limit(page.Limit + 1)
+	if page.After != nil {
+		q = q.Where("(created_at,id)<(?,?)", page.After.CreatedAt, page.After.ID)
+	}
+	if err := q.Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	result := make([]listedReceivingRelease, 0, len(rows))
+	for _, row := range rows {
+		var value f.ReceivingRelease
+		if supplierorder.DecodeObject(row.Body, &value) != nil || value.ID != row.ID || value.OwnerTenantID != s.TenantID || value.OutletID != s.OutletID || value.ReceiptID != receipt || value.ShipmentID != s.ShipmentID || !receivingReleaseValid(value.Input) || value.CreatedAt.IsZero() {
+			return nil, f.ErrUnavailable
+		}
+		result = append(result, listedReceivingRelease{value})
+	}
+	return result, nil
+}
+func (h *supplierReceiving) releases(c *gin.Context, page pagination.Params) ([]listedReceivingRelease, error) {
+	p, s, ok := receivingScope(c, true)
+	if !ok {
+		return nil, nil
+	}
+	receipt, ok := receivingID(c, "receipt", false)
+	if !ok {
+		return nil, nil
+	}
+	var result []listedReceivingRelease
+	err := h.with(c, p, s, f.ReadReceiving, func(_ context.Context, tx *gorm.DB, _ f.Shipment, actor supplierorder.Actor) error {
+		if _, err := h.read(tx, s.TenantID, s.ShipmentID, receipt, actor, nil); err != nil {
+			return err
+		}
+		var err error
+		result, err = receivingReleasePage(tx, s, receipt, page)
+		if err != nil {
+			return err
+		}
+		return auditReceivingList(tx, s, actor, "pharmacy_receiving_release_list")
+	})
+	if err != nil {
+		supplierstock.Error(c, err)
+		return nil, nil
+	}
+	return result, nil
 }

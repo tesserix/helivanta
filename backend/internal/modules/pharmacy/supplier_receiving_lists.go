@@ -25,6 +25,8 @@ type listedReceivingCorrection struct{ f.ReceivingCorrection }
 func (r listedReceivingCorrection) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
 
 func (h *supplierReceiving) registerLists(r *platform.Router, base string) {
+	platform.ResourceListRoute(r, base+"/receipts/:receipt/clearances", authz.Public, 50, h.clearances)
+	platform.ResourceListRoute(r, base+"/receipts/:receipt/releases", authz.Public, 50, h.releases)
 	platform.ResourceListRoute(r, base+"/receipts", authz.Public, 50, h.listReceipts)
 	platform.ResourceListRoute(r, base+"/receipts/:receipt/corrections", authz.Public, 50, h.listCorrections)
 }
@@ -122,6 +124,59 @@ func (h *supplierReceiving) listCorrections(c *gin.Context, page pagination.Para
 			return err
 		}
 		return auditReceivingList(tx, s, actor, "pharmacy_supplier_receiving_corrections")
+	})
+	if err != nil {
+		supplierstock.Error(c, err)
+		return nil, nil
+	}
+	return result, nil
+}
+
+type listedReceivingClearance struct{ f.ReceivingClearanceEvidence }
+
+func (v listedReceivingClearance) PageKey() (time.Time, uuid.UUID) { return v.CreatedAt, v.ID }
+func receivingClearancePage(tx *gorm.DB, s f.BuyerScope, shipment f.Shipment, receipt uuid.UUID, page pagination.Params) ([]listedReceivingClearance, error) {
+	var rows []struct {
+		ID             uuid.UUID
+		SummaryVersion int64
+		Reason         string
+		ActorSubject   string
+		ActorStaffID   uuid.UUID
+		CreatedAt      time.Time
+	}
+	q := tx.Table("pharmacy_supplier_receiving_clearances").Select("id,summary_version,reason,actor_subject,actor_staff_id,created_at").Where("tenant_id=? AND shipment_id=? AND outlet_id=? AND receipt_id=?", s.TenantID, s.ShipmentID, s.OutletID, receipt).Order("created_at DESC,id DESC").Limit(page.Limit + 1)
+	if page.After != nil {
+		q = q.Where("(created_at,id)<(?,?)", page.After.CreatedAt, page.After.ID)
+	}
+	if err := q.Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	result := make([]listedReceivingClearance, 0, len(rows))
+	for _, v := range rows {
+		result = append(result, listedReceivingClearance{f.ReceivingClearanceEvidence{ID: v.ID, OwnerTenantID: s.TenantID, ShipmentID: s.ShipmentID, ReceiptID: receipt, PharmacyID: shipment.BuyerOrganizationID, OutletID: s.OutletID, SummaryVersion: v.SummaryVersion, State: "review_recorded", Reason: v.Reason, ActorSubject: v.ActorSubject, ActorStaffID: v.ActorStaffID, CreatedAt: v.CreatedAt}})
+	}
+	return result, nil
+}
+func (h *supplierReceiving) clearances(c *gin.Context, page pagination.Params) ([]listedReceivingClearance, error) {
+	p, s, ok := receivingScope(c, true)
+	if !ok {
+		return nil, nil
+	}
+	receipt, ok := receivingID(c, "receipt", false)
+	if !ok {
+		return nil, nil
+	}
+	var result []listedReceivingClearance
+	err := h.with(c, p, s, f.ReadReceiving, func(_ context.Context, tx *gorm.DB, shipment f.Shipment, actor supplierorder.Actor) error {
+		if _, err := h.read(tx, s.TenantID, s.ShipmentID, receipt, actor, nil); err != nil {
+			return err
+		}
+		var err error
+		result, err = receivingClearancePage(tx, s, shipment, receipt, page)
+		if err != nil {
+			return err
+		}
+		return auditReceivingList(tx, s, actor, "pharmacy_receiving_clearance_list")
 	})
 	if err != nil {
 		supplierstock.Error(c, err)

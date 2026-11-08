@@ -309,3 +309,15 @@ for inspection and owner validation. Existing batches retain their immutable fac
 Physical release validation and exact recovery-object route classification are
 covered by native checks; fixture tax effectiveness now comes from the outlet's
 current owner date rather than a fixed date that becomes invalid over time.
+
+Receiving receipt history now includes bounded resource pages at
+`/receipts/:receipt/clearances` and `/receipts/:receipt/releases`, each under exact
+current shipment admission and original receipt proof, with audited reads and
+caller/resource-bound cursors. The clearance page returns
+`ReceivingClearanceEvidence` with the explicit `review_recorded` state; release
+history contains actual committed release journals. These views preserve original
+review actors, reasons and versions and never reinterpret clearance as stock movement.
+The release movement RLS correlates fully qualified outer movement columns to the
+receipt journal, including signed quantity and the exact source/destination shelf.
+The owner integration test also rejects a forged mismatched movement with RLS
+SQLSTATE 42501 before an existing source-reference uniqueness constraint.

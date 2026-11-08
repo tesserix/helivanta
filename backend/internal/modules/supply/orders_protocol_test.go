@@ -23,7 +23,7 @@ func verifyPurchaseOrderProtocol(t *testing.T, db *tenantdb.DB, seller, buyer su
 	reviewer := supplierorder.Actor{Subject: "TEST-order-reviewer", StaffID: uuid.New()}
 	supplier := supplierorder.Actor{Subject: "TEST-order-source", StaffID: uuid.New()}
 	version := uuid.New()
-	input := supplierorder.SupplierOrderInput{RelationshipID: buyer.ID, TermsSha256: buyer.TermsSha256, PurchaseOrderReference: "TEST-PO-001", QuoteReference: "TEST agreed quote reference", ExpiresAt: time.Now().Add(time.Hour).UTC().Truncate(time.Microsecond), Reason: "TEST shared order instructions", Lines: []supplierorder.SupplierOrderLine{{ID: uuid.Must(uuid.NewV7()), Product: supplierorder.SupplierOrderProduct{Owner: "supply", ProductID: uuid.New(), VersionID: &version}, QuantityUnits: 100, UnitCode: "capsule"}}}
+	input := supplierorder.SupplierOrderInput{RelationshipID: buyer.ID, TermsSha256: buyer.TermsSha256, PurchaseOrderReference: "TEST-PO-001", QuoteReference: "TEST agreed quote reference", ExpiresAt: buyer.Terms.ExpiresAt.Add(-time.Minute), Reason: "TEST shared order instructions", Lines: []supplierorder.SupplierOrderLine{{ID: uuid.Must(uuid.NewV7()), Product: supplierorder.SupplierOrderProduct{Owner: "supply", ProductID: uuid.New(), VersionID: &version}, QuantityUnits: 100, UnitCode: "capsule"}}}
 	order, err := supplierorder.Prepare(uuid.Must(uuid.NewV7()), buyer, input, actor, time.Now())
 	require.NoError(t, err)
 	order.BuyerDepartmentID = &dept

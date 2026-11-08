@@ -6,6 +6,9 @@ on:
       - "packages/api/src/supplier-access*"
       - "contracts/supplier-access.json"
       - "backend/pkg/suppliertrade/**"
+      - "backend/pkg/supplierorder/**"
+      - "contracts/supplier-orders.json"
+      - "packages/api/src/supplier-orders*"
       - "backend/internal/modules/iam/**"
       - "backend/internal/modules/supply/**"
       - "backend/internal/modules/pharmacy/**"
@@ -34,6 +37,11 @@ jobs:
           cache-dependency-path: backend/go.sum
       - name: Effective supplier grant consent
         run: go test -race ./pkg/supplieraccess
+      - name: Supplier order intent and owner protocol
+        run: |
+          go test -race ./pkg/supplierorder
+          go test -race ./internal/modules/supply -run '^TestDirectedRelationshipProtocolPersistsBothConsentsAndNeverReactivatesFromReplay$'
+          go test -race ./internal/modules/pharmacy -run '^TestOrderProductFactsKeepPrivateOwnerVersionUnitsAndPurpose$'
       - name: Durable bilateral supplier grant protocol
         run: go test -race ./internal/modules/iam -run '^TestSupplierGrantProtocol'
       - name: Warehouse product identity and independent quality review
@@ -54,4 +62,4 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Supplier grant client context and exact recovery
-        run: pnpm --dir packages/api exec vitest run src/supplier-access.test.ts
+        run: pnpm --dir packages/api exec vitest run src/supplier-access.test.ts src/supplier-orders.test.ts src/supplier-orders-contract.test.ts

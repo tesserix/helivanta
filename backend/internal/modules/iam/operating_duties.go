@@ -39,8 +39,11 @@ var errOperatingValidity = errors.New("operating duty validity expired")
 //go:embed operating_duties.sql
 var operatingDutiesSchema string
 
-//go:embed operating_templates_generated.sql
+//go:embed operating_templates_v1.sql
 var operatingTemplatesSchema string
+
+//go:embed operating_templates_generated.sql
+var operatingTemplatesCurrentSchema string
 
 type operatingHandlers struct {
 	db        *tenantdb.DB

@@ -176,3 +176,5 @@ export * from "./independent-staff-identity-queries";
 export * from "./operating-duties";
 
 export * from "./supplier-access";
+
+export * from "./supply-stock-quality";

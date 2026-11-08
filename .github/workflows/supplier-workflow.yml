@@ -36,6 +36,8 @@ jobs:
         run: go test -race ./pkg/supplieraccess
       - name: Durable bilateral supplier grant protocol
         run: go test -race ./internal/modules/iam -run '^TestSupplierGrantProtocol'
+      - name: Warehouse product identity and independent quality review
+        run: go test -race -timeout 35m ./internal/globalapi -run '^TestWholesaleIdentityCheckThroughGlobalAPIUsesCurrentCatalogueOwner$'
       - name: Supplier grant projection isolation
         run: go test -race ./pkg/authz -run '^TestPartnerAssignment'
       - name: Current hospital Staff recipient and membership cutoff

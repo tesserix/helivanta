@@ -45,8 +45,8 @@ func publishStockProduct(t *testing.T, db *tenantdb.DB, status string) {
 }
 
 func TestWholesaleIdentityCheckThroughGlobalAPIUsesCurrentCatalogueOwner(t *testing.T) {
-	perms := []authz.Permission{supply.PermPartyWrite, supply.PermOrganizationManage, supply.PermPremiseWrite, supply.PermOperatingWrite, supply.PermOperatingRead, drugmaster.PermCatalogueRead}
-	owner, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"owner": testutil.TenantA, "foreign": testutil.TenantB}, Perms: map[string][]authz.Permission{"owner": perms, "foreign": perms}, Modules: []platform.Module{drugmaster.New(), supply.New()}})
+	perms := []authz.Permission{supply.PermPartyWrite, supply.PermOrganizationManage, supply.PermPremiseWrite, supply.PermOperatingWrite, supply.PermOperatingRead, supply.PermAccessManage, supply.PermStockReview, drugmaster.PermCatalogueRead}
+	owner, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"owner": testutil.TenantA, "foreign": testutil.TenantB, "reviewer": testutil.TenantA}, Roles: stockQualityMembership{}, Perms: map[string][]authz.Permission{"owner": perms, "foreign": perms, "reviewer": perms}, Modules: []platform.Module{drugmaster.New(), supply.New()}})
 	server := httptest.NewServer(owner)
 	t.Cleanup(server.Close)
 	gateway, err := New(Config{Development: true, Timeout: 5 * time.Second, Upstreams: map[string]string{"supply": server.URL, "platform": server.URL}})
@@ -105,7 +105,63 @@ func TestWholesaleIdentityCheckThroughGlobalAPIUsesCurrentCatalogueOwner(t *test
 	require.JSONEq(t, first, call("GET", path, "owner", "", 200))
 	require.JSONEq(t, first, call("PUT", path, "owner", input, 200))
 	call("GET", path, "foreign", "", 404)
+
+	grantPath := root + "/grants/" + uuid.Must(uuid.NewV7()).String()
+	grantBody := fmt.Sprintf(`{"expected_version":0,"subject":"user-reviewer","role":"inventory","premise_id":%q,"valid_from":%q,"expires_at":%q,"status":"active","reason":"TEST exact warehouse reviewer"}`, premise, time.Now().Add(-time.Hour).UTC().Format(time.RFC3339), time.Now().Add(24*time.Hour).UTC().Format(time.RFC3339))
+	call("PUT", grantPath, "owner", grantBody, 200)
+	qualityPath := stock + "/quality-decisions/" + uuid.Must(uuid.NewV7()).String()
+	qualityInput := fmt.Sprintf(`{"expected_version":0,"identity_check_id":%q,"identity_version":1,"decision":"release","reason":"TEST independent seal, storage and expiry inspection"}`, check)
+	call("PUT", qualityPath, "owner", qualityInput, 409)
+	released := call("PUT", qualityPath, "reviewer", qualityInput, 201)
+	require.Contains(t, released, `"released_base_units":1000`)
+	require.Contains(t, released, `"status":"released"`)
+	require.JSONEq(t, released, call("PUT", qualityPath, "reviewer", qualityInput, 200))
+	require.JSONEq(t, released, call("GET", qualityPath, "owner", "", 200))
+	call("GET", qualityPath, "foreign", "", 404)
+	call("PUT", qualityPath, "reviewer", strings.Replace(qualityInput, "TEST independent", "TEST altered", 1), 409)
+	inspection := call("GET", stock+"/inspection", "owner", "", 200)
+	require.Contains(t, inspection, `"quality":`)
+	require.Contains(t, inspection, `"identity":`)
+	call("GET", stock+"/inspection", "foreign", "", 404)
+	holdPath := stock + "/quality-decisions/" + uuid.Must(uuid.NewV7()).String()
+	holdInput := strings.Replace(strings.Replace(qualityInput, `"expected_version":0`, `"expected_version":1`, 1), `"decision":"release"`, `"decision":"hold"`, 1)
+	held := call("PUT", holdPath, "owner", holdInput, 201)
+	require.Contains(t, held, `"status":"held"`)
+	require.Contains(t, held, `"released_base_units":0`)
+	require.JSONEq(t, held, call("GET", holdPath, "reviewer", "", 200))
+	stalePath := stock + "/quality-decisions/" + uuid.Must(uuid.NewV7()).String()
+	call("PUT", stalePath, "reviewer", qualityInput, 409)
+	call("GET", stalePath, "reviewer", "", 404)
+
+	for _, failure := range []struct{ name, table, condition string }{
+		{"audit", "audit_events", "resource_type<>'supply_stock_quality_decisions'"},
+		{"outbox", "outbox_events", "subject<>'helivanta.in.supply.stock_quality_recorded.v1'"},
+	} {
+		require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_quality_" + failure.name, SQL: "ALTER TABLE " + failure.table + " ADD CONSTRAINT test_quality_failure CHECK(" + failure.condition + ")NOT VALID"}}))
+		failedPath := stock + "/quality-decisions/" + uuid.Must(uuid.NewV7()).String()
+		call("PUT", failedPath, "reviewer", strings.Replace(qualityInput, `"expected_version":0`, `"expected_version":2`, 1), 503)
+		call("GET", failedPath, "reviewer", "", 404)
+		unchanged := call("GET", stock+"/inspection", "owner", "", 200)
+		require.Contains(t, unchanged, `"status":"held"`)
+		require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_quality_" + failure.name + "_restore", SQL: "ALTER TABLE " + failure.table + " DROP CONSTRAINT test_quality_failure"}}))
+	}
 	publishStockProduct(t, db, "recalled")
+	require.JSONEq(t, released, call("GET", qualityPath, "reviewer", "", 200))
+	call("PUT", stock+"/quality-decisions/"+uuid.Must(uuid.NewV7()).String(), "reviewer", strings.Replace(qualityInput, `"expected_version":0`, `"expected_version":2`, 1), 409)
+	// A recall cannot prevent an attributable safety hold.
+	call("PUT", stock+"/quality-decisions/"+uuid.Must(uuid.NewV7()).String(), "owner", strings.Replace(holdInput, `"expected_version":1`, `"expected_version":2`, 1), 201)
+	call("PUT", grantPath, "owner", strings.Replace(strings.Replace(grantBody, `"expected_version":0`, `"expected_version":1`, 1), `"status":"active"`, `"status":"revoked"`, 1), 200)
+	call("GET", qualityPath, "reviewer", "", 404)
+	call("GET", stock+"/inspection", "reviewer", "", 404)
 	require.JSONEq(t, first, call("GET", path, "owner", "", 200))
 	call("PUT", stock+"/identity-checks/"+uuid.Must(uuid.NewV7()).String(), "owner", strings.Replace(input, `"expected_version":0`, `"expected_version":1`, 1), 409)
+}
+
+type stockQualityMembership struct{}
+
+func (stockQualityMembership) ListRoles(_ context.Context, subject string) ([]authz.RoleBinding, error) {
+	if subject == "user-owner" || subject == "user-reviewer" {
+		return []authz.RoleBinding{{TenantID: testutil.TenantA, Role: authz.RoleSupplyInventory}}, nil
+	}
+	return nil, nil
 }

@@ -2,7 +2,7 @@
 
 Implementation candidate on the independent supplier workflow branch. This contract has not been released.
 
-SupplyConnect owns distributor warehouse/depot stock; PharmaConnect continues to own outlet stock. The current candidate records physical intake in quarantine and attributable product/unit observations. Quantity availability, quality release, reservations, dispatch and destination receipts require the remaining workflow implementation.
+SupplyConnect owns distributor warehouse/depot stock; PharmaConnect continues to own outlet stock. The current candidate records physical intake in quarantine and attributable product/unit observations. Independent release/hold decisions and inspection/recovery are implemented in the next candidate below. Quantity availability, reservations, dispatch and destination receipts still require the remaining workflow implementation.
 
 Canonical inputs: [supply-stock.json](../../contracts/supply-stock.json) and [stock-products.json](../../contracts/stock-products.json). Run `node scripts/generate-stock-products.mjs` followed by `node scripts/generate-supply-stock.mjs`; both support `--check`. Owner migrations, generated Go, generated Zod, strict SDK and warehouse UI use these inputs. Registered routes and permissions are exported through [the registry](reference/README.md).
 
@@ -50,3 +50,55 @@ Each observation increments its receipt's observation version, retains the sourc
 ## Remaining operating gates
 
 The candidate establishes neither bilateral collaboration nor an effective partner grant. Current employer/posting authority, independent quality decisions, verified source/destination licence and activity applicability, reviewed state/category/operation policies, object/field/file disclosure, source reservations/dispatch, destination discrepancy/quarantine/receipt and invoice/payable/credit/settlement reconciliation remain additional implementation and acceptance work. Initial live trade is scoped to India, Maharashtra and Odisha, with actual participants and qualified reviewers still to be supplied.
+
+## Independent stock-quality review candidate — 8 November 2026
+
+SupplyConnect remains the single owner of these warehouse facts. The Global API,
+SDK and warehouse inspection pane consume `/receipts/{receipt}/inspection` and
+`/receipts/{receipt}/quality-decisions/{decision}` under the stock root above.
+GET requires current `supply.operations.read`; PUT requires current
+`supply.stock.review`, plus explicit inventory/administrator access at the owned
+premise or the independently reviewed `supply.stock_quality_reviewer.v1` duty.
+The receiving duty is unchanged and cannot review stock. Pharmacy stock still
+uses its existing quarantine-release owner; these routes never write its ledger.
+
+The reviewer checks an exact current product/unit observation, using its check
+ID and version, the current quality version, `release` or `hold`, and a bounded
+reason. Release covers that observation's entire base-unit count and requires a
+reviewer distinct from both the intake recorder and product-count observer.
+The current drug-master product reference must still match exactly through the
+commit. Expiry on or before the India premise's local date blocks release.
+Schedule X/NDPS remain blocked under the existing unsupported-controls boundary;
+this does not establish legal trading authority for other categories.
+
+A hold records zero released units and may be recorded by the receiving actor,
+after expiry, or following product recall. It requires the current matched
+observation but does not require a recalled product to become active again.
+A newer identity observation invalidates the prior release basis for a later
+commitment; history is retained. Inspection returns the latest identity and
+quality evidence, with absent properties when none exist. It advertises no
+quantity available for trade. Consumers must not turn a historical release
+receipt into current reservation, sale or dispatch authority.
+
+Decision IDs are UUIDv7. Identical actor/intent retries return the same receipt;
+changed actor/intent conflicts. GET recovery reauthorizes current source access,
+even after product recall. Immutable decision rows, audit and minimized outbox
+references commit together. Serializing on the physical receipt prevents
+competing quality decisions or product observations from accepting stale heads.
+Audit/outbox failures roll back the decision. Revoked source/duty access removes
+both recovery and inspection. An authorization/catalogue/storage failure returns
+an unavailable response, without a manufactured decision.
+
+IAM migration `0041_iam_stock_quality_template` expands the current template
+function. `0038_iam_operating_duties` retains its exact v1 SQL snapshot;
+`operating_templates_v1.sql` is immutable migration history. SupplyConnect
+`0014_supply_stock_quality` adds forced-RLS, immutable quality evidence and
+explicit scope/actor/version/expiry checks. No destructive rollback is provided;
+retain decisions and disable new operations if application code is rolled back.
+Existing architecture sizing remains an unmeasured planning assumption; this
+bounded lookup uses one receipt and indexed identity/quality heads, with no
+cross-tenant listing or external calls inside stock transactions. Current actor,
+private stock evidence and source publication are separate trust boundaries.
+Relevant acceptance: IN-PH-02/03/04/05/08/09/10 and ORG-AC. Actual participant,
+state/activity/category applicability and qualified operating review remain
+required before live commitments in Maharashtra or Odisha.

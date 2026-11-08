@@ -3473,6 +3473,38 @@
       "type": "object"
     }
   },
+  "helivanta.in.supply.stock_quality_recorded.v1": {
+    "source": "backend/internal/modules/supply/contract/events.go:133",
+    "go_type": "StockQualityRecordedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "decision_id": {
+          "type": "string"
+        },
+        "party_id": {
+          "type": "string"
+        },
+        "premise_id": {
+          "type": "string"
+        },
+        "receipt_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "party_id",
+        "premise_id",
+        "receipt_id",
+        "decision_id",
+        "version"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.supply.stock_receipt_recorded.v1": {
     "source": "backend/internal/modules/supply/contract/events.go:115",
     "go_type": "StockReceiptRecordedData",

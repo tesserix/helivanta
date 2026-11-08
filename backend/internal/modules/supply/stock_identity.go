@@ -124,7 +124,7 @@ func (h *handlers) putStockIdentity(c *gin.Context) {
 		stockIdentityError(c, stockproduct.ErrUnavailable)
 		return
 	}
-	err = h.withStockProduct(c, p, party, premise, in.ProductVersionID, func(ctx context.Context, source stockproduct.Reference) error {
+	err = h.withStockProduct(c, p, party, premise, in.ProductVersionID, PermOperatingWrite, func(ctx context.Context, source stockproduct.Reference) error {
 		factor := int64(1)
 		if in.UnitKind == "pack" {
 			factor = source.PackSize

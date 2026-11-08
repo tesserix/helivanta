@@ -182,6 +182,117 @@
         "name": "created_at",
         "type": "time"
       }
+    ],
+    "WholesaleQualityInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740990
+      },
+      {
+        "name": "identity_check_id",
+        "type": "uuid"
+      },
+      {
+        "name": "identity_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "decision",
+        "type": "string",
+        "enum": ["release", "hold"]
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "pattern": "^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$"
+      }
+    ],
+    "WholesaleQualityDecision": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "party_id",
+        "type": "uuid"
+      },
+      {
+        "name": "premise_id",
+        "type": "uuid"
+      },
+      {
+        "name": "receipt_id",
+        "type": "uuid"
+      },
+      {
+        "name": "input",
+        "type": "WholesaleQualityInput"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["released", "held"]
+      },
+      {
+        "name": "released_base_units",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740991
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "WholesaleStockInspection": [
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "party_id",
+        "type": "uuid"
+      },
+      {
+        "name": "premise_id",
+        "type": "uuid"
+      },
+      {
+        "name": "receipt_id",
+        "type": "uuid"
+      },
+      {
+        "name": "identity",
+        "type": "WholesaleIdentityCheck",
+        "optional": true
+      },
+      {
+        "name": "quality",
+        "type": "WholesaleQualityDecision",
+        "optional": true
+      }
     ]
   }
 }

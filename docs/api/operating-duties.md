@@ -45,3 +45,15 @@ The independent Staff editor now lists scoped duties and supports approval, reje
 This candidate still needs receiver-only navigation and browser acceptance, pharmacy product consumption, qualified quality release/balances/reservations/dispatch, bilateral supplier grants, hospital receiving/discrepancies and financial composition. Current licence, professional and exact Maharashtra/Odisha policy checks remain necessary at the applicable commitment boundaries. These administrative/identity records are not those checks.
 
 Candidate IAM migration: `0038_iam_operating_duties`; candidate source migrations remain unreleased. Prepare and verify the final public-repository release, exact migrations and Kargo image promotion before seeking the required named production approval.
+
+### Stock-quality duty expansion
+
+The additive `supply.stock_quality_reviewer.v1` template permits source-scoped
+`supply.operations.read`, `supply.stock.review` and
+`drugmaster.stock_reference.read`. It follows the same independent Staff/link,
+review, projection acknowledgement and current eligibility gates as receiving
+duties. It does not inherit receiving or dispatch permissions. See
+[the stock review contract](supply-stock.md#independent-stock-quality-review-candidate--8-november-2026).
+The original template SQL is retained in `operating_templates_v1.sql`; future
+catalogue expansions apply through additive migrations rather than rewriting
+migration 0038.

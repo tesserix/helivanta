@@ -32,6 +32,7 @@ export const AllocationPlanContract = z
       .min(1)
       .max(64)
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    line_quantity_units: z.number().int().min(1).max(1000000000),
     order_authority_epoch: z.number().int().min(1).max(9007199254740991),
     order_remote_epoch: z.number().int().min(1).max(9007199254740991),
     source_organization_id: identifier,
@@ -280,3 +281,30 @@ export const AllocationViewContract = z
   })
   .strict();
 export type AllocationView = z.infer<typeof AllocationViewContract>;
+
+export const ReceivingSummaryContract = z
+  .object({
+    id: identifier,
+    shipment_id: identifier,
+    order_id: identifier,
+    owner_tenant_id: identifier,
+    version: z.number().int().min(1).max(9007199254740991),
+    counted_units: z.number().int().min(0).max(1000000000),
+    accepted_units: z.number().int().min(0).max(1000000000),
+    rejected_units: z.number().int().min(0).max(1000000000),
+    short_units: z.number().int().min(0).max(1000000000),
+    closed: z.boolean(),
+    reason: z
+      .string()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    actor_subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    recorded_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type ReceivingSummary = z.infer<typeof ReceivingSummaryContract>;

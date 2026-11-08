@@ -459,6 +459,11 @@ func run() error {
 	}
 
 	deps.TradingRelationships = supply.NewRelationshipAuthority(db, deps.TradingEndpoints, sourceChecks, deps.OrganizationIdentity)
+	deps.FulfilmentOrders = platform.FulfilmentOrders(registry.All(), deps)
+	deps.ReceivingAuthority = platform.ReceivingAuthority(registry.All(), deps)
+	deps.SupplierShipmentSafety = platform.SupplierShipmentSafety(registry.All(), deps)
+	deps.HospitalSourceAuthority = platform.HospitalSourceAuthority(registry.All(), deps)
+	deps.SupplierStockCancellation = platform.SupplierStockCancellation(registry.All(), deps)
 	deps.PartnerScopes = iam.NewPartnerScopeAuthorizer(deps)
 
 	if sourceCaller != nil {

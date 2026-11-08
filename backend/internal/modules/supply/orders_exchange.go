@@ -43,7 +43,7 @@ func purchaseOrderConsumer() events.Consumer {
 		source, sourceErr := uuid.Parse(event.TenantID)
 		destination, destErr := uuid.Parse(event.DestinationTenantID)
 		eventID, eventErr := uuid.Parse(event.ID)
-		if sourceErr != nil || destErr != nil || eventErr != nil || eventID.Version() != 7 || eventID.Variant() != uuid.RFC4122 || source == uuid.Nil || destination == uuid.Nil || source == destination || event.Type != supplycontract.SubjectOrderExchange || event.Version != 1 || suppliertrade.DecodeObject(event.Data, &input) != nil || input.SourceTenantID != source {
+		if sourceErr != nil || destErr != nil || eventErr != nil || eventID.Version() != 7 || eventID.Variant() != uuid.RFC4122 || source == uuid.Nil || destination == uuid.Nil || source == destination || event.Type != supplycontract.SubjectOrderExchange || event.Version != 1 || supplierorder.DecodeObject(event.Data, &input) != nil || input.SourceTenantID != source {
 			return errors.New("invalid purchase order exchange provenance")
 		}
 		if err := purchaseOrderLock(tx, destination.String(), input.OrderID); err != nil {

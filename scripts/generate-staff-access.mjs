@@ -29,10 +29,37 @@ const departmentReviewer = /^workforce\.department_posting_reviewer\.v[1-9][0-9]
 const departmentLeaveReviewer = /^workforce\.department_leave_reviewer\.v[1-9][0-9]*$/;
 const departmentPurchaseOrder =
   /^supply\.department_purchase_order_(reader|preparer|reviewer)\.v[1-9][0-9]*$/;
+const departmentReceiving =
+  /^supply\.department_goods_(reader|receiver|reviewer|pharmacy_fulfiller)\.v[1-9][0-9]*$/;
+const receivingPermissions = {
+  reader: [
+    "pharmacy.hospital_receiving.use",
+    "supply.goods_receipt.read",
+    "workforce.purchase_order_actor.use",
+  ],
+  receiver: [
+    "pharmacy.hospital_receiving.use",
+    "supply.goods_receipt.read",
+    "supply.goods_receipt.record",
+    "workforce.purchase_order_actor.use",
+  ],
+  reviewer: [
+    "pharmacy.hospital_receiving.review",
+    "supply.goods_receipt.read",
+    "supply.goods_receipt.review",
+    "workforce.purchase_order_actor.use",
+  ],
+  pharmacy_fulfiller: [
+    "pharmacy.hospital_fulfilment.use",
+    "supply.supplier_order.read",
+    "workforce.purchase_order_actor.use",
+  ],
+};
 const departmentScoped = (key) =>
   departmentReviewer.test(key ?? "") ||
   departmentLeaveReviewer.test(key ?? "") ||
-  departmentPurchaseOrder.test(key ?? "");
+  departmentPurchaseOrder.test(key ?? "") ||
+  departmentReceiving.test(key ?? "");
 const scopeKinds = (template) => template.scope_kinds ?? ["hospital"];
 // IAM 0033 typed the root; templates before 0034 stay hospital-rooted, so their digests never change.
 const establishmentKindsFrom = 34;
@@ -137,6 +164,16 @@ for (const migration of migrations) {
         throw new Error(
           "Pharmacy binding templates require their exact role and Staff source permissions",
         );
+    }
+    if (template?.family === "supplier_receiving") {
+      const role = template.key?.match(departmentReceiving)?.[1];
+      if (
+        !receivingPermissions[role] ||
+        JSON.stringify(template.permissions) !== JSON.stringify(receivingPermissions[role]) ||
+        JSON.stringify(template.scope_kinds) !== JSON.stringify(["department"]) ||
+        JSON.stringify(template.establishment_kinds) !== JSON.stringify(["hospital"])
+      )
+        throw new Error("Receiving templates require exact department-only owner purposes");
     }
     if (template?.family === "purchase_order") {
       const role = template.key?.match(departmentPurchaseOrder)?.[1];
@@ -265,19 +302,21 @@ for (const migration of migrations) {
       !declaredFields.every((field) => Object.hasOwn(template, field)) ||
       typeof template.key !== "string" ||
       template.key.length > templateLimits.key ||
-      !(template.family === "purchase_order"
-        ? departmentPurchaseOrder.test(template.key)
-        : template.family === "supplier_access"
-          ? /^iam\.supplier_(viewer|reviewer)\.v[1-9][0-9]*$/.test(template.key)
-          : template.family === "partner_membership"
-            ? /^iam\.partner_group_member_(reader|preparer|reviewer)\.v[1-9][0-9]*$/.test(
-                template.key,
-              )
-            : template.family === "pharmacy_binding"
-              ? /^pharmacy\.department_binding_(preparer|reviewer)\.v[1-9][0-9]*$/.test(
+      !(template.family === "supplier_receiving"
+        ? departmentReceiving.test(template.key)
+        : template.family === "purchase_order"
+          ? departmentPurchaseOrder.test(template.key)
+          : template.family === "supplier_access"
+            ? /^iam\.supplier_(viewer|reviewer)\.v[1-9][0-9]*$/.test(template.key)
+            : template.family === "partner_membership"
+              ? /^iam\.partner_group_member_(reader|preparer|reviewer)\.v[1-9][0-9]*$/.test(
                   template.key,
                 )
-              : /^workforce\.[a-z_]+\.v[1-9][0-9]*$/.test(template.key)) ||
+              : template.family === "pharmacy_binding"
+                ? /^pharmacy\.department_binding_(preparer|reviewer)\.v[1-9][0-9]*$/.test(
+                    template.key,
+                  )
+                : /^workforce\.[a-z_]+\.v[1-9][0-9]*$/.test(template.key)) ||
       keys.has(template.key) ||
       ![
         "leave",
@@ -290,6 +329,7 @@ for (const migration of migrations) {
         "partner_membership",
         "supplier_access",
         "purchase_order",
+        "supplier_receiving",
       ].includes(template.family) ||
       typeof template.name !== "string" ||
       !template.name ||
@@ -306,11 +346,16 @@ for (const migration of migrations) {
           template.family !== "partner_membership" &&
           template.family !== "supplier_access" &&
           template.family !== "purchase_order" &&
+          template.family !== "supplier_receiving" &&
           template.family !== "leave" &&
           template.permissions.length !== 1) ||
       !template.permissions.every(
         (permission) =>
           /^workforce\.[a-z_.]+$/.test(permission) ||
+          (template.family === "supplier_receiving" &&
+            /^(pharmacy\.hospital_(receiving\.(use|review)|fulfilment\.use)|supply\.(goods_receipt\.(read|record|review)|supplier_order\.read))$/.test(
+              permission,
+            )) ||
           (template.family === "purchase_order" &&
             /^supply\.purchase_order\.(read|prepare|review|cancel)$/.test(permission)) ||
           (template.family === "supplier_access" &&

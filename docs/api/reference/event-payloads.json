@@ -2827,6 +2827,249 @@
       "type": "object"
     }
   },
+  "helivanta.in.pharmacy.supplier_dispatch_recorded.v1": {
+    "source": "backend/internal/modules/pharmacy/contract/fulfilment_types_generated.go:16",
+    "go_type": "SupplierDispatchRecordedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "actor_subject": {
+          "type": "string"
+        },
+        "allocation_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "buyer_location_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "buyer_organization_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "buyer_tenant_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "dispatched_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "expires_on": {
+          "type": "string"
+        },
+        "handoff_reference": {
+          "type": "string"
+        },
+        "hospital_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "line_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "lot_number": {
+          "type": "string"
+        },
+        "mrp_minor": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "order_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "order_input_sha256": {
+          "type": "string"
+        },
+        "pack_size": {
+          "type": "integer"
+        },
+        "product": {
+          "properties": {
+            "owner": {
+              "type": "string"
+            },
+            "product_id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "version": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "version_id": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "owner",
+            "product_id"
+          ],
+          "type": "object"
+        },
+        "product_description": {
+          "type": "string"
+        },
+        "quantity_units": {
+          "type": "integer"
+        },
+        "source_location_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "source_organization_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "source_tenant_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "unit_code": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "allocation_id",
+        "order_id",
+        "line_id",
+        "order_input_sha256",
+        "source_tenant_id",
+        "source_organization_id",
+        "source_location_id",
+        "buyer_tenant_id",
+        "hospital_id",
+        "buyer_organization_id",
+        "buyer_location_id",
+        "product",
+        "unit_code",
+        "quantity_units",
+        "lot_number",
+        "expires_on",
+        "handoff_reference",
+        "actor_subject",
+        "product_description",
+        "pack_size",
+        "dispatched_at"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.pharmacy.supplier_receiving_recorded.v1": {
+    "source": "backend/internal/modules/pharmacy/contract/fulfilment_types_generated.go:58",
+    "go_type": "SupplierReceivingRecordedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "shipment_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "source_tenant_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "summary": {
+          "properties": {
+            "accepted_units": {
+              "type": "integer"
+            },
+            "actor_subject": {
+              "type": "string"
+            },
+            "closed": {
+              "type": "boolean"
+            },
+            "counted_units": {
+              "type": "integer"
+            },
+            "id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "order_id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "owner_tenant_id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "recorded_at": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "rejected_units": {
+              "type": "integer"
+            },
+            "shipment_id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "short_units": {
+              "type": "integer"
+            },
+            "version": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "id",
+            "shipment_id",
+            "order_id",
+            "owner_tenant_id",
+            "version",
+            "counted_units",
+            "accepted_units",
+            "rejected_units",
+            "short_units",
+            "closed",
+            "reason",
+            "actor_subject",
+            "recorded_at"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "shipment_id",
+        "source_tenant_id",
+        "summary"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.pharmacy.unused_payment_refund_recorded.v1": {
     "source": "backend/internal/modules/pharmacy/contract/events.go:11",
     "go_type": "UnusedPaymentRefundRecordedData",
@@ -3891,6 +4134,405 @@
         "party_id",
         "premise_id",
         "receipt_id"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.supply.supplier_dispatch_recorded.v1": {
+    "source": "backend/internal/modules/supply/contract/fulfilment_types_generated.go:9",
+    "go_type": "SupplierDispatchRecordedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "actor_subject": {
+          "type": "string"
+        },
+        "allocation_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "buyer_location_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "buyer_organization_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "buyer_tenant_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "dispatched_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "expires_on": {
+          "type": "string"
+        },
+        "handoff_reference": {
+          "type": "string"
+        },
+        "hospital_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "line_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "lot_number": {
+          "type": "string"
+        },
+        "mrp_minor": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "order_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "order_input_sha256": {
+          "type": "string"
+        },
+        "pack_size": {
+          "type": "integer"
+        },
+        "product": {
+          "properties": {
+            "owner": {
+              "type": "string"
+            },
+            "product_id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "version": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "version_id": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "owner",
+            "product_id"
+          ],
+          "type": "object"
+        },
+        "product_description": {
+          "type": "string"
+        },
+        "quantity_units": {
+          "type": "integer"
+        },
+        "source_location_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "source_organization_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "source_tenant_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "unit_code": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "allocation_id",
+        "order_id",
+        "line_id",
+        "order_input_sha256",
+        "source_tenant_id",
+        "source_organization_id",
+        "source_location_id",
+        "buyer_tenant_id",
+        "hospital_id",
+        "buyer_organization_id",
+        "buyer_location_id",
+        "product",
+        "unit_code",
+        "quantity_units",
+        "lot_number",
+        "expires_on",
+        "handoff_reference",
+        "actor_subject",
+        "product_description",
+        "pack_size",
+        "dispatched_at"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.supply.supplier_receiving_exchange.v1": {
+    "source": "backend/internal/modules/supply/contract/fulfilment_types_generated.go:77",
+    "go_type": "SupplierReceivingExchangeData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "shipment_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "source_tenant_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "summary": {
+          "properties": {
+            "accepted_units": {
+              "type": "integer"
+            },
+            "actor_subject": {
+              "type": "string"
+            },
+            "closed": {
+              "type": "boolean"
+            },
+            "counted_units": {
+              "type": "integer"
+            },
+            "id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "order_id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "owner_tenant_id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "recorded_at": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "rejected_units": {
+              "type": "integer"
+            },
+            "shipment_id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "short_units": {
+              "type": "integer"
+            },
+            "version": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "id",
+            "shipment_id",
+            "order_id",
+            "owner_tenant_id",
+            "version",
+            "counted_units",
+            "accepted_units",
+            "rejected_units",
+            "short_units",
+            "closed",
+            "reason",
+            "actor_subject",
+            "recorded_at"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "shipment_id",
+        "source_tenant_id",
+        "summary"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.supply.supplier_shipment_exchange.v1": {
+    "source": "backend/internal/modules/supply/contract/fulfilment_types_generated.go:35",
+    "go_type": "SupplierShipmentExchangeData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "actor_subject": {
+          "type": "string"
+        },
+        "allocation_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "buyer_location_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "buyer_organization_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "buyer_tenant_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "dispatched_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "expires_on": {
+          "type": "string"
+        },
+        "handoff_reference": {
+          "type": "string"
+        },
+        "hospital_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "line_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "lot_number": {
+          "type": "string"
+        },
+        "mrp_minor": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "order_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "order_input_sha256": {
+          "type": "string"
+        },
+        "pack_size": {
+          "type": "integer"
+        },
+        "product": {
+          "properties": {
+            "owner": {
+              "type": "string"
+            },
+            "product_id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "version": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "version_id": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "owner",
+            "product_id"
+          ],
+          "type": "object"
+        },
+        "product_description": {
+          "type": "string"
+        },
+        "quantity_units": {
+          "type": "integer"
+        },
+        "source_location_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "source_organization_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "source_tenant_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "unit_code": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "allocation_id",
+        "order_id",
+        "line_id",
+        "order_input_sha256",
+        "source_tenant_id",
+        "source_organization_id",
+        "source_location_id",
+        "buyer_tenant_id",
+        "hospital_id",
+        "buyer_organization_id",
+        "buyer_location_id",
+        "product",
+        "unit_code",
+        "quantity_units",
+        "lot_number",
+        "expires_on",
+        "handoff_reference",
+        "actor_subject",
+        "product_description",
+        "pack_size",
+        "dispatched_at"
       ],
       "type": "object"
     }

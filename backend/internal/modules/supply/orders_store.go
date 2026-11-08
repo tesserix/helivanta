@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/tesserix/helivanta/pkg/supplierorder"
-	"github.com/tesserix/helivanta/pkg/suppliertrade"
 	"gorm.io/gorm"
 )
 
@@ -33,7 +32,7 @@ func loadPurchaseOrder(tx *gorm.DB, tenant string, id uuid.UUID) (localPurchaseO
 	if err := tx.Table("supply_purchase_orders").Select("body,department_id,proposal_input,proposal_receipt").Where("tenant_id=? AND id=?", tenant, id).Take(&row).Error; err != nil {
 		return result, err
 	}
-	if suppliertrade.DecodeObject(row.Body, &result.Order) != nil || supplierorder.ValidateRecord(result.Order) != nil || result.Order.OwnerTenantID.String() != tenant || result.Order.ID != id {
+	if supplierorder.DecodeObject(row.Body, &result.Order) != nil || supplierorder.ValidateRecord(result.Order) != nil || result.Order.OwnerTenantID.String() != tenant || result.Order.ID != id {
 		return result, supplierorder.ErrUnavailable
 	}
 	result.DepartmentID, result.ProposalInput, result.ProposalReceipt = row.DepartmentID, row.ProposalInput, row.ProposalReceipt
@@ -74,7 +73,7 @@ func readPurchaseOrderCommand(tx *gorm.DB, tenant string, order, id uuid.UUID) (
 	if err := tx.Table("supply_purchase_order_commands").Select("receipt").Where("tenant_id=? AND order_id=? AND id=?", tenant, order, id).Take(&row).Error; err != nil {
 		return result, err
 	}
-	if suppliertrade.DecodeObject(row.Receipt, &result) != nil || result.CommandID != id || result.Order.ID != order || result.Order.OwnerTenantID.String() != tenant || supplierorder.ValidateRecord(result.Order) != nil {
+	if supplierorder.DecodeObject(row.Receipt, &result) != nil || result.CommandID != id || result.Order.ID != order || result.Order.OwnerTenantID.String() != tenant || supplierorder.ValidateRecord(result.Order) != nil {
 		return result, supplierorder.ErrUnavailable
 	}
 	return result, nil

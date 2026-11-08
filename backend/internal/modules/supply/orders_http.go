@@ -86,7 +86,7 @@ func buyerPurchaseOrderRequest(c *gin.Context) (authn.Principal, buyerOrderScope
 func decodePurchaseOrder(c *gin.Context, into any) bool {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 64<<10)
 	raw, err := io.ReadAll(c.Request.Body)
-	if err != nil || suppliertrade.DecodeObject(raw, into) != nil {
+	if err != nil || supplierorder.DecodeObject(raw, into) != nil {
 		respond.BadRequest(c, supplierorder.ErrInvalid)
 		return false
 	}
@@ -126,7 +126,7 @@ func (h *purchaseOrderHandlers) readBuyer(c *gin.Context, proposal bool) {
 		}
 		result = local.Order
 		if proposal {
-			if suppliertrade.DecodeObject(local.ProposalReceipt, &result) != nil || result.PreparedBy != p.Subject {
+			if supplierorder.DecodeObject(local.ProposalReceipt, &result) != nil || result.PreparedBy != p.Subject {
 				return gorm.ErrRecordNotFound
 			}
 		}

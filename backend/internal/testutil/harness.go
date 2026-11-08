@@ -446,6 +446,11 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 		SessionSecureCookie: opts.SessionSecureCookie,
 		IdleTimeout:         idleTimeout,
 	}
+	deps.FulfilmentOrders = platform.FulfilmentOrders(opts.Modules, deps)
+	deps.ReceivingAuthority = platform.ReceivingAuthority(opts.Modules, deps)
+	deps.SupplierShipmentSafety = platform.SupplierShipmentSafety(opts.Modules, deps)
+	deps.HospitalSourceAuthority = platform.HospitalSourceAuthority(opts.Modules, deps)
+	deps.SupplierStockCancellation = platform.SupplierStockCancellation(opts.Modules, deps)
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	// Same middleware chain, same order, as cmd/api/main.go: requestid.Middleware()

@@ -22,6 +22,7 @@ type AllocationPlan struct {
 	OwnerTenantID        uuid.UUID                          `json:"owner_tenant_id"`
 	OrderID              uuid.UUID                          `json:"order_id"`
 	OrderInputSha256     string                             `json:"order_input_sha256"`
+	LineQuantityUnits    int64                              `json:"line_quantity_units"`
 	OrderAuthorityEpoch  int64                              `json:"order_authority_epoch"`
 	OrderRemoteEpoch     int64                              `json:"order_remote_epoch"`
 	SourceOrganizationID uuid.UUID                          `json:"source_organization_id"`
@@ -152,6 +153,22 @@ type AllocationView struct {
 	EffectiveStatus        string     `json:"effective_status"`
 	EffectiveReservedUnits int64      `json:"effective_reserved_units"`
 	ObservedAt             time.Time  `json:"observed_at"`
+}
+
+type ReceivingSummary struct {
+	ID            uuid.UUID `json:"id"`
+	ShipmentID    uuid.UUID `json:"shipment_id"`
+	OrderID       uuid.UUID `json:"order_id"`
+	OwnerTenantID uuid.UUID `json:"owner_tenant_id"`
+	Version       int64     `json:"version"`
+	CountedUnits  int64     `json:"counted_units"`
+	AcceptedUnits int64     `json:"accepted_units"`
+	RejectedUnits int64     `json:"rejected_units"`
+	ShortUnits    int64     `json:"short_units"`
+	Closed        bool      `json:"closed"`
+	Reason        string    `json:"reason"`
+	ActorSubject  string    `json:"actor_subject"`
+	RecordedAt    time.Time `json:"recorded_at"`
 }
 
 const maximumLeaseSeconds = 86400

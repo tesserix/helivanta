@@ -17,6 +17,7 @@ import (
 	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 // Release from quarantine (#1386 A3): the only way stock becomes sellable.
@@ -179,38 +180,40 @@ func (h *catalogueHandlers) putRelease(c *gin.Context) {
 			}
 			return tx.Raw(`SELECT `+releaseColumns+` FROM pharmacy_stock_releases WHERE tenant_id=? AND outlet_id=? AND id=?`, p.TenantID, outlet, id).Scan(&result).Error
 		}
-		class, declaration, err := releasable(tx, p.TenantID, outlet, in)
-		if err != nil {
-			return err
-		}
-		if err := tx.Exec(`INSERT INTO pharmacy_stock_releases (id, tenant_id, outlet_id, batch_id, from_location_id, to_location_id, quantity_units,
-			reason, regulatory_class, schedule_declaration_id, intent_sha256, actor_subject) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			id, p.TenantID, outlet, in.BatchID, in.FromLocationID, in.ToLocationID, in.QuantityUnits, in.Reason, class, declaration, digest, p.Subject).Error; err != nil {
-			return err
-		}
-		// Out of quarantine first: the bucket guard refuses an overdraft
-		// before anything reaches the sellable location.
-		for _, m := range []struct {
-			location uuid.UUID
-			quantity int64
-			side     string
-		}{{in.FromLocationID, -in.QuantityUnits, "out"}, {in.ToLocationID, in.QuantityUnits, "in"}} {
-			movement := stockMovement{ID: uuid.Must(uuid.NewV7()), TenantID: uuid.MustParse(p.TenantID), OutletID: outlet, ActorSubject: p.Subject,
-				MovementFields: movementInput{LocationID: m.location, BatchID: in.BatchID, Kind: "release", QuantityUnits: m.quantity,
-					Reason: in.Reason, SourceReference: "release:" + id.String() + ":" + m.side}}
-			if err := tx.Create(&movement).Error; err != nil {
-				return err
-			}
-			data, err := json.Marshal(pharmacycontract.StockMovementRecordedData{PharmacyID: currentPharmacy(c.Request.Context()).String(), OutletID: outlet.String(),
-				MovementID: movement.ID.String(), LocationID: m.location.String(), BatchID: in.BatchID.String()})
+		return h.safeSupplierBatches(tenantdb.WithActor(c.Request.Context(), p.Subject), tx, p.TenantID, outlet, in.BatchID, func() error {
+			class, declaration, err := releasable(tx, p.TenantID, outlet, in)
 			if err != nil {
 				return err
 			}
-			if err := h.bus.Publish(tx, pharmacycontract.SubjectStockMovementRecorded, events.Event{Type: "StockMovementRecorded", Version: 1, TenantID: p.TenantID, Data: data}); err != nil {
+			if err := tx.Exec(`INSERT INTO pharmacy_stock_releases (id, tenant_id, outlet_id, batch_id, from_location_id, to_location_id, quantity_units,
+			reason, regulatory_class, schedule_declaration_id, intent_sha256, actor_subject) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				id, p.TenantID, outlet, in.BatchID, in.FromLocationID, in.ToLocationID, in.QuantityUnits, in.Reason, class, declaration, digest, p.Subject).Error; err != nil {
 				return err
 			}
-		}
-		return tx.Raw(`SELECT `+releaseColumns+` FROM pharmacy_stock_releases WHERE tenant_id=? AND outlet_id=? AND id=?`, p.TenantID, outlet, id).Scan(&result).Error
+			// Out of quarantine first: the bucket guard refuses an overdraft
+			// before anything reaches the sellable location.
+			for _, m := range []struct {
+				location uuid.UUID
+				quantity int64
+				side     string
+			}{{in.FromLocationID, -in.QuantityUnits, "out"}, {in.ToLocationID, in.QuantityUnits, "in"}} {
+				movement := stockMovement{ID: uuid.Must(uuid.NewV7()), TenantID: uuid.MustParse(p.TenantID), OutletID: outlet, ActorSubject: p.Subject,
+					MovementFields: movementInput{LocationID: m.location, BatchID: in.BatchID, Kind: "release", QuantityUnits: m.quantity,
+						Reason: in.Reason, SourceReference: "release:" + id.String() + ":" + m.side}}
+				if err := tx.Create(&movement).Error; err != nil {
+					return err
+				}
+				data, err := json.Marshal(pharmacycontract.StockMovementRecordedData{PharmacyID: currentPharmacy(c.Request.Context()).String(), OutletID: outlet.String(),
+					MovementID: movement.ID.String(), LocationID: m.location.String(), BatchID: in.BatchID.String()})
+				if err != nil {
+					return err
+				}
+				if err := h.bus.Publish(tx, pharmacycontract.SubjectStockMovementRecorded, events.Event{Type: "StockMovementRecorded", Version: 1, TenantID: p.TenantID, Data: data}); err != nil {
+					return err
+				}
+			}
+			return tx.Raw(`SELECT `+releaseColumns+` FROM pharmacy_stock_releases WHERE tenant_id=? AND outlet_id=? AND id=?`, p.TenantID, outlet, id).Scan(&result).Error
+		})
 	})
 	var refusal errNotReleasable
 	switch {

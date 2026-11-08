@@ -1049,6 +1049,16 @@
           "id": "0043_iam_order_operating_templates",
           "sql_sha256": "0432bdd5d479ab23cdaccbe033fe76d5f896e91be1c433f423e92da0d33e4d1c",
           "creates_tables": []
+        },
+        {
+          "id": "0044_iam_fulfilment_operating_templates",
+          "sql_sha256": "7ded878243a63dcafa0012664dfb525c86156b7dcf40d9eedb792133c7fdb908",
+          "creates_tables": []
+        },
+        {
+          "id": "0045_iam_supplier_receiving_templates",
+          "sql_sha256": "9b3678c4bd177dd0ee98ea455ac4bdd6463b744dad522d246ae0bfc37558ab1d",
+          "creates_tables": []
         }
       ]
     },
@@ -2863,6 +2873,96 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/closures/:closure",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/clearances/:clearance",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receiving",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/creation-receipt",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "scope_kind": "hospital",
           "scope_parameter": "hospital",
           "method": "GET",
@@ -4075,6 +4175,51 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/creation-receipt",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations/in-force",
           "permission": "pharmacy.tax.manage",
           "authentication_required": true,
@@ -4219,6 +4364,22 @@
         }
       ],
       "grants": [
+        {
+          "permission": "pharmacy.stock.fulfil",
+          "roles": []
+        },
+        {
+          "permission": "pharmacy.hospital_fulfilment.use",
+          "roles": []
+        },
+        {
+          "permission": "pharmacy.hospital_receiving.use",
+          "roles": []
+        },
+        {
+          "permission": "pharmacy.hospital_receiving.review",
+          "roles": []
+        },
         {
           "permission": "pharmacy.staff_binding.read",
           "roles": []
@@ -4482,6 +4643,8 @@
         }
       ],
       "publishes": [
+        "helivanta.in.pharmacy.supplier_receiving_recorded.v1",
+        "helivanta.in.pharmacy.supplier_dispatch_recorded.v1",
         "helivanta.in.pharmacy.staff_department_binding_changed.v1",
         "helivanta.in.pharmacy.licence_evidence_scan_requested.v1",
         "helivanta.in.pharmacy.licence_evidence_changed.v1",
@@ -4861,6 +5024,21 @@
           "sql_sha256": "0d89514f07e53ee637eae7d7bc0d01d267e79bb1b948898ddf63aa99a8f79985",
           "creates_tables": [
             "pharmacy_operating_stock_audit"
+          ]
+        },
+        {
+          "id": "0039_pharmacy_supplier_fulfilment",
+          "sql_sha256": "55b0d637485e109ede35e289035a8a8e2113a6daf2a310cab81790c1907231ca",
+          "creates_tables": [
+            "pharmacy_supplier_allocations",
+            "pharmacy_supplier_holds",
+            "pharmacy_supplier_commands",
+            "pharmacy_supplier_allocation_history",
+            "pharmacy_supplier_receiving_heads",
+            "pharmacy_supplier_receipts",
+            "pharmacy_supplier_receiving_closures",
+            "pharmacy_supplier_receiving_clearances",
+            "pharmacy_supplier_batch_sources"
           ]
         }
       ]
@@ -6246,6 +6424,51 @@
         },
         {
           "method": "GET",
+          "path": "/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation/creation-receipt",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/supply/parties/:party/operating-locations/:premise",
           "permission": "supply.operations.read",
           "authentication_required": true,
@@ -6614,6 +6837,24 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/supply/supplier-orders/:order/shipments/:shipment/receiving/responses/:response",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/supplier-orders/:order/shipments/:shipment/receiving",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/supply/supplier-orders/:order",
           "permission": "public",
@@ -6655,6 +6896,26 @@
         },
         {
           "permission": "supply.supplier_order.accept",
+          "roles": []
+        },
+        {
+          "permission": "supply.stock.fulfil",
+          "roles": []
+        },
+        {
+          "permission": "supply.receiving_response.record",
+          "roles": []
+        },
+        {
+          "permission": "supply.goods_receipt.read",
+          "roles": []
+        },
+        {
+          "permission": "supply.goods_receipt.record",
+          "roles": []
+        },
+        {
+          "permission": "supply.goods_receipt.review",
           "roles": []
         },
         {
@@ -6934,6 +7195,9 @@
         }
       ],
       "publishes": [
+        "helivanta.in.supply.supplier_receiving_exchange.v1",
+        "helivanta.in.supply.supplier_shipment_exchange.v1",
+        "helivanta.in.supply.supplier_dispatch_recorded.v1",
         "helivanta.in.supply.order_exchange.v1",
         "helivanta.in.supply.stock_quality_recorded.v1",
         "helivanta.in.supply.relationship_exchange.v1",
@@ -6953,10 +7217,14 @@
         "helivanta.in.supply.license_review_changed.v1"
       ],
       "directed_subjects": [
+        "helivanta.in.supply.supplier_receiving_exchange.v1",
+        "helivanta.in.supply.supplier_shipment_exchange.v1",
         "helivanta.in.supply.relationship_exchange.v1",
         "helivanta.in.supply.order_exchange.v1"
       ],
       "directed_write_tables": [
+        "supply_supplier_dispatched_shipments",
+        "supply_supplier_shipments",
         "supply_trade_relationships",
         "supply_trade_relationship_history",
         "supply_purchase_orders",
@@ -6971,6 +7239,31 @@
         {
           "name": "supply-purchase-order-exchange",
           "subject": "helivanta.in.supply.order_exchange.v1",
+          "after_commit": false
+        },
+        {
+          "name": "supply-supplier-receiving-forward",
+          "subject": "helivanta.in.pharmacy.supplier_receiving_recorded.v1",
+          "after_commit": false
+        },
+        {
+          "name": "supply-supplier-receiving-exchange",
+          "subject": "helivanta.in.supply.supplier_receiving_exchange.v1",
+          "after_commit": false
+        },
+        {
+          "name": "supply-supply-supplier-dispatch",
+          "subject": "helivanta.in.supply.supplier_dispatch_recorded.v1",
+          "after_commit": false
+        },
+        {
+          "name": "supply-pharmacy-supplier-dispatch",
+          "subject": "helivanta.in.pharmacy.supplier_dispatch_recorded.v1",
+          "after_commit": false
+        },
+        {
+          "name": "supply-supplier-shipment-exchange",
+          "subject": "helivanta.in.supply.supplier_shipment_exchange.v1",
           "after_commit": false
         },
         {
@@ -7102,6 +7395,22 @@
             "supply_purchase_orders",
             "supply_purchase_order_commands",
             "supply_purchase_order_history"
+          ]
+        },
+        {
+          "id": "0016_supply_supplier_fulfilment",
+          "sql_sha256": "6f6843bb37b7ae30051dbe79f28e30fa0bd6b3e9689cc2d504e3e7889ab03ec2",
+          "creates_tables": [
+            "supply_supplier_allocations",
+            "supply_supplier_holds",
+            "supply_supplier_commands",
+            "supply_supplier_allocation_history",
+            "supply_stock_fulfilment_balances",
+            "supply_stock_dispatches",
+            "supply_supplier_shipments",
+            "supply_supplier_dispatched_shipments",
+            "supply_supplier_receiving_updates",
+            "supply_supplier_discrepancy_responses"
           ]
         }
       ]

@@ -12,6 +12,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/organizationidentity"
 	"github.com/tesserix/helivanta/pkg/session"
 	"github.com/tesserix/helivanta/pkg/stockproduct"
+	"github.com/tesserix/helivanta/pkg/supplierfulfilment"
 	"github.com/tesserix/helivanta/pkg/supplierorder"
 	"github.com/tesserix/helivanta/pkg/suppliertrade"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
@@ -47,30 +48,35 @@ type RoleLister interface {
 // Deps is everything a module may depend on. Modules must not reach
 // around it. Projections use events; authoritative decisions use published owner APIs (ADR-0041).
 type Deps struct {
-	TradingEndpoints     suppliertrade.CurrentEndpointGuard
-	SourceChecks         suppliertrade.SourceChecker
-	TradingRelationships suppliertrade.CurrentRelationshipGuard
-	PartnerScopes        authz.PartnerScopeAuthorizer
-	SourceAdministration authz.SourceAdministrationGuard
-	OperatingAuthorizer  authz.OperatingScopeAuthorizer
-	IndependentStaff     authz.CurrentIndependentStaffGuard
-	OperatingLocations   authz.CurrentOperatingLocationGuard
-	Membership           authz.MembershipChecker
-	StockProducts        stockproduct.Guard
-	OrderProducts        supplierorder.CurrentOrderProducts
-	StaffActors          authz.CurrentStaffActorGuard
-	PurchaseOrderActors  authz.CurrentPurchaseOrderActorGuard
-	StaffPostingSources  authz.CurrentStaffPostingSourceGuard
-	PartnerMembers       authz.CurrentPartnerMemberGuard
-	DepartmentReferences authz.DepartmentReferenceGuard
-	DepartmentScopes     authz.DepartmentScopeGuard
-	PharmacyEmployers    authz.PharmacyEmployerGuard
-	SupplierEmployers    authz.SupplierEmployerGuard
-	ScopedAuthorizer     authz.ScopedAuthorizer
-	OrganizationIdentity *organizationidentity.Client
-	DB                   *tenantdb.DB
-	Bus                  *events.Bus
-	Documents            *attachments.GCS
+	TradingEndpoints          suppliertrade.CurrentEndpointGuard
+	SourceChecks              suppliertrade.SourceChecker
+	TradingRelationships      suppliertrade.CurrentRelationshipGuard
+	PartnerScopes             authz.PartnerScopeAuthorizer
+	SourceAdministration      authz.SourceAdministrationGuard
+	OperatingAuthorizer       authz.OperatingScopeAuthorizer
+	IndependentStaff          authz.CurrentIndependentStaffGuard
+	OperatingLocations        authz.CurrentOperatingLocationGuard
+	Membership                authz.MembershipChecker
+	StockProducts             stockproduct.Guard
+	OrderProducts             supplierorder.CurrentOrderProducts
+	FulfilmentOrders          supplierfulfilment.CurrentOrderGuard
+	ReceivingAuthority        supplierfulfilment.ReceivingAuthority
+	SupplierShipmentSafety    supplierfulfilment.ShipmentSafety
+	HospitalSourceAuthority   supplierfulfilment.HospitalSourceAuthority
+	SupplierStockCancellation supplierfulfilment.StockCancellation
+	StaffActors               authz.CurrentStaffActorGuard
+	PurchaseOrderActors       authz.CurrentPurchaseOrderActorGuard
+	StaffPostingSources       authz.CurrentStaffPostingSourceGuard
+	PartnerMembers            authz.CurrentPartnerMemberGuard
+	DepartmentReferences      authz.DepartmentReferenceGuard
+	DepartmentScopes          authz.DepartmentScopeGuard
+	PharmacyEmployers         authz.PharmacyEmployerGuard
+	SupplierEmployers         authz.SupplierEmployerGuard
+	ScopedAuthorizer          authz.ScopedAuthorizer
+	OrganizationIdentity      *organizationidentity.Client
+	DB                        *tenantdb.DB
+	Bus                       *events.Bus
+	Documents                 *attachments.GCS
 	// Transit is nil when OpenBao is unconfigured; routes that need it answer 503.
 	Transit *transit.Client
 	// PaymentsProviderURL is the Razorpay API base (RAZORPAY_API_URL); tests

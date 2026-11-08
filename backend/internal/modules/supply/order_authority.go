@@ -56,7 +56,7 @@ func purchaseOrderFrame(tx *gorm.DB, values map[string]string, action func() err
 	}
 	return action()
 }
-func (h *purchaseOrderHandlers) buyer(ctx context.Context, p authn.Principal, scope buyerOrderScope, permission authz.Permission, action func(context.Context, *gorm.DB, supplierorder.Actor) error) error {
+func (h *purchaseOrderHandlers) buyer(ctx context.Context, p authn.Principal, scope buyerOrderScope, permission authz.Permission, action func(context.Context, *gorm.DB, supplierorder.Actor) error, extra ...authz.Permission) error {
 	guard, ok := h.authority.(authz.CompoundScopedCommandGuard)
 	if !ok || h.db == nil || h.actors == nil || h.departments == nil || action == nil {
 		return supplierorder.ErrUnavailable
@@ -75,7 +75,7 @@ func (h *purchaseOrderHandlers) buyer(ctx context.Context, p authn.Principal, sc
 		pathStrings[i] = id.String()
 	}
 	checks := make([]authz.ScopeCheck, 0, 2)
-	for _, perm := range []authz.Permission{permission, authz.PurchaseOrderActorUse} {
+	for _, perm := range append([]authz.Permission{permission, authz.PurchaseOrderActorUse}, extra...) {
 		request := authz.ScopeRequest{TenantID: p.TenantID, Subject: p.Subject, HospitalID: scope.hospital.String(), DepartmentPath: pathStrings, Permission: perm}
 		grant, err := h.authority.AuthorizeScope(ctx, request)
 		if err != nil {
@@ -92,9 +92,9 @@ func (h *purchaseOrderHandlers) buyer(ctx context.Context, p authn.Principal, sc
 				if actor.StaffID == uuid.Nil {
 					return authz.ErrScopedAuthorizationUnavailable
 				}
-				mode := "buyer_write"
-				if permission == PermPurchaseOrderRead {
-					mode = "buyer_read"
+				mode := "buyer_read"
+				if permission == PermPurchaseOrderPrepare || permission == PermPurchaseOrderReview || permission == PermPurchaseOrderCancel {
+					mode = "buyer_write"
 				}
 				return h.db.WithTenantCommand(actorCtx, p.TenantID, func(tx *gorm.DB) error {
 					return purchaseOrderFrame(tx, map[string]string{"app.supply_order_mode": mode, "app.supply_order_hospital": scope.hospital.String(), "app.supply_order_department": scope.department.String(), "app.supply_order_outlet": scope.outlet.String(), "app.supply_order_actor_staff": actor.StaffID.String()}, func() error {

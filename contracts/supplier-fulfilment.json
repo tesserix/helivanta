@@ -59,6 +59,12 @@
         "max": 64
       },
       {
+        "name": "line_quantity_units",
+        "type": "int64",
+        "min": 1,
+        "max": 1000000000
+      },
+      {
         "name": "order_authority_epoch",
         "type": "int64",
         "min": 1,
@@ -589,6 +595,74 @@
       },
       {
         "name": "observed_at",
+        "type": "time"
+      }
+    ],
+    "ReceivingSummary": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "shipment_id",
+        "type": "uuid"
+      },
+      {
+        "name": "order_id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "counted_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "accepted_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "rejected_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "short_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "closed",
+        "type": "bool"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "recorded_at",
         "type": "time"
       }
     ]

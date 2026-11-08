@@ -81,3 +81,14 @@ func CloseReceiving(id uuid.UUID, s Shipment, current ReceivingTotals, in Receiv
 	}
 	return ReceivingClosure{ID: id, OwnerTenantID: s.BuyerTenantID, ShipmentID: s.ID, CountedUnits: current.Counted, AcceptedUnits: current.Accepted, RejectedUnits: current.Rejected, ShortUnits: s.QuantityUnits - current.Counted, Reason: in.Reason, ActorSubject: actor.Subject, ActorStaffID: actor.StaffID, CreatedAt: at.UTC().Truncate(time.Microsecond)}, nil
 }
+
+// ValidateReceivingSummary bounds a recipient's progress against immutable source dispatch evidence.
+func ValidateReceivingSummary(v ReceivingSummary, s Shipment) error {
+	if ValidateShipment(s) != nil || !recordID(v.ID) || v.ShipmentID != s.ID || v.OrderID != s.OrderID || v.OwnerTenantID != s.BuyerTenantID || v.Version < 1 || v.Version > 9007199254740991 || !validTotals(ReceivingTotals{Counted: v.CountedUnits, Accepted: v.AcceptedUnits, Rejected: v.RejectedUnits}, s.QuantityUnits) || !suppliertrade.Text(v.Reason, 500) || !suppliertrade.Text(v.ActorSubject, 200) || v.RecordedAt.IsZero() || v.RecordedAt.Before(s.DispatchedAt) {
+		return ErrInvalid
+	}
+	if v.Closed && v.ShortUnits != s.QuantityUnits-v.CountedUnits || !v.Closed && v.ShortUnits != 0 {
+		return ErrInvalid
+	}
+	return nil
+}

@@ -61,7 +61,7 @@ func Plan(id uuid.UUID, order supplierorder.SupplierOrder, in ReserveInput, acto
 	if in.QuantityUnits > line.QuantityUnits-budget.DispatchedUnits-budget.ReservedUnits {
 		return empty, ErrConflict
 	}
-	result := AllocationPlan{ID: id, OwnerTenantID: order.OwnerTenantID, OrderID: order.ID, OrderInputSha256: order.InputSha256, OrderAuthorityEpoch: order.AuthorityEpoch, OrderRemoteEpoch: order.RemoteEpoch, SourceOrganizationID: order.Terms.Seller.OrganizationID, SourceLocationID: order.Terms.Seller.LocationID, BuyerTenantID: order.Terms.Buyer.TenantID, HospitalID: *order.Terms.Buyer.HospitalID, BuyerOrganizationID: order.Terms.Buyer.OrganizationID, BuyerLocationID: order.Terms.Buyer.LocationID, Product: line.Product, UnitCode: line.UnitCode, Input: in, ActorSubject: actor.Subject, ActorStaffID: actor.StaffID, CreatedAt: at}
+	result := AllocationPlan{ID: id, OwnerTenantID: order.OwnerTenantID, OrderID: order.ID, OrderInputSha256: order.InputSha256, LineQuantityUnits: line.QuantityUnits, OrderAuthorityEpoch: order.AuthorityEpoch, OrderRemoteEpoch: order.RemoteEpoch, SourceOrganizationID: order.Terms.Seller.OrganizationID, SourceLocationID: order.Terms.Seller.LocationID, BuyerTenantID: order.Terms.Buyer.TenantID, HospitalID: *order.Terms.Buyer.HospitalID, BuyerOrganizationID: order.Terms.Buyer.OrganizationID, BuyerLocationID: order.Terms.Buyer.LocationID, Product: line.Product, UnitCode: line.UnitCode, Input: in, ActorSubject: actor.Subject, ActorStaffID: actor.StaffID, CreatedAt: at}
 	raw, err := json.Marshal(result)
 	if err != nil {
 		return empty, ErrInvalid
@@ -117,6 +117,9 @@ func Reserve(plan AllocationPlan, evidence StockEvidence, at time.Time) (Allocat
 // ValidatePlan checks stored evidence shape; publication/actor guards remain mandatory.
 func ValidatePlan(p AllocationPlan) error {
 	hash, e := hex.DecodeString(p.OrderInputSha256)
+	if p.LineQuantityUnits < 1 || p.LineQuantityUnits > maximumUnits || p.Input.QuantityUnits > p.LineQuantityUnits {
+		return ErrInvalid
+	}
 	if e != nil || len(hash) != 32 || !recordID(p.ID) || !recordID(p.OrderID) || p.OwnerTenantID == uuid.Nil || p.BuyerTenantID == uuid.Nil || p.OwnerTenantID == p.BuyerTenantID || p.HospitalID == uuid.Nil || !recordID(p.SourceOrganizationID) || !recordID(p.SourceLocationID) || !recordID(p.BuyerOrganizationID) || !recordID(p.BuyerLocationID) || p.OrderAuthorityEpoch < 1 || p.OrderRemoteEpoch < 1 || p.Input.ExpectedOrderVersion < 1 || !recordID(p.Input.StockID) || !validActor(supplierorder.Actor{Subject: p.ActorSubject, StaffID: p.ActorStaffID}) || !suppliertrade.Text(p.Input.Reason, 500) || p.CreatedAt.IsZero() || !p.Input.ExpiresAt.After(p.CreatedAt) || p.Input.ExpiresAt.Sub(p.CreatedAt) > time.Duration(maximumLeaseSeconds)*time.Second {
 		return ErrInvalid
 	}

@@ -425,6 +425,16 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/dispenses/dispensed` | `pharmacy.dispense.read` | true | true |
 | GET | `/v1/pharmacy/dispenses/waiting` | `pharmacy.dispense.read` | true | true |
 | GET | `/v1/pharmacy/dispenses` | `pharmacy.dispense.read` | true | false |
+| PUT | `/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/closures/:closure` | `public` | false | false |
+| PUT | `/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/clearances/:clearance` | `public` | false | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt` | `public` | false | false |
+| PUT | `/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt` | `public` | false | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receiving` | `public` | false | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/commands/:command` | `public` | false | false |
+| PUT | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/commands/:command` | `public` | false | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/creation-receipt` | `public` | false | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation` | `public` | false | false |
+| PUT | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation` | `public` | false | false |
 | GET | `/v1/pharmacy/hospitals/:hospital/staff-binding-outlet-choices` | `pharmacy.staff_binding.read` | true | false |
 | GET | `/v1/pharmacy/insights` | `pharmacy.dispense.read` | false | false |
 | GET | `/v1/pharmacy/medications` | `pharmacy.medication.read` | true | false |
@@ -558,6 +568,11 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents/:id` | `pharmacy.stock.quarantine` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents/recent` | `pharmacy.stock.read` | true | true |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents` | `pharmacy.stock.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/commands/:command` | `public` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/commands/:command` | `public` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/creation-receipt` | `public` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation` | `public` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation` | `public` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations/in-force` | `pharmacy.tax.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations` | `pharmacy.tax.manage` | true | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations` | `pharmacy.tax.manage` | false | false |
@@ -577,6 +592,8 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 
 Published subjects:
 
+- `helivanta.in.pharmacy.supplier_receiving_recorded.v1`
+- `helivanta.in.pharmacy.supplier_dispatch_recorded.v1`
 - `helivanta.in.pharmacy.staff_department_binding_changed.v1`
 - `helivanta.in.pharmacy.licence_evidence_scan_requested.v1`
 - `helivanta.in.pharmacy.licence_evidence_changed.v1`
@@ -647,6 +664,7 @@ Migration table declarations:
 - `0035_pharmacy_trading_scope`: `pharmacy_trading_scopes`, `pharmacy_trading_scope_commands`.
 - `0036_pharmacy_trading_source`: `pharmacy_licence_revocations`.
 - `0038_pharmacy_operating_receipts`: `pharmacy_operating_stock_audit`.
+- `0039_pharmacy_supplier_fulfilment`: `pharmacy_supplier_allocations`, `pharmacy_supplier_holds`, `pharmacy_supplier_commands`, `pharmacy_supplier_allocation_history`, `pharmacy_supplier_receiving_heads`, `pharmacy_supplier_receipts`, `pharmacy_supplier_receiving_closures`, `pharmacy_supplier_receiving_clearances`, `pharmacy_supplier_batch_sources`.
 
 ## payments
 
@@ -847,6 +865,11 @@ Source: [backend/internal/modules/supply/module.go](../../../backend/internal/mo
 | GET | `/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt` | `public` | false | false |
 | PUT | `/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt` | `public` | false | false |
 | GET | `/v1/supply/parties/:party/operating-locations/:premise/stock/receipts` | `public` | true | false |
+| GET | `/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation/commands/:command` | `public` | false | false |
+| PUT | `/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation/commands/:command` | `public` | false | false |
+| GET | `/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation/creation-receipt` | `public` | false | false |
+| GET | `/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation` | `public` | false | false |
+| PUT | `/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation` | `public` | false | false |
 | GET | `/v1/supply/parties/:party/operating-locations/:premise` | `supply.operations.read` | false | false |
 | GET | `/v1/supply/parties/:party/operating-locations` | `supply.operations.read` | true | false |
 | GET | `/v1/supply/parties/:party/platform-identity` | `supply.party.read` | false | false |
@@ -888,11 +911,16 @@ Source: [backend/internal/modules/supply/module.go](../../../backend/internal/mo
 | PUT | `/v1/supply/relationships/:relationship` | `supply.trade_relationship.prepare` | false | false |
 | GET | `/v1/supply/supplier-orders/:order/commands/:command` | `public` | false | false |
 | PUT | `/v1/supply/supplier-orders/:order/commands/:command` | `public` | false | false |
+| PUT | `/v1/supply/supplier-orders/:order/shipments/:shipment/receiving/responses/:response` | `public` | false | false |
+| GET | `/v1/supply/supplier-orders/:order/shipments/:shipment/receiving` | `public` | false | false |
 | GET | `/v1/supply/supplier-orders/:order` | `public` | false | false |
 | GET | `/v1/supply/trading-sources/:product/:organization/locations/:location/relationships` | `supply.trade_relationship.read` | true | false |
 
 Published subjects:
 
+- `helivanta.in.supply.supplier_receiving_exchange.v1`
+- `helivanta.in.supply.supplier_shipment_exchange.v1`
+- `helivanta.in.supply.supplier_dispatch_recorded.v1`
 - `helivanta.in.supply.order_exchange.v1`
 - `helivanta.in.supply.stock_quality_recorded.v1`
 - `helivanta.in.supply.relationship_exchange.v1`
@@ -915,11 +943,16 @@ Subscriptions:
 
 - `supply-relationship-exchange` ← `helivanta.in.supply.relationship_exchange.v1`; after-commit hook: false.
 - `supply-purchase-order-exchange` ← `helivanta.in.supply.order_exchange.v1`; after-commit hook: false.
+- `supply-supplier-receiving-forward` ← `helivanta.in.pharmacy.supplier_receiving_recorded.v1`; after-commit hook: false.
+- `supply-supplier-receiving-exchange` ← `helivanta.in.supply.supplier_receiving_exchange.v1`; after-commit hook: false.
+- `supply-supply-supplier-dispatch` ← `helivanta.in.supply.supplier_dispatch_recorded.v1`; after-commit hook: false.
+- `supply-pharmacy-supplier-dispatch` ← `helivanta.in.pharmacy.supplier_dispatch_recorded.v1`; after-commit hook: false.
+- `supply-supplier-shipment-exchange` ← `helivanta.in.supply.supplier_shipment_exchange.v1`; after-commit hook: false.
 - `supply-evidence-scan` ← `helivanta.in.supply.evidence_scan_requested.v1`; after-commit hook: true.
 
-Directed allowlist: `helivanta.in.supply.relationship_exchange.v1`, `helivanta.in.supply.order_exchange.v1`.
+Directed allowlist: `helivanta.in.supply.supplier_receiving_exchange.v1`, `helivanta.in.supply.supplier_shipment_exchange.v1`, `helivanta.in.supply.relationship_exchange.v1`, `helivanta.in.supply.order_exchange.v1`.
 
-Directed-write provenance tables: `supply_trade_relationships`, `supply_trade_relationship_history`, `supply_purchase_orders`, `supply_purchase_order_history`.
+Directed-write provenance tables: `supply_supplier_dispatched_shipments`, `supply_supplier_shipments`, `supply_trade_relationships`, `supply_trade_relationship_history`, `supply_purchase_orders`, `supply_purchase_order_history`.
 
 Migration table declarations:
 
@@ -934,6 +967,7 @@ Migration table declarations:
 - `0013_supply_trade_relationships`: `supply_trade_relationships`, `supply_trade_relationship_commands`, `supply_trade_relationship_history`.
 - `0014_supply_stock_quality`: `supply_stock_quality_decisions`.
 - `0015_supply_purchase_orders`: `supply_purchase_orders`, `supply_purchase_order_commands`, `supply_purchase_order_history`.
+- `0016_supply_supplier_fulfilment`: `supply_supplier_allocations`, `supply_supplier_holds`, `supply_supplier_commands`, `supply_supplier_allocation_history`, `supply_stock_fulfilment_balances`, `supply_stock_dispatches`, `supply_supplier_shipments`, `supply_supplier_dispatched_shipments`, `supply_supplier_receiving_updates`, `supply_supplier_discrepancy_responses`.
 
 ## lab
 

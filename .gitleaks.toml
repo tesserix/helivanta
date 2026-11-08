@@ -47,4 +47,6 @@ regexes = [
   '''^(supply|pharmacy)\.order_acceptor\.v1$''',
   '''^supply\.department_purchase_order_preparer\.v1$''',
   '''^department-purchase-orders-v1$''',
+  # Public stock-fulfilment duty identifiers; no authentication material.
+  '''^(supply|pharmacy)\.stock_fulfiller\.v1$''',
 ]

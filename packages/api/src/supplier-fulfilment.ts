@@ -13,10 +13,14 @@ import {
   type SupplierSourceOrderScope,
 } from "./supplier-orders";
 import {
+  ReceivingReleaseContract,
+  ReceivingReleaseInputContract,
+  type ReceivingReleaseInput,
   ReceivingProductChoiceContract,
   ReceivingLocationChoiceContract,
   ReceivingResponseInputContract,
   ReceivingResponseRecordContract,
+  ReceivingSharedResponseContract,
   type ReceivingResponseInput,
   type Shipment,
   SupplierStockChoiceContract,
@@ -743,7 +747,7 @@ function buyerShipment(scope: HospitalSupplierReceivingScope, shipment: Shipment
 }
 function checkSupplierResponse(
   shipment: Shipment,
-  value: z.output<typeof ReceivingResponseRecordContract>,
+  value: z.output<typeof ReceivingSharedResponseContract>,
 ) {
   if (
     !same(value.owner_tenant_id, shipment.source_tenant_id) ||
@@ -766,7 +770,7 @@ export async function listHospitalSupplierResponsesPage(
   return page(
     `/supply${hospitalBase(scope)}/purchase-orders/${shipment.order_id}/shipments/${shipment.id}/receiving-responses`,
     scope,
-    ReceivingResponseRecordContract,
+    ReceivingSharedResponseContract,
     (value) => checkSupplierResponse(shipment, value),
     request,
     signal,
@@ -920,4 +924,52 @@ export function listHospitalReceivingLocationsPage(
     request,
     signal,
   );
+}
+
+function checkHospitalRelease(
+  scope: HospitalSupplierReceivingScope,
+  shipment: string,
+  receipt: string,
+  id: string,
+  input: ReceivingReleaseInput,
+  raw: unknown,
+) {
+  const value = ReceivingReleaseContract.parse(raw);
+  checkReceivingChoice(scope, shipment, value);
+  if (
+    !same(value.id, id) ||
+    !same(value.receipt_id, receipt) ||
+    value.actor_subject !== scope.subject
+  )
+    fail();
+  sameIntent(ReceivingReleaseInputContract, value.input, input);
+  return value;
+}
+export async function releaseHospitalSupplierReceipt(
+  scope: HospitalSupplierReceivingScope,
+  shipment: string,
+  receipt: string,
+  id: string,
+  input: ReceivingReleaseInput,
+) {
+  const intent = ReceivingReleaseInputContract.parse(input);
+  const value = await apiFetch(
+    `${receivingBase(scope, shipment)}/receipts/${identifier.parse(receipt)}/releases/${commandIdentifier.parse(id)}`,
+    { ...membershipRequestOptions(scope), method: "PUT", body: JSON.stringify(intent) },
+  );
+  return checkHospitalRelease(scope, shipment, receipt, id, intent, value);
+}
+export async function recoverHospitalSupplierRelease(
+  scope: HospitalSupplierReceivingScope,
+  shipment: string,
+  receipt: string,
+  id: string,
+  input: ReceivingReleaseInput,
+) {
+  const intent = ReceivingReleaseInputContract.parse(input);
+  const value = await apiFetch(
+    `${receivingBase(scope, shipment)}/receipts/${identifier.parse(receipt)}/releases/${identifier.parse(id)}`,
+    membershipRequestOptions(scope),
+  );
+  return checkHospitalRelease(scope, shipment, receipt, id, intent, value);
 }

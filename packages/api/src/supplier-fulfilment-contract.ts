@@ -543,3 +543,68 @@ export const ReceivingLocationChoiceContract = z
   })
   .strict();
 export type ReceivingLocationChoice = z.infer<typeof ReceivingLocationChoiceContract>;
+
+export const ReceivingReleaseInputContract = z
+  .object({
+    expected_summary_version: z.number().int().min(1).max(9007199254740991),
+    to_location_id: identifier,
+    quantity_units: z.number().int().min(1).max(1000000000),
+    reason: z
+      .string()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type ReceivingReleaseInput = z.infer<typeof ReceivingReleaseInputContract>;
+
+export const ReceivingReleaseContract = z
+  .object({
+    id: identifier,
+    owner_tenant_id: identifier,
+    shipment_id: identifier,
+    receipt_id: identifier,
+    pharmacy_id: identifier,
+    outlet_id: identifier,
+    batch_id: identifier,
+    from_location_id: identifier,
+    input: ReceivingReleaseInputContract,
+    actor_subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    actor_staff_id: identifier,
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type ReceivingRelease = z.infer<typeof ReceivingReleaseContract>;
+
+export const ReceivingSharedResponseContract = z
+  .object({
+    id: identifier,
+    owner_tenant_id: identifier,
+    buyer_tenant_id: identifier,
+    order_id: identifier,
+    shipment_id: identifier,
+    source_organization_id: identifier,
+    source_location_id: identifier,
+    source_product: z.enum(["supply", "pharmacy"]),
+    summary_version: z.number().int().min(1).max(9007199254740991),
+    response: z.enum(["confirmed", "disputed"]),
+    reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    actor_subject: z
+      .string()
+      .trim()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type ReceivingSharedResponse = z.infer<typeof ReceivingSharedResponseContract>;

@@ -25,15 +25,18 @@ const (
 
 type supplierReceiving struct {
 	db        *tenantdb.DB
+	owner     *catalogueHandlers
 	authority f.ReceivingAuthority
 	safety    f.ShipmentSafety
 }
 
 func supplierReceivingRoutes(r *platform.Router, deps platform.Deps) {
-	h := &supplierReceiving{db: deps.DB, authority: deps.ReceivingAuthority, safety: deps.SupplierShipmentSafety}
+	h := &supplierReceiving{owner: &catalogueHandlers{db: deps.DB, bus: deps.Bus, supplierSafety: deps.SupplierShipmentSafety}, db: deps.DB, authority: deps.ReceivingAuthority, safety: deps.SupplierShipmentSafety}
 	base := "/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment"
 	h.registerLists(r, base)
 	h.registerChoices(r, base)
+	r.PUT(base+"/receipts/:receipt/releases/:release", authz.Public, h.release)
+	r.GET(base+"/receipts/:receipt/releases/:release", authz.Public, h.releaseReceipt)
 	r.GET(base+"/receiving", authz.Public, h.current)
 	r.PUT(base+"/receipts/:receipt", authz.Public, h.receive)
 	r.GET(base+"/receipts/:receipt", authz.Public, h.receipt)

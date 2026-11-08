@@ -50,7 +50,7 @@ for (const owner of ["supply", "pharmacy"]) {
   wireModels.SupplierDispatchRecordedData = contract.models.Shipment;
   if (owner === "supply") wireModels.SupplierShipmentExchangeData = contract.models.Shipment;
   if (owner === "supply")
-    wireModels.SupplierReceivingResponseExchangeData = contract.models.ReceivingResponseRecord;
+    wireModels.SupplierReceivingResponseExchangeData = contract.models.ReceivingSharedResponse;
   wireModels.ReceivingSummary = contract.models.ReceivingSummary;
   wireModels[
     owner === "supply" ? "SupplierReceivingExchangeData" : "SupplierReceivingRecordedData"

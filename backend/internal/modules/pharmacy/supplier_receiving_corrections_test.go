@@ -1,6 +1,7 @@
 package pharmacy_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,7 +27,7 @@ import (
 )
 
 func TestSupplierReceivingCorrectionRepositoryRetainsEvidenceAndRollsBackCustodyFailures(t *testing.T) {
-	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"receiver": testutil.TenantA}, Perms: map[string][]authz.Permission{"receiver": {pharmacy.PermCatalogueRead, pharmacy.PermCatalogueWrite, pharmacy.PermAccessManage, pharmacy.PermStockRead, pharmacy.PermStockReceive, pharmacy.PermStockCorrect}}, Modules: []platform.Module{pharmacy.New()}})
+	r, db, bus, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"receiver": testutil.TenantA, "classreviewer": testutil.TenantA}, Perms: map[string][]authz.Permission{"receiver": {pharmacy.PermCatalogueRead, pharmacy.PermCatalogueWrite, pharmacy.PermAccessManage, pharmacy.PermStockRead, pharmacy.PermStockReceive, pharmacy.PermStockCorrect, pharmacy.PermTaxManage, pharmacy.PermScheduleDeclare}, "classreviewer": releasePerms}, Modules: []platform.Module{pharmacy.New()}})
 	id := func() uuid.UUID { return uuid.Must(uuid.NewV7()) }
 	tenant := uuid.MustParse(testutil.TenantA)
 	org, outlet, product, q := id(), id(), id(), id()
@@ -281,6 +282,73 @@ func TestSupplierReceivingCorrectionRepositoryRetainsEvidenceAndRollsBackCustody
 		require.ErrorIs(t, err, f.ErrConflict, "command recovery must remain bound to its original actor")
 		return nil
 	}))
+	releaseID := id()
+	releaseInput := f.ReceivingReleaseInput{ExpectedSummaryVersion: 4, ToLocationID: shelf, QuantityUnits: 10, Reason: "TEST physically checked and shelved"}
+	safety := &receivingReleaseSafety{}
+	release := func(actor supplierorder.Actor, request uuid.UUID, in f.ReceivingReleaseInput, after error) error {
+		return command(actor, "review", func(tx *gorm.DB) error {
+			_, err := pharmacy.ApplySupplierReceivingReleaseForTest(t.Context(), tx, platform.Deps{DB: db, Bus: bus, SupplierShipmentSafety: safety}, authn.Principal{Subject: actor.Subject, TenantID: tenant.String()}, scope, shipment, original.ID, request, in, actor)
+			if err != nil {
+				return err
+			}
+			return after
+		})
+	}
+	require.ErrorIs(t, release(receiver, releaseID, releaseInput, nil), f.ErrConflict, "recorder cannot release their own receipt")
+	require.ErrorIs(t, release(reviewer, releaseID, releaseInput, nil), f.ErrConflict, "independent clearance is required")
+	require.NoError(t, command(reviewer, "review", func(tx *gorm.DB) error {
+		if err := tx.Exec(`INSERT INTO pharmacy_supplier_receiving_clearances(tenant_id,id,receipt_id,shipment_id,outlet_id,summary_version,reason,actor_subject,actor_staff_id,created_at)VALUES(?,?,?,?,?,4,'TEST independent review',?,?,clock_timestamp())`, tenant, id(), original.ID, shipment.ID, outlet, reviewer.Subject, reviewer.StaffID).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`UPDATE pharmacy_supplier_batch_sources SET clearance_version=4 WHERE tenant_id=? AND receipt_id=?`, tenant, original.ID).Error
+	}))
+	stale := releaseInput
+	stale.ExpectedSummaryVersion = 3
+	require.ErrorIs(t, release(reviewer, releaseID, stale, nil), f.ErrConflict)
+	excessive := releaseInput
+	excessive.QuantityUnits = 19
+	require.ErrorIs(t, release(reviewer, releaseID, excessive, nil), f.ErrConflict, "receipt uses its effective accepted count of 18, not its original 20")
+	safety.err = f.ErrUnavailable
+	require.ErrorIs(t, release(reviewer, releaseID, releaseInput, nil), f.ErrUnavailable, "source safety outage must fail closed")
+	safety.err = nil
+	require.Error(t, release(reviewer, releaseID, releaseInput, nil), "unclassified product cannot be released")
+	tax := testutil.Do(r, "POST", root+"/catalogue/products/"+product.String()+"/tax-classifications", "receiver", classificationBody("30041010", "taxable", "5", "", "2026-11-01", ""))
+	require.Equal(t, 201, tax.Code, tax.Body.String())
+	schedule := id()
+	declared := testutil.Do(r, "PUT", root+"/catalogue/products/"+product.String()+"/schedule/"+schedule.String(), "receiver", `{"regulatory_class":"H","ndps":false,"source":"TEST pack label"}`)
+	require.Equal(t, 201, declared.Code, declared.Body.String())
+	call(root+"/access/user-classreviewer", `{"level":"editor"}`)
+	reviewed := testutil.Do(r, "POST", root+"/catalogue/products/"+product.String()+"/schedule/"+schedule.String()+"/review", "classreviewer", `{"decision":"approved","reason":"TEST independent class review"}`)
+	require.Equal(t, 200, reviewed.Code, reviewed.Body.String())
+	require.ErrorIs(t, release(reviewer, releaseID, releaseInput, rollback), rollback, "stock, journal and outbox roll back together")
+	require.NoError(t, release(reviewer, releaseID, releaseInput, nil))
+	require.NoError(t, release(reviewer, releaseID, releaseInput, nil), "retry returns original without moving twice")
+	changedRelease := releaseInput
+	changedRelease.QuantityUnits = 9
+	require.ErrorIs(t, release(reviewer, releaseID, changedRelease, nil), f.ErrConflict)
+	require.ErrorIs(t, release(other, releaseID, releaseInput, nil), f.ErrConflict)
+	require.NoError(t, command(reviewer, "review", func(tx *gorm.DB) error {
+		var physical int64
+		if err := tx.Table("pharmacy_stock_movements").Select("COALESCE(SUM(quantity_units),0)").Where("tenant_id=? AND outlet_id=? AND batch_id=? AND location_id=?", tenant, outlet, *original.Input.DestinationBatchID, shelf).Scan(&physical).Error; err != nil {
+			return err
+		}
+		require.Equal(t, int64(10), physical, "only one actual release reaches the shelf")
+		var publications int64
+		if err := tx.Table("outbox_events").Where("tenant_id=? AND subject=? AND payload#>>'{data,batch_id}'=?", tenant, pharmacycontract.SubjectStockMovementRecorded, original.Input.DestinationBatchID.String()).Count(&publications).Error; err != nil {
+			return err
+		}
+		require.Equal(t, int64(2), publications, "one release publishes exactly its two stock movements")
+		return nil
+	}))
+}
+
+type receivingReleaseSafety struct{ err error }
+
+func (s *receivingReleaseSafety) WithSafeShipment(ctx context.Context, _ f.Shipment, action func(context.Context) error) error {
+	if s.err != nil {
+		return s.err
+	}
+	return action(ctx)
 }
 
 func correctionPtr[T any](v T) *T { return &v }

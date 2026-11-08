@@ -2942,6 +2942,24 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/releases/:release",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/releases/:release",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt",
           "permission": "public",
           "authentication_required": true,
@@ -5192,6 +5210,13 @@
           "id": "0041_pharmacy_supplier_receiving_lists",
           "sql_sha256": "6a22a4571748d6715d46680222a7a51c454f5e068f2dee4b74b93fe9f698a428",
           "creates_tables": []
+        },
+        {
+          "id": "0042_pharmacy_supplier_receiving_release",
+          "sql_sha256": "849f9d9783d80804f79fa19aec258641a972cdcee5322bda9ad72d92fe905ac8",
+          "creates_tables": [
+            "pharmacy_supplier_receiving_releases"
+          ]
         }
       ]
     },
@@ -7800,7 +7825,7 @@
         },
         {
           "id": "0017_supply_supplier_response_exchange",
-          "sql_sha256": "9feaa512faf2a48d45c4aa4607f26926f9077524bd3d59e13025158cf237be28",
+          "sql_sha256": "3b0e87ce2c862ad3a0219fa186921e56e71aa95ec3fa861d955904790c27ef5c",
           "creates_tables": [
             "supply_supplier_received_responses"
           ]

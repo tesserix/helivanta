@@ -6,6 +6,7 @@ CREATE TABLE supply_supplier_received_responses(
  tenant_id uuid NOT NULL, id uuid NOT NULL, order_id uuid NOT NULL,
  shipment_id uuid NOT NULL, source_tenant_id uuid NOT NULL,
  summary_version bigint NOT NULL CHECK(summary_version>0),
+ origin_tenant_id uuid GENERATED ALWAYS AS(source_tenant_id)STORED NOT NULL,origin_record_id uuid GENERATED ALWAYS AS(id)STORED NOT NULL,
  body jsonb NOT NULL, source_event_id uuid NOT NULL, created_at timestamptz NOT NULL,
  PRIMARY KEY(tenant_id,id),UNIQUE(tenant_id,shipment_id,summary_version),
  FOREIGN KEY(tenant_id,order_id)REFERENCES supply_purchase_orders(tenant_id,id),
@@ -25,3 +26,5 @@ CREATE POLICY tenant_isolation ON supply_supplier_received_responses USING(
 );
 CREATE INDEX ON supply_supplier_received_responses(tenant_id,order_id,shipment_id,created_at DESC,id DESC);
 CREATE TRIGGER audit_row AFTER INSERT OR UPDATE OR DELETE ON supply_supplier_received_responses FOR EACH ROW EXECUTE FUNCTION audit_record_change();
+
+CREATE TRIGGER supply_supplier_received_response_immutable BEFORE UPDATE OR DELETE OR TRUNCATE ON supply_supplier_received_responses FOR EACH STATEMENT EXECUTE FUNCTION supply_history_immutable();

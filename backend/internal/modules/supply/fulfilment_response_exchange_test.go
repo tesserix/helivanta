@@ -12,7 +12,7 @@ import (
 func TestReceivingResponseExchangeRequiresActualSenderRecipientAndCanonicalInput(t *testing.T) {
 	id := func() string { return uuid.Must(uuid.NewV7()).String() }
 	sender, recipient := id(), id()
-	record := map[string]any{"id": id(), "owner_tenant_id": sender, "buyer_tenant_id": recipient, "order_id": id(), "shipment_id": id(), "source_product": "pharmacy", "source_organization_id": id(), "source_location_id": id(), "summary_version": 2, "response": "disputed", "reason": "TEST damaged pack evidence", "actor_subject": "TEST-supplier", "actor_staff_id": id(), "created_at": time.Now().UTC().Truncate(time.Microsecond)}
+	record := map[string]any{"id": id(), "owner_tenant_id": sender, "buyer_tenant_id": recipient, "order_id": id(), "shipment_id": id(), "source_product": "pharmacy", "source_organization_id": id(), "source_location_id": id(), "summary_version": 2, "response": "disputed", "reason": "TEST damaged pack evidence", "actor_subject": "TEST-supplier", "created_at": time.Now().UTC().Truncate(time.Microsecond)}
 	data, err := json.Marshal(record)
 	require.NoError(t, err)
 	event := events.Event{ID: id(), Type: "helivanta.in.supply.supplier_receiving_response_exchange.v1", Version: 1, TenantID: sender, DestinationTenantID: recipient, Data: data}
@@ -37,4 +37,19 @@ func TestReceivingResponseExchangeRequiresActualSenderRecipientAndCanonicalInput
 		require.Error(t, err)
 		record = copyRecord
 	}
+}
+
+func TestReceivingResponseExchangeRejectsPrivateSourceStaffIdentity(t *testing.T) {
+	id := func() string { return uuid.Must(uuid.NewV7()).String() }
+	sender, recipient := id(), id()
+	record := map[string]any{"id": id(), "owner_tenant_id": sender, "buyer_tenant_id": recipient, "order_id": id(), "shipment_id": id(), "source_product": "pharmacy", "source_organization_id": id(), "source_location_id": id(), "summary_version": 1, "response": "confirmed", "reason": "TEST count reviewed", "actor_subject": "TEST-supplier", "actor_staff_id": id(), "created_at": time.Now().UTC()}
+	body, err := json.Marshal(record)
+	require.NoError(t, err)
+	_, err = receivingResponseEnvelope(events.Event{ID: id(), Type: "helivanta.in.supply.supplier_receiving_response_exchange.v1", Version: 1, TenantID: sender, DestinationTenantID: recipient, Data: body})
+	require.Error(t, err, "private Staff identity must remain source-local")
+	delete(record, "actor_staff_id")
+	body, err = json.Marshal(record)
+	require.NoError(t, err)
+	_, err = receivingResponseEnvelope(events.Event{ID: id(), Type: "helivanta.in.supply.supplier_receiving_response_exchange.v1", Version: 1, TenantID: sender, DestinationTenantID: recipient, Data: body})
+	require.NoError(t, err)
 }

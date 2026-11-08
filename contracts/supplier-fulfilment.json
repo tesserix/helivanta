@@ -1179,6 +1179,152 @@
         "name": "created_at",
         "type": "time"
       }
+    ],
+    "ReceivingReleaseInput": [
+      {
+        "name": "expected_summary_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "to_location_id",
+        "type": "uuid"
+      },
+      {
+        "name": "quantity_units",
+        "type": "int64",
+        "min": 1,
+        "max": 1000000000
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      }
+    ],
+    "ReceivingRelease": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "shipment_id",
+        "type": "uuid"
+      },
+      {
+        "name": "receipt_id",
+        "type": "uuid"
+      },
+      {
+        "name": "pharmacy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "outlet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "batch_id",
+        "type": "uuid"
+      },
+      {
+        "name": "from_location_id",
+        "type": "uuid"
+      },
+      {
+        "name": "input",
+        "type": "ReceivingReleaseInput"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "actor_staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "ReceivingSharedResponse": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "buyer_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "order_id",
+        "type": "uuid"
+      },
+      {
+        "name": "shipment_id",
+        "type": "uuid"
+      },
+      {
+        "name": "source_organization_id",
+        "type": "uuid"
+      },
+      {
+        "name": "source_location_id",
+        "type": "uuid"
+      },
+      {
+        "name": "source_product",
+        "type": "string",
+        "enum": [
+          "supply",
+          "pharmacy"
+        ]
+      },
+      {
+        "name": "summary_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "response",
+        "type": "string",
+        "enum": [
+          "confirmed",
+          "disputed"
+        ]
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "format": "text"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
     ]
   }
 }

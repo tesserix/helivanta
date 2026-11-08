@@ -26,11 +26,11 @@ func verifyReceivingResponseProjection(t *testing.T, db *tenantdb.DB, order supp
 	require.NoError(t, err)
 	require.NoError(t, db.WithTenantCommand(tenantdb.WithActor(t.Context(), "system:supplier-shipments"), order.OwnerTenantID.String(), func(tx *gorm.DB) error {
 		return supply.TestPurchaseOrderFrame(tx, map[string]string{"app.supply_order_mode": "exchange", "app.supply_order_id": order.ID.String(), "app.supply_order_origin": shipment.SourceTenantID.String()}, func() error {
-			return tx.Exec(`INSERT INTO supply_supplier_shipments(tenant_id,id,buyer_order_id,hospital_id,department_id,outlet_id,source_tenant_id,body,created_at)VALUES(?,?,?,?,?,?,?,?::jsonb,?)`, order.OwnerTenantID, shipment.ID, order.ID, shipment.HospitalID, department, shipment.BuyerLocationID, shipment.SourceTenantID, string(body), at).Error
+			return tx.Exec(`INSERT INTO supply_supplier_shipments(tenant_id,id,order_id,hospital_id,department_id,pharmacy_id,outlet_id,source_tenant_id,source_product,body,actor_subject,created_at)VALUES(?,?,?,?,?,?,?,?,?,?::jsonb,?,?)`, order.OwnerTenantID, shipment.ID, order.ID, shipment.HospitalID, department, shipment.BuyerOrganizationID, shipment.BuyerLocationID, shipment.SourceTenantID, shipment.Product.Owner, string(body), "system:supplier-shipments", at).Error
 		})
 	}))
 	record := f.ReceivingResponseRecord{ID: id(), OwnerTenantID: shipment.SourceTenantID, BuyerTenantID: shipment.BuyerTenantID, OrderID: order.ID, ShipmentID: shipment.ID, SourceProduct: shipment.Product.Owner, SourceOrganizationID: shipment.SourceOrganizationID, SourceLocationID: shipment.SourceLocationID, SummaryVersion: 2, Response: "disputed", Reason: "TEST ask to review shortage evidence", ActorSubject: "TEST source responder", ActorStaffID: id(), CreatedAt: at.Add(time.Second)}
-	data, err := json.Marshal(record)
+	data, err := json.Marshal(f.ShareReceivingResponse(record))
 	require.NoError(t, err)
 	const topic = "helivanta.in.supply.supplier_receiving_response_exchange.v1"
 	event := events.Event{ID: id().String(), Type: topic, Version: 1, TenantID: record.OwnerTenantID.String(), DestinationTenantID: record.BuyerTenantID.String(), Data: data}
@@ -56,7 +56,7 @@ func verifyReceivingResponseProjection(t *testing.T, db *tenantdb.DB, order supp
 	forged = event
 	altered := record
 	altered.Reason = "TEST different immutable response"
-	forged.Data, err = json.Marshal(altered)
+	forged.Data, err = json.Marshal(f.ShareReceivingResponse(altered))
 	require.NoError(t, err)
 	require.Error(t, deliver(forged))
 	read := func(frame map[string]string, tenant uuid.UUID, check func(*gorm.DB) error) error {

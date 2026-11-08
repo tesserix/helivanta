@@ -12,9 +12,9 @@ import (
 	"reflect"
 )
 
-func receivingResponseEnvelope(event events.Event) (f.ReceivingResponseRecord, error) {
-	var record f.ReceivingResponseRecord
-	if supplierorder.DecodeObject(event.Data, &record) != nil || f.ValidateReceivingResponse(record) != nil || event.Type != supplycontract.SubjectSupplierReceivingResponseExchange || event.Version != 1 || event.TenantID != record.OwnerTenantID.String() || event.DestinationTenantID != record.BuyerTenantID.String() {
+func receivingResponseEnvelope(event events.Event) (f.ReceivingSharedResponse, error) {
+	var record f.ReceivingSharedResponse
+	if supplierorder.DecodeObject(event.Data, &record) != nil || f.ValidateSharedReceivingResponse(record) != nil || event.Type != supplycontract.SubjectSupplierReceivingResponseExchange || event.Version != 1 || event.TenantID != record.OwnerTenantID.String() || event.DestinationTenantID != record.BuyerTenantID.String() {
 		return record, errors.New("invalid supplier receiving response provenance")
 	}
 	return record, nil
@@ -48,7 +48,7 @@ func supplierReceivingResponseConsumer() events.Consumer {
 			var prior struct{ Body json.RawMessage }
 			err = tx.Table("supply_supplier_received_responses").Select("body").Where("tenant_id=? AND id=?", record.BuyerTenantID, record.ID).Take(&prior).Error
 			if err == nil {
-				var old f.ReceivingResponseRecord
+				var old f.ReceivingSharedResponse
 				if supplierorder.DecodeObject(prior.Body, &old) != nil {
 					return f.ErrUnavailable
 				}
@@ -64,7 +64,7 @@ func supplierReceivingResponseConsumer() events.Consumer {
 		})
 	}}
 }
-func receivingResponseMatchesOrder(v f.ReceivingResponseRecord, order supplierorder.SupplierOrder) bool {
+func receivingResponseMatchesOrder(v f.ReceivingSharedResponse, order supplierorder.SupplierOrder) bool {
 	seller, buyer := order.Terms.Seller, order.Terms.Buyer
 	return v.OrderID == order.ID && v.OwnerTenantID == seller.TenantID && v.BuyerTenantID == buyer.TenantID && v.SourceProduct == seller.Product && v.SourceOrganizationID == seller.OrganizationID && v.SourceLocationID == seller.LocationID
 }

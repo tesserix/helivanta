@@ -1,7 +1,9 @@
 package pharmacy
 
 import (
+	"context"
 	"github.com/google/uuid"
+	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/pkg/authn"
 	f "github.com/tesserix/helivanta/pkg/supplierfulfilment"
 	"github.com/tesserix/helivanta/pkg/supplierorder"
@@ -26,3 +28,8 @@ var TestSupplierCorrectionPage = correctionPage
 
 var TestReceivingProductChoices = receivingProductChoices
 var TestReceivingLocationChoices = receivingLocationChoices
+
+func ApplySupplierReceivingReleaseForTest(ctx context.Context, tx *gorm.DB, deps platform.Deps, p authn.Principal, s f.BuyerScope, shipment f.Shipment, receipt, id uuid.UUID, in f.ReceivingReleaseInput, actor supplierorder.Actor) (f.ReceivingRelease, error) {
+	h := &supplierReceiving{owner: &catalogueHandlers{db: deps.DB, bus: deps.Bus, supplierSafety: deps.SupplierShipmentSafety}}
+	return h.applyReceivingRelease(ctx, tx, p, s, shipment, receipt, id, in, actor)
+}

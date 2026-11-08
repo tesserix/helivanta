@@ -1,11 +1,13 @@
 package pharmacy
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/tesserix/helivanta/pkg/authn"
 	"net/http"
 	"strings"
 	"time"
@@ -163,9 +165,27 @@ func (h *catalogueHandlers) putRelease(c *gin.Context) {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "a release needs a reason and two different locations")
 		return
 	}
-	digest := in.digest()
 	var result stockRelease
 	err := h.transaction(c.Request.Context(), p, outlet, true, func(tx *gorm.DB) error {
+		var err error
+		result, err = h.applyRelease(c.Request.Context(), tx, p, currentPharmacy(c.Request.Context()), outlet, id, in)
+		return err
+	})
+	var refusal errNotReleasable
+	switch {
+	case errors.As(err, &refusal):
+		respond.Error(c, http.StatusConflict, "not_releasable", refusal.reason)
+	case err != nil:
+		stockError(c, err)
+	default:
+		respond.OK(c, result)
+	}
+}
+
+func (h *catalogueHandlers) applyRelease(ctx context.Context, tx *gorm.DB, p authn.Principal, pharmacy, outlet, id uuid.UUID, in releaseInput) (stockRelease, error) {
+	digest := in.digest()
+	var result stockRelease
+	err := func() error {
 		if err := stockLock(tx, p.TenantID+":"+outlet.String()+":release:"+id.String()); err != nil {
 			return err
 		}
@@ -180,7 +200,7 @@ func (h *catalogueHandlers) putRelease(c *gin.Context) {
 			}
 			return tx.Raw(`SELECT `+releaseColumns+` FROM pharmacy_stock_releases WHERE tenant_id=? AND outlet_id=? AND id=?`, p.TenantID, outlet, id).Scan(&result).Error
 		}
-		return h.safeSupplierBatches(tenantdb.WithActor(c.Request.Context(), p.Subject), tx, p.TenantID, outlet, in.BatchID, func() error {
+		return h.safeSupplierBatches(tenantdb.WithActor(ctx, p.Subject), tx, p.TenantID, outlet, in.BatchID, func() error {
 			class, declaration, err := releasable(tx, p.TenantID, outlet, in)
 			if err != nil {
 				return err
@@ -203,7 +223,7 @@ func (h *catalogueHandlers) putRelease(c *gin.Context) {
 				if err := tx.Create(&movement).Error; err != nil {
 					return err
 				}
-				data, err := json.Marshal(pharmacycontract.StockMovementRecordedData{PharmacyID: currentPharmacy(c.Request.Context()).String(), OutletID: outlet.String(),
+				data, err := json.Marshal(pharmacycontract.StockMovementRecordedData{PharmacyID: pharmacy.String(), OutletID: outlet.String(),
 					MovementID: movement.ID.String(), LocationID: m.location.String(), BatchID: in.BatchID.String()})
 				if err != nil {
 					return err
@@ -214,14 +234,6 @@ func (h *catalogueHandlers) putRelease(c *gin.Context) {
 			}
 			return tx.Raw(`SELECT `+releaseColumns+` FROM pharmacy_stock_releases WHERE tenant_id=? AND outlet_id=? AND id=?`, p.TenantID, outlet, id).Scan(&result).Error
 		})
-	})
-	var refusal errNotReleasable
-	switch {
-	case errors.As(err, &refusal):
-		respond.Error(c, http.StatusConflict, "not_releasable", refusal.reason)
-	case err != nil:
-		stockError(c, err)
-	default:
-		respond.OK(c, result)
-	}
+	}()
+	return result, err
 }

@@ -26,7 +26,6 @@ import (
 var eventPayloadPHIAllowlist = map[string]string{
 	"supply.SupplierReceivingResponseExchangeData.Reason":       "bounded supplier response rationale required for hospital discrepancy reconciliation; directed to the exact buyer only, no patient content requested",
 	"supply.SupplierReceivingResponseExchangeData.ActorSubject": "authenticated supplier signatory required to attribute a disputed or confirmed receiving response to its source; exact bilateral exchange only",
-	"supply.SupplierReceivingResponseExchangeData.ActorStaffID": "reviewed source Staff reference pins the immutable response to its accountable actor and original recovery; exact buyer only, no Staff profile or contact fields",
 
 	"supply.SupplierDispatchRecordedData.HandoffReference":   "bounded transport document reference needed for matching physical custody; restricted bilateral exchange, no patient data requested",
 	"supply.SupplierDispatchRecordedData.ActorSubject":       "authenticated physical-operation actor needed for accountable handoff and receiving; exact bilateral exchange only, no contact or private Staff UUID",
@@ -1144,6 +1143,9 @@ func TestEventPayloadPHIFieldsAreAllowlisted(t *testing.T) {
 // thing a reviewer's eye lands on.
 func TestEventPayloadPHIAllowlistIsPinnedExactly(t *testing.T) {
 	require.Equal(t, map[string]string{
+		"supply.SupplierReceivingResponseExchangeData.Reason":       "bounded supplier response rationale required for hospital discrepancy reconciliation; directed to the exact buyer only, no patient content requested",
+		"supply.SupplierReceivingResponseExchangeData.ActorSubject": "authenticated supplier signatory required to attribute a disputed or confirmed receiving response to its source; exact bilateral exchange only",
+
 		"pharmacy.ReceivingSummary.ActorSubject":                 "authenticated physical-operation actor needed for accountable handoff and receiving; exact bilateral exchange only, no contact or private Staff UUID",
 		"pharmacy.ReceivingSummary.Reason":                       "bounded receiving/discrepancy rationale required for supplier reconciliation; restricted bilateral exchange, no patient data requested",
 		"supply.ReceivingSummary.ActorSubject":                   "authenticated physical-operation actor needed for accountable handoff and receiving; exact bilateral exchange only, no contact or private Staff UUID",

@@ -264,3 +264,21 @@ could exhaust JetStream retries while denial was inspected. Expectations now mat
 purpose denial, and recovery explicitly enqueues the same duty/version as durable
 replay after restoring the graph. Activation still requires the exact graph ack;
 retry budgets, production authority and coverage thresholds are unchanged.
+
+### Hospital selector and physical-release continuation
+
+Commit e317f4bd delivered product and fixed-status shelf choices. Its CI proved
+real destination product/pack/status filtering and correction custody checks, but
+blocked other suites on missing response-projection provenance and a stale Staff
+inventory. The classification pin also needed its explicit new actor/reason fields.
+These are corrected without waiving architecture/security checks. Shared supplier
+responses now omit private source Staff IDs, with a native red/green regression.
+
+New candidate physical-release route reuses Pharma's ordinary release engine and
+adds receipt-bound immutable recovery, current closed-summary clearance and
+independent actor checks. Real owner DB assertions cover no-clearance/stale/over-
+quantity refusals, source outage, unclassified stock, rollback, duplicate replay,
+changed-input/actor conflicts, shelf quantity and exact movement outbox count.
+Those assertions await CI; native registration, build and lint are separate evidence.
+Hospital workbench, workplace discovery and actual IAM/browser full flow remain
+unfinished. No merge, Kargo promotion or shared website acceptance is claimed.

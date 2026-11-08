@@ -266,3 +266,29 @@ read visibility does not authorize cross-tenant inserts. The event privacy
 classification explicitly records its commercial fields and restricted actor and
 reason evidence. Native classification checks pass; full migration and broker
 execution remain CI checks.
+
+### Receipt-bound physical quarantine release candidate
+
+`PUT /v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/releases/:release`
+uses current `ReviewReceiving` admission: goods-review and Pharma hospital-review
+permissions, current Workforce Staff, department path and exact destination owner
+binding. `ReceivingReleaseInput` supplies expected summary version, destination
+sellable location, units and reason. The batch and quarantine shelf come from the
+immutable receipt. The shipment must be closed, clearance must match its current
+summary, and the physical reviewer must differ from the original recorder.
+Cumulative release is bounded by that receipt's effective accepted quantity.
+
+Pharma's ordinary release engine posts the release, both stock movements and
+outbox entries with the new immutable receiving journal in one transaction.
+Current source safety, product, tax, schedule, MRP, incident and expiry checks
+remain required. Migration 0042 adds receipt-bound policies rather than private
+inventory-editor grants. An unrelated ordinary release cannot be adopted by
+reusing its ID. Retry binds original actor/Staff and exact input; GET at the same
+path returns retained release evidence under current review authority. The SDK's
+recovery additionally checks original account and frozen input. The journal is
+physical evidence, distinct from `review_recorded` clearance. See ADR-0068.
+
+Supplier responses now use `ReceivingSharedResponse` in directed delivery and
+buyer history; private source Staff identity remains only in source records.
+Source and buyer parsers remain strict. The received-response table has non-null
+generated origin tenant/record provenance and immutable-history enforcement.

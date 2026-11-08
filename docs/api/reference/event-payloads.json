@@ -4295,7 +4295,7 @@
     }
   },
   "helivanta.in.supply.supplier_receiving_exchange.v1": {
-    "source": "backend/internal/modules/supply/contract/fulfilment_types_generated.go:94",
+    "source": "backend/internal/modules/supply/contract/fulfilment_types_generated.go:93",
     "go_type": "SupplierReceivingExchangeData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -4387,10 +4387,6 @@
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
-        "actor_staff_id": {
-          "format": "uuid",
-          "type": "string"
-        },
         "actor_subject": {
           "type": "string"
         },
@@ -4452,7 +4448,6 @@
         "response",
         "reason",
         "actor_subject",
-        "actor_staff_id",
         "created_at"
       ],
       "type": "object"

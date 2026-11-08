@@ -296,5 +296,43 @@ type ReceivingLocationChoice struct {
 	CreatedAt     time.Time `json:"created_at"`
 }
 
+type ReceivingReleaseInput struct {
+	ExpectedSummaryVersion int64     `json:"expected_summary_version"`
+	ToLocationID           uuid.UUID `json:"to_location_id"`
+	QuantityUnits          int64     `json:"quantity_units"`
+	Reason                 string    `json:"reason"`
+}
+
+type ReceivingRelease struct {
+	ID             uuid.UUID             `json:"id"`
+	OwnerTenantID  uuid.UUID             `json:"owner_tenant_id"`
+	ShipmentID     uuid.UUID             `json:"shipment_id"`
+	ReceiptID      uuid.UUID             `json:"receipt_id"`
+	PharmacyID     uuid.UUID             `json:"pharmacy_id"`
+	OutletID       uuid.UUID             `json:"outlet_id"`
+	BatchID        uuid.UUID             `json:"batch_id"`
+	FromLocationID uuid.UUID             `json:"from_location_id"`
+	Input          ReceivingReleaseInput `json:"input"`
+	ActorSubject   string                `json:"actor_subject"`
+	ActorStaffID   uuid.UUID             `json:"actor_staff_id"`
+	CreatedAt      time.Time             `json:"created_at"`
+}
+
+type ReceivingSharedResponse struct {
+	ID                   uuid.UUID `json:"id"`
+	OwnerTenantID        uuid.UUID `json:"owner_tenant_id"`
+	BuyerTenantID        uuid.UUID `json:"buyer_tenant_id"`
+	OrderID              uuid.UUID `json:"order_id"`
+	ShipmentID           uuid.UUID `json:"shipment_id"`
+	SourceOrganizationID uuid.UUID `json:"source_organization_id"`
+	SourceLocationID     uuid.UUID `json:"source_location_id"`
+	SourceProduct        string    `json:"source_product"`
+	SummaryVersion       int64     `json:"summary_version"`
+	Response             string    `json:"response"`
+	Reason               string    `json:"reason"`
+	ActorSubject         string    `json:"actor_subject"`
+	CreatedAt            time.Time `json:"created_at"`
+}
+
 const maximumLeaseSeconds = 86400
 const maximumUnits = 1000000000

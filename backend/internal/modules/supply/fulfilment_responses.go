@@ -145,7 +145,7 @@ func (h *purchaseOrderHandlers) respondReceiving(c *gin.Context) {
 		if f.ValidateReceivingResponse(record) != nil {
 			return f.ErrInvalid
 		}
-		body, err := json.Marshal(record)
+		body, err := json.Marshal(f.ShareReceivingResponse(record))
 		if err != nil {
 			return err
 		}

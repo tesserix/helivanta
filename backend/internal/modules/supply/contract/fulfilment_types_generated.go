@@ -71,7 +71,6 @@ type SupplierReceivingResponseExchangeData struct {
 	Response             string    `json:"response"`
 	Reason               string    `json:"reason"`
 	ActorSubject         string    `json:"actor_subject"`
-	ActorStaffID         uuid.UUID `json:"actor_staff_id"`
 	CreatedAt            time.Time `json:"created_at"`
 }
 

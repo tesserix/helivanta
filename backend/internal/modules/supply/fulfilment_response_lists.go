@@ -15,6 +15,10 @@ import (
 	"time"
 )
 
+type listedSharedReceivingResponse struct{ f.ReceivingSharedResponse }
+
+func (v listedSharedReceivingResponse) PageKey() (time.Time, uuid.UUID) { return v.CreatedAt, v.ID }
+
 type listedReceivingResponse struct{ f.ReceivingResponseRecord }
 
 func (v listedReceivingResponse) PageKey() (time.Time, uuid.UUID) { return v.CreatedAt, v.ID }
@@ -33,14 +37,14 @@ func sourceResponsePage(tx *gorm.DB, order supplierorder.SupplierOrder, shipment
 	}
 	result := make([]listedReceivingResponse, 0, len(rows))
 	for _, record := range rows {
-		if f.ValidateReceivingResponse(record) != nil || !receivingResponseMatchesOrder(record, order) || record.ShipmentID != shipment {
+		if f.ValidateReceivingResponse(record) != nil || !receivingResponseMatchesOrder(f.ShareReceivingResponse(record), order) || record.ShipmentID != shipment {
 			return nil, f.ErrUnavailable
 		}
 		result = append(result, listedReceivingResponse{record})
 	}
 	return result, nil
 }
-func buyerResponsePage(tx *gorm.DB, order supplierorder.SupplierOrder, shipment uuid.UUID, page pagination.Params) ([]listedReceivingResponse, error) {
+func buyerResponsePage(tx *gorm.DB, order supplierorder.SupplierOrder, shipment uuid.UUID, page pagination.Params) ([]listedSharedReceivingResponse, error) {
 	var rows []struct {
 		ID        uuid.UUID
 		Body      json.RawMessage
@@ -50,13 +54,13 @@ func buyerResponsePage(tx *gorm.DB, order supplierorder.SupplierOrder, shipment 
 	if err := responsePageQuery(q, page, "").Scan(&rows).Error; err != nil {
 		return nil, err
 	}
-	result := make([]listedReceivingResponse, 0, len(rows))
+	result := make([]listedSharedReceivingResponse, 0, len(rows))
 	for _, row := range rows {
-		var record f.ReceivingResponseRecord
-		if supplierorder.DecodeObject(row.Body, &record) != nil || f.ValidateReceivingResponse(record) != nil || record.ID != row.ID || !record.CreatedAt.Equal(row.CreatedAt) || !receivingResponseMatchesOrder(record, order) || record.ShipmentID != shipment {
+		var record f.ReceivingSharedResponse
+		if supplierorder.DecodeObject(row.Body, &record) != nil || f.ValidateSharedReceivingResponse(record) != nil || record.ID != row.ID || !record.CreatedAt.Equal(row.CreatedAt) || !receivingResponseMatchesOrder(record, order) || record.ShipmentID != shipment {
 			return nil, f.ErrUnavailable
 		}
-		result = append(result, listedReceivingResponse{record})
+		result = append(result, listedSharedReceivingResponse{record})
 	}
 	return result, nil
 }
@@ -98,7 +102,7 @@ func (h *purchaseOrderHandlers) listSourceReceivingResponses(c *gin.Context, pag
 	}
 	return result, nil
 }
-func (h *purchaseOrderHandlers) listBuyerReceivingResponses(c *gin.Context, page pagination.Params) ([]listedReceivingResponse, error) {
+func (h *purchaseOrderHandlers) listBuyerReceivingResponses(c *gin.Context, page pagination.Params) ([]listedSharedReceivingResponse, error) {
 	p, scope, ok := buyerListScope(c)
 	if !ok || !orderListQuery(c) {
 		return nil, nil
@@ -111,7 +115,7 @@ func (h *purchaseOrderHandlers) listBuyerReceivingResponses(c *gin.Context, page
 	if !ok {
 		return nil, nil
 	}
-	var result []listedReceivingResponse
+	var result []listedSharedReceivingResponse
 	err := h.buyer(c.Request.Context(), p, scope, PermGoodsReceiptRead, func(ctx context.Context, tx *gorm.DB, _ supplierorder.Actor) error {
 		order, err := loadPurchaseOrder(tx, p.TenantID, scope.order)
 		if err != nil {
@@ -183,7 +187,7 @@ func (h *purchaseOrderHandlers) getOwnReceivingResponse(c *gin.Context) {
 			return gorm.ErrRecordNotFound
 		}
 		result = rows[0]
-		if f.ValidateReceivingResponse(result) != nil || !receivingResponseMatchesOrder(result, order.Order) {
+		if f.ValidateReceivingResponse(result) != nil || !receivingResponseMatchesOrder(f.ShareReceivingResponse(result), order.Order) {
 			return f.ErrUnavailable
 		}
 		if result.ActorSubject != actor.Subject || result.ActorStaffID != actor.StaffID {

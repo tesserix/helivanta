@@ -1,6 +1,8 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import {
+  releaseHospitalSupplierReceipt,
+  recoverHospitalSupplierRelease,
   listHospitalReceivingProductChoicesPage,
   listHospitalReceivingLocationsPage,
   listSupplierAllocationsPage,
@@ -672,9 +674,14 @@ it("keeps a supplier's response separate from hospital counts and checks both re
     actor_staff_id: id(12),
     created_at: "2026-11-09T01:00:00Z",
   };
+  const shared = Object.fromEntries(
+    Object.entries(response).filter(([key]) => key !== "actor_staff_id"),
+  );
   reply({ data: [response], page: { has_more: false, next_cursor: null } });
+  await expect(listHospitalSupplierResponsesPage(buyer, shipment)).rejects.toThrow();
+  reply({ data: [shared], page: { has_more: false, next_cursor: null } });
   await expect(listHospitalSupplierResponsesPage(buyer, shipment)).resolves.toMatchObject({
-    data: [response],
+    data: [shared],
   });
   reply({ data: [response], page: { has_more: false, next_cursor: null } });
   await expect(listSourceSupplierResponsesPage(source, shipment)).resolves.toMatchObject({
@@ -758,4 +765,59 @@ it("binds receiving choices to the exact shipment and fixed stock status", async
     });
     await expect(listHospitalReceivingLocationsPage(buyer, id(14), status)).rejects.toThrow();
   }
+});
+
+it("binds physical release and original recovery to its receipt, actor and frozen input", async () => {
+  const input = {
+    expected_summary_version: 4,
+    to_location_id: id(92),
+    quantity_units: 3,
+    reason: "TEST checked and shelved",
+  };
+  const result = {
+    id: id(90),
+    owner_tenant_id: buyer.tenantId,
+    shipment_id: receipt.shipment_id,
+    receipt_id: receipt.id,
+    pharmacy_id: buyer.pharmacyId,
+    outlet_id: buyer.outletId,
+    batch_id: id(91),
+    from_location_id: id(93),
+    input,
+    actor_subject: buyer.subject,
+    actor_staff_id: id(12),
+    created_at: "2026-11-09T01:00:00Z",
+  };
+  const fetch = reply(result);
+  await expect(
+    releaseHospitalSupplierReceipt(buyer, receipt.shipment_id, receipt.id, result.id, input),
+  ).resolves.toEqual(result);
+  expect(fetch).toHaveBeenCalledWith(
+    expect.stringContaining(`/receipts/${receipt.id}/releases/${result.id}`),
+    expect.objectContaining({ method: "PUT", body: JSON.stringify(input) }),
+  );
+  reply(result);
+  await expect(
+    recoverHospitalSupplierRelease(buyer, receipt.shipment_id, receipt.id, result.id, input),
+  ).resolves.toEqual(result);
+  for (const field of [
+    "owner_tenant_id",
+    "shipment_id",
+    "receipt_id",
+    "pharmacy_id",
+    "outlet_id",
+  ]) {
+    reply({ ...result, [field]: id(99) });
+    await expect(
+      releaseHospitalSupplierReceipt(buyer, receipt.shipment_id, receipt.id, result.id, input),
+    ).rejects.toThrow();
+  }
+  reply({ ...result, actor_subject: "TEST-other" });
+  await expect(
+    recoverHospitalSupplierRelease(buyer, receipt.shipment_id, receipt.id, result.id, input),
+  ).rejects.toThrow();
+  reply({ ...result, input: { ...input, quantity_units: 2 } });
+  await expect(
+    recoverHospitalSupplierRelease(buyer, receipt.shipment_id, receipt.id, result.id, input),
+  ).rejects.toThrow();
 });

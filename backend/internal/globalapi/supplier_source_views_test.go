@@ -152,10 +152,10 @@ func TestSourceViewsUseCurrentReviewedStaffAndRetainReconciliation(t *testing.T)
 		var envelope events.Event
 		require.NoError(t, json.Unmarshal(rows[0].Payload, &envelope))
 		require.Equal(t, summary.OwnerTenantID.String(), envelope.DestinationTenantID)
-		var published f.ReceivingResponseRecord
+		var published f.ReceivingSharedResponse
 		require.NoError(t, json.Unmarshal(envelope.Data, &published))
 		require.Equal(t, summary.Version, published.SummaryVersion)
-		require.Equal(t, fixture.input.Identity.StaffID, published.ActorStaffID)
+		require.NotContains(t, string(envelope.Data), "actor_staff_id", "private source Staff identity does not cross tenants")
 		return nil
 	}))
 

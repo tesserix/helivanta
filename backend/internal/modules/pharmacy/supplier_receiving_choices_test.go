@@ -42,3 +42,15 @@ func TestHospitalReceivingRegistersBoundedQuarantineAndSellableLocations(t *test
 		require.True(t, found, "stock status must be fixed by the owner route, not an arbitrary filter")
 	}
 }
+
+func TestHospitalReceivingRegistersReceiptBoundPhysicalRelease(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := platform.NewRouter(gin.New().Group("/v1/pharmacy"), receivingChoiceMembership{})
+	supplierReceivingRoutes(r, platform.Deps{})
+	for _, route := range r.Declared() {
+		if route.Method == "PUT" && route.Path == "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/releases/:release" {
+			return
+		}
+	}
+	t.Fatal("reviewed hospital receiving needs a receipt-bound physical release command")
+}

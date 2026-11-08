@@ -6,7 +6,18 @@ import (
 )
 
 func ValidateReceivingResponse(v ReceivingResponseRecord) error {
-	for _, id := range []uuid.UUID{v.ID, v.OwnerTenantID, v.BuyerTenantID, v.OrderID, v.ShipmentID, v.SourceOrganizationID, v.SourceLocationID, v.ActorStaffID} {
+	if v.ActorStaffID == uuid.Nil {
+		return ErrInvalid
+	}
+	return ValidateSharedReceivingResponse(ShareReceivingResponse(v))
+}
+
+// ShareReceivingResponse excludes the source-private Staff binding from bilateral evidence.
+func ShareReceivingResponse(v ReceivingResponseRecord) ReceivingSharedResponse {
+	return ReceivingSharedResponse{ID: v.ID, OwnerTenantID: v.OwnerTenantID, BuyerTenantID: v.BuyerTenantID, OrderID: v.OrderID, ShipmentID: v.ShipmentID, SourceOrganizationID: v.SourceOrganizationID, SourceLocationID: v.SourceLocationID, SourceProduct: v.SourceProduct, SummaryVersion: v.SummaryVersion, Response: v.Response, Reason: v.Reason, ActorSubject: v.ActorSubject, CreatedAt: v.CreatedAt}
+}
+func ValidateSharedReceivingResponse(v ReceivingSharedResponse) error {
+	for _, id := range []uuid.UUID{v.ID, v.OwnerTenantID, v.BuyerTenantID, v.OrderID, v.ShipmentID, v.SourceOrganizationID, v.SourceLocationID} {
 		if id == uuid.Nil {
 			return ErrInvalid
 		}

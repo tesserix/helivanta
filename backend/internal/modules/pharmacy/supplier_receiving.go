@@ -37,6 +37,8 @@ func supplierReceivingRoutes(r *platform.Router, deps platform.Deps) {
 	r.GET(base+"/receipts/:receipt", authz.Public, h.receipt)
 	r.PUT(base+"/closures/:closure", authz.Public, h.close)
 	r.PUT(base+"/receipts/:receipt/clearances/:clearance", authz.Public, h.clearance)
+	r.PUT(base+"/receipts/:receipt/corrections/:correction", authz.Public, h.correct)
+	r.GET(base+"/receipts/:receipt/corrections/:correction", authz.Public, h.correction)
 }
 func receivingID(c *gin.Context, name string, anyUUID bool) (uuid.UUID, bool) {
 	v, e := uuid.Parse(c.Param(name))
@@ -348,7 +350,7 @@ func (h *supplierReceiving) close(c *gin.Context) {
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
-		if head.Closed {
+		if head.Closed || in.ExpectedSummaryVersion != nil && *in.ExpectedSummaryVersion != head.Version {
 			return f.ErrConflict
 		}
 		at, err := supplierstock.Clock(tx)
@@ -365,7 +367,7 @@ func (h *supplierReceiving) close(c *gin.Context) {
 		}
 		body, _ := json.Marshal(result)
 		input, _ := json.Marshal(in)
-		if err = tx.Exec(`INSERT INTO pharmacy_supplier_receiving_closures(tenant_id,id,shipment_id,outlet_id,input,body,actor_subject,actor_staff_id,created_at)VALUES(?,?,?,?,?::jsonb,?::jsonb,?,?,?)`, s.TenantID, id, s.ShipmentID, s.OutletID, string(input), string(body), a.Subject, a.StaffID, at).Error; err != nil {
+		if err = tx.Exec(`INSERT INTO pharmacy_supplier_receiving_closures(tenant_id,id,shipment_id,outlet_id,summary_version,input,body,actor_subject,actor_staff_id,created_at)VALUES(?,?,?,?,?,?::jsonb,?::jsonb,?,?,?)`, s.TenantID, id, s.ShipmentID, s.OutletID, summary.Version, string(input), string(body), a.Subject, a.StaffID, at).Error; err != nil {
 			return err
 		}
 		return publishReceivingSummary(tx, shipment, summary)

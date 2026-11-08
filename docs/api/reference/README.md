@@ -429,6 +429,8 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/dispenses` | `pharmacy.dispense.read` | true | false |
 | PUT | `/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/closures/:closure` | `public` | false | false |
 | PUT | `/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/clearances/:clearance` | `public` | false | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/corrections/:correction` | `public` | false | false |
+| PUT | `/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/corrections/:correction` | `public` | false | false |
 | GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt` | `public` | false | false |
 | PUT | `/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt` | `public` | false | false |
 | GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receiving` | `public` | false | false |
@@ -667,6 +669,7 @@ Migration table declarations:
 - `0036_pharmacy_trading_source`: `pharmacy_licence_revocations`.
 - `0038_pharmacy_operating_receipts`: `pharmacy_operating_stock_audit`.
 - `0039_pharmacy_supplier_fulfilment`: `pharmacy_supplier_allocations`, `pharmacy_supplier_holds`, `pharmacy_supplier_commands`, `pharmacy_supplier_allocation_history`, `pharmacy_supplier_receiving_heads`, `pharmacy_supplier_receipts`, `pharmacy_supplier_receiving_closures`, `pharmacy_supplier_receiving_clearances`, `pharmacy_supplier_batch_sources`.
+- `0040_pharmacy_supplier_receiving_corrections`: `pharmacy_supplier_receiving_corrections`.
 
 ## payments
 

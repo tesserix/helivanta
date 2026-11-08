@@ -2910,6 +2910,24 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/corrections/:correction",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/corrections/:correction",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt",
           "permission": "public",
           "authentication_required": true,
@@ -5046,7 +5064,7 @@
         },
         {
           "id": "0039_pharmacy_supplier_fulfilment",
-          "sql_sha256": "f612ffbc5c3c8d34d44a6ddbe0cde58d4aea91c6834d7a9e595618d79780258b",
+          "sql_sha256": "3e601e8b9649e9fbbd9fef52dfc451da02898ce6bc1afc0b4f7b87cf0a3b1974",
           "creates_tables": [
             "pharmacy_supplier_allocations",
             "pharmacy_supplier_holds",
@@ -5057,6 +5075,13 @@
             "pharmacy_supplier_receiving_closures",
             "pharmacy_supplier_receiving_clearances",
             "pharmacy_supplier_batch_sources"
+          ]
+        },
+        {
+          "id": "0040_pharmacy_supplier_receiving_corrections",
+          "sql_sha256": "41662a72b6c362a519962deccb03561a4e4765aa5f6e5b622d29857c885f0904",
+          "creates_tables": [
+            "pharmacy_supplier_receiving_corrections"
           ]
         }
       ]
@@ -7417,7 +7442,7 @@
         },
         {
           "id": "0016_supply_supplier_fulfilment",
-          "sql_sha256": "45e7a5dcf9210074ff6d333c0ce9d353ca8796d8f2f37b5831d6c67eeda05626",
+          "sql_sha256": "f720611ed2a9a82c3f8e36d6ee56b56814a3c692698b59cad0a9724858661134",
           "creates_tables": [
             "supply_supplier_allocations",
             "supply_supplier_holds",

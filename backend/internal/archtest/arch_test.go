@@ -351,6 +351,7 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/corrections/:correction":                "one exact immutable correction receipt; never a collection",
 	"GET /supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation":                                                          "one exact allocation, creation receipt or actor-bound command; never a collection",
 	"GET /supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation/creation-receipt":                                         "one exact allocation, creation receipt or actor-bound command; never a collection",
 	"GET /supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation/commands/:command":                                        "one exact allocation, creation receipt or actor-bound command; never a collection",

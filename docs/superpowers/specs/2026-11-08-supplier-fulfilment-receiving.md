@@ -98,3 +98,41 @@ Financial composition, tax, invoices, payables, credits and settlement remain
 outside this requested fulfilment/receiving scope. IN-PH-01/03/04/05/08/09/10 and
 ORG-AC apply. Actual licence/category/state activation still requires qualified
 participant review; code and passing tests are no regulatory certification.
+
+## Reviewed receiving corrections
+
+Corrections are destination-owner facts, not edits to receipts or supplier
+shipments. A current department goods reviewer must differ from the original
+recorder and the last corrector. The command identifies one receipt, the expected
+effective receipt version and the expected shipment summary version. Versions,
+reasons, actor and Staff identity bind immutable recovery; reused IDs with changed
+intent conflict. Corrections are bounded to 999 per receipt.
+
+The corrected counts replace that receipt's effective counts while preserving
+all original evidence. Totals remain between zero and dispatched quantity. Any
+accepted-stock delta posts to the same original batch and quarantine location,
+under the same stock lock used by inventory movements. The database checks that
+stock remains in original quarantine custody, including all supplier receipts
+sharing that batch; a prior release, sale or unrelated balance change prevents
+rewriting that custody. Increased acceptance also rechecks the current destination
+product/version, pack/unit, lot, MRP and local expiry. No correction changes SKU or
+moves goods into sellable stock. Unidentified/rejected custody without a verified
+mapping can be recounted down and subsequently received through a new, explicitly
+mapped receipt; a correction cannot invent its stock identity.
+
+A correction increments the shipment summary version, reopens any shortage closure
+and invalidates prior clearance. Old closures and supplier responses remain
+historical. A new explicit closure and independent current clearance are needed;
+new receipt counts are possible only while receiving is open. Historical closures
+predating this migration retain an unknown (null) summary version rather than a
+fabricated version. Stock, correction, summary and outbox commit together. Failure
+rolls them all back, and retry recovers the original correction result.
+
+`PUT` and `GET …/supplier-shipments/{shipment}/receipts/{receipt}/corrections/{correction}`
+use the existing department receiving authority: review for a new correction,
+read for its immutable receipt. Out-of-scope objects remain 404, stale/self-reviewed
+or changed custody is 409, and unavailable authority fails closed with 503.
+`ReceivingClosureInput.expected_summary_version` is an optional additive
+precondition for existing clients; new workspaces supply it. The canonical models
+remain in `contracts/supplier-fulfilment.json`. This is operational recounting,
+not legal certification, a supplier return, disposal or a financial reversal.

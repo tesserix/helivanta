@@ -240,9 +240,11 @@ export const ReceivingClosureInputContract = z
     expected_counted_units: z.number().int().min(0).max(1000000000),
     reason: z
       .string()
+      .trim()
       .min(1)
       .max(500)
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    expected_summary_version: z.number().int().min(1).max(9007199254740991).optional(),
   })
   .strict();
 export type ReceivingClosureInput = z.infer<typeof ReceivingClosureInputContract>;
@@ -308,3 +310,44 @@ export const ReceivingSummaryContract = z
   })
   .strict();
 export type ReceivingSummary = z.infer<typeof ReceivingSummaryContract>;
+
+export const ReceivingCorrectionInputContract = z
+  .object({
+    expected_summary_version: z.number().int().min(1).max(9007199254740991),
+    expected_receipt_version: z.number().int().min(1).max(9007199254740991),
+    counted_units: z.number().int().min(0).max(1000000000),
+    accepted_units: z.number().int().min(0).max(1000000000),
+    rejected_units: z.number().int().min(0).max(1000000000),
+    identity_confirmed: z.boolean(),
+    reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type ReceivingCorrectionInput = z.infer<typeof ReceivingCorrectionInputContract>;
+
+export const ReceivingCorrectionContract = z
+  .object({
+    id: identifier,
+    owner_tenant_id: identifier,
+    shipment_id: identifier,
+    receipt_id: identifier,
+    outlet_id: identifier,
+    version: z.number().int().min(1).max(9007199254740991),
+    input: ReceivingCorrectionInputContract,
+    accepted_delta_units: z.number().int().min(-1000000000).max(1000000000),
+    cumulative_counted_units: z.number().int().min(0).max(1000000000),
+    cumulative_accepted_units: z.number().int().min(0).max(1000000000),
+    cumulative_rejected_units: z.number().int().min(0).max(1000000000),
+    movement_id: identifier.optional(),
+    actor_subject: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    actor_staff_id: identifier,
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type ReceivingCorrection = z.infer<typeof ReceivingCorrectionContract>;

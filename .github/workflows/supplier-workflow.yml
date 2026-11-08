@@ -56,6 +56,9 @@ jobs:
       - name: Real owner stock allocation and original recovery
         if: ${{ !cancelled() }}
         run: go test -race -timeout 35m ./internal/globalapi -run '^TestOwnerAllocationBudgetsSerializeAndRecoverOriginalIntent$'
+      - name: Reviewed receiving corrections and custody rollback
+        if: ${{ !cancelled() }}
+        run: go test -race -timeout 35m ./internal/modules/pharmacy -run '^TestSupplierReceivingCorrectionRepositoryRetainsEvidenceAndRollsBackCustodyFailures$'
       - name: Durable bilateral supplier grant protocol
         run: go test -race ./internal/modules/iam -run '^TestSupplierGrantProtocol'
       - name: Warehouse product identity and independent quality review

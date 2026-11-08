@@ -130,8 +130,9 @@ type ReceivingReceipt struct {
 }
 
 type ReceivingClosureInput struct {
-	ExpectedCountedUnits int64  `json:"expected_counted_units"`
-	Reason               string `json:"reason"`
+	ExpectedCountedUnits   int64  `json:"expected_counted_units"`
+	Reason                 string `json:"reason"`
+	ExpectedSummaryVersion *int64 `json:"expected_summary_version,omitempty"`
 }
 
 type ReceivingClosure struct {
@@ -169,6 +170,34 @@ type ReceivingSummary struct {
 	Reason        string    `json:"reason"`
 	ActorSubject  string    `json:"actor_subject"`
 	RecordedAt    time.Time `json:"recorded_at"`
+}
+
+type ReceivingCorrectionInput struct {
+	ExpectedSummaryVersion int64  `json:"expected_summary_version"`
+	ExpectedReceiptVersion int64  `json:"expected_receipt_version"`
+	CountedUnits           int64  `json:"counted_units"`
+	AcceptedUnits          int64  `json:"accepted_units"`
+	RejectedUnits          int64  `json:"rejected_units"`
+	IdentityConfirmed      bool   `json:"identity_confirmed"`
+	Reason                 string `json:"reason"`
+}
+
+type ReceivingCorrection struct {
+	ID                      uuid.UUID                `json:"id"`
+	OwnerTenantID           uuid.UUID                `json:"owner_tenant_id"`
+	ShipmentID              uuid.UUID                `json:"shipment_id"`
+	ReceiptID               uuid.UUID                `json:"receipt_id"`
+	OutletID                uuid.UUID                `json:"outlet_id"`
+	Version                 int64                    `json:"version"`
+	Input                   ReceivingCorrectionInput `json:"input"`
+	AcceptedDeltaUnits      int64                    `json:"accepted_delta_units"`
+	CumulativeCountedUnits  int64                    `json:"cumulative_counted_units"`
+	CumulativeAcceptedUnits int64                    `json:"cumulative_accepted_units"`
+	CumulativeRejectedUnits int64                    `json:"cumulative_rejected_units"`
+	MovementID              *uuid.UUID               `json:"movement_id,omitempty"`
+	ActorSubject            string                   `json:"actor_subject"`
+	ActorStaffID            uuid.UUID                `json:"actor_staff_id"`
+	CreatedAt               time.Time                `json:"created_at"`
 }
 
 const maximumLeaseSeconds = 86400

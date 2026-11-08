@@ -70,6 +70,7 @@ func (h *purchaseOrderHandlers) getSupplierReceiving(c *gin.Context) {
 	respond.OK(c, result)
 }
 func (h *purchaseOrderHandlers) respondReceiving(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
 	if h.bus == nil {
 		purchaseOrderError(c, supplierorder.ErrUnavailable)
 		return

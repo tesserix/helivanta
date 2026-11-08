@@ -344,3 +344,21 @@ discharge-order source timestamps within one hospital census day; production
 billing, rates and every monetary assertion are unchanged. Native regression,
 Go build/vet and billing lint are checked before pushing the fixture correction.
 Full database-backed CI must pass again before merge and deployment.
+
+After the finance-fixture correction, all full Go tests passed, including billing;
+the unchanged 70% gate then identified Supply at 68.7%. Added native HTTP boundary
+tests for verified account/tenant changes, malformed source/hospital scope, absent
+owner dependencies, immutable command lineage, strict versioned decisions and
+receiving replies, and ambiguous worklist queries. The native race run passed 271
+cases and exercised 335 Supply statements without a local application, database or
+broker. A missing-broker receiving reply now also retains `Cache-Control: no-store`,
+verified by a test that failed before the one-line header fix. Build, vet, Supply
+lint and contractdocs checks passed. The combined CI coverage gate must pass on
+the new head; its floor and required checks remain unchanged.
+
+Live checks have also verified the public OIDC/PKCE and application session chain,
+current permission lookup, stale workspace-context rejection, scoped organization
+reads, and browser sign-in/sign-out/account switching with the saved synthetic
+owner and operations users. The operations user cannot access pharmacy records.
+Neither saved user has a prepared hospital receiving/supplier fixture, so these
+checks do not establish positive live dispatch/receiving acceptance.

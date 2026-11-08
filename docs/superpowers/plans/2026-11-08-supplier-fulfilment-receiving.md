@@ -334,3 +334,13 @@ supplier/receiving acceptance, merge and Kargo deployment remain pending; openin
 the login screen is not workflow acceptance. The release adds three IAM templates,
 Pharmacy migrations 0039–0042 and Supply migrations 0016–0017, preserving existing
 physical and financial records. Financial composition remains unfinished.
+
+The exact-head supplier job and CI web/E2E passed. Full Go coverage exposed a
+pre-existing finance-fixture dependence on India's midnight: an active stay at
+`now - 1 hour` could correctly accrue a ₹1,500 census charge, invalidating the
+deposit/refund fixture's explicit-only totals. A native regression reproduced the
+00:30 IST failure before the fix. Finance-only fixtures now keep admission and
+discharge-order source timestamps within one hospital census day; production
+billing, rates and every monetary assertion are unchanged. Native regression,
+Go build/vet and billing lint are checked before pushing the fixture correction.
+Full database-backed CI must pass again before merge and deployment.

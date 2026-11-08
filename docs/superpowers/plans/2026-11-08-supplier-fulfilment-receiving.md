@@ -317,3 +317,20 @@ has a distinct current-Staff-bound route; generic colleague disclosure remains.
 
 Merge, final CI/coverage, Kargo deployment and shared website acceptance remain
 pending. Full financial composition remains a separate uncompleted acceptance gate.
+
+### Workbench validation checkpoint, 9 November 2026
+
+Source checkpoint `b0bf7cd8` is pushed to PR #1632. Native Go build/vet and
+affected golangci-lint passed; supplierfulfilment/supplierstock race tests passed;
+1,051 API assertions and 37 supplier/workforce screen assertions passed. Canonical
+generators, contractdocs and native architecture classifications passed. The shell
+production build passed with `API_URL` set to the Global API; generated output
+was removed. Node 24 also passed the unchanged 26 counter-sale assertions: an
+initial Node 26 run differed only in ICU AM/PM case. Full Node 24 shell and fresh
+CI database/broker/coverage gates are still pending at this checkpoint.
+
+The live website is reachable and its ordinary sign-in form opens. Authenticated
+supplier/receiving acceptance, merge and Kargo deployment remain pending; opening
+the login screen is not workflow acceptance. The release adds three IAM templates,
+Pharmacy migrations 0039–0042 and Supply migrations 0016–0017, preserving existing
+physical and financial records. Financial composition remains unfinished.

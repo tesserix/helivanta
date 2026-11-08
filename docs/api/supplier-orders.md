@@ -63,17 +63,21 @@ Approval signatures remain immutable evidence when another actor requests a
 cancellation. Version and remote-epoch checks reject conflicting/reordered
 commands, and unknown outcomes recover through original command receipts.
 
-The intended orchestration uses the existing Temporal worker for order waits,
-reservation/release and stock-owner replies. Each owner commits its own immutable
-command receipt, local stock effect, audit and outbox atomically. Order budget
-permits must be persisted before stock commands; duplicate command/line identities
-cannot allocate twice. A timeout after a stock commit leaves reconciliation
-pending until the original owner receipt is recovered. No network call or
-cross-module stock write belongs inside an order transaction. Source dispatch is
-an attributable human-confirmed physical action; a published event or successful
-reservation is not proof it happened. Hospital receipt records actual counted,
-accepted, quarantined and discrepant quantities under the destination owner's
-scope and retains the original source lineage.
+The current fulfilment design uses one source-owner transaction for each line
+budget, stock effect, immutable command receipt, audit and outbox. The accepted
+order owner provides an exact-purpose publication guard while that transaction
+commits; it does not maintain a second stock budget. This supersedes the earlier
+unimplemented reservation saga proposal. No network call or cross-module stock
+write belongs inside the stock transaction. A future process extraction requires
+a reviewed fencing protocol; the process-local guard is not an HTTP contract.
+
+Cross-tenant shipment, receiving and reply projections use durable outbox and
+idempotent consumers. A timeout recovers the original owner receipt; it does not
+create another dispatch. Source dispatch is an attributable human-confirmed
+physical action. Hospital receipt records actual counted, accepted, quarantined
+and discrepant quantities under destination-owner authority with original source
+lineage. Supplier replies annotate reconciliation without changing those facts.
+Wider orchestration and financial acceptance remain separate open gates.
 
 Before every new commitment, recheck current hospital/supplier Staff authority,
 relationship consent, exact order/line budget, source and destination evidence,

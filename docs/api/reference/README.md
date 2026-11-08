@@ -434,6 +434,14 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/hospital-affiliations/:id/verifications` | `pharmacy.catalogue.read` | true | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/hospital-affiliations/:id` | `pharmacy.access.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/hospital-affiliations` | `pharmacy.catalogue.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/batches/:id` | `public` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/batches/:id` | `public` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/batches` | `public` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/locations` | `public` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/products` | `public` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts/:id` | `public` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts/:id` | `public` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts` | `public` | true | false |
 | DELETE | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access/:subject` | `pharmacy.access.manage` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access/:subject` | `pharmacy.access.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access` | `pharmacy.catalogue.read` | false | false |
@@ -638,6 +646,7 @@ Migration table declarations:
 - `0034_pharmacy_staff_department_bindings`: `pharmacy_staff_department_bindings`, `pharmacy_staff_binding_commands`, `pharmacy_staff_binding_audit`.
 - `0035_pharmacy_trading_scope`: `pharmacy_trading_scopes`, `pharmacy_trading_scope_commands`.
 - `0036_pharmacy_trading_source`: `pharmacy_licence_revocations`.
+- `0037_pharmacy_operating_receipts`: `pharmacy_operating_stock_audit`.
 
 ## payments
 

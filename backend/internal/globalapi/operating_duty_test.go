@@ -67,12 +67,26 @@ func (g *operatingProjectionGate) ProjectOperatingAssignment(ctx context.Context
 	return nil
 }
 
+// operatingCheckGate lets a test take the authority graph away without touching the duty itself.
+type operatingCheckGate struct {
+	*authz.Client
+	down atomic.Bool
+}
+
+func (g *operatingCheckGate) CheckOperatingAssignment(ctx context.Context, a authz.OperatingAssignment, actor string, permission authz.Permission) (bool, error) {
+	if g.down.Load() {
+		return false, authz.ErrScopedAuthorizationUnavailable
+	}
+	return g.Client.CheckOperatingAssignment(ctx, a, actor, permission)
+}
+
 type operatingDutyFixture struct {
 	handler    http.Handler
 	authority  authz.OperatingScopeAuthorizer
 	principal  authn.Principal
 	graph      *authz.Client
 	projection *operatingProjectionGate
+	checks     *operatingCheckGate
 	db         *tenantdb.DB
 	ctx        context.Context
 	call       func(string, string, string, any, int) string
@@ -89,6 +103,7 @@ func newOperatingDutyFixtureWithOwners(t *testing.T, documents *attachments.GCS,
 	require.NoError(t, err)
 	admin := []authz.Permission{iam.PermMemberManage, iam.PermOperatingRead, iam.PermOperatingPrepare, iam.PermOperatingReview, iam.PermOperatingRevoke, workforce.PermSupplierManage, workforce.PermIndependentLoginManage, workforce.PermIndependentLoginReview, supply.PermPartyWrite, supply.PermOrganizationManage, supply.PermPremiseWrite, drugmaster.PermStockReferenceRead}
 	projection := &operatingProjectionGate{Client: graph}
+	checks := &operatingCheckGate{Client: graph}
 	modules := append([]platform.Module{iam.New(nil), supply.New(), workforce.New(), drugmaster.New()}, extra...)
 	for _, m := range modules {
 		for _, grant := range m.Permissions() {
@@ -99,7 +114,7 @@ func newOperatingDutyFixtureWithOwners(t *testing.T, documents *attachments.GCS,
 	backend, db, _, fixtureCtx := testutil.NewHarness(t, testutil.HarnessOptions{Documents: documents, PharmacyEvidenceEnabled: documents != nil, SourceAdministration: func(db *tenantdb.DB) authz.SourceAdministrationGuard {
 		return iam.NewSourceAdministrationGuard(db, graph)
 	}, Verifier: operatingVerifier{at: authenticatedAt}, Writer: projection, Roles: graph, OperatingAuthorizer: func(db *tenantdb.DB) authz.OperatingScopeAuthorizer {
-		return iam.NewOperatingAuthorizer(db, graph, platform.IndependentStaffIdentities(modules, db), platform.OperatingLocations(modules, db))
+		return iam.NewOperatingAuthorizer(db, checks, platform.IndependentStaffIdentities(modules, db), platform.OperatingLocations(modules, db))
 	}, Tokens: map[string]string{"owner": testutil.TenantA, "reviewer": testutil.TenantA, "receiver": testutil.TenantA, "foreign": testutil.TenantB}, Perms: map[string][]authz.Permission{"owner": admin, "reviewer": admin, "foreign": admin}, Modules: modules})
 
 	for _, m := range modules {
@@ -172,7 +187,7 @@ func newOperatingDutyFixtureWithOwners(t *testing.T, documents *attachments.GCS,
 	now := time.Now().UTC().Truncate(time.Second)
 	input := iam.OperatingDutyInput{Scope: iam.OperatingDutyScope{EmployerKind: "supplier", EmployerID: party, LocationID: premise, ExpectedEmployerVersion: 1, ExpectedLocationVersion: 1}, Identity: iam.OperatingDutyIdentity{StaffID: staff, StaffVersion: 1, LinkID: link, LinkVersion: 2}, Subject: "user-receiver", TemplateKey: "supply.inventory_receiver.v1", Reason: "TEST scoped warehouse receiving duty", ValidFrom: now.Add(-time.Minute), ExpiresAt: now.Add(time.Hour)}
 	duty := "/v1/iam/operating-duties/" + uuid.Must(uuid.NewV7()).String()
-	return operatingDutyFixture{handler: gateway, call: call, input: input, duty: duty, graph: graph, projection: projection, db: db, ctx: fixtureCtx, authority: iam.NewOperatingAuthorizer(db, graph, platform.IndependentStaffIdentities(modules, db), platform.OperatingLocations(modules, db)), principal: authn.Principal{TenantID: testutil.TenantA, Subject: "user-receiver", AuthTime: authenticatedAt, IdleDeadline: authenticatedAt.Add(time.Hour)}}
+	return operatingDutyFixture{handler: gateway, call: call, input: input, duty: duty, graph: graph, projection: projection, checks: checks, db: db, ctx: fixtureCtx, authority: iam.NewOperatingAuthorizer(db, checks, platform.IndependentStaffIdentities(modules, db), platform.OperatingLocations(modules, db)), principal: authn.Principal{TenantID: testutil.TenantA, Subject: "user-receiver", AuthTime: authenticatedAt, IdleDeadline: authenticatedAt.Add(time.Hour)}}
 }
 func TestIndependentOperatingDutyPreparationBindsCurrentSourceAndIdentity(t *testing.T) {
 	fixture := newOperatingDutyFixture(t)

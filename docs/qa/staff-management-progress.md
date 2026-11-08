@@ -1,5 +1,42 @@
 # Staff Management delivery tracker
 
+## Pharmacy outlet receiving under reviewed duty (#19 slice 3b-ii) — 2026-11-08
+
+PharmaConnect now consumes ADR-0064's `pharmacy.inventory_receiver.v1` duty at
+one exact outlet. See the [spec](../superpowers/specs/2026-11-08-pharmacy-receiver-duty.md).
+
+- A new route family,
+  `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock`, is
+  admitted only through IAM's `WithOperatingScope`, never a tenant role.
+- It lets the receiver read products, locations, lots and receipts, record a
+  lot, and record a receipt into quarantine.
+- Migration `0037_pharmacy_operating_receipts` adds forced-RLS branches. They hold
+  only under the transaction-local duty settings.
+- Each write, and each read, appends to `pharmacy_operating_stock_audit` in the
+  same transaction.
+- A receiver gets 404 for a sibling outlet, a foreign or hospital-owned pharmacy,
+  a correction, a release or a new location, and after revocation, Staff or link
+  change, or interruption.
+- The shell deep link `/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/receiving`
+  retains one ID per command, and recovers a lost answer by GET without writing
+  again.
+
+**Evidence.**
+
+- The globalapi end-to-end tests run prepare, approve, acknowledge, record,
+  replay, revoke and refuse. Postgres policy tests and an architecture test for
+  the single settings writer pass against Postgres testcontainers.
+- The full globalapi suite passes. The pharmacy, archtest and operating-duty
+  tests pass under `-race`.
+- `lint-go`, `go vet` and `contractdocs -check` pass.
+- 12 SDK tests, 10 receiver-panel tests and 5 amount-field tests pass. Removing
+  any single SDK or panel guard fails at least one test.
+- `pnpm turbo lint type-check test build format:check` is green.
+
+Receiver self-discovery and navigation, deployed runtime acceptance and real
+OIDC browser acceptance remain open. Slices 4 and 5 remain open. Counts are
+unchanged at **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Hospital link discovery and slice 3b re-plan (#19) — 2026-11-08
 
 #1627 (slice 3b-i, pharmacy login links) was closed. #1621 (`4980728d`,

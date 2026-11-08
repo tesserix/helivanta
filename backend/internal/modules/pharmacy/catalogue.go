@@ -23,14 +23,16 @@ import (
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 type catalogueHandlers struct {
-	db  *tenantdb.DB
-	bus *events.Bus
+	db        *tenantdb.DB
+	bus       *events.Bus
+	operating authz.OperatingScopeAuthorizer
 }
 
 type catalogueProduct struct {

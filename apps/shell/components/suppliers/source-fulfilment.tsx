@@ -2,6 +2,10 @@
 
 import { useRef, useState } from "react";
 import {
+  recordSourceSupplierResponse,
+  recoverSourceSupplierResponse,
+  type ReceivingResponseInput,
+  type Shipment,
   ApiError,
   useSupplierWorkflowQuery,
   useApiMutation,
@@ -40,8 +44,11 @@ import {
 } from "@helivanta/ui";
 import { Button, Input, Textarea } from "@tesserix/web";
 
+import { SourceShipments } from "./source-shipments";
+
 type Props = { scope: SupplierStockScope };
 type SourceAttempt =
+  | { kind: "response"; id: string; shipment: Shipment; input: ReceivingResponseInput }
   | { kind: "reserve"; id: string; input: ReserveInput }
   | { kind: "stock"; id: string; allocation: string; input: AllocationDecisionInput }
   | { kind: "order"; id: string; input: SupplierOrderDecisionInput };
@@ -156,11 +163,13 @@ function SourceOrder({ scope, orderId }: Props & { orderId: string }) {
     setAttempt(null);
     setConfirmed((value) => value + 1);
     setMessage(
-      kind === "order"
-        ? "Original source review verified."
-        : kind === "stock"
-          ? "Original allocation decision verified."
-          : "Original reservation record verified.",
+      kind === "response"
+        ? "Original supplier response verified and queued for the hospital."
+        : kind === "order"
+          ? "Original source review verified."
+          : kind === "stock"
+            ? "Original allocation decision verified."
+            : "Original reservation record verified.",
     );
   }
   const options = {
@@ -174,11 +183,13 @@ function SourceOrder({ scope, orderId }: Props & { orderId: string }) {
   };
   const save = useApiMutation(
     (value: SourceAttempt): Promise<unknown> =>
-      value.kind === "reserve"
-        ? reserveSupplierAllocation(scope, orderId, value.id, value.input)
-        : value.kind === "order"
-          ? decideSourceSupplierOrder(scope, orderId, value.id, value.input)
-          : decideSupplierAllocation(scope, orderId, value.allocation, value.id, value.input),
+      value.kind === "response"
+        ? recordSourceSupplierResponse(scope, value.shipment, value.id, value.input)
+        : value.kind === "reserve"
+          ? reserveSupplierAllocation(scope, orderId, value.id, value.input)
+          : value.kind === "order"
+            ? decideSourceSupplierOrder(scope, orderId, value.id, value.input)
+            : decideSupplierAllocation(scope, orderId, value.allocation, value.id, value.input),
     {
       ...options,
       onError: (error) => {
@@ -201,17 +212,19 @@ function SourceOrder({ scope, orderId }: Props & { orderId: string }) {
   );
   const recovery = useApiMutation(
     (value: SourceAttempt): Promise<unknown> =>
-      value.kind === "reserve"
-        ? recoverSupplierAllocation(scope, orderId, value.id, value.input)
-        : value.kind === "order"
-          ? recoverSourceSupplierOrderCommand(scope, orderId, value.id, value.input)
-          : recoverSupplierAllocationCommand(
-              scope,
-              orderId,
-              value.allocation,
-              value.id,
-              value.input,
-            ),
+      value.kind === "response"
+        ? recoverSourceSupplierResponse(scope, value.shipment, value.id, value.input)
+        : value.kind === "reserve"
+          ? recoverSupplierAllocation(scope, orderId, value.id, value.input)
+          : value.kind === "order"
+            ? recoverSourceSupplierOrderCommand(scope, orderId, value.id, value.input)
+            : recoverSupplierAllocationCommand(
+                scope,
+                orderId,
+                value.allocation,
+                value.id,
+                value.input,
+              ),
     options,
   );
   function begin(value: SourceAttempt) {
@@ -303,6 +316,15 @@ function SourceOrder({ scope, orderId }: Props & { orderId: string }) {
           ) : (
             <p>This order must be accepted before stock can be reserved.</p>
           )}
+          <SourceShipments
+            key={`shipments:${confirmed}`}
+            scope={scope}
+            order={query.data.id}
+            frozen={attempt !== null || busy}
+            onResponse={(shipment, input) =>
+              begin({ kind: "response", id: newSupplierWorkflowId(), shipment, input })
+            }
+          />
           <Allocations
             key={`allocations:${confirmed}`}
             scope={scope}

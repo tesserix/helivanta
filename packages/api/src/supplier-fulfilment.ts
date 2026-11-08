@@ -377,7 +377,7 @@ export async function recoverHospitalSupplierReceipt(
     id,
     ReceivingReceiptContract.parse(
       await apiFetch(
-        `${receivingBase(scope, shipment)}/receipts/${identifier.parse(id)}`,
+        `${receivingBase(scope, shipment)}/receipts/${identifier.parse(id)}/creation-receipt`,
         membershipRequestOptions(scope),
       ),
     ),

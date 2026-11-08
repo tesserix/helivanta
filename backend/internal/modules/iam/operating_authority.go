@@ -17,6 +17,13 @@ import (
 type operatingChecker interface {
 	CheckOperatingAssignment(context.Context, authz.OperatingAssignment, string, authz.Permission) (bool, error)
 }
+
+// A failed protected action is not a failed duty candidate. Keep it opaque until
+// the authority boundary returns so another duty cannot retry the business call.
+type operatingActionError struct{ cause error }
+
+func (*operatingActionError) Error() string { return "operating protected action failed" }
+
 type operatingAuthority struct {
 	db        *tenantdb.DB
 	graph     operatingChecker
@@ -90,6 +97,10 @@ func (a *operatingAuthority) WithOperatingScope(ctx context.Context, request aut
 			continue
 		}
 		err = a.consume(ctx, p, scope, request.Permission, snapshot, candidate.DutyVersion, action)
+		var failedAction *operatingActionError
+		if errors.As(err, &failedAction) {
+			return failedAction.cause
+		}
 		if errors.Is(err, authz.ErrScopedCommandDenied) {
 			continue
 		}
@@ -148,6 +159,7 @@ func (a *operatingAuthority) consume(ctx context.Context, p authn.Principal, sco
 		if err != nil {
 			return err
 		}
+		var actionError error
 		err = h.withCurrentBasis(commandCtx, p, row, view.Input, false, func(current authz.OperatingAssignment) error {
 			if current.Identity != snapshot.Identity || current.SourceVersion != snapshot.SourceVersion || current.LocationVersion != snapshot.LocationVersion {
 				return authz.ErrScopedCommandDenied
@@ -159,9 +171,13 @@ func (a *operatingAuthority) consume(ctx context.Context, p authn.Principal, sco
 				if err := tx.Exec(`SELECT set_config(key,value,true)FROM jsonb_each_text(?::jsonb)`, previous).Error; err != nil {
 					return err
 				}
-				return action(commandCtx, authz.OperatingScopeGrant{Scope: scope, Permission: permission, DutyID: id, SnapshotVersion: snapshot.Version, AuthorityEpoch: snapshot.ScopeEpoch, Identity: snapshot.Identity})
+				actionError = action(commandCtx, authz.OperatingScopeGrant{Scope: scope, Permission: permission, DutyID: id, SnapshotVersion: snapshot.Version, AuthorityEpoch: snapshot.ScopeEpoch, Identity: snapshot.Identity})
+				return actionError
 			})
 		})
+		if actionError != nil {
+			return &operatingActionError{cause: actionError}
+		}
 		if errors.Is(err, errProposalConflict) || errors.Is(err, gorm.ErrRecordNotFound) {
 			return authz.ErrScopedCommandDenied
 		}

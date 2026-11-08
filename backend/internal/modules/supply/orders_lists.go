@@ -218,6 +218,7 @@ func registerOrderLists(r *platform.Router, h *purchaseOrderHandlers) {
 	for _, base := range []string{source, hospital} {
 		r.GET(base+"/:order", authz.Public, h.getSeller)
 		r.GET(base+"/:order/review-access", authz.Public, h.sourceReviewAccess)
+		r.GET(base+"/:order/receiving-response-access", authz.Public, h.sourceResponseAccess)
 		r.GET(base+"/:order/commands/:command", authz.Public, h.getSellerCommand)
 		r.PUT(base+"/:order/commands/:command", authz.Public, h.decideSeller)
 	}

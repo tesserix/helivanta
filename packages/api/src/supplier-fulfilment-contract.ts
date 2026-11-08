@@ -521,6 +521,11 @@ export const ReceivingProductChoiceContract = z
       .min(1)
       .max(10000)
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    currency: z
+      .string()
+      .min(3)
+      .max(3)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     created_at: z.string().datetime({ offset: true }),
   })
   .strict();

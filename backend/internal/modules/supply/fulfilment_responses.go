@@ -58,7 +58,10 @@ func (h *purchaseOrderHandlers) getSupplierReceiving(c *gin.Context) {
 		if err := tx.Table("supply_supplier_receiving_updates").Select("body").Where("tenant_id=? AND order_id=? AND shipment_id=?", p.TenantID, id, shipment).Order("version DESC").Take(&row).Error; err != nil {
 			return err
 		}
-		return supplierorder.DecodeObject(row.Body, &result)
+		if err := supplierorder.DecodeObject(row.Body, &result); err != nil {
+			return err
+		}
+		return tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id)VALUES(?,?,'supplier_receiving_summary_read','supply_supplier_receiving_updates',?)`, p.TenantID, p.Subject, shipment).Error
 	})
 	if err != nil {
 		purchaseOrderError(c, err)

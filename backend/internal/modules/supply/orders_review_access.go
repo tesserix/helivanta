@@ -5,11 +5,18 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/supplierorder"
 	"gorm.io/gorm"
 )
 
 func (h *purchaseOrderHandlers) sourceReviewAccess(c *gin.Context) {
+	h.sourcePurposeAccess(c, PermSupplierOrderAccept, "supplier_order_review_access_read")
+}
+func (h *purchaseOrderHandlers) sourceResponseAccess(c *gin.Context) {
+	h.sourcePurposeAccess(c, PermReceivingResponse, "supplier_receiving_response_access_read")
+}
+func (h *purchaseOrderHandlers) sourcePurposeAccess(c *gin.Context, permission authz.Permission, auditAction string) {
 	p, ok := purchaseOrderPrincipal(c)
 	if !ok {
 		return
@@ -23,7 +30,7 @@ func (h *purchaseOrderHandlers) sourceReviewAccess(c *gin.Context) {
 		return
 	}
 	var result supplierorder.SupplierOrderReviewAccess
-	err := h.seller(c.Request.Context(), p, scope, PermSupplierOrderAccept, func(_ context.Context, tx *gorm.DB, actor supplierorder.Actor) error {
+	err := h.seller(c.Request.Context(), p, scope, permission, func(_ context.Context, tx *gorm.DB, actor supplierorder.Actor) error {
 		if _, err := loadPurchaseOrder(tx, p.TenantID, scope.order); err != nil {
 			return err
 		}
@@ -35,7 +42,7 @@ func (h *purchaseOrderHandlers) sourceReviewAccess(c *gin.Context) {
 		if err := tx.Raw("SELECT clock_timestamp()").Scan(&result.ObservedAt).Error; err != nil {
 			return err
 		}
-		return tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id)VALUES(?,?,'supplier_order_review_access_read','supply_purchase_orders',?)`, p.TenantID, p.Subject, scope.order).Error
+		return tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id)VALUES(?,?,?,'supply_purchase_orders',?)`, p.TenantID, p.Subject, auditAction, scope.order).Error
 	})
 	if err != nil {
 		purchaseOrderError(c, err)

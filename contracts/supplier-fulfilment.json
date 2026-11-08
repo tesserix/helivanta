@@ -143,11 +143,7 @@
       {
         "name": "status",
         "type": "string",
-        "enum": [
-          "reserved",
-          "released",
-          "dispatched"
-        ]
+        "enum": ["reserved", "released", "dispatched"]
       },
       {
         "name": "lot_number",
@@ -211,10 +207,7 @@
       {
         "name": "decision",
         "type": "string",
-        "enum": [
-          "release",
-          "dispatch"
-        ]
+        "enum": ["release", "dispatch"]
       },
       {
         "name": "handoff_reference",
@@ -600,12 +593,7 @@
       {
         "name": "effective_status",
         "type": "string",
-        "enum": [
-          "reserved",
-          "expired",
-          "released",
-          "dispatched"
-        ]
+        "enum": ["reserved", "expired", "released", "dispatched"]
       },
       {
         "name": "effective_reserved_units",
@@ -835,9 +823,7 @@
       {
         "name": "state",
         "type": "string",
-        "enum": [
-          "review_recorded"
-        ]
+        "enum": ["review_recorded"]
       }
     ],
     "SupplierStockChoice": [
@@ -979,10 +965,7 @@
       {
         "name": "response",
         "type": "string",
-        "enum": [
-          "confirmed",
-          "disputed"
-        ]
+        "enum": ["confirmed", "disputed"]
       },
       {
         "name": "reason",
@@ -1024,10 +1007,7 @@
       {
         "name": "source_product",
         "type": "string",
-        "enum": [
-          "supply",
-          "pharmacy"
-        ]
+        "enum": ["supply", "pharmacy"]
       },
       {
         "name": "summary_version",
@@ -1038,10 +1018,7 @@
       {
         "name": "response",
         "type": "string",
-        "enum": [
-          "confirmed",
-          "disputed"
-        ]
+        "enum": ["confirmed", "disputed"]
       },
       {
         "name": "reason",
@@ -1136,6 +1113,12 @@
         "max": 10000
       },
       {
+        "name": "currency",
+        "type": "string",
+        "min": 3,
+        "max": 3
+      },
+      {
         "name": "created_at",
         "type": "time"
       }
@@ -1176,10 +1159,7 @@
       {
         "name": "stock_status",
         "type": "string",
-        "enum": [
-          "quarantine",
-          "sellable"
-        ]
+        "enum": ["quarantine", "sellable"]
       },
       {
         "name": "created_at",
@@ -1294,10 +1274,7 @@
       {
         "name": "source_product",
         "type": "string",
-        "enum": [
-          "supply",
-          "pharmacy"
-        ]
+        "enum": ["supply", "pharmacy"]
       },
       {
         "name": "summary_version",
@@ -1308,10 +1285,7 @@
       {
         "name": "response",
         "type": "string",
-        "enum": [
-          "confirmed",
-          "disputed"
-        ]
+        "enum": ["confirmed", "disputed"]
       },
       {
         "name": "reason",
@@ -1342,10 +1316,7 @@
       {
         "name": "state",
         "type": "string",
-        "enum": [
-          "not_recorded",
-          "recorded"
-        ]
+        "enum": ["not_recorded", "recorded"]
       }
     ],
     "ReceivingBatchChoice": [
@@ -1437,9 +1408,7 @@
       {
         "name": "state",
         "type": "string",
-        "enum": [
-          "review_recorded"
-        ]
+        "enum": ["review_recorded"]
       },
       {
         "name": "reason",

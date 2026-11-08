@@ -1,9 +1,15 @@
+import type { ReactElement } from "react";
 import { NavigationGuardProvider } from "@helivanta/ui";
 import { useState } from "react";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithProviders as renderApi } from "@helivanta/api/testing";
 import { act, fireEvent, screen } from "@testing-library/react";
 import { chooseOption } from "@/test/select";
 import { PharmacyBindingWorkspace } from "./pharmacy-binding-workspace";
+
+function renderWithProviders(node: ReactElement) {
+  return renderApi(<NavigationGuardProvider>{node}</NavigationGuardProvider>);
+}
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
 
 const id = (n: number) => "019a0000-0000-7000-8000-" + String(n).padStart(12, "0");
 const scope = { tenantId: "11111111-1111-4111-8111-111111111111", subject: "synthetic-reader" };
@@ -84,6 +90,10 @@ it("browses recorded relationships using canonical hospital, outlet and departme
     }),
   );
   expect(await screen.findByText("Department source verified")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Open department supplier operations" })).toHaveAttribute(
+    "href",
+    `/pharmacy/hospitals/${hospital}/departments/${binding.department_id}/pharmacies/${binding.pharmacy_id}/outlets/${binding.outlet_id}/supplier-operations`,
+  );
   expect(screen.getByText("Synthetic department responsibility")).toBeInTheDocument();
   expect(screen.queryByLabelText("Hospital ID")).not.toBeInTheDocument();
   expect(screen.queryByLabelText("Outlet ID")).not.toBeInTheDocument();

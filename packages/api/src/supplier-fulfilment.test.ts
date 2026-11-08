@@ -732,6 +732,7 @@ it("binds receiving choices to the exact shipment and fixed stock status", async
     ...common,
     version: 1,
     brand_name: "TEST brand",
+    currency: "INR",
     identity_description: "TEST molecule 500 mg · capsule · oral",
     generic_name: "TEST generic",
     manufacturer: "TEST maker",
@@ -972,4 +973,20 @@ it("keeps review evidence separate from actual physical release history", async 
   await expect(
     listHospitalSupplierClearancesPage(buyer, receipt.shipment_id, receipt.id),
   ).rejects.toThrow();
+});
+
+it("uses the dedicated Staff-bound original receiving proof rather than the colleague read", async () => {
+  const fetch = reply(receipt);
+  await expect(
+    recoverHospitalSupplierReceipt(
+      { ...buyer, subject: receipt.actor_subject },
+      receipt.shipment_id,
+      receipt.id,
+      receipt.input,
+    ),
+  ).resolves.toEqual(receipt);
+  expect(fetch).toHaveBeenCalledWith(
+    expect.stringContaining(`/receipts/${receipt.id}/creation-receipt`),
+    expect.objectContaining({ cache: "no-store" }),
+  );
 });

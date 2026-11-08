@@ -154,7 +154,6 @@ that separate responsibility. Ordinary supplier receiving readers see immutable
 receipts from other authorized colleagues; retrying a recording command remains
 bound to its original subject and Staff identity.
 
-
 ## Shipment and receiving evidence discovery
 
 Buyer shipment lists require current department goods-read, current Staff and the
@@ -173,3 +172,57 @@ contract now includes clearance request/response models. A `review_recorded`
 clearance does not itself release stock or certify drug/legal/prescribing safety.
 The current stock owner still checks provenance, current summary/clearance and
 source safety before the existing quarantine-release action.
+
+## Scoped operational web workbenches
+
+Hospital pharmacy operations have a dedicated known-workplace route at
+`/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-operations`.
+A verified current approved Staff department relationship offers a guarded link
+using its canonical owner and department facts. The link conveys no authority;
+each data read and command reauthorizes the active account against exact current
+hospital, department and product-owner scope. The page offers separate receiving
+and hospital-source fulfilment purposes. It does not require private catalogue
+editor permissions or a broad pharmacy directory to construct its scope.
+
+Independent pharmacy and warehouse Staff can open a known operating workplace at
+`/suppliers/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders`.
+This route uses the same real owner source APIs as the existing product host;
+source scope and cache keys retain verified tenant and subject. There is still no
+new general self-workplace discovery API; controlled workplace links are explicit.
+
+Hospital receiving lists exact verified shipments, separates immutable original
+receipts from current effective counts and correction history, records observed
+lot/expiry and accountable notes, and offers current product/pack/ingredient,
+quarantine and exact destination-lot choices. Accepted units require an explicit
+medicine identity confirmation and printed MRP; a new destination batch UUID is
+frozen with the command. Entirely short closure is possible after the owner
+explicitly reports no receiving record, without manufacturing a physical receipt.
+Correction forms pin both receipt and summary versions, require a fresh identity
+decision for an acceptance increase, and stop if evidence changes beneath a draft.
+Closure, independent clearance and actual stock release are distinct operations.
+Read history and source replies remain separately attributable and paginated.
+
+A single retained command guard covers all hospital receiving actions. An
+ambiguous response freezes its exact ID/input, including destination batch, until
+original recovery or unchanged retry is verified. An authorization refresh failure
+does not discard that command or enable another stock action. Host, shipment and
+history navigation respect dirty and unresolved-command guards. Only one receipt
+or shipment opens deeper evidence queries at a time, keeping remote work bounded.
+
+Source workbenches list actual dispatches and the latest receiving projection
+received from the hospital. They do not infer physical non-receipt from a missing
+projection. Separate current response-purpose admission is queried at the exact
+source order’s `receiving-response-access` endpoint; order acceptance is not used
+as response authority. Supplier confirmations/disputes pin the displayed receiving
+version and retain original actor/Staff-bound recovery. Replies are directed
+annotations, never changes to hospital effective facts or financial postings.
+
+See [ADR-0068](../../adr/0068-hospital-receipt-physical-release.md) for the receipt-
+bound release transaction, SQL policy and failure recovery. The [editable flow](../../design/staff-and-rbac/diagrams/12-supplier-fulfilment-receiving.drawio)
+and [rendered SVG](../../design/staff-and-rbac/diagrams/12-supplier-fulfilment-receiving.svg)
+show the separate owner ledgers. This remains a candidate until exact-head CI,
+merge, Kargo promotion and shared-environment browser acceptance are evidenced.
+
+Destination product choices carry the owner catalogue currency. Printed MRP input
+and retained batch MRP display use that currency and its minor-unit precision; the
+workbench does not infer it from the hospital country or a source invoice.

@@ -1,8 +1,11 @@
 package globalapi
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/tesserix/helivanta/internal/modules/supply"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"net/url"
 	"strings"
 	"testing"
@@ -138,8 +141,18 @@ func TestSourceViewsUseCurrentReviewedStaffAndRetainReconciliation(t *testing.T)
 	require.Contains(t, fixture.call("GET", path+"/shipments?limit=1", "receiver", nil, 200), shipment.HandoffReference)
 	receiving := path + "/shipments/" + shipment.ID.String() + "/receiving"
 	require.Contains(t, fixture.call("GET", receiving, "receiver", nil, 200), `"short_units":1`)
+	require.NoError(t, fixture.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		var reads int64
+		if err := tx.Table("audit_events").Where("tenant_id=? AND actor_subject=? AND action='supplier_receiving_summary_read' AND resource_id=?", testutil.TenantA, "user-receiver", shipment.ID).Count(&reads).Error; err != nil {
+			return err
+		}
+		require.Equal(t, int64(1), reads, "sensitive source progress reads retain attributable audit evidence")
+		return nil
+	}))
+
 	responsePath := receiving + "/responses/" + uuid.Must(uuid.NewV7()).String()
 	input := map[string]any{"expected_summary_version": 1, "response": "disputed", "reason": "TEST check the hospital shortage evidence"}
+	fixture.call("GET", path+"/receiving-response-access", "receiver", nil, 200)
 	firstResponse := fixture.call("PUT", responsePath, "receiver", input, 200)
 	require.JSONEq(t, firstResponse, fixture.call("PUT", responsePath, "receiver", input, 200))
 	require.Contains(t, fixture.call("GET", receiving+"/responses?limit=1", "receiver", nil, 200), "TEST check the hospital shortage evidence")
@@ -168,14 +181,24 @@ func TestSourceViewsUseCurrentReviewedStaffAndRetainReconciliation(t *testing.T)
 	require.NoError(t, json.Unmarshal([]byte(fixture.call("GET", path+"/review-access", "receiver", nil, 200)), &access))
 	require.Equal(t, fixture.input.Identity.StaffID, access.ActorStaffID)
 	require.Equal(t, "user-receiver", access.ActorSubject)
+
+	for _, businessError := range []error{gorm.ErrRecordNotFound, authz.ErrScopedCommandDenied, f.ErrConflict} {
+		calls := 0
+		err := fixture.authority.WithOperatingScope(fixture.ctx, authz.OperatingScopeRequest{Principal: fixture.principal, EmployerKind: "supplier", EmployerID: fixture.input.Scope.EmployerID, LocationID: fixture.input.Scope.LocationID, Permission: supply.PermSupplierOrderRead}, func(_ context.Context, _ authz.OperatingScopeGrant) error { calls++; return businessError })
+		require.ErrorIs(t, err, businessError, "a protected business error is not an authority lookup failure")
+		require.Equal(t, 1, calls, "an authorized but failed business action must not retry under a second duty")
+	}
+
 	wrong := strings.Replace(root, data.location.String(), uuid.Must(uuid.NewV7()).String(), 1)
 	fixture.call("GET", wrong, "receiver", nil, 403)
 	fixture.checks.down.Store(true)
 	fixture.call("GET", root, "receiver", nil, 503)
+	fixture.call("GET", path+"/receiving-response-access", "receiver", nil, 503)
 	fixture.checks.down.Store(false)
 	for _, duty := range []string{fulfiller, acceptor} {
 		fixture.call("PUT", duty+"/commands/"+uuid.Must(uuid.NewV7()).String(), "owner", iam.OperatingDutyDecisionInput{ExpectedVersion: 3, Decision: "revoke", Reason: "TEST immediate source cutoff"}, 201)
 	}
 	fixture.call("GET", root, "receiver", nil, 403)
 	fixture.call("GET", path+"/commands/"+command.CommandID.String(), "receiver", nil, 403)
+	fixture.call("GET", path+"/receiving-response-access", "receiver", nil, 403)
 }

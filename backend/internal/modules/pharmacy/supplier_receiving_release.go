@@ -53,6 +53,9 @@ func (h *supplierReceiving) releaseReceipt(c *gin.Context) {
 		if err != nil {
 			return err
 		}
+		if result.ActorSubject != actor.Subject || result.ActorStaffID != actor.StaffID {
+			return gorm.ErrRecordNotFound
+		}
 		return auditReceivingList(tx, s, actor, "pharmacy_receiving_release_read")
 	})
 	if err != nil {

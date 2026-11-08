@@ -93,3 +93,15 @@ func TestHospitalReceivingRegistersBoundedClearanceEvidence(t *testing.T) {
 	}
 	t.Fatal("independent clearance evidence needs an attributable, bounded history")
 }
+
+func TestHospitalReceivingRegistersStaffBoundOriginalRecovery(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := platform.NewRouter(gin.New().Group("/v1/pharmacy"), receivingChoiceMembership{})
+	supplierReceivingRoutes(r, platform.Deps{})
+	for _, route := range r.Declared() {
+		if route.Method == "GET" && route.Path == "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/creation-receipt" {
+			return
+		}
+	}
+	t.Fatal("original recovery must have Staff-bound admission, distinct from ordinary colleague reads")
+}

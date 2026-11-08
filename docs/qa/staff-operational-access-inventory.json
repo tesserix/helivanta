@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "c85978c9af55020422af6e0cfc0560ad1914807253f6846bd332891e830dc3d0",
+  "registry_sha256": "795af29b0a9e6f2c1704895b0e02c2b13271f32e500042aa5553d373293399ee",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1030,
-    "unclassified": 934
+    "total": 1033,
+    "unclassified": 937
   },
   "entries": [
     {
@@ -6565,6 +6565,22 @@
       "review": null
     },
     {
+      "id": "http pharmacy GET /v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/creation-receipt",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/creation-receipt",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http pharmacy GET /v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/releases",
       "kind": "http",
       "module": "pharmacy",
@@ -6889,7 +6905,7 @@
         "registration_sha256": "7ec5a52dcc767082b1b846e0ed11dd508897c15926e5d7ff20727b98b0dbd45f",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant/actor and exact independent or chain-owned PharmaConnect pharmacy plus outlet; only that outlet's stock records.",
-        "rationale": "Admission happens only inside the handler: the route is router-public, and operatingStock calls IAM WithOperatingScope for the exact acknowledged pharmacy.inventory_receiver.v1 duty, current Staff/link basis, uninterrupted membership and unrevoked credential, then sets only transaction-local pharmacy_operating_stock_scope settings. A hospital-owned pharmacy, sibling outlet or foreign tenant is 404. This is an independent operating assignment rather than hospital operational authority, and it confers no tenant role permission. Reads use pharmacy.stock.read, return only this outlet's records and append a pharmacy.operating_stock.read audit row in the same transaction. Catalogue reads omit MRP, schedule, tax and price controls. This is an unreleased source review, not runtime acceptance. Source review for fulfilment: Stock frame setup is extracted inside the same owner file for fulfilment and retained source-safety consumers; existing operating receipts still require current IAM duty and their original audited callback.",
+        "rationale": "Admission happens only inside the handler: the route is router-public, and operatingStock calls IAM WithOperatingScope for the exact acknowledged pharmacy.inventory_receiver.v1 duty, current Staff/link basis, uninterrupted membership and unrevoked credential, then sets only transaction-local pharmacy_operating_stock_scope settings. A hospital-owned pharmacy, sibling outlet or foreign tenant is 404. This is an independent operating assignment rather than hospital operational authority, and it confers no tenant role permission. Reads use pharmacy.stock.read, return only this outlet's records and append a pharmacy.operating_stock.read audit row in the same transaction. Catalogue reads omit MRP, schedule, tax and price controls. This is an unreleased source review, not runtime acceptance. Source review for fulfilment: Stock frame setup is extracted inside the same owner file for fulfilment and retained source-safety consumers; existing operating receipts still require current IAM duty and their original audited callback. Source rechecked on 2026-11-09 for the shared operating callback boundary: live duty, identity, credential, membership, source/location, permission and transaction-frame checks are unchanged. Errors returned by an already admitted protected action now retain their business meaning and stop duty fallback; hidden resources remain 404 while actual authority denial and graph unavailability remain fail closed. The real IAM/Workforce/OpenFGA source regression tests missing objects and once-only callback errors under multiple valid duties. This hash update is source review only; exact-revision runtime acceptance remains pending.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/operating_stock.go",
@@ -6908,7 +6924,7 @@
           },
           {
             "path": "backend/internal/modules/iam/operating_authority.go",
-            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "sha256": "f1d500bdb5eed1ee0ecfd631e9e8c6fdc54f8b5c34e1df8e52a3388527b97e21",
             "symbol": "func (a *operatingAuthority) WithOperatingScope("
           },
           {
@@ -6942,7 +6958,7 @@
         "registration_sha256": "ba3f603c02aefc381046335f48c0057f3d5e7d0e125fd82a5d12a3f4bbc01d92",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant/actor and exact independent or chain-owned PharmaConnect pharmacy plus outlet; only that outlet's stock records.",
-        "rationale": "Admission happens only inside the handler: the route is router-public, and operatingStock calls IAM WithOperatingScope for the exact acknowledged pharmacy.inventory_receiver.v1 duty, current Staff/link basis, uninterrupted membership and unrevoked credential, then sets only transaction-local pharmacy_operating_stock_scope settings. A hospital-owned pharmacy, sibling outlet or foreign tenant is 404. This is an independent operating assignment rather than hospital operational authority, and it confers no tenant role permission. Reads use pharmacy.stock.read, return only this outlet's records and append a pharmacy.operating_stock.read audit row in the same transaction. Catalogue reads omit MRP, schedule, tax and price controls. This is an unreleased source review, not runtime acceptance. Source review for fulfilment: Stock frame setup is extracted inside the same owner file for fulfilment and retained source-safety consumers; existing operating receipts still require current IAM duty and their original audited callback.",
+        "rationale": "Admission happens only inside the handler: the route is router-public, and operatingStock calls IAM WithOperatingScope for the exact acknowledged pharmacy.inventory_receiver.v1 duty, current Staff/link basis, uninterrupted membership and unrevoked credential, then sets only transaction-local pharmacy_operating_stock_scope settings. A hospital-owned pharmacy, sibling outlet or foreign tenant is 404. This is an independent operating assignment rather than hospital operational authority, and it confers no tenant role permission. Reads use pharmacy.stock.read, return only this outlet's records and append a pharmacy.operating_stock.read audit row in the same transaction. Catalogue reads omit MRP, schedule, tax and price controls. This is an unreleased source review, not runtime acceptance. Source review for fulfilment: Stock frame setup is extracted inside the same owner file for fulfilment and retained source-safety consumers; existing operating receipts still require current IAM duty and their original audited callback. Source rechecked on 2026-11-09 for the shared operating callback boundary: live duty, identity, credential, membership, source/location, permission and transaction-frame checks are unchanged. Errors returned by an already admitted protected action now retain their business meaning and stop duty fallback; hidden resources remain 404 while actual authority denial and graph unavailability remain fail closed. The real IAM/Workforce/OpenFGA source regression tests missing objects and once-only callback errors under multiple valid duties. This hash update is source review only; exact-revision runtime acceptance remains pending.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/operating_stock.go",
@@ -6961,7 +6977,7 @@
           },
           {
             "path": "backend/internal/modules/iam/operating_authority.go",
-            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "sha256": "f1d500bdb5eed1ee0ecfd631e9e8c6fdc54f8b5c34e1df8e52a3388527b97e21",
             "symbol": "func (a *operatingAuthority) WithOperatingScope("
           },
           {
@@ -6995,7 +7011,7 @@
         "registration_sha256": "824d06b2f69cfb123a949121ed3c6cca309d270aa0b92303daf2b879703a4d83",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant/actor and exact independent or chain-owned PharmaConnect pharmacy plus outlet; only that outlet's stock records.",
-        "rationale": "Admission happens only inside the handler: the route is router-public, and operatingStock calls IAM WithOperatingScope for the exact acknowledged pharmacy.inventory_receiver.v1 duty, current Staff/link basis, uninterrupted membership and unrevoked credential, then sets only transaction-local pharmacy_operating_stock_scope settings. A hospital-owned pharmacy, sibling outlet or foreign tenant is 404. This is an independent operating assignment rather than hospital operational authority, and it confers no tenant role permission. Reads use pharmacy.stock.read, return only this outlet's records and append a pharmacy.operating_stock.read audit row in the same transaction. Catalogue reads omit MRP, schedule, tax and price controls. This is an unreleased source review, not runtime acceptance. Source review for fulfilment: Stock frame setup is extracted inside the same owner file for fulfilment and retained source-safety consumers; existing operating receipts still require current IAM duty and their original audited callback.",
+        "rationale": "Admission happens only inside the handler: the route is router-public, and operatingStock calls IAM WithOperatingScope for the exact acknowledged pharmacy.inventory_receiver.v1 duty, current Staff/link basis, uninterrupted membership and unrevoked credential, then sets only transaction-local pharmacy_operating_stock_scope settings. A hospital-owned pharmacy, sibling outlet or foreign tenant is 404. This is an independent operating assignment rather than hospital operational authority, and it confers no tenant role permission. Reads use pharmacy.stock.read, return only this outlet's records and append a pharmacy.operating_stock.read audit row in the same transaction. Catalogue reads omit MRP, schedule, tax and price controls. This is an unreleased source review, not runtime acceptance. Source review for fulfilment: Stock frame setup is extracted inside the same owner file for fulfilment and retained source-safety consumers; existing operating receipts still require current IAM duty and their original audited callback. Source rechecked on 2026-11-09 for the shared operating callback boundary: live duty, identity, credential, membership, source/location, permission and transaction-frame checks are unchanged. Errors returned by an already admitted protected action now retain their business meaning and stop duty fallback; hidden resources remain 404 while actual authority denial and graph unavailability remain fail closed. The real IAM/Workforce/OpenFGA source regression tests missing objects and once-only callback errors under multiple valid duties. This hash update is source review only; exact-revision runtime acceptance remains pending.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/operating_stock.go",
@@ -7014,7 +7030,7 @@
           },
           {
             "path": "backend/internal/modules/iam/operating_authority.go",
-            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "sha256": "f1d500bdb5eed1ee0ecfd631e9e8c6fdc54f8b5c34e1df8e52a3388527b97e21",
             "symbol": "func (a *operatingAuthority) WithOperatingScope("
           },
           {
@@ -7048,7 +7064,7 @@
         "registration_sha256": "9dc439931ab6f6586ae7428c601c184159ba1bcd2532c18182f98a77d43b3d4f",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant/actor and exact independent or chain-owned PharmaConnect pharmacy plus outlet; only that outlet's stock records.",
-        "rationale": "Admission happens only inside the handler: the route is router-public, and operatingStock calls IAM WithOperatingScope for the exact acknowledged pharmacy.inventory_receiver.v1 duty, current Staff/link basis, uninterrupted membership and unrevoked credential, then sets only transaction-local pharmacy_operating_stock_scope settings. A hospital-owned pharmacy, sibling outlet or foreign tenant is 404. This is an independent operating assignment rather than hospital operational authority, and it confers no tenant role permission. Reads use pharmacy.stock.read, return only this outlet's records and append a pharmacy.operating_stock.read audit row in the same transaction. Catalogue reads omit MRP, schedule, tax and price controls. This is an unreleased source review, not runtime acceptance. Source review for fulfilment: Stock frame setup is extracted inside the same owner file for fulfilment and retained source-safety consumers; existing operating receipts still require current IAM duty and their original audited callback.",
+        "rationale": "Admission happens only inside the handler: the route is router-public, and operatingStock calls IAM WithOperatingScope for the exact acknowledged pharmacy.inventory_receiver.v1 duty, current Staff/link basis, uninterrupted membership and unrevoked credential, then sets only transaction-local pharmacy_operating_stock_scope settings. A hospital-owned pharmacy, sibling outlet or foreign tenant is 404. This is an independent operating assignment rather than hospital operational authority, and it confers no tenant role permission. Reads use pharmacy.stock.read, return only this outlet's records and append a pharmacy.operating_stock.read audit row in the same transaction. Catalogue reads omit MRP, schedule, tax and price controls. This is an unreleased source review, not runtime acceptance. Source review for fulfilment: Stock frame setup is extracted inside the same owner file for fulfilment and retained source-safety consumers; existing operating receipts still require current IAM duty and their original audited callback. Source rechecked on 2026-11-09 for the shared operating callback boundary: live duty, identity, credential, membership, source/location, permission and transaction-frame checks are unchanged. Errors returned by an already admitted protected action now retain their business meaning and stop duty fallback; hidden resources remain 404 while actual authority denial and graph unavailability remain fail closed. The real IAM/Workforce/OpenFGA source regression tests missing objects and once-only callback errors under multiple valid duties. This hash update is source review only; exact-revision runtime acceptance remains pending.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/operating_stock.go",
@@ -7067,7 +7083,7 @@
           },
           {
             "path": "backend/internal/modules/iam/operating_authority.go",
-            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "sha256": "f1d500bdb5eed1ee0ecfd631e9e8c6fdc54f8b5c34e1df8e52a3388527b97e21",
             "symbol": "func (a *operatingAuthority) WithOperatingScope("
           },
           {
@@ -7101,7 +7117,7 @@
         "registration_sha256": "db2b7149e8f9c8c6fd64d207d0133a1624839dc6264944919044c2e4c035ba21",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant/actor and exact independent or chain-owned PharmaConnect pharmacy plus outlet; only that outlet's stock records.",
-        "rationale": "Admission happens only inside the handler: the route is router-public, and operatingStock calls IAM WithOperatingScope for the exact acknowledged pharmacy.inventory_receiver.v1 duty, current Staff/link basis, uninterrupted membership and unrevoked credential, then sets only transaction-local pharmacy_operating_stock_scope settings. A hospital-owned pharmacy, sibling outlet or foreign tenant is 404. This is an independent operating assignment rather than hospital operational authority, and it confers no tenant role permission. Reads use pharmacy.stock.read, return only this outlet's records and append a pharmacy.operating_stock.read audit row in the same transaction. Catalogue reads omit MRP, schedule, tax and price controls. This is an unreleased source review, not runtime acceptance. Source review for fulfilment: Stock frame setup is extracted inside the same owner file for fulfilment and retained source-safety consumers; existing operating receipts still require current IAM duty and their original audited callback.",
+        "rationale": "Admission happens only inside the handler: the route is router-public, and operatingStock calls IAM WithOperatingScope for the exact acknowledged pharmacy.inventory_receiver.v1 duty, current Staff/link basis, uninterrupted membership and unrevoked credential, then sets only transaction-local pharmacy_operating_stock_scope settings. A hospital-owned pharmacy, sibling outlet or foreign tenant is 404. This is an independent operating assignment rather than hospital operational authority, and it confers no tenant role permission. Reads use pharmacy.stock.read, return only this outlet's records and append a pharmacy.operating_stock.read audit row in the same transaction. Catalogue reads omit MRP, schedule, tax and price controls. This is an unreleased source review, not runtime acceptance. Source review for fulfilment: Stock frame setup is extracted inside the same owner file for fulfilment and retained source-safety consumers; existing operating receipts still require current IAM duty and their original audited callback. Source rechecked on 2026-11-09 for the shared operating callback boundary: live duty, identity, credential, membership, source/location, permission and transaction-frame checks are unchanged. Errors returned by an already admitted protected action now retain their business meaning and stop duty fallback; hidden resources remain 404 while actual authority denial and graph unavailability remain fail closed. The real IAM/Workforce/OpenFGA source regression tests missing objects and once-only callback errors under multiple valid duties. This hash update is source review only; exact-revision runtime acceptance remains pending.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/operating_stock.go",
@@ -7120,7 +7136,7 @@
           },
           {
             "path": "backend/internal/modules/iam/operating_authority.go",
-            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "sha256": "f1d500bdb5eed1ee0ecfd631e9e8c6fdc54f8b5c34e1df8e52a3388527b97e21",
             "symbol": "func (a *operatingAuthority) WithOperatingScope("
           },
           {
@@ -7154,7 +7170,7 @@
         "registration_sha256": "eb3e02cf02d3a8b9e5addbd7528f01ed290c591736082b0c5d3eba34e806e3d5",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant/actor and exact independent or chain-owned PharmaConnect pharmacy plus outlet; only that outlet's stock records.",
-        "rationale": "Admission happens only inside the handler: the route is router-public, and operatingStock calls IAM WithOperatingScope for the exact acknowledged pharmacy.inventory_receiver.v1 duty, current Staff/link basis, uninterrupted membership and unrevoked credential, then sets only transaction-local pharmacy_operating_stock_scope settings. A hospital-owned pharmacy, sibling outlet or foreign tenant is 404. This is an independent operating assignment rather than hospital operational authority, and it confers no tenant role permission. Reads use pharmacy.stock.read, return only this outlet's records and append a pharmacy.operating_stock.read audit row in the same transaction. Catalogue reads omit MRP, schedule, tax and price controls. This is an unreleased source review, not runtime acceptance. Source review for fulfilment: Stock frame setup is extracted inside the same owner file for fulfilment and retained source-safety consumers; existing operating receipts still require current IAM duty and their original audited callback.",
+        "rationale": "Admission happens only inside the handler: the route is router-public, and operatingStock calls IAM WithOperatingScope for the exact acknowledged pharmacy.inventory_receiver.v1 duty, current Staff/link basis, uninterrupted membership and unrevoked credential, then sets only transaction-local pharmacy_operating_stock_scope settings. A hospital-owned pharmacy, sibling outlet or foreign tenant is 404. This is an independent operating assignment rather than hospital operational authority, and it confers no tenant role permission. Reads use pharmacy.stock.read, return only this outlet's records and append a pharmacy.operating_stock.read audit row in the same transaction. Catalogue reads omit MRP, schedule, tax and price controls. This is an unreleased source review, not runtime acceptance. Source review for fulfilment: Stock frame setup is extracted inside the same owner file for fulfilment and retained source-safety consumers; existing operating receipts still require current IAM duty and their original audited callback. Source rechecked on 2026-11-09 for the shared operating callback boundary: live duty, identity, credential, membership, source/location, permission and transaction-frame checks are unchanged. Errors returned by an already admitted protected action now retain their business meaning and stop duty fallback; hidden resources remain 404 while actual authority denial and graph unavailability remain fail closed. The real IAM/Workforce/OpenFGA source regression tests missing objects and once-only callback errors under multiple valid duties. This hash update is source review only; exact-revision runtime acceptance remains pending.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/operating_stock.go",
@@ -7173,7 +7189,7 @@
           },
           {
             "path": "backend/internal/modules/iam/operating_authority.go",
-            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "sha256": "f1d500bdb5eed1ee0ecfd631e9e8c6fdc54f8b5c34e1df8e52a3388527b97e21",
             "symbol": "func (a *operatingAuthority) WithOperatingScope("
           },
           {
@@ -9217,7 +9233,7 @@
         "registration_sha256": "832fac679528c25426167b52723ec840d4d11a6392b0cd9cf88bf6fe215533ba",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant/actor and exact independent or chain-owned PharmaConnect pharmacy plus outlet; only that outlet's stock records.",
-        "rationale": "Admission happens only inside the handler: the route is router-public, and operatingStock calls IAM WithOperatingScope for the exact acknowledged pharmacy.inventory_receiver.v1 duty, current Staff/link basis, uninterrupted membership and unrevoked credential, then sets only transaction-local pharmacy_operating_stock_scope settings. A hospital-owned pharmacy, sibling outlet or foreign tenant is 404. This is an independent operating assignment rather than hospital operational authority, and it confers no tenant role permission. The write uses pharmacy.stock.receive, creates or replays an immutable batch through the existing validation and stock lock, and appends duty audit evidence in the same transaction. A changed replay is 409. This is an unreleased source review, not runtime acceptance. Source review for fulfilment: Stock frame setup is extracted inside the same owner file for fulfilment and retained source-safety consumers; existing operating receipts still require current IAM duty and their original audited callback.",
+        "rationale": "Admission happens only inside the handler: the route is router-public, and operatingStock calls IAM WithOperatingScope for the exact acknowledged pharmacy.inventory_receiver.v1 duty, current Staff/link basis, uninterrupted membership and unrevoked credential, then sets only transaction-local pharmacy_operating_stock_scope settings. A hospital-owned pharmacy, sibling outlet or foreign tenant is 404. This is an independent operating assignment rather than hospital operational authority, and it confers no tenant role permission. The write uses pharmacy.stock.receive, creates or replays an immutable batch through the existing validation and stock lock, and appends duty audit evidence in the same transaction. A changed replay is 409. This is an unreleased source review, not runtime acceptance. Source review for fulfilment: Stock frame setup is extracted inside the same owner file for fulfilment and retained source-safety consumers; existing operating receipts still require current IAM duty and their original audited callback. Source rechecked on 2026-11-09 for the shared operating callback boundary: live duty, identity, credential, membership, source/location, permission and transaction-frame checks are unchanged. Errors returned by an already admitted protected action now retain their business meaning and stop duty fallback; hidden resources remain 404 while actual authority denial and graph unavailability remain fail closed. The real IAM/Workforce/OpenFGA source regression tests missing objects and once-only callback errors under multiple valid duties. This hash update is source review only; exact-revision runtime acceptance remains pending.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/operating_stock.go",
@@ -9236,7 +9252,7 @@
           },
           {
             "path": "backend/internal/modules/iam/operating_authority.go",
-            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "sha256": "f1d500bdb5eed1ee0ecfd631e9e8c6fdc54f8b5c34e1df8e52a3388527b97e21",
             "symbol": "func (a *operatingAuthority) WithOperatingScope("
           },
           {
@@ -9270,7 +9286,7 @@
         "registration_sha256": "4e9e4cf08cadbb803e621c901d3b4456ec8f8df854cd9abb150210d0eb1debc4",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant/actor and exact independent or chain-owned PharmaConnect pharmacy plus outlet; only that outlet's stock records.",
-        "rationale": "Admission happens only inside the handler: the route is router-public, and operatingStock calls IAM WithOperatingScope for the exact acknowledged pharmacy.inventory_receiver.v1 duty, current Staff/link basis, uninterrupted membership and unrevoked credential, then sets only transaction-local pharmacy_operating_stock_scope settings. A hospital-owned pharmacy, sibling outlet or foreign tenant is 404. This is an independent operating assignment rather than hospital operational authority, and it confers no tenant role permission. The write uses pharmacy.stock.receive and accepts only a receipt movement; RLS adds kind='receipt' and the existing location guard keeps it in quarantine, so release and correction stay with pharmacy.stock.release editors. The movement, outbox and duty audit commit together. This is an unreleased source review, not runtime acceptance. Source review for fulfilment: Stock frame setup is extracted inside the same owner file for fulfilment and retained source-safety consumers; existing operating receipts still require current IAM duty and their original audited callback.",
+        "rationale": "Admission happens only inside the handler: the route is router-public, and operatingStock calls IAM WithOperatingScope for the exact acknowledged pharmacy.inventory_receiver.v1 duty, current Staff/link basis, uninterrupted membership and unrevoked credential, then sets only transaction-local pharmacy_operating_stock_scope settings. A hospital-owned pharmacy, sibling outlet or foreign tenant is 404. This is an independent operating assignment rather than hospital operational authority, and it confers no tenant role permission. The write uses pharmacy.stock.receive and accepts only a receipt movement; RLS adds kind='receipt' and the existing location guard keeps it in quarantine, so release and correction stay with pharmacy.stock.release editors. The movement, outbox and duty audit commit together. This is an unreleased source review, not runtime acceptance. Source review for fulfilment: Stock frame setup is extracted inside the same owner file for fulfilment and retained source-safety consumers; existing operating receipts still require current IAM duty and their original audited callback. Source rechecked on 2026-11-09 for the shared operating callback boundary: live duty, identity, credential, membership, source/location, permission and transaction-frame checks are unchanged. Errors returned by an already admitted protected action now retain their business meaning and stop duty fallback; hidden resources remain 404 while actual authority denial and graph unavailability remain fail closed. The real IAM/Workforce/OpenFGA source regression tests missing objects and once-only callback errors under multiple valid duties. This hash update is source review only; exact-revision runtime acceptance remains pending.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/operating_stock.go",
@@ -9289,7 +9305,7 @@
           },
           {
             "path": "backend/internal/modules/iam/operating_authority.go",
-            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "sha256": "f1d500bdb5eed1ee0ecfd631e9e8c6fdc54f8b5c34e1df8e52a3388527b97e21",
             "symbol": "func (a *operatingAuthority) WithOperatingScope("
           },
           {
@@ -10490,6 +10506,22 @@
       "review": null
     },
     {
+      "id": "http supply GET /v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/receiving-response-access",
+      "kind": "http",
+      "module": "supply",
+      "registration": {
+        "source": "backend/internal/modules/supply/module.go",
+        "method": "GET",
+        "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/receiving-response-access",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http supply GET /v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/review-access",
       "kind": "http",
       "module": "supply",
@@ -10956,7 +10988,7 @@
         "registration_sha256": "db6869349b013f695ada866cfc023993bbeca25864b127df084f6270a7799e36",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant/actor and exact owned SupplyConnect party plus warehouse/depot; only stock-purpose records.",
-        "rationale": "The stock handler refreshes permissions and uses exact owner access or a current reviewed operating duty. Its product callback restores private IAM/Workforce purposes and sets only exact stock RLS purpose. Original receipts remain quarantine; product observations and lookup do not confer release or dispatch authority. This is an unreleased source review, not runtime acceptance. Source rechecked for warehouse stock quality on 2026-11-08: IAM module changes append migration 0041; operating_duties.go embeds the byte-identical v1 snapshot for 0038 and the separately applied current template for 0041; SupplyConnect adds a distinct stock.review permission, quality routes and identifier-only event. Existing registrations and grants are unchanged. The generalized product guard retains operations.write at the existing identity caller and separately accepts stock.review only from the quality caller. This source review does not establish deployed or runtime cutoff acceptance. The additive stock-scope function permits the quality-review duty to read stock evidence; it retains operations.write as the only intake/identity write purpose and uses a separate review purpose for quality writes.",
+        "rationale": "The stock handler refreshes permissions and uses exact owner access or a current reviewed operating duty. Its product callback restores private IAM/Workforce purposes and sets only exact stock RLS purpose. Original receipts remain quarantine; product observations and lookup do not confer release or dispatch authority. This is an unreleased source review, not runtime acceptance. Source rechecked for warehouse stock quality on 2026-11-08: IAM module changes append migration 0041; operating_duties.go embeds the byte-identical v1 snapshot for 0038 and the separately applied current template for 0041; SupplyConnect adds a distinct stock.review permission, quality routes and identifier-only event. Existing registrations and grants are unchanged. The generalized product guard retains operations.write at the existing identity caller and separately accepts stock.review only from the quality caller. This source review does not establish deployed or runtime cutoff acceptance. The additive stock-scope function permits the quality-review duty to read stock evidence; it retains operations.write as the only intake/identity write purpose and uses a separate review purpose for quality writes. Source rechecked on 2026-11-09 for the shared operating callback boundary: live duty, identity, credential, membership, source/location, permission and transaction-frame checks are unchanged. Errors returned by an already admitted protected action now retain their business meaning and stop duty fallback; hidden resources remain 404 while actual authority denial and graph unavailability remain fail closed. The real IAM/Workforce/OpenFGA source regression tests missing objects and once-only callback errors under multiple valid duties. This hash update is source review only; exact-revision runtime acceptance remains pending.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/supply/stock_authority.go",
@@ -10975,7 +11007,7 @@
           },
           {
             "path": "backend/internal/modules/iam/operating_authority.go",
-            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "sha256": "f1d500bdb5eed1ee0ecfd631e9e8c6fdc54f8b5c34e1df8e52a3388527b97e21",
             "symbol": "func (a *operatingAuthority) WithOperatingScope("
           },
           {
@@ -11009,7 +11041,7 @@
         "registration_sha256": "136d716004e2fd24745008e69dfe84846e88548f8199df9d6860f505fba7d1db",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant/actor and exact owned SupplyConnect party plus warehouse/depot; only stock-purpose records.",
-        "rationale": "The stock handler refreshes permissions and uses exact owner access or a current reviewed operating duty. Its product callback restores private IAM/Workforce purposes and sets only exact stock RLS purpose. Original receipts remain quarantine; product observations and lookup do not confer release or dispatch authority. This is an unreleased source review, not runtime acceptance. Source rechecked for warehouse stock quality on 2026-11-08: IAM module changes append migration 0041; operating_duties.go embeds the byte-identical v1 snapshot for 0038 and the separately applied current template for 0041; SupplyConnect adds a distinct stock.review permission, quality routes and identifier-only event. Existing registrations and grants are unchanged. The generalized product guard retains operations.write at the existing identity caller and separately accepts stock.review only from the quality caller. This source review does not establish deployed or runtime cutoff acceptance. The additive stock-scope function permits the quality-review duty to read stock evidence; it retains operations.write as the only intake/identity write purpose and uses a separate review purpose for quality writes.",
+        "rationale": "The stock handler refreshes permissions and uses exact owner access or a current reviewed operating duty. Its product callback restores private IAM/Workforce purposes and sets only exact stock RLS purpose. Original receipts remain quarantine; product observations and lookup do not confer release or dispatch authority. This is an unreleased source review, not runtime acceptance. Source rechecked for warehouse stock quality on 2026-11-08: IAM module changes append migration 0041; operating_duties.go embeds the byte-identical v1 snapshot for 0038 and the separately applied current template for 0041; SupplyConnect adds a distinct stock.review permission, quality routes and identifier-only event. Existing registrations and grants are unchanged. The generalized product guard retains operations.write at the existing identity caller and separately accepts stock.review only from the quality caller. This source review does not establish deployed or runtime cutoff acceptance. The additive stock-scope function permits the quality-review duty to read stock evidence; it retains operations.write as the only intake/identity write purpose and uses a separate review purpose for quality writes. Source rechecked on 2026-11-09 for the shared operating callback boundary: live duty, identity, credential, membership, source/location, permission and transaction-frame checks are unchanged. Errors returned by an already admitted protected action now retain their business meaning and stop duty fallback; hidden resources remain 404 while actual authority denial and graph unavailability remain fail closed. The real IAM/Workforce/OpenFGA source regression tests missing objects and once-only callback errors under multiple valid duties. This hash update is source review only; exact-revision runtime acceptance remains pending.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/supply/stock_authority.go",
@@ -11028,7 +11060,7 @@
           },
           {
             "path": "backend/internal/modules/iam/operating_authority.go",
-            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "sha256": "f1d500bdb5eed1ee0ecfd631e9e8c6fdc54f8b5c34e1df8e52a3388527b97e21",
             "symbol": "func (a *operatingAuthority) WithOperatingScope("
           },
           {
@@ -11062,7 +11094,7 @@
         "registration_sha256": "c27220ca7f30fceb2b5467a560116979a7dc4820ba5f4bf9d0a850681407067f",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant/actor and exact owned SupplyConnect party plus warehouse/depot; only stock-purpose records.",
-        "rationale": "The stock handler refreshes permissions and uses exact owner access or a current reviewed operating duty. Its product callback restores private IAM/Workforce purposes and sets only exact stock RLS purpose. Original receipts remain quarantine; product observations and lookup do not confer release or dispatch authority. This is an unreleased source review, not runtime acceptance. Source rechecked for warehouse stock quality on 2026-11-08: IAM module changes append migration 0041; operating_duties.go embeds the byte-identical v1 snapshot for 0038 and the separately applied current template for 0041; SupplyConnect adds a distinct stock.review permission, quality routes and identifier-only event. Existing registrations and grants are unchanged. The generalized product guard retains operations.write at the existing identity caller and separately accepts stock.review only from the quality caller. This source review does not establish deployed or runtime cutoff acceptance. The additive stock-scope function permits the quality-review duty to read stock evidence; it retains operations.write as the only intake/identity write purpose and uses a separate review purpose for quality writes.",
+        "rationale": "The stock handler refreshes permissions and uses exact owner access or a current reviewed operating duty. Its product callback restores private IAM/Workforce purposes and sets only exact stock RLS purpose. Original receipts remain quarantine; product observations and lookup do not confer release or dispatch authority. This is an unreleased source review, not runtime acceptance. Source rechecked for warehouse stock quality on 2026-11-08: IAM module changes append migration 0041; operating_duties.go embeds the byte-identical v1 snapshot for 0038 and the separately applied current template for 0041; SupplyConnect adds a distinct stock.review permission, quality routes and identifier-only event. Existing registrations and grants are unchanged. The generalized product guard retains operations.write at the existing identity caller and separately accepts stock.review only from the quality caller. This source review does not establish deployed or runtime cutoff acceptance. The additive stock-scope function permits the quality-review duty to read stock evidence; it retains operations.write as the only intake/identity write purpose and uses a separate review purpose for quality writes. Source rechecked on 2026-11-09 for the shared operating callback boundary: live duty, identity, credential, membership, source/location, permission and transaction-frame checks are unchanged. Errors returned by an already admitted protected action now retain their business meaning and stop duty fallback; hidden resources remain 404 while actual authority denial and graph unavailability remain fail closed. The real IAM/Workforce/OpenFGA source regression tests missing objects and once-only callback errors under multiple valid duties. This hash update is source review only; exact-revision runtime acceptance remains pending.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/supply/stock_authority.go",
@@ -11081,7 +11113,7 @@
           },
           {
             "path": "backend/internal/modules/iam/operating_authority.go",
-            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "sha256": "f1d500bdb5eed1ee0ecfd631e9e8c6fdc54f8b5c34e1df8e52a3388527b97e21",
             "symbol": "func (a *operatingAuthority) WithOperatingScope("
           },
           {
@@ -11115,7 +11147,7 @@
         "registration_sha256": "fe833bce8970ee0550d6e92994dca46bc23f69f98062fd329d3ba507eec37ba5",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant/actor and exact owned SupplyConnect party plus warehouse/depot; only stock-purpose records.",
-        "rationale": "The stock handler refreshes permissions and uses exact owner access or a current reviewed operating duty. Its product callback restores private IAM/Workforce purposes and sets only exact stock RLS purpose. Original receipts remain quarantine; product observations and lookup do not confer release or dispatch authority. This is an unreleased source review, not runtime acceptance. Source rechecked for warehouse stock quality on 2026-11-08: IAM module changes append migration 0041; operating_duties.go embeds the byte-identical v1 snapshot for 0038 and the separately applied current template for 0041; SupplyConnect adds a distinct stock.review permission, quality routes and identifier-only event. Existing registrations and grants are unchanged. The generalized product guard retains operations.write at the existing identity caller and separately accepts stock.review only from the quality caller. This source review does not establish deployed or runtime cutoff acceptance. The additive stock-scope function permits the quality-review duty to read stock evidence; it retains operations.write as the only intake/identity write purpose and uses a separate review purpose for quality writes.",
+        "rationale": "The stock handler refreshes permissions and uses exact owner access or a current reviewed operating duty. Its product callback restores private IAM/Workforce purposes and sets only exact stock RLS purpose. Original receipts remain quarantine; product observations and lookup do not confer release or dispatch authority. This is an unreleased source review, not runtime acceptance. Source rechecked for warehouse stock quality on 2026-11-08: IAM module changes append migration 0041; operating_duties.go embeds the byte-identical v1 snapshot for 0038 and the separately applied current template for 0041; SupplyConnect adds a distinct stock.review permission, quality routes and identifier-only event. Existing registrations and grants are unchanged. The generalized product guard retains operations.write at the existing identity caller and separately accepts stock.review only from the quality caller. This source review does not establish deployed or runtime cutoff acceptance. The additive stock-scope function permits the quality-review duty to read stock evidence; it retains operations.write as the only intake/identity write purpose and uses a separate review purpose for quality writes. Source rechecked on 2026-11-09 for the shared operating callback boundary: live duty, identity, credential, membership, source/location, permission and transaction-frame checks are unchanged. Errors returned by an already admitted protected action now retain their business meaning and stop duty fallback; hidden resources remain 404 while actual authority denial and graph unavailability remain fail closed. The real IAM/Workforce/OpenFGA source regression tests missing objects and once-only callback errors under multiple valid duties. This hash update is source review only; exact-revision runtime acceptance remains pending.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/supply/stock_authority.go",
@@ -11134,7 +11166,7 @@
           },
           {
             "path": "backend/internal/modules/iam/operating_authority.go",
-            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "sha256": "f1d500bdb5eed1ee0ecfd631e9e8c6fdc54f8b5c34e1df8e52a3388527b97e21",
             "symbol": "func (a *operatingAuthority) WithOperatingScope("
           },
           {
@@ -11168,7 +11200,7 @@
         "registration_sha256": "bdfc8f8ffa2d1a3d6e7070640792db765a0c1f5bdbbe9407ef2cd2b3d1890d3e",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant/subject and exact owned SupplyConnect party, warehouse/depot and physical receipt; no hospital or partner disclosure authority.",
-        "rationale": "Current stock read/review permission intersects explicit inventory/administrator source access or a reviewed, acknowledged independent operating duty. Release rejects receipt/count self-review, stale observation/quality versions, local-date expiry, unsupported controlled categories and a no-longer-current drug-master product. Holds and immutable receipt recovery preserve evidence without advertising availability or authorizing trade. These are source classifications, not runtime or deployment acceptance.",
+        "rationale": "Current stock read/review permission intersects explicit inventory/administrator source access or a reviewed, acknowledged independent operating duty. Release rejects receipt/count self-review, stale observation/quality versions, local-date expiry, unsupported controlled categories and a no-longer-current drug-master product. Holds and immutable receipt recovery preserve evidence without advertising availability or authorizing trade. These are source classifications, not runtime or deployment acceptance. Source rechecked on 2026-11-09 for the shared operating callback boundary: live duty, identity, credential, membership, source/location, permission and transaction-frame checks are unchanged. Errors returned by an already admitted protected action now retain their business meaning and stop duty fallback; hidden resources remain 404 while actual authority denial and graph unavailability remain fail closed. The real IAM/Workforce/OpenFGA source regression tests missing objects and once-only callback errors under multiple valid duties. This hash update is source review only; exact-revision runtime acceptance remains pending.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/supply/stock_quality.go",
@@ -11192,7 +11224,7 @@
           },
           {
             "path": "backend/internal/modules/iam/operating_authority.go",
-            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "sha256": "f1d500bdb5eed1ee0ecfd631e9e8c6fdc54f8b5c34e1df8e52a3388527b97e21",
             "symbol": "func (a *operatingAuthority) WithOperatingScope("
           }
         ],
@@ -11221,7 +11253,7 @@
         "registration_sha256": "e0e556d4dcd946f0eaa629dd238da4d63bc7f8e8a2b256973cf5e7bbde39964c",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant/subject and exact owned SupplyConnect party, warehouse/depot and physical receipt; no hospital or partner disclosure authority.",
-        "rationale": "Current stock read/review permission intersects explicit inventory/administrator source access or a reviewed, acknowledged independent operating duty. Release rejects receipt/count self-review, stale observation/quality versions, local-date expiry, unsupported controlled categories and a no-longer-current drug-master product. Holds and immutable receipt recovery preserve evidence without advertising availability or authorizing trade. These are source classifications, not runtime or deployment acceptance.",
+        "rationale": "Current stock read/review permission intersects explicit inventory/administrator source access or a reviewed, acknowledged independent operating duty. Release rejects receipt/count self-review, stale observation/quality versions, local-date expiry, unsupported controlled categories and a no-longer-current drug-master product. Holds and immutable receipt recovery preserve evidence without advertising availability or authorizing trade. These are source classifications, not runtime or deployment acceptance. Source rechecked on 2026-11-09 for the shared operating callback boundary: live duty, identity, credential, membership, source/location, permission and transaction-frame checks are unchanged. Errors returned by an already admitted protected action now retain their business meaning and stop duty fallback; hidden resources remain 404 while actual authority denial and graph unavailability remain fail closed. The real IAM/Workforce/OpenFGA source regression tests missing objects and once-only callback errors under multiple valid duties. This hash update is source review only; exact-revision runtime acceptance remains pending.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/supply/stock_quality.go",
@@ -11245,7 +11277,7 @@
           },
           {
             "path": "backend/internal/modules/iam/operating_authority.go",
-            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "sha256": "f1d500bdb5eed1ee0ecfd631e9e8c6fdc54f8b5c34e1df8e52a3388527b97e21",
             "symbol": "func (a *operatingAuthority) WithOperatingScope("
           }
         ],
@@ -11855,6 +11887,22 @@
         "source": "backend/internal/modules/supply/module.go",
         "method": "GET",
         "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/commands/:command",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http supply GET /v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/receiving-response-access",
+      "kind": "http",
+      "module": "supply",
+      "registration": {
+        "source": "backend/internal/modules/supply/module.go",
+        "method": "GET",
+        "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/receiving-response-access",
         "permission": "public",
         "authentication_required": true,
         "membership_required": true,
@@ -12494,7 +12542,7 @@
         "registration_sha256": "b5df10c170426a946ccb9b8665fbfbdc346375bfc8a6bb61f99b36016eea1fe3",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant/actor and exact owned SupplyConnect party plus warehouse/depot; only stock-purpose records.",
-        "rationale": "The stock handler refreshes permissions and uses exact owner access or a current reviewed operating duty. Its product callback restores private IAM/Workforce purposes and sets only exact stock RLS purpose. Original receipts remain quarantine; product observations and lookup do not confer release or dispatch authority. This is an unreleased source review, not runtime acceptance. Source rechecked for warehouse stock quality on 2026-11-08: IAM module changes append migration 0041; operating_duties.go embeds the byte-identical v1 snapshot for 0038 and the separately applied current template for 0041; SupplyConnect adds a distinct stock.review permission, quality routes and identifier-only event. Existing registrations and grants are unchanged. The generalized product guard retains operations.write at the existing identity caller and separately accepts stock.review only from the quality caller. This source review does not establish deployed or runtime cutoff acceptance. The additive stock-scope function permits the quality-review duty to read stock evidence; it retains operations.write as the only intake/identity write purpose and uses a separate review purpose for quality writes.",
+        "rationale": "The stock handler refreshes permissions and uses exact owner access or a current reviewed operating duty. Its product callback restores private IAM/Workforce purposes and sets only exact stock RLS purpose. Original receipts remain quarantine; product observations and lookup do not confer release or dispatch authority. This is an unreleased source review, not runtime acceptance. Source rechecked for warehouse stock quality on 2026-11-08: IAM module changes append migration 0041; operating_duties.go embeds the byte-identical v1 snapshot for 0038 and the separately applied current template for 0041; SupplyConnect adds a distinct stock.review permission, quality routes and identifier-only event. Existing registrations and grants are unchanged. The generalized product guard retains operations.write at the existing identity caller and separately accepts stock.review only from the quality caller. This source review does not establish deployed or runtime cutoff acceptance. The additive stock-scope function permits the quality-review duty to read stock evidence; it retains operations.write as the only intake/identity write purpose and uses a separate review purpose for quality writes. Source rechecked on 2026-11-09 for the shared operating callback boundary: live duty, identity, credential, membership, source/location, permission and transaction-frame checks are unchanged. Errors returned by an already admitted protected action now retain their business meaning and stop duty fallback; hidden resources remain 404 while actual authority denial and graph unavailability remain fail closed. The real IAM/Workforce/OpenFGA source regression tests missing objects and once-only callback errors under multiple valid duties. This hash update is source review only; exact-revision runtime acceptance remains pending.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/supply/stock_authority.go",
@@ -12513,7 +12561,7 @@
           },
           {
             "path": "backend/internal/modules/iam/operating_authority.go",
-            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "sha256": "f1d500bdb5eed1ee0ecfd631e9e8c6fdc54f8b5c34e1df8e52a3388527b97e21",
             "symbol": "func (a *operatingAuthority) WithOperatingScope("
           },
           {
@@ -12547,7 +12595,7 @@
         "registration_sha256": "ab60103c84b75a34c7b6da275b57b2f5381d9826d7fadd6ee364305366120ecb",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant/actor and exact owned SupplyConnect party plus warehouse/depot; only stock-purpose records.",
-        "rationale": "The stock handler refreshes permissions and uses exact owner access or a current reviewed operating duty. Its product callback restores private IAM/Workforce purposes and sets only exact stock RLS purpose. Original receipts remain quarantine; product observations and lookup do not confer release or dispatch authority. This is an unreleased source review, not runtime acceptance. Source rechecked for warehouse stock quality on 2026-11-08: IAM module changes append migration 0041; operating_duties.go embeds the byte-identical v1 snapshot for 0038 and the separately applied current template for 0041; SupplyConnect adds a distinct stock.review permission, quality routes and identifier-only event. Existing registrations and grants are unchanged. The generalized product guard retains operations.write at the existing identity caller and separately accepts stock.review only from the quality caller. This source review does not establish deployed or runtime cutoff acceptance. The additive stock-scope function permits the quality-review duty to read stock evidence; it retains operations.write as the only intake/identity write purpose and uses a separate review purpose for quality writes.",
+        "rationale": "The stock handler refreshes permissions and uses exact owner access or a current reviewed operating duty. Its product callback restores private IAM/Workforce purposes and sets only exact stock RLS purpose. Original receipts remain quarantine; product observations and lookup do not confer release or dispatch authority. This is an unreleased source review, not runtime acceptance. Source rechecked for warehouse stock quality on 2026-11-08: IAM module changes append migration 0041; operating_duties.go embeds the byte-identical v1 snapshot for 0038 and the separately applied current template for 0041; SupplyConnect adds a distinct stock.review permission, quality routes and identifier-only event. Existing registrations and grants are unchanged. The generalized product guard retains operations.write at the existing identity caller and separately accepts stock.review only from the quality caller. This source review does not establish deployed or runtime cutoff acceptance. The additive stock-scope function permits the quality-review duty to read stock evidence; it retains operations.write as the only intake/identity write purpose and uses a separate review purpose for quality writes. Source rechecked on 2026-11-09 for the shared operating callback boundary: live duty, identity, credential, membership, source/location, permission and transaction-frame checks are unchanged. Errors returned by an already admitted protected action now retain their business meaning and stop duty fallback; hidden resources remain 404 while actual authority denial and graph unavailability remain fail closed. The real IAM/Workforce/OpenFGA source regression tests missing objects and once-only callback errors under multiple valid duties. This hash update is source review only; exact-revision runtime acceptance remains pending.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/supply/stock_authority.go",
@@ -12566,7 +12614,7 @@
           },
           {
             "path": "backend/internal/modules/iam/operating_authority.go",
-            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "sha256": "f1d500bdb5eed1ee0ecfd631e9e8c6fdc54f8b5c34e1df8e52a3388527b97e21",
             "symbol": "func (a *operatingAuthority) WithOperatingScope("
           },
           {
@@ -12600,7 +12648,7 @@
         "registration_sha256": "d9a5278bc95d8606f400ad134278902990d74a303414b779053040fe0d65667b",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant/subject and exact owned SupplyConnect party, warehouse/depot and physical receipt; no hospital or partner disclosure authority.",
-        "rationale": "Current stock read/review permission intersects explicit inventory/administrator source access or a reviewed, acknowledged independent operating duty. Release rejects receipt/count self-review, stale observation/quality versions, local-date expiry, unsupported controlled categories and a no-longer-current drug-master product. Holds and immutable receipt recovery preserve evidence without advertising availability or authorizing trade. These are source classifications, not runtime or deployment acceptance.",
+        "rationale": "Current stock read/review permission intersects explicit inventory/administrator source access or a reviewed, acknowledged independent operating duty. Release rejects receipt/count self-review, stale observation/quality versions, local-date expiry, unsupported controlled categories and a no-longer-current drug-master product. Holds and immutable receipt recovery preserve evidence without advertising availability or authorizing trade. These are source classifications, not runtime or deployment acceptance. Source rechecked on 2026-11-09 for the shared operating callback boundary: live duty, identity, credential, membership, source/location, permission and transaction-frame checks are unchanged. Errors returned by an already admitted protected action now retain their business meaning and stop duty fallback; hidden resources remain 404 while actual authority denial and graph unavailability remain fail closed. The real IAM/Workforce/OpenFGA source regression tests missing objects and once-only callback errors under multiple valid duties. This hash update is source review only; exact-revision runtime acceptance remains pending.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/supply/stock_quality.go",
@@ -12624,7 +12672,7 @@
           },
           {
             "path": "backend/internal/modules/iam/operating_authority.go",
-            "sha256": "29a3b3cfda19243d774af0e013a76e30da901e90337ce244aeab8c9849275c13",
+            "sha256": "f1d500bdb5eed1ee0ecfd631e9e8c6fdc54f8b5c34e1df8e52a3388527b97e21",
             "symbol": "func (a *operatingAuthority) WithOperatingScope("
           }
         ],

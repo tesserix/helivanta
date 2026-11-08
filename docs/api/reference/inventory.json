@@ -2951,6 +2951,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/creation-receipt",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/releases/:release",
           "permission": "public",
           "authentication_required": true,
@@ -6313,6 +6322,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/receiving-response-access",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/review-access",
           "permission": "public",
           "authentication_required": true,
@@ -7169,6 +7187,15 @@
         {
           "method": "PUT",
           "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/receiving-response-access",
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,

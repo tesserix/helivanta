@@ -41,3 +41,5 @@ var TestOutletLocalDate = outletLocalDate
 var TestReceivingReleasePage = receivingReleasePage
 
 var TestReceivingClearancePage = receivingClearancePage
+
+var ReadOriginalSupplierReceiptForTest = (&supplierReceiving{}).originalReceipt

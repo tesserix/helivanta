@@ -6,6 +6,7 @@ import {
   recoverSupplierOrderCommand,
   getSourceSupplierOrder,
   getSourceSupplierReviewAccess,
+  getSourceSupplierResponseAccess,
   decideSourceSupplierOrder,
   recoverSourceSupplierOrderCommand,
 } from "./supplier-orders";
@@ -243,4 +244,44 @@ it("checks source review admission against the exact current account and owner s
     json: async () => ({ ...admission, location_id: "0199e000-0000-7000-8000-000000000099" }),
   });
   await expect(getSourceSupplierReviewAccess(source, id)).rejects.toThrow();
+});
+
+it("checks receiving-response admission separately from order acceptance", async () => {
+  const source = {
+    tenantId: terms.seller.tenant_id,
+    subject: "TEST-source-responder",
+    product: "supply" as const,
+    organizationId: terms.seller.organization_id,
+    locationId: terms.seller.location_id,
+  };
+  const admission = {
+    owner_tenant_id: source.tenantId,
+    order_id: id,
+    organization_id: source.organizationId,
+    location_id: source.locationId,
+    product: source.product,
+    actor_subject: source.subject,
+    actor_staff_id: id,
+    observed_at: "2026-11-09T00:00:00Z",
+  };
+  const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => admission });
+  vi.stubGlobal("fetch", fetch);
+  await expect(getSourceSupplierResponseAccess(source, id)).resolves.toEqual(admission);
+  expect(fetch).toHaveBeenCalledWith(
+    expect.stringContaining(`/${id}/receiving-response-access`),
+    expect.objectContaining({ cache: "no-store" }),
+  );
+  for (const field of [
+    "owner_tenant_id",
+    "order_id",
+    "organization_id",
+    "location_id",
+    "actor_subject",
+  ]) {
+    fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ ...admission, [field]: "0199e000-0000-7000-8000-000000000099" }),
+    });
+    await expect(getSourceSupplierResponseAccess(source, id)).rejects.toThrow();
+  }
 });

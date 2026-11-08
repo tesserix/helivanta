@@ -282,3 +282,38 @@ changed-input/actor conflicts, shelf quantity and exact movement outbox count.
 Those assertions await CI; native registration, build and lint are separate evidence.
 Hospital workbench, workplace discovery and actual IAM/browser full flow remain
 unfinished. No merge, Kargo promotion or shared website acceptance is claimed.
+
+### Web operational continuation (local candidate)
+
+The hospital workbench and explicit independent/warehouse source hosts are now
+implemented. Source dispatch inspection and version-pinned response recovery share
+the existing source command guard. Hospital count/correction/closure/clearance/
+release share one retained command guard, including authority-refresh outages and
+frozen destination batch/MRP. No physical count is prefilled. Empty owner-confirmed
+receiving can close entirely short without manufacturing a receipt. Deeper history
+queries open for one selected receipt or shipment rather than every list row.
+
+Approved current Staff pharmacy relationships link to the governed hospital
+workspace. Independent hosts accept known workplace links without broad catalogue
+directory grants. A general self-workplace directory is not added. New source
+response admission uses its exact existing permission, separate from acceptance.
+New draw.io/SVG owner flow was XML-validated, rendered and visually reviewed.
+
+Current native UI assertions cover observed counts/identity, no assumed count,
+accepted-stock lost-response recovery with identical batch/MRP/ID, entirely-short
+closure, stale correction drafts, distinct clearance/physical release, source reply
+recovery without a second write, closed-receiving prerequisite, narrow host paths,
+expected session headers and explicit denial. Native SDK and contract checks are
+separate from actual database, broker, IAM and shared-site acceptance.
+
+Latest completed 776d7717 CI passed web, scripts, secret scan and browser regression;
+Go exposed two failures retained as regression checks: the release outbox assertion
+also counted the prior receipt event (now correlated to exact release movement IDs),
+and independent IAM operating authority normalized a hidden shipment into 403
+(now preserves the business 404 and avoids duty fallback after a callback). New
+real Staff callback assertions reuse the fixture's exact live authorizer/principal;
+no authorization graph is mocked or floor lowered. Original receipt recovery now
+has a distinct current-Staff-bound route; generic colleague disclosure remains.
+
+Merge, final CI/coverage, Kargo deployment and shared website acceptance remain
+pending. Full financial composition remains a separate uncompleted acceptance gate.

@@ -175,6 +175,27 @@ func TestSupplierReceivingCorrectionRepositoryRetainsEvidenceAndRollsBackCustody
 		})
 	}
 	require.NoError(t, closeReceiving(1))
+
+	require.NoError(t, command(receiver, "read", func(tx *gorm.DB) error {
+		proof, err := pharmacy.ReadOriginalSupplierReceiptForTest(tx, scope, original.ID, receiver)
+		if err != nil {
+			return err
+		}
+		require.Equal(t, original.ID, proof.ID)
+		return nil
+	}))
+	sameAccountOtherStaff := reviewer
+	sameAccountOtherStaff.Subject = receiver.Subject
+	require.ErrorIs(t, command(sameAccountOtherStaff, "read", func(tx *gorm.DB) error {
+		_, err := pharmacy.ReadOriginalSupplierReceiptForTest(tx, scope, original.ID, sameAccountOtherStaff)
+		return err
+	}), gorm.ErrRecordNotFound, "relinking an account must not transfer original Staff recovery")
+	sameStaffOtherAccount := receiver
+	sameStaffOtherAccount.Subject = "TEST-another-account"
+	require.ErrorIs(t, command(sameStaffOtherAccount, "read", func(tx *gorm.DB) error {
+		_, err := pharmacy.ReadOriginalSupplierReceiptForTest(tx, scope, original.ID, sameStaffOtherAccount)
+		return err
+	}), gorm.ErrRecordNotFound)
 	correctionID := id()
 	input := f.ReceivingCorrectionInput{ExpectedSummaryVersion: 2, ExpectedReceiptVersion: 1, CountedUnits: 28, AcceptedUnits: 18, RejectedUnits: 10, Reason: "TEST reviewed recount"}
 	var corrected f.ReceivingCorrection
@@ -390,7 +411,7 @@ func TestSupplierReceivingCorrectionRepositoryRetainsEvidenceAndRollsBackCustody
 		}
 		require.Equal(t, int64(10), physical, "only one actual release reaches the shelf")
 		var publications int64
-		if err := tx.Table("outbox_events").Where("tenant_id=? AND subject=? AND payload#>>'{data,batch_id}'=?", tenant, pharmacycontract.SubjectStockMovementRecorded, original.Input.DestinationBatchID.String()).Count(&publications).Error; err != nil {
+		if err := tx.Table("outbox_events e").Joins("JOIN pharmacy_stock_movements m ON m.tenant_id=e.tenant_id AND m.id=(e.payload#>>'{data,movement_id}')::uuid").Where("e.tenant_id=? AND e.subject=? AND m.outlet_id=? AND m.source_reference IN ?", tenant, pharmacycontract.SubjectStockMovementRecorded, outlet, []string{"release:" + releaseID.String() + ":out", "release:" + releaseID.String() + ":in"}).Count(&publications).Error; err != nil {
 			return err
 		}
 		require.Equal(t, int64(2), publications, "one release publishes exactly its two stock movements")

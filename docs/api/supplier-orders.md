@@ -1,9 +1,12 @@
 # Independent supplier order and fulfilment continuation
 
-This is work in progress on `feat/supplier-orders-dispatch-20261108`. The candidate now includes owner APIs, forced-RLS storage, immutable command
-recovery, directed exchange and SDK validation. Real-owner database/broker CI
-acceptance is pending. Stock reservation, dispatch, receiving and financial
-integration remain unimplemented. Do not consume an order snapshot as operating
+This is work in progress on `feat/supplier-fulfilment-receiving-20261108`. The
+candidate includes owner APIs, forced-RLS storage, immutable command recovery,
+directed exchange, SDK validation and scoped web workbenches. Both stock owners
+implement reservation and dispatch; hospital receiving includes corrections,
+discrepancies, independent clearance and physical quarantine release. Final
+real-owner database/broker CI and deployed browser acceptance remain pending.
+Financial integration remains unfinished. An order snapshot is never operating
 authority.
 
 ## Ownership and scope
@@ -84,12 +87,12 @@ cannot place or approve an order, reserve stock, dispatch goods or post receipt.
 ## Remaining implementation and verification
 
 The candidate implements order owner APIs, permissions and reviewed Staff
-templates, forced-RLS storage, directed order consumers and the strict order SDK.
-The reservation/release Temporal activities, both stock owners' reservation and
-dispatch, hospital receiving/discrepancies, financial integration, minimized
-effective-grant disclosure, order UI and actual-owner/browser acceptance remain
-implementation work. The order checkpoint does not establish an approved live
-fulfilment workflow.
+templates, forced-RLS storage, directed order consumers, both stock owners'
+reservation/release/dispatch, hospital receiving and discrepancies, directed
+supplier replies, receipt-bound physical release, strict SDKs and operational web
+workbenches. Final CI/coverage, deployed browser acceptance, financial composition
+and wider order orchestration acceptance remain open. This candidate does not
+establish an approved live fulfilment workflow.
 The application remains a modular monolith using existing owners and worker;
 this introduces no new service or copied inventory/financial master.
 
@@ -166,7 +169,6 @@ transport provenance, matching established relationship terms, remote epochs and
 monotonic transitions. Cancellation after source acceptance remains pending until
 stock-owner compensation exists; it never asserts release merely because an event
 was received. The candidate exposes no successful reservation or dispatch result.
-
 
 ### Scoped fulfilment and receiving discovery
 
@@ -321,3 +323,34 @@ The release movement RLS correlates fully qualified outer movement columns to th
 receipt journal, including signed quantity and the exact source/destination shelf.
 The owner integration test also rejects a forged mismatched movement with RLS
 SQLSTATE 42501 before an existing source-reference uniqueness constraint.
+
+Source `GET /:order/receiving-response-access` under each explicit independent or
+hospital-pharmacy source root returns one current `SupplierOrderReviewAccess`
+resource admitted with `supply.receiving_response.record`, current Staff and the
+exact order scope. Its audit action is `supplier_receiving_response_access_read`.
+It is distinct from `/:order/review-access`, which retains the source acceptance
+purpose. Both return context evidence, not a transferable authorization token;
+each subsequent command independently reauthorizes.
+
+Hospital original-command recovery is distinct from ordinary receipt disclosure:
+`GET /receipts/:receipt/creation-receipt` requires current recording purpose and
+the original account **and** Staff identity. A different linked Staff identity on
+the same account cannot adopt that proof. Ordinary `GET /receipts/:receipt` and
+bounded receipt history retain authorized colleague access. Physical release GET
+recovery likewise pins both original actor fields; ordinary release history is
+separate. The SDK uses the dedicated original-proof endpoint and still verifies
+frozen intent. Missing or foreign original proofs return 404.
+
+Progress and individual receipt reads now explicitly audit
+`pharmacy_receiving_summary_read`, `pharmacy_supplier_receipt_read`,
+`pharmacy_supplier_receipt_recovery_read` and source
+`supplier_receiving_summary_read`, in addition to existing list/read audit.
+An audit failure does not yield a successful sensitive read.
+
+The independent operating-authority guard preserves protected business callback
+errors after validating its live duty. It does not reinterpret a missing order or
+shipment as missing Staff authority, and it does not retry a failed business action
+under another duty. Current-duty, current-identity, credential, source/location,
+revocation and graph checks retain their fail-closed outcomes. The real IAM /
+Workforce / OpenFGA source scenario covers hidden objects, denied duties, outage,
+revocation, original recovery and once-only callback error propagation.

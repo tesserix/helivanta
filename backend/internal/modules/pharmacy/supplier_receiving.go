@@ -40,6 +40,7 @@ func supplierReceivingRoutes(r *platform.Router, deps platform.Deps) {
 	r.GET(base+"/receiving", authz.Public, h.current)
 	r.PUT(base+"/receipts/:receipt", authz.Public, h.receive)
 	r.GET(base+"/receipts/:receipt", authz.Public, h.receipt)
+	r.GET(base+"/receipts/:receipt/creation-receipt", authz.Public, h.original)
 	r.PUT(base+"/closures/:closure", authz.Public, h.close)
 	r.PUT(base+"/receipts/:receipt/clearances/:clearance", authz.Public, h.clearance)
 	r.PUT(base+"/receipts/:receipt/corrections/:correction", authz.Public, h.correct)
@@ -147,16 +148,19 @@ func (h *supplierReceiving) current(c *gin.Context) {
 		return
 	}
 	var result *f.ReceivingSummary
-	err := h.with(c, p, s, f.ReadReceiving, func(_ context.Context, tx *gorm.DB, _ f.Shipment, _ supplierorder.Actor) error {
+	err := h.with(c, p, s, f.ReadReceiving, func(_ context.Context, tx *gorm.DB, _ f.Shipment, actor supplierorder.Actor) error {
 		head, err := readReceivingHead(tx, s.TenantID, s.ShipmentID)
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil
+			return auditReceivingList(tx, s, actor, "pharmacy_receiving_summary_read")
 		}
 		if err != nil {
 			return err
 		}
 		result = new(f.ReceivingSummary)
-		return supplierorder.DecodeObject(head.Summary, result)
+		if err := supplierorder.DecodeObject(head.Summary, result); err != nil {
+			return err
+		}
+		return auditReceivingList(tx, s, actor, "pharmacy_receiving_summary_read")
 	})
 	if err != nil {
 		supplierstock.Error(c, err)
@@ -201,7 +205,10 @@ func (h *supplierReceiving) receipt(c *gin.Context) {
 	err := h.with(c, p, s, f.ReadReceiving, func(_ context.Context, tx *gorm.DB, _ f.Shipment, a supplierorder.Actor) error {
 		var err error
 		result, err = h.read(tx, s.TenantID, s.ShipmentID, id, a, nil)
-		return err
+		if err != nil {
+			return err
+		}
+		return auditReceivingList(tx, s, a, "pharmacy_supplier_receipt_read")
 	})
 	if err != nil {
 		supplierstock.Error(c, err)

@@ -282,6 +282,7 @@ type ReceivingProductChoice struct {
 	UnitCode            string    `json:"unit_code"`
 	PackSize            int64     `json:"pack_size"`
 	IdentityDescription string    `json:"identity_description"`
+	Currency            string    `json:"currency"`
 	CreatedAt           time.Time `json:"created_at"`
 }
 

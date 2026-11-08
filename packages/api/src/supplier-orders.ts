@@ -249,13 +249,14 @@ export const supplierSourceOrderKey = (scope: SupplierSourceOrderScope, order: s
   order,
 ];
 
-export async function getSourceSupplierReviewAccess(
+async function sourceSupplierAccess(
   scope: SupplierSourceOrderScope,
   order: string,
+  purpose: "review-access" | "receiving-response-access",
   signal?: AbortSignal,
 ) {
   const value = SupplierOrderReviewAccessContract.parse(
-    await apiFetch(`${supplierSourceOrdersRoot(scope)}/${record.parse(order)}/review-access`, {
+    await apiFetch(`${supplierSourceOrdersRoot(scope)}/${record.parse(order)}/${purpose}`, {
       ...membershipRequestOptions(scope),
       signal,
     }),
@@ -272,4 +273,19 @@ export async function getSourceSupplierReviewAccess(
   )
     throw new Error("Source review access does not match the selected account and order scope.");
   return value;
+}
+
+export function getSourceSupplierReviewAccess(
+  scope: SupplierSourceOrderScope,
+  order: string,
+  signal?: AbortSignal,
+) {
+  return sourceSupplierAccess(scope, order, "review-access", signal);
+}
+export function getSourceSupplierResponseAccess(
+  scope: SupplierSourceOrderScope,
+  order: string,
+  signal?: AbortSignal,
+) {
+  return sourceSupplierAccess(scope, order, "receiving-response-access", signal);
 }

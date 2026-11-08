@@ -4,6 +4,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { NavigationGuardProvider, refusedDefault } from "@helivanta/ui";
 import { chooseOption } from "../../test/select";
+import { SourceShipments } from "./source-shipments";
 import { SourceFulfilment } from "./source-fulfilment";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
 const id = (n: number) => `0199e000-0000-7000-8000-${String(n).padStart(12, "0")}`;
@@ -490,4 +491,205 @@ it("refreshes a first owner stock conflict before allowing an edited reservation
   await screen.findByText("TEST current stock changed");
   await waitFor(() => expect(screen.getByRole("button", { name: "Reserve stock" })).toBeEnabled());
   expect(screen.queryByText("Original reservation record verified.")).not.toBeInTheDocument();
+});
+
+it("recovers an original supplier response without publishing a second request", async () => {
+  const shipment = {
+    id: id(60),
+    allocation_id: id(61),
+    order_id: order.id,
+    line_id: line.id,
+    order_input_sha256: order.input_sha256,
+    source_tenant_id: scope.tenantId,
+    source_organization_id: scope.organizationId,
+    source_location_id: scope.locationId,
+    buyer_tenant_id: terms.buyer.tenant_id,
+    hospital_id: terms.buyer.hospital_id,
+    buyer_organization_id: terms.buyer.organization_id,
+    buyer_location_id: terms.buyer.location_id,
+    product,
+    unit_code: line.unit_code,
+    quantity_units: 10,
+    lot_number: choice.lot_number,
+    expires_on: choice.expires_on,
+    handoff_reference: "TEST-CHALLAN",
+    actor_subject: scope.subject,
+    product_description: choice.description,
+    pack_size: 10,
+    dispatched_at: "2026-11-08T12:00:00Z",
+  };
+  const summary = {
+    id: id(62),
+    owner_tenant_id: terms.buyer.tenant_id,
+    shipment_id: shipment.id,
+    order_id: order.id,
+    version: 4,
+    counted_units: 3,
+    accepted_units: 2,
+    rejected_units: 1,
+    short_units: 7,
+    closed: true,
+    reason: "TEST hospital inspected partial delivery",
+    actor_subject: "TEST-hospital-receiver",
+    recorded_at: "2026-11-08T13:00:00Z",
+  };
+  let original: Record<string, unknown> | null = null,
+    writes = 0;
+  const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+    if (init?.method === "PUT") {
+      writes++;
+      const input = JSON.parse(String(init.body));
+      original = {
+        id: url.split("/").at(-1),
+        owner_tenant_id: scope.tenantId,
+        buyer_tenant_id: terms.buyer.tenant_id,
+        order_id: order.id,
+        shipment_id: shipment.id,
+        source_product: scope.product,
+        source_organization_id: scope.organizationId,
+        source_location_id: scope.locationId,
+        summary_version: input.expected_summary_version,
+        response: input.response,
+        reason: input.reason,
+        actor_subject: scope.subject,
+        actor_staff_id: id(63),
+        created_at: "2026-11-09T01:00:00Z",
+      };
+      throw new TypeError("TEST reply response lost after commit");
+    }
+    if (url.includes("/receiving/responses/")) return Response.json(original);
+    if (url.includes("/receiving/responses?")) return page(original ? [original] : []);
+    if (url.endsWith("/receiving")) return Response.json(summary);
+    if (url.includes("/shipments?")) return page([shipment]);
+    if (url.endsWith("/receiving-response-access"))
+      return Response.json({
+        owner_tenant_id: scope.tenantId,
+        order_id: order.id,
+        organization_id: scope.organizationId,
+        location_id: scope.locationId,
+        product: scope.product,
+        actor_subject: scope.subject,
+        actor_staff_id: id(63),
+        observed_at: "2026-11-09T01:00:00Z",
+      });
+    if (url.includes("/stock-choices?")) return page([choice]);
+    if (url.includes("/allocations?")) return page([]);
+    if (url.includes("/supplier-orders?")) return page([order]);
+    if (url.endsWith(`/supplier-orders/${order.id}`)) return Response.json(order);
+    return Response.json({ error: "not_found", message: "TEST missing route" }, { status: 404 });
+  });
+  vi.stubGlobal("fetch", fetch);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <SourceFulfilment scope={scope} />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Open TEST-PO" }));
+  await user.click(
+    await screen.findByRole("button", { name: "Inspect receiving for TEST-CHALLAN" }),
+  );
+  expect(await screen.findByText(/Hospital receiving version 4: 3 counted/)).toBeInTheDocument();
+  await chooseOption(
+    user,
+    await screen.findByRole("combobox", { name: "Supplier response" }),
+    "Dispute hospital receiving",
+  );
+  await user.type(
+    screen.getByLabelText("Supplier response evidence"),
+    "TEST source handoff count differs",
+  );
+  await user.click(screen.getByRole("button", { name: "Record supplier response" }));
+  await user.click(await screen.findByRole("button", { name: "Check recorded result" }));
+  expect(
+    await screen.findByText("Original supplier response verified and queued for the hospital."),
+  ).toBeInTheDocument();
+  expect(writes).toBe(1);
+  expect(original).toMatchObject({
+    summary_version: 4,
+    response: "disputed",
+    reason: "TEST source handoff count differs",
+  });
+  expect(fetch).toHaveBeenCalledWith(
+    expect.stringContaining(`/shipments/${shipment.id}/receiving/responses/${original!.id}`),
+    expect.objectContaining({ cache: "no-store" }),
+  );
+});
+
+it("waits for hospital closure before offering a supplier receiving response", async () => {
+  const shipment = {
+    id: id(70),
+    allocation_id: id(71),
+    order_id: order.id,
+    line_id: line.id,
+    order_input_sha256: order.input_sha256,
+    source_tenant_id: scope.tenantId,
+    source_organization_id: scope.organizationId,
+    source_location_id: scope.locationId,
+    buyer_tenant_id: terms.buyer.tenant_id,
+    hospital_id: terms.buyer.hospital_id,
+    buyer_organization_id: terms.buyer.organization_id,
+    buyer_location_id: terms.buyer.location_id,
+    product,
+    unit_code: line.unit_code,
+    quantity_units: 10,
+    lot_number: choice.lot_number,
+    expires_on: choice.expires_on,
+    handoff_reference: "TEST-OPEN-RECEIVING",
+    actor_subject: scope.subject,
+    product_description: choice.description,
+    pack_size: 10,
+    dispatched_at: "2026-11-08T12:00:00Z",
+  };
+  const summary = {
+    id: id(72),
+    owner_tenant_id: terms.buyer.tenant_id,
+    shipment_id: shipment.id,
+    order_id: order.id,
+    version: 1,
+    counted_units: 3,
+    accepted_units: 2,
+    rejected_units: 1,
+    short_units: 0,
+    closed: false,
+    reason: "TEST hospital delivery still open",
+    actor_subject: "TEST-hospital-receiver",
+    recorded_at: "2026-11-08T13:00:00Z",
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.endsWith("/receiving")) return Response.json(summary);
+      if (url.includes("/shipments?")) return page([shipment]);
+      if (url.endsWith("/receiving-response-access"))
+        return Response.json({
+          owner_tenant_id: scope.tenantId,
+          order_id: order.id,
+          organization_id: scope.organizationId,
+          location_id: scope.locationId,
+          product: scope.product,
+          actor_subject: scope.subject,
+          actor_staff_id: id(73),
+          observed_at: "2026-11-09T01:00:00Z",
+        });
+      return page([]);
+    }),
+  );
+  const onResponse = vi.fn();
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <SourceShipments scope={scope} order={order.id} frozen={false} onResponse={onResponse} />
+    </NavigationGuardProvider>,
+  );
+  await user.click(
+    await screen.findByRole("button", { name: "Inspect receiving for TEST-OPEN-RECEIVING" }),
+  );
+  expect(
+    await screen.findByText(
+      "The hospital must close receiving before a supplier confirmation or dispute can be recorded.",
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Record supplier response" }),
+  ).not.toBeInTheDocument();
+  expect(onResponse).not.toHaveBeenCalled();
 });

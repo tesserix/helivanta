@@ -20,7 +20,7 @@ type receivingProductChoice struct{ f.ReceivingProductChoice }
 func (v receivingProductChoice) PageKey() (time.Time, uuid.UUID) { return v.CreatedAt, v.ID }
 func receivingProductChoices(tx *gorm.DB, s f.Shipment, page pagination.Params) ([]receivingProductChoice, error) {
 	var products []catalogueProduct
-	q := tx.Select("id,version,brand_name,generic_name,manufacturer,dosage_form,route,ingredients,unit_of_issue,pack_size,created_at").Where("tenant_id=? AND outlet_id=? AND status='active' AND unit_of_issue=? AND pack_size=?", s.BuyerTenantID, s.BuyerLocationID, s.UnitCode, s.PackSize).Order("created_at DESC,id DESC").Limit(page.Limit + 1)
+	q := tx.Select("id,version,brand_name,generic_name,manufacturer,dosage_form,route,ingredients,currency,unit_of_issue,pack_size,created_at").Where("tenant_id=? AND outlet_id=? AND status='active' AND unit_of_issue=? AND pack_size=?", s.BuyerTenantID, s.BuyerLocationID, s.UnitCode, s.PackSize).Order("created_at DESC,id DESC").Limit(page.Limit + 1)
 	if page.After != nil {
 		q = q.Where("(created_at,id)<(?,?)", page.After.CreatedAt, page.After.ID)
 	}
@@ -35,7 +35,7 @@ func receivingProductChoices(tx *gorm.DB, s f.Shipment, page pagination.Params) 
 		}
 		description := strings.Join(ingredients, "; ") + " · " + product.DosageForm + " · " + product.Route
 
-		result = append(result, receivingProductChoice{f.ReceivingProductChoice{ID: product.ID, OwnerTenantID: s.BuyerTenantID, ShipmentID: s.ID, PharmacyID: s.BuyerOrganizationID, OutletID: s.BuyerLocationID, Version: product.Version, BrandName: product.BrandName, GenericName: product.GenericName, Manufacturer: product.Manufacturer, DosageForm: product.DosageForm, IdentityDescription: description, UnitCode: product.UnitOfIssue, PackSize: int64(product.PackSize), CreatedAt: product.CreatedAt}})
+		result = append(result, receivingProductChoice{f.ReceivingProductChoice{ID: product.ID, OwnerTenantID: s.BuyerTenantID, ShipmentID: s.ID, PharmacyID: s.BuyerOrganizationID, OutletID: s.BuyerLocationID, Version: product.Version, BrandName: product.BrandName, GenericName: product.GenericName, Manufacturer: product.Manufacturer, DosageForm: product.DosageForm, IdentityDescription: description, Currency: product.Currency, UnitCode: product.UnitOfIssue, PackSize: int64(product.PackSize), CreatedAt: product.CreatedAt}})
 	}
 	return result, nil
 }

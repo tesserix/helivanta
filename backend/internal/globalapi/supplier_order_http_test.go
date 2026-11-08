@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/tesserix/helivanta/internal/modules/pharmacy"
 	"github.com/tesserix/helivanta/internal/modules/supply"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
@@ -15,10 +16,10 @@ import (
 
 func TestSupplierOrderHTTPRejectsChangedContextMalformedCommandsAndUnavailableOwners(t *testing.T) {
 	// Omitted Workforce/department owners represent a real dependency outage, not a successful authorization stub.
-	backend, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"owner": testutil.TenantA, "foreign": testutil.TenantB}, Modules: []platform.Module{supply.New()}})
+	backend, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"owner": testutil.TenantA, "foreign": testutil.TenantB}, Modules: []platform.Module{supply.New(), pharmacy.New()}})
 	server := httptest.NewServer(backend)
 	t.Cleanup(server.Close)
-	gateway, err := New(Config{Development: true, Timeout: 5 * time.Second, Upstreams: map[string]string{"supply": server.URL}})
+	gateway, err := New(Config{Development: true, Timeout: 5 * time.Second, Upstreams: map[string]string{"supply": server.URL, "pharmacy": server.URL}})
 	require.NoError(t, err)
 	hospital, department, outlet, order, command := uuid.NewString(), uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
 	buyer := "/v1/supply/hospitals/" + hospital + "/departments/" + department + "/outlets/" + outlet + "/purchase-orders/" + order

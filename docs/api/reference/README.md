@@ -793,6 +793,11 @@ Source: [backend/internal/modules/supply/module.go](../../../backend/internal/mo
 
 | Method | Path | Permission | Cursor pagination | Page total |
 | --- | --- | --- | --- | --- |
+| GET | `/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order/commands/:command` | `public` | false | false |
+| PUT | `/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order/commands/:command` | `public` | false | false |
+| GET | `/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order/proposal-receipt` | `public` | false | false |
+| GET | `/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order` | `public` | false | false |
+| PUT | `/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order` | `public` | false | false |
 | GET | `/v1/supply/parties/:party/access-limits/revisions` | `supply.party.access.manage` | true | false |
 | GET | `/v1/supply/parties/:party/access-limits` | `supply.party.access.manage` | false | false |
 | PUT | `/v1/supply/parties/:party/access-limits` | `supply.party.access.manage` | false | false |
@@ -872,10 +877,14 @@ Source: [backend/internal/modules/supply/module.go](../../../backend/internal/mo
 | GET | `/v1/supply/relationships/:relationship/proposal-receipt` | `supply.trade_relationship.read` | false | false |
 | GET | `/v1/supply/relationships/:relationship` | `supply.trade_relationship.read` | false | false |
 | PUT | `/v1/supply/relationships/:relationship` | `supply.trade_relationship.prepare` | false | false |
+| GET | `/v1/supply/supplier-orders/:order/commands/:command` | `public` | false | false |
+| PUT | `/v1/supply/supplier-orders/:order/commands/:command` | `public` | false | false |
+| GET | `/v1/supply/supplier-orders/:order` | `public` | false | false |
 | GET | `/v1/supply/trading-sources/:product/:organization/locations/:location/relationships` | `supply.trade_relationship.read` | true | false |
 
 Published subjects:
 
+- `helivanta.in.supply.order_exchange.v1`
 - `helivanta.in.supply.stock_quality_recorded.v1`
 - `helivanta.in.supply.relationship_exchange.v1`
 - `helivanta.in.supply.stock_identity_recorded.v1`
@@ -896,11 +905,12 @@ Published subjects:
 Subscriptions:
 
 - `supply-relationship-exchange` ← `helivanta.in.supply.relationship_exchange.v1`; after-commit hook: false.
+- `supply-purchase-order-exchange` ← `helivanta.in.supply.order_exchange.v1`; after-commit hook: false.
 - `supply-evidence-scan` ← `helivanta.in.supply.evidence_scan_requested.v1`; after-commit hook: true.
 
-Directed allowlist: `helivanta.in.supply.relationship_exchange.v1`.
+Directed allowlist: `helivanta.in.supply.relationship_exchange.v1`, `helivanta.in.supply.order_exchange.v1`.
 
-Directed-write provenance tables: `supply_trade_relationships`, `supply_trade_relationship_history`.
+Directed-write provenance tables: `supply_trade_relationships`, `supply_trade_relationship_history`, `supply_purchase_orders`, `supply_purchase_order_history`.
 
 Migration table declarations:
 
@@ -914,6 +924,7 @@ Migration table declarations:
 - `0010_supply_stock`: `supply_stock_receipts`, `supply_stock_identity_checks`.
 - `0013_supply_trade_relationships`: `supply_trade_relationships`, `supply_trade_relationship_commands`, `supply_trade_relationship_history`.
 - `0014_supply_stock_quality`: `supply_stock_quality_decisions`.
+- `0015_supply_purchase_orders`: `supply_purchase_orders`, `supply_purchase_order_commands`, `supply_purchase_order_history`.
 
 ## lab
 

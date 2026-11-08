@@ -159,4 +159,18 @@ export const operatingDutyTemplates: readonly OperatingDutyTemplate[] = [
     ],
     max_validity_hours: 8784,
   },
+  {
+    key: "supply.order_acceptor.v1",
+    employer_kind: "supplier",
+    label: "Warehouse supplier order acceptance",
+    permissions: ["supply.supplier_order.accept", "supply.supplier_order.read"],
+    max_validity_hours: 8784,
+  },
+  {
+    key: "pharmacy.order_acceptor.v1",
+    employer_kind: "pharmacy",
+    label: "Outlet supplier order acceptance",
+    permissions: ["supply.supplier_order.accept", "supply.supplier_order.read"],
+    max_validity_hours: 8784,
+  },
 ];

@@ -42,8 +42,11 @@ var operatingDutiesSchema string
 //go:embed operating_templates_v1.sql
 var operatingTemplatesSchema string
 
-//go:embed operating_templates_generated.sql
+//go:embed operating_templates_v2.sql
 var operatingTemplatesCurrentSchema string
+
+//go:embed operating_templates_generated.sql
+var operatingTemplatesOrderSchema string
 
 type operatingHandlers struct {
 	db        *tenantdb.DB

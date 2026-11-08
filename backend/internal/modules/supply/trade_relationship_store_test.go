@@ -75,6 +75,7 @@ func TestDirectedRelationshipProtocolPersistsBothConsentsAndNeverReactivatesFrom
 	buyer := wait(buyerID, "active")
 	require.Equal(t, seller.AuthorityEpoch, buyer.RemoteEpoch)
 	require.Equal(t, buyer.AuthorityEpoch, seller.RemoteEpoch)
+	verifyPurchaseOrderProtocol(t, db, seller, buyer)
 	verifyRelationshipProofConsumption(t, db, seller)
 	checker := relationshipCheckerForTest(t, db)
 	for _, state := range []suppliertrade.Relationship{seller, buyer} {

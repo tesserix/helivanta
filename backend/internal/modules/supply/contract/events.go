@@ -137,3 +137,5 @@ type StockQualityRecordedData struct {
 	DecisionID string `json:"decision_id"`
 	Version    int64  `json:"version"`
 }
+
+const SubjectOrderExchange = "helivanta.in.supply.order_exchange.v1"

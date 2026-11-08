@@ -3103,6 +3103,372 @@
       "type": "object"
     }
   },
+  "helivanta.in.supply.order_exchange.v1": {
+    "source": "backend/internal/modules/supply/contract/order_types_generated.go:33",
+    "go_type": "OrderExchangeData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "input": {
+          "properties": {
+            "expires_at": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "lines": {
+              "items": {
+                "properties": {
+                  "id": {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  "product": {
+                    "properties": {
+                      "owner": {
+                        "type": "string"
+                      },
+                      "product_id": {
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      "version": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "version_id": {
+                        "anyOf": [
+                          {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "owner",
+                      "product_id"
+                    ],
+                    "type": "object"
+                  },
+                  "quantity_units": {
+                    "type": "integer"
+                  },
+                  "unit_code": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "product",
+                  "quantity_units",
+                  "unit_code"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "purchase_order_reference": {
+              "type": "string"
+            },
+            "quote_reference": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "relationship_id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "terms_sha256": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "relationship_id",
+            "terms_sha256",
+            "purchase_order_reference",
+            "quote_reference",
+            "expires_at",
+            "lines",
+            "reason"
+          ],
+          "type": "object"
+        },
+        "input_sha256": {
+          "type": "string"
+        },
+        "order_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "phase": {
+          "type": "string"
+        },
+        "signatory_subject": {
+          "type": "string"
+        },
+        "source_epoch": {
+          "type": "integer"
+        },
+        "source_tenant_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "terms": {
+          "properties": {
+            "buyer": {
+              "properties": {
+                "binding_id": {
+                  "anyOf": [
+                    {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "binding_version": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "hospital_id": {
+                  "anyOf": [
+                    {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "jurisdiction": {
+                  "type": "string"
+                },
+                "licence_id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "licence_version": {
+                  "type": "integer"
+                },
+                "location_id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "location_version": {
+                  "type": "integer"
+                },
+                "organization_id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "organization_version": {
+                  "type": "integer"
+                },
+                "product": {
+                  "type": "string"
+                },
+                "registration_id": {
+                  "anyOf": [
+                    {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "registration_version": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "tenant_id": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "tenant_id",
+                "product",
+                "organization_id",
+                "location_id",
+                "organization_version",
+                "location_version",
+                "licence_id",
+                "licence_version",
+                "jurisdiction"
+              ],
+              "type": "object"
+            },
+            "category": {
+              "type": "string"
+            },
+            "currency": {
+              "type": "string"
+            },
+            "expires_at": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "seller": {
+              "properties": {
+                "binding_id": {
+                  "anyOf": [
+                    {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "binding_version": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "hospital_id": {
+                  "anyOf": [
+                    {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "jurisdiction": {
+                  "type": "string"
+                },
+                "licence_id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "licence_version": {
+                  "type": "integer"
+                },
+                "location_id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "location_version": {
+                  "type": "integer"
+                },
+                "organization_id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "organization_version": {
+                  "type": "integer"
+                },
+                "product": {
+                  "type": "string"
+                },
+                "registration_id": {
+                  "anyOf": [
+                    {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "registration_version": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "tenant_id": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "tenant_id",
+                "product",
+                "organization_id",
+                "location_id",
+                "organization_version",
+                "location_version",
+                "licence_id",
+                "licence_version",
+                "jurisdiction"
+              ],
+              "type": "object"
+            },
+            "terms_reference": {
+              "type": "string"
+            },
+            "valid_from": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          "required": [
+            "seller",
+            "buyer",
+            "category",
+            "currency",
+            "valid_from",
+            "expires_at",
+            "terms_reference"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "order_id",
+        "terms",
+        "input",
+        "input_sha256",
+        "source_tenant_id",
+        "source_epoch",
+        "phase",
+        "signatory_subject"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.supply.party_access_changed.v1": {
     "source": "backend/internal/modules/supply/contract/events.go:13",
     "go_type": "PartyAccessChangedData",

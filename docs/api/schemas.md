@@ -168,3 +168,11 @@ Operating-duty template expansions preserve the original SQL in
 current `CREATE OR REPLACE` function applies through additive IAM migration 0041.
 Supply-stock quality and inspection models remain in `supply-stock.json` and its
 existing generator. Do not edit generated Go/Zod models or the v1 SQL snapshot.
+
+Supplier-order models and source product-version shapes are canonical in
+`contracts/supplier-orders.json`; `scripts/generate-supplier-orders.mjs` emits
+core Go/Zod models and the SupplyConnect data-only event DTOs. The schema
+collector consumes the generated local event structs, not imported aliases.
+Private local Staff/department references are absent from the directed event.
+The current operating-duty SQL applies through IAM 0043; the exact prior 0041
+bytes are retained as `operating_templates_v2.sql`.

@@ -351,6 +351,11 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order":                   "one owner-scoped purchase order or immutable actor-bound command receipt; no collection or unbounded lookup",
+	"GET /supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order/proposal-receipt":  "one owner-scoped purchase order or immutable actor-bound command receipt; no collection or unbounded lookup",
+	"GET /supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order/commands/:command": "one owner-scoped purchase order or immutable actor-bound command receipt; no collection or unbounded lookup",
+	"GET /supply/supplier-orders/:order":                                                      "one owner-scoped purchase order or immutable actor-bound command receipt; no collection or unbounded lookup",
+	"GET /supply/supplier-orders/:order/commands/:command":                                    "one owner-scoped purchase order or immutable actor-bound command receipt; no collection or unbounded lookup",
 	"GET /iam/supplier-grants/:id":                                                            "one source-private supplier grant; collection uses ListRoute",
 	"GET /iam/supplier-grants/:id/commands/:command":                                          "one actor-bound immutable grant decision receipt",
 	"GET /iam/hospitals/:hospital/supplier-grants/:id":                                        "one hospital-scoped recipient grant projection",

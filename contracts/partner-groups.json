@@ -1,0 +1,659 @@
+{
+  "models": {
+    "PartnerGroupProposalInput": [
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 120
+      },
+      {
+        "name": "purpose",
+        "type": "string",
+        "enum": [
+          "procurement",
+          "receiving",
+          "finance"
+        ]
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "valid_from",
+        "type": "time"
+      },
+      {
+        "name": "expires_at",
+        "type": "time"
+      }
+    ],
+    "PartnerGroup": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "membership_policy_version",
+        "type": "int64",
+        "min": 1,
+        "max": 1,
+        "literal": 1
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 120
+      },
+      {
+        "name": "purpose",
+        "type": "string",
+        "enum": [
+          "procurement",
+          "receiving",
+          "finance"
+        ]
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "valid_from",
+        "type": "time"
+      },
+      {
+        "name": "expires_at",
+        "type": "time"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "pending_scope",
+          "pending_review",
+          "scope_rejected",
+          "approved",
+          "rejected",
+          "withdrawn",
+          "suspended"
+        ]
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "proposed_by",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "external_access_enabled",
+        "type": "bool",
+        "literal": false
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "PartnerGroupCommandInput": [
+      {
+        "name": "operation",
+        "type": "string",
+        "enum": [
+          "approve",
+          "reject",
+          "withdraw",
+          "suspend"
+        ]
+      },
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      }
+    ],
+    "PartnerGroupCommandReceipt": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "group_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "operation",
+        "type": "string",
+        "enum": [
+          "approve",
+          "reject",
+          "withdraw",
+          "suspend"
+        ]
+      },
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "result_version",
+        "type": "int64",
+        "min": 2,
+        "max": 9007199254740991
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "actor_membership_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "group",
+        "type": "PartnerGroup"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "PartnerMemberProposalInput": [
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": [
+          "subject"
+        ]
+      },
+      {
+        "name": "subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "posting_id",
+        "type": "uuid"
+      },
+      {
+        "name": "posting_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "posting_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "department_id",
+        "type": "uuid"
+      },
+      {
+        "name": "department_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "expected_group_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "valid_from",
+        "type": "time"
+      },
+      {
+        "name": "expires_at",
+        "type": "time"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "sources_examined",
+        "type": "bool",
+        "literal": true,
+        "literal_error": "Examine the current staff, account and posting source before submitting."
+      }
+    ],
+    "PartnerGroupMemberProposal": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "group_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "input",
+        "type": "PartnerMemberProposalInput"
+      },
+      {
+        "name": "member_staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "member_display_name",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "member_link_id",
+        "type": "uuid"
+      },
+      {
+        "name": "member_link_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "member_generation_id",
+        "type": "uuid"
+      },
+      {
+        "name": "member_employment_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "member_membership_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "prepared_source_use_id",
+        "type": "uuid"
+      },
+      {
+        "name": "source_checked_at",
+        "type": "time"
+      },
+      {
+        "name": "source_until",
+        "type": "time"
+      },
+      {
+        "name": "prepared_by",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "prepared_by_staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "prepared_by_link_id",
+        "type": "uuid"
+      },
+      {
+        "name": "prepared_by_generation_id",
+        "type": "uuid"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "pending_review",
+          "approved",
+          "rejected",
+          "withdrawn",
+          "suspended"
+        ]
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "PartnerMemberCommandInput": [
+      {
+        "name": "operation",
+        "type": "string",
+        "enum": [
+          "approve",
+          "reject",
+          "withdraw",
+          "suspend"
+        ]
+      },
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "sources_examined",
+        "type": "bool",
+        "optional": true
+      },
+      {
+        "name": "purpose_eligibility_confirmed",
+        "type": "bool",
+        "optional": true
+      }
+    ],
+    "PartnerMemberCommandReceipt": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "member_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "input",
+        "type": "PartnerMemberCommandInput"
+      },
+      {
+        "name": "result_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "actor_staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "actor_link_id",
+        "type": "uuid"
+      },
+      {
+        "name": "actor_generation_id",
+        "type": "uuid"
+      },
+      {
+        "name": "reviewed_source_use_id",
+        "type": "uuid",
+        "pointer": true,
+        "optional": true
+      },
+      {
+        "name": "member",
+        "type": "PartnerGroupMemberProposal"
+      },
+      {
+        "name": "cohort_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "PartnerMemberCandidate": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "display_name",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "posting_revision_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "posting_version",
+        "type": "int64",
+        "min": 2,
+        "max": 9007199254740990
+      },
+      {
+        "name": "department_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "department_revision_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "starts_at",
+        "type": "time"
+      },
+      {
+        "name": "nominal_until",
+        "type": "time"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "source_state",
+        "type": "string",
+        "enum": [
+          "candidate"
+        ]
+      }
+    ],
+    "PartnerMemberCapabilities": [
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "can_prepare",
+        "type": "bool"
+      },
+      {
+        "name": "can_review",
+        "type": "bool"
+      }
+    ]
+  },
+  "maximum_validity_days": 366,
+  "scope_request_subject": "helivanta.in.iam.partner_group_hospital_scope_requested.v1",
+  "scope_observation_subject": "helivanta.in.workforce.partner_group_hospital_scope_observed.v1",
+  "events": {
+    "PartnerGroupHospitalScopeRequestedData": [
+      {
+        "name": "group_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      }
+    ],
+    "PartnerGroupHospitalScopeObservedData": [
+      {
+        "name": "group_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "exists",
+        "type": "bool",
+        "pointer": true
+      }
+    ],
+    "PartnerGroupChangedData": [
+      {
+        "name": "group_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 2
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "approved",
+          "rejected",
+          "withdrawn",
+          "suspended"
+        ]
+      }
+    ],
+    "PartnerGroupMemberChangedData": [
+      {
+        "name": "group_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "member_id",
+        "type": "uuid"
+      },
+      {
+        "name": "member_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "cohort_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "approved",
+          "rejected",
+          "withdrawn",
+          "suspended"
+        ]
+      }
+    ]
+  },
+  "group_changed_subject": "helivanta.in.iam.partner_group_changed.v1",
+  "member_changed_subject": "helivanta.in.iam.partner_group_member_changed.v1",
+  "member_approval_required_attestations": [
+    "sources_examined",
+    "purpose_eligibility_confirmed"
+  ]
+}

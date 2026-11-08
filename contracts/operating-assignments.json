@@ -1,0 +1,301 @@
+{
+  "version": 1,
+  "models": {
+    "OperatingDutyTemplate": [
+      {
+        "name": "key",
+        "type": "string",
+        "min": 1,
+        "max": 100
+      },
+      {
+        "name": "employer_kind",
+        "type": "string",
+        "enum": ["pharmacy", "supplier"]
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "min": 1,
+        "max": 100
+      },
+      {
+        "name": "permissions",
+        "type": "[]string",
+        "min": 1,
+        "max": 32
+      },
+      {
+        "name": "max_validity_hours",
+        "type": "int",
+        "min": 1,
+        "max": 8784
+      }
+    ],
+    "OperatingDutyScope": [
+      {
+        "name": "employer_kind",
+        "type": "string",
+        "enum": ["pharmacy", "supplier"]
+      },
+      {
+        "name": "employer_id",
+        "type": "uuid"
+      },
+      {
+        "name": "location_id",
+        "type": "uuid"
+      },
+      {
+        "name": "expected_employer_version",
+        "min": 1,
+        "max": 9007199254740991,
+        "type": "int64"
+      },
+      {
+        "name": "expected_location_version",
+        "min": 1,
+        "max": 9007199254740991,
+        "type": "int64"
+      }
+    ],
+    "OperatingDutyInput": [
+      {
+        "name": "scope",
+        "type": "OperatingDutyScope"
+      },
+      {
+        "name": "identity",
+        "type": "OperatingDutyIdentity"
+      },
+      {
+        "name": "subject",
+        "min": 1,
+        "max": 200,
+        "type": "string"
+      },
+      {
+        "name": "template_key",
+        "min": 1,
+        "max": 100,
+        "type": "string"
+      },
+      {
+        "name": "reason",
+        "min": 1,
+        "max": 500,
+        "type": "string",
+        "format": "text"
+      },
+      {
+        "name": "valid_from",
+        "type": "time"
+      },
+      {
+        "name": "expires_at",
+        "type": "time"
+      }
+    ],
+    "OperatingDuty": [
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "input",
+        "type": "OperatingDutyInput"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "pending_review",
+          "approved_pending_activation",
+          "active",
+          "rejected",
+          "withdrawn",
+          "revoked"
+        ]
+      },
+      {
+        "name": "version",
+        "min": 1,
+        "max": 9007199254740991,
+        "type": "int64"
+      },
+      {
+        "name": "prepared_by",
+        "min": 1,
+        "max": 200,
+        "type": "string"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "OperatingDutyDecisionInput": [
+      {
+        "name": "expected_version",
+        "min": 1,
+        "max": 9007199254740990,
+        "type": "int64"
+      },
+      {
+        "name": "decision",
+        "type": "string",
+        "enum": ["approve", "reject", "withdraw", "revoke"]
+      },
+      {
+        "name": "reason",
+        "min": 1,
+        "max": 500,
+        "type": "string",
+        "format": "text"
+      }
+    ],
+    "OperatingDutyDecision": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "duty_id",
+        "type": "uuid"
+      },
+      {
+        "name": "input",
+        "type": "OperatingDutyDecisionInput"
+      },
+      {
+        "name": "result",
+        "type": "OperatingDuty"
+      },
+      {
+        "name": "actor_subject",
+        "min": 1,
+        "max": 200,
+        "type": "string"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ]
+  },
+  "identity_fields": [
+    {
+      "file": "workforce-login-links.json",
+      "model": "loginLink",
+      "field": "staff_id"
+    },
+    {
+      "file": "workforce-independent-identity.json",
+      "model": "IndependentLinkView",
+      "field": "staff_version"
+    },
+    {
+      "file": "workforce-login-links.json",
+      "model": "loginLink",
+      "field": "id",
+      "as": "link_id"
+    },
+    {
+      "file": "workforce-login-links.json",
+      "model": "loginLink",
+      "field": "version",
+      "as": "link_version",
+      "min": 2,
+      "max": 9007199254740991
+    }
+  ],
+  "templates": [
+    {
+      "key": "supply.inventory_receiver.v1",
+      "employer_kind": "supplier",
+      "label": "Warehouse receiving and stock history",
+      "permissions": [
+        "supply.operations.read",
+        "supply.operations.write",
+        "drugmaster.stock_reference.read"
+      ],
+      "max_validity_hours": 8784
+    },
+    {
+      "key": "pharmacy.inventory_receiver.v1",
+      "employer_kind": "pharmacy",
+      "label": "Outlet receiving and stock history",
+      "permissions": [
+        "pharmacy.stock.read",
+        "pharmacy.stock.receive",
+        "drugmaster.stock_reference.read"
+      ],
+      "max_validity_hours": 8784
+    },
+    {
+      "key": "supply.stock_quality_reviewer.v1",
+      "employer_kind": "supplier",
+      "label": "Independent warehouse stock quality review",
+      "permissions": [
+        "supply.operations.read",
+        "supply.stock.review",
+        "drugmaster.stock_reference.read"
+      ],
+      "max_validity_hours": 8784
+    },
+    {
+      "key": "supply.order_acceptor.v1",
+      "employer_kind": "supplier",
+      "label": "Warehouse supplier order acceptance",
+      "permissions": [
+        "supply.supplier_order.accept",
+        "supply.supplier_order.read"
+      ],
+      "max_validity_hours": 8784
+    },
+    {
+      "key": "pharmacy.order_acceptor.v1",
+      "employer_kind": "pharmacy",
+      "label": "Outlet supplier order acceptance",
+      "permissions": [
+        "supply.supplier_order.accept",
+        "supply.supplier_order.read"
+      ],
+      "max_validity_hours": 8784
+    },
+    {
+      "key": "supply.stock_fulfiller.v1",
+      "employer_kind": "supplier",
+      "label": "Warehouse reservation and physical dispatch",
+      "permissions": [
+        "supply.stock.fulfil",
+        "supply.supplier_order.read",
+        "supply.operations.read",
+        "drugmaster.stock_reference.read",
+        "supply.receiving_response.record"
+      ],
+      "max_validity_hours": 8784
+    },
+    {
+      "key": "pharmacy.stock_fulfiller.v1",
+      "employer_kind": "pharmacy",
+      "label": "Outlet reservation and physical dispatch",
+      "permissions": [
+        "pharmacy.stock.fulfil",
+        "supply.supplier_order.read",
+        "pharmacy.stock.read",
+        "drugmaster.stock_reference.read",
+        "supply.receiving_response.record"
+      ],
+      "max_validity_hours": 8784
+    }
+  ]
+}

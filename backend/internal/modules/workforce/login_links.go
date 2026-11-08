@@ -111,6 +111,21 @@ func loadLoginLink(tx *gorm.DB, p authn.Principal, hospital, staffID, id uuid.UU
 }
 
 func (h *handlers) publishLoginLink(tx *gorm.DB, p authn.Principal, hospital uuid.UUID, row loginLink) error {
+	var kind string
+	if err := tx.Table("workforce_hospitals").Select("establishment_kind").Where("tenant_id=? AND id=?", p.TenantID, hospital).Take(&kind).Error; err != nil {
+		return err
+	}
+	if kind == pharmacyEstablishmentKind || kind == supplierEstablishmentKind {
+		data, err := json.Marshal(workforcecontract.IndependentLoginLinkChangedData{EmployerKind: kind, EmployerID: hospital.String(), StaffID: row.StaffID.String(), LinkID: row.ID.String(), Version: row.Version, Status: row.Status})
+		if err != nil {
+			return err
+		}
+		return h.bus.Publish(tx, workforcecontract.SubjectIndependentLoginLinkChanged, events.Event{Type: workforcecontract.SubjectIndependentLoginLinkChanged, Version: 1, TenantID: p.TenantID, Data: data})
+	}
+	if kind != hospitalEstablishmentKind {
+		return gorm.ErrRecordNotFound
+	}
+
 	data, err := json.Marshal(workforcecontract.LoginLinkChangedData{HospitalID: hospital.String(), StaffID: row.StaffID.String(), LinkID: row.ID.String(), Version: row.Version, Status: row.Status})
 	if err != nil {
 		return err

@@ -78,3 +78,16 @@ Generation registers handlers without dispatching requests or connecting to infr
 For a contract change, update its owning source, concrete examples, failure/retry rules and consumer references together. Run the existing generator's `--check` where relevant. A green inventory check proves registry parity only; it does not prove payload conformance, compatibility or production behavior. Follow the [review gates](review-plan.md) before consumers treat a proposal as approved.
 
 The unreleased [Workforce department handoff](workforce-department-links.md) connects legacy HR revisions to canonical structural revisions with retained owner observations and no implicit Staff posting or permission.
+
+The deployed [hospital partner-group contract](partner-groups.md) covers shared IAM publication, direct reviewed hospital Staff membership, minimal owner-selected candidates and exact recovery. It grants no supplier access; the consuming collaboration and release gates remain open.
+
+The deployed [supplier access preparation contract](partner-grants.md) records
+typed named-person/group intent for either stock owner. It provides no effective
+external assignment, bilateral consent, disclosure or fulfilment authority.
+
+Unreleased supplier workflow candidates: [supplier stock intake](supply-stock.md) and [independent employer Staff/account identity](workforce-independent-identity.md). Their operating, collaboration and release gates remain explicit in those contracts.
+
+The unreleased [independent operating duty contract](operating-duties.md) records implemented administrative/projection boundaries and remaining product consumers.
+
+- [Supplier trade](supplier-trade.md): current source facts, pharmacy scope/withdrawal and bilateral consent; remaining effective-grant/fulfilment/financial consumers are explicitly not complete.
+- [Supplier access](supplier-access.md): source offers, hospital consent, current recipient and record-scoped projection gates; no supplier tenant membership.

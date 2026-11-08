@@ -219,3 +219,16 @@ separate. Effective suspension, exit and contractor expiry must deny old
 employment authority; resumption/rehire requires current reviewed links and fresh
 assignments. This policy does not itself activate a migration, implement the
 review queue or prove every legacy route enforces current employment.
+
+### Supplier procurement actor candidate
+
+The supplier-order candidate adds a separately reserved
+`workforce.purchase_order_actor.use` eligibility purpose for nonclinical order
+work. It does not broaden `CurrentStaffActorGuard`, whose governance/posting
+consumer restrictions remain unchanged. The dedicated interface returns current
+reviewed employment/account-generation evidence only; SupplyConnect separately
+checks exact department PO capability and pharmacy binding, or current independent
+source duty, before commands. No clinical, financial-limit, committee or statutory
+power is inferred. See [the candidate contract](../../api/supplier-orders.md);
+this is source design/implementation status, not runtime activation or closure
+of any broader ORG-D decision.

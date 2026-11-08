@@ -1,7 +1,9 @@
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
+import { NavigationGuardProvider } from "@helivanta/ui";
 import { OrganisationOperations } from "./organisation-operations";
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
 const scope = {
   tenantId: "11111111-1111-1111-1111-111111111111",
   subject: "TEST-owner",
@@ -60,6 +62,38 @@ const delivery = {
   source_reference: "TEST PRIVATE SOURCE",
   driver_subject: "TEST OTHER DRIVER",
 };
+
+it("opens warehouse receipts only through current stock capabilities", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.endsWith("permissions"))
+        return Response.json({
+          tenant_id: scope.tenantId,
+          subject: scope.subject,
+          data: [
+            "supply.operations.read",
+            "supply.operations.write",
+            "drugmaster.stock_reference.read",
+          ],
+        });
+      if (url.endsWith("/operating-locations"))
+        return Response.json(
+          page([
+            {
+              ...location,
+              allowed_actions: ["read_bins", "manage_bins", "read_stock", "receive_stock"],
+            },
+          ]),
+        );
+      return Response.json(page([]));
+    }),
+  );
+  renderWithProviders(<OrganisationOperations scope={scope} roles={["inventory"]} />);
+  const user = (await import("@testing-library/user-event")).default.setup();
+  await user.click(await screen.findByRole("button", { name: "Stock TEST-WAREHOUSE" }));
+  expect(await screen.findByRole("form", { name: "Record physical receipt" })).toBeInTheDocument();
+});
 it("uses assigned delivery projection and retries the exact versioned driver command", async () => {
   const writes: Array<{ url: string; body: string }> = [];
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
@@ -345,4 +379,39 @@ it("withdraws already-open driver controls immediately when its location becomes
   } finally {
     finishPending?.(new Response(JSON.stringify(page([]))));
   }
+});
+
+it("opens supplier fulfilment at the selected warehouse with its current actor scope", async () => {
+  const fetcher = vi.fn<(url: string, request?: RequestInit) => Promise<Response>>(
+    async (url: string) => {
+      if (url.endsWith("permissions"))
+        return Response.json({
+          tenant_id: scope.tenantId,
+          subject: scope.subject,
+          data: ["supply.operations.read", "supply.supplier_order.read"],
+        });
+      if (url.endsWith("/operating-locations")) return Response.json(page([location]));
+      return Response.json(page([]));
+    },
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <OrganisationOperations scope={scope} roles={["warehouse"]} />
+    </NavigationGuardProvider>,
+  );
+  await user.click(
+    await screen.findByRole("button", { name: "Supplier fulfilment TEST-WAREHOUSE" }),
+  );
+  await screen.findByText("No supplier orders at this location.");
+  expect(fetcher).toHaveBeenCalledWith(
+    expect.stringContaining(
+      `/supply/stock-owners/supply/organizations/${scope.partyId}/locations/${location.id}/supplier-orders?`,
+    ),
+    expect.objectContaining({ cache: "no-store" }),
+  );
+  const call = fetcher.mock.calls.find(([url]) => url.includes("/stock-owners/"));
+  const headers = new Headers(call?.[1]?.headers);
+  expect(headers.get("X-Helivanta-Expected-Subject")).toBe(scope.subject);
+  expect(headers.get("X-Helivanta-Expected-Tenant")).toBe(scope.tenantId);
 });

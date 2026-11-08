@@ -24,6 +24,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/organizationidentity"
+	"github.com/tesserix/helivanta/pkg/stockproduct"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
@@ -41,10 +42,12 @@ func (party) TableName() string                 { return "supply_parties" }
 func (p party) PageKey() (time.Time, uuid.UUID) { return p.CreatedAt, p.ID }
 
 type handlers struct {
-	roles    platform.RoleLister
-	db       *tenantdb.DB
-	bus      *events.Bus
-	identity *organizationidentity.Client
+	operating     authz.OperatingScopeAuthorizer
+	stockProducts stockproduct.Guard
+	roles         platform.RoleLister
+	db            *tenantdb.DB
+	bus           *events.Bus
+	identity      *organizationidentity.Client
 }
 
 var errConflict = errors.New("supply version or identity conflict")

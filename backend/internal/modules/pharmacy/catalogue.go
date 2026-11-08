@@ -23,14 +23,18 @@ import (
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
+	f "github.com/tesserix/helivanta/pkg/supplierfulfilment"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 type catalogueHandlers struct {
-	db  *tenantdb.DB
-	bus *events.Bus
+	db             *tenantdb.DB
+	bus            *events.Bus
+	operating      authz.OperatingScopeAuthorizer
+	supplierSafety f.ShipmentSafety
 }
 
 type catalogueProduct struct {
@@ -72,7 +76,7 @@ var errCatalogueVersion = errors.New("catalogue version conflict")
 var errCatalogueWithdrawn = errors.New("withdrawn product is immutable")
 
 func catalogueRoutes(g *platform.Router, deps platform.Deps) {
-	h := &catalogueHandlers{db: deps.DB, bus: deps.Bus}
+	h := &catalogueHandlers{db: deps.DB, bus: deps.Bus, supplierSafety: deps.SupplierShipmentSafety}
 	s := g.Group("/pharmacies/:pharmacy/outlets/:outlet")
 	s.GET("/access", PermCatalogueRead, h.getAccess)
 	s.GET("/overview", PermCatalogueRead, h.getOverview)

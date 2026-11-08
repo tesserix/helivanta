@@ -6,7 +6,31 @@
 This is source-review tooling. No employment guard, grant classification in a live
 database, migration, account change or runtime activation is performed by it.
 
-## Current source findings
+## Latest pharmacy receiver source review — 8 November 2026
+
+The generated registry now contains 946 surfaces: 88 source-classified and 858
+unclassified, with no new runtime-cutoff acceptance. #19 slice 3b-ii adds eight
+PharmaConnect outlet routes under `operating-locations/:outlet/stock`, each
+reviewed as `mixed`. They are an independent operating assignment, not hospital
+operational authority. Admission happens only inside the handler, through IAM
+`WithOperatingScope` and transaction-local `pharmacy_operating_stock_scope`
+settings. The pins cover that path, the RLS function, read audit, immutable batch
+replay, and the receipt-only quarantine write. Release, correction, receiver
+self-discovery and real OIDC acceptance remain open.
+
+## Stock-quality source review — 8 November 2026
+
+The generated registry then contained 938 surfaces: 80 source-classified and 858
+unclassified, with no new runtime-cutoff acceptance. The quality checkpoint adds
+three source-scoped stock inspection/decision routes. Its reviewed source pins
+cover the current actor/duty path, exact receipt scope, immutable review, current
+product and local-date expiry checks. Existing stock intake/identity write rights
+remain separate from quality review. IAM migration 0038 retains its original
+SQL bytes; the template expansion is additive migration 0041. These figures
+supersede the historical counts below. The ledger is a source-review record,
+not proof of shared-environment OIDC, physical stock or full fulfilment acceptance.
+
+## Historical source findings
 
 The checked registry contains **727 registered surfaces** across module HTTP
 routes, async subscriptions, broadcasts and unauthenticated allowlist entries.

@@ -6,12 +6,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/tesserix/helivanta/internal/bootstrap"
 	supplycontract "github.com/tesserix/helivanta/internal/modules/supply/contract" //nolint:depguard // own module and data-only contract
 	"github.com/tesserix/helivanta/pkg/events"
 	"gorm.io/gorm"
 	"image"
 	"image/png"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -38,22 +40,52 @@ type evidenceScenario struct {
 }
 
 func newEvidenceScenario(t *testing.T) evidenceScenario {
+	return newEvidenceScenarioConfigured(t, false)
+}
+func newEvidenceScenarioConfigured(t *testing.T, owned bool) evidenceScenario {
 	t.Helper()
 	cloud := testinfra.NewGCSProtocol(t)
 	files, err := attachments.NewGCS(cloud.Client, cloud.Quarantine, cloud.Released)
 	require.NoError(t, err)
 	permissions := []authz.Permission{supply.PermDirectoryRead, supply.PermPartyRead, supply.PermPartyWrite, supply.PermAccessManage, supply.PermPremiseRead, supply.PermPremiseWrite, supply.PermLicenseRead, supply.PermLicenseWrite, authz.Permission("supply.license.review"), authz.Permission("supply.license.submit"), authz.Permission("supply.evidence.read"), authz.Permission("supply.evidence.write")}
+	modules := []platform.Module{supply.New()}
+	if owned {
+		permissions = append(permissions, supply.PermOrganizationManage, "workspace.country_policy.manage", "workspace.country_policy.read", "workspace.country_policy.review")
+		for _, module := range bootstrap.Modules(nil, nil) {
+			if module.Name() == "workspace" {
+				modules = append(modules, module)
+			}
+		}
+	}
 	r, db, bus, _ := testutil.NewHarness(t, testutil.HarnessOptions{Roles: accessMembership{},
 		Tokens:  map[string]string{"owner": testutil.TenantA, "auditor": testutil.TenantA, "foreign": testutil.TenantB},
 		Perms:   map[string][]authz.Permission{"owner": permissions, "auditor": permissions, "foreign": permissions},
-		Modules: []platform.Module{supply.New()}, Documents: files,
+		Modules: modules, Documents: files,
 	})
 	root := "/v1/supply/parties/" + uuid.Must(uuid.NewV7()).String()
-	require.Equal(t, 200, testutil.Do(r, "PUT", root, "owner", partyBody(0, "TEST Evidence Supplier")).Code)
+	partyInput := partyBody(0, "TEST Evidence Supplier")
+	if owned {
+		var fields map[string]any
+		require.NoError(t, json.Unmarshal([]byte(partyInput), &fields))
+		fields["record_kind"] = "owned_organisation"
+		fields["jurisdiction"] = "IN-MH"
+		encoded, err := json.Marshal(fields)
+		require.NoError(t, err)
+		partyInput = string(encoded)
+	}
+	require.Equal(t, 200, testutil.Do(r, "PUT", root, "owner", partyInput).Code)
 	premise := uuid.Must(uuid.NewV7()).String()
-	require.Equal(t, 200, testutil.Do(r, "PUT", root+"/premises/"+premise, "owner", premiseBody(0, "IN")).Code)
+	premiseInput := premiseBody(0, "IN")
+	if owned {
+		premiseInput = strings.Replace(premiseInput, "TEST Region", "IN-MH", 1)
+	}
+	require.Equal(t, 200, testutil.Do(r, "PUT", root+"/premises/"+premise, "owner", premiseInput).Code)
 	licence := root + "/licenses/" + uuid.Must(uuid.NewV7()).String()
-	require.Equal(t, 200, testutil.Do(r, "PUT", licence, "owner", licenseBody(0, premise)).Code)
+	licenceInput := licenseBody(0, premise)
+	if owned {
+		licenceInput = strings.ReplaceAll(licenceInput, "TEST-MH", "IN-MH")
+	}
+	require.Equal(t, 200, testutil.Do(r, "PUT", licence, "owner", licenceInput).Code)
 	var imageBytes bytes.Buffer
 	require.NoError(t, png.Encode(&imageBytes, image.NewRGBA(image.Rect(0, 0, 2, 2))))
 	data := imageBytes.Bytes()

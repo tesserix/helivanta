@@ -15,6 +15,9 @@ import (
 
 type beforeMembershipEpoch struct{ *iam.Module }
 
+func (beforeMembershipEpoch) DirectedWriteTables() []string { return nil }
+func (beforeMembershipEpoch) DirectedSubjects() []string    { return nil }
+
 func (m beforeMembershipEpoch) Migrations() []tenantdb.Migration {
 	all := m.Module.Migrations()
 	for i, migration := range all {

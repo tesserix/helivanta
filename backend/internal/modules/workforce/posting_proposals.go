@@ -95,6 +95,11 @@ func respondPostingProposalError(c *gin.Context, err error) {
 	case errors.Is(err, authz.ErrScopedCommandDenied):
 		respond.Forbidden(c, "Staff posting proposal action is not permitted.")
 	case errors.Is(err, authz.ErrScopedAuthorizationUnavailable), errors.Is(err, context.DeadlineExceeded):
+		reason := "authorization_or_source"
+		if errors.Is(err, context.DeadlineExceeded) {
+			reason = "deadline"
+		}
+		requestid.Logger(c).WarnContext(c.Request.Context(), "posting review unavailable", "reason", reason)
 		respond.Error(c, 503, "posting_source_unavailable", "The current posting source is unavailable. Retry when the source is available.")
 	default:
 		failure := fmt.Errorf("posting proposal persistence failed (%T)", err)

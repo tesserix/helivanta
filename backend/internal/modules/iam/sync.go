@@ -111,9 +111,12 @@ func (h *fgaSyncHandlers) project(ctx context.Context, evt events.Event) error {
 func (*Module) Consumers(deps platform.Deps) []events.Consumer {
 	sync := &fgaSyncHandlers{db: deps.DB, authz: deps.Authz, reconcile: deps.Reconcile}
 	return []events.Consumer{
+		supplierGrantConsumer(),
+		partnerGroupHospitalObservationConsumer(),
 		proposalScopeConsumer(deps),
 		proposalDepartmentScopeConsumer(deps),
 		assignmentProjectionConsumer(deps),
+		operatingProjectionConsumer(deps),
 		{Name: "iam-fga-sync", Subject: iamcontract.SubjectMemberGranted, Handle: sync.handle, AfterCommit: sync.project},
 		{Name: "iam-fga-sync-revoke", Subject: iamcontract.SubjectMemberRevoked, Handle: sync.handle, AfterCommit: sync.project},
 	}

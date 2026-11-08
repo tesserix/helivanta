@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Button } from "@tesserix/web";
-import { Panel, useConfirmLeave } from "@helivanta/ui";
+import { Panel, RequestFailure, useConfirmLeave } from "@helivanta/ui";
 import {
   useStaffPostingScopes,
   useStaffPostingTargets,
@@ -27,10 +27,11 @@ export function StaffPostingWorkspace({
   if (hospitals.isPending) return <p role="status">Checking posting hospitals…</p>;
   if (hospitals.isError)
     return (
-      <div role="alert">
-        Posting hospital access could not be verified.{" "}
-        <Button onClick={() => void hospitals.refetch()}>Retry posting hospitals</Button>
-      </div>
+      <RequestFailure
+        message="Posting hospital access could not be verified."
+        retry={hospitals.refetch}
+        error={hospitals.error}
+      />
     );
   const hospital = hospitals.data.data.find((row) => row.hospital_id === selected);
   return (
@@ -113,10 +114,11 @@ function PostingHospital({
   if (targets.isPending) return <p role="status">Loading posting Staff choices…</p>;
   if (targets.isError)
     return (
-      <div role="alert">
-        Staff choices could not be verified.{" "}
-        <Button onClick={() => void targets.refetch()}>Retry posting Staff choices</Button>
-      </div>
+      <RequestFailure
+        message="Staff choices could not be verified."
+        retry={targets.refetch}
+        error={targets.error}
+      />
     );
   return (
     <Panel className="space-y-4">

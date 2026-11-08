@@ -109,3 +109,33 @@ type OperationalAccessLimitsUpdatedData struct {
 	PartyID string `json:"party_id"`
 	Version int64  `json:"version"`
 }
+
+const SubjectStockReceiptRecorded = "helivanta.in.supply.stock_receipt_recorded.v1"
+
+type StockReceiptRecordedData struct {
+	PartyID   string `json:"party_id"`
+	PremiseID string `json:"premise_id"`
+	ReceiptID string `json:"receipt_id"`
+}
+
+const SubjectStockIdentityRecorded = "helivanta.in.supply.stock_identity_recorded.v1"
+
+type StockIdentityRecordedData struct {
+	PartyID   string `json:"party_id"`
+	PremiseID string `json:"premise_id"`
+	ReceiptID string `json:"receipt_id"`
+	CheckID   string `json:"check_id"`
+	Version   int64  `json:"version"`
+}
+
+const SubjectStockQualityRecorded = "helivanta.in.supply.stock_quality_recorded.v1"
+
+type StockQualityRecordedData struct {
+	PartyID    string `json:"party_id"`
+	PremiseID  string `json:"premise_id"`
+	ReceiptID  string `json:"receipt_id"`
+	DecisionID string `json:"decision_id"`
+	Version    int64  `json:"version"`
+}
+
+const SubjectOrderExchange = "helivanta.in.supply.order_exchange.v1"

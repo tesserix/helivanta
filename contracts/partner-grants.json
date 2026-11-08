@@ -1,0 +1,127 @@
+{
+  "maximum_validity_days": 366,
+  "maximum_timestamp_fraction_digits": 9,
+  "models": {
+    "PartnerGrantDraftInput": [
+      {
+        "name": "owner_product",
+        "type": "string",
+        "enum": ["pharmacy", "supply"]
+      },
+      {
+        "name": "owner_organization_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "source_location_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "relationship_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "relationship_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "recipient_kind",
+        "type": "string",
+        "enum": ["subject", "group"]
+      },
+      {
+        "name": "recipient_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "recipient_hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "recipient_group_id",
+        "type": "uuid",
+        "optional": true,
+        "uuid_version": 7
+      },
+      {
+        "name": "recipient_subject",
+        "type": "string",
+        "optional": true,
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "template_key",
+        "type": "string",
+        "enum": [
+          "partner.catalogue_viewer.v1",
+          "partner.shipment_reader.v1",
+          "partner.invoice_viewer.v1"
+        ]
+      },
+      {
+        "name": "source_jurisdiction",
+        "type": "string",
+        "enum": ["IN-MH", "IN-OD"]
+      },
+      {
+        "name": "destination_jurisdiction",
+        "type": "string",
+        "enum": ["IN-MH", "IN-OD"]
+      },
+      {
+        "name": "valid_from",
+        "type": "time"
+      },
+      {
+        "name": "expires_at",
+        "type": "time"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      }
+    ],
+    "PartnerGrantDraft": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "input",
+        "type": "PartnerGrantDraftInput"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["pending_verification"]
+      },
+      {
+        "name": "operating_access_enabled",
+        "type": "bool",
+        "literal": false
+      },
+      {
+        "name": "prepared_by",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ]
+  }
+}

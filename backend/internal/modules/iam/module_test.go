@@ -1,6 +1,8 @@
 package iam_test
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -15,7 +17,21 @@ func TestMigrationIDIsPhaseScoped(t *testing.T) {
 	for i, migration := range migs {
 		ids[i] = migration.ID
 	}
-	require.Len(t, ids, 32)
+	require.Len(t, ids, 46)
+	require.Equal(t, "0046_iam_supplier_acceptance_templates", migs[45].ID)
+	require.Equal(t, "0042_iam_purchase_order_templates", migs[41].ID)
+	require.Equal(t, "0043_iam_order_operating_templates", migs[42].ID)
+	require.Equal(t, "0044_iam_fulfilment_operating_templates", migs[43].ID)
+	require.Equal(t, "0045_iam_supplier_receiving_templates", migs[44].ID)
+	require.Equal(t, "0432bdd5d479ab23cdaccbe033fe76d5f896e91be1c433f423e92da0d33e4d1c", fmt.Sprintf("%x", sha256.Sum256([]byte(migs[42].SQL))), "the published operating-template migration must remain byte-for-byte immutable")
+	require.Equal(t, "0041_iam_stock_quality_template", migs[40].ID)
+	require.NotEmpty(t, migs[40].SQL)
+	require.Equal(t, "0038_iam_operating_duties", migs[37].ID)
+	require.NotEmpty(t, migs[37].SQL)
+	require.Equal(t, "0039_iam_supplier_grants", migs[38].ID)
+	require.NotEmpty(t, migs[38].SQL)
+	require.Equal(t, "0040_iam_supplier_access_templates", migs[39].ID)
+	require.NotEmpty(t, migs[39].SQL)
 	require.Equal(t, "0001_iam", migs[0].ID)
 	require.Equal(t, "0002_iam", migs[1].ID)
 	require.Equal(t, "0003_iam", migs[2].ID)
@@ -60,6 +76,13 @@ func TestMigrationIDIsPhaseScoped(t *testing.T) {
 	require.NotEmpty(t, migs[30].SQL)
 	require.Equal(t, "0032_iam_department_leave_review_templates", migs[31].ID)
 	require.Contains(t, migs[31].SQL, "'workforce.department_leave_reviewer.v1' THEN ARRAY['department']")
+	require.Equal(t, "0033_iam_establishment_root", migs[32].ID)
+	require.Contains(t, migs[32].SQL, "CREATE POLICY establishment_root ON iam_assignment_proposals AS RESTRICTIVE")
+	for i, id := range []string{"0034_iam_partner_groups", "0035_iam_partner_membership_templates", "0036_iam_partner_members"} {
+		require.Equal(t, id, migs[33+i].ID)
+		require.NotEmpty(t, migs[33+i].SQL)
+	}
+
 }
 
 func TestPharmacyDepartmentBindingTemplatesArePersisted(t *testing.T) {
@@ -111,15 +134,31 @@ func TestEverySystemRoleHasALabel(t *testing.T) {
 }
 
 func TestModuleDeclaresMemberManage(t *testing.T) {
-	grants := iam.New(nil).Permissions()
-	require.Len(t, grants, 4)
-	require.Equal(t, iam.PermAssignmentReview, grants[2].Permission)
-	require.Empty(t, grants[2].Roles)
-	require.Equal(t, iam.PermAssignmentManage, grants[1].Permission)
-	require.Empty(t, grants[1].Roles, "proposals are administered through the explicit tenant-admin baseline")
-	require.Equal(t, iam.PermMemberManage, grants[0].Permission)
-	// tenant_admin is implicit, so the grant lists no roles.
-	require.Empty(t, grants[0].Roles)
+	grants := map[authz.Permission][]authz.Role{}
+	for _, grant := range iam.New(nil).Permissions() {
+		require.NotContains(t, grants, grant.Permission, "permission declarations must be unique")
+		grants[grant.Permission] = grant.Roles
+	}
+	for _, permission := range []authz.Permission{iam.PermMemberManage, iam.PermAssignmentManage, iam.PermAssignmentReview, iam.PermPartnerGroupMemberRead, iam.PermPartnerGroupMemberPrepare, iam.PermPartnerGroupMemberReview, iam.PermCredentialRevoke} {
+		require.Contains(t, grants, permission)
+		require.Empty(t, grants[permission], "%s remains tenant-admin-only by default", permission)
+	}
+}
+
+func TestOperatingAdministrationKeepsSourceRolesSeparate(t *testing.T) {
+	expected := map[authz.Permission][]authz.Role{
+		iam.PermOperatingRead:    {authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor, authz.RolePharmacyOwner},
+		iam.PermOperatingPrepare: {authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RolePharmacyOwner},
+		iam.PermOperatingReview:  {authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyCompliance, authz.RolePharmacyOwner},
+		iam.PermOperatingRevoke:  {authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RolePharmacyOwner},
+	}
+	for _, grant := range iam.New(nil).Permissions() {
+		if roles, ok := expected[grant.Permission]; ok {
+			require.ElementsMatch(t, roles, grant.Roles, "%s must not grant broader source administration", grant.Permission)
+			delete(expected, grant.Permission)
+		}
+	}
+	require.Empty(t, expected, "all reviewed operating permissions must be registered")
 }
 
 // TestModuleDeclaresCredentialRevoke is #781's permission-declaration
@@ -137,4 +176,12 @@ func TestModuleDeclaresCredentialRevoke(t *testing.T) {
 	}
 	require.NotNil(t, found, "iam.credential.revoke must be declared")
 	require.Empty(t, found.Roles, "iam.credential.revoke must list no system roles; only tenant_admin's implicit grant may hold it")
+}
+
+func TestStockQualityTemplateExpansionPreservesReceivingPermissions(t *testing.T) {
+	migrations := iam.New(nil).Migrations()
+	require.NotContains(t, migrations[37].SQL, "supply.stock.review")
+	require.Contains(t, migrations[40].SQL, "CREATE OR REPLACE FUNCTION iam_operating_template_permissions")
+	require.Contains(t, migrations[40].SQL, "supply.stock_quality_reviewer.v1")
+	require.Contains(t, migrations[40].SQL, "supply.inventory_receiver.v1")
 }

@@ -38,7 +38,7 @@ func newStack(t *testing.T) stack {
 	t.Helper()
 	r, db, bus, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens:  map[string]string{"doctor": testutil.TenantA, "clerk": testutil.TenantA},
-		Perms:   map[string][]authz.Permission{"doctor": {drugmaster.PermCatalogueRead}},
+		Perms:   map[string][]authz.Permission{"doctor": {drugmaster.PermCatalogueRead, drugmaster.PermStockReferenceRead}},
 		Modules: []platform.Module{drugmaster.New()},
 	})
 	var name string

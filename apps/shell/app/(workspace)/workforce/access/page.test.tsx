@@ -1092,6 +1092,33 @@ it("rejects a template catalog whose declared scope kinds differ", async () => {
   ).toBeInTheDocument();
 });
 
+it("rejects a template catalog whose declared establishment kinds differ", async () => {
+  setup("proposer", []);
+  const prior = fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("catalog=staff-department-posting-reviews-v1"))
+        return Response.json(
+          catalogDefinitions("staff-department-posting-reviews-v1").map((template) =>
+            template.key === "workforce.department_posting_reviewer.v1"
+              ? { ...template, establishment_kinds: ["hospital", "pharmacy"] }
+              : template,
+          ),
+        );
+      return prior(url, init);
+    }),
+  );
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  expect(
+    await screen.findByText("Staff posting assignments are unavailable in this workspace."),
+  ).toBeInTheDocument();
+});
+
 it.each(["missing", "broader", "extra"])(
   "does not offer posting authority from a %s catalog",
   async (kind) => {

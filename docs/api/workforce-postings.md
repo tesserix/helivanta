@@ -692,8 +692,8 @@ add one department-scoped role. The closed `staff-department-posting-reviews-v1`
 catalog is the management catalog plus `workforce.department_posting_reviewer.v1`,
 which carries the five permissions of `workforce.posting_reviewer.v1` and
 `scope_kinds: ["department"]`. Every earlier template declares `["hospital"]`.
-IAM migrations `0027_iam_department_posting_review_templates` and
-`0028_iam_department_assignment_scope` install the template and the department
+IAM migrations `0030_iam_department_posting_review_templates` and
+`0031_iam_department_assignment_scope` install the template and the department
 columns, paired checks, immutable scope and append-only verifications. Department
 rows are hidden unless `app.assignment_department_scope` is `enabled`, so
 rolled-back code fails closed.

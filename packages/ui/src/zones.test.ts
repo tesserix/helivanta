@@ -130,7 +130,7 @@ it("offers the supply directory to non-clinical purchasing users", () => {
   const zones = visibleZones(canWith(["supply.directory.read"]));
   const supply = zones.find((zone) => zone.key === "supply");
   expect(supply?.href).toBe("/supply/parties");
-  expect(supply?.pages.map((page) => page.href)).toEqual(["/supply/parties"]);
+  expect(supply?.pages.map((page) => page.href)).toEqual(["/supply/parties", "/supply/staff"]);
   expect(zones.some((zone) => zone.key === "pharmacy")).toBe(false);
 });
 
@@ -269,6 +269,7 @@ describe("zone icons and sections", () => {
       ["Dispensing", "Medication list", "/pharmacy/medications"],
       ["Inventory", "Stock across outlets", "/pharmacy/stock-overview"],
       ["Inventory", "Stock on hand", "/pharmacy/stock"],
+      ["Inventory", "Supplier fulfilment", "/pharmacy/supplier-orders"],
       ["Inventory", "Receiving", "/pharmacy/receiving"],
       ["Inventory", "Expiry & safety", "/pharmacy/safety"],
       ["Inventory", "Product catalogue", "/pharmacy/catalogue"],

@@ -32,8 +32,10 @@ and the [plan](../superpowers/plans/2026-11-08-pharmacy-enrollment.md).
 
 - Five route tests and two internal command tests pass against Postgres
   testcontainers. They cover keep, refuse, masters and reporting line, inactive
-  revocation and two enrollments for one person. The establishment-kind table
-  guard test now expects the six enrollment tables to admit a pharmacy.
+  revocation and two enrollments for one person. The establishment-kind guard
+  test checks that exactly the six enrollment tables carry the new trigger,
+  admit a pharmacy and refuse a supplier. The globalapi legacy-upgrade test
+  replays 0095 after the earlier deferred migrations.
 - The backend coverage gate (`-race`, 70% floor) passes. `lint-go`, `go vet`
   and `contractdocs -check` pass, and so does the operational-access
   inventory check.

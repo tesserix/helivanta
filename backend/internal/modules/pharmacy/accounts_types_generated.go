@@ -31,7 +31,7 @@ type AcquisitionReceipt struct {
 	QuantityUnits   int64                `json:"quantity_units"`
 	SourceReference string               `json:"source_reference"`
 	PayableID       *uuid.UUID           `json:"payable_id,omitempty"`
-	Supplier        *AcquisitionSupplier `json:"supplier,omitempty"`
+	Supplier        *AcquisitionSupplier `json:"supplier,omitempty" gorm:"-"`
 	CreatedAt       time.Time            `json:"created_at"`
 }
 

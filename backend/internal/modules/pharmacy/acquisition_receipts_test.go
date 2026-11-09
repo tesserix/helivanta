@@ -3,7 +3,9 @@ package pharmacy
 import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm/schema"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -122,4 +124,12 @@ func TestPayableSubjectPreconditionPreservesLegacyAndRejectsSwitchedAccounts(t *
 			}
 		})
 	}
+}
+
+func TestAcquisitionReceiptReadProjectionHasValidDatabaseMapping(t *testing.T) {
+	mapping, err := schema.Parse(&acquisitionRow{}, &sync.Map{}, schema.NamingStrategy{})
+	require.NoError(t, err)
+	require.Contains(t, mapping.DBNames, "supplier_receipt_id")
+	require.NotContains(t, mapping.DBNames, "supplier")
+	require.Empty(t, mapping.Relationships.Relations)
 }

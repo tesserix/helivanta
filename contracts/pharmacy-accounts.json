@@ -114,7 +114,8 @@
       {
         "name": "supplier",
         "type": "AcquisitionSupplier",
-        "optional": true
+        "optional": true,
+        "orm_ignore": true
       },
       {
         "name": "created_at",

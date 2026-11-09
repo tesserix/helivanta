@@ -183,7 +183,14 @@ function ScheduleDeclarationForm({
           source: v.source,
         }),
       }),
-    { successToast: "Schedule class declared", invalidate, suppressErrorToast: true },
+    // A failure may still have committed: reread, so a recorded declaration
+    // shows and remounts this form with a fresh id instead of a spent one.
+    {
+      successToast: "Schedule class declared",
+      invalidate,
+      invalidateOnError: true,
+      suppressErrorToast: true,
+    },
   );
   useReportState(onStateChange, form.formState.isDirty, record.isPending);
   const errors = form.formState.errors;
@@ -285,7 +292,14 @@ function ScheduleReviewForm({
         label="What you checked"
         error={form.formState.errors.reason?.message}
       >
-        <Input id="schedule-review-reason" {...form.register("reason")} />
+        <Input
+          id="schedule-review-reason"
+          aria-invalid={!!form.formState.errors.reason}
+          aria-describedby={
+            form.formState.errors.reason ? "schedule-review-reason-error" : undefined
+          }
+          {...form.register("reason")}
+        />
       </Field>
       {review.isError && (
         <p role="alert" className="text-sm text-destructive">

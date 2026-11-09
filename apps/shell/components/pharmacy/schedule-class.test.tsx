@@ -270,6 +270,32 @@ describe("declaring a schedule class", () => {
     expect(writes(fetcher)[1]![0]).toBe(writes(fetcher)[0]![0]);
   });
 
+  // A PUT that committed but answered 503 must not leave a form whose id is spent.
+  it("rereads after a failed declaration, so a committed one shows and the form takes a new id", async () => {
+    const fetcher = serve(
+      [{ body: none }, { body: awaiting }],
+      [
+        {
+          status: 503,
+          body: { error: "unavailable", message: "The pharmacy service is unavailable." },
+        },
+      ],
+    );
+    const { user } = renderSection({ canDeclare: true });
+    await chooseOption(user, await screen.findByRole("combobox", { name: "Class" }), "H1");
+    await chooseOption(user, screen.getByRole("combobox", { name: "NDPS" }), "No");
+    await user.type(screen.getByLabelText("Source"), "pack label");
+    await user.click(declare());
+    expect(await screen.findByText("Awaiting review")).toBeVisible();
+    expect(reads(fetcher)).toHaveLength(2);
+    await chooseOption(user, screen.getByRole("combobox", { name: "Class" }), "G");
+    await chooseOption(user, screen.getByRole("combobox", { name: "NDPS" }), "No");
+    await user.type(screen.getByLabelText("Source"), "second label");
+    await user.click(declare());
+    await waitFor(() => expect(writes(fetcher)).toHaveLength(2));
+    expect(writes(fetcher)[1]![0]).not.toBe(writes(fetcher)[0]![0]);
+  });
+
   it("offers no declaration on a withdrawn product", async () => {
     serve(none);
     renderSection({ canDeclare: true, product: { ...product, status: "withdrawn" } });
@@ -359,6 +385,16 @@ describe("reviewing a schedule class", () => {
     await user.click(screen.getByRole("button", { name: "Approve" }));
     await waitFor(() => expect(reads(fetcher)).toHaveLength(2));
     expect(await screen.findByText(/^Schedule H1 · not NDPS, approved/)).toBeVisible();
+  });
+
+  it("ties a refused review reason to its field", async () => {
+    serve(awaiting);
+    const { user } = renderSection({ canReview: true });
+    await user.click(await screen.findByRole("button", { name: "Approve" }));
+    const field = screen.getByLabelText("What you checked");
+    expect(await screen.findByText("Say what you checked.")).toBeVisible();
+    expect(field).toHaveAttribute("aria-invalid", "true");
+    expect(field).toHaveAccessibleDescription("Say what you checked.");
   });
 
   it("allows a review on a withdrawn product", async () => {

@@ -290,9 +290,8 @@ does. Both buttons are `type="button"`, so either can sit inside a form.
 The lint rule `helivanta/no-hand-rolled-retry` (`packages/config`) enforces
 this. It fails a handler in `onClick`, `onRetry`, `onRefresh` or `onReload`
 that calls a query's `refetch` or `retry`. A prop that hands a retry to a
-shared component is named `retry` or `refresh` instead. Workforce files not
-yet converted are listed in `apps/shell/retry-legacy.mjs`. That list only
-shrinks: its test fails when a listed file no longer breaks the rule. The
+shared component is named `retry` or `refresh` instead. It applies to every
+file in `apps/shell` but tests; there is no exemption list. The
 rule cannot see a retry behind a named handler (`onClick={reload}`), so
 review still checks for one.
 

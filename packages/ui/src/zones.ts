@@ -17,6 +17,8 @@ import {
   Clock,
   ClipboardCheck,
   Contact,
+  BriefcaseMedical,
+  Factory,
   FileText,
   FileScan,
   Fingerprint,
@@ -375,6 +377,18 @@ export const ZONES: Zone[] = [
     group: "operations",
     pages: [
       { label: "Staff directory", href: "/workforce", icon: Contact, permission: "public" },
+      {
+        label: "Pharmacy Staff",
+        href: "/workforce/pharmacy-staff",
+        icon: BriefcaseMedical,
+        permission: "public",
+      },
+      {
+        label: "Supplier Staff",
+        href: "/workforce/supplier-staff",
+        icon: Factory,
+        permission: "public",
+      },
       {
         label: "Partner teams",
         href: "/workforce/partner-teams",

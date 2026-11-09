@@ -78,10 +78,6 @@ function StaffSourceAccount({ onRestart }: { onRestart: () => void }) {
         error={identity.error}
       />
     );
-  if (!parsed.data.data.includes("supply.directory.read"))
-    return (
-      <Panel role="alert">You do not have permission to open the supplier Staff source.</Panel>
-    );
   const scope = { tenantId: parsed.data.tenant_id, subject: parsed.data.subject };
   return (
     <StaffSources

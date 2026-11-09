@@ -1890,3 +1890,18 @@ unauthorized candidates are withheld. This is not a private Staff directory,
 posting qualification or product operating grant. The source is canonical
 `contracts/workforce-staff-actors.json`; browser acceptance and deployment remain
 open.
+
+## Independent Staff workspace navigation
+
+The UI aliases `/workforce/pharmacy-staff` and `/workforce/supplier-staff` reuse
+the same private directory/account/duty components as the existing product URLs.
+Current-member discovery asks Workforce for explicit employer scopes even when
+an account has no pharmacy catalogue or supply directory permission. That
+permission is not Staff authority. No current employer scope reveals no Staff;
+a refused or unavailable owner read is shown as a failure, not an empty directory.
+Pharmacy hospital projections still require the pharmacy catalogue permission.
+Account-link review continues to require current employer manager context plus
+`workforce.independent_login.review`; operating decisions retain Shared IAM's
+current Staff/source/independence checks. The aliases grant no authority and add
+no server endpoints or permissions. See
+[reviewer access](../superpowers/specs/2026-11-09-independent-staff-review-access.md).

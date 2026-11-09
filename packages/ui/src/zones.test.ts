@@ -329,3 +329,11 @@ it("shows posting cutoff discovery without requiring a tenant-wide Staff grant",
   const pages = visibleZones((permission) => permission === "public").flatMap((zone) => zone.pages);
   expect(pages.some((page) => page.href === "/workforce/posting-cutoffs")).toBe(true);
 });
+
+it("exposes independent Staff directories under Staff without granting product inventory navigation", () => {
+  const zones = visibleZones(canWith(["workforce.independent_login.review"]));
+  const staff = zones.find((zone) => zone.key === "workforce");
+  expect(staff?.pages.map((page) => page.href)).toContain("/workforce/pharmacy-staff");
+  expect(staff?.pages.map((page) => page.href)).toContain("/workforce/supplier-staff");
+  expect(zones.some((zone) => zone.key === "pharmacy" || zone.key === "supply")).toBe(false);
+});

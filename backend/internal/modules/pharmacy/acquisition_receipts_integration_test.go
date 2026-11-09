@@ -77,7 +77,7 @@ func assertSupplierAcquisition(t *testing.T, r *gin.Engine, db *tenantdb.DB, roo
 	rows := acquisitionPage(t, r, root+"/accounts/acquisition-receipts?limit=50")
 	require.Len(t, rows, 1)
 	row := rows[0]
-	assertFinanceCannotMutateReceiving(t, db, row.OutletID, receipt)
+	assertFinanceCannotMutateReceiving(t, db, row.PharmacyID, row.OutletID, receipt)
 	require.Equal(t, receipt, row.ID)
 	require.NotNil(t, row.Supplier)
 	require.Equal(t, owner, row.Supplier.SourceProduct)
@@ -98,11 +98,11 @@ func assertSupplierAcquisition(t *testing.T, r *gin.Engine, db *tenantdb.DB, roo
 	}))
 }
 
-func assertFinanceCannotMutateReceiving(t *testing.T, db *tenantdb.DB, outlet, receipt uuid.UUID) {
+func assertFinanceCannotMutateReceiving(t *testing.T, db *tenantdb.DB, pharmacyID, outlet, receipt uuid.UUID) {
 	t.Helper()
 	ctx := tenantdb.WithActor(t.Context(), "user-finance")
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-		if err := tx.Exec(`SELECT set_config('app.pharmacy_subject','user-finance',true),set_config('app.pharmacy_acquisition_read','authorized',true),set_config('app.pharmacy_acquisition_outlet',?,true)`, outlet.String()).Error; err != nil {
+		if err := tx.Exec(`SELECT set_config('app.pharmacy_subject','user-finance',true),set_config('app.pharmacy_acquisition_read','authorized',true),set_config('app.pharmacy_acquisition_outlet',?,true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)`, outlet.String(), outlet.String(), pharmacyID.String()).Error; err != nil {
 			return err
 		}
 		var visible int64

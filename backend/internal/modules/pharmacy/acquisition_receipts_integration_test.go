@@ -34,6 +34,9 @@ func acquisitionPage(t *testing.T, r *gin.Engine, path string) []pharmacy.Acquis
 }
 func TestFinancialAcquisitionReceiptsRequireFinanceAndOwnedOutletWithoutStockPermission(t *testing.T) {
 	r, db := catalogueHarness(t)
+	bad, err := db.LintRLS(t.Context())
+	require.NoError(t, err)
+	require.Empty(t, bad, "financial read scope must preserve the forced tenant RLS contract")
 	grantCatalogue(t, r, "user-editor", "editor")
 	grantCatalogue(t, r, "user-finance", "reader")
 	_, location, batch := stockFixture(t, r)
@@ -74,6 +77,7 @@ func assertSupplierAcquisition(t *testing.T, r *gin.Engine, db *tenantdb.DB, roo
 	rows := acquisitionPage(t, r, root+"/accounts/acquisition-receipts?limit=50")
 	require.Len(t, rows, 1)
 	row := rows[0]
+	assertFinanceCannotMutateReceiving(t, db, row.OutletID, receipt)
 	require.Equal(t, receipt, row.ID)
 	require.NotNil(t, row.Supplier)
 	require.Equal(t, owner, row.Supplier.SourceProduct)
@@ -90,6 +94,25 @@ func assertSupplierAcquisition(t *testing.T, r *gin.Engine, db *tenantdb.DB, roo
 			return err
 		}
 		require.Zero(t, n, "a forged finance purpose without matching actor/outlet lens must deny")
+		return nil
+	}))
+}
+
+func assertFinanceCannotMutateReceiving(t *testing.T, db *tenantdb.DB, outlet, receipt uuid.UUID) {
+	t.Helper()
+	ctx := tenantdb.WithActor(t.Context(), "user-finance")
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.pharmacy_subject','user-finance',true),set_config('app.pharmacy_acquisition_read','authorized',true),set_config('app.pharmacy_acquisition_outlet',?,true)`, outlet.String()).Error; err != nil {
+			return err
+		}
+		var visible int64
+		if err := tx.Table("pharmacy_supplier_receipts").Where("tenant_id=? AND id=?", testutil.TenantA, receipt).Count(&visible).Error; err != nil {
+			return err
+		}
+		require.EqualValues(t, 1, visible)
+		result := tx.Exec(`UPDATE pharmacy_supplier_receiving_heads SET updated_at=updated_at WHERE tenant_id=? AND outlet_id=?`, testutil.TenantA, outlet)
+		require.NoError(t, result.Error)
+		require.Zero(t, result.RowsAffected, "a finance-only read purpose must not admit updates")
 		return nil
 	}))
 }

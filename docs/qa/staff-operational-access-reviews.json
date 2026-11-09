@@ -3663,7 +3663,7 @@
         },
         {
           "path": "backend/internal/modules/pharmacy/acquisition_receipts.sql",
-          "sha256": "cca933f703d99f2ad5e5acb82fb8e2a75697119e8b2573e79c61f66c1d519e13",
+          "sha256": "6bee0fc1fa4a4d60d85709d9d5615e364907abfcb8a16327b5ae2923e09b4663",
           "symbol": "CREATE FUNCTION pharmacy_acquisition_receipts_read("
         },
         {

@@ -68,6 +68,7 @@ export * from "./pharmacy-daily-report";
 export * from "./pharmacy-sales-reports";
 export * from "./pharmacy-sales-worklist";
 export * from "./pharmacy-item-categories";
+export * from "./pharmacy-schedule";
 export * from "./payments";
 export * from "./pharmacy-counter-payments";
 export * from "./pharmacy-h1-register";

@@ -24,7 +24,7 @@ import {
   type OperatingDuty,
   type OperatingDutyDecisionInput,
 } from "@helivanta/api";
-import { SupplierDutyPreparation } from "./supplier-duty-preparation";
+import { OperatingDutyPreparation } from "./operating-duty-preparation";
 
 type Props = { scope: OperatingDutyStaffScope; staffVersion: number; staffActive: boolean };
 export function IndependentOperatingDuties(props: Props) {
@@ -52,8 +52,8 @@ function Duties({ scope, staffVersion, staffActive }: Props) {
       <div>
         <h3 className="font-semibold">Operating duties</h3>
         <p className="text-sm text-muted-foreground">
-          Assign receiving work to an independently reviewed Staff account at an exact location.
-          Hospital collaboration and trading approvals are separate.
+          Assign a declared operating role to an independently reviewed Staff account at an exact
+          location. Hospital collaboration and trading approvals are separate.
         </p>
       </div>
       <RefreshButton busy={busy} refresh={query.refetch} error={query.error}>
@@ -85,15 +85,14 @@ function Duties({ scope, staffVersion, staffActive }: Props) {
           </Button>
         )}
       </nav>
-      {scope.employerKind === "supplier" &&
-        staffActive &&
+      {staffActive &&
         can("iam.operating.prepare") &&
         (!preparing ? (
           <Button disabled={busy} onClick={() => setPreparing(true)}>
-            Assign receiving duty
+            Assign operating duty
           </Button>
         ) : (
-          <SupplierDutyPreparation
+          <OperatingDutyPreparation
             {...{ scope, staffVersion, busy, setBusy }}
             onClose={() => setPreparing(false)}
           />

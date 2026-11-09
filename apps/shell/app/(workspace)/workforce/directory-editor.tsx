@@ -15,6 +15,7 @@ import {
   type EnrollmentRequestScope,
 } from "@helivanta/api";
 import { Panel, RequestFailure } from "@helivanta/ui";
+import { StaffAccessPreparation } from "@/components/workforce/staff-access-preparation";
 import { StaffRecordForm } from "@/components/workforce/staff-record-form";
 
 type DirectoryEditorProps = {
@@ -115,39 +116,44 @@ function StaffDirectoryForm({
   onReload: () => void;
 }) {
   return (
-    <StaffRecordForm
-      establishmentName={hospital.name}
-      staff={staff}
-      invalidate={[["workforce", "staff", hospital.id]]}
-      onClose={onClose}
-      onReload={onReload}
-      onContextChanged={onContextChanged}
-      save={async (value, expectedVersion) => {
-        const response = await apiFetch<unknown>(path, {
-          ...enrollmentRequestOptions(scope),
-          method: "PUT",
-          body: JSON.stringify({
-            ...value,
-            expected_version: expectedVersion,
-            directory_context_version: STAFF_DIRECTORY_CONTEXT.version,
-          }),
-        });
-        const parsed = staffDirectoryViewSchema.safeParse(response);
-        if (
-          !parsed.success ||
-          parsed.data.id !== id ||
-          parsed.data.hospital_id !== hospital.id ||
-          parsed.data.version < expectedVersion ||
-          (Object.keys(value) as Array<keyof StaffInput>).some(
-            (key) => parsed.data[key] !== value[key],
-          )
-        ) {
-          throw new Error(
-            "Could not verify the saved Staff record. Your draft has been kept. Reload to check the current record.",
-          );
-        }
-        return parsed.data;
-      }}
-    />
+    <>
+      {staff && (
+        <StaffAccessPreparation kind="hospital" active={staff.employment_status === "active"} />
+      )}
+      <StaffRecordForm
+        establishmentName={hospital.name}
+        staff={staff}
+        invalidate={[["workforce", "staff", hospital.id]]}
+        onClose={onClose}
+        onReload={onReload}
+        onContextChanged={onContextChanged}
+        save={async (value, expectedVersion) => {
+          const response = await apiFetch<unknown>(path, {
+            ...enrollmentRequestOptions(scope),
+            method: "PUT",
+            body: JSON.stringify({
+              ...value,
+              expected_version: expectedVersion,
+              directory_context_version: STAFF_DIRECTORY_CONTEXT.version,
+            }),
+          });
+          const parsed = staffDirectoryViewSchema.safeParse(response);
+          if (
+            !parsed.success ||
+            parsed.data.id !== id ||
+            parsed.data.hospital_id !== hospital.id ||
+            parsed.data.version < expectedVersion ||
+            (Object.keys(value) as Array<keyof StaffInput>).some(
+              (key) => parsed.data[key] !== value[key],
+            )
+          ) {
+            throw new Error(
+              "Could not verify the saved Staff record. Your draft has been kept. Reload to check the current record.",
+            );
+          }
+          return parsed.data;
+        }}
+      />
+    </>
   );
 }

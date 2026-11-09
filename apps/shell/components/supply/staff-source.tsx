@@ -28,6 +28,7 @@ import {
 } from "@helivanta/ui";
 import { IndependentOperatingDuties } from "@/components/workforce/independent-operating-duties";
 import { IndependentStaffLinks } from "@/components/workforce/independent-staff-links";
+import { StaffAccessPreparation } from "@/components/workforce/staff-access-preparation";
 import { StaffRecordForm } from "@/components/workforce/staff-record-form";
 
 const identitySchema = z.object({
@@ -301,6 +302,12 @@ function EmployerStaffEditor({
           saveSupplierStaffRecord(scope, source.supplier_id, id, value, expectedVersion)
         }
       />
+      {staff && record.data && (
+        <StaffAccessPreparation
+          kind="supplier"
+          active={record.data.employment_status === "active"}
+        />
+      )}
       {staff &&
         record.data &&
         (can("workforce.independent_login.manage") ||

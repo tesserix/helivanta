@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { formatZonedDateTime, type PharmacyProduct } from "@helivanta/api";
@@ -275,5 +275,95 @@ describe("declaring a schedule class", () => {
     renderSection({ canDeclare: true, product: { ...product, status: "withdrawn" } });
     await screen.findByText(/No schedule class in force/);
     expect(screen.queryByRole("button", { name: "Declare schedule class" })).toBeNull();
+  });
+});
+
+describe("reviewing a schedule class", () => {
+  const older = {
+    ...declaration,
+    id: "0199e000-0000-7000-8000-000000000700",
+    regulatory_class: "H",
+  };
+  const reviewOf = (fetcher: ReturnType<typeof serve>) =>
+    writes(fetcher).filter(([, i]) => i?.method === "POST");
+
+  it("approves the newest pending declaration with what was checked", async () => {
+    const fetcher = serve(awaiting, [{ status: 200, body: approved }]);
+    const { user } = renderSection({ canReview: true });
+    expect(await screen.findByText("Awaiting review")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Approve" }));
+    expect(await screen.findByText("Say what you checked.")).toBeVisible();
+    expect(writes(fetcher)).toHaveLength(0);
+    await user.type(screen.getByLabelText("What you checked"), "TEST pack checked");
+    await user.click(screen.getByRole("button", { name: "Approve" }));
+    await waitFor(() => expect(reviewOf(fetcher)).toHaveLength(1));
+    const [url, init] = reviewOf(fetcher)[0]!;
+    expect(url).toMatch(new RegExp(`/schedule/${declaration.id}/review$`));
+    expect(JSON.parse(String(init?.body))).toEqual({
+      decision: "approved",
+      reason: "TEST pack checked",
+    });
+    expect(await screen.findByText("Review recorded")).toBeVisible();
+    await waitFor(() => expect(reads(fetcher)).toHaveLength(2));
+  });
+
+  it("rejects with a reason", async () => {
+    const fetcher = serve(awaiting, [
+      { status: 200, body: { ...declaration, decision: "rejected" } },
+    ]);
+    const { user } = renderSection({ canReview: true });
+    await user.type(await screen.findByLabelText("What you checked"), "wrong pack");
+    await user.click(screen.getByRole("button", { name: "Reject" }));
+    await waitFor(() => expect(reviewOf(fetcher)).toHaveLength(1));
+    expect(JSON.parse(String(reviewOf(fetcher)[0]![1]?.body))).toEqual({
+      decision: "rejected",
+      reason: "wrong pack",
+    });
+  });
+
+  it("marks an older pending declaration superseded and offers no review of it", async () => {
+    serve({ ...awaiting, history: [declaration, older] });
+    renderSection({ canReview: true });
+    const history = await screen.findByRole("list", { name: "Schedule class history" });
+    const [newest, previous] = within(history).getAllByRole("listitem");
+    expect(newest).toHaveTextContent("Awaiting review");
+    expect(previous).toHaveTextContent("Superseded by a newer declaration");
+    expect(screen.getAllByRole("button", { name: "Approve" })).toHaveLength(1);
+    expect(screen.getByText(/Awaiting review: Schedule H1 · not NDPS/)).toBeVisible();
+  });
+
+  it("offers no review once the newest declaration is decided, even with an older one pending", async () => {
+    serve({ ...inForce(approved), history: [approved, older] });
+    renderSection({ canReview: true });
+    await screen.findByRole("list", { name: "Schedule class history" });
+    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+  });
+
+  it("shows the four-eyes refusal inline", async () => {
+    const message = "a schedule class is reviewed by someone other than who declared it";
+    const fetcher = serve(awaiting, [{ status: 409, body: { error: "four_eyes", message } }]);
+    const { user } = renderSection({ canReview: true });
+    await user.type(await screen.findByLabelText("What you checked"), "my own");
+    await user.click(screen.getByRole("button", { name: "Approve" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(message);
+    expect(reads(fetcher)).toHaveLength(1);
+  });
+
+  it.each([
+    [409, { error: "conflict", message: "this declaration has already been reviewed" }],
+    [404, { error: "not_found", message: "schedule declaration not found" }],
+  ])("rereads the schedule class when a review answers %s", async (status, body) => {
+    const fetcher = serve([{ body: awaiting }, { body: inForce(approved) }], [{ status, body }]);
+    const { user } = renderSection({ canReview: true });
+    await user.type(await screen.findByLabelText("What you checked"), "late");
+    await user.click(screen.getByRole("button", { name: "Approve" }));
+    await waitFor(() => expect(reads(fetcher)).toHaveLength(2));
+    expect(await screen.findByText(/^Schedule H1 · not NDPS, approved/)).toBeVisible();
+  });
+
+  it("allows a review on a withdrawn product", async () => {
+    serve(awaiting);
+    renderSection({ canReview: true, product: { ...product, status: "withdrawn" } });
+    expect(await screen.findByRole("button", { name: "Approve" })).toBeVisible();
   });
 });

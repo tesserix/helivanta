@@ -5,6 +5,7 @@ import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import { ShieldCheck } from "lucide-react";
 import {
+  ApiError,
   apiFetch,
   formatZonedDateTime,
   newPharmacyId,
@@ -36,7 +37,9 @@ export function ProductScheduleSection({
   product,
   timeZone,
   canDeclare,
+  canReview,
   onStateChange,
+  onReviewStateChange,
 }: {
   scope: PharmacyScope;
   product: PharmacyProduct;
@@ -58,6 +61,10 @@ export function ProductScheduleSection({
     pharmacyKey(scope, "product-schedule", product.id),
     pharmacyKey(scope, "counter", "availability", product.id),
   ];
+  // Only the latest declaration can take effect, so an older pending one is
+  // never offered for review: approving it would change nothing.
+  const newest = current?.history[0];
+  const pending = newest?.decision === null ? newest : undefined;
   return (
     <section aria-labelledby="product-schedule-heading" className="mt-8 border-t pt-6">
       <h4 id="product-schedule-heading" className="mb-1 flex items-center gap-2 font-medium">
@@ -93,6 +100,16 @@ export function ProductScheduleSection({
               Schedule X and NDPS products cannot be released or sold until their controls exist.
             </p>
           )}
+          {canReview && pending && (
+            <ScheduleReviewForm
+              key={pending.id}
+              declaration={pending}
+              path={path}
+              invalidate={invalidate}
+              onStateChange={onReviewStateChange}
+              onStale={() => void state.refetch()}
+            />
+          )}
           {canDeclare && product.status !== "withdrawn" && (
             <ScheduleDeclarationForm
               key={current.history[0]?.id ?? "none"}
@@ -110,11 +127,13 @@ export function ProductScheduleSection({
                     {d.source} · declared by {d.declared_by},{" "}
                     {formatZonedDateTime(d.created_at, timeZone)}
                   </p>
-                  {d.decision !== null && (
-                    <p className="mt-0.5 text-xs">
-                      {`${d.decision === "approved" ? "Approved" : "Rejected"} by ${d.reviewed_by}: ${d.decision_reason}`}
-                    </p>
-                  )}
+                  <p className="mt-0.5 text-xs">
+                    {d.decision === null
+                      ? d.id === pending?.id
+                        ? "Awaiting review"
+                        : "Superseded by a newer declaration"
+                      : `${d.decision === "approved" ? "Approved" : "Rejected"} by ${d.reviewed_by}: ${d.decision_reason}`}
+                  </p>
                 </li>
               ))}
             </ol>
@@ -210,6 +229,82 @@ function ScheduleDeclarationForm({
       <Button type="submit" disabled={record.isPending}>
         {record.isPending ? "Declaring…" : "Declare schedule class"}
       </Button>
+    </form>
+  );
+}
+
+const reviewSchema = z.object({
+  reason: z.string().trim().min(1, "Say what you checked.").max(500),
+});
+
+function ScheduleReviewForm({
+  declaration,
+  path,
+  invalidate,
+  onStateChange,
+  onStale,
+}: {
+  declaration: PharmacyScheduleDeclaration;
+  path: string;
+  invalidate: unknown[][];
+  onStateChange?: FormState;
+  /** Someone else decided it first: reread rather than keep offering a stale review. */
+  onStale: () => void;
+}) {
+  const form = useZodForm(reviewSchema, { reason: "" });
+  const review = useApiMutation(
+    (body: { decision: "approved" | "rejected"; reason: string }) =>
+      apiFetch<PharmacyScheduleDeclaration>(`${path}/${declaration.id}/review`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    {
+      successToast: "Review recorded",
+      invalidate,
+      suppressErrorToast: true,
+      onError: (error) => {
+        if (
+          error instanceof ApiError &&
+          (error.status === 404 || (error.status === 409 && error.code !== "four_eyes"))
+        )
+          onStale();
+      },
+    },
+  );
+  useReportState(onStateChange, form.formState.isDirty, review.isPending);
+  const decide = (decision: "approved" | "rejected") =>
+    form.handleSubmit(({ reason }) => review.mutate({ decision, reason }));
+  return (
+    <form noValidate onSubmit={decide("approved")} className="space-y-3 rounded-md border p-3">
+      <p className="text-sm">
+        Awaiting review: {scheduleLabel(declaration)}, from {declaration.source}, declared by{" "}
+        {declaration.declared_by}.
+      </p>
+      <Field
+        id="schedule-review-reason"
+        label="What you checked"
+        error={form.formState.errors.reason?.message}
+      >
+        <Input id="schedule-review-reason" {...form.register("reason")} />
+      </Field>
+      {review.isError && (
+        <p role="alert" className="text-sm text-destructive">
+          {review.error.message}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <Button type="submit" disabled={review.isPending}>
+          Approve
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={review.isPending}
+          onClick={decide("rejected")}
+        >
+          Reject
+        </Button>
+      </div>
     </form>
   );
 }

@@ -48,6 +48,7 @@ import { CurrencyAmountField, supportedCurrencies } from "./currency-amount-fiel
 import { ProductTaxSection, TaxBadge } from "./tax-classification";
 import { ProductPriceControlSection } from "./price-control";
 import { ItemCategories, ProductCategorySection } from "./item-categories";
+import { ProductScheduleSection } from "./schedule-class";
 
 const searchSchema = z.object({ query: z.string().trim().max(200) });
 
@@ -122,6 +123,8 @@ export function CataloguePanel({
   canReviewPrice = false,
   canDeclareCategory = false,
   canReviewCategory = false,
+  canDeclareSchedule = false,
+  canReviewSchedule = false,
 }: {
   scope: PharmacyScope;
   writable: boolean;
@@ -136,6 +139,9 @@ export function CataloguePanel({
   /** pharmacy.category.declare and .review (#988): one declares, another approves. */
   canDeclareCategory?: boolean;
   canReviewCategory?: boolean;
+  /** pharmacy.schedule.declare and .review (#1636): one declares, another approves. */
+  canDeclareSchedule?: boolean;
+  canReviewSchedule?: boolean;
 }) {
   const scheme = taxScheme(countryCode);
   // The tab, search and filter are the URL (#576 slice 3 D3/D4). Without a
@@ -206,6 +212,8 @@ export function CataloguePanel({
         canReviewPrice={canReviewPrice}
         canDeclareCategory={canDeclareCategory}
         canReviewCategory={canReviewCategory}
+        canDeclareSchedule={canDeclareSchedule}
+        canReviewSchedule={canReviewSchedule}
         defaultCurrency={defaultCurrency}
         timeZone={timeZone}
         today={today}
@@ -372,6 +380,8 @@ function OpenProduct({
   canReviewPrice,
   canDeclareCategory,
   canReviewCategory,
+  canDeclareSchedule,
+  canReviewSchedule,
   defaultCurrency,
   timeZone,
   today,
@@ -386,6 +396,8 @@ function OpenProduct({
   canReviewPrice: boolean;
   canDeclareCategory: boolean;
   canReviewCategory: boolean;
+  canDeclareSchedule: boolean;
+  canReviewSchedule: boolean;
   defaultCurrency: string;
   timeZone: string;
   today: string;
@@ -450,6 +462,15 @@ function OpenProduct({
       ) : (
         <ProductSummary product={row} />
       )}
+      <ProductScheduleSection
+        scope={scope}
+        product={row}
+        timeZone={timeZone}
+        canDeclare={canDeclareSchedule}
+        canReview={canReviewSchedule}
+        onStateChange={pane.formState("schedule")}
+        onReviewStateChange={pane.formState("schedule-review")}
+      />
       <ProductTaxSection
         scope={scope}
         product={row}
@@ -544,8 +565,8 @@ function ProductForm({
         className="space-y-7"
       >
         <p className="rounded-lg bg-muted p-4 text-sm leading-6 text-muted-foreground">
-          This records product identity. Drug schedules, prescription rules and tax approval require
-          governed review before prescribing or dispensing.
+          This records product identity. Its schedule class, tax and price controls are declared and
+          reviewed in their own sections below before it can be released or sold.
         </p>
         <fieldset>
           <legend className="mb-4 font-medium">Product identity</legend>

@@ -203,7 +203,7 @@ it("prepares the exact current warehouse and reviewed account and recovers a los
     </NavigationGuardProvider>,
   );
   const user = userEvent.setup();
-  await user.click(await screen.findByRole("button", { name: "Assign receiving duty" }));
+  await user.click(await screen.findByRole("button", { name: "Assign operating duty" }));
   await user.click(await screen.findByLabelText("Reviewed account"));
   await user.click(await screen.findByRole("option", { name: "TEST-receiver" }));
   await user.click(screen.getByLabelText("Warehouse or depot"));
@@ -216,10 +216,10 @@ it("prepares the exact current warehouse and reviewed account and recovers a los
     target: { value: "2027-01-01T00:00" },
   });
   await user.type(screen.getByLabelText("Duty reason"), "TEST exact receiving source");
-  await user.click(screen.getByRole("button", { name: "Propose receiving duty" }));
+  await user.click(screen.getByRole("button", { name: "Propose operating duty" }));
   await user.click(await screen.findByRole("button", { name: "Recover duty proposal" }));
   await screen.findByText(
-    "Receiving duty proposed. A separate reviewer must approve it before activation.",
+    "Operating duty proposed. A separate reviewer must approve it before activation.",
   );
   expect(writes).toBe(1);
   expect(proposal?.input).toMatchObject({

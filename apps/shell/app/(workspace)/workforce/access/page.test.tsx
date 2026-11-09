@@ -1602,3 +1602,37 @@ it("asks again for assignment history after an outage", async () => {
   await user.click(within(failure as HTMLElement).getByRole("button", { name: "Try again" }));
   await waitFor(() => expect(reads).toBeGreaterThan(before));
 });
+
+it("keeps a department assignment's scope when its department read is refused", async () => {
+  departmentCatalogSetup([
+    {
+      ...row,
+      input: {
+        ...row.input,
+        department_id: pharmacy,
+        template_key: "workforce.department_posting_reviewer.v1",
+      },
+      scope_kind: "department",
+    },
+  ]);
+  const prior = fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) =>
+      url.includes(`/departments/${pharmacy}/revisions`)
+        ? Response.json({ error: "forbidden", message: "secret" }, { status: 403 })
+        : prior(url, init),
+    ),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByLabelText("Assignment area"));
+  await user.click(await screen.findByRole("option", { name: "Staff posting access" }));
+  expect(
+    await screen.findByText(`Applies to: department ${pharmacy}. Its name isn't available to you.`),
+  ).toBeInTheDocument();
+  expect(screen.queryByText(/secret/)).not.toBeInTheDocument();
+});

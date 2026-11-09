@@ -104,7 +104,7 @@ screen from drawing its own button today.
    new workforce file, gets the rule from this slice on. Each later slice
    converts files and removes them from the list. The list is checked: a test
    fails if a listed file no longer breaks the rule, so a converted file can't
-   stay exempt. It is deleted when it is empty.
+   stay exempt. It is deleted when it is empty, which slice 2c did.
 7. **Tests:**
    - **The rule:** rejects `onClick={() => void q.refetch()}`,
      `onClick={rows.retry}`, and a multi-statement handler that calls

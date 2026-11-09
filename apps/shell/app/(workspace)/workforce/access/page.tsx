@@ -552,6 +552,8 @@ function AssignmentDepartment({
         retry={revisions.refetch}
         // A list with no current revision has no error, so it keeps the retry.
         error={revisions.error}
+        // A refusal still names the scope the record applies to.
+        refused={`Applies to: department ${department}. Its name isn't available to you.`}
       />
     );
   if (current.status !== "active")

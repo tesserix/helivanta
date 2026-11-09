@@ -1,18 +1,24 @@
 "use client";
 
+import { useState } from "react";
+import { z } from "zod";
+import { Button, Input } from "@tesserix/web";
 import { ShieldCheck } from "lucide-react";
 import {
+  apiFetch,
   formatZonedDateTime,
+  newPharmacyId,
   pharmacyKey,
   pharmacyProductSchedulePath,
+  useApiMutation,
   useApiQuery,
   type PharmacyProduct,
   type PharmacyScheduleDeclaration,
   type PharmacyScheduleState,
   type PharmacyScope,
 } from "@helivanta/api";
-import { RequestFailure } from "@helivanta/ui";
-import type { FormState } from "@/lib/use-list-detail";
+import { Field, FormSelectField, RequestFailure, useZodForm } from "@helivanta/ui";
+import { useReportState, type FormState } from "@/lib/use-list-detail";
 
 // A product's schedule class (#1636): declared by one person from a source
 // such as the pack label, approved by another. Release and sale need it.
@@ -29,6 +35,8 @@ export function ProductScheduleSection({
   scope,
   product,
   timeZone,
+  canDeclare,
+  onStateChange,
 }: {
   scope: PharmacyScope;
   product: PharmacyProduct;
@@ -44,6 +52,12 @@ export function ProductScheduleSection({
   );
   const current = state.data;
   const inForce = current?.in_force;
+  const path = pharmacyProductSchedulePath(scope, product.id);
+  // A new class changes what the counter may sell, so its availability is reread too.
+  const invalidate = [
+    pharmacyKey(scope, "product-schedule", product.id),
+    pharmacyKey(scope, "counter", "availability", product.id),
+  ];
   return (
     <section aria-labelledby="product-schedule-heading" className="mt-8 border-t pt-6">
       <h4 id="product-schedule-heading" className="mb-1 flex items-center gap-2 font-medium">
@@ -79,6 +93,14 @@ export function ProductScheduleSection({
               Schedule X and NDPS products cannot be released or sold until their controls exist.
             </p>
           )}
+          {canDeclare && product.status !== "withdrawn" && (
+            <ScheduleDeclarationForm
+              key={current.history[0]?.id ?? "none"}
+              path={path}
+              invalidate={invalidate}
+              onStateChange={onStateChange}
+            />
+          )}
           {current.history.length > 0 && (
             <ol className="space-y-2" aria-label="Schedule class history">
               {current.history.map((d) => (
@@ -105,5 +127,89 @@ export function ProductScheduleSection({
         </div>
       )}
     </section>
+  );
+}
+
+const classes = ["none", "G", "H", "H1", "X"] as const;
+
+// Class and NDPS start empty: a default would let an unread field record the
+// least restrictive answer, "not scheduled, not NDPS". Fail closed.
+const declarationSchema = z.object({
+  regulatory_class: z
+    .string()
+    .refine((v) => (classes as readonly string[]).includes(v), "Choose the schedule class"),
+  ndps: z.string().refine((v) => v === "yes" || v === "no", "Say whether it is under NDPS"),
+  source: z.string().trim().min(1, "Name the source, such as the pack label").max(300),
+});
+
+function ScheduleDeclarationForm({
+  path,
+  invalidate,
+  onStateChange,
+}: {
+  path: string;
+  invalidate: unknown[][];
+  onStateChange?: FormState;
+}) {
+  const form = useZodForm(declarationSchema, { regulatory_class: "", ndps: "", source: "" });
+  // One id per declaration, so a retried submit replays rather than records twice.
+  const [id] = useState(() => newPharmacyId());
+  const record = useApiMutation(
+    (v: z.output<typeof declarationSchema>) =>
+      apiFetch<PharmacyScheduleDeclaration>(`${path}/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          regulatory_class: v.regulatory_class,
+          ndps: v.ndps === "yes",
+          source: v.source,
+        }),
+      }),
+    { successToast: "Schedule class declared", invalidate, suppressErrorToast: true },
+  );
+  useReportState(onStateChange, form.formState.isDirty, record.isPending);
+  const errors = form.formState.errors;
+  return (
+    <form
+      noValidate
+      onSubmit={form.handleSubmit((v) => record.mutate(v))}
+      className="space-y-4"
+      aria-label="Declare the product's schedule class"
+    >
+      <div className="grid gap-4 sm:grid-cols-3">
+        <FormSelectField
+          control={form.control}
+          name="regulatory_class"
+          id="schedule-class"
+          label="Class"
+          options={classes.map((c) => ({ value: c, label: c === "none" ? "Not scheduled" : c }))}
+        />
+        <FormSelectField
+          control={form.control}
+          name="ndps"
+          id="schedule-ndps"
+          label="NDPS"
+          options={[
+            { value: "yes", label: "Yes" },
+            { value: "no", label: "No" },
+          ]}
+        />
+        <Field id="schedule-source" label="Source" error={errors.source?.message}>
+          <Input
+            id="schedule-source"
+            aria-invalid={!!errors.source}
+            aria-describedby={errors.source ? "schedule-source-error" : undefined}
+            {...form.register("source")}
+          />
+        </Field>
+      </div>
+      {record.isError && (
+        <p role="alert" className="text-sm text-destructive">
+          {record.error.message}
+        </p>
+      )}
+      <Button type="submit" disabled={record.isPending}>
+        {record.isPending ? "Declaring…" : "Declare schedule class"}
+      </Button>
+    </form>
   );
 }

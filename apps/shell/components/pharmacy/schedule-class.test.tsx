@@ -1,7 +1,8 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { formatZonedDateTime, type PharmacyProduct } from "@helivanta/api";
+import { chooseOption } from "../../test/select";
 import { ProductScheduleSection } from "./schedule-class";
 
 const scope = {
@@ -75,6 +76,8 @@ function serve(state: unknown | Answer[], writes: Answer[] = []) {
   return fetcher;
 }
 
+const writes = (fetcher: ReturnType<typeof serve>) =>
+  fetcher.mock.calls.filter(([, init]) => init?.method === "PUT" || init?.method === "POST");
 const reads = (fetcher: ReturnType<typeof serve>) =>
   fetcher.mock.calls.filter(([url, init]) => !init?.method && url.endsWith("/schedule"));
 
@@ -173,5 +176,104 @@ describe("ProductScheduleSection", () => {
     await screen.findByText(/No schedule class in force/);
     expect(screen.queryByRole("button", { name: "Declare schedule class" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+  });
+});
+
+describe("declaring a schedule class", () => {
+  const none = {
+    in_force: null,
+    origin: "declared_by_outlet",
+    reason: "no schedule class has been declared",
+    history: [],
+  };
+  const declare = () => screen.getByRole("button", { name: "Declare schedule class" });
+
+  it("requires the class and NDPS to be chosen, with no default", async () => {
+    const fetcher = serve(none);
+    const { user } = renderSection({ canDeclare: true });
+    await user.type(await screen.findByLabelText("Source"), "pack label");
+    await user.click(declare());
+    expect(await screen.findByText("Choose the schedule class")).toBeVisible();
+    expect(screen.getByText("Say whether it is under NDPS")).toBeVisible();
+    expect(writes(fetcher)).toHaveLength(0);
+  });
+
+  it("refuses a blank source", async () => {
+    const fetcher = serve(none);
+    const { user } = renderSection({ canDeclare: true });
+    await chooseOption(user, await screen.findByRole("combobox", { name: "Class" }), "H");
+    await chooseOption(user, screen.getByRole("combobox", { name: "NDPS" }), "No");
+    await user.type(screen.getByLabelText("Source"), "   ");
+    await user.click(declare());
+    expect(await screen.findByText("Name the source, such as the pack label")).toBeVisible();
+    expect(writes(fetcher)).toHaveLength(0);
+  });
+
+  it("declares with the chosen values", async () => {
+    const fetcher = serve(none);
+    const { user } = renderSection({ canDeclare: true });
+    await chooseOption(user, await screen.findByRole("combobox", { name: "Class" }), "H");
+    await chooseOption(user, screen.getByRole("combobox", { name: "NDPS" }), "No");
+    await user.type(screen.getByLabelText("Source"), " pack label ");
+    await user.click(declare());
+    await waitFor(() => expect(writes(fetcher)).toHaveLength(1));
+    const [url, init] = writes(fetcher)[0]!;
+    expect(init?.method).toBe("PUT");
+    expect(url).toMatch(
+      /\/catalogue\/products\/[0-9a-f-]{36}\/schedule\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+    );
+    expect(JSON.parse(String(init?.body))).toEqual({
+      regulatory_class: "H",
+      ndps: false,
+      source: "pack label",
+    });
+    expect(await screen.findByText("Schedule class declared")).toBeVisible();
+    await waitFor(() => expect(reads(fetcher)).toHaveLength(2));
+  });
+
+  it("records NDPS yes as true and class none as none", async () => {
+    const fetcher = serve(none);
+    const { user } = renderSection({ canDeclare: true });
+    await chooseOption(
+      user,
+      await screen.findByRole("combobox", { name: "Class" }),
+      "Not scheduled",
+    );
+    await chooseOption(user, screen.getByRole("combobox", { name: "NDPS" }), "Yes");
+    await user.type(screen.getByLabelText("Source"), "pack label");
+    await user.click(declare());
+    await waitFor(() => expect(writes(fetcher)).toHaveLength(1));
+    expect(JSON.parse(String(writes(fetcher)[0]![1]?.body))).toMatchObject({
+      regulatory_class: "none",
+      ndps: true,
+    });
+  });
+
+  it("reuses the id when a failed declaration is retried", async () => {
+    const fetcher = serve(none, [
+      {
+        status: 503,
+        body: { error: "unavailable", message: "The pharmacy service is unavailable." },
+      },
+      { status: 201, body: declaration },
+    ]);
+    const { user } = renderSection({ canDeclare: true });
+    await chooseOption(user, await screen.findByRole("combobox", { name: "Class" }), "H1");
+    await chooseOption(user, screen.getByRole("combobox", { name: "NDPS" }), "No");
+    await user.type(screen.getByLabelText("Source"), "pack label");
+    await user.click(declare());
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The pharmacy service is unavailable.",
+    );
+    await user.click(declare());
+    await waitFor(() => expect(writes(fetcher)).toHaveLength(2));
+    expect(writes(fetcher)[1]![0]).toBe(writes(fetcher)[0]![0]);
+  });
+
+  it("offers no declaration on a withdrawn product", async () => {
+    serve(none);
+    renderSection({ canDeclare: true, product: { ...product, status: "withdrawn" } });
+    await screen.findByText(/No schedule class in force/);
+    expect(screen.queryByRole("button", { name: "Declare schedule class" })).toBeNull();
   });
 });

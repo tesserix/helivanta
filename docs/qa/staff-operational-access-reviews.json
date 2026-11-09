@@ -3641,7 +3641,7 @@
     },
     {
       "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/acquisition-receipts",
-      "registration_sha256": "212b348d3c245b7509a0f5156a135df9a2b955b730c8d292ca3814e1d6f39e56",
+      "registration_sha256": "cf4b6c94081a3135942c86e7d6dc59c663f5584dac3b705d4b2eb255604b9efd",
       "authority_kind": "mixed",
       "resource_scope": "Verified tenant, exact pharmacy and outlet, accounts-read permission and current private outlet reader grant.",
       "rationale": "The financial owner exposes bounded acquisition/invoice lineage for direct receipts and both supplier stock owners. It pins expected account/workspace, locks the current outlet grant, enters a SELECT-only acquisition purpose, verifies retained owner evidence and audits disclosure. This is a source classification, not approved employment enforcement or live supplier acceptance. No physical, financial-write, clinical or external partner authority is created by this read.",

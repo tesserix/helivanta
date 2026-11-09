@@ -68,6 +68,7 @@ func payableRoutes(g *platform.Router, deps platform.Deps) {
 	s.PUT("/payables/:id/adjustments/:entry", PermAccountsAdjust, h.putAdjustment)
 	platform.ListRoute(s, "/payables/:id/settlements", PermAccountsRead, h.listSettlements)
 	platform.ListRoute(s, "/payables", PermAccountsRead, h.listPayables)
+	platform.ResourceListRoute(s, "/acquisition-receipts", PermAccountsRead, 50, h.listAcquisitionReceipts)
 	platform.ListRoute(s, "/inventory-audit", PermAccountsRead, h.listInventoryAudit)
 	platform.GuardedCountedListRoute[payable](s, h.db, "/payables/counted", PermAccountsRead, tenantdb.Keyset{Column: "created_at"}, countedPayables)
 	platform.GuardedCountedListRoute[inventoryAudit](s, h.db, "/inventory-audit/counted", PermAccountsRead, tenantdb.Keyset{Column: "created_at"}, countedInventoryAudit)
@@ -130,9 +131,21 @@ func loadPayable(tx *gorm.DB, tenant string, outlet, id uuid.UUID) (payable, err
 	}
 	return row, nil
 }
+func payableSubject(c *gin.Context, subject string) bool {
+	values := c.Request.Header.Values("X-Helivanta-Expected-Subject")
+	if len(values) == 0 {
+		return true
+	}
+	if len(values) != 1 || values[0] != subject {
+		respond.Error(c, 409, "session_changed", "The financial account changed. Reload before recording or recovering a bill.")
+		return false
+	}
+	return true
+}
+
 func (h *catalogueHandlers) putPayable(c *gin.Context) {
 	p, outlet, ok := catalogueScope(c)
-	if !ok {
+	if !ok || !payableSubject(c, p.Subject) {
 		return
 	}
 	id, ok := catalogueID(c)
@@ -193,7 +206,7 @@ func (h *catalogueHandlers) putPayable(c *gin.Context) {
 }
 func (h *catalogueHandlers) getPayable(c *gin.Context) {
 	p, outlet, ok := catalogueScope(c)
-	if !ok {
+	if !ok || !payableSubject(c, p.Subject) {
 		return
 	}
 	id, ok := catalogueID(c)
@@ -204,7 +217,10 @@ func (h *catalogueHandlers) getPayable(c *gin.Context) {
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
 		var err error
 		result, err = loadPayable(tx, p.TenantID, outlet, id)
-		return err
+		if err != nil {
+			return err
+		}
+		return tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id)VALUES(?,?,'pharmacy_payable_read','pharmacy_payable',?)`, p.TenantID, p.Subject, id).Error
 	})
 	if err != nil {
 		payableError(c, err)

@@ -1,9 +1,9 @@
 {
   "format_version": 1,
-  "registry_sha256": "795af29b0a9e6f2c1704895b0e02c2b13271f32e500042aa5553d373293399ee",
+  "registry_sha256": "5e5192426f32599a561a90c7721cb1db421b7b3d83a3262a968205bfb8feccd5",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1033,
+    "total": 1034,
     "unclassified": 937
   },
   "entries": [
@@ -7251,6 +7251,65 @@
         "counted": false
       },
       "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/acquisition-receipts",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/acquisition-receipts",
+        "permission": "pharmacy.accounts.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/acquisition-receipts",
+        "registration_sha256": "cf4b6c94081a3135942c86e7d6dc59c663f5584dac3b705d4b2eb255604b9efd",
+        "authority_kind": "mixed",
+        "resource_scope": "Verified tenant, exact pharmacy and outlet, accounts-read permission and current private outlet reader grant.",
+        "rationale": "The financial owner exposes bounded acquisition/invoice lineage for direct receipts and both supplier stock owners. It pins expected account/workspace, locks the current outlet grant, enters a SELECT-only acquisition purpose, verifies retained owner evidence and audits disclosure. This is a source classification, not approved employment enforcement or live supplier acceptance. No physical, financial-write, clinical or external partner authority is created by this read.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/pharmacy/payables.go",
+            "sha256": "5e743ecf8c981607048660d0a4dbec58aa217c9d86bead0d0078d5f6774c6f7f",
+            "symbol": "func payableRoutes("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/acquisition_receipts.go",
+            "sha256": "02c1af6c8fe334c1fb7abfcc4894712e1b6b3291e87608b180ccd756a77cb03a",
+            "symbol": "func (h *catalogueHandlers) listAcquisitionReceipts("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/acquisition_receipts.go",
+            "sha256": "02c1af6c8fe334c1fb7abfcc4894712e1b6b3291e87608b180ccd756a77cb03a",
+            "symbol": "func withAcquisitionScope("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/acquisition_receipts.sql",
+            "sha256": "6bee0fc1fa4a4d60d85709d9d5615e364907abfcb8a16327b5ae2923e09b4663",
+            "symbol": "CREATE FUNCTION pharmacy_acquisition_receipts_read("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/catalogue.go",
+            "sha256": "88480fcd369a65c3458a8e0287c941ea2a334b94407f7de11de80190a72f1d8d",
+            "symbol": "func (h *catalogueHandlers) transaction("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/catalogue.go",
+            "sha256": "88480fcd369a65c3458a8e0287c941ea2a334b94407f7de11de80190a72f1d8d",
+            "symbol": "func outletAccess("
+          }
+        ],
+        "remaining": [
+          "Verify real-owner RLS, cursor and financial-lineage behavior in required CI and the deployed web environment.",
+          "Legacy financial outlet grants are not reviewed Staff employment authority; any migration to reviewed effective Staff finance assignments needs its separately approved policy and owner enforcement.",
+          "Positive bilateral live trading still requires current reviewed source licences, state/category policy and relationship consent; source classification cannot supply them."
+        ]
+      }
     },
     {
       "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/inventory-audit",

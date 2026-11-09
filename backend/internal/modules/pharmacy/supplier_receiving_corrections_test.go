@@ -28,7 +28,12 @@ import (
 )
 
 func TestSupplierReceivingCorrectionRepositoryRetainsEvidenceAndRollsBackCustodyFailures(t *testing.T) {
-	r, db, bus, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"receiver": testutil.TenantA, "classreviewer": testutil.TenantA}, Perms: map[string][]authz.Permission{"receiver": {pharmacy.PermCatalogueRead, pharmacy.PermCatalogueWrite, pharmacy.PermAccessManage, pharmacy.PermStockRead, pharmacy.PermStockReceive, pharmacy.PermStockCorrect, pharmacy.PermTaxManage, pharmacy.PermScheduleDeclare}, "classreviewer": releasePerms}, Modules: []platform.Module{pharmacy.New()}})
+	for _, owner := range []string{"pharmacy", "supply"} {
+		t.Run(owner, func(t *testing.T) { supplierReceivingCorrectionFinancialJourney(t, owner) })
+	}
+}
+func supplierReceivingCorrectionFinancialJourney(t *testing.T, sourceOwner string) {
+	r, db, bus, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"receiver": testutil.TenantA, "classreviewer": testutil.TenantA, "finance": testutil.TenantA}, Perms: map[string][]authz.Permission{"receiver": {pharmacy.PermCatalogueRead, pharmacy.PermCatalogueWrite, pharmacy.PermAccessManage, pharmacy.PermStockRead, pharmacy.PermStockReceive, pharmacy.PermStockCorrect, pharmacy.PermTaxManage, pharmacy.PermScheduleDeclare, pharmacy.PermAccountsRead, pharmacy.PermAccountsWrite, pharmacy.PermAccountsPayment, pharmacy.PermAccountsAdjust}, "finance": {pharmacy.PermAccountsRead}, "classreviewer": releasePerms}, Modules: []platform.Module{pharmacy.New()}})
 	id := func() uuid.UUID { return uuid.Must(uuid.NewV7()) }
 	tenant := uuid.MustParse(testutil.TenantA)
 	org, outlet, product, q := id(), id(), id(), id()
@@ -42,9 +47,13 @@ func TestSupplierReceivingCorrectionRepositoryRetainsEvidenceAndRollsBackCustody
 	call(root+"/outlets/"+outlet.String(), `{"code":"TEST-MAIN","name":"TEST Main","country_code":"IN","timezone":"Asia/Kolkata"}`)
 	root += "/outlets/" + outlet.String()
 	call(root+"/access/user-receiver", `{"level":"editor"}`)
+	call(root+"/access/user-finance", `{"level":"reader"}`)
 	call(root+"/catalogue/products/"+product.String(), `{"expected_version":0,"sku":"TEST-CAPSULE","brand_name":"TEST capsule","generic_name":"TEST molecule","dosage_form":"capsule","route":"oral","manufacturer":"TEST Manufacturer","marketing_company":"TEST Marketing","ingredients":[{"name":"TEST molecule","strength":"500","unit":"mg"}],"pack_size":10,"unit_of_issue":"capsule","currency":"INR","mrp_minor":12500,"status":"active"}`)
 	call(root+"/stock/locations/"+q.String(), `{"code":"TEST-Q","name":"TEST quarantine"}`)
 	shipment := f.Shipment{ID: id(), AllocationID: id(), OrderID: id(), LineID: id(), OrderInputSha256: strings.Repeat("a", 64), SourceTenantID: uuid.MustParse(testutil.TenantB), SourceOrganizationID: id(), SourceLocationID: id(), BuyerTenantID: tenant, HospitalID: uuid.New(), BuyerOrganizationID: org, BuyerLocationID: outlet, Product: supplierorder.SupplierOrderProduct{Owner: "pharmacy", ProductID: id(), Version: correctionPtr(int64(1))}, UnitCode: "capsule", QuantityUnits: 50, LotNumber: "TEST-LOT", ExpiresOn: "2030-12-31", HandoffReference: "TEST-CHALLAN", ActorSubject: "TEST supplier", ProductDescription: "TEST capsule", PackSize: 10, DispatchedAt: time.Now().UTC().Add(-time.Minute)}
+	if sourceOwner == "supply" {
+		shipment.Product = supplierorder.SupplierOrderProduct{Owner: "supply", ProductID: id(), VersionID: correctionPtr(id())}
+	}
 	scope := f.BuyerScope{TenantID: tenant, HospitalID: shipment.HospitalID, DepartmentID: uuid.New(), OutletID: outlet, ShipmentID: shipment.ID}
 	receiver := supplierorder.Actor{Subject: "user-receiver", StaffID: uuid.New()}
 	reviewer := supplierorder.Actor{Subject: "TEST-independent-reviewer", StaffID: uuid.New()}
@@ -143,6 +152,7 @@ func TestSupplierReceivingCorrectionRepositoryRetainsEvidenceAndRollsBackCustody
 		}
 		return pharmacy.PostSupplierQuarantineForTest(tx, authn.Principal{TenantID: tenant.String(), Subject: receiver.Subject}, shipment, original, 1)
 	}))
+	assertSupplierAcquisition(t, r, db, root, original.ID, sourceOwner, 20, false)
 	closeReceiving := func(version int64) error {
 		return command(receiver, "record", func(tx *gorm.DB) error {
 			head, err := pharmacy.TestReadReceivingHead(tx, tenant, shipment.ID)
@@ -213,6 +223,7 @@ func TestSupplierReceivingCorrectionRepositoryRetainsEvidenceAndRollsBackCustody
 	rollback := errors.New("TEST rollback")
 	require.ErrorIs(t, apply(reviewer, correctionID, input, rollback), rollback)
 	require.NoError(t, apply(reviewer, correctionID, input, nil))
+	assertSupplierAcquisition(t, r, db, root, original.ID, sourceOwner, 18, false)
 	require.Equal(t, int64(-2), corrected.AcceptedDeltaUnits)
 	require.NoError(t, apply(reviewer, correctionID, input, nil))
 	changed := input
@@ -417,6 +428,38 @@ func TestSupplierReceivingCorrectionRepositoryRetainsEvidenceAndRollsBackCustody
 		require.Equal(t, int64(2), publications, "one release publishes exactly its two stock movements")
 		return nil
 	}))
+
+	assertSupplierAcquisition(t, r, db, root, original.ID, sourceOwner, 18, true)
+	billID := id().String()
+	bill := strings.Replace(expenseBody("TEST-SUPPLIER-HANDOFF"), `"category":"utilities"`, `"category":"inventory","receipt_id":"`+original.ID.String()+`"`, 1)
+	billPath := root + "/accounts" + "/payables/" + billID
+	first := do(r, "PUT", billPath, "receiver", bill)
+	require.Equal(t, 200, first.Code, first.Body.String())
+	require.JSONEq(t, first.Body.String(), do(r, "PUT", billPath, "receiver", bill).Body.String())
+	require.Equal(t, 409, do(r, "PUT", root+"/accounts"+"/payables/"+id().String(), "receiver", bill).Code)
+	rows := acquisitionPage(t, r, root+"/accounts"+"/acquisition-receipts?limit=50")
+	require.Len(t, rows, 1)
+	require.NotNil(t, rows[0].PayableID)
+	require.Equal(t, billID, rows[0].PayableID.String())
+	require.EqualValues(t, 20, rows[0].QuantityUnits)
+	require.EqualValues(t, 18, rows[0].Supplier.EffectiveAcceptedUnits)
+	payment := id().String()
+	require.Equal(t, 200, do(r, "PUT", billPath+"/payments/"+payment, "receiver", settlementBody("payment", "TEST-SUPPLIER-PARTIAL", 3000, nil)).Code)
+	require.Equal(t, 200, do(r, "PUT", billPath+"/adjustments/"+id().String(), "receiver", settlementBody("credit", "TEST-SUPPLIER-CREDIT", 800, nil)).Code)
+	require.Equal(t, 200, do(r, "PUT", billPath+"/adjustments/"+id().String(), "receiver", settlementBody("payment_reversal", "TEST-SUPPLIER-REVERSAL", 3000, &payment)).Code)
+	balance := do(r, "GET", billPath, "receiver", "")
+	require.Equal(t, 200, balance.Code)
+	var financial struct {
+		Total       int64 `json:"total_minor"`
+		Paid        int64 `json:"paid_minor"`
+		Credit      int64 `json:"credit_minor"`
+		Outstanding int64 `json:"outstanding_minor"`
+	}
+	require.NoError(t, json.Unmarshal(balance.Body.Bytes(), &financial))
+	require.EqualValues(t, 11800, financial.Total)
+	require.Zero(t, financial.Paid)
+	require.EqualValues(t, 800, financial.Credit)
+	require.EqualValues(t, 11000, financial.Outstanding)
 }
 
 type receivingReleaseSafety struct{ err error }

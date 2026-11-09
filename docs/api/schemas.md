@@ -176,3 +176,11 @@ collector consumes the generated local event structs, not imported aliases.
 Private local Staff/department references are absent from the directed event.
 The current operating-duty SQL applies through IAM 0043; the exact prior 0041
 bytes are retained as `operating_templates_v2.sql`.
+
+Pharmacy's acquisition-finance projection and immutable bill receipt metadata are
+canonical in `contracts/pharmacy-accounts.json`; run
+`node scripts/generate-pharmacy-accounts.mjs` and `--check`. The generator emits
+owner Go and strict SDK Zod models. Existing bill input fields remain canonical
+in `contracts/pharmacy.json`; the SDK composes those inputs with generated receipt
+metadata rather than creating another payable model. See the supplier acquisition
+handoff in [PharmaConnect](domains/pharmacy.md).

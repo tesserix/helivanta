@@ -1,0 +1,175 @@
+{
+  "models": {
+    "AcquisitionSupplier": [
+      {
+        "name": "shipment_id",
+        "type": "uuid"
+      },
+      {
+        "name": "order_id",
+        "type": "uuid"
+      },
+      {
+        "name": "source_product",
+        "type": "string",
+        "min": 1,
+        "max": 100,
+        "enum": ["supply", "pharmacy"]
+      },
+      {
+        "name": "original_accepted_units",
+        "type": "int64",
+        "min": 1,
+        "max": 1000000000
+      },
+      {
+        "name": "effective_accepted_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "name": "receipt_version",
+        "type": "int64",
+        "min": 1,
+        "max": 1000
+      },
+      {
+        "name": "summary_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "receiving_closed",
+        "type": "bool"
+      },
+      {
+        "name": "discrepancy_units",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000
+      }
+    ],
+    "AcquisitionReceipt": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "pharmacy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "outlet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "batch_id",
+        "type": "uuid"
+      },
+      {
+        "name": "product_id",
+        "type": "uuid"
+      },
+      {
+        "name": "product_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "currency",
+        "type": "string",
+        "min": 3,
+        "max": 3
+      },
+      {
+        "name": "unit_code",
+        "type": "string",
+        "min": 1,
+        "max": 40
+      },
+      {
+        "name": "quantity_units",
+        "type": "int64",
+        "min": 1,
+        "max": 1000000000
+      },
+      {
+        "name": "source_reference",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "payable_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "supplier",
+        "type": "AcquisitionSupplier",
+        "optional": true
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "PayableReceiptMetadata": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "outlet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "line_count",
+        "type": "int64",
+        "min": 1,
+        "max": 100
+      },
+      {
+        "name": "total_minor",
+        "type": "int64",
+        "min": 1,
+        "max": 1000000000000
+      },
+      {
+        "name": "paid_minor",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000000
+      },
+      {
+        "name": "credit_minor",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000000
+      },
+      {
+        "name": "outstanding_minor",
+        "type": "int64",
+        "min": -1000000000000,
+        "max": 1000000000000
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ]
+  }
+}

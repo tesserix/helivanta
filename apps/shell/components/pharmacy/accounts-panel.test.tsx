@@ -246,7 +246,7 @@ it("does not fetch confidential costs without financial read permission", async 
   expect(screen.queryByText("TEST Supplier")).not.toBeInTheDocument();
 });
 
-it("focuses the expense form and records exact minor amounts with a stable retry ID", async () => {
+it("focuses the expense form and recovers before retrying exact amounts with the stable ID", async () => {
   const base = mockAccounts();
   const writes: { url: string; body: Record<string, unknown> }[] = [];
   vi.stubGlobal(
@@ -260,6 +260,11 @@ it("focuses the expense form and records exact minor amounts with a stable retry
           { status: 503 },
         );
       }
+      if (/\/accounts\/payables\/[0-9a-f-]+$/.test(url))
+        return new Response(
+          JSON.stringify({ error: "not_found", message: "TEST original not recorded" }),
+          { status: 404 },
+        );
       return base(url);
     }),
   );
@@ -281,7 +286,9 @@ it("focuses the expense form and records exact minor amounts with a stable retry
   await user.type(screen.getByLabelText("Net amount 1 (INR)"), "125.25");
   await user.click(screen.getByRole("button", { name: "Save bill or expense" }));
   expect(await screen.findByText("TEST record unavailable")).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Save bill or expense" }));
+  expect(screen.getByLabelText("Document reference")).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "Recover original bill" }));
+  await user.click(await screen.findByRole("button", { name: "Retry original bill" }));
   await waitFor(() => expect(writes).toHaveLength(2));
   expect(writes[0].url).toBe(writes[1].url);
   expect(writes[0].body.lines).toEqual([

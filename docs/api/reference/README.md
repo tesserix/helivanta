@@ -473,6 +473,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | DELETE | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access/:subject` | `pharmacy.access.manage` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access/:subject` | `pharmacy.access.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access` | `pharmacy.catalogue.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/acquisition-receipts` | `pharmacy.accounts.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/inventory-audit/counted` | `pharmacy.accounts.read` | true | true |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/inventory-audit` | `pharmacy.accounts.read` | true | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/adjustments/:entry` | `pharmacy.accounts.adjust` | false | false |

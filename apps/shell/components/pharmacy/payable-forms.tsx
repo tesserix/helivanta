@@ -9,6 +9,10 @@ import {
   useApiMutation,
   useApiQuery,
   useApiPagedQuery,
+  useAcquisitionReceipts,
+  recordAcquisitionBill,
+  recoverAcquisitionBill,
+  type AcquisitionScope,
   usePermissions,
   pharmacyKey,
   pharmacyRoot,
@@ -20,7 +24,6 @@ import {
   type PharmacyPayableDetail,
   type PharmacySettlementInput,
   type PharmacySettlement,
-  type PharmacyMovement,
 } from "@helivanta/api";
 import {
   DetailHeader,
@@ -86,24 +89,77 @@ export function PayableForm({
   });
   const lines = useFieldArray({ control: form.control, name: "lines" });
   const currency = form.watch("currency");
+  const { subject } = usePermissions();
+  type Attempt = { scope: AcquisitionScope; input: PharmacyPayableInput };
+  const [retained, setRetained] = useState<Attempt | null>(null);
+  const retainedRef = useRef<Attempt | null>(null);
+  const working = useRef(false);
+  const recovering = useRef(false);
+  const [retryOriginal, setRetryOriginal] = useState(false);
+  const [notice, setNotice] = useState("");
   const save = useApiMutation(
-    (values: PharmacyPayableInput) =>
-      apiFetch<PharmacyPayableDetail>(`${pharmacyRoot(scope)}/accounts/payables/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(values),
-      }),
+    ({ attempt, recover }: { attempt: Attempt; recover: boolean }) =>
+      recover
+        ? recoverAcquisitionBill(attempt.scope, id, attempt.input)
+        : recordAcquisitionBill(attempt.scope, id, attempt.input),
     {
       invalidate: [pharmacyKey(scope, "accounts")],
       successToast: "Bill or expense recorded",
       suppressErrorToast: true,
-      onSuccess: (row) => onSaved(row.id),
+      onSuccess: (row) => {
+        working.current = false;
+        retainedRef.current = null;
+        setRetained(null);
+        setNotice("");
+        onSaved(row.id);
+      },
+      onError: (error) => {
+        working.current = false;
+        if (recovering.current && error instanceof ApiError && error.status === 404) {
+          setRetryOriginal(true);
+          setNotice(
+            "The original bill is not visible yet. You may retry the exact submitted bill with the same reference.",
+          );
+        } else if (
+          !recovering.current &&
+          error instanceof ApiError &&
+          [400, 401, 403, 404, 409, 422].includes(error.status)
+        ) {
+          retainedRef.current = null;
+          setRetained(null);
+          setNotice("");
+        } else {
+          setNotice(
+            "The bill outcome is uncertain. Keep the submitted reference and recover the original bill before recording another.",
+          );
+        }
+      },
     },
   );
-  useReportState(onStateChange, form.formState.isDirty, save.isPending);
+  const execute = (attempt: Attempt, recover: boolean) => {
+    if (working.current) return;
+    working.current = true;
+    recovering.current = recover;
+    setRetryOriginal(false);
+    save.mutate({ attempt, recover });
+  };
+  useReportState(
+    onStateChange,
+    form.formState.isDirty || retained !== null,
+    save.isPending || retained !== null,
+  );
   return (
     <form
       noValidate
-      onSubmit={form.handleSubmit((values) => save.mutate(values))}
+      onSubmit={(event) => {
+        void form.handleSubmit((values) => {
+          if (retainedRef.current || !subject) return;
+          const attempt = { scope: { ...scope, subject }, input: structuredClone(values) };
+          retainedRef.current = attempt;
+          setRetained(attempt);
+          execute(attempt, false);
+        })(event);
+      }}
       className="space-y-6"
     >
       <div>
@@ -113,7 +169,7 @@ export function PayableForm({
           corrections use credits or reversals. Amounts are in the selected currency.
         </p>
       </div>
-      <fieldset disabled={save.isPending} className="space-y-6">
+      <fieldset disabled={save.isPending || retained !== null} className="space-y-6">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field
             id="payee-name"
@@ -161,6 +217,8 @@ export function PayableForm({
               onValueChange={(value) => {
                 form.setValue("currency", value as PharmacyPayableInput["currency"]);
                 form.getValues("lines").forEach((_, i) => {
+                  if (form.getValues(`lines.${i}.category`) === "inventory")
+                    form.setValue(`lines.${i}.receipt_id`, null);
                   for (const field of [
                     "net_minor",
                     "tax_minor",
@@ -219,6 +277,7 @@ export function PayableForm({
                 {form.watch(`lines.${index}.category`) === "inventory" && (
                   <ReceiptPicker
                     scope={scope}
+                    currency={currency}
                     id={`payable-receipt-${index}`}
                     value={form.watch(`lines.${index}.receipt_id`) ?? ""}
                     onChange={(value) =>
@@ -285,7 +344,7 @@ export function PayableForm({
           </p>
         )}
         <div className="flex flex-wrap gap-3">
-          <Button type="submit" disabled={save.isPending}>
+          <Button type="submit" disabled={save.isPending || !subject}>
             {save.isPending ? "Recording…" : "Save bill or expense"}
           </Button>
           <Button type="button" variant="outline" onClick={onCancel}>
@@ -293,47 +352,115 @@ export function PayableForm({
           </Button>
         </div>
       </fieldset>
+      {retained && (
+        <Panel className="space-y-3" role="status">
+          <p>{notice || "Recording the submitted bill…"}</p>
+          <p>Original bill reference: {id}</p>
+          <Button type="button" disabled={save.isPending} onClick={() => execute(retained, true)}>
+            Recover original bill
+          </Button>
+          {retryOriginal && (
+            <Button
+              type="button"
+              disabled={save.isPending}
+              onClick={() => execute(retained, false)}
+            >
+              Retry original bill
+            </Button>
+          )}
+        </Panel>
+      )}
     </form>
   );
 }
 function ReceiptPicker({
   scope,
+  currency,
   id,
   value,
   onChange,
   error,
 }: {
   scope: PharmacyScope;
+  currency: string;
   id: string;
   value: string;
   onChange: (id: string) => void;
   error?: string;
 }) {
-  const receipts = useApiPagedQuery<PharmacyMovement>(
-    pharmacyKey(scope, "stock", "cost-receipts"),
-    `${pharmacyRoot(scope)}/stock/movements`,
+  const { subject, can } = usePermissions();
+  const receipts = useAcquisitionReceipts(
+    subject && can("pharmacy.accounts.read") ? { ...scope, subject } : null,
   );
+  const rows = receipts.isError ? [] : receipts.items;
+  const selected = rows.find((row) => row.id === value);
   return (
-    <div>
+    <div className="space-y-3">
       <Field id={id} label="Inventory receipt" error={error}>
         <SelectControl
           id={id}
           value={value}
           onValueChange={onChange}
           placeholder="Select original receiving line"
-          options={receipts.items
-            .filter((row) => row.kind === "receipt")
+          options={rows
+            .filter((row) => !row.payable_id && row.currency === currency)
             .map((row) => ({
               value: row.id,
-              label: `${row.source_reference} · ${row.quantity_units} units`,
+              label: `${row.source_reference} · ${row.quantity_units} ${row.unit_code} · ${row.currency}`,
             }))}
-          disabled={receipts.isPending}
+          disabled={
+            receipts.isPending || receipts.isError || !subject || !can("pharmacy.accounts.read")
+          }
         />
       </Field>
+      {selected?.supplier && (
+        <Panel className="space-y-2 text-sm" aria-label="Supplier receipt reconciliation">
+          <p>
+            Supplier order {selected.supplier.order_id} · shipment {selected.supplier.shipment_id}
+          </p>
+          <p>
+            {selected.supplier.original_accepted_units} originally accepted ·{" "}
+            {selected.supplier.effective_accepted_units} accepted now · receipt version{" "}
+            {selected.supplier.receipt_version}
+          </p>
+          <p>
+            Source stock owner:{" "}
+            {selected.supplier.source_product === "supply"
+              ? "SupplyConnect warehouse"
+              : "PharmaConnect outlet"}
+            .
+          </p>
+          {!selected.supplier.receiving_closed && (
+            <p role="status">
+              Receiving remains open. Check the final counts before matching the supplier invoice.
+            </p>
+          )}
+          {selected.supplier.discrepancy_units > 0 && (
+            <p role="status">
+              {selected.supplier.discrepancy_units} units require receiving reconciliation. Record
+              the original supplier bill and resolve differences with documented credits or
+              corrections.
+            </p>
+          )}
+          {selected.supplier.original_accepted_units !==
+            selected.supplier.effective_accepted_units && (
+            <p role="status">
+              Accepted quantity changed after receipt. Original cost evidence is retained; review
+              the invoice and valuation.
+            </p>
+          )}
+          <p>
+            Linking this receipt records invoice lineage. It does not confirm a commercial match or
+            transfer money.
+          </p>
+        </Panel>
+      )}
       {receipts.isError && (
         <RequestFailure
-          message="Could not load receiving lines."
-          retry={receipts.retry}
+          message="Could not verify acquisition receipts."
+          retry={() => {
+            receipts.retry();
+          }}
           error={receipts.error}
         />
       )}

@@ -82,27 +82,27 @@ function StaffSourceAccount({ onRestart }: { onRestart: () => void }) {
         error={identity.error}
       />
     );
-  if (!parsed.data.data.includes("pharmacy.catalogue.read"))
-    return (
-      <Panel role="alert">You do not have permission to open the pharmacy Staff source.</Panel>
-    );
   const scope = { tenantId: parsed.data.tenant_id, subject: parsed.data.subject };
   return (
     <StaffSources
       key={`${scope.tenantId}:${scope.subject}`}
       scope={scope}
+      includeHospitalStaff={parsed.data.data.includes("pharmacy.catalogue.read")}
       onContextChanged={() => setChanged(true)}
     />
   );
 }
 
 type SourceProps = { scope: EnrollmentRequestScope; onContextChanged: () => void };
-function StaffSources(props: SourceProps) {
+function StaffSources({
+  includeHospitalStaff,
+  ...props
+}: SourceProps & { includeHospitalStaff: boolean }) {
   return (
     <>
       <PageHeading description="Keep your pharmacy's own Staff records and read hospital Staff records available to you." />
       <EmployerSources {...props} />
-      <StaffSourceHospitals {...props} />
+      {includeHospitalStaff && <StaffSourceHospitals {...props} />}
     </>
   );
 }

@@ -69,6 +69,8 @@ Until the drug master is loaded, each product's Drugs Rules class (`none|G|H|H1|
 
 Only the **latest** declaration counts, and only once it is approved. If the latest one is still awaiting review or was rejected, the product has no class, so an older approval cannot bypass a stricter reclassification. Later slices call `pharmacy_product_schedule_in_force(tenant, outlet, product)`.
 
+In the shell, the open catalogue product's **Schedule class** section declares and reviews it (#1636). It is offered to an outlet editor holding the matching grant. Class and NDPS start empty and must both be chosen. A retried declaration reuses its id. Only the newest pending declaration is offered for review, and a lost race rereads the state.
+
 ### Item categories (#988 slice 1)
 
 An outlet's item categories and subcategories, and each product's category. See the [design](../../superpowers/specs/2026-11-04-pharmacy-item-categories-design.md).

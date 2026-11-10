@@ -175,6 +175,27 @@ describe("ServiceChargesSetup", () => {
     });
   });
 
+  // The review and version forms are keyed on the same version id; as siblings
+  // React reported a duplicate key once both were open.
+  it("keeps one review form when someone who may also declare opens a change", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const pending = version({
+      id: "0199e000-0000-7000-8000-0000000000c3",
+      decision: null,
+      decision_reason: null,
+      reviewed_by: null,
+      reviewed_at: null,
+    });
+    serve([
+      { id: chargeId, code: "DELIVERY", today: "2026-11-01", in_force: null, latest: pending },
+    ]);
+    const { user } = renderWithProviders(setup(true, true));
+    await user.click(await screen.findByRole("button", { name: "Change DELIVERY" }));
+    expect(screen.getAllByRole("button", { name: "Approve" })).toHaveLength(1);
+    expect(errors.mock.calls.flat().join(" ")).not.toContain("same key");
+    errors.mockRestore();
+  });
+
   it("changes a charge from its latest terms, keeping its code", async () => {
     const current = version({});
     const sent = serve([

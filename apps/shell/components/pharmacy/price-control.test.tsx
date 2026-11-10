@@ -249,6 +249,24 @@ describe("ProductPriceControlSection", () => {
     expect(sent[0].url).toMatch(/\/price-control\/0199e000-0000-7000-8000-0000000000d1\/review$/);
   });
 
+  // Review and declaration forms share the pending declaration's id as a key;
+  // as siblings that rendered the review form twice.
+  it("renders one review form for someone who may both declare and review", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    serve({
+      state: "blocked",
+      today: "2026-11-01",
+      in_force: null,
+      reason: "the latest declaration awaits review by a second person",
+      history: [declaration({})],
+    });
+    renderWithProviders(section(true, true));
+    expect(await screen.findByText(/Not sellable/)).toBeVisible();
+    expect(screen.getAllByRole("button", { name: "Record declaration" })).toHaveLength(1);
+    expect(errors.mock.calls.flat().join(" ")).not.toContain("same key");
+    errors.mockRestore();
+  });
+
   it("shows the ceiling in force and its history read-only", async () => {
     const approved = declaration({
       decision: "approved",

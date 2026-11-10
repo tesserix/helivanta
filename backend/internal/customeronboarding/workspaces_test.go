@@ -15,6 +15,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/workforce" //nolint:depguard // composition test exercises the owner boundary
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"github.com/tesserix/onboarding-service/api/customercontract"
 	"gorm.io/gorm"
 	"net/http"
@@ -37,6 +38,7 @@ func TestInitialWorkspaceCommandsFailClosedWithoutTheirOwnerGuard(t *testing.T) 
 
 func TestInitialCustomerWorkspaceCreatesOnlyOwnedResourcesAndNeverRestoresRevokedAccess(t *testing.T) {
 	_, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{Modules: []platform.Module{iam.New(nil), pharmacy.New(), workforce.New()}})
+	ctx = tenantdb.WithActor(ctx, "synthetic-customer-setup-reviewer")
 	deps := platform.Deps{DB: db, PharmacyEmployers: pharmacy.New().PharmacyEmployers(db)}
 	authority := iam.NewCustomerWorkspaceAuthority(deps)
 	workforceInit := workforce.NewCustomerWorkspaceInitializer(deps)

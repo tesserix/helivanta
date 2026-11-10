@@ -80,3 +80,6 @@ var (
 	MajorUnits = majorUnits
 	Amount     = amount
 )
+
+// StockMovementKinds exposes the reconciled movement kinds (#1638).
+var StockMovementKinds = stockMovementKinds

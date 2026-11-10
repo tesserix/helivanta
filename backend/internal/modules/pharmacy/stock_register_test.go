@@ -6,12 +6,15 @@ import (
 	"github.com/tesserix/helivanta/internal/testutil"
 	"gorm.io/gorm"
 	"net/url"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/tesserix/helivanta/internal/modules/pharmacy" //nolint:depguard // external test importing its own module
 )
 
 func TestStockRegisterReconcilesExactPeriodAndNeverAdvertisesUsableStock(t *testing.T) {
@@ -246,4 +249,75 @@ func TestStockRegisterFiltersOnePositionByLot(t *testing.T) {
 	require.Equal(t, 200, w.Code, w.Body.String())
 	require.Contains(t, w.Body.String(), "TEST-LOT")
 	require.NotContains(t, w.Body.String(), "TEST-LOT-OTHER")
+}
+
+// #1638: the reconciliation's kind totals must cover every kind the database allows.
+func TestStockMovementKindsMatchTheDatabaseConstraint(t *testing.T) {
+	_, db := catalogueHarness(t)
+	var def string
+	require.NoError(t, catalogueTx(t, db, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname='pharmacy_stock_movements_kind_check'`).Scan(&def).Error
+	}))
+	var kinds []string
+	for _, m := range regexp.MustCompile(`'([a-z_]+)'`).FindAllStringSubmatch(def, -1) {
+		kinds = append(kinds, m[1])
+	}
+	require.NotEmpty(t, kinds, def)
+	require.ElementsMatch(t, kinds, pharmacy.StockMovementKinds)
+}
+
+// footing reads a reconciliation and asserts opening + every kind = closing.
+func footing(t *testing.T, w saleWorld, location, batch string, from, asOf time.Time) map[string]any {
+	t.Helper()
+	res := do(w.r, "GET", stockPath(fmt.Sprintf("reconciliation?location_id=%s&batch_id=%s&from=%s&as_of=%s", location, batch,
+		url.QueryEscape(from.Format(time.RFC3339Nano)), url.QueryEscape(asOf.Format(time.RFC3339Nano)))), "editor", "")
+	require.Equal(t, 200, res.Code, res.Body.String())
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &got))
+	sum := int64(got["opening_units"].(float64))
+	for _, kind := range pharmacy.StockMovementKinds {
+		v, ok := got[kind+"_units"].(string)
+		require.True(t, ok, "missing %s_units in %v", kind, got)
+		n, err := strconv.ParseInt(v, 10, 64)
+		require.NoError(t, err)
+		sum += n
+	}
+	require.EqualValues(t, got["closing_units"], sum, "opening + the parts = closing: %v", got)
+	return got
+}
+
+func TestStockReconciliationFootsEveryMovementKind(t *testing.T) {
+	w := newSaleWorld(t, true)
+	p := w.product(t, "TEST-RECON-1", "none")
+	batch := receive(t, w.r, p, w.quarantine, "2028-06-30", `,"mrp_minor":12500`)
+	require.Equal(t, 200, do(w.r, "PUT", stockPath("corrections/"+uuid.Must(uuid.NewV7()).String()), "editor", stockBody(w.quarantine, batch, "correction", "TEST-RECON-DAMAGE", -3)).Code)
+	res := do(w.r, "PUT", stockPath("releases/"+uuid.Must(uuid.NewV7()).String()), "pharmacist",
+		fmt.Sprintf(`{"batch_id":%q,"from_location_id":%q,"to_location_id":%q,"quantity_units":30,"reason":"TEST shelved"}`, batch, w.quarantine, w.sellable))
+	require.Equal(t, 200, res.Code, res.Body.String())
+	sale := w.soldSale(t, p, 10, 12500)
+	code, _, out := w.returnUnits(t, returnBody(sale, 4, w.quarantine, 5000))
+	require.Equal(t, 201, code, out)
+	// A supply to a hospital order needs a supplier command and allocation behind it
+	// (pharmacy_supplier_dispatch_guard), so it is not recorded here; its column is
+	// still required by footing and pinned to the constraint by the test above.
+	var released, last time.Time
+	require.NoError(t, catalogueTx(t, w.db, func(tx *gorm.DB) error {
+		if err := tx.Raw(`SELECT min(created_at) FROM pharmacy_stock_movements WHERE batch_id=? AND kind='release'`, batch).Scan(&released).Error; err != nil {
+			return err
+		}
+		return tx.Raw(`SELECT max(created_at) FROM pharmacy_stock_movements WHERE batch_id=?`, batch).Scan(&last).Error
+	}))
+
+	q := footing(t, w, w.quarantine, batch, released, last)
+	require.EqualValues(t, 97, q["opening_units"])
+	for kind, want := range map[string]string{"receipt": "0", "correction": "0", "release": "-30", "sale": "0", "return": "4", "supplier_dispatch": "0"} {
+		require.Equal(t, want, q[kind+"_units"], kind)
+	}
+	require.EqualValues(t, 71, q["closing_units"])
+	s := footing(t, w, w.sellable, batch, released, last)
+	require.EqualValues(t, 0, s["opening_units"])
+	for kind, want := range map[string]string{"receipt": "0", "correction": "0", "release": "30", "sale": "-10", "return": "0", "supplier_dispatch": "0"} {
+		require.Equal(t, want, s[kind+"_units"], kind)
+	}
+	require.EqualValues(t, 20, s["closing_units"])
 }

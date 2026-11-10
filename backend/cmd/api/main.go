@@ -21,6 +21,7 @@ import (
 
 	"github.com/tesserix/helivanta/internal/bootstrap"
 	"github.com/tesserix/helivanta/internal/config"
+	"github.com/tesserix/helivanta/internal/customeronboarding"
 	"github.com/tesserix/helivanta/internal/httpserver"
 	"github.com/tesserix/helivanta/internal/mediconnectclaims"
 	"github.com/tesserix/helivanta/internal/modules/billing"
@@ -631,6 +632,12 @@ func run() error {
 	bootstrap.MountUnauthenticated(srv.Engine, loginHandlers.Login,
 		loginUIHandlers.AuthRequest, loginUIHandlers.Password, loginUIHandlers.Factor,
 		loginUIHandlers.Enroll, loginUIHandlers.PasswordChange, workspace.PublicHandler(db, limiter), payments.Webhook(deps, limiter))
+
+	signupHandlers, err := customeronboarding.New("http://onboarding-api.onboarding.svc.cluster.local:8080", "/var/run/customer-onboarding/token", "https://helivanta.app")
+	if err != nil {
+		return err
+	}
+	bootstrap.MountCustomerSignup(srv.Engine, signupHandlers.Start, signupHandlers.Status, signupHandlers.VerifyEmail, signupHandlers.Password, signupHandlers.EmailLink, signupHandlers.PasswordLink)
 
 	for _, m := range registry.All() {
 		m.Routes(api, deps)

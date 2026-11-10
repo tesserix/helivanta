@@ -1645,11 +1645,17 @@ Migration table declarations:
 | `GET /readyz` | readiness probe; same reason, and it must answer during a dependency outage |
 | `GET /v1/auth/branding/:tenant` | published display-only branding must render before login; no identity or data access |
 | `GET /v1/auth/login/request/:id` | renders the login form before any Helivanta session exists |
+| `GET /v1/auth/signup` | receipt-bound setup progress before a tenant session exists |
 | `POST /v1/auth/login` | creates the Helivanta session and therefore cannot require one |
 | `POST /v1/auth/login/enroll` | confirms the newly enrolled second factor that creates the session, so it cannot require one |
 | `POST /v1/auth/login/factor` | checks the second factor that creates the session, so it cannot require one |
 | `POST /v1/auth/login/password` | checks the credential that creates the session, so it cannot require one |
 | `POST /v1/auth/login/password-change` | completes a sign-in whose password must change first, so it cannot require a session |
+| `POST /v1/auth/signup` | new owner intent before a tenant exists; same-origin receipt and private workload handoff |
+| `POST /v1/auth/signup/email-link` | bounded native verification delivery without identity disclosure |
+| `POST /v1/auth/signup/password` | native reset code for the immutable signup owner before sign-in |
+| `POST /v1/auth/signup/password-link` | bounded native password setup and recovery without identity disclosure |
+| `POST /v1/auth/signup/verify-email` | native email proof before sign-in; shared proof budget and receipt rotation |
 | `POST /v1/payments/webhooks/razorpay/:tenant/:account` | provider callback authenticated by its HMAC signature, not a session |
 
 ## Platform migration table declarations

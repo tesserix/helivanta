@@ -21,7 +21,13 @@ import (
 // the network, with no principal, no tenant and no permission check. It
 // must be a route that *cannot* work any other way.
 var UnauthenticatedRoutes = map[string]string{
-	"GET /v1/auth/branding/:tenant": "published display-only branding must render before login; no identity or data access",
+	"GET /v1/auth/signup":                "receipt-bound setup progress before a tenant session exists",
+	"POST /v1/auth/signup":               "new owner intent before a tenant exists; same-origin receipt and private workload handoff",
+	"POST /v1/auth/signup/verify-email":  "native email proof before sign-in; shared proof budget and receipt rotation",
+	"POST /v1/auth/signup/password":      "native reset code for the immutable signup owner before sign-in",
+	"POST /v1/auth/signup/email-link":    "bounded native verification delivery without identity disclosure",
+	"POST /v1/auth/signup/password-link": "bounded native password setup and recovery without identity disclosure",
+	"GET /v1/auth/branding/:tenant":      "published display-only branding must render before login; no identity or data access",
 	// #1386 C-4a: Razorpay holds no Helivanta session. The account's webhook
 	// secret (HMAC over the raw body) is the credential, and a verified
 	// delivery only triggers a provider API read; it settles nothing itself.
@@ -126,5 +132,21 @@ func mustHandler(route string, h gin.HandlerFunc) {
 	if h == nil {
 		panic("bootstrap.MountUnauthenticated: nil handler for " + route +
 			" — every route in UnauthenticatedRoutes must actually be mounted, never silently skipped")
+	}
+}
+
+// MountCustomerSignup mounts only receipt-bound signup and native-proof operations.
+func MountCustomerSignup(e *gin.Engine, start, status, verify, password, emailLink, passwordLink gin.HandlerFunc) {
+	routes := []struct {
+		method, path string
+		handler      gin.HandlerFunc
+	}{
+		{"GET", "/v1/auth/signup", status}, {"POST", "/v1/auth/signup", start},
+		{"POST", "/v1/auth/signup/verify-email", verify}, {"POST", "/v1/auth/signup/password", password},
+		{"POST", "/v1/auth/signup/email-link", emailLink}, {"POST", "/v1/auth/signup/password-link", passwordLink},
+	}
+	for _, route := range routes {
+		mustHandler(route.method+" "+route.path, route.handler)
+		e.Handle(route.method, route.path, route.handler)
 	}
 }

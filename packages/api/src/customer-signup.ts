@@ -11,6 +11,7 @@ import {
 import { apiFetch } from "./client";
 
 export type { CustomerSignupInput, CustomerSignupReceipt };
+export { CustomerSignupInputContract, CustomerSignupReceiptContract };
 
 async function signupRequest(path: string, init: RequestInit = {}) {
   return CustomerSignupReceiptContract.parse(

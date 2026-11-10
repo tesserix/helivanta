@@ -190,3 +190,5 @@ export * from "./supplier-fulfilment-contract";
 export * from "./supplier-fulfilment-queries";
 
 export * from "./pharmacy-acquisition-receipts";
+export * from "./customer-signup";
+export * from "./customer-signup-queries";

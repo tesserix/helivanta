@@ -13,7 +13,7 @@
 # The major must match .nvmrc, which CI tests on (#956); a CI runtime that
 # differs from the shipped one tests something production does not run.
 ARG NODE_BUILDER_IMAGE=ghcr.io/tesserix/base-node-builder-24@sha256:f210283d939b44a2404d8970865e5ec848704556542464297f71644ca28f4302
-ARG NODE_RUNTIME_IMAGE=ghcr.io/tesserix/base-node-runtime-24@sha256:056b09f9ad7e806f3c7e00c60eccfb69f7328bdd05da11bdd1d4eda2f457c9a7
+ARG NODE_RUNTIME_IMAGE=ghcr.io/tesserix/base-node-runtime-24@sha256:3daabb81554d99a943bdde0f247dff589779f586f353584968b79facd9dac6ab
 FROM ${NODE_BUILDER_IMAGE} AS builder
 
 # The shared builder supports non-root consumers by default. This monorepo

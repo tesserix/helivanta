@@ -20,6 +20,7 @@ import (
 // The bar for an entry is high: a route here is reachable by anyone on
 // the network, with no principal, no tenant and no permission check. It
 // must be a route that *cannot* work any other way.
+// #nosec G101 -- These are public route paths and rationales, never credentials.
 var UnauthenticatedRoutes = map[string]string{
 	"GET /v1/auth/signup":                "receipt-bound setup progress before a tenant session exists",
 	"POST /v1/auth/signup":               "new owner intent before a tenant exists; same-origin receipt and private workload handoff",

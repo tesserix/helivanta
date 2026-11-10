@@ -36,6 +36,7 @@ type Handlers struct {
 // New accepts only the owned private onboarding origin and public browser origin.
 func New(base, tokenFile, origin string) (*Handlers, error) {
 	u, err := url.Parse(base)
+	// #nosec G101 -- This validates a projected workload token file path, not a credential value.
 	if err != nil || u.Scheme != "http" || u.Host != "onboarding-api.onboarding.svc.cluster.local:8080" || (u.Path != "" && u.Path != "/") || u.User != nil || u.RawQuery != "" || u.Fragment != "" || origin != "https://helivanta.app" || tokenFile != "/var/run/customer-onboarding/token" {
 		return nil, errors.New("invalid customer onboarding destination")
 	}

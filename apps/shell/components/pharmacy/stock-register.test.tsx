@@ -766,7 +766,7 @@ it("shows every movement kind in the register", async () => {
 it("keeps the register and the reconciliation on screen when an older server omits totals", async () => {
   vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-17T12:00:00Z"));
   const base = fixture().getMockImplementation()!;
-  const { sale_units: _omitted, ...older } = row;
+  const older = { ...row, sale_units: undefined };
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) =>

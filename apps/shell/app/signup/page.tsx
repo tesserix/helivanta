@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { Button, TesserixFooter } from "@helivanta/ui";
+import { TesserixFooter } from "@helivanta/ui";
+
+import { SignupForm } from "./signup-form";
 
 export const metadata: Metadata = { title: "Start your workspace | Helivanta" };
 
@@ -23,38 +25,19 @@ export default function SignupPage() {
               into Helivanta.
             </h1>
             <p className="mt-6 max-w-md leading-relaxed text-muted-foreground">
-              Connect your hospital and pharmacy teams under one organisation, with your own
-              branding and access controls.
+              Start with your hospital or independent pharmacy, then configure your team and access.
             </p>
             <ol className="mt-9 space-y-5 text-sm">
               <li>01 — Set up your organisation</li>
-              <li>02 — Choose your workspace address</li>
-              <li>03 — Add hospitals and invite your team</li>
+              <li>02 — Verify your email and create a login</li>
+              <li>03 — Sign in and set up your team</li>
             </ol>
           </div>
           <section
-            aria-labelledby="signup-status"
+            aria-label="Workspace registration"
             className="self-center rounded-lg border border-border bg-card p-8 sm:p-10"
           >
-            <p className="inline-block rounded-md bg-accent px-3 py-1 text-xs text-(--hms-band-line)">
-              Onboarding preview
-            </p>
-            <h2 id="signup-status" className="mt-6 text-2xl font-medium">
-              Self-service signup is coming soon
-            </h2>
-            <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-              New workspace registration is not available yet. Visit Tesserix to get in touch about
-              onboarding, or sign in if your organisation already has access.
-            </p>
-            <Button asChild size="lg" className="mt-7 w-full">
-              <a href="https://tesserix.app">Visit Tesserix</a>
-            </Button>
-            <a
-              href="/login?start=1"
-              className="mt-5 block text-center text-sm font-medium underline underline-offset-4"
-            >
-              Sign in to an existing workspace
-            </a>
+            <SignupForm />
           </section>
         </div>
       </main>

@@ -35,26 +35,31 @@ export function SignupForm() {
             ? "Your workspace is ready"
             : receipt.state === "needs_support"
               ? "Setup needs support"
-              : receipt.state === "email_action_required"
-                ? "Check your email"
-                : "Setting up your workspace"}
+              : receipt.state === "password_action_required"
+                ? "Set your password"
+                : receipt.state === "email_action_required"
+                  ? "Check your email"
+                  : "Setting up your workspace"}
         </h2>
         <p className="text-sm text-muted-foreground">
           {receipt.state === "ready"
             ? `${receipt.name} is ready. Sign in to set up your team and security.`
             : receipt.state === "needs_support"
               ? "Contact support to review this setup. Your request has been preserved."
-              : "Follow the email link to verify your address and set your password. Setup completes after verification."}
+              : receipt.state === "password_action_required"
+                ? "Your email is verified. Request a password setup email to finish creating your login."
+                : "We are preparing your workspace. Follow any email instructions to complete your login."}
         </p>
-        {receipt.state === "email_action_required" && (
+        {(receipt.state === "email_action_required" ||
+          receipt.state === "password_action_required") && (
           <Button type="button" disabled={resend.isPending} onClick={() => resend.mutate()}>
-            Resend verification email
+            {receipt.state === "password_action_required"
+              ? "Send password setup email"
+              : "Resend verification email"}
           </Button>
         )}
         {resend.isSuccess && (
-          <p role="status">
-            If this request can receive a verification email, a link has been requested.
-          </p>
+          <p role="status">If this request can receive an email, a link has been requested.</p>
         )}
         {resend.error && (
           <p role="alert">We could not request another link. Please try again later.</p>

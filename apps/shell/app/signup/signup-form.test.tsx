@@ -59,3 +59,23 @@ it("does not offer another signup or show readiness when progress is malformed",
     screen.queryByRole("heading", { name: "Your workspace is ready" }),
   ).not.toBeInTheDocument();
 });
+
+it("offers password setup after email proof instead of resending verification", async () => {
+  const calls: Array<{ path: string; body: unknown }> = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string, init?: RequestInit) => {
+      if (init?.method === "POST") calls.push({ path, body: JSON.parse(String(init.body)) });
+      return new Response(JSON.stringify({ state: "password_action_required" }), { status: 200 });
+    }),
+  );
+  renderWithProviders(<SignupForm />);
+  expect(await screen.findByRole("heading", { name: "Set your password" })).toBeVisible();
+  await userEvent.setup().click(screen.getByRole("button", { name: "Send password setup email" }));
+  await waitFor(() =>
+    expect(calls).toEqual([{ path: "/api/v1/auth/signup/password-link", body: {} }]),
+  );
+  expect(
+    screen.queryByRole("button", { name: "Resend verification email" }),
+  ).not.toBeInTheDocument();
+});

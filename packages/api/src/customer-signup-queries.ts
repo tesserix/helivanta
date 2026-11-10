@@ -13,7 +13,10 @@ export function useCustomerSignup() {
     poll: (data) => {
       const parsed = CustomerSignupReceiptContract.safeParse(data);
       return (
-        parsed.success && ["provisioning", "email_action_required"].includes(parsed.data.state)
+        parsed.success &&
+        ["provisioning", "email_action_required", "password_action_required"].includes(
+          parsed.data.state,
+        )
       );
     },
     gcTime: 0,
@@ -24,6 +27,14 @@ export function useCustomerSignup() {
     suppressErrorToast: true,
     onSuccess: (receipt) => cache.setQueryData(signupKey, receipt),
   });
-  const resend = useApiMutation(() => sendCustomerLink("email"), { suppressErrorToast: true });
+  const resend = useApiMutation(
+    () => {
+      const current = CustomerSignupReceiptContract.safeParse(progress.data);
+      return sendCustomerLink(
+        current.success && current.data.state === "password_action_required" ? "password" : "email",
+      );
+    },
+    { suppressErrorToast: true },
+  );
   return { progress, create, resend };
 }

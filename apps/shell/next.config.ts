@@ -18,6 +18,7 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: "/:path*", headers: [...SECURITY_HEADERS] },
+      { source: "/signup/verify", headers: [{ key: "Referrer-Policy", value: "no-referrer" }] },
       {
         source: "/api/emergency/access",
         headers: [{ key: "Referrer-Policy", value: "no-referrer" }],

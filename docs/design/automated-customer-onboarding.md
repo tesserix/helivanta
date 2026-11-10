@@ -52,8 +52,9 @@ automatic account merging or silently duplicated people.
    organization. Public responses disclose no other customer's registration.
 3. Native identity creates the organization and initial human together. Native
    identity owns verification, first authentication-method setup and recovery;
-   Helivanta never collects a password or handles a verification code as a
-   privileged shortcut. Native organization policy requires MFA.
+   Helivanta renders the verification and password forms and submits native
+   proofs. It never asserts verification or sets a password without native
+   proof. Native organization policy requires MFA.
 4. The initial owner remains pending until current native identity and ownership
    are verified. The activation callback establishes the exact first tenant
    administration membership and authorization projection. Retained anti-replay
@@ -65,11 +66,14 @@ automatic account merging or silently duplicated people.
    IAM must not write workforce or pharmacy tables.
 6. Readiness is recorded only after identity, tenant membership, authorization,
    initial business-resource setup and the retained receipt have completed.
+   Native password-setup evidence is also required before the browser receipt
+   becomes ready. An email-proven receipt offers password setup explicitly.
    A created organization, sent email or 202 response is not readiness.
 7. The owner signs in to the correct tenant and reaches its administration panel
    and existing Staff setup. Department heads, supervisors, transfers, Staff
    login links and narrower operational assignments use their existing scopes.
-   Independent pharmacy setup creates no fictitious hospital or hospital grant.
+   Independent pharmacy setup creates a typed pharmacy employer and its initial
+   HR management access, with no hospital establishment or hospital scope.
 
 The initial business setup is automatic; entering licence evidence, releasing
 stock, employing operational Staff and approving regulated activity still need
@@ -94,15 +98,15 @@ Staff operational permissions and from first-owner recovery or transfer.
 
 ## Owners and recovery
 
-| Record | Authoritative owner | Recovery behavior |
-| --- | --- | --- |
-| Customer intake and provisioning progress | Onboarding service | Durable idempotent receipt; no fabricated completion |
-| Human, email verification, factors and native organization policy | Zitadel | Native verification/recovery; no direct event-store edits |
-| Private desired identity claim | Identity operator through onboarding API | Immutable binding, deterministic replay, visible pending condition |
-| Tenant administration and authorization projection | Helivanta IAM | Attributable membership plus anti-replay evidence and current projection |
-| Hospital, employer and scoped team | Workforce owner | Existing owner commands and history |
-| Pharmacy, outlet and pharmacy resource authority | PharmaConnect owner | Existing owner commands, separate stock ownership |
-| Retained onboarding configuration | Held platform archive | Fingerprint/receipt verification; no cleartext first-owner profile |
+| Record                                                            | Authoritative owner                      | Recovery behavior                                                        |
+| ----------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------ |
+| Customer intake and provisioning progress                         | Onboarding service                       | Durable idempotent receipt; no fabricated completion                     |
+| Human, email verification, factors and native organization policy | Zitadel                                  | Native verification/recovery; no direct event-store edits                |
+| Private desired identity claim                                    | Identity operator through onboarding API | Immutable binding, deterministic replay, visible pending condition       |
+| Tenant administration and authorization projection                | Helivanta IAM                            | Attributable membership plus anti-replay evidence and current projection |
+| Hospital, employer and scoped team                                | Workforce owner                          | Existing owner commands and history                                      |
+| Pharmacy, outlet and pharmacy resource authority                  | PharmaConnect owner                      | Existing owner commands, separate stock ownership                        |
+| Retained onboarding configuration                                 | Held platform archive                    | Fingerprint/receipt verification; no cleartext first-owner profile       |
 
 No public browser calls a private product or identity management API directly.
 Use explicit Global API product destinations. Service-to-service credentials are

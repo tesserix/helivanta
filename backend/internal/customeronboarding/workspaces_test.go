@@ -43,7 +43,13 @@ func TestInitialCustomerWorkspaceCreatesOnlyOwnedResourcesAndNeverRestoresRevoke
 	pharmacyInit := pharmacy.NewCustomerWorkspaceInitializer(deps)
 	gin.SetMode(gin.TestMode)
 	private := gin.New()
-	private.POST("/internal/v1/customer-workspaces", customeronboarding.NewWorkspaceHandler(provisioningCaller{}, authority, workforceInit, pharmacyInit))
+	initializationErrors := make(chan error, 1)
+	observedAuthority := func(current context.Context, in customercontract.Workspace, action func(context.Context) error) error {
+		err := authority(current, in, action)
+		initializationErrors <- err
+		return err
+	}
+	private.POST("/internal/v1/customer-workspaces", customeronboarding.NewWorkspaceHandler(provisioningCaller{}, observedAuthority, workforceInit, pharmacyInit))
 	server := httptest.NewServer(private)
 	t.Cleanup(server.Close)
 	gateway, err := globalapi.New(globalapi.Config{Upstreams: map[string]string{"platform": server.URL}, Development: true, Timeout: 10 * time.Second})
@@ -55,6 +61,13 @@ func TestInitialCustomerWorkspaceCreatesOnlyOwnedResourcesAndNeverRestoresRevoke
 		request.Header.Set("X-Onboarding-Token", "Bearer synthetic-provisioner")
 		response := httptest.NewRecorder()
 		gateway.ServeHTTP(response, request)
+		select {
+		case err := <-initializationErrors:
+			if response.Code >= 500 {
+				require.NoError(t, err, "initialization owner command failed")
+			}
+		default:
+		}
 		return response
 	}
 	for _, kind := range []customercontract.Kind{customercontract.Hospital, customercontract.Pharmacy} {

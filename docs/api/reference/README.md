@@ -1452,6 +1452,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 
 Published subjects:
 
+- `helivanta.in.workforce.hospital_named.v1`
 - `helivanta.in.workforce.independent_login_link_changed.v1`
 - `helivanta.in.workforce.partner_group_hospital_scope_observed.v1`
 - `helivanta.in.workforce.posting_cutoff_changed.v1`
@@ -1574,6 +1575,7 @@ Migration table declarations:
 - `0085_workforce_posting_lifecycle_reviews`: `workforce_posting_lifecycle_reviews`, `workforce_posting_lifecycle_sources`.
 - `0090_workforce_partner_group_scope`: `workforce_partner_group_observations`.
 - `0094_workforce_independent_identity`: `workforce_independent_link_commands`.
+- `0096_workforce_hospital_names`: `workforce_hospital_name_announcements`.
 
 ## workspace
 

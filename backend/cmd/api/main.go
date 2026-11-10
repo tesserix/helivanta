@@ -659,6 +659,8 @@ func run() error {
 	// #1416: re-send affiliation steps the other side has not confirmed;
 	// the bus dead-letters after five failures and nothing replays them.
 	go pharmacy.RunAffiliationRedelivery(ctx, deps)
+	// #1637: announces each hospital name version once for the pharmacy counter pickers.
+	go workforce.RunHospitalNameAnnouncer(ctx, deps)
 	go patientmaster.RunPharmacyAffiliationRedelivery(ctx, deps)
 	// #197: counts each midnight a patient spends in a bed, and applies new
 	// bed-charging setup to the stays it affects.

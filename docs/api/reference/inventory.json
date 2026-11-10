@@ -11760,6 +11760,7 @@
         }
       ],
       "publishes": [
+        "helivanta.in.workforce.hospital_named.v1",
         "helivanta.in.workforce.independent_login_link_changed.v1",
         "helivanta.in.workforce.partner_group_hospital_scope_observed.v1",
         "helivanta.in.workforce.posting_cutoff_changed.v1",
@@ -12856,6 +12857,13 @@
           "id": "0095_workforce_pharmacy_enrollment",
           "sql_sha256": "fa713de4f8e8a9dfdef7205bed28a18c4c2aff234c22322928c23bd126de3679",
           "creates_tables": []
+        },
+        {
+          "id": "0096_workforce_hospital_names",
+          "sql_sha256": "2c09f421d715e0af64fa84be449d72a8004fd36cdd0a1c505d8d0c375b8e6633",
+          "creates_tables": [
+            "workforce_hospital_name_announcements"
+          ]
         }
       ]
     },

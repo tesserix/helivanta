@@ -460,3 +460,13 @@ type IndependentLoginLinkChangedData struct {
 	Version      int64  `json:"version"`
 	Status       string `json:"status"`
 }
+
+// SubjectHospitalNamed announces one version of a hospital's display name, nothing else about the hospital.
+const SubjectHospitalNamed = "helivanta.in.workforce.hospital_named.v1"
+
+// HospitalNamedData is the newest unsent name; consumers keep the highest NameVersion.
+type HospitalNamedData struct {
+	HospitalID  string `json:"hospital_id"`
+	Name        string `json:"name"`
+	NameVersion int64  `json:"name_version"`
+}

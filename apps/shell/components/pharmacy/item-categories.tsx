@@ -293,7 +293,7 @@ export function ProductCategorySection({
           </p>
           {canReview && pending && (
             <CategoryReviewForm
-              key={pending.id}
+              key={`review:${pending.id}`}
               declaration={pending}
               label={label(pending)}
               path={path}
@@ -303,7 +303,7 @@ export function ProductCategorySection({
           )}
           {canDeclare && product.status !== "withdrawn" && (
             <CategoryDeclarationForm
-              key={current.data.history[0]?.id ?? "none"}
+              key={`declare:${current.data.history[0]?.id ?? "none"}`}
               categories={all}
               today={today}
               path={path}

@@ -119,7 +119,7 @@ function PriceControlBody({
       </p>
       {canReview && latest && latest.decision === null && (
         <ReviewForm
-          key={latest.id}
+          key={`review:${latest.id}`}
           declaration={latest}
           currency={product.currency}
           path={path}
@@ -130,7 +130,7 @@ function PriceControlBody({
       {canDeclare && product.status !== "withdrawn" && (
         <DeclarationForm
           // A new declaration remounts the form with a new id; history is capped at 50.
-          key={data.history[0]?.id ?? "none"}
+          key={`declare:${data.history[0]?.id ?? "none"}`}
           currency={product.currency}
           today={today}
           path={path}

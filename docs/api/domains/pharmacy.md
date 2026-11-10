@@ -599,6 +599,24 @@ The outlet's record of a prescription, and its scanned pages. Nothing sells agai
 
 Until the worker is rolled out (#1406), uploaded pages stay `scan_pending` and are never downloadable.
 
+### Stock movement totals (#1638)
+
+`GET …/outlets/{outlet}/stock/reconciliation` (one batch at one location,
+`from` to `as_of`) returns `opening_units` and `closing_units` (numbers), a
+signed in-period total per movement kind as an exact decimal string
+(`receipt_units`, `correction_units`, `release_units`, `sale_units`,
+`return_units`, `supplier_dispatch_units`) and `movement_count`, in one
+statement. Totals are stored quantities, never sign-flipped: receipts and
+returns are positive, sales and supplies to hospital orders negative, a
+release negative where stock left and positive where it arrived, a correction
+either. `opening + every kind = closing`, tested; a test also fails when the
+movement kind constraint names a kind without a total. Register rows (outlet
+and pharmacy-wide) carry the same six totals over all history to `as_of`, so
+`on_hand_units` equals their sum, and the stock CSVs append `release_units`,
+`sale_units`, `return_units` and `supplier_dispatch_units` after
+`dispensable_units`. The panel shows every signed part and, if the parts are
+missing or do not sum, an alert instead of a reconciliation.
+
 ### Stock across outlets (#1372)
 
 `GET /v1/pharmacy/pharmacies/{pharmacy}/stock/positions` is a read-only,

@@ -100,9 +100,10 @@ export function ProductScheduleSection({
               Schedule X and NDPS products cannot be released or sold until their controls exist.
             </p>
           )}
+          {/* Both forms follow the newest declaration; prefixed keys keep them distinct siblings. */}
           {canReview && pending && (
             <ScheduleReviewForm
-              key={pending.id}
+              key={`review:${pending.id}`}
               declaration={pending}
               path={path}
               invalidate={invalidate}
@@ -112,7 +113,7 @@ export function ProductScheduleSection({
           )}
           {canDeclare && product.status !== "withdrawn" && (
             <ScheduleDeclarationForm
-              key={current.history[0]?.id ?? "none"}
+              key={`declare:${current.history[0]?.id ?? "none"}`}
               path={path}
               invalidate={invalidate}
               onStateChange={onStateChange}

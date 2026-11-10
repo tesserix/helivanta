@@ -397,6 +397,30 @@ describe("reviewing a schedule class", () => {
     expect(field).toHaveAccessibleDescription("Say what you checked.");
   });
 
+  // The review and declaration forms are keyed on the same declaration id; as
+  // siblings that rendered the review form twice once a declaration landed.
+  it("renders one review form for someone who may both declare and review", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    // As in the browser journey: an approved class, then a new declaration lands.
+    const before = {
+      ...approved,
+      id: "0199e000-0000-7000-8000-000000000699",
+      regulatory_class: "none",
+    };
+    serve([{ body: inForce(before) }, { body: { ...awaiting, history: [declaration, before] } }]);
+    const { user } = renderSection({ canDeclare: true, canReview: true });
+    await chooseOption(user, await screen.findByRole("combobox", { name: "Class" }), "H1");
+    await chooseOption(user, screen.getByRole("combobox", { name: "NDPS" }), "No");
+    await user.type(screen.getByLabelText("Source"), "pack label");
+    await user.click(screen.getByRole("button", { name: "Declare schedule class" }));
+    expect(await screen.findByText("Awaiting review")).toBeVisible();
+    expect(screen.getAllByRole("button", { name: "Approve" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Declare schedule class" })).toHaveLength(1);
+    await user.type(screen.getByLabelText("What you checked"), "TEST checked");
+    expect(screen.getAllByRole("button", { name: "Approve" })).toHaveLength(1);
+    expect(errors.mock.calls.flat().join(" ")).not.toContain("same key");
+  });
+
   it("allows a review on a withdrawn product", async () => {
     serve(awaiting);
     renderSection({ canReview: true, product: { ...product, status: "withdrawn" } });

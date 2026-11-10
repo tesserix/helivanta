@@ -5,6 +5,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"github.com/tesserix/onboarding-service/api/customercontract"
 	"gorm.io/gorm"
 )
@@ -12,7 +13,7 @@ import (
 // NewCustomerWorkspaceInitializer creates only this owner's initial business resource.
 func NewCustomerWorkspaceInitializer(deps platform.Deps) func(context.Context, customercontract.Workspace) error {
 	return func(ctx context.Context, in customercontract.Workspace) error {
-		if deps.DB == nil || !deps.DB.GuardedCommandActive(ctx) {
+		if deps.DB == nil || !deps.DB.GuardedCommandActive(ctx) || tenantdb.ActorFrom(ctx) == "" {
 			return authz.ErrScopedAuthorizationUnavailable
 		}
 		if in.Validate() != nil {
@@ -20,6 +21,9 @@ func NewCustomerWorkspaceInitializer(deps platform.Deps) func(context.Context, c
 		}
 		resource := uuid.MustParse(in.ResourceID)
 		return deps.DB.WithTenantCommand(ctx, in.TenantID, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.workforce_subject',?,true),set_config('app.workforce_hospital',?,true)`, tenantdb.ActorFrom(ctx), in.ResourceID).Error; err != nil {
+				return err
+			}
 			if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended(?,0))`, "workforce-customer:"+in.TenantID+":"+in.ResourceID).Error; err != nil {
 				return err
 			}

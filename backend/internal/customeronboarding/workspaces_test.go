@@ -111,6 +111,9 @@ func TestInitialCustomerWorkspaceCreatesOnlyOwnedResourcesAndNeverRestoresRevoke
 				}
 				require.Zero(t, count, "independent signup invented a hospital")
 			}
+			if err := tx.Exec(`SELECT set_config('app.workforce_subject','synthetic-access-reviewer',true)`).Error; err != nil {
+				return err
+			}
 			return tx.Exec(`DELETE FROM workforce_hospital_access WHERE tenant_id=? AND hospital_id=? AND subject=?`, tenant, in.ResourceID, subject).Error
 		}))
 		require.Equal(t, 200, submit(in).Code)

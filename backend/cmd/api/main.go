@@ -33,6 +33,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/payments"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
 	"github.com/tesserix/helivanta/internal/modules/supply"
+	"github.com/tesserix/helivanta/internal/modules/workforce"
 	"github.com/tesserix/helivanta/internal/modules/workspace"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
@@ -497,6 +498,7 @@ func run() error {
 			return err
 		}
 		srv.Engine.POST("/internal/v1/hospital-enrolments", iam.NewOnboardingHandler(deps, caller))
+		srv.Engine.POST("/internal/v1/customer-workspaces", customeronboarding.NewWorkspaceHandler(caller, iam.NewCustomerWorkspaceAuthority(deps), workforce.NewCustomerWorkspaceInitializer(deps), pharmacy.NewCustomerWorkspaceInitializer(deps)))
 	}
 
 	// The chain itself lives in bootstrap.V1Chain, not inline here, so

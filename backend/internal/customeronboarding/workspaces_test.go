@@ -1,9 +1,15 @@
 package customeronboarding_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/tesserix/helivanta/internal/customeronboarding"
+	"github.com/tesserix/helivanta/internal/globalapi"
 	"github.com/tesserix/helivanta/internal/modules/iam"       //nolint:depguard // composition test exercises the owner boundary
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"  //nolint:depguard // composition test exercises the owner boundary
 	"github.com/tesserix/helivanta/internal/modules/workforce" //nolint:depguard // composition test exercises the owner boundary
@@ -11,7 +17,10 @@ import (
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/onboarding-service/api/customercontract"
 	"gorm.io/gorm"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestInitialWorkspaceCommandsFailClosedWithoutTheirOwnerGuard(t *testing.T) {
@@ -32,6 +41,22 @@ func TestInitialCustomerWorkspaceCreatesOnlyOwnedResourcesAndNeverRestoresRevoke
 	authority := iam.NewCustomerWorkspaceAuthority(deps)
 	workforceInit := workforce.NewCustomerWorkspaceInitializer(deps)
 	pharmacyInit := pharmacy.NewCustomerWorkspaceInitializer(deps)
+	gin.SetMode(gin.TestMode)
+	private := gin.New()
+	private.POST("/internal/v1/customer-workspaces", customeronboarding.NewWorkspaceHandler(provisioningCaller{}, authority, workforceInit, pharmacyInit))
+	server := httptest.NewServer(private)
+	t.Cleanup(server.Close)
+	gateway, err := globalapi.New(globalapi.Config{Upstreams: map[string]string{"platform": server.URL}, Development: true, Timeout: 10 * time.Second})
+	require.NoError(t, err)
+	submit := func(in customercontract.Workspace) *httptest.ResponseRecorder {
+		raw, e := json.Marshal(in)
+		require.NoError(t, e)
+		request := httptest.NewRequest(http.MethodPost, "/internal/v1/customer-workspaces", bytes.NewReader(raw))
+		request.Header.Set("X-Onboarding-Token", "Bearer synthetic-provisioner")
+		response := httptest.NewRecorder()
+		gateway.ServeHTTP(response, request)
+		return response
+	}
 	for _, kind := range []customercontract.Kind{customercontract.Hospital, customercontract.Pharmacy} {
 		tenant := testutil.TenantA
 		if kind == customercontract.Pharmacy {
@@ -45,15 +70,14 @@ func TestInitialCustomerWorkspaceCreatesOnlyOwnedResourcesAndNeverRestoresRevoke
 			}
 			return tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id) VALUES(?,'system:serviceaccount:onboarding:onboarding-api','membership_verified','hospital_onboarding',?)`, tenant, tenant).Error
 		}))
-		initialize := func(current context.Context) error {
-			if kind == customercontract.Pharmacy {
-				if err := pharmacyInit(current, in); err != nil {
-					return err
-				}
-			}
-			return workforceInit(current, in)
-		}
-		require.NoError(t, authority(ctx, in, initialize))
+		response := submit(in)
+		require.Equal(t, 200, response.Code, response.Body.String())
+		var receipt customercontract.Receipt
+		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &receipt))
+		require.NoError(t, receipt.Validate())
+		require.Equal(t, customercontract.Ready, receipt.State)
+		require.Equal(t, in.ResourceID, receipt.ResourceID)
+
 		require.NoError(t, db.WithTenant(ctx, tenant, func(tx *gorm.DB) error {
 			var count int64
 			if err := tx.Table("workforce_hospitals").Where("tenant_id=? AND id=? AND establishment_kind=?", tenant, in.ResourceID, kind).Count(&count).Error; err != nil {
@@ -76,7 +100,7 @@ func TestInitialCustomerWorkspaceCreatesOnlyOwnedResourcesAndNeverRestoresRevoke
 			}
 			return tx.Exec(`DELETE FROM workforce_hospital_access WHERE tenant_id=? AND hospital_id=? AND subject=?`, tenant, in.ResourceID, subject).Error
 		}))
-		require.NoError(t, authority(ctx, in, initialize))
+		require.Equal(t, 200, submit(in).Code)
 		require.NoError(t, db.WithTenant(ctx, tenant, func(tx *gorm.DB) error {
 			var count int64
 			if err := tx.Table("workforce_hospital_access").Where("tenant_id=? AND hospital_id=? AND subject=?", tenant, in.ResourceID, subject).Count(&count).Error; err != nil {
@@ -85,6 +109,15 @@ func TestInitialCustomerWorkspaceCreatesOnlyOwnedResourcesAndNeverRestoresRevoke
 			require.Zero(t, count, "replayed signup restored deliberately revoked access")
 			return tx.Exec(`DELETE FROM iam_members WHERE tenant_id=? AND subject=?`, tenant, subject).Error
 		}))
-		require.Error(t, authority(ctx, in, initialize), "revoked tenant owner still provisioned resources")
+		require.Equal(t, 403, submit(in).Code, "revoked tenant owner still provisioned resources")
 	}
+}
+
+type provisioningCaller struct{}
+
+func (provisioningCaller) Verify(_ context.Context, credential string) error {
+	if credential != "Bearer synthetic-provisioner" {
+		return errors.New("denied")
+	}
+	return nil
 }

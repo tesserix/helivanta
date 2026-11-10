@@ -642,6 +642,9 @@ func run() error {
 	bootstrap.MountCustomerSignup(srv.Engine, signupHandlers.Start, signupHandlers.Status, signupHandlers.VerifyEmail, signupHandlers.Password, signupHandlers.EmailLink, signupHandlers.PasswordLink)
 
 	for _, m := range registry.All() {
+		if owner, ok := m.(*iam.Module); ok {
+			owner.SetOwnerSecurityClient(customeronboarding.NewSecurityClient())
+		}
 		m.Routes(api, deps)
 		if err := bus.StartConsumers(ctx, db, m.Consumers(deps)); err != nil {
 			return err

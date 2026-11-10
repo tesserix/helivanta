@@ -549,6 +549,12 @@ export const ZONES: Zone[] = [
     group: "admin",
     pages: [
       {
+        label: "Workspace security",
+        href: "/settings/security",
+        icon: Settings,
+        permission: "iam.member.manage",
+      },
+      {
         label: "Organization structure",
         href: "/settings/organization",
         icon: Building2,

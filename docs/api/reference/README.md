@@ -39,6 +39,8 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/intake-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/me/permissions` | `no_tenant_membership` | false | false |
 | GET | `/v1/iam/me/profile` | `no_tenant_membership` | false | false |
+| GET | `/v1/iam/me/security` | `iam.member.manage` | false | false |
+| POST | `/v1/iam/me/security` | `iam.member.manage` | false | false |
 | POST | `/v1/iam/me/sign-out` | `no_tenant_membership` | false | false |
 | POST | `/v1/iam/me/tenant` | `no_tenant_membership` | false | false |
 | GET | `/v1/iam/me/tenants` | `no_tenant_membership` | false | false |

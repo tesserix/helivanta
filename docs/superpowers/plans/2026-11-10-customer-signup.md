@@ -20,3 +20,9 @@
    to all stores. Verify empty business state and preserved platform records.
    Do not automatically seed replacement customers. Report readiness only with
    live signup/owner-access evidence and clearly identified manual email steps.
+
+8. Add the owner security panel for inspecting and reapplying mandatory MFA.
+   Reuse the identity controller's existing policy owner, a metadata-only wakeup,
+   a separate workload audience and fresh native ownership checks; reject stale
+   fingerprints and unauthorized or stale caller scope. Do not introduce another
+   native-policy writer or expose weakening controls.

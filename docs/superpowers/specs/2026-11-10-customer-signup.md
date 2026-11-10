@@ -60,3 +60,27 @@ real PostgreSQL CI, native API boundary tests, schema/contract checks and browse
 journey tests. GitOps/Kargo owns rollout. The approved data reset separately
 needs fresh recoverable captures and actual access to every owned store. A
 storage denial is not proof a bucket is empty.
+
+## Owner security panel
+
+The first owner can inspect and reapply the managed workspace's mandatory native
+MFA requirement. This is a fixed platform minimum: the panel cannot disable MFA,
+allow external-provider bypass or introduce an enrollment grace period. Factor
+registration remains in the existing native login flow. The API exposes the
+actual native policy, with pending/drift/unavailable outcomes instead of a cached
+success. It does not expose password values, factor seeds or recovery codes.
+
+IAM checks the verified tenant, current owner membership and caller/tenant
+preconditions. Applying the requirement also needs a recent authentication.
+The private onboarding owner resolves the native organization from its enrolled
+binding and rechecks active human/native organization-owner authority. This hop
+uses a separate `helivanta-owner-security` workload audience. Sensitive reads
+and reconciliation requests have attributable audit evidence.
+
+Applying a policy wakes the existing private organization reconciler through a
+metadata nonce; it does not change the immutable organization specification or
+write native policy through another configuration owner. Kubernetes resource
+versions fence the metadata update, while a native-policy fingerprint rejects
+stale requests. Repeating the same nonce is harmless. A requested reconcile is
+pending until a fresh native read confirms the minimum. Legacy adoption that
+preserves login policy does not opt into a new policy cutover through this panel.

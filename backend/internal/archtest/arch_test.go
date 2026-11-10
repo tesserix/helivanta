@@ -599,6 +599,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /iam/me/tenants":     "bounded: one person's memberships",
 	"GET /iam/me/permissions": "bounded: one resolved permission set",
 	"GET /iam/me/profile":     "one person's profile with their roles in one tenant",
+	"GET /iam/me/security":    "one current owner's native MFA policy in the verified tenant, not a collection",
 	"GET /workforce/hospitals/:hospital/hr/roster-settings":                                                                   "single current hospital roster policy",
 	"GET /workforce/hospitals/:hospital/hr/credential-reminder-policy":                                                        "single current hospital credential reminder policy",
 	"GET /workforce/hospitals/:hospital/hr/leave-settings":                                                                    "single fixed hospital leave-year start",

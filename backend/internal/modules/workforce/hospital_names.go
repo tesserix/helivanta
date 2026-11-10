@@ -10,7 +10,6 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 
 	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
 	"github.com/tesserix/helivanta/internal/platform"
@@ -64,26 +63,26 @@ ORDER BY h.tenant_id,h.id LIMIT ?`, hospitalNameBatch).Scan(&due).Error
 				Name        string
 				NameVersion int64
 			}
-			// Locked and re-checked: the name may have moved or been announced since the scan.
-			err := tx.Raw(`SELECT h.name,h.name_version FROM workforce_hospitals h
-LEFT JOIN workforce_hospital_name_announcements a ON a.tenant_id=h.tenant_id AND a.hospital_id=h.id
-WHERE h.tenant_id=? AND h.id=? AND h.establishment_kind='hospital' AND (a.announced_version IS NULL OR a.announced_version<h.name_version)
-FOR UPDATE OF h`, d.TenantID, d.ID).Scan(&row).Error
+			// The hospital row lock serialises replicas; the claim below is what decides, in one
+			// statement that re-reads the marker, so a replica that waited here cannot repeat a version.
+			err := tx.Raw(`SELECT name,name_version FROM workforce_hospitals WHERE tenant_id=? AND id=? AND establishment_kind='hospital' FOR UPDATE`, d.TenantID, d.ID).Scan(&row).Error
 			if err != nil {
 				return err
 			}
 			if row.NameVersion == 0 {
 				return nil
 			}
+			claim := tx.Exec(`INSERT INTO workforce_hospital_name_announcements(tenant_id,hospital_id,announced_version) VALUES(?,?,?)
+ON CONFLICT(tenant_id,hospital_id) DO UPDATE SET announced_version=EXCLUDED.announced_version,updated_at=clock_timestamp()
+WHERE workforce_hospital_name_announcements.announced_version<EXCLUDED.announced_version`, d.TenantID, d.ID, row.NameVersion)
+			if claim.Error != nil || claim.RowsAffected == 0 {
+				return claim.Error // zero rows: this version was already announced
+			}
 			data, err := json.Marshal(workforcecontract.HospitalNamedData{HospitalID: d.ID.String(), Name: row.Name, NameVersion: row.NameVersion})
 			if err != nil {
 				return err
 			}
-			if err := events.Enqueue(tx, workforcecontract.SubjectHospitalNamed, events.Event{Type: workforcecontract.SubjectHospitalNamed, Version: 1, TenantID: d.TenantID.String(), Data: data}); err != nil {
-				return err
-			}
-			return tx.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "tenant_id"}, {Name: "hospital_id"}}, DoUpdates: clause.Assignments(map[string]any{"announced_version": row.NameVersion, "updated_at": gorm.Expr("clock_timestamp()")})}).
-				Table("workforce_hospital_name_announcements").Create(map[string]any{"tenant_id": d.TenantID, "hospital_id": d.ID, "announced_version": row.NameVersion}).Error
+			return events.Enqueue(tx, workforcecontract.SubjectHospitalNamed, events.Event{Type: workforcecontract.SubjectHospitalNamed, Version: 1, TenantID: d.TenantID.String(), Data: data})
 		}); err != nil && !errors.Is(err, context.Canceled) {
 			slog.WarnContext(ctx, "workforce hospital name announcement failed; retrying later", "tenant_id", d.TenantID, "hospital_id", d.ID, "error", err)
 		}

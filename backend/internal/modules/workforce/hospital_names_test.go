@@ -3,10 +3,12 @@ package workforce_test
 import (
 	"context"
 	"encoding/json"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/onboarding-service/api/customercontract"
 	"gorm.io/gorm"
@@ -127,4 +129,37 @@ func TestAnnouncerCoversSignupHospitals(t *testing.T) {
 	require.NoError(t, workforce.AnnounceHospitalNamesOnce(ctx, db))
 	h := &establishmentHarness{db: db}
 	require.Equal(t, []workforcecontract.HospitalNamedData{{HospitalID: resource, Name: "TEST Signup Hospital", NameVersion: 1}}, h.announced(t, resource))
+}
+
+func TestHospitalNameVersionIsForcedOnInsert(t *testing.T) {
+	h := newEstablishmentRouter(t, workforce.New())
+	id := uuid.Must(uuid.NewV7()).String()
+	require.NoError(t, h.tx(t, id, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO workforce_hospitals(tenant_id,id,name,name_version) VALUES(?,?,'Direct Hospital',99)`, testutil.TenantA, id).Error
+	}))
+	require.EqualValues(t, 1, h.nameVersion(t, id), "no writer can choose the first version")
+}
+
+func TestAnnouncerPassesRacingEachOtherPublishOnce(t *testing.T) {
+	h := newEstablishmentRouter(t, workforce.New())
+	var ids []string
+	for i := 0; i < 25; i++ {
+		id := uuid.Must(uuid.NewV7()).String()
+		ids = append(ids, id)
+		require.NoError(t, h.tx(t, id, func(tx *gorm.DB) error {
+			return tx.Exec(`INSERT INTO workforce_hospitals(tenant_id,id,name) VALUES(?,?,'Racing Hospital')`, testutil.TenantA, id).Error
+		}))
+	}
+	var wg sync.WaitGroup
+	for range 2 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			assert.NoError(t, workforce.AnnounceHospitalNamesOnce(context.Background(), h.db))
+		}()
+	}
+	wg.Wait()
+	for _, id := range ids {
+		require.Len(t, h.announced(t, id), 1, "two replicas announced the same version of %s", id)
+	}
 }

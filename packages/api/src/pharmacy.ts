@@ -144,6 +144,10 @@ export type PharmacyStockPosition = z.infer<typeof pharmacyStockExpiryFieldsSche
   on_hand_units: number;
   receipt_units: string;
   correction_units: string;
+  release_units: string;
+  sale_units: string;
+  return_units: string;
+  supplier_dispatch_units: string;
   dispensable_units: 0;
 };
 export type PharmacyStockReconciliation = {
@@ -154,6 +158,10 @@ export type PharmacyStockReconciliation = {
   opening_units: number;
   receipt_units: string;
   correction_units: string;
+  release_units: string;
+  sale_units: string;
+  return_units: string;
+  supplier_dispatch_units: string;
   closing_units: number;
   movement_count: number;
 };

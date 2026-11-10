@@ -62,6 +62,7 @@ export function useApiQuery<T>(
 export function useApiMutation<TData, TVars = void>(
   fn: (vars: TVars) => Promise<TData>,
   opts: {
+    gcTime?: number;
     successToast?: string;
     invalidate?: unknown[][];
     onSuccess?: (data: TData) => void;
@@ -98,6 +99,7 @@ export function useApiMutation<TData, TVars = void>(
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: fn,
+    gcTime: opts.gcTime,
     networkMode: opts.networkMode,
     onSuccess: (data) => {
       if (opts.successToast) toast.success(opts.successToast);

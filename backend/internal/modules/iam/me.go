@@ -93,6 +93,9 @@ func (m *Module) registerMe(g *platform.Router, deps platform.Deps) {
 	g.GET("/me/permissions", authz.NoTenantMembership, permissions)
 	g.GET("/me/tenants", authz.NoTenantMembership, me.tenants)
 	g.GET("/me/profile", authz.NoTenantMembership, me.profile)
+	security := &ownerSecurityHandlers{deps: deps, client: m.ownerSecurity}
+	g.GET("/me/security", PermMemberManage, security.read)
+	g.POST("/me/security", PermMemberManage, security.reconcile)
 	g.POST("/me/tenant", authz.NoTenantMembership, me.switchTenant)
 }
 

@@ -8,11 +8,17 @@ const API_URL = globalApiURL(process.env.API_URL, process.env.NODE_ENV === "prod
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  transpilePackages: ["@helivanta/ui", "@helivanta/api", "@helivanta/emergency-access"],
+  transpilePackages: [
+    "@helivanta/ui",
+    "@helivanta/api",
+    "@helivanta/emergency-access",
+    "@tesserix/onboarding-contracts",
+  ],
   poweredByHeader: false,
   async headers() {
     return [
       { source: "/:path*", headers: [...SECURITY_HEADERS] },
+      { source: "/signup/verify", headers: [{ key: "Referrer-Policy", value: "no-referrer" }] },
       {
         source: "/api/emergency/access",
         headers: [{ key: "Referrer-Policy", value: "no-referrer" }],

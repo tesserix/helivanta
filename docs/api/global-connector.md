@@ -38,7 +38,8 @@ existing monolith. This does not extract modules into independent services.
 Supported owner keys are `platform`, `mediconnect`, `medicore`, `workforce`, `pharmacy`, `supply`,
 `lab` and `emergency`. Platform covers `/v1/auth`, `/v1/iam`, `/v1/workspace`,
 `/v1/patients` and `/v1/reference`. The other keys match existing path segments.
-The exact `POST /internal/v1/hospital-enrolments` route also goes to platform,
+The exact `POST /internal/v1/hospital-enrolments` and
+`POST /internal/v1/customer-workspaces` routes also go to platform,
 which verifies its existing workload token. Other internal routes are denied.
 Paths, methods, response bodies and domain error meanings remain unchanged.
 

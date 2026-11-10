@@ -48,7 +48,8 @@ const PermCredentialRevoke authz.Permission = "iam.credential.revoke" //nolint:g
 // the module's sign-out/revoke handlers silently invalidate a cache
 // nothing on the request path ever reads (#781).
 type Module struct {
-	checker *RevocationChecker
+	ownerSecurity OwnerSecurityClient
+	checker       *RevocationChecker
 	// userState re-checks a subject's Zitadel state on renewal (#916,
 	// design spec D3). See SetUserStateChecker.
 	userState UserStateChecker

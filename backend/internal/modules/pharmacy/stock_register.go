@@ -61,28 +61,32 @@ func parseStockWindow(c *gin.Context, required bool) (stockWindow, bool) {
 }
 
 type stockPosition struct {
-	StorageAddress    StorageAddressFields `json:"storage_address" gorm:"embedded"`
-	StockExpiryFields `gorm:"embedded"`
-	ID                uuid.UUID `json:"id"`
-	CreatedAt         time.Time `json:"created_at"`
-	LocationID        uuid.UUID `json:"location_id"`
-	BatchID           uuid.UUID `json:"batch_id"`
-	ProductID         uuid.UUID `json:"product_id"`
-	LocationCode      string    `json:"location_code"`
-	LocationName      string    `json:"location_name"`
-	SKU               string    `json:"sku"`
-	BrandName         string    `json:"brand_name"`
-	UnitOfIssue       string    `json:"unit_of_issue"`
-	LotNumber         string    `json:"lot_number"`
-	ExpiresOn         string    `json:"expires_on"`
-	StockStatus       string    `json:"stock_status"`
-	ExpiryStatus      string    `json:"expiry_status"`
-	ProductStatus     string    `json:"product_status"`
-	RegulatoryStatus  string    `json:"regulatory_status"`
-	OnHandUnits       int64     `json:"on_hand_units"`
-	ReceiptUnits      string    `json:"receipt_units"`
-	CorrectionUnits   string    `json:"correction_units"`
-	DispensableUnits  int64     `json:"dispensable_units"`
+	StorageAddress        StorageAddressFields `json:"storage_address" gorm:"embedded"`
+	StockExpiryFields     `gorm:"embedded"`
+	ID                    uuid.UUID `json:"id"`
+	CreatedAt             time.Time `json:"created_at"`
+	LocationID            uuid.UUID `json:"location_id"`
+	BatchID               uuid.UUID `json:"batch_id"`
+	ProductID             uuid.UUID `json:"product_id"`
+	LocationCode          string    `json:"location_code"`
+	LocationName          string    `json:"location_name"`
+	SKU                   string    `json:"sku"`
+	BrandName             string    `json:"brand_name"`
+	UnitOfIssue           string    `json:"unit_of_issue"`
+	LotNumber             string    `json:"lot_number"`
+	ExpiresOn             string    `json:"expires_on"`
+	StockStatus           string    `json:"stock_status"`
+	ExpiryStatus          string    `json:"expiry_status"`
+	ProductStatus         string    `json:"product_status"`
+	RegulatoryStatus      string    `json:"regulatory_status"`
+	OnHandUnits           int64     `json:"on_hand_units"`
+	ReceiptUnits          string    `json:"receipt_units"`
+	CorrectionUnits       string    `json:"correction_units"`
+	ReleaseUnits          string    `json:"release_units"`
+	SaleUnits             string    `json:"sale_units"`
+	ReturnUnits           string    `json:"return_units"`
+	SupplierDispatchUnits string    `json:"supplier_dispatch_units"`
+	DispensableUnits      int64     `json:"dispensable_units"`
 }
 
 func (r stockPosition) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
@@ -268,8 +272,7 @@ func stockPositionsSource(tx *gorm.DB, tenant string, outlet uuid.UUID, asOf tim
         ELSE 'later' END AS expiry_band,
    p.status AS product_status,p.regulatory_status,
    sum(m.quantity_units)::bigint AS on_hand_units,
-   COALESCE(sum(m.quantity_units) FILTER (WHERE m.kind='receipt'),0)::text AS receipt_units,
-   COALESCE(sum(m.quantity_units) FILTER (WHERE m.kind='correction'),0)::text AS correction_units,
+   `+stockKindTotals("m.", "")+`,
    0::bigint AS dispensable_units`).
 		// Unique-key lookup bounds prevent repeated outlet-wide scans under fresh-table RLS estimates.
 		Joins("JOIN LATERAL (SELECT created_at,product_id,lot_number,expires_on,purchase_cost_minor FROM pharmacy_stock_batches WHERE tenant_id=m.tenant_id AND outlet_id=m.outlet_id AND id=m.batch_id LIMIT 1) b ON true").

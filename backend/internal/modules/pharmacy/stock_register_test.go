@@ -1,6 +1,7 @@
 package pharmacy_test
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"github.com/tesserix/helivanta/internal/testutil"
@@ -286,10 +287,13 @@ func footing(t *testing.T, w saleWorld, location, batch string, from, asOf time.
 	return got
 }
 
-func TestStockReconciliationFootsEveryMovementKind(t *testing.T) {
-	w := newSaleWorld(t, true)
+// everyKindLot is one lot received, corrected, released, sold and returned;
+// released and last bound the movements after the receipt and correction.
+func everyKindLot(t *testing.T) (w saleWorld, batch string, released, last time.Time) {
+	t.Helper()
+	w = newSaleWorld(t, true)
 	p := w.product(t, "TEST-RECON-1", "none")
-	batch := receive(t, w.r, p, w.quarantine, "2028-06-30", `,"mrp_minor":12500`)
+	batch = receive(t, w.r, p, w.quarantine, "2028-06-30", `,"mrp_minor":12500`)
 	require.Equal(t, 200, do(w.r, "PUT", stockPath("corrections/"+uuid.Must(uuid.NewV7()).String()), "editor", stockBody(w.quarantine, batch, "correction", "TEST-RECON-DAMAGE", -3)).Code)
 	res := do(w.r, "PUT", stockPath("releases/"+uuid.Must(uuid.NewV7()).String()), "pharmacist",
 		fmt.Sprintf(`{"batch_id":%q,"from_location_id":%q,"to_location_id":%q,"quantity_units":30,"reason":"TEST shelved"}`, batch, w.quarantine, w.sellable))
@@ -300,7 +304,6 @@ func TestStockReconciliationFootsEveryMovementKind(t *testing.T) {
 	// A supply to a hospital order needs a supplier command and allocation behind it
 	// (pharmacy_supplier_dispatch_guard), so it is not recorded here; its column is
 	// still required by footing and pinned to the constraint by the test above.
-	var released, last time.Time
 	require.NoError(t, catalogueTx(t, w.db, func(tx *gorm.DB) error {
 		if err := tx.Raw(`SELECT min(created_at) FROM pharmacy_stock_movements WHERE batch_id=? AND kind='release'`, batch).Scan(&released).Error; err != nil {
 			return err
@@ -308,6 +311,11 @@ func TestStockReconciliationFootsEveryMovementKind(t *testing.T) {
 		return tx.Raw(`SELECT max(created_at) FROM pharmacy_stock_movements WHERE batch_id=?`, batch).Scan(&last).Error
 	}))
 
+	return w, batch, released, last
+}
+
+func TestStockReconciliationFootsEveryMovementKind(t *testing.T) {
+	w, batch, released, last := everyKindLot(t)
 	q := footing(t, w, w.quarantine, batch, released, last)
 	require.EqualValues(t, 97, q["opening_units"])
 	for kind, want := range map[string]string{"receipt": "0", "correction": "0", "release": "-30", "sale": "0", "return": "4", "supplier_dispatch": "0"} {
@@ -320,4 +328,51 @@ func TestStockReconciliationFootsEveryMovementKind(t *testing.T) {
 		require.Equal(t, want, s[kind+"_units"], kind)
 	}
 	require.EqualValues(t, 20, s["closing_units"])
+}
+
+func TestStockPositionsAndExportFootEveryMovementKind(t *testing.T) {
+	w, batch, _, last := everyKindLot(t)
+	asOf := url.QueryEscape(last.Format(time.RFC3339Nano))
+	res := do(w.r, "GET", stockPath("positions?as_of="+asOf+"&batch_id="+batch), "editor", "")
+	require.Equal(t, 200, res.Code, res.Body.String())
+	var page struct {
+		Data []map[string]any `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &page))
+	require.Len(t, page.Data, 2)
+	want := map[string]map[string]string{
+		w.quarantine: {"receipt": "100", "correction": "-3", "release": "-30", "sale": "0", "return": "4", "supplier_dispatch": "0"},
+		w.sellable:   {"receipt": "0", "correction": "0", "release": "30", "sale": "-10", "return": "0", "supplier_dispatch": "0"},
+	}
+	for _, row := range page.Data {
+		var sum int64
+		for _, kind := range pharmacy.StockMovementKinds {
+			v, ok := row[kind+"_units"].(string)
+			require.True(t, ok, "missing %s_units in %v", kind, row)
+			require.Equal(t, want[row["location_id"].(string)][kind], v, kind)
+			n, err := strconv.ParseInt(v, 10, 64)
+			require.NoError(t, err)
+			sum += n
+		}
+		require.EqualValues(t, row["on_hand_units"], sum, "on hand = the parts: %v", row)
+	}
+	res = do(w.r, "GET", stockPath("positions.csv?as_of="+asOf), "editor", "")
+	require.Equal(t, 200, res.Code, res.Body.String())
+	rows, err := csv.NewReader(strings.NewReader(res.Body.String())).ReadAll()
+	require.NoError(t, err)
+	require.Len(t, rows, 3)
+	require.Equal(t, []string{"on_hand_units", "receipt_units", "correction_units", "dispensable_units", "release_units", "sale_units", "return_units", "supplier_dispatch_units"}, rows[0][len(rows[0])-8:])
+	for _, row := range rows[1:] {
+		values := map[string]string{}
+		for i, name := range rows[0] {
+			values[name] = row[i]
+		}
+		var sum int64
+		for _, kind := range pharmacy.StockMovementKinds {
+			require.Equal(t, want[values["location_id"]][kind], values[kind+"_units"], kind)
+			n, _ := strconv.ParseInt(values[kind+"_units"], 10, 64)
+			sum += n
+		}
+		require.Equal(t, values["on_hand_units"], strconv.FormatInt(sum, 10))
+	}
 }

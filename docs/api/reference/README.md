@@ -653,6 +653,7 @@ Subscriptions:
 - `pharmacy-affiliation-decision` ← `helivanta.in.patientmaster.pharmacy_affiliation_decided.v1`; after-commit hook: false.
 - `pharmacy-affiliation-receipt` ← `helivanta.in.patientmaster.pharmacy_affiliation_received.v1`; after-commit hook: false.
 - `pharmacy-patient-registered` ← `helivanta.in.patientmaster.registered.v1`; after-commit hook: false.
+- `pharmacy-hospital-names` ← `helivanta.in.workforce.hospital_named.v1`; after-commit hook: false.
 - `pharmacy-bed-occupancy-started` ← `helivanta.in.medicore.bed_occupancy_started.v1`; after-commit hook: false.
 - `pharmacy-bed-occupancy-ended` ← `helivanta.in.medicore.bed_occupancy_ended.v1`; after-commit hook: false.
 - `pharmacy-encounter-opened` ← `helivanta.in.medicore.encounter_opened.v1`; after-commit hook: false.
@@ -691,6 +692,7 @@ Migration table declarations:
 - `0039_pharmacy_supplier_fulfilment`: `pharmacy_supplier_allocations`, `pharmacy_supplier_holds`, `pharmacy_supplier_commands`, `pharmacy_supplier_allocation_history`, `pharmacy_supplier_receiving_heads`, `pharmacy_supplier_receipts`, `pharmacy_supplier_receiving_closures`, `pharmacy_supplier_receiving_clearances`, `pharmacy_supplier_batch_sources`.
 - `0040_pharmacy_supplier_receiving_corrections`: `pharmacy_supplier_receiving_corrections`.
 - `0042_pharmacy_supplier_receiving_release`: `pharmacy_supplier_receiving_releases`.
+- `0045_pharmacy_hospital_names`: `pharmacy_hospital_names`.
 
 ## payments
 

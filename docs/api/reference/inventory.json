@@ -4947,6 +4947,11 @@
           "after_commit": false
         },
         {
+          "name": "pharmacy-hospital-names",
+          "subject": "helivanta.in.workforce.hospital_named.v1",
+          "after_commit": false
+        },
+        {
           "name": "pharmacy-bed-occupancy-started",
           "subject": "helivanta.in.medicore.bed_occupancy_started.v1",
           "after_commit": false
@@ -5285,6 +5290,13 @@
           "id": "0043_pharmacy_acquisition_receipts",
           "sql_sha256": "6bee0fc1fa4a4d60d85709d9d5615e364907abfcb8a16327b5ae2923e09b4663",
           "creates_tables": []
+        },
+        {
+          "id": "0045_pharmacy_hospital_names",
+          "sql_sha256": "884b1e081c587b2041d635c14dae5387f1fa92c7375090c3d749ef9b800cc7c7",
+          "creates_tables": [
+            "pharmacy_hospital_names"
+          ]
         }
       ]
     },

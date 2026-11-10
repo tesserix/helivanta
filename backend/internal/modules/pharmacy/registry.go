@@ -52,6 +52,8 @@ type hospitalAffiliation struct {
 	// Derived from the verification history (#1416), never stored here.
 	VerificationRequestID *uuid.UUID `json:"verification_request_id" gorm:"-"`
 	VerifiedAt            *time.Time `json:"verified_at" gorm:"-"`
+	// The hospital's name, only while the affiliation is verified (#1637).
+	HospitalName *string `json:"hospital_name" gorm:"-"`
 }
 
 func (hospitalAffiliation) TableName() string                 { return "pharmacy_hospital_affiliations" }
@@ -289,7 +291,10 @@ func (h *catalogueHandlers) listAffiliations(c *gin.Context, params pagination.P
 		if err := tenantdb.ApplyKeyset(tx, params).Select(affiliationColumns).Where("tenant_id=? AND pharmacy_id=?", p.TenantID, id).Find(&rows).Error; err != nil {
 			return err
 		}
-		return fillVerification(tx, p.TenantID, rows)
+		if err := fillVerification(tx, p.TenantID, rows); err != nil {
+			return err
+		}
+		return fillHospitalNames(tx, p.TenantID, rows)
 	})
 	if err != nil {
 		catalogueError(c, err)
@@ -325,6 +330,9 @@ func (h *catalogueHandlers) putAffiliation(c *gin.Context) {
 			}
 			rows := []hospitalAffiliation{result}
 			if err := fillVerification(tx, p.TenantID, rows); err != nil {
+				return err
+			}
+			if err := fillHospitalNames(tx, p.TenantID, rows); err != nil {
 				return err
 			}
 			result = rows[0]

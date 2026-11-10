@@ -1,10 +1,11 @@
 # Automated customer onboarding and a clean test start
 
-Status: implementation in progress, not a deployed signup capability.
-The live `/signup` page still displays a placeholder. Identity-controller and
-trusted-provisioning changes are prerequisites, not evidence that the public
-journey works. The customer policy is automated onboarding after verified
-signup, without platform approval.
+Status: the signup implementation is deployed at `https://helivanta.app/signup`.
+Configuration, unit tests and public browser checks have been verified. Real
+owner email delivery, native proof completion, first login and MFA still need
+live acceptance; a rendered form or active mail provider does not close those
+gates. Customer onboarding is automated after verified signup, without platform
+approval.
 
 ## Customer tree and authority
 
@@ -78,6 +79,69 @@ automatic account merging or silently duplicated people.
 The initial business setup is automatic; entering licence evidence, releasing
 stock, employing operational Staff and approving regulated activity still need
 real authorized evidence. Signup must not fabricate these as successful.
+
+## First-owner verification delivery through Resend
+
+```mermaid
+sequenceDiagram
+    participant Owner as New owner
+    participant Web as Helivanta / Global API
+    participant Signup as Onboarding service
+    participant Identity as Identity operator / Zitadel
+    participant Mail as Resend SMTP
+    Owner->>Web: Submit organization and owner email
+    Web->>Signup: Record durable signup with private receipt
+    Signup->>Identity: Create organization and initial human owner
+    Identity->>Mail: Send native verification email
+    Mail-->>Owner: Verification link
+    Owner->>Web: Open link and confirm verification
+    Web->>Signup: Submit native user ID and verification code
+    Signup->>Identity: Verify code and recheck immutable owner binding
+    Identity-->>Signup: Current native verified email
+    Signup-->>Web: Rotate receipt; offer password setup
+```
+
+Zitadel owns the verification code, expiration and proof; Resend delivers the
+native email through Zitadel's configured SMTP provider. Helivanta does not
+send a second verification email directly through the Resend API and does not
+accept a browser assertion that an address is verified.
+
+The identity operator includes `human.email.sendCode` when creating the initial
+owner in `/v2/organizations`. The email uses this fixed return template:
+
+```text
+https://helivanta.app/signup/verify#phase=email&userId={{.UserID}}&code={{.Code}}
+```
+
+The browser removes the fragment from its address bar before submitting the
+proof. It requires the owner's explicit verification action, so opening a link
+in an email scanner does not consume the proof. The Global API routes the
+same-origin request to the signup boundary; onboarding submits the code to
+Zitadel's `/v2/users/{userId}/email/verify`, rechecks the exact organization,
+subject and email, and rotates the private receipt. Verification errors or
+identity outages do not activate an owner or report a ready workspace.
+
+The public email-link action uses the same native destination and bounded mail
+request budget. After verification, the owner requests a separate native
+password-setup email. Its link uses `phase=password`; setting a password requires
+that link's native proof. Email verification alone does not mark password setup
+or workspace provisioning complete.
+
+The infrastructure-owned SMTP configuration is `smtp.resend.com:587` with
+STARTTLS, SMTP user `resend` and sender `auth@tesserix.app` (Tesserix). The
+credential remains in managed identity configuration, never the browser or this
+document. The recurring Zitadel bootstrap checks the provider configuration and
+active state. Those checks do not prove that Resend accepted a particular email
+or that the recipient received it. For a live test, use an explicitly supplied
+new-owner mailbox, check the Resend delivery outcome, then complete the native
+verification/password flow and owner login. Do not record link codes, passwords
+or full recipient details in logs, screenshots, issues or committed evidence.
+
+Source owners: the operator's `internal/zitadelapi/organizations.go` creates the
+first native delivery; onboarding's `internal/zitadel/customer.go` issues and
+verifies native links; Helivanta's `backend/internal/customeronboarding` owns the
+public receipt boundary, and `apps/shell/app/signup/verify` handles the link.
+The infrastructure source is `charts/apps/zitadel-bootstrap` in `tesserix-k8s`.
 
 ## Owner security administration
 
@@ -164,6 +228,7 @@ does not immediately erase recovery copies.
   required platform/recovery records survived and no replacement fixture was
   silently created. Only then tell the user to begin their fresh onboarding.
 
-Public signup, automatic business setup, owner security administration and live
-acceptance remain open. First-owner controller tests or a provisioning API PR do
-not close these gates.
+The public signup, automatic business setup and owner security implementations
+are deployed. Their real-owner acceptance gates and the approved historic data
+reset remain open. First-owner controller tests, provider configuration checks
+or a provisioning API PR do not close those gates.

@@ -63,8 +63,8 @@ as a sum, but the export is the auditable record and does not foot either.
 5. **The screen shows every part with its sign and the correct formula.** The
    reconciliation shows Opening, then one line per kind in the order of the
    table above (Receipts, Corrections, Releases, Sales, Returns, Supplied to
-   hospital orders), then Closing. Values keep their sign (`−5`, `+2`; zero is
-   `0`). The formula line reads "Opening + the movements in this period =
+   hospital orders), then Closing. Values keep their sign, in the locale's number format (`-5`, `+2`; zero is
+   `0`); a figure the server did not send reads "not reported", never `0`. The formula line reads "Opening + the movements in this period =
    closing stock. Sales and supplies are negative; receipts and returns are
    positive; releases are negative where stock left and positive where it
    arrived." The register table's expanded row adds the four columns.
@@ -97,12 +97,15 @@ as a sum, but the export is the auditable record and does not foot either.
 ## Tests
 
 - Backend: one batch receives, is corrected, released from quarantine to a
-  sellable location, sold, returned and dispatched; the reconciliation at each
-  location asserts every kind total and `opening + Σ = closing`, with a `from`
+  sellable location, sold and returned; the reconciliation at each location
+  asserts every kind total and `opening + Σ = closing`, with a `from`
   inside the history so opening is non-zero. Positions and CSV assert the same
   totals and `on_hand = Σ`. The kind-constraint test above. Existing scope tests
-  (403/404/401) stay.
+  (403/404/401) stay. A supply to a hospital order is not recorded in this
+  test: the database refuses one without a real supplier command and
+  allocation behind it. Its total is still required and summed, the SQL is
+  generated identically for every kind, and the kind-constraint test pins it.
 - Frontend: the panel renders each signed part and the formula; a response
   whose parts do not sum shows the alert; register rows show the new columns.
-- E2E: `e2e/tests/pharmacy-stock-pane.spec.ts` checks the identity on screen after a
-  release and a sale.
+- E2E: `e2e/tests/pharmacy-stock-reconciliation.spec.ts` checks the identity
+  on screen after a release and a sale.

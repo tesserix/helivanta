@@ -44,8 +44,13 @@ const EXPIRY_FILTERS = ["all", "expired", "today", "due_30", "due_90", "due_180"
 const BALANCE_FILTERS = ["all", "on_hand"];
 const known = (value: string | undefined, allowed: string[]) =>
   value && allowed.includes(value) ? value : "all";
-const quantity = (value: number | string) =>
-  typeof value === "string" ? BigInt(value).toLocaleString() : value.toLocaleString();
+// A figure the server did not send is reported as such, never a 0 or a crash.
+const quantity = (value: number | string | undefined) =>
+  typeof value === "string" && /^-?\d+$/.test(value)
+    ? BigInt(value).toLocaleString()
+    : typeof value === "number" && Number.isFinite(value)
+      ? value.toLocaleString()
+      : "not reported";
 // Every movement kind with its in-period label, in reconciliation order (#1638).
 const RECONCILED = [
   ["receipt_units", "Receipts in period"],

@@ -762,3 +762,38 @@ it("shows every movement kind in the register", async () => {
   ])
     expect(within(table).getByRole("columnheader", { name: header })).toBeInTheDocument();
 });
+
+it("keeps the register and the reconciliation on screen when an older server omits totals", async () => {
+  vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-17T12:00:00Z"));
+  const base = fixture().getMockImplementation()!;
+  const { sale_units: _omitted, ...older } = row;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) =>
+      url.includes("/stock/positions")
+        ? new Response(JSON.stringify(page([older])))
+        : url.includes("/stock/reconciliation")
+          ? new Response(
+              JSON.stringify({
+                location_id: location,
+                batch_id: batch,
+                from: "1970-01-01T00:00:00Z",
+                as_of: new URL(url, "http://localhost").searchParams.get("as_of"),
+                ...footed,
+                opening_units: undefined,
+              }),
+            )
+          : base(url),
+    ),
+  );
+  const { user } = renderWithProviders(<StockRegister scope={scope} />);
+  const table = await screen.findByRole("table", {
+    name: "Stock by location and manufacturer lot",
+  });
+  expect(within(table).getByText("not reported")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Inspect TEST-500 lot TEST-LOT at TEST-Q" }));
+  const pane = within(reconciliationPane()!);
+  await pane.findByText("Closing stock");
+  expect(pane.getByText("Opening stock").nextElementSibling?.textContent).toMatch(/^not reported/);
+  expect(pane.getByRole("alert")).toHaveTextContent("These figures do not add up.");
+});

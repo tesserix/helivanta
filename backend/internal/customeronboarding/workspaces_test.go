@@ -27,7 +27,7 @@ func TestInitialWorkspaceCommandsFailClosedWithoutTheirOwnerGuard(t *testing.T) 
 }
 
 func TestInitialCustomerWorkspaceCreatesOnlyOwnedResourcesAndNeverRestoresRevokedAccess(t *testing.T) {
-	_, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{Modules: []platform.Module{iam.New(), pharmacy.New(), workforce.New()}})
+	_, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{Modules: []platform.Module{iam.New(nil), pharmacy.New(), workforce.New()}})
 	deps := platform.Deps{DB: db, PharmacyEmployers: pharmacy.New().PharmacyEmployers(db)}
 	authority := iam.NewCustomerWorkspaceAuthority(deps)
 	workforceInit := workforce.NewCustomerWorkspaceInitializer(deps)

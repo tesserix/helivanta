@@ -107,21 +107,21 @@ func TestHospitalNameShownOnlyForAVerifiedAffiliation(t *testing.T) {
 	}
 
 	a := declare()
-	require.Nil(t, list()[a])
+	requireNoName(t, list(), a)
 	req := ask(a)
-	require.Nil(t, list()[a])
+	requireNoName(t, list(), a)
 	decide(a, req, "accepted")
 	require.Equal(t, "City General", list()[a])
 	decide(a, req, "revoked")
-	require.Nil(t, list()[a])
+	requireNoName(t, list(), a)
 
 	d := declare()
 	decide(d, ask(d), "declined")
-	require.Nil(t, list()[d])
+	requireNoName(t, list(), d)
 	w := declare()
 	wreq := ask(w)
 	require.Equal(t, 200, do(r, "POST", root+w+"/verification-requests/"+wreq+"/withdraw", "editor", `{"reason":"closing"}`).Code)
-	require.Nil(t, list()[w])
+	requireNoName(t, list(), w)
 }
 
 func TestHospitalNamesStayInTheirTenant(t *testing.T) {
@@ -140,4 +140,12 @@ func TestHospitalNamesStayInTheirTenant(t *testing.T) {
 	require.Contains(t, w.Body.String(), `"verification_status":"verified"`)
 	require.Contains(t, w.Body.String(), `"hospital_name":null`)
 	require.NotContains(t, w.Body.String(), "Other Tenant Hospital")
+}
+
+// requireNoName asserts the affiliation is listed and its hospital_name is null; a missing row must not pass as "no name".
+func requireNoName(t *testing.T, names map[string]any, id string) {
+	t.Helper()
+	v, ok := names[id]
+	require.True(t, ok, "affiliation %s must be listed", id)
+	require.Nil(t, v)
 }

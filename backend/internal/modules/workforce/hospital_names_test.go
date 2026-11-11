@@ -83,6 +83,7 @@ func TestAnnouncerPublishesEachHospitalNameOnce(t *testing.T) {
 	h := newEstablishmentRouter(t, workforce.New())
 	h.rename(t, "Alpha Hospital")
 	audit := h.auditCount(t, h.hospital)
+	require.Positive(t, audit, "the rename is audited, so an unchanged count is meaningful")
 	require.NoError(t, workforce.AnnounceHospitalNamesOnce(t.Context(), h.db))
 	require.Equal(t, []workforcecontract.HospitalNamedData{{HospitalID: h.hospital, Name: "Alpha Hospital", NameVersion: 1}}, h.announced(t, h.hospital))
 	require.NoError(t, workforce.AnnounceHospitalNamesOnce(t.Context(), h.db))

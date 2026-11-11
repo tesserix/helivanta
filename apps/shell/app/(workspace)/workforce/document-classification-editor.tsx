@@ -20,7 +20,7 @@ import {
   saveDocumentClassification,
   documentClassificationInputSchema,
   documentClassificationQueryKey,
-  type DocumentScope,
+  type HospitalDocumentScope,
   type StaffDocument,
   type DocumentClassification,
   type DocumentClassificationInput,
@@ -28,7 +28,7 @@ import {
 } from "@helivanta/api";
 
 type Props = {
-  scope: DocumentScope;
+  scope: HospitalDocumentScope;
   file: StaffDocument;
   onClose: () => void;
   onContextChanged?: () => void;

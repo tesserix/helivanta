@@ -33,6 +33,7 @@ import { IndependentOperatingDuties } from "@/components/workforce/independent-o
 import { IndependentStaffLinks } from "@/components/workforce/independent-staff-links";
 import { PharmacyEnrollmentEditor } from "./pharmacy-enrollment-editor";
 import { StaffAccessPreparation } from "@/components/workforce/staff-access-preparation";
+import { PharmacyStaffDocumentPanel } from "./pharmacy-staff-documents";
 import { StaffRecordForm } from "@/components/workforce/staff-record-form";
 
 const identitySchema = z.object({
@@ -202,10 +203,12 @@ function Employer({ scope, onContextChanged, source }: SourceProps & { source: E
   const [cursor, setCursor] = useState<string | null>(null);
   const [editing, setEditing] = useState<PharmacyStaff | "new" | null>(null);
   const [enrolling, setEnrolling] = useState<PharmacyStaff | null>(null);
+  const [filing, setFiling] = useState<PharmacyStaff | null>(null);
   const query = usePharmacyStaffPage(scope, source.pharmacy_id, cursor);
   // The access level is display only; the API checks the manager row on every write.
   const manager = source.access_level === "manager";
   const enrolls = manager && can("workforce.enrollment.manage");
+  const files = manager && can("workforce.documents.manage");
   useEffect(() => {
     if (isEnrollmentAccessChanged(query.error)) onContextChanged();
   }, [query.error, onContextChanged]);
@@ -231,6 +234,7 @@ function Employer({ scope, onContextChanged, source }: SourceProps & { source: E
               onClick={() =>
                 confirmLeave(() => {
                   setEnrolling(null);
+                  setFiling(null);
                   setEditing("new");
                 })
               }
@@ -250,6 +254,7 @@ function Employer({ scope, onContextChanged, source }: SourceProps & { source: E
                     onClick={() =>
                       confirmLeave(() => {
                         setEnrolling(null);
+                        setFiling(null);
                         setEditing(row);
                       })
                     }
@@ -264,11 +269,28 @@ function Employer({ scope, onContextChanged, source }: SourceProps & { source: E
                       onClick={() =>
                         confirmLeave(() => {
                           setEditing(null);
+                          setFiling(null);
                           setEnrolling(row);
                         })
                       }
                     >
                       Enrollment
+                    </Button>
+                  )}
+                  {files && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Documents for ${row.display_name}`}
+                      onClick={() =>
+                        confirmLeave(() => {
+                          setEditing(null);
+                          setEnrolling(null);
+                          setFiling(row);
+                        })
+                      }
+                    >
+                      Documents
                     </Button>
                   )}
                 </>
@@ -297,6 +319,15 @@ function Employer({ scope, onContextChanged, source }: SourceProps & { source: E
           pharmacy={source}
           staff={enrolling}
           onClose={() => setEnrolling(null)}
+        />
+      )}
+      {files && filing && (
+        <PharmacyStaffDocumentPanel
+          key={filing.id}
+          {...{ scope, onContextChanged }}
+          pharmacy={source}
+          staff={filing}
+          onClose={() => setFiling(null)}
         />
       )}
     </>

@@ -376,6 +376,8 @@ export type PharmacyHospitalAffiliation = {
   id: string;
   pharmacy_id: string;
   hospital_id: string;
+  /** The hospital's name; set only on a verified affiliation (#1637), null otherwise. */
+  hospital_name: string | null;
   relationship: "owner" | "serving" | "partner";
   /** Derived from the verification history (#1416); only "verified" confers anything. */
   verification_status: AffiliationVerificationStatus;

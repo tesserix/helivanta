@@ -140,8 +140,13 @@ func TestLocationStorageAddressRejectsMalformedAndAcceptsBoundaries(t *testing.T
 type pharmacyBeforeStorageAddress struct{ *pharmacy.Module }
 
 func (m pharmacyBeforeStorageAddress) Migrations() []tenantdb.Migration {
-	migrations := m.Module.Migrations()
-	return migrations[:len(migrations)-1]
+	var migrations []tenantdb.Migration
+	for _, migration := range m.Module.Migrations() {
+		if migration.ID != "0008_pharmacy" {
+			migrations = append(migrations, migration)
+		}
+	}
+	return migrations
 }
 
 func TestStorageAddressMigrationPreservesLegacyRowsAndReplay(t *testing.T) {
@@ -154,6 +159,11 @@ func TestStorageAddressMigrationPreservesLegacyRowsAndReplay(t *testing.T) {
 	grantCatalogue(t, r, "user-editor", "editor")
 	id := uuid.Must(uuid.NewV7()).String()
 	require.NoError(t, catalogueTx(t, db, func(tx *gorm.DB) error {
+		var hasAddress bool
+		if err := tx.Raw(`SELECT EXISTS(SELECT 1 FROM pg_attribute WHERE attrelid='pharmacy_stock_locations'::regclass AND attname='zone_code' AND NOT attisdropped)`).Scan(&hasAddress).Error; err != nil {
+			return err
+		}
+		require.False(t, hasAddress, "fixture must precede the storage address migration")
 		return tx.Exec(`INSERT INTO pharmacy_stock_locations(id,tenant_id,outlet_id,code,name) VALUES (?,?,?,'TEST-LEGACY','TEST previous schema')`, id, testutil.TenantA, pharmaOutlet).Error
 	}))
 	migrations := pharmacy.New().Migrations()

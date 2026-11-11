@@ -30,6 +30,9 @@ func TestHospitalBusinessProfileReadIsManagerAndHospitalScoped(t *testing.T) {
 	raw, err := json.Marshal(profile)
 	require.NoError(t, err)
 	require.NoError(t, db.WithTenant(tenantdb.WithActor(t.Context(), "synthetic-profile-fixture"), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.workforce_subject','synthetic-profile-fixture',true)`).Error; err != nil {
+			return err
+		}
 		return tx.Exec("UPDATE workforce_hospitals SET onboarding_profile=?::jsonb WHERE tenant_id=? AND id=?", string(raw), testutil.TenantA, id).Error
 	}))
 	result = testutil.Do(r, "GET", root+"/business-profile", "admin", "")

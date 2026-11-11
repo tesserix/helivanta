@@ -28,8 +28,10 @@ func TestPharmacyBusinessProfileReadIsManagerAndTenantScoped(t *testing.T) {
 	profile.MainBranch.Address.Line1 = "20 Branch Road"
 	raw, err := json.Marshal(profile)
 	require.NoError(t, err)
+	id = uuid.Must(uuid.NewV7()).String()
+	root = "/v1/pharmacy/pharmacies/" + id
 	require.NoError(t, db.WithTenant(tenantdb.WithActor(t.Context(), "synthetic-profile-fixture"), testutil.TenantA, func(tx *gorm.DB) error {
-		return tx.Exec("UPDATE pharmacy_organizations SET onboarding_profile=?::jsonb WHERE tenant_id=? AND id=?", string(raw), testutil.TenantA, id).Error
+		return tx.Exec("INSERT INTO pharmacy_organizations(id,tenant_id,code,name,ownership_type,onboarding_profile) VALUES(?,?,'TEST-PROFILE-STORED','TEST Pharmacy','independent',?::jsonb)", id, testutil.TenantA, string(raw)).Error
 	}))
 	result = testutil.Do(r, "GET", root+"/business-profile", "admin", "")
 	require.Equal(t, 200, result.Code, result.Body.String())

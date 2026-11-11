@@ -42,13 +42,20 @@ func consumer(t *testing.T, m platform.Module, name string) events.Consumer {
 	return events.Consumer{}
 }
 
+// noConsumers registers a module's routes and migrations but none of its
+// consumers, so the harness bus delivers nothing: every delivery in these
+// tests is a manual hand-off, and one not handed off is genuinely lost.
+type noConsumers struct{ platform.Module }
+
+func (noConsumers) Consumers(platform.Deps) []events.Consumer { return nil }
+
 func newNameRecovery(t *testing.T) *nameRecovery {
 	t.Helper()
 	wf, ph := workforce.New(), pharmacy.New()
 	router, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens:  map[string]string{"admin": testutil.TenantA},
 		Perms:   map[string][]authz.Permission{"admin": {workforce.PermHospitalManage}},
-		Modules: []platform.Module{wf, ph},
+		Modules: []platform.Module{noConsumers{wf}, noConsumers{ph}},
 	})
 	return &nameRecovery{router: router, db: db, hospital: uuid.Must(uuid.NewV7()).String(),
 		names: consumer(t, ph, "pharmacy-hospital-names"), receipts: consumer(t, wf, "workforce-hospital-name-receipt")}
@@ -137,6 +144,10 @@ func (r *nameRecovery) next(t *testing.T) *time.Time {
 	return row.NextAttemptAt
 }
 
+// settle gives the harness's outbox dispatcher (500 ms tick) time to deliver
+// anything it would, so a loss asserted afterwards is not just "not yet".
+func settle() { time.Sleep(time.Second) }
+
 // lost leaves pharmacy without the current name: the first announcement, or
 // a rename after an earlier name arrived, is announced and dead-letters.
 func lost(t *testing.T, rename bool) *nameRecovery {
@@ -152,6 +163,7 @@ func lost(t *testing.T, rename bool) *nameRecovery {
 		r.pass(t)
 		want = "Alpha Hospital"
 	}
+	settle()
 	require.Equal(t, want, r.pharmacyName(t), "the announcement was not delivered")
 	return r
 }
@@ -185,8 +197,9 @@ func TestDeadLetteredHospitalNameRecoversAfterALostConfirmation(t *testing.T) {
 			r := lost(t, rename)
 			r.resend(t)
 			r.toPharmacy(t) // its confirmation is dropped
+			settle()
 			require.Equal(t, currentName(rename), r.pharmacyName(t))
-			require.NotNil(t, r.next(t))
+			require.NotNil(t, r.next(t), "the dropped confirmation reached workforce")
 			r.resend(t)
 			r.toPharmacy(t)
 			r.toWorkforce(t)

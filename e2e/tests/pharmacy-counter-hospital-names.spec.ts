@@ -12,13 +12,19 @@ test("the counter's Hospital picker shows the hospital's name, not its id", asyn
 }) => {
   test.setTimeout(180_000);
   const fixture = await readyOutlet(page, browser);
-  const { cashier, outlet } = fixture;
+  const { cashier, outlet, sku } = fixture;
   try {
     const patient = await affiliatedPatient(page, cashier, outlet);
     await expect
       .poll(
         async () => {
+          // A fresh page and quote per attempt: the Customer picker exists only
+          // once the basket is priced, and a reload drops cached affiliations.
           await cashier.goto("/pharmacy/counter");
+          await choose(cashier, "Product", new RegExp(sku));
+          await cashier.getByLabel("Units", { exact: true }).fill("1");
+          await cashier.getByRole("button", { name: "Add to basket", exact: true }).click();
+          await cashier.getByRole("button", { name: "Price basket", exact: true }).click();
           await choose(cashier, "Customer", "Registered patient");
           await cashier.getByRole("combobox", { name: "Hospital", exact: true }).click();
           const options = await cashier.getByRole("option").allTextContents();

@@ -472,6 +472,16 @@ identity and become owners of the new organisation through the existing controll
 membership path. Public progress remains generic. The final workspace sign-in
 selects the new tenant and still requires current membership.
 
+Native email verification and password setup links currently expire after one
+hour, enforced by Zitadel. Initial mail and email/password resends share three
+attempts per one-hour window and ten per rolling 24 hours per signup, including
+provider failures. Requests for an already verified email generate no new
+verification code or email. Password setup remains separate until credential
+completion is recorded. Unknown, completed and quota-limited delivery requests
+retain generic public responses; the UI must not claim that a request guarantees
+mail delivery. The onboarding owner serializes quota reservations on the signup
+row and appends them to its existing indexed audit ledger before remote I/O.
+
 `GET /v1/iam/me/security` reads current native owner MFA enforcement;
 `POST /v1/iam/me/security` requests the managed minimum again. Both require
 `iam.member.manage`, verified current tenant membership, locked current IAM
@@ -495,3 +505,27 @@ coverage and zero enrollment grace. Revision conflicts require a fresh read;
 identity/audit failures return unavailable. Preserved legacy policies cannot be
 cut over through this panel. No disabling control, secret, recovery code or
 second native-policy configuration owner is introduced.
+
+### Explicit security-key continuation
+
+`POST /v1/auth/login/password` may return HTTP 200
+`{"security_key_required":{"url":"https://<configured issuer>/ui/v2/login/password?requestId=oidc_<same request>&loginName=<native verified login name>"}}`
+after the password is verified and U2F is the only additional enrolled method
+(PASSWORD and linked IDP are neutral). This alternative contains no
+`callback_url`, native session token or tenant grant. Its native URL carries the
+canonical login name from the same password-verified session, as required by the
+native password page; the URL is not logged. The native
+session must contain a dated password proof; the same native auth request must
+still exist, match and belong to this deployment’s configured OIDC web client.
+Foreign-client requests fail closed. Unsupported/mixed methods retain the existing refusal.
+Expired requests return `auth_request_invalid`; unavailable or unprovable native
+state returns `zitadel_unavailable`.
+
+The UI validates HTTPS, exact configured issuer origin, fixed native path and
+exact auth-request query, clears credential state and offers an explicit
+**Continue with security key** action. It does not automatically navigate or
+finalize the password-only session. Native Login V2 collects the key on its
+registered relying-party origin and returns through the original OIDC callback.
+Existing state/PKCE, token verification, fresh-auth signup binding, revocation,
+verified membership and resource scope remain required. See
+[ADR-0069](../../adr/0069-explicit-native-security-key-continuation.md).

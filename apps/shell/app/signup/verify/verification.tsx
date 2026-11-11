@@ -29,10 +29,16 @@ export function SignupVerification() {
   const form = useZodForm(passwordForm, { password: "", confirmation: "" });
   const verify = useApiMutation(verifyCustomerEmail, { gcTime: 0, suppressErrorToast: true });
   const password = useApiMutation(setCustomerPassword, { gcTime: 0, suppressErrorToast: true });
-  const delivery = useApiMutation(() => sendCustomerLink("password", { userId: link?.userId }), {
-    gcTime: 0,
-    suppressErrorToast: true,
-  });
+  const delivery = useApiMutation(
+    () =>
+      sendCustomerLink(completed === "email" ? "password" : (link?.phase ?? "email"), {
+        userId: link?.userId,
+      }),
+    {
+      gcTime: 0,
+      suppressErrorToast: true,
+    },
+  );
   async function prove(secret?: string) {
     if (!link || !link.code) return;
     setProblem(false);
@@ -76,15 +82,14 @@ export function SignupVerification() {
       <div className="space-y-5">
         <h1 className="text-2xl font-medium">Your email is verified</h1>
         <p>Request a password setup email to finish creating your login.</p>
-        <Button
-          type="button"
-          disabled={delivery.isPending || delivery.isSuccess}
-          onClick={() => delivery.mutate()}
-        >
+        <EmailDeliveryPolicy />
+        <Button type="button" disabled={delivery.isPending} onClick={() => delivery.mutate()}>
           Send password setup email
         </Button>
         {delivery.isSuccess && (
-          <p role="status">Open the password setup email to choose your password.</p>
+          <p role="status">
+            If this request can receive an email, a password setup link has been requested.
+          </p>
         )}
         {delivery.error && <p role="alert">We could not request the email. Try again later.</p>}
         <a className="block underline underline-offset-4" href="/signup">
@@ -98,9 +103,11 @@ export function SignupVerification() {
       <h1 className="text-2xl font-medium">
         {link.phase === "email" ? "Verify your email address" : "Set your password"}
       </h1>
+      <EmailDeliveryPolicy />
       {problem && (
         <p role="alert">
-          This request could not be completed. Check your password or request a fresh email link.
+          This link may have expired or already been used. Check your password or request a fresh
+          email link.
         </p>
       )}
       {link.phase === "email" ? (
@@ -195,4 +202,18 @@ function signupLinkStore() {
       for (const listener of listeners) listener();
     },
   };
+}
+
+function EmailDeliveryPolicy() {
+  return (
+    <>
+      <p className="text-sm text-muted-foreground">
+        Links expire after 1 hour. If yours has expired, request a fresh email link below.
+      </p>
+      <p className="text-sm text-muted-foreground">
+        Up to 3 emails per hour and 10 per 24 hours, shared across verification and password setup.
+        Verified email addresses do not receive another verification email.
+      </p>
+    </>
+  );
 }

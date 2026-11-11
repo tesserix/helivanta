@@ -141,3 +141,38 @@ for (const kind of ["hospital", "pharmacy"] as const) {
     await expect(page.getByText("Your workspace is ready")).toHaveCount(0);
   });
 }
+
+test("expired email proof offers a fresh verification link with expiry and shared delivery limits", async ({
+  page,
+}) => {
+  const deliveries: string[] = [];
+  await page.route("**/api/v1/auth/signup/verify-email", (route) =>
+    route.fulfill({
+      status: 400,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "invalid_request", message: "Invalid proof" }),
+    }),
+  );
+  await page.route("**/api/v1/auth/signup/*-link", (route) => {
+    deliveries.push(new URL(route.request().url()).pathname);
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ state: "email_action_required" }),
+    });
+  });
+  await page.goto("/signup/verify#phase=email&userId=owner-synthetic&code=expired-proof");
+  await expect(page.getByText(/Links expire after 1 hour/)).toBeVisible();
+  await expect(page.getByText(/3 emails per hour and 10 per 24 hours/)).toBeVisible();
+  await expect.poll(() => new URL(page.url()).hash).toBe("");
+  expect(deliveries).toEqual([]);
+  await page.getByRole("button", { name: "Verify email address" }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "This link may have expired" }),
+  ).toHaveText(
+    "This link may have expired or already been used. Check your password or request a fresh email link.",
+  );
+  await page.getByRole("button", { name: "Request a fresh email link" }).click();
+  await expect.poll(() => deliveries).toEqual(["/api/v1/auth/signup/email-link"]);
+  await expect(page.getByRole("status")).toContainText("If this request can receive an email");
+});

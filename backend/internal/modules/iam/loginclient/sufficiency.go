@@ -14,9 +14,11 @@ import (
 //
 // There is no "hand off to Zitadel's hosted login" outcome. There used to be
 // (OutcomeHandoff); it was deleted by #947 because Helivanta's users never see
-// Zitadel's UI, and because the handoff URL stranded them on Zitadel's
+// automatic hosted-login UI, and because the old handoff URL stranded them on Zitadel's
 // "You are signed in" page. See
 // docs/superpowers/specs/2026-10-07-no-hosted-login-handoff-design.md.
+// ADR-0069 adds an explicit native-origin security-key action in the handler;
+// classification still refuses to finalize a password-only U2F session.
 type Outcome int
 
 const (

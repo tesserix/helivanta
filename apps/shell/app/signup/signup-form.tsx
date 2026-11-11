@@ -268,6 +268,10 @@ function SignupStatus({
               {signingIn ? "Opening sign-in…" : "Continue with an existing account"}
             </Button>
           )}
+          <p className="text-sm text-muted-foreground">
+            Links expire after 1 hour. Up to 3 emails per hour and 10 per 24 hours, including the
+            first email and password setup. Verification emails stop once your email is verified.
+          </p>
           {resend.isSuccess && (
             <p role="status" className="text-sm text-muted-foreground">
               If this request can receive an email, a link has been requested.

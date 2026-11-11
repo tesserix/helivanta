@@ -10,9 +10,9 @@ import (
 
 // SecurityKeyLoginURL continues the same request on its existing relying-party
 // origin (ADR-0069). It neither finalizes nor exports the password-only session.
-func (c *Client) SecurityKeyLoginURL(ctx context.Context, requestID string, s Session) (string, error) {
+func (c *Client) SecurityKeyLoginURL(ctx context.Context, requestID string, s Session, expectedClientID string) (string, error) {
 	issuer, err := url.Parse(c.baseURL)
-	if err != nil || issuer.Scheme != "https" || issuer.Host == "" || issuer.User != nil || (issuer.Path != "" && issuer.Path != "/") || issuer.RawQuery != "" || issuer.Fragment != "" || s.ID == "" || s.Token == "" {
+	if err != nil || issuer.Scheme != "https" || issuer.Host == "" || issuer.User != nil || (issuer.Path != "" && issuer.Path != "/") || issuer.RawQuery != "" || issuer.Fragment != "" || s.ID == "" || s.Token == "" || expectedClientID == "" {
 		return "", fmt.Errorf("security key issuer or session unavailable: %w", ErrUnavailable)
 	}
 	var wire struct {
@@ -44,6 +44,9 @@ func (c *Client) SecurityKeyLoginURL(ctx context.Context, requestID string, s Se
 	}
 	if ar.ID != requestID || ar.ClientID == "" || ar.RedirectURI == "" {
 		return "", ErrUnavailable
+	}
+	if ar.ClientID != expectedClientID {
+		return "", ErrAuthRequestInvalid
 	}
 	issuer.Path = "/ui/v2/login/password"
 	issuer.RawQuery = url.Values{"requestId": {"oidc_" + requestID}, "loginName": {wire.Session.Factors.User.LoginName}}.Encode()

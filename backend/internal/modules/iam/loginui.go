@@ -142,16 +142,17 @@ const loginAttemptTTL = 5 * time.Minute
 // request, checking a password, checking a native TOTP factor when the
 // password step alone was not enough, and changing a password that must
 // change before the login completes. When Helivanta cannot complete a login
-// it REFUSES it in its own words; it never hands the browser to Zitadel's
-// hosted login (#947). Like LoginHandlers (login.go), all four are mounted
+// it refuses in its own words. ADR-0069 adds an explicit native-origin
+// security-key action; no refusal automatically redirects. Like LoginHandlers (login.go), all four are mounted
 // OUTSIDE the authenticated /v1 chain via bootstrap.MountUnauthenticated —
 // there is no Helivanta session, and for Password/Factor/PasswordChange no
 // verified subject at all, until AFTER they succeed.
 type LoginUIHandlers struct {
-	client  *loginclient.Client
-	store   *loginAttemptStore
-	limiter ratelimit.Limiter
-	limit   ratelimit.Rule
+	client            *loginclient.Client
+	nativeWebClientID string
+	store             *loginAttemptStore
+	limiter           ratelimit.Limiter
+	limit             ratelimit.Rule
 	// factorLimit is POST /v1/auth/login/factor's OWN budget — see
 	// factorRateBucket's doc comment on why a six-digit guessing
 	// endpoint cannot share limit (Password/AuthRequest's

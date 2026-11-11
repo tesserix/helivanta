@@ -622,6 +622,7 @@ func run() error {
 	// the Rule but not the bucket (iam's enrollRateBucket).
 	loginUIHandlers := iam.NewLoginUIHandlers(zitadelLoginClient, db,
 		limiter, bootstrap.LoginRateLimitRule(cfg), bootstrap.FactorRateLimitRule(cfg))
+	loginUIHandlers.SetNativeWebClientID(cfg.ZitadelClientID)
 
 	// Mounted through bootstrap so the bypass is declared in one
 	// enumerable place and pinned by

@@ -17,6 +17,9 @@ type securityKeyRequiredResponse struct {
 }
 
 func (h *LoginUIHandlers) securityKeyContinuation(c *gin.Context, requestID string, s loginclient.Session, result loginclient.Result) bool {
+	if h.nativeWebClientID == "" {
+		return false
+	}
 	if result.Outcome != loginclient.OutcomeRefused || result.Reason != loginclient.RefusalFactorUnsupported {
 		return false
 	}
@@ -33,7 +36,7 @@ func (h *LoginUIHandlers) securityKeyContinuation(c *gin.Context, requestID stri
 	if !key {
 		return false
 	}
-	target, err := h.client.SecurityKeyLoginURL(c.Request.Context(), requestID, s)
+	target, err := h.client.SecurityKeyLoginURL(c.Request.Context(), requestID, s, h.nativeWebClientID)
 	if err != nil {
 		h.respondLoginClientError(c, err, "security_key_continuation")
 		return true
@@ -44,3 +47,6 @@ func (h *LoginUIHandlers) securityKeyContinuation(c *gin.Context, requestID stri
 	respond.OK(c, body)
 	return true
 }
+
+// SetNativeWebClientID binds the native-key action to this deployment's OIDC client.
+func (h *LoginUIHandlers) SetNativeWebClientID(clientID string) { h.nativeWebClientID = clientID }

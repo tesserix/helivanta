@@ -33,7 +33,8 @@ Keep Helivanta password/TOTP/enrolment/change flows. When the accepted password
 has exactly a U2F additional method (PASSWORD and linked IDP are neutral), offer
 `security_key_required: {url}` as an additive password-response alternative.
 The server independently confirms a password-verified native session and rereads
-the same active native auth request. The URL uses only the configured HTTPS
+the same active native auth request, bound to this deployment’s configured
+web OIDC client ID. Foreign-client requests fail closed. The URL uses only the configured HTTPS
 issuer origin, fixed native Login V2 password path, the native canonical login
 name from the same password-verified session, and `requestId=oidc_<same ID>`.
 The native password route supports user discovery without a prior native UI

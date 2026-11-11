@@ -516,7 +516,8 @@ after the password is verified and U2F is the only additional enrolled method
 canonical login name from the same password-verified session, as required by the
 native password page; the URL is not logged. The native
 session must contain a dated password proof; the same native auth request must
-still exist and match. Unsupported/mixed methods retain the existing refusal.
+still exist, match and belong to this deployment’s configured OIDC web client.
+Foreign-client requests fail closed. Unsupported/mixed methods retain the existing refusal.
 Expired requests return `auth_request_invalid`; unavailable or unprovable native
 state returns `zitadel_unavailable`.
 

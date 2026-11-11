@@ -85,8 +85,8 @@ function Register({ hospital }: { hospital: Hospital }) {
   const [within, setWithin] = useState<number | null>(null);
   const allowed = can("workforce.enrollment.manage");
   const rows = useApiPagedQuery<CredentialRegisterEntry>(
-    credentialRegisterKey(hospital.id),
-    credentialRegisterPath(hospital.id, within),
+    credentialRegisterKey({ hospitalId: hospital.id }),
+    credentialRegisterPath({ hospitalId: hospital.id }, within),
     { enabled: allowed, request: { cache: "no-store" } },
   );
   if (!allowed)

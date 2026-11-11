@@ -107,8 +107,8 @@ function Reminders({ hospital }: { hospital: Hospital }) {
   const { can } = usePermissions();
   const allowed = can("workforce.enrollment.manage");
   const policy = useApiQuery<CredentialReminderPolicy>(
-    credentialReminderPolicyKey(hospital.id),
-    credentialReminderPolicyPath(hospital.id),
+    credentialReminderPolicyKey({ hospitalId: hospital.id }),
+    credentialReminderPolicyPath({ hospitalId: hospital.id }),
     { enabled: allowed, gcTime: 0, refetchOnWindowFocus: false, request: { cache: "no-store" } },
   );
   if (!allowed)
@@ -146,9 +146,10 @@ function PolicyForm({
     days: policy.thresholds.join(", "),
   });
   const save = useApiMutation(
-    (days: number[]) => saveCredentialReminderPolicy(hospital.id, policy.version, days),
+    (days: number[]) =>
+      saveCredentialReminderPolicy({ hospitalId: hospital.id }, policy.version, days),
     {
-      invalidate: [credentialReminderPolicyKey(hospital.id)],
+      invalidate: [credentialReminderPolicyKey({ hospitalId: hospital.id })],
       successToast: "Reminder days saved",
       suppressErrorToast: true,
     },
@@ -198,13 +199,16 @@ function PolicyForm({
 function Inbox({ hospital }: { hospital: Hospital }) {
   const [status, setStatus] = useState<CredentialReminderStatus>("open");
   const rows = useApiPagedQuery<CredentialReminder>(
-    [...credentialRemindersKey(hospital.id), status],
-    credentialRemindersPath(hospital.id, status),
+    [...credentialRemindersKey({ hospitalId: hospital.id }), status],
+    credentialRemindersPath({ hospitalId: hospital.id }, status),
     { request: { cache: "no-store" } },
   );
   const acknowledge = useApiMutation(
-    (reminder: string) => acknowledgeCredentialReminder(hospital.id, reminder),
-    { invalidate: [credentialRemindersKey(hospital.id)], successToast: "Reminder acknowledged" },
+    (reminder: string) => acknowledgeCredentialReminder({ hospitalId: hospital.id }, reminder),
+    {
+      invalidate: [credentialRemindersKey({ hospitalId: hospital.id })],
+      successToast: "Reminder acknowledged",
+    },
   );
   return (
     <section aria-label="Reminder inbox" className="space-y-4">

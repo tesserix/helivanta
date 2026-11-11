@@ -12872,7 +12872,7 @@
         },
         {
           "id": "0096_workforce_hospital_names",
-          "sql_sha256": "2c09f421d715e0af64fa84be449d72a8004fd36cdd0a1c505d8d0c375b8e6633",
+          "sql_sha256": "559c8943a5f7eba6b7569e7e8871cb2666cd9f50267b9db36934526562e8cf67",
           "creates_tables": [
             "workforce_hospital_name_announcements"
           ]

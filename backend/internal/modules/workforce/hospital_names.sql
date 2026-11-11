@@ -1,3 +1,5 @@
+SET LOCAL lock_timeout='5s';
+SET LOCAL statement_timeout='60s';
 -- A hospital's name is versioned by the database so that no writer can skip or set a version.
 ALTER TABLE workforce_hospitals ADD COLUMN name_version bigint NOT NULL DEFAULT 1 CHECK (name_version >= 1);
 

@@ -1520,6 +1520,7 @@ Subscriptions:
 - `workforce-department-link-observation` ← `helivanta.in.organization.department_link_observed.v1`; after-commit hook: false.
 - `workforce-assignment-scope` ← `helivanta.in.iam.assignment_scope_requested.v1`; after-commit hook: false.
 - `workforce-organization-reference` ← `helivanta.in.organization.hospital_reference_requested.v1`; after-commit hook: false.
+- `workforce-hospital-name-receipt` ← `helivanta.in.pharmacy.hospital_name_received.v1`; after-commit hook: false.
 - `workforce-document-scan` ← `helivanta.in.workforce.document_scan_requested.v1`; after-commit hook: true.
 - `workforce-credential-reminders` ← `helivanta.in.workforce.credential_validity_changed.v1`; after-commit hook: true.
 

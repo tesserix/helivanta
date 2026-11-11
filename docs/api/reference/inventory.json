@@ -11933,6 +11933,11 @@
           "after_commit": false
         },
         {
+          "name": "workforce-hospital-name-receipt",
+          "subject": "helivanta.in.pharmacy.hospital_name_received.v1",
+          "after_commit": false
+        },
+        {
           "name": "workforce-document-scan",
           "subject": "helivanta.in.workforce.document_scan_requested.v1",
           "after_commit": true
@@ -12972,6 +12977,11 @@
         {
           "id": "0098_workforce_pharmacy_documents",
           "sql_sha256": "4f41d8473ed8a9d5b0e6033ba769b90646ff30ab6308e3e7889e67da58a0a64d",
+          "creates_tables": []
+        },
+        {
+          "id": "0099_workforce_hospital_name_receipts",
+          "sql_sha256": "a5fceaefbeb460c42dd79232a4cb059dd50add756fbf774a722bdf7920b412f3",
           "creates_tables": []
         }
       ]

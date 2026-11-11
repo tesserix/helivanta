@@ -72,9 +72,9 @@ ORDER BY h.tenant_id,h.id LIMIT ?`, hospitalNameBatch).Scan(&due).Error
 			if row.NameVersion == 0 {
 				return nil
 			}
-			claim := tx.Exec(`INSERT INTO workforce_hospital_name_announcements(tenant_id,hospital_id,announced_version) VALUES(?,?,?)
-ON CONFLICT(tenant_id,hospital_id) DO UPDATE SET announced_version=EXCLUDED.announced_version,updated_at=clock_timestamp()
-WHERE workforce_hospital_name_announcements.announced_version<EXCLUDED.announced_version`, d.TenantID, d.ID, row.NameVersion)
+			claim := tx.Exec(`INSERT INTO workforce_hospital_name_announcements(tenant_id,hospital_id,announced_version,attempts,next_attempt_at) VALUES(?,?,?,0,clock_timestamp()+make_interval(secs => ?))
+ON CONFLICT(tenant_id,hospital_id) DO UPDATE SET announced_version=EXCLUDED.announced_version,attempts=0,next_attempt_at=EXCLUDED.next_attempt_at,updated_at=clock_timestamp()
+WHERE workforce_hospital_name_announcements.announced_version<EXCLUDED.announced_version`, d.TenantID, d.ID, row.NameVersion, firstRedelivery.Seconds())
 			if claim.Error != nil || claim.RowsAffected == 0 {
 				return claim.Error // zero rows: this version was already announced
 			}

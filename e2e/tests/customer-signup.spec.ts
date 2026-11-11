@@ -167,7 +167,11 @@ test("expired email proof offers a fresh verification link with expiry and share
   await expect.poll(() => new URL(page.url()).hash).toBe("");
   expect(deliveries).toEqual([]);
   await page.getByRole("button", { name: "Verify email address" }).click();
-  await expect(page.getByRole("alert")).toContainText("expired");
+  await expect(
+    page.getByRole("alert").filter({ hasText: "This link may have expired" }),
+  ).toHaveText(
+    "This link may have expired or already been used. Check your password or request a fresh email link.",
+  );
   await page.getByRole("button", { name: "Request a fresh email link" }).click();
   await expect.poll(() => deliveries).toEqual(["/api/v1/auth/signup/email-link"]);
   await expect(page.getByRole("status")).toContainText("If this request can receive an email");

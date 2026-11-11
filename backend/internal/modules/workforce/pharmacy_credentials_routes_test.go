@@ -23,7 +23,7 @@ type pharmacyCredentials struct {
 	reviewed int
 }
 
-// newPharmacyCredentials adds pharmacy managers who may decide reviews: "reviewer", "independent" and "linked".
+// newPharmacyCredentials adds pharmacy managers who may decide reviews: "reviewer", "independent" and "linked"; "documents" manages without enrollment.
 func newPharmacyCredentials(t *testing.T) *pharmacyCredentials {
 	t.Helper()
 	review := []authz.Permission{workforce.PermEnrollmentManage, workforce.PermCredentialReview}
@@ -32,9 +32,11 @@ func newPharmacyCredentials(t *testing.T) *pharmacyCredentials {
 		"outsider":    review,
 		"independent": review,
 		"linked":      review,
+		"documents":   {workforce.PermDocumentManage},
+		"foreign":     {workforce.PermHospitalManage, workforce.PermEnrollmentManage, workforce.PermDocumentManage, workforce.PermCredentialReview},
 		"reviewer":    {workforce.PermEnrollmentManage, workforce.PermDocumentManage, workforce.PermCredentialReview},
 	})
-	for _, subject := range []string{"user-reviewer", "user-independent", "user-linked"} {
+	for _, subject := range []string{"user-reviewer", "user-independent", "user-linked", "user-documents"} {
 		grant(t, d.establishmentHarness, d.pharmacy, subject, "manager")
 	}
 	return &pharmacyCredentials{pharmacyDocuments: d}
@@ -442,4 +444,161 @@ func TestPharmacyCredentialRemindersFollowThePharmacyZone(t *testing.T) {
 		statuses[p["status"].(string)]++
 	}
 	require.Equal(t, map[string]int{"open": 2, "acknowledged": 1, "superseded": 1}, statuses)
+}
+
+func TestPharmacyCredentialRoutesRefuseCallersOutsideTheirAuthority(t *testing.T) {
+	d := newPharmacyCredentials(t)
+	h := d.establishmentHarness
+	day := d.days(t, "Asia/Kolkata")
+	d.approve(t, day(-400), day(10))
+	code, out := d.hr(t, "admin", "PUT", "/time-zone", map[string]any{"expected_version": 0, "time_zone": "Asia/Kolkata"})
+	require.Equal(t, 200, code, out)
+	code, out = d.hr(t, "admin", "PUT", "/credential-reminder-policy", map[string]any{"expected_version": 0, "thresholds": []int{30, 7, 0}})
+	require.Equal(t, 200, code, out)
+	d.advance(t, d.reviewed)
+	open := d.reminders(t, "open")
+	require.Len(t, open, 1)
+	review := uuid.Must(uuid.NewV7()).String()
+	proposal := reviewBody(d.reviewed, day(300), d.evidence(t))
+	code, out = d.call(t, "admin", "PUT", pharmacyReviewPath(review, ""), proposal)
+	require.Equal(t, 200, code, out)
+
+	other := h.pharmacy(t, "independent")
+	grant(t, h, other, "user-admin", "manager")
+	grant(t, h, other, "user-reviewer", "manager")
+	elsewhere := uuid.Must(uuid.NewV7()).String()
+	require.Equal(t, 200, pharmacyRequest(h, "admin", "PUT", enrollmentPath(other, elsewhere), string(mustJSON(t, pharmacyEnrollmentInput(0, "active")))).Code)
+	require.Equal(t, 200, testutil.Do(h.router, "PUT", "/v1/workforce/hospitals/"+h.hospital+"/access/user-reviewer", "admin", `{"level":"manager"}`).Code)
+	hospitalStaff := uuid.Must(uuid.NewV7()).String()
+	w := testutil.Do(h.router, "PUT", "/v1/workforce/hospitals/"+h.hospital+"/staff/"+hospitalStaff+"/enrollment", "admin", `{"expected_version":0,"staff":{"employee_code":"SYN-HOSPITAL-CRED","display_name":"Synthetic nurse","job_category":"nurse","employment_status":"active"},"credentials":[{"id":"`+pharmacyCredentialID+`","type":"registration","number":"SYN-NURSE-1","issuer":"Synthetic nursing council"}]}`)
+	require.Equal(t, 200, w.Code, w.Body.String())
+	supplier, supplierStaff := h.supplierStaff(t)
+	require.NoError(t, h.tx(t, supplier, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO workforce_hospital_access(tenant_id,hospital_id,subject,level) VALUES(?,?,'user-reviewer','manager')`, testutil.TenantA, supplier).Error
+	}))
+
+	decision := map[string]any{"expected_version": d.reviewed, "decision": "approve", "note": ""}
+	// control is a permitted caller's answer on the real records, so a mistyped route cannot pass as a refusal; the decision and withdrawal controls conflict instead of writing.
+	policy, zone := map[string]any{"expected_version": 1, "thresholds": []int{30, 7, 0}}, map[string]any{"expected_version": 1, "time_zone": "Asia/Kolkata"}
+	routes := []struct {
+		name, method, path string
+		staff, review      bool
+		body, controlBody  any
+		controller         string
+		control            int
+	}{
+		{"credentials", "GET", "/credentials", true, false, nil, nil, "admin", 200},
+		{"review history", "GET", "/credentials/{credential}/reviews", true, false, nil, nil, "admin", 200},
+		{"proposal", "PUT", "/credentials/{credential}/reviews/{review}", true, false, proposal, proposal, "admin", 200},
+		{"decision", "POST", "/credentials/{credential}/reviews/{review}/decision", true, true, decision, map[string]any{"expected_version": d.reviewed + 5, "decision": "approve", "note": ""}, "reviewer", 409},
+		{"withdrawal", "POST", "/credentials/{credential}/reviews/{review}/withdraw", true, false, map[string]any{"note": ""}, map[string]any{"note": ""}, "reviewer", 409},
+		{"register", "GET", "/hr/credentials", false, false, nil, nil, "admin", 200},
+		{"policy", "GET", "/hr/credential-reminder-policy", false, false, nil, nil, "admin", 200},
+		{"policy save", "PUT", "/hr/credential-reminder-policy", false, false, policy, policy, "admin", 200},
+		{"reminders", "GET", "/hr/credential-reminders", false, false, nil, nil, "admin", 200},
+		{"acknowledgement", "POST", "/hr/credential-reminders/{reminder}/acknowledgement", false, false, nil, nil, "admin", 200},
+		{"time zone", "GET", "/hr/time-zone", false, false, nil, nil, "admin", 200},
+		{"time zone save", "PUT", "/hr/time-zone", false, false, zone, zone, "admin", 200},
+	}
+	ids := strings.NewReplacer("{credential}", pharmacyCredentialID, "{review}", review, "{reminder}", open[0]["id"].(string))
+	target := func(path string, staffRoute bool, pharmacy, staff string) string {
+		if staffRoute {
+			return d.path(pharmacy, staff, ids.Replace(path))
+		}
+		return pharmacy + ids.Replace(path)
+	}
+	encode := func(body any) string {
+		if body == nil {
+			return ""
+		}
+		return string(mustJSON(t, body))
+	}
+	writes := func() []int64 {
+		counts := []int64{}
+		for _, establishment := range []string{d.pharmacy, other, h.hospital, supplier} {
+			counts = append(counts, h.count(t, establishment, "workforce_audit", "hospital_id=?", establishment))
+		}
+		return append(counts, h.count(t, d.pharmacy, "outbox_events", "tenant_id=?", testutil.TenantA),
+			h.count(t, d.pharmacy, "workforce_credential_reviews", "hospital_id=? AND status='pending'", d.pharmacy),
+			h.count(t, d.pharmacy, "workforce_credential_reminders", "hospital_id=? AND status='open'", d.pharmacy))
+	}
+	before := writes()
+
+	cases := map[string]struct {
+		token, reviewToken, pharmacy, staff string
+		staffOnly                           bool
+		status                              int
+	}{
+		"a reader":                 {"reader", "reader", d.pharmacy, d.staff, false, 404},
+		"no access row":            {"outsider", "outsider", d.pharmacy, d.staff, false, 404},
+		"no permission":            {"documents", "admin", d.pharmacy, d.staff, false, 403},
+		"a hospital ID":            {"admin", "reviewer", h.hospital, hospitalStaff, false, 404},
+		"a supplier ID":            {"admin", "reviewer", supplier, supplierStaff, false, 404},
+		"an unregistered pharmacy": {"admin", "reviewer", uuid.Must(uuid.NewV7()).String(), d.staff, false, 404},
+		"a foreign tenant":         {"foreign", "foreign", d.pharmacy, d.staff, false, 404},
+		"a missing Staff record":   {"admin", "reviewer", d.pharmacy, uuid.Must(uuid.NewV7()).String(), true, 404},
+		"another pharmacy's Staff": {"admin", "reviewer", d.pharmacy, elsewhere, true, 404},
+		"a hospital Staff record":  {"admin", "reviewer", d.pharmacy, hospitalStaff, true, 404},
+	}
+	for name, call := range cases {
+		for _, route := range routes {
+			if call.staffOnly && !route.staff {
+				continue
+			}
+			token := call.token
+			if route.review {
+				token = call.reviewToken
+			}
+			t.Run(route.name+" "+name, func(t *testing.T) {
+				w := pharmacyRequest(h, token, route.method, target(route.path, route.staff, call.pharmacy, call.staff), encode(route.body))
+				require.Equal(t, call.status, w.Code, w.Body.String())
+				require.NotContains(t, w.Body.String(), "SYN-RENEWED")
+				require.NotContains(t, w.Body.String(), "SYN-PH-ENR")
+			})
+		}
+	}
+	for _, route := range routes {
+		token := "admin"
+		if route.review {
+			token = "reviewer"
+		}
+		path := target(route.path, route.staff, d.pharmacy, d.staff)
+		t.Run(route.name+" the HR intake view", func(t *testing.T) {
+			separator := "?"
+			if strings.Contains(path, "?") {
+				separator = "&"
+			}
+			w := pharmacyRequest(h, token, route.method, path+separator+"hr_intake=v1", encode(route.body))
+			require.Equal(t, 400, w.Code, w.Body.String())
+		})
+		for name, headers := range map[string]map[string][]string{
+			"a changed subject":   {"X-Helivanta-Expected-Tenant": {testutil.TenantA}, "X-Helivanta-Expected-Subject": {"user-other"}},
+			"a missing subject":   {"X-Helivanta-Expected-Tenant": {testutil.TenantA}},
+			"a missing tenant":    {"X-Helivanta-Expected-Subject": {"user-" + token}},
+			"a repeated subject":  {"X-Helivanta-Expected-Tenant": {testutil.TenantA}, "X-Helivanta-Expected-Subject": {"user-" + token, "user-" + token}},
+			"no expected headers": {},
+		} {
+			t.Run(route.name+" "+name, func(t *testing.T) {
+				req := httptest.NewRequest(route.method, "/v1/workforce/pharmacies/"+path, strings.NewReader(encode(route.body)))
+				req.Header.Set("Authorization", "Bearer "+token)
+				req.Header.Set("Content-Type", "application/json")
+				for header, values := range headers {
+					for _, value := range values {
+						req.Header.Add(header, value)
+					}
+				}
+				w := httptest.NewRecorder()
+				h.router.ServeHTTP(w, req)
+				require.Equal(t, 409, w.Code, w.Body.String())
+				require.Contains(t, w.Body.String(), `"error":"session_changed"`)
+			})
+		}
+	}
+	require.Equal(t, before, writes(), "no refused call reads or writes anything")
+
+	for _, route := range routes {
+		w := pharmacyRequest(h, route.controller, route.method, target(route.path, route.staff, d.pharmacy, d.staff), encode(route.controlBody))
+		require.Equal(t, route.control, w.Code, "%s: %s", route.name, w.Body.String())
+	}
+	require.EqualValues(t, 1, h.count(t, d.pharmacy, "workforce_credential_reviews", "hospital_id=? AND id=? AND status='pending'", d.pharmacy, review), "the conflicting controls leave the review pending")
 }

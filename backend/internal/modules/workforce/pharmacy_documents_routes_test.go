@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"image"
 	"image/png"
+	"maps"
 	"net/http/httptest"
 	"strconv"
 	"strings"
@@ -44,6 +45,12 @@ type pharmacyDocuments struct {
 // newPharmacyDocuments enrolls one pharmacist; "admin" manages the pharmacy and the hospital, "directory" manages the pharmacy without the document permission.
 func newPharmacyDocuments(t *testing.T, storage bool) *pharmacyDocuments {
 	t.Helper()
+	return newPharmacyDocumentsWith(t, storage, map[string][]authz.Permission{"reader": {workforce.PermDocumentManage}, "outsider": {workforce.PermDocumentManage}})
+}
+
+// newPharmacyDocumentsWith adds tokens, or replaces a non-manager token's permissions, in the same tenant-A session.
+func newPharmacyDocumentsWith(t *testing.T, storage bool, others map[string][]authz.Permission) *pharmacyDocuments {
+	t.Helper()
 	var files *attachments.GCS
 	if storage {
 		cloud := testinfra.NewGCSProtocol(t)
@@ -52,13 +59,15 @@ func newPharmacyDocuments(t *testing.T, storage bool) *pharmacyDocuments {
 		require.NoError(t, err)
 	}
 	manage := []authz.Permission{workforce.PermHospitalManage, workforce.PermEnrollmentManage, workforce.PermDocumentManage}
+	perms := map[string][]authz.Permission{"admin": manage, "foreign": manage, "directory": {workforce.PermHospitalManage, workforce.PermEnrollmentManage}}
+	maps.Copy(perms, others)
+	tokens := map[string]string{}
+	for token := range perms {
+		tokens[token] = testutil.TenantA
+	}
+	tokens["foreign"] = testutil.TenantB
 	module := workforce.New()
-	router, db, bus, _ := testutil.NewHarness(t, testutil.HarnessOptions{
-		Tokens: map[string]string{"admin": testutil.TenantA, "reader": testutil.TenantA, "outsider": testutil.TenantA, "directory": testutil.TenantA, "foreign": testutil.TenantB},
-		Perms: map[string][]authz.Permission{"admin": manage, "foreign": manage, "reader": {workforce.PermDocumentManage}, "outsider": {workforce.PermDocumentManage},
-			"directory": {workforce.PermHospitalManage, workforce.PermEnrollmentManage}},
-		Modules: []platform.Module{module}, Documents: files,
-	})
+	router, db, bus, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: tokens, Perms: perms, Modules: []platform.Module{module}, Documents: files})
 	h := &establishmentHarness{router: router, db: db, bus: bus, module: module, hospital: uuid.Must(uuid.NewV7()).String()}
 	require.Equal(t, 200, testutil.Do(router, "PUT", "/v1/workforce/hospitals/"+h.hospital, "admin", `{"name":"Synthetic Document Hospital"}`).Code)
 	require.Equal(t, 200, testutil.Do(router, "PUT", "/v1/workforce/hospitals/"+h.hospital+"/access/user-admin", "admin", `{"level":"manager"}`).Code)

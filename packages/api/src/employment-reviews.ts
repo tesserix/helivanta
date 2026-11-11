@@ -2,7 +2,7 @@ import { z } from "zod";
 import { apiFetch, apiFetchResponse } from "./client";
 import { verifiedReviewEvidenceBlob } from "./review-evidence-content";
 import { personReviewRequest as staffReviewRequest } from "./person-reviews";
-import type { EmploymentPeriodScope } from "./employment-periods";
+import type { HospitalEmploymentPeriodScope } from "./employment-periods";
 import {
   EmploymentReviewContract,
   EmploymentReviewSubmissionInputContract,
@@ -16,7 +16,7 @@ import {
 } from "./employment-review-contract";
 
 export { v7 as newEmploymentReviewId } from "uuid";
-type EmploymentReviewWorkspace = Omit<EmploymentPeriodScope, "hrIntake">;
+type EmploymentReviewWorkspace = Omit<HospitalEmploymentPeriodScope, "hrIntake">;
 export type EmploymentReviewPreparationScope = EmploymentReviewWorkspace & {
   hrIntake: true;
   employmentReview?: never;

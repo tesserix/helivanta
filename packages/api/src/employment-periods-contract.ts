@@ -38,7 +38,7 @@ const validTerms = (
       ctx.addIssue({
         code: "custom",
         path: ["sponsor_id"],
-        message: "Choose an accountable hospital sponsor.",
+        message: "Choose an accountable sponsor.",
       });
   }
   if (value.sponsor_id && !z.string().uuid().safeParse(value.sponsor_id).success)
@@ -273,3 +273,143 @@ export const EmploymentPeriodWithdrawInputContract = z
   })
   .strict();
 export type EmploymentPeriodWithdrawInput = z.infer<typeof EmploymentPeriodWithdrawInputContract>;
+
+export const pharmacyEmploymentPeriodSourceContract = z
+  .object({
+    pharmacy_id: identifier,
+    staff_id: identifier,
+    staff_version: z.number().int().min(1).max(9007199254740990),
+    employment_epoch: z.number().int().min(1).max(9007199254740990),
+  })
+  .strict();
+export type PharmacyEmploymentPeriodSource = z.infer<typeof pharmacyEmploymentPeriodSourceContract>;
+
+export const pharmacyEmploymentPeriodDraftContract = z
+  .object({
+    id: identifier,
+    revision_id: identifier,
+    pharmacy_id: identifier,
+    staff_id: identifier,
+    version: z.number().int().min(1).max(9007199254740990),
+    status: z.enum(["draft", "withdrawn"]),
+    staff_version: z.number().int().min(1).max(9007199254740990),
+    employment_epoch: z.number().int().min(1).max(9007199254740990),
+    engagement_kind: z.enum([
+      "employee",
+      "consultant",
+      "contractor",
+      "agency_worker",
+      "locum",
+      "trainee",
+      "volunteer",
+    ]),
+    duration: z.enum(["fixed", "ongoing"]),
+    starts_at: z.string().datetime({ offset: true }),
+    ends_at: z.string().datetime({ offset: true }).optional(),
+    contracting_party: z
+      .string()
+      .trim()
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    sponsor_id: z
+      .string()
+      .max(36)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    evidence_reference: z
+      .string()
+      .trim()
+      .min(1)
+      .max(300)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    proposed_by_subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    actor_subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .strict()
+  .superRefine(validTerms);
+export type PharmacyEmploymentPeriodDraft = z.infer<typeof pharmacyEmploymentPeriodDraftContract>;
+
+export const pharmacyEmploymentEvidenceBindingContract = z
+  .object({
+    id: identifier,
+    revision_id: identifier,
+    pharmacy_id: identifier,
+    staff_id: identifier,
+    period_id: identifier,
+    period_revision_id: identifier,
+    period_version: z.number().int().min(1).max(9007199254740990),
+    version: z.number().int().min(1).max(9007199254740990),
+    status: z.enum(["attached", "withdrawn"]),
+    staff_version: z.number().int().min(1).max(9007199254740990),
+    employment_epoch: z.number().int().min(1).max(9007199254740990),
+    document_id: identifier,
+    document_record_version: z.number().int().min(1).max(9007199254740990),
+    filename: z
+      .string()
+      .min(1)
+      .max(180)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    content_type: z
+      .string()
+      .min(1)
+      .max(100)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    size: z.number().int().min(1).max(9007199254740990),
+    sha256: z
+      .string()
+      .min(64)
+      .max(64)
+      .regex(new RegExp("^[a-f0-9]{64}$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    source_generation: z
+      .string()
+      .min(1)
+      .max(19)
+      .regex(new RegExp("^[1-9][0-9]{0,18}$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    released_generation: z
+      .string()
+      .min(1)
+      .max(19)
+      .regex(new RegExp("^[1-9][0-9]{0,18}$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    scan_attempt: z.number().int().min(1).max(9007199254740990),
+    scanned_at: z.string().datetime({ offset: true }),
+    proposed_by_subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    actor_subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type PharmacyEmploymentEvidenceBinding = z.infer<
+  typeof pharmacyEmploymentEvidenceBindingContract
+>;

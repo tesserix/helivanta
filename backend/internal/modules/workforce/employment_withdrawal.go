@@ -11,40 +11,39 @@ import (
 	"gorm.io/gorm"
 )
 
+const employmentLifecycleUnsupported = "This employment lifecycle view is not supported. Refresh and retry."
+
 func employmentLifecycleProjection(c *gin.Context) (bool, bool) {
 	values, present := c.Request.URL.Query()["lifecycle"]
 	if !present {
 		return false, true
 	}
 	if len(values) != 1 || values[0] != "withdrawal-v1" {
-		respond.Error(c, 400, "invalid_request", "This employment lifecycle view is not supported. Refresh and retry.")
+		respond.Error(c, 400, "invalid_request", employmentLifecycleUnsupported)
 		return false, false
 	}
 	return true, true
 }
 
-func (h *handlers) withdrawEmploymentPeriod(c *gin.Context) {
-	p, hospital, staff, id, ok := employmentPeriodScope(c)
-	if !ok {
-		return
-	}
+func withdrawEmploymentPeriod(c *gin.Context, r employmentRecord) (EmploymentPeriodDraft, bool) {
+	p, hospital, staff, id := r.p, r.owner.id, r.staff, r.period
+	var result EmploymentPeriodDraft
 	var in EmploymentPeriodWithdrawInput
 	if !decodeSized(c, &in, 4096) {
-		return
+		return result, false
 	}
 	if in.CommandID.Version() != 7 || in.ExpectedVersion == nil || *in.ExpectedVersion < 1 || *in.ExpectedVersion >= 9007199254740990 || !evidenceReason(&in.Reason) {
 		respond.Error(c, 400, "invalid_request", "Enter a withdrawal reason and the current draft version.")
-		return
+		return result, false
 	}
 	raw, err := json.Marshal(in)
 	if err != nil {
 		respondError(c, err)
-		return
+		return result, false
 	}
 	digest := sha256.Sum256(append([]byte("withdraw-employment-period:"), raw...))
 	intent := hex.EncodeToString(digest[:])
-	var result EmploymentPeriodDraft
-	err = h.employmentPeriodTransaction(c, p, hospital, staff, func(tx *gorm.DB, _ EmploymentPeriodSource) error {
+	err = r.transaction(func(tx *gorm.DB, _ EmploymentPeriodSource) error {
 		var receipt employmentPeriodRecord
 		err := tx.Table("workforce_employment_period_history").Select(employmentPeriodColumns).Where("tenant_id=? AND hospital_id=? AND revision_id=?", p.TenantID, hospital, in.CommandID).Take(&receipt).Error
 		if err == nil {
@@ -81,7 +80,7 @@ func (h *handlers) withdrawEmploymentPeriod(c *gin.Context) {
 	})
 	if err != nil {
 		respondEmploymentPeriodError(c, err)
-		return
+		return result, false
 	}
-	respond.OK(c, result)
+	return result, true
 }

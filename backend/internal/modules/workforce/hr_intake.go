@@ -34,9 +34,12 @@ type intakeAuthority struct {
 }
 
 func intakeDocumentGate(gate documentGate) bool {
-	switch gate.(type) {
-	case staffDocuments, employmentEvidenceGate:
+	switch gate := gate.(type) {
+	case staffDocuments:
 		return true
+	case employmentEvidenceGate:
+		// Only a hospital has an HR intake template; any other kind keeps the manager's own authority.
+		return gate.scope.owner.kind == hospitalEstablishmentKind
 	default:
 		return false
 	}

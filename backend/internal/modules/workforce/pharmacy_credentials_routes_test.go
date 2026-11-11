@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/modules/workforce" //nolint:depguard // module under test
+	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
 )
@@ -124,6 +125,27 @@ func (d *pharmacyCredentials) zoneAudits(t *testing.T) []map[string]any {
 		out = append(out, changes)
 	}
 	return out
+}
+
+// advance runs one reminder cycle for the harness pharmacist's registration as the document worker.
+func (d *pharmacyCredentials) advance(t *testing.T, version int) workforcecontract.CredentialReminderStep {
+	t.Helper()
+	advancer, err := workforce.NewCredentialReminderAdvancer(t.Context(), d.worker)
+	require.NoError(t, err)
+	step, err := advancer.Advance(t.Context(), workforcecontract.CredentialReminderInput{TenantID: testutil.TenantA, HospitalID: d.pharmacy, StaffID: d.staff, CredentialID: pharmacyCredentialID, Version: int64(version)})
+	require.NoError(t, err)
+	return step
+}
+
+func (d *pharmacyCredentials) reminders(t *testing.T, status string) []map[string]any {
+	t.Helper()
+	code, out := d.hr(t, "admin", "GET", "/credential-reminders?status="+status, nil)
+	require.Equal(t, 200, code, out)
+	rows := []map[string]any{}
+	for _, item := range out["data"].([]any) {
+		rows = append(rows, item.(map[string]any))
+	}
+	return rows
 }
 
 func pharmacyReviewPath(review, suffix string) string {
@@ -356,4 +378,68 @@ func TestPharmacyTimeZoneDrivesCredentialStanding(t *testing.T) {
 	require.EqualValues(t, 2, out["version"])
 	require.Equal(t, map[string]any{"previous": "Asia/Kolkata", "time_zone": "Asia/Dubai", "version": float64(2)}, d.zoneAudits(t)[1])
 	require.Zero(t, h.count(t, d.pharmacy, "workforce_roster_credential_standing", "hospital_id=?", d.pharmacy), "a pharmacy zone never creates roster standing")
+}
+
+func TestPharmacyCredentialRemindersFollowThePharmacyZone(t *testing.T) {
+	d := newPharmacyCredentials(t)
+	h := d.establishmentHarness
+	day := d.days(t, "Asia/Kolkata")
+	d.approve(t, day(-400), day(10))
+	first := d.reviewed
+	code, out := d.hr(t, "admin", "PUT", "/credential-reminder-policy", map[string]any{"expected_version": 0, "thresholds": []int{30, 7, 0}})
+	require.Equal(t, 200, code, out)
+	require.False(t, d.advance(t, first).Done)
+	require.Zero(t, h.count(t, d.pharmacy, "workforce_credential_reminders", "hospital_id=?", d.pharmacy), "without a pharmacy zone the worker writes nothing")
+	require.Empty(t, outboxPayloads(t, h.db, workforce.CredentialReminderChanged))
+
+	code, out = d.hr(t, "admin", "PUT", "/time-zone", map[string]any{"expected_version": 0, "time_zone": "Asia/Kolkata"})
+	require.Equal(t, 200, code, out)
+	step := d.advance(t, first)
+	require.False(t, step.Done)
+	require.False(t, d.advance(t, first).Done, "a replayed cycle changes nothing")
+	open := d.reminders(t, "open")
+	require.Len(t, open, 1, "only the due threshold opens")
+	require.EqualValues(t, 30, open[0]["threshold_days"])
+	require.Equal(t, day(-20), open[0]["due_on"], "due dates are pharmacy-local")
+	require.Equal(t, day(10), open[0]["valid_until"])
+	require.Equal(t, "SYN-PH-ENR", open[0]["employee_code"])
+	require.Equal(t, "registration", open[0]["type"])
+	require.NotContains(t, open[0], "number", "the inbox never carries the licence number")
+	loc, err := time.LoadLocation("Asia/Kolkata")
+	require.NoError(t, err)
+	next, err := time.ParseInLocation(time.DateOnly, day(3), loc)
+	require.NoError(t, err)
+	require.False(t, step.WakeAt.After(next), "wakes no later than the next threshold's pharmacy-local midnight")
+
+	ack := "/credential-reminders/" + open[0]["id"].(string) + "/acknowledgement"
+	code, out = d.hr(t, "admin", "POST", ack, nil)
+	require.Equal(t, 200, code, out)
+	require.Equal(t, "acknowledged", out["status"])
+	require.Equal(t, "user-admin", out["acknowledged_by_subject"])
+	code, out = d.hr(t, "reviewer", "POST", ack, nil)
+	require.Equal(t, 200, code, out)
+	require.Equal(t, "user-admin", out["acknowledged_by_subject"], "a second acknowledgement keeps the first")
+
+	code, out = d.hr(t, "admin", "PUT", "/credential-reminder-policy", map[string]any{"expected_version": 1, "thresholds": []int{30, 10, 0}})
+	require.Equal(t, 200, code, out)
+	require.False(t, d.advance(t, first).Done)
+	open = d.reminders(t, "open")
+	require.Len(t, open, 1)
+	require.EqualValues(t, 10, open[0]["threshold_days"])
+
+	d.approve(t, day(-400), day(200))
+	require.Empty(t, d.reminders(t, "open"), "the next approval supersedes the open reminder")
+	superseded := d.reminders(t, "superseded")
+	require.Len(t, superseded, 1)
+	require.Equal(t, open[0]["id"], superseded[0]["id"])
+	require.True(t, d.advance(t, first).Done, "the old revision's schedule ends")
+	require.False(t, d.advance(t, d.reviewed).Done)
+	require.Empty(t, d.reminders(t, "open"), "nothing is due for the renewed registration yet")
+
+	statuses := map[string]int{}
+	for _, p := range outboxPayloads(t, h.db, workforce.CredentialReminderChanged) {
+		require.Equal(t, d.pharmacy, p["hospital_id"], "reminder events name the owning pharmacy")
+		statuses[p["status"].(string)]++
+	}
+	require.Equal(t, map[string]int{"open": 2, "acknowledged": 1, "superseded": 1}, statuses)
 }

@@ -225,3 +225,40 @@ it("opens the newly created workspace using its exact tenant", async () => {
     max_age: 0,
   });
 });
+
+it("starts a separate blank signup without deleting the existing workspace", async () => {
+  let fresh = false;
+  const posts: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        posts.push(path);
+        expect(JSON.parse(String(init.body))).toEqual({});
+        fresh = true;
+      }
+      return new Response(
+        JSON.stringify(
+          fresh
+            ? { state: "not_started" }
+            : {
+                state: "ready",
+                name: "Existing hospital",
+                kind: "hospital",
+                tenantId: "11111111-1111-4111-8111-111111111111",
+                resourceId: "0199e000-0000-7000-8000-000000000010",
+              },
+        ),
+        { status: 200 },
+      );
+    }),
+  );
+  renderWithProviders(<SignupForm />);
+  await userEvent
+    .setup()
+    .click(await screen.findByRole("button", { name: "Create another workspace" }));
+  expect(await screen.findByRole("heading", { name: "Create your workspace" })).toBeVisible();
+  expect(screen.getByLabelText("Owner email")).toHaveValue("");
+  expect(screen.getByLabelText("Organisation name")).toHaveValue("");
+  expect(posts).toEqual(["/api/v1/auth/signup/new"]);
+});

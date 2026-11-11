@@ -480,6 +480,17 @@ are removed. Native passwords, MFA and identity-provider links are not copied.
 The approved schema expansion and coordinated release are prerequisites; this
 contract does not claim the redesign is deployed.
 
+`POST /v1/auth/signup/new` opens a separate browser receipt with an empty JSON
+body and the existing same-origin protections. It returns `not_started` and
+rotates only the Secure, HttpOnly, SameSite receipt cookie: no native identity,
+tenant, membership or existing request is created, changed or deleted. The UI
+cancels old receipt polling before replacing its cache and opens a blank form.
+Save a ready workspace's specific sign-in link before starting another; an
+unfinished request is retained server-side but this browser now tracks the new
+receipt. An uncertain network outcome requires refresh to inspect current state.
+The next normal signup submission creates the independent tenant under existing
+intake limits, idempotency and native verification requirements.
+
 `POST /v1/auth/signup/sign-in` retains same-origin receipt, native token
 signature/issuer/audience/expiry, five-minute authentication and current subject
 revocation checks. The onboarding owner accepts only the immutable new owner

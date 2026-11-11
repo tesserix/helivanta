@@ -25,6 +25,7 @@ var UnauthenticatedRoutes = map[string]string{
 	"POST /v1/auth/signup/sign-in":       "receipt-bound continuation using a fresh native ID token and current revocation check before tenant membership exists",
 	"GET /v1/auth/signup":                "receipt-bound setup progress before a tenant session exists",
 	"POST /v1/auth/signup":               "new owner intent before a tenant exists; same-origin receipt and private workload handoff",
+	"POST /v1/auth/signup/new":           "same-origin browser receipt rotation only; no tenant, user or pending intent changes",
 	"POST /v1/auth/signup/verify-email":  "native email proof before sign-in; shared proof budget and receipt rotation",
 	"POST /v1/auth/signup/password":      "native reset code for the immutable signup owner before sign-in",
 	"POST /v1/auth/signup/email-link":    "bounded native verification delivery without identity disclosure",
@@ -138,12 +139,13 @@ func mustHandler(route string, h gin.HandlerFunc) {
 }
 
 // MountCustomerSignup mounts only receipt-bound signup and native-proof operations.
-func MountCustomerSignup(e *gin.Engine, start, status, verify, password, emailLink, passwordLink, signin gin.HandlerFunc) {
+func MountCustomerSignup(e *gin.Engine, start, status, verify, password, emailLink, passwordLink, signin, newReceipt gin.HandlerFunc) {
 	routes := []struct {
 		method, path string
 		handler      gin.HandlerFunc
 	}{
 		{"POST", "/v1/auth/signup/sign-in", signin},
+		{"POST", "/v1/auth/signup/new", newReceipt},
 		{"GET", "/v1/auth/signup", status}, {"POST", "/v1/auth/signup", start},
 		{"POST", "/v1/auth/signup/verify-email", verify}, {"POST", "/v1/auth/signup/password", password},
 		{"POST", "/v1/auth/signup/email-link", emailLink}, {"POST", "/v1/auth/signup/password-link", passwordLink},

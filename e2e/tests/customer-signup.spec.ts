@@ -209,3 +209,41 @@ test("expired email proof offers a fresh verification link with expiry and share
   await expect.poll(() => deliveries).toEqual(["/api/v1/auth/signup/email-link"]);
   await expect(page.getByRole("status")).toContainText("If this request can receive an email");
 });
+
+test("another workspace opens a blank signup without provisioning or deleting the existing one", async ({
+  page,
+}) => {
+  let fresh = false;
+  const commands: string[] = [];
+  await page.route("**/api/v1/auth/signup**", async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (request.method() === "POST") {
+      commands.push(path);
+      expect(path).toBe("/api/v1/auth/signup/new");
+      expect(request.postDataJSON()).toEqual({});
+      fresh = true;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(
+        fresh
+          ? { state: "not_started" }
+          : {
+              state: "ready",
+              name: "Existing hospital",
+              kind: "hospital",
+              tenantId: "11111111-1111-4111-8111-111111111111",
+              resourceId: "0199e000-0000-7000-8000-000000000010",
+            },
+      ),
+    });
+  });
+  await page.goto("/signup");
+  await page.getByRole("button", { name: "Create another workspace" }).click();
+  await expect(page.getByRole("heading", { name: "Create your workspace" })).toBeFocused();
+  await expect(page.getByLabel("Owner email")).toHaveValue("");
+  await expect(page.getByLabel("Organisation name")).toHaveValue("");
+  expect(commands).toEqual(["/api/v1/auth/signup/new"]);
+});

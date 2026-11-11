@@ -61,7 +61,7 @@ test("administrator first-enrolls a verified identity without business permissio
   const pat = readFileSync(join(secretDir, "helivanta-seed.pat"), "utf8").trim();
   const tenant = "11111111-1111-1111-1111-111111111111";
   const organizationId = `helivanta-${tenant}`;
-  const existingOrg = await fetch(`${ZITADEL_ORIGIN}/v2/organizations/${organizationId}`, {
+  const existingOrg = await fetch(`${ZITADEL_ORIGIN}/admin/v1/orgs/${organizationId}`, {
     headers: { Authorization: `Bearer ${pat}` },
   });
   if (existingOrg.status === 404) {
@@ -70,7 +70,7 @@ test("administrator first-enrolls a verified identity without business permissio
       headers: { Authorization: `Bearer ${pat}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         organizationId,
-        name: `Synthetic enrollment tenant [${tenant}]`,
+        name: `[${tenant}] Synthetic enrollment tenant`,
         admins: [
           {
             human: {

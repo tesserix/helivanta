@@ -29,7 +29,8 @@ type SignupFormMethods = ReturnType<typeof useZodForm<typeof signupFormSchema>>;
 
 export function SignupForm() {
   const [sameAddress, setSameAddress] = useState(true);
-  const { progress, create, resend } = useCustomerSignup();
+  const { progress, create, resend, begin } = useCustomerSignup();
+  const formHeading = useRef<HTMLHeadingElement>(null);
   const form = useZodForm(signupFormSchema, {
     name: "",
     kind: "hospital",
@@ -42,6 +43,23 @@ export function SignupForm() {
       mainBranch: { name: "Main branch", address: { ...emptyAddress } },
     },
   });
+  useEffect(() => {
+    const parsed = CustomerSignupReceiptContract.safeParse(progress.data);
+    if (begin.isSuccess && parsed.success && parsed.data.state === "not_started") {
+      formHeading.current?.focus({ preventScroll: true });
+      formHeading.current?.scrollIntoView({ block: "start", behavior: "instant" });
+    }
+  }, [begin.isSuccess, progress.data]);
+  function beginAnother() {
+    begin.mutate(undefined, {
+      onSuccess: () => {
+        form.reset();
+        setSameAddress(true);
+        create.reset();
+        resend.reset();
+      },
+    });
+  }
   const parsed = CustomerSignupReceiptContract.safeParse(progress.data);
   if (progress.isPending) return <p role="status">Checking workspace setup…</p>;
   if (progress.isError || !parsed.success)
@@ -53,7 +71,10 @@ export function SignupForm() {
       />
     );
   const receipt = parsed.data;
-  if (receipt.state !== "not_started") return <SignupStatus receipt={receipt} resend={resend} />;
+  if (receipt.state !== "not_started")
+    return (
+      <SignupStatus receipt={receipt} resend={resend} begin={begin} beginAnother={beginAnother} />
+    );
   const errors = form.formState.errors;
   function submit(event: FormEvent<HTMLFormElement>) {
     form.setValue("stateCode", form.getValues("profile.headOffice.stateCode"));
@@ -63,7 +84,9 @@ export function SignupForm() {
   }
   return (
     <form noValidate onSubmit={submit} className="space-y-5">
-      <h2 className="text-2xl font-medium">Create your workspace</h2>
+      <h2 ref={formHeading} tabIndex={-1} className="text-2xl font-medium outline-none">
+        Create your workspace
+      </h2>
       <Field id="signup-name" label="Organisation name" error={errors.name?.message}>
         <input
           className="h-10 rounded-md border bg-background px-3"
@@ -172,6 +195,11 @@ export function SignupForm() {
         operating permissions are set up separately.
       </p>
       {create.error && <p role="alert">We could not submit your workspace. Please try again.</p>}
+      {create.isError && (
+        <Button type="button" variant="outline" disabled={begin.isPending} onClick={beginAnother}>
+          Start a fresh signup
+        </Button>
+      )}
       <Button type="submit" disabled={create.isPending} className="w-full">
         {create.isPending ? "Submitting…" : "Create workspace"}
       </Button>
@@ -185,7 +213,11 @@ export function SignupForm() {
 function SignupStatus({
   receipt,
   resend,
+  begin,
+  beginAnother,
 }: {
+  begin: ReturnType<typeof useCustomerSignup>["begin"];
+  beginAnother: () => void;
   receipt: CustomerSignupReceipt;
   resend: ReturnType<typeof useCustomerSignup>["resend"];
 }) {
@@ -286,7 +318,23 @@ function SignupStatus({
           We could not start sign-in. Please try again.
         </p>
       )}
-      <div className="border-t border-border pt-5">
+      <div className="space-y-3 border-t border-border pt-5">
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          disabled={begin.isPending || signingIn}
+          onClick={beginAnother}
+        >
+          {begin.isPending ? "Opening blank signup…" : "Create another workspace"}
+        </Button>
+        <p className="text-sm text-muted-foreground">
+          This opens a blank signup. Existing workspaces and pending requests are kept.
+        </p>
+        {begin.isError && (
+          <p role="alert">Could not confirm a new signup. Refresh to check your current setup.</p>
+        )}
+
         <a href="/login?start=1" className="block text-center text-sm underline underline-offset-4">
           Sign in to an existing workspace
         </a>

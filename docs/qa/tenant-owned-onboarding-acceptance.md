@@ -40,7 +40,10 @@ The shared production/QA environment is the user's named test target.
    new tenant, correct owner permissions, profile and business resource. Save the
    workspace-specific sign-in link; repeat sign-in with email and this account's
    password/MFA. Do not use an unscoped email to choose among separate accounts.
-6. Create an independent pharmacy intent using the exact same email, not an alias.
+6. Save the hospital workspace sign-in link, then use **Create another workspace**.
+   Confirm it opens a blank form without changing the existing hospital or
+   provisioning another org before submission. Create an independent pharmacy
+   intent using the exact same email, not an alias.
    Repeat verification/password/MFA. Prove different tenant/org/owner IDs and
    independent account state. Native names must not collide even if display
    names are the same; business display names remain as submitted.

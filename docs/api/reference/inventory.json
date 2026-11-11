@@ -13225,6 +13225,7 @@
     "POST /v1/auth/login/password-change": "completes a sign-in whose password must change first, so it cannot require a session",
     "POST /v1/auth/signup": "new owner intent before a tenant exists; same-origin receipt and private workload handoff",
     "POST /v1/auth/signup/email-link": "bounded native verification delivery without identity disclosure",
+    "POST /v1/auth/signup/new": "same-origin browser receipt rotation only; no tenant, user or pending intent changes",
     "POST /v1/auth/signup/password": "native reset code for the immutable signup owner before sign-in",
     "POST /v1/auth/signup/password-link": "bounded native password setup and recovery without identity disclosure",
     "POST /v1/auth/signup/sign-in": "receipt-bound continuation using a fresh native ID token and current revocation check before tenant membership exists",

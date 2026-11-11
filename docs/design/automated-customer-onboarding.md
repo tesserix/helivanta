@@ -49,6 +49,17 @@ links are independent. Native usernames and organisation names include the
 immutable tenant identifier; business display names remain business metadata.
 Email is a delivery address and never proves a shared login or authority.
 
+`POST /v1/auth/signup/new` opens a separate browser receipt with an empty JSON
+body and the existing same-origin protections. It returns `not_started` and
+rotates only the Secure, HttpOnly, SameSite receipt cookie: no native identity,
+tenant, membership or existing request is created, changed or deleted. The UI
+cancels old receipt polling before replacing its cache and opens a blank form.
+Save a ready workspace's specific sign-in link before starting another; an
+unfinished request is retained server-side but this browser now tracks the new
+receipt. An uncertain network outcome requires refresh to inspect current state.
+The next normal signup submission creates the independent tenant under existing
+intake limits, idempotency and native verification requirements.
+
 ## Required customer journey
 
 1. `/signup` collects the organization name, hospital or independent pharmacy

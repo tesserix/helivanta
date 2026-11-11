@@ -55,7 +55,7 @@ could not store is never reported as received.
 
 ### D2. Workforce records what is still unconfirmed
 
-Migration `0099_workforce_hospital_name_receipts` adds two columns to
+Migration `0101_workforce_hospital_name_receipts` adds two columns to
 `workforce_hospital_name_announcements`:
 
 - `attempts integer NOT NULL DEFAULT 0 CHECK (attempts >= 0)`: the number of
@@ -184,8 +184,8 @@ correspondingly sooner, because of the backoff schedule.
 
 - `pharmacy/contract/events.go`: `SubjectHospitalNameReceived`,
   `HospitalNameReceivedData`. Pharmacy's `Publishes` gains the subject.
-- `workforce/module.go`: migration `0099_workforce_hospital_name_receipts` and
-  the new consumer. Recheck `0099` against main and the `codex/*` branches
+- `workforce/module.go`: migration `0101_workforce_hospital_name_receipts` and
+  the new consumer. Recheck `0101` against main and the `codex/*` branches
   before merge.
 - `docs/api/domains/workforce.md` (the `hospital_named.v1` paragraph) and
   `docs/api/domains/pharmacy.md` (the `hospital_name` paragraph, edited by
@@ -194,7 +194,7 @@ correspondingly sooner, because of the backoff schedule.
 - `docs/api/integration-contracts.md`: add the confirmation to the
   workforce → pharmacy row.
 - Regenerate with `go run ./cmd/contractdocs`, then `-check`.
-- `globalapi/workforce_person_review_test.go`: add `0099` to both
+- `globalapi/workforce_person_review_test.go`: add `0101` to both
   hand-maintained migration lists.
 - Staff-access ledger: if `workforce/module.go` or `pharmacy/module.go` hashes
   change, the pinned reviews need recheck notes, applied only with the user's
@@ -241,7 +241,7 @@ stores the name, the confirmation is consumed, and `next_attempt_at` is
 `NULL`. A further pass sends nothing. Cover both a first announcement and a
 rename.
 
-**Migration backfill.** Marker rows that existed before `0099` are due
+**Migration backfill.** Marker rows that existed before `0101` are due
 immediately after it.
 
 **Archtest (D6).** The test fails when a second consumer of

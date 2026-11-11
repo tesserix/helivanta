@@ -143,7 +143,7 @@ type workforceBeforeReceipts struct{ *workforce.Module }
 func (m *workforceBeforeReceipts) Migrations() []tenantdb.Migration {
 	var before []tenantdb.Migration
 	for _, migration := range m.Module.Migrations() {
-		if migration.ID == "0099_workforce_hospital_name_receipts" {
+		if migration.ID == "0101_workforce_hospital_name_receipts" {
 			break
 		}
 		before = append(before, migration)
@@ -154,13 +154,13 @@ func (m *workforceBeforeReceipts) Migrations() []tenantdb.Migration {
 func TestMigrationMakesExistingMarkersDue(t *testing.T) {
 	h := newEstablishmentRouter(t, &workforceBeforeReceipts{workforce.New()})
 	h.rename(t, "Alpha Hospital")
-	// A marker as the pre-0099 announcer wrote it: the new announcer's claim needs the new columns.
+	// A marker as the pre-0101 announcer wrote it: the new announcer's claim needs the new columns.
 	require.NoError(t, h.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Exec(`INSERT INTO workforce_hospital_name_announcements(tenant_id,hospital_id,announced_version) VALUES(?,?,1)`, testutil.TenantA, h.hospital).Error
 	}))
 	var real []tenantdb.Migration
 	for _, m := range workforce.New().Migrations() {
-		if m.ID == "0099_workforce_hospital_name_receipts" {
+		if m.ID == "0101_workforce_hospital_name_receipts" {
 			real = append(real, m)
 		}
 	}

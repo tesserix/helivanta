@@ -118,3 +118,15 @@ type credentialReminder struct {
 	AcknowledgedAt        *time.Time `json:"acknowledged_at,omitempty"`
 	CreatedAt             time.Time  `json:"created_at"`
 }
+
+type pharmacyTimeZoneInput struct {
+	ExpectedVersion *int64 `json:"expected_version" binding:"required,gte=0"`
+	TimeZone        string `json:"time_zone" binding:"required,max=64"`
+}
+
+type pharmacyTimeZone struct {
+	Version          int64      `json:"version"`
+	TimeZone         *string    `json:"time_zone,omitempty"`
+	UpdatedBySubject *string    `json:"updated_by_subject,omitempty"`
+	UpdatedAt        *time.Time `json:"updated_at,omitempty"`
+}

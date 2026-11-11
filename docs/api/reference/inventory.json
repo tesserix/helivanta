@@ -11297,6 +11297,69 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/hr/credential-reminder-policy",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/pharmacies/:pharmacy/hr/credential-reminder-policy",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/workforce/pharmacies/:pharmacy/hr/credential-reminders/:reminder/acknowledgement",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/hr/credential-reminders",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/hr/credentials",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/hr/time-zone",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/pharmacies/:pharmacy/hr/time-zone",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link/commands/:command",
           "permission": "public",
           "authentication_required": true,
@@ -11347,6 +11410,51 @@
           "authentication_required": true,
           "membership_required": true,
           "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/credentials/:credential/reviews/:review/decision",
+          "permission": "workforce.credentials.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/credentials/:credential/reviews/:review/withdraw",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/credentials/:credential/reviews/:review",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/credentials/:credential/reviews",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/credentials",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
           "counted": false
         },
         {
@@ -11410,6 +11518,114 @@
           "authentication_required": true,
           "membership_required": true,
           "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/history",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/content",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/history",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/withdraw",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/withdraw",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-source",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
           "counted": false
         },
         {
@@ -12980,7 +13196,19 @@
           "creates_tables": []
         },
         {
-          "id": "0099_workforce_hospital_name_receipts",
+          "id": "0099_workforce_pharmacy_employment_periods",
+          "sql_sha256": "af735d9f6ef57c25fdfc5b04c63086afea82209ab7f0d1e75bef6a32f5eed023",
+          "creates_tables": []
+        },
+        {
+          "id": "0100_workforce_pharmacy_credential_reviews",
+          "sql_sha256": "8761c42d039cfa6116b4eb0c92d44be7dcc0b1de0a9913122fa5b9e40dd9a19c",
+          "creates_tables": [
+            "workforce_pharmacy_time_zones"
+          ]
+        },
+        {
+          "id": "0101_workforce_hospital_name_receipts",
           "sql_sha256": "a5fceaefbeb460c42dd79232a4cb059dd50add756fbf774a722bdf7920b412f3",
           "creates_tables": []
         }

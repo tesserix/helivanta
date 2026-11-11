@@ -14,7 +14,7 @@
 
 - Subject `helivanta.in.pharmacy.hospital_name_received.v1`; constant `SubjectHospitalNameReceived`; payload `HospitalNameReceivedData{HospitalID string \`json:"hospital_id"\`; NameVersion int64 \`json:"name_version"\`}`, with no name.
 - Consumer name `workforce-hospital-name-receipt`.
-- Migration ID `0099_workforce_hospital_name_receipts`. Recheck it against `origin/main` and the `codex/*` branches before merge.
+- Migration ID `0101_workforce_hospital_name_receipts`. Recheck it against `origin/main` and the `codex/*` branches before merge.
 - `firstRedelivery = 2 * time.Minute`, `maxRedelivery = time.Hour`. The backoff never gives up.
 - `hospitalNameBatch` stays 200; the ticker stays 30 s; the actor stays `system:workforce-hospital-name-announcer`.
 - The cross-tenant scan reads ids only, never names.
@@ -65,7 +65,7 @@
 - Create: `backend/internal/modules/workforce/hospital_name_receipts.go` (embed, receipt consumer, `redeliveryDelay`)
 - Modify: `backend/internal/modules/workforce/hospital_names.go` (the claim statement only)
 - Modify: `backend/internal/modules/workforce/module.go` (append the migration, add the consumer to both `Consumers` branches)
-- Modify: `backend/internal/globalapi/workforce_person_review_test.go`: add `0099_workforce_hospital_name_receipts` to the skip list (about line 388) and the apply list (about line 2221)
+- Modify: `backend/internal/globalapi/workforce_person_review_test.go`: add `0101_workforce_hospital_name_receipts` to the skip list (about line 388) and the apply list (about line 2221)
 - Test: `backend/internal/modules/workforce/hospital_name_receipts_test.go`
 
 **Interfaces:**
@@ -79,7 +79,7 @@
   - `TestReceiptForAnOlderVersionKeepsResending`: rename and announce v2, then receipt v1. Assert `next != nil`.
   - `TestReceiptForAnUnknownHospitalIsANoOp`: a random UUID returns nil and leaves no row.
   - `TestInvalidReceiptIsRejected`: table cases, each returning an error: wrong `Type`, `Version` 2, non-empty `DestinationTenantID`, non-UUID id, nil UUID, `name_version` 0.
-  - `TestMigrationMakesExistingMarkersDue`: mirror `workforceBeforeDocumentProvenance` (`internal/globalapi/workforce_person_review_test.go:43-60`). Use a module wrapper whose `Migrations()` stops before `0099_workforce_hospital_name_receipts`, on a fresh test database. Create a hospital and announce it, then `db.Migrate(ctx, []tenantdb.Migration{<the 0099 entry from workforce.New().Migrations()>})`. Assert `next_attempt_at <= now()` and `attempts == 0`. This is the real migration on real pre-existing rows, not a copy of its SQL.
+  - `TestMigrationMakesExistingMarkersDue`: mirror `workforceBeforeDocumentProvenance` (`internal/globalapi/workforce_person_review_test.go:43-60`). Use a module wrapper whose `Migrations()` stops before `0101_workforce_hospital_name_receipts`, on a fresh test database. Create a hospital and announce it, then `db.Migrate(ctx, []tenantdb.Migration{<the 0101 entry from workforce.New().Migrations()>})`. Assert `next_attempt_at <= now()` and `attempts == 0`. This is the real migration on real pre-existing rows, not a copy of its SQL.
   - `TestRedeliveryDelay`: table 1→2m, 2→4m, 3→8m, 4→16m, 5→32m, 6→60m, 20→60m.
 
 - [ ] **Step 2: Run** `cd backend && GOTOOLCHAIN=go1.27.4 go test -timeout=20m ./internal/modules/workforce -run 'Receipt|ClaimStarts|RedeliveryDelay|MigrationMakes'`. Expected: compile failure.

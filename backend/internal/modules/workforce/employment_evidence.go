@@ -43,27 +43,31 @@ func employmentEvidenceUTC(r EmploymentEvidenceBinding) EmploymentEvidenceBindin
 }
 
 type employmentEvidenceScope struct {
-	p                                authn.Principal
-	hospital, staff, period, binding uuid.UUID
-	version                          int64
+	employmentRecord
+	binding uuid.UUID
+	version int64
 }
 
-func employmentEvidenceParams(c *gin.Context) (employmentEvidenceScope, bool) {
-	p, hospital, staff, period, ok := employmentPeriodScope(c)
-	s := employmentEvidenceScope{p: p, hospital: hospital, staff: staff, period: period}
+func (h *handlers) hospitalEmploymentEvidence(c *gin.Context) (employmentEvidenceScope, bool) {
+	r, ok := h.hospitalEmployment(c)
 	if !ok {
-		return s, false
+		return employmentEvidenceScope{employmentRecord: r}, false
 	}
 	if c.Query(hrIntakeQuery) != hrIntakeVersion {
 		if !authz.Refresh(c, PermDocumentManage) {
-			return s, false
+			return employmentEvidenceScope{employmentRecord: r}, false
 		}
 		permissions, ok := authz.PermissionsFrom(c)
 		if !ok || !permissions.Has(PermEnrollmentManage) {
 			respond.Forbidden(c, "missing permission "+string(PermEnrollmentManage))
-			return s, false
+			return employmentEvidenceScope{employmentRecord: r}, false
 		}
 	}
+	return employmentEvidenceParams(c, r)
+}
+
+func employmentEvidenceParams(c *gin.Context, r employmentRecord) (employmentEvidenceScope, bool) {
+	s := employmentEvidenceScope{employmentRecord: r}
 	version, err := strconv.ParseInt(c.Param("version"), 10, 64)
 	if err != nil || version < 1 || version > 9007199254740990 {
 		respond.NotFound(c, "employment revision")
@@ -95,11 +99,11 @@ func employmentEvidenceIntent(action string, input any) (string, error) {
 	return hex.EncodeToString(digest[:]), nil
 }
 func evidenceWhere(tx *gorm.DB, s employmentEvidenceScope, table string) *gorm.DB {
-	return tx.Table(table).Where("tenant_id=? AND hospital_id=? AND staff_id=? AND period_id=? AND period_version=?", s.p.TenantID, s.hospital, s.staff, s.period, s.version)
+	return tx.Table(table).Where("tenant_id=? AND hospital_id=? AND staff_id=? AND period_id=? AND period_version=?", s.p.TenantID, s.owner.id, s.staff, s.period, s.version)
 }
-func (h *handlers) employmentEvidenceTransaction(c *gin.Context, s employmentEvidenceScope, writing bool, fn func(*gorm.DB, EmploymentPeriodSource, EmploymentPeriodDraft) error) error {
+func employmentEvidenceTransaction(s employmentEvidenceScope, writing bool, fn func(*gorm.DB, EmploymentPeriodSource, EmploymentPeriodDraft) error) error {
 	required := []authz.Permission{PermEnrollmentManage, PermDocumentManage}
-	return h.employmentPeriodAuthority(c, s.p, s.hospital, s.staff, required, func(tx *gorm.DB, source EmploymentPeriodSource) error {
+	return s.authorized(required, func(tx *gorm.DB, source EmploymentPeriodSource) error {
 		mode := "read"
 		if writing {
 			mode = "write"
@@ -108,18 +112,18 @@ func (h *handlers) employmentEvidenceTransaction(c *gin.Context, s employmentEvi
 			return err
 		}
 		var period EmploymentPeriodDraft
-		if err := tx.Table("workforce_employment_period_history").Select(employmentPeriodColumns).Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=? AND version=?", s.p.TenantID, s.hospital, s.staff, s.period, s.version).Take(&period).Error; err != nil {
+		if err := tx.Table("workforce_employment_period_history").Select(employmentPeriodColumns).Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=? AND version=?", s.p.TenantID, s.owner.id, s.staff, s.period, s.version).Take(&period).Error; err != nil {
 			return err
 		}
 		return fn(tx, source, period)
 	})
 }
 func evidenceAudit(tx *gorm.DB, s employmentEvidenceScope, action string, version int64) error {
-	return tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,?,?,jsonb_build_object('period_id',?::uuid,'period_version',?::bigint,'binding_version',?::bigint))`, s.p.TenantID, s.hospital, s.p.Subject, action, s.binding, s.period, s.version, version).Error
+	return tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,?,?,jsonb_build_object('period_id',?::uuid,'period_version',?::bigint,'binding_version',?::bigint))`, s.p.TenantID, s.owner.id, s.p.Subject, action, s.binding, s.period, s.version, version).Error
 }
 func evidenceReceipt(tx *gorm.DB, s employmentEvidenceScope, command uuid.UUID, intent string) (EmploymentEvidenceBinding, bool, error) {
 	var receipt employmentEvidenceRecord
-	err := tx.Table("workforce_employment_evidence_history").Select(employmentEvidenceColumns).Where("tenant_id=? AND hospital_id=? AND revision_id=?", s.p.TenantID, s.hospital, command).Take(&receipt).Error
+	err := tx.Table("workforce_employment_evidence_history").Select(employmentEvidenceColumns).Where("tenant_id=? AND hospital_id=? AND revision_id=?", s.p.TenantID, s.owner.id, command).Take(&receipt).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return EmploymentEvidenceBinding{}, false, nil
 	}
@@ -143,26 +147,22 @@ func evidenceError(c *gin.Context, err error) {
 	}
 	respondIntakeError(c, err)
 }
-func (h *handlers) attachEmploymentEvidence(c *gin.Context) {
-	s, ok := employmentEvidenceParams(c)
-	if !ok {
-		return
-	}
+func attachEmploymentEvidence(c *gin.Context, s employmentEvidenceScope) (EmploymentEvidenceBinding, bool) {
+	var result EmploymentEvidenceBinding
 	var in EmploymentEvidenceAttachInput
 	if !decodeSized(c, &in, 4096) {
-		return
+		return result, false
 	}
 	if in.CommandID.Version() != 7 || in.DocumentID == uuid.Nil || !evidenceReason(&in.Reason) {
 		respond.Error(c, 400, "invalid_request", "Choose a protected document and enter a reason.")
-		return
+		return result, false
 	}
 	intent, err := employmentEvidenceIntent("attach", in)
 	if err != nil {
 		evidenceError(c, err)
-		return
+		return result, false
 	}
-	var result EmploymentEvidenceBinding
-	err = h.employmentEvidenceTransaction(c, s, true, func(tx *gorm.DB, source EmploymentPeriodSource, period EmploymentPeriodDraft) error {
+	err = employmentEvidenceTransaction(s, true, func(tx *gorm.DB, source EmploymentPeriodSource, period EmploymentPeriodDraft) error {
 		receipt, found, err := evidenceReceipt(tx, s, in.CommandID, intent)
 		if err != nil {
 			return err
@@ -172,20 +172,20 @@ func (h *handlers) attachEmploymentEvidence(c *gin.Context) {
 			return nil
 		}
 		var head EmploymentPeriodDraft
-		if err := tx.Table("workforce_employment_period_drafts").Select("version,status,staff_version,employment_epoch").Clauses(clause.Locking{Strength: "SHARE"}).Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", s.p.TenantID, s.hospital, s.staff, s.period).Take(&head).Error; err != nil {
+		if err := tx.Table("workforce_employment_period_drafts").Select("version,status,staff_version,employment_epoch").Clauses(clause.Locking{Strength: "SHARE"}).Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", s.p.TenantID, s.owner.id, s.staff, s.period).Take(&head).Error; err != nil {
 			return err
 		}
 		if head.Status != "draft" || head.Version != s.version || source.StaffVersion != period.StaffVersion || source.EmploymentEpoch != period.EmploymentEpoch {
 			return errEmploymentEvidenceConflict
 		}
 		var file document
-		if err := tx.Select(documentColumns).Clauses(clause.Locking{Strength: "SHARE"}).Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", s.p.TenantID, s.hospital, s.staff, in.DocumentID).Take(&file).Error; err != nil {
+		if err := tx.Select(documentColumns).Clauses(clause.Locking{Strength: "SHARE"}).Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", s.p.TenantID, s.owner.id, s.staff, in.DocumentID).Take(&file).Error; err != nil {
 			return err
 		}
 		if file.RecordKind != "enrollment" || file.RecordID != s.staff || file.Category != "employment_evidence" || file.RecordVersion != period.StaffVersion || file.Status != "available" || file.SourceGeneration == nil || file.ReleasedGeneration == nil || file.ScannedAt == nil || file.EngineVersion == nil || file.DefinitionVersion == nil || file.DefinitionsUpdatedAt == nil {
 			return errEmploymentEvidenceConflict
 		}
-		values := map[string]any{"tenant_id": s.p.TenantID, "hospital_id": s.hospital, "staff_id": s.staff, "id": s.binding, "revision_id": in.CommandID, "period_id": s.period, "period_revision_id": period.RevisionID, "period_version": s.version, "version": 1, "status": "attached", "staff_version": period.StaffVersion, "employment_epoch": period.EmploymentEpoch, "document_id": in.DocumentID, "document_record_version": file.RecordVersion, "filename": file.Filename, "content_type": file.ContentType, "size": file.Size, "sha256": file.SHA256, "source_generation": *file.SourceGeneration, "released_generation": *file.ReleasedGeneration, "scan_attempt": file.ScanAttempt, "scanned_at": *file.ScannedAt, "engine_version": *file.EngineVersion, "definition_version": *file.DefinitionVersion, "definitions_updated_at": *file.DefinitionsUpdatedAt, "proposed_by_subject": s.p.Subject, "actor_subject": s.p.Subject, "reason": in.Reason, "input_hash": intent}
+		values := map[string]any{"tenant_id": s.p.TenantID, "hospital_id": s.owner.id, "staff_id": s.staff, "id": s.binding, "revision_id": in.CommandID, "period_id": s.period, "period_revision_id": period.RevisionID, "period_version": s.version, "version": 1, "status": "attached", "staff_version": period.StaffVersion, "employment_epoch": period.EmploymentEpoch, "document_id": in.DocumentID, "document_record_version": file.RecordVersion, "filename": file.Filename, "content_type": file.ContentType, "size": file.Size, "sha256": file.SHA256, "source_generation": *file.SourceGeneration, "released_generation": *file.ReleasedGeneration, "scan_attempt": file.ScanAttempt, "scanned_at": *file.ScannedAt, "engine_version": *file.EngineVersion, "definition_version": *file.DefinitionVersion, "definitions_updated_at": *file.DefinitionsUpdatedAt, "proposed_by_subject": s.p.Subject, "actor_subject": s.p.Subject, "reason": in.Reason, "input_hash": intent}
 		if err := tx.Table("workforce_employment_evidence_bindings").Create(values).Error; err != nil {
 			return err
 		}
@@ -196,30 +196,26 @@ func (h *handlers) attachEmploymentEvidence(c *gin.Context) {
 	})
 	if err != nil {
 		evidenceError(c, err)
-		return
+		return result, false
 	}
-	respond.OK(c, employmentEvidenceUTC(result))
+	return employmentEvidenceUTC(result), true
 }
-func (h *handlers) withdrawEmploymentEvidence(c *gin.Context) {
-	s, ok := employmentEvidenceParams(c)
-	if !ok {
-		return
-	}
+func withdrawEmploymentEvidence(c *gin.Context, s employmentEvidenceScope) (EmploymentEvidenceBinding, bool) {
+	var result EmploymentEvidenceBinding
 	var in EmploymentEvidenceWithdrawInput
 	if !decodeSized(c, &in, 4096) {
-		return
+		return result, false
 	}
 	if in.CommandID.Version() != 7 || in.ExpectedVersion == nil || *in.ExpectedVersion < 1 || *in.ExpectedVersion > 9007199254740990 || !evidenceReason(&in.Reason) {
 		respond.Error(c, 400, "invalid_request", "Enter a reason and current evidence version.")
-		return
+		return result, false
 	}
 	intent, err := employmentEvidenceIntent("withdraw", in)
 	if err != nil {
 		evidenceError(c, err)
-		return
+		return result, false
 	}
-	var result EmploymentEvidenceBinding
-	err = h.employmentEvidenceTransaction(c, s, true, func(tx *gorm.DB, _ EmploymentPeriodSource, _ EmploymentPeriodDraft) error {
+	err = employmentEvidenceTransaction(s, true, func(tx *gorm.DB, _ EmploymentPeriodSource, _ EmploymentPeriodDraft) error {
 		receipt, found, err := evidenceReceipt(tx, s, in.CommandID, intent)
 		if err != nil {
 			return err
@@ -234,7 +230,7 @@ func (h *handlers) withdrawEmploymentEvidence(c *gin.Context) {
 		}
 		// Downloads also lock document before binding, including their final recheck.
 		var file document
-		if err := tx.Select("id").Clauses(clause.Locking{Strength: "SHARE"}).Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", s.p.TenantID, s.hospital, s.staff, current.DocumentID).Take(&file).Error; err != nil {
+		if err := tx.Select("id").Clauses(clause.Locking{Strength: "SHARE"}).Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", s.p.TenantID, s.owner.id, s.staff, current.DocumentID).Take(&file).Error; err != nil {
 			return err
 		}
 		if current.Version != *in.ExpectedVersion || current.Status != "attached" {
@@ -254,17 +250,13 @@ func (h *handlers) withdrawEmploymentEvidence(c *gin.Context) {
 	})
 	if err != nil {
 		evidenceError(c, err)
-		return
+		return result, false
 	}
-	respond.OK(c, employmentEvidenceUTC(result))
+	return employmentEvidenceUTC(result), true
 }
-func (h *handlers) getEmploymentEvidence(c *gin.Context) {
-	s, ok := employmentEvidenceParams(c)
-	if !ok {
-		return
-	}
+func employmentEvidence(c *gin.Context, s employmentEvidenceScope) (EmploymentEvidenceBinding, bool) {
 	var result EmploymentEvidenceBinding
-	err := h.employmentEvidenceTransaction(c, s, false, func(tx *gorm.DB, _ EmploymentPeriodSource, _ EmploymentPeriodDraft) error {
+	err := employmentEvidenceTransaction(s, false, func(tx *gorm.DB, _ EmploymentPeriodSource, _ EmploymentPeriodDraft) error {
 		if err := evidenceWhere(tx, s, "workforce_employment_evidence_bindings").Select(employmentEvidenceColumns).Where("id=?", s.binding).Take(&result).Error; err != nil {
 			return err
 		}
@@ -272,17 +264,13 @@ func (h *handlers) getEmploymentEvidence(c *gin.Context) {
 	})
 	if err != nil {
 		evidenceError(c, err)
-		return
+		return result, false
 	}
-	respond.OK(c, employmentEvidenceUTC(result))
+	return employmentEvidenceUTC(result), true
 }
-func (h *handlers) listEmploymentEvidence(c *gin.Context, params pagination.Params) ([]EmploymentEvidenceBinding, error) {
-	s, ok := employmentEvidenceParams(c)
-	if !ok {
-		return nil, nil
-	}
+func employmentEvidenceList(c *gin.Context, s employmentEvidenceScope, params pagination.Params) ([]EmploymentEvidenceBinding, bool) {
 	rows := []EmploymentEvidenceBinding{}
-	err := h.employmentEvidenceTransaction(c, s, false, func(tx *gorm.DB, _ EmploymentPeriodSource, _ EmploymentPeriodDraft) error {
+	err := employmentEvidenceTransaction(s, false, func(tx *gorm.DB, _ EmploymentPeriodSource, _ EmploymentPeriodDraft) error {
 		if err := tenantdb.ApplyKeyset(evidenceWhere(tx, s, "workforce_employment_evidence_bindings"), params).Select(employmentEvidenceColumns).Find(&rows).Error; err != nil {
 			return err
 		}
@@ -291,20 +279,16 @@ func (h *handlers) listEmploymentEvidence(c *gin.Context, params pagination.Para
 	})
 	if err != nil {
 		evidenceError(c, err)
-		return nil, nil
+		return nil, false
 	}
 	for i := range rows {
 		rows[i] = employmentEvidenceUTC(rows[i])
 	}
-	return rows, nil
+	return rows, true
 }
-func (h *handlers) employmentEvidenceHistory(c *gin.Context, params pagination.Params) ([]employmentEvidenceRevision, error) {
-	s, ok := employmentEvidenceParams(c)
-	if !ok {
-		return nil, nil
-	}
+func employmentEvidenceHistory(c *gin.Context, s employmentEvidenceScope, params pagination.Params) ([]employmentEvidenceRevision, bool) {
 	rows := []employmentEvidenceRevision{}
-	err := h.employmentEvidenceTransaction(c, s, false, func(tx *gorm.DB, _ EmploymentPeriodSource, _ EmploymentPeriodDraft) error {
+	err := employmentEvidenceTransaction(s, false, func(tx *gorm.DB, _ EmploymentPeriodSource, _ EmploymentPeriodDraft) error {
 		var head EmploymentEvidenceBinding
 		if err := evidenceWhere(tx, s, "workforce_employment_evidence_bindings").Select("id,version").Where("id=?", s.binding).Take(&head).Error; err != nil {
 			return err
@@ -316,12 +300,12 @@ func (h *handlers) employmentEvidenceHistory(c *gin.Context, params pagination.P
 	})
 	if err != nil {
 		evidenceError(c, err)
-		return nil, nil
+		return nil, false
 	}
 	for i := range rows {
 		rows[i].EmploymentEvidenceBinding = employmentEvidenceUTC(rows[i].EmploymentEvidenceBinding)
 	}
-	return rows, nil
+	return rows, true
 }
 
 func (employmentEvidenceGate) permissions(bool) (authz.Permission, authz.Permission) {
@@ -333,8 +317,8 @@ type employmentEvidenceGate struct {
 	file  uuid.UUID
 }
 
-func (g employmentEvidenceGate) authorize(tx *gorm.DB, p authn.Principal, hospital, staff uuid.UUID, _ bool) error {
-	if _, err := documentOwner(tx, p, hospital, staff); err != nil {
+func (g employmentEvidenceGate) authorize(tx *gorm.DB, p authn.Principal, _, staff uuid.UUID, _ bool) error {
+	if err := staffDocumentOwner(tx, p, g.scope.owner, staff); err != nil {
 		return err
 	}
 	return tx.Exec(`SELECT set_config('app.workforce_employment_evidence','read',true)`).Error
@@ -356,19 +340,27 @@ func (g employmentEvidenceGate) owns(tx *gorm.DB, p authn.Principal, hospital, s
 func (employmentEvidenceGate) downloadAction() string {
 	return "workforce.employment_evidence.downloaded"
 }
-func (employmentEvidenceGate) view(d document) any { return d }
-func (h *handlers) downloadEmploymentEvidence(c *gin.Context) {
-	s, ok := employmentEvidenceParams(c)
-	if !ok {
-		return
+func (g employmentEvidenceGate) view(d document) any {
+	if g.scope.owner.kind == pharmacyEstablishmentKind {
+		return pharmacyDocumentView(d)
 	}
+	return d
+}
+
+func (h *handlers) downloadEmploymentEvidence(c *gin.Context) {
+	if s, ok := h.hospitalEmploymentEvidence(c); ok {
+		h.sendEmploymentEvidence(c, s)
+	}
+}
+
+func (h *handlers) sendEmploymentEvidence(c *gin.Context, s employmentEvidenceScope) {
 	var binding EmploymentEvidenceBinding
-	err := h.employmentEvidenceTransaction(c, s, false, func(tx *gorm.DB, _ EmploymentPeriodSource, _ EmploymentPeriodDraft) error {
+	err := employmentEvidenceTransaction(s, false, func(tx *gorm.DB, _ EmploymentPeriodSource, _ EmploymentPeriodDraft) error {
 		return evidenceWhere(tx, s, "workforce_employment_evidence_bindings").Select(employmentEvidenceColumns).Where("id=?", s.binding).Take(&binding).Error
 	})
 	if err != nil {
 		evidenceError(c, err)
 		return
 	}
-	h.sendDocument(c, employmentEvidenceGate{scope: s, file: binding.DocumentID}, s.p, s.hospital, s.staff, binding.DocumentID)
+	h.sendDocument(c, employmentEvidenceGate{scope: s, file: binding.DocumentID}, s.p, s.owner.id, s.staff, binding.DocumentID)
 }

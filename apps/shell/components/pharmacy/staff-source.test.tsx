@@ -839,3 +839,211 @@ it("refuses a pharmacy document list carrying another pharmacy's file", async ()
   expect(await screen.findByText("Could not load documents.")).toBeInTheDocument();
   expect(screen.queryByText(documentFile.filename)).not.toBeInTheDocument();
 });
+
+const employmentPath = `/api/v1/workforce/pharmacies/${pharmacy}/staff/${pharmacyRow.id}`;
+const employmentBasis = {
+  pharmacy_id: pharmacy,
+  staff_id: pharmacyRow.id,
+  staff_version: 2,
+  employment_epoch: 1,
+};
+// A pharmacy manager whose identity may also carry enrollment permission, answering employment reads.
+function employmentTenant(
+  access: "manager" | "reader",
+  permissions: string[],
+  employment: (url: string, init?: RequestInit) => Response | Promise<Response>,
+) {
+  const source = employerTenant(access, (url, init) =>
+    url.includes("/employment-")
+      ? employment(url, init)
+      : Response.json(page([pharmacyRow, colleague])),
+  );
+  return vi.fn(async (url: string, init?: RequestInit) =>
+    url.endsWith("/permissions")
+      ? Response.json({ ...identity(), data: [...identity().data, ...permissions] })
+      : source(url, init),
+  );
+}
+// Answers the pharmacy employment reads, listing every draft saved so far.
+function employmentLedger() {
+  const drafts: unknown[] = [];
+  return (url: string, init?: RequestInit) => {
+    if (init?.method === "PUT") {
+      const { command_id, expected_version, ...terms } = JSON.parse(String(init.body));
+      const draft = {
+        ...terms,
+        id: new URL(url, "https://example.invalid").pathname.split("/").at(-1),
+        revision_id: command_id,
+        version: expected_version + 1,
+        status: "draft",
+        pharmacy_id: pharmacy,
+        staff_id: pharmacyRow.id,
+        proposed_by_subject: subject,
+        actor_subject: subject,
+        created_at: "2026-11-08T00:00:00Z",
+        updated_at: "2026-11-08T00:00:00Z",
+      };
+      drafts.push(draft);
+      return Response.json(draft);
+    }
+    return url.includes("/employment-source")
+      ? Response.json(employmentBasis)
+      : Response.json(page(drafts));
+  };
+}
+const employmentAnswers = (url: string, init?: RequestInit) => employmentLedger()(url, init);
+
+it("offers pharmacy employment terms only to a manager holding enrollment permission", async () => {
+  for (const [access, permissions] of [
+    ["manager", []],
+    ["manager", ["workforce.documents.manage"]],
+    ["reader", ["workforce.enrollment.manage"]],
+  ] as const) {
+    vi.stubGlobal("fetch", employmentTenant(access, [...permissions], employmentAnswers));
+    const view = renderSource();
+    expect(await screen.findByRole("cell", { name: pharmacyRow.display_name })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: `Employment for ${pharmacyRow.display_name}` }),
+    ).not.toBeInTheDocument();
+    view.unmount();
+  }
+  vi.stubGlobal(
+    "fetch",
+    employmentTenant("manager", ["workforce.enrollment.manage"], employmentAnswers),
+  );
+  renderSource();
+  expect(
+    await screen.findByRole("button", { name: `Employment for ${pharmacyRow.display_name}` }),
+  ).toBeInTheDocument();
+});
+
+it("prepares pharmacy employment terms in the pharmacy family under the expected account", async () => {
+  const fetcher = employmentTenant("manager", ["workforce.enrollment.manage"], employmentLedger());
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = renderSource();
+  await user.click(
+    await screen.findByRole("button", { name: `Employment for ${pharmacyRow.display_name}` }),
+  );
+  expect(
+    await screen.findByRole("heading", {
+      name: `Employment terms · ${pharmacyRow.display_name} · ${pharmacyRow.employee_code}`,
+    }),
+  ).toBeInTheDocument();
+  await user.click(await screen.findByRole("button", { name: "Prepare employment terms" }));
+  const form = screen.getByRole("form", { name: "Employment terms draft" });
+  expect(within(form).getByRole("combobox", { name: "Sponsor" })).toBeInTheDocument();
+  expect(within(form).queryByText(/Hospital sponsor/)).not.toBeInTheDocument();
+  await chooseOption(user, within(form).getByLabelText("Duration"), "Ongoing");
+  await user.type(within(form).getByLabelText("Effective start"), "2026-11-01T09:00");
+  await user.type(
+    within(form).getByLabelText("Appointment or contract reference"),
+    "SYN-PH-APPOINTMENT",
+  );
+  await user.type(within(form).getByLabelText("Reason"), "Synthetic pharmacy appointment");
+  await user.click(within(form).getByRole("button", { name: "Save draft" }));
+  expect(await screen.findByText("Employment terms draft saved.")).toBeInTheDocument();
+  expect(await screen.findByText("SYN-PH-APPOINTMENT")).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Prepare employment review" }),
+  ).not.toBeInTheDocument();
+  const calls = fetcher.mock.calls.filter(([url]) => url.includes("/employment-"));
+  const requests = calls.map(([url, init]) => `${init?.method ?? "GET"} ${url}`);
+  expect(requests).toEqual(
+    expect.arrayContaining([
+      `GET ${employmentPath}/employment-source`,
+      `GET ${employmentPath}/employment-periods?lifecycle=withdrawal-v1`,
+      expect.stringMatching(new RegExp(`^PUT ${employmentPath}/employment-periods/[0-9a-f-]{36}$`)),
+    ]),
+  );
+  expect(requests.every((request) => request.includes(employmentPath))).toBe(true);
+  expect(requests.some((request) => request.includes("hr_intake"))).toBe(false);
+  for (const [, init] of calls) {
+    expect(new Headers(init?.headers).get("X-Helivanta-Expected-Tenant")).toBe(tenant);
+    expect(new Headers(init?.headers).get("X-Helivanta-Expected-Subject")).toBe(subject);
+  }
+  const put = calls.find(([, init]) => init?.method === "PUT");
+  expect(JSON.parse(String(put?.[1]?.body))).toMatchObject({
+    staff_version: employmentBasis.staff_version,
+    employment_epoch: employmentBasis.employment_epoch,
+    duration: "ongoing",
+  });
+});
+
+it("refuses a pharmacy employment basis answered for a hospital owner", async () => {
+  vi.stubGlobal(
+    "fetch",
+    employmentTenant("manager", ["workforce.enrollment.manage"], (url, init) => {
+      if (!url.includes("/employment-source")) return employmentAnswers(url, init);
+      const { staff_id, staff_version, employment_epoch } = employmentBasis;
+      return Response.json({ hospital_id: pharmacy, staff_id, staff_version, employment_epoch });
+    }),
+  );
+  const { user } = renderSource();
+  await user.click(
+    await screen.findByRole("button", { name: `Employment for ${pharmacyRow.display_name}` }),
+  );
+  expect(
+    await screen.findByText(/Could not verify current Staff employment details/),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Prepare employment terms" }),
+  ).not.toBeInTheDocument();
+});
+
+it.each([
+  [404, "not_found"],
+  [409, "session_changed"],
+] as const)(
+  "clears the pharmacy Staff source when employment terms answer %s",
+  async (status, error) => {
+    vi.stubGlobal(
+      "fetch",
+      employmentTenant("manager", ["workforce.enrollment.manage"], (url, init) =>
+        url.includes("/employment-source")
+          ? Response.json({ error, message: "Synthetic cutoff" }, { status })
+          : employmentAnswers(url, init),
+      ),
+    );
+    const { user } = renderSource();
+    await user.click(
+      await screen.findByRole("button", { name: `Employment for ${pharmacyRow.display_name}` }),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("Your account or Staff access changed"),
+    );
+    expect(
+      screen.queryByRole("button", { name: "Prepare employment terms" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("cell", { name: pharmacyRow.display_name })).not.toBeInTheDocument();
+  },
+);
+
+it("keeps a pharmacy employment draft open when the terms changed underneath it", async () => {
+  vi.stubGlobal(
+    "fetch",
+    employmentTenant("manager", ["workforce.enrollment.manage"], (url, init) =>
+      init?.method === "PUT"
+        ? Response.json(
+            { error: "employment_draft_conflict", message: "Synthetic stale draft" },
+            { status: 409 },
+          )
+        : employmentAnswers(url, init),
+    ),
+  );
+  const { user } = renderSource();
+  await user.click(
+    await screen.findByRole("button", { name: `Employment for ${pharmacyRow.display_name}` }),
+  );
+  await user.click(await screen.findByRole("button", { name: "Prepare employment terms" }));
+  const form = screen.getByRole("form", { name: "Employment terms draft" });
+  await chooseOption(user, within(form).getByLabelText("Duration"), "Ongoing");
+  await user.type(within(form).getByLabelText("Effective start"), "2026-11-01T09:00");
+  await user.type(within(form).getByLabelText("Appointment or contract reference"), "SYN-PH-STALE");
+  await user.type(within(form).getByLabelText("Reason"), "Synthetic retained pharmacy reason");
+  await user.click(within(form).getByRole("button", { name: "Save draft" }));
+  expect(await within(form).findByRole("alert")).toHaveTextContent(
+    "Staff details or this draft changed",
+  );
+  expect(within(form).getByLabelText("Reason")).toHaveValue("Synthetic retained pharmacy reason");
+  expect(screen.getByRole("cell", { name: pharmacyRow.display_name })).toBeInTheDocument();
+});

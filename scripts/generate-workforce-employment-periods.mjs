@@ -8,7 +8,11 @@ const contract = JSON.parse(
   await readFile(path.join(root, "contracts/workforce-employment-periods.json"), "utf8"),
 );
 // A pharmacy view is the hospital view with pharmacy_id for hospital_id (ADR-0054 slice 4b).
-const pharmacyViews = ["EmploymentPeriodSource", "EmploymentPeriodDraft", "EmploymentEvidenceBinding"];
+const pharmacyViews = [
+  "EmploymentPeriodSource",
+  "EmploymentPeriodDraft",
+  "EmploymentEvidenceBinding",
+];
 const pharmacyField = (name) => (name === "hospital_id" ? "pharmacy_id" : name);
 const models = emitModels({
   ...contract.models,
@@ -22,7 +26,9 @@ const models = emitModels({
 const pharmacyConversions = pharmacyViews
   .map(
     (name) =>
-      `func pharmacy${name}View(r ${name}) pharmacy${name} {\nreturn pharmacy${name}{${contract.models[name]
+      `func pharmacy${name}View(r ${name}) pharmacy${name} {\nreturn pharmacy${name}{${contract.models[
+        name
+      ]
         .map((field) => `${pascal(pharmacyField(field.name))}: r.${pascal(field.name)},`)
         .join("\n")}}\n}\n\n`,
   )

@@ -22,12 +22,12 @@ import (
 // interface exists purely so renew_test.go can substitute a fake without
 // a live Zitadel.
 type UserStateChecker interface {
-	UserState(ctx context.Context, id string) (loginclient.UserState, error)
+	UserState(ctx context.Context, tenant, id string) (loginclient.UserState, error)
 }
 
 // UserProfileReader reads the presentation identity Zitadel holds for a subject.
 type UserProfileReader interface {
-	UserProfile(ctx context.Context, id string) (loginclient.UserProfile, error)
+	UserProfile(ctx context.Context, tenant, id string) (loginclient.UserProfile, error)
 }
 
 // MembershipIdentityReader verifies current human identity and contact eligibility.
@@ -235,7 +235,7 @@ func (h *renewalHandlers) renew(c *gin.Context) {
 			"identity_unavailable", "could not verify account status")
 		return
 	}
-	state, err := h.userState.UserState(c.Request.Context(), p.Subject)
+	state, err := h.userState.UserState(c.Request.Context(), p.TenantID, p.Subject)
 	if err != nil {
 		// Same N3 reasoning as above: no redundant "subject" field —
 		// requestid.Logger(c) already carries it.

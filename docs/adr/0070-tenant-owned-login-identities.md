@@ -159,3 +159,44 @@ but the final transaction locks the exact row and never inserts it if a
 concurrent removal won. New-role native reads finish before the transaction.
 Foreign identities return409, unavailable proof503, and refusals publish no
 member/outbox event. Existing membership/history/list/removal behavior is retained.
+
+## Current identity authority and test dependency
+
+Read-only production checks also returned403 for native user and self-profile
+reads using the deployed login credential. Current status, new-member admission
+and the caller's profile therefore use the existing identity owner through
+`POST /internal/v1/customer-signups/identity-projection`. Helivanta supplies the
+verified tenant and signed subject for status/profile; only membership commands
+may supply their separately authorised target subject. The owner verifies active
+tenant/product enrolment and live native organisation/project proof, then commits
+a sensitive-read audit before disclosure. Canonical request/response types and
+strict native parsing live in onboarding-service. Helivanta validates the exact
+purpose, tenant, organisation and subject, with an8KiB response bound.
+
+The purposes disclose different facts: status returns active/inactive without
+profile or grant authority; membership additionally requires an active verified
+human's exact native resourceOwner; profile is a trusted product attestation of
+a current-principal self-read. Accepted historical foreign memberships may read
+their own profile but gain no new role authority. Missing tenant/enrolment,
+provider refusal, malformed proof or dependency/audit failure are unavailable,
+not inactive. Only an authoritative missing or inactive native user may trigger
+credential revocation. No fallback to direct native privileged reads exists.
+
+These checks add owner-store/native proof reads and a durable audit transaction
+to every protected identity observation. No cache is introduced. Production
+load/latency and audit retention remain explicit acceptance gates. Native MFA
+enrolment permission still needs fresh-account live acceptance; this change
+does not expand the login credential to an instance administrator.
+
+Browser CI starts the real owner service from the same pinned Go module source
+as the consumer. Its separate `identityfixture` command is absent from the
+production image, requires explicit development mode and the exact local issuer,
+uses only a loopback `onboarding_fixture` database, and exposes only private
+identity reads on127.0.0.1:18787. A fixed synthetic workload credential is limited
+to that listener. The consumer's local resolver is likewise explicit, rejects
+production configuration, and has no signup/browser handlers. Two synthetic
+native organisations, tenant metadata and project grants are created before
+seeding tenant-owned users; legacy memberships across both seeded tenants remain
+explicit test fixtures. Production uses its existing private destination and
+projected workload token. Neither fixture path fabricates signup completion,
+mail delivery or production data.

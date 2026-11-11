@@ -88,6 +88,7 @@ func TestLegacyRepairCannotRecreateAConcurrentlyRemovedGrant(t *testing.T) {
 	callback := "synthetic_repair_race"
 	module := legacyRepairRaceModule{
 		Module: iam.New(nil).SetMembershipIdentityReader(reader),
+		t:      t,
 		register: func(tx *gorm.DB) error {
 			return tx.Callback().Query().After("gorm:query").Register(callback, func(query *gorm.DB) {
 				if query.Statement.Context.Value(repairRequestKey{}) == true && query.Statement.Table == "iam_members" && paused.CompareAndSwap(false, true) {
@@ -140,8 +141,11 @@ func TestLegacyRepairCannotRecreateAConcurrentlyRemovedGrant(t *testing.T) {
 type legacyRepairRaceModule struct {
 	*iam.Module
 	register func(*gorm.DB) error
+	t        *testing.T
 }
 
-func (m legacyRepairRaceModule) Migrate(ctx context.Context, deps platform.Deps) error {
-	return deps.DB.WithTenant(ctx, testutil.TenantA, m.register)
+func (m legacyRepairRaceModule) Routes(r *platform.Router, deps platform.Deps) {
+	m.t.Helper()
+	require.NoError(m.t, deps.DB.WithTenant(m.t.Context(), testutil.TenantA, m.register))
+	m.Module.Routes(r, deps)
 }

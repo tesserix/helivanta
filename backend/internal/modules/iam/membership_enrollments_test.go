@@ -404,16 +404,21 @@ func TestFirstEnrollmentWaitsForActorRowThenRejectsWithdrawalBeforeWrite(t *test
 	}))
 }
 
-func TestFirstEnrollmentRequiresNativeAccountOwnedByTheVerifiedTenant(t *testing.T) {
-	var owner atomic.Value
-	owner.Store("helivanta-" + testutil.TenantB)
-	native := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, http.MethodGet, r.Method)
-		require.Equal(t, "/v2/users/tenant-staff", r.URL.Path)
-		_ = json.NewEncoder(w).Encode(map[string]any{"user": map[string]any{"userId": "tenant-staff", "state": "USER_STATE_ACTIVE", "details": map[string]string{"resourceOwner": owner.Load().(string)}, "human": map[string]any{"email": map[string]any{"email": "same@example.test", "isVerified": true}}}})
+type membershipProjectionResolver func(context.Context, string, string, loginclient.IdentityReadPurpose) (loginclient.IdentitySnapshot, error)
+
+func (f membershipProjectionResolver) TenantIdentitySnapshot(ctx context.Context, tenant, subject string, purpose loginclient.IdentityReadPurpose) (loginclient.IdentitySnapshot, error) {
+	return f(ctx, tenant, subject, purpose)
+}
+
+func TestFirstEnrollmentRequiresIdentityOwnerAdmissionForTheVerifiedTenant(t *testing.T) {
+	var eligible atomic.Bool
+	identity := loginclient.New("http://native.invalid", "synthetic", http.DefaultClient)
+	identity.SetTenantIdentityResolver(membershipProjectionResolver(func(_ context.Context, tenant, subject string, purpose loginclient.IdentityReadPurpose) (loginclient.IdentitySnapshot, error) {
+		require.Equal(t, testutil.TenantA, tenant)
+		require.Equal(t, "tenant-staff", subject)
+		require.Equal(t, loginclient.IdentityReadMembership, purpose)
+		return loginclient.IdentitySnapshot{State: loginclient.UserStateActive, MembershipEligible: eligible.Load()}, nil
 	}))
-	t.Cleanup(native.Close)
-	identity := loginclient.New(native.URL, "synthetic", native.Client())
 	r, db, ctx := enrollmentHarness(t, identity)
 	path := "/v1/iam/membership-enrollments/" + uuid.Must(uuid.NewV7()).String()
 	body := `{"subject":"tenant-staff","reason":"Tenant-owned staff enrolment"}`
@@ -427,7 +432,7 @@ func TestFirstEnrollmentRequiresNativeAccountOwnedByTheVerifiedTenant(t *testing
 		require.Zero(t, count)
 		return nil
 	}))
-	owner.Store("helivanta-" + testutil.TenantA)
+	eligible.Store(true)
 	accepted := membershipCommandRequest(r, http.MethodPut, path, "admin", body)
 	require.Equal(t, http.StatusAccepted, accepted.Code, accepted.Body.String())
 	require.Contains(t, accepted.Body.String(), `"subject":"tenant-staff"`)

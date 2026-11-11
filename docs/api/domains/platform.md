@@ -12,6 +12,14 @@ Tenant, hospital, pharmacy outlet, supply premise, emergency base and receiving 
 
 ### Current identity on protected requests
 
+Current status and self-profile reads use onboarding-service's workload-only
+identity projection, bound to the verified tenant and signed subject. The owner
+checks live enrolment/native scope and commits a sensitive-read audit before
+disclosure. Unknown tenant/enrolment and native403 remain unavailable, not an
+inactive-user observation; the login PAT gains no management-read permissions.
+New-grant admission additionally requires native tenant ownership. See
+[ADR-0070](../../adr/0070-tenant-owned-login-identities.md).
+
 The production V1 middleware constructor requires IAM's current-identity guard
 after rate limiting and before permission resolution. A known non-active or
 deleted Zitadel identity durably revokes its observed credential before returning 401. Reactivation does not restore that credential; a fresh authentication is

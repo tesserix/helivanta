@@ -105,3 +105,22 @@ API before enrolling the fresh tenant-owned staff account. Fixture identity
 readers in business-route Go tests are explicit; native ownership is separately
 verified against real Zitadel in CI and against the deployed tenant during
 acceptance. These commands create no provider account or staff invitation.
+
+### Identity projection acceptance
+
+- Status and profile must use the signed principal's tenant/subject through the
+  private identity owner. Verify the API workload can call identity-projection;
+  absent/wrong workload must fail. A different purpose/tenant/org/subject,
+  duplicate/recased fields, invalid state/admission, unsolicited profile,
+  oversized response or redirect must be unavailable without disclosure.
+- A broker404 for unknown tenant/enrolment must remain unavailable and must not
+  write a global credential revocation. Only authoritative native inactive or
+  missing-user proof may return inactive. Native403/audit outage remains503.
+- Membership proof may never disclose a profile. Legacy accepted identities may
+  read their own profile but cannot obtain a new role in a foreign organisation.
+- Local/CI acceptance uses `make dev-identity-owner-setup` and
+  `make dev-identity-owner`, after infra/bootstrap/seed. `make up` includes these
+  targets. The owner command comes from the pinned consumer module; it is built
+  with `identityfixture` only. These are CI instructions, not evidence that local
+  applications or containers were run during this task. The fixture cannot
+  exercise real signup, mail, policy reconciliation or production credentials.

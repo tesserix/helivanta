@@ -641,6 +641,15 @@ func run() error {
 		return err
 	}
 	zitadelLoginClient.SetTenantUserResolver(signupHandlers)
+	zitadelLoginClient.SetTenantIdentityResolver(signupHandlers)
+	if enabled := os.Getenv("HELIVANTA_IDENTITY_FIXTURE"); enabled != "" {
+		resolver, fixtureErr := customeronboarding.NewLocalIdentityResolver(cfg.Env, cfg.ZitadelIssuerURL, enabled)
+		if fixtureErr != nil {
+			return fixtureErr
+		}
+		zitadelLoginClient.SetTenantUserResolver(resolver)
+		zitadelLoginClient.SetTenantIdentityResolver(resolver)
+	}
 	bootstrap.MountCustomerSignup(srv.Engine, signupHandlers.Start, signupHandlers.Status, signupHandlers.VerifyEmail, signupHandlers.Password, signupHandlers.EmailLink, signupHandlers.PasswordLink, signupHandlers.Signin(customeronboarding.SigninDeps{Tokens: zitadelVerifier, Revocations: revocationChecker, Limiter: limiter, Limit: bootstrap.LoginRateLimitRule(cfg)}), signupHandlers.NewReceipt)
 
 	for _, m := range registry.All() {

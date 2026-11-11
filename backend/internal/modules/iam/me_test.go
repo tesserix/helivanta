@@ -593,7 +593,7 @@ type fakeProfileReader struct {
 	asked   []string
 }
 
-func (f *fakeProfileReader) UserProfile(_ context.Context, id string) (loginclient.UserProfile, error) {
+func (f *fakeProfileReader) UserProfile(_ context.Context, _ string, id string) (loginclient.UserProfile, error) {
 	f.asked = append(f.asked, id)
 	return f.profile, f.err
 }

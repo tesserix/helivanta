@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/google/uuid"
@@ -20,7 +19,7 @@ func (h *Handlers) TenantLoginSubject(ctx context.Context, org, email string) (s
 	if in.Validate() != nil || org != "helivanta-"+in.TenantID {
 		return "", loginclient.ErrUserNotFound
 	}
-	token, err := os.ReadFile(h.tokenFile)
+	token, err := h.identityCredential()
 	if err != nil || len(token) > 8192 || strings.TrimSpace(string(token)) == "" {
 		return "", loginclient.ErrUnavailable
 	}

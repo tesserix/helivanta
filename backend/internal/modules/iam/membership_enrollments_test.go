@@ -82,15 +82,20 @@ func (p *enrollmentIdentity) MembershipEligible(ctx context.Context, tenant, sub
 }
 func enrollmentHarness(t *testing.T, identity iam.MembershipIdentityReader, failOutbox ...bool) (*gin.Engine, *tenantdb.DB, context.Context) {
 	t.Helper()
-	tokens := map[string]string{"admin": testutil.TenantA, "other-admin": testutil.TenantA, "stale-admin": testutil.TenantA, "restricted": testutil.TenantA, "foreign-admin": testutil.TenantB}
-	perms := map[string][]authz.Permission{}
-	for _, key := range []string{"admin", "other-admin", "stale-admin", "foreign-admin"} {
-		perms[key] = []authz.Permission{iam.PermMemberManage}
-	}
 	base := iam.New(nil).SetMembershipIdentityReader(identity)
 	var module platform.Module = base
 	if len(failOutbox) > 0 && failOutbox[0] {
 		module = membershipOutboxFailureModule{base}
+	}
+	return enrollmentHarnessWithModule(t, module)
+}
+
+func enrollmentHarnessWithModule(t *testing.T, module platform.Module) (*gin.Engine, *tenantdb.DB, context.Context) {
+	t.Helper()
+	tokens := map[string]string{"admin": testutil.TenantA, "other-admin": testutil.TenantA, "stale-admin": testutil.TenantA, "restricted": testutil.TenantA, "foreign-admin": testutil.TenantB}
+	perms := map[string][]authz.Permission{}
+	for _, key := range []string{"admin", "other-admin", "stale-admin", "foreign-admin"} {
+		perms[key] = []authz.Permission{iam.PermMemberManage}
 	}
 	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: tokens, Perms: perms, Modules: []platform.Module{module}})
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {

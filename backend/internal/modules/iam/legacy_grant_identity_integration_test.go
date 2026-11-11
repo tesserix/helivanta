@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/modules/iam" //nolint:depguard // External test exercises its own module.
+	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
@@ -74,10 +75,6 @@ func TestLegacyGrantRepairPreservesExistingIdentityWithoutAddingAnotherRole(t *t
 
 func TestLegacyRepairCannotRecreateAConcurrentlyRemovedGrant(t *testing.T) {
 	reader := &enrollmentIdentity{check: func(context.Context, string) (bool, error) { return false, nil }}
-	r, db, ctx := enrollmentHarness(t, reader)
-	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'synthetic-repair-race','staff_member')`, testutil.TenantA).Error
-	}))
 	type repairRequestKey struct{}
 	seen, release := make(chan struct{}), make(chan struct{})
 	defer func() {
@@ -89,20 +86,24 @@ func TestLegacyRepairCannotRecreateAConcurrentlyRemovedGrant(t *testing.T) {
 	}()
 	var paused atomic.Bool
 	callback := "synthetic_repair_race"
-	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-		return tx.Callback().Query().After("gorm:query").Register(callback, func(query *gorm.DB) {
-			if query.Statement.Context.Value(repairRequestKey{}) == true && query.Statement.Table == "iam_members" && paused.CompareAndSwap(false, true) {
-				close(seen)
-				select {
-				case <-release:
-				case <-query.Statement.Context.Done():
+	module := legacyRepairRaceModule{
+		Module: iam.New(nil).SetMembershipIdentityReader(reader),
+		register: func(tx *gorm.DB) error {
+			return tx.Callback().Query().After("gorm:query").Register(callback, func(query *gorm.DB) {
+				if query.Statement.Context.Value(repairRequestKey{}) == true && query.Statement.Table == "iam_members" && paused.CompareAndSwap(false, true) {
+					close(seen)
+					select {
+					case <-release:
+					case <-query.Statement.Context.Done():
+					}
 				}
-			}
-		})
+			})
+		},
+	}
+	r, db, ctx := enrollmentHarnessWithModule(t, module)
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'synthetic-repair-race','staff_member')`, testutil.TenantA).Error
 	}))
-	t.Cleanup(func() {
-		_ = db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error { return tx.Callback().Query().Remove(callback) })
-	})
 	req := httptest.NewRequest(http.MethodPost, "/v1/iam/members", strings.NewReader(`{"subject":"synthetic-repair-race","role_key":"staff_member"}`)).WithContext(context.WithValue(t.Context(), repairRequestKey{}, true))
 	req.Header.Set("Authorization", "Bearer admin")
 	req.Header.Set("Content-Type", "application/json")
@@ -134,4 +135,13 @@ func TestLegacyRepairCannotRecreateAConcurrentlyRemovedGrant(t *testing.T) {
 		require.Zero(t, count, "repair of a removed grant must not publish access")
 		return nil
 	}))
+}
+
+type legacyRepairRaceModule struct {
+	*iam.Module
+	register func(*gorm.DB) error
+}
+
+func (m legacyRepairRaceModule) Migrate(ctx context.Context, deps platform.Deps) error {
+	return deps.DB.WithTenant(ctx, testutil.TenantA, m.register)
 }

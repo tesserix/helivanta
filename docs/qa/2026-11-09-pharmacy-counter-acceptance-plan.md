@@ -33,8 +33,8 @@ Sign-off cannot complete until all of these are done. The cases they affect are 
 | Gate | What                                                                                                  | Why it blocks                                                         |
 | ---- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | G-1  | #1406 step 5: the evidence worker passes synthetic acceptance in production (checklist in that issue) | The prescription-image and licence-evidence gates depend on it        |
-| G-2  | #1581 merged and deployed (licence review UI; migration `0044_pharmacy_licence_evidence_review`)      | Licence review currently has no UI (F-2)                              |
-| G-3  | #1477 merged and deployed after #1581 (`0044_pharmacy_prescription_sale_evidence`)                    | It changes every G/H/H1 sale: a released image becomes mandatory      |
+| G-2  | #1581 merged and deployed (licence review UI; migration `0045_pharmacy_licence_evidence_review`)      | Licence review currently has no UI (F-2)                              |
+| G-3  | #1477 merged and deployed after #1581 (`0046_pharmacy_prescription_sale_evidence`)                    | It changes every G/H/H1 sale: a released image becomes mandatory      |
 | G-4  | #1642 merged and deployed (schedule class declare/review UI, F-1)                                     | Without it, no product can be released or sold except through the API |
 
 Run every other section now. Re-run sections 8 and 9 after G-3 deploys.

@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/tesserix/onboarding-service/api/customercontract"
 	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/platform"
@@ -20,8 +21,9 @@ import (
 )
 
 type pharmacyOrganization struct {
-	ID                 uuid.UUID `json:"id"`
-	TenantID           uuid.UUID `json:"-"`
+	OnboardingProfile  *customercontract.OrganizationProfile `json:"-" gorm:"serializer:json"`
+	ID                 uuid.UUID                             `json:"id"`
+	TenantID           uuid.UUID                             `json:"-"`
 	OrganizationFields `gorm:"embedded"`
 	OnboardingStatus   string    `json:"onboarding_status"`
 	CreatedAt          time.Time `json:"created_at" gorm:"autoCreateTime:false;default:now()"`
@@ -70,6 +72,7 @@ func registryRoutes(g *platform.Router, deps platform.Deps) {
 	})
 	platform.ListRoute(g, "/pharmacies", PermCatalogueRead, h.listOrganizations)
 	g.PUT("/pharmacies/:pharmacy", PermAccessManage, h.putOrganization)
+	g.GET("/pharmacies/:pharmacy/business-profile", PermAccessManage, h.getBusinessProfile)
 	platform.ListRoute(g, "/pharmacies/:pharmacy/outlets", PermCatalogueRead, h.listOutlets)
 	g.GET("/pharmacies/:pharmacy/outlets/:outlet", PermCatalogueRead, h.getOutlet)
 	g.PUT("/pharmacies/:pharmacy/outlets/:outlet", PermAccessManage, h.putOutlet)

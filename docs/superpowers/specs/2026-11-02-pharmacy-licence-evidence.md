@@ -7,10 +7,11 @@ worker processing and restricted storage/database boundaries; then enforce the
 new-review gate and deliver its UI/renewal advice with updated browser fixtures.
 The processing slice alone does not close #1391 or establish licence approval.
 
-PharmaConnect owns outlet licence declarations and independent decisions. The
-current API retains declaration details but no file, and Pharmacy has no licence
-entry/review UI. SupplyConnect already has private licence images and dated
-renewal advice. No Supply tables or business handlers become Pharmacy dependencies.
+PharmaConnect owns outlet licence declarations and independent decisions. Private
+file routes and worker processing shipped in #1528; this second slice adds the
+new-review gate and licence entry/review UI. SupplyConnect already has private
+licence images and dated renewal advice. No Supply tables or business handlers
+become Pharmacy dependencies.
 
 ## Scope and authority
 

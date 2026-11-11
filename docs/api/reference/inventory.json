@@ -3186,6 +3186,15 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/business-profile",
+          "permission": "pharmacy.access.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "POST",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/hospital-affiliations/:id/verification-requests/:request/withdraw",
           "permission": "pharmacy.access.manage",
@@ -5296,7 +5305,12 @@
           "creates_tables": []
         },
         {
-          "id": "0044_pharmacy_licence_evidence_review",
+          "id": "0044_pharmacy_business_profile",
+          "sql_sha256": "16e32610782c345c63b2a4ba597cd0781b7051e2cfe1c24da9758cf217082016",
+          "creates_tables": []
+        },
+        {
+          "id": "0045_pharmacy_licence_evidence_review",
           "sql_sha256": "966dfb31b53e170c41f56d78e4f815a3500e851428e73e8460305c7a678ff916",
           "creates_tables": []
         }
@@ -8744,6 +8758,15 @@
         {
           "method": "PUT",
           "path": "/v1/workforce/hospitals/:hospital/access/:subject",
+          "permission": "workforce.hospital.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/business-profile",
           "permission": "workforce.hospital.manage",
           "authentication_required": true,
           "membership_required": true,
@@ -12869,6 +12892,11 @@
         {
           "id": "0095_workforce_pharmacy_enrollment",
           "sql_sha256": "fa713de4f8e8a9dfdef7205bed28a18c4c2aff234c22322928c23bd126de3679",
+          "creates_tables": []
+        },
+        {
+          "id": "0096_workforce_business_profile",
+          "sql_sha256": "89138ab8073e716c214975e226343fd0d9af682be6c435f97c4318fe468969fc",
           "creates_tables": []
         }
       ]

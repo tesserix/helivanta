@@ -25,8 +25,8 @@ The counter's original access grants were preserved.
 A bounded read-only operational query verified the non-inheriting worker role,
 zero memberships/elevated attributes, retained download audits and scanner
 provenance. All four inspected clean releases used definitions younger than
-24 hours at scan time. Six matching Temporal histories retained only scoped IDs,
-attempts and closed lifecycle results. The actual ClamAV client also passed its
+24 hours at scan time. Six matching Temporal histories had application payloads
+containing only scoped IDs, attempts and closed lifecycle results. The actual ClamAV client also passed its
 clean, standalone antivirus-test, compressed-test and size-bound acceptance.
 
 The initial antivirus string in plain PNG text was not a validated detection

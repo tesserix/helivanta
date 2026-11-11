@@ -31,6 +31,7 @@ import { CataloguePanel } from "./catalogue-panel";
 import { OverviewTiles, WaitingTile } from "./overview-tiles";
 import { AccountsPanel } from "./accounts-panel";
 import { StockPanel } from "./stock-panel";
+import { BusinessProfilePanel } from "../organization/business-profile";
 import { PharmacyRegistrySetup } from "./pharmacy-registry-setup";
 import { StockOverview } from "./stock-overview";
 import { StockRegister } from "./stock-register";
@@ -273,12 +274,21 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
           <p>You do not have permission to read stock.</p>
         )
       ) : view === "setup" ? (
-        <OutletsSetup
-          tenantId={identity.tenant_id}
-          pharmacy={pharmacy}
-          subject={identity.subject}
-          outlets={outlets}
-        />
+        <>
+          {can("pharmacy.access.manage") && (
+            <BusinessProfilePanel
+              tenantId={identity.tenant_id}
+              kind="pharmacy"
+              resourceId={pharmacy.id}
+            />
+          )}
+          <OutletsSetup
+            tenantId={identity.tenant_id}
+            pharmacy={pharmacy}
+            subject={identity.subject}
+            outlets={outlets}
+          />
+        </>
       ) : outlets.isError ? (
         <RequestFailure
           message="Could not load this pharmacy's outlets."

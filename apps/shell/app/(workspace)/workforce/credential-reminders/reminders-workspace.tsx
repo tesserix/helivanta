@@ -9,12 +9,14 @@ import {
   credentialReminderPolicyPath,
   credentialRemindersKey,
   credentialRemindersPath,
+  credentialRequest,
   parseReminderDays,
   saveCredentialReminderPolicy,
   useApiMutation,
   useApiPagedQuery,
   useApiQuery,
   usePermissions,
+  type CredentialOwner,
   type CredentialReminder,
   type CredentialReminderPolicy,
   type CredentialReminderStatus,
@@ -29,6 +31,7 @@ import {
   RequestFailure,
 } from "@helivanta/ui";
 import { inputClass } from "../roster-policy/policy-ui";
+import { credentialPlace, useAccessChange } from "../credential-panel";
 
 const statuses: { value: CredentialReminderStatus; label: string }[] = [
   { value: "open", label: "Open" },
@@ -82,7 +85,11 @@ export function CredentialRemindersWorkspace() {
           error={hospitals.error}
         />
       ) : hospital ? (
-        <Reminders key={hospital.id} hospital={hospital} />
+        <CredentialReminders
+          key={hospital.id}
+          owner={{ hospitalId: hospital.id }}
+          ownerName={hospital.name}
+        />
       ) : (
         <p className="rounded-2xl border bg-card p-8">
           Ask your tenant administrator for hospital management access to manage credential
@@ -103,14 +110,21 @@ export function CredentialRemindersWorkspace() {
   );
 }
 
-function Reminders({ hospital }: { hospital: Hospital }) {
+type Owned = { owner: CredentialOwner; onContextChanged?: () => void };
+
+export function CredentialReminders({
+  owner,
+  ownerName,
+  onContextChanged,
+}: Owned & { ownerName: string }) {
   const { can } = usePermissions();
   const allowed = can("workforce.enrollment.manage");
   const policy = useApiQuery<CredentialReminderPolicy>(
-    credentialReminderPolicyKey(hospital.id),
-    credentialReminderPolicyPath(hospital.id),
-    { enabled: allowed, gcTime: 0, refetchOnWindowFocus: false, request: { cache: "no-store" } },
+    credentialReminderPolicyKey(owner),
+    credentialReminderPolicyPath(owner),
+    { enabled: allowed, gcTime: 0, refetchOnWindowFocus: false, request: credentialRequest(owner) },
   );
+  useAccessChange(onContextChanged, policy.error);
   if (!allowed)
     return (
       <p role="alert" className="rounded-2xl border bg-card p-8">
@@ -128,37 +142,40 @@ function Reminders({ hospital }: { hospital: Hospital }) {
           error={policy.error}
         />
       ) : (
-        <PolicyForm key={policy.data.version} hospital={hospital} policy={policy.data} />
+        <PolicyForm
+          key={policy.data.version}
+          {...{ owner, onContextChanged }}
+          policy={policy.data}
+        />
       )}
-      <Inbox hospital={hospital} />
+      <Inbox {...{ owner, ownerName, onContextChanged }} />
     </div>
   );
 }
 
 function PolicyForm({
-  hospital,
+  owner,
+  onContextChanged,
   policy,
-}: {
-  hospital: Hospital;
-  policy: CredentialReminderPolicy;
-}) {
+}: Owned & { policy: CredentialReminderPolicy }) {
   const form = useZodForm(credentialReminderPolicyFormSchema, {
     days: policy.thresholds.join(", "),
   });
   const save = useApiMutation(
-    (days: number[]) => saveCredentialReminderPolicy(hospital.id, policy.version, days),
+    (days: number[]) => saveCredentialReminderPolicy(owner, policy.version, days),
     {
-      invalidate: [credentialReminderPolicyKey(hospital.id)],
+      invalidate: [credentialReminderPolicyKey(owner)],
       successToast: "Reminder days saved",
       suppressErrorToast: true,
     },
   );
+  useAccessChange(onContextChanged, save.error);
   return (
     <section aria-label="Reminder days" className="rounded-2xl border bg-card p-6">
       <h3 className="text-lg font-semibold">Reminder days</h3>
       <p className="mt-1 text-sm text-muted-foreground">
         {policy.version === 0
-          ? "Reminders are off at this hospital until you set the days before expiry to raise them."
+          ? `Reminders are off at this ${credentialPlace(owner)} until you set the days before expiry to raise them.`
           : `Version ${policy.version}: a reminder is raised ${policy.thresholds.join(", ")} days before each expiry.`}
       </p>
       <form
@@ -195,17 +212,21 @@ function PolicyForm({
   );
 }
 
-function Inbox({ hospital }: { hospital: Hospital }) {
+function Inbox({ owner, ownerName, onContextChanged }: Owned & { ownerName: string }) {
   const [status, setStatus] = useState<CredentialReminderStatus>("open");
   const rows = useApiPagedQuery<CredentialReminder>(
-    [...credentialRemindersKey(hospital.id), status],
-    credentialRemindersPath(hospital.id, status),
-    { request: { cache: "no-store" } },
+    [...credentialRemindersKey(owner), status],
+    credentialRemindersPath(owner, status),
+    { request: credentialRequest(owner) },
   );
   const acknowledge = useApiMutation(
-    (reminder: string) => acknowledgeCredentialReminder(hospital.id, reminder),
-    { invalidate: [credentialRemindersKey(hospital.id)], successToast: "Reminder acknowledged" },
+    (reminder: string) => acknowledgeCredentialReminder(owner, reminder),
+    {
+      invalidate: [credentialRemindersKey(owner)],
+      successToast: "Reminder acknowledged",
+    },
   );
+  useAccessChange(onContextChanged, rows.error, acknowledge.error);
   return (
     <section aria-label="Reminder inbox" className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -237,7 +258,7 @@ function Inbox({ hospital }: { hospital: Hospital }) {
       ) : (
         <div className="overflow-x-auto rounded-2xl border bg-card">
           <table className="w-full text-left text-sm">
-            <caption className="sr-only">Credential reminders at {hospital.name}</caption>
+            <caption className="sr-only">Credential reminders at {ownerName}</caption>
             <thead className="bg-muted/40 text-xs text-muted-foreground">
               <tr>
                 {["Staff", "Credential", "Valid until", "Due", "Status", ""].map((label, i) => (

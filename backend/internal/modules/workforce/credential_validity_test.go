@@ -179,17 +179,23 @@ func (f *credentialFixture) credentials(s credentialStaff) map[string]any {
 
 func (f *credentialFixture) payloads(subject string) []map[string]any {
 	f.t.Helper()
+	return outboxPayloads(f.t, f.db, subject)
+}
+
+// outboxPayloads decodes the data of every tenant-A outbox event on one subject, oldest first.
+func outboxPayloads(t *testing.T, db *tenantdb.DB, subject string) []map[string]any {
+	t.Helper()
 	var raw []string
-	require.NoError(f.t, f.db.WithTenant(f.t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Table("outbox_events").Where("subject=?", subject).Order("created_at").Pluck("payload", &raw).Error
 	}))
 	result := make([]map[string]any, len(raw))
 	for i, p := range raw {
 		var event map[string]any
-		require.NoError(f.t, json.Unmarshal([]byte(p), &event))
+		require.NoError(t, json.Unmarshal([]byte(p), &event))
 		data := event["data"]
 		if s, ok := data.(string); ok {
-			require.NoError(f.t, json.Unmarshal([]byte(s), &data))
+			require.NoError(t, json.Unmarshal([]byte(s), &data))
 		}
 		result[i] = data.(map[string]any)
 	}

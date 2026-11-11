@@ -7,19 +7,34 @@ import {
   parseReminderDays,
   saveCredentialReminderPolicy,
   credentialDecisionFormSchema,
+  credentialRegisterKey,
   credentialRegisterPath,
+  credentialReminderPolicyKey,
+  credentialReminderPolicyPath,
+  credentialRemindersKey,
+  credentialRequest,
   credentialReviewFormSchema,
+  credentialsKey,
+  credentialsPath,
   decideCredentialReview,
+  fetchPharmacyTimeZone,
+  pharmacyTimeZoneFormSchema,
+  pharmacyTimeZoneKey,
+  pharmacyTimeZonePath,
   proposeCredentialReview,
+  savePharmacyTimeZone,
+  withdrawCredentialReview,
+  type CredentialScope,
 } from "./credentials";
-import type { StaffDocument } from "./documents-fields";
+import type { PharmacyStaffDocument, StaffDocument } from "./documents-fields";
 
 const hospital = "11111111-1111-4111-8111-111111111111";
 const staff = "22222222-2222-4222-8222-222222222222";
 const credential = "33333333-3333-4333-8333-333333333333";
 const review = "44444444-4444-4444-8444-444444444444";
 const file = "55555555-5555-4555-8555-555555555555";
-const scope = { hospitalId: hospital, staffId: staff };
+const hospitalOwner = { hospitalId: hospital };
+const scope = { ...hospitalOwner, staffId: staff };
 const stamp = "2026-10-18T00:00:00Z";
 const saved = {
   id: review,
@@ -90,16 +105,22 @@ it("offers only this credential's released or scanning evidence", () => {
     { ...base, id: "e", record_kind: "qualification" },
   ] as unknown as StaffDocument[];
   expect(citableEvidence(files, credential).map((f) => f.id)).toEqual(["a", "b"]);
+  const pharmacyFiles = [
+    { ...base, id: "p", pharmacy_id: hospital },
+    { ...base, id: "q", pharmacy_id: hospital, status: "rejected" },
+  ] as unknown as PharmacyStaffDocument[];
+  const cited: PharmacyStaffDocument[] = citableEvidence(pharmacyFiles, credential);
+  expect(cited.map((f) => f.id)).toEqual(["p"]);
 });
 
 it("builds the register path only for a valid window", () => {
-  expect(credentialRegisterPath(hospital, null)).toBe(
+  expect(credentialRegisterPath(hospitalOwner, null)).toBe(
     `/workforce/hospitals/${hospital}/hr/credentials`,
   );
-  expect(credentialRegisterPath(hospital, 30)).toBe(
+  expect(credentialRegisterPath(hospitalOwner, 30)).toBe(
     `/workforce/hospitals/${hospital}/hr/credentials?expiring_within=30`,
   );
-  expect(() => credentialRegisterPath(hospital, 366)).toThrow();
+  expect(() => credentialRegisterPath(hospitalOwner, 366)).toThrow();
 });
 
 it("proposes to the review id and refuses a receipt for another credential", async () => {
@@ -146,10 +167,10 @@ it("accepts 1 to 6 distinct whole reminder days from 0 to 365", () => {
 });
 
 it("filters the reminder inbox by a known status only", () => {
-  expect(credentialRemindersPath(hospital, "open")).toBe(
+  expect(credentialRemindersPath(hospitalOwner, "open")).toBe(
     `/workforce/hospitals/${hospital}/hr/credential-reminders?status=open`,
   );
-  expect(() => credentialRemindersPath(hospital, "closed" as "open")).toThrow();
+  expect(() => credentialRemindersPath(hospitalOwner, "closed" as "open")).toThrow();
 });
 
 it("saves the policy against a version and refuses a receipt for another reminder", async () => {
@@ -162,7 +183,7 @@ it("saves the policy against a version and refuses a receipt for another reminde
       return new Response(JSON.stringify(body), { status: 200 });
     }),
   );
-  await expect(saveCredentialReminderPolicy(hospital, 1, [30, 0])).resolves.toMatchObject({
+  await expect(saveCredentialReminderPolicy(hospitalOwner, 1, [30, 0])).resolves.toMatchObject({
     version: 2,
   });
   expect(calls[0]).toEqual({
@@ -184,14 +205,207 @@ it("saves the policy against a version and refuses a receipt for another reminde
     status: "acknowledged",
     created_at: stamp,
   };
-  await expect(acknowledgeCredentialReminder(hospital, review)).rejects.toThrow(
+  await expect(acknowledgeCredentialReminder(hospitalOwner, review)).rejects.toThrow(
     "The acknowledged reminder did not match.",
   );
   expect(calls[1]).toMatchObject({
     url: `/api/v1/workforce/hospitals/${hospital}/hr/credential-reminders/${review}/acknowledgement`,
     method: "POST",
   });
-  await expect(acknowledgeCredentialReminder(hospital, file)).resolves.toMatchObject({
+  await expect(acknowledgeCredentialReminder(hospitalOwner, file)).resolves.toMatchObject({
     status: "acknowledged",
   });
+});
+
+const pharmacy = "01900000-0000-7000-8000-000000000001";
+const tenant = "66666666-6666-4666-8666-666666666666";
+const pharmacyOwner = { pharmacyId: pharmacy, tenantId: tenant, subject: "synthetic-hr" };
+const pharmacyScope = { ...pharmacyOwner, staffId: staff };
+const expected = {
+  "X-Helivanta-Expected-Tenant": tenant,
+  "X-Helivanta-Expected-Subject": "synthetic-hr",
+};
+const headersOf = (init: RequestInit) => Object.fromEntries(new Headers(init.headers).entries());
+const lower = (headers: Record<string, string>) =>
+  Object.fromEntries(Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v]));
+
+it("routes a pharmacy scope to the pharmacy family and keys it apart from a hospital", () => {
+  const base = `/workforce/pharmacies/${pharmacy}`;
+  expect(credentialsPath(pharmacyScope)).toBe(`${base}/staff/${staff}/credentials`);
+  expect(credentialRegisterPath(pharmacyOwner, 30)).toBe(
+    `${base}/hr/credentials?expiring_within=30`,
+  );
+  expect(credentialReminderPolicyPath(pharmacyOwner)).toBe(`${base}/hr/credential-reminder-policy`);
+  expect(credentialRemindersPath(pharmacyOwner, "open")).toBe(
+    `${base}/hr/credential-reminders?status=open`,
+  );
+  expect(pharmacyTimeZonePath(pharmacyOwner)).toBe(`${base}/hr/time-zone`);
+  const same = { hospitalId: pharmacy, staffId: staff };
+  expect(credentialsKey(pharmacyScope)).not.toEqual(credentialsKey(same));
+  for (const key of [
+    credentialsKey(pharmacyScope),
+    credentialRegisterKey(pharmacyOwner),
+    credentialReminderPolicyKey(pharmacyOwner),
+    credentialRemindersKey(pharmacyOwner),
+    pharmacyTimeZoneKey(pharmacyOwner),
+  ])
+    expect(key).toEqual(expect.arrayContaining(["pharmacy", pharmacy, tenant, "synthetic-hr"]));
+  expect(credentialsKey(scope)).toEqual(["workforce", "credentials", "hospital", hospital, staff]);
+});
+
+it("refuses a scope naming both families or an unverifiable pharmacy account", () => {
+  // @ts-expect-error A scope names exactly one establishment family.
+  const mixed: CredentialScope = { ...pharmacyScope, hospitalId: hospital };
+  expect(() => credentialsPath(mixed)).toThrow("The credential workspace could not be verified.");
+  for (const bad of [
+    { ...pharmacyScope, pharmacyId: hospital },
+    { ...pharmacyScope, tenantId: "not-a-tenant" },
+    { ...pharmacyScope, subject: " synthetic-hr" },
+    { ...pharmacyScope, subject: "" },
+    { ...pharmacyScope, subject: "synthetic\u0000hr" },
+  ])
+    expect(() => credentialRequest(bad)).toThrow("The credential workspace could not be verified.");
+  expect(credentialRequest(scope)).toEqual({ cache: "no-store" });
+  expect(credentialRequest(pharmacyScope)).toEqual({ cache: "no-store", headers: expected });
+});
+
+it("sends the expected account on every pharmacy command and none on a hospital", async () => {
+  const calls: { url: string; init: RequestInit }[] = [];
+  let body: unknown = saved;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return new Response(JSON.stringify(body), { status: 200 });
+    }),
+  );
+  const reviews = `/api/v1/workforce/pharmacies/${pharmacy}/staff/${staff}/credentials/${credential}/reviews/${review}`;
+  await proposeCredentialReview(pharmacyScope, credential, review, proposal);
+  await decideCredentialReview(pharmacyScope, credential, review, {
+    expected_version: 0,
+    decision: "approve",
+    note: "",
+  });
+  await withdrawCredentialReview(pharmacyScope, credential, review, { note: "Withdrawn" });
+  body = { version: 2, thresholds: [30, 0], created_by_subject: "synthetic-hr" };
+  await saveCredentialReminderPolicy(pharmacyOwner, 1, [30, 0]);
+  body = {
+    id: file,
+    staff_id: staff,
+    employee_code: "SYN-001",
+    display_name: "Synthetic Pharmacist",
+    credential_id: credential,
+    type: "Synthetic registration",
+    valid_until: "2026-12-31",
+    validity_version: 1,
+    threshold_days: 30,
+    due_on: "2026-12-01",
+    status: "acknowledged",
+    created_at: stamp,
+  };
+  await acknowledgeCredentialReminder(pharmacyOwner, file);
+  expect(calls.map((c) => [c.init.method, c.url])).toEqual([
+    ["PUT", reviews],
+    ["POST", `${reviews}/decision`],
+    ["POST", `${reviews}/withdraw`],
+    ["PUT", `/api/v1/workforce/pharmacies/${pharmacy}/hr/credential-reminder-policy`],
+    [
+      "POST",
+      `/api/v1/workforce/pharmacies/${pharmacy}/hr/credential-reminders/${file}/acknowledgement`,
+    ],
+  ]);
+  for (const call of calls) expect(headersOf(call.init)).toMatchObject(lower(expected));
+  calls.length = 0;
+  body = saved;
+  await proposeCredentialReview(scope, credential, review, proposal);
+  expect(Object.keys(headersOf(calls[0]!.init))).not.toEqual(
+    expect.arrayContaining(Object.keys(lower(expected))),
+  );
+});
+
+it("saves a pharmacy time zone against a version and refuses another receipt", async () => {
+  const calls: { url: string; init: RequestInit }[] = [];
+  let body: unknown = {
+    version: 1,
+    time_zone: "Asia/Kolkata",
+    updated_by_subject: "synthetic-hr",
+    updated_at: stamp,
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return new Response(JSON.stringify(body), { status: 200 });
+    }),
+  );
+  await expect(savePharmacyTimeZone(pharmacyOwner, 0, "Asia/Kolkata")).resolves.toMatchObject({
+    version: 1,
+    time_zone: "Asia/Kolkata",
+  });
+  expect(calls[0]?.url).toBe(`/api/v1/workforce/pharmacies/${pharmacy}/hr/time-zone`);
+  expect(calls[0]?.init.method).toBe("PUT");
+  expect(calls[0]?.init.body).toBe(
+    JSON.stringify({ expected_version: 0, time_zone: "Asia/Kolkata" }),
+  );
+  expect(headersOf(calls[0]!.init)).toMatchObject(lower(expected));
+  body = {
+    version: 1,
+    time_zone: "Europe/London",
+    updated_by_subject: "synthetic-hr",
+    updated_at: stamp,
+  };
+  await expect(savePharmacyTimeZone(pharmacyOwner, 0, "Asia/Kolkata")).rejects.toThrow(
+    "The saved time zone did not match. Reload before saving again.",
+  );
+  body = { version: 0, time_zone: "Asia/Kolkata" };
+  await expect(savePharmacyTimeZone(pharmacyOwner, 0, "Asia/Kolkata")).rejects.toThrow(
+    "The saved time zone did not match. Reload before saving again.",
+  );
+});
+
+it("accepts only a supported IANA time zone in the form", () => {
+  const message = (time_zone: string) =>
+    pharmacyTimeZoneFormSchema.safeParse({ time_zone }).error?.issues[0]?.message;
+  expect(message("Asia/Kolkata")).toBeUndefined();
+  expect(message("UTC")).toBeUndefined();
+  for (const bad of ["", "Local", "posix/Asia/Kolkata", "Mars/Olympus_Mons", "asia/kolkata"])
+    expect(message(bad)).toBe("Use a supported IANA time zone such as Asia/Kolkata.");
+});
+
+it("reads a pharmacy time zone under the expected account and refuses an inconsistent answer", async () => {
+  const calls: { url: string; init: RequestInit }[] = [];
+  let body: unknown = { version: 0 };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return new Response(JSON.stringify(body), { status: 200 });
+    }),
+  );
+  await expect(fetchPharmacyTimeZone(pharmacyOwner)).resolves.toEqual({ version: 0 });
+  expect(calls[0]?.url).toBe(`/api/v1/workforce/pharmacies/${pharmacy}/hr/time-zone`);
+  expect(calls[0]?.init.method ?? "GET").toBe("GET");
+  expect(calls[0]?.init.cache).toBe("no-store");
+  expect(headersOf(calls[0]!.init)).toMatchObject(lower(expected));
+  const set = {
+    version: 2,
+    time_zone: "Asia/Kolkata",
+    updated_by_subject: "synthetic-hr",
+    updated_at: stamp,
+  };
+  body = set;
+  await expect(fetchPharmacyTimeZone(pharmacyOwner)).resolves.toEqual(set);
+  for (const bad of [
+    { version: 0, time_zone: "Asia/Kolkata" },
+    { version: 1 },
+    { version: -1 },
+    { ...set, time_zone: "Local" },
+    { ...set, hospital_id: hospital },
+  ]) {
+    body = bad;
+    await expect(fetchPharmacyTimeZone(pharmacyOwner)).rejects.toThrow();
+  }
+  await expect(
+    fetchPharmacyTimeZone({ ...pharmacyOwner, subject: " synthetic-hr" }),
+  ).rejects.toThrow("The credential workspace could not be verified.");
 });

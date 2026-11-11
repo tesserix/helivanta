@@ -345,11 +345,75 @@ func TestEmploymentTermsAdmitAPharmacyAndRefuseASupplier(t *testing.T) {
 	require.Equal(t, []string{"23503", "workforce_hospital_establishment"}, []string{refusal.Code, refusal.ConstraintName}, refusal.Message)
 }
 
+func TestCredentialReviewsAdmitAPharmacyWhileRosterStandingStaysHospitalOnly(t *testing.T) {
+	h := newEstablishmentHarness(t, workforce.New())
+	pharmacy := h.pharmacy(t, "independent")
+	staff := h.pharmacyStaff(t, pharmacy)
+	supplier, supplierStaff := h.supplierStaff(t)
+	refused := func(name string, err error, code, constraint string) {
+		t.Helper()
+		var refusal *pgconn.PgError
+		require.True(t, errors.As(err, &refusal), "%s: expected a refusal, got %v", name, err)
+		require.Equal(t, code, refusal.Code, "%s: %s", name, refusal.Message)
+		if constraint != "" {
+			require.Equal(t, constraint, refusal.ConstraintName, "%s: %s", name, refusal.Message)
+		}
+	}
+	refused("supplier review", h.tx(t, supplier, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO workforce_credential_reviews(tenant_id,hospital_id,id,staff_id,credential_id,base_version,status,type,number,issuer,valid_from,valid_until,evidence_document_ids,reason,proposed_by_subject,decision_note)
+ VALUES(?,?,gen_random_uuid(),?,gen_random_uuid(),0,'pending','registration','SYN-1','Synthetic council','2026-01-01','2027-01-01',ARRAY[gen_random_uuid()],'Synthetic check','user-admin','')`, testutil.TenantA, supplier, supplierStaff).Error
+	}), "23503", "")
+	refused("pharmacy roster standing", h.tx(t, pharmacy, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO workforce_roster_credential_standing(tenant_id,hospital_id,staff_id,credential_id,type,valid_from,valid_until,version) VALUES(?,?,?,gen_random_uuid(),'registration','2026-01-01','2027-01-01',1)`, testutil.TenantA, pharmacy, staff).Error
+	}), "23503", "workforce_hospital_establishment")
+	zone := func(establishment, timezone string, version int) error {
+		return h.tx(t, establishment, func(tx *gorm.DB) error {
+			return tx.Exec(`INSERT INTO workforce_pharmacy_time_zones(tenant_id,hospital_id,timezone,version,updated_by_subject) VALUES(?,?,?,?,'user-admin')`, testutil.TenantA, establishment, timezone, version).Error
+		})
+	}
+	refused("hospital time zone", zone(h.hospital, "Asia/Kolkata", 1), "23503", "workforce_pharmacy_establishment")
+	refused("supplier time zone", zone(supplier, "Asia/Kolkata", 1), "23503", "workforce_pharmacy_establishment")
+	refused("unsupported time zone", zone(pharmacy, "Mars/Olympus_Mons", 1), "23514", "")
+	refused("time zone starting past version 1", zone(pharmacy, "Asia/Kolkata", 2), "23514", "workforce_pharmacy_time_zone_version")
+	require.NoError(t, zone(pharmacy, "Asia/Kolkata", 1))
+	update := func(set string, args ...any) error {
+		return h.tx(t, pharmacy, func(tx *gorm.DB) error {
+			return tx.Exec(`UPDATE workforce_pharmacy_time_zones SET `+set+` WHERE tenant_id=? AND hospital_id=?`, append(args, testutil.TenantA, pharmacy)...).Error
+		})
+	}
+	refused("skipped version", update(`timezone='Asia/Dubai',version=3`), "23514", "workforce_pharmacy_time_zone_version")
+	refused("moved to a hospital", update(`hospital_id=?,version=2`, h.hospital), "23503", "workforce_pharmacy_establishment")
+	refused("moved to another pharmacy", update(`hospital_id=?,version=2`, h.pharmacy(t, "chain")), "23514", "workforce_pharmacy_time_zone_version")
+	require.NoError(t, update(`timezone='Asia/Dubai',version=2,updated_by_subject='user-second'`))
+	deleted := h.tx(t, pharmacy, func(tx *gorm.DB) error {
+		return tx.Exec(`DELETE FROM workforce_pharmacy_time_zones WHERE tenant_id=? AND hospital_id=?`, testutil.TenantA, pharmacy).Error
+	})
+	refused("deleted time zone", deleted, "23514", "")
+	require.ErrorContains(t, deleted, "destructive workforce operation is not supported")
+	var saved struct {
+		Timezone string
+		Version  int64
+	}
+	require.NoError(t, h.tx(t, pharmacy, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT timezone,version FROM workforce_pharmacy_time_zones WHERE tenant_id=? AND hospital_id=?`, testutil.TenantA, pharmacy).Scan(&saved).Error
+	}))
+	require.Equal(t, "Asia/Dubai", saved.Timezone)
+	require.Equal(t, int64(2), saved.Version)
+	var visible int64
+	require.NoError(t, h.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.workforce_subject','user-admin',true),set_config('app.workforce_hospital',?,true)`, pharmacy).Error; err != nil {
+			return err
+		}
+		return tx.Raw(`SELECT count(*) FROM workforce_pharmacy_time_zones`).Scan(&visible).Error
+	}))
+	require.Zero(t, visible, "the zone is hidden outside an authorized enrollment transaction")
+}
+
 // pharmacyEnrollmentTables admit a hospital or a pharmacy, and refuse a supplier.
-var pharmacyEnrollmentTables = []string{"workforce_document_contributors", "workforce_employment_evidence_bindings", "workforce_employment_period_drafts", "workforce_enrollment_addresses", "workforce_enrollment_credentials", "workforce_enrollment_emergency_contacts", "workforce_enrollment_experiences", "workforce_enrollment_profile", "workforce_enrollment_qualifications"}
+var pharmacyEnrollmentTables = []string{"workforce_credential_reminder_policies", "workforce_credential_reviews", "workforce_document_contributors", "workforce_employment_evidence_bindings", "workforce_employment_period_drafts", "workforce_enrollment_addresses", "workforce_enrollment_credentials", "workforce_enrollment_emergency_contacts", "workforce_enrollment_experiences", "workforce_enrollment_profile", "workforce_enrollment_qualifications"}
 
 // pharmacyAdmittingTables are the reviewed tables a non-hospital establishment writes; every other one refuses it.
-var pharmacyAdmittingTables = slices.Sorted(slices.Values(append(slices.Clone(pharmacyEnrollmentTables), "workforce_documents", "workforce_employment_evidence_history", "workforce_employment_period_history", "workforce_hospital_access", "workforce_identity_epochs", "workforce_login_link_history", "workforce_login_links", "workforce_staff")))
+var pharmacyAdmittingTables = slices.Sorted(slices.Values(append(slices.Clone(pharmacyEnrollmentTables), "workforce_credential_reminders", "workforce_credential_validity", "workforce_documents", "workforce_employment_evidence_history", "workforce_employment_period_history", "workforce_hospital_access", "workforce_identity_epochs", "workforce_login_link_history", "workforce_login_links", "workforce_pharmacy_time_zones", "workforce_staff")))
 
 func TestLoginLinksAdmitEachEstablishmentOnlyThroughItsOwnIdentityBasis(t *testing.T) {
 	h := newEstablishmentHarness(t, workforce.New())
@@ -405,6 +469,8 @@ func TestEveryEstablishmentTableIsGuardedOrReachedThroughAGuardedTable(t *testin
 	}
 	require.Equal(t, pharmacyEnrollmentTables, guardedBy("workforce_require_enrollment_establishment"))
 	require.Equal(t, []string{"workforce_documents"}, guardedBy("workforce_require_document_establishment"))
+	require.Equal(t, []string{"workforce_pharmacy_time_zones"}, guardedBy("workforce_require_pharmacy_establishment"))
+	require.Contains(t, guardedBy("workforce_require_hospital_establishment"), "workforce_roster_credential_standing")
 	require.NoError(t, h.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "9000_workforce_inventory_probe", SQL: `CREATE TABLE workforce_inventory_probe(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,FOREIGN KEY(tenant_id,hospital_id) REFERENCES workforce_hospitals(tenant_id,id));
 CREATE TABLE workforce_inventory_orphan(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL);
 CREATE TABLE workforce_inventory_staff_child(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,staff_id uuid NOT NULL,FOREIGN KEY(tenant_id,hospital_id,staff_id) REFERENCES workforce_staff(tenant_id,hospital_id,id));

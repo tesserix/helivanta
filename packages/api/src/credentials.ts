@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { apiFetch } from "./client";
+import { apiFetch, type ApiQueryRequest } from "./client";
 import {
   credentialReviewContract,
   credentialReviewInputContract,
@@ -8,6 +8,8 @@ import {
   credentialReminderContract,
   credentialReminderPolicyContract,
   credentialReminderPolicyInputContract,
+  pharmacyTimeZoneContract,
+  pharmacyTimeZoneInputContract,
   staffCredentialsContract,
   type CredentialDecisionInput,
   type CredentialReminder,
@@ -15,38 +17,98 @@ import {
   type CredentialReview,
   type CredentialReviewInput,
   type CredentialWithdrawInput,
+  type PharmacyTimeZone,
   type StaffCredentials,
 } from "./credential-contract";
-import type { StaffDocument } from "./documents-fields";
+import type { PharmacyStaffDocument, StaffDocument } from "./documents-fields";
+import { pharmacyEmployerPath } from "./pharmacy-employers";
+import { isSupportedTimezone } from "./roster-config";
 export * from "./credential-contract";
 
-export type CredentialScope = { hospitalId: string; staffId: string };
+export type HospitalCredentialOwner = {
+  hospitalId: string;
+  pharmacyId?: never;
+  tenantId?: never;
+  subject?: never;
+};
+// Pharmacy HR routes refuse a request that does not name the account it expects (ADR-0054).
+export type PharmacyCredentialOwner = {
+  pharmacyId: string;
+  hospitalId?: never;
+  tenantId: string;
+  subject: string;
+};
+export type CredentialOwner = HospitalCredentialOwner | PharmacyCredentialOwner;
+export type CredentialScope = CredentialOwner & { staffId: string };
 const identifier = credentialReviewContract.shape.id;
+const tenant = z
+  .string()
+  .guid()
+  .refine((value) => value !== "00000000-0000-0000-0000-000000000000");
+const accountSubject = z
+  .string()
+  .min(1)
+  .max(200)
+  .refine((value) => value === value.trim() && !/\p{Cc}/u.test(value));
+const unverifiedWorkspace = () => new Error("The credential workspace could not be verified.");
+
+function ownerPath(owner: CredentialOwner): string {
+  if (owner.pharmacyId === undefined)
+    return `/workforce/hospitals/${identifier.parse(owner.hospitalId)}`;
+  if (
+    owner.hospitalId !== undefined ||
+    !tenant.safeParse(owner.tenantId).success ||
+    !accountSubject.safeParse(owner.subject).success
+  )
+    throw unverifiedWorkspace();
+  try {
+    return pharmacyEmployerPath(owner.pharmacyId);
+  } catch {
+    throw unverifiedWorkspace();
+  }
+}
+const ownerKey = (owner: CredentialOwner) =>
+  owner.pharmacyId === undefined
+    ? ["hospital", owner.hospitalId]
+    : ["pharmacy", owner.pharmacyId, owner.tenantId, owner.subject];
+
+export function credentialRequest(owner: CredentialOwner): ApiQueryRequest {
+  ownerPath(owner);
+  if (owner.pharmacyId === undefined) return { cache: "no-store" };
+  return {
+    cache: "no-store",
+    headers: {
+      "X-Helivanta-Expected-Tenant": owner.tenantId,
+      "X-Helivanta-Expected-Subject": owner.subject,
+    },
+  };
+}
 
 export const credentialsPath = (scope: CredentialScope) =>
-  `/workforce/hospitals/${identifier.parse(scope.hospitalId)}/staff/${identifier.parse(scope.staffId)}/credentials`;
+  `${ownerPath(scope)}/staff/${identifier.parse(scope.staffId)}/credentials`;
 export const credentialReviewsPath = (scope: CredentialScope, credential: string) =>
   `${credentialsPath(scope)}/${identifier.parse(credential)}/reviews`;
 export const credentialsKey = (scope: CredentialScope) => [
   "workforce",
   "credentials",
-  scope.hospitalId,
+  ...ownerKey(scope),
   scope.staffId,
 ];
-export const credentialRegisterKey = (hospitalId: string) => [
+export const credentialRegisterKey = (owner: CredentialOwner) => [
   "workforce",
   "credential-register",
-  hospitalId,
+  ...ownerKey(owner),
 ];
-export const credentialRegisterPath = (hospitalId: string, within: number | null) =>
-  `/workforce/hospitals/${identifier.parse(hospitalId)}/hr/credentials${within === null ? "" : `?expiring_within=${z.number().int().min(0).max(365).parse(within)}`}`;
+const hrPath = (owner: CredentialOwner) => `${ownerPath(owner)}/hr`;
+export const credentialRegisterPath = (owner: CredentialOwner, within: number | null) =>
+  `${hrPath(owner)}/credentials${within === null ? "" : `?expiring_within=${z.number().int().min(0).max(365).parse(within)}`}`;
 
 export async function fetchStaffCredentials(
   scope: CredentialScope,
   signal: AbortSignal,
 ): Promise<StaffCredentials> {
   return staffCredentialsContract.parse(
-    await apiFetch(credentialsPath(scope), { cache: "no-store", signal }),
+    await apiFetch(credentialsPath(scope), { ...credentialRequest(scope), signal }),
   );
 }
 
@@ -83,7 +145,10 @@ export const credentialDecisionFormSchema = z
 export type CredentialDecisionForm = z.infer<typeof credentialDecisionFormSchema>;
 
 // Only this credential's evidence that is released or still scanning can be cited.
-export const citableEvidence = (files: StaffDocument[], credential: string) =>
+export const citableEvidence = <F extends StaffDocument | PharmacyStaffDocument>(
+  files: F[],
+  credential: string,
+): F[] =>
   files.filter(
     (f) =>
       f.record_kind === "credential" &&
@@ -116,6 +181,7 @@ export async function proposeCredentialReview(
     credential,
     review,
     await apiFetch(`${credentialReviewsPath(scope, credential)}/${identifier.parse(review)}`, {
+      ...credentialRequest(scope),
       method: "PUT",
       body: JSON.stringify(body),
     }),
@@ -135,7 +201,7 @@ export async function decideCredentialReview(
     review,
     await apiFetch(
       `${credentialReviewsPath(scope, credential)}/${identifier.parse(review)}/decision`,
-      { method: "POST", body: JSON.stringify(body) },
+      { ...credentialRequest(scope), method: "POST", body: JSON.stringify(body) },
     ),
   );
 }
@@ -153,7 +219,7 @@ export async function withdrawCredentialReview(
     review,
     await apiFetch(
       `${credentialReviewsPath(scope, credential)}/${identifier.parse(review)}/withdraw`,
-      { method: "POST", body: JSON.stringify(body) },
+      { ...credentialRequest(scope), method: "POST", body: JSON.stringify(body) },
     ),
   );
 }
@@ -169,20 +235,19 @@ export const credentialRegisterFilterSchema = z
 export type CredentialRegisterFilter = z.infer<typeof credentialRegisterFilterSchema>;
 
 export type CredentialReminderStatus = CredentialReminder["status"];
-const hrPath = (hospitalId: string) => `/workforce/hospitals/${identifier.parse(hospitalId)}/hr`;
-export const credentialReminderPolicyPath = (hospitalId: string) =>
-  `${hrPath(hospitalId)}/credential-reminder-policy`;
-export const credentialReminderPolicyKey = (hospitalId: string) => [
+export const credentialReminderPolicyPath = (owner: CredentialOwner) =>
+  `${hrPath(owner)}/credential-reminder-policy`;
+export const credentialReminderPolicyKey = (owner: CredentialOwner) => [
   "workforce",
   "credential-reminder-policy",
-  hospitalId,
+  ...ownerKey(owner),
 ];
-export const credentialRemindersPath = (hospitalId: string, status: CredentialReminderStatus) =>
-  `${hrPath(hospitalId)}/credential-reminders?status=${credentialReminderContract.shape.status.parse(status)}`;
-export const credentialRemindersKey = (hospitalId: string) => [
+export const credentialRemindersPath = (owner: CredentialOwner, status: CredentialReminderStatus) =>
+  `${hrPath(owner)}/credential-reminders?status=${credentialReminderContract.shape.status.parse(status)}`;
+export const credentialRemindersKey = (owner: CredentialOwner) => [
   "workforce",
   "credential-reminders",
-  hospitalId,
+  ...ownerKey(owner),
 ];
 
 // Days are typed as a list ("90, 30, 0") and must be 1 to 6 different whole days from 0 to 365.
@@ -214,7 +279,7 @@ export const credentialReminderPolicyFormSchema = z
 export type CredentialReminderPolicyForm = z.infer<typeof credentialReminderPolicyFormSchema>;
 
 export async function saveCredentialReminderPolicy(
-  hospitalId: string,
+  owner: CredentialOwner,
   expectedVersion: number,
   thresholds: number[],
 ): Promise<CredentialReminderPolicy> {
@@ -223,7 +288,8 @@ export async function saveCredentialReminderPolicy(
     thresholds,
   });
   return credentialReminderPolicyContract.parse(
-    await apiFetch(credentialReminderPolicyPath(hospitalId), {
+    await apiFetch(credentialReminderPolicyPath(owner), {
+      ...credentialRequest(owner),
       method: "PUT",
       body: JSON.stringify(body),
     }),
@@ -231,15 +297,72 @@ export async function saveCredentialReminderPolicy(
 }
 
 export async function acknowledgeCredentialReminder(
-  hospitalId: string,
+  owner: CredentialOwner,
   reminder: string,
 ): Promise<CredentialReminder> {
   const saved = credentialReminderContract.parse(
     await apiFetch(
-      `${hrPath(hospitalId)}/credential-reminders/${identifier.parse(reminder)}/acknowledgement`,
-      { method: "POST" },
+      `${hrPath(owner)}/credential-reminders/${identifier.parse(reminder)}/acknowledgement`,
+      { ...credentialRequest(owner), method: "POST" },
     ),
   );
   if (saved.id !== reminder) throw new Error("The acknowledged reminder did not match.");
+  return saved;
+}
+
+export const pharmacyTimeZonePath = (owner: PharmacyCredentialOwner) =>
+  `${hrPath(owner)}/time-zone`;
+export const pharmacyTimeZoneKey = (owner: PharmacyCredentialOwner) => [
+  "workforce",
+  "pharmacy-time-zone",
+  ...ownerKey(owner),
+];
+// Version 0 is the unsaved row; every saved version names a supported zone.
+export async function fetchPharmacyTimeZone(
+  owner: PharmacyCredentialOwner,
+  signal?: AbortSignal,
+): Promise<PharmacyTimeZone> {
+  const zone = pharmacyTimeZoneContract.parse(
+    await apiFetch(pharmacyTimeZonePath(owner), { ...credentialRequest(owner), signal }),
+  );
+  const saved = zone.time_zone !== undefined;
+  if (
+    zone.version < 0 ||
+    saved !== zone.version > 0 ||
+    (saved && !isSupportedTimezone(zone.time_zone!))
+  )
+    throw new Error("The pharmacy time zone could not be verified. Reload and try again.");
+  return zone;
+}
+
+export const pharmacyTimeZoneFormSchema = z
+  .object({
+    time_zone: z
+      .string()
+      .trim()
+      .refine(isSupportedTimezone, "Use a supported IANA time zone such as Asia/Kolkata."),
+  })
+  .strict();
+export type PharmacyTimeZoneForm = z.infer<typeof pharmacyTimeZoneFormSchema>;
+
+// A replay of the current zone returns the saved row at its own version, so only the zone is compared.
+export async function savePharmacyTimeZone(
+  owner: PharmacyCredentialOwner,
+  expectedVersion: number,
+  timeZone: string,
+): Promise<PharmacyTimeZone> {
+  const body = pharmacyTimeZoneInputContract.parse({
+    expected_version: expectedVersion,
+    time_zone: timeZone,
+  });
+  const saved = pharmacyTimeZoneContract.parse(
+    await apiFetch(pharmacyTimeZonePath(owner), {
+      ...credentialRequest(owner),
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  );
+  if (saved.version < 1 || saved.time_zone !== body.time_zone)
+    throw new Error("The saved time zone did not match. Reload before saving again.");
   return saved;
 }

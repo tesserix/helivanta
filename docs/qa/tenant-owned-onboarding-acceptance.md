@@ -72,7 +72,11 @@ The shared production/QA environment is the user's named test target.
 
 - Native email/password links expire after1hour. Expired proof offers recovery.
   Initial/send/resend share3/hour and10/rolling24h per immutable intent,
-  including provider failures. Do not deliberately send10 real emails to a user
+  including provider failures. Across intents, the same recipient also shares
+  10/rolling hour and30/rolling24h. Both independent tenants should complete their
+  initial email/password steps within this combined allowance. Concurrent
+  cross-intent reservations and exact boundaries are verified with real CI
+  PostgreSQL fixtures. Do not deliberately exhaust real recipient allowances
   just to prove quota: real PostgreSQL concurrency tests cover reservations.
 - After verification, a resend returns a privacy-safe no-op, consumes no extra
   allowance/code and produces no new verification message. Completed password

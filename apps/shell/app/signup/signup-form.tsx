@@ -298,8 +298,10 @@ function SignupStatus({
                 : "Resend verification email"}
           </Button>
           <p className="text-sm text-muted-foreground">
-            Links expire after 1 hour. Up to 3 emails per hour and 10 per 24 hours, including the
-            first email and password setup. Verification emails stop once your email is verified.
+            Links expire after 1 hour. Each workspace allows up to 3 emails per hour and 10 per 24
+            hours, including the first email and password setup. Across workspaces, the same
+            recipient can receive up to 10 emails per hour and 30 per 24 hours. Verification emails
+            stop once your email is verified.
           </p>
           {resend.isSuccess && (
             <p role="status" className="text-sm text-muted-foreground">

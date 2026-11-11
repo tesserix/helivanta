@@ -227,7 +227,10 @@ can mark verification/password setup complete.
 
 Native email and password links expire after one hour. Initial delivery and
 both resend kinds share three attempts per hour and ten per rolling24hours per
-immutable signup, including failed provider attempts. Reservations are atomic
+immutable signup, including failed provider attempts. Across independent intents,
+the same recipient hash has an additional10/rolling hour and30/rolling24hour
+allowance, serialized by a database transaction lock. Creating a new receipt or
+tenant never resets either budget. Reservations are atomic
 and audited without native codes. Verified email resend and completed password
 setup return privacy-safe no-ops before spending allowance or generating a code.
 Provider acceptance evidence is retained, but an accepted send is not proof of

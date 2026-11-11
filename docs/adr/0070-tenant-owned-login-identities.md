@@ -144,3 +144,10 @@ has a10s total deadline and broker/native service deadlines are bounded by it.
 The broker adds registry/native reads and one audit write per successful lookup;
 load acceptance and long-term audit retention remain operational review gates,
 not measured guarantees. There is no retry/cache or extra credential grant.
+
+Delivery budgets remain independent of identity ownership: each workspace keeps
+3/hour and10/rolling24h mail attempts, and the same recipient hash additionally
+shares10/rolling hour and30/rolling24h across intents. A transaction-scoped
+recipient lock prevents cross-row concurrency bypass. No raw recipient or hash
+is added to audit payloads or public responses. New receipts reset neither
+budget. The schema's recipient/tenant index is non-unique and grants no access.

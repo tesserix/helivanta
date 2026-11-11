@@ -18,7 +18,7 @@ ARG GO_BUILDER_IMAGE=ghcr.io/tesserix/base-go-builder@sha256:3e00161f419a8fd7abe
 ARG GO_RUNTIME_IMAGE=ghcr.io/tesserix/base-distroless-static@sha256:a0ada4bf3d50447e7bbc3bf95f872ade97dd85feba81e7b4facf8e9fab665594
 FROM ${GO_BUILDER_IMAGE} AS builder
 
-ENV GOTOOLCHAIN=go1.27.3
+ENV GOTOOLCHAIN=go1.27.4
 
 # The shared builder defaults to the non-root app user. This stage needs to
 # create /out and populate the module/build caches, so elevate only for the

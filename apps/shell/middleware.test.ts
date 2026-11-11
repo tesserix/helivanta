@@ -109,6 +109,7 @@ it("allows only the exact public signup and native verification paths without a 
     "/api/v1/auth/signup/password",
     "/api/v1/auth/signup/email-link",
     "/api/v1/auth/signup/password-link",
+    "/api/v1/auth/signup/sign-in",
   ]) {
     const response = middleware(new NextRequest(`https://helivanta.app${path}`));
     expect(response.headers.get("x-middleware-next")).toBe("1");

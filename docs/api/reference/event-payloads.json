@@ -5250,6 +5250,30 @@
       "type": "object"
     }
   },
+  "helivanta.in.workforce.hospital_named.v1": {
+    "source": "backend/internal/modules/workforce/contract/events.go:468",
+    "go_type": "HospitalNamedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "hospital_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "name_version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "hospital_id",
+        "name",
+        "name_version"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.workforce.identity_case_changed.v1": {
     "source": "backend/internal/modules/workforce/contract/events.go:413",
     "go_type": "IdentityCaseChangedData",

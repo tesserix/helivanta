@@ -4965,6 +4965,11 @@
           "after_commit": false
         },
         {
+          "name": "pharmacy-hospital-names",
+          "subject": "helivanta.in.workforce.hospital_named.v1",
+          "after_commit": false
+        },
+        {
           "name": "pharmacy-bed-occupancy-started",
           "subject": "helivanta.in.medicore.bed_occupancy_started.v1",
           "after_commit": false
@@ -5310,7 +5315,14 @@
           "creates_tables": []
         },
         {
-          "id": "0045_pharmacy_licence_evidence_review",
+          "id": "0045_pharmacy_hospital_names",
+          "sql_sha256": "884b1e081c587b2041d635c14dae5387f1fa92c7375090c3d749ef9b800cc7c7",
+          "creates_tables": [
+            "pharmacy_hospital_names"
+          ]
+        },
+        {
+          "id": "0046_pharmacy_licence_evidence_review",
           "sql_sha256": "966dfb31b53e170c41f56d78e4f815a3500e851428e73e8460305c7a678ff916",
           "creates_tables": []
         }
@@ -11797,6 +11809,7 @@
         }
       ],
       "publishes": [
+        "helivanta.in.workforce.hospital_named.v1",
         "helivanta.in.workforce.independent_login_link_changed.v1",
         "helivanta.in.workforce.partner_group_hospital_scope_observed.v1",
         "helivanta.in.workforce.posting_cutoff_changed.v1",
@@ -12898,6 +12911,13 @@
           "id": "0096_workforce_business_profile",
           "sql_sha256": "89138ab8073e716c214975e226343fd0d9af682be6c435f97c4318fe468969fc",
           "creates_tables": []
+        },
+        {
+          "id": "0097_workforce_hospital_names",
+          "sql_sha256": "559c8943a5f7eba6b7569e7e8871cb2666cd9f50267b9db36934526562e8cf67",
+          "creates_tables": [
+            "workforce_hospital_name_announcements"
+          ]
         }
       ]
     },
@@ -13221,6 +13241,7 @@
     "POST /v1/auth/signup/email-link": "bounded native verification delivery without identity disclosure",
     "POST /v1/auth/signup/password": "native reset code for the immutable signup owner before sign-in",
     "POST /v1/auth/signup/password-link": "bounded native password setup and recovery without identity disclosure",
+    "POST /v1/auth/signup/sign-in": "receipt-bound continuation using a fresh native ID token and current revocation check before tenant membership exists",
     "POST /v1/auth/signup/verify-email": "native email proof before sign-in; shared proof budget and receipt rotation",
     "POST /v1/payments/webhooks/razorpay/:tenant/:account": "provider callback authenticated by its HMAC signature, not a session"
   },

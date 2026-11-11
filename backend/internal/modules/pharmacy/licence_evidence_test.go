@@ -281,7 +281,7 @@ type licenceModuleBeforeEvidenceReview struct{ *pharmacy.Module }
 func (m licenceModuleBeforeEvidenceReview) Migrations() []tenantdb.Migration {
 	var result []tenantdb.Migration
 	for _, migration := range m.Module.Migrations() {
-		if migration.ID != "0045_pharmacy_licence_evidence_review" {
+		if migration.ID != "0046_pharmacy_licence_evidence_review" {
 			result = append(result, migration)
 		}
 	}
@@ -316,7 +316,7 @@ func TestLicenceReviewMigrationPreservesHistoricalAuthorityAndDecision(t *testin
 	}))
 	var gate []tenantdb.Migration
 	for _, migration := range pharmacy.New().Migrations() {
-		if migration.ID == "0045_pharmacy_licence_evidence_review" {
+		if migration.ID == "0046_pharmacy_licence_evidence_review" {
 			gate = append(gate, migration)
 		}
 	}

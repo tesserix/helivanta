@@ -93,8 +93,8 @@ func TestHostedLoginHandoffRouteIsGone(t *testing.T) {
 func TestCustomerSignupRoutesAreExplicitlyMounted(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	e := gin.New()
-	bootstrap.MountCustomerSignup(e, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler)
-	for _, route := range []struct{ method, path string }{{"GET", "/v1/auth/signup"}, {"POST", "/v1/auth/signup"}, {"POST", "/v1/auth/signup/verify-email"}, {"POST", "/v1/auth/signup/password"}, {"POST", "/v1/auth/signup/email-link"}, {"POST", "/v1/auth/signup/password-link"}} {
+	bootstrap.MountCustomerSignup(e, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler)
+	for _, route := range []struct{ method, path string }{{"POST", "/v1/auth/signup/sign-in"}, {"GET", "/v1/auth/signup"}, {"POST", "/v1/auth/signup"}, {"POST", "/v1/auth/signup/verify-email"}, {"POST", "/v1/auth/signup/password"}, {"POST", "/v1/auth/signup/email-link"}, {"POST", "/v1/auth/signup/password-link"}} {
 		response := httptest.NewRecorder()
 		e.ServeHTTP(response, httptest.NewRequest(route.method, route.path, nil))
 		require.Equal(t, 200, response.Code, "missing signup route %s %s", route.method, route.path)

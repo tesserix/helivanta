@@ -5,7 +5,13 @@ import { renderWithProviders } from "@helivanta/api/testing";
 import type { CustomerSignupInput } from "@helivanta/api";
 import { SignupForm } from "./signup-form";
 
-afterEach(() => vi.unstubAllGlobals());
+const signinRedirect = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/oidc", () => ({ getUserManager: () => ({ signinRedirect }) }));
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  signinRedirect.mockReset();
+});
 
 it("submits an independent pharmacy with its owner and waits for verified provisioning", async () => {
   const calls: Array<{ path: string; body: unknown }> = [];
@@ -74,7 +80,7 @@ it("submits an independent pharmacy with its owner and waits for verified provis
       },
     ]),
   );
-  expect(await screen.findByRole("heading", { name: "Setting up your workspace" })).toBeVisible();
+  expect(await screen.findByRole("heading", { name: "Setting up your workspace" })).toHaveFocus();
   expect(screen.queryByText("Your workspace is ready")).not.toBeInTheDocument();
 });
 
@@ -172,4 +178,52 @@ it("preserves a branch address in a different supported state", async () => {
       },
     }),
   );
+});
+
+it("continues a retained signup through fresh native authentication", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ state: "email_action_required" }), { status: 200 }),
+      ),
+  );
+  renderWithProviders(<SignupForm />);
+  expect(await screen.findByRole("heading", { name: "Verify your account" })).toHaveFocus();
+  await userEvent
+    .setup()
+    .click(screen.getByRole("button", { name: "Continue with an existing account" }));
+  expect(signinRedirect).toHaveBeenCalledWith({
+    state: { purpose: "customer-signup" },
+    prompt: "login",
+    max_age: 0,
+  });
+  expect(screen.getByRole("button", { name: "Resend verification email" })).toBeVisible();
+});
+
+it("opens the newly created workspace using its exact tenant", async () => {
+  const tenantId = "11111111-1111-4111-8111-111111111111";
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          state: "ready",
+          name: "TEST Hospital",
+          kind: "hospital",
+          tenantId,
+          resourceId: "0199e000-0000-7000-8000-000000000010",
+        }),
+        { status: 200 },
+      ),
+    ),
+  );
+  renderWithProviders(<SignupForm />);
+  await userEvent.setup().click(await screen.findByRole("button", { name: "Open workspace" }));
+  expect(signinRedirect).toHaveBeenCalledWith({
+    state: { purpose: "customer-signup-login", tenantId },
+    prompt: "login",
+    max_age: 0,
+  });
 });

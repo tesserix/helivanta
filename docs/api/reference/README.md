@@ -655,6 +655,7 @@ Subscriptions:
 - `pharmacy-affiliation-decision` ← `helivanta.in.patientmaster.pharmacy_affiliation_decided.v1`; after-commit hook: false.
 - `pharmacy-affiliation-receipt` ← `helivanta.in.patientmaster.pharmacy_affiliation_received.v1`; after-commit hook: false.
 - `pharmacy-patient-registered` ← `helivanta.in.patientmaster.registered.v1`; after-commit hook: false.
+- `pharmacy-hospital-names` ← `helivanta.in.workforce.hospital_named.v1`; after-commit hook: false.
 - `pharmacy-bed-occupancy-started` ← `helivanta.in.medicore.bed_occupancy_started.v1`; after-commit hook: false.
 - `pharmacy-bed-occupancy-ended` ← `helivanta.in.medicore.bed_occupancy_ended.v1`; after-commit hook: false.
 - `pharmacy-encounter-opened` ← `helivanta.in.medicore.encounter_opened.v1`; after-commit hook: false.
@@ -693,6 +694,7 @@ Migration table declarations:
 - `0039_pharmacy_supplier_fulfilment`: `pharmacy_supplier_allocations`, `pharmacy_supplier_holds`, `pharmacy_supplier_commands`, `pharmacy_supplier_allocation_history`, `pharmacy_supplier_receiving_heads`, `pharmacy_supplier_receipts`, `pharmacy_supplier_receiving_closures`, `pharmacy_supplier_receiving_clearances`, `pharmacy_supplier_batch_sources`.
 - `0040_pharmacy_supplier_receiving_corrections`: `pharmacy_supplier_receiving_corrections`.
 - `0042_pharmacy_supplier_receiving_release`: `pharmacy_supplier_receiving_releases`.
+- `0045_pharmacy_hospital_names`: `pharmacy_hospital_names`.
 
 ## payments
 
@@ -1455,6 +1457,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 
 Published subjects:
 
+- `helivanta.in.workforce.hospital_named.v1`
 - `helivanta.in.workforce.independent_login_link_changed.v1`
 - `helivanta.in.workforce.partner_group_hospital_scope_observed.v1`
 - `helivanta.in.workforce.posting_cutoff_changed.v1`
@@ -1577,6 +1580,7 @@ Migration table declarations:
 - `0085_workforce_posting_lifecycle_reviews`: `workforce_posting_lifecycle_reviews`, `workforce_posting_lifecycle_sources`.
 - `0090_workforce_partner_group_scope`: `workforce_partner_group_observations`.
 - `0094_workforce_independent_identity`: `workforce_independent_link_commands`.
+- `0097_workforce_hospital_names`: `workforce_hospital_name_announcements`.
 
 ## workspace
 
@@ -1660,6 +1664,7 @@ Migration table declarations:
 | `POST /v1/auth/signup/email-link` | bounded native verification delivery without identity disclosure |
 | `POST /v1/auth/signup/password` | native reset code for the immutable signup owner before sign-in |
 | `POST /v1/auth/signup/password-link` | bounded native password setup and recovery without identity disclosure |
+| `POST /v1/auth/signup/sign-in` | receipt-bound continuation using a fresh native ID token and current revocation check before tenant membership exists |
 | `POST /v1/auth/signup/verify-email` | native email proof before sign-in; shared proof budget and receipt rotation |
 | `POST /v1/payments/webhooks/razorpay/:tenant/:account` | provider callback authenticated by its HMAC signature, not a session |
 

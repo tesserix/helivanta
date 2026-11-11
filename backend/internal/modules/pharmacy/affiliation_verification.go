@@ -152,6 +152,9 @@ func (h *catalogueHandlers) verificationCommand(c *gin.Context, in any, step fun
 		if err := fillVerification(tx, p.TenantID, rows); err != nil {
 			return err
 		}
+		if err := fillHospitalNames(tx, p.TenantID, rows); err != nil {
+			return err
+		}
 		result = rows[0]
 		return nil
 	})

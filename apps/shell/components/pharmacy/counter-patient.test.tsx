@@ -11,10 +11,15 @@ const scope = {
 const hospital = "22222222-2222-4222-8222-222222222222";
 const page = (data: unknown[]) =>
   JSON.stringify({ data, page: { has_more: false, next_cursor: null } });
-const link = (status: string, hospital_id = hospital) => ({
+const link = (
+  status: string,
+  hospital_id = hospital,
+  hospital_name: string | null = "TEST City Hospital",
+) => ({
   id: "a1",
   pharmacy_id: scope.pharmacyId,
   hospital_id,
+  hospital_name,
   relationship: "owner",
   verification_status: status,
   verification_request_id: "r1",
@@ -33,6 +38,45 @@ function stub(links: unknown[], lookup: () => Response) {
 }
 const lookups = (fetcher: ReturnType<typeof stub>) =>
   fetcher.mock.calls.filter(([url]) => String(url).includes("/patients/pharmacy-lookup"));
+
+const other = "33333333-3333-4333-8333-333333333333";
+
+describe("CounterPatientLookup hospital picker labels", () => {
+  const options = async (links: unknown[]) => {
+    stub(links, () => new Response("{}"));
+    const { user } = renderWithProviders(
+      <CounterPatientLookup scope={scope} value={null} onChange={vi.fn()} />,
+    );
+    await user.click(await screen.findByLabelText("Hospital"));
+    return screen.getAllByRole("option").map((o) => o.textContent);
+  };
+
+  it("lists the verified hospital by name, without its id", async () => {
+    expect(
+      await options([link("verified"), link("verified", other, "TEST Lake Hospital")]),
+    ).toEqual(["TEST City Hospital", "TEST Lake Hospital"]);
+  });
+
+  it("adds the id when two verified hospitals share a name", async () => {
+    expect(await options([link("verified"), link("verified", other)])).toEqual([
+      `TEST City Hospital · ${hospital}`,
+      `TEST City Hospital · ${other}`,
+    ]);
+  });
+
+  it("says the name is unavailable when it is null or absent", async () => {
+    const absent: Record<string, unknown> = link("verified", other);
+    delete absent.hospital_name;
+    expect(await options([link("verified", hospital, null), absent])).toEqual([
+      `Name unavailable · ${hospital}`,
+      `Name unavailable · ${other}`,
+    ]);
+  });
+
+  it("lists a hospital once when two affiliations point at it", async () => {
+    expect(await options([link("verified"), link("verified")])).toEqual(["TEST City Hospital"]);
+  });
+});
 
 describe("CounterPatientLookup", () => {
   it("finds a patient by MRN at the verified hospital and hands over only a confirmed one", async () => {

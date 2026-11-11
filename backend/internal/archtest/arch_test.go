@@ -718,8 +718,10 @@ var withAllTenantsAllowlist = map[string]bool{
 	// #1386 C-4a: the payments poller finds due intents across tenants. It
 	// reads only (tenant_id, id) — the system role holds SELECT on just
 	// those columns and next_check_at — and checks each under WithTenant.
-	"internal/modules/payments/reconciler.go":                         true,
-	"internal/modules/pharmacy/affiliation_delivery.go":               true,
+	"internal/modules/payments/reconciler.go":           true,
+	"internal/modules/pharmacy/affiliation_delivery.go": true,
+	// #1637: finds hospitals with an unannounced name version; reads ids and versions only, each is announced under WithTenant.
+	"internal/modules/workforce/hospital_names.go":                    true,
 	"internal/modules/patientmaster/pharmacy_affiliation_delivery.go": true,
 	// #197: the bed census finds due stays and unapplied setup across
 	// tenants by key columns alone, and reconciles each under WithTenant.

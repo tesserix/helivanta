@@ -118,6 +118,11 @@ func New(cfg Config) (http.Handler, error) {
 						headers.Add(key, value)
 					}
 				}
+				if product == "platform" && p.In.Method == http.MethodPost && (p.In.URL.Path == "/internal/v1/hospital-enrolments" || p.In.URL.Path == "/internal/v1/customer-workspaces") {
+					for _, value := range p.In.Header.Values("X-Onboarding-Token") {
+						headers.Add("X-Onboarding-Token", value)
+					}
+				}
 				headers.Set("X-Request-ID", p.In.Header.Get("X-Request-ID"))
 				headers.Set("X-Forwarded-For", p.In.RemoteAddr)
 				p.Out.Header = headers
@@ -157,7 +162,7 @@ func New(cfg Config) (http.Handler, error) {
 		if len(parts) >= 2 && parts[0] == "v1" {
 			product = owners[parts[1]]
 		}
-		if r.Method == http.MethodPost && r.URL.Path == "/internal/v1/hospital-enrolments" {
+		if r.Method == http.MethodPost && (r.URL.Path == "/internal/v1/hospital-enrolments" || r.URL.Path == "/internal/v1/customer-workspaces") {
 			product = "platform"
 		}
 		if product == "" {

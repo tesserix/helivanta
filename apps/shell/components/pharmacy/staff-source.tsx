@@ -32,6 +32,7 @@ import {
 import { IndependentOperatingDuties } from "@/components/workforce/independent-operating-duties";
 import { IndependentStaffLinks } from "@/components/workforce/independent-staff-links";
 import { PharmacyEnrollmentEditor } from "./pharmacy-enrollment-editor";
+import { StaffAccessPreparation } from "@/components/workforce/staff-access-preparation";
 import { StaffRecordForm } from "@/components/workforce/staff-record-form";
 
 const identitySchema = z.object({
@@ -81,27 +82,27 @@ function StaffSourceAccount({ onRestart }: { onRestart: () => void }) {
         error={identity.error}
       />
     );
-  if (!parsed.data.data.includes("pharmacy.catalogue.read"))
-    return (
-      <Panel role="alert">You do not have permission to open the pharmacy Staff source.</Panel>
-    );
   const scope = { tenantId: parsed.data.tenant_id, subject: parsed.data.subject };
   return (
     <StaffSources
       key={`${scope.tenantId}:${scope.subject}`}
       scope={scope}
+      includeHospitalStaff={parsed.data.data.includes("pharmacy.catalogue.read")}
       onContextChanged={() => setChanged(true)}
     />
   );
 }
 
 type SourceProps = { scope: EnrollmentRequestScope; onContextChanged: () => void };
-function StaffSources(props: SourceProps) {
+function StaffSources({
+  includeHospitalStaff,
+  ...props
+}: SourceProps & { includeHospitalStaff: boolean }) {
   return (
     <>
       <PageHeading description="Keep your pharmacy's own Staff records and read hospital Staff records available to you." />
       <EmployerSources {...props} />
-      <StaffSourceHospitals {...props} />
+      {includeHospitalStaff && <StaffSourceHospitals {...props} />}
     </>
   );
 }
@@ -349,6 +350,12 @@ function EmployerStaffEditor({
           savePharmacyStaffRecord(scope, source.pharmacy_id, id, value, expectedVersion)
         }
       />
+      {staff && record.data && (
+        <StaffAccessPreparation
+          kind="pharmacy"
+          active={record.data.employment_status === "active"}
+        />
+      )}
       {staff &&
         record.data &&
         (can("workforce.independent_login.manage") ||

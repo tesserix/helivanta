@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@tesserix/web";
-import { Field, Panel, SelectControl, useConfirmLeave } from "@helivanta/ui";
+import {
+  Field,
+  Panel,
+  RefreshButton,
+  RequestFailure,
+  SelectControl,
+  useConfirmLeave,
+} from "@helivanta/ui";
 import {
   ApiError,
   isEnrollmentAccessChanged,
@@ -57,10 +64,11 @@ function PostingReviewAccount({ scope, onContextChanged, onBusyChanged }: Props)
     return <p role="status">Checking posting review hospitals…</p>;
   if ((hospitals.isError && !busy) || !hospitals.data)
     return (
-      <div role="alert">
-        Posting review access could not be verified.{" "}
-        <Button onClick={() => void hospitals.refetch()}>Retry review hospitals</Button>
-      </div>
+      <RequestFailure
+        message="Posting review access could not be verified."
+        retry={hospitals.refetch}
+        error={hospitals.error}
+      />
     );
   const hospital = hospitals.data.data.find((row) => row.hospital_id === selected);
   return (
@@ -70,13 +78,12 @@ function PostingReviewAccount({ scope, onContextChanged, onBusyChanged }: Props)
         grant operating access.
       </p>
       {hospitals.isError && (
-        <div role="alert">
-          Posting review admission could not be rechecked. The retained command has not been
-          discarded.{" "}
-          <Button disabled={hospitals.isFetching} onClick={() => void hospitals.refetch()}>
-            Recheck posting admission
-          </Button>
-        </div>
+        <RequestFailure
+          message="Posting review admission could not be rechecked. The retained command has not been discarded."
+          retry={hospitals.refetch}
+          error={hospitals.error}
+          busy={hospitals.isFetching}
+        />
       )}
       <div className="flex flex-wrap gap-3">
         {hospitals.data.data.map((row) => (
@@ -135,16 +142,16 @@ function PostingReviewAccount({ scope, onContextChanged, onBusyChanged }: Props)
             First review hospitals
           </Button>
         )}
-        <Button
-          variant="outline"
-          disabled={busy}
-          onClick={() => {
+        <RefreshButton
+          busy={busy}
+          error={hospitals.error}
+          refresh={() => {
             setSelected(null);
-            void hospitals.refetch();
+            return hospitals.refetch();
           }}
         >
           Refresh review access
-        </Button>
+        </RefreshButton>
       </div>
     </section>
   );
@@ -223,12 +230,15 @@ function HospitalPostingReviews({
     return <p role="status">Loading posting proposals…</p>;
   if (inbox.isError)
     return (
-      <div role="alert">
-        {departmentMoved(inbox.error)
-          ? "The department structure changed. Reload the posting proposals."
-          : "Posting proposals could not be verified."}{" "}
-        <Button onClick={() => void inbox.refetch()}>Retry proposals</Button>
-      </div>
+      <RequestFailure
+        message={
+          departmentMoved(inbox.error)
+            ? "The department structure changed. Reload the posting proposals."
+            : "Posting proposals could not be verified."
+        }
+        retry={inbox.refetch}
+        error={inbox.error}
+      />
     );
   const current = busy
     ? selected
@@ -262,16 +272,16 @@ function HospitalPostingReviews({
             </p>
           )}
         </div>
-        <Button
-          variant="outline"
-          disabled={busy}
-          onClick={() => {
+        <RefreshButton
+          busy={busy}
+          error={inbox.error}
+          refresh={() => {
             setSelected(null);
-            void inbox.refetch();
+            return inbox.refetch();
           }}
         >
           Refresh proposals
-        </Button>
+        </RefreshButton>
       </div>
       {departmentScoped && (
         <Field id="posting-inbox-department" label="Department">
@@ -482,10 +492,11 @@ function UnapprovedPostingProposalDetail({
       ) : context.isPending || context.isFetching ? (
         <p role="status">Checking protected proposal context…</p>
       ) : context.isError ? (
-        <div role="alert">
-          The selected proposal could not be verified.{" "}
-          <Button onClick={() => void context.refetch()}>Retry protected proposal</Button>
-        </div>
+        <RequestFailure
+          message="The selected proposal could not be verified."
+          retry={context.refetch}
+          error={context.error}
+        />
       ) : (
         <>
           <Panel as="div" className="space-y-2">

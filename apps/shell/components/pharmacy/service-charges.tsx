@@ -139,7 +139,7 @@ function ChargeRow({
       )}
       {canReview && latest && latest.decision === null && (
         <ReviewForm
-          key={latest.id}
+          key={`review:${latest.id}`}
           version={latest}
           path={`${root}/${charge.id}`}
           invalidate={invalidate}
@@ -148,7 +148,7 @@ function ChargeRow({
       {canDeclare &&
         (editing ? (
           <VersionForm
-            key={latest?.id ?? "none"}
+            key={`version:${latest?.id ?? "none"}`}
             chargeId={charge.id}
             root={root}
             currency={currency}

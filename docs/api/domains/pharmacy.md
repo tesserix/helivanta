@@ -69,6 +69,8 @@ Until the drug master is loaded, each product's Drugs Rules class (`none|G|H|H1|
 
 Only the **latest** declaration counts, and only once it is approved. If the latest one is still awaiting review or was rejected, the product has no class, so an older approval cannot bypass a stricter reclassification. Later slices call `pharmacy_product_schedule_in_force(tenant, outlet, product)`.
 
+In the shell, the open catalogue product's **Schedule class** section declares and reviews it (#1636). It is offered to an outlet editor holding the matching grant. Class and NDPS start empty and must both be chosen. A retried declaration reuses its id. Only the newest pending declaration is offered for review, and a lost race rereads the state.
+
 ### Item categories (#988 slice 1)
 
 An outlet's item categories and subcategories, and each product's category. See the [design](../../superpowers/specs/2026-11-04-pharmacy-item-categories-design.md).
@@ -597,6 +599,24 @@ The outlet's record of a prescription, and its scanned pages. Nothing sells agai
 
 Until the worker is rolled out (#1406), uploaded pages stay `scan_pending` and are never downloadable.
 
+### Stock movement totals (#1638)
+
+`GET …/outlets/{outlet}/stock/reconciliation` (one batch at one location,
+`from` to `as_of`) returns `opening_units` and `closing_units` (numbers), a
+signed in-period total per movement kind as an exact decimal string
+(`receipt_units`, `correction_units`, `release_units`, `sale_units`,
+`return_units`, `supplier_dispatch_units`) and `movement_count`, in one
+statement. Totals are stored quantities, never sign-flipped: receipts and
+returns are positive, sales and supplies to hospital orders negative, a
+release negative where stock left and positive where it arrived, a correction
+either. `opening + every kind = closing`, tested; a test also fails when the
+movement kind constraint names a kind without a total. Register rows (outlet
+and pharmacy-wide) carry the same six totals over all history to `as_of`, so
+`on_hand_units` equals their sum, and the stock CSVs append `release_units`,
+`sale_units`, `return_units` and `supplier_dispatch_units` after
+`dispensable_units`. The panel shows every signed part and, if the parts are
+missing or do not sum, an alert instead of a reconciliation.
+
 ### Stock across outlets (#1372)
 
 `GET /v1/pharmacy/pharmacies/{pharmacy}/stock/positions` is a read-only,
@@ -825,3 +845,54 @@ no operating authority. The candidate Staff read view is
 canonical command/receipt SDK with immutable uncertain-attempt recovery. Normal
 role browser acceptance remains open. No new migration is added by these choices
 or command controls.
+
+### Supplier acquisition and accounts handoff candidate
+
+`GET /v1/pharmacy/pharmacies/{pharmacy}/outlets/{outlet}/accounts/acquisition-receipts`
+requires `pharmacy.accounts.read`, current private outlet access and exact expected
+workspace/account headers. It returns at most 50 original acquisition receipts per
+signed keyset page; the cursor binds the actor, pharmacy, outlet and filters.
+Unknown or repeated query fields are rejected. Reads are audited and uncached.
+The canonical response is `contracts/pharmacy-accounts.json`; run
+`node scripts/generate-pharmacy-accounts.mjs` and `--check`.
+
+Each row retains its original receipt ID/units and immutable batch/catalogue
+currency/unit. Supplier receipts add their locally retained order/shipment and
+source stock owner (`supply` or `pharmacy`), effective accepted quantity and
+receipt revision, current receiving summary revision, closure and discrepancy
+count. They disclose no external Staff identity, patient or source balance.
+A current correction does not rewrite the original invoice cost basis. Missing
+required supplier evidence fails with 503 rather than appearing as a direct or
+fully matched receipt. A recorded payable link is separate from a commercial match.
+
+The accounts bill form uses this financial reader instead of the stock journal.
+It offers only uncosted receipts in the bill currency. Invoice amounts, tax and
+recoverable tax must come from the accountable original document. Receiving,
+quarantine clearance and physical release do not create a bill, credit or payment.
+Existing immutable payable, credit/payment/reversal and valuation ownership stays
+in PharmaConnect; existing unique receipt/document/source-reference constraints
+prevent duplicate costs and recorded settlements. These are external payment
+records, not provider money transfers.
+
+Bill saves pin the submitted ID, account, scope and normalized input. Ambiguous
+outcomes freeze edits and cancellation until exact original GET recovery. If that
+read currently returns 404, an explicit retry resubmits the same input/ID; it does
+not assume the first request can no longer commit. Recovery compares invoice
+fields, line/receipt amounts and original actor while permitting later balance
+changes from settlements. Existing v1 bill routes accept legacy callers without
+an expected-subject header; when supplied, that header must match before a write
+or recovery read. Payable reads now record financial-read audit.
+
+Additive migration `0043_pharmacy_acquisition_receipts` creates a SELECT-only
+accounts purpose over retained receipt/head/correction evidence. It does not
+change physical-write policies or grant finance permissions to operating duties.
+No existing rows or prior migration are changed. Rollback removes the new reader
+and UI while preserving recorded financial and physical evidence; migration
+rollback does not delete or reinterpret history.
+
+The candidate's unit/SDK/component tests, real owner database/broker tests and
+production-shaped browser test are separate gates. The browser financial test
+uses direct synthetic acquisition, never a fictitious trade licence. Positive
+live bilateral dispatch/receiving still needs actual reviewed participant,
+Maharashtra/Odisha state/category and trading-policy prerequisites. See the
+[implementation design](../../superpowers/specs/2026-11-09-supplier-financial-handoff.md).

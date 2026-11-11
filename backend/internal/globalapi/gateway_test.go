@@ -181,3 +181,31 @@ func TestResponseKeepsOneGatewayRequestIDAndPreservesOwnerCookies(t *testing.T) 
 		}
 	}
 }
+
+func TestProvisioningCredentialsReachOnlyExactPlatformBootstrapCommands(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		expected := r.Method == http.MethodPost && (r.URL.Path == "/internal/v1/hospital-enrolments" || r.URL.Path == "/internal/v1/customer-workspaces")
+		if expected && r.Header.Get("X-Onboarding-Token") != "Bearer synthetic-workload" {
+			w.WriteHeader(401)
+			return
+		}
+		if !expected && r.Header.Get("X-Onboarding-Token") != "" {
+			w.WriteHeader(500)
+			return
+		}
+		w.WriteHeader(200)
+	}))
+	t.Cleanup(upstream.Close)
+	gateway, err := New(Config{Upstreams: map[string]string{"platform": upstream.URL}, Development: true, Timeout: time.Second})
+	require.NoError(t, err)
+	for _, path := range []string{"/internal/v1/hospital-enrolments", "/internal/v1/customer-workspaces", "/v1/auth/signup"} {
+		request := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{}`))
+		request.Header.Set("X-Onboarding-Token", "Bearer synthetic-workload")
+		response := httptest.NewRecorder()
+		gateway.ServeHTTP(response, request)
+		require.Equal(t, 200, response.Code, "bootstrap credential boundary failed for %s", path)
+	}
+	response := httptest.NewRecorder()
+	gateway.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/internal/v1/customer-workspaces/foreign", strings.NewReader(`{}`)))
+	require.Equal(t, 404, response.Code, "private internal prefix was exposed")
+}

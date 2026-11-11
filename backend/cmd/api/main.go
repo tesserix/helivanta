@@ -21,6 +21,7 @@ import (
 
 	"github.com/tesserix/helivanta/internal/bootstrap"
 	"github.com/tesserix/helivanta/internal/config"
+	"github.com/tesserix/helivanta/internal/customeronboarding"
 	"github.com/tesserix/helivanta/internal/httpserver"
 	"github.com/tesserix/helivanta/internal/mediconnectclaims"
 	"github.com/tesserix/helivanta/internal/modules/billing"
@@ -32,6 +33,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/payments"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
 	"github.com/tesserix/helivanta/internal/modules/supply"
+	"github.com/tesserix/helivanta/internal/modules/workforce"
 	"github.com/tesserix/helivanta/internal/modules/workspace"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
@@ -496,6 +498,7 @@ func run() error {
 			return err
 		}
 		srv.Engine.POST("/internal/v1/hospital-enrolments", iam.NewOnboardingHandler(deps, caller))
+		srv.Engine.POST("/internal/v1/customer-workspaces", customeronboarding.NewWorkspaceHandler(caller, iam.NewCustomerWorkspaceAuthority(deps), workforce.NewCustomerWorkspaceInitializer(deps), pharmacy.NewCustomerWorkspaceInitializer(deps)))
 	}
 
 	// The chain itself lives in bootstrap.V1Chain, not inline here, so
@@ -632,7 +635,16 @@ func run() error {
 		loginUIHandlers.AuthRequest, loginUIHandlers.Password, loginUIHandlers.Factor,
 		loginUIHandlers.Enroll, loginUIHandlers.PasswordChange, workspace.PublicHandler(db, limiter), payments.Webhook(deps, limiter))
 
+	signupHandlers, err := customeronboarding.New("http://onboarding-api.onboarding.svc.cluster.local:8080", "/var/run/customer-onboarding/token", "https://helivanta.app")
+	if err != nil {
+		return err
+	}
+	bootstrap.MountCustomerSignup(srv.Engine, signupHandlers.Start, signupHandlers.Status, signupHandlers.VerifyEmail, signupHandlers.Password, signupHandlers.EmailLink, signupHandlers.PasswordLink)
+
 	for _, m := range registry.All() {
+		if owner, ok := m.(*iam.Module); ok {
+			owner.SetOwnerSecurityClient(customeronboarding.NewSecurityClient())
+		}
 		m.Routes(api, deps)
 		if err := bus.StartConsumers(ctx, db, m.Consumers(deps)); err != nil {
 			return err

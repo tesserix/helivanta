@@ -85,3 +85,64 @@ it("does not expose the Staff editor when private source discovery is refused", 
   await screen.findByRole("button", { name: "Reopen supplier Staff source" });
   expect(screen.queryByRole("button", { name: "Add staff" })).not.toBeInTheDocument();
 });
+
+it("discovers only authorized supplier Staff without supply catalogue permissions", async () => {
+  const request = vi.fn(async (url: string) =>
+    Response.json(
+      url.endsWith("permissions")
+        ? { ...identity, data: ["workforce.independent_login.review"] }
+        : page([]),
+    ),
+  );
+  vi.stubGlobal("fetch", request);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <SupplierStaffSource />
+    </NavigationGuardProvider>,
+  );
+  await screen.findByText("No supplier employer access on this page");
+  expect(request.mock.calls.some(([url]) => url.includes("/workforce/suppliers?"))).toBe(true);
+  expect(
+    request.mock.calls.some(
+      ([url]) => url.includes("/staff?") || url.startsWith("/api/v1/supply/"),
+    ),
+  ).toBe(false);
+  expect(screen.queryByRole("button", { name: "Add staff" })).not.toBeInTheDocument();
+});
+
+it("opens a scoped supplier reviewer’s account controls without supply directory access", async () => {
+  const request = vi.fn(async (url: string) => {
+    if (url.endsWith("permissions"))
+      return Response.json({ ...identity, data: ["workforce.independent_login.review"] });
+    if (url.includes("/account-links")) return Response.json(page([]));
+    if (url.includes(`/staff/${id}?`))
+      return Response.json({ ...row, version: 1, directory_context_version: "v1" });
+    if (url.includes(`/suppliers/${supplier}/staff?`)) return Response.json(page([row]));
+    if (url.includes("/workforce/suppliers?"))
+      return Response.json(
+        page([
+          {
+            supplier_id: supplier,
+            name: "TEST Distributor",
+            access_level: "manager",
+            created_at: row.created_at,
+          },
+        ]),
+      );
+    throw new Error(`Unexpected request ${url}`);
+  });
+  vi.stubGlobal("fetch", request);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <SupplierStaffSource />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Edit TEST Warehouse Operator" }));
+  await screen.findByText("Reviewed accounts");
+  expect(screen.queryByRole("button", { name: "Propose account link" })).not.toBeInTheDocument();
+  expect(
+    request.mock.calls.some(
+      ([url]) => url.startsWith("/api/v1/supply/") || url.includes("/hospitals/"),
+    ),
+  ).toBe(false);
+});

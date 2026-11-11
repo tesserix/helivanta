@@ -104,7 +104,7 @@ screen from drawing its own button today.
    new workforce file, gets the rule from this slice on. Each later slice
    converts files and removes them from the list. The list is checked: a test
    fails if a listed file no longer breaks the rule, so a converted file can't
-   stay exempt. It is deleted when it is empty.
+   stay exempt. It is deleted when it is empty, which slice 2c did.
 7. **Tests:**
    - **The rule:** rejects `onClick={() => void q.refetch()}`,
      `onClick={rows.retry}`, and a multi-statement handler that calls
@@ -143,8 +143,10 @@ screen from drawing its own button today.
      posting workspace, and pharmacy binding and relationships.
    - **2c (4 files, 12 handlers):** `access/page.tsx`, `postings/page.tsx`,
      `posting-proposal-decision.tsx` and `posting-review-workspace.tsx`.
-     Open PRs #1602 and #1603 change these files, so 2c waits for them to
-     merge. 2c deletes the list.
+     It waited for #1602 and #1603, which changed these files. 2c deletes
+     the list. It also converts two failures that drew no button but told
+     the person to refresh (the access page's identity and assignments
+     reads), since a refusal there read as an outage.
    - **The posting and pharmacy binding screens already hand a refusal to
      their own "Staff access changed" branch** (`useStaffAccessCutoff`),
      which keeps precedence. Their `RequestFailure` and `RefreshButton`
@@ -162,7 +164,5 @@ screen from drawing its own button today.
   `reload` calls `refetch`) passes the rule. Following calls across functions
   is beyond a syntax rule. The rule catches the common shape, and review
   catches the rest.
-- **Workforce, until its slices land:** a listed file can still gain a new
-  hand-drawn retry.
 - **Mutation errors, "Load more" under a refused list and a sign-in link on
   the 401 sentence** are as recorded in #1591.

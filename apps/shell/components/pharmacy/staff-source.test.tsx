@@ -81,12 +81,73 @@ function RecheckSource() {
   return <button onClick={() => recheck.mutate()}>Recheck source in test</button>;
 }
 
-it("does not request Staff when the account has no pharmacy workspace permission", async () => {
-  const fetcher = vi.fn().mockResolvedValue(Response.json({ ...identity(), data: [] }));
+it("uses employer-scoped discovery without catalogue roles and reveals no Staff without a scope", async () => {
+  const fetcher = vi.fn(async (url: string) =>
+    Response.json(url.endsWith("/permissions") ? { ...identity(), data: [] } : page([])),
+  );
   vi.stubGlobal("fetch", fetcher);
   renderSource();
-  expect(await screen.findByRole("alert")).toHaveTextContent("do not have permission");
-  expect(fetcher.mock.calls.every(([url]) => String(url).endsWith("/permissions"))).toBe(true);
+  await screen.findByText("No pharmacy employer access on this page");
+  expect(fetcher.mock.calls.some(([url]) => url.includes("/workforce/pharmacies?"))).toBe(true);
+  expect(
+    fetcher.mock.calls.some(([url]) => url.includes("/staff?") || url.includes("/hospitals")),
+  ).toBe(false);
+  expect(screen.queryByRole("button", { name: "Add staff" })).not.toBeInTheDocument();
+});
+
+it("opens scoped pharmacy review controls without a product catalogue role or private enrollment calls", async () => {
+  const permissions = ["workforce.independent_login.review"];
+  const linkId = "019a55c0-1111-7111-8111-111111111119";
+  const fetcher = vi.fn(async (url: string) => {
+    if (url.endsWith("/permissions")) return Response.json({ ...identity(), data: permissions });
+    if (url.includes("/account-links"))
+      return Response.json(
+        page([
+          {
+            scope: {
+              owner_tenant_id: tenant,
+              employer_kind: "pharmacy",
+              employer_id: pharmacy,
+              staff_id: pharmacyRow.id,
+            },
+            staff_version: 1,
+            link: {
+              id: linkId,
+              staff_id: pharmacyRow.id,
+              subject: "TEST-target",
+              status: "pending",
+              version: 1,
+              proposed_by_subject: "TEST-maker",
+              proposal_reason: "TEST identity",
+              actor_subject: "TEST-maker",
+              reason: "TEST identity",
+              created_at: pharmacyRow.created_at,
+              updated_at: pharmacyRow.updated_at,
+            },
+          },
+        ]),
+      );
+    if (url.includes(`/staff/${pharmacyRow.id}?`))
+      return Response.json({ ...pharmacyRow, version: 1, directory_context_version: "v1" });
+    if (url.includes(`/workforce/pharmacies/${pharmacy}/staff?`))
+      return Response.json(page([pharmacyRow]));
+    if (url.includes("/workforce/pharmacies?"))
+      return Response.json(page([employerSource("manager")]));
+    throw new Error(`Unexpected request ${url}`);
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = renderSource();
+  await user.click(await screen.findByRole("button", { name: `Edit ${pharmacyRow.display_name}` }));
+  await screen.findByRole("button", { name: "Approve account link" });
+  expect(screen.queryByRole("button", { name: "Propose account link" })).not.toBeInTheDocument();
+  expect(
+    fetcher.mock.calls.every(
+      ([url]) =>
+        !url.includes("/hospitals") &&
+        !url.includes("/enrollment") &&
+        !url.startsWith("/api/v1/pharmacy/"),
+    ),
+  ).toBe(true);
 });
 
 it("does not request Staff when pharmacy access has no hospital Staff grant", async () => {

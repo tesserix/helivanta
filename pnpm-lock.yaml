@@ -261,6 +261,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.105.3
         version: 5.106.1(@types/react@19.3.0)(react@19.3.1)
+      '@tesserix/onboarding-contracts':
+        specifier: https://codeload.github.com/tesserix/onboarding-service/tar.gz/b924fe97a094bd89b1614d1965bb6678aefb93af
+        version: https://codeload.github.com/tesserix/onboarding-service/tar.gz/b924fe97a094bd89b1614d1965bb6678aefb93af(zod@4.6.7)
       sonner:
         specifier: ^2.0.8
         version: 2.0.8(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -2955,6 +2958,12 @@ packages:
         optional: true
       react-native-svg:
         optional: true
+
+  '@tesserix/onboarding-contracts@https://codeload.github.com/tesserix/onboarding-service/tar.gz/b924fe97a094bd89b1614d1965bb6678aefb93af':
+    resolution: {tarball: https://codeload.github.com/tesserix/onboarding-service/tar.gz/b924fe97a094bd89b1614d1965bb6678aefb93af}
+    version: 0.0.0
+    peerDependencies:
+      zod: ^4.0.0
 
   '@tesserix/tokens@1.0.0':
     resolution: {integrity: sha512-d28KWQxt/QnNRiWzrkqxC1row+A3Oq1OYrt++0rDQFyJVhZ3+Vv9sDmtyxySyP0OLrS7zlpUgs6blJUpgzN2Mg==}
@@ -10335,6 +10344,10 @@ snapshots:
     optionalDependencies:
       lucide-react: 1.70.0(@types/react@19.3.0)(react@19.3.1)
       react-native: 0.88.1(@babel/core@7.29.7)(@react-native/metro-config@0.88.1(@babel/core@7.29.7))(@types/react@19.3.0)(react@19.3.1)
+
+  '@tesserix/onboarding-contracts@https://codeload.github.com/tesserix/onboarding-service/tar.gz/b924fe97a094bd89b1614d1965bb6678aefb93af(zod@4.6.7)':
+    dependencies:
+      zod: 4.6.7
 
   '@tesserix/tokens@1.0.0': {}
 

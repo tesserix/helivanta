@@ -505,3 +505,26 @@ coverage and zero enrollment grace. Revision conflicts require a fresh read;
 identity/audit failures return unavailable. Preserved legacy policies cannot be
 cut over through this panel. No disabling control, secret, recovery code or
 second native-policy configuration owner is introduced.
+
+### Explicit security-key continuation
+
+`POST /v1/auth/login/password` may return HTTP 200
+`{"security_key_required":{"url":"https://<configured issuer>/ui/v2/login/password?requestId=oidc_<same request>&loginName=<native verified login name>"}}`
+after the password is verified and U2F is the only additional enrolled method
+(PASSWORD and linked IDP are neutral). This alternative contains no
+`callback_url`, native session token or tenant grant. Its native URL carries the
+canonical login name from the same password-verified session, as required by the
+native password page; the URL is not logged. The native
+session must contain a dated password proof; the same native auth request must
+still exist and match. Unsupported/mixed methods retain the existing refusal.
+Expired requests return `auth_request_invalid`; unavailable or unprovable native
+state returns `zitadel_unavailable`.
+
+The UI validates HTTPS, exact configured issuer origin, fixed native path and
+exact auth-request query, clears credential state and offers an explicit
+**Continue with security key** action. It does not automatically navigate or
+finalize the password-only session. Native Login V2 collects the key on its
+registered relying-party origin and returns through the original OIDC callback.
+Existing state/PKCE, token verification, fresh-auth signup binding, revocation,
+verified membership and resource scope remain required. See
+[ADR-0069](../../adr/0069-explicit-native-security-key-continuation.md).

@@ -6,6 +6,8 @@
 replaced by `2026-10-07-no-hosted-login-handoff-design.md` (#947). Helivanta no
 longer sends any user to Zitadel's hosted login; those cases are refused with a
 reason, and an unreadable policy or factor set is a retryable 503.
+**Security-key exception (2026-11-11):** [ADR-0069](../../adr/0069-explicit-native-security-key-continuation.md) permits an explicit native-origin U2F continuation after password proof, without completing the password-only session. Other refusals and the ban on automatic handoff remain.
+
 **Rests on:** `docs/superpowers/spikes/2026-08-16-zitadel-login-client.md` —
 every protocol claim below was observed against our own v4.15.3 stack, not read
 from documentation.

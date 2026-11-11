@@ -102,8 +102,8 @@ const zitadelUnavailableMessage = "sign-in is temporarily unavailable; please tr
 
 // Refusal codes and messages (#947 spec D2). Each answers a sign-in whose
 // password Zitadel ACCEPTED but which Helivanta still cannot complete. They are
-// Helivanta's own words — the browser is never redirected to Zitadel's hosted
-// login for any of them. None joins spec D5's equalised credential refusal:
+// Helivanta's own words. ADR-0069 adds a separate, explicit native-origin
+// security-key action; refusals never redirect. None joins spec D5's equalised credential refusal:
 // each is reachable only with the correct password, exactly as the deleted
 // handoff_url was, so it discloses nothing a wrong-password probe can learn.
 const (
@@ -512,6 +512,10 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 	result, err := h.client.CompleteIfSufficient(c.Request.Context(), req.AuthRequestID, session)
 	if err != nil {
 		h.respondLoginClientError(c, err, "complete")
+		return
+	}
+
+	if h.securityKeyContinuation(c, req.AuthRequestID, session, result) {
 		return
 	}
 

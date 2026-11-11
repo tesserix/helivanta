@@ -254,11 +254,78 @@ func TestEstablishmentTablesRefuseAPharmacyEstablishment(t *testing.T) {
 	}))
 }
 
+func TestDocumentsAdmitAPharmacyOnlyForStaffEvidence(t *testing.T) {
+	h := newEstablishmentHarness(t, workforce.New())
+	pharmacy := h.pharmacy(t, "independent")
+	staff := h.pharmacyStaff(t, pharmacy)
+	supplier, supplierStaff := h.supplierStaff(t)
+	document := func(establishment, staffID, kind, record, category string) error {
+		return h.tx(t, establishment, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.actor_subject','user-admin',true)`).Error; err != nil {
+				return err
+			}
+			return tx.Exec(`INSERT INTO workforce_documents(tenant_id,hospital_id,id,staff_id,record_id,record_kind,record_version,category,filename,content_type,size,sha256)
+ SELECT ?,?,?,?,?,?,version,?,'synthetic-evidence.png','image/png',1,repeat('a',64) FROM workforce_staff WHERE tenant_id=? AND hospital_id=? AND id=?`,
+				testutil.TenantA, establishment, uuid.Must(uuid.NewV7()).String(), staffID, record, kind, category, testutil.TenantA, establishment, staffID).Error
+		})
+	}
+	credential, qualification := uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
+	require.NoError(t, h.tx(t, pharmacy, func(tx *gorm.DB) error {
+		if err := tx.Exec(`INSERT INTO workforce_enrollment_credentials(tenant_id,hospital_id,staff_id,id,type,number,issuer) VALUES(?,?,?,?,'registration','SYN-RX-1','Synthetic pharmacy council')`, testutil.TenantA, pharmacy, staff, credential).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`INSERT INTO workforce_enrollment_qualifications(tenant_id,hospital_id,staff_id,id,qualification,institution) VALUES(?,?,?,?,'Synthetic pharmacy diploma','Synthetic institute')`, testutil.TenantA, pharmacy, staff, qualification).Error
+	}))
+	require.NoError(t, document(pharmacy, staff, "enrollment", staff, "identity_evidence"))
+	require.NoError(t, document(pharmacy, staff, "credential", credential, "credential_evidence"))
+	require.NoError(t, document(pharmacy, staff, "qualification", qualification, "qualification_evidence"))
+	var contributors int64
+	require.NoError(t, h.tx(t, pharmacy, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT count(*) FROM workforce_document_contributors WHERE tenant_id=? AND hospital_id=? AND staff_id=?`, testutil.TenantA, pharmacy, staff).Scan(&contributors).Error
+	}))
+	require.Equal(t, int64(1), contributors, "identity evidence records its pharmacy contributor")
+	var refusal *pgconn.PgError
+	err := document(supplier, supplierStaff, "enrollment", supplierStaff, "identity_evidence")
+	require.True(t, errors.As(err, &refusal), "supplier document: expected a refusal, got %v", err)
+	require.Equal(t, []string{"23503", "workforce_hospital_establishment"}, []string{refusal.Code, refusal.ConstraintName})
+	// A cleared classification names no HR master revision, so only the establishment guard refuses it.
+	err = h.tx(t, pharmacy, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.actor_subject','user-admin',true)`).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`INSERT INTO workforce_document_classification_revisions(tenant_id,hospital_id,file_id,id,version,actor_subject)
+ SELECT tenant_id,hospital_id,id,?,1,'user-admin' FROM workforce_documents WHERE tenant_id=? AND hospital_id=? AND record_kind='enrollment'`, uuid.Must(uuid.NewV7()).String(), testutil.TenantA, pharmacy).Error
+	})
+	require.True(t, errors.As(err, &refusal), "pharmacy classification: expected a refusal, got %v", err)
+	require.Equal(t, []string{"23503", "workforce_hospital_establishment"}, []string{refusal.Code, refusal.ConstraintName}, refusal.Message)
+	// Tax and benefit documents also fail their source binding first, so the probe isolates the establishment rule.
+	require.NoError(t, h.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "9001_workforce_document_establishment_probe", SQL: `CREATE TABLE workforce_document_establishment_probe(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,record_kind text NOT NULL);
+GRANT INSERT ON workforce_document_establishment_probe TO PUBLIC;
+CREATE TRIGGER workforce_hospital_establishment BEFORE INSERT ON workforce_document_establishment_probe FOR EACH ROW EXECUTE FUNCTION workforce_require_document_establishment();`}}))
+	for _, probe := range []struct {
+		establishment, kind string
+		admitted            bool
+	}{
+		{h.hospital, "tax_declaration", true}, {h.hospital, "benefit_proposal", true}, {pharmacy, "enrollment", true}, {pharmacy, "credential", true}, {pharmacy, "qualification", true},
+		{pharmacy, "tax_declaration", false}, {pharmacy, "benefit_proposal", false}, {supplier, "enrollment", false}, {uuid.Must(uuid.NewV7()).String(), "enrollment", false},
+	} {
+		err := h.tx(t, probe.establishment, func(tx *gorm.DB) error {
+			return tx.Exec(`INSERT INTO workforce_document_establishment_probe VALUES(?,?,?)`, testutil.TenantA, probe.establishment, probe.kind).Error
+		})
+		if probe.admitted {
+			require.NoError(t, err, "%s %s", probe.establishment, probe.kind)
+			continue
+		}
+		require.True(t, errors.As(err, &refusal), "%s %s: expected a refusal, got %v", probe.establishment, probe.kind, err)
+		require.Equal(t, []string{"23503", "workforce_hospital_establishment"}, []string{refusal.Code, refusal.ConstraintName}, probe.kind)
+	}
+}
+
 // pharmacyEnrollmentTables admit a hospital or a pharmacy, and refuse a supplier.
-var pharmacyEnrollmentTables = []string{"workforce_enrollment_addresses", "workforce_enrollment_credentials", "workforce_enrollment_emergency_contacts", "workforce_enrollment_experiences", "workforce_enrollment_profile", "workforce_enrollment_qualifications"}
+var pharmacyEnrollmentTables = []string{"workforce_document_contributors", "workforce_enrollment_addresses", "workforce_enrollment_credentials", "workforce_enrollment_emergency_contacts", "workforce_enrollment_experiences", "workforce_enrollment_profile", "workforce_enrollment_qualifications"}
 
 // pharmacyAdmittingTables are the reviewed tables a non-hospital establishment writes; every other one refuses it.
-var pharmacyAdmittingTables = append(slices.Clone(pharmacyEnrollmentTables), "workforce_hospital_access", "workforce_identity_epochs", "workforce_login_link_history", "workforce_login_links", "workforce_staff")
+var pharmacyAdmittingTables = slices.Sorted(slices.Values(append(slices.Clone(pharmacyEnrollmentTables), "workforce_documents", "workforce_hospital_access", "workforce_identity_epochs", "workforce_login_link_history", "workforce_login_links", "workforce_staff")))
 
 func TestLoginLinksAdmitEachEstablishmentOnlyThroughItsOwnIdentityBasis(t *testing.T) {
 	h := newEstablishmentHarness(t, workforce.New())
@@ -304,23 +371,27 @@ func TestEveryEstablishmentTableIsGuardedOrReachedThroughAGuardedTable(t *testin
 		return missing
 	}
 	require.Equal(t, pharmacyAdmittingTables, inventory())
-	var enrollmentGuarded []string
-	require.NoError(t, h.tx(t, h.hospital, func(tx *gorm.DB) error {
-		return tx.Raw(`SELECT c.relname FROM pg_trigger g JOIN pg_class c ON c.oid=g.tgrelid JOIN pg_proc p ON p.oid=g.tgfoid
+	guardedBy := func(guard string) (tables []string) {
+		require.NoError(t, h.tx(t, h.hospital, func(tx *gorm.DB) error {
+			return tx.Raw(`SELECT c.relname FROM pg_trigger g JOIN pg_class c ON c.oid=g.tgrelid JOIN pg_proc p ON p.oid=g.tgfoid
  JOIN pg_namespace s ON s.oid=c.relnamespace AND s.nspname=current_schema()
- WHERE p.proname='workforce_require_enrollment_establishment' AND NOT g.tgisinternal AND g.tgenabled IN ('O','A') AND g.tgtype & 23 = 23 ORDER BY 1`).Scan(&enrollmentGuarded).Error
-	}))
-	require.Equal(t, pharmacyEnrollmentTables, enrollmentGuarded)
+ WHERE p.proname=? AND NOT g.tgisinternal AND g.tgenabled IN ('O','A') AND g.tgtype & 23 = 23 ORDER BY 1`, guard).Scan(&tables).Error
+		}))
+		return tables
+	}
+	require.Equal(t, pharmacyEnrollmentTables, guardedBy("workforce_require_enrollment_establishment"))
+	require.Equal(t, []string{"workforce_documents"}, guardedBy("workforce_require_document_establishment"))
 	require.NoError(t, h.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "9000_workforce_inventory_probe", SQL: `CREATE TABLE workforce_inventory_probe(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,FOREIGN KEY(tenant_id,hospital_id) REFERENCES workforce_hospitals(tenant_id,id));
 CREATE TABLE workforce_inventory_orphan(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL);
 CREATE TABLE workforce_inventory_staff_child(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,staff_id uuid NOT NULL,FOREIGN KEY(tenant_id,hospital_id,staff_id) REFERENCES workforce_staff(tenant_id,hospital_id,id));
 CREATE TABLE workforce_inventory_reached(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,staff_id uuid NOT NULL,FOREIGN KEY(tenant_id,hospital_id,staff_id) REFERENCES workforce_staff_identifiers(tenant_id,hospital_id,staff_id));
 CREATE TABLE workforce_inventory_unmapped(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,staff_hospital uuid NOT NULL,staff_id uuid NOT NULL,FOREIGN KEY(tenant_id,staff_hospital,staff_id) REFERENCES workforce_staff_identifiers(tenant_id,hospital_id,staff_id));
+CREATE TABLE workforce_inventory_document_child(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,document_id uuid NOT NULL,FOREIGN KEY(tenant_id,hospital_id,document_id) REFERENCES workforce_documents(tenant_id,hospital_id,id));
 CREATE TABLE workforce_inventory_nullable(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,staff_id uuid,FOREIGN KEY(tenant_id,hospital_id,staff_id) REFERENCES workforce_staff_identifiers(tenant_id,hospital_id,staff_id));
 CREATE TABLE workforce_inventory_enrollment_child(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,staff_id uuid NOT NULL,FOREIGN KEY(tenant_id,hospital_id,staff_id) REFERENCES workforce_enrollment_profile(tenant_id,hospital_id,staff_id));
 CREATE TABLE workforce_inventory_constant(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,revision_id uuid NOT NULL,kind text GENERATED ALWAYS AS ('holiday_calendar') STORED,FOREIGN KEY(tenant_id,hospital_id,revision_id,kind) REFERENCES workforce_leave_config_revisions(tenant_id,hospital_id,id,kind));
 CREATE TABLE workforce_inventory_computed(tenant_id uuid NOT NULL,hospital_id uuid NOT NULL,revision_id uuid NOT NULL,label text,kind text GENERATED ALWAYS AS (lower(label)) STORED,FOREIGN KEY(tenant_id,hospital_id,revision_id,kind) REFERENCES workforce_leave_config_revisions(tenant_id,hospital_id,id,kind));`}}))
-	want := append([]string{"workforce_inventory_computed", "workforce_inventory_enrollment_child", "workforce_inventory_nullable", "workforce_inventory_orphan", "workforce_inventory_probe", "workforce_inventory_staff_child", "workforce_inventory_unmapped"}, pharmacyAdmittingTables...)
+	want := append([]string{"workforce_inventory_computed", "workforce_inventory_document_child", "workforce_inventory_enrollment_child", "workforce_inventory_nullable", "workforce_inventory_orphan", "workforce_inventory_probe", "workforce_inventory_staff_child", "workforce_inventory_unmapped"}, pharmacyAdmittingTables...)
 	slices.Sort(want)
 	require.Equal(t, want, inventory())
 }

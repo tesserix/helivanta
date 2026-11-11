@@ -2,6 +2,7 @@ package workforce_test
 
 import (
 	"encoding/json"
+	"io"
 	"net/http/httptest"
 	"slices"
 	"strings"
@@ -34,9 +35,14 @@ func newPharmacyStaffHarness(t *testing.T) (*establishmentHarness, string) {
 }
 
 func pharmacyRequest(h *establishmentHarness, token, method, path, body string) *httptest.ResponseRecorder {
-	req := httptest.NewRequest(method, strings.TrimSuffix("/v1/workforce/pharmacies/"+path, "/"), strings.NewReader(body))
+	return pharmacyContent(h, token, method, path, "application/json", strings.NewReader(body))
+}
+
+// pharmacyContent sends a pharmacy-family request in the caller's own session, with any body and content type.
+func pharmacyContent(h *establishmentHarness, token, method, path, contentType string, body io.Reader) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(method, strings.TrimSuffix("/v1/workforce/pharmacies/"+path, "/"), body)
 	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", contentType)
 	tenant := testutil.TenantA
 	if token == "foreign" {
 		tenant = testutil.TenantB

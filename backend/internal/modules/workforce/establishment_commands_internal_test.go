@@ -174,3 +174,44 @@ func TestEnrollmentCoreRefusesAPharmacyRegisteredAfterAdmission(t *testing.T) {
 	require.Equal(t, written, read)
 	require.Equal(t, []string{"profile", "staff", "workforce.enrollment.changed", "workforce.enrollment.read"}, rows())
 }
+
+// Each document gate re-checks its own kind, so a file route admitted for one family never reaches the other's Staff.
+func TestDocumentGatesRefuseTheOtherEstablishmentKind(t *testing.T) {
+	appDSN, ownerDSN, _ := testinfra.StartPostgres(t)
+	db, err := tenantdb.Open(appDSN, ownerDSN)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+	require.NoError(t, db.Migrate(t.Context(), slices.Concat(tenantdb.Migrations(), events.Migrations(), audit.Migrations(), New().Migrations())))
+	p := authn.Principal{Subject: "user-admin", TenantID: establishmentRaceTenant}
+	h := &handlers{db: db}
+	register := func(kind string) (uuid.UUID, uuid.UUID) {
+		id, staffID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
+		require.NoError(t, h.transaction(t.Context(), p, id, func(tx *gorm.DB) error {
+			ownership := map[string]any{hospitalEstablishmentKind: nil, pharmacyEstablishmentKind: "independent"}[kind]
+			for _, insert := range []struct {
+				sql  string
+				args []any
+			}{
+				{`INSERT INTO workforce_hospitals(tenant_id,id,name,establishment_kind,pharmacy_ownership_type) VALUES(?,?,'Synthetic Race Establishment',?,?)`, []any{establishmentRaceTenant, id, kind, ownership}},
+				{`INSERT INTO workforce_hospital_access(tenant_id,hospital_id,subject,level) VALUES(?,?,'user-admin','manager')`, []any{establishmentRaceTenant, id}},
+				{`INSERT INTO workforce_staff(tenant_id,hospital_id,id,employee_code,display_name,job_category,employment_status) VALUES(?,?,?,'SYN-RACE-DOC','Synthetic race Staff','pharmacist','active')`, []any{establishmentRaceTenant, id, staffID}},
+			} {
+				if err := tx.Exec(insert.sql, insert.args...).Error; err != nil {
+					return err
+				}
+			}
+			return nil
+		}))
+		return id, staffID
+	}
+	hospital, hospitalStaff := register(hospitalEstablishmentKind)
+	pharmacy, pharmacyStaff := register(pharmacyEstablishmentKind)
+	authorize := func(gate documentGate, id, staffID uuid.UUID) error {
+		return h.transaction(t.Context(), p, id, func(tx *gorm.DB) error { return gate.authorize(tx, p, id, staffID, true) })
+	}
+	require.ErrorIs(t, authorize(staffDocuments{}, pharmacy, pharmacyStaff), gorm.ErrRecordNotFound)
+	require.ErrorIs(t, authorize(pharmacyStaffDocuments{}, hospital, hospitalStaff), gorm.ErrRecordNotFound)
+	require.NoError(t, authorize(staffDocuments{}, hospital, hospitalStaff), "the hospital gate admits its own kind, so the refusal above is the kind check")
+	require.NoError(t, authorize(pharmacyStaffDocuments{}, pharmacy, pharmacyStaff), "the pharmacy gate admits its own kind, so the refusal above is the kind check")
+	require.False(t, intakeDocumentGate(pharmacyStaffDocuments{}), "a pharmacy file never runs in the HR intake transaction")
+}

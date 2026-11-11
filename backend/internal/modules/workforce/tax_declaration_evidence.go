@@ -61,6 +61,8 @@ func (e taxEvidence) owns(tx *gorm.DB, p authn.Principal, hospital, staffID uuid
 
 func (taxEvidence) downloadAction() string { return "workforce.tax_declaration.evidence_downloaded" }
 
+func (taxEvidence) view(d document) any { return d }
+
 func (taxEvidence) permissions(writing bool) (authz.Permission, authz.Permission) {
 	if writing {
 		return PermPayrollConfigure, authz.Public

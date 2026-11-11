@@ -11351,6 +11351,69 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/document-records",
+          "permission": "workforce.documents.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file/content",
+          "permission": "workforce.documents.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file/content",
+          "permission": "workforce.documents.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file/retries/:attempt",
+          "permission": "workforce.documents.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file/revocation",
+          "permission": "workforce.documents.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file",
+          "permission": "workforce.documents.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/documents",
+          "permission": "workforce.documents.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/enrollment",
           "permission": "workforce.enrollment.manage",
           "authentication_required": true,
@@ -12905,6 +12968,11 @@
           "creates_tables": [
             "workforce_hospital_name_announcements"
           ]
+        },
+        {
+          "id": "0098_workforce_pharmacy_documents",
+          "sql_sha256": "4f41d8473ed8a9d5b0e6033ba769b90646ff30ab6308e3e7889e67da58a0a64d",
+          "creates_tables": []
         }
       ]
     },

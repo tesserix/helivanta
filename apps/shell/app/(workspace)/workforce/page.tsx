@@ -602,7 +602,8 @@ function Directory({
           <StaffCredentialPanel
             account={scope}
             key={credentialStaff.id}
-            hospital={choice.hospital}
+            scope={{ hospitalId: choice.hospital.id, staffId: credentialStaff.id }}
+            ownerName={choice.hospital.name}
             staff={credentialStaff}
             onClose={() => setCredentialStaff(null)}
           />

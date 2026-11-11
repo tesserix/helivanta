@@ -86,10 +86,44 @@ in place of `hospital_id`. The `document_scan_requested.v1` and
 `document_changed.v1` events keep `hospital_id`, which names the owning
 establishment row, and object keys keep `t/<tenant>/h/<establishment>/…`.
 Download audit rows are written under the pharmacy ID. File classification,
-identity review, employment evidence and credential review stay hospital-only.
+identity review and credential review stay hospital-only; employment evidence
+binding is slice 4b below.
 Migration `0098_workforce_pharmacy_documents` admits a pharmacy in
 `workforce_documents` for those three record kinds only, and in
 `workforce_document_contributors`.
+
+### Pharmacy employment periods (#19 slice 4b)
+
+Design: [pharmacy HR lifecycle, 4b](../superpowers/specs/2026-11-08-pharmacy-hr-lifecycle.md#4b--pharmacy-employment-periods)
+and the [plan](../superpowers/plans/2026-11-08-pharmacy-employment-periods.md).
+
+| Route under `/v1/workforce/pharmacies/:pharmacy/staff/:id`             | Authorization                                                         | Notes                                                 |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------- |
+| `GET /employment-source`                                               | `workforce.enrollment.manage` and a pharmacy `manager` row            | Staff version and employment epoch, audited           |
+| `GET /employment-periods?lifecycle=withdrawal-v1`                      | Same                                                                  | Cursor list of drafts and withdrawn drafts            |
+| `PUT /employment-periods/:period`                                      | Same                                                                  | Version 1 or the next version; a replay returns it    |
+| `GET /employment-periods/:period?lifecycle=withdrawal-v1`              | Same                                                                  | One draft                                             |
+| `POST /employment-periods/:period/withdraw`                            | Same                                                                  | Withdraw an open draft with a reason                  |
+| `GET /employment-periods/:period/history?lifecycle=withdrawal-v1`      | Same                                                                  | Immutable revisions                                   |
+| `PUT /employment-periods/:period/revisions/:version/evidence/:binding` | Same, plus `workforce.documents.manage` read again inside the command | Bind a released `employment_evidence` enrollment file |
+| `GET …/evidence`, `GET …/evidence/:binding`, `GET …/:binding/history`  | Same                                                                  | Cursor list, one binding, its revisions               |
+| `POST …/evidence/:binding/withdraw`                                    | Same                                                                  | Withdraw a binding with a reason                      |
+| `GET …/evidence/:binding/content`                                      | Same                                                                  | Bound bytes; the disclosure is audited first          |
+
+Both account assertion headers must appear once and match the session, or the
+route answers 409 `session_changed`; `hr_intake` answers 400, and so does a
+period read without `lifecycle=withdrawal-v1`. The hospital and pharmacy
+families run one period and evidence core, so validation, replay, version and
+epoch checks, the 20-binding limit and audit actions are the same. The core
+re-checks the admitted establishment kind inside the command, so a hospital
+route on an ID registered as a pharmacy after admission answers 404 and writes
+nothing. A contractor or agency sponsor must be an active Staff record of the
+same pharmacy. Responses are the generated pharmacy views, with `pharmacy_id`
+in place of `hospital_id`; no event is published. Drafts stay drafts:
+employment reviews and generations are hospital-only until slice 4c. Migration
+`0099_workforce_pharmacy_employment_periods` admits a pharmacy in
+`workforce_employment_period_drafts` and
+`workforce_employment_evidence_bindings`.
 
 ## Scoped employment-review workspace
 

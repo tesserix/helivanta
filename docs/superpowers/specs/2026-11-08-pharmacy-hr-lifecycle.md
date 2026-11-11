@@ -354,3 +354,181 @@ benefits evidence retries.
 6. The hospital document suites keep their behaviour.
 7. SDK schema and hook tests, and a workspace panel test using
    `renderWithProviders`, for loading, 404, 409 and success.
+
+## 4b — Pharmacy employment periods
+
+### Actors and authority
+
+| Actor                     | Authority kind | Scope                      | Preconditions                                                                                                                                                                                             |
+| ------------------------- | -------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pharmacy HR manager       | Administration | One pharmacy establishment | Tenant permission `workforce.enrollment.manage`. Evidence also needs `workforce.documents.manage`. A `manager` row in `workforce_hospital_access` for the pharmacy. All are read again inside the command |
+| Pharmacy Workforce reader | Administration | One pharmacy               | None. A reader cannot read or change employment terms, exactly as on a hospital                                                                                                                           |
+
+An employment period draft records proposed terms: engagement kind, duration,
+dates, contracting party and sponsor. It does not employ anyone, grant access
+or end employment. Only an employment review and generation (4c) make terms
+effective, so until 4c ships a pharmacy draft stays a draft. Pharma
+membership, an outlet grant and the PharmaConnect pharmacist role confer
+nothing. Delegated HR intake stays hospital-only, as in 4a, so `hr_intake`
+answers 400.
+
+### Routes
+
+All routes sit under `/v1/workforce/pharmacies/:pharmacy/staff/:id` and
+require the pharmacy manager row.
+
+| Route                                                                   | Permission                                         | Effect                                                                   |
+| ----------------------------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------ |
+| `GET employment-source`                                                 | `workforce.enrollment.manage`                      | Current Staff version and employment epoch, audited                      |
+| `GET employment-periods?lifecycle=withdrawal-v1`                        | `workforce.enrollment.manage`                      | Cursor list of drafts and withdrawn drafts                               |
+| `PUT employment-periods/:period`                                        | `workforce.enrollment.manage`                      | Create version 1 or save the next version; a replayed command returns it |
+| `GET employment-periods/:period?lifecycle=withdrawal-v1`                | `workforce.enrollment.manage`                      | One draft                                                                |
+| `POST employment-periods/:period/withdraw`                              | `workforce.enrollment.manage`                      | Withdraw an open draft with a reason; terms are preserved                |
+| `GET employment-periods/:period/history?lifecycle=withdrawal-v1`        | `workforce.enrollment.manage`                      | Cursor list of every saved revision                                      |
+| `PUT .../:period/revisions/:version/evidence/:binding`                  | `workforce.enrollment.manage` + `documents.manage` | Bind a released employment evidence file to one exact draft revision     |
+| `POST .../evidence/:binding/withdraw`                                   | `workforce.enrollment.manage` + `documents.manage` | Withdraw a binding with a reason                                         |
+| `GET .../evidence`, `GET .../evidence/:binding`, `.../:binding/history` | `workforce.enrollment.manage` + `documents.manage` | Cursor list, one binding and its revisions                               |
+| `GET .../evidence/:binding/content`                                     | `workforce.enrollment.manage` + `documents.manage` | Download the bound bytes, auditing the disclosure before any byte leaves |
+
+- **Shared core.** The hospital and pharmacy handlers call one period and
+  evidence core. Validation, intent hashing, replay, version checks, Staff
+  version and epoch checks, the sponsor rule, the 20-binding limit, exact
+  released bytes and audit actions are therefore identical. The core takes the
+  establishment the route admitted and an authority for that family.
+- **Kind re-check.** The core requires the admitted establishment kind inside
+  the command, before the supervision lock and the Staff row lock. A hospital
+  route on an ID registered as a pharmacy after admission answers 404 and
+  writes nothing, and the reverse holds. The hospital evidence download gate
+  gains the same check; it previously authorized through `documentOwner`
+  alone.
+- **Pharmacy authority.** The pharmacy authority from 4a takes the permissions
+  each route needs: enrollment for terms, enrollment and documents for
+  evidence. It refreshes the session and permissions, then opens the pharmacy
+  transaction under `enrollmentScope` (the manager row, under share lock). It
+  never consults HR intake or scoped IAM grants.
+- **Sponsor.** A contractor or agency worker needs an accountable sponsor:
+  an active Staff record of the same pharmacy. The existing foreign key and
+  guard key the sponsor by `(tenant_id, hospital_id)`, so a hospital's Staff
+  cannot sponsor a pharmacy draft, and the reverse.
+- **Evidence.** A binding names a released `enrollment` file in the
+  `employment_evidence` category of the same pharmacy Staff record at the
+  draft's Staff version (4d). The guard function is unchanged.
+- **Versioned views only.** Pharmacy period reads require
+  `lifecycle=withdrawal-v1`, because the pharmacy family has no clients that
+  predate withdrawal. Without it they answer 400.
+- **Account assertions.** `X-Helivanta-Expected-Tenant` and
+  `X-Helivanta-Expected-Subject` must each appear once and equal the verified
+  principal; otherwise 409 `session_changed`.
+- **Response.** The same source, draft and binding views as the hospital
+  family, with `pharmacy_id` in place of `hospital_id`. The views are
+  generated from the canonical period models.
+- **Audit.** `workforce.employment_source.read`,
+  `workforce.employment_period.*` and `workforce.employment_evidence.*` rows
+  are written under the pharmacy ID, in the same transaction as the read or
+  change. No event is published, on either family.
+
+### Status codes
+
+| Case                                                                                            | Status                          |
+| ----------------------------------------------------------------------------------------------- | ------------------------------- |
+| Unknown, foreign-tenant, hospital or supplier establishment                                     | 404                             |
+| No `manager` access row, or the row is removed before the command commits                       | 404                             |
+| Staff record, sponsor, draft, revision, binding or file missing, or under another establishment | 404                             |
+| Missing `workforce.enrollment.manage`, or `workforce.documents.manage` on an evidence route     | 403                             |
+| `hr_intake` requested, or a period read without `lifecycle=withdrawal-v1`                       | 400                             |
+| Expected tenant or subject header missing, repeated or different from the session               | 409 `session_changed`           |
+| Invalid terms, dates, reason, command ID or version                                             | 400                             |
+| Stale draft or Staff version, changed epoch, withdrawn draft, replay with other input           | 409 `employment_draft_conflict` |
+| Evidence source changed, bytes not released, binding set full, duplicate active file            | 409                             |
+| Lock timeout, deadlock or serialization failure on evidence                                     | 503 `employment_evidence_busy`  |
+| Registry, database or authorization unavailable                                                 | 503                             |
+
+### Data and enforcement
+
+Migration `0099_workforce_pharmacy_employment_periods` (append-only):
+
+- The `workforce_hospital_establishment` triggers on
+  `workforce_employment_period_drafts` and
+  `workforce_employment_evidence_bindings` move to
+  `workforce_require_enrollment_establishment()`. A supplier or unregistered
+  establishment is still refused.
+- The two history tables carry no trigger of their own. They are reached
+  through foreign keys to those tables, so they admit exactly what their
+  parents admit.
+- The establishment inventory test names the four tables among those a
+  pharmacy writes, and the enrollment guard list names the two parents.
+  Reviews, cohorts, contributors, review evidence and generations keep the
+  hospital guard until 4c.
+
+The period and evidence RLS policies are already establishment-neutral. They
+require `workforce_enrollment_allowed`, which holds only after
+`enrollmentScope` sets `app.workforce_enrollment='authorized'` from a manager
+row of that establishment. Evidence additionally requires the
+`app.workforce_employment_evidence` mode the core sets.
+
+### UI
+
+- Each pharmacy Staff record gains an "Employment" action, shown when the
+  caller holds `workforce.enrollment.manage` and the manager level. The API
+  remains the boundary.
+- It opens the shared employment terms panel bound to the pharmacy route
+  family: source, list, editor, history and withdrawal. The sponsor picker
+  reads the pharmacy's own Staff directory and is labelled "Sponsor".
+- With `workforce.documents.manage`, each draft revision offers the shared
+  evidence panel. It lists the pharmacy record's released employment evidence
+  files and offers no "Prepare employment review", because reviews are 4c.
+- A 401, 403, 404 or 409 `session_changed` ends the panel and clears the
+  Staff source with "Your account or Staff access changed", as 4a does. Any
+  other 409 keeps the editor and its values open and asks the user to reopen
+  and review the current record, as on a hospital.
+- The generated sponsor validation message becomes "Choose an accountable
+  sponsor.", true for both families.
+
+### Not covered by 4b
+
+- Employment reviews, cohorts and generations (4c). A pharmacy draft cannot
+  become effective, and nothing in this slice grants, renews or ends
+  employment or access.
+- Delegated HR intake for a pharmacy.
+- Deployed runtime acceptance and real OIDC browser acceptance.
+
+### Numbers and failure behaviour
+
+- **Load.** Human-paced HR edits. A draft command body is at most 8 KiB and an
+  evidence command at most 4 KiB. A revision holds at most 20 active bindings.
+  A pharmacy holds at most 50,000 Staff; every list is cursor-bounded.
+- **Failure.** When the database or authorization is unavailable, every route
+  answers 503 and writes nothing. A lock wait over 5 seconds on evidence
+  answers 503 `employment_evidence_busy`, and the same command can be
+  retried. Pharmacy and hospital commands take different supervision locks.
+- **Rollback.** Revert the code. Restoring the hospital-only guard needs a new
+  forward migration, and only if pharmacy drafts must stop being writable.
+  Existing rows stay as history.
+- **Rejected alternative.** One handler that looks up the kind and accepts
+  either. The route family is what names the kind; a dual-kind handler would
+  let a hospital-rooted IAM scope or HR intake grant reach a pharmacy.
+
+### Acceptance tests (red first)
+
+1. A pharmacy manager with `workforce.enrollment.manage` reads the source,
+   saves version 1, saves version 2, replays version 2, lists and reads with
+   the lifecycle view, reads history and withdraws. Each response names
+   `pharmacy_id`, and the audit rows name the pharmacy.
+2. With `workforce.documents.manage` as well, an employment evidence file
+   uploaded through 4d binds to the draft revision, lists, reads, downloads
+   with an audited disclosure and withdraws. Replays return the same receipt.
+3. Without an access row, with a reader row, on a hospital ID, on a supplier
+   ID and on a foreign tenant, every route answers 404. Without the
+   enrollment permission every route answers 403, and without the documents
+   permission every evidence route answers 403. `hr_intake=v1` and a missing
+   lifecycle view answer 400, and a changed expected subject answers 409.
+4. A hospital Staff, period, binding or sponsor ID under the pharmacy family
+   answers 404, and the reverse holds on the hospital family.
+5. A hospital route on an ID registered as a pharmacy after admission answers
+   404 and writes no draft, binding or audit row.
+6. A direct SQL insert of a supplier period draft is refused; the inventory
+   test lists the four pharmacy-admitting tables.
+7. The hospital period, withdrawal, evidence and review suites keep their
+   behaviour.
+8. SDK schema and receipt tests, and panel tests using `renderWithProviders`,
+   for loading, 404, 409, success and the hidden review action.

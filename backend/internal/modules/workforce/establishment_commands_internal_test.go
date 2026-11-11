@@ -15,6 +15,7 @@ import (
 	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/pkg/audit"
 	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
@@ -173,6 +174,58 @@ func TestEnrollmentCoreRefusesAPharmacyRegisteredAfterAdmission(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, written, read)
 	require.Equal(t, []string{"profile", "staff", "workforce.enrollment.changed", "workforce.enrollment.read"}, rows())
+}
+
+// Every employment period and evidence command passes authorized, so a hospital route on an ID since registered as a pharmacy reads and writes nothing.
+func TestEmploymentCoreRefusesAPharmacyRegisteredAfterAdmission(t *testing.T) {
+	appDSN, ownerDSN, _ := testinfra.StartPostgres(t)
+	db, err := tenantdb.Open(appDSN, ownerDSN)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+	require.NoError(t, db.Migrate(t.Context(), slices.Concat(tenantdb.Migrations(), events.Migrations(), audit.Migrations(), New().Migrations())))
+	pharmacy := uuid.Must(uuid.NewV7())
+	staffID := uuid.Must(uuid.NewV7())
+	p := authn.Principal{Subject: "user-admin", TenantID: establishmentRaceTenant}
+	h := &handlers{db: db}
+	scoped := func(fn func(*gorm.DB) error) error {
+		return h.transaction(t.Context(), p, pharmacy, func(tx *gorm.DB) error {
+			if err := enrollmentScope(tx, p, pharmacy); err != nil {
+				return err
+			}
+			return fn(tx)
+		})
+	}
+	require.NoError(t, h.transaction(t.Context(), p, pharmacy, func(tx *gorm.DB) error {
+		for _, insert := range []string{
+			`INSERT INTO workforce_hospitals(tenant_id,id,name,establishment_kind,pharmacy_ownership_type) VALUES(@tenant,@pharmacy,'Synthetic Race Pharmacy','pharmacy','independent')`,
+			`INSERT INTO workforce_hospital_access(tenant_id,hospital_id,subject,level) VALUES(@tenant,@pharmacy,'user-admin','manager')`,
+		} {
+			if err := tx.Exec(insert, map[string]any{"tenant": establishmentRaceTenant, "pharmacy": pharmacy}).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	}))
+	require.NoError(t, scoped(func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO workforce_staff(tenant_id,hospital_id,id,employee_code,display_name,job_category,employment_status) VALUES(?,?,?,'SYN-RACE','Synthetic pharmacist','pharmacist','active')`, establishmentRaceTenant, pharmacy, staffID).Error
+	}))
+	read := func(kind string) error {
+		r := employmentRecord{p: p, owner: establishment{kind: kind, id: pharmacy}, staff: staffID, authority: func(_ []authz.Permission, fn func(*gorm.DB) error) error { return scoped(fn) }}
+		return r.authorized([]authz.Permission{PermEnrollmentManage}, func(tx *gorm.DB, source EmploymentPeriodSource) error {
+			return employmentPeriodAudit(tx, p, pharmacy, staffID, "workforce.employment_source.read", source.StaffVersion)
+		})
+	}
+	audits := func() int64 {
+		var found int64
+		require.NoError(t, scoped(func(tx *gorm.DB) error {
+			return tx.Raw(`SELECT count(*) FROM workforce_audit WHERE tenant_id=? AND hospital_id=? AND action='workforce.employment_source.read'`, establishmentRaceTenant, pharmacy).Scan(&found).Error
+		}))
+		return found
+	}
+	require.ErrorIs(t, read(hospitalEstablishmentKind), gorm.ErrRecordNotFound)
+	require.Zero(t, audits())
+	require.NoError(t, read(pharmacyEstablishmentKind), "the admitted kind reads, so the refusal above is the kind check")
+	require.EqualValues(t, 1, audits())
 }
 
 // Each document gate re-checks its own kind, so a file route admitted for one family never reaches the other's Staff.

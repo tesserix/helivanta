@@ -15,19 +15,10 @@
 // call (POST /v1/auth/login here; POST /v1/auth/renew, lib/renew.ts's
 // renewSession, is the same exception's other member).
 //
-// Its only caller is the login callback
-// (app/api/auth/callback/page.tsx) — #916 (design spec D1) moved
-// renewal to a same-origin POST /v1/auth/renew that carries no ID
-// token at all, so this function no longer has a renewal caller and no
-// longer takes a tenantId. Renewal used to call this with a REQUIRED
-// tenantId, precisely to stop a routine renewal from silently moving a
-// multi-hospital clinician back to whichever tenant sorts first — see
-// renew.go and Task 3's own report for how POST /v1/auth/renew now
-// preserves that guarantee without a tenant_id in the request at all
-// (it re-mints for the cookie's existing tenant, never a fresh pick).
-// tenantId is omitted here, unconditionally: the backend defaults to
-// the caller's first tenant binding, which is only ever reached from a
-// genuine first login (this function's one remaining caller).
+// The login callback uses the default tenant for ordinary sign-in. Signup's
+// explicit workspace sign-in supplies the newly created tenant. The backend
+// verifies that the authenticated subject currently belongs to that tenant.
+// Renewal continues through the existing cookie-bound endpoint.
 // LoginResult.renew_at is the server's answer to "when should this
 // browser first call POST /v1/auth/renew" (#916 Task 4, F3). It is
 // OPTIONAL on this type, deliberately: an older API, or any response
@@ -44,11 +35,11 @@ export interface LoginResult {
   expires_at?: string;
 }
 
-export async function exchangeIdToken(idToken: string): Promise<LoginResult> {
+export async function exchangeIdToken(idToken: string, tenantId?: string): Promise<LoginResult> {
   const res = await fetch("/api/v1/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id_token: idToken }),
+    body: JSON.stringify({ id_token: idToken, ...(tenantId ? { tenant_id: tenantId } : {}) }),
     // Spec D3: the backend tells a renewal from a genuine login by whether
     // THIS request carries the Helivanta session cookie — carrying it forward
     // means "carry idle_deadline forward too"; its absence means "mint a

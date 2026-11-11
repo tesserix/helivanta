@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 
 import {
@@ -8,8 +8,10 @@ import {
   CustomerOrganizationProfileContract,
   CustomerSignupReceiptContract,
   useCustomerSignup,
+  type CustomerSignupReceipt,
 } from "@helivanta/api";
 import { Button, Field, FormSelectField, RequestFailure, useZodForm } from "@helivanta/ui";
+import { signinForCustomerSignup } from "@/lib/signup-signin";
 
 const signupFormSchema = CustomerSignupInputContract.extend({
   profile: CustomerOrganizationProfileContract,
@@ -51,48 +53,7 @@ export function SignupForm() {
       />
     );
   const receipt = parsed.data;
-  if (receipt.state !== "not_started")
-    return (
-      <div aria-live="polite" className="space-y-5">
-        <h2 className="text-2xl font-medium">
-          {receipt.state === "ready"
-            ? "Your workspace is ready"
-            : receipt.state === "needs_support"
-              ? "Setup needs support"
-              : receipt.state === "password_action_required"
-                ? "Set your password"
-                : receipt.state === "email_action_required"
-                  ? "Check your email"
-                  : "Setting up your workspace"}
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          {receipt.state === "ready"
-            ? `${receipt.name} is ready. Sign in to set up your team and security.`
-            : receipt.state === "needs_support"
-              ? "Contact support to review this setup. Your request has been preserved."
-              : receipt.state === "password_action_required"
-                ? "Your email is verified. Request a password setup email to finish creating your login."
-                : "We are preparing your workspace. Follow any email instructions to complete your login."}
-        </p>
-        {(receipt.state === "email_action_required" ||
-          receipt.state === "password_action_required") && (
-          <Button type="button" disabled={resend.isPending} onClick={() => resend.mutate()}>
-            {receipt.state === "password_action_required"
-              ? "Send password setup email"
-              : "Resend verification email"}
-          </Button>
-        )}
-        {resend.isSuccess && (
-          <p role="status">If this request can receive an email, a link has been requested.</p>
-        )}
-        {resend.error && (
-          <p role="alert">We could not request another link. Please try again later.</p>
-        )}
-        <a href="/login?start=1" className="underline underline-offset-4">
-          Sign in to an existing workspace
-        </a>
-      </div>
-    );
+  if (receipt.state !== "not_started") return <SignupStatus receipt={receipt} resend={resend} />;
   const errors = form.formState.errors;
   function submit(event: FormEvent<HTMLFormElement>) {
     form.setValue("stateCode", form.getValues("profile.headOffice.stateCode"));
@@ -218,6 +179,118 @@ export function SignupForm() {
         Sign in to an existing workspace
       </a>
     </form>
+  );
+}
+
+function SignupStatus({
+  receipt,
+  resend,
+}: {
+  receipt: CustomerSignupReceipt;
+  resend: ReturnType<typeof useCustomerSignup>["resend"];
+}) {
+  const [signingIn, setSigningIn] = useState(false);
+  const [signinFailed, setSigninFailed] = useState(false);
+  async function signin() {
+    setSigningIn(true);
+    setSigninFailed(false);
+    try {
+      await signinForCustomerSignup(receipt.state === "ready" ? receipt.tenantId : undefined);
+    } catch {
+      setSigningIn(false);
+      setSigninFailed(true);
+    }
+  }
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    heading.current?.focus({ preventScroll: true });
+    heading.current?.scrollIntoView({ block: "center", behavior: "instant" });
+  }, [receipt.state]);
+
+  return (
+    <div aria-live="polite" className="space-y-6">
+      <div className="space-y-3">
+        <h2
+          ref={heading}
+          tabIndex={-1}
+          className="text-2xl font-medium tracking-tight outline-none"
+        >
+          {receipt.state === "ready"
+            ? "Your workspace is ready"
+            : receipt.state === "needs_support"
+              ? "Setup needs support"
+              : receipt.state === "password_action_required"
+                ? "Set your password"
+                : receipt.state === "email_action_required"
+                  ? "Verify your account"
+                  : "Setting up your workspace"}
+        </h2>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          {receipt.state === "ready"
+            ? `${receipt.name} is ready. Sign in to set up your team and security.`
+            : receipt.state === "needs_support"
+              ? "Contact support to review this setup. Your request has been preserved."
+              : receipt.state === "password_action_required"
+                ? "Your email is verified. Request a password setup email to finish creating your login."
+                : receipt.state === "email_action_required"
+                  ? "New accounts receive a verification link at the owner email. Check your inbox and spam folder, or continue with your existing Tesserix sign-in."
+                  : "Your organisation details have been saved. We are preparing the next step."}
+        </p>
+      </div>
+      {receipt.state === "ready" && (
+        <Button type="button" className="w-full" disabled={signingIn} onClick={() => void signin()}>
+          {signingIn ? "Opening sign-in…" : "Open workspace"}
+        </Button>
+      )}
+      {(receipt.state === "email_action_required" ||
+        receipt.state === "password_action_required") && (
+        <div className="space-y-3">
+          <Button
+            type="button"
+            className="w-full"
+            disabled={resend.isPending}
+            onClick={() => resend.mutate()}
+          >
+            {resend.isPending
+              ? "Requesting email…"
+              : receipt.state === "password_action_required"
+                ? "Send password setup email"
+                : "Resend verification email"}
+          </Button>
+          {receipt.state === "email_action_required" && (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              disabled={signingIn}
+              onClick={() => void signin()}
+            >
+              {signingIn ? "Opening sign-in…" : "Continue with an existing account"}
+            </Button>
+          )}
+          {resend.isSuccess && (
+            <p role="status" className="text-sm text-muted-foreground">
+              If this request can receive an email, a link has been requested.
+            </p>
+          )}
+          {resend.error && (
+            <p role="alert" className="text-sm text-destructive">
+              We could not request another link. Please try again later.
+            </p>
+          )}
+        </div>
+      )}
+      {signinFailed && (
+        <p role="alert" className="text-sm text-destructive">
+          We could not start sign-in. Please try again.
+        </p>
+      )}
+      <div className="border-t border-border pt-5">
+        <a href="/login?start=1" className="block text-center text-sm underline underline-offset-4">
+          Sign in to an existing workspace
+        </a>
+      </div>
+    </div>
   );
 }
 

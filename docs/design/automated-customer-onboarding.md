@@ -80,6 +80,42 @@ The initial business setup is automatic; entering licence evidence, releasing
 stock, employing operational Staff and approving regulated activity still need
 real authorized evidence. Signup must not fabricate these as successful.
 
+## Authenticated continuation for an existing owner
+
+A submitted email that already belongs to a native identity keeps the public
+receipt generic. That path sends no new-account verification email. The status
+screen explains verification for new accounts and offers an existing-account
+sign-in. A fresh OIDC authorization-code/PKCE exchange carries a fixed signup
+purpose through the library's protected state. Helivanta verifies the ID token's
+issuer, signature, client audience, expiry, authentication time and current
+revocation watermark before its private workload handoff.
+
+The onboarding owner checks the active native human and verified email against
+the immutable signup intent. Only then may a receipt-bound `existing_account`
+command record an immutable existing-owner subject and authentication timestamp.
+It rotates the browser receipt, records attributable audit evidence, and resumes
+the original tenant/resource command. The original generated subject and input
+remain immutable. Replays for the same verified owner repair a lost response,
+while a different subject cannot rebind the command. Authentication is limited
+to five minutes of age with thirty seconds of future clock tolerance. No ID
+token, password or native verification code is persisted in the intake ledger.
+
+The existing identity remains owned by its native organisation. The controller
+adds that exact subject as ORG_OWNER of the newly created organisation. Business
+provisioning still requires current native organisation metadata, project grant,
+owner membership and the existing IAM bootstrap/replay guards. A completed
+existing sign-in satisfies the primary-credential gate. The final sign-in names
+the newly created tenant, avoiding another existing membership becoming the
+active workspace by default.
+
+The additive database change introduces `existing_owner_subject` and
+`existing_owner_auth_time`, preserves the unique reservation for new identities,
+and permits one verified existing person to own multiple independently scoped
+workspaces. Database guards prevent binding changes and require the explicit
+verified continuation context. Historical signup rows retain empty bindings.
+The status heading receives focus and is scrolled into view when the signup
+stage changes, including after the long form is replaced.
+
 ## Business contacts, headquarters and the initial branch
 
 The signup form requires the organisation phone and contact email, a full

@@ -1,6 +1,6 @@
 module github.com/tesserix/helivanta
 
-go 1.27.3
+go 1.27.4
 
 require (
 	cloud.google.com/go/storage v1.70.0
@@ -189,4 +189,4 @@ require (
 
 replace github.com/tesserix/devai-sandbox-operator => github.com/tesserix/tesserix-operators v0.0.0-20261110093052-570466713c6c
 
-replace github.com/tesserix/onboarding-service/api => github.com/tesserix/onboarding-service/apps/api v0.0.0-20261111004851-e1685d32dd75
+replace github.com/tesserix/onboarding-service/api => github.com/tesserix/onboarding-service/apps/api v0.0.0-20261111035043-bd68c7b6bdc0

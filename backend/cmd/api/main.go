@@ -639,7 +639,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	bootstrap.MountCustomerSignup(srv.Engine, signupHandlers.Start, signupHandlers.Status, signupHandlers.VerifyEmail, signupHandlers.Password, signupHandlers.EmailLink, signupHandlers.PasswordLink)
+	bootstrap.MountCustomerSignup(srv.Engine, signupHandlers.Start, signupHandlers.Status, signupHandlers.VerifyEmail, signupHandlers.Password, signupHandlers.EmailLink, signupHandlers.PasswordLink, signupHandlers.Signin(customeronboarding.SigninDeps{Tokens: zitadelVerifier, Revocations: revocationChecker, Limiter: limiter, Limit: bootstrap.LoginRateLimitRule(cfg)}))
 
 	for _, m := range registry.All() {
 		if owner, ok := m.(*iam.Module); ok {

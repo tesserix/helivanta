@@ -3,8 +3,15 @@ import { useQuery } from "@tanstack/react-query";
 import { staffIntakeScopeKey, withStaffIntakeScope } from "./enrollment";
 import { z } from "zod";
 import { apiFetch, POLL_INTERVAL_MS } from "./client";
-import { documentPath, documentHeaders, type DocumentScope } from "./documents";
-import { documentRecordsSchema, staffDocumentSchema, type StaffDocument } from "./documents-fields";
+import {
+  documentPath,
+  documentHeaders,
+  ownedDocument,
+  type DocumentOf,
+  type DocumentScope,
+  type HospitalDocumentScope,
+} from "./documents";
+import { documentRecordsSchema } from "./documents-fields";
 import type { Page } from "./paged";
 import {
   readDocumentClassification,
@@ -18,7 +25,9 @@ export function documentQueryKey(scope: DocumentScope): string[] {
     "account-v1",
     scope.tenantId,
     scope.subject,
-    scope.hospitalId,
+    ...(scope.pharmacyId === undefined
+      ? ["hospital", scope.hospitalId]
+      : ["pharmacy", scope.pharmacyId]),
     scope.staffId,
     ...(scope.hrIntake === true ? [staffIntakeScopeKey(scope)] : []),
   ];
@@ -40,13 +49,17 @@ export function useDocumentRecords(scope: DocumentScope, enabled: boolean) {
   });
 }
 const pageSchema = z.object({
-  data: z.array(staffDocumentSchema),
+  data: z.array(z.unknown()),
   page: z.object({ has_more: z.boolean(), next_cursor: z.string().nullish() }),
 });
-export function useStaffDocuments(scope: DocumentScope, cursor: string | null, enabled: boolean) {
+export function useStaffDocuments<S extends DocumentScope>(
+  scope: S,
+  cursor: string | null,
+  enabled: boolean,
+) {
   return useQuery({
     queryKey: [...documentQueryKey(scope), "files", cursor],
-    queryFn: async ({ signal }): Promise<Page<StaffDocument>> => {
+    queryFn: async ({ signal }): Promise<Page<DocumentOf<S>>> => {
       const page = pageSchema.parse(
         await apiFetch(
           withStaffIntakeScope(
@@ -56,14 +69,8 @@ export function useStaffDocuments(scope: DocumentScope, cursor: string | null, e
           { headers: documentHeaders(scope), cache: "no-store", signal },
         ),
       );
-      if (
-        page.data.some(
-          (file) => file.hospital_id !== scope.hospitalId || file.staff_id !== scope.staffId,
-        )
-      )
-        throw new Error("Document ownership did not match this workspace.");
       return {
-        data: page.data,
+        data: page.data.map((file) => ownedDocument(scope, file)),
         page: { has_more: page.page.has_more, next_cursor: page.page.next_cursor ?? null },
       };
     },
@@ -81,11 +88,18 @@ export function useStaffDocuments(scope: DocumentScope, cursor: string | null, e
   });
 }
 
-export function documentClassificationQueryKey(scope: DocumentScope, file: string): string[] {
+export function documentClassificationQueryKey(
+  scope: HospitalDocumentScope,
+  file: string,
+): string[] {
   return [...documentQueryKey(scope), "classification", file];
 }
 
-export function useDocumentClassification(scope: DocumentScope, file: string, enabled: boolean) {
+export function useDocumentClassification(
+  scope: HospitalDocumentScope,
+  file: string,
+  enabled: boolean,
+) {
   return useQuery({
     queryKey: documentClassificationQueryKey(scope, file),
     queryFn: ({ signal }) => readDocumentClassification(scope, file, signal),
@@ -97,7 +111,7 @@ export function useDocumentClassification(scope: DocumentScope, file: string, en
 }
 
 export function useDocumentClassificationHistory(
-  scope: DocumentScope,
+  scope: HospitalDocumentScope,
   file: string,
   cursor: string | null,
   enabled: boolean,

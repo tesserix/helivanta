@@ -181,6 +181,50 @@ export const documentClassificationRevisionSchema = z
       });
   });
 export type DocumentClassificationRevision = z.infer<typeof documentClassificationRevisionSchema>;
+export const pharmacyStaffDocumentSchema = z
+  .object({
+    id: identifier,
+    pharmacy_id: identifier,
+    staff_id: identifier,
+    record_id: identifier,
+    record_kind: z.enum(["enrollment", "credential", "qualification"]),
+    record_version: z.number().int().safe().min(1),
+    category: z.enum([
+      "employment_evidence",
+      "identity_evidence",
+      "credential_evidence",
+      "qualification_evidence",
+    ]),
+    filename: filename,
+    content_type: z.enum(["image/png", "image/jpeg"]),
+    size: z.number().int().min(1).max(MAX_DOCUMENT_BYTES),
+    sha256: z.string().regex(/^[a-f0-9]{64}$/),
+    status: z.enum([
+      "upload_pending",
+      "scan_pending",
+      "available",
+      "rejected",
+      "scan_error",
+      "revoked",
+    ]),
+    scan_attempt: z.number().int().safe().min(1),
+    uploaded_at: z.string().datetime({ offset: true }).nullable(),
+    scanned_at: z.string().datetime({ offset: true }).nullable(),
+    failure_code: z
+      .enum([
+        "unsupported_content",
+        "malware_detected",
+        "scanner_unavailable",
+        "storage_unavailable",
+        "integrity_mismatch",
+      ])
+      .nullable(),
+    expires_at: z.string().datetime({ offset: true }),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type PharmacyStaffDocument = z.infer<typeof pharmacyStaffDocumentSchema>;
 export const documentRecordsSchema = z.object({
   records: z.array(documentRecordChoiceSchema).max(41),
   uploads_available: z.boolean(),

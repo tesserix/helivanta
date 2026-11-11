@@ -1,18 +1,37 @@
 import { withStaffIntakeScope, type EnrollmentRequestScope } from "./enrollment";
 import { readAttachmentFile } from "./attachment-file";
 import { apiFetch, apiFetchResponse } from "./client";
+import { pharmacyEmployerPath } from "./pharmacy-employers";
 import {
   documentInputSchema,
   staffDocumentSchema,
+  pharmacyStaffDocumentSchema,
   MAX_DOCUMENT_BYTES,
   DOCUMENT_PROCESSING_TIMEOUT_MS,
   type DocumentInput,
   type DocumentRecordChoice,
+  type PharmacyStaffDocument,
   type StaffDocument,
 } from "./documents-fields";
 export * from "./documents-fields";
 
-export type DocumentScope = EnrollmentRequestScope & { hospitalId: string; staffId: string };
+export type HospitalDocumentScope = EnrollmentRequestScope & {
+  hospitalId: string;
+  pharmacyId?: never;
+  staffId: string;
+};
+// A pharmacy owns only enrollment, credential and qualification files, never an HR intake (ADR-0054).
+export type PharmacyDocumentScope = Omit<EnrollmentRequestScope, "hrIntake"> & {
+  hrIntake?: never;
+  hospitalId?: never;
+  pharmacyId: string;
+  staffId: string;
+};
+export type DocumentScope = HospitalDocumentScope | PharmacyDocumentScope;
+export type DocumentOf<S extends DocumentScope> = S extends PharmacyDocumentScope
+  ? PharmacyStaffDocument
+  : StaffDocument;
+export type EstablishmentDocument = DocumentOf<DocumentScope>;
 export type DocumentUpload = { id: string; input: DocumentInput; file: File };
 
 export function canRetryDocument(
@@ -30,7 +49,12 @@ export function canRetryDocument(
 export function documentPath(scope: DocumentScope): string {
   const identifier = staffDocumentSchema.shape.id;
   identifier.parse(scope.tenantId);
-  return `/workforce/hospitals/${identifier.parse(scope.hospitalId)}/staff/${identifier.parse(scope.staffId)}`;
+  const staff = `/staff/${identifier.parse(scope.staffId)}`;
+  if (scope.pharmacyId === undefined)
+    return `/workforce/hospitals/${identifier.parse(scope.hospitalId)}${staff}`;
+  if (scope.hospitalId !== undefined || scope.hrIntake !== undefined)
+    throw new Error("The document workspace could not be verified.");
+  return pharmacyEmployerPath(scope.pharmacyId) + staff;
 }
 
 export function documentHeaders(scope: DocumentScope): Headers {
@@ -47,14 +71,25 @@ export function documentHeaders(scope: DocumentScope): Headers {
   });
 }
 
-function receipt(scope: DocumentScope, id: string, value: unknown): StaffDocument {
-  const document = staffDocumentSchema.parse(value);
+export function ownedDocument<S extends DocumentScope>(scope: S, value: unknown): DocumentOf<S> {
+  const document: EstablishmentDocument =
+    scope.pharmacyId === undefined
+      ? staffDocumentSchema.parse(value)
+      : pharmacyStaffDocumentSchema.parse(value);
   if (
-    document.id !== id ||
-    document.hospital_id !== scope.hospitalId ||
+    ("pharmacy_id" in document
+      ? document.pharmacy_id !== scope.pharmacyId
+      : document.hospital_id !== scope.hospitalId) ||
     document.staff_id !== scope.staffId
   )
     throw new Error("Document ownership did not match this workspace.");
+  // The schema was chosen by the scope's family above.
+  return document as DocumentOf<S>;
+}
+
+function receipt<S extends DocumentScope>(scope: S, id: string, value: unknown): DocumentOf<S> {
+  const document = ownedDocument(scope, value);
+  if (document.id !== id) throw new Error("Document ownership did not match this workspace.");
   return document;
 }
 
@@ -104,11 +139,11 @@ export async function prepareDocumentUpload(
   };
 }
 
-export async function submitDocumentUpload(
-  scope: DocumentScope,
+export async function submitDocumentUpload<S extends DocumentScope>(
+  scope: S,
   upload: DocumentUpload,
   signal: AbortSignal,
-): Promise<StaffDocument> {
+): Promise<DocumentOf<S>> {
   signal.throwIfAborted();
   const input = documentInputSchema.parse(upload.input);
   const path = `${documentPath(scope)}/documents/${staffDocumentSchema.shape.id.parse(upload.id)}`;
@@ -148,12 +183,12 @@ export async function submitDocumentUpload(
   );
 }
 
-export async function retryDocumentScan(
-  scope: DocumentScope,
+export async function retryDocumentScan<S extends DocumentScope>(
+  scope: S,
   id: string,
   attempt: number,
   signal: AbortSignal,
-): Promise<StaffDocument> {
+): Promise<DocumentOf<S>> {
   signal.throwIfAborted();
   staffDocumentSchema.shape.scan_attempt.parse(attempt);
   const path = `${documentPath(scope)}/documents/${staffDocumentSchema.shape.id.parse(id)}/retries/${attempt}`;
@@ -168,11 +203,11 @@ export async function retryDocumentScan(
   );
 }
 
-export async function revokeStaffDocument(
-  scope: DocumentScope,
+export async function revokeStaffDocument<S extends DocumentScope>(
+  scope: S,
   id: string,
   signal: AbortSignal,
-): Promise<StaffDocument> {
+): Promise<DocumentOf<S>> {
   signal.throwIfAborted();
   const path = `${documentPath(scope)}/documents/${staffDocumentSchema.shape.id.parse(id)}/revocation`;
   return receipt(
@@ -186,9 +221,9 @@ export async function revokeStaffDocument(
   );
 }
 
-export async function downloadStaffDocument(
-  scope: DocumentScope,
-  document: StaffDocument,
+export async function downloadStaffDocument<S extends DocumentScope>(
+  scope: S,
+  document: DocumentOf<S>,
   signal: AbortSignal,
 ): Promise<Blob> {
   signal.throwIfAborted();

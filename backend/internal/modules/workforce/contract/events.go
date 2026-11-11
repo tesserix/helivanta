@@ -53,6 +53,7 @@ type RosterConfigChangedData struct {
 
 const SubjectDocumentScanRequested = "helivanta.in.workforce.document_scan_requested.v1"
 
+// DocumentScanRequestedData HospitalID names the owning establishment row: a hospital, or a pharmacy employer for its Staff files (ADR-0054).
 type DocumentScanRequestedData struct {
 	HospitalID  string `json:"hospital_id"`
 	StaffID     string `json:"staff_id"`
@@ -62,6 +63,7 @@ type DocumentScanRequestedData struct {
 
 const SubjectDocumentChanged = "helivanta.in.workforce.document_changed.v1"
 
+// DocumentChangedData HospitalID names the owning establishment row: a hospital, or a pharmacy employer for its Staff files (ADR-0054).
 type DocumentChangedData struct {
 	HospitalID  string `json:"hospital_id"`
 	StaffID     string `json:"staff_id"`
@@ -70,6 +72,7 @@ type DocumentChangedData struct {
 	Status      string `json:"status"`
 }
 
+// DocumentScanInput HospitalID names the owning establishment row: a hospital, or a pharmacy employer for its Staff files (ADR-0054).
 type DocumentScanInput struct {
 	TenantID    string `json:"tenant_id"`
 	HospitalID  string `json:"hospital_id"`

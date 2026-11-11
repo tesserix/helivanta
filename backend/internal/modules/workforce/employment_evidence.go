@@ -356,6 +356,7 @@ func (g employmentEvidenceGate) owns(tx *gorm.DB, p authn.Principal, hospital, s
 func (employmentEvidenceGate) downloadAction() string {
 	return "workforce.employment_evidence.downloaded"
 }
+func (employmentEvidenceGate) view(d document) any { return d }
 func (h *handlers) downloadEmploymentEvidence(c *gin.Context) {
 	s, ok := employmentEvidenceParams(c)
 	if !ok {

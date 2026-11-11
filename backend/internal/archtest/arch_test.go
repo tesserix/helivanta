@@ -594,6 +594,8 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /workforce/hospitals/:hospital/staff/:id":                                  "single hospital-local staff entry",
 	"GET /workforce/pharmacies/:pharmacy/staff/:id":                                 "single pharmacy-local staff entry",
 	"GET /workforce/pharmacies/:pharmacy/staff/:id/enrollment":                      "single pharmacy Staff profile, with bounded child records",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/document-records":                "one pharmacy Staff enrollment's bounded evidence choices: enrollment plus at most 20 credentials and 20 qualifications",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/documents/:file/content":         "one authorized generation-pinned pharmacy Staff file, not a collection",
 	"GET /reference/pings/:id":                                                      "single item, not a collection",
 	"GET /patients/hospitals/:hospital/access":                                      "current principal hospital grant, not a collection",
 	"GET /patients/:id":       "single item, not a collection",

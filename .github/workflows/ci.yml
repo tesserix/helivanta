@@ -245,7 +245,7 @@ jobs:
           node --test scripts/staff-operational-access-inventory.test.mjs
           node scripts/staff-operational-access-inventory.mjs --check
       # Ignores live in package.json pnpm.auditConfig; reasons in docs/runbooks/vulnerability-management.md.
-      - run: node --test scripts/zod-tooling.test.mjs scripts/lib/tenant-identity-fixture.test.mjs scripts/ci/ubuntu-archive-mirror.test.mjs
+      - run: node --test scripts/zod-tooling.test.mjs scripts/lib/tenant-identity-fixture.test.mjs scripts/ci/ubuntu-archive-mirror.test.mjs scripts/ci/runner-dns.test.mjs
       - run: pnpm audit --prod --audit-level=high
       - run: pnpm turbo lint format:check type-check && pnpm turbo test && pnpm turbo build
         env:
@@ -266,6 +266,9 @@ jobs:
         with:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
+      - name: Verify runner dependency DNS
+        timeout-minutes: 2
+        run: bash scripts/ci/runner-dns.sh
       - name: Use official Ubuntu package mirror
         run: sudo "$(command -v node)" scripts/ci/ubuntu-archive-mirror.mjs
       - name: Install emergency browser dependencies
@@ -455,6 +458,9 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       # Runs unconditionally even on a cache hit: --with-deps also installs the
       # apt libraries Chromium needs, which live outside the cached path.
+      - name: Verify runner dependency DNS
+        timeout-minutes: 2
+        run: bash scripts/ci/runner-dns.sh
       - name: Use official Ubuntu package mirror
         run: sudo "$(command -v node)" scripts/ci/ubuntu-archive-mirror.mjs
       - run: pnpm --filter e2e exec playwright install --with-deps chromium

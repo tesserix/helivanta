@@ -79,6 +79,8 @@ func TestInitialCustomerWorkspaceCreatesOnlyOwnedResourcesAndNeverRestoresRevoke
 		}
 		subject := "owner-" + tenant
 		in := customercontract.Workspace{TenantID: tenant, OrganizationID: "helivanta-" + tenant, OwnerSubject: subject, ResourceID: uuid.Must(uuid.NewV7()).String(), Setup: customercontract.Setup{Name: "TEST Workspace", Kind: kind, CountryCode: customercontract.India, StateCode: customercontract.Odisha}}
+		address := customercontract.BusinessAddress{Line1: "10 Test Road", Line2: "Test Building", City: "Bhubaneswar", District: "Khordha", PostalCode: "751001", StateCode: customercontract.Odisha, CountryCode: customercontract.India}
+		in.Profile = &customercontract.OrganizationProfile{Contact: customercontract.BusinessContact{Phone: "+919876543210", Email: "office@example.test"}, HeadOffice: address, MainBranch: customercontract.MainBranch{Name: "Main branch", Address: address}}
 		require.NoError(t, db.WithTenant(ctx, tenant, func(tx *gorm.DB) error {
 			if err := tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,?,'tenant_admin')`, tenant, subject).Error; err != nil {
 				return err
@@ -94,6 +96,28 @@ func TestInitialCustomerWorkspaceCreatesOnlyOwnedResourcesAndNeverRestoresRevoke
 		require.Equal(t, in.ResourceID, receipt.ResourceID)
 
 		require.NoError(t, db.WithTenant(ctx, tenant, func(tx *gorm.DB) error {
+			table := "workforce_hospitals"
+			if kind == customercontract.Pharmacy {
+				table = "pharmacy_organizations"
+			}
+			var stored []byte
+			if err := tx.Raw("SELECT onboarding_profile FROM "+table+" WHERE tenant_id=? AND id=?", tenant, in.ResourceID).Row().Scan(&stored); err != nil {
+				return err
+			}
+			var profile customercontract.OrganizationProfile
+			require.NoError(t, json.Unmarshal(stored, &profile))
+			require.Equal(t, *in.Profile, profile, "business owner lost the submitted contact or address")
+			if kind == customercontract.Pharmacy {
+				var branch struct {
+					Name             string
+					RegulatoryStatus string
+				}
+				if err := tx.Table("pharmacy_outlets").Select("name,regulatory_status").Where("tenant_id=? AND pharmacy_id=? AND id=?", tenant, in.ResourceID, in.ResourceID).Take(&branch).Error; err != nil {
+					return err
+				}
+				require.Equal(t, in.Profile.MainBranch.Name, branch.Name)
+				require.Equal(t, "pending_review", branch.RegulatoryStatus)
+			}
 			var count int64
 			if err := tx.Table("workforce_hospitals").Where("tenant_id=? AND id=? AND establishment_kind=?", tenant, in.ResourceID, kind).Count(&count).Error; err != nil {
 				return err

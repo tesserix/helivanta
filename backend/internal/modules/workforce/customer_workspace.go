@@ -2,12 +2,14 @@ package workforce
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/google/uuid"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"github.com/tesserix/onboarding-service/api/customercontract"
 	"gorm.io/gorm"
+	"reflect"
 )
 
 // NewCustomerWorkspaceInitializer creates only this owner's initial business resource.
@@ -39,9 +41,21 @@ func NewCustomerWorkspaceInitializer(deps platform.Deps) func(context.Context, c
 				if count != 1 {
 					return gorm.ErrRecordNotFound
 				}
+				if in.Kind == customercontract.Hospital {
+					var saved businessProfileRow
+					if err := tx.Table("workforce_hospitals").Select("onboarding_profile").Where("tenant_id=? AND id=?", in.TenantID, resource).Take(&saved).Error; err != nil {
+						return err
+					}
+					if !reflect.DeepEqual(saved.Profile, in.Profile) {
+						return customercontract.ErrInvalid
+					}
+				}
 				return nil
 			}
 			name, ownership := in.Name, ""
+			if in.Kind == customercontract.Hospital && in.Profile != nil {
+				name = in.Profile.MainBranch.Name
+			}
 			if in.Kind == customercontract.Pharmacy {
 				if deps.PharmacyEmployers == nil {
 					return authz.ErrScopedAuthorizationUnavailable
@@ -55,7 +69,15 @@ func NewCustomerWorkspaceInitializer(deps platform.Deps) func(context.Context, c
 				}
 				name, ownership = source.Name, source.OwnershipType
 			}
-			if err := tx.Exec(`INSERT INTO workforce_hospitals(tenant_id,id,name,establishment_kind,pharmacy_ownership_type) VALUES(?,?,?,?,NULLIF(?,''))`, in.TenantID, resource, name, in.Kind, ownership).Error; err != nil {
+			var profile any
+			if in.Kind == customercontract.Hospital && in.Profile != nil {
+				raw, err := json.Marshal(in.Profile)
+				if err != nil {
+					return err
+				}
+				profile = string(raw)
+			}
+			if err := tx.Exec(`INSERT INTO workforce_hospitals(tenant_id,id,name,establishment_kind,pharmacy_ownership_type,onboarding_profile) VALUES(?,?,?,?,NULLIF(?,''),?::jsonb)`, in.TenantID, resource, name, in.Kind, ownership, profile).Error; err != nil {
 				return err
 			}
 			if err := tx.Exec(`INSERT INTO workforce_hospital_access(tenant_id,hospital_id,subject,level) VALUES(?,?,?,'manager')`, in.TenantID, resource, in.OwnerSubject).Error; err != nil {

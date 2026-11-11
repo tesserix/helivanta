@@ -80,6 +80,59 @@ The initial business setup is automatic; entering licence evidence, releasing
 stock, employing operational Staff and approving regulated activity still need
 real authorized evidence. Signup must not fabricate these as successful.
 
+## Business contacts, headquarters and the initial branch
+
+The signup form requires the organisation phone and contact email, a full
+head-office address, and the main branch name and address. The address contains
+line 1, optional line 2, city, district, PIN code, state and country. State choices
+cover Maharashtra and Odisha in India. The form copies the current head-office
+address on submission when the customer selects the same-address option.
+Organisation contact email is business metadata. Native first-owner verification
+uses the owner's login email.
+
+The canonical `customercontract.OrganizationProfile` and `BusinessAddress` in
+onboarding-service generate the browser schemas. The public receipt boundary,
+durable signup input, intent fingerprint and private workspace command carry the
+same profile. Validation checks bounded text, controls and whitespace,
+international-format phone, email, six-digit PIN code and supported geography.
+The head-office state/country must match the signup's administrative home scope.
+The branch may use another supported state.
+
+The `profile` addition is optional in the v1 wire contract to preserve stored
+intents and existing callers. The current signup form requires a complete
+profile. Every supplied profile is validated on both service boundaries. Legacy
+records return an explicit null profile through the business-profile read API.
+
+Workforce owns the hospital's stored `onboarding_profile`. Its initial hospital
+resource uses the supplied main-branch name. PharmaConnect owns an independent
+pharmacy's profile and creates its initial outlet with the supplied branch name,
+India country and Asia/Kolkata time zone. The outlet starts in `pending_review`.
+The initial outlet uses the same UUIDv7 value as its pharmacy organisation in its
+own typed resource scope. Tenant, parent and outlet checks supply its authority.
+Workforce consumes the pharmacy employer projection for HR administration.
+
+Nullable bounded JSON columns are introduced by
+`0096_workforce_business_profile` and `0044_pharmacy_business_profile`. Existing
+row isolation and ownership apply. Initializers persist the profile with their
+business creation and audit transaction. Replays compare the stored profile and
+check the initial resource, preserving the existing anti-replay access behavior.
+Only identifiers and field/action metadata enter audit events.
+
+Owners can open **View contact and addresses** in the hospital workforce page or
+pharmacy setup. These views request the business owner's scoped endpoints through
+the Global API.
+
+| Endpoint                                                 | Required permission         | Additional scope                                          |
+| -------------------------------------------------------- | --------------------------- | --------------------------------------------------------- |
+| `GET /v1/workforce/hospitals/:hospital/business-profile` | `workforce.hospital.manage` | Current tenant, hospital kind and hospital manager access |
+| `GET /v1/pharmacy/pharmacies/:pharmacy/business-profile` | `pharmacy.access.manage`    | Current tenant and visible pharmacy organisation          |
+
+Both return the canonical `{profile: object | null}` view, apply the optional
+expected-tenant precondition, set `Cache-Control: no-store` and record an
+attributable read. Missing permission returns 403 and an out-of-scope resource
+returns 404. Dependency or invalid stored-data errors follow the owner's error
+mapping. The UI presents read failures with a retry action.
+
 ## First-owner verification delivery through Resend
 
 ```mermaid

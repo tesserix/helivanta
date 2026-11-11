@@ -6,6 +6,22 @@
 This is source-review tooling. No employment guard, grant classification in a live
 database, migration, account change or runtime activation is performed by it.
 
+## Business-profile source review — 11 November 2026
+
+The current registry contains 1,044 registered surfaces, with 99 source-classified
+and 945 awaiting classification. PR #1647 adds two management business-profile
+reads for the hospital and pharmacy owner. Both are classified as
+`governance_recovery`, with exact tenant/resource scope, permission, bounded
+profile validation and attributable read audit pinned to the owning handlers.
+
+The source review compared all 954 preceding HTTP registrations and the Workforce
+permission catalogue against their prior definitions. The Workforce route method
+adds the business-profile GET, and its migration list adds the nullable profile
+column. Eighteen existing source-pinned reviews were rechecked against that
+module change. Their recorded runtime acceptance obligations carry the live
+proof requirements. Authenticated first-owner profile read-back for both tenant
+kinds is also recorded as a new acceptance obligation.
+
 ## Latest pharmacy receiver source review — 8 November 2026
 
 The generated registry now contains 946 surfaces: 88 source-classified and 858

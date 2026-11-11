@@ -27,7 +27,7 @@ Playwright.
 - Pharmacy table `pharmacy_hospital_names`, consumer name `pharmacy-hospital-names`; a stored row changes only for a strictly greater `name_version`.
 - `hospital_name` is the stored name only when the affiliation's current status is `verified`; otherwise `null`. No other route returns stored names.
 - Picker labels: `<name>`; `<name> · <hospital id>` when another verified hospital in the list has the same name; `Name unavailable · <hospital id>` when the name is null or absent. The separator is `·` (U+00B7 with spaces).
-- Migration IDs: `0096_workforce_hospital_names`, `0045_pharmacy_hospital_names` (`0044_pharmacy_prescription_sale_evidence` is taken on `codex/pharmacy-prescription-evidence`); re-check both against `main` and `codex/*` before merge.
+- Migration IDs: `0097_workforce_hospital_names`, `0045_pharmacy_hospital_names` (main took `0096_workforce_business_profile` and `0044_pharmacy_business_profile` while this branch was open); re-check both against `main` and `codex/*` before merge.
 
 ## Review Focus
 

@@ -31,6 +31,7 @@ import {
   useZodForm,
   useConfirmLeave,
 } from "@helivanta/ui";
+import { BusinessProfilePanel } from "@/components/organization/business-profile";
 import { EnrollmentEditor } from "./enrollment-editor";
 import { StaffDirectoryEditor } from "./directory-editor";
 import { StaffDocumentPanel } from "./document-panel";
@@ -337,6 +338,9 @@ function Directory({
   const writable = manager || canPrepare;
   return (
     <>
+      {manager && can("workforce.hospital.manage") && (
+        <BusinessProfilePanel tenantId={scope.tenantId} kind="hospital" resourceId={hospital.id} />
+      )}
       <StaffDirectory
         title={hospital.name}
         description={`${writable ? "Manage staff records" : "Read-only access"} · Hospital-specific directory`}

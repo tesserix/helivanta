@@ -3186,6 +3186,15 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/business-profile",
+          "permission": "pharmacy.access.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "POST",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/hospital-affiliations/:id/verification-requests/:request/withdraw",
           "permission": "pharmacy.access.manage",
@@ -5289,6 +5298,11 @@
         {
           "id": "0043_pharmacy_acquisition_receipts",
           "sql_sha256": "6bee0fc1fa4a4d60d85709d9d5615e364907abfcb8a16327b5ae2923e09b4663",
+          "creates_tables": []
+        },
+        {
+          "id": "0044_pharmacy_business_profile",
+          "sql_sha256": "16e32610782c345c63b2a4ba597cd0781b7051e2cfe1c24da9758cf217082016",
           "creates_tables": []
         },
         {
@@ -8742,6 +8756,15 @@
         {
           "method": "PUT",
           "path": "/v1/workforce/hospitals/:hospital/access/:subject",
+          "permission": "workforce.hospital.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/business-profile",
           "permission": "workforce.hospital.manage",
           "authentication_required": true,
           "membership_required": true,
@@ -12871,7 +12894,12 @@
           "creates_tables": []
         },
         {
-          "id": "0096_workforce_hospital_names",
+          "id": "0096_workforce_business_profile",
+          "sql_sha256": "89138ab8073e716c214975e226343fd0d9af682be6c435f97c4318fe468969fc",
+          "creates_tables": []
+        },
+        {
+          "id": "0097_workforce_hospital_names",
           "sql_sha256": "559c8943a5f7eba6b7569e7e8871cb2666cd9f50267b9db36934526562e8cf67",
           "creates_tables": [
             "workforce_hospital_name_announcements"

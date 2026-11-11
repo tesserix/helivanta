@@ -459,6 +459,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/insights` | `pharmacy.dispense.read` | false | false |
 | GET | `/v1/pharmacy/medications` | `pharmacy.medication.read` | true | false |
 | POST | `/v1/pharmacy/medications` | `pharmacy.medication.write` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/business-profile` | `pharmacy.access.manage` | false | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/hospital-affiliations/:id/verification-requests/:request/withdraw` | `pharmacy.access.manage` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/hospital-affiliations/:id/verification-requests/:request` | `pharmacy.access.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/hospital-affiliations/:id/verifications` | `pharmacy.catalogue.read` | true | false |
@@ -1150,6 +1151,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/employment-review-scopes` | `public` | true | false |
 | DELETE | `/v1/workforce/hospitals/:hospital/access/:subject` | `workforce.hospital.manage` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/access/:subject` | `workforce.hospital.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/business-profile` | `workforce.hospital.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/department-leave-review-requests` | `workforce.leave.approve` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/department-team` | `workforce.posting.proposal.read` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/employment-review-inbox` | `public` | true | false |
@@ -1577,7 +1579,7 @@ Migration table declarations:
 - `0085_workforce_posting_lifecycle_reviews`: `workforce_posting_lifecycle_reviews`, `workforce_posting_lifecycle_sources`.
 - `0090_workforce_partner_group_scope`: `workforce_partner_group_observations`.
 - `0094_workforce_independent_identity`: `workforce_independent_link_commands`.
-- `0096_workforce_hospital_names`: `workforce_hospital_name_announcements`.
+- `0097_workforce_hospital_names`: `workforce_hospital_name_announcements`.
 
 ## workspace
 

@@ -7,7 +7,7 @@ export const CREDENTIAL_STATUSES = {
   valid: "Valid",
   expires_today: "Expires today",
   expired: "Expired",
-  date_unknown: "Set the hospital time zone",
+  date_unknown: "Time zone not set",
 } as const;
 export const credentialStatusSchema = z.enum([
   "unreviewed",

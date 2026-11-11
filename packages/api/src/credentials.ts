@@ -20,7 +20,7 @@ import {
   type PharmacyTimeZone,
   type StaffCredentials,
 } from "./credential-contract";
-import type { StaffDocument } from "./documents-fields";
+import type { PharmacyStaffDocument, StaffDocument } from "./documents-fields";
 import { pharmacyEmployerPath } from "./pharmacy-employers";
 import { isSupportedTimezone } from "./roster-config";
 export * from "./credential-contract";
@@ -145,7 +145,10 @@ export const credentialDecisionFormSchema = z
 export type CredentialDecisionForm = z.infer<typeof credentialDecisionFormSchema>;
 
 // Only this credential's evidence that is released or still scanning can be cited.
-export const citableEvidence = (files: StaffDocument[], credential: string) =>
+export const citableEvidence = <F extends StaffDocument | PharmacyStaffDocument>(
+  files: F[],
+  credential: string,
+): F[] =>
   files.filter(
     (f) =>
       f.record_kind === "credential" &&
@@ -314,6 +317,24 @@ export const pharmacyTimeZoneKey = (owner: PharmacyCredentialOwner) => [
   "pharmacy-time-zone",
   ...ownerKey(owner),
 ];
+// Version 0 is the unsaved row; every saved version names a supported zone.
+export async function fetchPharmacyTimeZone(
+  owner: PharmacyCredentialOwner,
+  signal?: AbortSignal,
+): Promise<PharmacyTimeZone> {
+  const zone = pharmacyTimeZoneContract.parse(
+    await apiFetch(pharmacyTimeZonePath(owner), { ...credentialRequest(owner), signal }),
+  );
+  const saved = zone.time_zone !== undefined;
+  if (
+    zone.version < 0 ||
+    saved !== zone.version > 0 ||
+    (saved && !isSupportedTimezone(zone.time_zone!))
+  )
+    throw new Error("The pharmacy time zone could not be verified. Reload and try again.");
+  return zone;
+}
+
 export const pharmacyTimeZoneFormSchema = z
   .object({
     time_zone: z

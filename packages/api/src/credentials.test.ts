@@ -17,6 +17,7 @@ import {
   credentialsKey,
   credentialsPath,
   decideCredentialReview,
+  fetchPharmacyTimeZone,
   pharmacyTimeZoneFormSchema,
   pharmacyTimeZoneKey,
   pharmacyTimeZonePath,
@@ -25,7 +26,7 @@ import {
   withdrawCredentialReview,
   type CredentialScope,
 } from "./credentials";
-import type { StaffDocument } from "./documents-fields";
+import type { PharmacyStaffDocument, StaffDocument } from "./documents-fields";
 
 const hospital = "11111111-1111-4111-8111-111111111111";
 const staff = "22222222-2222-4222-8222-222222222222";
@@ -104,6 +105,12 @@ it("offers only this credential's released or scanning evidence", () => {
     { ...base, id: "e", record_kind: "qualification" },
   ] as unknown as StaffDocument[];
   expect(citableEvidence(files, credential).map((f) => f.id)).toEqual(["a", "b"]);
+  const pharmacyFiles = [
+    { ...base, id: "p", pharmacy_id: hospital },
+    { ...base, id: "q", pharmacy_id: hospital, status: "rejected" },
+  ] as unknown as PharmacyStaffDocument[];
+  const cited: PharmacyStaffDocument[] = citableEvidence(pharmacyFiles, credential);
+  expect(cited.map((f) => f.id)).toEqual(["p"]);
 });
 
 it("builds the register path only for a valid window", () => {
@@ -363,4 +370,42 @@ it("accepts only a supported IANA time zone in the form", () => {
   expect(message("UTC")).toBeUndefined();
   for (const bad of ["", "Local", "posix/Asia/Kolkata", "Mars/Olympus_Mons", "asia/kolkata"])
     expect(message(bad)).toBe("Use a supported IANA time zone such as Asia/Kolkata.");
+});
+
+it("reads a pharmacy time zone under the expected account and refuses an inconsistent answer", async () => {
+  const calls: { url: string; init: RequestInit }[] = [];
+  let body: unknown = { version: 0 };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return new Response(JSON.stringify(body), { status: 200 });
+    }),
+  );
+  await expect(fetchPharmacyTimeZone(pharmacyOwner)).resolves.toEqual({ version: 0 });
+  expect(calls[0]?.url).toBe(`/api/v1/workforce/pharmacies/${pharmacy}/hr/time-zone`);
+  expect(calls[0]?.init.method ?? "GET").toBe("GET");
+  expect(calls[0]?.init.cache).toBe("no-store");
+  expect(headersOf(calls[0]!.init)).toMatchObject(lower(expected));
+  const set = {
+    version: 2,
+    time_zone: "Asia/Kolkata",
+    updated_by_subject: "synthetic-hr",
+    updated_at: stamp,
+  };
+  body = set;
+  await expect(fetchPharmacyTimeZone(pharmacyOwner)).resolves.toEqual(set);
+  for (const bad of [
+    { version: 0, time_zone: "Asia/Kolkata" },
+    { version: 1 },
+    { version: -1 },
+    { ...set, time_zone: "Local" },
+    { ...set, hospital_id: hospital },
+  ]) {
+    body = bad;
+    await expect(fetchPharmacyTimeZone(pharmacyOwner)).rejects.toThrow();
+  }
+  await expect(
+    fetchPharmacyTimeZone({ ...pharmacyOwner, subject: " synthetic-hr" }),
+  ).rejects.toThrow("The credential workspace could not be verified.");
 });

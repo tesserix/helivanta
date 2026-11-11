@@ -33,7 +33,7 @@ test("identity fixture provisions two native scopes without adopting the platfor
       if (path === "/v2/organizations")
         return Response.json({ organizationId: body.organizationId });
       if (path === "/management/v1/projectgrants/_search")
-        return Response.json({ details: { totalResult: "0" }, result: [] });
+        return Response.json({ details: {}, result: [] });
       return Response.json({ grantId: "native-grant" });
     },
   });

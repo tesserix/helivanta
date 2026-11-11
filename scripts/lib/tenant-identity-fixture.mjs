@@ -61,7 +61,12 @@ export async function ensureTenantIdentityFixtures({ issuer, pat, fetcher = fetc
       },
       adminOrgId,
     );
-    if (grants.details?.totalResult === "0" && (grants.result ?? []).length === 0) {
+    if (
+      grants.details &&
+      (grants.details.totalResult === undefined || grants.details.totalResult === "0") &&
+      Array.isArray(grants.result ?? []) &&
+      (grants.result ?? []).length === 0
+    ) {
       await request(
         "POST",
         `/management/v1/projects/${projectId}/grants`,

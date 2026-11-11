@@ -1,5 +1,31 @@
 import { test, expect } from "@playwright/test";
 
+test("existing-account signup starts fresh native authentication", async ({ page }) => {
+  await page.route("**/api/v1/auth/signup", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ state: "email_action_required" }),
+    }),
+  );
+  await page.goto("/signup");
+  await expect(page.getByRole("heading", { name: "Verify your account" })).toBeFocused();
+  const origin = new URL(page.url()).origin;
+  const authorization = page.waitForRequest(
+    (request) => new URL(request.url()).pathname === "/oauth/v2/authorize",
+  );
+  await page.getByRole("button", { name: "Continue with an existing account" }).click();
+  const request = await authorization;
+  const url = new URL(request.url());
+  expect(url.searchParams.get("prompt")).toBe("login");
+  expect(url.searchParams.get("max_age")).toBe("0");
+  expect(url.searchParams.get("code_challenge_method")).toBe("S256");
+  expect(url.searchParams.get("code_challenge")).toBeTruthy();
+  expect(url.searchParams.get("redirect_uri")).toBe(
+    new URL("/api/auth/callback", origin).toString(),
+  );
+});
+
 test("new owners can reach signup and choose their own independent pharmacy", async ({ page }) => {
   await page.goto("/signup");
   await expect(page.getByRole("heading", { name: "Create your workspace" })).toBeVisible();
@@ -109,7 +135,9 @@ for (const kind of ["hospital", "pharmacy"] as const) {
           },
         },
       });
-    await expect(page.getByRole("heading", { name: "Setting up your workspace" })).toBeVisible();
+    const status = page.getByRole("heading", { name: "Setting up your workspace" });
+    await expect(status).toBeFocused();
+    await expect(status).toBeInViewport();
     await expect(page.getByText("Your workspace is ready")).toHaveCount(0);
   });
 }

@@ -37,6 +37,15 @@ func TestInitialWorkspaceCommandsFailClosedWithoutTheirOwnerGuard(t *testing.T) 
 }
 
 func TestInitialCustomerWorkspaceCreatesOnlyOwnedResourcesAndNeverRestoresRevokedAccess(t *testing.T) {
+	verifyCustomerWorkspaceOwnership(t, false)
+}
+
+func TestExistingCustomerWorkspaceCreatesOnlyOwnedResourcesAndNeverRestoresRevokedAccess(t *testing.T) {
+	verifyCustomerWorkspaceOwnership(t, true)
+}
+
+func verifyCustomerWorkspaceOwnership(t *testing.T, existingOwner bool) {
+	t.Helper()
 	_, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{Modules: []platform.Module{iam.New(nil), pharmacy.New(), workforce.New()}})
 	ctx = tenantdb.WithActor(ctx, "synthetic-customer-setup-reviewer")
 	deps := platform.Deps{DB: db, PharmacyEmployers: pharmacy.New().PharmacyEmployers(db)}
@@ -78,7 +87,10 @@ func TestInitialCustomerWorkspaceCreatesOnlyOwnedResourcesAndNeverRestoresRevoke
 			tenant = testutil.TenantB
 		}
 		subject := "owner-" + tenant
-		in := customercontract.Workspace{TenantID: tenant, OrganizationID: "helivanta-" + tenant, OwnerSubject: subject, ResourceID: uuid.Must(uuid.NewV7()).String(), Setup: customercontract.Setup{Name: "TEST Workspace", Kind: kind, CountryCode: customercontract.India, StateCode: customercontract.Odisha}}
+		if existingOwner {
+			subject = "existing-native-customer-owner"
+		}
+		in := customercontract.Workspace{TenantID: tenant, OrganizationID: "helivanta-" + tenant, OwnerSubject: subject, ExistingOwner: existingOwner, ResourceID: uuid.Must(uuid.NewV7()).String(), Setup: customercontract.Setup{Name: "TEST Workspace", Kind: kind, CountryCode: customercontract.India, StateCode: customercontract.Odisha}}
 		address := customercontract.BusinessAddress{Line1: "10 Test Road", Line2: "Test Building", City: "Bhubaneswar", District: "Khordha", PostalCode: "751001", StateCode: customercontract.Odisha, CountryCode: customercontract.India}
 		in.Profile = &customercontract.OrganizationProfile{Contact: customercontract.BusinessContact{Phone: "+919876543210", Email: "office@example.test"}, HeadOffice: address, MainBranch: customercontract.MainBranch{Name: "Main branch", Address: address}}
 		require.NoError(t, db.WithTenant(ctx, tenant, func(tx *gorm.DB) error {

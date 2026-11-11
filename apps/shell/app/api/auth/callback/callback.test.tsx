@@ -190,4 +190,92 @@ describe("AuthCallbackPage", () => {
     expect(replace).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
+
+  it("resumes a retained signup with native proof before creating a tenant session", async () => {
+    signinRedirectCallback.mockResolvedValue({
+      id_token: "native-signup-proof",
+      state: { purpose: "customer-signup" },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ state: "provisioning" }), { status: 200 }),
+        ),
+    );
+    render(<AuthCallbackPage />);
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/signup"));
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/v1/auth/signup/sign-in",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ idToken: "native-signup-proof" }),
+        cache: "no-store",
+      }),
+    );
+    expect(vi.mocked(fetch).mock.calls.some(([url]) => url === "/api/v1/auth/login")).toBe(false);
+    vi.unstubAllGlobals();
+  });
+
+  it("opens the explicitly selected new workspace after signup", async () => {
+    const tenantId = "11111111-1111-4111-8111-111111111111";
+    signinRedirectCallback.mockResolvedValue({
+      id_token: "native-signup-proof",
+      state: { purpose: "customer-signup-login", tenantId },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(new Response(JSON.stringify({ tenant_id: tenantId }), { status: 200 })),
+    );
+    render(<AuthCallbackPage />);
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/dashboard"));
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/v1/auth/login",
+      expect.objectContaining({
+        body: JSON.stringify({ id_token: "native-signup-proof", tenant_id: tenantId }),
+      }),
+    );
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps a refused signup on the error screen without minting a tenant session", async () => {
+    signinRedirectCallback.mockResolvedValue({
+      id_token: "native-signup-proof",
+      state: { purpose: "customer-signup" },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: "signup_refused",
+            message: "Check your details or request a fresh email link.",
+          }),
+          { status: 400 },
+        ),
+      ),
+    );
+    render(<AuthCallbackPage />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Check your details");
+    expect(replace).not.toHaveBeenCalled();
+    expect(vi.mocked(fetch).mock.calls.some(([url]) => url === "/api/v1/auth/login")).toBe(false);
+    vi.unstubAllGlobals();
+  });
+
+  it("rejects malformed signup navigation state before any API call", async () => {
+    signinRedirectCallback.mockResolvedValue({
+      id_token: "native-signup-proof",
+      state: { purpose: "customer-signup-login", tenantId: "foreign" },
+    });
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    render(<AuthCallbackPage />);
+    await screen.findByRole("alert");
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
 });

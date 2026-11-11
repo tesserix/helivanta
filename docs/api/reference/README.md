@@ -1659,6 +1659,7 @@ Migration table declarations:
 | `POST /v1/auth/signup/email-link` | bounded native verification delivery without identity disclosure |
 | `POST /v1/auth/signup/password` | native reset code for the immutable signup owner before sign-in |
 | `POST /v1/auth/signup/password-link` | bounded native password setup and recovery without identity disclosure |
+| `POST /v1/auth/signup/sign-in` | receipt-bound continuation using a fresh native ID token and current revocation check before tenant membership exists |
 | `POST /v1/auth/signup/verify-email` | native email proof before sign-in; shared proof budget and receipt rotation |
 | `POST /v1/payments/webhooks/razorpay/:tenant/:account` | provider callback authenticated by its HMAC signature, not a session |
 

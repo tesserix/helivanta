@@ -7,6 +7,8 @@ import {
   CustomerSignupInputContract,
   CustomerSignupReceiptContract,
   CustomerSignupProofContract,
+  CustomerSignupSigninInputContract,
+  type CustomerSignupSigninInput,
   CustomerSignupDeliveryContract,
   type CustomerSignupInput,
   type CustomerSignupReceipt,
@@ -37,6 +39,11 @@ export function getCustomerSignup(signal?: AbortSignal) {
 export function startCustomerSignup(input: CustomerSignupInput) {
   const body = CustomerSignupInputContract.parse(input);
   return signupRequest("/auth/signup", { method: "POST", body: JSON.stringify(body) });
+}
+
+export function continueCustomerSignup(input: CustomerSignupSigninInput) {
+  const body = CustomerSignupSigninInputContract.parse(input);
+  return signupRequest("/auth/signup/sign-in", { method: "POST", body: JSON.stringify(body) });
 }
 
 export function verifyCustomerEmail(input: CustomerSignupProof) {

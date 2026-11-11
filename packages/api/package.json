@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.105.3",
-    "@tesserix/onboarding-contracts": "https://codeload.github.com/tesserix/onboarding-service/tar.gz/91ab268c9f8719c8071063b85e2618e3bc44091f",
+    "@tesserix/onboarding-contracts": "https://codeload.github.com/tesserix/onboarding-service/tar.gz/e1685d32dd75fbad98ad0a8d5e4e3d02f771d34e",
     "sonner": "^2.0.8",
     "uuid": "14.0.3",
     "zod": "^4.6.7"

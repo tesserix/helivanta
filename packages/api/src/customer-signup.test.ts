@@ -3,6 +3,8 @@ import {
   getCustomerSignup,
   startCustomerSignup,
   getCustomerBusinessProfile,
+  CustomerBusinessAddressContract,
+  CustomerOrganizationProfileContract,
 } from "./customer-signup";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -56,4 +58,35 @@ it("loads owner business details through a tenant-bound Global API request", asy
   );
   fetcher.mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
   await expect(getCustomerBusinessProfile(tenant, "hospital", id)).rejects.toThrow();
+});
+
+it("counts address lengths in Unicode code points and rejects unclean contacts", () => {
+  const address = {
+    line1: "10 Test Road",
+    line2: "",
+    city: "😀".repeat(100),
+    district: "Pune",
+    postalCode: "411001",
+    stateCode: "MH",
+    countryCode: "IN",
+  };
+  expect(CustomerBusinessAddressContract.safeParse(address).success).toBe(true);
+  expect(
+    CustomerBusinessAddressContract.safeParse({ ...address, city: address.city + "😀" }).success,
+  ).toBe(false);
+  expect(
+    CustomerBusinessAddressContract.safeParse({ ...address, line1: "\ufeff10 Test Road" }).success,
+  ).toBe(false);
+  const profile = {
+    contact: { phone: "+919876543210", email: "office@example" },
+    headOffice: address,
+    mainBranch: { name: "Main branch", address },
+  };
+  expect(CustomerOrganizationProfileContract.safeParse(profile).success).toBe(false);
+  expect(
+    CustomerOrganizationProfileContract.safeParse({
+      ...profile,
+      contact: { ...profile.contact, email: "office@example.test" },
+    }).success,
+  ).toBe(true);
 });

@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "be6d0fa988e7fff305a3edb9cb54777ef901f3ea317fd85f6b542f302cd5304c",
+  "registry_sha256": "cfe11857d71e03a6528f94b28b77444ad371ce1b028f1f9537ea366c7cb67dd0",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1045,
-    "unclassified": 946
+    "total": 1046,
+    "unclassified": 947
   },
   "entries": [
     {
@@ -20069,6 +20069,16 @@
       "registration": {
         "route": "POST /v1/auth/signup/password-link",
         "rationale": "bounded native password setup and recovery without identity disclosure"
+      },
+      "review": null
+    },
+    {
+      "id": "unauthenticated_http platform POST /v1/auth/signup/sign-in",
+      "kind": "unauthenticated_http",
+      "module": "platform",
+      "registration": {
+        "route": "POST /v1/auth/signup/sign-in",
+        "rationale": "receipt-bound continuation using a fresh native ID token and current revocation check before tenant membership exists"
       },
       "review": null
     },

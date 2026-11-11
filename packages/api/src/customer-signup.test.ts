@@ -3,6 +3,7 @@ import {
   getCustomerSignup,
   startCustomerSignup,
   getCustomerBusinessProfile,
+  continueCustomerSignup,
   CustomerBusinessAddressContract,
   CustomerOrganizationProfileContract,
 } from "./customer-signup";
@@ -89,4 +90,26 @@ it("counts address lengths in Unicode code points and rejects unclean contacts",
       contact: { ...profile.contact, email: "office@example.test" },
     }).success,
   ).toBe(true);
+});
+
+it("submits native signup authentication through the receipt-bound Global API", async () => {
+  const fetcher = vi
+    .fn()
+    .mockResolvedValue(new Response(JSON.stringify({ state: "provisioning" }), { status: 200 }));
+  vi.stubGlobal("fetch", fetcher);
+  expect(await continueCustomerSignup({ idToken: "native-proof" })).toEqual({
+    state: "provisioning",
+  });
+  expect(fetcher).toHaveBeenCalledWith(
+    "/api/v1/auth/signup/sign-in",
+    expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ idToken: "native-proof" }),
+      cache: "no-store",
+    }),
+  );
+  expect(() =>
+    continueCustomerSignup({ idToken: "native-proof", subject: "foreign" } as never),
+  ).toThrow();
+  expect(fetcher).toHaveBeenCalledTimes(1);
 });

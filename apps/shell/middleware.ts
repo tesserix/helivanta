@@ -65,6 +65,7 @@ export function middleware(req: NextRequest) {
       "/api/v1/auth/signup/password",
       "/api/v1/auth/signup/email-link",
       "/api/v1/auth/signup/password-link",
+      "/api/v1/auth/signup/sign-in",
     ].includes(pathname) ||
     pathname === "/icon.svg" ||
     pathname === "/ambulance" ||

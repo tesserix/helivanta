@@ -13,6 +13,7 @@ import (
 
 	patientmastercontract "github.com/tesserix/helivanta/internal/modules/patientmaster/contract"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy" //nolint:depguard // module under test
+	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
 	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
@@ -148,4 +149,80 @@ func requireNoName(t *testing.T, names map[string]any, id string) {
 	v, ok := names[id]
 	require.True(t, ok, "affiliation %s must be listed", id)
 	require.Nil(t, v)
+}
+
+// receipts returns the confirmations enqueued for a hospital, oldest first,
+// and asserts each payload carries exactly hospital_id and name_version.
+func receipts(t *testing.T, db *tenantdb.DB, hospital string) []pharmacycontract.HospitalNameReceivedData {
+	t.Helper()
+	var raw []string
+	require.NoError(t, catalogueTx(t, db, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT (payload->'data')::text FROM outbox_events WHERE subject=? AND payload->'data'->>'hospital_id'=? ORDER BY created_at,id`, pharmacycontract.SubjectHospitalNameReceived, hospital).Scan(&raw).Error
+	}))
+	var out []pharmacycontract.HospitalNameReceivedData
+	for _, r := range raw {
+		var keys map[string]any
+		require.NoError(t, json.Unmarshal([]byte(r), &keys))
+		require.Len(t, keys, 2, "a confirmation carries no name")
+		var d pharmacycontract.HospitalNameReceivedData
+		require.NoError(t, json.Unmarshal([]byte(r), &d))
+		out = append(out, d)
+	}
+	return out
+}
+
+func storedNames(t *testing.T, db *tenantdb.DB, hospital string) []string {
+	t.Helper()
+	var names []string
+	require.NoError(t, catalogueTx(t, db, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT name FROM pharmacy_hospital_names WHERE tenant_id=? AND hospital_id=?`, testutil.TenantA, hospital).Scan(&names).Error
+	}))
+	return names
+}
+
+func TestHospitalNameIsConfirmed(t *testing.T) {
+	_, db := catalogueHarness(t)
+	c := consumerNamed(t, "pharmacy-hospital-names")
+	h := uuid.NewString()
+	require.NoError(t, deliverName(db, t, c, testutil.TenantA, workforcecontract.HospitalNamedData{HospitalID: h, Name: "City", NameVersion: 1}))
+	require.Equal(t, []pharmacycontract.HospitalNameReceivedData{{HospitalID: h, NameVersion: 1}}, receipts(t, db, h))
+	require.Equal(t, []string{"City"}, storedNames(t, db, h))
+}
+
+func TestStaleHospitalNameIsStillConfirmed(t *testing.T) {
+	_, db := catalogueHarness(t)
+	c := consumerNamed(t, "pharmacy-hospital-names")
+	h := uuid.NewString()
+	require.NoError(t, deliverName(db, t, c, testutil.TenantA, workforcecontract.HospitalNamedData{HospitalID: h, Name: "New", NameVersion: 2}))
+	require.NoError(t, deliverName(db, t, c, testutil.TenantA, workforcecontract.HospitalNamedData{HospitalID: h, Name: "Old", NameVersion: 1}))
+	require.Equal(t, []pharmacycontract.HospitalNameReceivedData{{HospitalID: h, NameVersion: 2}, {HospitalID: h, NameVersion: 1}}, receipts(t, db, h))
+	require.Equal(t, []string{"New"}, storedNames(t, db, h))
+}
+
+func TestRejectedHospitalNameIsNotConfirmed(t *testing.T) {
+	_, db := catalogueHarness(t)
+	c := consumerNamed(t, "pharmacy-hospital-names")
+	h := uuid.NewString()
+	for _, bad := range []workforcecontract.HospitalNamedData{{HospitalID: h, Name: "", NameVersion: 1}, {HospitalID: uuid.Nil.String(), Name: "X", NameVersion: 1}, {HospitalID: h, Name: "X", NameVersion: 0}} {
+		require.Error(t, deliverName(db, t, c, testutil.TenantA, bad), "%+v", bad)
+	}
+	require.Empty(t, receipts(t, db, h))
+	require.Empty(t, receipts(t, db, uuid.Nil.String()))
+	require.Empty(t, storedNames(t, db, h))
+}
+
+func TestHospitalNameAndConfirmationCommitTogether(t *testing.T) {
+	_, db := catalogueHarness(t)
+	c := consumerNamed(t, "pharmacy-hospital-names")
+	h := uuid.NewString()
+	data, err := json.Marshal(workforcecontract.HospitalNamedData{HospitalID: h, Name: "City", NameVersion: 1})
+	require.NoError(t, err)
+	boom := fmt.Errorf("after the handler")
+	err = db.WithTenant(tenantdb.WithActor(t.Context(), "system:"+c.Name), testutil.TenantA, func(tx *gorm.DB) error {
+		require.NoError(t, c.Handle(t.Context(), tx, events.Event{Type: c.Subject, Version: 1, TenantID: testutil.TenantA, Data: data}))
+		return boom
+	})
+	require.ErrorIs(t, err, boom)
+	require.Empty(t, storedNames(t, db, h))
+	require.Empty(t, receipts(t, db, h))
 }

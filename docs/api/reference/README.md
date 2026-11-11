@@ -638,6 +638,7 @@ Published subjects:
 - `helivanta.in.pharmacy.affiliation_verification_requested.v1`
 - `helivanta.in.pharmacy.affiliation_verification_withdrawn.v1`
 - `helivanta.in.pharmacy.affiliation_decision_received.v1`
+- `helivanta.in.pharmacy.hospital_name_received.v1`
 - `helivanta.in.pharmacy.admission_charge_posted.v1`
 - `helivanta.in.pharmacy.admission_charge_reversed.v1`
 

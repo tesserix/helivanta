@@ -472,6 +472,16 @@ identity and become owners of the new organisation through the existing controll
 membership path. Public progress remains generic. The final workspace sign-in
 selects the new tenant and still requires current membership.
 
+Native email verification and password setup links currently expire after one
+hour, enforced by Zitadel. Initial mail and email/password resends share three
+attempts per one-hour window and ten per rolling 24 hours per signup, including
+provider failures. Requests for an already verified email generate no new
+verification code or email. Password setup remains separate until credential
+completion is recorded. Unknown, completed and quota-limited delivery requests
+retain generic public responses; the UI must not claim that a request guarantees
+mail delivery. The onboarding owner serializes quota reservations on the signup
+row and appends them to its existing indexed audit ledger before remote I/O.
+
 `GET /v1/iam/me/security` reads current native owner MFA enforcement;
 `POST /v1/iam/me/security` requests the managed minimum again. Both require
 `iam.member.manage`, verified current tenant membership, locked current IAM

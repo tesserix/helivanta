@@ -29,10 +29,16 @@ export function SignupVerification() {
   const form = useZodForm(passwordForm, { password: "", confirmation: "" });
   const verify = useApiMutation(verifyCustomerEmail, { gcTime: 0, suppressErrorToast: true });
   const password = useApiMutation(setCustomerPassword, { gcTime: 0, suppressErrorToast: true });
-  const delivery = useApiMutation(() => sendCustomerLink("password", { userId: link?.userId }), {
-    gcTime: 0,
-    suppressErrorToast: true,
-  });
+  const delivery = useApiMutation(
+    () =>
+      sendCustomerLink(completed === "email" ? "password" : (link?.phase ?? "email"), {
+        userId: link?.userId,
+      }),
+    {
+      gcTime: 0,
+      suppressErrorToast: true,
+    },
+  );
   async function prove(secret?: string) {
     if (!link || !link.code) return;
     setProblem(false);
@@ -98,9 +104,17 @@ export function SignupVerification() {
       <h1 className="text-2xl font-medium">
         {link.phase === "email" ? "Verify your email address" : "Set your password"}
       </h1>
+      <p className="text-sm text-muted-foreground">
+        Links expire after 1 hour. If yours has expired, request a fresh email link below.
+      </p>
+      <p className="text-sm text-muted-foreground">
+        Up to 3 emails per hour and 10 per 24 hours, shared across verification and password setup.
+        Verified email addresses do not receive another verification email.
+      </p>
       {problem && (
         <p role="alert">
-          This request could not be completed. Check your password or request a fresh email link.
+          This link may have expired or already been used. Check your password or request a fresh
+          email link.
         </p>
       )}
       {link.phase === "email" ? (

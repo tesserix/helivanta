@@ -722,7 +722,8 @@ var withAllTenantsAllowlist = map[string]bool{
 	// those columns and next_check_at — and checks each under WithTenant.
 	"internal/modules/payments/reconciler.go":           true,
 	"internal/modules/pharmacy/affiliation_delivery.go": true,
-	// #1637: finds hospitals with an unannounced name version; reads ids and versions only, each is announced under WithTenant.
+	// #1637/#1653: finds hospitals with an unannounced name version or an unconfirmed one due again; reads ids, versions and
+	// next_attempt_at only, each is announced or re-sent under WithTenant.
 	"internal/modules/workforce/hospital_names.go":                    true,
 	"internal/modules/patientmaster/pharmacy_affiliation_delivery.go": true,
 	// #197: the bed census finds due stays and unapplied setup across

@@ -1,16 +1,20 @@
 package workforce_test
 
 import (
+	"context"
 	"encoding/json"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
 	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
-	"github.com/tesserix/helivanta/internal/modules/workforce" //nolint:depguard // module under test
+	"github.com/tesserix/helivanta/internal/modules/workforce"                            //nolint:depguard // module under test
+	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract" //nolint:depguard // published contract under test
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/events"
@@ -166,4 +170,145 @@ func TestMigrationMakesExistingMarkersDue(t *testing.T) {
 	require.Zero(t, attempts)
 	require.NotNil(t, next)
 	require.False(t, next.After(time.Now()), "an existing marker is due immediately")
+}
+
+func (h *establishmentHarness) makeDue(t *testing.T, id string) {
+	t.Helper()
+	require.NoError(t, h.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`UPDATE workforce_hospital_name_announcements SET next_attempt_at=now()-interval '1 second' WHERE tenant_id=? AND hospital_id=?`, testutil.TenantA, id).Error
+	}))
+}
+
+func (h *establishmentHarness) pass(t *testing.T) {
+	t.Helper()
+	require.NoError(t, workforce.AnnounceHospitalNamesOnce(t.Context(), h.db))
+}
+
+func TestDueUnconfirmedNameIsResent(t *testing.T) {
+	h := announcedHarness(t)
+	h.makeDue(t, h.hospital)
+	h.pass(t)
+	sent := workforcecontract.HospitalNamedData{HospitalID: h.hospital, Name: "Alpha Hospital", NameVersion: 1}
+	require.Equal(t, []workforcecontract.HospitalNamedData{sent, sent}, h.announced(t, h.hospital))
+	_, attempts, next := h.marker(t, h.hospital)
+	require.Equal(t, 1, attempts)
+	require.NotNil(t, next)
+	require.WithinDuration(t, time.Now().Add(2*time.Minute), *next, 10*time.Second)
+
+	h.makeDue(t, h.hospital)
+	h.pass(t)
+	require.Len(t, h.announced(t, h.hospital), 3)
+	_, attempts, next = h.marker(t, h.hospital)
+	require.Equal(t, 2, attempts)
+	require.NotNil(t, next)
+	require.WithinDuration(t, time.Now().Add(4*time.Minute), *next, 10*time.Second, "the delay doubles")
+}
+
+func TestConfirmedNameIsNotResent(t *testing.T) {
+	h := announcedHarness(t)
+	require.NoError(t, h.receipt(t, h.hospital, 1))
+	require.NoError(t, h.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`UPDATE workforce_hospital_name_announcements SET updated_at=now()-interval '1 hour' WHERE tenant_id=? AND hospital_id=?`, testutil.TenantA, h.hospital).Error
+	}))
+	h.pass(t)
+	require.Len(t, h.announced(t, h.hospital), 1, "a confirmed name is never due")
+}
+
+func TestNotYetDueNameIsNotResent(t *testing.T) {
+	h := announcedHarness(t)
+	h.pass(t)
+	require.Len(t, h.announced(t, h.hospital), 1)
+}
+
+func TestRenameSupersedesAnUnconfirmedVersion(t *testing.T) {
+	h := announcedHarness(t)
+	h.rename(t, "Beta Hospital")
+	h.makeDue(t, h.hospital)
+	h.pass(t)
+	v1 := workforcecontract.HospitalNamedData{HospitalID: h.hospital, Name: "Alpha Hospital", NameVersion: 1}
+	v2 := workforcecontract.HospitalNamedData{HospitalID: h.hospital, Name: "Beta Hospital", NameVersion: 2}
+	require.Equal(t, []workforcecontract.HospitalNamedData{v1, v2}, h.announced(t, h.hospital))
+	announced, attempts, _ := h.marker(t, h.hospital)
+	require.EqualValues(t, 2, announced)
+	require.Zero(t, attempts, "the claim starts the new version afresh")
+
+	h.makeDue(t, h.hospital)
+	h.pass(t)
+	require.Equal(t, []workforcecontract.HospitalNamedData{v1, v2, v2}, h.announced(t, h.hospital), "v1 is never re-sent")
+}
+
+func TestResendRacingPassesSendOnce(t *testing.T) {
+	h := announcedHarness(t)
+	h.makeDue(t, h.hospital)
+	var wg sync.WaitGroup
+	for range 2 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			assert.NoError(t, workforce.AnnounceHospitalNamesOnce(context.Background(), h.db))
+		}()
+	}
+	wg.Wait()
+	require.Len(t, h.announced(t, h.hospital), 2, "two replicas re-sent the same due version")
+	_, attempts, _ := h.marker(t, h.hospital)
+	require.Equal(t, 1, attempts)
+}
+
+func TestFirstAnnouncementsComeBeforeResends(t *testing.T) {
+	insert := func(t *testing.T, h *establishmentHarness) string {
+		id := uuid.Must(uuid.NewV7()).String()
+		require.NoError(t, h.tx(t, id, func(tx *gorm.DB) error {
+			return tx.Exec(`INSERT INTO workforce_hospitals(tenant_id,id,name) VALUES(?,?,'Other Hospital')`, testutil.TenantA, id).Error
+		}))
+		return id
+	}
+	t.Run("new hospital", func(t *testing.T) {
+		h := announcedHarness(t)
+		h.makeDue(t, h.hospital)
+		fresh := insert(t, h)
+		require.NoError(t, workforce.AnnounceHospitalNames(t.Context(), h.db, 1))
+		require.Len(t, h.announced(t, fresh), 1)
+		require.Len(t, h.announced(t, h.hospital), 1, "the due re-send waits")
+	})
+	t.Run("renamed hospital not yet due", func(t *testing.T) {
+		// The renamed hospital's marker is due later than the other one's, so
+		// only the unannounced-first ordering puts it ahead.
+		h := newEstablishmentRouter(t, workforce.New())
+		h.rename(t, "Alpha Hospital")
+		due := insert(t, h)
+		h.pass(t)
+		h.makeDue(t, due)
+		h.rename(t, "Beta Hospital")
+		require.NoError(t, workforce.AnnounceHospitalNames(t.Context(), h.db, 1))
+		require.Len(t, h.announced(t, h.hospital), 2)
+		require.Len(t, h.announced(t, due), 1, "the due re-send waits")
+	})
+}
+
+// A confirmation that commits after the pass's scan, while the pass waits on
+// the hospital lock, must stop that pass's re-send: the locked re-check sees it.
+func TestConfirmationDuringAPassStopsItsResend(t *testing.T) {
+	h := announcedHarness(t)
+	h.makeDue(t, h.hospital)
+	done := make(chan error, 1)
+	require.NoError(t, h.tx(t, h.hospital, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT 1 FROM workforce_hospitals WHERE tenant_id=? AND id=? FOR UPDATE`, testutil.TenantA, h.hospital).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec(`UPDATE workforce_hospital_name_announcements SET next_attempt_at=NULL WHERE tenant_id=? AND hospital_id=?`, testutil.TenantA, h.hospital).Error; err != nil {
+			return err
+		}
+		go func() { done <- workforce.AnnounceHospitalNamesOnce(context.Background(), h.db) }()
+		// The pass has scanned (it saw the marker due) once it waits on our lock.
+		require.Eventually(t, func() bool {
+			var waiting int64
+			require.NoError(t, h.db.WithTenant(t.Context(), testutil.TenantA, func(q *gorm.DB) error {
+				return q.Raw(`SELECT count(*) FROM pg_locks l JOIN pg_stat_activity a ON a.pid=l.pid WHERE NOT l.granted AND a.datname=current_database()`).Scan(&waiting).Error
+			}))
+			return waiting > 0
+		}, 10*time.Second, 10*time.Millisecond)
+		return nil
+	}))
+	require.NoError(t, <-done)
+	require.Len(t, h.announced(t, h.hospital), 1, "a name confirmed during the pass is not re-sent")
 }

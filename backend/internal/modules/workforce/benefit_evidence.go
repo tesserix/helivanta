@@ -56,6 +56,8 @@ func (e benefitEvidence) owns(tx *gorm.DB, p authn.Principal, hospital, staffID 
 
 func (benefitEvidence) downloadAction() string { return "workforce.benefits.evidence_downloaded" }
 
+func (benefitEvidence) view(d document) any { return d }
+
 func (benefitEvidence) permissions(writing bool) (authz.Permission, authz.Permission) {
 	if writing {
 		return PermBenefitsManage, authz.Public

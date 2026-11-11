@@ -216,6 +216,8 @@ func postPassword(t *testing.T, client *loginclient.Client, loginName, password 
 	t.Helper()
 	h := NewLoginUIHandlers(client, nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
 
+	h.SetNativeWebClientID("helivanta-web")
+
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.POST("/v1/auth/login/password", h.Password)

@@ -4693,7 +4693,7 @@
     }
   },
   "helivanta.in.workforce.attendance_correction_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:198",
+    "source": "backend/internal/modules/workforce/contract/events.go:201",
     "go_type": "AttendanceCorrectionChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -4721,7 +4721,7 @@
     }
   },
   "helivanta.in.workforce.attendance_period_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:208",
+    "source": "backend/internal/modules/workforce/contract/events.go:211",
     "go_type": "AttendancePeriodChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -4753,7 +4753,7 @@
     }
   },
   "helivanta.in.workforce.attendance_punch_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:189",
+    "source": "backend/internal/modules/workforce/contract/events.go:192",
     "go_type": "AttendancePunchChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -4777,7 +4777,7 @@
     }
   },
   "helivanta.in.workforce.attendance_settings_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:180",
+    "source": "backend/internal/modules/workforce/contract/events.go:183",
     "go_type": "AttendanceSettingsChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -4801,7 +4801,7 @@
     }
   },
   "helivanta.in.workforce.benefit_enrollment_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:390",
+    "source": "backend/internal/modules/workforce/contract/events.go:393",
     "go_type": "BenefitEnrollmentChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -4837,7 +4837,7 @@
     }
   },
   "helivanta.in.workforce.benefit_plan_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:367",
+    "source": "backend/internal/modules/workforce/contract/events.go:370",
     "go_type": "BenefitPlanChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -4869,7 +4869,7 @@
     }
   },
   "helivanta.in.workforce.credential_reminder_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:339",
+    "source": "backend/internal/modules/workforce/contract/events.go:342",
     "go_type": "CredentialReminderChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -4909,7 +4909,7 @@
     }
   },
   "helivanta.in.workforce.credential_reminder_policy_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:331",
+    "source": "backend/internal/modules/workforce/contract/events.go:334",
     "go_type": "CredentialReminderPolicyChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -4929,7 +4929,7 @@
     }
   },
   "helivanta.in.workforce.credential_review_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:308",
+    "source": "backend/internal/modules/workforce/contract/events.go:311",
     "go_type": "CredentialReviewChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -4965,7 +4965,7 @@
     }
   },
   "helivanta.in.workforce.credential_validity_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:320",
+    "source": "backend/internal/modules/workforce/contract/events.go:323",
     "go_type": "CredentialValidityChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5039,7 +5039,7 @@
     }
   },
   "helivanta.in.workforce.dependent_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:378",
+    "source": "backend/internal/modules/workforce/contract/events.go:381",
     "go_type": "DependentChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5075,7 +5075,7 @@
     }
   },
   "helivanta.in.workforce.document_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:65",
+    "source": "backend/internal/modules/workforce/contract/events.go:67",
     "go_type": "DocumentChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5107,7 +5107,7 @@
     }
   },
   "helivanta.in.workforce.document_classification_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:403",
+    "source": "backend/internal/modules/workforce/contract/events.go:406",
     "go_type": "DocumentClassificationChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5139,7 +5139,7 @@
     }
   },
   "helivanta.in.workforce.document_scan_requested.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:56",
+    "source": "backend/internal/modules/workforce/contract/events.go:57",
     "go_type": "DocumentScanRequestedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5167,7 +5167,7 @@
     }
   },
   "helivanta.in.workforce.duty_exchange_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:151",
+    "source": "backend/internal/modules/workforce/contract/events.go:154",
     "go_type": "DutyExchangeChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5195,7 +5195,7 @@
     }
   },
   "helivanta.in.workforce.employment_review_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:433",
+    "source": "backend/internal/modules/workforce/contract/events.go:436",
     "go_type": "EmploymentReviewChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5251,7 +5251,7 @@
     }
   },
   "helivanta.in.workforce.hospital_named.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:468",
+    "source": "backend/internal/modules/workforce/contract/events.go:471",
     "go_type": "HospitalNamedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5275,7 +5275,7 @@
     }
   },
   "helivanta.in.workforce.identity_case_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:413",
+    "source": "backend/internal/modules/workforce/contract/events.go:416",
     "go_type": "IdentityCaseChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5307,7 +5307,7 @@
     }
   },
   "helivanta.in.workforce.independent_login_link_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:455",
+    "source": "backend/internal/modules/workforce/contract/events.go:458",
     "go_type": "IndependentLoginLinkChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5343,7 +5343,7 @@
     }
   },
   "helivanta.in.workforce.leave_config_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:109",
+    "source": "backend/internal/modules/workforce/contract/events.go:112",
     "go_type": "LeaveConfigChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5375,7 +5375,7 @@
     }
   },
   "helivanta.in.workforce.leave_ledger_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:129",
+    "source": "backend/internal/modules/workforce/contract/events.go:132",
     "go_type": "LeaveLedgerChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5407,7 +5407,7 @@
     }
   },
   "helivanta.in.workforce.leave_request_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:140",
+    "source": "backend/internal/modules/workforce/contract/events.go:143",
     "go_type": "LeaveRequestChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5529,7 +5529,7 @@
     }
   },
   "helivanta.in.workforce.overtime_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:170",
+    "source": "backend/internal/modules/workforce/contract/events.go:173",
     "go_type": "OvertimeChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5557,7 +5557,7 @@
     }
   },
   "helivanta.in.workforce.overtime_settings_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:161",
+    "source": "backend/internal/modules/workforce/contract/events.go:164",
     "go_type": "OvertimeSettingsChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5614,7 +5614,7 @@
     }
   },
   "helivanta.in.workforce.person_review_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:423",
+    "source": "backend/internal/modules/workforce/contract/events.go:426",
     "go_type": "PersonReviewChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5758,7 +5758,7 @@
     }
   },
   "helivanta.in.workforce.roster_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:100",
+    "source": "backend/internal/modules/workforce/contract/events.go:103",
     "go_type": "RosterChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5814,7 +5814,7 @@
     }
   },
   "helivanta.in.workforce.roster_settings_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:83",
+    "source": "backend/internal/modules/workforce/contract/events.go:86",
     "go_type": "RosterSettingsChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5838,7 +5838,7 @@
     }
   },
   "helivanta.in.workforce.salary_assignment_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:242",
+    "source": "backend/internal/modules/workforce/contract/events.go:245",
     "go_type": "SalaryAssignmentChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5870,7 +5870,7 @@
     }
   },
   "helivanta.in.workforce.salary_config_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:219",
+    "source": "backend/internal/modules/workforce/contract/events.go:222",
     "go_type": "SalaryConfigChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5930,7 +5930,7 @@
     }
   },
   "helivanta.in.workforce.staff_identifier_revealed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:274",
+    "source": "backend/internal/modules/workforce/contract/events.go:277",
     "go_type": "StaffIdentifierRevealedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5958,7 +5958,7 @@
     }
   },
   "helivanta.in.workforce.staff_identifiers_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:263",
+    "source": "backend/internal/modules/workforce/contract/events.go:266",
     "go_type": "StaffIdentifiersChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5990,7 +5990,7 @@
     }
   },
   "helivanta.in.workforce.staff_leave_assignment_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:119",
+    "source": "backend/internal/modules/workforce/contract/events.go:122",
     "go_type": "StaffLeaveAssignmentChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -6018,7 +6018,7 @@
     }
   },
   "helivanta.in.workforce.staff_roster_assignment_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:91",
+    "source": "backend/internal/modules/workforce/contract/events.go:94",
     "go_type": "StaffRosterAssignmentChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -6046,7 +6046,7 @@
     }
   },
   "helivanta.in.workforce.statutory_rule_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:230",
+    "source": "backend/internal/modules/workforce/contract/events.go:233",
     "go_type": "StatutoryRuleChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -6082,7 +6082,7 @@
     }
   },
   "helivanta.in.workforce.tax_declaration_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:284",
+    "source": "backend/internal/modules/workforce/contract/events.go:287",
     "go_type": "TaxDeclarationChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -6118,7 +6118,7 @@
     }
   },
   "helivanta.in.workforce.tax_declaration_party_revealed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:296",
+    "source": "backend/internal/modules/workforce/contract/events.go:299",
     "go_type": "TaxDeclarationPartyRevealedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -6154,7 +6154,7 @@
     }
   },
   "helivanta.in.workforce.tax_regime_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/events.go:253",
+    "source": "backend/internal/modules/workforce/contract/events.go:256",
     "go_type": "TaxRegimeChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",

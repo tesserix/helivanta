@@ -1422,12 +1422,43 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/person-review-scopes` | `public` | true | false |
 | DELETE | `/v1/workforce/pharmacies/:pharmacy/access/:subject` | `workforce.hospital.manage` | false | false |
 | PUT | `/v1/workforce/pharmacies/:pharmacy/access/:subject` | `workforce.hospital.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/hr/credential-reminder-policy` | `workforce.enrollment.manage` | false | false |
+| PUT | `/v1/workforce/pharmacies/:pharmacy/hr/credential-reminder-policy` | `workforce.enrollment.manage` | false | false |
+| POST | `/v1/workforce/pharmacies/:pharmacy/hr/credential-reminders/:reminder/acknowledgement` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/hr/credential-reminders` | `workforce.enrollment.manage` | true | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/hr/credentials` | `workforce.enrollment.manage` | true | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/hr/time-zone` | `workforce.enrollment.manage` | false | false |
+| PUT | `/v1/workforce/pharmacies/:pharmacy/hr/time-zone` | `workforce.enrollment.manage` | false | false |
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link/commands/:command` | `public` | false | false |
 | PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link/commands/:command` | `public` | false | false |
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link/proposal-receipt` | `public` | false | false |
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link` | `public` | false | false |
 | PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link` | `workforce.independent_login.manage` | false | false |
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links` | `public` | true | false |
+| POST | `/v1/workforce/pharmacies/:pharmacy/staff/:id/credentials/:credential/reviews/:review/decision` | `workforce.credentials.review` | false | false |
+| POST | `/v1/workforce/pharmacies/:pharmacy/staff/:id/credentials/:credential/reviews/:review/withdraw` | `workforce.enrollment.manage` | false | false |
+| PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/credentials/:credential/reviews/:review` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/credentials/:credential/reviews` | `workforce.enrollment.manage` | true | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/credentials` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/document-records` | `workforce.documents.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file/content` | `workforce.documents.manage` | false | false |
+| PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file/content` | `workforce.documents.manage` | false | false |
+| PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file/retries/:attempt` | `workforce.documents.manage` | false | false |
+| PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file/revocation` | `workforce.documents.manage` | false | false |
+| PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file` | `workforce.documents.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/documents` | `workforce.documents.manage` | true | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/history` | `workforce.enrollment.manage` | true | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/content` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/history` | `workforce.enrollment.manage` | true | false |
+| POST | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/withdraw` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding` | `workforce.enrollment.manage` | false | false |
+| PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence` | `workforce.enrollment.manage` | true | false |
+| POST | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/withdraw` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period` | `workforce.enrollment.manage` | false | false |
+| PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods` | `workforce.enrollment.manage` | true | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-source` | `workforce.enrollment.manage` | false | false |
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/enrollment` | `workforce.enrollment.manage` | false | false |
 | PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/enrollment` | `workforce.enrollment.manage` | false | false |
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id` | `public` | false | false |
@@ -1581,6 +1612,7 @@ Migration table declarations:
 - `0090_workforce_partner_group_scope`: `workforce_partner_group_observations`.
 - `0094_workforce_independent_identity`: `workforce_independent_link_commands`.
 - `0097_workforce_hospital_names`: `workforce_hospital_name_announcements`.
+- `0100_workforce_pharmacy_credential_reviews`: `workforce_pharmacy_time_zones`.
 
 ## workspace
 

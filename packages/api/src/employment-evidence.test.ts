@@ -3,6 +3,9 @@ import {
   attachEmploymentEvidence,
   withdrawEmploymentEvidence,
   employmentEvidenceKey,
+  eligibleEmploymentDocuments,
+  employmentEvidenceDocumentsPath,
+  ownedEmploymentEvidence,
 } from "./employment-evidence";
 vi.mock("./client", () => ({ apiFetch: vi.fn() }));
 const scope = {
@@ -118,4 +121,101 @@ it("accepts only the terminal withdrawal receipt at the expected version", async
       reason: "Synthetic withdrawal",
     }),
   ).rejects.toThrow("receipt");
+});
+describe("pharmacy employment evidence (ADR-0054 slice 4b)", () => {
+  const pharmacyId = "0190a000-0000-7000-8000-000000000005";
+  const { tenantId, subject, staffId, periodId, periodVersion } = scope;
+  const pharmacy = { tenantId, subject, staffId, periodId, periodVersion, pharmacyId };
+  const binding = Object.fromEntries(
+    Object.entries(receipt).filter(([key]) => key !== "hospital_id"),
+  );
+  const pharmacyReceipt = { ...binding, pharmacy_id: pharmacyId };
+  const attach = { command_id: command, document_id: file, reason: receipt.reason };
+  it("attaches under the pharmacy family and accepts only its own receipt", async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(pharmacyReceipt);
+    expect(await attachEmploymentEvidence(pharmacy, id, attach)).toEqual(pharmacyReceipt);
+    expect(vi.mocked(apiFetch).mock.lastCall?.[0]).toBe(
+      `/workforce/pharmacies/${pharmacyId}/staff/${scope.staffId}/employment-periods/${scope.periodId}/revisions/1/evidence/${id}`,
+    );
+    for (const other of [
+      { ...binding, hospital_id: pharmacyId },
+      { ...pharmacyReceipt, pharmacy_id: "0190a000-0000-7000-8000-000000000006" },
+    ]) {
+      vi.mocked(apiFetch).mockResolvedValueOnce(other);
+      await expect(attachEmploymentEvidence(pharmacy, id, attach)).rejects.toThrow("receipt");
+    }
+  });
+  it("withdraws under the pharmacy family", async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      ...pharmacyReceipt,
+      status: "withdrawn",
+      version: 2,
+    });
+    await withdrawEmploymentEvidence(pharmacy, id, {
+      command_id: command,
+      expected_version: 1,
+      reason: "Synthetic withdrawal",
+    });
+    expect(vi.mocked(apiFetch).mock.lastCall?.[0]).toBe(
+      `/workforce/pharmacies/${pharmacyId}/staff/${scope.staffId}/employment-periods/${scope.periodId}/revisions/1/evidence/${id}/withdraw`,
+    );
+  });
+  it("keys a pharmacy apart from a hospital with the same identifier", () => {
+    expect(employmentEvidenceKey(pharmacy)).not.toEqual(
+      employmentEvidenceKey({ ...scope, hospitalId: pharmacyId }),
+    );
+  });
+  it("reads only rows bound to the scoped terms revision", () => {
+    expect(ownedEmploymentEvidence(pharmacy, [pharmacyReceipt])).toEqual([pharmacyReceipt]);
+    expect(ownedEmploymentEvidence(scope, [receipt])).toEqual([receipt]);
+    for (const rows of [
+      [{ ...pharmacyReceipt, period_version: 2 }],
+      [{ ...binding, hospital_id: pharmacyId }],
+      [pharmacyReceipt, { ...pharmacyReceipt, staff_id: id }],
+      "not rows",
+    ])
+      expect(ownedEmploymentEvidence(pharmacy, rows)).toBeUndefined();
+    expect(ownedEmploymentEvidence(scope, [pharmacyReceipt])).toBeUndefined();
+  });
+  it("offers only the pharmacy's released employment files for the current Staff version", () => {
+    expect(employmentEvidenceDocumentsPath(pharmacy)).toBe(
+      `/workforce/pharmacies/${pharmacyId}/staff/${scope.staffId}/documents`,
+    );
+    const document = {
+      id: file,
+      pharmacy_id: pharmacyId,
+      staff_id: scope.staffId,
+      record_kind: "enrollment",
+      record_id: scope.staffId,
+      record_version: 1,
+      category: "employment_evidence",
+      filename: "SYN-contract.png",
+      content_type: "image/png",
+      size: 3,
+      sha256: "a".repeat(64),
+      status: "available",
+      scan_attempt: 1,
+      uploaded_at: "2026-10-29T00:00:00Z",
+      scanned_at: "2026-10-29T00:00:00Z",
+      failure_code: null,
+      expires_at: "2026-10-30T00:00:00Z",
+      created_at: "2026-10-29T00:00:00Z",
+      updated_at: "2026-10-29T00:00:00Z",
+    };
+    const identity = { ...document, id: command, category: "identity_evidence" };
+    const stale = { ...document, id, record_version: 2 };
+    expect(eligibleEmploymentDocuments(pharmacy, 1, [document, identity, stale])).toEqual([
+      document,
+    ]);
+    const unowned = Object.fromEntries(
+      Object.entries(document).filter(([key]) => key !== "pharmacy_id"),
+    );
+    for (const rows of [
+      [document, { ...document, pharmacy_id: "0190a000-0000-7000-8000-000000000006" }],
+      [{ ...unowned, hospital_id: pharmacyId }],
+      [{ ...document, staff_id: id }],
+      "not rows",
+    ])
+      expect(eligibleEmploymentDocuments(pharmacy, 1, rows)).toBeUndefined();
+  });
 });

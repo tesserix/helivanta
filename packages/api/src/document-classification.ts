@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { apiFetch } from "./client";
 import { withStaffIntakeScope } from "./enrollment";
-import { documentPath, documentHeaders, type DocumentScope } from "./documents";
+import { documentPath, documentHeaders, type HospitalDocumentScope } from "./documents";
 import {
   documentClassificationSchema,
   documentClassificationInputSchema,
@@ -12,12 +12,12 @@ import {
 } from "./documents-fields";
 import type { Page } from "./paged";
 
-export function documentClassificationPath(scope: DocumentScope, file: string): string {
+export function documentClassificationPath(scope: HospitalDocumentScope, file: string): string {
   return `${documentPath(scope)}/documents/${documentClassificationSchema.shape.file_id.parse(file)}/classification`;
 }
 
 function verifyOwner(
-  scope: DocumentScope,
+  scope: HospitalDocumentScope,
   file: string,
   value: { hospital_id: string; staff_id: string; file_id: string },
 ): void {
@@ -30,7 +30,7 @@ function verifyOwner(
 }
 
 export async function readDocumentClassification(
-  scope: DocumentScope,
+  scope: HospitalDocumentScope,
   file: string,
   signal: AbortSignal,
 ): Promise<DocumentClassification> {
@@ -46,7 +46,7 @@ export async function readDocumentClassification(
 }
 
 export async function saveDocumentClassification(
-  scope: DocumentScope,
+  scope: HospitalDocumentScope,
   file: string,
   command: DocumentClassificationInput,
   signal: AbortSignal,
@@ -77,7 +77,7 @@ const historyPage = z.object({
 });
 
 export async function readDocumentClassificationHistory(
-  scope: DocumentScope,
+  scope: HospitalDocumentScope,
   file: string,
   cursor: string | null,
   signal: AbortSignal,

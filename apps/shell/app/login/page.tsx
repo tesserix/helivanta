@@ -256,6 +256,7 @@ function toMethodPolicy(policies: AuthPoliciesInfo): AuthMethodPolicy {
 // the same way, in the step itself.
 type LoginStep =
   | { kind: "credential" }
+  | { kind: "securityKey"; url: string }
   | { kind: "otp"; currentPassword: string }
   | { kind: "enroll"; currentPassword: string; totp: TotpEnrollment }
   | { kind: "passwordChange"; currentPassword: string; change: PasswordChangeRequired };
@@ -301,6 +302,36 @@ function LoginFlow({
     return <RedirectLanding message={endedMessage} />;
   }
 
+  if (step.kind === "securityKey") {
+    return (
+      <TenantLoginLayout>
+        <AuthCardCentered>
+          <div className="space-y-2 text-center">
+            <TenantLoginHeading />
+            <p className="text-sm text-muted-foreground">
+              Complete sign-in with your security key.
+            </p>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Continue securely on {new URL(step.url).hostname}, where your key is registered. You may
+            be asked to enter your password again and touch your key. You will return to Helivanta
+            after verification.
+          </p>
+          <Button className="w-full" onClick={() => window.location.assign(step.url)}>
+            Continue with security key
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => end("Start a new sign-in attempt to use another account.")}
+          >
+            Start again
+          </Button>
+        </AuthCardCentered>
+      </TenantLoginLayout>
+    );
+  }
+
   if (step.kind === "otp" || step.kind === "enroll") {
     const { currentPassword } = step;
     const toPasswordChange = (change: PasswordChangeRequired) =>
@@ -336,6 +367,7 @@ function LoginFlow({
     <CredentialForm
       authRequestId={authRequestId}
       policies={policies}
+      onSecurityKeyRequired={(url) => setStep({ kind: "securityKey", url })}
       onFactorRequired={(currentPassword) => setStep({ kind: "otp", currentPassword })}
       onEnrollmentRequired={(currentPassword, totp) =>
         setStep({ kind: "enroll", currentPassword, totp })
@@ -421,6 +453,7 @@ function saveRememberedUsername(enabled: boolean, username: string) {
 function CredentialForm({
   authRequestId,
   policies,
+  onSecurityKeyRequired,
   onFactorRequired,
   onEnrollmentRequired,
   onPasswordChangeRequired,
@@ -428,6 +461,7 @@ function CredentialForm({
 }: {
   authRequestId: string;
   policies: AuthPoliciesInfo;
+  onSecurityKeyRequired: (url: string) => void;
   onFactorRequired: (currentPassword: string) => void;
   onEnrollmentRequired: (currentPassword: string, totp: TotpEnrollment) => void;
   onPasswordChangeRequired: (currentPassword: string, change: PasswordChangeRequired) => void;
@@ -474,6 +508,9 @@ function CredentialForm({
         switch (result.outcome) {
           case "complete":
             window.location.assign(result.callbackUrl);
+            break;
+          case "securityKeyRequired":
+            onSecurityKeyRequired(result.url);
             break;
           case "factorRequired":
             onFactorRequired(password);

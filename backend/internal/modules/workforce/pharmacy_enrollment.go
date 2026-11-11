@@ -12,9 +12,9 @@ import (
 	"github.com/tesserix/helivanta/pkg/authz"
 )
 
-// pharmacyEnrollmentAuthority has no scoped IAM fallback, because no pharmacy HR intake template exists (ADR-0063).
-func (h *handlers) pharmacyEnrollmentAuthority(c *gin.Context, p authn.Principal, pharmacy pharmacyEstablishment) enrollmentAuthority {
-	return func(fn func(*gorm.DB, bool) error) error {
+// pharmacyAuthority has no scoped IAM fallback, because no pharmacy HR intake template exists (ADR-0063).
+func (h *handlers) pharmacyAuthority(c *gin.Context, p authn.Principal, pharmacy pharmacyEstablishment) establishmentAuthority {
+	return func(required []authz.Permission, fn func(*gorm.DB) error) error {
 		if !authn.Refresh(c) {
 			return authz.ErrScopedAuthorizationUnavailable
 		}
@@ -22,15 +22,24 @@ func (h *handlers) pharmacyEnrollmentAuthority(c *gin.Context, p authn.Principal
 		if !ok {
 			return authz.ErrScopedAuthorizationUnavailable
 		}
-		if !permissions.Has(PermEnrollmentManage) {
-			return authz.ErrScopedCommandDenied
+		for _, permission := range required {
+			if !permissions.Has(permission) {
+				return authz.ErrScopedCommandDenied
+			}
 		}
 		return h.transaction(c.Request.Context(), p, uuid.UUID(pharmacy), func(tx *gorm.DB) error {
 			if err := enrollmentScope(tx, p, uuid.UUID(pharmacy)); err != nil {
 				return err
 			}
-			return fn(tx, false)
+			return fn(tx)
 		})
+	}
+}
+
+func (h *handlers) pharmacyEnrollmentAuthority(c *gin.Context, p authn.Principal, pharmacy pharmacyEstablishment) enrollmentAuthority {
+	authority := h.pharmacyAuthority(c, p, pharmacy)
+	return func(fn func(*gorm.DB, bool) error) error {
+		return authority([]authz.Permission{PermEnrollmentManage}, func(tx *gorm.DB) error { return fn(tx, false) })
 	}
 }
 

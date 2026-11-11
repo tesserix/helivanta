@@ -33,7 +33,11 @@ import { IndependentOperatingDuties } from "@/components/workforce/independent-o
 import { IndependentStaffLinks } from "@/components/workforce/independent-staff-links";
 import { PharmacyEnrollmentEditor } from "./pharmacy-enrollment-editor";
 import { StaffAccessPreparation } from "@/components/workforce/staff-access-preparation";
+import { PharmacyStaffDocumentPanel } from "./pharmacy-staff-documents";
 import { StaffRecordForm } from "@/components/workforce/staff-record-form";
+import { StaffEmploymentPeriods } from "@/app/(workspace)/workforce/employment-periods-panel";
+import { StaffCredentialPanel } from "@/app/(workspace)/workforce/credential-panel";
+import { PharmacyCredentialRegister } from "./pharmacy-credential-register";
 
 const identitySchema = z.object({
   tenant_id: z
@@ -196,19 +200,41 @@ function EmployerSourcePage({
   );
 }
 
+// One panel at a time, so leaving any unsaved panel goes through the same confirmation.
+type OpenPanel =
+  | { kind: "edit"; staff?: PharmacyStaff }
+  | { kind: "enrollment" | "documents" | "employment" | "credentials"; staff: PharmacyStaff }
+  | { kind: "register" };
+
 function Employer({ scope, onContextChanged, source }: SourceProps & { source: EmployerSource }) {
   const confirmLeave = useConfirmLeave();
   const { can } = usePermissions();
   const [cursor, setCursor] = useState<string | null>(null);
-  const [editing, setEditing] = useState<PharmacyStaff | "new" | null>(null);
-  const [enrolling, setEnrolling] = useState<PharmacyStaff | null>(null);
+  const [open, setOpen] = useState<OpenPanel | null>(null);
   const query = usePharmacyStaffPage(scope, source.pharmacy_id, cursor);
   // The access level is display only; the API checks the manager row on every write.
   const manager = source.access_level === "manager";
   const enrolls = manager && can("workforce.enrollment.manage");
+  const files = manager && can("workforce.documents.manage");
+  const show = (panel: OpenPanel) => confirmLeave(() => setOpen(panel));
+  const close = () => setOpen(null);
   useEffect(() => {
     if (isEnrollmentAccessChanged(query.error)) onContextChanged();
   }, [query.error, onContextChanged]);
+  const rowAction = (
+    row: PharmacyStaff,
+    kind: Exclude<OpenPanel["kind"], "register">,
+    label: string,
+  ) => (
+    <Button
+      variant="ghost"
+      size="sm"
+      aria-label={kind === "edit" ? `Edit ${row.display_name}` : `${label} for ${row.display_name}`}
+      onClick={() => show({ kind, staff: row })}
+    >
+      {label}
+    </Button>
+  );
   return (
     <>
       <StaffDirectory<PharmacyStaff>
@@ -227,50 +253,25 @@ function Employer({ scope, onContextChanged, source }: SourceProps & { source: E
         retry={() => query.refetch()}
         headerActions={
           manager && (
-            <Button
-              onClick={() =>
-                confirmLeave(() => {
-                  setEnrolling(null);
-                  setEditing("new");
-                })
-              }
-            >
-              Add staff
-            </Button>
+            <>
+              {enrolls && (
+                <Button variant="outline" onClick={() => show({ kind: "register" })}>
+                  Credential register
+                </Button>
+              )}
+              <Button onClick={() => show({ kind: "edit" })}>Add staff</Button>
+            </>
           )
         }
         rowActions={
           manager
             ? (row) => (
                 <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label={`Edit ${row.display_name}`}
-                    onClick={() =>
-                      confirmLeave(() => {
-                        setEnrolling(null);
-                        setEditing(row);
-                      })
-                    }
-                  >
-                    Edit
-                  </Button>
-                  {enrolls && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      aria-label={`Enrollment for ${row.display_name}`}
-                      onClick={() =>
-                        confirmLeave(() => {
-                          setEditing(null);
-                          setEnrolling(row);
-                        })
-                      }
-                    >
-                      Enrollment
-                    </Button>
-                  )}
+                  {rowAction(row, "edit", "Edit")}
+                  {enrolls && rowAction(row, "enrollment", "Enrollment")}
+                  {files && rowAction(row, "documents", "Documents")}
+                  {enrolls && rowAction(row, "employment", "Employment")}
+                  {enrolls && rowAction(row, "credentials", "Credentials")}
                 </>
               )
             : undefined
@@ -282,21 +283,67 @@ function Employer({ scope, onContextChanged, source }: SourceProps & { source: E
             : undefined
         }
       />
-      {manager && editing && (
+      {manager && open?.kind === "edit" && (
         <EmployerStaffEditor
-          key={editing === "new" ? "new" : editing.id}
+          key={open.staff?.id ?? "new"}
           {...{ scope, onContextChanged, source }}
-          staff={editing === "new" ? undefined : editing}
-          onClose={() => setEditing(null)}
+          staff={open.staff}
+          onClose={close}
         />
       )}
-      {enrolls && enrolling && (
+      {enrolls && open?.kind === "enrollment" && (
         <PharmacyEnrollmentEditor
-          key={enrolling.id}
+          key={open.staff.id}
           {...{ scope, onContextChanged }}
           pharmacy={source}
-          staff={enrolling}
-          onClose={() => setEnrolling(null)}
+          staff={open.staff}
+          onClose={close}
+        />
+      )}
+      {files && open?.kind === "documents" && (
+        <PharmacyStaffDocumentPanel
+          key={open.staff.id}
+          {...{ scope, onContextChanged }}
+          pharmacy={source}
+          staff={open.staff}
+          onClose={close}
+        />
+      )}
+      {enrolls && open?.kind === "employment" && (
+        <StaffEmploymentPeriods
+          key={open.staff.id}
+          scope={{
+            tenantId: scope.tenantId,
+            subject: scope.subject,
+            pharmacyId: source.pharmacy_id,
+            staffId: open.staff.id,
+          }}
+          staffLabel={`${open.staff.display_name} · ${open.staff.employee_code}`}
+          canManageDocuments={files}
+          onContextChanged={onContextChanged}
+          onClose={close}
+        />
+      )}
+      {enrolls && open?.kind === "credentials" && (
+        <StaffCredentialPanel
+          key={open.staff.id}
+          scope={{
+            pharmacyId: source.pharmacy_id,
+            tenantId: scope.tenantId,
+            subject: scope.subject,
+            staffId: open.staff.id,
+          }}
+          ownerName={source.name}
+          staff={open.staff}
+          onContextChanged={onContextChanged}
+          onClose={close}
+        />
+      )}
+      {enrolls && open?.kind === "register" && (
+        <PharmacyCredentialRegister
+          {...{ scope, onContextChanged }}
+          pharmacy={source}
+          onClose={close}
         />
       )}
     </>

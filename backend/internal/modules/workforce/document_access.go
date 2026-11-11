@@ -44,10 +44,15 @@ func (h *handlers) revokeDocument(c *gin.Context) {
 		respond.NotFound(c, "staff document")
 		return
 	}
+	h.withdrawDocument(c, staffDocuments{}, p, hospital, staffID, fileID)
+}
+
+// withdrawDocument revokes an available file; revoking a revoked file replays its receipt.
+func (h *handlers) withdrawDocument(c *gin.Context, gate documentGate, p authn.Principal, hospital, staffID, fileID uuid.UUID) {
 	var saved document
-	err = h.documentTransaction(c, staffDocuments{}, p, hospital, true, func(tx *gorm.DB) error {
+	err := h.documentTransaction(c, gate, p, hospital, true, func(tx *gorm.DB) error {
 		var err error
-		saved, err = authorizedDocument(tx, staffDocuments{}, p, hospital, staffID, fileID, true)
+		saved, err = authorizedDocument(tx, gate, p, hospital, staffID, fileID, true)
 		if err != nil {
 			return err
 		}
@@ -73,7 +78,7 @@ func (h *handlers) revokeDocument(c *gin.Context) {
 	if documentUploadError(c, err) {
 		return
 	}
-	respond.OK(c, saved)
+	respond.OK(c, gate.view(saved))
 }
 
 func (h *handlers) retryDocument(c *gin.Context) {
@@ -106,7 +111,7 @@ func (h *handlers) requeueDocument(c *gin.Context, gate documentGate, p authn.Pr
 	}
 	var saved document
 	queued := false
-	err = h.documentTransaction(c, staffDocuments{}, p, hospital, true, func(tx *gorm.DB) error {
+	err = h.documentTransaction(c, gate, p, hospital, true, func(tx *gorm.DB) error {
 		var err error
 		saved, err = authorizedDocument(tx, gate, p, hospital, staffID, fileID, true)
 		if err != nil {
@@ -143,9 +148,9 @@ func (h *handlers) requeueDocument(c *gin.Context, gate documentGate, p authn.Pr
 		return
 	}
 	if queued {
-		respond.Accepted(c, saved)
+		respond.Accepted(c, gate.view(saved))
 	} else {
-		respond.OK(c, saved)
+		respond.OK(c, gate.view(saved))
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/authn"
 	"gorm.io/gorm"
 )
 
@@ -16,9 +17,13 @@ func (h *handlers) documentRecords(c *gin.Context) {
 	if !ok {
 		return
 	}
+	h.recordChoices(c, staffDocuments{}, p, hospital, staffID)
+}
+
+func (h *handlers) recordChoices(c *gin.Context, gate documentGate, p authn.Principal, hospital, staffID uuid.UUID) {
 	choices := []documentRecordChoice{{RecordKind: "enrollment", RecordID: staffID, Label: "Staff enrollment", Categories: documentCategoryBindings["enrollment"]}}
-	err := h.documentTransaction(c, staffDocuments{}, p, hospital, false, func(tx *gorm.DB) error {
-		if _, err := documentOwner(tx, p, hospital, staffID); err != nil {
+	err := h.documentTransaction(c, gate, p, hospital, false, func(tx *gorm.DB) error {
+		if err := gate.authorize(tx, p, hospital, staffID, false); err != nil {
 			return err
 		}
 		var credentials []struct {

@@ -213,7 +213,7 @@ func (h *membershipCommandHandlers) put(c *gin.Context) {
 			membershipCommandError(c, errMembershipAuthority)
 			return
 		}
-		eligible, lookupErr := h.identity.MembershipEligible(ctx, in.Subject)
+		eligible, lookupErr := h.identity.MembershipEligible(ctx, p.TenantID, in.Subject)
 		if lookupErr != nil {
 			membershipCommandError(c, errMembershipAuthority)
 			return

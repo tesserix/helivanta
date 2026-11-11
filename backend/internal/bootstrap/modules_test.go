@@ -25,7 +25,7 @@ func (*fakeUserStateChecker) UserProfile(context.Context, string) (loginclient.U
 	return loginclient.UserProfile{}, nil
 }
 
-func (*fakeUserStateChecker) MembershipEligible(context.Context, string) (bool, error) {
+func (*fakeUserStateChecker) MembershipEligible(context.Context, string, string) (bool, error) {
 	return true, nil
 }
 

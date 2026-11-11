@@ -166,9 +166,13 @@ func (c *Client) AuthRequest(ctx context.Context, id string) (AuthRequest, error
 // doc comment for why that distinction survives here even though the
 // browser-facing answer must not.
 func (c *Client) CreatePasswordSession(ctx context.Context, loginName, password string) (Session, error) {
+	return c.createPasswordSession(ctx, map[string]any{"loginName": loginName}, password)
+}
+
+func (c *Client) createPasswordSession(ctx context.Context, user map[string]any, password string) (Session, error) {
 	body := map[string]any{
 		"checks": map[string]any{
-			"user":     map[string]any{"loginName": loginName},
+			"user":     user,
 			"password": map[string]any{"password": password},
 		},
 	}

@@ -32,7 +32,7 @@ type UserProfileReader interface {
 
 // MembershipIdentityReader verifies current human identity and contact eligibility.
 type MembershipIdentityReader interface {
-	MembershipEligible(ctx context.Context, subject string) (bool, error)
+	MembershipEligible(ctx context.Context, tenant, subject string) (bool, error)
 }
 
 // IdentityProvider is the shared Zitadel client for identity reads.

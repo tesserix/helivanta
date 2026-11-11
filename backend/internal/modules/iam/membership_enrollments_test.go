@@ -19,6 +19,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/modules/iam" //nolint:depguard // External test exercises its own module.
+	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
@@ -72,7 +73,7 @@ type enrollmentIdentity struct {
 	check func(context.Context, string) (bool, error)
 }
 
-func (p *enrollmentIdentity) MembershipEligible(ctx context.Context, subject string) (bool, error) {
+func (p *enrollmentIdentity) MembershipEligible(ctx context.Context, tenant, subject string) (bool, error) {
 	p.calls.Add(1)
 	if p.check != nil {
 		return p.check(ctx, subject)
@@ -396,4 +397,34 @@ func TestFirstEnrollmentWaitsForActorRowThenRejectsWithdrawalBeforeWrite(t *test
 		require.Zero(t, count)
 		return nil
 	}))
+}
+
+func TestFirstEnrollmentRequiresNativeAccountOwnedByTheVerifiedTenant(t *testing.T) {
+	var owner atomic.Value
+	owner.Store("helivanta-" + testutil.TenantB)
+	native := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, http.MethodGet, r.Method)
+		require.Equal(t, "/v2/users/tenant-staff", r.URL.Path)
+		_ = json.NewEncoder(w).Encode(map[string]any{"user": map[string]any{"userId": "tenant-staff", "state": "USER_STATE_ACTIVE", "details": map[string]string{"resourceOwner": owner.Load().(string)}, "human": map[string]any{"email": map[string]any{"email": "same@example.test", "isVerified": true}}}})
+	}))
+	t.Cleanup(native.Close)
+	identity := loginclient.New(native.URL, "synthetic", native.Client())
+	r, db, ctx := enrollmentHarness(t, identity)
+	path := "/v1/iam/membership-enrollments/" + uuid.Must(uuid.NewV7()).String()
+	body := `{"subject":"tenant-staff","reason":"Tenant-owned staff enrolment"}`
+	denied := membershipCommandRequest(r, http.MethodPut, path, "admin", body)
+	require.Equal(t, http.StatusConflict, denied.Code, denied.Body.String())
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		var count int64
+		require.NoError(t, tx.Table("iam_members").Where("subject=?", "tenant-staff").Count(&count).Error)
+		require.Zero(t, count)
+		require.NoError(t, tx.Table("iam_membership_enrollments").Count(&count).Error)
+		require.Zero(t, count)
+		return nil
+	}))
+	owner.Store("helivanta-" + testutil.TenantA)
+	accepted := membershipCommandRequest(r, http.MethodPut, path, "admin", body)
+	require.Equal(t, http.StatusAccepted, accepted.Code, accepted.Body.String())
+	require.Contains(t, accepted.Body.String(), `"subject":"tenant-staff"`)
+	require.Contains(t, accepted.Body.String(), `"role_key":"staff_member"`)
 }

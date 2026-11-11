@@ -233,7 +233,7 @@ function SignupStatus({
               : receipt.state === "password_action_required"
                 ? "Your email is verified. Request a password setup email to finish creating your login."
                 : receipt.state === "email_action_required"
-                  ? "New accounts receive a verification link at the owner email. Check your inbox and spam folder, or continue with your existing Tesserix sign-in."
+                  ? "We create a separate login for this workspace, even if you use this email elsewhere. Verify your email, set this account's password, then enrol its own second factor. Check your inbox and spam folder."
                   : "Your organisation details have been saved. We are preparing the next step."}
         </p>
       </div>
@@ -241,6 +241,14 @@ function SignupStatus({
         <Button type="button" className="w-full" disabled={signingIn} onClick={() => void signin()}>
           {signingIn ? "Opening sign-in…" : "Open workspace"}
         </Button>
+      )}
+      {receipt.state === "ready" && (
+        <a
+          className="block text-sm underline underline-offset-4"
+          href={`/login?workspace=${receipt.tenantId}`}
+        >
+          Save your workspace sign-in link
+        </a>
       )}
       {(receipt.state === "email_action_required" ||
         receipt.state === "password_action_required") && (
@@ -257,17 +265,6 @@ function SignupStatus({
                 ? "Send password setup email"
                 : "Resend verification email"}
           </Button>
-          {receipt.state === "email_action_required" && (
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              disabled={signingIn}
-              onClick={() => void signin()}
-            >
-              {signingIn ? "Opening sign-in…" : "Continue with an existing account"}
-            </Button>
-          )}
           <p className="text-sm text-muted-foreground">
             Links expire after 1 hour. Up to 3 emails per hour and 10 per 24 hours, including the
             first email and password setup. Verification emails stop once your email is verified.

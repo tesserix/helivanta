@@ -147,14 +147,16 @@ func TestMembershipCommandRejectsUntrustedScopeStateAndAuthority(t *testing.T) {
 
 type membershipIdentity struct{}
 
-func (membershipIdentity) MembershipEligible(context.Context, string) (bool, error) { return true, nil }
+func (membershipIdentity) MembershipEligible(context.Context, string, string) (bool, error) {
+	return true, nil
+}
 
 type controlledMembershipIdentity struct {
 	state       loginclient.UserState
 	unavailable bool
 }
 
-func (p *controlledMembershipIdentity) MembershipEligible(context.Context, string) (bool, error) {
+func (p *controlledMembershipIdentity) MembershipEligible(context.Context, string, string) (bool, error) {
 	if p.unavailable {
 		return false, errors.New("synthetic identity outage")
 	}

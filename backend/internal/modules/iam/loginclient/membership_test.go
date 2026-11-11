@@ -10,7 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const verifiedMembershipHuman = `{"user":{"userId":"synthetic-human","state":"USER_STATE_ACTIVE","human":{"email":{"email":"private-contact@example.invalid","isVerified":true}}}}`
+const membershipTestTenant = "11111111-1111-4111-8111-111111111111"
+
+const verifiedMembershipHuman = `{"user":{"userId":"synthetic-human","state":"USER_STATE_ACTIVE","details":{"resourceOwner":"helivanta-11111111-1111-4111-8111-111111111111"},"human":{"email":{"email":"private-contact@example.invalid","isVerified":true}}}}`
 
 func TestMembershipEligibleRequiresOneMatchingVerifiedHumanProof(t *testing.T) {
 	for _, tc := range []struct {
@@ -65,7 +67,7 @@ func TestMembershipEligibleRequiresOneMatchingVerifiedHumanProof(t *testing.T) {
 				}
 				_, _ = w.Write([]byte(tc.body))
 			})
-			eligible, err := client.MembershipEligible(t.Context(), "synthetic-human")
+			eligible, err := client.MembershipEligible(t.Context(), membershipTestTenant, "synthetic-human")
 			require.Equal(t, tc.eligible, eligible)
 			require.EqualValues(t, 1, calls.Load(), "identity state and contact must share one observation")
 			if tc.unavailable {
@@ -80,7 +82,7 @@ func TestMembershipEligibleRequiresOneMatchingVerifiedHumanProof(t *testing.T) {
 
 func TestMembershipEligibilityMissingClientAndCancelledReadFailClosed(t *testing.T) {
 	var missing *Client
-	eligible, err := missing.MembershipEligible(t.Context(), "synthetic-human")
+	eligible, err := missing.MembershipEligible(t.Context(), membershipTestTenant, "synthetic-human")
 	require.False(t, eligible)
 	require.ErrorIs(t, err, ErrUnavailable)
 	var calls atomic.Int32
@@ -88,13 +90,22 @@ func TestMembershipEligibilityMissingClientAndCancelledReadFailClosed(t *testing
 		calls.Add(1)
 		_, _ = w.Write([]byte(verifiedMembershipHuman))
 	})
-	eligible, err = client.MembershipEligible(t.Context(), "")
+	eligible, err = client.MembershipEligible(t.Context(), membershipTestTenant, "")
 	require.False(t, eligible)
 	require.ErrorIs(t, err, ErrUnavailable)
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	eligible, err = client.MembershipEligible(ctx, "synthetic-human")
+	eligible, err = client.MembershipEligible(ctx, membershipTestTenant, "synthetic-human")
 	require.False(t, eligible)
 	require.ErrorIs(t, err, ErrUnavailable)
 	require.Zero(t, calls.Load())
+}
+
+func TestMembershipEligibilityRejectsAnAccountOwnedByAnotherTenant(t *testing.T) {
+	client := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"user":{"userId":"synthetic-human","state":"USER_STATE_ACTIVE","details":{"resourceOwner":"another-org"},"human":{"email":{"email":"same@example.test","isVerified":true}}}}`))
+	})
+	eligible, err := client.MembershipEligible(t.Context(), membershipTestTenant, "synthetic-human")
+	require.NoError(t, err)
+	require.False(t, eligible, "a new staff membership must not reuse another tenant's native identity")
 }

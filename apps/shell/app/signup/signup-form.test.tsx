@@ -180,7 +180,7 @@ it("preserves a branch address in a different supported state", async () => {
   );
 });
 
-it("continues a retained signup through fresh native authentication", async () => {
+it("requires a fresh tenant account instead of offering cross-organisation account adoption", async () => {
   vi.stubGlobal(
     "fetch",
     vi
@@ -191,15 +191,12 @@ it("continues a retained signup through fresh native authentication", async () =
   );
   renderWithProviders(<SignupForm />);
   expect(await screen.findByRole("heading", { name: "Verify your account" })).toHaveFocus();
-  await userEvent
-    .setup()
-    .click(screen.getByRole("button", { name: "Continue with an existing account" }));
-  expect(signinRedirect).toHaveBeenCalledWith({
-    state: { purpose: "customer-signup" },
-    prompt: "login",
-    max_age: 0,
-  });
+  expect(
+    screen.queryByRole("button", { name: "Continue with an existing account" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByText(/separate login for this workspace/i)).toBeVisible();
   expect(screen.getByRole("button", { name: "Resend verification email" })).toBeVisible();
+  expect(signinRedirect).not.toHaveBeenCalled();
 });
 
 it("opens the newly created workspace using its exact tenant", async () => {
@@ -223,6 +220,7 @@ it("opens the newly created workspace using its exact tenant", async () => {
   await userEvent.setup().click(await screen.findByRole("button", { name: "Open workspace" }));
   expect(signinRedirect).toHaveBeenCalledWith({
     state: { purpose: "customer-signup-login", tenantId },
+    scope: `openid profile email urn:zitadel:iam:org:id:helivanta-${tenantId}`,
     prompt: "login",
     max_age: 0,
   });

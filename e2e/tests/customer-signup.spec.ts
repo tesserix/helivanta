@@ -1,6 +1,8 @@
 import { test, expect } from "@playwright/test";
 
-test("existing-account signup starts fresh native authentication", async ({ page }) => {
+test("new tenant signup requires its own account instead of adopting another organisation's user", async ({
+  page,
+}) => {
   await page.route("**/api/v1/auth/signup", (route) =>
     route.fulfill({
       status: 200,
@@ -10,13 +12,44 @@ test("existing-account signup starts fresh native authentication", async ({ page
   );
   await page.goto("/signup");
   await expect(page.getByRole("heading", { name: "Verify your account" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Continue with an existing account" })).toHaveCount(
+    0,
+  );
+  await expect(page.getByText(/separate login for this workspace/)).toBeVisible();
+});
+
+test("ready workspace sign-in pins the native organisation with PKCE", async ({ page }) => {
+  const tenant = "11111111-1111-4111-8111-111111111111";
+  await page.route("**/api/v1/auth/signup", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        state: "ready",
+        name: "TEST Hospital",
+        kind: "hospital",
+        tenantId: tenant,
+        resourceId: "0199e000-0000-7000-8000-000000000010",
+      }),
+    }),
+  );
+  await page.route("**/oauth/v2/authorize?**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: "<p>Captured sign-in request</p>",
+    }),
+  );
+  await page.goto("/signup");
   const origin = new URL(page.url()).origin;
   const authorization = page.waitForRequest(
     (request) => new URL(request.url()).pathname === "/oauth/v2/authorize",
   );
-  await page.getByRole("button", { name: "Continue with an existing account" }).click();
-  const request = await authorization;
-  const url = new URL(request.url());
+  await page.getByRole("button", { name: "Open workspace" }).click();
+  const url = new URL((await authorization).url());
+  expect(url.searchParams.get("scope")?.split(" ")).toContain(
+    `urn:zitadel:iam:org:id:helivanta-${tenant}`,
+  );
   expect(url.searchParams.get("prompt")).toBe("login");
   expect(url.searchParams.get("max_age")).toBe("0");
   expect(url.searchParams.get("code_challenge_method")).toBe("S256");

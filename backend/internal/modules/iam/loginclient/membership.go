@@ -11,12 +11,18 @@ import (
 	"net/mail"
 	"net/url"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
-// MembershipEligible verifies a matching active human and provider-verified email.
-func (c *Client) MembershipEligible(ctx context.Context, subject string) (bool, error) {
+// MembershipEligible verifies a tenant-owned active human and verified email.
+func (c *Client) MembershipEligible(ctx context.Context, tenant, subject string) (bool, error) {
 	if c == nil || subject == "" {
 		return false, fmt.Errorf("membership identity reader missing: %w", ErrUnavailable)
+	}
+	tenantID, err := uuid.Parse(tenant)
+	if err != nil || tenantID == uuid.Nil || tenantID.String() != tenant {
+		return false, ErrUnavailable
 	}
 	var raw json.RawMessage
 	if err := c.do(ctx, http.MethodGet, "/v2/users/"+url.PathEscape(subject), nil, &raw, ErrUserNotFound); err != nil {
@@ -25,7 +31,7 @@ func (c *Client) MembershipEligible(ctx context.Context, subject string) (bool, 
 		}
 		return false, errors.Join(ErrUnavailable, err)
 	}
-	eligible, err := membershipProof(raw, subject)
+	eligible, err := membershipProof(raw, subject, "helivanta-"+tenant)
 	if err != nil {
 		// Provider payloads can contain private profile data; report no raw proof.
 		return false, fmt.Errorf("membership identity proof unavailable: %w", ErrUnavailable)
@@ -33,12 +39,12 @@ func (c *Client) MembershipEligible(ctx context.Context, subject string) (bool, 
 	return eligible, nil
 }
 
-func membershipProof(raw json.RawMessage, subject string) (bool, error) {
+func membershipProof(raw json.RawMessage, subject, org string) (bool, error) {
 	root, err := identityObject(raw, "user")
 	if err != nil {
 		return false, err
 	}
-	user, err := identityObject(root["user"], "userId", "state", "human", "machine")
+	user, err := identityObject(root["user"], "userId", "state", "human", "machine", "details")
 	if err != nil {
 		return false, err
 	}
@@ -90,6 +96,17 @@ func membershipProof(raw json.RawMessage, subject string) (bool, error) {
 	parsed, err := mail.ParseAddress(address)
 	if err != nil || parsed.Address != address || strings.TrimSpace(address) != address {
 		return false, ErrUnavailable
+	}
+	details, err := identityObject(user["details"], "resourceOwner")
+	if err != nil {
+		return false, err
+	}
+	var owner string
+	if json.Unmarshal(details["resourceOwner"], &owner) != nil || owner == "" {
+		return false, ErrUnavailable
+	}
+	if owner != org {
+		return false, nil
 	}
 	return true, nil
 }

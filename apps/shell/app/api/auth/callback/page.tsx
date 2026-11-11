@@ -70,7 +70,7 @@ export default function AuthCallbackPage() {
         clearPermissionsCache();
         const { renew_at, expires_at } = await exchangeIdToken(
           user.id_token,
-          signup?.purpose === "customer-signup-login" ? signup.tenantId : undefined,
+          signup && "tenantId" in signup ? signup.tenantId : undefined,
         );
         // The server's own schedule for this session's FIRST renewal
         // (#916 Task 4, F3). Stored rather than passed, because

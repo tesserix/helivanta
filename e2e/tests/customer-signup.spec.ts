@@ -161,7 +161,7 @@ test("expired email proof offers a fresh verification link with expiry and share
       body: JSON.stringify({ state: "email_action_required" }),
     });
   });
-  await page.goto("/signup/verify#phase=email&userId=owner-synthetic&code=expired-synthetic-proof");
+  await page.goto("/signup/verify#phase=email&userId=owner-synthetic&code=expired-proof");
   await expect(page.getByText(/Links expire after 1 hour/)).toBeVisible();
   await expect(page.getByText(/3 emails per hour and 10 per 24 hours/)).toBeVisible();
   await expect.poll(() => new URL(page.url()).hash).toBe("");

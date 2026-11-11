@@ -138,7 +138,10 @@ const refusal = (status: number, error: string, message: string, reason?: string
 afterEach(() => vi.unstubAllGlobals());
 
 type Call = { url: string; init?: RequestInit };
-type Answer = (url: string, init?: RequestInit) => Response | undefined | Promise<Response | undefined>;
+type Answer = (
+  url: string,
+  init?: RequestInit,
+) => Response | undefined | Promise<Response | undefined>;
 // One standalone pharmacy employer whose Staff manager holds the given permissions.
 function pharmacyTenant({
   permissions = ["workforce.enrollment.manage", "workforce.documents.manage"],
@@ -322,7 +325,9 @@ it("hides the decision on one's own proposal and lets another reviewer approve",
   });
   const { user } = renderSource();
   await openCredentials(user);
-  await user.click(await screen.findByRole("button", { name: `Review proposal for ${licenceType}` }));
+  await user.click(
+    await screen.findByRole("button", { name: `Review proposal for ${licenceType}` }),
+  );
   const form = await screen.findByRole("form", { name: "Decide credential review" });
   await user.click(within(form).getByRole("button", { name: "Approve" }));
   expect(await screen.findByText("Credential approved")).toBeInTheDocument();
@@ -381,7 +386,9 @@ it("keeps the expiry filter disabled until the pharmacy time zone is set", async
   expect(within(panel).getByRole("status")).toHaveTextContent("Loading the pharmacy time zone…");
   release();
   expect(
-    await within(panel).findByText("Set this pharmacy's time zone to filter credentials by expiry."),
+    await within(panel).findByText(
+      "Set this pharmacy's time zone to filter credentials by expiry.",
+    ),
   ).toBeInTheDocument();
   const filter = within(panel).getByRole("form", { name: "Register filter" });
   expect(within(filter).getByLabelText("Expiring within (days)")).toBeDisabled();

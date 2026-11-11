@@ -5,10 +5,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/platform/respond"
-	"github.com/tesserix/helivanta/pkg/authz"
 )
 
 // pharmacyEmployment admits a pharmacy's employment terms only from the caller's current account and workspace (ADR-0054 slice 4b).
@@ -18,15 +16,7 @@ func (h *handlers) pharmacyEmployment(c *gin.Context) (employmentRecord, bool) {
 		return employmentRecord{}, false
 	}
 	r, ok := employmentIDs(c, p, pharmacy.establishment())
-	authority := h.pharmacyAuthority(c, p, pharmacy)
-	r.authority = func(required []authz.Permission, fn func(*gorm.DB) error) error {
-		return authority(required, func(tx *gorm.DB) error {
-			if err := pharmacy.establishment().requireKind(tx, p.TenantID); err != nil {
-				return err
-			}
-			return fn(tx)
-		})
-	}
+	r.authority = h.pharmacyAuthority(c, p, pharmacy)
 	return r, ok
 }
 

@@ -93,6 +93,10 @@ func (r employmentRecord) transaction(fn func(*gorm.DB, EmploymentPeriodSource) 
 
 func (r employmentRecord) authorized(required []authz.Permission, fn func(*gorm.DB, EmploymentPeriodSource) error) error {
 	return r.authority(required, func(tx *gorm.DB) error {
+		// Admission's kind can change before this transaction; re-check it so the other family's terms stay 404.
+		if err := r.owner.requireKind(tx, r.p.TenantID); err != nil {
+			return err
+		}
 		// Match enrollment's establishment lock before Staff/sponsor row locks.
 		if err := tx.Exec(`SELECT workforce_lock_supervision(?::uuid,?::uuid)`, r.p.TenantID, r.owner.id).Error; err != nil {
 			return err

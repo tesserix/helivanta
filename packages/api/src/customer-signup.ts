@@ -1,4 +1,9 @@
+import { z } from "zod";
 import {
+  CustomerBusinessAddressContract,
+  CustomerOrganizationProfileContract,
+  CustomerBusinessProfileViewContract,
+  type CustomerOrganizationProfile,
   CustomerSignupInputContract,
   CustomerSignupReceiptContract,
   CustomerSignupProofContract,
@@ -11,7 +16,13 @@ import {
 import { apiFetch } from "./client";
 
 export type { CustomerSignupInput, CustomerSignupReceipt };
-export { CustomerSignupInputContract, CustomerSignupReceiptContract };
+export {
+  CustomerSignupInputContract,
+  CustomerSignupReceiptContract,
+  CustomerBusinessAddressContract,
+  CustomerOrganizationProfileContract,
+};
+export type { CustomerOrganizationProfile };
 
 async function signupRequest(path: string, init: RequestInit = {}) {
   return CustomerSignupReceiptContract.parse(
@@ -41,4 +52,24 @@ export function setCustomerPassword(input: CustomerSignupProof) {
 export function sendCustomerLink(kind: "email" | "password", input: CustomerSignupDelivery = {}) {
   const body = CustomerSignupDeliveryContract.parse(input);
   return signupRequest(`/auth/signup/${kind}-link`, { method: "POST", body: JSON.stringify(body) });
+}
+
+export async function getCustomerBusinessProfile(
+  tenantId: string,
+  kind: "hospital" | "pharmacy",
+  resourceId: string,
+  signal?: AbortSignal,
+) {
+  const id = z.string().uuid().parse(resourceId);
+  const path =
+    kind === "hospital"
+      ? `/workforce/hospitals/${id}/business-profile`
+      : `/pharmacy/pharmacies/${id}/business-profile`;
+  return CustomerBusinessProfileViewContract.parse(
+    await apiFetch(path, {
+      signal,
+      cache: "no-store",
+      headers: { "X-Helivanta-Expected-Tenant": z.string().uuid().parse(tenantId) },
+    }),
+  );
 }

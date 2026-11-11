@@ -875,3 +875,19 @@ uses direct synthetic acquisition, never a fictitious trade licence. Positive
 live bilateral dispatch/receiving still needs actual reviewed participant,
 Maharashtra/Odisha state/category and trading-policy prerequisites. See the
 [implementation design](../../superpowers/specs/2026-11-09-supplier-financial-handoff.md).
+
+## Initial organisation business profile
+
+Customer onboarding stores organisation contact, headquarters and main-branch
+address/name on the pharmacy owner through `customercontract.OrganizationProfile`.
+Migration `0044_pharmacy_business_profile` adds the nullable bounded
+`onboarding_profile` column to `pharmacy_organizations`. A complete profile creates
+the initial outlet in `pending_review`, using the organisation UUIDv7 in its own
+outlet scope and the branch's supplied name.
+
+`GET /v1/pharmacy/pharmacies/:pharmacy/business-profile` requires
+`pharmacy.access.manage`, verified tenant membership and pharmacy visibility. It
+returns `{profile: object | null}`, enforces the optional expected-tenant
+precondition, disables caching and audits the read. Historical records can return
+null. The read schema is generated from the onboarding-service owner contract.
+[Automated onboarding](../../design/automated-customer-onboarding.md)

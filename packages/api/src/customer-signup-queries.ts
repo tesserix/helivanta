@@ -1,9 +1,10 @@
 "use client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApiMutation, useApiQuery } from "./hooks";
 import {
   CustomerSignupReceiptContract,
   startCustomerSignup,
+  getCustomerBusinessProfile,
   sendCustomerLink,
 } from "./customer-signup";
 const signupKey = ["customer-signup"];
@@ -37,4 +38,19 @@ export function useCustomerSignup() {
     { suppressErrorToast: true },
   );
   return { progress, create, resend };
+}
+
+export function useCustomerBusinessProfile(
+  tenantId: string,
+  kind: "hospital" | "pharmacy",
+  resourceId: string,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: ["customer-business-profile", tenantId, kind, resourceId],
+    queryFn: ({ signal }) => getCustomerBusinessProfile(tenantId, kind, resourceId, signal),
+    enabled,
+    gcTime: 0,
+    staleTime: 0,
+  });
 }

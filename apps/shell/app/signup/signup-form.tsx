@@ -1,20 +1,44 @@
 "use client";
 
+import { useState } from "react";
+import type { FormEvent } from "react";
+
 import {
   CustomerSignupInputContract,
+  CustomerOrganizationProfileContract,
   CustomerSignupReceiptContract,
   useCustomerSignup,
 } from "@helivanta/api";
 import { Button, Field, FormSelectField, RequestFailure, useZodForm } from "@helivanta/ui";
 
+const signupFormSchema = CustomerSignupInputContract.extend({
+  profile: CustomerOrganizationProfileContract,
+});
+const emptyAddress = {
+  line1: "",
+  line2: "",
+  city: "",
+  district: "",
+  postalCode: "",
+  stateCode: "MH" as const,
+  countryCode: "IN" as const,
+};
+type SignupFormMethods = ReturnType<typeof useZodForm<typeof signupFormSchema>>;
+
 export function SignupForm() {
+  const [sameAddress, setSameAddress] = useState(true);
   const { progress, create, resend } = useCustomerSignup();
-  const form = useZodForm(CustomerSignupInputContract, {
+  const form = useZodForm(signupFormSchema, {
     name: "",
     kind: "hospital",
     countryCode: "IN",
     stateCode: "MH",
     owner: { givenName: "", familyName: "", email: "" },
+    profile: {
+      contact: { phone: "", email: "" },
+      headOffice: { ...emptyAddress },
+      mainBranch: { name: "Main branch", address: { ...emptyAddress } },
+    },
   });
   const parsed = CustomerSignupReceiptContract.safeParse(progress.data);
   if (progress.isPending) return <p role="status">Checking workspace setup…</p>;
@@ -70,12 +94,14 @@ export function SignupForm() {
       </div>
     );
   const errors = form.formState.errors;
+  function submit(event: FormEvent<HTMLFormElement>) {
+    form.setValue("stateCode", form.getValues("profile.headOffice.stateCode"));
+    if (sameAddress)
+      form.setValue("profile.mainBranch.address", { ...form.getValues("profile.headOffice") });
+    void form.handleSubmit((values) => create.mutate(values))(event);
+  }
   return (
-    <form
-      noValidate
-      onSubmit={form.handleSubmit((values) => create.mutate(values))}
-      className="space-y-5"
-    >
+    <form noValidate onSubmit={submit} className="space-y-5">
       <h2 className="text-2xl font-medium">Create your workspace</h2>
       <Field id="signup-name" label="Organisation name" error={errors.name?.message}>
         <input
@@ -95,17 +121,66 @@ export function SignupForm() {
           { value: "pharmacy", label: "Independent pharmacy" },
         ]}
       />
-      <FormSelectField
-        control={form.control}
-        name="stateCode"
-        id="signup-state"
-        label="State"
-        options={[
-          { value: "MH", label: "Maharashtra" },
-          { value: "OD", label: "Odisha" },
-        ]}
-      />
-      <p className="text-sm text-muted-foreground">Country: India</p>
+      <fieldset className="space-y-4">
+        <legend className="text-base font-semibold">Organisation contact</legend>
+        <Field
+          id="signup-phone"
+          label="Organisation phone"
+          error={errors.profile?.contact?.phone?.message}
+        >
+          <input
+            className="h-10 rounded-md border bg-background px-3"
+            id="signup-phone"
+            type="tel"
+            autoComplete="section-business tel"
+            placeholder="+919876543210"
+            {...form.register("profile.contact.phone")}
+          />
+        </Field>
+        <p className="text-xs text-muted-foreground">
+          Include the country code, for example +91 followed by the phone number.
+        </p>
+        <Field
+          id="signup-contact-email"
+          label="Organisation email"
+          error={errors.profile?.contact?.email?.message}
+        >
+          <input
+            className="h-10 rounded-md border bg-background px-3"
+            id="signup-contact-email"
+            type="email"
+            autoComplete="section-business email"
+            {...form.register("profile.contact.email")}
+          />
+        </Field>
+      </fieldset>
+      <AddressFields form={form} prefix="profile.headOffice" label="Head office" />
+      <fieldset className="space-y-4">
+        <legend className="text-base font-semibold">Main branch</legend>
+        <Field
+          id="signup-branch-name"
+          label="Main branch name"
+          error={errors.profile?.mainBranch?.name?.message}
+        >
+          <input
+            className="h-10 rounded-md border bg-background px-3"
+            id="signup-branch-name"
+            {...form.register("profile.mainBranch.name")}
+          />
+        </Field>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={sameAddress}
+            onChange={(event) => setSameAddress(event.target.checked)}
+          />
+          Main branch uses the head office address
+        </label>
+        {!sameAddress && (
+          <AddressFields form={form} prefix="profile.mainBranch.address" label="Main branch" />
+        )}
+      </fieldset>
+      <h3 className="text-base font-semibold">Owner login</h3>
       <Field id="signup-given" label="Given name" error={errors.owner?.givenName?.message}>
         <input
           className="h-10 rounded-md border bg-background px-3"
@@ -143,5 +218,59 @@ export function SignupForm() {
         Sign in to an existing workspace
       </a>
     </form>
+  );
+}
+
+function AddressFields({
+  form,
+  prefix,
+  label,
+}: {
+  form: SignupFormMethods;
+  prefix: "profile.headOffice" | "profile.mainBranch.address";
+  label: "Head office" | "Main branch";
+}) {
+  const fields = [
+    ["line1", "address line 1", "address-line1"],
+    ["line2", "address line 2 (optional)", "address-line2"],
+    ["city", "city", "address-level2"],
+    ["district", "district", "address-level3"],
+    ["postalCode", "PIN code", "postal-code"],
+  ] as const;
+  return (
+    <fieldset className="space-y-4">
+      <legend className="text-base font-semibold">{label} address</legend>
+      {fields.map(([field, text, autocomplete]) => {
+        const name = `${prefix}.${field}` as const;
+        const id = `signup-${prefix.replaceAll(".", "-")}-${field}`;
+        return (
+          <Field
+            key={field}
+            id={id}
+            label={`${label} ${text}`}
+            error={form.getFieldState(name, form.formState).error?.message}
+          >
+            <input
+              className="h-10 rounded-md border bg-background px-3"
+              id={id}
+              autoComplete={autocomplete}
+              inputMode={field === "postalCode" ? "numeric" : "text"}
+              {...form.register(name)}
+            />
+          </Field>
+        );
+      })}
+      <FormSelectField
+        control={form.control}
+        name={`${prefix}.stateCode`}
+        id={`signup-${prefix}-state`}
+        label={label === "Head office" ? "State" : "Main branch state"}
+        options={[
+          { value: "MH", label: "Maharashtra" },
+          { value: "OD", label: "Odisha" },
+        ]}
+      />
+      <p className="text-sm text-muted-foreground">Country: India</p>
+    </fieldset>
   );
 }

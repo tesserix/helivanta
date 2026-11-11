@@ -126,3 +126,19 @@ Use [HR capability coverage](../../hr-capability-coverage.md), [private-file ver
 Required contract cases: historical policy selection, overnight/DST dates, double leave allocation, concurrent request approval/revocation, correction against a closed period, reopened timesheet lineage, exact rounding and overflow, no unauthorized identifier reveal, reviewer self-approval restrictions where implemented, stale tenant/hospital and expired/revoked evidence access. New consumers must define latency/freshness and reconciliation needs rather than use HR events as an implicit permission grant.
 
 The unreleased [department handoff](../workforce-department-links.md) retains an explicit mapping from HR department revisions to canonical Organization revisions. Profiles and payroll keep their historical HR pins; postings and current product authority remain separate unfinished contracts.
+
+## Initial business contact profile
+
+Customer onboarding stores a validated organisation contact, head-office address
+and main-branch name/address on the hospital owner. Migration
+`0096_workforce_business_profile` adds a nullable bounded `onboarding_profile`
+column to `workforce_hospitals`. The canonical Go/Zod profile is published by
+onboarding-service's `customercontract` package.
+
+`GET /v1/workforce/hospitals/:hospital/business-profile` requires
+`workforce.hospital.manage` and current hospital manager access under the verified
+tenant and hospital kind. It returns `{profile: object | null}`, enforces the
+optional expected-tenant precondition, disables caching and audits the read.
+Existing profiles with no captured details return null. The full signup,
+retry and consumer behavior is specified in the automated onboarding design.
+[Automated onboarding](../../design/automated-customer-onboarding.md)

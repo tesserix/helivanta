@@ -9,8 +9,18 @@ import (
 
 const organizationScopePrefix = "urn:zitadel:iam:org:id:"
 
+// TenantUserResolver is the private identity owner's organisation-scoped lookup.
+type TenantUserResolver interface {
+	TenantLoginSubject(context.Context, string, string) (string, error)
+}
+
+// SetTenantUserResolver wires the broker without expanding the native login PAT.
+func (c *Client) SetTenantUserResolver(resolver TenantUserResolver) { c.tenantUsers = resolver }
+
 // CreatePasswordSessionForRequest resolves email within the native request's org.
 func (c *Client) CreatePasswordSessionForRequest(ctx context.Context, requestID, clientID, loginName, password string) (Session, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
+	defer cancel()
 	ar, err := c.AuthRequest(ctx, requestID)
 	if err != nil {
 		return Session{}, err
@@ -20,6 +30,9 @@ func (c *Client) CreatePasswordSessionForRequest(ctx context.Context, requestID,
 	}
 	org := ""
 	for _, scope := range ar.Scope {
+		if strings.HasPrefix(scope, "urn:zitadel:iam:org:domain:") {
+			return Session{}, ErrAuthRequestInvalid
+		}
 		if candidate, ok := strings.CutPrefix(scope, organizationScopePrefix); ok {
 			tenant, err := uuid.Parse(strings.TrimPrefix(candidate, "helivanta-"))
 			if err != nil || tenant == uuid.Nil || candidate != "helivanta-"+tenant.String() || org != "" {
@@ -31,7 +44,10 @@ func (c *Client) CreatePasswordSessionForRequest(ctx context.Context, requestID,
 	if org == "" {
 		return c.CreatePasswordSession(ctx, loginName, password)
 	}
-	userID, err := c.tenantUserByEmail(ctx, org, loginName)
+	if c.tenantUsers == nil {
+		return Session{}, ErrUnavailable
+	}
+	userID, err := c.tenantUsers.TenantLoginSubject(ctx, org, loginName)
 	if err != nil {
 		return Session{}, err
 	}
@@ -47,37 +63,4 @@ func (c *Client) CreatePasswordSessionForRequest(ctx context.Context, requestID,
 		return Session{}, ErrAuthRequestInvalid
 	}
 	return session, nil
-}
-
-func (c *Client) tenantUserByEmail(ctx context.Context, org, email string) (string, error) {
-	var wire struct {
-		Result []struct {
-			ID      string `json:"userId"`
-			State   string `json:"state"`
-			Details struct {
-				ResourceOwner string `json:"resourceOwner"`
-			} `json:"details"`
-			Human *struct {
-				Email struct {
-					Address  string `json:"email"`
-					Verified bool   `json:"isVerified"`
-				} `json:"email"`
-			} `json:"human"`
-		} `json:"result"`
-	}
-	input := map[string]any{"query": map[string]string{"limit": "2"}, "queries": []map[string]any{
-		{"organizationIdQuery": map[string]string{"organizationId": org}},
-		{"emailQuery": map[string]string{"emailAddress": email, "method": "TEXT_QUERY_METHOD_EQUALS_IGNORE_CASE"}},
-	}}
-	if err := c.do(ctx, "POST", "/v2/users", input, &wire, ErrUserNotFound); err != nil {
-		return "", err
-	}
-	if len(wire.Result) != 1 {
-		return "", ErrUserNotFound
-	}
-	u := wire.Result[0]
-	if u.ID == "" || u.State != "USER_STATE_ACTIVE" || u.Details.ResourceOwner != org || u.Human == nil || !u.Human.Email.Verified || !strings.EqualFold(u.Human.Email.Address, email) {
-		return "", ErrUserNotFound
-	}
-	return u.ID, nil
 }

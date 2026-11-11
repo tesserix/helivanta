@@ -491,7 +491,7 @@ expired intents do not resume. Already accepted legacy identities are preserved.
 Ready-workspace and workspace-specific `/login?workspace=<tenant UUID>` links
 start fresh OIDC with the exact native organisation scope and PKCE. The callback
 uses protected OIDC state to request that exact Helivanta tenant; server membership
-checks still decide authority. The login client resolves email only inside the
+checks still decide authority. The login client uses onboarding's private workload-only `/internal/v1/customer-signups/login-target` lookup (canonical private types in customercontract) to resolve email only inside the
 organisation in the current native request, requires exactly one active verified
 human, checks its password by user ID, and verifies the resulting session's
 organisation. It refuses ambiguous/foreign bindings and unexpected clients. An

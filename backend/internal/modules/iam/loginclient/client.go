@@ -80,9 +80,10 @@ const maxSuccessBodyBytes = 64 * 1024
 // authenticate with the login client PAT, not the session being
 // established.
 type Client struct {
-	baseURL string
-	token   string
-	hc      *http.Client
+	tenantUsers TenantUserResolver
+	baseURL     string
+	token       string
+	hc          *http.Client
 	// now is the clock the password-expiry gate (passwordchange.go) compares
 	// against. time.Now in production; this package's tests replace it to put
 	// a password on either side of its expiry without sleeping.

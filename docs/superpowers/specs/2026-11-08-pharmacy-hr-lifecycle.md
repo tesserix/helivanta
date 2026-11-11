@@ -532,3 +532,237 @@ row of that establishment. Evidence additionally requires the
    behaviour.
 8. SDK schema and receipt tests, and panel tests using `renderWithProviders`,
    for loading, 404, 409, success and the hidden review action.
+
+## 4e — Pharmacy credential reviews, validity and reminders
+
+### Actors and authority
+
+| Actor                        | Authority kind | Scope                      | Preconditions                                                                                                                                                    |
+| ---------------------------- | -------------- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pharmacy HR manager          | Administration | One pharmacy establishment | Tenant permission `workforce.enrollment.manage` and a `manager` row in `workforce_hospital_access` for the pharmacy. Both are read again inside the command      |
+| Pharmacy credential reviewer | Administration | One pharmacy               | Tenant permission `workforce.credentials.review` and a `manager` row for the pharmacy. Not the proposer, and not the subject linked to that Staff record's login |
+| Pharmacy Workforce reader    | Administration | One pharmacy               | None. A reader cannot read or change credential reviews, exactly as on a hospital                                                                                |
+| Reminder worker              | Service        | One credential revision    | Database role `helivanta_document_worker`, scoped by transaction settings to one establishment, Staff record and credential                                      |
+
+A credential review is HR checking a licence or registration that 4a recorded
+against the evidence files that 4d stored. An approval records reviewed
+validity dates. It is not a statutory verification and does not register
+anyone as a pharmacist in PharmaConnect, admit a dispensing role or grant
+access. An expiry reminder is a prompt to HR, not a change of authority. Pharma
+membership, an outlet grant and the PharmaConnect pharmacist role confer
+nothing here. Delegated HR intake stays hospital-only, so `hr_intake` answers 400.
+
+### Routes
+
+Staff routes sit under `/v1/workforce/pharmacies/:pharmacy/staff/:id`, and HR
+routes under `/v1/workforce/pharmacies/:pharmacy/hr`. Every route requires the
+pharmacy manager row.
+
+| Route                                                    | Permission                     | Effect                                                                      |
+| -------------------------------------------------------- | ------------------------------ | --------------------------------------------------------------------------- |
+| `GET credentials`                                        | `workforce.enrollment.manage`  | Recorded credentials with reviewed validity, standing and pending reviews   |
+| `GET credentials/:credential/reviews`                    | `workforce.enrollment.manage`  | Cursor list of a credential's reviews                                       |
+| `PUT credentials/:credential/reviews/:review`            | `workforce.enrollment.manage`  | Propose a review citing 1 to 5 credential evidence files; replays return it |
+| `POST credentials/:credential/reviews/:review/decision`  | `workforce.credentials.review` | Approve or reject a pending review                                          |
+| `POST credentials/:credential/reviews/:review/withdraw`  | `workforce.enrollment.manage`  | The proposer withdraws a pending review                                     |
+| `GET hr/credentials?expiring_within=`                    | `workforce.enrollment.manage`  | Cursor register of reviewed credentials, optionally by expiry               |
+| `GET hr/credential-reminder-policy`, `PUT` the same      | `workforce.enrollment.manage`  | Read or version the reminder thresholds                                     |
+| `GET hr/credential-reminders?status=`                    | `workforce.enrollment.manage`  | Cursor inbox of open, acknowledged or superseded reminders                  |
+| `POST hr/credential-reminders/:reminder/acknowledgement` | `workforce.enrollment.manage`  | Acknowledge an open reminder                                                |
+| `GET hr/time-zone`, `PUT` the same                       | `workforce.enrollment.manage`  | Read or version the pharmacy's HR time zone                                 |
+
+- **Shared core.** The hospital and pharmacy handlers call one credential
+  core. Validation, replay, version checks, the one-pending rule, evidence
+  checks, separation of duties, the subject-conflict check, approval, standing,
+  the register filter, reminder policy, reminder acknowledgement and audit
+  actions are therefore identical. The core takes the establishment the route
+  admitted and an authority for that family.
+- **Kind re-check.** The core requires the admitted establishment kind inside
+  the command, before the per-Staff or per-reminder advisory lock. A hospital
+  route on an ID registered as a pharmacy after admission answers 404 and
+  writes nothing, and the reverse holds.
+- **Authority.** The hospital authority keeps today's checks: the route
+  permission, then the manager row under share lock, which sets
+  `app.workforce_enrollment`. The pharmacy authority from 4a refreshes the
+  session and permissions, requires each permission the route names, then opens
+  the pharmacy transaction under `enrollmentScope`. It never consults HR intake
+  or scoped IAM grants.
+- **Lock order.** Manager row, establishment kind, then the advisory key
+  (`<staff id>` for reviews, shared with enrollment; `credential-reminder-policy`;
+  `credential-reminder:<id>`; `time-zone`). It matches enrollment, so a review
+  and an enrollment save never interleave.
+- **Time zone.** Standing and expiry are calendar dates. A hospital reads its
+  zone from roster settings. A pharmacy has no roster, and its outlets each keep
+  their own zone in PharmaConnect, which Workforce cannot read. The pharmacy HR
+  time zone is therefore a Workforce setting of its own. Without it, standing is
+  `date_unknown`, the expiry filter answers 409 `time_zone_unset`, and the
+  reminder worker waits. A changed zone takes effect on each schedule's next
+  daily wake.
+- **Account assertions.** `X-Helivanta-Expected-Tenant` and
+  `X-Helivanta-Expected-Subject` must each appear once and equal the verified
+  principal; otherwise 409 `session_changed`.
+- **Response.** The same credential, review, register, policy and reminder
+  views as the hospital family. None of them names an establishment ID. The
+  time-zone view is `{version, time_zone?, updated_by_subject?, updated_at?}`.
+- **Audit.** `workforce.credentials.read`, `workforce.credential_review.*`,
+  `workforce.credentials.register_read`,
+  `workforce.credential_reminder_policy.changed`,
+  `workforce.credential_reminders.read`,
+  `workforce.credential_reminder.acknowledged` and
+  `workforce.pharmacy_time_zone.changed` rows are written under the pharmacy ID,
+  in the same transaction as the read or change. The time-zone row carries the
+  previous and new zone.
+- **Events.** An approval on a pharmacy publishes no `enrollment_changed.v1`,
+  as in 4a. `credential_review_changed.v1`, `credential_validity_changed.v1`,
+  `credential_reminder_policy_changed.v1` and `credential_reminder_changed.v1`
+  are published as on a hospital. Their `hospital_id` names the owning
+  establishment row, as `document_changed.v1` does since 4d. Only Workforce
+  consumes them: the validity event starts the reminder schedule. The time-zone
+  setting publishes nothing, because the schedule reads it on each wake.
+
+### Status codes
+
+| Case                                                                                    | Status                    |
+| --------------------------------------------------------------------------------------- | ------------------------- |
+| Unknown, foreign-tenant, hospital or supplier establishment                             | 404                       |
+| No `manager` access row, or the row is removed before the command commits               | 404                       |
+| Staff record, credential, review or reminder missing, or under another establishment    | 404                       |
+| Missing `workforce.enrollment.manage`, or `workforce.credentials.review` on a decision  | 403                       |
+| `hr_intake` requested                                                                   | 400                       |
+| Expected tenant or subject header missing, repeated or different from the session       | 409 `session_changed`     |
+| Invalid number, dates, reason, evidence list, note, thresholds, page limit or time zone | 400                       |
+| Stale version, pending review, unchanged proposal, replay with other input              | 409                       |
+| Self review, a reviewer linked to the Staff record, or a withdrawal by someone else     | 409                       |
+| Evidence not this credential's, not yet released at approval, or credential removed     | 409                       |
+| Expiry filter without a pharmacy time zone                                              | 409 `time_zone_unset`     |
+| Reminder already superseded                                                             | 409 `reminder_superseded` |
+| Registry, database or authorization unavailable                                         | 503                       |
+
+### Data and enforcement
+
+Migration `0100_workforce_pharmacy_credential_reviews` (append-only):
+
+- The `workforce_hospital_establishment` triggers on
+  `workforce_credential_reviews` and `workforce_credential_reminder_policies`
+  move to `workforce_require_enrollment_establishment()`. A supplier or
+  unregistered establishment is still refused.
+- `workforce_credential_validity` and `workforce_credential_reminders` carry no
+  trigger of their own. They are reached through foreign keys to reviews,
+  enrollment credentials and policies, so they admit exactly what those admit.
+- `workforce_roster_credential_standing` is roster data. It gains the hospital
+  guard, and `workforce_roster_standing_sync()` copies a validity row only for a
+  hospital. A pharmacy approval therefore writes no standing row, and a direct
+  pharmacy standing insert is refused.
+- New table `workforce_pharmacy_time_zones(tenant_id, hospital_id, timezone,
+version, updated_by_subject, created_at, updated_at)`, keyed by establishment
+  and referencing `workforce_hospitals`:
+  - a new `workforce_require_pharmacy_establishment()` guard admits only a
+    registered pharmacy;
+  - the zone is checked by the existing `workforce_roster_timezone_valid()`;
+  - identity is immutable and each update advances the version by one;
+  - rows cannot be deleted;
+  - forced RLS requires `workforce_enrollment_allowed`. The reminder worker gets
+    a read-only branch for its one establishment and a column grant on
+    `(tenant_id, hospital_id, timezone)`, exactly as on roster settings.
+- `credentialClock` reads roster settings for a hospital and the pharmacy time
+  zone for a pharmacy. The guards make the two disjoint, so one establishment
+  never has both.
+- The establishment inventory test lists reviews and reminder policies among
+  the enrollment-guarded tables, and validity, reminders and the time-zone
+  table among those a pharmacy writes. The time-zone table is the only table
+  under the pharmacy guard.
+
+The review, validity, policy and reminder RLS policies are already
+establishment-neutral. They require `workforce_enrollment_allowed`, which holds
+only after the manager check sets `app.workforce_enrollment='authorized'` from a
+manager row of that establishment. The subject-conflict function already reads
+a pharmacy's independent login links (0094).
+
+### UI
+
+- Each pharmacy Staff record gains a "Credentials" action, shown when the caller
+  holds `workforce.enrollment.manage` and the manager level. The API remains the
+  boundary.
+- It opens the shared credential panel bound to the pharmacy route family:
+  recorded credentials with standing, proposing a review with the record's
+  credential evidence files from 4d, history and withdrawal. Approve and reject
+  are shown with `workforce.credentials.review` and hidden on the caller's own
+  proposal.
+- The pharmacy employer gains a "Credential register" action with the same
+  gate. It opens the shared register, the reminder inbox and the reminder
+  policy, bound to the pharmacy, plus the pharmacy time-zone setting. The zone
+  is an IANA name checked by the same `isSupportedTimezone` rule as roster
+  settings before saving; the server checks it again.
+- Without a zone, standing reads "Expiry standing needs this pharmacy's time
+  zone" and the expiry filter is disabled with the same reason.
+- A 401, 403, 404 or 409 `session_changed` ends the panel and clears the Staff
+  source with "Your account or Staff access changed", as 4a does. Any other 409
+  keeps the form and its values open and shows the reason.
+
+### Not covered by 4e
+
+- Statutory licence verification with a pharmacy council or registry, and any
+  effect on PharmaConnect pharmacist roles or dispensing authority.
+- Suspending or ending access or employment when a credential expires; that
+  needs effective employment (4c).
+- Roster credential clashes for a pharmacy, which has no roster.
+- Delegated HR intake for a pharmacy.
+- Deployed runtime acceptance and real OIDC browser acceptance.
+
+### Numbers and failure behaviour
+
+- **Load.** Human-paced HR reviews. A proposal body is at most 4 KiB, a decision
+  or withdrawal 2 KiB, and a policy or time-zone body 1 KiB. A review cites 1 to
+  5 files, a policy holds 1 to 6 thresholds, and every list is cursor-bounded at
+  100 rows. A pharmacy holds at most 50,000 Staff. Each approved revision runs
+  one reminder schedule that wakes at most daily.
+- **Failure.** When the database or authorization is unavailable, every route
+  answers 503 and writes nothing. When the reminder worker or Temporal is
+  unavailable, approval still commits and the outbox retries the schedule start.
+  Without a zone the schedule waits and writes nothing.
+- **Rollback.** Revert the code. Restoring the hospital-only guards needs a new
+  forward migration, and only if pharmacy reviews must stop being writable.
+  Existing rows stay as history. The time-zone table stays and is unused.
+- **Rejected alternatives.** Admitting a pharmacy to roster settings would give
+  it week-start and auto-population fields with no roster behind them. Reading
+  an outlet zone from PharmaConnect would cross a module boundary, and a pharmacy
+  with outlets in two zones has no single answer. One handler that looks up the
+  kind would let a hospital-rooted IAM scope reach a pharmacy, as 4b recorded.
+
+### Acceptance tests (red first)
+
+1. A pharmacy manager with `workforce.enrollment.manage` lists an unreviewed
+   credential and proposes a review citing a credential evidence file uploaded
+   through 4d. A second manager with `workforce.credentials.review` approves it
+   once the file is released. The list then shows the reviewed dates and
+   standing in the pharmacy's zone, the enrollment row mirrors them and the
+   Staff version advances. Audit rows name the pharmacy. The outbox holds the
+   review and validity events with the pharmacy ID, and no
+   `enrollment_changed.v1`.
+2. The proposer's own decision, and a decision by the subject linked to that
+   Staff record, answer 409 and write nothing. Withdrawal works for the
+   proposer only, and rejection needs a note. Replays return the same review.
+3. The time zone reads as version 0, saves version 1, replays unchanged, refuses
+   a stale version with 409 and an unsupported zone with 400. Before it is set,
+   standing is `date_unknown` and the expiry filter answers 409
+   `time_zone_unset`; afterwards the filter returns the expiring credential.
+4. A reminder policy is saved; the worker advancing a pharmacy schedule writes
+   the due reminder, which lists, acknowledges and is superseded by the next
+   approval. Without a zone the worker writes nothing and waits.
+5. Without an access row, with a reader row, on a hospital ID, on a supplier ID
+   and on a foreign tenant, every route answers 404. Without the enrollment
+   permission every route answers 403, and a decision without the review
+   permission answers 403. `hr_intake=v1` answers 400, and a changed expected
+   subject answers 409.
+6. A hospital Staff, credential, review or reminder ID under the pharmacy
+   family answers 404, and the reverse holds. A hospital route on an ID
+   registered as a pharmacy after admission answers 404 and writes nothing.
+7. A pharmacy approval writes no roster standing row, a direct pharmacy
+   standing insert and a direct hospital time-zone insert are refused, and a
+   supplier review insert is refused. The inventory test lists the new
+   pharmacy-admitting tables.
+8. The hospital credential, reminder, reminder worker and roster clash suites
+   keep their behaviour.
+9. SDK path and schema tests, and panel tests using `renderWithProviders`, for
+   loading, unset zone, 404, 409, success and the hidden decision on one's own
+   proposal.

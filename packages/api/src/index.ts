@@ -5,6 +5,7 @@ export * from "./documents";
 export * from "./document-classification";
 export * from "./document-queries";
 export * from "./credentials";
+export * from "./credential-queries";
 export * from "./login-links";
 export * from "./staff-membership";
 export * from "./membership-commands";

@@ -399,16 +399,10 @@ func CredentialReminderConsumer(c client.Client) events.Consumer {
 	}
 }
 
-func (h *handlers) getReminderPolicy(c *gin.Context) {
-	p, hospital, ok := scope(c)
-	if !ok {
-		return
-	}
+func (h *handlers) getReminderPolicy(c *gin.Context, t credentialTarget) {
+	p, hospital := t.p, t.owner.id
 	var result credentialReminderPolicy
-	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
-		if err := enrollmentScope(tx, p, hospital); err != nil {
-			return err
-		}
+	err := t.transaction(manageCredentials, "", func(tx *gorm.DB) error {
 		var err error
 		result, err = loadReminderPolicy(tx, p.TenantID, hospital)
 		return err
@@ -420,11 +414,8 @@ func (h *handlers) getReminderPolicy(c *gin.Context) {
 	respond.OK(c, result)
 }
 
-func (h *handlers) putReminderPolicy(c *gin.Context) {
-	p, hospital, ok := scope(c)
-	if !ok {
-		return
-	}
+func (h *handlers) putReminderPolicy(c *gin.Context, t credentialTarget) {
+	p, hospital := t.p, t.owner.id
 	var in credentialReminderPolicyInput
 	if !decodeSized(c, &in, 1024) {
 		return
@@ -436,10 +427,7 @@ func (h *handlers) putReminderPolicy(c *gin.Context) {
 		return
 	}
 	var result credentialReminderPolicy
-	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
-		if err := lockHospitalManager(tx, p, hospital, "app.workforce_enrollment", "credential-reminder-policy"); err != nil {
-			return err
-		}
+	err := t.transaction(manageCredentials, "credential-reminder-policy", func(tx *gorm.DB) error {
 		current, err := loadReminderPolicy(tx, p.TenantID, hospital)
 		if err != nil {
 			return err
@@ -477,11 +465,8 @@ func (h *handlers) putReminderPolicy(c *gin.Context) {
 	respond.OK(c, result)
 }
 
-func (h *handlers) listCredentialReminders(c *gin.Context, params pagination.Params) ([]credentialReminder, error) {
-	p, hospital, ok := scope(c)
-	if !ok {
-		return nil, nil
-	}
+func (h *handlers) listCredentialReminders(c *gin.Context, t credentialTarget, params pagination.Params) ([]credentialReminder, error) {
+	p, hospital := t.p, t.owner.id
 	if params.Limit > 100 {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "Use a page limit no greater than 100.")
 		return nil, nil
@@ -492,10 +477,7 @@ func (h *handlers) listCredentialReminders(c *gin.Context, params pagination.Par
 		return nil, nil
 	}
 	var rows []credentialReminder
-	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
-		if err := enrollmentScope(tx, p, hospital); err != nil {
-			return err
-		}
+	err := t.transaction(manageCredentials, "", func(tx *gorm.DB) error {
 		q := reminderQuery(tx, p.TenantID, hospital).Where("r.status=?", status).Order("r.due_on, r.id").Limit(params.Limit + 1)
 		if params.After != nil {
 			q = q.Where("(r.due_on,r.id) > (?::date,?)", params.After.CreatedAt.UTC().Format(time.DateOnly), params.After.ID)
@@ -520,21 +502,15 @@ func reminderQuery(tx *gorm.DB, tenant string, hospital uuid.UUID) *gorm.DB {
 		Select(credentialReminderColumns).Where("r.tenant_id=? AND r.hospital_id=?", tenant, hospital)
 }
 
-func (h *handlers) acknowledgeCredentialReminder(c *gin.Context) {
-	p, hospital, ok := scope(c)
-	if !ok {
-		return
-	}
+func (h *handlers) acknowledgeCredentialReminder(c *gin.Context, t credentialTarget) {
+	p, hospital := t.p, t.owner.id
 	id, err := uuid.Parse(c.Param("reminder"))
 	if err != nil || id == uuid.Nil {
 		respond.NotFound(c, "reminder")
 		return
 	}
 	var result credentialReminder
-	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
-		if err := lockHospitalManager(tx, p, hospital, "app.workforce_enrollment", "credential-reminder:"+id.String()); err != nil {
-			return err
-		}
+	err = t.transaction(manageCredentials, "credential-reminder:"+id.String(), func(tx *gorm.DB) error {
 		var saved struct {
 			Status          string
 			StaffID         uuid.UUID
@@ -600,6 +576,6 @@ func respondReminderError(c *gin.Context, err error) {
 	case errors.Is(err, errReminderSuperseded), isPG && pg.ConstraintName == "workforce_credential_reminder_closed":
 		respond.ConflictWithDetail(c, "A newer reminder or review replaced this reminder.", gin.H{"reason": "reminder_superseded"})
 	default:
-		respondError(c, err)
+		respondIntakeError(c, err)
 	}
 }

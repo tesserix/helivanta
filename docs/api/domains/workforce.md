@@ -115,6 +115,10 @@ no production activation follows from either source checkpoint.
 
 Workforce publishes metadata-oriented change events for staff enrollment, HR definitions, rosters, leave, exchanges, overtime, attendance, payroll configuration, documents, credentials and benefits. Read exact subjects and consumers from the [registry inventory](../reference/inventory.json) and payload types from `backend/internal/modules/workforce/contract/events.go`; avoid copying their many definitions into another service.
 
+### Hospital names (#1637)
+
+`helivanta.in.workforce.hospital_named.v1` carries `{hospital_id, name, name_version}`. It is sent when a hospital is created and on each name change, once per `name_version` (kept by a database trigger). A background pass (`RunHospitalNameAnnouncer`, every 30 seconds) delivers it, so a name reaches consumers within about 30 seconds, not in the request's transaction. Hospitals that existed before the event was introduced are announced on the pass's first run, so no backfill is needed. Pharmacy and supplier establishments are never announced. The pharmacy module's `pharmacy-hospital-names` consumer keeps the newest version per tenant and discloses a name only on a verified affiliation ([pharmacy](pharmacy.md#hospital-affiliation-verification-1416)).
+
 Document scanning and credential reminders use conditional Temporal consumer bridges. Their presence in documentation means the capability exists in source, not that production has enabled workers. Workflow starts are idempotent, and after-commit retry must still run for already-claimed events. Reminder/roster credential checks do not replace a clinician's authoritative privilege review at the clinical command boundary.
 
 HR pay, health evidence, identifiers and dependent data must not enter commercial CRM, general telemetry or unrestricted support exports. Consumers should retain source IDs/version and fetch only permitted fields under current hospital authority. If a review/statutory policy is missing, deny or show incomplete configuration; do not calculate a plausible default and call it approved payroll.

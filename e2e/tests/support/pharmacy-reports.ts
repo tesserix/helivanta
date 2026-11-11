@@ -19,9 +19,8 @@ export async function affiliatedPatient(admin: Page, cashier: Page, outlet: stri
   const me = await owner<Actor>(cashier, "GET", "/iam/me/permissions");
   const pharmacy = outlet.split("/").at(-3)!;
   const hospitalId = uuidv7();
-  await owner(admin, "PUT", `/workforce/hospitals/${hospitalId}`, {
-    name: `TEST Reports Hospital ${randomUUID().slice(0, 8)}`,
-  });
+  const hospitalName = `TEST Reports Hospital ${randomUUID().slice(0, 8)}`;
+  await owner(admin, "PUT", `/workforce/hospitals/${hospitalId}`, { name: hospitalName });
   const registry = `/patients/hospitals/${hospitalId}/access`;
   await owner(admin, "PUT", `${registry}/${encodeURIComponent(administrator.subject)}`, {
     level: "registrar",
@@ -104,5 +103,11 @@ export async function affiliatedPatient(admin: Page, cashier: Page, outlet: stri
     })
     .toBe(200);
   // The name as patientmaster's lookup shows it.
-  return { patientId: patient.id, mrn: patient.mrn, hospitalId, name: `${given} ${family}` };
+  return {
+    patientId: patient.id,
+    mrn: patient.mrn,
+    hospitalId,
+    hospitalName,
+    name: `${given} ${family}`,
+  };
 }

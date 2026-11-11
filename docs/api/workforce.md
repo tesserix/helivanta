@@ -125,6 +125,59 @@ employment reviews and generations are hospital-only until slice 4c. Migration
 `workforce_employment_period_drafts` and
 `workforce_employment_evidence_bindings`.
 
+### Pharmacy credential reviews and reminders (#19 slice 4e)
+
+Design: [pharmacy HR lifecycle, 4e](../superpowers/specs/2026-11-08-pharmacy-hr-lifecycle.md#4e--pharmacy-credential-reviews-validity-and-reminders)
+and the [plan](../superpowers/plans/2026-11-12-pharmacy-credential-reviews.md).
+
+| Route under `/v1/workforce/pharmacies/:pharmacy`                  | Authorization                                               | Notes                                                              |
+| ----------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------ |
+| `GET staff/:id/credentials`                                       | `workforce.enrollment.manage` and a pharmacy `manager` row  | Standing in the pharmacy time zone; audited                        |
+| `GET staff/:id/credentials/:credential/reviews`                   | Same                                                        | Cursor list of every review, newest first                          |
+| `PUT staff/:id/credentials/:credential/reviews/:review`           | Same                                                        | Proposal citing 1–5 of this credential's scanned or scanning files |
+| `POST staff/:id/credentials/:credential/reviews/:review/decision` | `workforce.credentials.review` and a pharmacy `manager` row | Approve or reject; never by the proposer or a linked subject       |
+| `POST staff/:id/credentials/:credential/reviews/:review/withdraw` | `workforce.enrollment.manage` and a pharmacy `manager` row  | Proposer only                                                      |
+| `GET hr/credentials?expiring_within=`                             | Same                                                        | Register; 409 `time_zone_unset` when filtering without a zone      |
+| `GET`/`PUT hr/credential-reminder-policy`                         | Same                                                        | As the hospital policy                                             |
+| `GET hr/credential-reminders`, `POST …/:reminder/acknowledgement` | Same                                                        | As the hospital inbox                                              |
+| `GET`/`PUT hr/time-zone`                                          | Same                                                        | `{version: 0}` before a save; `{expected_version, time_zone}`      |
+
+Both account assertion headers must appear once and match the session, or the
+route answers 409 `session_changed`; `hr_intake` answers 400. The hospital and
+pharmacy families run one credential core, so validation, replay, separation of
+duties, version checks and audit actions are the same as
+[credential validity reviews](#credential-validity-reviews) and
+[renewal reminders](#credential-renewal-reminders). The core re-checks the
+admitted establishment kind inside the command, so a hospital route on an ID
+registered as a pharmacy after admission answers 404 and writes nothing.
+Hospital Staff, credential, review and reminder IDs answer 404 on pharmacy
+routes, and pharmacy IDs on hospital routes. Hospital routes keep their paths,
+permissions and no-header requests.
+
+A pharmacy has no roster, so its own HR time zone decides standing, the
+register filter and the reminder date. The `PUT` validates the zone like roster
+settings (400), returns the row unchanged for the same zone at the current
+version, and answers 409 `version_conflict` for any other stale version. It is
+audited as `workforce.pharmacy_time_zone.changed` with the previous and new
+zone, and publishes no event. Until a zone is saved, standing is `date_unknown`,
+the filter answers 409 `time_zone_unset` with "Set this pharmacy's time zone
+before filtering by expiry." and the reminder worker writes nothing. A changed
+zone reaches reminders within a day.
+
+The four credential events keep their payloads; `hospital_id` names the owning
+establishment, which is the pharmacy here. An approval publishes no
+`enrollment_changed.v1` and writes no roster standing, and it grants no
+PharmaConnect role, pharmacist authority or dispensing permission. Licence
+verification with a pharmacy council and expiry effects on employment or access
+are not covered. Migration `0100_workforce_pharmacy_credential_reviews` admits
+a pharmacy in reviews, reminder policies, validity and reminders, keeps roster
+standing hospital-only, and adds `workforce_pharmacy_time_zones`.
+
+On `/pharmacy/staff`, a manager holding `workforce.enrollment.manage` sees
+Credentials on each Staff row and a Credential register for the pharmacy, with
+the time-zone form, register and reminder inbox. A 401, 403, 404 or 409
+`session_changed` or `workspace_changed` ends the panel and clears the source.
+
 ## Scoped employment-review workspace
 
 The normal HR preparation and independent-review workspace uses these additive

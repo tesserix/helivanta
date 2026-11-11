@@ -442,6 +442,8 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	pharmacies.PUT("/:pharmacy/hr/credential-reminder-policy", PermEnrollmentManage, credentialRoute(h.pharmacyCredentials, h.putReminderPolicy))
 	platform.ListRoute(pharmacies, "/:pharmacy/hr/credential-reminders", PermEnrollmentManage, credentialListRoute(h.pharmacyCredentials, h.listCredentialReminders))
 	pharmacies.POST("/:pharmacy/hr/credential-reminders/:reminder/acknowledgement", PermEnrollmentManage, credentialRoute(h.pharmacyCredentials, h.acknowledgeCredentialReminder))
+	pharmacies.GET("/:pharmacy/hr/time-zone", PermEnrollmentManage, credentialRoute(h.pharmacyCredentials, h.getPharmacyTimeZone))
+	pharmacies.PUT("/:pharmacy/hr/time-zone", PermEnrollmentManage, credentialRoute(h.pharmacyCredentials, h.putPharmacyTimeZone))
 	platform.ScopedHospitalQueryListRoute(g, "/:hospital/posting-supervisor-choices", PermPostingRead, "hospital", "purpose", "", postingInboxLimit, h.listPostingSupervisorChoices)
 	platform.HandlerScopedQueryListRoute(g, "/:hospital/department-team", PermPostingProposalRead, "hospital", []platform.QueryFilter{{Key: "department"}}, postingInboxLimit, h.listDepartmentTeam)
 	platform.HandlerScopedQueryListRoute(g, "/:hospital/posting-proposal-inbox", PermPostingProposalRead, "hospital", []platform.QueryFilter{{Key: "status", Default: "pending"}, {Key: "department"}}, postingInboxLimit, h.listPostingProposalInbox)

@@ -235,3 +235,31 @@ export const credentialReminderContract = z
   })
   .strict();
 export type CredentialReminder = z.infer<typeof credentialReminderContract>;
+
+export const pharmacyTimeZoneInputContract = z
+  .object({
+    expected_version: z.number().int().min(0),
+    time_zone: z
+      .string()
+      .min(1)
+      .max(64)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type PharmacyTimeZoneInput = z.infer<typeof pharmacyTimeZoneInputContract>;
+
+export const pharmacyTimeZoneContract = z
+  .object({
+    version: z.number().int(),
+    time_zone: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    updated_by_subject: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    updated_at: z.string().datetime({ offset: true }).optional(),
+  })
+  .strict();
+export type PharmacyTimeZone = z.infer<typeof pharmacyTimeZoneContract>;

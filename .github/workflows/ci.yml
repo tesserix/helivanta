@@ -488,6 +488,8 @@ jobs:
             fi
             sleep 1
           done
+      - name: Verify real native missing-user proof
+        run: HELIVANTA_ENV=dev python3 scripts/ci/check-identity-owner-fixture.py
       - name: Seed synthetic clinical browser fixture
         run: make seed-e2e-clinical
       - name: Start synthetic UPI provider and real scoped OpenBao

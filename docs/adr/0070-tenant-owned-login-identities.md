@@ -200,3 +200,10 @@ seeding tenant-owned users; legacy memberships across both seeded tenants remain
 explicit test fixtures. Production uses its existing private destination and
 projected workload token. Neither fixture path fabricates signup completion,
 mail delivery or production data.
+
+An absent native identity requires typed native error evidence as well as404.
+The owner recognises the pinned GetUserByID not-found detail, checked against
+native fork29986e1b8b3e606d20871a2e73874b91f9b5b695. Generic gateway404s, empty
+bodies, another native error and malformed/duplicate proof are unavailable,
+preventing an endpoint outage from revoking valid users. The real owner/native
+CI preflight covers an absent synthetic subject before browser acceptance.

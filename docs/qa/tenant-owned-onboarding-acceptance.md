@@ -124,3 +124,9 @@ acceptance. These commands create no provider account or staff invitation.
   with `identityfixture` only. These are CI instructions, not evidence that local
   applications or containers were run during this task. The fixture cannot
   exercise real signup, mail, policy reconciliation or production credentials.
+- Missing-user acceptance must distinguish a real native GetUserByID error from
+  a gateway404. The owner accepts only the pinned native user-not-found detail;
+  empty/HTML/generic404, wrong error kind and duplicate proof fields remain
+  unavailable. CI runs `scripts/ci/check-identity-owner-fixture.py` through the
+  real local owner/native service before browser tests. A native upgrade must
+  reverify that proof contract; HTTP status alone is insufficient.

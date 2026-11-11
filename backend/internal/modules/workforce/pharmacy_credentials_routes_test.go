@@ -8,22 +8,48 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
+	"gorm.io/gorm"
+
 	"github.com/tesserix/helivanta/internal/modules/workforce" //nolint:depguard // module under test
+	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
 )
 
 type pharmacyCredentials struct{ *pharmacyDocuments }
 
-// newPharmacyCredentials adds "reviewer", a second pharmacy manager who may decide credential reviews.
+// newPharmacyCredentials adds pharmacy managers who may decide reviews: "reviewer", "independent" and "linked".
 func newPharmacyCredentials(t *testing.T) *pharmacyCredentials {
 	t.Helper()
+	review := []authz.Permission{workforce.PermEnrollmentManage, workforce.PermCredentialReview}
 	d := newPharmacyDocumentsWith(t, true, map[string][]authz.Permission{
-		"reader":   {workforce.PermEnrollmentManage, workforce.PermCredentialReview},
-		"outsider": {workforce.PermEnrollmentManage, workforce.PermCredentialReview},
-		"reviewer": {workforce.PermEnrollmentManage, workforce.PermDocumentManage, workforce.PermCredentialReview},
+		"reader":      review,
+		"outsider":    review,
+		"independent": review,
+		"linked":      review,
+		"reviewer":    {workforce.PermEnrollmentManage, workforce.PermDocumentManage, workforce.PermCredentialReview},
 	})
-	grant(t, d.establishmentHarness, d.pharmacy, "user-reviewer", "manager")
+	for _, subject := range []string{"user-reviewer", "user-independent", "user-linked"} {
+		grant(t, d.establishmentHarness, d.pharmacy, subject, "manager")
+	}
 	return &pharmacyCredentials{d}
+}
+
+func (d *pharmacyCredentials) decide(t *testing.T, token, review string, version int, decision, note string) (int, map[string]any) {
+	t.Helper()
+	return d.call(t, token, "POST", pharmacyReviewPath(review, "/decision"), map[string]any{"expected_version": version, "decision": decision, "note": note})
+}
+
+// link binds subject to the harness pharmacist as a pending independent login, as 4c's association will.
+func (d *pharmacyCredentials) link(t *testing.T, subject string) {
+	t.Helper()
+	version := d.enrollment(t)["version"]
+	require.NoError(t, d.tx(t, d.pharmacy, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.workforce_login_link_access','authorized',true),set_config('app.workforce_login_link_command','manage',true)`).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`INSERT INTO workforce_login_links(tenant_id,hospital_id,staff_id,id,subject,status,version,proposed_by_subject,proposal_reason,actor_subject,reason,independent_staff_version) VALUES(?,?,?,?,?,'pending',1,'user-admin','Synthetic link','user-admin','Synthetic link',?)`,
+			testutil.TenantA, d.pharmacy, d.staff, uuid.Must(uuid.NewV7()).String(), subject, version).Error
+	}))
 }
 
 func (d *pharmacyCredentials) send(t *testing.T, token, method, rest string, body any) *httptest.ResponseRecorder {
@@ -149,4 +175,58 @@ func TestPharmacyCredentialReviewLifecycle(t *testing.T) {
 		outboxPayloads(t, h.db, workforce.CredentialValidityChanged))
 	require.Equal(t, enrollmentEvents, h.count(t, d.pharmacy, "outbox_events", "subject=?", workforce.EnrollmentChanged), "the hospital enrollment event never carries a pharmacy")
 	require.Zero(t, h.count(t, d.pharmacy, "workforce_roster_credential_standing", "hospital_id=?", d.pharmacy), "roster standing stays hospital-only")
+}
+
+func TestPharmacyCredentialReviewNeedsAnIndependentSecondPerson(t *testing.T) {
+	d := newPharmacyCredentials(t)
+	h := d.establishmentHarness
+	file := d.evidence(t)
+	review := uuid.Must(uuid.NewV7()).String()
+	body := reviewBody(0, "2031-12-31", file)
+	code, saved := d.call(t, "reviewer", "PUT", pharmacyReviewPath(review, ""), body)
+	require.Equal(t, 200, code, saved)
+	code, replay := d.call(t, "reviewer", "PUT", pharmacyReviewPath(review, ""), body)
+	require.Equal(t, 200, code, replay)
+	require.Equal(t, saved["created_at"], replay["created_at"], "identical replay returns the saved review")
+	code, out := d.call(t, "reviewer", "PUT", pharmacyReviewPath(review, ""), reviewBody(0, "2032-12-31", file))
+	require.Equal(t, 409, code, out)
+	require.Equal(t, "review_conflict", out["reason"])
+
+	for _, decision := range []string{"approve", "reject"} {
+		code, out = d.decide(t, "reviewer", review, 0, decision, "Synthetic own decision")
+		require.Equal(t, 409, code, out)
+		require.Equal(t, "self_review", out["reason"], "the proposer never decides")
+	}
+	code, out = d.decide(t, "admin", review, 0, "approve", "")
+	require.Equal(t, 403, code, out, "a manager without the review permission cannot decide")
+	code, out = d.decide(t, "independent", review, 1, "approve", "")
+	require.Equal(t, 409, code, out)
+	require.Equal(t, "version_conflict", out["reason"])
+	code, out = d.call(t, "admin", "POST", pharmacyReviewPath(review, "/withdraw"), map[string]any{"note": ""})
+	require.Equal(t, 409, code, out)
+	require.Equal(t, "not_proposer", out["reason"])
+	code, out = d.decide(t, "independent", review, 0, "reject", " ")
+	require.Equal(t, 400, code, out, "rejecting needs a note")
+
+	d.link(t, "user-linked")
+	for _, decision := range []string{"approve", "reject"} {
+		code, out = d.decide(t, "linked", review, 0, decision, "Synthetic linked decision")
+		require.Equal(t, 409, code, out)
+		require.Equal(t, "self_review", out["reason"], "a login linked to the Staff member never decides their credential")
+	}
+	require.Empty(t, outboxPayloads(t, h.db, workforce.CredentialValidityChanged), "refused decisions publish no validity change")
+	require.Zero(t, h.count(t, d.pharmacy, "workforce_audit", "hospital_id=? AND action IN ('workforce.credential_review.approved','workforce.credential_review.rejected')", d.pharmacy))
+	_, cred := d.credential(t)
+	require.Equal(t, review, cred["pending"].(map[string]any)["id"], "the review is still waiting")
+
+	code, out = d.decide(t, "independent", review, 0, "approve", "Synthetic certificate checked")
+	require.Equal(t, 200, code, out)
+	require.Equal(t, "user-independent", out["decided_by_subject"])
+	code, again := d.decide(t, "independent", review, 0, "approve", "Synthetic certificate checked")
+	require.Equal(t, 200, code, again)
+	require.Equal(t, out["decided_at"], again["decided_at"], "an identical decision replay changes nothing")
+	code, again = d.decide(t, "independent", review, 0, "reject", "Synthetic change of mind")
+	require.Equal(t, 409, code, again)
+	require.Equal(t, "not_pending", again["reason"])
+	require.Len(t, outboxPayloads(t, h.db, workforce.CredentialValidityChanged), 1)
 }

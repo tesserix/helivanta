@@ -1,8 +1,10 @@
 package workforce_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -14,7 +16,9 @@ import (
 
 	"github.com/tesserix/helivanta/internal/modules/workforce" //nolint:depguard // module under test
 	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
+	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authz"
 )
 
@@ -23,7 +27,7 @@ type pharmacyCredentials struct {
 	reviewed int
 }
 
-// newPharmacyCredentials adds pharmacy managers who may decide reviews: "reviewer", "independent" and "linked"; "documents" manages without enrollment.
+// newPharmacyCredentials adds pharmacy managers who may decide reviews: "reviewer", "independent" and "linked"; "documents" manages without enrollment; "roster" sets a hospital's roster zone.
 func newPharmacyCredentials(t *testing.T) *pharmacyCredentials {
 	t.Helper()
 	review := []authz.Permission{workforce.PermEnrollmentManage, workforce.PermCredentialReview}
@@ -35,6 +39,7 @@ func newPharmacyCredentials(t *testing.T) *pharmacyCredentials {
 		"documents":   {workforce.PermDocumentManage},
 		"foreign":     {workforce.PermHospitalManage, workforce.PermEnrollmentManage, workforce.PermDocumentManage, workforce.PermCredentialReview},
 		"reviewer":    {workforce.PermEnrollmentManage, workforce.PermDocumentManage, workforce.PermCredentialReview},
+		"roster":      {workforce.PermRosterManage},
 	})
 	for _, subject := range []string{"user-reviewer", "user-independent", "user-linked", "user-documents"} {
 		grant(t, d.establishmentHarness, d.pharmacy, subject, "manager")
@@ -601,4 +606,160 @@ func TestPharmacyCredentialRoutesRefuseCallersOutsideTheirAuthority(t *testing.T
 		require.Equal(t, route.control, w.Code, "%s: %s", route.name, w.Body.String())
 	}
 	require.EqualValues(t, 1, h.count(t, d.pharmacy, "workforce_credential_reviews", "hospital_id=? AND id=? AND status='pending'", d.pharmacy, review), "the conflicting controls leave the review pending")
+}
+
+// hospitalCredential gives a hospital nurse an approved validity with one open reminder, then a pending review, through the hospital family.
+func (d *pharmacyCredentials) hospitalCredential(t *testing.T, day func(int) string) (staff, credential, pending, reminder string) {
+	t.Helper()
+	h := d.establishmentHarness
+	base := "/v1/workforce/hospitals/" + h.hospital
+	do := func(token, method, path, body string, want int) map[string]any {
+		t.Helper()
+		w := testutil.Do(h.router, method, base+path, token, body)
+		require.Equal(t, want, w.Code, "%s %s: %s", method, path, w.Body.String())
+		var out map[string]any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &out), w.Body.String())
+		return out
+	}
+	for _, subject := range []string{"user-reviewer", "user-roster"} {
+		do("admin", "PUT", "/access/"+subject, `{"level":"manager"}`, 200)
+	}
+	staff, credential = uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
+	do("admin", "PUT", "/staff/"+staff+"/enrollment", `{"expected_version":0,"staff":{"employee_code":"SYN-HOSPITAL-CRED","display_name":"Synthetic nurse","job_category":"nurse","employment_status":"active"},"credentials":[{"id":"`+credential+`","type":"registration","number":"SYN-NURSE-1","issuer":"Synthetic nursing council"}]}`, 200)
+	do("roster", "PUT", "/hr/roster-settings", `{"expected_version":0,"timezone":"Asia/Kolkata","week_start":0,"auto_population":"fixed_shift","effective_on":"2026-10-19","reviewed":true}`, 200)
+	do("admin", "PUT", "/hr/credential-reminder-policy", `{"expected_version":0,"thresholds":[30,7,0]}`, 200)
+	evidence := func() string {
+		file := uuid.Must(uuid.NewV7()).String()
+		path := base + "/staff/" + staff + "/documents/" + file
+		w := testutil.Do(h.router, "PUT", path, "admin", d.intent("credential", credential, "credential_evidence"))
+		require.Equal(t, 201, w.Code, w.Body.String())
+		req := httptest.NewRequest("PUT", path+"/content", bytes.NewReader(d.content))
+		req.Header.Set("Authorization", "Bearer admin")
+		req.Header.Set("Content-Type", "image/png")
+		w = httptest.NewRecorder()
+		h.router.ServeHTTP(w, req)
+		require.Equal(t, 202, w.Code, w.Body.String())
+		scanner, err := attachments.NewClamAV(testinfra.ClamAVProtocol(t, cleanScan), time.Second, attachments.MaxFileBytes)
+		require.NoError(t, err)
+		processor, err := workforce.NewDocumentProcessor(t.Context(), d.worker, d.files, scanner)
+		require.NoError(t, err)
+		status, err := processor.Process(t.Context(), workforcecontract.DocumentScanInput{TenantID: testutil.TenantA, HospitalID: h.hospital, StaffID: staff, FileID: file, ScanAttempt: 1})
+		require.NoError(t, err)
+		require.Equal(t, "available", status)
+		return file
+	}
+	reviews := "/staff/" + staff + "/credentials/" + credential + "/reviews/"
+	approved, body := uuid.Must(uuid.NewV7()).String(), reviewBody(0, day(10), evidence())
+	body["valid_from"] = day(-400)
+	do("admin", "PUT", reviews+approved, string(mustJSON(t, body)), 200)
+	do("reviewer", "POST", reviews+approved+"/decision", `{"expected_version":0,"decision":"approve","note":""}`, 200)
+	advancer, err := workforce.NewCredentialReminderAdvancer(t.Context(), d.worker)
+	require.NoError(t, err)
+	_, err = advancer.Advance(t.Context(), workforcecontract.CredentialReminderInput{TenantID: testutil.TenantA, HospitalID: h.hospital, StaffID: staff, CredentialID: credential, Version: 1})
+	require.NoError(t, err)
+	open := do("admin", "GET", "/hr/credential-reminders?status=open", "", 200)["data"].([]any)
+	require.Len(t, open, 1)
+	pending = uuid.Must(uuid.NewV7()).String()
+	do("admin", "PUT", reviews+pending, string(mustJSON(t, reviewBody(1, day(300), evidence()))), 200)
+	return staff, credential, pending, open[0].(map[string]any)["id"].(string)
+}
+
+// A record ID is found only under the family and establishment that keep it, whichever family names it.
+func TestPharmacyCredentialRecordsStayInTheirFamily(t *testing.T) {
+	d := newPharmacyCredentials(t)
+	h := d.establishmentHarness
+	day := d.days(t, "Asia/Kolkata")
+	d.approve(t, day(-400), day(10))
+	code, out := d.hr(t, "admin", "PUT", "/time-zone", map[string]any{"expected_version": 0, "time_zone": "Asia/Kolkata"})
+	require.Equal(t, 200, code, out)
+	code, out = d.hr(t, "admin", "PUT", "/credential-reminder-policy", map[string]any{"expected_version": 0, "thresholds": []int{30, 7, 0}})
+	require.Equal(t, 200, code, out)
+	d.advance(t, d.reviewed)
+	open := d.reminders(t, "open")
+	require.Len(t, open, 1)
+	pharmacyReminder, pharmacyPending := open[0]["id"].(string), uuid.Must(uuid.NewV7()).String()
+	code, out = d.call(t, "admin", "PUT", pharmacyReviewPath(pharmacyPending, ""), reviewBody(d.reviewed, day(300), d.evidence(t)))
+	require.Equal(t, 200, code, out)
+	hospitalStaff, hospitalCredential, hospitalPending, hospitalReminder := d.hospitalCredential(t, day)
+
+	proposal := string(mustJSON(t, reviewBody(d.reviewed, day(300), d.evidence(t))))
+	decision, withdrawal := `{"expected_version":1,"decision":"approve","note":""}`, `{"note":""}`
+	type call struct{ token, method, path, body string }
+	staffCalls := func(staff, credential, review string) []call {
+		path := staff + "/credentials/" + credential + "/reviews"
+		return []call{
+			{"admin", "GET", path, ""},
+			{"admin", "PUT", path + "/" + uuid.Must(uuid.NewV7()).String(), proposal},
+			{"reviewer", "POST", path + "/" + review + "/decision", decision},
+			{"admin", "POST", path + "/" + review + "/withdraw", withdrawal},
+		}
+	}
+	// Each family's own ID with the other's Staff, credential, review or reminder, then each family's routes on the other's ID.
+	families := map[string]struct {
+		send  func(token, method, path, body string) *httptest.ResponseRecorder
+		calls []call
+	}{
+		"the pharmacy family": {func(token, method, path, body string) *httptest.ResponseRecorder {
+			return pharmacyRequest(h, token, method, path, body)
+		}, slices.Concat(
+			staffCalls(d.pharmacy+"/staff/"+d.staff, hospitalCredential, hospitalPending),
+			staffCalls(d.pharmacy+"/staff/"+d.staff, pharmacyCredentialID, hospitalPending)[2:],
+			staffCalls(d.pharmacy+"/staff/"+hospitalStaff, hospitalCredential, hospitalPending),
+			[]call{{"admin", "POST", d.pharmacy + "/hr/credential-reminders/" + hospitalReminder + "/acknowledgement", ""}},
+		)},
+		"the hospital family": {func(token, method, path, body string) *httptest.ResponseRecorder {
+			return testutil.Do(h.router, method, "/v1/workforce/hospitals/"+path, token, body)
+		}, slices.Concat(
+			staffCalls(h.hospital+"/staff/"+hospitalStaff, pharmacyCredentialID, pharmacyPending),
+			staffCalls(h.hospital+"/staff/"+hospitalStaff, hospitalCredential, pharmacyPending)[2:],
+			staffCalls(h.hospital+"/staff/"+d.staff, pharmacyCredentialID, pharmacyPending),
+			staffCalls(d.pharmacy+"/staff/"+d.staff, pharmacyCredentialID, pharmacyPending),
+			[]call{
+				{"admin", "GET", h.hospital + "/staff/" + d.staff + "/credentials", ""},
+				{"admin", "GET", d.pharmacy + "/staff/" + d.staff + "/credentials", ""},
+				{"admin", "POST", h.hospital + "/hr/credential-reminders/" + pharmacyReminder + "/acknowledgement", ""},
+				{"admin", "POST", d.pharmacy + "/hr/credential-reminders/" + pharmacyReminder + "/acknowledgement", ""},
+				{"admin", "GET", d.pharmacy + "/hr/credentials", ""},
+				{"admin", "GET", d.pharmacy + "/hr/credential-reminders", ""},
+				{"admin", "GET", d.pharmacy + "/hr/credential-reminder-policy", ""},
+				{"admin", "PUT", d.pharmacy + "/hr/credential-reminder-policy", `{"expected_version":1,"thresholds":[60,0]}`},
+			},
+		)},
+	}
+	writes := func() []int64 {
+		counts := []int64{}
+		for _, establishment := range []string{d.pharmacy, h.hospital} {
+			counts = append(counts, h.count(t, establishment, "workforce_audit", "hospital_id=?", establishment),
+				h.count(t, establishment, "workforce_credential_reviews", "hospital_id=? AND status='pending'", establishment),
+				h.count(t, establishment, "workforce_credential_reminders", "hospital_id=? AND status='open'", establishment))
+		}
+		return append(counts, h.count(t, d.pharmacy, "outbox_events", "tenant_id=?", testutil.TenantA))
+	}
+	before := writes()
+	for name, family := range families {
+		for _, c := range family.calls {
+			t.Run(name+" "+c.method+" "+c.path, func(t *testing.T) {
+				w := family.send(c.token, c.method, c.path, c.body)
+				require.Equal(t, 404, w.Code, w.Body.String())
+				require.NotContains(t, w.Body.String(), "SYN-RENEWED")
+			})
+		}
+	}
+	require.Equal(t, before, writes(), "no cross-family call reads or writes anything")
+
+	// The same IDs answer under their own family, so every refusal above is the family boundary.
+	for _, control := range []struct {
+		send              func(token, method, path, body string) *httptest.ResponseRecorder
+		reviews, reminder string
+	}{
+		{families["the pharmacy family"].send, d.pharmacy + "/staff/" + d.staff + "/credentials/" + pharmacyCredentialID + "/reviews/" + pharmacyPending, d.pharmacy + "/hr/credential-reminders/" + pharmacyReminder},
+		{families["the hospital family"].send, h.hospital + "/staff/" + hospitalStaff + "/credentials/" + hospitalCredential + "/reviews/" + hospitalPending, h.hospital + "/hr/credential-reminders/" + hospitalReminder},
+	} {
+		w := control.send("admin", "POST", control.reviews+"/withdraw", withdrawal)
+		require.Equal(t, 200, w.Code, w.Body.String())
+		require.Contains(t, w.Body.String(), `"status":"withdrawn"`)
+		w = control.send("admin", "POST", control.reminder+"/acknowledgement", "")
+		require.Equal(t, 200, w.Code, w.Body.String())
+		require.Contains(t, w.Body.String(), `"status":"acknowledged"`)
+	}
 }

@@ -119,7 +119,7 @@ func (h *membershipCommandHandlers) enroll(c *gin.Context) {
 		membershipCommandError(c, errMembershipAuthority)
 		return
 	}
-	eligible, err := h.identity.MembershipEligible(ctx, in.Subject)
+	eligible, err := h.identity.MembershipEligible(ctx, p.TenantID, in.Subject)
 	if err != nil {
 		membershipCommandError(c, errMembershipAuthority)
 		return

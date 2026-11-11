@@ -180,7 +180,7 @@ it("preserves a branch address in a different supported state", async () => {
   );
 });
 
-it("continues a retained signup through fresh native authentication", async () => {
+it("requires a fresh tenant account instead of offering cross-organisation account adoption", async () => {
   vi.stubGlobal(
     "fetch",
     vi
@@ -191,15 +191,12 @@ it("continues a retained signup through fresh native authentication", async () =
   );
   renderWithProviders(<SignupForm />);
   expect(await screen.findByRole("heading", { name: "Verify your account" })).toHaveFocus();
-  await userEvent
-    .setup()
-    .click(screen.getByRole("button", { name: "Continue with an existing account" }));
-  expect(signinRedirect).toHaveBeenCalledWith({
-    state: { purpose: "customer-signup" },
-    prompt: "login",
-    max_age: 0,
-  });
+  expect(
+    screen.queryByRole("button", { name: "Continue with an existing account" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByText(/separate login for this workspace/i)).toBeVisible();
   expect(screen.getByRole("button", { name: "Resend verification email" })).toBeVisible();
+  expect(signinRedirect).not.toHaveBeenCalled();
 });
 
 it("opens the newly created workspace using its exact tenant", async () => {
@@ -223,7 +220,45 @@ it("opens the newly created workspace using its exact tenant", async () => {
   await userEvent.setup().click(await screen.findByRole("button", { name: "Open workspace" }));
   expect(signinRedirect).toHaveBeenCalledWith({
     state: { purpose: "customer-signup-login", tenantId },
+    scope: `openid profile email urn:zitadel:iam:org:id:helivanta-${tenantId}`,
     prompt: "login",
     max_age: 0,
   });
+});
+
+it("starts a separate blank signup without deleting the existing workspace", async () => {
+  let fresh = false;
+  const posts: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        posts.push(path);
+        expect(JSON.parse(String(init.body))).toEqual({});
+        fresh = true;
+      }
+      return new Response(
+        JSON.stringify(
+          fresh
+            ? { state: "not_started" }
+            : {
+                state: "ready",
+                name: "Existing hospital",
+                kind: "hospital",
+                tenantId: "11111111-1111-4111-8111-111111111111",
+                resourceId: "0199e000-0000-7000-8000-000000000010",
+              },
+        ),
+        { status: 200 },
+      );
+    }),
+  );
+  renderWithProviders(<SignupForm />);
+  await userEvent
+    .setup()
+    .click(await screen.findByRole("button", { name: "Create another workspace" }));
+  expect(await screen.findByRole("heading", { name: "Create your workspace" })).toBeVisible();
+  expect(screen.getByLabelText("Owner email")).toHaveValue("");
+  expect(screen.getByLabelText("Organisation name")).toHaveValue("");
+  expect(posts).toEqual(["/api/v1/auth/signup/new"]);
 });

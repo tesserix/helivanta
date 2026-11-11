@@ -128,6 +128,19 @@ describe("LoginPage", () => {
     window.history.pushState({}, "", "/login");
   });
 
+  it("pins a workspace link to its exact native organisation", async () => {
+    const tenant = "11111111-1111-4111-8111-111111111111";
+    window.history.pushState({}, "", `/login?workspace=${tenant}`);
+    renderWithProviders(<LoginPage />);
+    await userEvent.setup().click(screen.getByRole("button", { name: "Sign in" }));
+    expect(signinRedirect).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: "login",
+        scope: `openid profile email urn:zitadel:iam:org:id:helivanta-${tenant}`,
+      }),
+    );
+  });
+
   describe("with no auth request (landing page)", () => {
     // Arriving here unauthenticated is the COMMON case — middleware.ts
     // redirects any unauthenticated request to /login — so the default

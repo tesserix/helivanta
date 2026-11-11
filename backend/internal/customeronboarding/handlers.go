@@ -27,10 +27,11 @@ import (
 const cookieName = "__Host-helivanta-signup"
 
 type Handlers struct {
-	origin    string
-	base      string
-	tokenFile string
-	client    *http.Client
+	localIdentityFixture bool
+	origin               string
+	base                 string
+	tokenFile            string
+	client               *http.Client
 }
 
 // New accepts only the owned private onboarding origin and public browser origin.

@@ -61,6 +61,7 @@ import {
   verifyPasswordLogin,
 } from "./lib/zitadel.mjs";
 import { generateTOTP } from "./lib/totp.mjs";
+import { ensureTenantIdentityFixtures } from "./lib/tenant-identity-fixture.mjs";
 
 const ISSUER = process.env.ZITADEL_ISSUER_URL ?? "http://auth.tesserix.localhost:20080";
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
@@ -172,6 +173,7 @@ async function ensureUser(pat, email) {
   try {
     const created = await managementAPI(ISSUER, pat, "/v2/users/human", {
       username: email,
+      organization: { orgId: `helivanta-${TENANT_ID}` },
       profile: profileFor(email),
       email: { email, isVerified: true },
       password: { password: PASSWORD, changeRequired: false },
@@ -277,6 +279,12 @@ async function ensureTOTPEnrolled(pat, userId, email) {
 async function main() {
   const pat = readMachinePAT();
   const loginClientPAT = readLoginClientPAT();
+  const identityManifest = await ensureTenantIdentityFixtures({ issuer: ISSUER, pat });
+  writeFileSync(
+    new URL("../dev/zitadel/secrets/identity-fixture.json", import.meta.url),
+    JSON.stringify(identityManifest),
+    { mode: 0o600 },
+  );
   const { Client } = await import("pg");
   const pg = new Client({
     connectionString:

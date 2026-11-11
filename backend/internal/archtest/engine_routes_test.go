@@ -51,7 +51,7 @@ func TestEveryEngineRouteIsDeclaredOrAllowlisted(t *testing.T) {
 	// stop pinning them.
 	stub := func(c *gin.Context) { c.Status(http.StatusOK) }
 	bootstrap.MountUnauthenticated(srv.Engine, stub, stub, stub, stub, stub, stub, stub, stub)
-	bootstrap.MountCustomerSignup(srv.Engine, stub, stub, stub, stub, stub, stub, stub)
+	bootstrap.MountCustomerSignup(srv.Engine, stub, stub, stub, stub, stub, stub, stub, stub)
 
 	declared := map[string]bool{}
 	for _, dr := range api.Declared() {
@@ -97,7 +97,7 @@ func TestUnauthenticatedAllowlistHasNoDeadEntries(t *testing.T) {
 	// stop pinning them.
 	stub := func(c *gin.Context) { c.Status(http.StatusOK) }
 	bootstrap.MountUnauthenticated(srv.Engine, stub, stub, stub, stub, stub, stub, stub, stub)
-	bootstrap.MountCustomerSignup(srv.Engine, stub, stub, stub, stub, stub, stub, stub)
+	bootstrap.MountCustomerSignup(srv.Engine, stub, stub, stub, stub, stub, stub, stub, stub)
 
 	onEngine := map[string]bool{}
 	for _, r := range srv.Engine.Routes() {

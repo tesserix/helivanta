@@ -218,28 +218,33 @@ describe("AuthCallbackPage", () => {
     vi.unstubAllGlobals();
   });
 
-  it("opens the explicitly selected new workspace after signup", async () => {
-    const tenantId = "11111111-1111-4111-8111-111111111111";
-    signinRedirectCallback.mockResolvedValue({
-      id_token: "native-signup-proof",
-      state: { purpose: "customer-signup-login", tenantId },
-    });
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn()
-        .mockResolvedValue(new Response(JSON.stringify({ tenant_id: tenantId }), { status: 200 })),
-    );
-    render(<AuthCallbackPage />);
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/dashboard"));
-    expect(fetch).toHaveBeenCalledWith(
-      "/api/v1/auth/login",
-      expect.objectContaining({
-        body: JSON.stringify({ id_token: "native-signup-proof", tenant_id: tenantId }),
-      }),
-    );
-    vi.unstubAllGlobals();
-  });
+  it.each(["customer-signup-login", "workspace-login"])(
+    "opens the exact workspace for %s",
+    async (purpose) => {
+      const tenantId = "11111111-1111-4111-8111-111111111111";
+      signinRedirectCallback.mockResolvedValue({
+        id_token: "native-signup-proof",
+        state: { purpose, tenantId },
+      });
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn()
+          .mockResolvedValue(
+            new Response(JSON.stringify({ tenant_id: tenantId }), { status: 200 }),
+          ),
+      );
+      render(<AuthCallbackPage />);
+      await waitFor(() => expect(replace).toHaveBeenCalledWith("/dashboard"));
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/v1/auth/login",
+        expect.objectContaining({
+          body: JSON.stringify({ id_token: "native-signup-proof", tenant_id: tenantId }),
+        }),
+      );
+      vi.unstubAllGlobals();
+    },
+  );
 
   it("keeps a refused signup on the error screen without minting a tenant session", async () => {
     signinRedirectCallback.mockResolvedValue({

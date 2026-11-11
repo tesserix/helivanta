@@ -19,6 +19,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/modules/iam" //nolint:depguard // External test exercises its own module.
+	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
@@ -72,7 +73,7 @@ type enrollmentIdentity struct {
 	check func(context.Context, string) (bool, error)
 }
 
-func (p *enrollmentIdentity) MembershipEligible(ctx context.Context, subject string) (bool, error) {
+func (p *enrollmentIdentity) MembershipEligible(ctx context.Context, tenant, subject string) (bool, error) {
 	p.calls.Add(1)
 	if p.check != nil {
 		return p.check(ctx, subject)
@@ -81,15 +82,20 @@ func (p *enrollmentIdentity) MembershipEligible(ctx context.Context, subject str
 }
 func enrollmentHarness(t *testing.T, identity iam.MembershipIdentityReader, failOutbox ...bool) (*gin.Engine, *tenantdb.DB, context.Context) {
 	t.Helper()
-	tokens := map[string]string{"admin": testutil.TenantA, "other-admin": testutil.TenantA, "stale-admin": testutil.TenantA, "restricted": testutil.TenantA, "foreign-admin": testutil.TenantB}
-	perms := map[string][]authz.Permission{}
-	for _, key := range []string{"admin", "other-admin", "stale-admin", "foreign-admin"} {
-		perms[key] = []authz.Permission{iam.PermMemberManage}
-	}
 	base := iam.New(nil).SetMembershipIdentityReader(identity)
 	var module platform.Module = base
 	if len(failOutbox) > 0 && failOutbox[0] {
 		module = membershipOutboxFailureModule{base}
+	}
+	return enrollmentHarnessWithModule(t, module)
+}
+
+func enrollmentHarnessWithModule(t *testing.T, module platform.Module) (*gin.Engine, *tenantdb.DB, context.Context) {
+	t.Helper()
+	tokens := map[string]string{"admin": testutil.TenantA, "other-admin": testutil.TenantA, "stale-admin": testutil.TenantA, "restricted": testutil.TenantA, "foreign-admin": testutil.TenantB}
+	perms := map[string][]authz.Permission{}
+	for _, key := range []string{"admin", "other-admin", "stale-admin", "foreign-admin"} {
+		perms[key] = []authz.Permission{iam.PermMemberManage}
 	}
 	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: tokens, Perms: perms, Modules: []platform.Module{module}})
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
@@ -396,4 +402,39 @@ func TestFirstEnrollmentWaitsForActorRowThenRejectsWithdrawalBeforeWrite(t *test
 		require.Zero(t, count)
 		return nil
 	}))
+}
+
+type membershipProjectionResolver func(context.Context, string, string, loginclient.IdentityReadPurpose) (loginclient.IdentitySnapshot, error)
+
+func (f membershipProjectionResolver) TenantIdentitySnapshot(ctx context.Context, tenant, subject string, purpose loginclient.IdentityReadPurpose) (loginclient.IdentitySnapshot, error) {
+	return f(ctx, tenant, subject, purpose)
+}
+
+func TestFirstEnrollmentRequiresIdentityOwnerAdmissionForTheVerifiedTenant(t *testing.T) {
+	var eligible atomic.Bool
+	identity := loginclient.New("http://native.invalid", "synthetic", http.DefaultClient)
+	identity.SetTenantIdentityResolver(membershipProjectionResolver(func(_ context.Context, tenant, subject string, purpose loginclient.IdentityReadPurpose) (loginclient.IdentitySnapshot, error) {
+		require.Equal(t, testutil.TenantA, tenant)
+		require.Equal(t, "tenant-staff", subject)
+		require.Equal(t, loginclient.IdentityReadMembership, purpose)
+		return loginclient.IdentitySnapshot{State: loginclient.UserStateActive, MembershipEligible: eligible.Load()}, nil
+	}))
+	r, db, ctx := enrollmentHarness(t, identity)
+	path := "/v1/iam/membership-enrollments/" + uuid.Must(uuid.NewV7()).String()
+	body := `{"subject":"tenant-staff","reason":"Tenant-owned staff enrolment"}`
+	denied := membershipCommandRequest(r, http.MethodPut, path, "admin", body)
+	require.Equal(t, http.StatusConflict, denied.Code, denied.Body.String())
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		var count int64
+		require.NoError(t, tx.Table("iam_members").Where("subject=?", "tenant-staff").Count(&count).Error)
+		require.Zero(t, count)
+		require.NoError(t, tx.Table("iam_membership_enrollments").Count(&count).Error)
+		require.Zero(t, count)
+		return nil
+	}))
+	eligible.Store(true)
+	accepted := membershipCommandRequest(r, http.MethodPut, path, "admin", body)
+	require.Equal(t, http.StatusAccepted, accepted.Code, accepted.Body.String())
+	require.Contains(t, accepted.Body.String(), `"subject":"tenant-staff"`)
+	require.Contains(t, accepted.Body.String(), `"role_key":"staff_member"`)
 }

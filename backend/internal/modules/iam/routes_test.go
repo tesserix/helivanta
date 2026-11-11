@@ -111,7 +111,7 @@ func TestGrantReturns202AndAppliesTuple(t *testing.T) {
 	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"admin": testutil.TenantA},
 		Perms:  map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
-		Writer: w, Modules: []platform.Module{iam.New(nil)},
+		Writer: w, Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(membershipIdentity{})},
 	})
 
 	res := testutil.Do(r, "POST", "/v1/iam/members", "admin",
@@ -135,7 +135,7 @@ func TestRepeatGrantRepublishesTuple(t *testing.T) {
 	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"admin": testutil.TenantA},
 		Perms:  map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
-		Writer: w, Modules: []platform.Module{iam.New(nil)},
+		Writer: w, Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(membershipIdentity{})},
 	})
 
 	body := `{"subject":"dr-jane","role_key":"doctor"}`
@@ -154,7 +154,7 @@ func TestGrantRequiresMemberManage(t *testing.T) {
 	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"nurse": testutil.TenantA},
 		Perms:  map[string][]authz.Permission{"nurse": {}},
-		Writer: &recordingWriter{}, Modules: []platform.Module{iam.New(nil)},
+		Writer: &recordingWriter{}, Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(membershipIdentity{})},
 	})
 
 	res := testutil.Do(r, "POST", "/v1/iam/members", "nurse",
@@ -187,7 +187,7 @@ func TestPermissionGuardedRouteChecksMembershipBeforePermission(t *testing.T) {
 		Perms:      map[string][]authz.Permission{"outsider": {}}, // holds nothing, including iam.member.manage
 		Writer:     &recordingWriter{},
 		Membership: denyMembership{},
-		Modules:    []platform.Module{iam.New(nil)},
+		Modules:    []platform.Module{iam.New(nil).SetMembershipIdentityReader(membershipIdentity{})},
 	})
 
 	res := testutil.Do(r, "POST", "/v1/iam/members", "outsider",
@@ -203,7 +203,7 @@ func TestGrantRejectsUnknownRole(t *testing.T) {
 	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"admin": testutil.TenantA},
 		Perms:  map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
-		Writer: &recordingWriter{}, Modules: []platform.Module{iam.New(nil)},
+		Writer: &recordingWriter{}, Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(membershipIdentity{})},
 	})
 
 	res := testutil.Do(r, "POST", "/v1/iam/members", "admin",
@@ -216,7 +216,7 @@ func TestRevokeRemovesRowAndTuple(t *testing.T) {
 	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"admin": testutil.TenantA},
 		Perms:  map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
-		Writer: w, Modules: []platform.Module{iam.New(nil)},
+		Writer: w, Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(membershipIdentity{})},
 	})
 
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
@@ -251,7 +251,7 @@ func TestMembersAreTenantIsolated(t *testing.T) {
 			"admin-a": {iam.PermMemberManage},
 			"admin-b": {iam.PermMemberManage},
 		},
-		Writer: &recordingWriter{}, Modules: []platform.Module{iam.New(nil)},
+		Writer: &recordingWriter{}, Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(membershipIdentity{})},
 	})
 
 	testutil.Do(r, "POST", "/v1/iam/members", "admin-a", `{"subject":"dr-jane","role_key":"doctor"}`)
@@ -288,7 +288,7 @@ func TestMembersArePaginated(t *testing.T) {
 	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens:  map[string]string{"admin": testutil.TenantA},
 		Perms:   map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
-		Modules: []platform.Module{iam.New(nil)},
+		Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(membershipIdentity{})},
 	})
 	tenantID := uuid.MustParse(testutil.TenantA)
 	seedMembers(t, db, ctx, tenantID, 7)
@@ -336,7 +336,7 @@ func TestMembersRejectAnotherTenantsCursor(t *testing.T) {
 	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens:  map[string]string{"admin": testutil.TenantA},
 		Perms:   map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
-		Modules: []platform.Module{iam.New(nil)},
+		Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(membershipIdentity{})},
 	})
 	foreign := pagination.Cursor{
 		TenantID:  testutil.TenantB,

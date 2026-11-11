@@ -395,7 +395,7 @@ func TestMembershipRecoveryRejectsActiveHumanWithoutVerifiedEmail(t *testing.T) 
 		require.EqualValues(t, 1, count)
 		return nil
 	}))
-	proof.Store(`{"user":{"userId":"synthetic-unverified-target","state":"USER_STATE_ACTIVE","human":{"email":{"email":"verified@example.invalid","isVerified":true}}}}`)
+	proof.Store(fmt.Sprintf(`{"user":{"userId":"synthetic-unverified-target","state":"USER_STATE_ACTIVE","details":{"resourceOwner":"helivanta-%s"},"human":{"email":{"email":"verified@example.invalid","isVerified":true}}}}`, testutil.TenantA))
 	success := membershipCommandRequest(r, http.MethodPut, path, "admin", string(body))
 	require.Equal(t, http.StatusAccepted, success.Code, success.Body.String())
 	beforeReplay := reads.Load()

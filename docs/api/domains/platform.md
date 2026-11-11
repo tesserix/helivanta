@@ -97,8 +97,16 @@ File workflows require GCS, exact-content ClamAV verdicts and a matching durable
 `staff_member` through the Global API platform destination. This role supplies
 membership with no declared business permissions. It creates no identity,
 reviewed login link, hospital grant, scoped assignment or clinical privilege.
-Administrators must obtain the existing identity-provider subject; the generic
-membership endpoint does not verify that identity's existence at the provider.
+Administrators must obtain an identity-provider subject owned by this tenant's
+native organisation. The generic membership endpoint now verifies current native
+eligibility before adding any role: active human, verified email and exact
+`resourceOwner=helivanta-<verified tenant>`. Foreign/ineligible identities return
+`409 identity_ineligible`; missing or unavailable proof returns503. A provider
+read never runs while a database transaction is held. Exact existing-grant repair
+retains its ID and needs no native read: its final transaction re-locks that exact
+row and returns409 if it was removed, rather than recreating it. This command
+still creates no provider account and does not complete staff invitation/contact
+verification.
 
 `POST /v1/iam/members` now honors the optional
 `X-Helivanta-Expected-Tenant` precondition through the shared principal helper.

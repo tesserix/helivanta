@@ -66,12 +66,12 @@ func registerPasswordCurrent(mux *http.ServeMux) {
 func newZitadelTestClient(t *testing.T, mux *http.ServeMux) *loginclient.Client {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handler, pattern := mux.Handler(r)
+		_, pattern := mux.Handler(r)
 		if pattern == "" && r.Method == http.MethodGet && r.URL.Path == "/v2/oidc/auth_requests/"+loginUITestAuthRequestID {
 			_ = json.NewEncoder(w).Encode(map[string]any{"authRequest": map[string]any{"id": loginUITestAuthRequestID, "clientId": "helivanta-web", "scope": []string{"openid", "profile", "email"}}})
 			return
 		}
-		handler.ServeHTTP(w, r)
+		mux.ServeHTTP(w, r)
 	}))
 	t.Cleanup(server.Close)
 	return loginclient.New(server.URL, "test-login-client-pat", server.Client())
@@ -1613,4 +1613,12 @@ func TestPasswordEnrollmentRegistrationFailureWritesNoRow(t *testing.T) {
 	require.NotContains(t, rec.Body.String(), "secret")
 	_, err := h.store.Get(context.Background(), loginUITestAuthRequestID, stageFactor)
 	require.ErrorIs(t, err, errAttemptNotFound, "no row may be written when registration fails")
+}
+
+func TestEnrollmentFakeKeepsNativeUserPathBinding(t *testing.T) {
+	fake := newZitadelEnrollmentFake(t)
+	enrollment, err := fake.client.RegisterTOTP(t.Context(), "sess-enrol")
+	require.NoError(t, err)
+	require.Equal(t, enrollmentFakeSecret, enrollment.Secret)
+	require.EqualValues(t, 1, fake.registrations.Load())
 }

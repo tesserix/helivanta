@@ -92,3 +92,16 @@ playwright.signup-live.config.ts` against the actual site. These bounded UI
 
 Close acceptance only with actual evidence for the deployed source. Record any
 human step, unavailable capability or unresolved owner-policy scope explicitly.
+
+## Legacy role-grant regression
+
+A new `POST /iam/members` role for a foreign native subject must fail409 without
+member/outbox writes, even if that subject retains a historical different role.
+Missing native reader or outage must fail503. An exact retained-grant repair
+keeps its original ID and requires no native availability; its final transaction
+locks the exact existing row and never inserts after a concurrent removal.
+The same-origin browser regression exercises the legacy refusal through Global
+API before enrolling the fresh tenant-owned staff account. Fixture identity
+readers in business-route Go tests are explicit; native ownership is separately
+verified against real Zitadel in CI and against the deployed tenant during
+acceptance. These commands create no provider account or staff invitation.

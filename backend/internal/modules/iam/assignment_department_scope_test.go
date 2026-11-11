@@ -27,7 +27,7 @@ func TestDepartmentAssignmentStorageFailsClosed(t *testing.T) {
 		Writer: fga, Roles: fga,
 		Tokens:  map[string]string{"admin": testutil.TenantA},
 		Perms:   map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
-		Modules: []platform.Module{iam.New(nil)},
+		Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(membershipIdentity{})},
 	})
 	upstream := httptest.NewServer(r)
 	t.Cleanup(upstream.Close)

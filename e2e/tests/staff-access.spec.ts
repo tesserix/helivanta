@@ -148,6 +148,19 @@ test("administrator first-enrolls a verified identity without business permissio
     );
     await page.getByRole("button", { name: "Enroll staff member", exact: true }).click();
     expect((await rejected).status()).toBe(409);
+    const legacyStatus = await page.evaluate(
+      async ({ subject, tenantId }) => {
+        const response = await fetch("/api/v1/iam/members", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json", "X-Helivanta-Expected-Tenant": tenantId },
+          body: JSON.stringify({ subject, role_key: "staff_member" }),
+        });
+        return response.status;
+      },
+      { subject: foreignIdentity.userId, tenantId: tenant },
+    );
+    expect(legacyStatus).toBe(409);
     await page.reload();
     await page.getByLabel("Existing account ID", { exact: true }).fill(subject);
     await page

@@ -151,3 +151,11 @@ shares10/rolling hour and30/rolling24h across intents. A transaction-scoped
 recipient lock prevents cross-row concurrency bypass. No raw recipient or hash
 is added to audit payloads or public responses. New receipts reset neither
 budget. The schema's recipient/tenant index is non-unique and grants no access.
+
+The legacy `POST /iam/members` endpoint has the same native-ownership prerequisite
+for every new role, including a role added to a historical foreign subject.
+Exact existing grants retain their repair behavior without a provider lookup,
+but the final transaction locks the exact row and never inserts it if a
+concurrent removal won. New-role native reads finish before the transaction.
+Foreign identities return409, unavailable proof503, and refusals publish no
+member/outbox event. Existing membership/history/list/removal behavior is retained.

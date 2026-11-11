@@ -2,6 +2,7 @@ package journey
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -87,7 +88,7 @@ func TestIAMGrantMembership(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, fga.GrantTenantRole(ctx, testutil.TenantA, authz.RoleTenantAdmin))
 			require.NoError(t, fga.GrantRole(ctx, testutil.TenantA, "user-admin", authz.RoleTenantAdmin))
-			modules := []platform.Module{iam.New(nil), supply.New()}
+			modules := []platform.Module{iam.New(nil).SetMembershipIdentityReader(journeyMembershipIdentity{}), supply.New()}
 			registry := platform.NewRegistry()
 			for _, module := range modules {
 				require.NoError(t, registry.Register(module))
@@ -187,4 +188,10 @@ func TestIAMGrantMembership(t *testing.T) {
 			}, 10*time.Second, 20*time.Millisecond, "three grants and one revoke each commit exactly one receipt and published outbox row")
 		})
 	}
+}
+
+type journeyMembershipIdentity struct{}
+
+func (journeyMembershipIdentity) MembershipEligible(context.Context, string, string) (bool, error) {
+	return true, nil
 }

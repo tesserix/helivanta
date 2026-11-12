@@ -9,6 +9,8 @@ import {
   clearRenewAt,
   notifySessionChanged,
   useApiMutation,
+  useApiQuery,
+  accountProfileSchema,
 } from "@helivanta/api";
 import {
   Button,
@@ -19,6 +21,10 @@ import {
 } from "@helivanta/ui";
 
 export function TenantPicker() {
+  const profileQuery = useApiQuery(["iam", "me", "profile"], "/iam/me/profile");
+  const profile = accountProfileSchema.safeParse(profileQuery.data);
+  const tenantName =
+    !profileQuery.isError && profile.success ? profile.data.tenant_name : undefined;
   const [confirming, setConfirming] = useState(false);
   const confirmLeave = useConfirmLeave();
   const cache = useQueryClient();
@@ -49,13 +55,23 @@ export function TenantPicker() {
 
   return (
     <div className="space-y-2">
-      <Button
-        variant="outline"
-        onClick={() => confirmLeave(() => setConfirming(true))}
-        disabled={switchAccount.isPending}
-      >
-        Switch account
-      </Button>
+      <div className="flex items-center gap-3">
+        <span
+          role="status"
+          aria-label="Current tenant"
+          title={tenantName}
+          className="max-w-48 truncate text-sm font-medium"
+        >
+          {tenantName ?? (profileQuery.isPending ? "Loading account…" : "Account name unavailable")}
+        </span>
+        <Button
+          variant="outline"
+          onClick={() => confirmLeave(() => setConfirming(true))}
+          disabled={switchAccount.isPending}
+        >
+          Switch account
+        </Button>
+      </div>
       <ConfirmDialog
         open={confirming}
         onOpenChange={setConfirming}

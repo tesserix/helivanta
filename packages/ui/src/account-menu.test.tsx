@@ -34,6 +34,14 @@ function renderMenu(onSignOut = vi.fn((e) => e.preventDefault())) {
 describe("AccountMenu", () => {
   afterEach(() => vi.unstubAllGlobals());
 
+  it("labels roles with the verified tenant name rather than branding", async () => {
+    serveProfile(200, { ...PROFILE, tenant_name: "Independent Pharmacy" });
+    const { user } = renderMenu();
+    await user.click(await screen.findByRole("button", { name: "Account: Jane Doctor" }));
+    expect(screen.getByRole("list", { name: "Role at Independent Pharmacy" })).toBeVisible();
+    expect(screen.queryByText("Role at Yes Hospital")).toBeNull();
+  });
+
   it("names the signed-in person and lists their roles at this hospital", async () => {
     serveProfile(200, PROFILE);
     const { user } = renderMenu();

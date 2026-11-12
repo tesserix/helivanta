@@ -174,13 +174,17 @@ func (h *meHandlers) profile(c *gin.Context) {
 		respondProfileUnavailable(c, err)
 		return
 	}
-	respond.OK(c, gin.H{
+	view := gin.H{
 		"subject":      p.Subject,
 		"tenant_id":    p.TenantID,
 		"display_name": user.DisplayName,
 		"email":        user.Email,
 		"roles":        rolesInTenant(bindings, p.TenantID),
-	})
+	}
+	if user.TenantName != "" {
+		view["tenant_name"] = user.TenantName
+	}
+	respond.OK(c, view)
 }
 
 // rolesInTenant labels the caller's roles in one tenant, by key when the

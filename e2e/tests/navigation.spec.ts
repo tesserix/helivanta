@@ -182,12 +182,19 @@ test("moving between departments sends no session-activity requests", async ({ p
 // Account selection belongs to the shared layout, including department pages.
 test("account switching is available on every department page", async ({ page }) => {
   await login(page, specAdmin());
+  const response = await page.request.get("/api/v1/iam/me/profile");
+  expect(response.ok()).toBe(true);
+  const profile = await response.json();
+  expect(profile.tenant_name).toEqual(expect.stringMatching(/\S/));
   for (const path of ["/medicore/opd", "/pharmacy", "/lab"]) {
     await page.goto(path);
     await expect(
       page.getByRole("button", { name: "Switch account", exact: true }),
       path,
     ).toBeVisible();
+    await expect(page.getByRole("status", { name: "Current tenant" })).toHaveText(
+      profile.tenant_name,
+    );
   }
 });
 

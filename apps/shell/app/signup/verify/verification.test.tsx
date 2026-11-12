@@ -46,7 +46,7 @@ it("shows already verified for a reopened owner-bound email link without consumi
 });
 
 it("offers workspace-pinned sign-in and a seven second countdown for an already set password", async () => {
-  const tenantId = "91cbb027-0eef-5621-9542-bdfa2c816a78";
+  const tenantId = "11111111-1111-4111-8111-111111111111";
   window.history.replaceState(
     null,
     "",

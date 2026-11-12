@@ -34,7 +34,7 @@ test("reopened verified email shows password setup without reusing its code", as
 test("password setup redirects only to its confirmed workspace after seven seconds", async ({
   page,
 }) => {
-  const tenantId = "91cbb027-0eef-5621-9542-bdfa2c816a78";
+  const tenantId = "11111111-1111-4111-8111-111111111111";
   let passwordSet = false;
   const frozen = new Date("2026-11-12T00:00:00Z");
   await page.clock.install({ time: new Date(frozen.getTime() - 60000) });

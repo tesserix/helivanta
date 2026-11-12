@@ -11,8 +11,9 @@ Every public hospital or independent pharmacy signup creates a deterministic,
 separate Zitadel organisation `helivanta-<tenant UUID>` and a fresh human
 `owner-<tenant UUID>` owned by that organisation. The operator submits an explicit,
 tenant-unique username instead of allowing Zitadel to default it to the email.
-Native organisation names start with the immutable tenant UUID, preserving uniqueness when native domain labels are truncated, avoiding the
-instance-wide name collision when businesses use the same display name; the
+New native organisation display names use `Helivanta-<business name>`, with
+bounded collision suffixes; the deterministic native organisation ID remains
+`helivanta-<tenant UUID>`. The operator change is deployed. The
 Helivanta business name remains unchanged. Existing deterministic organisations
 retain their native names on replay. Email is a delivery address, never an
 identity key or cross-tenant authority.
@@ -51,6 +52,14 @@ The next normal signup submission creates the independent tenant under existing
 intake limits, idempotency and native verification requirements.
 
 ## Sign-in and administrative authority
+
+On 2026-11-12 the product owner explicitly selected **separate tenant accounts
+with an account chooser**, retaining this ADR's identity separation. The chooser
+must replace manual Workspace ID entry; it must not turn equal email addresses
+into shared accounts or cross-tenant membership. The accepted interaction,
+discovery privacy requirements and remaining delivery gates are recorded in
+[the account chooser design](../design/tenant-account-chooser.md). That decision
+is not evidence that the chooser is implemented or deployed.
 
 Opening a ready workspace starts OIDC with its exact organisation scope and
 fresh authentication. Normal sign-in supports a workspace-specific link; an

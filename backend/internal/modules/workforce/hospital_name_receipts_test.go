@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
-	"sync"
 	"testing"
 	"time"
 
@@ -172,6 +171,16 @@ func TestMigrationMakesExistingMarkersDue(t *testing.T) {
 	require.Zero(t, attempts)
 	require.NotNil(t, next)
 	require.False(t, next.After(time.Now()), "an existing marker is due immediately")
+	var index string
+	var granted bool
+	require.NoError(t, h.db.WithAdmin(t.Context(), func(tx *gorm.DB) error {
+		if err := tx.Raw(`SELECT indexdef FROM pg_indexes WHERE tablename='workforce_hospital_name_announcements' AND indexname='workforce_hospital_name_announcements_due'`).Scan(&index).Error; err != nil {
+			return err
+		}
+		return tx.Raw(`SELECT has_column_privilege('helivanta_system','workforce_hospital_name_announcements','next_attempt_at','SELECT')`).Scan(&granted).Error
+	}))
+	require.Contains(t, index, "WHERE (next_attempt_at IS NOT NULL)", "the scan's partial due index exists")
+	require.True(t, granted, "the cross-tenant scan can read next_attempt_at")
 }
 
 func (h *establishmentHarness) makeDue(t *testing.T, id string) {
@@ -239,18 +248,24 @@ func TestRenameSupersedesAnUnconfirmedVersion(t *testing.T) {
 	require.Equal(t, []workforcecontract.HospitalNamedData{v1, v2, v2}, h.announced(t, h.hospital), "v1 is never re-sent")
 }
 
+// Both passes scan the marker as due, then queue on the hospital lock; only
+// the locked re-check stops the second from re-sending what the first did.
 func TestResendRacingPassesSendOnce(t *testing.T) {
 	h := announcedHarness(t)
 	h.makeDue(t, h.hospital)
-	var wg sync.WaitGroup
-	for range 2 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			assert.NoError(t, workforce.AnnounceHospitalNamesOnce(context.Background(), h.db))
-		}()
-	}
-	wg.Wait()
+	done := make(chan error, 2)
+	require.NoError(t, h.tx(t, h.hospital, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT 1 FROM workforce_hospitals WHERE tenant_id=? AND id=? FOR UPDATE`, testutil.TenantA, h.hospital).Error; err != nil {
+			return err
+		}
+		for range 2 {
+			go func() { done <- workforce.AnnounceHospitalNamesOnce(t.Context(), h.db) }()
+		}
+		waitForLockWaiters(t, h, 2)
+		return nil
+	}))
+	require.NoError(t, <-done)
+	require.NoError(t, <-done)
 	require.Len(t, h.announced(t, h.hospital), 2, "two replicas re-sent the same due version")
 	_, attempts, _ := h.marker(t, h.hospital)
 	require.Equal(t, 1, attempts)
@@ -287,6 +302,18 @@ func TestFirstAnnouncementsComeBeforeResends(t *testing.T) {
 	})
 }
 
+// waitForLockWaiters returns once n sessions in this test's database wait on a lock.
+func waitForLockWaiters(t *testing.T, h *establishmentHarness, n int64) {
+	t.Helper()
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		var waiting int64
+		assert.NoError(c, h.db.WithTenant(t.Context(), testutil.TenantA, func(q *gorm.DB) error {
+			return q.Raw(`SELECT count(*) FROM pg_locks l JOIN pg_stat_activity a ON a.pid=l.pid WHERE NOT l.granted AND a.datname=current_database()`).Scan(&waiting).Error
+		}))
+		assert.GreaterOrEqual(c, waiting, n)
+	}, 10*time.Second, 10*time.Millisecond)
+}
+
 // A confirmation that commits after the pass's scan, while the pass waits on
 // the hospital lock, must stop that pass's re-send: the locked re-check sees it.
 func TestConfirmationDuringAPassStopsItsResend(t *testing.T) {
@@ -300,15 +327,9 @@ func TestConfirmationDuringAPassStopsItsResend(t *testing.T) {
 		if err := tx.Exec(`UPDATE workforce_hospital_name_announcements SET next_attempt_at=NULL WHERE tenant_id=? AND hospital_id=?`, testutil.TenantA, h.hospital).Error; err != nil {
 			return err
 		}
-		go func() { done <- workforce.AnnounceHospitalNamesOnce(context.Background(), h.db) }()
+		go func() { done <- workforce.AnnounceHospitalNamesOnce(t.Context(), h.db) }()
 		// The pass has scanned (it saw the marker due) once it waits on our lock.
-		require.Eventually(t, func() bool {
-			var waiting int64
-			require.NoError(t, h.db.WithTenant(t.Context(), testutil.TenantA, func(q *gorm.DB) error {
-				return q.Raw(`SELECT count(*) FROM pg_locks l JOIN pg_stat_activity a ON a.pid=l.pid WHERE NOT l.granted AND a.datname=current_database()`).Scan(&waiting).Error
-			}))
-			return waiting > 0
-		}, 10*time.Second, 10*time.Millisecond)
+		waitForLockWaiters(t, h, 1)
 		return nil
 	}))
 	require.NoError(t, <-done)

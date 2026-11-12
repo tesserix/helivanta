@@ -2,7 +2,7 @@ import path from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { ZITADEL_HOST } from "./hosts";
+import { WEB_HOST } from "./hosts";
 
 export type Credentials = { email: string; password: string };
 
@@ -133,57 +133,19 @@ async function signInOnce(page: Page, user: Credentials): Promise<boolean> {
   }, PERMISSIONS_PROBE);
 }
 
-// Clicks the landing page's Sign in button if we are sitting on it.
-//
-// TWO buttons on this suite's path share the exact accessible name
-// "Sign in": RedirectLanding's (this one — starts the round trip through
-// Zitadel's /oauth/v2/authorize and back) and CredentialForm's (the
-// form's own submit, clicked later by signInOnce()). They are never on
-// screen at the same time — the landing page's button disappears the
-// moment the browser leaves for Zitadel, and the form's button does not
-// exist until `?authRequest=` lands back on /login — so a bare
-// `getByRole("button", { name: "Sign in" })` here is unambiguous PROVIDED
-// this function is only ever called while still on the landing page.
-// login() enforces that ordering by waiting for the login-name field (proof
-// the form, not the landing page, is now showing) before ever calling
-// signInOnce(); mixing the two up here would click whichever button
-// happens to exist, which is exactly the trap.
-//
-// Tolerant on purpose: after a sign-out the browser may already be
-// mid-redirect to Zitadel, in which case there is no button to click and
-// the credential form is on its way. Requiring the button unconditionally
-// would turn that ordinary race into a flake.
-// Zitadel's fixed local origin host (HELIVANTA_ZITADEL_HOST:HELIVANTA_ZITADEL_PORT)
-// — the one constant across every Helivanta web+API pair the suite runs
-// against. Checking for THIS, rather than for Helivanta's own dev-server
-// port, is what makes startSignIn work under the "idle-timeout" (#848 Task
-// 8) and "renewal" (#916 Task 4) Playwright projects, which point baseURL
-// at further shell instances on their own ports
-// (e2e/playwright.config.ts). A literal app-port check would misread those
-// projects' own pages as "mid-redirect through Zitadel" and never click
-// Sign in.
-//
-// Read from hosts.ts (HELIVANTA_ZITADEL_HOST) rather than hardcoded, so an
-// override of that variable does not break every spec's sign-in for a
-// reason unrelated to what it tests (#916 Task 4). The IdP deliberately
-// sits on a DIFFERENT registrable domain from the app so every browser
-// request between them is cross-site, as it is in production. Matching on
-// the HOST alone — not the whole origin — keeps this working when
-// HELIVANTA_ZITADEL_PORT is shifted in a developer's .env.
-const ZITADEL_ORIGIN_HOST = ZITADEL_HOST;
-
+// A protected-page visit would restart idle teardown before re-authentication.
+// Fixtures enter through their known org link; discovery has its own browser test.
 async function startSignIn(page: Page): Promise<void> {
-  // Decide by where we actually ARE, not by racing a timeout. Since #847,
-  // sign-out lands on Helivanta's /login and STAYS there — nothing redirects
-  // onward any more — so on that page the button is not optional and a
-  // short "maybe it is already navigating" tolerance would simply give up
-  // and leave the caller waiting for a credential field that will never
-  // appear. That was the first version of this helper, and it failed
-  // exactly the two specs that sign out and back in.
-  if (page.url().includes(ZITADEL_ORIGIN_HOST)) return; // mid-redirect through Zitadel
-
-  // These fixtures have a known org; mailbox discovery is tested separately.
-  await page.goto("/login?workspace=11111111-1111-1111-1111-111111111111");
+  const path = "/login?workspace=11111111-1111-1111-1111-111111111111";
+  try {
+    await page.goto(path);
+  } catch (err) {
+    if (!/ERR_ABORTED/.test(String(err))) throw err;
+    await page.waitForURL((url) => url.hostname === WEB_HOST && url.pathname === "/login", {
+      timeout: 20_000,
+    });
+    await page.goto(path);
+  }
   const button = page.getByRole("button", { name: "Sign in" });
   await button.waitFor({ state: "visible", timeout: 20_000 });
   await button.click();
@@ -193,34 +155,6 @@ async function startSignIn(page: Page): Promise<void> {
 // calling spec's own admin — evaluated per call, so it resolves against
 // whichever spec file is currently running.
 export async function login(page: Page, user: Credentials = specAdmin()): Promise<void> {
-  try {
-    await page.goto("/dashboard");
-  } catch (err) {
-    // ERR_ABORTED here means a navigation was ALREADY in flight when this
-    // goto fired — the real case is a spec that calls login() again
-    // immediately after signing out (e.g. journey.spec.ts's "pharmacist
-    // can dispense a visit created by admin"): sign-out ends with
-    // signoutRedirect() through Zitadel and back to /login, so by the time
-    // this goto("/") runs the browser can already be mid-navigation. That
-    // competing navigation heads to the same place this one would, so it
-    // is safe to let it win; anything other than ERR_ABORTED is a real
-    // failure and must still throw.
-    if (!/ERR_ABORTED/.test(String(err))) throw err;
-  }
-  // Unauthenticated: apps/shell's middleware.ts redirects to /login, which
-  // since #847 is a LANDING PAGE with a Sign in button rather than an
-  // automatic redirect. The button is deliberate: firing an authorization
-  // request on mount raced Zitadel's session teardown after a sign-out, and
-  // the next user then could not sign in at all.
-  //
-  // So the suite must click it. Waiting for the real credential field after
-  // the click is the provable claim ("the sign-in form is now showing") and
-  // is host/port agnostic, unlike asserting a literal localhost:4301 URL.
-  // It is also what disambiguates startSignIn()'s and signInOnce()'s
-  // identically-named "Sign in" buttons (see startSignIn()'s comment):
-  // only proceeding once the login-name field is visible guarantees the
-  // landing page's button is gone and the form's is what gets clicked
-  // next.
   await startSignIn(page);
   await expect(page.getByLabel("Email or username", { exact: true })).toBeVisible({
     timeout: 15_000,
@@ -236,7 +170,6 @@ export async function login(page: Page, user: Credentials = specAdmin()): Promis
     // (refused) identity through again.
     await page.context().clearCookies();
     await page.waitForTimeout(RETRY_DELAY_MS);
-    await page.goto("/login");
     await startSignIn(page);
   }
 

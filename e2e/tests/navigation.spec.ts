@@ -179,14 +179,15 @@ test("moving between departments sends no session-activity requests", async ({ p
   expect(count, "rail navigation sent session-activity requests").toBe(0);
 });
 
-// D4: the tenant switcher is decided once by the layout, so it is on every
-// authenticated page, department pages included. specAdmin has two tenants
-// (scripts/seed-dev.mjs), so TenantPicker renders for them.
-test("the tenant switcher is on every department page", async ({ page }) => {
+// Account selection belongs to the shared layout, including department pages.
+test("account switching is available on every department page", async ({ page }) => {
   await login(page, specAdmin());
   for (const path of ["/medicore/opd", "/pharmacy", "/lab"]) {
     await page.goto(path);
-    await expect(page.getByRole("combobox", { name: "Tenant" }), path).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Switch account", exact: true }),
+      path,
+    ).toBeVisible();
   }
 });
 

@@ -24,7 +24,7 @@ import (
 type scopedLeaveIAMModule struct{ *iam.Module }
 
 func (m *scopedLeaveIAMModule) Routes(r *platform.Router, deps platform.Deps) {
-	m.Module = iam.New(iam.NewRevocationChecker(deps.DB))
+	m.Module = iam.New(iam.NewRevocationChecker(deps.DB)).SetMembershipIdentityReader(globalEnrollmentIdentity{})
 	m.Module.Routes(r, deps)
 }
 

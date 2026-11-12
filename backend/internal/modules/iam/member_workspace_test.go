@@ -20,7 +20,7 @@ func TestMemberEnrollmentRejectsStaleWorkspaceBeforeWriting(t *testing.T) {
 	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens:  map[string]string{"admin": testutil.TenantA},
 		Perms:   map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
-		Modules: []platform.Module{iam.New(nil)},
+		Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(membershipIdentity{})},
 	})
 	req := httptest.NewRequest(http.MethodPost, "/v1/iam/members", strings.NewReader(`{"subject":"synthetic-staff","role_key":"staff_member"}`))
 	req.Header.Set("Authorization", "Bearer admin")
@@ -38,7 +38,7 @@ func TestMemberEnrollmentMatchingWorkspaceAndLegacyReplayReturnSameID(t *testing
 	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens:  map[string]string{"admin": testutil.TenantA},
 		Perms:   map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
-		Modules: []platform.Module{iam.New(nil)},
+		Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(membershipIdentity{})},
 	})
 	body := `{"subject":"synthetic-staff","role_key":"staff_member"}`
 	req := httptest.NewRequest(http.MethodPost, "/v1/iam/members", strings.NewReader(body))
@@ -60,7 +60,7 @@ func TestMemberRemovalRejectsChangedOrAmbiguousWorkspaceWithoutRemovingMembershi
 	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens:  map[string]string{"admin": testutil.TenantA},
 		Perms:   map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
-		Modules: []platform.Module{iam.New(nil)},
+		Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(membershipIdentity{})},
 	})
 	created := testutil.Do(r, http.MethodPost, "/v1/iam/members", "admin", `{"subject":"synthetic-removal-staff","role_key":"staff_member"}`)
 	require.Equal(t, http.StatusAccepted, created.Code, created.Body.String())
@@ -100,7 +100,7 @@ func TestMemberRemovalMatchingWorkspaceAndLegacyReplayRequireCommand(t *testing.
 	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens:  map[string]string{"admin": testutil.TenantA},
 		Perms:   map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
-		Modules: []platform.Module{iam.New(nil)},
+		Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(membershipIdentity{})},
 	})
 	created := testutil.Do(r, http.MethodPost, "/v1/iam/members", "admin", `{"subject":"synthetic-removal-staff","role_key":"staff_member"}`)
 	require.Equal(t, http.StatusAccepted, created.Code, created.Body.String())

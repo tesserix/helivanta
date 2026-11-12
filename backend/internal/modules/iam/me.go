@@ -169,7 +169,7 @@ func (h *meHandlers) profile(c *gin.Context) {
 		respondProfileUnavailable(c, errors.New("no user profile reader configured"))
 		return
 	}
-	user, err := h.profiles.UserProfile(c.Request.Context(), p.Subject)
+	user, err := h.profiles.UserProfile(c.Request.Context(), p.TenantID, p.Subject)
 	if err != nil {
 		respondProfileUnavailable(c, err)
 		return

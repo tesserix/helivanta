@@ -494,7 +494,13 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 		return
 	}
 
-	session, err := h.client.CreatePasswordSession(c.Request.Context(), req.LoginName, req.Password)
+	var session loginclient.Session
+	var err error
+	if h.nativeWebClientID != "" {
+		session, err = h.client.CreatePasswordSessionForRequest(c.Request.Context(), req.AuthRequestID, h.nativeWebClientID, req.LoginName, req.Password)
+	} else {
+		session, err = h.client.CreatePasswordSession(c.Request.Context(), req.LoginName, req.Password)
+	}
 	if err != nil {
 		if loginclient.IsCredentialRefusal(err) {
 			// The distinction lives ONLY in this log line — never the

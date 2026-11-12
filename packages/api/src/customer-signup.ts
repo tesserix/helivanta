@@ -36,6 +36,10 @@ export function getCustomerSignup(signal?: AbortSignal) {
   return signupRequest("/auth/signup", { signal });
 }
 
+export function newCustomerSignupReceipt() {
+  return signupRequest("/auth/signup/new", { method: "POST", body: "{}" });
+}
+
 export function startCustomerSignup(input: CustomerSignupInput) {
   const body = CustomerSignupInputContract.parse(input);
   return signupRequest("/auth/signup", { method: "POST", body: JSON.stringify(body) });

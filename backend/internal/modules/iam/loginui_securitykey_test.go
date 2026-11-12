@@ -58,6 +58,8 @@ func TestPasswordKeepsUnsupportedAndMixedFactorsClosed(t *testing.T) {
 		t.Run(methods, func(t *testing.T) {
 			native := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch r.URL.Path {
+				case "/v2/oidc/auth_requests/" + loginUITestAuthRequestID:
+					_ = json.NewEncoder(w).Encode(map[string]any{"authRequest": map[string]any{"id": loginUITestAuthRequestID, "clientId": "helivanta-web", "scope": []string{"openid"}}})
 				case "/v2/sessions":
 					_, _ = w.Write([]byte(`{"sessionId":"pending","sessionToken":"private"}`))
 				case "/v2/sessions/pending":

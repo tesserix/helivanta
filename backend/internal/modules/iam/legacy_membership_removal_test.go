@@ -18,7 +18,7 @@ func TestLegacyMembershipRemovalRequiresIncarnationCommandWithoutSideEffects(t *
 	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens:  map[string]string{"admin": testutil.TenantA, "restricted": testutil.TenantA},
 		Perms:   map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
-		Modules: []platform.Module{iam.New(nil)},
+		Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(membershipIdentity{})},
 	})
 	created := testutil.Do(r, http.MethodPost, "/v1/iam/members", "admin", `{"subject":"synthetic-legacy-target","role_key":"staff_member"}`)
 	require.Equal(t, http.StatusAccepted, created.Code, created.Body.String())

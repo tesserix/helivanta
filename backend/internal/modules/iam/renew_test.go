@@ -55,7 +55,7 @@ type stubUserState struct {
 	calls  int
 }
 
-func (s *stubUserState) UserState(_ context.Context, id string) (loginclient.UserState, error) {
+func (s *stubUserState) UserState(_ context.Context, _ string, id string) (loginclient.UserState, error) {
 	s.calls++
 	if s.err != nil {
 		return loginclient.UserState(0), s.err

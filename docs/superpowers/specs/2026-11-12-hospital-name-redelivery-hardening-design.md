@@ -93,7 +93,7 @@ runs, that:
 - `pg_indexes` has `workforce_hospital_name_announcements_due`, with a
   definition containing `WHERE (next_attempt_at IS NOT NULL)`;
 - `has_column_privilege('helivanta_system',
-  'workforce_hospital_name_announcements', 'next_attempt_at', 'SELECT')` is
+'workforce_hospital_name_announcements', 'next_attempt_at', 'SELECT')` is
   true.
 
 ### D9. The announced-events helper orders explicitly

@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { z } from "zod";
 import {
   sendCustomerLink,
   setCustomerPassword,
   verifyCustomerEmail,
   useApiMutation,
+  useApiQuery,
+  CustomerSignupReceiptContract,
 } from "@helivanta/api";
-import { Button, Field, useZodForm } from "@helivanta/ui";
+import { Button, Field, RequestFailure, useZodForm } from "@helivanta/ui";
 
 type Link = { phase: "email" | "password"; userId: string; code: string };
 const passwordForm = z
@@ -26,12 +28,47 @@ export function SignupVerification() {
   const link = useSyncExternalStore(linkStore.subscribe, linkStore.snapshot, () => undefined);
   const [completed, setCompleted] = useState<"email" | "password" | null>(null);
   const [problem, setProblem] = useState(false);
+  const progress = useApiQuery<unknown>(
+    ["signup-link-status", link?.userId],
+    `/auth/signup?userId=${encodeURIComponent(link?.userId ?? "")}`,
+    {
+      enabled: !!link,
+      gcTime: 0,
+      staleTime: 0,
+      request: { cache: "no-store" },
+      poll: (data) => {
+        const parsed = CustomerSignupReceiptContract.safeParse(data);
+        return (
+          parsed.success && ["provisioning", "email_action_required"].includes(parsed.data.state)
+        );
+      },
+    },
+  );
+  const parsed = CustomerSignupReceiptContract.safeParse(progress.data);
+  const statusFailed = progress.isError || (!progress.isPending && !parsed.success);
+  const statusError = progress.error ?? (!parsed.success ? parsed.error : null);
+  const receipt = parsed.success && !progress.isError ? parsed.data : null;
+  const ready =
+    receipt?.state === "ready" && typeof receipt.tenantId === "string"
+      ? { tenantId: receipt.tenantId }
+      : null;
+  const readyTenantId = ready?.tenantId;
+  const alreadyVerified = receipt?.state === "password_action_required" || !!ready;
+  const passwordDone = completed === "password" || (link?.phase === "password" && !!ready);
+  const emailDone = completed === "email" || (link?.phase === "email" && alreadyVerified);
+  useEffect(() => {
+    if (
+      (alreadyVerified && link?.phase === "email") ||
+      (readyTenantId && link?.phase === "password")
+    )
+      linkStore.consume();
+  }, [alreadyVerified, readyTenantId, link?.phase, linkStore]);
   const form = useZodForm(passwordForm, { password: "", confirmation: "" });
   const verify = useApiMutation(verifyCustomerEmail, { gcTime: 0, suppressErrorToast: true });
   const password = useApiMutation(setCustomerPassword, { gcTime: 0, suppressErrorToast: true });
   const delivery = useApiMutation(
     () =>
-      sendCustomerLink(completed === "email" ? "password" : (link?.phase ?? "email"), {
+      sendCustomerLink(emailDone ? "password" : (link?.phase ?? "email"), {
         userId: link?.userId,
       }),
     {
@@ -48,6 +85,7 @@ export function SignupVerification() {
       else await password.mutateAsync({ userId: link.userId, code: link.code, password: secret });
       setCompleted(link.phase);
       linkStore.consume();
+      void progress.refetch();
     } catch {
       setProblem(true);
     } finally {
@@ -67,35 +105,69 @@ export function SignupVerification() {
         </a>
       </div>
     );
-  if (completed === "password")
+  if (passwordDone)
     return (
       <div className="space-y-5">
         <h1 className="text-2xl font-medium">Your password is set</h1>
-        <p>Continue workspace setup, then sign in and register your second factor.</p>
-        <a className="underline underline-offset-4" href="/signup">
-          Continue workspace setup
-        </a>
+        {ready ? (
+          <SignupLoginCountdown tenantId={ready.tenantId} />
+        ) : (
+          <>
+            {statusFailed ? (
+              <RequestFailure
+                message="Your password is set, but workspace sign-in could not be checked. Try again."
+                error={statusError}
+                retry={progress.refetch}
+              />
+            ) : (
+              <p role="status">
+                Preparing your workspace sign-in. Your password is set; do not use this link again.
+              </p>
+            )}
+            <a className="underline underline-offset-4" href="/signup">
+              Continue workspace setup
+            </a>
+          </>
+        )}
       </div>
     );
-  if (completed === "email")
+  if (emailDone)
     return (
       <div className="space-y-5">
-        <h1 className="text-2xl font-medium">Your email is verified</h1>
-        <p>Request a password setup email to finish creating your login.</p>
-        <EmailDeliveryPolicy />
-        <Button type="button" disabled={delivery.isPending} onClick={() => delivery.mutate()}>
-          Send password setup email
-        </Button>
-        {delivery.isSuccess && (
-          <p role="status">
-            If this request can receive an email, a password setup link has been requested.
-          </p>
+        <h1 className="text-2xl font-medium">
+          {completed === "email" ? "Your email is verified" : "Your email is already verified"}
+        </h1>
+        {ready ? (
+          <SignupLoginCountdown tenantId={ready.tenantId} />
+        ) : (
+          <>
+            <p>Request a password setup email to finish creating your login.</p>
+            <EmailDeliveryPolicy />
+            <Button type="button" disabled={delivery.isPending} onClick={() => delivery.mutate()}>
+              Send password setup email
+            </Button>
+            {delivery.isSuccess && (
+              <p role="status">
+                If this request can receive an email, a password setup link has been requested.
+              </p>
+            )}
+            {delivery.error && <p role="alert">We could not request the email. Try again later.</p>}
+            <a className="block underline underline-offset-4" href="/signup">
+              Return to workspace setup
+            </a>
+          </>
         )}
-        {delivery.error && <p role="alert">We could not request the email. Try again later.</p>}
-        <a className="block underline underline-offset-4" href="/signup">
-          Return to workspace setup
-        </a>
       </div>
+    );
+  if (progress.isPending)
+    return <p role="status">Checking this workspace's verification status…</p>;
+  if (progress.isError || !receipt)
+    return (
+      <RequestFailure
+        message="We could not check this link's status. No verification or password change was made."
+        error={statusError}
+        retry={progress.refetch}
+      />
     );
   const pending = verify.isPending || password.isPending;
   return (
@@ -167,6 +239,30 @@ export function SignupVerification() {
   );
 }
 
+function SignupLoginCountdown({ tenantId }: { tenantId: string }) {
+  const [seconds, setSeconds] = useState(7);
+  const href = `/login?workspace=${encodeURIComponent(tenantId)}`;
+  useEffect(() => {
+    const countdown = window.setInterval(() => setSeconds((value) => Math.max(0, value - 1)), 1000);
+    const redirect = window.setTimeout(() => window.location.assign(href), 7000);
+    return () => {
+      window.clearInterval(countdown);
+      window.clearTimeout(redirect);
+    };
+  }, [href]);
+  return (
+    <div className="space-y-4">
+      <p role="status">
+        Taking you to your workspace sign-in in {seconds} seconds. Sign in and register your own
+        second factor.
+      </p>
+      <a className="underline underline-offset-4" href={href}>
+        Sign in now
+      </a>
+    </div>
+  );
+}
+
 function signupLinkStore() {
   let current: Link | null | undefined;
   let initialized = false;
@@ -187,7 +283,9 @@ function signupLinkStore() {
           fragment.length <= 1024 &&
           (phase === "email" || phase === "password") &&
           userId &&
+          /^[A-Za-z0-9_-]{1,200}$/.test(userId) &&
           code &&
+          code.length <= 20 &&
           ["phase", "userId", "code"].every((key) => fields.getAll(key).length === 1)
             ? { phase, userId, code }
             : null;
@@ -198,7 +296,8 @@ function signupLinkStore() {
       };
     },
     consume: () => {
-      if (current) current = { ...current, code: "" };
+      if (!current?.code) return;
+      current = { ...current, code: "" };
       for (const listener of listeners) listener();
     },
   };

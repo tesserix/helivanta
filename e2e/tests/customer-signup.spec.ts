@@ -1,5 +1,101 @@
 import { test, expect } from "@playwright/test";
 
+test.beforeEach(async ({ page }) => {
+  await page.route("**/api/v1/auth/signup?userId=*", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ state: "email_action_required" }),
+    }),
+  );
+});
+
+test("reopened verified email shows password setup without reusing its code", async ({ page }) => {
+  await page.route("**/api/v1/auth/signup?userId=*", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ state: "password_action_required" }),
+    }),
+  );
+  const writes: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST" && request.url().includes("/auth/signup"))
+      writes.push(request.url());
+  });
+  await page.goto("/signup/verify#phase=email&userId=owner-synthetic&code=used-proof");
+  await expect(page.getByRole("heading", { name: "Your email is already verified" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Verify email address" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Send password setup email" })).toBeVisible();
+  expect(writes).toEqual([]);
+  expect(new URL(page.url()).hash).toBe("");
+});
+
+test("password setup redirects only to its confirmed workspace after seven seconds", async ({
+  page,
+}) => {
+  const tenantId = "91cbb027-0eef-5621-9542-bdfa2c816a78";
+  let passwordSet = false;
+  const frozen = new Date("2026-11-12T00:00:00Z");
+  await page.clock.install({ time: new Date(frozen.getTime() - 60000) });
+  await page.clock.pauseAt(frozen);
+  await page.route("**/api/v1/auth/signup?userId=*", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(
+        passwordSet
+          ? {
+              state: "ready",
+              name: "QA",
+              kind: "hospital",
+              tenantId,
+              resourceId: "1aee9771-66c3-445c-8b3e-b18f472ca409",
+            }
+          : { state: "password_action_required" },
+      ),
+    }),
+  );
+  await page.route("**/api/v1/auth/signup/password", (route) => {
+    passwordSet = true;
+    return route.fulfill({
+      status: 202,
+      contentType: "application/json",
+      body: JSON.stringify({ state: "provisioning" }),
+    });
+  });
+  await page.route(`**/login?workspace=${tenantId}`, (route) =>
+    route.fulfill({ status: 200, contentType: "text/html", body: "<h1>Workspace sign-in</h1>" }),
+  );
+  await page.goto("/signup/verify#phase=password&userId=owner-synthetic&code=one-use-proof");
+  await expect
+    .poll(async () => {
+      await page.clock.runFor(0);
+      return page.getByLabel("New password", { exact: true }).count();
+    })
+    .toBe(1);
+  await page.getByLabel("New password", { exact: true }).fill("Synthetic-password-only-42!");
+  await page.getByLabel("Confirm password", { exact: true }).fill("Synthetic-password-only-42!");
+  await page.getByRole("button", { name: "Set password", exact: true }).click();
+  await expect
+    .poll(async () => {
+      await page.clock.runFor(0);
+      return page.getByRole("link", { name: "Sign in now" }).count();
+    })
+    .toBe(1);
+  await expect(page.getByRole("heading", { name: "Your password is set" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Sign in now" })).toHaveAttribute(
+    "href",
+    `/login?workspace=${tenantId}`,
+  );
+  await expect(page.getByRole("status")).toContainText("7 seconds");
+  await page.clock.runFor(6999);
+  expect(new URL(page.url()).pathname).toBe("/signup/verify");
+  await page.clock.runFor(1);
+  await expect(page).toHaveURL(new RegExp(`/login\\?workspace=${tenantId}$`));
+  await expect(page.getByRole("heading", { name: "Workspace sign-in" })).toBeVisible();
+});
+
 test("new tenant signup requires its own account instead of adopting another organisation's user", async ({
   page,
 }) => {

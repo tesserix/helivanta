@@ -843,6 +843,7 @@ func (c *Client) UserState(ctx context.Context, tenant, id string) (UserState, e
 type UserProfile struct {
 	DisplayName string
 	Email       string
+	TenantName  string
 }
 
 // UserProfile reads only the verified current principal's presentation view.

@@ -583,7 +583,7 @@ Existing state/PKCE, token verification, fresh-auth signup binding, revocation,
 verified membership and resource scope remain required. See
 [ADR-0069](../../adr/0069-explicit-native-security-key-continuation.md).
 
-## Email-first separate-account discovery (candidate)
+## Email-first separate-account discovery
 
 `POST /v1/auth/accounts` accepts `{email}` under exact same-origin checks and
 returns only `{state:"check_email"}`. The workload-only identity owner reserves
@@ -607,3 +607,15 @@ generated `@tesserix/onboarding-contracts` Zod package. See
 [discovery delivery](../../design/account-discovery-delivery.md) for limits,
 retention, rollback, deployment order and uncompleted live acceptance. Existing
 same-subject membership routes do not implement separate-account switching.
+
+The authenticated `/v1/iam/me/profile` response adds optional `tenant_name` for
+the verified session tenant. The private owner projection receives explicit
+`includeTenantName: true` only for profile reads; older requests retain their
+existing response shape. The adapter requires a valid current customer name
+when an opted-in active profile exists and otherwise refuses that profile read.
+The header and role menu use this name as display metadata; it grants no
+membership, role or native account authority. Status and membership projections
+do not request or disclose names. See the
+[current-account name design](../../design/current-account-tenant-name.md) for
+compatibility and failure behavior. The name follow-up requires owner-first
+deployment; it is separate from the deployed discovery release.

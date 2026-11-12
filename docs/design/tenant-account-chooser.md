@@ -2,8 +2,9 @@
 
 Decision accepted by the product owner on 2026-11-12: **keep separate tenant
 accounts with an account chooser**. This refines [ADR-0070](../adr/0070-tenant-owned-login-identities.md).
-Implementation is in progress in the coordinated account-discovery change;
-see [delivery details and evidence](account-discovery-delivery.md). Live acceptance remains open.
+The coordinated account-discovery release is deployed; see
+[delivery details and evidence](account-discovery-delivery.md). Live single-hospital
+login passed; independent-pharmacy and multiple-account acceptance remain open.
 
 ## User experience
 
@@ -18,7 +19,8 @@ account** before asking for that account's password and required MFA. A supplier
 relationship or hospital affiliation is not an account choice unless the person
 also has an independently authorised staff account there.
 
-Inside the application, **Switch account** returns to account selection and
+Inside the application, the [verified current tenant name](current-account-tenant-name.md)
+identifies the active account even when there is only one. **Switch account** returns to account selection and
 authenticates the destination account. It does not transfer the current subject's
 roles, credentials, MFA, security policy or data into another organisation. An
 abandoned or failed switch must not label the destination as active. The current

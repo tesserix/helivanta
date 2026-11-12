@@ -17,6 +17,7 @@ func TestIdentityProjectionUsesScopedPrivateWorkloadAndFailsClosed(t *testing.T)
 	const tenant = "11111111-1111-4111-8111-111111111111"
 	const subject = "synthetic-staff"
 	const valid = `{"purpose":"membership","tenantId":"` + tenant + `","organizationId":"helivanta-` + tenant + `","subject":"` + subject + `","state":"active","admission":"eligible"}`
+	const profile = `{"purpose":"profile","tenantId":"` + tenant + `","organizationId":"helivanta-` + tenant + `","subject":"` + subject + `","state":"active","admission":"unassessed","profile":{"displayName":"Synthetic Staff","email":"synthetic@example.invalid"},"tenantName":"Yes Hospital"}`
 	for _, tc := range []struct {
 		name, body        string
 		purpose           loginclient.IdentityReadPurpose
@@ -28,7 +29,10 @@ func TestIdentityProjectionUsesScopedPrivateWorkloadAndFailsClosed(t *testing.T)
 		{name: "foreign membership", body: strings.Replace(valid, `"eligible"`, `"ineligible"`, 1), purpose: loginclient.IdentityReadMembership, state: loginclient.UserStateActive},
 		{name: "authoritative inactive", body: strings.ReplaceAll(strings.Replace(valid, `"eligible"`, `"ineligible"`, 1), `"active"`, `"inactive"`), purpose: loginclient.IdentityReadMembership, state: loginclient.UserStateInactive},
 		{name: "status", body: strings.ReplaceAll(strings.Replace(valid, `"eligible"`, `"unassessed"`, 1), `"membership"`, `"status"`), purpose: loginclient.IdentityReadStatus, state: loginclient.UserStateActive},
-		{name: "self profile", body: strings.TrimSuffix(strings.ReplaceAll(strings.Replace(valid, `"eligible"`, `"unassessed"`, 1), `"membership"`, `"profile"`), "}") + `,"profile":{"displayName":"Synthetic Staff","email":"synthetic@example.invalid"}}`, purpose: loginclient.IdentityReadProfile, state: loginclient.UserStateActive, profile: true},
+		{name: "self profile", body: profile, purpose: loginclient.IdentityReadProfile, state: loginclient.UserStateActive, profile: true},
+		{name: "missing tenant name", body: strings.Replace(profile, `,"tenantName":"Yes Hospital"`, "", 1), purpose: loginclient.IdentityReadProfile},
+		{name: "unicode tenant name", body: strings.Replace(profile, "Yes Hospital", strings.Repeat("ଔ", 200), 1), purpose: loginclient.IdentityReadProfile, state: loginclient.UserStateActive, profile: true},
+		{name: "oversized tenant name", body: strings.Replace(profile, "Yes Hospital", strings.Repeat("ଔ", 201), 1), purpose: loginclient.IdentityReadProfile},
 		{name: "unknown tenant", body: `{}`, purpose: loginclient.IdentityReadMembership, status: 404},
 		{name: "workload refused", body: `{"error":"synthetic@example.invalid"}`, purpose: loginclient.IdentityReadMembership, status: 403},
 		{name: "outage", body: `{}`, purpose: loginclient.IdentityReadMembership, status: 503},
@@ -52,9 +56,16 @@ func TestIdentityProjectionUsesScopedPrivateWorkloadAndFailsClosed(t *testing.T)
 				if r.Method != "POST" || r.URL.Path != "/internal/v1/customer-signups/identity-projection" || r.Header.Get("Authorization") != "Bearer synthetic-workload" {
 					t.Error("escaped workload boundary")
 				}
-				var input map[string]string
-				if json.NewDecoder(r.Body).Decode(&input) != nil || len(input) != 4 || input["tenantId"] != tenant || input["subject"] != subject || input["requestId"] == "" {
+				var input map[string]any
+				wantFields := 4
+				if tc.purpose == loginclient.IdentityReadProfile {
+					wantFields = 5
+				}
+				if json.NewDecoder(r.Body).Decode(&input) != nil || len(input) != wantFields || input["tenantId"] != tenant || input["subject"] != subject || input["requestId"] == "" {
 					t.Error("incorrect private identity scope")
+				}
+				if (input["includeTenantName"] == true) != (tc.purpose == loginclient.IdentityReadProfile) {
+					t.Error("tenant name must be requested only for an explicit profile read")
 				}
 				if tc.status != 0 {
 					w.WriteHeader(tc.status)
@@ -77,6 +88,9 @@ func TestIdentityProjectionUsesScopedPrivateWorkloadAndFailsClosed(t *testing.T)
 				}
 			} else if err != nil || got.State != tc.state || got.MembershipEligible != tc.eligible || (got.Profile != nil) != tc.profile {
 				t.Fatalf("wrong projection: %#v %v", got, err)
+			}
+			if tc.profile && got.Profile != nil && got.Profile.TenantName == "" {
+				t.Fatal("verified tenant name was lost")
 			}
 		})
 	}

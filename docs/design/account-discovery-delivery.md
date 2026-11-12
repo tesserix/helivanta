@@ -50,8 +50,12 @@ still requires the user's private MFA completion.
 ## Evidence and remaining release gates
 
 Schema: tesserix/tesserix-k8s#1669. Identity owner:
-tesserix/onboarding-service#33. These are candidate changes until merged and
-promoted. Normal CI has exercised the owning schema with real PostgreSQL;
+tesserix/onboarding-service#33 and #34. Consumer: tesserix/helivanta#1664,
+merged as `aace7ff98cc0e91430be9816a84577bad6442deb`. All are deployed;
+the consumer's PR and main CI passed, its signed-image release succeeded,
+and Kargo freight `768664d11b8bce91b210b4f59fec239f615b17dc` was verified
+Healthy with every affected deployment fully ready. Normal CI has exercised
+the owning schema with real PostgreSQL;
 local integration cases requiring containers cannot run under the user's
 no-local-apps constraint. E2e browser consumer tests explicitly stub only the
 discovery API; they are not proof of actual Resend/native availability.
@@ -71,10 +75,19 @@ keeps the source label and reports uncertainty without claiming it is still live
 Audit and encrypted backup retention follow existing platform policies; active
 challenge sweeping is not a claim that all historical backups are erased.
 
-Live acceptance must still prove actual mailbox delivery, single hospital and
-independent pharmacy sign-in, same-email separate accounts, account switching,
-MFA, current IAM scope and denied foreign-tenant APIs. The Yes Hospital owner's
-private authenticator enrolment remains user-operated. Do not delete that tenant.
+Actual-site acceptance on 2026-11-12 confirmed email-only login without a Workspace
+ID, mailbox delivery, password acceptance, user-operated private authenticator
+enrolment and the hospital dashboard. The authenticated profile returned the
+expected hospital tenant, native owner subject and `tenant_admin` role. The
+switch confirmation was opened and Cancel preserved the current session. An
+account-list request without mailbox proof was refused. No authenticator material
+was captured. Do not delete the fresh hospital tenant.
+
+Live independent pharmacy sign-in, same-email separate accounts, completed
+cross-account switching and denied foreign-tenant business APIs remain open.
+The current-name header follow-up is described in
+[its scoped design](current-account-tenant-name.md); it requires its own release
+evidence before being called deployed.
 
 Discovery names preserve signup's limit of 200 Unicode code points, rather than
 200 UTF-8 bytes. Identity-owner, public-proxy and generated-client tests cover

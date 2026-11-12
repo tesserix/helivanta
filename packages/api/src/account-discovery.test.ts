@@ -41,3 +41,22 @@ it("rejects oversized account lists and secret-bearing response fields", async (
   await expect(getAccountChoices()).rejects.toThrow();
   await expect(getAccountChoices()).rejects.toThrow();
 });
+
+it.each(["अ", "ଅ", "😀"])("preserves the canonical Unicode name limit for %s", async (letter) => {
+  const account = {
+    tenantId: "11111111-1111-4111-8111-111111111111",
+    name: letter.repeat(200),
+    account: "owner@example.test",
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ accounts: [account] }))
+      .mockResolvedValueOnce(
+        Response.json({ accounts: [{ ...account, name: letter.repeat(201) }] }),
+      ),
+  );
+  expect((await getAccountChoices()).accounts[0].name).toBe(account.name);
+  await expect(getAccountChoices()).rejects.toThrow();
+});

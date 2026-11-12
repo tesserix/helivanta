@@ -2,6 +2,7 @@ package customeronboarding
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/tesserix/onboarding-service/api/customercontract"
 	"net/http"
@@ -102,5 +103,45 @@ func TestDiscoveryProxyBindsPrivateProofToDistinctSecureCookie(t *testing.T) {
 	}
 	if got := call("GET", "/v1/auth/accounts", "", cookies[0]); got.Code != 200 || !strings.Contains(got.Body.String(), "Yes Hospital") || got.Header().Get("Cache-Control") != "no-store" {
 		t.Fatal("choices unavailable or cacheable", got.Code)
+	}
+}
+
+func TestDiscoveryProxyPreservesUnicodeOrganisationNames(t *testing.T) {
+	for _, length := range []int{200, 201} {
+		t.Run(fmt.Sprint(length), func(t *testing.T) {
+			name := strings.Repeat("ଅ", length)
+			owner := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/internal/v1/customer-signups/account-discovery/choices" || r.Header.Get("Authorization") != "Bearer synthetic-workload" {
+					t.Error("incorrect broker boundary")
+				}
+				_ = json.NewEncoder(w).Encode(map[string]any{"accounts": []any{map[string]string{"tenantId": "11111111-1111-4111-8111-111111111111", "name": name, "account": "owner@example.test"}}})
+			}))
+			defer owner.Close()
+			file := t.TempDir() + "/token"
+			if err := os.WriteFile(file, []byte("synthetic-workload"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			h := &Handlers{base: owner.URL, client: owner.Client(), tokenFile: file}
+			r := gin.New()
+			r.GET("/v1/auth/accounts", h.AccountChoices)
+			cap, err := newCapability()
+			if err != nil {
+				t.Fatal(err)
+			}
+			req := httptest.NewRequest("GET", "/v1/auth/accounts", nil)
+			req.AddCookie(&http.Cookie{Name: discoveryCookieName, Value: cap.id.String() + "." + cap.token})
+			res := httptest.NewRecorder()
+			r.ServeHTTP(res, req)
+			if length == 201 {
+				if res.Code != 503 || strings.Contains(res.Body.String(), name) {
+					t.Fatal("invalid name disclosed", res.Code)
+				}
+				return
+			}
+			var body customercontract.DiscoveryChoices
+			if res.Code != 200 || json.Unmarshal(res.Body.Bytes(), &body) != nil || len(body.Accounts) != 1 || body.Accounts[0].Name != name {
+				t.Fatal("valid Unicode name was not preserved", res.Code)
+			}
+		})
 	}
 }

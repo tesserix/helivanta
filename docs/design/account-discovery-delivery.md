@@ -75,3 +75,7 @@ Live acceptance must still prove actual mailbox delivery, single hospital and
 independent pharmacy sign-in, same-email separate accounts, account switching,
 MFA, current IAM scope and denied foreign-tenant APIs. The Yes Hospital owner's
 private authenticator enrolment remains user-operated. Do not delete that tenant.
+
+Discovery names preserve signup's limit of 200 Unicode code points, rather than
+200 UTF-8 bytes. Identity-owner, public-proxy and generated-client tests cover
+Devanagari, Odia and non-BMP boundaries, including rejection at 201 characters.

@@ -44,7 +44,7 @@ func TestDepartmentProposalNeedsBothScopeOwners(t *testing.T) {
 			"admin":    {iam.PermMemberManage, assignmentHospitalManage, "iam.assignment.manage"},
 			"reviewer": {"iam.assignment.review"},
 		},
-		Modules: []platform.Module{iam.New(nil), assignmentWorkforceModule()},
+		Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(membershipIdentity{}), assignmentWorkforceModule()},
 	})
 	upstream := httptest.NewServer(r)
 	t.Cleanup(upstream.Close)

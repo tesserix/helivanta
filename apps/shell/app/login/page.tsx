@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { z } from "zod";
 import {
@@ -24,6 +24,7 @@ import {
   TenantLoginHeading,
 } from "@/components/login-branding";
 import { getUserManager } from "@/lib/oidc";
+import { workspaceSigninScope } from "@/lib/workspace-signin";
 import {
   changePassword,
   checkFactor,
@@ -1106,6 +1107,8 @@ function RedirectLanding({
   message?: string;
   autoStart?: boolean;
 }) {
+  const params = useSearchParams();
+  const [workspace, setWorkspace] = useState(params.get("workspace") ?? "");
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(autoStart);
   // React's development double-mount must not start two redirects.
@@ -1130,6 +1133,33 @@ function RedirectLanding({
   // folded into `signedOut`, so the two messages can never be conflated,
   // and this component's effect below is what enforces which one wins.
   const [idleEnded, setIdleEnded] = useState(false);
+
+  const signIn = useCallback(async () => {
+    setError(null);
+    setStarting(true);
+    try {
+      // prompt=login on this request only — never on the silent renewal in
+      // lib/renew.ts, which relies on prompt=none. Applying it there would
+      // make every renewal demand a password and turn a background refresh
+      // into an interruption mid-consultation.
+      //
+      // Here it is cheap and worth it: this is an explicit, deliberate
+      // sign-in, and forcing re-authentication means a live Zitadel session
+      // cannot silently answer for whoever is now at the keyboard.
+      await getUserManager().signinRedirect({
+        prompt: "login",
+        ...(workspace
+          ? {
+              scope: workspaceSigninScope(workspace.trim()),
+              state: { purpose: "workspace-login", tenantId: workspace.trim() },
+            }
+          : {}),
+      });
+    } catch (err: unknown) {
+      setStarting(false);
+      setError(err instanceof Error ? err.message : "Could not reach the sign-in page.");
+    }
+  }, [workspace]);
 
   useEffect(() => {
     // An explicit message (the expired-request state) always wins — see
@@ -1174,26 +1204,7 @@ function RedirectLanding({
     url.searchParams.delete("start");
     window.history.replaceState(window.history.state, "", url);
     void signIn();
-  }, [message, autoStart]);
-
-  async function signIn() {
-    setError(null);
-    setStarting(true);
-    try {
-      // prompt=login on this request only — never on the silent renewal in
-      // lib/renew.ts, which relies on prompt=none. Applying it there would
-      // make every renewal demand a password and turn a background refresh
-      // into an interruption mid-consultation.
-      //
-      // Here it is cheap and worth it: this is an explicit, deliberate
-      // sign-in, and forcing re-authentication means a live Zitadel session
-      // cannot silently answer for whoever is now at the keyboard.
-      await getUserManager().signinRedirect({ prompt: "login" });
-    } catch (err: unknown) {
-      setStarting(false);
-      setError(err instanceof Error ? err.message : "Could not reach the sign-in page.");
-    }
-  }
+  }, [message, autoStart, signIn]);
 
   return (
     <TenantLoginLayout>
@@ -1211,6 +1222,24 @@ function RedirectLanding({
           </p>
         </div>
 
+        <div className="space-y-2">
+          <label htmlFor="signin-workspace" className="text-sm font-medium">
+            Workspace ID
+          </label>
+          <input
+            id="signin-workspace"
+            value={workspace}
+            onChange={(event) => setWorkspace(event.target.value)}
+            disabled={starting}
+            maxLength={36}
+            aria-describedby="signin-workspace-help"
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+          />
+          <p id="signin-workspace-help" className="text-xs text-muted-foreground">
+            Use the ID from your workspace link to sign in with your email. Each workspace has a
+            separate account.
+          </p>
+        </div>
         <Button size="lg" className="w-full" onClick={signIn} disabled={starting}>
           {starting ? "Redirecting…" : "Sign in"}
         </Button>

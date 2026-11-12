@@ -73,6 +73,8 @@ func membershipCommandError(c *gin.Context, err error) {
 		return
 	}
 	switch {
+	case errors.Is(err, errGrantIdentityIneligible):
+		respond.Error(c, 409, "identity_ineligible", "Choose an active verified account owned by this workspace.")
 	case errors.Is(err, authz.ErrScopedCredentialRevoked):
 		respond.Error(c, 401, "session_revoked", "Sign in again before managing memberships.")
 	case errors.Is(err, errRevocationActorNotAdmin), errors.Is(err, errGovernanceMembership):
@@ -213,7 +215,7 @@ func (h *membershipCommandHandlers) put(c *gin.Context) {
 			membershipCommandError(c, errMembershipAuthority)
 			return
 		}
-		eligible, lookupErr := h.identity.MembershipEligible(ctx, in.Subject)
+		eligible, lookupErr := h.identity.MembershipEligible(ctx, p.TenantID, in.Subject)
 		if lookupErr != nil {
 			membershipCommandError(c, errMembershipAuthority)
 			return

@@ -29,7 +29,8 @@ type SignupFormMethods = ReturnType<typeof useZodForm<typeof signupFormSchema>>;
 
 export function SignupForm() {
   const [sameAddress, setSameAddress] = useState(true);
-  const { progress, create, resend } = useCustomerSignup();
+  const { progress, create, resend, begin } = useCustomerSignup();
+  const formHeading = useRef<HTMLHeadingElement>(null);
   const form = useZodForm(signupFormSchema, {
     name: "",
     kind: "hospital",
@@ -42,6 +43,23 @@ export function SignupForm() {
       mainBranch: { name: "Main branch", address: { ...emptyAddress } },
     },
   });
+  useEffect(() => {
+    const parsed = CustomerSignupReceiptContract.safeParse(progress.data);
+    if (begin.isSuccess && parsed.success && parsed.data.state === "not_started") {
+      formHeading.current?.focus({ preventScroll: true });
+      formHeading.current?.scrollIntoView({ block: "start", behavior: "instant" });
+    }
+  }, [begin.isSuccess, progress.data]);
+  function beginAnother() {
+    begin.mutate(undefined, {
+      onSuccess: () => {
+        form.reset();
+        setSameAddress(true);
+        create.reset();
+        resend.reset();
+      },
+    });
+  }
   const parsed = CustomerSignupReceiptContract.safeParse(progress.data);
   if (progress.isPending) return <p role="status">Checking workspace setup…</p>;
   if (progress.isError || !parsed.success)
@@ -53,7 +71,10 @@ export function SignupForm() {
       />
     );
   const receipt = parsed.data;
-  if (receipt.state !== "not_started") return <SignupStatus receipt={receipt} resend={resend} />;
+  if (receipt.state !== "not_started")
+    return (
+      <SignupStatus receipt={receipt} resend={resend} begin={begin} beginAnother={beginAnother} />
+    );
   const errors = form.formState.errors;
   function submit(event: FormEvent<HTMLFormElement>) {
     form.setValue("stateCode", form.getValues("profile.headOffice.stateCode"));
@@ -63,7 +84,9 @@ export function SignupForm() {
   }
   return (
     <form noValidate onSubmit={submit} className="space-y-5">
-      <h2 className="text-2xl font-medium">Create your workspace</h2>
+      <h2 ref={formHeading} tabIndex={-1} className="text-2xl font-medium outline-none">
+        Create your workspace
+      </h2>
       <Field id="signup-name" label="Organisation name" error={errors.name?.message}>
         <input
           className="h-10 rounded-md border bg-background px-3"
@@ -172,6 +195,11 @@ export function SignupForm() {
         operating permissions are set up separately.
       </p>
       {create.error && <p role="alert">We could not submit your workspace. Please try again.</p>}
+      {create.isError && (
+        <Button type="button" variant="outline" disabled={begin.isPending} onClick={beginAnother}>
+          Start a fresh signup
+        </Button>
+      )}
       <Button type="submit" disabled={create.isPending} className="w-full">
         {create.isPending ? "Submitting…" : "Create workspace"}
       </Button>
@@ -185,7 +213,11 @@ export function SignupForm() {
 function SignupStatus({
   receipt,
   resend,
+  begin,
+  beginAnother,
 }: {
+  begin: ReturnType<typeof useCustomerSignup>["begin"];
+  beginAnother: () => void;
   receipt: CustomerSignupReceipt;
   resend: ReturnType<typeof useCustomerSignup>["resend"];
 }) {
@@ -233,7 +265,7 @@ function SignupStatus({
               : receipt.state === "password_action_required"
                 ? "Your email is verified. Request a password setup email to finish creating your login."
                 : receipt.state === "email_action_required"
-                  ? "New accounts receive a verification link at the owner email. Check your inbox and spam folder, or continue with your existing Tesserix sign-in."
+                  ? "We create a separate login for this workspace, even if you use this email elsewhere. Verify your email, set this account's password, then enrol its own second factor. Check your inbox and spam folder."
                   : "Your organisation details have been saved. We are preparing the next step."}
         </p>
       </div>
@@ -241,6 +273,14 @@ function SignupStatus({
         <Button type="button" className="w-full" disabled={signingIn} onClick={() => void signin()}>
           {signingIn ? "Opening sign-in…" : "Open workspace"}
         </Button>
+      )}
+      {receipt.state === "ready" && (
+        <a
+          className="block text-sm underline underline-offset-4"
+          href={`/login?workspace=${receipt.tenantId}`}
+        >
+          Save your workspace sign-in link
+        </a>
       )}
       {(receipt.state === "email_action_required" ||
         receipt.state === "password_action_required") && (
@@ -257,20 +297,11 @@ function SignupStatus({
                 ? "Send password setup email"
                 : "Resend verification email"}
           </Button>
-          {receipt.state === "email_action_required" && (
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              disabled={signingIn}
-              onClick={() => void signin()}
-            >
-              {signingIn ? "Opening sign-in…" : "Continue with an existing account"}
-            </Button>
-          )}
           <p className="text-sm text-muted-foreground">
-            Links expire after 1 hour. Up to 3 emails per hour and 10 per 24 hours, including the
-            first email and password setup. Verification emails stop once your email is verified.
+            Links expire after 1 hour. Each workspace allows up to 3 emails per hour and 10 per 24
+            hours, including the first email and password setup. Across workspaces, the same
+            recipient can receive up to 10 emails per hour and 30 per 24 hours. Verification emails
+            stop once your email is verified.
           </p>
           {resend.isSuccess && (
             <p role="status" className="text-sm text-muted-foreground">
@@ -289,7 +320,23 @@ function SignupStatus({
           We could not start sign-in. Please try again.
         </p>
       )}
-      <div className="border-t border-border pt-5">
+      <div className="space-y-3 border-t border-border pt-5">
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          disabled={begin.isPending || signingIn}
+          onClick={beginAnother}
+        >
+          {begin.isPending ? "Opening blank signup…" : "Create another workspace"}
+        </Button>
+        <p className="text-sm text-muted-foreground">
+          This opens a blank signup. Existing workspaces and pending requests are kept.
+        </p>
+        {begin.isError && (
+          <p role="alert">Could not confirm a new signup. Refresh to check your current setup.</p>
+        )}
+
         <a href="/login?start=1" className="block text-center text-sm underline underline-offset-4">
           Sign in to an existing workspace
         </a>

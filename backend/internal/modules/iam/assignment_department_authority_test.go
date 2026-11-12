@@ -48,6 +48,11 @@ func newDepartmentGrantHarness(t *testing.T) *departmentGrantHarness {
 // newGrantHarness lets a backfill test stop IAM before a migration while Workforce stays current.
 func newGrantHarness(t *testing.T, module platform.Module) *departmentGrantHarness {
 	t.Helper()
+	configured, ok := module.(interface {
+		SetMembershipIdentityReader(iam.MembershipIdentityReader) *iam.Module
+	})
+	require.True(t, ok)
+	configured.SetMembershipIdentityReader(membershipIdentity{})
 	fga, err := authz.NewClient(t.Context(), testinfra.StartOpenFGA(t), testinfra.IsolationKey(t))
 	require.NoError(t, err)
 	r, db, bus, _ := testutil.NewHarness(t, testutil.HarnessOptions{

@@ -1,11 +1,15 @@
 # Automated customer onboarding and a clean test start
 
-Status: the signup implementation is deployed at `https://helivanta.app/signup`.
-Configuration, unit tests and public browser checks have been verified. Real
-owner email delivery, native proof completion, first login and MFA still need
-live acceptance; a rendered form or active mail provider does not close those
-gates. Customer onboarding is automated after verified signup, without platform
-approval.
+Status: the earlier signup implementation is deployed at `https://helivanta.app/signup`.
+The tenant-owned identity redesign in [ADR-0070](../adr/0070-tenant-owned-login-identities.md)
+is prepared and awaiting its coordinated schema/identity/application rollout.
+Verified email delivery, distinct QA tenant organisations and resend no-op checks
+have live evidence. Fresh tenant-owned same-email login/MFA and owner-policy
+acceptance must be verified after this redesign is deployed. Customer onboarding
+remains automated after verified signup, without platform approval.
+
+[Editable tenant identity diagram](tenant-owned-identities.drawio) ·
+[Identity decision and rollout](../adr/0070-tenant-owned-login-identities.md)
 
 ## Customer tree and authority
 
@@ -39,8 +43,22 @@ The first registrant's supplied email and name become the new native human
 owner; the server derives the tenant UUID and subject. The browser cannot pick
 an existing tenant, user ID, native organization ID or privileged platform role.
 Email verification must be proven by Zitadel, never asserted by the browser.
-Existing identities need an authenticated reuse flow, not email-name matching,
-automatic account merging or silently duplicated people.
+Every signup creates a fresh identity owned by its new organisation, including
+when the same email exists elsewhere. Passwords, MFA factors and external IdP
+links are independent. Native usernames and organisation names include the
+immutable tenant identifier; business display names remain business metadata.
+Email is a delivery address and never proves a shared login or authority.
+
+`POST /v1/auth/signup/new` opens a separate browser receipt with an empty JSON
+body and the existing same-origin protections. It returns `not_started` and
+rotates only the Secure, HttpOnly, SameSite receipt cookie: no native identity,
+tenant, membership or existing request is created, changed or deleted. The UI
+cancels old receipt polling before replacing its cache and opens a blank form.
+Save a ready workspace's specific sign-in link before starting another; an
+unfinished request is retained server-side but this browser now tracks the new
+receipt. An uncertain network outcome requires refresh to inspect current state.
+The next normal signup submission creates the independent tenant under existing
+intake limits, idempotency and native verification requirements.
 
 ## Required customer journey
 
@@ -80,41 +98,39 @@ The initial business setup is automatic; entering licence evidence, releasing
 stock, employing operational Staff and approving regulated activity still need
 real authorized evidence. Signup must not fabricate these as successful.
 
-## Authenticated continuation for an existing owner
+## Tenant-owned accounts and workspace sign-in
 
-A submitted email that already belongs to a native identity keeps the public
-receipt generic. That path sends no new-account verification email. The status
-screen explains verification for new accounts and offers an existing-account
-sign-in. A fresh OIDC authorization-code/PKCE exchange carries a fixed signup
-purpose through the library's protected state. Helivanta verifies the ID token's
-issuer, signature, client audience, expiry, authentication time and current
-revocation watermark before its private workload handoff.
+A new hospital or independent pharmacy always receives a separate Zitadel
+organisation and fresh native owner. Remove global email detection and
+cross-tenant email reservation uniqueness. The new account verifies its own
+email, sets its own password, and enrols its own second factor; it never prompts
+for an old account's enrolled device to establish new-tenant ownership.
 
-The onboarding owner checks the active native human and verified email against
-the immutable signup intent. Only then may a receipt-bound `existing_account`
-command record an immutable existing-owner subject and authentication timestamp.
-It rotates the browser receipt, records attributable audit evidence, and resumes
-the original tenant/resource command. The original generated subject and input
-remain immutable. Replays for the same verified owner repair a lost response,
-while a different subject cannot rebind the command. Authentication is limited
-to five minutes of age with thirty seconds of future clock tolerance. No ID
-token, password or native verification code is persisted in the intake ledger.
+The ready workspace offers a scoped sign-in and a reusable
+`/login?workspace=<tenant UUID>` link. Fresh OIDC authorization-code/PKCE state
+pins the native organisation and exact Helivanta tenant. The server resolves
+email within that native organisation, requires one active verified human,
+checks its password by user ID and verifies the resulting session's organisation.
+The callback retains native token, nonce/state/PKCE and server membership checks.
+An unscoped legacy canonical-login-name path does not search other tenants by email.
 
-The existing identity remains owned by its native organisation. The controller
-adds that exact subject as ORG_OWNER of the newly created organisation. Business
-provisioning still requires current native organisation metadata, project grant,
-owner membership and the existing IAM bootstrap/replay guards. A completed
-existing sign-in satisfies the primary-credential gate. The final sign-in names
-the newly created tenant, avoiding another existing membership becoming the
-active workspace by default.
+Receipt-bound native continuation may prove only the immutable fresh owner in
+its target organisation. It cannot adopt another organisation's account by email.
+Existing accepted historic bindings retain recovery compatibility and history;
+this release does not delete or silently migrate them. Active unbound historic
+`existing_account` intents resume their own original deterministic fresh owner
+through the bounded leased worker. Expired historic receipts do not resume.
+The schema expansion removes the email uniqueness index and retains immutable
+intent, proof and legacy-binding guards. It requires named approval before live
+application; accepted duplicate-email rows make rollback a forward-recovery task.
 
-The additive database change introduces `existing_owner_subject` and
-`existing_owner_auth_time`, preserves the unique reservation for new identities,
-and permits one verified existing person to own multiple independently scoped
-workspaces. Database guards prevent binding changes and require the explicit
-verified continuation context. Historical signup rows retain empty bindings.
-The status heading receives focus and is scrolled into view when the signup
-stage changes, including after the long form is replaced.
+New Staff memberships and role grants independently require the native account's
+resource owner to match the verified tenant organisation. An active/verified
+account from another organisation is generically ineligible. Current memberships
+remain readable; granting/restoring new access requires a tenant-owned account.
+Staff provisioning/invitation is a separate workflow; an email match cannot link
+or create its business authority. Focused tests and real database CI cover these
+boundaries; deployment acceptance remains required.
 
 ## Business contacts, headquarters and the initial branch
 
@@ -177,64 +193,61 @@ sequenceDiagram
     participant Web as Helivanta / Global API
     participant Signup as Onboarding service
     participant Identity as Identity operator / Zitadel
-    participant Mail as Resend SMTP
-    Owner->>Web: Submit organization and owner email
-    Web->>Signup: Record durable signup with private receipt
-    Signup->>Identity: Create organization and initial human owner
-    Identity->>Mail: Send native verification email
-    Mail-->>Owner: Verification link
-    Owner->>Web: Open link and confirm verification
-    Web->>Signup: Submit native user ID and verification code
-    Signup->>Identity: Verify code and recheck immutable owner binding
-    Identity-->>Signup: Current native verified email
+    participant Mail as Resend API
+    Owner->>Web: Submit organisation and owner delivery email
+    Web->>Signup: Record durable intent and private receipt
+    Signup->>Identity: Create unique organisation and fresh owner
+    Signup->>Identity: Recheck owner binding; request native code
+    Signup->>Mail: Send product verification link with reserved allowance
+    Mail-->>Owner: Verification email
+    Owner->>Web: Explicitly confirm verification
+    Web->>Signup: Submit native proof without logging it
+    Signup->>Identity: Verify code and recheck tenant-owned identity
     Signup-->>Web: Rotate receipt; offer password setup
 ```
 
-Zitadel owns the verification code, expiration and proof; Resend delivers the
-native email through Zitadel's configured SMTP provider. Helivanta does not
-send a second verification email directly through the Resend API and does not
-accept a browser assertion that an address is verified.
+Zitadel owns code creation, expiration and proof. Product delivery uses the
+Resend API with verified sender `onboarding@helivanta.app`; the API key is supplied
+through OpenBao/ESO and a read-only mounted file. Its value never enters a browser,
+log, issue or repository. The external-email claim suppresses the operator's
+initial shared SMTP send. Shared platform SMTP remains separately configured.
 
-The identity operator includes `human.email.sendCode` when creating the initial
-owner in `/v2/organizations`. The email uses this fixed return template:
+The fixed verification URL uses a fragment:
 
 ```text
 https://helivanta.app/signup/verify#phase=email&userId={{.UserID}}&code={{.Code}}
 ```
 
-The browser removes the fragment from its address bar before submitting the
-proof. It requires the owner's explicit verification action, so opening a link
-in an email scanner does not consume the proof. The Global API routes the
-same-origin request to the signup boundary; onboarding submits the code to
-Zitadel's `/v2/users/{userId}/email/verify`, rechecks the exact organization,
-subject and email, and rotates the private receipt. Verification errors or
-identity outages do not activate an owner or report a ready workspace.
+The browser removes the fragment before submitting the native proof and requires
+an explicit verification action, so an email scanner cannot consume it merely
+by opening it. Verification rechecks the exact native organisation, subject and
+submitted email and rotates the private receipt. A separate `phase=password`
+link and native proof are required for first password setup. No browser assertion
+can mark verification/password setup complete.
 
-The public email-link action uses the same native destination and bounded mail
-request budget. After verification, the owner requests a separate native
-password-setup email. Its link uses `phase=password`; setting a password requires
-that link's native proof. Email verification alone does not mark password setup
-or workspace provisioning complete.
+Native email and password links expire after one hour. Initial delivery and
+both resend kinds share three attempts per hour and ten per rolling24hours per
+immutable signup, including failed provider attempts. Across independent intents,
+the same recipient hash has an additional10/rolling hour and30/rolling24hour
+allowance, serialized by a database transaction lock. Creating a new receipt or
+tenant never resets either budget. Reservations are atomic
+and audited without native codes. Verified email resend and completed password
+setup return privacy-safe no-ops before spending allowance or generating a code.
+Provider acceptance evidence is retained, but an accepted send is not proof of
+inbox delivery or completed login. Live QA delivery passed SPF/DKIM and verified
+resend probes produced no additional verification email.
 
-The infrastructure-owned SMTP configuration is `smtp.resend.com:587` with
-STARTTLS, SMTP user `resend` and sender `auth@tesserix.app` (Tesserix). The
-credential remains in managed identity configuration, never the browser or this
-document. The recurring Zitadel bootstrap checks the provider configuration and
-active state. Those checks do not prove that Resend accepted a particular email
-or that the recipient received it. For a live test, use an explicitly supplied
-new-owner mailbox, check the Resend delivery outcome, then complete the native
-verification/password flow and owner login. Do not record link codes, passwords
-or full recipient details in logs, screenshots, issues or committed evidence.
-
-Source owners: the operator's `internal/zitadelapi/organizations.go` creates the
-first native delivery; onboarding's `internal/zitadel/customer.go` issues and
-verifies native links; Helivanta's `backend/internal/customeronboarding` owns the
-public receipt boundary, and `apps/shell/app/signup/verify` handles the link.
-The infrastructure source is `charts/apps/zitadel-bootstrap` in `tesserix-k8s`.
+Source owners: the identity operator creates the fresh owner and suppresses
+shared delivery for the external-email claim; onboarding's native-code client,
+mail sender and durable reservation store own product delivery/proof. Helivanta's
+public receipt boundary and verification UI continue through Global API.
 
 ## Owner security administration
 
-The owner panel must read and update the current customer's Zitadel security
+The current owner panel reads and reapplies the mandatory MFA/no-grace minimum;
+its applied/pending/drifted state comes from native policy, not just an HTTP202.
+It does not expose arbitrary policy editing or disabling required MFA. Additional
+settings need explicit supported contracts. The owner panel must read and update the current customer's Zitadel security
 policy through a server-side integration. Every request uses verified current
 Helivanta tenant membership and fresh native organization-owner authority. The
 server resolves the native organization from the verified tenant binding;
@@ -317,7 +330,7 @@ does not immediately erase recovery copies.
   required platform/recovery records survived and no replacement fixture was
   silently created. Only then tell the user to begin their fresh onboarding.
 
-The public signup, automatic business setup and owner security implementations
-are deployed. Their real-owner acceptance gates and the approved historic data
-reset remain open. First-owner controller tests, provider configuration checks
+The earlier public signup, automatic business setup and owner security
+implementations are deployed. ADR-0070 changes are not yet deployed. Their
+real-owner acceptance gates and the approved historic data reset remain open. First-owner controller tests, provider configuration checks
 or a provisioning API PR do not close those gates.

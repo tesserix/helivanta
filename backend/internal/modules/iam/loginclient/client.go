@@ -80,9 +80,11 @@ const maxSuccessBodyBytes = 64 * 1024
 // authenticate with the login client PAT, not the session being
 // established.
 type Client struct {
-	baseURL string
-	token   string
-	hc      *http.Client
+	tenantUsers    TenantUserResolver
+	tenantIdentity TenantIdentityResolver
+	baseURL        string
+	token          string
+	hc             *http.Client
 	// now is the clock the password-expiry gate (passwordchange.go) compares
 	// against. time.Now in production; this package's tests replace it to put
 	// a password on either side of its expiry without sleeping.
@@ -166,9 +168,13 @@ func (c *Client) AuthRequest(ctx context.Context, id string) (AuthRequest, error
 // doc comment for why that distinction survives here even though the
 // browser-facing answer must not.
 func (c *Client) CreatePasswordSession(ctx context.Context, loginName, password string) (Session, error) {
+	return c.createPasswordSession(ctx, map[string]any{"loginName": loginName}, password)
+}
+
+func (c *Client) createPasswordSession(ctx context.Context, user map[string]any, password string) (Session, error) {
 	body := map[string]any{
 		"checks": map[string]any{
-			"user":     map[string]any{"loginName": loginName},
+			"user":     user,
 			"password": map[string]any{"password": password},
 		},
 	}
@@ -822,77 +828,15 @@ func (s UserState) IsActive() bool {
 	return s == UserStateActive
 }
 
-// UserState reads GET /v2/users/{id} with the login-client PAT and reports
-// whether id is still active upstream. Verified live against dev Zitadel
-// v4.15.3 on 2026-08-20: the login-client PAT is permitted for this read
-// (HTTP 200, no new credential needed — the same PAT every other method in
-// this file already uses); the response nests state on the user object
-// ({"user":{"userId":...,"state":...,"username":...,"human":{...}}});
-// a normal user's read is "USER_STATE_ACTIVE"; and deactivating that same
-// user (POST /v2/users/{id}/deactivate) flips the SAME read to
-// "USER_STATE_INACTIVE" — the live proof that this check can actually
-// fail, which is what makes it a control and not decoration. This is the
-// read used by server-side renewal and ordinary protected request admission
-// (ADR-0047). Known locked, suspended, deleted and initial states are also
-// definite non-active answers in the versioned UserState protocol.
-//
-// id is escaped with url.PathEscape before being placed in the URL, same
-// as every other id-in-path call in this file (see AuthRequest's doc
-// comment for the escaping rationale) — defensive here, not required: id
-// reaches this method from this server's own session/principal state, not
-// a browser-supplied parameter.
-//
-// A 404 maps to UserStateInactive, with a NIL error, not to ErrUnavailable
-// — a 404 here means the user was deleted upstream, and a deleted user
-// must never renew any more than an explicitly deactivated one does; that
-// answer is exactly as definite as an explicit USER_STATE_INACTIVE, so it
-// gets the same caller-visible value rather than being folded into the
-// "cannot tell" error branch below.
-//
-// Every OTHER failure path — transport error, a 5xx, a 200 body with no
-// recognizable state field, or a state string this method does not
-// recognize — returns userStateUnset alongside a non-nil error wrapping
-// ErrUnavailable, never UserStateActive and never UserStateInactive. This
-// is the crux of the fail-closed contract the brief calls for: an
-// unreadable answer is not evidence of "not active" any more than it is
-// evidence of "active" — collapsing it into UserStateInactive would let a
-// caller that only calls IsActive() (and does not separately check err)
-// end an active clinician's session on a transient Zitadel blip, while
-// collapsing it into UserStateActive is the literal authentication bypass
-// this method exists to prevent. Treating an unrecognized state string
-// (Zitadel could add one) as an error rather than as active follows the
-// same reasoning: assuming an unknown value is fine is exactly the wrong
-// default for the one call standing between a deactivated clinician and a
-// live session.
-func (c *Client) UserState(ctx context.Context, id string) (UserState, error) {
-	if c == nil {
-		return userStateUnset, fmt.Errorf("identity state client missing: %w", ErrUnavailable)
-	}
-	var wire struct {
-		User struct {
-			State string `json:"state"`
-		} `json:"user"`
-	}
-	if err := c.do(ctx, http.MethodGet, "/v2/users/"+url.PathEscape(id), nil, &wire, ErrUserNotFound); err != nil {
-		if errors.Is(err, ErrUserNotFound) {
-			return UserStateInactive, nil
-		}
+// UserState checks current identity through the scoped identity owner. Only an
+// authoritative inactive/missing user becomes inactive; unavailable scope or
+// dependency remains an error and cannot trigger a false credential revocation.
+func (c *Client) UserState(ctx context.Context, tenant, id string) (UserState, error) {
+	snapshot, err := c.identitySnapshot(ctx, tenant, id, IdentityReadStatus)
+	if err != nil {
 		return userStateUnset, err
 	}
-	return userState(wire.User.State)
-}
-
-func userState(state string) (UserState, error) {
-	switch state {
-	case "USER_STATE_ACTIVE":
-		return UserStateActive, nil
-	case "USER_STATE_INACTIVE", "USER_STATE_LOCKED", "USER_STATE_SUSPEND", "USER_STATE_DELETED", "USER_STATE_INITIAL":
-		return UserStateInactive, nil
-	case "":
-		return userStateUnset, fmt.Errorf("identity response with no recognizable state field: %w", ErrUnavailable)
-	default:
-		return userStateUnset, fmt.Errorf("identity response with unrecognized state: %w", ErrUnavailable)
-	}
+	return snapshot.State, nil
 }
 
 // UserProfile is the presentation identity Zitadel holds for a human user.
@@ -901,32 +845,16 @@ type UserProfile struct {
 	Email       string
 }
 
-// UserProfile reads the same GET /v2/users/{id} UserState does. It does not
-// judge state — the identity guard has already admitted the caller — and a
-// body without a human profile is unavailable, never an empty identity.
-func (c *Client) UserProfile(ctx context.Context, id string) (UserProfile, error) {
-	if c == nil {
-		return UserProfile{}, fmt.Errorf("identity profile client missing: %w", ErrUnavailable)
-	}
-	var wire struct {
-		User struct {
-			Human *struct {
-				Profile struct {
-					DisplayName string `json:"displayName"`
-				} `json:"profile"`
-				Email struct {
-					Email string `json:"email"`
-				} `json:"email"`
-			} `json:"human"`
-		} `json:"user"`
-	}
-	if err := c.do(ctx, http.MethodGet, "/v2/users/"+url.PathEscape(id), nil, &wire, ErrUserNotFound); err != nil {
+// UserProfile reads only the verified current principal's presentation view.
+func (c *Client) UserProfile(ctx context.Context, tenant, id string) (UserProfile, error) {
+	snapshot, err := c.identitySnapshot(ctx, tenant, id, IdentityReadProfile)
+	if err != nil {
 		return UserProfile{}, err
 	}
-	if wire.User.Human == nil {
-		return UserProfile{}, fmt.Errorf("GET /v2/users/%s: no human profile: %w", id, ErrUnavailable)
+	if snapshot.Profile == nil {
+		return UserProfile{}, ErrUnavailable
 	}
-	return UserProfile{DisplayName: wire.User.Human.Profile.DisplayName, Email: wire.User.Human.Email.Email}, nil
+	return *snapshot.Profile, nil
 }
 
 // mfaPolicyKeys is every wire key loginPolicy reads to decide ForceMFA —

@@ -42,7 +42,7 @@ import (
 
 type staffFileIdentityState struct{ state atomic.Int32 }
 
-func (s *staffFileIdentityState) UserState(context.Context, string) (loginclient.UserState, error) {
+func (s *staffFileIdentityState) UserState(context.Context, string, string) (loginclient.UserState, error) {
 	state := s.state.Load()
 	if state < 0 {
 		return 0, errors.New("synthetic identity provider unavailable")

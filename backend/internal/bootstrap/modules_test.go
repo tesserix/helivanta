@@ -17,15 +17,15 @@ import (
 // enough.
 type fakeUserStateChecker struct{}
 
-func (*fakeUserStateChecker) UserState(context.Context, string) (loginclient.UserState, error) {
+func (*fakeUserStateChecker) UserState(context.Context, string, string) (loginclient.UserState, error) {
 	return loginclient.UserStateActive, nil
 }
 
-func (*fakeUserStateChecker) UserProfile(context.Context, string) (loginclient.UserProfile, error) {
+func (*fakeUserStateChecker) UserProfile(context.Context, string, string) (loginclient.UserProfile, error) {
 	return loginclient.UserProfile{}, nil
 }
 
-func (*fakeUserStateChecker) MembershipEligible(context.Context, string) (bool, error) {
+func (*fakeUserStateChecker) MembershipEligible(context.Context, string, string) (bool, error) {
 	return true, nil
 }
 

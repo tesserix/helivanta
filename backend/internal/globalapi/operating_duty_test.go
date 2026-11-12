@@ -106,7 +106,7 @@ func newOperatingDutyFixtureWithOwners(t *testing.T, documents *attachments.GCS,
 	admin := []authz.Permission{iam.PermMemberManage, iam.PermOperatingRead, iam.PermOperatingPrepare, iam.PermOperatingReview, iam.PermOperatingRevoke, workforce.PermSupplierManage, workforce.PermIndependentLoginManage, workforce.PermIndependentLoginReview, supply.PermPartyWrite, supply.PermOrganizationManage, supply.PermPremiseWrite, drugmaster.PermStockReferenceRead}
 	projection := &operatingProjectionGate{Client: graph}
 	checks := &operatingCheckGate{Client: graph}
-	modules := append([]platform.Module{iam.New(nil), supply.New(), workforce.New(), drugmaster.New()}, extra...)
+	modules := append([]platform.Module{iam.New(nil).SetMembershipIdentityReader(globalEnrollmentIdentity{}), supply.New(), workforce.New(), drugmaster.New()}, extra...)
 	for _, m := range modules {
 		for _, grant := range m.Permissions() {
 			admin = append(admin, grant.Permission)

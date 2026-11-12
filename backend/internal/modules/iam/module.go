@@ -351,8 +351,9 @@ func knownRole(key string) bool {
 }
 
 type memberHandlers struct {
-	db  *tenantdb.DB
-	bus *events.Bus
+	db       *tenantdb.DB
+	bus      *events.Bus
+	identity MembershipIdentityReader
 }
 
 // grant adds a role to a subject, or repairs a stuck FGA tuple by
@@ -372,38 +373,72 @@ func (h *memberHandlers) grant(c *gin.Context) {
 		respond.BadRequest(c, fmt.Errorf("unknown role %q", req.RoleKey))
 		return
 	}
+	c.Header("Cache-Control", "no-store")
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 15*time.Second)
+	defer cancel()
+	if h.db == nil {
+		membershipCommandError(c, errMembershipAuthority)
+		return
+	}
 	row := member{TenantID: tenantUUID, Subject: req.Subject, RoleKey: req.RoleKey}
-	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		// Re-granting an existing role is a no-op at the row level,
-		// not a conflict: the caller's intent is already satisfied.
-		// An explicit ON CONFLICT DO NOTHING (rather than GORM's
-		// FirstOrCreate, which has sharp edges around which fields
-		// populate the created row) both sets tenant_id on the
-		// inserted row and makes "already granted" unambiguous:
-		// row.ID stays uuid.Nil because Postgres returns no row for
-		// a skipped insert.
-		if err := tx.Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "subject"}, {Name: "role_key"}},
-			DoNothing: true,
-		}).Create(&row).Error; err != nil {
-			return err
+	existing := false
+	if err := h.db.WithTenant(ctx, p.TenantID, func(tx *gorm.DB) error {
+		err := tx.Where("tenant_id=? AND subject=? AND role_key=?", tenantUUID, req.Subject, req.RoleKey).Take(&row).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
 		}
-		if row.ID == uuid.Nil {
-			// Already granted at the row level, but the outbox
-			// event still publishes unconditionally below (fetch
-			// the existing row first so the response carries its
-			// real id). Re-granting is a request-time repair
-			// mechanism for FGA drift, not the only one:
-			// platform.Reconcile (internal/platform/reconcile.go)
-			// re-applies every iam_members row's role tuple at
-			// boot, so a lost grant event also self-heals the next
-			// time any replica boots. This re-grant path stays
-			// useful because it repairs immediately, on request,
-			// without waiting for a boot. Tuple writes are
-			// idempotent, so the redundant write on a normal
-			// re-grant is harmless.
-			if err := tx.Where("subject = ? AND role_key = ?", req.Subject, req.RoleKey).First(&row).Error; err != nil {
+		existing = err == nil
+		return err
+	}); err != nil {
+		membershipCommandError(c, errors.Join(errMembershipAuthority, err))
+		return
+	}
+	if !existing {
+		if err := requireNewGrantIdentity(ctx, h.identity, p.TenantID, req.Subject); err != nil {
+			membershipCommandError(c, err)
+			return
+		}
+	}
+	err := h.db.WithTenant(ctx, p.TenantID, func(tx *gorm.DB) error {
+		if existing {
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("tenant_id=? AND id=? AND subject=? AND role_key=?", tenantUUID, row.ID, req.Subject, req.RoleKey).Take(&row).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return errMembershipConflict
+				}
 				return err
+			}
+		} else {
+			// Re-granting an existing role is a no-op at the row level,
+			// not a conflict: the caller's intent is already satisfied.
+			// An explicit ON CONFLICT DO NOTHING (rather than GORM's
+			// FirstOrCreate, which has sharp edges around which fields
+			// populate the created row) both sets tenant_id on the
+			// inserted row and makes "already granted" unambiguous:
+			// row.ID stays uuid.Nil because Postgres returns no row for
+			// a skipped insert.
+			if err := tx.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "subject"}, {Name: "role_key"}},
+				DoNothing: true,
+			}).Create(&row).Error; err != nil {
+				return err
+			}
+			if row.ID == uuid.Nil {
+				// Already granted at the row level, but the outbox
+				// event still publishes unconditionally below (fetch
+				// the existing row first so the response carries its
+				// real id). Re-granting is a request-time repair
+				// mechanism for FGA drift, not the only one:
+				// platform.Reconcile (internal/platform/reconcile.go)
+				// re-applies every iam_members row's role tuple at
+				// boot, so a lost grant event also self-heals the next
+				// time any replica boots. This re-grant path stays
+				// useful because it repairs immediately, on request,
+				// without waiting for a boot. Tuple writes are
+				// idempotent, so the redundant write on a normal
+				// re-grant is harmless.
+				if err := tx.Where("subject = ? AND role_key = ?", req.Subject, req.RoleKey).First(&row).Error; err != nil {
+					return err
+				}
 			}
 		}
 		data, err := json.Marshal(iamcontract.MemberChangedData(req))
@@ -424,6 +459,10 @@ func (h *memberHandlers) grant(c *gin.Context) {
 		if errors.As(err, &pg) && pg.Code == "23514" && pg.ConstraintName == "iam_membership_recovery_required" {
 			c.Header("Cache-Control", "no-store")
 			respond.Error(c, http.StatusConflict, "membership_recovery_required", "Use an explicit membership recovery command with the retained removal receipt.")
+			return
+		}
+		if errors.Is(err, errMembershipConflict) {
+			membershipCommandError(c, err)
 			return
 		}
 		respond.InternalErr(c, err, "could not grant role")
@@ -467,7 +506,7 @@ func (h *memberHandlers) list(c *gin.Context, p pagination.Params) ([]member, er
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	registerOperatingDutyRoutes(r, deps)
 	g := r.Group("/iam")
-	members := &memberHandlers{db: deps.DB, bus: deps.Bus}
+	members := &memberHandlers{db: deps.DB, bus: deps.Bus, identity: m.membershipIdentity}
 
 	g.POST("/members", PermMemberManage, members.grant)
 	g.DELETE("/members/:subject/:role", PermMemberManage, members.revoke)

@@ -126,6 +126,6 @@ func TestStaffMembershipThroughGlobalAPI(t *testing.T) {
 
 type globalEnrollmentIdentity struct{}
 
-func (globalEnrollmentIdentity) MembershipEligible(context.Context, string) (bool, error) {
+func (globalEnrollmentIdentity) MembershipEligible(context.Context, string, string) (bool, error) {
 	return true, nil
 }

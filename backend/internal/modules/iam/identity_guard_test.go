@@ -79,7 +79,7 @@ func (h *identityGuardEnv) serve(cached *RevocationChecker, token string, guard 
 
 type guardUserStateFunc func(context.Context, string) (loginclient.UserState, error)
 
-func (f guardUserStateFunc) UserState(ctx context.Context, subject string) (loginclient.UserState, error) {
+func (f guardUserStateFunc) UserState(ctx context.Context, _ string, subject string) (loginclient.UserState, error) {
 	return f(ctx, subject)
 }
 
@@ -198,21 +198,27 @@ func TestIdentityGuardObservationDoesNotRevokeLaterAuthentication(t *testing.T) 
 	require.Equal(t, http.StatusUnauthorized, h.request(provider, h.checker, old).Code)
 }
 
-func TestIdentityGuardChecksActualProviderForSignedSubject(t *testing.T) {
+type guardProjectionResolver func(context.Context, string, string, loginclient.IdentityReadPurpose) (loginclient.IdentitySnapshot, error)
+
+func (f guardProjectionResolver) TenantIdentitySnapshot(ctx context.Context, tenant, subject string, purpose loginclient.IdentityReadPurpose) (loginclient.IdentitySnapshot, error) {
+	return f(ctx, tenant, subject, purpose)
+}
+
+func TestIdentityGuardChecksIdentityOwnerForSignedTenantAndSubject(t *testing.T) {
 	h := newIdentityGuardEnv(t, true)
-	state := "USER_STATE_ACTIVE"
-	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, "/v2/users/staff-user", r.URL.Path)
-		_, err := w.Write([]byte(`{"user":{"state":"` + state + `"}}`))
-		require.NoError(t, err)
+	state := loginclient.UserStateActive
+	client := loginclient.New("http://native.invalid", "synthetic-test-pat", http.DefaultClient)
+	client.SetTenantIdentityResolver(guardProjectionResolver(func(_ context.Context, tenant, subject string, purpose loginclient.IdentityReadPurpose) (loginclient.IdentitySnapshot, error) {
+		require.Equal(t, "11111111-1111-1111-1111-111111111111", tenant)
+		require.Equal(t, "staff-user", subject)
+		require.Equal(t, loginclient.IdentityReadStatus, purpose)
+		return loginclient.IdentitySnapshot{State: state}, nil
 	}))
-	t.Cleanup(provider.Close)
-	client := loginclient.New(provider.URL, "synthetic-test-pat", provider.Client())
 	token := h.token(t, "staff-user", time.Now().Add(-time.Hour))
 	require.Equal(t, http.StatusOK, h.request(client, h.checker, token).Code)
-	state = "USER_STATE_LOCKED"
+	state = loginclient.UserStateInactive
 	require.Equal(t, http.StatusUnauthorized, h.request(client, h.checker, token).Code)
-	state = "USER_STATE_ACTIVE"
+	state = loginclient.UserStateActive
 	require.Equal(t, http.StatusUnauthorized, h.request(client, NewRevocationChecker(h.db), token).Code)
 }
 

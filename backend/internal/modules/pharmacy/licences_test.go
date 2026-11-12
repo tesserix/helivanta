@@ -14,7 +14,9 @@ import (
 
 	"github.com/tesserix/helivanta/internal/modules/pharmacy" //nolint:depguard // external test importing its own module
 	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
@@ -24,9 +26,12 @@ import (
 
 var licencePerms = []authz.Permission{"pharmacy.catalogue.read", "pharmacy.catalogue.write", "pharmacy.access.manage", "pharmacy.licence.manage", "pharmacy.licence.review"}
 
-func licenceHarness(t *testing.T, now time.Time) (*gin.Engine, *tenantdb.DB) {
+func licenceHarness(t *testing.T, now time.Time) (*gin.Engine, *tenantdb.DB, *attachments.GCS) {
 	t.Helper()
 	pharmacy.SetClock(t, func() time.Time { return now })
+	cloud := testinfra.NewGCSProtocol(t)
+	files, err := attachments.NewGCS(cloud.Client, cloud.Quarantine, cloud.Released)
+	require.NoError(t, err)
 	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"editor": testutil.TenantA, "owner": testutil.TenantA, "reader": testutil.TenantA, "clerk": testutil.TenantA, "foreign": testutil.TenantB},
 		Perms: map[string][]authz.Permission{
@@ -35,14 +40,14 @@ func licenceHarness(t *testing.T, now time.Time) (*gin.Engine, *tenantdb.DB) {
 			"reader":  licencePerms,
 			"clerk":   {"pharmacy.catalogue.read", "pharmacy.catalogue.write"},
 			"foreign": licencePerms,
-		}, Modules: []platform.Module{pharmacy.New()},
+		}, Modules: []platform.Module{pharmacy.New()}, Documents: files, PharmacyEvidenceEnabled: true,
 	})
 	seedPharmacyOutlet(t, r)
 	grantCatalogue(t, r, "user-editor", "editor")
 	grantCatalogue(t, r, "user-owner", "editor")
 	grantCatalogue(t, r, "user-reader", "reader")
 	grantCatalogue(t, r, "user-clerk", "editor")
-	return r, db
+	return r, db, files
 }
 
 func licencePath(suffix string) string {
@@ -82,7 +87,7 @@ func licenceInForce(t *testing.T, db *tenantdb.DB, day string) bool {
 
 // Review focus 1: the person who entered a licence cannot bring it into force.
 func TestALicenceNeedsASecondPerson(t *testing.T) {
-	r, db := licenceHarness(t, time.Date(2026, 11, 1, 6, 30, 0, 0, time.UTC))
+	r, db, files := licenceHarness(t, time.Date(2026, 11, 1, 6, 30, 0, 0, time.UTC))
 	require.Equal(t, "no licence has been recorded", licenceStatus(t, r).Reason)
 
 	id := uuid.Must(uuid.NewV7()).String()
@@ -101,6 +106,7 @@ func TestALicenceNeedsASecondPerson(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, do(r, "POST", licencePath("/licences/"+id+"/review"), "reader", `{"decision":"approved","reason":"x"}`).Code, "a read-only grant cannot review")
 	require.Equal(t, http.StatusForbidden, do(r, "POST", licencePath("/licences/"+id+"/review"), "clerk", `{"decision":"approved","reason":"x"}`).Code)
 
+	releaseLicenceEvidenceForTest(t, r, db, files, id, "editor")
 	w = do(r, "POST", licencePath("/licences/"+id+"/review"), "owner", `{"decision":"approved","reason":"checked the original"}`)
 	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
 	require.True(t, licenceStatus(t, r).InForce)
@@ -126,9 +132,10 @@ func TestALicenceNeedsASecondPerson(t *testing.T) {
 // Review focus 2: validity is judged on the outlet's date. At 19:00 UTC on
 // 31 Dec it is already 1 Jan in India.
 func TestALicenceIsJudgedOnTheOutletsDate(t *testing.T) {
-	r, db := licenceHarness(t, time.Date(2026, 12, 31, 19, 0, 0, 0, time.UTC))
+	r, db, files := licenceHarness(t, time.Date(2026, 12, 31, 19, 0, 0, 0, time.UTC))
 	id := uuid.Must(uuid.NewV7()).String()
 	require.Equal(t, http.StatusCreated, do(r, "PUT", licencePath("/licences/"+id), "editor", licenceBody("2022-01-01", "2026-12-31")).Code)
+	releaseLicenceEvidenceForTest(t, r, db, files, id, "editor")
 	require.Equal(t, http.StatusOK, do(r, "POST", licencePath("/licences/"+id+"/review"), "owner", `{"decision":"approved","reason":"ok"}`).Code)
 	s := licenceStatus(t, r)
 	require.Equal(t, "2027-01-01", s.Today)
@@ -137,6 +144,7 @@ func TestALicenceIsJudgedOnTheOutletsDate(t *testing.T) {
 
 	renewed := uuid.Must(uuid.NewV7()).String()
 	require.Equal(t, http.StatusCreated, do(r, "PUT", licencePath("/licences/"+renewed), "editor", licenceBody("2027-01-01", "2031-12-31")).Code)
+	releaseLicenceEvidenceForTest(t, r, db, files, renewed, "editor")
 	require.Equal(t, http.StatusOK, do(r, "POST", licencePath("/licences/"+renewed+"/review"), "owner", `{"decision":"rejected","reason":"number does not match the certificate"}`).Code)
 	require.False(t, licenceStatus(t, r).InForce, "a rejected renewal is not a licence")
 	require.False(t, licenceInForce(t, db, "2027-01-01"))
@@ -144,7 +152,7 @@ func TestALicenceIsJudgedOnTheOutletsDate(t *testing.T) {
 }
 
 func TestLicenceInputAndScope(t *testing.T) {
-	r, _ := licenceHarness(t, time.Date(2026, 11, 1, 6, 30, 0, 0, time.UTC))
+	r, _, _ := licenceHarness(t, time.Date(2026, 11, 1, 6, 30, 0, 0, time.UTC))
 	for _, body := range []string{
 		licenceBody("2026-01-01", "2025-12-31"),
 		licenceBody("2026-13-01", "2027-01-01"),

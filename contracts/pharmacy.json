@@ -1,6 +1,40 @@
 {
   "models": [
     {
+      "name": "LicenceFields",
+      "schema": "pharmacyLicenceFieldsSchema",
+      "fields": [
+        {"name":"licence_kind","type":"string","enum":["retail","wholesale"]},
+        {"name":"form_label","type":"string","min":1,"max":40,"trim":true},
+        {"name":"licence_number","type":"string","min":1,"max":100,"trim":true},
+        {"name":"issuing_authority","type":"string","min":1,"max":200,"trim":true},
+        {"name":"valid_from","type":"string","format":"date","min":10,"max":10},
+        {"name":"valid_until","type":"string","format":"date","min":10,"max":10},
+        {"name":"pharmacist_name","type":"string","min":1,"max":200,"trim":true},
+        {"name":"pharmacist_registration","type":"string","min":1,"max":100,"trim":true}
+      ]
+    },
+    {
+      "name": "LicenceReviewFields",
+      "schema": "pharmacyLicenceReviewFieldsSchema",
+      "fields": [
+        {"name":"decision","type":"string","enum":["approved","rejected"]},
+        {"name":"reason","type":"string","min":1,"max":500,"trim":true}
+      ]
+    },
+    {
+      "name": "LicenceRenewalNotice",
+      "schema": "pharmacyLicenceRenewalNoticeSchema",
+      "fields": [
+        {"name":"licence_id","type":"uuid"},
+        {"name":"date_status","type":"string","enum":["not_yet_valid","expired","expires_today","renewal_due_30","renewal_due_90","renewal_due_180","current"]},
+        {"name":"days_remaining","type":"int64","min":-3652058,"max":3652058},
+        {"name":"local_date","type":"string","format":"date","min":10,"max":10},
+        {"name":"time_zone","type":"string","min":1,"max":100},
+        {"name":"observed_at","type":"string","min":20,"max":35}
+      ]
+    },
+    {
       "name": "LicenceEvidenceFields",
       "schema": "pharmacyLicenceEvidenceFieldsSchema",
       "fields": [

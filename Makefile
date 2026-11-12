@@ -503,6 +503,11 @@ secret-session-key:
 e2e-payment-provider:
 	HELIVANTA_ENV=dev node scripts/e2e-payments-provider.mjs
 
+.PHONY: e2e-evidence-provider
+# Explicit local test dependencies; no worker credential enters the API env.
+e2e-evidence-provider:
+	HELIVANTA_ENV=dev HELIVANTA_E2E=1 node scripts/e2e-evidence-provider.mjs
+
 .PHONY: seed-e2e-clinical
 # Synthetic owner-controlled drug catalogue for the #1389 browser journey only.
 seed-e2e-clinical:

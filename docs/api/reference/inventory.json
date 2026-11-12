@@ -3883,6 +3883,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/renewals",
+          "permission": "pharmacy.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences",
           "permission": "pharmacy.catalogue.read",
           "authentication_required": true,
@@ -5312,6 +5321,11 @@
           "creates_tables": [
             "pharmacy_hospital_names"
           ]
+        },
+        {
+          "id": "0046_pharmacy_licence_evidence_review",
+          "sql_sha256": "966dfb31b53e170c41f56d78e4f815a3500e851428e73e8460305c7a678ff916",
+          "creates_tables": []
         }
       ]
     },

@@ -1,7 +1,8 @@
 import { expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
-import type { MembershipCandidate } from "@helivanta/api";
+import type { MembershipCandidate, PharmacyLicenceEvidence } from "@helivanta/api";
 import { login, specAdmin, specPharmacist } from "./login";
 import { api, newOutlet, uuidv7 } from "./pharmacy";
 
@@ -51,6 +52,50 @@ export async function provider(page: Page, path: string, body: unknown) {
   });
   expect(response.ok(), await response.text()).toBe(true);
   return response.json() as Promise<{ id: string; amount: number }>;
+}
+
+async function releaseCounterLicenceEvidence(admin: Page, outlet: string, licence: string) {
+  const image = readFileSync(path.resolve(__dirname, "../../fixtures/licence-test-page.png"));
+  const imageID = uuidv7();
+  const imagePath = `${outlet}/licences/${licence}/evidence/${imageID}`;
+  await owner(admin, "PUT", imagePath, {
+    filename: "TEST-licence.png",
+    content_type: "image/png",
+    size: image.length,
+    sha256: createHash("sha256").update(image).digest("hex"),
+  });
+  const upload = await admin.request.put(`/api/v1${imagePath}/content`, {
+    headers: { "Content-Type": "image/png" },
+    data: image,
+  });
+  expect(upload.status(), await upload.text()).toBe(202);
+  await expect
+    .poll(
+      async () => {
+        const files = await owner<{ data: PharmacyLicenceEvidence[] }>(
+          admin,
+          "GET",
+          `${outlet}/licences/${licence}/evidence`,
+        );
+        return files.data.find((file) => file.id === imageID)?.status;
+      },
+      { timeout: 45_000, intervals: [500, 1000, 2000] },
+    )
+    .toBe("available");
+}
+
+export async function temporaryPharmacyOwner(admin: Page, reviewer: Page) {
+  const administrator = await owner<Actor>(admin, "GET", "/iam/me/permissions");
+  const reason = "TEST end temporary licence reviewer authority";
+  const end = await temporaryRole(
+    admin,
+    administrator,
+    reviewer,
+    "pharmacy_owner",
+    "pharmacy.licence.review",
+    reason,
+  );
+  return () => end(reason);
 }
 
 type Actor = { tenant_id: string; subject: string };
@@ -178,6 +223,7 @@ async function sellableOutlet(
       pharmacist_name: "TEST Pharmacist",
       pharmacist_registration: "TEST-PCI-001",
     });
+    await releaseCounterLicenceEvidence(admin, outlet, licence);
     await owner(cashier, "POST", `${outlet}/licences/${licence}/review`, {
       decision: "approved",
       reason: "TEST synthetic licence checked by a second actor",

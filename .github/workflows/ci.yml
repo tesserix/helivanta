@@ -517,6 +517,22 @@ jobs:
       # failures are legible) followed by exactly this. Running `make up` here
       # instead would put the whole chain behind one background process, so a
       # bootstrap failure would surface only as the wait below timing out.
+      - name: Start private evidence test dependencies and restricted worker
+        run: |
+          nohup make e2e-evidence-provider > /tmp/hms-e2e-evidence.log 2>&1 &
+          deadline=$((SECONDS + 240))
+          until test -s .e2e-web/evidence.env && curl --fail --silent http://127.0.0.1:18910/healthz > /dev/null; do
+            if (( SECONDS >= deadline )); then
+              cat /tmp/hms-e2e-evidence.log
+              exit 1
+            fi
+            sleep 1
+          done
+          if grep -Eq '(DATABASE_URL|PASSWORD|TOKEN)=' .e2e-web/evidence.env; then
+            echo "Evidence fixture must not export worker or privileged credentials to the API"
+            exit 1
+          fi
+
       # The API only. The web apps are scripts/e2e.sh's own: it builds them
       # for production and runs them as standalone servers, never `next dev`
       # (#976, docs/superpowers/specs/2026-10-12-e2e-against-production-builds-design.md).
@@ -527,6 +543,7 @@ jobs:
         run: |
           set -a
           source .e2e-web/payments.env
+          source .e2e-web/evidence.env
           set +a
           nohup make dev-api > /tmp/hms-stack.log 2>&1 &
 
@@ -594,8 +611,25 @@ jobs:
         run: |
           set -a
           source .e2e-web/payments.env
+          source .e2e-web/evidence.env
           set +a
           make e2e
+      - name: Stop private evidence test fixture
+        if: always()
+        run: |
+          if test -s .e2e-web/evidence.env; then
+            source .e2e-web/evidence.env
+            case "${HELIVANTA_E2E_EVIDENCE_PID:-}" in
+              ""|*[!0-9]*|0|1) exit 0 ;;
+              *)
+                fixture_cwd=$(readlink "/proc/$HELIVANTA_E2E_EVIDENCE_PID/cwd" 2>/dev/null || true)
+                fixture_command=$(ps -p "$HELIVANTA_E2E_EVIDENCE_PID" -o args= 2>/dev/null || true)
+                if [[ "$fixture_cwd" == "$PWD" && "$fixture_command" == *scripts/e2e-evidence-provider.mjs* ]]; then
+                  kill -TERM "$HELIVANTA_E2E_EVIDENCE_PID" 2>/dev/null || true
+                fi
+                ;;
+            esac
+          fi
       - name: Stop synthetic payment fixture
         if: always()
         run: |

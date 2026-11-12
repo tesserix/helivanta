@@ -8,6 +8,45 @@ const identifier = z
     /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     "Choose a valid record.",
   );
+export const pharmacyLicenceFieldsSchema = z
+  .object({
+    licence_kind: z.enum(["retail", "wholesale"]),
+    form_label: z.string().trim().min(1).max(40),
+    licence_number: z.string().trim().min(1).max(100),
+    issuing_authority: z.string().trim().min(1).max(200),
+    valid_from: z.string().min(10).max(10).date("Use a full valid date."),
+    valid_until: z.string().min(10).max(10).date("Use a full valid date."),
+    pharmacist_name: z.string().trim().min(1).max(200),
+    pharmacist_registration: z.string().trim().min(1).max(100),
+  })
+  .strict();
+
+export const pharmacyLicenceReviewFieldsSchema = z
+  .object({
+    decision: z.enum(["approved", "rejected"]),
+    reason: z.string().trim().min(1).max(500),
+  })
+  .strict();
+
+export const pharmacyLicenceRenewalNoticeSchema = z
+  .object({
+    licence_id: identifier,
+    date_status: z.enum([
+      "not_yet_valid",
+      "expired",
+      "expires_today",
+      "renewal_due_30",
+      "renewal_due_90",
+      "renewal_due_180",
+      "current",
+    ]),
+    days_remaining: z.number().int().min(-3652058).max(3652058),
+    local_date: z.string().min(10).max(10).date("Use a full valid date."),
+    time_zone: z.string().min(1).max(100),
+    observed_at: z.string().min(20).max(35),
+  })
+  .strict();
+
 export const pharmacyLicenceEvidenceFieldsSchema = z
   .object({
     filename: z.string().min(1).max(180),

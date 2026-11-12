@@ -1,9 +1,9 @@
 {
   "format_version": 1,
-  "registry_sha256": "728eeed5823ab45d76132cb600c817cf2459dba41dec114ad740e5b1aa44fd87",
+  "registry_sha256": "c3c1b91b267443718ce4606cc38c39f7aceb73f1b93123e6ae24eada1e35e79e",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1080,
+    "total": 1083,
     "unclassified": 981
   },
   "entries": [
@@ -4100,7 +4100,7 @@
         "registration_sha256": "591fcb4cdb5035f951e633928f1261d54eaee7abef6fb09ef9ff36b6d1c218d0",
         "authority_kind": "mixed",
         "resource_scope": "Authenticated caller’s global credential subject, across every device and tenant; no target subject is accepted.",
-        "rationale": "Self sign-out writes a global subject revocation watermark and invalidation intent in one transaction, then invalidates the serving replica cache. It remains available after tenant membership removal. This shared credential termination is mixed authority and is unsuitable as a hospital suspension or exit mechanism because its effect crosses hospital and tenant boundaries. Rechecked 2026-11-04: IAM module only appends immutable role-catalog migration 0025; existing routes, grants and scope enforcement are unchanged. New submitter/reviewer templates are independently assigned hospital-scoped prerequisites and grant no operating or Pharma authority. Runtime acceptance remains open. Candidate source rechecked against catalog release e9ea7281: existing registrations/grants remain unchanged; the nine additional proposal/discovery routes, additive 0075 migration and preserved legacy source wrapper are reviewed in docs/qa/2026-11-04-posting-proposal-source-review.md. Classification and open lifecycle obligations remain unchanged; new proposal surfaces remain unclassified. Source rechecked for leave routing 0078 on 2026-11-04: module.go only appends the migration embed/manifest and the GET/PUT hr/leave-routing registrations; this route registration, its permissions and its guards are unchanged, and the new restrictive policy covers leave requests only. Where scoped_leave.go is pinned, only leave-decision preparation changed (route-step narrowing and desk evidence); lockReviewedLeaveActor and lockStaffActorLink are byte-identical. Runtime obligations remain open. Candidate IAM 0026 adds a separate closed management-review template and Workforce declares its permission; existing catalog snapshots and this route authority remain unchanged, and positive approval remains blocked. Source rechecked for the 2026-11-05 cutoff candidate: Workforce module additions are two separately scoped cutoff routes, the permission/event and migration 0084; IAM only appends migration 0027. Existing classified route registrations are unchanged. posting_drafts.go extracts the unchanged tenant/subject/ID parser; original draft paths still require the DepartmentReferences dependency and retain the same owner checks. Cutoff authoring alone omits that structural dependency so stale target responsibility can be revoked. New cutoff/chain operating surfaces remain unclassified; no runtime or lifecycle completion is inferred. Source rechecked for #429 department posting review (IAM 0030/0031, Workforce 0087), integrated into release #1565, on 2026-11-05: Router.handle, IAM Routes and the pinned posting-draft symbols are byte-identical to the release branch; workforce Routes keeps every release registration and only adds the department-scope dependency and moves the posting inbox, review source and decision receipt to handler-scoped admission; authorityCandidates also returns scope_kind/department_id while every caller binds scope_kind and a request without a department path still selects hospital grants only; DepartmentReferences keeps the same fail-closed owner binding. This route's registration and authority are unchanged; department-scoped surfaces remain unclassified and runtime obligations remain open. Source rechecked for #1596 department leave review (IAM 0032, Workforce 0089) on 2026-11-06: IAM Routes is byte-identical; only the migration list adds 0032. This route's registration and authority are unchanged. Source rechecked for reviewed hospital partner teams (PR #1614) on 2026-11-07: the IAM and Workforce module changes append partner-group/member registrations, scoped permission declarations, additive migrations and the Workforce-owned partner-source factory. Existing reviewed route registrations and their admission paths remain unchanged. The candidate directory read context is entered only by the guarded partner producer and restored before its caller; its read extension preserves prior UPDATE/DELETE checks. Source classification remains separate from runtime cutoff acceptance, and the existing remaining obligations are unchanged. Rechecked for supplier grant preparation on 2026-11-07: IAM Routes only appends three owner-tenant governance draft routes, and Migrations appends the immutable draft table. Existing route registration, role declarations and authorization helpers are unchanged. Source rechecked for the independent receiving-duty candidate on 2026-11-07: Workforce Routes adds separate supplier Staff/account registrations and source dependencies while preserving this hospital registration and its owner guard; IAM Routes adds a separate operating-duty registration, and only the new operating permissions receive source administrative roles. Existing membership, credential, hospital employment/posting and grant-preparation authority is unchanged. New receiving surfaces do not establish hospital or trading authority; original runtime obligations remain open. Additive supplier-grant routes, migrations, closed capability declarations and directed consent registration were reviewed. Existing renewal/activity/sign-out bodies and planning-draft authority are unchanged; planning drafts still cannot authorize supplier access. Source rechecked for warehouse stock quality on 2026-11-08: IAM module changes append migration 0041; operating_duties.go embeds the byte-identical v1 snapshot for 0038 and the separately applied current template for 0041; SupplyConnect adds a distinct stock.review permission, quality routes and identifier-only event. Existing registrations and grants are unchanged. The generalized product guard retains operations.write at the existing identity caller and separately accepts stock.review only from the quality caller. This source review does not establish deployed or runtime cutoff acceptance. Rechecked for supplier orders on 2026-11-08: existing route registrations and original permissions remain unchanged. IAM appends immutable template expansions 0042/0043 and freezes the exact 0041 template bytes as v2. Workforce retains the restricted governance Staff-actor facade; its shared private eligibility implementation admits only the original purpose or the separately injected, separately reserved procurement actor purpose, with the same current employment/link and audit checks. The new purpose confers no order, stock, financial or clinical permission alone. This is candidate source review, not runtime or deployment acceptance. Source review for fulfilment: Fulfilment/receiving template migrations are additive; existing auth/renew authority and published template snapshots remain unchanged. Source rechecked on 2026-11-08 for scoped supplier discovery: IAM adds only the embedded additive 0046 supplier acceptance template migration; renewal, identity, routes and permission admission are unchanged. This is source review, not runtime acceptance. Source rechecked for owner security administration on 2026-11-11: module.go only adds the ownerSecurity client field; existing route declarations and authorization functions are unchanged. New owner-security routes are separately registered in me.go and retain their own acceptance obligations. Source rechecked for the ADR-0070 legacy grant closure: POST /iam/members now checks native ownership before adding any role; exact retained-grant repair re-locks the existing row and never inserts. Routes is byte-identical after removing only the new identity dependency on memberHandlers. This change does not modify this classified route registration, renewal handler, membershipActor body or scope admission. Classification and all remaining runtime obligations are unchanged; the legacy grant surface remains separately unclassified.",
+        "rationale": "Self sign-out writes a global subject revocation watermark and invalidation intent in one transaction, then invalidates the serving replica cache. It remains available after tenant membership removal. This shared credential termination is mixed authority and is unsuitable as a hospital suspension or exit mechanism because its effect crosses hospital and tenant boundaries. Rechecked 2026-11-04: IAM module only appends immutable role-catalog migration 0025; existing routes, grants and scope enforcement are unchanged. New submitter/reviewer templates are independently assigned hospital-scoped prerequisites and grant no operating or Pharma authority. Runtime acceptance remains open. Candidate source rechecked against catalog release e9ea7281: existing registrations/grants remain unchanged; the nine additional proposal/discovery routes, additive 0075 migration and preserved legacy source wrapper are reviewed in docs/qa/2026-11-04-posting-proposal-source-review.md. Classification and open lifecycle obligations remain unchanged; new proposal surfaces remain unclassified. Source rechecked for leave routing 0078 on 2026-11-04: module.go only appends the migration embed/manifest and the GET/PUT hr/leave-routing registrations; this route registration, its permissions and its guards are unchanged, and the new restrictive policy covers leave requests only. Where scoped_leave.go is pinned, only leave-decision preparation changed (route-step narrowing and desk evidence); lockReviewedLeaveActor and lockStaffActorLink are byte-identical. Runtime obligations remain open. Candidate IAM 0026 adds a separate closed management-review template and Workforce declares its permission; existing catalog snapshots and this route authority remain unchanged, and positive approval remains blocked. Source rechecked for the 2026-11-05 cutoff candidate: Workforce module additions are two separately scoped cutoff routes, the permission/event and migration 0084; IAM only appends migration 0027. Existing classified route registrations are unchanged. posting_drafts.go extracts the unchanged tenant/subject/ID parser; original draft paths still require the DepartmentReferences dependency and retain the same owner checks. Cutoff authoring alone omits that structural dependency so stale target responsibility can be revoked. New cutoff/chain operating surfaces remain unclassified; no runtime or lifecycle completion is inferred. Source rechecked for #429 department posting review (IAM 0030/0031, Workforce 0087), integrated into release #1565, on 2026-11-05: Router.handle, IAM Routes and the pinned posting-draft symbols are byte-identical to the release branch; workforce Routes keeps every release registration and only adds the department-scope dependency and moves the posting inbox, review source and decision receipt to handler-scoped admission; authorityCandidates also returns scope_kind/department_id while every caller binds scope_kind and a request without a department path still selects hospital grants only; DepartmentReferences keeps the same fail-closed owner binding. This route's registration and authority are unchanged; department-scoped surfaces remain unclassified and runtime obligations remain open. Source rechecked for #1596 department leave review (IAM 0032, Workforce 0089) on 2026-11-06: IAM Routes is byte-identical; only the migration list adds 0032. This route's registration and authority are unchanged. Source rechecked for reviewed hospital partner teams (PR #1614) on 2026-11-07: the IAM and Workforce module changes append partner-group/member registrations, scoped permission declarations, additive migrations and the Workforce-owned partner-source factory. Existing reviewed route registrations and their admission paths remain unchanged. The candidate directory read context is entered only by the guarded partner producer and restored before its caller; its read extension preserves prior UPDATE/DELETE checks. Source classification remains separate from runtime cutoff acceptance, and the existing remaining obligations are unchanged. Rechecked for supplier grant preparation on 2026-11-07: IAM Routes only appends three owner-tenant governance draft routes, and Migrations appends the immutable draft table. Existing route registration, role declarations and authorization helpers are unchanged. Source rechecked for the independent receiving-duty candidate on 2026-11-07: Workforce Routes adds separate supplier Staff/account registrations and source dependencies while preserving this hospital registration and its owner guard; IAM Routes adds a separate operating-duty registration, and only the new operating permissions receive source administrative roles. Existing membership, credential, hospital employment/posting and grant-preparation authority is unchanged. New receiving surfaces do not establish hospital or trading authority; original runtime obligations remain open. Additive supplier-grant routes, migrations, closed capability declarations and directed consent registration were reviewed. Existing renewal/activity/sign-out bodies and planning-draft authority are unchanged; planning drafts still cannot authorize supplier access. Source rechecked for warehouse stock quality on 2026-11-08: IAM module changes append migration 0041; operating_duties.go embeds the byte-identical v1 snapshot for 0038 and the separately applied current template for 0041; SupplyConnect adds a distinct stock.review permission, quality routes and identifier-only event. Existing registrations and grants are unchanged. The generalized product guard retains operations.write at the existing identity caller and separately accepts stock.review only from the quality caller. This source review does not establish deployed or runtime cutoff acceptance. Rechecked for supplier orders on 2026-11-08: existing route registrations and original permissions remain unchanged. IAM appends immutable template expansions 0042/0043 and freezes the exact 0041 template bytes as v2. Workforce retains the restricted governance Staff-actor facade; its shared private eligibility implementation admits only the original purpose or the separately injected, separately reserved procurement actor purpose, with the same current employment/link and audit checks. The new purpose confers no order, stock, financial or clinical permission alone. This is candidate source review, not runtime or deployment acceptance. Source review for fulfilment: Fulfilment/receiving template migrations are additive; existing auth/renew authority and published template snapshots remain unchanged. Source rechecked on 2026-11-08 for scoped supplier discovery: IAM adds only the embedded additive 0046 supplier acceptance template migration; renewal, identity, routes and permission admission are unchanged. This is source review, not runtime acceptance. Source rechecked for owner security administration on 2026-11-11: module.go only adds the ownerSecurity client field; existing route declarations and authorization functions are unchanged. New owner-security routes are separately registered in me.go and retain their own acceptance obligations. Source rechecked for the ADR-0070 legacy grant closure: POST /iam/members now checks native ownership before adding any role; exact retained-grant repair re-locks the existing row and never inserts. Routes is byte-identical after removing only the new identity dependency on memberHandlers. This change does not modify this classified route registration, renewal handler, membershipActor body or scope admission. Classification and all remaining runtime obligations are unchanged; the legacy grant surface remains separately unclassified. Source rechecked 2026-11-12: signout.go adds only expiry of the host-private mailbox discovery cookie after existing successful self revocation and audit. Subject, membership, revocation, outbox and failure behavior are unchanged. See docs/qa/2026-11-12-account-discovery-source-review.md; clinical and employment acceptance remains open.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
@@ -4114,8 +4114,13 @@
           },
           {
             "path": "backend/internal/modules/iam/signout.go",
-            "sha256": "f5fe0448a1ecfab1d9aebd32573817de42980219a77be38886892ade64e13236",
+            "sha256": "0b3a21c29fec80277a5bdec91171bd29c0b6ceb4ccc93f179a5541ba17300bb8",
             "symbol": "func (h *revocationHandlers) signOut("
+          },
+          {
+            "path": "backend/pkg/authn/discovery_cookie.go",
+            "sha256": "2eefa66fa000fdc242cad21787ee402ec1767f974f00a202e5afe2b3c57c171b",
+            "symbol": "func ClearAccountDiscovery("
           }
         ],
         "remaining": [
@@ -20477,6 +20482,38 @@
       "review": null
     },
     {
+      "id": "unauthenticated_http platform GET /v1/auth/accounts",
+      "kind": "unauthenticated_http",
+      "module": "platform",
+      "registration": {
+        "route": "GET /v1/auth/accounts",
+        "rationale": "bounded display-only choices after mailbox proof, no session required"
+      },
+      "review": {
+        "id": "unauthenticated_http platform GET /v1/auth/accounts",
+        "registration_sha256": "5fa16b710242b569f769cc0c4d4afe2ed543440738f8b1baf49f8302f12b6586",
+        "authority_kind": "public_entry",
+        "resource_scope": "Bounded named routing choices for the exact verified mailbox/browser; current native/customer eligibility is required.",
+        "rationale": "Mailbox discovery is a private selection boundary, not membership or authentication. Same-origin browser validation, a separate purpose-bound cookie and a workload-only identity-owner broker enforce this surface. The owner checks proof/eligibility before disclosure; native password/MFA and final IAM membership remain required. See docs/qa/2026-11-12-account-discovery-source-review.md.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/customeronboarding/account_discovery.go",
+            "sha256": "0bcf36da72116062f6d948f9cf62963891f3beafd4a78d08d0f9564fa296e4ae",
+            "symbol": "func (h *Handlers) AccountChoices("
+          },
+          {
+            "path": "backend/internal/customeronboarding/handlers.go",
+            "sha256": "b4e6903527cfe4dbf81098fa72be3b5acb3cf61526af91e3361d1e74e2cebb95",
+            "symbol": "func (h *Handlers) browser("
+          }
+        ],
+        "remaining": [
+          "Prove real mailbox delivery, native account eligibility, expiration/replay/rate failures and same-email hospital/pharmacy separation through Global API and the normal website.",
+          "Complete ordered schema/identity-owner/consumer rollout and user-operated destination MFA; source classification does not establish clinical authority or full workforce lifecycle acceptance."
+        ]
+      }
+    },
+    {
       "id": "unauthenticated_http platform GET /v1/auth/branding/:tenant",
       "kind": "unauthenticated_http",
       "module": "platform",
@@ -20505,6 +20542,70 @@
         "rationale": "receipt-bound setup progress before a tenant session exists"
       },
       "review": null
+    },
+    {
+      "id": "unauthenticated_http platform POST /v1/auth/accounts",
+      "kind": "unauthenticated_http",
+      "module": "platform",
+      "registration": {
+        "route": "POST /v1/auth/accounts",
+        "rationale": "same-origin mailbox proof before private separate-account discovery"
+      },
+      "review": {
+        "id": "unauthenticated_http platform POST /v1/auth/accounts",
+        "registration_sha256": "05656e658e9efc839793dc49c62d28f52b6c8973d05867979bb17035ae83c0ba",
+        "authority_kind": "public_entry",
+        "resource_scope": "Unverified browser email submission; no account existence or business authority is disclosed.",
+        "rationale": "Mailbox discovery is a private selection boundary, not membership or authentication. Same-origin browser validation, a separate purpose-bound cookie and a workload-only identity-owner broker enforce this surface. The owner checks proof/eligibility before disclosure; native password/MFA and final IAM membership remain required. See docs/qa/2026-11-12-account-discovery-source-review.md.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/customeronboarding/account_discovery.go",
+            "sha256": "0bcf36da72116062f6d948f9cf62963891f3beafd4a78d08d0f9564fa296e4ae",
+            "symbol": "func (h *Handlers) DiscoverAccounts("
+          },
+          {
+            "path": "backend/internal/customeronboarding/handlers.go",
+            "sha256": "b4e6903527cfe4dbf81098fa72be3b5acb3cf61526af91e3361d1e74e2cebb95",
+            "symbol": "func (h *Handlers) browser("
+          }
+        ],
+        "remaining": [
+          "Prove real mailbox delivery, native account eligibility, expiration/replay/rate failures and same-email hospital/pharmacy separation through Global API and the normal website.",
+          "Complete ordered schema/identity-owner/consumer rollout and user-operated destination MFA; source classification does not establish clinical authority or full workforce lifecycle acceptance."
+        ]
+      }
+    },
+    {
+      "id": "unauthenticated_http platform POST /v1/auth/accounts/verify",
+      "kind": "unauthenticated_http",
+      "module": "platform",
+      "registration": {
+        "route": "POST /v1/auth/accounts/verify",
+        "rationale": "browser-bound one-use mailbox proof; no application access"
+      },
+      "review": {
+        "id": "unauthenticated_http platform POST /v1/auth/accounts/verify",
+        "registration_sha256": "958e72d52731216b4be519d9633972e97d0c189c4dccb00ce9851a4eba0f4b0c",
+        "authority_kind": "public_entry",
+        "resource_scope": "Exact host-private browser capability plus one-use ten-minute mailbox proof; no native account session.",
+        "rationale": "Mailbox discovery is a private selection boundary, not membership or authentication. Same-origin browser validation, a separate purpose-bound cookie and a workload-only identity-owner broker enforce this surface. The owner checks proof/eligibility before disclosure; native password/MFA and final IAM membership remain required. See docs/qa/2026-11-12-account-discovery-source-review.md.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/customeronboarding/account_discovery.go",
+            "sha256": "0bcf36da72116062f6d948f9cf62963891f3beafd4a78d08d0f9564fa296e4ae",
+            "symbol": "func (h *Handlers) VerifyAccounts("
+          },
+          {
+            "path": "backend/internal/customeronboarding/handlers.go",
+            "sha256": "b4e6903527cfe4dbf81098fa72be3b5acb3cf61526af91e3361d1e74e2cebb95",
+            "symbol": "func (h *Handlers) browser("
+          }
+        ],
+        "remaining": [
+          "Prove real mailbox delivery, native account eligibility, expiration/replay/rate failures and same-email hospital/pharmacy separation through Global API and the normal website.",
+          "Complete ordered schema/identity-owner/consumer rollout and user-operated destination MFA; source classification does not establish clinical authority or full workforce lifecycle acceptance."
+        ]
+      }
     },
     {
       "id": "unauthenticated_http platform POST /v1/auth/login",

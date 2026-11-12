@@ -7,7 +7,6 @@ import {
   AuthCardCentered,
   AuthCardFooter,
   AuthCredentialForm,
-  AuthOtpStep,
   AuthSetPasswordForm,
   Button,
   type AuthCredentialValues,
@@ -25,6 +24,7 @@ import {
 } from "@/components/login-branding";
 import { getUserManager } from "@/lib/oidc";
 import { AccountDiscovery } from "@/components/account-discovery";
+import { MfaCodeForm } from "@/components/mfa-code-form";
 import { workspaceSigninScope } from "@/lib/workspace-signin";
 import {
   changePassword,
@@ -616,7 +616,7 @@ function OtpStep({
         }
       },
       // Same reasoning as CredentialForm's suppressErrorToast above:
-      // AuthOtpStep's own `error` prop is this mutation's dedicated error
+      // MfaCodeForm's own `error` prop is this mutation's dedicated error
       // surface.
       suppressErrorToast: true,
     },
@@ -632,19 +632,7 @@ function OtpStep({
           </p>
         </div>
 
-        <AuthOtpStep
-          // Review finding, fix round 1: unlike AuthCredentialForm,
-          // AuthRegisterForm and AuthRecovery, AuthOtpStep does NOT set
-          // `noValidate` on its own `<form>` — and its `<input>` carries
-          // `pattern="\d{6}"` plus `maxLength`, both native-validation
-          // attributes. Without this prop, pressing Enter on an
-          // incomplete code fires the browser's native validation popup,
-          // which docs/standards/frontend.md bans outright (§4/§5). This
-          // IS accepted by AuthOtpStepProps (it extends
-          // `FormHTMLAttributes<HTMLFormElement>` and spreads `...props`
-          // onto the `<form>` — see @tesserix/web's source), so passing
-          // it here is sufficient; no DOM workaround needed.
-          noValidate
+        <MfaCodeForm
           value={code}
           onValueChange={(next) => {
             setCode(next);
@@ -758,8 +746,7 @@ function EnrollStep({
           </code>
         </div>
 
-        <AuthOtpStep
-          noValidate
+        <MfaCodeForm
           value={code}
           onValueChange={(next) => {
             setCode(next);

@@ -108,10 +108,10 @@ test("every shell page renders without a policy violation", async ({ page }) => 
   // Radix's scroll lock injects a <style> only when a popup opens; its nonce
   // comes from get-nonce (spec D5).
   await page.goto("/dashboard");
-  await page.getByLabel("Tenant").click();
-  await expect(page.getByRole("listbox")).toBeVisible();
+  await page.getByRole("button", { name: "Switch account" }).click();
+  await expect(page.getByRole("dialog", { name: "Switch account?" })).toBeVisible();
   await page.keyboard.press("Escape");
-  await clean("the tenant picker");
+  await clean("the account switch confirmation");
 });
 
 test("each response carries its own nonce", async ({ page }) => {

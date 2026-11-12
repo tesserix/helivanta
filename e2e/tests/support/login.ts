@@ -182,6 +182,8 @@ async function startSignIn(page: Page): Promise<void> {
   // exactly the two specs that sign out and back in.
   if (page.url().includes(ZITADEL_ORIGIN_HOST)) return; // mid-redirect through Zitadel
 
+  // These fixtures have a known org; mailbox discovery is tested separately.
+  await page.goto("/login?workspace=11111111-1111-1111-1111-111111111111");
   const button = page.getByRole("button", { name: "Sign in" });
   await button.waitFor({ state: "visible", timeout: 20_000 });
   await button.click();

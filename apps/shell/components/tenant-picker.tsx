@@ -1,108 +1,78 @@
 "use client";
 
-import { SelectControl } from "@helivanta/ui";
-
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
-  useApiMutation,
-  useApiQuery,
-  apiFetch,
-  clearPermissionsCache,
-  notifySessionChanged,
   beginTenantTransition,
   cancelTenantTransition,
+  clearPermissionsCache,
+  clearRenewAt,
+  notifySessionChanged,
+  useApiMutation,
 } from "@helivanta/api";
+import {
+  Button,
+  ConfirmDialog,
+  endZitadelSession,
+  SIGNED_OUT_MARK,
+  useConfirmLeave,
+} from "@helivanta/ui";
 
-type Membership = { tenant_id: string; roles: string[]; current: boolean };
-
-type SwitchResponse = { tenant_id: string };
-
-/**
- * Lets a clinician working at more than one hospital switch tenants.
- * Renders nothing for single-tenant users, which is almost everyone.
- *
- * This lives in the shell, not in `@helivanta/ui`, for the same reason
- * `onSignOut` does (see `packages/ui/src/hms-shell.tsx`) — historically
- * because completing a switch needed shell-owned Firebase client config;
- * that coupling is gone now (design spec D3: switching re-mints the Helivanta
- * session server-side, no client-side token exchange at all), but the
- * shell remains the natural owner since it is where the dashboard and the
- * rest of the auth surface already live.
- *
- * The switch is one call: `POST /iam/me/tenant` re-checks membership (it
- * is the authority; this control only offers the choices the caller's own
- * `/iam/me/tenants` listing already named) and, on success, re-mints the
- * session and replaces the `helivanta_session` cookie itself via the response's
- * Set-Cookie — the same way `POST /v1/auth/login` does for a fresh login.
- * There is no `custom_token` any more, and nothing for this component to
- * exchange: unlike the old GIP-backed design, a 200 here IS the switch.
- *
- * A non-member target tenant answers 404 (backend/internal/modules/iam/me.go,
- * reconciled to the codebase's standard cross-tenant rule: 404, never 403 —
- * a 403 would confirm the tenant exists). `useApiMutation`'s `onError`
- * surfaces that as a toast built from the response body's `message`
- * (`"tenant not found"`, byte-identical for a nonexistent tenant and one
- * the caller cannot access, so the toast text itself never distinguishes
- * them) — no special handling is needed here beyond letting the mutation's
- * default error path run: it never reloads, and the old session/tenant
- * stays exactly as it was.
- */
 export function TenantPicker() {
-  const { data } = useApiQuery<{ data: Membership[] }>(["iam", "me", "tenants"], "/iam/me/tenants");
-  const memberships = data?.data ?? [];
-
-  const switchTenant = useApiMutation(
-    async (tenantId: string) => {
+  const [confirming, setConfirming] = useState(false);
+  const confirmLeave = useConfirmLeave();
+  const cache = useQueryClient();
+  const switchAccount = useApiMutation(
+    async () => {
       beginTenantTransition();
       try {
-        const res = await apiFetch<SwitchResponse>("/iam/me/tenant", {
-          method: "POST",
-          body: JSON.stringify({ tenant_id: tenantId }),
-        });
-        return res.tenant_id;
-      } catch (error) {
+        const result = await fetch("/logout", { method: "POST" });
+        if (!result.ok || (await result.json()).ok !== true) {
+          throw new Error(
+            "Account switching could not be confirmed. Your current account has not been replaced. Please try again.",
+          );
+        }
+      } catch {
         cancelTenantTransition();
-        throw error;
+        throw new Error(
+          "Account switching could not be confirmed. Your current account has not been replaced. Please try again.",
+        );
       }
+      clearPermissionsCache();
+      clearRenewAt();
+      cache.clear();
+      notifySessionChanged();
+      await endZitadelSession(SIGNED_OUT_MARK);
     },
-    {
-      successToast: "Switched tenant",
-      // A tenant switch changes every cached query, so reload rather than
-      // trying to invalidate selectively. The permission cache lives in
-      // localStorage and would survive that reload, so it is dropped
-      // explicitly first — otherwise the new tenant's first paint would
-      // show the old tenant's nav.
-      onSuccess: () => {
-        clearPermissionsCache();
-        notifySessionChanged();
-        window.location.reload();
-      },
-    },
+    { suppressErrorToast: true },
   );
 
-  if (memberships.length < 2) return null;
-
-  // The backend marks the one membership matching the caller's tenant_id
-  // token claim `current: true` (see groupByTenant in
-  // backend/internal/modules/iam/me.go) — that, not array order, is the
-  // tenant the caller is actually in. `memberships[0]` is a last-resort
-  // fallback for the render before the query settles, not a substitute:
-  // trusting array order here was the bug (a picker that kept showing
-  // the pre-switch tenant after a reload, and that couldn't fire a
-  // change event to switch back to it because the DOM already matched).
-  const currentTenantId = memberships.find((m) => m.current)?.tenant_id ?? memberships[0].tenant_id;
-
   return (
-    <SelectControl
-      aria-label="Tenant"
-      title="Tenant"
-      className="w-44"
-      value={currentTenantId}
-      onValueChange={(tenantId) => switchTenant.mutate(tenantId)}
-      disabled={switchTenant.isPending}
-      options={memberships.map((m) => ({
-        value: m.tenant_id,
-        label: `${m.tenant_id.slice(0, 8)} — ${m.roles.join(", ")}`,
-      }))}
-    />
+    <div className="space-y-2">
+      <Button
+        variant="outline"
+        onClick={() => confirmLeave(() => setConfirming(true))}
+        disabled={switchAccount.isPending}
+      >
+        Switch account
+      </Button>
+      <ConfirmDialog
+        open={confirming}
+        onOpenChange={setConfirming}
+        title="Switch account?"
+        description="This signs out your current account on all devices. You can then choose another hospital or pharmacy account using its own password and two-step verification."
+        confirmLabel="Sign out and choose account"
+        busy={switchAccount.isPending}
+        onConfirm={() => {
+          setConfirming(false);
+          switchAccount.mutate();
+        }}
+      />
+      {switchAccount.error ? (
+        <p role="alert" className="text-sm text-destructive">
+          {switchAccount.error.message}
+        </p>
+      ) : null}
+    </div>
   );
 }

@@ -64,11 +64,14 @@ func newCapability() (capability, error) {
 	return capability{id, base64.RawURLEncoding.EncodeToString(secret[:])}, nil
 }
 func readCapability(r *http.Request) (capability, bool, error) {
+	return readCapabilityNamed(r, cookieName)
+}
+func readCapabilityNamed(r *http.Request, purposeCookie string) (capability, bool, error) {
 	rawCount := 0
 	for _, header := range r.Header.Values("Cookie") {
 		for _, part := range strings.Split(header, ";") {
 			name, _, _ := strings.Cut(strings.TrimSpace(part), "=")
-			if name == cookieName {
+			if name == purposeCookie {
 				rawCount++
 			}
 		}
@@ -78,7 +81,7 @@ func readCapability(r *http.Request) (capability, bool, error) {
 	}
 	var found *http.Cookie
 	for _, cookie := range r.Cookies() {
-		if cookie.Name == cookieName {
+		if cookie.Name == purposeCookie {
 			if found != nil {
 				return capability{}, false, errors.New("duplicate receipt")
 			}

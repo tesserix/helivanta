@@ -45,5 +45,12 @@ export async function POST(req: NextRequest) {
 
   const out = NextResponse.json({ ok: true });
   out.cookies.set(SESSION_COOKIE, "", { path: "/", maxAge: 0 });
+  out.cookies.set("__Host-helivanta-accounts", "", {
+    path: "/",
+    maxAge: 0,
+    secure: true,
+    httpOnly: true,
+    sameSite: "strict",
+  });
   return out;
 }

@@ -50,6 +50,7 @@ func (h *revocationHandlers) signOut(c *gin.Context) {
 	}
 	audit.Log(c.Request.Context(), requestid.Logger(c), slog.LevelInfo, "auth.session.signed_out", "signed out",
 		"subject", p.Subject, "tenant_id", p.TenantID)
+	authn.ClearAccountDiscovery(c)
 	respond.OK(c, gin.H{"signed_out": true})
 }
 

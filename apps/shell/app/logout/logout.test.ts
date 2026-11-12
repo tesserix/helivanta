@@ -38,6 +38,7 @@ describe("POST /logout", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(res.status).toBe(200);
     expect(res.cookies.get("helivanta_session")?.value).toBe("");
+    expect(res.cookies.get("__Host-helivanta-accounts")?.value).toBe("");
   });
 
   // The literal regression test for #781: revoking server-side must
@@ -78,6 +79,7 @@ describe("POST /logout", () => {
     );
     expect(res.status).toBe(200);
     expect(res.cookies.get("helivanta_session")?.value).toBe("");
+    expect(res.cookies.get("__Host-helivanta-accounts")?.value).toBe("");
   });
 });
 

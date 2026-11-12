@@ -650,6 +650,7 @@ func run() error {
 		zitadelLoginClient.SetTenantUserResolver(resolver)
 		zitadelLoginClient.SetTenantIdentityResolver(resolver)
 	}
+	bootstrap.MountAccountDiscovery(srv.Engine, signupHandlers.DiscoverAccounts, signupHandlers.VerifyAccounts, signupHandlers.AccountChoices)
 	bootstrap.MountCustomerSignup(srv.Engine, signupHandlers.Start, signupHandlers.Status, signupHandlers.VerifyEmail, signupHandlers.Password, signupHandlers.EmailLink, signupHandlers.PasswordLink, signupHandlers.Signin(customeronboarding.SigninDeps{Tokens: zitadelVerifier, Revocations: revocationChecker, Limiter: limiter, Limit: bootstrap.LoginRateLimitRule(cfg)}), signupHandlers.NewReceipt)
 
 	for _, m := range registry.All() {

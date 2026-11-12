@@ -1,8 +1,10 @@
 package workforce_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"log/slog"
 	"sync"
 	"testing"
 	"time"
@@ -311,4 +313,46 @@ func TestConfirmationDuringAPassStopsItsResend(t *testing.T) {
 	}))
 	require.NoError(t, <-done)
 	require.Len(t, h.announced(t, h.hospital), 1, "a name confirmed during the pass is not re-sent")
+}
+
+// captureLogs sends slog to a buffer for the rest of the test.
+func captureLogs(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+	return &buf
+}
+
+// A re-send whose transaction fails at commit must not be logged as sent.
+func TestRolledBackResendIsNotLogged(t *testing.T) {
+	h := announcedHarness(t)
+	h.makeDue(t, h.hospital)
+	// A deferred constraint trigger fails the commit after the re-send's update and enqueue ran.
+	require.NoError(t, h.db.WithAdmin(t.Context(), func(tx *gorm.DB) error {
+		return tx.Exec(`CREATE FUNCTION test_fail_commit() RETURNS trigger LANGUAGE plpgsql AS $$BEGIN RAISE EXCEPTION 'commit refused'; END$$;
+CREATE CONSTRAINT TRIGGER test_fail_commit AFTER UPDATE ON workforce_hospital_name_announcements DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION test_fail_commit()`).Error
+	}))
+	t.Cleanup(func() {
+		_ = h.db.WithAdmin(context.Background(), func(tx *gorm.DB) error {
+			return tx.Exec(`DROP TRIGGER test_fail_commit ON workforce_hospital_name_announcements; DROP FUNCTION test_fail_commit()`).Error
+		})
+	})
+	logs := captureLogs(t)
+	h.pass(t)
+	require.Contains(t, logs.String(), "retrying later")
+	require.NotContains(t, logs.String(), "re-sent unconfirmed hospital name", "a rolled-back re-send was logged")
+	_, attempts, _ := h.marker(t, h.hospital)
+	require.Zero(t, attempts)
+	require.Len(t, h.announced(t, h.hospital), 1)
+}
+
+func TestCancelledScanNamesItsStep(t *testing.T) {
+	h := announcedHarness(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	err := workforce.AnnounceHospitalNamesOnce(ctx, h.db)
+	require.ErrorIs(t, err, context.Canceled)
+	require.ErrorContains(t, err, "scan due hospital names")
 }

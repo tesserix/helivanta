@@ -95,6 +95,27 @@ it("does not offer credential actions when the owner status is unavailable", asy
   ).not.toBeInTheDocument();
 });
 
+it.each([
+  ["provisioning", "Preparing your workspace"],
+  ["needs_support", "Setup needs support"],
+])("does not reopen password setup while the signup is %s", async (state, heading) => {
+  window.history.replaceState(
+    null,
+    "",
+    "/signup/verify#phase=password&userId=owner-synthetic&code=used-proof",
+  );
+  const fetcher = vi.fn(async () => new Response(JSON.stringify({ state }), { status: 200 }));
+  vi.stubGlobal("fetch", fetcher);
+  renderWithProviders(<SignupVerification />);
+  expect(await screen.findByRole("heading", { name: heading })).toBeVisible();
+  expect(screen.queryByLabelText("New password")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Request a fresh email link" }),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Sign in now" })).not.toBeInTheDocument();
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});
+
 it("removes the native email code from the address bar before submitting it", async () => {
   window.history.replaceState(
     null,

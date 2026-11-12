@@ -155,3 +155,7 @@ cannot be disclosed; a fresh native proof can still recover its own signup.
 - Browser tests mock native proof submission and use a controlled clock to assert
   no redirect before 7,000 ms and the exact workspace destination afterwards.
   These are not evidence of actual account/MFA completion.
+- While a reopened link's matching signup is `provisioning`, show progress and
+  poll for its next state instead of exposing verification/password inputs.
+  `needs_support` is terminal for this screen: preserve the request and direct
+  the owner to setup/support, without a mail or credential action.

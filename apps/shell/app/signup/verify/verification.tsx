@@ -105,6 +105,23 @@ export function SignupVerification() {
         </a>
       </div>
     );
+  if (receipt?.state === "needs_support" || (receipt?.state === "provisioning" && !passwordDone))
+    return (
+      <div className="space-y-5">
+        <h1 className="text-2xl font-medium">
+          {receipt.state === "needs_support" ? "Setup needs support" : "Preparing your workspace"}
+        </h1>
+        <p>
+          {passwordDone ? "Your password is set. " : ""}
+          {receipt.state === "needs_support"
+            ? "Contact support to review this setup. Your request has been preserved."
+            : "Workspace setup is still in progress. This page will check for the next step; do not reuse your password setup link."}
+        </p>
+        <a className="underline underline-offset-4" href="/signup">
+          Continue workspace setup
+        </a>
+      </div>
+    );
   if (passwordDone)
     return (
       <div className="space-y-5">

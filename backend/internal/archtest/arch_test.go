@@ -23,6 +23,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
+	"go.temporal.io/sdk/client"
 	"golang.org/x/tools/go/packages"
 
 	"github.com/tesserix/helivanta/internal/bootstrap"
@@ -152,26 +153,54 @@ func TestConsumerContracts(t *testing.T) {
 	}
 }
 
-// confirmingConsumers lists every consumer of workforce's hospital_named.v1.
-// Workforce keeps one confirmation per announced version (#1653), so only
-// one consumer may rely on it.
-func confirmingConsumers(mods []platform.Module) []string {
-	var names []string
+// workflowsStub stands in for a Temporal client so modules build the consumer
+// list they register in production; constructors only capture it.
+type workflowsStub struct{ client.Client }
+
+// everyFlagOn returns deps with Temporal wired and every boolean feature flag
+// set, so modules whose consumers sit behind a flag list them; a flag added
+// to platform.Deps later is covered without editing this.
+func everyFlagOn() platform.Deps {
+	deps := platform.Deps{Workflows: workflowsStub{}}
+	v := reflect.ValueOf(&deps).Elem()
+	for i := range v.NumField() {
+		if f := v.Field(i); f.Kind() == reflect.Bool {
+			f.SetBool(true)
+		}
+	}
+	return deps
+}
+
+// oneConfirmingConsumer fails unless pharmacy-hospital-names is the only
+// consumer of workforce's hospital_named.v1, whether or not Temporal and the
+// feature flags are on. Workforce keeps one confirmation per announced
+// version (#1653).
+func oneConfirmingConsumer(mods []platform.Module) error {
+	seen := map[string]bool{}
 	for _, mod := range mods {
-		for _, c := range mod.Consumers(platform.Deps{}) {
-			if c.Subject == workforcecontract.SubjectHospitalNamed {
-				names = append(names, c.Name)
+		for _, deps := range []platform.Deps{{}, {Workflows: workflowsStub{}}, everyFlagOn()} {
+			for _, c := range mod.Consumers(deps) {
+				if c.Subject == workforcecontract.SubjectHospitalNamed {
+					seen[c.Name] = true
+				}
 			}
 		}
 	}
+	names := make([]string, 0, len(seen))
+	for name := range seen {
+		names = append(names, name)
+	}
 	sort.Strings(names)
-	return names
+	if len(names) != 1 || names[0] != "pharmacy-hospital-names" {
+		return fmt.Errorf("consumers of %s are %v; %s", workforcecontract.SubjectHospitalNamed, names, secondConfirmerMsg)
+	}
+	return nil
 }
 
 const secondConfirmerMsg = "a second consumer needs per-consumer confirmation (#1653): workforce's next_attempt_at records one"
 
 func TestHospitalNamedHasOneConfirmingConsumer(t *testing.T) {
-	require.Equal(t, []string{"pharmacy-hospital-names"}, confirmingConsumers(allModules()), secondConfirmerMsg)
+	require.NoError(t, oneConfirmingConsumer(allModules()))
 }
 
 // stubConsumerModule proves the guard can fail without a production edit.
@@ -182,11 +211,43 @@ type stubConsumerModule struct {
 
 func (m stubConsumerModule) Consumers(platform.Deps) []events.Consumer { return m.consumers }
 
-func TestConfirmingConsumersSeesASecondConsumer(t *testing.T) {
+// workflowOnlyConsumerModule adds its consumer only when Temporal is wired, as workforce's own list differs.
+type workflowOnlyConsumerModule struct{ platform.Module }
+
+func (workflowOnlyConsumerModule) Consumers(deps platform.Deps) []events.Consumer {
+	if deps.Workflows == nil {
+		return nil
+	}
+	return []events.Consumer{{Name: "lab-hospital-names", Subject: workforcecontract.SubjectHospitalNamed}}
+}
+
+// flagGatedConsumerModule adds its consumer only behind a feature flag, as privacy and emergency do.
+type flagGatedConsumerModule struct{ platform.Module }
+
+func (flagGatedConsumerModule) Consumers(deps platform.Deps) []events.Consumer {
+	if deps.Workflows == nil || !deps.EmergencyDispatchEnabled {
+		return nil
+	}
+	return []events.Consumer{{Name: "lab-hospital-names", Subject: workforcecontract.SubjectHospitalNamed}}
+}
+
+func TestOneConfirmingConsumerRejectsAFlagGatedConsumer(t *testing.T) {
+	err := oneConfirmingConsumer(append(allModules(), flagGatedConsumerModule{}))
+	require.ErrorContains(t, err, secondConfirmerMsg)
+	require.ErrorContains(t, err, "lab-hospital-names")
+}
+
+func TestOneConfirmingConsumerRejectsAWorkflowOnlyConsumer(t *testing.T) {
+	err := oneConfirmingConsumer(append(allModules(), workflowOnlyConsumerModule{}))
+	require.ErrorContains(t, err, secondConfirmerMsg)
+	require.ErrorContains(t, err, "lab-hospital-names")
+}
+
+func TestOneConfirmingConsumerRejectsASecondConsumer(t *testing.T) {
 	extra := stubConsumerModule{consumers: []events.Consumer{{Name: "lab-hospital-names", Subject: workforcecontract.SubjectHospitalNamed}}}
-	got := confirmingConsumers(append(allModules(), extra))
-	require.Equal(t, []string{"lab-hospital-names", "pharmacy-hospital-names"}, got)
-	require.NotEqual(t, []string{"pharmacy-hospital-names"}, got, secondConfirmerMsg)
+	err := oneConfirmingConsumer(append(allModules(), extra))
+	require.ErrorContains(t, err, secondConfirmerMsg)
+	require.ErrorContains(t, err, "lab-hospital-names")
 }
 
 // TestPublishedSubjectConstants derives its input from ⋃ Publishes()

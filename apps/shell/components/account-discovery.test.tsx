@@ -69,3 +69,16 @@ describe("Account discovery", () => {
     expect(redirect).not.toHaveBeenCalled();
   });
 });
+
+it("explains an incomplete email code without exposing validation internals", async () => {
+  stub([]);
+  const { user } = renderWithProviders(<AccountDiscovery onSelect={redirect} />);
+  await user.type(screen.getByLabelText("Email"), "owner@example.test");
+  await user.click(screen.getByRole("button", { name: "Sign in" }));
+  await user.type(await screen.findByLabelText("Email verification code"), "1234");
+  await user.click(screen.getByRole("button", { name: "Verify email" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Enter the eight-digit code from your email.",
+  );
+  expect(redirect).not.toHaveBeenCalled();
+});

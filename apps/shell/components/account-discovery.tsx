@@ -55,7 +55,11 @@ export function AccountDiscovery({ onSelect }: Props) {
           onSubmit={emailForm.handleSubmit(({ email }) => send.mutate(email))}
           className="space-y-4"
         >
-          <Field id="account-email" label="Email" error={emailForm.formState.errors.email?.message}>
+          <Field
+            id="account-email"
+            label="Email"
+            error={emailForm.formState.errors.email ? "Enter a valid email address." : undefined}
+          >
             <input
               id="account-email"
               type="email"
@@ -86,7 +90,11 @@ export function AccountDiscovery({ onSelect }: Props) {
             <Field
               id="account-code"
               label="Email verification code"
-              error={codeForm.formState.errors.code?.message}
+              error={
+                codeForm.formState.errors.code
+                  ? "Enter the eight-digit code from your email."
+                  : undefined
+              }
             >
               <input
                 id="account-code"

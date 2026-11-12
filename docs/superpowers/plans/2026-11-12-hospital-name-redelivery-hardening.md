@@ -35,7 +35,7 @@
 - Test: `backend/internal/modules/workforce/hospital_name_receipts_test.go`
 
 - [ ] **Step 1: Write the failing tests**
-  - `TestRolledBackResendIsNotLogged`: announce, make due, create (via `WithAdmin`) a `DEFERRABLE INITIALLY DEFERRED` constraint trigger on `workforce_hospital_name_announcements` that raises on UPDATE, dropped in `t.Cleanup`. Capture slog to a buffer (`slog.SetDefault`, restored in cleanup). Run one pass. Assert the buffer contains `retrying later` and not `re-sent unconfirmed hospital name`, `attempts` is still 0, and one `hospital_named` row exists.
+  - `TestRolledBackResendIsNotLogged`: announce, make due, install through `h.db.Migrate` (a test-only migration; archtest forbids new `WithAdmin` callers) a `DEFERRABLE INITIALLY DEFERRED` constraint trigger on `workforce_hospital_name_announcements` that raises on UPDATE. The per-test database is dropped on cleanup. Capture slog to a buffer (`slog.SetDefault`, restored in cleanup). Run one pass. Assert the buffer contains `retrying later` and not `re-sent unconfirmed hospital name`, `attempts` is still 0, and one `hospital_named` row exists.
   - `TestCancelledScanNamesItsStep`: `ctx, cancel := context.WithCancel(t.Context()); cancel()`; `err := workforce.AnnounceHospitalNamesOnce(ctx, h.db)`; assert `ErrorIs(err, context.Canceled)` and `ErrorContains(err, "scan due hospital names")`.
 - [ ] **Step 2: Run, expect FAIL** — `go test ./internal/modules/workforce/ -run 'TestRolledBackResendIsNotLogged|TestCancelledScanNamesItsStep'`: the log test sees the warning; the scan test lacks the step name.
 - [ ] **Step 3: Implement** — hoist `attempt` and `nameVersion` outside the callback; log after `WithTenant` returns nil. Wrap each error with `fmt.Errorf("<step>: %w", err)` using the spec's D2 step names.
@@ -56,7 +56,7 @@
 - [ ] **Step 6: Run the workforce package with `-race -count=3` on the touched tests, expect PASS.**
 - [ ] **Step 7: Commit** `test(workforce): force the hospital name re-send race and check 0101 (#1660)`.
 
-### Task 3: The single-consumer guard decides, over both consumer lists
+### Task 3: The single-consumer guard decides, over every consumer list
 
 **Files:**
 
@@ -64,8 +64,8 @@
 
 - [ ] **Step 1: Write the failing proof test** `TestOneConfirmingConsumerRejectsAWorkflowOnlyConsumer`: a stub module whose `Consumers(deps)` returns a second `SubjectHospitalNamed` consumer only when `deps.Workflows != nil`; require `oneConfirmingConsumer(append(allModules(), stub))` to return an error containing `secondConfirmerMsg`.
 - [ ] **Step 2: Run, expect FAIL** (undefined function).
-- [ ] **Step 3: Implement `oneConfirmingConsumer(mods []platform.Module) error`**, collecting from `platform.Deps{}` and `platform.Deps{Workflows: workflowsStub{}}` (`type workflowsStub struct{ client.Client }`), deduplicated, sorted; error lists the names. Replace `confirmingConsumers`; `TestHospitalNamedHasOneConfirmingConsumer` requires `NoError`; the existing proof test requires an error for a plain second consumer.
-- [ ] **Step 4: Mutation check** — make the guard read only `platform.Deps{}`: the workflow-only test fails. Restore.
+- [ ] **Step 3: Implement `oneConfirmingConsumer(mods []platform.Module) error`**, collecting from `platform.Deps{}`, `platform.Deps{Workflows: workflowsStub{}}` (`type workflowsStub struct{ client.Client }`) and `everyFlagOn()` (the stub plus every boolean `Deps` field set by reflection), deduplicated, sorted; error lists the names. Replace `confirmingConsumers`; `TestHospitalNamedHasOneConfirmingConsumer` requires `NoError`; the existing proof test requires an error for a plain second consumer.
+- [ ] **Step 4: Mutation checks** — read only `platform.Deps{}`: the workflow-only test fails; drop `everyFlagOn()`: `TestOneConfirmingConsumerRejectsAFlagGatedConsumer` fails. Restore.
 - [ ] **Step 5: Run `go test -race ./internal/archtest/`, expect PASS.**
 - [ ] **Step 6: Commit** `test(archtest): the hospital name guard rejects a workflow-only consumer (#1660)`.
 

@@ -75,15 +75,19 @@ error over `allModules()`. The proof test requires an error containing that
 message over `allModules()` plus a stub second consumer. The guard's own
 decision is then what fails, not a separate assertion on the helper's output.
 
-### D7. The guard reads both consumer lists
+### D7. The guard reads every consumer list a module can build
 
 A module's `Consumers(deps)` can return a different list when
-`deps.Workflows` is set (workforce does). The guard collects consumers from
-both `platform.Deps{}` and `platform.Deps{Workflows: <non-nil stub>}`. The
-stub embeds `client.Client` and is never called; constructors only capture
-it. Names are deduplicated. The proof test adds a stub module whose second
-consumer appears only when `Workflows` is set, and requires the guard to
-reject it.
+`deps.Workflows` is set (workforce does) or a feature flag is on (privacy
+behind `PrivacyDeadlinesEnabled`, emergency behind
+`EmergencyWorkflowsEnabled`/`EmergencyDispatchEnabled`). The guard collects
+consumers from `platform.Deps{}`, from `platform.Deps{Workflows: <stub>}`, and
+from the same with every boolean field of `platform.Deps` set by reflection,
+so a flag added later is covered without editing the guard. The stub embeds
+`client.Client` and is never called; constructors only capture it. Names are
+deduplicated. Proof tests add a stub module whose second consumer appears only
+when `Workflows` is set, and one whose consumer appears only behind a flag; the
+guard must reject both.
 
 ### D8. The migration's index and grant are asserted
 

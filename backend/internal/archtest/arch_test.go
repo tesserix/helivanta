@@ -157,13 +157,28 @@ func TestConsumerContracts(t *testing.T) {
 // list they register in production; constructors only capture it.
 type workflowsStub struct{ client.Client }
 
+// everyFlagOn returns deps with Temporal wired and every boolean feature flag
+// set, so modules whose consumers sit behind a flag list them; a flag added
+// to platform.Deps later is covered without editing this.
+func everyFlagOn() platform.Deps {
+	deps := platform.Deps{Workflows: workflowsStub{}}
+	v := reflect.ValueOf(&deps).Elem()
+	for i := range v.NumField() {
+		if f := v.Field(i); f.Kind() == reflect.Bool {
+			f.SetBool(true)
+		}
+	}
+	return deps
+}
+
 // oneConfirmingConsumer fails unless pharmacy-hospital-names is the only
-// consumer of workforce's hospital_named.v1, in either consumer list a module
-// builds. Workforce keeps one confirmation per announced version (#1653).
+// consumer of workforce's hospital_named.v1, whether or not Temporal and the
+// feature flags are on. Workforce keeps one confirmation per announced
+// version (#1653).
 func oneConfirmingConsumer(mods []platform.Module) error {
 	seen := map[string]bool{}
 	for _, mod := range mods {
-		for _, deps := range []platform.Deps{{}, {Workflows: workflowsStub{}}} {
+		for _, deps := range []platform.Deps{{}, {Workflows: workflowsStub{}}, everyFlagOn()} {
 			for _, c := range mod.Consumers(deps) {
 				if c.Subject == workforcecontract.SubjectHospitalNamed {
 					seen[c.Name] = true
@@ -204,6 +219,22 @@ func (workflowOnlyConsumerModule) Consumers(deps platform.Deps) []events.Consume
 		return nil
 	}
 	return []events.Consumer{{Name: "lab-hospital-names", Subject: workforcecontract.SubjectHospitalNamed}}
+}
+
+// flagGatedConsumerModule adds its consumer only behind a feature flag, as privacy and emergency do.
+type flagGatedConsumerModule struct{ platform.Module }
+
+func (flagGatedConsumerModule) Consumers(deps platform.Deps) []events.Consumer {
+	if deps.Workflows == nil || !deps.EmergencyDispatchEnabled {
+		return nil
+	}
+	return []events.Consumer{{Name: "lab-hospital-names", Subject: workforcecontract.SubjectHospitalNamed}}
+}
+
+func TestOneConfirmingConsumerRejectsAFlagGatedConsumer(t *testing.T) {
+	err := oneConfirmingConsumer(append(allModules(), flagGatedConsumerModule{}))
+	require.ErrorContains(t, err, secondConfirmerMsg)
+	require.ErrorContains(t, err, "lab-hospital-names")
 }
 
 func TestOneConfirmingConsumerRejectsAWorkflowOnlyConsumer(t *testing.T) {

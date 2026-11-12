@@ -8,3 +8,6 @@ func LowerClashLimit(t *testing.T, n int) {
 	maxAcknowledgedClashes = n
 	t.Cleanup(func() { maxAcknowledgedClashes = prev })
 }
+
+// AnnounceHospitalNames runs one announcer pass with a chosen batch size.
+var AnnounceHospitalNames = announceHospitalNames

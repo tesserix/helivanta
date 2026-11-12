@@ -2094,7 +2094,7 @@
     }
   },
   "helivanta.in.pharmacy.admission_charge_posted.v1": {
-    "source": "backend/internal/modules/pharmacy/contract/events.go:264",
+    "source": "backend/internal/modules/pharmacy/contract/events.go:275",
     "go_type": "AdmissionChargePostedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -2142,7 +2142,7 @@
     }
   },
   "helivanta.in.pharmacy.admission_charge_reversed.v1": {
-    "source": "backend/internal/modules/pharmacy/contract/events.go:281",
+    "source": "backend/internal/modules/pharmacy/contract/events.go:292",
     "go_type": "AdmissionChargeReversedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -2436,6 +2436,26 @@
       "required": [
         "dispense_id",
         "visit_id"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.pharmacy.hospital_name_received.v1": {
+    "source": "backend/internal/modules/pharmacy/contract/events.go:263",
+    "go_type": "HospitalNameReceivedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "hospital_id": {
+          "type": "string"
+        },
+        "name_version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "hospital_id",
+        "name_version"
       ],
       "type": "object"
     }

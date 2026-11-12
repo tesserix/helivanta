@@ -679,6 +679,8 @@ var eventPayloadReviewedNonPHI = map[string]string{
 	"pharmacy.AffiliationDecisionReceivedData.HospitalID":                      "opaque hospital id scoping the delivery row",
 	"pharmacy.AffiliationDecisionReceivedData.DecisionID":                      "opaque id of the decision handled",
 	"pharmacy.AffiliationDecisionReceivedData.Applied":                         "whether the decision entered pharmacy's history; no actor or reason",
+	"pharmacy.HospitalNameReceivedData.HospitalID":                             "opaque hospital id of the name handled; no name on the wire",
+	"pharmacy.HospitalNameReceivedData.NameVersion":                            "version number of the name handled",
 	"pharmacy.AdmissionChargePostedData.SaleID":                                "an internally-minted opaque row id, meaningless outside this platform, resolvable only by a caller already authorized for that row",
 	"pharmacy.AdmissionChargePostedData.AdmissionID":                           "an internally-minted opaque row id, meaningless outside this platform, resolvable only by a caller already authorized for that row",
 	"pharmacy.AdmissionChargePostedData.HospitalID":                            "an internally-minted opaque row id, meaningless outside this platform, resolvable only by a caller already authorized for that row",

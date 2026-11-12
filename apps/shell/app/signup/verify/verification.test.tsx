@@ -9,6 +9,113 @@ afterEach(() => {
   window.history.replaceState(null, "", "/");
 });
 
+it.each([
+  "phase=email&userId=..%2Fother&code=proof",
+  `phase=email&userId=${"x".repeat(201)}&code=proof`,
+  `phase=email&userId=owner-synthetic&code=${"x".repeat(21)}`,
+])("rejects malformed proof fragments before any request: %s", async (fragment) => {
+  window.history.replaceState(null, "", `/signup/verify#${fragment}`);
+  const fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
+  renderWithProviders(<SignupVerification />);
+  expect(await screen.findByRole("heading", { name: "Open your latest email link" })).toBeVisible();
+  expect(fetcher).not.toHaveBeenCalled();
+  expect(window.location.hash).toBe("");
+});
+
+it("shows already verified for a reopened owner-bound email link without consuming it again", async () => {
+  window.history.replaceState(
+    null,
+    "",
+    "/signup/verify#phase=email&userId=owner-synthetic&code=used-proof",
+  );
+  const fetcher = vi.fn(async (path: string) => {
+    expect(path).toBe("/api/v1/auth/signup?userId=owner-synthetic");
+    return new Response(JSON.stringify({ state: "password_action_required" }), { status: 200 });
+  });
+  vi.stubGlobal("fetch", fetcher);
+  renderWithProviders(<SignupVerification />);
+  expect(
+    await screen.findByRole("heading", { name: "Your email is already verified" }),
+  ).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Verify email address" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Send password setup email" })).toBeVisible();
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(fetcher.mock.calls[0][0]).toBe("/api/v1/auth/signup?userId=owner-synthetic");
+  expect(window.location.hash).toBe("");
+});
+
+it("offers workspace-pinned sign-in and a seven second countdown for an already set password", async () => {
+  const tenantId = "11111111-1111-4111-8111-111111111111";
+  window.history.replaceState(
+    null,
+    "",
+    "/signup/verify#phase=password&userId=owner-synthetic&code=used-proof",
+  );
+  const fetcher = vi.fn(
+    async () =>
+      new Response(
+        JSON.stringify({
+          state: "ready",
+          tenantId,
+          name: "QA",
+          kind: "hospital",
+          resourceId: "1aee9771-66c3-445c-8b3e-b18f472ca409",
+        }),
+        { status: 200 },
+      ),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  renderWithProviders(<SignupVerification />);
+  expect(await screen.findByRole("heading", { name: "Your password is set" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Sign in now" })).toHaveAttribute(
+    "href",
+    `/login?workspace=${tenantId}`,
+  );
+  expect(screen.getByRole("status")).toHaveTextContent("7 seconds");
+  expect(screen.queryByLabelText("New password")).not.toBeInTheDocument();
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});
+
+it("does not offer credential actions when the owner status is unavailable", async () => {
+  window.history.replaceState(
+    null,
+    "",
+    "/signup/verify#phase=email&userId=owner-synthetic&code=proof",
+  );
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(JSON.stringify({ error: "unavailable" }), { status: 503 })),
+  );
+  renderWithProviders(<SignupVerification />);
+  expect(await screen.findByRole("alert")).toHaveTextContent("could not check this link's status");
+  expect(screen.queryByRole("button", { name: "Verify email address" })).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Request a fresh email link" }),
+  ).not.toBeInTheDocument();
+});
+
+it.each([
+  ["provisioning", "Preparing your workspace"],
+  ["needs_support", "Setup needs support"],
+])("does not reopen password setup while the signup is %s", async (state, heading) => {
+  window.history.replaceState(
+    null,
+    "",
+    "/signup/verify#phase=password&userId=owner-synthetic&code=used-proof",
+  );
+  const fetcher = vi.fn(async () => new Response(JSON.stringify({ state }), { status: 200 }));
+  vi.stubGlobal("fetch", fetcher);
+  renderWithProviders(<SignupVerification />);
+  expect(await screen.findByRole("heading", { name: heading })).toBeVisible();
+  expect(screen.queryByLabelText("New password")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Request a fresh email link" }),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Sign in now" })).not.toBeInTheDocument();
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});
+
 it("removes the native email code from the address bar before submitting it", async () => {
   window.history.replaceState(
     null,
@@ -19,6 +126,8 @@ it("removes the native email code from the address bar before submitting it", as
   vi.stubGlobal(
     "fetch",
     vi.fn(async (path: string, init: RequestInit) => {
+      if (path.includes("?userId="))
+        return new Response(JSON.stringify({ state: "email_action_required" }), { status: 200 });
       requests.push({ path, body: JSON.parse(String(init.body)), fragment: window.location.hash });
       return new Response(JSON.stringify({ state: "provisioning" }), { status: 200 });
     }),
@@ -53,6 +162,8 @@ it("sets the password through the Global API with the native reset proof", async
   vi.stubGlobal(
     "fetch",
     vi.fn(async (path: string, init: RequestInit) => {
+      if (path.includes("?userId="))
+        return new Response(JSON.stringify({ state: "email_action_required" }), { status: 200 });
       requests.push({ path, body: JSON.parse(String(init.body)) });
       return new Response(JSON.stringify({ state: "provisioning" }), { status: 200 });
     }),
@@ -89,6 +200,8 @@ it("explains link lifetime and lets an expired email link request verification w
   vi.stubGlobal(
     "fetch",
     vi.fn(async (path: string, init: RequestInit) => {
+      if (path.includes("?userId="))
+        return new Response(JSON.stringify({ state: "email_action_required" }), { status: 200 });
       requests.push({ path, body: JSON.parse(String(init.body)) });
       return path.endsWith("verify-email")
         ? new Response(JSON.stringify({ error: "invalid_request", message: "Invalid proof" }), {
@@ -125,6 +238,8 @@ it("keeps expiry guidance after verification and describes a password-link reque
   vi.stubGlobal(
     "fetch",
     vi.fn(async (path: string) => {
+      if (path.includes("?userId="))
+        return new Response(JSON.stringify({ state: "email_action_required" }), { status: 200 });
       requests.push(path);
       return new Response(
         JSON.stringify({

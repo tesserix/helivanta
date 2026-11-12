@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
 	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
 	"github.com/tesserix/helivanta/pkg/events"
 )
@@ -28,9 +29,18 @@ func hospitalNameConsumer() events.Consumer {
 		if err != nil || hospital == uuid.Nil || name == "" || utf8.RuneCountInString(name) > 150 || d.NameVersion < 1 {
 			return errors.New("invalid hospital name event")
 		}
-		return tx.Exec(`INSERT INTO pharmacy_hospital_names (tenant_id,hospital_id,name,name_version) VALUES (?,?,?,?)
+		if err := tx.Exec(`INSERT INTO pharmacy_hospital_names (tenant_id,hospital_id,name,name_version) VALUES (?,?,?,?)
  ON CONFLICT (tenant_id,hospital_id) DO UPDATE SET name=EXCLUDED.name, name_version=EXCLUDED.name_version, updated_at=clock_timestamp()
- WHERE pharmacy_hospital_names.name_version < EXCLUDED.name_version`, evt.TenantID, hospital, name, d.NameVersion).Error
+ WHERE pharmacy_hospital_names.name_version < EXCLUDED.name_version`, evt.TenantID, hospital, name, d.NameVersion).Error; err != nil {
+			return err
+		}
+		data, err := json.Marshal(pharmacycontract.HospitalNameReceivedData{HospitalID: d.HospitalID, NameVersion: d.NameVersion})
+		if err != nil {
+			return err
+		}
+		// A stale version is confirmed too, so its re-sending stops.
+		subject := pharmacycontract.SubjectHospitalNameReceived
+		return events.Enqueue(tx, subject, events.Event{Type: subject, Version: 1, TenantID: evt.TenantID, Data: data})
 	}}
 }
 

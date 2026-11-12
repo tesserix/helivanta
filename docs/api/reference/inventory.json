@@ -4903,6 +4903,7 @@
         "helivanta.in.pharmacy.affiliation_verification_requested.v1",
         "helivanta.in.pharmacy.affiliation_verification_withdrawn.v1",
         "helivanta.in.pharmacy.affiliation_decision_received.v1",
+        "helivanta.in.pharmacy.hospital_name_received.v1",
         "helivanta.in.pharmacy.admission_charge_posted.v1",
         "helivanta.in.pharmacy.admission_charge_reversed.v1"
       ],
@@ -12167,6 +12168,11 @@
           "after_commit": false
         },
         {
+          "name": "workforce-hospital-name-receipt",
+          "subject": "helivanta.in.pharmacy.hospital_name_received.v1",
+          "after_commit": false
+        },
+        {
           "name": "workforce-document-scan",
           "subject": "helivanta.in.workforce.document_scan_requested.v1",
           "after_commit": true
@@ -13219,6 +13225,11 @@
           "creates_tables": [
             "workforce_pharmacy_time_zones"
           ]
+        },
+        {
+          "id": "0101_workforce_hospital_name_receipts",
+          "sql_sha256": "a5fceaefbeb460c42dd79232a4cb059dd50add756fbf774a722bdf7920b412f3",
+          "creates_tables": []
         }
       ]
     },

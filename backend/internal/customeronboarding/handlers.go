@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -25,6 +26,8 @@ import (
 )
 
 const cookieName = "__Host-helivanta-signup"
+
+var signupOwnerPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,200}$`)
 
 type Handlers struct {
 	localIdentityFixture bool
@@ -179,6 +182,11 @@ func (h *Handlers) Status(c *gin.Context) {
 	if !h.browser(c) {
 		return
 	}
+	owners, scoped := c.Request.URL.Query()["userId"]
+	if scoped && (len(owners) != 1 || !signupOwnerPattern.MatchString(owners[0])) {
+		respond.Error(c, 400, "invalid_request", "invalid signup owner")
+		return
+	}
 	cap, exists, _ := readCapability(c.Request)
 	if !exists {
 		var err error
@@ -191,7 +199,11 @@ func (h *Handlers) Status(c *gin.Context) {
 		respond.OK(c, customercontract.Receipt{State: customercontract.NotStarted})
 		return
 	}
-	receipt, _, ok := h.request(c, http.MethodGet, "/"+cap.id.String(), cap, nil)
+	path := "/" + cap.id.String()
+	if scoped {
+		path += "/users/" + owners[0]
+	}
+	receipt, _, ok := h.request(c, http.MethodGet, path, cap, nil)
 	if ok {
 		respond.OK(c, receipt)
 	}

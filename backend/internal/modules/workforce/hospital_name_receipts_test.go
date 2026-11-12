@@ -173,7 +173,8 @@ func TestMigrationMakesExistingMarkersDue(t *testing.T) {
 	require.False(t, next.After(time.Now()), "an existing marker is due immediately")
 	var index string
 	var granted bool
-	require.NoError(t, h.db.WithAdmin(t.Context(), func(tx *gorm.DB) error {
+	// Catalog reads need no owner rights.
+	require.NoError(t, h.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 		if err := tx.Raw(`SELECT indexdef FROM pg_indexes WHERE tablename='workforce_hospital_name_announcements' AND indexname='workforce_hospital_name_announcements_due'`).Scan(&index).Error; err != nil {
 			return err
 		}
@@ -351,15 +352,9 @@ func TestRolledBackResendIsNotLogged(t *testing.T) {
 	h := announcedHarness(t)
 	h.makeDue(t, h.hospital)
 	// A deferred constraint trigger fails the commit after the re-send's update and enqueue ran.
-	require.NoError(t, h.db.WithAdmin(t.Context(), func(tx *gorm.DB) error {
-		return tx.Exec(`CREATE FUNCTION test_fail_commit() RETURNS trigger LANGUAGE plpgsql AS $$BEGIN RAISE EXCEPTION 'commit refused'; END$$;
-CREATE CONSTRAINT TRIGGER test_fail_commit AFTER UPDATE ON workforce_hospital_name_announcements DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION test_fail_commit()`).Error
-	}))
-	t.Cleanup(func() {
-		_ = h.db.WithAdmin(context.Background(), func(tx *gorm.DB) error {
-			return tx.Exec(`DROP TRIGGER test_fail_commit ON workforce_hospital_name_announcements; DROP FUNCTION test_fail_commit()`).Error
-		})
-	})
+	// It is installed as the owner, the way migrations are; the test database is dropped afterwards.
+	require.NoError(t, h.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "9999_test_fail_commit", SQL: `CREATE FUNCTION test_fail_commit() RETURNS trigger LANGUAGE plpgsql AS $$BEGIN RAISE EXCEPTION 'commit refused'; END$$;
+CREATE CONSTRAINT TRIGGER test_fail_commit AFTER UPDATE ON workforce_hospital_name_announcements DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION test_fail_commit();`}}))
 	logs := captureLogs(t)
 	h.pass(t)
 	require.Contains(t, logs.String(), "retrying later")

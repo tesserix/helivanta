@@ -68,6 +68,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
       - name: Reject MedCora alias
         working-directory: .
         run: "! grep -rn --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=docs --exclude-dir=.superpowers --exclude=ci.yml 'MedCora' . || (echo 'MedCora is a rejected alias (issue 12) - use MediCore' && exit 1)"
@@ -76,6 +77,8 @@ jobs:
         run: |
           go test -race ./internal/customeronboarding
           go test -race ./internal/modules/pharmacy ./internal/modules/workforce -run '^(TestPharmacyBusinessProfileReadIsManagerAndTenantScoped|TestHospitalBusinessProfileReadIsManagerAndHospitalScoped|TestStorageAddressMigrationPreservesLegacyRowsAndReplay)$'
+      - name: Tenant identity admission and MFA regression
+        run: go test -race ./internal/modules/iam -run '^(TestNewLegacyGrantRequiresCurrentTenantOwnedIdentity|TestLegacyGrant.*|TestLegacyRepair.*|TestFirstEnrollment.*|TestEnrollmentFakeKeepsNativeUserPathBinding|TestTOTPEnrollmentLifecycleConfirmsReplaysCompletesAndProjectsAMR|TestTOTPEnrollmentExpiryAndDependencyFailuresDoNotAdvance|TestRecoveryRequiresEligibleIdentity)$'
       - name: Supplier architecture and tenant preconditions
         run: |
           go test -race ./internal/archtest
@@ -242,7 +245,7 @@ jobs:
           node --test scripts/staff-operational-access-inventory.test.mjs
           node scripts/staff-operational-access-inventory.mjs --check
       # Ignores live in package.json pnpm.auditConfig; reasons in docs/runbooks/vulnerability-management.md.
-      - run: node --test scripts/zod-tooling.test.mjs
+      - run: node --test scripts/zod-tooling.test.mjs scripts/lib/tenant-identity-fixture.test.mjs scripts/ci/ubuntu-archive-mirror.test.mjs scripts/ci/runner-dns.test.mjs
       - run: pnpm audit --prod --audit-level=high
       - run: pnpm turbo lint format:check type-check && pnpm turbo test && pnpm turbo build
         env:
@@ -262,6 +265,12 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Verify runner dependency DNS
+        timeout-minutes: 2
+        run: bash scripts/ci/runner-dns.sh
+      - name: Use official Ubuntu package mirror
+        run: sudo "$(command -v node)" scripts/ci/ubuntu-archive-mirror.mjs
       - name: Install emergency browser dependencies
         run: pnpm --dir e2e exec playwright install --with-deps chromium
       - name: Verify built emergency web workflows
@@ -420,10 +429,6 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: backend/go.mod
-          # The `go` job above omits this and its cache silently never
-          # hits: setup-go looks for go.sum at the REPO ROOT by default,
-          # and this repo's Go module lives under backend/. Not copying
-          # that here (fixing the `go` job is out of scope for #920).
           cache-dependency-path: backend/go.sum
 
       - run: pnpm install --frozen-lockfile
@@ -453,6 +458,11 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       # Runs unconditionally even on a cache hit: --with-deps also installs the
       # apt libraries Chromium needs, which live outside the cached path.
+      - name: Verify runner dependency DNS
+        timeout-minutes: 2
+        run: bash scripts/ci/runner-dns.sh
+      - name: Use official Ubuntu package mirror
+        run: sudo "$(command -v node)" scripts/ci/ubuntu-archive-mirror.mjs
       - run: pnpm --filter e2e exec playwright install --with-deps chromium
 
       # The prerequisite chain, via the SAME make targets a developer runs.
@@ -474,6 +484,20 @@ jobs:
         run: make dev-infra
       - name: Migrate and seed
         run: make seed
+      - name: Start real local identity owner
+        run: |
+          make dev-identity-owner-setup
+          nohup make dev-identity-owner > /tmp/hms-identity-owner.log 2>&1 &
+          deadline=$((SECONDS + 180))
+          until curl --fail --silent http://127.0.0.1:18787/readyz > /dev/null; do
+            if (( SECONDS >= deadline )); then
+              cat /tmp/hms-identity-owner.log
+              exit 1
+            fi
+            sleep 1
+          done
+      - name: Verify real native missing-user proof
+        run: HELIVANTA_ENV=dev python3 scripts/ci/check-identity-owner-fixture.py
       - name: Seed synthetic clinical browser fixture
         run: make seed-e2e-clinical
       - name: Start synthetic UPI provider and real scoped OpenBao

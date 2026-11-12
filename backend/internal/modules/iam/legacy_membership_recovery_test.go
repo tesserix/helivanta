@@ -101,7 +101,7 @@ func TestLegacyMembershipGrantCannotReopenEndedMembership(t *testing.T) {
 }
 
 func TestLegacyMembershipGrantWaitsForFinalRemovalThenRefusesRestoration(t *testing.T) {
-	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"admin": testutil.TenantA}, Perms: map[string][]authz.Permission{"admin": {iam.PermMemberManage}}, Modules: []platform.Module{iam.New(nil)}})
+	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"admin": testutil.TenantA}, Perms: map[string][]authz.Permission{"admin": {iam.PermMemberManage}}, Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(membershipIdentity{})}})
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'synthetic-contended-end','staff_member')`, testutil.TenantA).Error
 	}))

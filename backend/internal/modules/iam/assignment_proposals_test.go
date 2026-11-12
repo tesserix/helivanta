@@ -45,7 +45,7 @@ func TestAssignmentProposalVerifiesScopeThroughOwnerEvents(t *testing.T) {
 			"admin":    {iam.PermMemberManage, assignmentHospitalManage, "iam.assignment.manage"},
 			"outsider": {"iam.assignment.manage"}, "foreign": {"iam.assignment.manage", iam.PermMemberManage},
 		},
-		Modules: []platform.Module{iam.New(nil), assignmentWorkforceModule()},
+		Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(membershipIdentity{}), assignmentWorkforceModule()},
 	})
 	upstream := httptest.NewServer(r)
 	t.Cleanup(upstream.Close)
@@ -195,7 +195,7 @@ func TestAssignmentDecisionsRequireIndependentScopedReview(t *testing.T) {
 		Perms: map[string][]authz.Permission{
 			"admin":    {iam.PermMemberManage, assignmentHospitalManage, "iam.assignment.manage", "iam.assignment.review"},
 			"reviewer": {"iam.assignment.review"}, "outsider": {"iam.assignment.review"}, "target": {"iam.assignment.review"},
-		}, Modules: []platform.Module{iam.New(nil), assignmentWorkforceModule()},
+		}, Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(membershipIdentity{}), assignmentWorkforceModule()},
 	})
 	upstream := httptest.NewServer(r)
 	t.Cleanup(upstream.Close)

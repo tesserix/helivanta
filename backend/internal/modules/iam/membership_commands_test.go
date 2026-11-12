@@ -147,14 +147,16 @@ func TestMembershipCommandRejectsUntrustedScopeStateAndAuthority(t *testing.T) {
 
 type membershipIdentity struct{}
 
-func (membershipIdentity) MembershipEligible(context.Context, string) (bool, error) { return true, nil }
+func (membershipIdentity) MembershipEligible(context.Context, string, string) (bool, error) {
+	return true, nil
+}
 
 type controlledMembershipIdentity struct {
 	state       loginclient.UserState
 	unavailable bool
 }
 
-func (p *controlledMembershipIdentity) MembershipEligible(context.Context, string) (bool, error) {
+func (p *controlledMembershipIdentity) MembershipEligible(context.Context, string, string) (bool, error) {
 	if p.unavailable {
 		return false, errors.New("synthetic identity outage")
 	}
@@ -335,18 +337,27 @@ func TestMembershipCommandOutboxFailureRollsBackMembershipReceiptEpochAndAudit(t
 	}))
 }
 
-func TestMembershipRecoveryRejectsActiveHumanWithoutVerifiedEmail(t *testing.T) {
+func TestMembershipRecoveryRequiresIdentityOwnerAdmissionAndReplaysWithoutAnotherRead(t *testing.T) {
 	var proof atomic.Value
-	proof.Store(`{"user":{"userId":"synthetic-unverified-target","state":"USER_STATE_ACTIVE","human":{"email":{"email":"unverified@example.invalid","isVerified":false}}}}`)
+	proof.Store("unverified")
 	var reads atomic.Int32
-	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	identity := loginclient.New("http://native.invalid", "synthetic", http.DefaultClient)
+	identity.SetTenantIdentityResolver(membershipProjectionResolver(func(_ context.Context, tenant, subject string, purpose loginclient.IdentityReadPurpose) (loginclient.IdentitySnapshot, error) {
 		reads.Add(1)
-		require.Equal(t, http.MethodGet, r.Method)
-		require.Equal(t, "/v2/users/synthetic-unverified-target", r.URL.Path)
-		_, _ = w.Write([]byte(proof.Load().(string)))
+		require.Equal(t, testutil.TenantA, tenant)
+		require.Equal(t, "synthetic-unverified-target", subject)
+		require.Equal(t, loginclient.IdentityReadMembership, purpose)
+		switch proof.Load().(string) {
+		case "unverified", "machine":
+			return loginclient.IdentitySnapshot{State: loginclient.UserStateActive}, nil
+		case "eligible":
+			return loginclient.IdentitySnapshot{State: loginclient.UserStateActive, MembershipEligible: true}, nil
+		case "inactive":
+			return loginclient.IdentitySnapshot{State: loginclient.UserStateInactive}, nil
+		default:
+			return loginclient.IdentitySnapshot{}, loginclient.ErrUnavailable
+		}
 	}))
-	t.Cleanup(provider.Close)
-	identity := loginclient.New(provider.URL, "synthetic-provider-token", provider.Client())
 	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens:  map[string]string{"admin": testutil.TenantA},
 		Perms:   map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
@@ -373,9 +384,9 @@ func TestMembershipRecoveryRejectsActiveHumanWithoutVerifiedEmail(t *testing.T) 
 		status         int
 	}{
 		{"unverified", proof.Load().(string), http.StatusConflict},
-		{"machine", `{"user":{"userId":"synthetic-unverified-target","state":"USER_STATE_ACTIVE","machine":{}}}`, http.StatusConflict},
-		{"mismatched_subject", `{"user":{"userId":"different-target","state":"USER_STATE_ACTIVE","human":{"email":{"email":"verified@example.invalid","isVerified":true}}}}`, http.StatusServiceUnavailable},
-		{"ambiguous_verification", `{"user":{"userId":"synthetic-unverified-target","state":"USER_STATE_ACTIVE","human":{"email":{"email":"verified@example.invalid","isVerified":false,"isVerified":true}}}}`, http.StatusServiceUnavailable},
+		{"machine", "machine", http.StatusConflict},
+		{"mismatched_subject", "mismatched_subject", http.StatusServiceUnavailable},
+		{"ambiguous_verification", "ambiguous_verification", http.StatusServiceUnavailable},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			proof.Store(tc.response)
@@ -393,11 +404,11 @@ func TestMembershipRecoveryRejectsActiveHumanWithoutVerifiedEmail(t *testing.T) 
 		require.EqualValues(t, 1, count)
 		return nil
 	}))
-	proof.Store(`{"user":{"userId":"synthetic-unverified-target","state":"USER_STATE_ACTIVE","human":{"email":{"email":"verified@example.invalid","isVerified":true}}}}`)
+	proof.Store("eligible")
 	success := membershipCommandRequest(r, http.MethodPut, path, "admin", string(body))
 	require.Equal(t, http.StatusAccepted, success.Code, success.Body.String())
 	beforeReplay := reads.Load()
-	proof.Store(`{"user":{"userId":"synthetic-unverified-target","state":"USER_STATE_INACTIVE"}}`)
+	proof.Store("inactive")
 	replay := membershipCommandRequest(r, http.MethodPut, path, "admin", string(body))
 	require.Equal(t, http.StatusAccepted, replay.Code, replay.Body.String())
 	require.JSONEq(t, success.Body.String(), replay.Body.String())

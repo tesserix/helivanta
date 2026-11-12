@@ -6,11 +6,26 @@ import {
   startCustomerSignup,
   getCustomerBusinessProfile,
   sendCustomerLink,
+  newCustomerSignupReceipt,
 } from "./customer-signup";
 const signupKey = ["customer-signup"];
 export function useCustomerSignup() {
   const cache = useQueryClient();
+  const begin = useApiMutation(
+    async () => {
+      await cache.cancelQueries({ queryKey: signupKey });
+      return newCustomerSignupReceipt();
+    },
+    {
+      suppressErrorToast: true,
+      onSuccess: async (receipt) => {
+        await cache.cancelQueries({ queryKey: signupKey });
+        cache.setQueryData(signupKey, receipt);
+      },
+    },
+  );
   const progress = useApiQuery<unknown>(signupKey, "/auth/signup", {
+    enabled: !begin.isPending,
     poll: (data) => {
       const parsed = CustomerSignupReceiptContract.safeParse(data);
       return (
@@ -37,7 +52,7 @@ export function useCustomerSignup() {
     },
     { suppressErrorToast: true },
   );
-  return { progress, create, resend };
+  return { progress, create, resend, begin };
 }
 
 export function useCustomerBusinessProfile(

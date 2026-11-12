@@ -64,7 +64,7 @@ func newIdentityGuard(db *tenantdb.DB, bus *events.Bus, checker *RevocationCheck
 			return false
 		}
 		observedAt := now().UTC()
-		state, err := provider.UserState(ctx, p.Subject)
+		state, err := provider.UserState(ctx, p.TenantID, p.Subject)
 		if err == nil {
 			err = ctx.Err()
 		}

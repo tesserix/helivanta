@@ -79,6 +79,7 @@ func (w saleWorld) licence(t *testing.T) {
 	t.Helper()
 	id := uuid.Must(uuid.NewV7()).String()
 	require.Equal(t, http.StatusCreated, do(w.r, "PUT", licencePath("/licences/"+id), "editor", licenceBody("2026-01-01", "2030-12-31")).Code)
+	releaseLicenceEvidenceForTest(t, w.r, w.db, w.files, id, "editor")
 	require.Equal(t, http.StatusOK, do(w.r, "POST", licencePath("/licences/"+id+"/review"), "pharmacist", `{"decision":"approved","reason":"checked the original"}`).Code)
 }
 
@@ -435,6 +436,7 @@ func TestOnlyARetailLicenceInAStateSellsAtTheCounter(t *testing.T) {
 	id := uuid.Must(uuid.NewV7()).String()
 	wholesale := strings.Replace(licenceBody("2026-01-01", "2030-12-31"), `"retail"`, `"wholesale"`, 1)
 	require.Equal(t, http.StatusCreated, do(w.r, "PUT", licencePath("/licences/"+id), "editor", wholesale).Code)
+	releaseLicenceEvidenceForTest(t, w.r, w.db, w.files, id, "editor")
 	require.Equal(t, http.StatusOK, do(w.r, "POST", licencePath("/licences/"+id+"/review"), "pharmacist", `{"decision":"approved","reason":"checked"}`).Code)
 	w.profile(t, "TS")
 	res := do(w.r, "POST", registrationsPath(pharmaOutlet), "editor", registrationBody("04", "04ABCDE1234F1Z8", "2026-11-01", ""))

@@ -120,7 +120,7 @@ func (h *handlers) receiveDocument(c *gin.Context, gate documentGate, p authn.Pr
 		return
 	}
 	if saved.Status != "upload_pending" {
-		respond.OK(c, saved)
+		respond.OK(c, gate.view(saved))
 		return
 	}
 	scope := attachments.ObjectScope{TenantID: uuid.MustParse(p.TenantID), HospitalID: hospital, OwnerKind: "staff", OwnerID: staffID, RecordID: saved.RecordID, FileID: fileID, Version: 1, UploadedAt: *saved.UploadedAt}
@@ -177,10 +177,10 @@ func (h *handlers) receiveDocument(c *gin.Context, gate documentGate, p authn.Pr
 		return
 	}
 	if committed {
-		respond.Accepted(c, saved)
+		respond.Accepted(c, gate.view(saved))
 		return
 	}
-	respond.OK(c, saved)
+	respond.OK(c, gate.view(saved))
 }
 
 var evidenceDecidedGuards = []string{"workforce_tax_evidence_pending", "workforce_tax_evidence_frozen", "workforce_benefit_evidence_pending", "workforce_benefit_evidence_frozen"}

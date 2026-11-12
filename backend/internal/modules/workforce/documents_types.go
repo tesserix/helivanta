@@ -75,3 +75,28 @@ type documentClassificationRevision struct {
 	ActorSubject             string    `json:"actor_subject"`
 	CreatedAt                time.Time `json:"created_at"`
 }
+type pharmacyDocument struct {
+	ID            uuid.UUID  `json:"id"`
+	PharmacyID    uuid.UUID  `json:"pharmacy_id"`
+	StaffID       uuid.UUID  `json:"staff_id"`
+	RecordID      uuid.UUID  `json:"record_id"`
+	RecordKind    string     `json:"record_kind"`
+	RecordVersion int64      `json:"record_version"`
+	Category      string     `json:"category"`
+	Filename      string     `json:"filename"`
+	ContentType   string     `json:"content_type"`
+	Size          int64      `json:"size"`
+	SHA256        string     `json:"sha256"`
+	Status        string     `json:"status"`
+	ScanAttempt   int64      `json:"scan_attempt"`
+	UploadedAt    *time.Time `json:"uploaded_at"`
+	ScannedAt     *time.Time `json:"scanned_at"`
+	FailureCode   *string    `json:"failure_code"`
+	ExpiresAt     time.Time  `json:"expires_at"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+}
+
+func pharmacyDocumentView(row document) pharmacyDocument {
+	return pharmacyDocument{ID: row.ID, PharmacyID: row.HospitalID, StaffID: row.StaffID, RecordID: row.RecordID, RecordKind: row.RecordKind, RecordVersion: row.RecordVersion, Category: row.Category, Filename: row.Filename, ContentType: row.ContentType, Size: row.Size, SHA256: row.SHA256, Status: row.Status, ScanAttempt: row.ScanAttempt, UploadedAt: row.UploadedAt, ScannedAt: row.ScannedAt, FailureCode: row.FailureCode, ExpiresAt: row.ExpiresAt, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt}
+}

@@ -29,6 +29,9 @@ var (
 // DiscountLine exposes the B-3 discount rounding.
 var DiscountLine = discountLine
 
+// LicenceRenewal exposes the advisory calculation without database side effects.
+var LicenceRenewal = licenceRenewalNotice
+
 // CreditStep exposes the C-1 return arithmetic.
 var CreditStep = creditStep
 
@@ -80,3 +83,6 @@ var (
 	MajorUnits = majorUnits
 	Amount     = amount
 )
+
+// StockMovementKinds exposes the reconciled movement kinds (#1638).
+var StockMovementKinds = stockMovementKinds

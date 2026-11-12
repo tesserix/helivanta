@@ -55,7 +55,7 @@ An outlet may sell only while it holds an approved licence that is valid on the 
 | `GET …/licences`                           | Cursor page of licences with their decision                                                                                                                                                                                                                                                                                |
 | `GET …/licence-status`                     | `{in_force, today, licence, reason}`, judged on the outlet's date                                                                                                                                                                                                                                                          |
 
-Later slices call `pharmacy_outlet_licence_in_force(tenant, outlet, day)` inside their own transactions. Not covered yet: uploading the licence document (the reviewer checks the original) and renewal notices.
+Later slices call `pharmacy_outlet_licence_in_force(tenant, outlet, day)` inside their own transactions. Private evidence and independent review behavior are described below.
 
 ### Declared schedule class (#1386 A2)
 
@@ -68,6 +68,8 @@ Until the drug master is loaded, each product's Drugs Rules class (`none|G|H|H1|
 | `GET …/catalogue/products/{id}/schedule`          | Returns `{in_force, origin: declared_by_outlet, reason, history}`                                                                             |
 
 Only the **latest** declaration counts, and only once it is approved. If the latest one is still awaiting review or was rejected, the product has no class, so an older approval cannot bypass a stricter reclassification. Later slices call `pharmacy_product_schedule_in_force(tenant, outlet, product)`.
+
+In the shell, the open catalogue product's **Schedule class** section declares and reviews it (#1636). It is offered to an outlet editor holding the matching grant. Class and NDPS start empty and must both be chosen. A retried declaration reuses its id. Only the newest pending declaration is offered for review, and a lost race rereads the state.
 
 ### Item categories (#988 slice 1)
 
@@ -575,7 +577,7 @@ The source is Drugs Rules 1945, Rule 65 (CDSCO 2022 compilation): Schedule H and
 
   Each refusal is 409 `not_sellable` with its reason. A sale whose allocation spans several batches is one dispensing. A replay dispenses nothing more.
 
-- **Released image evidence (#1467).** New G/H/H1 quotes and sales require at least one terminal `available` image for the exact tenant/outlet/prescription. Missing, pending, rejected or failed scans refuse with `409 not_sellable`. The new insert guard enforces the same rule independently of the handler. Images are retained and available status cannot be revoked under the existing lifecycle. Migration `0044_pharmacy_prescription_sale_evidence` preserves historical invoices and replay. Deploy only after #1406 worker acceptance.
+- **Released image evidence (#1467).** New G/H/H1 quotes and sales require at least one terminal `available` image for the exact tenant/outlet/prescription. Missing, pending, rejected or failed scans refuse with `409 not_sellable`. The new insert guard enforces the same rule independently of the handler. Images are retained and available status cannot be revoked under the existing lifecycle. Migration `0047_pharmacy_prescription_sale_evidence` preserves historical invoices and replay. Deploy only after #1406 worker acceptance.
 - **Database guarantees.** The sale-line guard locks the cited prescription line and checks product, date, units, dispensings and addresses itself. A line carries a citation exactly when its class is not `none`. A bug in the handler cannot dispense more than the prescriber allowed.
 - **Walk-in buyer.** A sale takes an optional `buyer: {name?, phone?}` (phone `^\+?[0-9]{6,15}$`). It is shown with the invoice to `pharmacy.sale.read` holders and never published.
 - **Not covered.** Directions to dispense at intervals (the pharmacist records the number of dispensings), an age limit (the rules set none), Schedule X and NDPS (#165, #171), and the H1 register report (#1062).
@@ -597,6 +599,24 @@ The outlet's record of a prescription, and its scanned pages. Nothing sells agai
 **The pharmacy evidence worker** (`cmd/pharmacy-evidence-worker`) consumes the scan request through Temporal (`pharmacy-prescription-image-v1`) and connects as `helivanta_pharmacy_evidence_worker` with `PHARMACY_EVIDENCE_WORKER_DATABASE_URL`; it never falls back to another module's credential. Its session names one file, and row security shows it that file only. It holds no privilege on prescriptions, can change only the lifecycle columns, and can write only its own audit rows and a `prescription_image_changed.v1` whose status the row holds. No page can be revoked yet. Once a sale can cite a prescription (B-2b), revoking a cited page would remove a posted sale's evidence, so that rule is decided there.
 
 Until the worker is rolled out (#1406), uploaded pages stay `scan_pending` and are never downloadable.
+
+### Stock movement totals (#1638)
+
+`GET …/outlets/{outlet}/stock/reconciliation` (one batch at one location,
+`from` to `as_of`) returns `opening_units` and `closing_units` (numbers), a
+signed in-period total per movement kind as an exact decimal string
+(`receipt_units`, `correction_units`, `release_units`, `sale_units`,
+`return_units`, `supplier_dispatch_units`) and `movement_count`, in one
+statement. Totals are stored quantities, never sign-flipped: receipts and
+returns are positive, sales and supplies to hospital orders negative, a
+release negative where stock left and positive where it arrived, a correction
+either. `opening + every kind = closing`, tested; a test also fails when the
+movement kind constraint names a kind without a total. Register rows (outlet
+and pharmacy-wide) carry the same six totals over all history to `as_of`, so
+`on_hand_units` equals their sum, and the stock CSVs append `release_units`,
+`sale_units`, `return_units` and `supplier_dispatch_units` after
+`dispensable_units`. The panel shows every signed part and, if the parts are
+missing or do not sum, an alert instead of a reconciliation.
 
 ### Stock across outlets (#1372)
 
@@ -675,6 +695,8 @@ A declared hospital link grants nothing until that hospital verifies it. The dec
 
 The hospital decides in patientmaster ([patients](patients-and-clinical.md#pharmacy-affiliation-review-1416)). The `pharmacy-affiliation-decision` consumer applies a decision only to the round that is still open with that id. A decision for a withdrawn or already-decided round is a no-op, so redelivery and reordering converge. A database trigger enforces the transitions and gap-free numbering. Both directions are delivered until confirmed. Patientmaster confirms each request and withdrawal it handles (`pharmacy_affiliation_received.v1`), and pharmacy confirms each decision (`affiliation_decision_received.v1`). Each module's redelivery loop re-sends an unconfirmed step with exponential backoff from 2 minutes up to 60, and never gives up. So a dead-lettered withdrawal or revocation cannot leave the two sides disagreeing. A verified link is the precondition for patientmaster's [pharmacy patient lookup](patients-and-clinical.md#pharmacy-patient-lookup-1416b). Pharmacy also keeps `pharmacy_registered_patients`, the ids-only list of the tenant's registrations built by `pharmacy-patient-registered`. Registrations made before the consumer existed arrive through the #1377 replay. B-2c will accept a patient on a sale only if the id is in this list for a hospital the outlet's pharmacy is verified with.
 
+Each affiliation in the list and in the affiliation responses carries `hospital_name`. It is the hospital's name as workforce last announced it (#1637), and only while the affiliation's current `verification_status` is `verified`. In any other status, or before a name has arrived, it is `null`, so a link the hospital has not confirmed discloses nothing about the hospital. The `pharmacy-hospital-names` consumer stores every announced name in the tenant (`pharmacy_hospital_names`), and the newest `name_version` wins, so redelivery and reordering converge. If delivery of a name event fails 5 times it is dead-lettered with no automatic replay, so the pharmacy keeps the hospital's previous name (or `null`) until the hospital's next rename. The counter's hospital pickers label an option with the name, add the id when two hospitals share a name, and show `Name unavailable · <id>` when `hospital_name` is `null`.
+
 ## Integration requirements
 
 Published catalogue, stock, payable, settlement and safety events mostly carry scoped references only. `dispense_recorded.v1` carries dispense/visit IDs. The current visit-intake consumer still receives patient name from MediCore and opens a pending task automatically; it is not a prescription order.
@@ -708,7 +730,7 @@ acceptance remain separate gates. The consumer still grants no dispensing or
 hospital affiliation authority; sales independently require current verified
 scope and all existing stock/financial controls.
 
-### Outlet licence image processing (#1391, processing slice)
+### Outlet licence images, independent review and renewal advice (#1391)
 
 Pharmacy owns one immutable PNG/JPEG evidence image (up to 10 MiB) per outlet
 licence declaration. `PUT /licences/:id/evidence/:file` records the exact filename,
@@ -734,10 +756,31 @@ attempt and closed lifecycle status. Licence numbers, registration details,
 filenames, hashes and bytes are excluded from events and Temporal history.
 Existing prescription paths and completed licence decisions are preserved.
 
-This processing slice does **not** enforce clean evidence at the licence-review
-boundary. The review gate, user interface and renewal advice are the next slice;
-#1391 remains open until they and their browser/worker acceptance are complete.
-Deploy and accept this worker capability before enabling that gate.
+New `POST /licences/:id/review` decisions require available evidence for that exact
+declaration. Both the handler and INSERT trigger enforce the requirement and
+serialize on the declaration; absence, pending scan, rejection or scan error
+returns `409 licence_evidence_required`. Independent review still returns
+`409 four_eyes` for the author, and an existing completed decision remains
+immutable (`409`). The decision pins the released file and generation; responses
+add nullable `reviewed_evidence_file_id`. Historical decisions keep a null proof
+reference and remain effective under their original outlet-date rules.
+
+The setup UI provides declaration entry, exact-image upload, terminal scan status,
+recovery, authorized download and independent review. It carries no public file
+URLs and does not show self-review. The SDK derives declaration/review/renewal
+fields from `contracts/pharmacy.json` and rejects wrong-scope command receipts.
+
+`GET /licences/renewals` is a cursor-paged catalogue read under the current outlet
+grant. Each notice carries the declaration ID, declared dates, outlet time zone,
+local date, observation instant, exact calendar days remaining and one of
+`not_yet_valid`, `expired`, `expires_today`, `renewal_due_30`, `renewal_due_90`,
+`renewal_due_180` or `current`. These reuse SupplyConnect's operational reminder
+bands; they are not statutory deadlines, issuer verification or operating authority.
+
+Deploy and accept the matching worker capability before enabling the review gate.
+#1391 remains open until browser and designated synthetic production worker
+acceptance are complete. The local GCS/scanner protocol fixtures do not establish
+production ClamAV signature coverage or regulatory approval.
 
 ### Reviewed hospital department relationships (unreleased candidate)
 
@@ -805,3 +848,70 @@ no operating authority. The candidate Staff read view is
 canonical command/receipt SDK with immutable uncertain-attempt recovery. Normal
 role browser acceptance remains open. No new migration is added by these choices
 or command controls.
+
+### Supplier acquisition and accounts handoff candidate
+
+`GET /v1/pharmacy/pharmacies/{pharmacy}/outlets/{outlet}/accounts/acquisition-receipts`
+requires `pharmacy.accounts.read`, current private outlet access and exact expected
+workspace/account headers. It returns at most 50 original acquisition receipts per
+signed keyset page; the cursor binds the actor, pharmacy, outlet and filters.
+Unknown or repeated query fields are rejected. Reads are audited and uncached.
+The canonical response is `contracts/pharmacy-accounts.json`; run
+`node scripts/generate-pharmacy-accounts.mjs` and `--check`.
+
+Each row retains its original receipt ID/units and immutable batch/catalogue
+currency/unit. Supplier receipts add their locally retained order/shipment and
+source stock owner (`supply` or `pharmacy`), effective accepted quantity and
+receipt revision, current receiving summary revision, closure and discrepancy
+count. They disclose no external Staff identity, patient or source balance.
+A current correction does not rewrite the original invoice cost basis. Missing
+required supplier evidence fails with 503 rather than appearing as a direct or
+fully matched receipt. A recorded payable link is separate from a commercial match.
+
+The accounts bill form uses this financial reader instead of the stock journal.
+It offers only uncosted receipts in the bill currency. Invoice amounts, tax and
+recoverable tax must come from the accountable original document. Receiving,
+quarantine clearance and physical release do not create a bill, credit or payment.
+Existing immutable payable, credit/payment/reversal and valuation ownership stays
+in PharmaConnect; existing unique receipt/document/source-reference constraints
+prevent duplicate costs and recorded settlements. These are external payment
+records, not provider money transfers.
+
+Bill saves pin the submitted ID, account, scope and normalized input. Ambiguous
+outcomes freeze edits and cancellation until exact original GET recovery. If that
+read currently returns 404, an explicit retry resubmits the same input/ID; it does
+not assume the first request can no longer commit. Recovery compares invoice
+fields, line/receipt amounts and original actor while permitting later balance
+changes from settlements. Existing v1 bill routes accept legacy callers without
+an expected-subject header; when supplied, that header must match before a write
+or recovery read. Payable reads now record financial-read audit.
+
+Additive migration `0043_pharmacy_acquisition_receipts` creates a SELECT-only
+accounts purpose over retained receipt/head/correction evidence. It does not
+change physical-write policies or grant finance permissions to operating duties.
+No existing rows or prior migration are changed. Rollback removes the new reader
+and UI while preserving recorded financial and physical evidence; migration
+rollback does not delete or reinterpret history.
+
+The candidate's unit/SDK/component tests, real owner database/broker tests and
+production-shaped browser test are separate gates. The browser financial test
+uses direct synthetic acquisition, never a fictitious trade licence. Positive
+live bilateral dispatch/receiving still needs actual reviewed participant,
+Maharashtra/Odisha state/category and trading-policy prerequisites. See the
+[implementation design](../../superpowers/specs/2026-11-09-supplier-financial-handoff.md).
+
+## Initial organisation business profile
+
+Customer onboarding stores organisation contact, headquarters and main-branch
+address/name on the pharmacy owner through `customercontract.OrganizationProfile`.
+Migration `0044_pharmacy_business_profile` adds the nullable bounded
+`onboarding_profile` column to `pharmacy_organizations`. A complete profile creates
+the initial outlet in `pending_review`, using the organisation UUIDv7 in its own
+outlet scope and the branch's supplied name.
+
+`GET /v1/pharmacy/pharmacies/:pharmacy/business-profile` requires
+`pharmacy.access.manage`, verified tenant membership and pharmacy visibility. It
+returns `{profile: object | null}`, enforces the optional expected-tenant
+precondition, disables caching and audits the read. Historical records can return
+null. The read schema is generated from the onboarding-service owner contract.
+[Automated onboarding](../../design/automated-customer-onboarding.md)

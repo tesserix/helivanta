@@ -39,6 +39,8 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/intake-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/me/permissions` | `no_tenant_membership` | false | false |
 | GET | `/v1/iam/me/profile` | `no_tenant_membership` | false | false |
+| GET | `/v1/iam/me/security` | `iam.member.manage` | false | false |
+| POST | `/v1/iam/me/security` | `iam.member.manage` | false | false |
 | POST | `/v1/iam/me/sign-out` | `no_tenant_membership` | false | false |
 | POST | `/v1/iam/me/tenant` | `no_tenant_membership` | false | false |
 | GET | `/v1/iam/me/tenants` | `no_tenant_membership` | false | false |
@@ -457,6 +459,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/insights` | `pharmacy.dispense.read` | false | false |
 | GET | `/v1/pharmacy/medications` | `pharmacy.medication.read` | true | false |
 | POST | `/v1/pharmacy/medications` | `pharmacy.medication.write` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/business-profile` | `pharmacy.access.manage` | false | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/hospital-affiliations/:id/verification-requests/:request/withdraw` | `pharmacy.access.manage` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/hospital-affiliations/:id/verification-requests/:request` | `pharmacy.access.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/hospital-affiliations/:id/verifications` | `pharmacy.catalogue.read` | true | false |
@@ -473,6 +476,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | DELETE | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access/:subject` | `pharmacy.access.manage` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access/:subject` | `pharmacy.access.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access` | `pharmacy.catalogue.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/acquisition-receipts` | `pharmacy.accounts.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/inventory-audit/counted` | `pharmacy.accounts.read` | true | true |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/inventory-audit` | `pharmacy.accounts.read` | true | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/adjustments/:entry` | `pharmacy.accounts.adjust` | false | false |
@@ -531,6 +535,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/revocations/:revocation` | `pharmacy.licence.review` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/revocations/:revocation` | `pharmacy.licence.review` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id` | `pharmacy.licence.manage` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/renewals` | `pharmacy.catalogue.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences` | `pharmacy.catalogue.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/opd-encounters` | `pharmacy.sale.create` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/overview` | `pharmacy.catalogue.read` | false | false |
@@ -650,6 +655,7 @@ Subscriptions:
 - `pharmacy-affiliation-decision` ← `helivanta.in.patientmaster.pharmacy_affiliation_decided.v1`; after-commit hook: false.
 - `pharmacy-affiliation-receipt` ← `helivanta.in.patientmaster.pharmacy_affiliation_received.v1`; after-commit hook: false.
 - `pharmacy-patient-registered` ← `helivanta.in.patientmaster.registered.v1`; after-commit hook: false.
+- `pharmacy-hospital-names` ← `helivanta.in.workforce.hospital_named.v1`; after-commit hook: false.
 - `pharmacy-bed-occupancy-started` ← `helivanta.in.medicore.bed_occupancy_started.v1`; after-commit hook: false.
 - `pharmacy-bed-occupancy-ended` ← `helivanta.in.medicore.bed_occupancy_ended.v1`; after-commit hook: false.
 - `pharmacy-encounter-opened` ← `helivanta.in.medicore.encounter_opened.v1`; after-commit hook: false.
@@ -688,6 +694,7 @@ Migration table declarations:
 - `0039_pharmacy_supplier_fulfilment`: `pharmacy_supplier_allocations`, `pharmacy_supplier_holds`, `pharmacy_supplier_commands`, `pharmacy_supplier_allocation_history`, `pharmacy_supplier_receiving_heads`, `pharmacy_supplier_receipts`, `pharmacy_supplier_receiving_closures`, `pharmacy_supplier_receiving_clearances`, `pharmacy_supplier_batch_sources`.
 - `0040_pharmacy_supplier_receiving_corrections`: `pharmacy_supplier_receiving_corrections`.
 - `0042_pharmacy_supplier_receiving_release`: `pharmacy_supplier_receiving_releases`.
+- `0045_pharmacy_hospital_names`: `pharmacy_hospital_names`.
 
 ## payments
 
@@ -1145,6 +1152,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/employment-review-scopes` | `public` | true | false |
 | DELETE | `/v1/workforce/hospitals/:hospital/access/:subject` | `workforce.hospital.manage` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/access/:subject` | `workforce.hospital.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/business-profile` | `workforce.hospital.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/department-leave-review-requests` | `workforce.leave.approve` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/department-team` | `workforce.posting.proposal.read` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/employment-review-inbox` | `public` | true | false |
@@ -1414,12 +1422,43 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/person-review-scopes` | `public` | true | false |
 | DELETE | `/v1/workforce/pharmacies/:pharmacy/access/:subject` | `workforce.hospital.manage` | false | false |
 | PUT | `/v1/workforce/pharmacies/:pharmacy/access/:subject` | `workforce.hospital.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/hr/credential-reminder-policy` | `workforce.enrollment.manage` | false | false |
+| PUT | `/v1/workforce/pharmacies/:pharmacy/hr/credential-reminder-policy` | `workforce.enrollment.manage` | false | false |
+| POST | `/v1/workforce/pharmacies/:pharmacy/hr/credential-reminders/:reminder/acknowledgement` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/hr/credential-reminders` | `workforce.enrollment.manage` | true | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/hr/credentials` | `workforce.enrollment.manage` | true | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/hr/time-zone` | `workforce.enrollment.manage` | false | false |
+| PUT | `/v1/workforce/pharmacies/:pharmacy/hr/time-zone` | `workforce.enrollment.manage` | false | false |
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link/commands/:command` | `public` | false | false |
 | PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link/commands/:command` | `public` | false | false |
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link/proposal-receipt` | `public` | false | false |
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link` | `public` | false | false |
 | PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link` | `workforce.independent_login.manage` | false | false |
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links` | `public` | true | false |
+| POST | `/v1/workforce/pharmacies/:pharmacy/staff/:id/credentials/:credential/reviews/:review/decision` | `workforce.credentials.review` | false | false |
+| POST | `/v1/workforce/pharmacies/:pharmacy/staff/:id/credentials/:credential/reviews/:review/withdraw` | `workforce.enrollment.manage` | false | false |
+| PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/credentials/:credential/reviews/:review` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/credentials/:credential/reviews` | `workforce.enrollment.manage` | true | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/credentials` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/document-records` | `workforce.documents.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file/content` | `workforce.documents.manage` | false | false |
+| PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file/content` | `workforce.documents.manage` | false | false |
+| PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file/retries/:attempt` | `workforce.documents.manage` | false | false |
+| PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file/revocation` | `workforce.documents.manage` | false | false |
+| PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file` | `workforce.documents.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/documents` | `workforce.documents.manage` | true | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/history` | `workforce.enrollment.manage` | true | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/content` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/history` | `workforce.enrollment.manage` | true | false |
+| POST | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/withdraw` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding` | `workforce.enrollment.manage` | false | false |
+| PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence` | `workforce.enrollment.manage` | true | false |
+| POST | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/withdraw` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period` | `workforce.enrollment.manage` | false | false |
+| PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods` | `workforce.enrollment.manage` | true | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-source` | `workforce.enrollment.manage` | false | false |
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/enrollment` | `workforce.enrollment.manage` | false | false |
 | PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/enrollment` | `workforce.enrollment.manage` | false | false |
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id` | `public` | false | false |
@@ -1449,6 +1488,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 
 Published subjects:
 
+- `helivanta.in.workforce.hospital_named.v1`
 - `helivanta.in.workforce.independent_login_link_changed.v1`
 - `helivanta.in.workforce.partner_group_hospital_scope_observed.v1`
 - `helivanta.in.workforce.posting_cutoff_changed.v1`
@@ -1571,6 +1611,8 @@ Migration table declarations:
 - `0085_workforce_posting_lifecycle_reviews`: `workforce_posting_lifecycle_reviews`, `workforce_posting_lifecycle_sources`.
 - `0090_workforce_partner_group_scope`: `workforce_partner_group_observations`.
 - `0094_workforce_independent_identity`: `workforce_independent_link_commands`.
+- `0097_workforce_hospital_names`: `workforce_hospital_name_announcements`.
+- `0100_workforce_pharmacy_credential_reviews`: `workforce_pharmacy_time_zones`.
 
 ## workspace
 
@@ -1644,11 +1686,18 @@ Migration table declarations:
 | `GET /readyz` | readiness probe; same reason, and it must answer during a dependency outage |
 | `GET /v1/auth/branding/:tenant` | published display-only branding must render before login; no identity or data access |
 | `GET /v1/auth/login/request/:id` | renders the login form before any Helivanta session exists |
+| `GET /v1/auth/signup` | receipt-bound setup progress before a tenant session exists |
 | `POST /v1/auth/login` | creates the Helivanta session and therefore cannot require one |
 | `POST /v1/auth/login/enroll` | confirms the newly enrolled second factor that creates the session, so it cannot require one |
 | `POST /v1/auth/login/factor` | checks the second factor that creates the session, so it cannot require one |
 | `POST /v1/auth/login/password` | checks the credential that creates the session, so it cannot require one |
 | `POST /v1/auth/login/password-change` | completes a sign-in whose password must change first, so it cannot require a session |
+| `POST /v1/auth/signup` | new owner intent before a tenant exists; same-origin receipt and private workload handoff |
+| `POST /v1/auth/signup/email-link` | bounded native verification delivery without identity disclosure |
+| `POST /v1/auth/signup/password` | native reset code for the immutable signup owner before sign-in |
+| `POST /v1/auth/signup/password-link` | bounded native password setup and recovery without identity disclosure |
+| `POST /v1/auth/signup/sign-in` | receipt-bound continuation using a fresh native ID token and current revocation check before tenant membership exists |
+| `POST /v1/auth/signup/verify-email` | native email proof before sign-in; shared proof budget and receipt rotation |
 | `POST /v1/payments/webhooks/razorpay/:tenant/:account` | provider callback authenticated by its HMAC signature, not a session |
 
 ## Platform migration table declarations

@@ -38,13 +38,25 @@ type documentGate interface {
 	bind(tx *gorm.DB, p authn.Principal, hospital, staffID uuid.UUID, kind string, record uuid.UUID) (int64, error)
 	owns(tx *gorm.DB, p authn.Principal, hospital, staffID uuid.UUID, kind string, record uuid.UUID) error
 	downloadAction() string
+	// view is the only shape a file response leaves in, so a pharmacy file never answers with hospital_id.
+	view(document) any
 }
 
 // staffDocuments gates HR enrollment, credential and qualification files.
 type staffDocuments struct{}
 
 func (staffDocuments) authorize(tx *gorm.DB, p authn.Principal, hospital, staffID uuid.UUID, _ bool) error {
-	_, err := documentOwner(tx, p, hospital, staffID)
+	return staffDocumentOwner(tx, p, establishment{kind: hospitalEstablishmentKind, id: hospital}, staffID)
+}
+
+func (staffDocuments) view(d document) any { return d }
+
+// staffDocumentOwner re-checks the family inside the command, because an ID unregistered at admission may since belong to another kind.
+func staffDocumentOwner(tx *gorm.DB, p authn.Principal, owner establishment, staffID uuid.UUID) error {
+	if err := owner.requireKind(tx, p.TenantID); err != nil {
+		return err
+	}
+	_, err := documentOwner(tx, p, owner.id, staffID)
 	return err
 }
 
@@ -156,20 +168,26 @@ func (h *handlers) putDocument(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if id, in, ok := documentIntent(c, staffID); ok {
+		h.registerDocument(c, staffDocuments{}, p, hospital, staffID, id, in)
+	}
+}
+
+func documentIntent(c *gin.Context, staffID uuid.UUID) (uuid.UUID, documentInput, bool) {
+	var in documentInput
 	id, err := uuid.Parse(c.Param("file"))
 	if err != nil || id == uuid.Nil {
 		respond.NotFound(c, "document")
-		return
+		return id, in, false
 	}
-	var in documentInput
 	if !decode(c, &in) {
-		return
+		return id, in, false
 	}
 	if !in.valid(staffID) {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "invalid document intent")
-		return
+		return id, in, false
 	}
-	h.registerDocument(c, staffDocuments{}, p, hospital, staffID, id, in)
+	return id, in, true
 }
 
 // registerDocument records an upload intent once; an identical replay returns it and a different one conflicts.
@@ -219,10 +237,10 @@ func (h *handlers) registerDocument(c *gin.Context, gate documentGate, p authn.P
 		return
 	}
 	if created {
-		respond.Created(c, saved)
+		respond.Created(c, gate.view(saved))
 		return
 	}
-	respond.OK(c, saved)
+	respond.OK(c, gate.view(saved))
 }
 
 func (h *handlers) listDocuments(c *gin.Context, params pagination.Params) ([]document, error) {
@@ -234,9 +252,13 @@ func (h *handlers) listDocuments(c *gin.Context, params pagination.Params) ([]do
 	if !ok {
 		return nil, nil
 	}
+	return h.documentRows(c, staffDocuments{}, p, hospital, staffID, params)
+}
+
+func (h *handlers) documentRows(c *gin.Context, gate documentGate, p authn.Principal, hospital, staffID uuid.UUID, params pagination.Params) ([]document, error) {
 	var rows []document
-	err := h.documentTransaction(c, staffDocuments{}, p, hospital, false, func(tx *gorm.DB) error {
-		if _, err := documentOwner(tx, p, hospital, staffID); err != nil {
+	err := h.documentTransaction(c, gate, p, hospital, false, func(tx *gorm.DB) error {
+		if err := gate.authorize(tx, p, hospital, staffID, false); err != nil {
 			return err
 		}
 		return tenantdb.ApplyKeyset(tx, params).Select(documentColumns).Where("tenant_id=? AND hospital_id=? AND staff_id=?", p.TenantID, hospital, staffID).Find(&rows).Error

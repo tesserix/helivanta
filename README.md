@@ -24,7 +24,7 @@ current implementation.
 
 ## Quick start
 
-Requires Docker, Go 1.27.3, Node 24, the version in `.nvmrc` (`corepack enable`). No registry
+Requires Docker, Go 1.27.4, Node 24, the version in `.nvmrc` (`corepack enable`). No registry
 credentials: `@tesserix/web` is published to the public npm registry, so
 `pnpm install` on a fresh clone needs nothing but network access.
 
@@ -238,13 +238,13 @@ seed and API targets with the e2e-only flag set explicitly.
 
 Deployment lives in `tesserix-k8s` (charts/apps/hms-*), not here.
 
-The backend toolchain is pinned to Go 1.27.3 in `backend/go.mod`. Make targets
+The backend toolchain is pinned to Go 1.27.4 in `backend/go.mod`. Make targets
 and preflight select that exact toolchain; CI reads the module version, and the
-shared Docker builder explicitly selects `go1.27.3`. Install the linter with
+shared Docker builder explicitly selects `go1.27.4`. Install the linter with
 the matching toolchain if an older binary refuses the module:
 
 ```sh
-GOTOOLCHAIN=go1.27.3 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
+GOTOOLCHAIN=go1.27.4 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 ```
 
 ## AmbulanceConnect / EmergencyConnect

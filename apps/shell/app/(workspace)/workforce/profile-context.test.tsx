@@ -6,6 +6,12 @@ import { renderWithProviders } from "@helivanta/api/testing";
 import { EMPTY_PROFILE } from "@helivanta/api";
 import Workforce from "./page";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => "/workforce",
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 const tenant = "11111111-1111-4111-8111-111111111111";
 const hospital = "22222222-2222-4222-8222-222222222222";
 const employee = {

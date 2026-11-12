@@ -1549,3 +1549,90 @@ it("shows hidden departments in the proposal form as a refusal, with no retry", 
   ).toBeInTheDocument();
   expect(form.queryByRole("button", { name: /retry departments|try again/i })).toBeNull();
 });
+
+// #1595: a refused refresh hides the records it had shown, and its button.
+it("shows a refused assignments refresh as a refusal and hides the records", async () => {
+  setup();
+  const prior = fetch;
+  let refused = false;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) =>
+      refused && url.startsWith("/api/v1/iam/assignment-proposals?")
+        ? Response.json({ error: "forbidden", message: "secret" }, { status: 403 })
+        : prior(url, init),
+    ),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  expect(await screen.findByText("Synthetic review")).toBeInTheDocument();
+  refused = true;
+  await user.click(screen.getByRole("button", { name: "Refresh assignments" }));
+  expect(
+    await screen.findByText("This wasn't found, or you don't have access to it."),
+  ).toBeInTheDocument();
+  expect(screen.queryByText("Synthetic review")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Refresh assignments" })).not.toBeInTheDocument();
+  expect(screen.queryByText(/secret/)).not.toBeInTheDocument();
+});
+
+it("asks again for assignment history after an outage", async () => {
+  setup();
+  const prior = fetch;
+  let reads = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (!url.includes("/history?")) return prior(url, init);
+      reads += 1;
+      return Response.json({ error: "unavailable", message: "down" }, { status: 503 });
+    }),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "History" }));
+  const failure = (await screen.findByText("Could not load history.")).closest("[role=alert]");
+  const before = reads;
+  await user.click(within(failure as HTMLElement).getByRole("button", { name: "Try again" }));
+  await waitFor(() => expect(reads).toBeGreaterThan(before));
+});
+
+it("keeps a department assignment's scope when its department read is refused", async () => {
+  departmentCatalogSetup([
+    {
+      ...row,
+      input: {
+        ...row.input,
+        department_id: pharmacy,
+        template_key: "workforce.department_posting_reviewer.v1",
+      },
+      scope_kind: "department",
+    },
+  ]);
+  const prior = fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) =>
+      url.includes(`/departments/${pharmacy}/revisions`)
+        ? Response.json({ error: "forbidden", message: "secret" }, { status: 403 })
+        : prior(url, init),
+    ),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByLabelText("Assignment area"));
+  await user.click(await screen.findByRole("option", { name: "Staff posting access" }));
+  expect(
+    await screen.findByText(`Applies to: department ${pharmacy}. Its name isn't available to you.`),
+  ).toBeInTheDocument();
+  expect(screen.queryByText(/secret/)).not.toBeInTheDocument();
+});

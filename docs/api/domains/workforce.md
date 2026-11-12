@@ -115,6 +115,10 @@ no production activation follows from either source checkpoint.
 
 Workforce publishes metadata-oriented change events for staff enrollment, HR definitions, rosters, leave, exchanges, overtime, attendance, payroll configuration, documents, credentials and benefits. Read exact subjects and consumers from the [registry inventory](../reference/inventory.json) and payload types from `backend/internal/modules/workforce/contract/events.go`; avoid copying their many definitions into another service.
 
+### Hospital names (#1637)
+
+`helivanta.in.workforce.hospital_named.v1` carries `{hospital_id, name, name_version}`. It is sent when a hospital is created and on each name change, once per `name_version`: the trigger only bumps `name_version`, and the guarded `workforce_hospital_name_announcements` claim publishes each version once. A background pass (`RunHospitalNameAnnouncer`, every 30 seconds) delivers it, so a name reaches consumers within about 30 seconds, not in the request's transaction. Hospitals that existed before the event was introduced are announced in batches of 200 per pass (`hospitalNameBatch`), one pass every 30 seconds, so no backfill is needed. If delivery to a consumer fails 5 times the event is dead-lettered (platform posture, no automatic replay), and the pharmacy keeps the hospital's previous name until its next rename. Pharmacy and supplier establishments are never announced. The pharmacy module's `pharmacy-hospital-names` consumer keeps the newest version per tenant and discloses a name only on a verified affiliation ([pharmacy](pharmacy.md#hospital-affiliation-verification-1416)).
+
 Document scanning and credential reminders use conditional Temporal consumer bridges. Their presence in documentation means the capability exists in source, not that production has enabled workers. Workflow starts are idempotent, and after-commit retry must still run for already-claimed events. Reminder/roster credential checks do not replace a clinician's authoritative privilege review at the clinical command boundary.
 
 HR pay, health evidence, identifiers and dependent data must not enter commercial CRM, general telemetry or unrestricted support exports. Consumers should retain source IDs/version and fetch only permitted fields under current hospital authority. If a review/statutory policy is missing, deny or show incomplete configuration; do not calculate a plausible default and call it approved payroll.
@@ -126,3 +130,19 @@ Use [HR capability coverage](../../hr-capability-coverage.md), [private-file ver
 Required contract cases: historical policy selection, overnight/DST dates, double leave allocation, concurrent request approval/revocation, correction against a closed period, reopened timesheet lineage, exact rounding and overflow, no unauthorized identifier reveal, reviewer self-approval restrictions where implemented, stale tenant/hospital and expired/revoked evidence access. New consumers must define latency/freshness and reconciliation needs rather than use HR events as an implicit permission grant.
 
 The unreleased [department handoff](../workforce-department-links.md) retains an explicit mapping from HR department revisions to canonical Organization revisions. Profiles and payroll keep their historical HR pins; postings and current product authority remain separate unfinished contracts.
+
+## Initial business contact profile
+
+Customer onboarding stores a validated organisation contact, head-office address
+and main-branch name/address on the hospital owner. Migration
+`0096_workforce_business_profile` adds a nullable bounded `onboarding_profile`
+column to `workforce_hospitals`. The canonical Go/Zod profile is published by
+onboarding-service's `customercontract` package.
+
+`GET /v1/workforce/hospitals/:hospital/business-profile` requires
+`workforce.hospital.manage` and current hospital manager access under the verified
+tenant and hospital kind. It returns `{profile: object | null}`, enforces the
+optional expected-tenant precondition, disables caching and audits the read.
+Existing profiles with no captured details return null. The full signup,
+retry and consumer behavior is specified in the automated onboarding design.
+[Automated onboarding](../../design/automated-customer-onboarding.md)

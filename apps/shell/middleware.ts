@@ -58,6 +58,15 @@ export function middleware(req: NextRequest) {
     pathname === "/" ||
     pathname === "/workspace" ||
     pathname === "/signup" ||
+    pathname === "/signup/verify" ||
+    [
+      "/api/v1/auth/signup",
+      "/api/v1/auth/signup/verify-email",
+      "/api/v1/auth/signup/password",
+      "/api/v1/auth/signup/email-link",
+      "/api/v1/auth/signup/password-link",
+      "/api/v1/auth/signup/sign-in",
+    ].includes(pathname) ||
     pathname === "/icon.svg" ||
     pathname === "/ambulance" ||
     pathname === "/api/emergency/access" ||

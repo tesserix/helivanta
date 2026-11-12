@@ -322,6 +322,7 @@ describe("LoginPage", () => {
 
     afterEach(() => {
       vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
     });
 
     it("remembers the accepted username on this browser without storing the password", async () => {
@@ -636,6 +637,51 @@ describe("LoginPage", () => {
           }),
         ),
       );
+    });
+
+    it.each([
+      "https://evil.example.test/ui/v2/login/password?loginName=owner%40example.test&requestId=oidc_V2_test-auth-request",
+      "http://auth.example.test/ui/v2/login/password?loginName=owner%40example.test&requestId=oidc_V2_test-auth-request",
+      "https://user:pass@auth.example.test/ui/v2/login/password?loginName=owner%40example.test&requestId=oidc_V2_test-auth-request",
+      "https://auth.example.test/other?authRequest=V2_test-auth-request",
+      "https://auth.example.test/ui/v2/login/password?loginName=owner%40example.test&requestId=oidc_V2_other",
+      "https://auth.example.test/ui/v2/login/password?loginName=owner%40example.test&requestId=oidc_V2_test-auth-request&return_to=https://evil.example.test",
+      "https://auth.example.test/ui/v2/login/password?loginName=owner%40example.test&requestId=oidc_V2_test-auth-request#extra",
+    ])("rejects an unsafe native security-key continuation: %s", async (url) => {
+      vi.stubEnv("NEXT_PUBLIC_ZITADEL_ISSUER_URL", "https://auth.example.test");
+      stubAuthFlow({ password: () => jsonResponse(200, { security_key_required: { url } }) });
+      const assignSpy = vi.fn();
+      vi.stubGlobal("location", { ...window.location, assign: assignSpy });
+      const { user } = renderWithProviders(<LoginPage />);
+      await user.type(await screen.findByLabelText("Email or username"), "owner@example.test");
+      await user.type(screen.getByLabelText("Password"), "synthetic-password");
+      await user.click(screen.getByRole("button", { name: "Sign in" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Sign-in failed. Please try again.",
+      );
+      expect(assignSpy).not.toHaveBeenCalled();
+      expect(
+        screen.queryByRole("button", { name: "Continue with security key" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("offers an explicit trusted-domain security-key action without completing or automatically redirecting", async () => {
+      vi.stubEnv("NEXT_PUBLIC_ZITADEL_ISSUER_URL", "https://auth.example.test");
+      const url = `https://auth.example.test/ui/v2/login/password?loginName=owner%40example.test&requestId=oidc_${AUTH_REQUEST_ID}`;
+      stubAuthFlow({ password: () => jsonResponse(200, { security_key_required: { url } }) });
+      const assignSpy = vi.fn();
+      vi.stubGlobal("location", { ...window.location, assign: assignSpy });
+      const { user } = renderWithProviders(<LoginPage />);
+      await user.type(await screen.findByLabelText("Email or username"), "owner@example.test");
+      await user.type(screen.getByLabelText("Password"), "synthetic-password");
+      await user.click(screen.getByRole("button", { name: "Sign in" }));
+      const action = await screen.findByRole("button", { name: "Continue with security key" });
+      expect(screen.getByText(/auth.example.test/)).toBeVisible();
+      expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
+      expect(assignSpy).not.toHaveBeenCalled();
+      await user.click(action);
+      expect(assignSpy).toHaveBeenCalledWith(url);
+      vi.unstubAllEnvs();
     });
 
     it("verifies the auth request first, via GET /v1/auth/login/request/:id, before rendering the form", async () => {

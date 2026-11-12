@@ -351,6 +351,8 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /pharmacy/pharmacies/:pharmacy/business-profile": "one scoped pharmacy business profile",
+	"GET /workforce/hospitals/:hospital/business-profile": "one scoped hospital business profile",
 	"GET /pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/creation-receipt":                                   "one exact original receipt, bound to its current original Staff actor; never a collection",
 	"GET /supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/receiving-response-access":                                          "one exact source receiving-response admission under current purpose-specific duty; never a collection",
 	"GET /supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/receiving-response-access":                         "one exact hospital pharmacy receiving-response admission under current department duty; never a collection",
@@ -452,6 +454,10 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/content":        "one reauthorized protected file at its pinned scanned generation",
 	"GET /workforce/hospitals/:hospital/staff/:id/employment-source":                                                              "one minimal employment source for one authorized Staff record",
 	"GET /workforce/hospitals/:hospital/staff/:id/employment-periods/:period":                                                     "one private employment draft; period list and revision history are cursor-paginated",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/employment-source":                                                             "one minimal employment source for one pharmacy Staff record",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period":                                                    "one private pharmacy employment draft; period list and revision history are cursor-paginated",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding":               "one private pharmacy evidence binding; evidence list and history are cursor-paginated",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/content":       "one reauthorized protected pharmacy file at its pinned scanned generation",
 	"GET /workforce/hospitals/:hospital/identity-staff/:id/checks/:check":                                                         "one hospital/staff-scoped identity case; case list and revision history are cursor-paginated",
 	"GET /iam/staff-access-templates":                                                            "finite canonical catalogue of three versioned templates, no tenant record collection",
 	"GET /workforce/hospitals/:hospital/identity-staff/:id":                                      "one current identity review source for an authorized staff UUID",
@@ -592,6 +598,11 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /workforce/hospitals/:hospital/staff/:id":                                  "single hospital-local staff entry",
 	"GET /workforce/pharmacies/:pharmacy/staff/:id":                                 "single pharmacy-local staff entry",
 	"GET /workforce/pharmacies/:pharmacy/staff/:id/enrollment":                      "single pharmacy Staff profile, with bounded child records",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/document-records":                "one pharmacy Staff enrollment's bounded evidence choices: enrollment plus at most 20 credentials and 20 qualifications",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/documents/:file/content":         "one authorized generation-pinned pharmacy Staff file, not a collection",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/credentials":                     "one pharmacy Staff record's credential validity, bounded by enrollment's 20 credentials",
+	"GET /workforce/pharmacies/:pharmacy/hr/credential-reminder-policy":             "single current pharmacy credential reminder policy",
+	"GET /workforce/pharmacies/:pharmacy/hr/time-zone":                              "single current pharmacy HR time zone",
 	"GET /reference/pings/:id":                                                      "single item, not a collection",
 	"GET /patients/hospitals/:hospital/access":                                      "current principal hospital grant, not a collection",
 	"GET /patients/:id":       "single item, not a collection",
@@ -599,6 +610,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /iam/me/tenants":     "bounded: one person's memberships",
 	"GET /iam/me/permissions": "bounded: one resolved permission set",
 	"GET /iam/me/profile":     "one person's profile with their roles in one tenant",
+	"GET /iam/me/security":    "one current owner's native MFA policy in the verified tenant, not a collection",
 	"GET /workforce/hospitals/:hospital/hr/roster-settings":                                                                   "single current hospital roster policy",
 	"GET /workforce/hospitals/:hospital/hr/credential-reminder-policy":                                                        "single current hospital credential reminder policy",
 	"GET /workforce/hospitals/:hospital/hr/leave-settings":                                                                    "single fixed hospital leave-year start",
@@ -715,8 +727,10 @@ var withAllTenantsAllowlist = map[string]bool{
 	// #1386 C-4a: the payments poller finds due intents across tenants. It
 	// reads only (tenant_id, id) — the system role holds SELECT on just
 	// those columns and next_check_at — and checks each under WithTenant.
-	"internal/modules/payments/reconciler.go":                         true,
-	"internal/modules/pharmacy/affiliation_delivery.go":               true,
+	"internal/modules/payments/reconciler.go":           true,
+	"internal/modules/pharmacy/affiliation_delivery.go": true,
+	// #1637: finds hospitals with an unannounced name version; reads ids and versions only, each is announced under WithTenant.
+	"internal/modules/workforce/hospital_names.go":                    true,
 	"internal/modules/patientmaster/pharmacy_affiliation_delivery.go": true,
 	// #197: the bed census finds due stays and unapplied setup across
 	// tenants by key columns alone, and reconciles each under WithTenant.

@@ -164,3 +164,34 @@ access reviews, audit retention, recovery drills and incident response also requ
 organizational evidence. See the
 [operator security assurance guide](https://github.com/tesserix/tesserix-operators/blob/main/operators/zitadel/docs/security-assurance.md)
 and [API/OpenBao integration guide](https://github.com/tesserix/tesserix-operators/blob/main/operators/zitadel/docs/openbao-and-onboarding-integration.md).
+
+## Self-service signup acceptance
+
+After the approved deployment, open `https://helivanta.app/signup` in a fresh
+browser session. The owner supplies the organisation name, hospital or independent
+pharmacy model, India and Maharashtra/Odisha, and their own name/email. Follow the
+native verification email back to Helivanta, set the native password using its
+separate proof and wait for a ready receipt. Native MFA enrollment takes place at
+first sign-in. The owner becomes the initial tenant administrator automatically;
+pharmacy signup creates its own pharmacy workspace without a fictitious hospital.
+
+Verify both models independently with separately owned test addresses. Check the
+created resource, tenant/context selector, available owner administration and
+`Settings → Workspace security`. That panel reports current native enforcement;
+reapply is pending until a fresh read confirms it. Reapplying requires signing
+in within five minutes. Neither a queued identity claim nor an accepted HTTP
+response establishes readiness. Keep native email-code delivery and first-login
+MFA as explicit manual acceptance steps when the owner is completing them.
+
+Negative checks: a different/duplicate expected tenant or subject must fail;
+foreign origins cannot request a change; stale policy revisions conflict; an
+older login must reauthenticate; revoked owners/grants must lose access. An
+identity or audit outage must not disclose a policy or claim a successful change.
+A pending request must not render as applied. Test source includes signup form,
+native proof, current owner, immutable replay, workload audience and owner-policy
+lifecycle cases. Database-backed tests run in CI; local builds require no local
+application or containers.
+
+The separately approved business-data reset remains subject to the recoverable
+capture and access requirements in `docs/design/automated-customer-onboarding.md`.
+Deploying self-service signup does not establish that previous data was removed.

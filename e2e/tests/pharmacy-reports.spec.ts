@@ -9,6 +9,11 @@ import { uuidv7 } from "./support/pharmacy";
 // file, and each report section shows its empty, invalid, failed and refused
 // states (spec 2026-11-05-pharmacy-report-walkthrough-design.md).
 
+// #1637: the picker shows the hospital's name once the announcer has delivered
+// it (every 30 s) and "Name unavailable · <id>" until then; either is the hospital.
+const hospitalOption = (p: { hospitalId: string; hospitalName: string }) =>
+  new RegExp(`${p.hospitalName}|${p.hospitalId}`);
+
 const refused = "You don't have access to this outlet's reports.";
 const inr = (minor: number) => `INR ${(minor / 100).toFixed(2)}`;
 const rupees = (minor: number) => (minor / 100).toFixed(2);
@@ -18,7 +23,7 @@ async function sellCash(
   outlet: string,
   sku: string,
   units: number,
-  patient?: { hospitalId: string; mrn: string; name: string },
+  patient?: { hospitalId: string; hospitalName: string; mrn: string; name: string },
 ) {
   await page.goto("/pharmacy/counter");
   await choose(page, "Product", new RegExp(sku));
@@ -27,7 +32,7 @@ async function sellCash(
   await page.getByRole("button", { name: "Price basket", exact: true }).click();
   if (patient) {
     await choose(page, "Customer", "Registered patient");
-    await choose(page, "Hospital", patient.hospitalId);
+    await choose(page, "Hospital", hospitalOption(patient));
     await page.getByLabel("MRN", { exact: true }).fill(patient.mrn);
     await page.getByRole("button", { name: "Find patient", exact: true }).click();
     await expect(page.getByText(patient.name, { exact: true })).toBeVisible();
@@ -218,7 +223,7 @@ test("a pharmacist's sales read back the same on every report and file", async (
 
     const patientSales = region(cashier, "Patient-wise sales");
     await patientSales.getByRole("combobox", { name: "Hospital", exact: true }).click();
-    await cashier.getByRole("option", { name: patient.hospitalId, exact: true }).click();
+    await cashier.getByRole("option", { name: hospitalOption(patient) }).click();
     await patientSales.getByLabel("MRN", { exact: true }).fill(patient.mrn);
     await patientSales.getByRole("button", { name: "Find patient", exact: true }).click();
     await patientSales.getByRole("button", { name: "This is the patient", exact: true }).click();

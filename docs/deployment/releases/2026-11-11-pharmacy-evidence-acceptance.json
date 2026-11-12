@@ -1,0 +1,160 @@
+{
+  "accepted_at": "2026-11-11T04:58:08.747290+00:00",
+  "scope": "Designated synthetic India pharmacy tenant and two TEST outlets; engineering worker acceptance only",
+  "source_deployments_at_initial_check": [
+    {
+      "name": "helivanta-pharmacy-evidence-worker",
+      "ready": 2,
+      "desired": 2,
+      "containers": [
+        {
+          "name": "worker",
+          "image": "asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/helivanta/helivanta-api:6eb1d9b46e90bb2e92adee0b3c1a78bbaf65f6d9@sha256:f1daa40dff765eb85a4eb0abc9fba2171f0ff9010a8c595d68fb175c70462be0",
+          "scanner_address": "helivanta-clamav.helivanta.svc.cluster.local:3310"
+        }
+      ]
+    },
+    {
+      "name": "helivanta-clamav",
+      "ready": 1,
+      "desired": 1,
+      "containers": [
+        {
+          "name": "scanner",
+          "image": "asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/third-party/clamav:1.5.4_base@sha256:a01a78acf14e356f9d95c0eeb640ac9fa48a98a59933dea877f5a4d01573a0eb",
+          "scanner_address": null
+        }
+      ]
+    }
+  ],
+  "scanner": {
+    "engine": "ClamAV 1.5.4",
+    "definition_version": 28179,
+    "definitions_updated_at": "2026-11-10T06:26:51+00:00",
+    "definition_age_hours": 19.64,
+    "acceptance_under_24h": true
+  },
+  "owner_api_checks": {
+    "licence_failure_recovery": {
+      "passed": true,
+      "status": "available",
+      "scan_attempt": 2,
+      "scanned_at": "2026-11-11T02:17:13.105283Z"
+    },
+    "licence_exact_download": {
+      "passed": true,
+      "http_status": 200,
+      "exact_bytes": true,
+      "size": 126
+    },
+    "clean_prescription_pre_release_download": {
+      "passed": true,
+      "http_status": 404
+    },
+    "clean_prescription_upload": {
+      "passed": true,
+      "status": "scan_pending"
+    },
+    "prescription_clean_release": {
+      "passed": true,
+      "status": "available",
+      "scanned_at": "2026-11-11T02:17:18.803113Z"
+    },
+    "prescription_exact_download": {
+      "passed": true,
+      "http_status": 200,
+      "exact_bytes": true,
+      "size": 126
+    },
+    "unsupported_file_admission_rejected": {
+      "passed": true,
+      "http_status": 400,
+      "stage": "owner_content_admission",
+      "worker_not_queued": true
+    },
+    "unsupported_file_download_refused": {
+      "passed": true,
+      "http_status": 404
+    },
+    "worker_malware_rejection": {
+      "passed": true,
+      "status": "rejected",
+      "failure_code": "malware_detected",
+      "actual_worker_and_scanner": true
+    },
+    "worker_rejected_download_refused": {
+      "passed": true,
+      "http_status": 404
+    },
+    "worker_rejected_retry_refused": {
+      "passed": true,
+      "http_status": 409
+    },
+    "cross_outlet_licence_refused": {
+      "passed": true,
+      "http_status": 404
+    },
+    "cross_outlet_prescription_refused": {
+      "passed": true,
+      "http_status": 404
+    },
+    "licence_reader_permission_refused": {
+      "passed": true,
+      "http_status": 403
+    },
+    "cross_tenant_licence_refused": {
+      "passed": true,
+      "http_status": 404
+    },
+    "cross_tenant_prescription_refused": {
+      "passed": true,
+      "http_status": 404
+    },
+    "anonymous_download_refused": {
+      "passed": true,
+      "http_status": 401
+    },
+    "download_grant_revocation": {
+      "passed": true,
+      "before_grant": 404,
+      "while_reader": 200,
+      "after_revocation": 404,
+      "same_authenticated_session": true,
+      "primary_counter_grants_unchanged": true
+    }
+  },
+  "real_clamav_client_selftest": {
+    "passed": true,
+    "scope": "actual attachments ClamAV client against the live scanner; clean, standard standalone EICAR, gzip EICAR and size-limit refusal",
+    "exit_code": 0,
+    "business_records_written": false
+  },
+  "worker_database_role": {
+    "login": true,
+    "noinherit": true,
+    "elevated": false,
+    "memberships": 0
+  },
+  "scan_provenance": {
+    "clean_releases": 4,
+    "definition_ages_at_scan_hours": [
+      19.839473689722222, 21.531063729444444, 19.84284188611111,
+      19.841056420277777
+    ],
+    "rejected_without_release": true,
+    "required_download_read_audits_verified": true
+  },
+  "workflow_history": {
+    "namespace": "helivanta-documents-prod",
+    "executions_checked": 6,
+    "payloads_checked": 22,
+    "only_scope_ids_attempts_and_closed_statuses": true
+  },
+  "boundaries": [
+    "No real patient, dispensing or payment transfer was performed.",
+    "Submitted TEST licence declarations remain unreviewed; clean scanning confers no operating or professional authority.",
+    "The initial EICAR-in-text image was not a validated rejection fixture and was excluded. The queued-worker rejection uses an independently validated passive PNG carrying a harmless standard antivirus test archive.",
+    "Monitoring alert evaluation/delivery and broad regulatory acceptance are not asserted.",
+    "New licence review and prescription-sale enforcement remain separate release gates in PRs #1581 and #1477."
+  ]
+}

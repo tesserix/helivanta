@@ -21,6 +21,7 @@ import (
 
 	"github.com/tesserix/helivanta/internal/bootstrap"
 	"github.com/tesserix/helivanta/internal/config"
+	"github.com/tesserix/helivanta/internal/customeronboarding"
 	"github.com/tesserix/helivanta/internal/httpserver"
 	"github.com/tesserix/helivanta/internal/mediconnectclaims"
 	"github.com/tesserix/helivanta/internal/modules/billing"
@@ -32,6 +33,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/payments"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
 	"github.com/tesserix/helivanta/internal/modules/supply"
+	"github.com/tesserix/helivanta/internal/modules/workforce"
 	"github.com/tesserix/helivanta/internal/modules/workspace"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
@@ -496,6 +498,7 @@ func run() error {
 			return err
 		}
 		srv.Engine.POST("/internal/v1/hospital-enrolments", iam.NewOnboardingHandler(deps, caller))
+		srv.Engine.POST("/internal/v1/customer-workspaces", customeronboarding.NewWorkspaceHandler(caller, iam.NewCustomerWorkspaceAuthority(deps), workforce.NewCustomerWorkspaceInitializer(deps), pharmacy.NewCustomerWorkspaceInitializer(deps)))
 	}
 
 	// The chain itself lives in bootstrap.V1Chain, not inline here, so
@@ -619,6 +622,7 @@ func run() error {
 	// the Rule but not the bucket (iam's enrollRateBucket).
 	loginUIHandlers := iam.NewLoginUIHandlers(zitadelLoginClient, db,
 		limiter, bootstrap.LoginRateLimitRule(cfg), bootstrap.FactorRateLimitRule(cfg))
+	loginUIHandlers.SetNativeWebClientID(cfg.ZitadelClientID)
 
 	// Mounted through bootstrap so the bypass is declared in one
 	// enumerable place and pinned by
@@ -632,7 +636,16 @@ func run() error {
 		loginUIHandlers.AuthRequest, loginUIHandlers.Password, loginUIHandlers.Factor,
 		loginUIHandlers.Enroll, loginUIHandlers.PasswordChange, workspace.PublicHandler(db, limiter), payments.Webhook(deps, limiter))
 
+	signupHandlers, err := customeronboarding.New("http://onboarding-api.onboarding.svc.cluster.local:8080", "/var/run/customer-onboarding/token", "https://helivanta.app")
+	if err != nil {
+		return err
+	}
+	bootstrap.MountCustomerSignup(srv.Engine, signupHandlers.Start, signupHandlers.Status, signupHandlers.VerifyEmail, signupHandlers.Password, signupHandlers.EmailLink, signupHandlers.PasswordLink, signupHandlers.Signin(customeronboarding.SigninDeps{Tokens: zitadelVerifier, Revocations: revocationChecker, Limiter: limiter, Limit: bootstrap.LoginRateLimitRule(cfg)}))
+
 	for _, m := range registry.All() {
+		if owner, ok := m.(*iam.Module); ok {
+			owner.SetOwnerSecurityClient(customeronboarding.NewSecurityClient())
+		}
 		m.Routes(api, deps)
 		if err := bus.StartConsumers(ctx, db, m.Consumers(deps)); err != nil {
 			return err
@@ -647,6 +660,8 @@ func run() error {
 	// #1416: re-send affiliation steps the other side has not confirmed;
 	// the bus dead-letters after five failures and nothing replays them.
 	go pharmacy.RunAffiliationRedelivery(ctx, deps)
+	// #1637: announces each hospital name version once for the pharmacy counter pickers.
+	go workforce.RunHospitalNameAnnouncer(ctx, deps)
 	go patientmaster.RunPharmacyAffiliationRedelivery(ctx, deps)
 	// #197: counts each midnight a patient spends in a bed, and applies new
 	// bed-charging setup to the stays it affects.

@@ -64,3 +64,26 @@ The next order candidate adds `supply.order_acceptor.v1` and
 review, reservation, dispatch or financial authority. IAM 0043 applies the
 expanded function; `operating_templates_v2.sql` retains the exact published 0041
 function bytes. See [the supplier order candidate](supplier-orders.md).
+
+## Staff preparation workbench
+
+The Staff editor prepares duties for both independent pharmacy employers and
+supplier employers. The operator selects from the canonical catalogue filtered
+by employer kind, including receiving, order acceptance and physical fulfilment;
+warehouse quality review is a separate template. No arbitrary permission list is
+accepted. The exact active reviewed account/Staff versions and selected current
+outlet or warehouse/depot are submitted to the existing IAM owner API. Pharmacy
+structural organization/outlet versions are immutable version 1, as enforced by
+PharmaConnect's current operating-location guard; regulatory eligibility is a
+separate product-owned check at use.
+
+Source and reviewed-account pages retain their server cursors and expected
+workspace headers. Refused reads hide preparation. Role maximum validity is
+checked before submission as well as by IAM. Ambiguous proposal responses freeze
+the original command and recover its immutable receipt. Preparation and approval
+never substitute for acknowledged activation or current authorization. Inactive
+Staff require an active current directory record and a fresh independently
+reviewed account basis; reactivation does not revive old duties. Hospital Staff
+use the separate reviewed employment, account-link, department posting and
+pharmacy-relationship workflows. See
+[the preparation design](../superpowers/specs/2026-11-09-pharmacy-staff-preparation.md).

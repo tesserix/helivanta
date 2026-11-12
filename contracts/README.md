@@ -39,3 +39,7 @@ with `node scripts/generate-workforce-staff-actors.mjs` and `--check`. Its only
 fields are hospital ID and current hospital name; it grants no Staff directory
 or operating access. Pharmacy outlet-choice metadata belongs to the existing
 `pharmacy-staff-bindings.json` contract and generator.
+
+- `pharmacy-accounts.json` → `node scripts/generate-pharmacy-accounts.mjs` (and
+  `--check`): scoped acquisition receipt/supplier reconciliation projection and
+  immutable bill receipt metadata. Bill inputs retain `pharmacy.json` ownership.

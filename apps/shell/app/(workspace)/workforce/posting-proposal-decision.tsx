@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
-import { Field, useLeaveGuard, useZodForm } from "@helivanta/ui";
+import { Field, RequestFailure, useLeaveGuard, useZodForm } from "@helivanta/ui";
 import {
   ApiError,
   StaffPostingDecisionInputContract,
@@ -249,17 +249,12 @@ export function PostingProposalDecision({
       {source.isPending || source.isFetching ? (
         <p role="status">Checking current employment source…</p>
       ) : source.isError ? (
-        <div role="alert">
-          The current employment source could not be verified.{" "}
-          <Button
-            type="button"
-            variant="outline"
-            disabled={retained !== null}
-            onClick={() => void source.refetch()}
-          >
-            Retry employment source
-          </Button>
-        </div>
+        <RequestFailure
+          message="The current employment source could not be verified."
+          retry={source.refetch}
+          error={source.error}
+          busy={retained !== null}
+        />
       ) : (
         <>
           <p>

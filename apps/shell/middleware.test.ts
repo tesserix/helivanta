@@ -100,3 +100,22 @@ it("keeps only the exact report endpoint public", () => {
   ).toBe(200);
   expect(middleware(new NextRequest("https://helivanta.app/api/csp-report/x")).status).toBe(401);
 });
+
+it("allows only the exact public signup and native verification paths without a tenant session", () => {
+  for (const path of [
+    "/signup/verify",
+    "/api/v1/auth/signup",
+    "/api/v1/auth/signup/verify-email",
+    "/api/v1/auth/signup/password",
+    "/api/v1/auth/signup/email-link",
+    "/api/v1/auth/signup/password-link",
+    "/api/v1/auth/signup/sign-in",
+  ]) {
+    const response = middleware(new NextRequest(`https://helivanta.app${path}`));
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+  }
+  const refused = middleware(
+    new NextRequest("https://helivanta.app/api/v1/auth/signup/tenant-grants"),
+  );
+  expect(refused.status).toBe(401);
+});

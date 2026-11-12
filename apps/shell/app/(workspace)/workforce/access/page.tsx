@@ -2,7 +2,16 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@tesserix/web";
-import { PageHeading, Panel, LoadMore, SelectControl, Field, formatDateTime } from "@helivanta/ui";
+import {
+  PageHeading,
+  Panel,
+  LoadMore,
+  SelectControl,
+  Field,
+  RefreshButton,
+  RequestFailure,
+  formatDateTime,
+} from "@helivanta/ui";
 import {
   useApiQuery,
   useStaffAssignments,
@@ -49,7 +58,12 @@ export default function StaffAccessPage() {
       {!hydrated || identity.isPending ? (
         <p role="status">Checking assignment access…</p>
       ) : identity.isError || !identity.data?.tenant_id || !identity.data.subject ? (
-        <p role="alert">Could not verify assignment access. Refresh this page to try again.</p>
+        <RequestFailure
+          message="Could not verify assignment access."
+          retry={identity.refetch}
+          // A malformed answer has no error, so it keeps the retry.
+          error={identity.error}
+        />
       ) : !identity.data.data.some(
           (p) =>
             p === "iam.assignment.manage" ||
@@ -308,25 +322,29 @@ function Assignments({ identity }: { identity: Identity }) {
               ? "Employment activation assignments are unavailable in this workspace."
               : ""}
         </p>
-        <Button
-          variant="outline"
-          disabled={records.isFetching}
-          onClick={() => {
-            void records.refetch();
-            void catalog.refetch();
-            void employmentCatalog.refetch();
-            void activationCatalog.refetch();
-            void postingCatalog.refetch();
-            void postingReviewCatalog.refetch();
-            void postingManagementCatalog.refetch();
-            void pharmacyBindingCatalog.refetch();
-            void supplierAccessCatalog.refetch();
-            void partnerMembershipCatalog.refetch();
-            void postingDepartmentCatalog.refetch();
-          }}
+        {/* Only the assignments read's refusal hides it: a refused catalog is
+            shown as unavailable above and must still be refreshable. */}
+        <RefreshButton
+          busy={records.isFetching}
+          error={records.error}
+          refresh={() =>
+            Promise.all([
+              records.refetch(),
+              catalog.refetch(),
+              employmentCatalog.refetch(),
+              activationCatalog.refetch(),
+              postingCatalog.refetch(),
+              postingReviewCatalog.refetch(),
+              postingManagementCatalog.refetch(),
+              pharmacyBindingCatalog.refetch(),
+              supplierAccessCatalog.refetch(),
+              partnerMembershipCatalog.refetch(),
+              postingDepartmentCatalog.refetch(),
+            ])
+          }
         >
           Refresh assignments
-        </Button>
+        </RefreshButton>
         {manage && (
           <Button
             disabled={catalogBlocked}
@@ -361,7 +379,11 @@ function Assignments({ identity }: { identity: Identity }) {
         {records.isPending ? (
           <p role="status">Loading assignments…</p>
         ) : records.isError ? (
-          <p role="alert">Could not load assignments. Refresh to try again.</p>
+          <RequestFailure
+            message="Could not load assignments."
+            retry={records.refetch}
+            error={records.error}
+          />
         ) : (
           <>
             {!records.data?.pages.some((p) => p.data.length) && <p>No assignment proposals yet.</p>}
@@ -525,12 +547,14 @@ function AssignmentDepartment({
   if (revisions.isPending) return <p role="status">Loading department…</p>;
   if (!current)
     return (
-      <p role="alert" className="break-all">
-        Applies to: department {department}. Its current name could not be verified.{" "}
-        <Button variant="outline" onClick={() => void revisions.refetch()}>
-          Retry department
-        </Button>
-      </p>
+      <RequestFailure
+        message={`Applies to: department ${department}. Its current name could not be verified.`}
+        retry={revisions.refetch}
+        // A list with no current revision has no error, so it keeps the retry.
+        error={revisions.error}
+        // A refusal still names the scope the record applies to.
+        refused={`Applies to: department ${department}. Its name isn't available to you.`}
+      />
     );
   if (current.status !== "active")
     return (
@@ -556,10 +580,11 @@ function AssignmentHistory({
       {history.isPending ? (
         <p role="status">Loading history…</p>
       ) : history.isError ? (
-        <p role="alert">
-          Could not load history.{" "}
-          <Button onClick={() => void history.refetch()}>Retry history</Button>
-        </p>
+        <RequestFailure
+          message="Could not load history."
+          retry={history.refetch}
+          error={history.error}
+        />
       ) : (
         <>
           {history.data?.pages
@@ -580,10 +605,11 @@ function AssignmentHistory({
       {decisions.isPending ? (
         <p role="status">Loading decisions…</p>
       ) : decisions.isError ? (
-        <p role="alert">
-          Could not load decisions.{" "}
-          <Button onClick={() => void decisions.refetch()}>Retry decisions</Button>
-        </p>
+        <RequestFailure
+          message="Could not load decisions."
+          retry={decisions.refetch}
+          error={decisions.error}
+        />
       ) : (
         <>
           {!decisions.data?.pages.some((p) => p.data.length) && <p>No decisions recorded.</p>}

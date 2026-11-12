@@ -19,6 +19,8 @@ import (
 	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
 	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
 )
@@ -37,6 +39,12 @@ var (
 	errCredentialState        = errors.New("credential review already decided")
 	errCredentialRemoved      = errors.New("credential removed from enrollment")
 	errCredentialZoneUnset    = errors.New("hospital time zone not set")
+	errPharmacyZoneUnset      = errors.New("pharmacy time zone not set")
+)
+
+var (
+	manageCredentials = []authz.Permission{PermEnrollmentManage}
+	reviewCredentials = []authz.Permission{PermCredentialReview}
 )
 
 func (r credentialReview) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
@@ -137,13 +145,14 @@ func loadCredentialValidity(tx *gorm.DB, tenant string, hospital, staff uuid.UUI
 	return result, nil
 }
 
-// credentialClock reads the database clock once per request and the hospital roster zone; a missing or unknown zone yields nil.
-func credentialClock(tx *gorm.DB, tenant string, hospital uuid.UUID) (*time.Location, time.Time, error) {
+// credentialClock reads the database clock once per request and the establishment's zone; a missing or unknown zone yields nil.
+// A hospital keeps its zone in roster settings and a pharmacy in its HR time zone; the establishment guards keep the two disjoint.
+func credentialClock(tx *gorm.DB, tenant string, owner uuid.UUID) (*time.Location, time.Time, error) {
 	var row struct {
 		Now      time.Time
 		Timezone *string
 	}
-	if err := tx.Raw(`SELECT clock_timestamp() AS now,(SELECT timezone FROM workforce_roster_settings WHERE tenant_id=? AND hospital_id=?) AS timezone`, tenant, hospital).Scan(&row).Error; err != nil {
+	if err := tx.Raw(`SELECT clock_timestamp() AS now,COALESCE((SELECT timezone FROM workforce_roster_settings WHERE tenant_id=? AND hospital_id=?),(SELECT timezone FROM workforce_pharmacy_time_zones WHERE tenant_id=? AND hospital_id=?)) AS timezone`, tenant, owner, tenant, owner).Scan(&row).Error; err != nil {
 		return nil, time.Time{}, err
 	}
 	if row.Timezone == nil {
@@ -192,6 +201,77 @@ func credentialIDs(c *gin.Context, names ...string) ([]uuid.UUID, bool) {
 	return ids, true
 }
 
+// credentialTarget is one establishment's credential records under the authority of the route family that admitted it.
+type credentialTarget struct {
+	p         authn.Principal
+	owner     establishment
+	authority establishmentAuthority
+}
+
+// transaction re-checks the admitted kind inside the command, then serialises writes on the establishment's key.
+func (t credentialTarget) transaction(required []authz.Permission, key string, fn func(*gorm.DB) error) error {
+	return t.authority(required, func(tx *gorm.DB) error {
+		if err := t.owner.requireKind(tx, t.p.TenantID); err != nil {
+			return err
+		}
+		if key != "" {
+			if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended(?,0))`, t.p.TenantID+":"+t.owner.id.String()+":"+key).Error; err != nil {
+				return err
+			}
+		}
+		return fn(tx)
+	})
+}
+
+func (t credentialTarget) zoneUnset() error {
+	if t.owner.kind == pharmacyEstablishmentKind {
+		return errPharmacyZoneUnset
+	}
+	return errCredentialZoneUnset
+}
+
+// hospitalCredentials keeps the hospital family's authority: the router's permission and a manager row of that hospital.
+func (h *handlers) hospitalCredentials(c *gin.Context) (credentialTarget, bool) {
+	p, hospital, ok := scope(c)
+	if !ok {
+		return credentialTarget{}, false
+	}
+	return credentialTarget{p: p, owner: establishment{kind: hospitalEstablishmentKind, id: hospital}, authority: func(_ []authz.Permission, fn func(*gorm.DB) error) error {
+		return h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
+			if err := enrollmentScope(tx, p, hospital); err != nil {
+				return err
+			}
+			return fn(tx)
+		})
+	}}, true
+}
+
+func (h *handlers) pharmacyCredentials(c *gin.Context) (credentialTarget, bool) {
+	p, pharmacy, ok := pharmacyStaffScope(c)
+	if !ok || !enrollmentSession(c) {
+		return credentialTarget{}, false
+	}
+	return credentialTarget{p: p, owner: pharmacy.establishment(), authority: h.pharmacyAuthority(c, p, pharmacy)}, true
+}
+
+func credentialRoute(target func(*gin.Context) (credentialTarget, bool), command func(*gin.Context, credentialTarget)) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if t, ok := target(c); ok {
+			command(c, t)
+		}
+	}
+}
+
+func credentialListRoute[V any](target func(*gin.Context) (credentialTarget, bool), command func(*gin.Context, credentialTarget, pagination.Params) ([]V, error)) func(*gin.Context, pagination.Params) ([]V, error) {
+	return func(c *gin.Context, params pagination.Params) ([]V, error) {
+		t, ok := target(c)
+		if !ok {
+			return nil, nil
+		}
+		return command(c, t, params)
+	}
+}
+
 // Mirrors the table checks so a malformed proposal is a 400 before any write; the database still enforces every rule.
 func normalizeCredentialReview(in *credentialReviewInput) error {
 	in.Number, in.Reason = strings.TrimSpace(in.Number), strings.TrimSpace(in.Reason)
@@ -227,21 +307,15 @@ func recordCredentialReview(h *handlers, tx *gorm.DB, tenant string, hospital uu
 	return h.bus.Publish(tx, CredentialReviewChanged, events.Event{Type: CredentialReviewChanged, Version: 1, TenantID: tenant, Data: data})
 }
 
-func (h *handlers) listStaffCredentials(c *gin.Context) {
-	p, hospital, ok := scope(c)
-	if !ok {
-		return
-	}
+func (h *handlers) listStaffCredentials(c *gin.Context, t credentialTarget) {
+	p, hospital := t.p, t.owner.id
 	ids, ok := credentialIDs(c, "id")
 	if !ok {
 		return
 	}
 	staff := ids[0]
 	result := staffCredentials{Credentials: []staffCredential{}}
-	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
-		if err := enrollmentScope(tx, p, hospital); err != nil {
-			return err
-		}
+	err := t.transaction(manageCredentials, "", func(tx *gorm.DB) error {
 		if err := requireHospitalStaff(tx, p.TenantID, hospital, staff); err != nil {
 			return err
 		}
@@ -287,11 +361,8 @@ func (h *handlers) listStaffCredentials(c *gin.Context) {
 	respond.OK(c, result)
 }
 
-func (h *handlers) credentialReviewHistory(c *gin.Context, params pagination.Params) ([]credentialReview, error) {
-	p, hospital, ok := scope(c)
-	if !ok {
-		return nil, nil
-	}
+func (h *handlers) credentialReviewHistory(c *gin.Context, t credentialTarget, params pagination.Params) ([]credentialReview, error) {
+	p, hospital := t.p, t.owner.id
 	ids, ok := credentialIDs(c, "id", "credential")
 	if !ok {
 		return nil, nil
@@ -302,10 +373,7 @@ func (h *handlers) credentialReviewHistory(c *gin.Context, params pagination.Par
 		return nil, nil
 	}
 	var rows []credentialReview
-	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
-		if err := enrollmentScope(tx, p, hospital); err != nil {
-			return err
-		}
+	err := t.transaction(manageCredentials, "", func(tx *gorm.DB) error {
 		var known bool
 		if err := tx.Raw(`SELECT EXISTS(SELECT 1 FROM workforce_enrollment_credentials WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND id=?)
  OR EXISTS(SELECT 1 FROM workforce_credential_reviews WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND credential_id=?)`,
@@ -331,11 +399,8 @@ func (h *handlers) credentialReviewHistory(c *gin.Context, params pagination.Par
 	return rows, nil
 }
 
-func (h *handlers) putCredentialReview(c *gin.Context) {
-	p, hospital, ok := scope(c)
-	if !ok {
-		return
-	}
+func (h *handlers) putCredentialReview(c *gin.Context, t credentialTarget) {
+	p, hospital := t.p, t.owner.id
 	ids, ok := credentialIDs(c, "id", "credential", "review")
 	if !ok {
 		return
@@ -350,11 +415,8 @@ func (h *handlers) putCredentialReview(c *gin.Context) {
 		return
 	}
 	var result credentialReview
-	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
-		// Same advisory key as the enrollment form, so a review and an enrollment save never interleave.
-		if err := lockHospitalManager(tx, p, hospital, "app.workforce_enrollment", staff.String()); err != nil {
-			return err
-		}
+	// Same advisory key as the enrollment form, so a review and an enrollment save never interleave.
+	err := t.transaction(manageCredentials, staff.String(), func(tx *gorm.DB) error {
 		if err := requireHospitalStaff(tx, p.TenantID, hospital, staff); err != nil {
 			return err
 		}
@@ -413,29 +475,26 @@ func (h *handlers) putCredentialReview(c *gin.Context) {
 	respond.OK(c, result)
 }
 
-func (h *handlers) decideCredentialReview(c *gin.Context) {
+func (h *handlers) decideCredentialReview(c *gin.Context, t credentialTarget) {
 	var in credentialDecisionInput
 	if !decodeSized(c, &in, 2048) {
 		return
 	}
 	to := map[string]string{"approve": "approved", "reject": "rejected"}[in.Decision]
-	h.transitionCredentialReview(c, in.ExpectedVersion, to, in.Note)
+	h.transitionCredentialReview(c, t, reviewCredentials, in.ExpectedVersion, to, in.Note)
 }
 
-func (h *handlers) withdrawCredentialReview(c *gin.Context) {
+func (h *handlers) withdrawCredentialReview(c *gin.Context, t credentialTarget) {
 	var in credentialWithdrawInput
 	if !decodeSized(c, &in, 2048) {
 		return
 	}
-	h.transitionCredentialReview(c, nil, "withdrawn", in.Note)
+	h.transitionCredentialReview(c, t, manageCredentials, nil, "withdrawn", in.Note)
 }
 
 // transitionCredentialReview decides a pending review once; approval writes the reviewed record and the enrollment row in the same transaction.
-func (h *handlers) transitionCredentialReview(c *gin.Context, expected *int64, to, note string) {
-	p, hospital, ok := scope(c)
-	if !ok {
-		return
-	}
+func (h *handlers) transitionCredentialReview(c *gin.Context, t credentialTarget, required []authz.Permission, expected *int64, to, note string) {
+	p, hospital := t.p, t.owner.id
 	ids, ok := credentialIDs(c, "id", "credential", "review")
 	if !ok {
 		return
@@ -451,10 +510,7 @@ func (h *handlers) transitionCredentialReview(c *gin.Context, expected *int64, t
 		return
 	}
 	var result credentialReview
-	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
-		if err := lockHospitalManager(tx, p, hospital, "app.workforce_enrollment", staff.String()); err != nil {
-			return err
-		}
+	err := t.transaction(required, staff.String(), func(tx *gorm.DB) error {
 		r, err := loadCredentialReview(tx, p.TenantID, hospital, staff, credential, review, true)
 		if err != nil {
 			return err
@@ -503,7 +559,7 @@ func (h *handlers) transitionCredentialReview(c *gin.Context, expected *int64, t
 		version := v.Version
 		if to == "approved" {
 			version++
-			if err := approveCredential(h, tx, p.TenantID, hospital, p.Subject, r, reviewed, version); err != nil {
+			if err := approveCredential(h, tx, p.TenantID, t.owner, p.Subject, r, reviewed, version); err != nil {
 				return err
 			}
 		}
@@ -524,7 +580,8 @@ func (h *handlers) transitionCredentialReview(c *gin.Context, expected *int64, t
 }
 
 // approveCredential copies the review into the reviewed record and the enrollment row, then bumps the staff version so stale enrollment forms get a 409.
-func approveCredential(h *handlers, tx *gorm.DB, tenant string, hospital uuid.UUID, subject string, r credentialReview, reviewed bool, version int64) error {
+func approveCredential(h *handlers, tx *gorm.DB, tenant string, owner establishment, subject string, r credentialReview, reviewed bool, version int64) error {
+	hospital := owner.id
 	if err := tx.Exec(`SELECT set_config('app.workforce_credential_review','authorized',true)`).Error; err != nil {
 		return err
 	}
@@ -554,12 +611,15 @@ func approveCredential(h *handlers, tx *gorm.DB, tenant string, hospital uuid.UU
 		tenant, hospital, subject, r.StaffID, staffVersion).Error; err != nil {
 		return err
 	}
-	enrollment, err := json.Marshal(workforcecontract.StaffEnrollmentChangedData{HospitalID: hospital.String(), StaffID: r.StaffID.String(), Version: staffVersion})
-	if err != nil {
-		return err
-	}
-	if err := h.bus.Publish(tx, EnrollmentChanged, events.Event{Type: EnrollmentChanged, Version: 1, TenantID: tenant, Data: enrollment}); err != nil {
-		return err
+	// The enrollment event's consumers are hospital-only, as on a pharmacy enrollment save.
+	if owner.kind == hospitalEstablishmentKind {
+		enrollment, err := json.Marshal(workforcecontract.StaffEnrollmentChangedData{HospitalID: hospital.String(), StaffID: r.StaffID.String(), Version: staffVersion})
+		if err != nil {
+			return err
+		}
+		if err := h.bus.Publish(tx, EnrollmentChanged, events.Event{Type: EnrollmentChanged, Version: 1, TenantID: tenant, Data: enrollment}); err != nil {
+			return err
+		}
 	}
 	if err := supersedeOlderReminders(h, tx, tenant, hospital, r.StaffID, r.CredentialID, version); err != nil {
 		return err
@@ -571,11 +631,8 @@ func approveCredential(h *handlers, tx *gorm.DB, tenant string, hospital uuid.UU
 	return h.bus.Publish(tx, CredentialValidityChanged, events.Event{Type: CredentialValidityChanged, Version: 1, TenantID: tenant, Data: data})
 }
 
-func (h *handlers) credentialRegister(c *gin.Context, params pagination.Params) ([]credentialRegisterEntry, error) {
-	p, hospital, ok := scope(c)
-	if !ok {
-		return nil, nil
-	}
+func (h *handlers) credentialRegister(c *gin.Context, t credentialTarget, params pagination.Params) ([]credentialRegisterEntry, error) {
+	p, hospital := t.p, t.owner.id
 	if params.Limit > 100 {
 		respond.Error(c, 400, "invalid_request", "Use a page limit no greater than 100.")
 		return nil, nil
@@ -590,10 +647,7 @@ func (h *handlers) credentialRegister(c *gin.Context, params pagination.Params) 
 		within = n
 	}
 	var rows []credentialRegisterEntry
-	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
-		if err := enrollmentScope(tx, p, hospital); err != nil {
-			return err
-		}
+	err := t.transaction(manageCredentials, "", func(tx *gorm.DB) error {
 		loc, now, err := credentialClock(tx, p.TenantID, hospital)
 		if err != nil {
 			return err
@@ -602,9 +656,9 @@ func (h *handlers) credentialRegister(c *gin.Context, params pagination.Params) 
 			Select("v.staff_id,s.employee_code,s.display_name,v.credential_id,v.type,v.number,v.issuer,v.valid_from::text AS valid_from,v.valid_until::text AS valid_until,v.version,v.review_id").
 			Where("v.tenant_id=? AND v.hospital_id=?", p.TenantID, hospital).Order("v.valid_until, v.review_id").Limit(params.Limit + 1)
 		if within >= 0 {
-			// Filtering by a guessed calendar would silently drop or add credentials, so it needs the hospital zone.
+			// Filtering by a guessed calendar would silently drop or add credentials, so it needs the establishment's zone.
 			if loc == nil {
-				return errCredentialZoneUnset
+				return t.zoneUnset()
 			}
 			today, _ := time.Parse(time.DateOnly, now.In(loc).Format(time.DateOnly))
 			q = q.Where("v.valid_until <= ?::date", today.AddDate(0, 0, within).Format(time.DateOnly))
@@ -658,10 +712,12 @@ func respondCredentialError(c *gin.Context, err error) {
 		respond.ConflictWithDetail(c, "The credential was removed from enrollment, so the review cannot be approved.", gin.H{"reason": "credential_removed"})
 	case errors.Is(err, errCredentialZoneUnset):
 		respond.ConflictWithDetail(c, "Set the hospital time zone in roster settings before filtering by expiry.", gin.H{"reason": "time_zone_unset"})
+	case errors.Is(err, errPharmacyZoneUnset):
+		respond.ConflictWithDetail(c, "Set this pharmacy's time zone before filtering by expiry.", gin.H{"reason": "time_zone_unset"})
 	case isPG && pg.Code == "23505":
 		requestid.Logger(c).WarnContext(c.Request.Context(), "credential review uniqueness conflict", "constraint", pg.ConstraintName)
 		respond.ConflictWithDetail(c, "Another credential of this staff member already has that number.", gin.H{"reason": "duplicate_credential"})
 	default:
-		respondError(c, err)
+		respondIntakeError(c, err)
 	}
 }

@@ -1,8 +1,11 @@
 package pharmacy
 
 import (
+	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -58,28 +61,32 @@ func parseStockWindow(c *gin.Context, required bool) (stockWindow, bool) {
 }
 
 type stockPosition struct {
-	StorageAddress    StorageAddressFields `json:"storage_address" gorm:"embedded"`
-	StockExpiryFields `gorm:"embedded"`
-	ID                uuid.UUID `json:"id"`
-	CreatedAt         time.Time `json:"created_at"`
-	LocationID        uuid.UUID `json:"location_id"`
-	BatchID           uuid.UUID `json:"batch_id"`
-	ProductID         uuid.UUID `json:"product_id"`
-	LocationCode      string    `json:"location_code"`
-	LocationName      string    `json:"location_name"`
-	SKU               string    `json:"sku"`
-	BrandName         string    `json:"brand_name"`
-	UnitOfIssue       string    `json:"unit_of_issue"`
-	LotNumber         string    `json:"lot_number"`
-	ExpiresOn         string    `json:"expires_on"`
-	StockStatus       string    `json:"stock_status"`
-	ExpiryStatus      string    `json:"expiry_status"`
-	ProductStatus     string    `json:"product_status"`
-	RegulatoryStatus  string    `json:"regulatory_status"`
-	OnHandUnits       int64     `json:"on_hand_units"`
-	ReceiptUnits      string    `json:"receipt_units"`
-	CorrectionUnits   string    `json:"correction_units"`
-	DispensableUnits  int64     `json:"dispensable_units"`
+	StorageAddress        StorageAddressFields `json:"storage_address" gorm:"embedded"`
+	StockExpiryFields     `gorm:"embedded"`
+	ID                    uuid.UUID `json:"id"`
+	CreatedAt             time.Time `json:"created_at"`
+	LocationID            uuid.UUID `json:"location_id"`
+	BatchID               uuid.UUID `json:"batch_id"`
+	ProductID             uuid.UUID `json:"product_id"`
+	LocationCode          string    `json:"location_code"`
+	LocationName          string    `json:"location_name"`
+	SKU                   string    `json:"sku"`
+	BrandName             string    `json:"brand_name"`
+	UnitOfIssue           string    `json:"unit_of_issue"`
+	LotNumber             string    `json:"lot_number"`
+	ExpiresOn             string    `json:"expires_on"`
+	StockStatus           string    `json:"stock_status"`
+	ExpiryStatus          string    `json:"expiry_status"`
+	ProductStatus         string    `json:"product_status"`
+	RegulatoryStatus      string    `json:"regulatory_status"`
+	OnHandUnits           int64     `json:"on_hand_units"`
+	ReceiptUnits          string    `json:"receipt_units"`
+	CorrectionUnits       string    `json:"correction_units"`
+	ReleaseUnits          string    `json:"release_units"`
+	SaleUnits             string    `json:"sale_units"`
+	ReturnUnits           string    `json:"return_units"`
+	SupplierDispatchUnits string    `json:"supplier_dispatch_units"`
+	DispensableUnits      int64     `json:"dispensable_units"`
 }
 
 func (r stockPosition) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
@@ -166,12 +173,32 @@ func (h *catalogueHandlers) listStockPositions(c *gin.Context, params pagination
 	return rows, nil
 }
 
+// stockMovementKinds is every movement kind, in reconciliation order. It must
+// equal pharmacy_stock_movements_kind_check, which a test enforces: a kind
+// missing here would leave the reconciliation's parts short of closing.
+var stockMovementKinds = []string{"receipt", "correction", "release", "sale", "return", "supplier_dispatch"}
+
+// stockKindTotals is one signed total per movement kind, as "<kind>_units"
+// text columns over the movements aliased by prefix; period, when not empty,
+// is a condition ending in "AND " that bounds every total.
+func stockKindTotals(prefix, period string) string {
+	columns := make([]string, len(stockMovementKinds))
+	for i, kind := range stockMovementKinds {
+		columns[i] = fmt.Sprintf("COALESCE(sum(%squantity_units) FILTER (WHERE %s%skind='%s'),0)::text AS %s_units", prefix, period, prefix, kind, kind)
+	}
+	return strings.Join(columns, ",\n   ")
+}
+
 type stockReconciliationTotals struct {
-	OpeningUnits    int64  `json:"opening_units"`
-	ReceiptUnits    string `json:"receipt_units"`
-	CorrectionUnits string `json:"correction_units"`
-	ClosingUnits    int64  `json:"closing_units"`
-	MovementCount   int64  `json:"movement_count"`
+	OpeningUnits          int64  `json:"opening_units"`
+	ReceiptUnits          string `json:"receipt_units"`
+	CorrectionUnits       string `json:"correction_units"`
+	ReleaseUnits          string `json:"release_units"`
+	SaleUnits             string `json:"sale_units"`
+	ReturnUnits           string `json:"return_units"`
+	SupplierDispatchUnits string `json:"supplier_dispatch_units"`
+	ClosingUnits          int64  `json:"closing_units"`
+	MovementCount         int64  `json:"movement_count"`
 }
 
 type stockReconciliation struct {
@@ -211,12 +238,12 @@ func (h *catalogueHandlers) getStockReconciliation(c *gin.Context) {
 		if err := stockReference(tx, "pharmacy_stock_batches", p.TenantID, outlet, batch); err != nil {
 			return err
 		}
-		return tx.Raw(`SELECT COALESCE(sum(quantity_units) FILTER(WHERE created_at < ?),0)::bigint AS opening_units,
-   COALESCE(sum(quantity_units) FILTER(WHERE created_at >= ? AND kind='receipt'),0)::text AS receipt_units,
-   COALESCE(sum(quantity_units) FILTER(WHERE created_at >= ? AND kind='correction'),0)::text AS correction_units,
+		return tx.Raw(`SELECT COALESCE(sum(quantity_units) FILTER(WHERE created_at < @from),0)::bigint AS opening_units,
+   `+stockKindTotals("", "created_at >= @from AND ")+`,
    COALESCE(sum(quantity_units),0)::bigint AS closing_units,
-   count(*) FILTER(WHERE created_at >= ?) AS movement_count
-   FROM pharmacy_stock_movements WHERE tenant_id=? AND outlet_id=? AND location_id=? AND batch_id=? AND created_at<=?`, window.From, window.From, window.From, window.From, p.TenantID, outlet, location, batch, window.AsOf).Scan(&result.stockReconciliationTotals).Error
+   count(*) FILTER(WHERE created_at >= @from) AS movement_count
+   FROM pharmacy_stock_movements WHERE tenant_id=@tenant AND outlet_id=@outlet AND location_id=@location AND batch_id=@batch AND created_at<=@as_of`,
+			sql.Named("from", window.From), sql.Named("as_of", window.AsOf), sql.Named("tenant", p.TenantID), sql.Named("outlet", outlet), sql.Named("location", location), sql.Named("batch", batch)).Scan(&result.stockReconciliationTotals).Error
 	})
 	if err != nil {
 		stockError(c, err)
@@ -245,8 +272,7 @@ func stockPositionsSource(tx *gorm.DB, tenant string, outlet uuid.UUID, asOf tim
         ELSE 'later' END AS expiry_band,
    p.status AS product_status,p.regulatory_status,
    sum(m.quantity_units)::bigint AS on_hand_units,
-   COALESCE(sum(m.quantity_units) FILTER (WHERE m.kind='receipt'),0)::text AS receipt_units,
-   COALESCE(sum(m.quantity_units) FILTER (WHERE m.kind='correction'),0)::text AS correction_units,
+   `+stockKindTotals("m.", "")+`,
    0::bigint AS dispensable_units`).
 		// Unique-key lookup bounds prevent repeated outlet-wide scans under fresh-table RLS estimates.
 		Joins("JOIN LATERAL (SELECT created_at,product_id,lot_number,expires_on,purchase_cost_minor FROM pharmacy_stock_batches WHERE tenant_id=m.tenant_id AND outlet_id=m.outlet_id AND id=m.batch_id LIMIT 1) b ON true").

@@ -102,8 +102,8 @@ const zitadelUnavailableMessage = "sign-in is temporarily unavailable; please tr
 
 // Refusal codes and messages (#947 spec D2). Each answers a sign-in whose
 // password Zitadel ACCEPTED but which Helivanta still cannot complete. They are
-// Helivanta's own words — the browser is never redirected to Zitadel's hosted
-// login for any of them. None joins spec D5's equalised credential refusal:
+// Helivanta's own words. ADR-0069 adds a separate, explicit native-origin
+// security-key action; refusals never redirect. None joins spec D5's equalised credential refusal:
 // each is reachable only with the correct password, exactly as the deleted
 // handoff_url was, so it discloses nothing a wrong-password probe can learn.
 const (
@@ -142,16 +142,17 @@ const loginAttemptTTL = 5 * time.Minute
 // request, checking a password, checking a native TOTP factor when the
 // password step alone was not enough, and changing a password that must
 // change before the login completes. When Helivanta cannot complete a login
-// it REFUSES it in its own words; it never hands the browser to Zitadel's
-// hosted login (#947). Like LoginHandlers (login.go), all four are mounted
+// it refuses in its own words. ADR-0069 adds an explicit native-origin
+// security-key action; no refusal automatically redirects. Like LoginHandlers (login.go), all four are mounted
 // OUTSIDE the authenticated /v1 chain via bootstrap.MountUnauthenticated —
 // there is no Helivanta session, and for Password/Factor/PasswordChange no
 // verified subject at all, until AFTER they succeed.
 type LoginUIHandlers struct {
-	client  *loginclient.Client
-	store   *loginAttemptStore
-	limiter ratelimit.Limiter
-	limit   ratelimit.Rule
+	client            *loginclient.Client
+	nativeWebClientID string
+	store             *loginAttemptStore
+	limiter           ratelimit.Limiter
+	limit             ratelimit.Rule
 	// factorLimit is POST /v1/auth/login/factor's OWN budget — see
 	// factorRateBucket's doc comment on why a six-digit guessing
 	// endpoint cannot share limit (Password/AuthRequest's
@@ -512,6 +513,10 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 	result, err := h.client.CompleteIfSufficient(c.Request.Context(), req.AuthRequestID, session)
 	if err != nil {
 		h.respondLoginClientError(c, err, "complete")
+		return
+	}
+
+	if h.securityKeyContinuation(c, req.AuthRequestID, session, result) {
 		return
 	}
 

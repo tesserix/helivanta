@@ -28,6 +28,7 @@ import {
 } from "@helivanta/ui";
 import { IndependentOperatingDuties } from "@/components/workforce/independent-operating-duties";
 import { IndependentStaffLinks } from "@/components/workforce/independent-staff-links";
+import { StaffAccessPreparation } from "@/components/workforce/staff-access-preparation";
 import { StaffRecordForm } from "@/components/workforce/staff-record-form";
 
 const identitySchema = z.object({
@@ -76,10 +77,6 @@ function StaffSourceAccount({ onRestart }: { onRestart: () => void }) {
         retry={identity.refetch}
         error={identity.error}
       />
-    );
-  if (!parsed.data.data.includes("supply.directory.read"))
-    return (
-      <Panel role="alert">You do not have permission to open the supplier Staff source.</Panel>
     );
   const scope = { tenantId: parsed.data.tenant_id, subject: parsed.data.subject };
   return (
@@ -301,6 +298,12 @@ function EmployerStaffEditor({
           saveSupplierStaffRecord(scope, source.supplier_id, id, value, expectedVersion)
         }
       />
+      {staff && record.data && (
+        <StaffAccessPreparation
+          kind="supplier"
+          active={record.data.employment_status === "active"}
+        />
+      )}
       {staff &&
         record.data &&
         (can("workforce.independent_login.manage") ||

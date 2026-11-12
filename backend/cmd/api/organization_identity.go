@@ -11,20 +11,27 @@ import (
 )
 
 func newOrganizationIdentity(cfg config.Config) (*organizationidentity.Client, error) {
-	values := []string{cfg.OrganizationIdentityURL, cfg.OrganizationIdentityProductKey, cfg.OrganizationIdentityTokenProjectID, cfg.OrganizationIdentityKeyFile}
+	values := []string{cfg.OrganizationIdentityURL, cfg.OrganizationIdentityProductKey, cfg.OrganizationIdentityTokenProjectID}
 	configured := 0
 	for _, value := range values {
 		if value != "" {
 			configured++
 		}
 	}
-	if configured == 0 {
+	keyConfigured := cfg.OrganizationIdentityKeyFile != ""
+	secretConfigured := cfg.OrganizationIdentityClientID != "" && cfg.OrganizationIdentityClientSecretFile != ""
+	secretPartial := cfg.OrganizationIdentityClientID != "" || cfg.OrganizationIdentityClientSecretFile != ""
+	if configured == 0 && !keyConfigured && !secretPartial {
 		return nil, nil
 	}
-	if configured != len(values) {
-		return nil, errors.New("organisation identity configuration incomplete")
+	if configured != len(values) || keyConfigured && secretPartial || !keyConfigured && !secretConfigured {
+		return nil, errors.New("organisation identity configuration incomplete or ambiguous")
 	}
-	file, err := os.Open(cfg.OrganizationIdentityKeyFile)
+	credentialFile := cfg.OrganizationIdentityKeyFile
+	if secretConfigured {
+		credentialFile = cfg.OrganizationIdentityClientSecretFile
+	}
+	file, err := os.Open(credentialFile) // #nosec G304 -- Startup-only operator configuration, never a request-supplied path.
 	if err != nil {
 		return nil, errors.New("organisation identity credential unavailable")
 	}
@@ -34,7 +41,12 @@ func newOrganizationIdentity(cfg config.Config) (*organizationidentity.Client, e
 	if readErr != nil || closeErr != nil || len(raw) > limit {
 		return nil, errors.New("organisation identity credential unavailable")
 	}
-	tokens, err := organizationidentity.NewKeyTokens(raw, cfg.ZitadelIssuerURL, cfg.OrganizationIdentityTokenProjectID, http.DefaultClient)
+	var tokens organizationidentity.TokenSource
+	if secretConfigured {
+		tokens, err = organizationidentity.NewClientTokens(cfg.OrganizationIdentityClientID, raw, cfg.ZitadelIssuerURL, cfg.OrganizationIdentityTokenProjectID, http.DefaultClient)
+	} else {
+		tokens, err = organizationidentity.NewKeyTokens(raw, cfg.ZitadelIssuerURL, cfg.OrganizationIdentityTokenProjectID, http.DefaultClient)
+	}
 	if err != nil {
 		return nil, errors.New("organisation identity credential configuration invalid")
 	}

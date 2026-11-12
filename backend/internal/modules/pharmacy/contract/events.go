@@ -254,6 +254,17 @@ type AffiliationDecisionReceivedData struct {
 	Applied    bool   `json:"applied"`
 }
 
+// SubjectHospitalNameReceived confirms pharmacy has handled a hospital name,
+// so workforce stops re-sending it. The payload carries no name.
+const SubjectHospitalNameReceived = "helivanta.in.pharmacy.hospital_name_received.v1"
+
+// HospitalNameReceivedData names the hospital and the name_version handled.
+// A stale version is confirmed too, so its re-sending stops.
+type HospitalNameReceivedData struct {
+	HospitalID  string `json:"hospital_id"`
+	NameVersion int64  `json:"name_version"`
+}
+
 // SubjectAdmissionChargePosted is published when a sale is billed to a
 // hospital admission instead of collected at the counter (#1387). The
 // pharmacy GST invoice stays the tax document; the hospital's admission

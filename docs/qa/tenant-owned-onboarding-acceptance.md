@@ -130,3 +130,32 @@ acceptance. These commands create no provider account or staff invitation.
   unavailable. CI runs `scripts/ci/check-identity-owner-fixture.py` through the
   real local owner/native service before browser tests. A native upgrade must
   reverify that proof contract; HTTP status alone is insufficient.
+
+## Reopened verification links and password completion
+
+The verification screen reads `GET /api/v1/auth/signup?userId=<link owner>` through
+Global API. Its owner service read requires both the private signup receipt and
+the immutable owner match. It never treats another workspace's completion as proof.
+The native provider still consumes email/password codes once; this status read
+neither redeems them nor sends mail. Without the matching receipt, completion
+cannot be disclosed; a fresh native proof can still recover its own signup.
+
+- Reopen an email link with its matching receipt after email verification: show
+  **Your email is already verified**, hide verification/resend actions, and offer
+  password setup without automatically sending mail or consuming the old code.
+- Reopen a password link after workspace readiness: show **Your password is set**,
+  hide password inputs, and offer **Sign in now** for that exact workspace.
+- After password success, wait for the owner-confirmed ready receipt before
+  offering sign-in. Then display a seven-second countdown and redirect to
+  `/login?workspace=<confirmed tenant ID>`; the manual link uses the same target.
+- Foreign owner/receipt, invalid owner IDs, duplicate query values, dependency
+  failures and malformed status payloads must not establish completed state or a
+  sign-in destination. Dependency failures display a retry action, without proof
+  submission, mail delivery or credential changes.
+- Browser tests mock native proof submission and use a controlled clock to assert
+  no redirect before 7,000 ms and the exact workspace destination afterwards.
+  These are not evidence of actual account/MFA completion.
+- While a reopened link's matching signup is `provisioning`, show progress and
+  poll for its next state instead of exposing verification/password inputs.
+  `needs_support` is terminal for this screen: preserve the request and direct
+  the owner to setup/support, without a mail or credential action.

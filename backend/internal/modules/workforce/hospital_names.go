@@ -25,7 +25,7 @@ const (
 //go:embed hospital_names.sql
 var hospitalNamesSchema string
 
-// RunHospitalNameAnnouncer announces unsent hospital names until ctx ends.
+// RunHospitalNameAnnouncer announces unsent hospital names, and re-sends unconfirmed ones, until ctx ends.
 func RunHospitalNameAnnouncer(ctx context.Context, deps platform.Deps) {
 	tick := time.NewTicker(30 * time.Second)
 	defer tick.Stop()
@@ -41,18 +41,24 @@ func RunHospitalNameAnnouncer(ctx context.Context, deps platform.Deps) {
 	}
 }
 
-// AnnounceHospitalNamesOnce publishes each hospital's newest unsent name once; tests drive it instead of the ticker.
+// AnnounceHospitalNamesOnce publishes each hospital's newest unsent name once and re-sends a due unconfirmed
+// one; tests drive it instead of the ticker.
 func AnnounceHospitalNamesOnce(ctx context.Context, db *tenantdb.DB) error {
+	return announceHospitalNames(ctx, db, hospitalNameBatch)
+}
+
+func announceHospitalNames(ctx context.Context, db *tenantdb.DB, batch int) error {
 	var due []struct {
 		TenantID uuid.UUID
 		ID       uuid.UUID
 	}
-	// The one cross-tenant read: ids of hospitals with an unsent version, never names.
+	// The one cross-tenant read: ids of hospitals with an unsent version or an unconfirmed one due
+	// again, never names. Unsent versions sort first so a backlog of re-sends cannot starve them.
 	if err := db.WithAllTenants(ctx, func(tx *gorm.DB) error {
 		return tx.Raw(`SELECT h.tenant_id,h.id FROM workforce_hospitals h
 LEFT JOIN workforce_hospital_name_announcements a ON a.tenant_id=h.tenant_id AND a.hospital_id=h.id
-WHERE h.establishment_kind='hospital' AND (a.announced_version IS NULL OR a.announced_version<h.name_version)
-ORDER BY h.tenant_id,h.id LIMIT ?`, hospitalNameBatch).Scan(&due).Error
+WHERE h.establishment_kind='hospital' AND (a.announced_version IS NULL OR a.announced_version<h.name_version OR a.next_attempt_at<=now())
+ORDER BY (a.announced_version IS NULL OR a.announced_version<h.name_version) DESC,a.next_attempt_at NULLS FIRST,h.tenant_id,h.id LIMIT ?`, batch).Scan(&due).Error
 	}); err != nil {
 		return err
 	}
@@ -72,17 +78,38 @@ ORDER BY h.tenant_id,h.id LIMIT ?`, hospitalNameBatch).Scan(&due).Error
 			if row.NameVersion == 0 {
 				return nil
 			}
-			claim := tx.Exec(`INSERT INTO workforce_hospital_name_announcements(tenant_id,hospital_id,announced_version) VALUES(?,?,?)
-ON CONFLICT(tenant_id,hospital_id) DO UPDATE SET announced_version=EXCLUDED.announced_version,updated_at=clock_timestamp()
-WHERE workforce_hospital_name_announcements.announced_version<EXCLUDED.announced_version`, d.TenantID, d.ID, row.NameVersion)
-			if claim.Error != nil || claim.RowsAffected == 0 {
-				return claim.Error // zero rows: this version was already announced
+			claim := tx.Exec(`INSERT INTO workforce_hospital_name_announcements(tenant_id,hospital_id,announced_version,attempts,next_attempt_at) VALUES(?,?,?,0,clock_timestamp()+make_interval(secs => ?))
+ON CONFLICT(tenant_id,hospital_id) DO UPDATE SET announced_version=EXCLUDED.announced_version,attempts=0,next_attempt_at=EXCLUDED.next_attempt_at,updated_at=clock_timestamp()
+WHERE workforce_hospital_name_announcements.announced_version<EXCLUDED.announced_version`, d.TenantID, d.ID, row.NameVersion, firstRedelivery.Seconds())
+			if claim.Error != nil {
+				return claim.Error
+			}
+			attempt := 0
+			if claim.RowsAffected == 0 {
+				// This version was already announced. Re-send it only if still unconfirmed and due,
+				// re-read under the lock: a confirmation or another replica's re-send may have landed
+				// since the scan. announced_version=name_version makes the current name that version's.
+				var attempts []int
+				if err := tx.Raw(`SELECT attempts FROM workforce_hospital_name_announcements WHERE tenant_id=? AND hospital_id=? AND announced_version=? AND next_attempt_at<=now() FOR UPDATE`, d.TenantID, d.ID, row.NameVersion).Scan(&attempts).Error; err != nil || len(attempts) == 0 {
+					return err
+				}
+				attempt = attempts[0] + 1
+				if err := tx.Exec(`UPDATE workforce_hospital_name_announcements SET attempts=attempts+1,next_attempt_at=clock_timestamp()+make_interval(secs => ?),updated_at=clock_timestamp() WHERE tenant_id=? AND hospital_id=?`,
+					redeliveryDelay(attempt).Seconds(), d.TenantID, d.ID).Error; err != nil {
+					return err
+				}
 			}
 			data, err := json.Marshal(workforcecontract.HospitalNamedData{HospitalID: d.ID.String(), Name: row.Name, NameVersion: row.NameVersion})
 			if err != nil {
 				return err
 			}
-			return events.Enqueue(tx, workforcecontract.SubjectHospitalNamed, events.Event{Type: workforcecontract.SubjectHospitalNamed, Version: 1, TenantID: d.TenantID.String(), Data: data})
+			if err := events.Enqueue(tx, workforcecontract.SubjectHospitalNamed, events.Event{Type: workforcecontract.SubjectHospitalNamed, Version: 1, TenantID: d.TenantID.String(), Data: data}); err != nil {
+				return err
+			}
+			if attempt > 0 {
+				slog.WarnContext(ctx, "re-sent unconfirmed hospital name", "tenant_id", d.TenantID, "hospital_id", d.ID, "name_version", row.NameVersion, "attempt", attempt)
+			}
+			return nil
 		}); err != nil && !errors.Is(err, context.Canceled) {
 			slog.WarnContext(ctx, "workforce hospital name announcement failed; retrying later", "tenant_id", d.TenantID, "hospital_id", d.ID, "error", err)
 		}

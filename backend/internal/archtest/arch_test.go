@@ -42,6 +42,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/reference"
 	"github.com/tesserix/helivanta/internal/modules/supply"
 	"github.com/tesserix/helivanta/internal/modules/workforce"
+	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
 	"github.com/tesserix/helivanta/internal/modules/workspace"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
@@ -149,6 +150,43 @@ func TestConsumerContracts(t *testing.T) {
 			}
 		}
 	}
+}
+
+// confirmingConsumers lists every consumer of workforce's hospital_named.v1.
+// Workforce keeps one confirmation per announced version (#1653), so only
+// one consumer may rely on it.
+func confirmingConsumers(mods []platform.Module) []string {
+	var names []string
+	for _, mod := range mods {
+		for _, c := range mod.Consumers(platform.Deps{}) {
+			if c.Subject == workforcecontract.SubjectHospitalNamed {
+				names = append(names, c.Name)
+			}
+		}
+	}
+	sort.Strings(names)
+	return names
+}
+
+const secondConfirmerMsg = "a second consumer needs per-consumer confirmation (#1653): workforce's next_attempt_at records one"
+
+func TestHospitalNamedHasOneConfirmingConsumer(t *testing.T) {
+	require.Equal(t, []string{"pharmacy-hospital-names"}, confirmingConsumers(allModules()), secondConfirmerMsg)
+}
+
+// stubConsumerModule proves the guard can fail without a production edit.
+type stubConsumerModule struct {
+	platform.Module
+	consumers []events.Consumer
+}
+
+func (m stubConsumerModule) Consumers(platform.Deps) []events.Consumer { return m.consumers }
+
+func TestConfirmingConsumersSeesASecondConsumer(t *testing.T) {
+	extra := stubConsumerModule{consumers: []events.Consumer{{Name: "lab-hospital-names", Subject: workforcecontract.SubjectHospitalNamed}}}
+	got := confirmingConsumers(append(allModules(), extra))
+	require.Equal(t, []string{"lab-hospital-names", "pharmacy-hospital-names"}, got)
+	require.NotEqual(t, []string{"pharmacy-hospital-names"}, got, secondConfirmerMsg)
 }
 
 // TestPublishedSubjectConstants derives its input from ⋃ Publishes()
@@ -729,7 +767,8 @@ var withAllTenantsAllowlist = map[string]bool{
 	// those columns and next_check_at — and checks each under WithTenant.
 	"internal/modules/payments/reconciler.go":           true,
 	"internal/modules/pharmacy/affiliation_delivery.go": true,
-	// #1637: finds hospitals with an unannounced name version; reads ids and versions only, each is announced under WithTenant.
+	// #1637/#1653: finds hospitals with an unannounced name version or an unconfirmed one due again; reads ids, versions and
+	// next_attempt_at only, each is announced or re-sent under WithTenant.
 	"internal/modules/workforce/hospital_names.go":                    true,
 	"internal/modules/patientmaster/pharmacy_affiliation_delivery.go": true,
 	// #197: the bed census finds due stays and unapplied setup across

@@ -36,6 +36,7 @@ test("password setup redirects only to its confirmed workspace after seven secon
 }) => {
   const tenantId = "11111111-1111-4111-8111-111111111111";
   let passwordSet = false;
+  let workspaceReady = false;
   const frozen = new Date("2026-11-12T00:00:00Z");
   await page.clock.install({ time: new Date(frozen.getTime() - 60000) });
   await page.clock.pauseAt(frozen);
@@ -44,7 +45,7 @@ test("password setup redirects only to its confirmed workspace after seven secon
       status: 200,
       contentType: "application/json",
       body: JSON.stringify(
-        passwordSet
+        workspaceReady
           ? {
               state: "ready",
               name: "QA",
@@ -52,7 +53,7 @@ test("password setup redirects only to its confirmed workspace after seven secon
               tenantId,
               resourceId: "1aee9771-66c3-445c-8b3e-b18f472ca409",
             }
-          : { state: "password_action_required" },
+          : { state: passwordSet ? "provisioning" : "password_action_required" },
       ),
     }),
   );
@@ -70,16 +71,38 @@ test("password setup redirects only to its confirmed workspace after seven secon
   await page.goto("/signup/verify#phase=password&userId=owner-synthetic&code=one-use-proof");
   await expect
     .poll(async () => {
-      await page.clock.runFor(0);
+      await page.clock.runFor(1);
       return page.getByLabel("New password", { exact: true }).count();
     })
     .toBe(1);
   await page.getByLabel("New password", { exact: true }).fill("Synthetic-password-only-42!");
   await page.getByLabel("Confirm password", { exact: true }).fill("Synthetic-password-only-42!");
+  const preparing = page.waitForResponse(
+    async (response) =>
+      response.url().includes("/api/v1/auth/signup?userId=") &&
+      (await response.json()).state === "provisioning",
+  );
   await page.getByRole("button", { name: "Set password", exact: true }).click();
+  await preparing;
   await expect
     .poll(async () => {
-      await page.clock.runFor(0);
+      await page.clock.runFor(1);
+      return page.getByRole("status").textContent();
+    })
+    .toContain("Preparing your workspace sign-in");
+  await expect(page.getByRole("link", { name: "Sign in now" })).toHaveCount(0);
+  workspaceReady = true;
+  const ready = page.waitForResponse(
+    async (response) =>
+      response.url().includes("/api/v1/auth/signup?userId=") &&
+      (await response.json()).state === "ready",
+  );
+  // Let the readiness poll run before measuring the separate login countdown.
+  await page.clock.runFor(4000);
+  await ready;
+  await expect
+    .poll(async () => {
+      await page.clock.runFor(1);
       return page.getByRole("link", { name: "Sign in now" }).count();
     })
     .toBe(1);
@@ -89,9 +112,9 @@ test("password setup redirects only to its confirmed workspace after seven secon
     `/login?workspace=${tenantId}`,
   );
   await expect(page.getByRole("status")).toContainText("7 seconds");
-  await page.clock.runFor(6999);
+  await page.clock.runFor(6000);
   expect(new URL(page.url()).pathname).toBe("/signup/verify");
-  await page.clock.runFor(1);
+  await page.clock.runFor(1000);
   await expect(page).toHaveURL(new RegExp(`/login\\?workspace=${tenantId}$`));
   await expect(page.getByRole("heading", { name: "Workspace sign-in" })).toBeVisible();
 });

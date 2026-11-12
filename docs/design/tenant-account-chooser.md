@@ -2,7 +2,8 @@
 
 Decision accepted by the product owner on 2026-11-12: **keep separate tenant
 accounts with an account chooser**. This refines [ADR-0070](../adr/0070-tenant-owned-login-identities.md).
-Implementation and live acceptance remain open.
+Implementation is in progress in the coordinated account-discovery change;
+see [delivery details and evidence](account-discovery-delivery.md). Live acceptance remains open.
 
 ## User experience
 
@@ -120,8 +121,8 @@ protected data when the browser's active session changes.
 
 ## Delivery and acceptance gates
 
-The current source still exposes a Workspace ID input in
-`apps/shell/app/login/page.tsx`. Scoped email resolution is implemented in
+The deployed starting version exposes a Workspace ID input in
+`apps/shell/app/login/page.tsx`; this change replaces it with mailbox discovery. Scoped email resolution is implemented in
 `backend/internal/modules/iam/loginclient/tenant_session.go`; its private broker
 resolves an email only inside the org pinned by the native request. The existing
 `components/tenant-picker.tsx` changes tenants for one subject, rather than

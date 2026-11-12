@@ -240,11 +240,12 @@ describe("LoginPage", () => {
     // renders none.
     it("renders no credential form", () => {
       renderWithProviders(<LoginPage />);
-      expect(screen.queryByLabelText(/email/i)).not.toBeInTheDocument();
+      expect(screen.getByLabelText("Email")).toBeInTheDocument();
       expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
     });
 
-    it("starts the redirect when the user asks for it", async () => {
+    it("starts a scoped-link redirect when the user asks for it", async () => {
+      window.history.pushState({}, "", "/login?workspace=11111111-1111-4111-8111-111111111111");
       signinRedirect.mockResolvedValue(undefined);
       renderWithProviders(<LoginPage />);
 
@@ -258,6 +259,7 @@ describe("LoginPage", () => {
     // omitting it here would let a live Zitadel session answer silently for
     // whoever is now at the keyboard, which is the whole point of the button.
     it("forces re-authentication rather than accepting a live IdP session", async () => {
+      window.history.pushState({}, "", "/login?workspace=11111111-1111-4111-8111-111111111111");
       signinRedirect.mockResolvedValue(undefined);
       renderWithProviders(<LoginPage />);
 
@@ -268,6 +270,7 @@ describe("LoginPage", () => {
     });
 
     it("shows an error instead of a dead button when the redirect cannot start", async () => {
+      window.history.pushState({}, "", "/login?workspace=11111111-1111-4111-8111-111111111111");
       signinRedirect.mockRejectedValue(new Error("Zitadel unreachable"));
       renderWithProviders(<LoginPage />);
 
@@ -290,7 +293,11 @@ describe("LoginPage", () => {
     // the page goes straight to the credential form instead of asking again.
     describe("arriving from a Sign in link (start=1)", () => {
       beforeEach(() => {
-        window.history.pushState({}, "", "/login?start=1&tenant=abc");
+        window.history.pushState(
+          {},
+          "",
+          "/login?start=1&workspace=11111111-1111-4111-8111-111111111111",
+        );
       });
 
       it("starts sign-in once, forcing re-authentication", async () => {
@@ -305,7 +312,7 @@ describe("LoginPage", () => {
         signinRedirect.mockResolvedValue(undefined);
         renderWithProviders(<LoginPage />);
         await waitFor(() => expect(signinRedirect).toHaveBeenCalled());
-        expect(window.location.search).toBe("?tenant=abc");
+        expect(window.location.search).toBe("?workspace=11111111-1111-4111-8111-111111111111");
       });
 
       // #847 still wins: right after a session ends, nothing starts on arrival.
@@ -759,7 +766,7 @@ describe("LoginPage", () => {
       // The offer must be a REAL control, not just wording — reusing
       // RedirectLanding's Sign in button, which starts a fresh
       // authorization request exactly as a direct /login visit would.
-      it("offers a working Sign in button that starts a fresh authorization request", async () => {
+      it("offers email discovery when an expired attempt has lost its routing context", async () => {
         stubAuthFlow({
           authRequest: () =>
             jsonResponse(400, {
@@ -773,9 +780,8 @@ describe("LoginPage", () => {
         const button = await screen.findByRole("button", { name: "Sign in" });
         await user.click(button);
 
-        await waitFor(() =>
-          expect(signinRedirect).toHaveBeenCalledWith(expect.objectContaining({ prompt: "login" })),
-        );
+        expect(screen.getByLabelText("Email")).toBeInTheDocument();
+        expect(signinRedirect).not.toHaveBeenCalled();
       });
 
       // The expired-request wording and the sign-out wording must never

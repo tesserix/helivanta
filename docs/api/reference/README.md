@@ -1686,9 +1686,12 @@ Migration table declarations:
 | --- | --- |
 | `GET /healthz` | liveness probe; an authenticated probe cannot report health before auth works |
 | `GET /readyz` | readiness probe; same reason, and it must answer during a dependency outage |
+| `GET /v1/auth/accounts` | bounded display-only choices after mailbox proof, no session required |
 | `GET /v1/auth/branding/:tenant` | published display-only branding must render before login; no identity or data access |
 | `GET /v1/auth/login/request/:id` | renders the login form before any Helivanta session exists |
 | `GET /v1/auth/signup` | receipt-bound setup progress before a tenant session exists |
+| `POST /v1/auth/accounts` | same-origin mailbox proof before private separate-account discovery |
+| `POST /v1/auth/accounts/verify` | browser-bound one-use mailbox proof; no application access |
 | `POST /v1/auth/login` | creates the Helivanta session and therefore cannot require one |
 | `POST /v1/auth/login/enroll` | confirms the newly enrolled second factor that creates the session, so it cannot require one |
 | `POST /v1/auth/login/factor` | checks the second factor that creates the session, so it cannot require one |

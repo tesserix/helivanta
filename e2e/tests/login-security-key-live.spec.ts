@@ -8,7 +8,9 @@ test("security-key continuation requires an explicit click and reaches the origi
     baseURL !== "https://helivanta.app",
     "Requires the real issuer and its live native Login V2 page; credentials are never submitted to it.",
   );
-  await page.goto("/login?start=1");
+  const tenant = process.env.HELIVANTA_LIVE_TEST_TENANT;
+  test.skip(!tenant, "Requires an explicitly configured live test tenant.");
+  await page.goto(`/login?start=1&workspace=${encodeURIComponent(tenant!)}`);
   await page.waitForURL((url) => url.searchParams.has("authRequest"));
   const request = new URL(page.url()).searchParams.get("authRequest")!;
   const native = new URL("https://auth.tesserix.app/ui/v2/login/password");

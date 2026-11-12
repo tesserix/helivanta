@@ -49,7 +49,7 @@ const PERMISSIONS_PROBE = "/api/v1/iam/me/permissions";
 // AuthOtpStep default (`label = "Verification code"`), which
 // apps/shell/app/login/page.tsx's OtpStep does not override.
 async function signInAndReachOtpStep(page: Page): Promise<void> {
-  await page.goto("/dashboard");
+  await page.goto("/login?workspace=11111111-1111-1111-1111-111111111111");
   const landingButton = page.getByRole("button", { name: "Sign in" });
   await landingButton.waitFor({ state: "visible", timeout: 20_000 });
   await landingButton.click();

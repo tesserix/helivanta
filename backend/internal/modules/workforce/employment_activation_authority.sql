@@ -81,7 +81,7 @@ BEGIN
  OR (to_jsonb(NEW)-ARRAY['employment_status','version','employment_epoch','updated_at']) IS DISTINCT FROM (to_jsonb(OLD)-ARRAY['employment_status','version','employment_epoch','updated_at'])
  OR NOT EXISTS(SELECT 1 FROM workforce_employment_reviews r WHERE (r.tenant_id,r.hospital_id,r.staff_id,r.staff_version,r.employment_epoch,r.status)=(OLD.tenant_id,OLD.hospital_id,OLD.id,OLD.version,OLD.employment_epoch,'approved')
  AND workforce_activation_governance_review(r.tenant_id,r.hospital_id,r.staff_id,r.id)) THEN
-  RAISE EXCEPTION 'governance activation permits only the exact approved employment transition' USING ERRCODE='42501';
+  RAISE EXCEPTION 'governance activation permits only the exact approved employment transition' USING ERRCODE='42501',CONSTRAINT='workforce_governance_activation_transition';
  END IF;
  RETURN NEW;
 END $$;
@@ -157,6 +157,12 @@ BEGIN
      EXECUTE format('ALTER POLICY %I ON %I USING ((%s) OR (%s)) WITH CHECK ((%s) OR (%s))',prior.polname,item.table_name,prior.reading,reading,prior.writing,writing);
     ELSE EXECUTE format('ALTER POLICY %I ON %I USING ((%s) OR (%s))',prior.polname,item.table_name,prior.reading,reading); END IF;
    END LOOP;
+  END IF;
+  IF item.table_name='workforce_staff' THEN
+   SELECT pg_get_expr(p.polqual,p.polrelid) AS reading,pg_get_expr(p.polwithcheck,p.polrelid) AS writing INTO STRICT prior
+    FROM pg_policy p WHERE p.polrelid='public.workforce_staff'::regclass AND p.polname='partner_candidate_update_guard' AND NOT p.polpermissive AND p.polcmd='w';
+   IF prior.reading IS NULL OR prior.writing IS NULL THEN RAISE EXCEPTION 'activation requires the retained explicit Staff update guard'; END IF;
+   EXECUTE format('ALTER POLICY partner_candidate_update_guard ON workforce_staff USING ((%s) OR (%s)) WITH CHECK ((%s) OR (%s))',prior.reading,reading,prior.writing,writing);
   END IF;
   EXECUTE format($policy$CREATE POLICY activation_governance_purpose ON %I AS RESTRICTIVE FOR ALL
    USING(hms_tenant_visible(tenant_id) AND (COALESCE(current_setting('app.workforce_activation_authority',true),'')='' OR (%s)))

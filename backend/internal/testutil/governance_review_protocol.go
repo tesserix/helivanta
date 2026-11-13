@@ -22,6 +22,11 @@ type governanceReviewProtocol struct {
 	id uuid.UUID
 }
 
+// This account-link double has no activation source and cannot issue a basis writer.
+func (*governanceReviewProtocol) WithGovernanceEmploymentActivation(context.Context, authz.GovernanceSourceRequest, uuid.UUID, func(context.Context, authz.GovernanceSourceEvidence, authz.EmploymentBasisWriter) error) error {
+	return authz.ErrScopedCommandDenied
+}
+
 func (g *governanceReviewProtocol) WithGovernanceSource(ctx context.Context, req authz.GovernanceSourceRequest, action func(context.Context, authz.GovernanceSourceEvidence) error) error {
 	if g.db == nil || action == nil {
 		return authz.ErrScopedAuthorizationUnavailable

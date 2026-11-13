@@ -246,6 +246,9 @@ Its private write purpose also permits the mandatory automatic Staff audit only
 for the exact inactive-to-active transition, actor and Staff target. The separate
 activation audit retains the current authority proof; replay must not duplicate
 either completed transition or activation audit.
+The retained restrictive Staff update guard admits that same exact activation
+write, while preserving its existing checks. The source preflight requires the
+guard and its explicit read/write checks; a missing guard fails closed.
 
 A separate `workforce.employment_activator.v1` template contains only
 `workforce.employment.activate`, introduced through IAM migration 0022 and the

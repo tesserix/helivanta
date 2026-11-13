@@ -23,7 +23,8 @@ func (g *governanceSourceGuard) WithGovernanceSource(ctx context.Context, req au
 	if action == nil || g == nil || g.handlers == nil || g.handlers.db == nil || g.handlers.topology == nil {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
-	if req.Capability != authz.GovernanceAccountLinkReview || req.Scope.TenantID != req.Principal.TenantID || req.Scope.ID == nil || *req.Scope.ID == uuid.Nil {
+	template := governanceSourceTemplate(req.Capability, req.Scope.Kind)
+	if template == "" || req.Scope.TenantID != req.Principal.TenantID || req.Scope.ID == nil || *req.Scope.ID == uuid.Nil {
 		return authz.ErrScopedCommandDenied
 	}
 	switch req.Scope.Kind {
@@ -33,7 +34,6 @@ func (g *governanceSourceGuard) WithGovernanceSource(ctx context.Context, req au
 	}
 	id := *req.Scope.ID
 	req.Scope.ID = &id
-	const template = "workforce.account_link_reviewer.v1"
 	h := g.handlers
 	var callbackErr error
 	err := h.withActor(ctx, req.Principal, func(commandCtx context.Context, tx *gorm.DB, owners []string) error {
@@ -75,4 +75,22 @@ func (g *governanceSourceGuard) WithGovernanceSource(ctx context.Context, req au
 		return errors.Join(authz.ErrScopedAuthorizationUnavailable, err)
 	}
 	return err
+}
+
+func governanceSourceTemplate(capability authz.GovernanceCapability, kind string) string {
+	switch capability {
+	case authz.GovernanceAccountLinkReview:
+		if kind == "hospital" || kind == "pharmacy" || kind == "supplier" {
+			return "workforce.account_link_reviewer.v1"
+		}
+	case authz.GovernancePersonPrepare:
+		if kind == "hospital" {
+			return "workforce.person_preparer.v1"
+		}
+	case authz.GovernancePersonReview:
+		if kind == "hospital" {
+			return "workforce.person_reviewer.v1"
+		}
+	}
+	return ""
 }

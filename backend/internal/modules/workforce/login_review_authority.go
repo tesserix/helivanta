@@ -73,6 +73,10 @@ func (h *handlers) withAccountLinkAuthority(c *gin.Context, p authn.Principal, r
 }
 
 func validLoginReviewSource(p authn.Principal, root establishment, source authz.GovernanceSourceEvidence) bool {
+	return validWorkforceGovernanceSource(p, root, source, "workforce.account_link_reviewer.v1")
+}
+
+func validWorkforceGovernanceSource(p authn.Principal, root establishment, source authz.GovernanceSourceEvidence, template string) bool {
 	if source.Scope.TenantID != p.TenantID || source.Scope.Kind != root.kind || source.Scope.ID == nil || *source.Scope.ID != root.id || source.MembershipEpoch < 1 || source.MembershipEpoch > 9007199254740991 || source.OwnerCount < 1 || source.OwnerCount > 1000 || source.ExpiresAt.IsZero() {
 		return false
 	}
@@ -80,7 +84,7 @@ func validLoginReviewSource(p authn.Principal, root establishment, source authz.
 	case authz.GovernanceOwnerSource:
 		return source.OwnerMembershipID != uuid.Nil && source.OwnerMembershipID.Variant() == uuid.RFC4122 && source.GrantID == uuid.Nil && source.Version == 0 && source.TemplateKey == ""
 	case authz.GovernanceGrantSource:
-		return source.OwnerMembershipID == uuid.Nil && source.GrantID != uuid.Nil && source.GrantID.Variant() == uuid.RFC4122 && source.GrantID.Version() == 7 && source.Version >= 1 && source.Version <= 9007199254740991 && source.TemplateKey == "workforce.account_link_reviewer.v1"
+		return source.OwnerMembershipID == uuid.Nil && source.GrantID != uuid.Nil && source.GrantID.Variant() == uuid.RFC4122 && source.GrantID.Version() == 7 && source.Version >= 1 && source.Version <= 9007199254740991 && source.TemplateKey == template
 	default:
 		return false
 	}

@@ -60,17 +60,10 @@ func personReviewParams(c *gin.Context) (authn.Principal, uuid.UUID, uuid.UUID, 
 	return p, hospital, staff, id, true
 }
 
-func (h *handlers) personReviewTransaction(c *gin.Context, p authn.Principal, hospital, staff uuid.UUID, permission authz.Permission, fn func(*gorm.DB, IdentitySource, reviewedLeaveActor, authz.ScopeGrant) error) error {
-	return h.withIdentityScopeGrant(c, p, hospital, permission, func(ctx context.Context, grant authz.ScopeGrant) error {
+func (h *handlers) personReviewTransaction(c *gin.Context, p authn.Principal, hospital, staff uuid.UUID, permission authz.Permission, fn func(*gorm.DB, IdentitySource, personReviewAuthority) error) error {
+	return h.withPersonReviewAuthority(c, p, hospital, permission, func(ctx context.Context, authority personReviewAuthority) error {
 		return h.transaction(ctx, p, hospital, func(tx *gorm.DB) error {
-			if err := tx.Exec(`SELECT workforce_lock_supervision(?::uuid,?::uuid)`, p.TenantID, hospital).Error; err != nil {
-				return err
-			}
-			actor, err := lockReviewedLeaveActor(tx, p, hospital)
-			if err != nil {
-				if errors.Is(err, gorm.ErrRecordNotFound) {
-					return authz.ErrScopedCommandDenied
-				}
+			if err := preparePersonReviewAuthority(c, tx, p, hospital, staff, authority); err != nil {
 				return err
 			}
 			source, err := loadIdentitySource(tx, p, hospital, staff)
@@ -81,10 +74,10 @@ func (h *handlers) personReviewTransaction(c *gin.Context, p authn.Principal, ho
 			if permission == PermIdentityChecksReview {
 				mode = "review"
 			}
-			if err := tx.Exec(`SELECT set_config('app.workforce_person_review',?,true)`, mode).Error; err != nil {
+			if err := tx.Exec("SELECT set_config('app.workforce_person_review',?,true)", mode).Error; err != nil {
 				return err
 			}
-			return fn(tx, source, actor, grant)
+			return fn(tx, source, authority)
 		})
 	})
 }
@@ -148,8 +141,21 @@ func validPersonReviewSubmission(in *PersonReviewSubmissionInput) bool {
 	return true
 }
 
-func personReviewAudit(tx *gorm.DB, p authn.Principal, hospital, id uuid.UUID, action string, version int64, actor reviewedLeaveActor, grant authz.ScopeGrant) error {
-	return tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,?,?,jsonb_build_object('version',?::bigint,'assignment_id',?::text,'assignment_version',?::bigint,'scope_epoch',?::bigint,'membership_epoch',?::bigint,'actor_link_id',?::text,'actor_link_version',?::bigint))`, p.TenantID, hospital, p.Subject, action, id, version, grant.AssignmentID, grant.Version, grant.ScopeEpoch, grant.MembershipEpoch, actor.ID, actor.Version).Error
+func personReviewAudit(tx *gorm.DB, p authn.Principal, hospital, id uuid.UUID, action string, version int64, authority personReviewAuthority) error {
+	values, err := authority.auditValues()
+	if err != nil {
+		return err
+	}
+	values["version"] = version
+	raw, err := json.Marshal(values)
+	if err != nil {
+		return err
+	}
+	return tx.Exec("INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes)VALUES(?,?,?,?,?,?::jsonb)", p.TenantID, hospital, p.Subject, action, id, string(raw)).Error
+}
+
+func personReviewStaffAudit(tx *gorm.DB, p authn.Principal, hospital, id uuid.UUID, action string, version int64, actor reviewedLeaveActor, grant authz.ScopeGrant) error {
+	return personReviewAudit(tx, p, hospital, id, action, version, personReviewAuthority{Staff: &actor, Assignment: grant})
 }
 
 func (h *handlers) personReviewChanged(tx *gorm.DB, p authn.Principal, row PersonReview) error {
@@ -273,14 +279,14 @@ func (h *handlers) putPersonReview(c *gin.Context) {
 		return
 	}
 	var result PersonReview
-	err = h.personReviewTransaction(c, p, hospital, staff, PermIdentityChecksManage, func(tx *gorm.DB, source IdentitySource, actor reviewedLeaveActor, grant authz.ScopeGrant) error {
+	err = h.personReviewTransaction(c, p, hospital, staff, PermIdentityChecksManage, func(tx *gorm.DB, source IdentitySource, actor personReviewAuthority) error {
 		receipt, found, err := personReviewReceipt(tx, p, hospital, staff, id, in.CommandID, intent)
 		if err != nil {
 			return err
 		}
 		if found {
 			result = receipt.PersonReview
-			return personReviewAudit(tx, p, hospital, id, "workforce.person_review.receipt.read", result.Version, actor, grant)
+			return personReviewAudit(tx, p, hospital, id, "workforce.person_review.receipt.read", result.Version, actor)
 		}
 		var now time.Time
 		if err := tx.Raw(`SELECT clock_timestamp()`).Scan(&now).Error; err != nil {
@@ -289,7 +295,7 @@ func (h *handlers) putPersonReview(c *gin.Context) {
 		if source.StaffVersion != in.StaffVersion || source.EmploymentEpoch != in.EmploymentEpoch || source.IdentityHash != in.IdentityHash || !in.ValidUntil.After(now) || in.ObservedOn > now.UTC().Format(time.DateOnly) {
 			return errPersonReviewConflict
 		}
-		if actor.StaffID == staff || p.Subject == *in.DeclaredSubject {
+		if actor.isStaff(staff) || p.Subject == *in.DeclaredSubject {
 			return errPersonReviewIndependence
 		}
 		var self int64
@@ -330,7 +336,7 @@ func (h *handlers) putPersonReview(c *gin.Context) {
 			return err
 		}
 		result = saved.PersonReview
-		if err := personReviewAudit(tx, p, hospital, id, "workforce.person_review.submitted", result.Version, actor, grant); err != nil {
+		if err := personReviewAudit(tx, p, hospital, id, "workforce.person_review.submitted", result.Version, actor); err != nil {
 			return err
 		}
 		return h.personReviewChanged(tx, p, result)
@@ -392,7 +398,7 @@ func personReviewState(tx *gorm.DB, p authn.Principal, source IdentitySource, ro
 	return row.Status, nil
 }
 
-func (h *handlers) readPersonReview(c *gin.Context, p authn.Principal, hospital, staff uuid.UUID, fn func(*gorm.DB, IdentitySource, reviewedLeaveActor, authz.ScopeGrant) error) error {
+func (h *handlers) readPersonReview(c *gin.Context, p authn.Principal, hospital, staff uuid.UUID, fn func(*gorm.DB, IdentitySource, personReviewAuthority) error) error {
 	err := h.personReviewTransaction(c, p, hospital, staff, PermIdentityChecksManage, fn)
 	if errors.Is(err, authz.ErrScopedCommandDenied) {
 		return h.personReviewTransaction(c, p, hospital, staff, PermIdentityChecksReview, fn)
@@ -406,7 +412,7 @@ func (h *handlers) getPersonReview(c *gin.Context) {
 		return
 	}
 	var result PersonReviewView
-	err := h.readPersonReview(c, p, hospital, staff, func(tx *gorm.DB, source IdentitySource, actor reviewedLeaveActor, grant authz.ScopeGrant) error {
+	err := h.readPersonReview(c, p, hospital, staff, func(tx *gorm.DB, source IdentitySource, actor personReviewAuthority) error {
 		row, err := loadPersonReview(tx, p, hospital, staff, id, false, uuid.Nil)
 		if err != nil {
 			return err
@@ -416,7 +422,7 @@ func (h *handlers) getPersonReview(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		return personReviewAudit(tx, p, hospital, id, "workforce.person_review.read", row.Version, actor, grant)
+		return personReviewAudit(tx, p, hospital, id, "workforce.person_review.read", row.Version, actor)
 	})
 	if err != nil {
 		personReviewError(c, err)
@@ -444,12 +450,12 @@ func (h *handlers) decidePersonReview(c *gin.Context) {
 		return
 	}
 	var result PersonReview
-	err = h.personReviewTransaction(c, p, hospital, staff, PermIdentityChecksReview, func(tx *gorm.DB, source IdentitySource, actor reviewedLeaveActor, grant authz.ScopeGrant) error {
+	err = h.personReviewTransaction(c, p, hospital, staff, PermIdentityChecksReview, func(tx *gorm.DB, source IdentitySource, actor personReviewAuthority) error {
 		row, err := loadPersonReview(tx, p, hospital, staff, id, false, uuid.Nil)
 		if err != nil {
 			return err
 		}
-		if actor.StaffID == staff || row.ProposedBySubject == p.Subject || row.DeclaredSubject == p.Subject {
+		if actor.isStaff(staff) || row.ProposedBySubject == p.Subject || row.DeclaredSubject == p.Subject {
 			return errPersonReviewIndependence
 		}
 		var excluded int64
@@ -465,7 +471,7 @@ func (h *handlers) decidePersonReview(c *gin.Context) {
 		}
 		if found {
 			result = receipt.PersonReview
-			return personReviewAudit(tx, p, hospital, id, "workforce.person_review.receipt.read", result.Version, actor, grant)
+			return personReviewAudit(tx, p, hospital, id, "workforce.person_review.receipt.read", result.Version, actor)
 		}
 		if row.Status != "pending" || row.Version != *in.ExpectedVersion {
 			return errPersonReviewConflict
@@ -493,7 +499,7 @@ func (h *handlers) decidePersonReview(c *gin.Context) {
 			return err
 		}
 		result = saved.PersonReview
-		if err := personReviewAudit(tx, p, hospital, id, "workforce.person_review.decided", result.Version, actor, grant); err != nil {
+		if err := personReviewAudit(tx, p, hospital, id, "workforce.person_review.decided", result.Version, actor); err != nil {
 			return err
 		}
 		return h.personReviewChanged(tx, p, result)
@@ -531,7 +537,7 @@ func (h *handlers) endPersonReview(c *gin.Context, withdraw bool) {
 		return
 	}
 	var result PersonReview
-	err = h.personReviewTransaction(c, p, hospital, staff, permission, func(tx *gorm.DB, _ IdentitySource, actor reviewedLeaveActor, grant authz.ScopeGrant) error {
+	err = h.personReviewTransaction(c, p, hospital, staff, permission, func(tx *gorm.DB, _ IdentitySource, actor personReviewAuthority) error {
 		row, err := loadPersonReview(tx, p, hospital, staff, id, false, uuid.Nil)
 		if err != nil {
 			return err
@@ -545,7 +551,7 @@ func (h *handlers) endPersonReview(c *gin.Context, withdraw bool) {
 		}
 		if found {
 			result = receipt.PersonReview
-			return personReviewAudit(tx, p, hospital, id, "workforce.person_review.receipt.read", result.Version, actor, grant)
+			return personReviewAudit(tx, p, hospital, id, "workforce.person_review.receipt.read", result.Version, actor)
 		}
 		if row.Status != before || row.Version != *in.ExpectedVersion {
 			return errPersonReviewConflict
@@ -562,7 +568,7 @@ func (h *handlers) endPersonReview(c *gin.Context, withdraw bool) {
 			return err
 		}
 		result = saved.PersonReview
-		if err := personReviewAudit(tx, p, hospital, id, "workforce.person_review."+after, result.Version, actor, grant); err != nil {
+		if err := personReviewAudit(tx, p, hospital, id, "workforce.person_review."+after, result.Version, actor); err != nil {
 			return err
 		}
 		return h.personReviewChanged(tx, p, result)
@@ -580,7 +586,7 @@ func (h *handlers) personReviewHistory(c *gin.Context, params pagination.Params)
 		return nil, nil
 	}
 	rows := []personReviewHistory{}
-	err := h.readPersonReview(c, p, hospital, staff, func(tx *gorm.DB, _ IdentitySource, actor reviewedLeaveActor, grant authz.ScopeGrant) error {
+	err := h.readPersonReview(c, p, hospital, staff, func(tx *gorm.DB, _ IdentitySource, actor personReviewAuthority) error {
 		head, err := loadPersonReview(tx, p, hospital, staff, id, false, uuid.Nil)
 		if err != nil {
 			return err
@@ -591,7 +597,7 @@ func (h *handlers) personReviewHistory(c *gin.Context, params pagination.Params)
 		for i := range rows {
 			rows[i].Evidence = head.Evidence
 		}
-		return personReviewAudit(tx, p, hospital, id, "workforce.person_review.history.read", 0, actor, grant)
+		return personReviewAudit(tx, p, hospital, id, "workforce.person_review.history.read", 0, actor)
 	})
 	if err != nil {
 		personReviewError(c, err)

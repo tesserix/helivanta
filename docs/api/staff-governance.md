@@ -2,7 +2,8 @@
 
 Status: candidate in PR #1669; not merged or deployed. The current implementation
 covers owner grant admission, retained creation/decision receipts, current auditor
-review, an owner inbox and hospital/pharmacy/supplier account-link review consumers.
+review, an owner inbox, hospital/pharmacy/supplier account-link review consumers
+and selected hospital person-review consumers.
 Employment, assignment and operating-duty consumers, acknowledgements and delegation
 commands in the UI remain unfinished. The owner inbox is available in Staff Access. Account initiation alone does not complete Staff onboarding.
 
@@ -130,10 +131,11 @@ remain in headers.
 
 `platform.Deps.GovernanceSources` binds the sole IAM and Workforce owners to
 `authz.CurrentGovernanceSourceGuard`. Its closed capability catalog currently
-contains only `GovernanceAccountLinkReview`, selecting one exact
-hospital/pharmacy/supplier employer. Current tenant owners retain an explicit
+contains `GovernanceAccountLinkReview` for one exact hospital/pharmacy/supplier
+employer and `GovernancePersonPrepare` / `GovernancePersonReview` for an exact
+hospital only. Current tenant owners retain an explicit
 owner source backed by their actual IAM owner-membership ID and epoch. Other
-reviewers require the exact versioned account-link reviewer grant. Neither source
+reviewers require the exact versioned grant for the selected capability. Neither source
 requires an invented Staff actor or clinical role.
 Products construct the request from the verified principal and canonical employer;
 request bodies cannot choose an actor or supply source evidence.
@@ -187,8 +189,9 @@ remain unfinished.
 Candidate migrations are `0047_iam_governance`,
 `0102_workforce_governance_topology` and `0103_workforce_login_review_authority`.
 User rollout approval has been received; these migrations have not been applied
-to the live environment. Before
-rollout, complete the remaining source consumers, owner-count admission,
+to the live environment. New candidate
+`0104_workforce_person_review_authority` has not been approved for live application.
+Before rollout, complete the remaining source consumers, owner-count admission,
 ledger/role admission guards, frontend, remote PostgreSQL/FGA/race/recovery tests
 and tested rollback. Retain identities, original receipts, notices and decisions
 through rollback; never erase evidence to retry onboarding.
@@ -205,3 +208,40 @@ These fixtures do not establish modern IAM authority; the real owner/grant tests
 above provide that evidence. The actual preserved tenant still needs recipient-operated
 private setup, real distinct reviewers and positive/negative/revoked staff and
 pharmacy-access verification before this workflow is complete.
+
+## Candidate nonclinical person-review consumers
+
+The fixed hospital-scoped `workforce.person_preparer.v1` and
+`workforce.person_reviewer.v1` templates add separate person-finding preparation
+and review authority. They do not authorize identity-case changes, document
+uploads, employment preparation/activation, assignments, postings or pharmacy
+operations. The existing `projection=identity_drafts` source view keeps its
+reviewed Staff/assignment guard; person authority cannot advertise draft rights. Ordinary reviewed Staff assignments remain supported. Only a denied
+ordinary authority path, before invoking business code, can select a current
+owner or exact person-governance source. Dependency failures do not become an
+owner fallback. Governance requests require matching expected tenant/account
+headers and refreshed authentication/route permission.
+
+Current-person source reads, selected evidence metadata, person-review commands,
+history and protected evidence release use the explicit authority union. No
+Staff/link reference is fabricated for an owner or delegate. File disclosure
+reauthorizes the same capability, source ID/version, membership incarnation,
+owner census and expiry after storage I/O. A source change denies release even
+if another grant retains coarse routing membership. Existing target association,
+contributor, independent-person, evidence and legal-state checks remain.
+
+Candidate `0104_workforce_person_review_authority` adds private provenance to the
+review and its immutable history. A server-owned trigger records each governed
+version; missing/disabled recording support denies the governed path. A
+restrictive policy forbids this purpose from writing Staff, profile, document or
+login-link masters. Public review/event payloads are unchanged. Approval of
+IAM0047/WF0102/WF0103 does not authorize this new live migration. Before applying
+0104, complete real PostgreSQL/failure/disclosure acceptance and rollback review.
+Rollback disables the new consumers and retains provenance columns and history;
+do not drop evidence to undo the code rollout.
+
+Person scope/target/inbox discovery and delegation UI still need this authority
+path; existing discovery requires a reviewed Staff link. Complete those consumers
+alongside employment and activation before claiming first-staff onboarding works.
+The new source/snapshot unit tests pass locally; database and protected-release
+cases are candidates awaiting remote execution.

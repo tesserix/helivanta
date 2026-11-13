@@ -81,6 +81,16 @@ it("keeps the versioned governance bundles free of operating authority", () => {
       permissions: ["workforce.login_links.review", "workforce.independent_login.review"],
     },
     {
+      key: "workforce.person_preparer.v1",
+      scope_kinds: ["hospital"],
+      permissions: ["workforce.identity_checks.manage"],
+    },
+    {
+      key: "workforce.person_reviewer.v1",
+      scope_kinds: ["hospital"],
+      permissions: ["workforce.identity_checks.review"],
+    },
+    {
       key: "iam.governance_auditor.v1",
       scope_kinds: ["tenant"],
       permissions: ["iam.governance.read", "iam.governance.review"],
@@ -167,3 +177,18 @@ it("leaves a safe integer successor for a governance decision", () => {
     }).success,
   ).toBe(false);
 });
+
+it.each(["workforce.person_preparer.v1", "workforce.person_reviewer.v1"])(
+  "keeps %s hospital-scoped and nonclinical",
+  (template_key) => {
+    expect(GovernanceGrantInputContract.safeParse({ ...input, template_key }).success).toBe(true);
+    for (const scope_kind of ["tenant", "pharmacy", "supplier"])
+      expect(
+        GovernanceGrantInputContract.safeParse({ ...input, template_key, scope_kind }).success,
+      ).toBe(false);
+    const template = governanceTemplates.find((value) => value.key === template_key)!;
+    expect([...template.scope_kinds]).toEqual(["hospital"]);
+    expect(template.permissions).toHaveLength(1);
+    expect(template.permissions[0]).toMatch(/^workforce\.identity_checks\.(manage|review)$/);
+  },
+);

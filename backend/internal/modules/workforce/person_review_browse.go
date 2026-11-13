@@ -75,7 +75,7 @@ func (h *handlers) searchPersonReviewTargets(c *gin.Context, page pagination.Par
 			return err
 		}
 		for _, row := range rows[:min(len(rows), page.Limit)] {
-			if err := personReviewAudit(tx, p, hospital, row.ID, "workforce.person_review.target.read", row.StaffVersion, actor, grant); err != nil {
+			if err := personReviewStaffAudit(tx, p, hospital, row.ID, "workforce.person_review.target.read", row.StaffVersion, actor, grant); err != nil {
 				return err
 			}
 		}
@@ -117,7 +117,7 @@ func (h *handlers) listPersonReviewInbox(c *gin.Context, page pagination.Params)
 			return err
 		}
 		for _, row := range rows[:min(len(rows), page.Limit)] {
-			if err := personReviewAudit(tx, p, hospital, row.ID, "workforce.person_review.inbox.read", row.Version, actor, grant); err != nil {
+			if err := personReviewStaffAudit(tx, p, hospital, row.ID, "workforce.person_review.inbox.read", row.Version, actor, grant); err != nil {
 				return err
 			}
 		}

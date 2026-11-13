@@ -10,6 +10,18 @@ export const governanceTemplates = [
     permissions: ["workforce.login_links.review", "workforce.independent_login.review"],
   },
   {
+    key: "workforce.person_preparer.v1",
+    name: "Nonclinical person-review preparer",
+    scope_kinds: ["hospital"],
+    permissions: ["workforce.identity_checks.manage"],
+  },
+  {
+    key: "workforce.person_reviewer.v1",
+    name: "Nonclinical person reviewer",
+    scope_kinds: ["hospital"],
+    permissions: ["workforce.identity_checks.review"],
+  },
+  {
     key: "iam.governance_auditor.v1",
     name: "Governance auditor",
     scope_kinds: ["tenant"],
@@ -38,7 +50,12 @@ const GovernanceGrantInputShape = z
       .regex(new RegExp("^[^\\p{White_Space}\\p{Cc}\\uFEFF*#:]+$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     expected_membership_epoch: z.number().int().min(1).max(9007199254740991),
-    template_key: z.enum(["workforce.account_link_reviewer.v1", "iam.governance_auditor.v1"]),
+    template_key: z.enum([
+      "workforce.account_link_reviewer.v1",
+      "workforce.person_preparer.v1",
+      "workforce.person_reviewer.v1",
+      "iam.governance_auditor.v1",
+    ]),
     scope_kind: z.enum(["tenant", "hospital", "pharmacy", "supplier"]),
     scope_id: identifier.optional(),
     reason: z

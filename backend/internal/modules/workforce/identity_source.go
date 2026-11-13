@@ -73,21 +73,29 @@ func (h *handlers) getIdentitySource(c *gin.Context) {
 	}
 	var result IdentitySource
 	canManage := true
-	read := func(tx *gorm.DB, actor reviewedLeaveActor, grant authz.ScopeGrant) error {
-		var err error
-		result, err = loadIdentitySource(tx, p, hospital, staffID)
-		if err != nil {
-			return err
-		}
+	read := func(tx *gorm.DB, source IdentitySource, authority personReviewAuthority) error {
+		result = source
 		if projected {
 			result.ManageChecksAllowed = &canManage
 		}
-		return tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,'workforce.identity_source.read',?,jsonb_build_object('assignment_id',?::text,'assignment_version',?::bigint,'scope_epoch',?::bigint,'membership_epoch',?::bigint,'actor_link_id',?::text,'actor_link_version',?::bigint))`, p.TenantID, hospital, p.Subject, staffID, grant.AssignmentID, grant.Version, grant.ScopeEpoch, grant.MembershipEpoch, actor.ID.String(), actor.Version).Error
+		return personReviewAudit(tx, p, hospital, staffID, "workforce.identity_source.read", source.StaffVersion, authority)
 	}
-	err = h.identityScopeTransaction(c, p, hospital, PermIdentityChecksManage, read)
+	transaction := func(permission authz.Permission) error {
+		if !projected {
+			return h.personReviewTransaction(c, p, hospital, staffID, permission, read)
+		}
+		return h.identityScopeTransaction(c, p, hospital, permission, func(tx *gorm.DB, actor reviewedLeaveActor, grant authz.ScopeGrant) error {
+			source, err := loadIdentitySource(tx, p, hospital, staffID)
+			if err != nil {
+				return err
+			}
+			return read(tx, source, personReviewAuthority{Staff: &actor, Assignment: grant})
+		})
+	}
+	err = transaction(PermIdentityChecksManage)
 	if errors.Is(err, authz.ErrScopedCommandDenied) {
 		canManage = false
-		err = h.identityScopeTransaction(c, p, hospital, PermIdentityChecksReview, read)
+		err = transaction(PermIdentityChecksReview)
 	}
 	if err != nil {
 		respondIdentityError(c, err)
@@ -97,7 +105,12 @@ func (h *handlers) getIdentitySource(c *gin.Context) {
 }
 
 func respondIdentityError(c *gin.Context, err error) {
+	if c.IsAborted() {
+		return
+	}
 	switch {
+	case errors.Is(err, errIntakeWorkspaceRequired):
+		respond.Error(c, 409, "session_changed", "Refresh the current Staff workspace and retry.")
 	case errors.Is(err, authz.ErrScopedCredentialRevoked):
 		respond.Error(c, 401, "unauthenticated", "Invalid credentials.")
 	case errors.Is(err, authz.ErrScopedCommandDenied):

@@ -314,8 +314,8 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	workforce.PermLeaveAllocate:        {authz.RoleTenantAdmin},
 	workforce.PermLeaveCorrect:         {authz.RoleTenantAdmin},
 	workforce.PermLeaveRequest:         {authz.RoleTenantAdmin},
-	workforce.PermIdentityChecksManage: {authz.RoleTenantAdmin},
-	workforce.PermIdentityChecksReview: {authz.RoleTenantAdmin},
+	workforce.PermIdentityChecksManage: {authz.RoleTenantAdmin, authz.RoleGovernanceDelegate},
+	workforce.PermIdentityChecksReview: {authz.RoleTenantAdmin, authz.RoleGovernanceDelegate},
 	// Posting review requires separately approved scoped assignments, never a legacy staff role.
 	workforce.PermPostingProposalRead:      {authz.RoleTenantAdmin},
 	workforce.PermPostingSubmit:            {authz.RoleTenantAdmin},

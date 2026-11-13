@@ -12051,11 +12051,15 @@
         },
         {
           "permission": "workforce.identity_checks.manage",
-          "roles": []
+          "roles": [
+            "governance_delegate"
+          ]
         },
         {
           "permission": "workforce.identity_checks.review",
-          "roles": []
+          "roles": [
+            "governance_delegate"
+          ]
         },
         {
           "permission": "workforce.login_links.manage",
@@ -13337,6 +13341,11 @@
           "creates_tables": [
             "workforce_login_link_authorities"
           ]
+        },
+        {
+          "id": "0104_workforce_person_review_authority",
+          "sql_sha256": "9387435458ae4b2a44ca130e12e22474b5d3760fa97af9e29e546cb21817746d",
+          "creates_tables": []
         }
       ]
     },

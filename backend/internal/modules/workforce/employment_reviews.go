@@ -140,7 +140,7 @@ func (h *handlers) employmentReviewPreparation(c *gin.Context, p authn.Principal
 }
 func employmentReviewAudit(tx *gorm.DB, p authn.Principal, row EmploymentReview, action string, authority *intakeAuthority) error {
 	if grant, ok := authority.Grants[PermEmploymentReview]; ok {
-		return personReviewAudit(tx, p, row.HospitalID, row.ID, action, row.Version, reviewedLeaveActor{ID: authority.Actor.Link, StaffID: authority.Actor.Staff, Version: authority.Actor.LinkVersion}, grant)
+		return personReviewStaffAudit(tx, p, row.HospitalID, row.ID, action, row.Version, reviewedLeaveActor{ID: authority.Actor.Link, StaffID: authority.Actor.Staff, Version: authority.Actor.LinkVersion}, grant)
 	}
 	prepare, documents := authority.Grants[PermEnrollmentManage], authority.Grants[PermDocumentManage]
 	return tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,?,?,jsonb_build_object('version',?::bigint,'staff_id',?::uuid,'period_id',?::uuid,'person_review_id',?::uuid,'actor_link_id',?::uuid,'actor_link_version',?::bigint,'prepare_assignment_id',?::text,'prepare_assignment_version',?::bigint,'documents_assignment_id',?::text,'documents_assignment_version',?::bigint,'scope_epoch',?::bigint,'membership_epoch',?::bigint))`, p.TenantID, row.HospitalID, p.Subject, action, row.ID, row.Version, row.StaffID, row.PeriodID, row.PersonReviewID, authority.Actor.Link, authority.Actor.LinkVersion, prepare.AssignmentID, prepare.Version, documents.AssignmentID, documents.Version, prepare.ScopeEpoch, prepare.MembershipEpoch).Error

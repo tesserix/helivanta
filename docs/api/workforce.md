@@ -352,6 +352,14 @@ source/evidence selection or protected bytes and is not deployed by this note.
 
 ## Pre-employment current-person review candidate
 
+PR #1669 adds a candidate owner/delegate path for selected source reads and person
+findings, alongside ordinary reviewed Staff authority. Separate hospital-only
+preparer/reviewer templates retain real IAM provenance through review history
+and protected-file reauthorization; they grant no employment or operating duty.
+See [Staff governance](staff-governance.md#candidate-nonclinical-person-review-consumers)
+for 0104's migration/rollback and remaining discovery/acceptance gates. The
+reviewed-actor discovery described below is unchanged until that gate is finished.
+
 The current source adds a private human person-finding review for inactive
 joiners and workers requesting no login. This does not activate employment,
 create an operational account link, enroll a tenant member, issue an ID card or
@@ -369,15 +377,15 @@ input: `contracts/workforce-person-reviews.json`; generator:
 are exported from `@helivanta/api` in `person-reviews.ts`; all requests go through
 Global API and include the original expected tenant/subject, with no-store caching.
 
-| Registered owner route under `/v1/workforce/hospitals/:hospital/staff/:id/person-reviews` | Scope and behavior                                                                                                                                                                             |
-| ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PUT `/:review`                                                                            | Current identity-check manager plus own reviewed active actor link; complete immutable pending submission, 8 KiB limit.                                                                        |
-| GET `/:review`                                                                            | Current identity manager/reviewer plus reviewed actor link; audited original receipt **and separate current effectiveness**.                                                                   |
-| GET `/:review/history`                                                                    | Same read authority; audited cursor pagination, default 50/max 200. Frozen evidence is bounded to ten files per receipt.                                                                       |
-| POST `/:review/decision`                                                                  | Current identity reviewer and independent actor; approve/reject with exact expected version and UUIDv7 command.                                                                                |
-| POST `/:review/withdrawal`                                                                | Current identity manager who submitted it; reasoned pending withdrawal, preserving history.                                                                                                    |
-| POST `/:review/revocation`                                                                | Current identity reviewer; reasoned revocation of an approved finding, including after a source correction.                                                                                    |
-| GET `/:review/evidence/:file/content`                                                     | Current identity manager/reviewer plus own reviewed active actor link; one frozen identity image, capped at 10 MiB; original authority and review/source/file lineage rechecked after storage. |
+| Registered owner route under `/v1/workforce/hospitals/:hospital/staff/:id/person-reviews` | Scope and behavior                                                                                                                                                                           |
+| ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PUT `/:review`                                                                            | Reviewed Staff identity manager or current owner/exact person-preparer source; immutable pending submission, 8 KiB limit.                                                                    |
+| GET `/:review`                                                                            | Reviewed Staff identity manager/reviewer or current owner/exact person source; audited original receipt **and separate current effectiveness**.                                              |
+| GET `/:review/history`                                                                    | Same read authority; audited cursor pagination, default 50/max 200. Frozen evidence is bounded to ten files per receipt.                                                                     |
+| POST `/:review/decision`                                                                  | Current identity reviewer and independent actor; approve/reject with exact expected version and UUIDv7 command.                                                                              |
+| POST `/:review/withdrawal`                                                                | Current identity manager who submitted it; reasoned pending withdrawal, preserving history.                                                                                                  |
+| POST `/:review/revocation`                                                                | Current identity reviewer; reasoned revocation of an approved finding, including after a source correction.                                                                                  |
+| GET `/:review/evidence/:file/content`                                                     | Reviewed Staff identity manager/reviewer or current owner/exact person source; one frozen identity image, capped at 10 MiB; exact authority and source/file lineage rechecked after storage. |
 
 `GET /v1/workforce/person-review-scopes` now discovers hospitals from the
 caller's own reviewed active actor links and held current identity assignments.

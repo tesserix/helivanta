@@ -26,7 +26,7 @@ type GovernanceTemplateDefinition struct {
 type GovernanceGrantInput struct {
 	Subject                 string     `json:"subject" binding:"required,min=1,max=200"`
 	ExpectedMembershipEpoch int64      `json:"expected_membership_epoch" binding:"required,min=1,max=9007199254740991"`
-	TemplateKey             string     `json:"template_key" binding:"required,oneof=workforce.account_link_reviewer.v1 iam.governance_auditor.v1"`
+	TemplateKey             string     `json:"template_key" binding:"required,oneof=workforce.account_link_reviewer.v1 workforce.person_preparer.v1 workforce.person_reviewer.v1 iam.governance_auditor.v1"`
 	ScopeKind               string     `json:"scope_kind" binding:"required,oneof=tenant hospital pharmacy supplier"`
 	ScopeID                 *uuid.UUID `json:"scope_id,omitempty"`
 	Reason                  string     `json:"reason" binding:"required,min=1,max=500"`
@@ -85,5 +85,7 @@ type GovernanceNoticeAcknowledgementInput struct {
 var governanceNoticeAcknowledgementInputFields = []string{"expected_version"}
 var governanceTemplates = []GovernanceTemplateDefinition{
 	{Key: "workforce.account_link_reviewer.v1", Name: "Staff account-link reviewer", ScopeKinds: []string{"hospital", "pharmacy", "supplier"}, Permissions: []string{"workforce.login_links.review", "workforce.independent_login.review"}},
+	{Key: "workforce.person_preparer.v1", Name: "Nonclinical person-review preparer", ScopeKinds: []string{"hospital"}, Permissions: []string{"workforce.identity_checks.manage"}},
+	{Key: "workforce.person_reviewer.v1", Name: "Nonclinical person reviewer", ScopeKinds: []string{"hospital"}, Permissions: []string{"workforce.identity_checks.review"}},
 	{Key: "iam.governance_auditor.v1", Name: "Governance auditor", ScopeKinds: []string{"tenant"}, Permissions: []string{"iam.governance.read", "iam.governance.review"}},
 }

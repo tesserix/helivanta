@@ -10,7 +10,11 @@ import (
 
 type GovernanceCapability string
 
-const GovernanceAccountLinkReview GovernanceCapability = "workforce.account_link.review"
+const (
+	GovernanceAccountLinkReview GovernanceCapability = "workforce.account_link.review"
+	GovernancePersonPrepare     GovernanceCapability = "workforce.person.prepare"
+	GovernancePersonReview      GovernanceCapability = "workforce.person.review"
+)
 
 type GovernanceSourceKind string
 

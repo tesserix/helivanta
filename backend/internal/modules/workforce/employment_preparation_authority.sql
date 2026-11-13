@@ -37,6 +37,22 @@ RETURNS boolean LANGUAGE sql STABLE AS $$
  FROM(SELECT NULLIF(current_setting('app.workforce_governance_draft_authority',true),'')::jsonb AS p) proof
 $$;
 
+CREATE FUNCTION workforce_governance_draft_staff_read(t uuid,h uuid,s uuid,state text)
+RETURNS boolean LANGUAGE sql STABLE AS $$
+ SELECT workforce_governance_draft_source(t,h,s)
+ OR(state='active' AND s=(NULLIF(current_setting('app.workforce_governance_draft_authority',true),'')::jsonb->>'sponsor_id')::uuid
+ AND workforce_governance_draft_source(t,h,NULLIF(current_setting('app.workforce_identity_staff',true),'')::uuid))
+$$;
+
+DO $locking_read$
+DECLARE prior record;
+BEGIN
+ SELECT pg_get_expr(polqual,polrelid) AS reading,pg_get_expr(polwithcheck,polrelid) AS writing INTO STRICT prior
+ FROM pg_policy WHERE polrelid='public.workforce_staff'::regclass AND polname='partner_candidate_update_guard' AND NOT polpermissive AND polcmd='w';
+ IF prior.reading IS NULL OR prior.writing IS NULL THEN RAISE EXCEPTION 'governance preparation requires the retained explicit Staff update boundary';END IF;
+ EXECUTE format('ALTER POLICY partner_candidate_update_guard ON workforce_staff USING((%s) OR workforce_governance_draft_staff_read(tenant_id,hospital_id,id,employment_status)) WITH CHECK(%s)',prior.reading,prior.writing);
+END $locking_read$;
+
 CREATE FUNCTION workforce_governance_draft_write(t uuid,h uuid,s uuid,period uuid,revision uuid,v bigint,sv bigint,epoch bigint,state text,actor text,digest text)
 RETURNS boolean LANGUAGE sql STABLE AS $$
  SELECT workforce_governance_draft_source(t,h,s) AND p->>'operation'='save'
@@ -82,9 +98,7 @@ BEGIN
   reading:='false';writing:='false';
   CASE item.table_name
    WHEN 'workforce_hospitals' THEN reading:=format('workforce_governance_draft_source(tenant_id,id,%s)',selected_staff);
-   WHEN 'workforce_staff' THEN reading:=format($read$workforce_governance_draft_source(tenant_id,hospital_id,id)
-    OR (employment_status='active' AND id=(NULLIF(current_setting('app.workforce_governance_draft_authority',true),'')::jsonb->>'sponsor_id')::uuid
-    AND workforce_governance_draft_source(tenant_id,hospital_id,%s))$read$,selected_staff);
+   WHEN 'workforce_staff' THEN reading:='workforce_governance_draft_staff_read(tenant_id,hospital_id,id,employment_status)';
    WHEN 'workforce_employment_period_drafts','workforce_employment_period_history' THEN
     reading:=$read$workforce_governance_draft_source(tenant_id,hospital_id,staff_id)
      AND (((NULLIF(current_setting('app.workforce_governance_draft_authority',true),'')::jsonb)->>'operation'='list' AND status='draft')

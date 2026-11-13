@@ -98,6 +98,8 @@ var employmentPreparationSchema string
 func installEmploymentPreparation(tx *gorm.DB, proof map[string]any) error {
 	var installed bool
 	if err := tx.Raw(`SELECT to_regprocedure('public.workforce_governance_draft_source(uuid,uuid,uuid)') IS NOT NULL
+ AND to_regprocedure('public.workforce_governance_draft_staff_read(uuid,uuid,uuid,text)') IS NOT NULL
+ AND EXISTS(SELECT 1 FROM pg_policy WHERE polrelid=to_regclass('public.workforce_staff') AND polname='partner_candidate_update_guard' AND NOT polpermissive AND polcmd='w' AND polwithcheck IS NOT NULL AND pg_get_expr(polqual,polrelid) LIKE '%workforce_governance_draft_staff_read%')
  AND to_regprocedure('public.workforce_governance_draft_write(uuid,uuid,uuid,uuid,uuid,bigint,bigint,bigint,text,text,text)') IS NOT NULL
  AND pg_get_functiondef(to_regprocedure('public.workforce_employment_period_guard()')) LIKE '%workforce_governance_draft_write%'
  AND EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid=to_regclass('public.workforce_employment_period_history') AND tgname='workforce_governance_draft_provenance' AND tgfoid=to_regprocedure('public.workforce_governance_draft_provenance()') AND tgtype=5 AND NOT tgisinternal AND tgenabled IN('O','A'))
@@ -184,6 +186,14 @@ func (h *handlers) withEmploymentPreparation(c *gin.Context, p authn.Principal, 
 			if err := installEmploymentPreparation(tx, proof); err != nil {
 				return err
 			}
+			var installedProof bool
+			if err := tx.Raw("SELECT workforce_governance_draft_source(?::uuid,?::uuid,?::uuid)", p.TenantID, hospital, staff).Scan(&installedProof).Error; err != nil {
+				return err
+			}
+			if !installedProof {
+				return authz.ErrScopedAuthorizationUnavailable
+			}
+
 			if input != nil {
 				if err := requireEmploymentPreparationReceipt(tx, p, hospital, staff, period, *input, proof); err != nil {
 					return err

@@ -820,6 +820,18 @@ CREATE CONSTRAINT TRIGGER test_governance_activation_failure AFTER INSERT ON wor
 				require.Equal(t, "42501", denied.Code)
 			})
 		}
+		t.Run("preparation locks only the actual active same-hospital sponsor", func(t *testing.T) {
+			applicant := uuid.Must(uuid.NewV7())
+			applicantPath := base + "/staff/" + applicant.String()
+			call(http.MethodPut, applicantPath, "admin", map[string]any{"employee_code": "SYN-CONTRACTOR", "display_name": "Synthetic inactive contractor", "job_category": "other", "employment_status": "inactive"}, 200)
+			basis := call(http.MethodGet, applicantPath+"/employment-preparation-source", "owner2", nil, 200)
+			input := map[string]any{"command_id": uuid.Must(uuid.NewV7()), "expected_version": 0, "staff_version": basis["staff_version"], "employment_epoch": basis["employment_epoch"], "engagement_kind": "contractor", "duration": "ongoing", "starts_at": time.Now().UTC().Add(-time.Minute).Truncate(time.Microsecond), "contracting_party": "Synthetic staffing agency", "sponsor_id": staff[0], "reason": "Actual independently activated Staff sponsor", "evidence_reference": "SYN-CONTRACTOR-OFFER"}
+			call(http.MethodPut, applicantPath+"/employment-preparation-periods/"+uuid.Must(uuid.NewV7()).String(), "owner2", input, 200)
+			input["command_id"], input["sponsor_id"] = uuid.Must(uuid.NewV7()), staff[1]
+			call(http.MethodPut, applicantPath+"/employment-preparation-periods/"+uuid.Must(uuid.NewV7()).String(), "owner2", input, 404)
+			input["command_id"], input["sponsor_id"] = uuid.Must(uuid.NewV7()), applicant
+			call(http.MethodPut, applicantPath+"/employment-preparation-periods/"+uuid.Must(uuid.NewV7()).String(), "owner2", input, 400)
+		})
 		call(http.MethodPut, "/v1/iam/governance-grants/"+activationGrant.String()+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "admin", map[string]any{"expected_version": 2, "decision": "revoke", "reason": "Withdraw activation authority after the completed digital hire"}, 202)
 		request(t, http.MethodGet, sourcePath, nil, 403)
 		request(t, http.MethodPut, activationPath, intent, 403)

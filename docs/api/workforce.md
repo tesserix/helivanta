@@ -2175,4 +2175,19 @@ concurrently. Missing/disabled trigger, index, policy or RLS support returns 503
 before operation. There is no invented review ID, login or operating grant.
 Public payloads do not expose authority or input hashes. Local proof/replay,
 compile/build/lint evidence does not establish real PostgreSQL, UI, production or
-rollout acceptance. SDK/UI preparation and document authoring remain open.
+rollout acceptance. The strict preparation SDK uses these five canonical APIs,
+original tenant/account assertions, no-store/cancellation and validated owned
+responses; malformed/private fields, ambiguous histories, mixed pharmacy/intake
+scopes and unsupported real command IDs are rejected. Source errors never cause
+legacy fallback. Thirty-three local client tests pass. Preparation UI and
+associated document authoring remain open.
+
+The candidate's selected Staff/active-sponsor locking reads also extend the
+retained restrictive Staff update policy's USING expression, with its prior
+explicit WITH CHECK preserved. The separate selected-operation purpose still
+forbids all Staff writes. This is needed by canonical `FOR SHARE` basis/sponsor
+reads; a permissive SELECT extension alone is insufficient. Runtime checks require
+that exact read support and confirm the installed private proof before commands.
+The first remote terms candidate failed its valid save with 404; the corrected
+locking-read path and real post-activation same-hospital sponsor case await remote
+acceptance.

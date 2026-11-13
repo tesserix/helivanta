@@ -593,3 +593,35 @@ indexes and immutable source audits; old paths see an empty new-purpose GUC and
 retain their previous checks. Do not delete provenance or reverse the retained
 history. Any later DDL removal needs a captured prior guard/policy definition and
 specific reviewed migration/rollback approval.
+
+
+#### Terms locking-read correction and strict SDK
+
+The first remote terms candidate reached the first real save and returned 404.
+Canonical Staff/sponsor basis reads use `FOR SHARE`; the retained restrictive
+Staff update guard predates this purpose and can hide those rows despite a
+permissive SELECT extension. The correction extends only that guard's USING
+predicate with the exact selected Staff or actual active same-hospital sponsor.
+It preserves the prior explicit WITH CHECK, and the separate purpose fence still
+has false Staff write checks. A dedicated helper is shared by that read extension
+and the purpose visibility. Preflight requires the locking-read extension, and
+the handler verifies its installed SQL proof before any canonical operation. The
+existing genuine-read/master-write-denial probes remain required. The real
+activation fixture additionally supplies its actually activated Staff as an
+active contractor sponsor, with sibling-hospital and self-sponsor negatives.
+This correction needs current-head PostgreSQL acceptance; no write check or
+source assertion was relaxed to make the first failure pass.
+
+The new strict SDK exposes source, bounded draft list, exact draft read, history
+and save through the Global API. It reuses canonical source/draft/input schemas,
+requires hospital-only scope with original account/tenant and real v7 command/
+period IDs, rejects a command with no representable next revision before I/O,
+and validates returned owner/Staff/receipt basis, actor/version/command and page
+bounds/duplicates. History distinguishes period ID, revision ID and version.
+Private response fields and mixed pharmacy/intake authority inputs fail closed.
+Requests are no-store and cancellable before/after I/O; 403/503 failures have no
+legacy or linked-Staff fallback. Thirty-three local SDK tests pass after an
+initial missing-module red. Type checking caught a test table flattening its row
+array; corrected cases were rerun as actual duplicate/foreign arrays. Full
+workspace checks and remote current-head acceptance must still pass. This does
+not complete preparation UI or associated document authoring/binding.

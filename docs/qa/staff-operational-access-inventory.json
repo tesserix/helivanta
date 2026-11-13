@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "registry_sha256": "417965573299f7d6e5d4ece00204b616f635a6db7adb542d8cc46165a6dd401b",
+  "registry_sha256": "ec9d34cb6a4b94905bd92c018ea9e54d1d8c46b33860a7647a5e21603ef238eb",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
     "total": 1101,
@@ -13563,7 +13563,7 @@
           },
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
-            "sha256": "7c63d5887528be47244e06be9ffbdc0d476678effb1e74da177248688dd6d17a",
+            "sha256": "eb2f34e006e3f0b362c2c15829822c39baaa1e90dec7414ab05b7a994952c96a",
             "symbol": "employment authority discovery needs no Staff links"
           }
         ],
@@ -13837,7 +13837,7 @@
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "current employment governance opens only the employer inbox",
-            "sha256": "7c63d5887528be47244e06be9ffbdc0d476678effb1e74da177248688dd6d17a"
+            "sha256": "eb2f34e006e3f0b362c2c15829822c39baaa1e90dec7414ab05b7a994952c96a"
           }
         ],
         "remaining": [
@@ -16015,7 +16015,7 @@
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "selected finding preparation needs no Staff actor",
-            "sha256": "7c63d5887528be47244e06be9ffbdc0d476678effb1e74da177248688dd6d17a"
+            "sha256": "eb2f34e006e3f0b362c2c15829822c39baaa1e90dec7414ab05b7a994952c96a"
           }
         ],
         "remaining": [
@@ -16132,7 +16132,7 @@
         "registration_sha256": "fbd7bd638721a57025cfa782b12f5471e68cee39110dc23e03d890fce334bdaf",
         "authority_kind": "governance_recovery",
         "resource_scope": "Verified original tenant/account and exact hospital/Staff/optional real period/normalized command under current IAM employment preparation source.",
-        "rationale": "Separate hospital governance terms consumers acquire native current owner/exact preparation source without a fabricated Staff/link/review. Closed read/list/history/save purposes bind actual resources and body; bounded sealed list cursors include caller/tenant/filter and both Staff/hospital plus selected history period. Canonical save logic retains validation, revision, optimistic conflict, owner-kind/supervision/source/sponsor and retry checks; the typed save closure receives normalized real input. WF0110 extends only the exact retained period guard predicate and single permissive policy while restrictive purpose/delete fences deny all other Workforce mutations. Canonical history snapshot atomically emits immutable private source provenance; current source identity and payload must match on receipt replay, without relabelling legacy receipts. WF0111 builds an exact revision audit lookup index concurrently. Preflight requires actual enabled guard/snapshot/history/provenance triggers, required expressions, ready/valid indexes, forced RLS and no TRUNCATE. Private authority/input hashes are not returned. Local proof/replay and compile/build checks pass; real database, UI and deployment acceptance are pending.",
+        "rationale": "Separate hospital governance terms consumers acquire native current owner/exact preparation source without a fabricated Staff/link/review. Closed read/list/history/save purposes bind actual resources and body; bounded sealed list cursors include caller/tenant/filter and both Staff/hospital plus selected history period. Canonical save logic retains validation, revision, optimistic conflict, owner-kind/supervision/source/sponsor and retry checks; the typed save closure receives normalized real input. WF0110 extends only the exact retained period guard predicate and single permissive policy while restrictive purpose/delete fences deny all other Workforce mutations. Canonical history snapshot atomically emits immutable private source provenance; current source identity and payload must match on receipt replay, without relabelling legacy receipts. WF0111 builds an exact revision audit lookup index concurrently. Preflight requires actual enabled guard/snapshot/history/provenance triggers, required expressions, ready/valid indexes, forced RLS and no TRUNCATE. Private authority/input hashes are not returned. Local proof/replay and compile/build checks pass; real database, UI and deployment acceptance are pending. The restrictive Staff locking-read guard now admits only the exact selected Staff/actual active sponsor while preserving its prior explicit write checks; the separate private Staff write fence remains false. Installed proof validity is checked before operations. Strict SDK source/read/list/history/save functions validate original scope, real IDs, canonical responses/receipt basis, bounded pages/history uniqueness and cancellation; 33 local tests pass with no authority fallback. Remote acceptance for the corrected locking path is pending.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/employment_preparation_routes.go",
@@ -16142,12 +16142,12 @@
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.go",
             "symbol": "withEmploymentPreparation",
-            "sha256": "2ae66dfeff98e07b3a337cec9cdc0647f2a8de3c12096010c0452fa2b78dbdfc"
+            "sha256": "053af6b7628d125eef2598e1da481600990f44dfaf461ff80768edb227a30460"
           },
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.sql",
             "symbol": "workforce_governance_draft_write",
-            "sha256": "4fcacb27f7eafee504679f9454d8416f67099c7e6c53c071454a8b0d6ff4b9c3"
+            "sha256": "aee123c2bccce2c7d7ad5e7b3ad25e7cb93a09da142089d7f175697979cebaf4"
           },
           {
             "path": "backend/internal/modules/workforce/employment_periods.go",
@@ -16162,7 +16162,7 @@
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "exact governance authors terms without a Staff actor",
-            "sha256": "7c63d5887528be47244e06be9ffbdc0d476678effb1e74da177248688dd6d17a"
+            "sha256": "eb2f34e006e3f0b362c2c15829822c39baaa1e90dec7414ab05b7a994952c96a"
           },
           {
             "path": "backend/internal/modules/workforce/module.go",
@@ -16172,7 +16172,7 @@
         ],
         "remaining": [
           "Run current-head real PostgreSQL/FGA create/edit/replay/conflicting input/basis/workspace/source/cross-resource/sponsor/terminal state/policy/index/trigger/audit failure and atomic rollback cases; retain query-plan and migration/rollback evidence.",
-          "Complete preparation SDK/UI and document authoring/binding, assignment/operating reviews, recipient setup/reviewed links/postings and both pharmacy ownership access scenarios. WF0110/WF0111 require specific live migration/rollback approval after validation; this classification is source review only."
+          "Complete preparation target selection/UI and document authoring/binding, assignment/operating reviews, recipient setup/reviewed links/postings and both pharmacy ownership access scenarios. WF0110/WF0111 require specific live migration/rollback approval after validation; this classification is source review only."
         ]
       }
     },
@@ -16195,7 +16195,7 @@
         "registration_sha256": "d4d99e7a9beb79d43d7ed838a9434b75a279f850a86b80c22839a6b9c1112321",
         "authority_kind": "governance_recovery",
         "resource_scope": "Verified original tenant/account and exact hospital/Staff/optional real period/normalized command under current IAM employment preparation source.",
-        "rationale": "Separate hospital governance terms consumers acquire native current owner/exact preparation source without a fabricated Staff/link/review. Closed read/list/history/save purposes bind actual resources and body; bounded sealed list cursors include caller/tenant/filter and both Staff/hospital plus selected history period. Canonical save logic retains validation, revision, optimistic conflict, owner-kind/supervision/source/sponsor and retry checks; the typed save closure receives normalized real input. WF0110 extends only the exact retained period guard predicate and single permissive policy while restrictive purpose/delete fences deny all other Workforce mutations. Canonical history snapshot atomically emits immutable private source provenance; current source identity and payload must match on receipt replay, without relabelling legacy receipts. WF0111 builds an exact revision audit lookup index concurrently. Preflight requires actual enabled guard/snapshot/history/provenance triggers, required expressions, ready/valid indexes, forced RLS and no TRUNCATE. Private authority/input hashes are not returned. Local proof/replay and compile/build checks pass; real database, UI and deployment acceptance are pending.",
+        "rationale": "Separate hospital governance terms consumers acquire native current owner/exact preparation source without a fabricated Staff/link/review. Closed read/list/history/save purposes bind actual resources and body; bounded sealed list cursors include caller/tenant/filter and both Staff/hospital plus selected history period. Canonical save logic retains validation, revision, optimistic conflict, owner-kind/supervision/source/sponsor and retry checks; the typed save closure receives normalized real input. WF0110 extends only the exact retained period guard predicate and single permissive policy while restrictive purpose/delete fences deny all other Workforce mutations. Canonical history snapshot atomically emits immutable private source provenance; current source identity and payload must match on receipt replay, without relabelling legacy receipts. WF0111 builds an exact revision audit lookup index concurrently. Preflight requires actual enabled guard/snapshot/history/provenance triggers, required expressions, ready/valid indexes, forced RLS and no TRUNCATE. Private authority/input hashes are not returned. Local proof/replay and compile/build checks pass; real database, UI and deployment acceptance are pending. The restrictive Staff locking-read guard now admits only the exact selected Staff/actual active sponsor while preserving its prior explicit write checks; the separate private Staff write fence remains false. Installed proof validity is checked before operations. Strict SDK source/read/list/history/save functions validate original scope, real IDs, canonical responses/receipt basis, bounded pages/history uniqueness and cancellation; 33 local tests pass with no authority fallback. Remote acceptance for the corrected locking path is pending.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/employment_preparation_routes.go",
@@ -16205,12 +16205,12 @@
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.go",
             "symbol": "withEmploymentPreparation",
-            "sha256": "2ae66dfeff98e07b3a337cec9cdc0647f2a8de3c12096010c0452fa2b78dbdfc"
+            "sha256": "053af6b7628d125eef2598e1da481600990f44dfaf461ff80768edb227a30460"
           },
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.sql",
             "symbol": "workforce_governance_draft_write",
-            "sha256": "4fcacb27f7eafee504679f9454d8416f67099c7e6c53c071454a8b0d6ff4b9c3"
+            "sha256": "aee123c2bccce2c7d7ad5e7b3ad25e7cb93a09da142089d7f175697979cebaf4"
           },
           {
             "path": "backend/internal/modules/workforce/employment_periods.go",
@@ -16225,7 +16225,7 @@
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "exact governance authors terms without a Staff actor",
-            "sha256": "7c63d5887528be47244e06be9ffbdc0d476678effb1e74da177248688dd6d17a"
+            "sha256": "eb2f34e006e3f0b362c2c15829822c39baaa1e90dec7414ab05b7a994952c96a"
           },
           {
             "path": "backend/internal/modules/workforce/module.go",
@@ -16235,7 +16235,7 @@
         ],
         "remaining": [
           "Run current-head real PostgreSQL/FGA create/edit/replay/conflicting input/basis/workspace/source/cross-resource/sponsor/terminal state/policy/index/trigger/audit failure and atomic rollback cases; retain query-plan and migration/rollback evidence.",
-          "Complete preparation SDK/UI and document authoring/binding, assignment/operating reviews, recipient setup/reviewed links/postings and both pharmacy ownership access scenarios. WF0110/WF0111 require specific live migration/rollback approval after validation; this classification is source review only."
+          "Complete preparation target selection/UI and document authoring/binding, assignment/operating reviews, recipient setup/reviewed links/postings and both pharmacy ownership access scenarios. WF0110/WF0111 require specific live migration/rollback approval after validation; this classification is source review only."
         ]
       }
     },
@@ -16258,7 +16258,7 @@
         "registration_sha256": "2bd8c3391071f920ba64d884febc434dbfd30644dba1aca401513856ad46dade",
         "authority_kind": "governance_recovery",
         "resource_scope": "Verified original tenant/account and exact hospital/Staff/optional real period/normalized command under current IAM employment preparation source.",
-        "rationale": "Separate hospital governance terms consumers acquire native current owner/exact preparation source without a fabricated Staff/link/review. Closed read/list/history/save purposes bind actual resources and body; bounded sealed list cursors include caller/tenant/filter and both Staff/hospital plus selected history period. Canonical save logic retains validation, revision, optimistic conflict, owner-kind/supervision/source/sponsor and retry checks; the typed save closure receives normalized real input. WF0110 extends only the exact retained period guard predicate and single permissive policy while restrictive purpose/delete fences deny all other Workforce mutations. Canonical history snapshot atomically emits immutable private source provenance; current source identity and payload must match on receipt replay, without relabelling legacy receipts. WF0111 builds an exact revision audit lookup index concurrently. Preflight requires actual enabled guard/snapshot/history/provenance triggers, required expressions, ready/valid indexes, forced RLS and no TRUNCATE. Private authority/input hashes are not returned. Local proof/replay and compile/build checks pass; real database, UI and deployment acceptance are pending.",
+        "rationale": "Separate hospital governance terms consumers acquire native current owner/exact preparation source without a fabricated Staff/link/review. Closed read/list/history/save purposes bind actual resources and body; bounded sealed list cursors include caller/tenant/filter and both Staff/hospital plus selected history period. Canonical save logic retains validation, revision, optimistic conflict, owner-kind/supervision/source/sponsor and retry checks; the typed save closure receives normalized real input. WF0110 extends only the exact retained period guard predicate and single permissive policy while restrictive purpose/delete fences deny all other Workforce mutations. Canonical history snapshot atomically emits immutable private source provenance; current source identity and payload must match on receipt replay, without relabelling legacy receipts. WF0111 builds an exact revision audit lookup index concurrently. Preflight requires actual enabled guard/snapshot/history/provenance triggers, required expressions, ready/valid indexes, forced RLS and no TRUNCATE. Private authority/input hashes are not returned. Local proof/replay and compile/build checks pass; real database, UI and deployment acceptance are pending. The restrictive Staff locking-read guard now admits only the exact selected Staff/actual active sponsor while preserving its prior explicit write checks; the separate private Staff write fence remains false. Installed proof validity is checked before operations. Strict SDK source/read/list/history/save functions validate original scope, real IDs, canonical responses/receipt basis, bounded pages/history uniqueness and cancellation; 33 local tests pass with no authority fallback. Remote acceptance for the corrected locking path is pending.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/employment_preparation_routes.go",
@@ -16268,12 +16268,12 @@
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.go",
             "symbol": "withEmploymentPreparation",
-            "sha256": "2ae66dfeff98e07b3a337cec9cdc0647f2a8de3c12096010c0452fa2b78dbdfc"
+            "sha256": "053af6b7628d125eef2598e1da481600990f44dfaf461ff80768edb227a30460"
           },
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.sql",
             "symbol": "workforce_governance_draft_write",
-            "sha256": "4fcacb27f7eafee504679f9454d8416f67099c7e6c53c071454a8b0d6ff4b9c3"
+            "sha256": "aee123c2bccce2c7d7ad5e7b3ad25e7cb93a09da142089d7f175697979cebaf4"
           },
           {
             "path": "backend/internal/modules/workforce/employment_periods.go",
@@ -16288,7 +16288,7 @@
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "exact governance authors terms without a Staff actor",
-            "sha256": "7c63d5887528be47244e06be9ffbdc0d476678effb1e74da177248688dd6d17a"
+            "sha256": "eb2f34e006e3f0b362c2c15829822c39baaa1e90dec7414ab05b7a994952c96a"
           },
           {
             "path": "backend/internal/modules/workforce/module.go",
@@ -16298,7 +16298,7 @@
         ],
         "remaining": [
           "Run current-head real PostgreSQL/FGA create/edit/replay/conflicting input/basis/workspace/source/cross-resource/sponsor/terminal state/policy/index/trigger/audit failure and atomic rollback cases; retain query-plan and migration/rollback evidence.",
-          "Complete preparation SDK/UI and document authoring/binding, assignment/operating reviews, recipient setup/reviewed links/postings and both pharmacy ownership access scenarios. WF0110/WF0111 require specific live migration/rollback approval after validation; this classification is source review only."
+          "Complete preparation target selection/UI and document authoring/binding, assignment/operating reviews, recipient setup/reviewed links/postings and both pharmacy ownership access scenarios. WF0110/WF0111 require specific live migration/rollback approval after validation; this classification is source review only."
         ]
       }
     },
@@ -16321,7 +16321,7 @@
         "registration_sha256": "925af0a9272ff2d4c743c71921d8dff6d78771c34a5034966ce58b4de2174bf1",
         "authority_kind": "governance_recovery",
         "resource_scope": "Verified original tenant/account and exact hospital/Staff/optional real period/normalized command under current IAM employment preparation source.",
-        "rationale": "Separate hospital governance terms consumers acquire native current owner/exact preparation source without a fabricated Staff/link/review. Closed read/list/history/save purposes bind actual resources and body; bounded sealed list cursors include caller/tenant/filter and both Staff/hospital plus selected history period. Canonical save logic retains validation, revision, optimistic conflict, owner-kind/supervision/source/sponsor and retry checks; the typed save closure receives normalized real input. WF0110 extends only the exact retained period guard predicate and single permissive policy while restrictive purpose/delete fences deny all other Workforce mutations. Canonical history snapshot atomically emits immutable private source provenance; current source identity and payload must match on receipt replay, without relabelling legacy receipts. WF0111 builds an exact revision audit lookup index concurrently. Preflight requires actual enabled guard/snapshot/history/provenance triggers, required expressions, ready/valid indexes, forced RLS and no TRUNCATE. Private authority/input hashes are not returned. Local proof/replay and compile/build checks pass; real database, UI and deployment acceptance are pending.",
+        "rationale": "Separate hospital governance terms consumers acquire native current owner/exact preparation source without a fabricated Staff/link/review. Closed read/list/history/save purposes bind actual resources and body; bounded sealed list cursors include caller/tenant/filter and both Staff/hospital plus selected history period. Canonical save logic retains validation, revision, optimistic conflict, owner-kind/supervision/source/sponsor and retry checks; the typed save closure receives normalized real input. WF0110 extends only the exact retained period guard predicate and single permissive policy while restrictive purpose/delete fences deny all other Workforce mutations. Canonical history snapshot atomically emits immutable private source provenance; current source identity and payload must match on receipt replay, without relabelling legacy receipts. WF0111 builds an exact revision audit lookup index concurrently. Preflight requires actual enabled guard/snapshot/history/provenance triggers, required expressions, ready/valid indexes, forced RLS and no TRUNCATE. Private authority/input hashes are not returned. Local proof/replay and compile/build checks pass; real database, UI and deployment acceptance are pending. The restrictive Staff locking-read guard now admits only the exact selected Staff/actual active sponsor while preserving its prior explicit write checks; the separate private Staff write fence remains false. Installed proof validity is checked before operations. Strict SDK source/read/list/history/save functions validate original scope, real IDs, canonical responses/receipt basis, bounded pages/history uniqueness and cancellation; 33 local tests pass with no authority fallback. Remote acceptance for the corrected locking path is pending.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/employment_preparation_routes.go",
@@ -16331,12 +16331,12 @@
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.go",
             "symbol": "withEmploymentPreparation",
-            "sha256": "2ae66dfeff98e07b3a337cec9cdc0647f2a8de3c12096010c0452fa2b78dbdfc"
+            "sha256": "053af6b7628d125eef2598e1da481600990f44dfaf461ff80768edb227a30460"
           },
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.sql",
             "symbol": "workforce_governance_draft_write",
-            "sha256": "4fcacb27f7eafee504679f9454d8416f67099c7e6c53c071454a8b0d6ff4b9c3"
+            "sha256": "aee123c2bccce2c7d7ad5e7b3ad25e7cb93a09da142089d7f175697979cebaf4"
           },
           {
             "path": "backend/internal/modules/workforce/employment_periods.go",
@@ -16351,7 +16351,7 @@
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "exact governance authors terms without a Staff actor",
-            "sha256": "7c63d5887528be47244e06be9ffbdc0d476678effb1e74da177248688dd6d17a"
+            "sha256": "eb2f34e006e3f0b362c2c15829822c39baaa1e90dec7414ab05b7a994952c96a"
           },
           {
             "path": "backend/internal/modules/workforce/module.go",
@@ -16361,7 +16361,7 @@
         ],
         "remaining": [
           "Run current-head real PostgreSQL/FGA create/edit/replay/conflicting input/basis/workspace/source/cross-resource/sponsor/terminal state/policy/index/trigger/audit failure and atomic rollback cases; retain query-plan and migration/rollback evidence.",
-          "Complete preparation SDK/UI and document authoring/binding, assignment/operating reviews, recipient setup/reviewed links/postings and both pharmacy ownership access scenarios. WF0110/WF0111 require specific live migration/rollback approval after validation; this classification is source review only."
+          "Complete preparation target selection/UI and document authoring/binding, assignment/operating reviews, recipient setup/reviewed links/postings and both pharmacy ownership access scenarios. WF0110/WF0111 require specific live migration/rollback approval after validation; this classification is source review only."
         ]
       }
     },
@@ -20697,7 +20697,7 @@
         "registration_sha256": "4164075bd55d85b66d2a48a126121ab71d6ba56e1ae9d56c030bcbf752a2b7f4",
         "authority_kind": "governance_recovery",
         "resource_scope": "Verified original tenant/account and exact hospital/Staff/optional real period/normalized command under current IAM employment preparation source.",
-        "rationale": "Separate hospital governance terms consumers acquire native current owner/exact preparation source without a fabricated Staff/link/review. Closed read/list/history/save purposes bind actual resources and body; bounded sealed list cursors include caller/tenant/filter and both Staff/hospital plus selected history period. Canonical save logic retains validation, revision, optimistic conflict, owner-kind/supervision/source/sponsor and retry checks; the typed save closure receives normalized real input. WF0110 extends only the exact retained period guard predicate and single permissive policy while restrictive purpose/delete fences deny all other Workforce mutations. Canonical history snapshot atomically emits immutable private source provenance; current source identity and payload must match on receipt replay, without relabelling legacy receipts. WF0111 builds an exact revision audit lookup index concurrently. Preflight requires actual enabled guard/snapshot/history/provenance triggers, required expressions, ready/valid indexes, forced RLS and no TRUNCATE. Private authority/input hashes are not returned. Local proof/replay and compile/build checks pass; real database, UI and deployment acceptance are pending.",
+        "rationale": "Separate hospital governance terms consumers acquire native current owner/exact preparation source without a fabricated Staff/link/review. Closed read/list/history/save purposes bind actual resources and body; bounded sealed list cursors include caller/tenant/filter and both Staff/hospital plus selected history period. Canonical save logic retains validation, revision, optimistic conflict, owner-kind/supervision/source/sponsor and retry checks; the typed save closure receives normalized real input. WF0110 extends only the exact retained period guard predicate and single permissive policy while restrictive purpose/delete fences deny all other Workforce mutations. Canonical history snapshot atomically emits immutable private source provenance; current source identity and payload must match on receipt replay, without relabelling legacy receipts. WF0111 builds an exact revision audit lookup index concurrently. Preflight requires actual enabled guard/snapshot/history/provenance triggers, required expressions, ready/valid indexes, forced RLS and no TRUNCATE. Private authority/input hashes are not returned. Local proof/replay and compile/build checks pass; real database, UI and deployment acceptance are pending. The restrictive Staff locking-read guard now admits only the exact selected Staff/actual active sponsor while preserving its prior explicit write checks; the separate private Staff write fence remains false. Installed proof validity is checked before operations. Strict SDK source/read/list/history/save functions validate original scope, real IDs, canonical responses/receipt basis, bounded pages/history uniqueness and cancellation; 33 local tests pass with no authority fallback. Remote acceptance for the corrected locking path is pending.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/employment_preparation_routes.go",
@@ -20707,12 +20707,12 @@
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.go",
             "symbol": "withEmploymentPreparation",
-            "sha256": "2ae66dfeff98e07b3a337cec9cdc0647f2a8de3c12096010c0452fa2b78dbdfc"
+            "sha256": "053af6b7628d125eef2598e1da481600990f44dfaf461ff80768edb227a30460"
           },
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.sql",
             "symbol": "workforce_governance_draft_write",
-            "sha256": "4fcacb27f7eafee504679f9454d8416f67099c7e6c53c071454a8b0d6ff4b9c3"
+            "sha256": "aee123c2bccce2c7d7ad5e7b3ad25e7cb93a09da142089d7f175697979cebaf4"
           },
           {
             "path": "backend/internal/modules/workforce/employment_periods.go",
@@ -20727,7 +20727,7 @@
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "exact governance authors terms without a Staff actor",
-            "sha256": "7c63d5887528be47244e06be9ffbdc0d476678effb1e74da177248688dd6d17a"
+            "sha256": "eb2f34e006e3f0b362c2c15829822c39baaa1e90dec7414ab05b7a994952c96a"
           },
           {
             "path": "backend/internal/modules/workforce/module.go",
@@ -20737,7 +20737,7 @@
         ],
         "remaining": [
           "Run current-head real PostgreSQL/FGA create/edit/replay/conflicting input/basis/workspace/source/cross-resource/sponsor/terminal state/policy/index/trigger/audit failure and atomic rollback cases; retain query-plan and migration/rollback evidence.",
-          "Complete preparation SDK/UI and document authoring/binding, assignment/operating reviews, recipient setup/reviewed links/postings and both pharmacy ownership access scenarios. WF0110/WF0111 require specific live migration/rollback approval after validation; this classification is source review only."
+          "Complete preparation target selection/UI and document authoring/binding, assignment/operating reviews, recipient setup/reviewed links/postings and both pharmacy ownership access scenarios. WF0110/WF0111 require specific live migration/rollback approval after validation; this classification is source review only."
         ]
       }
     },

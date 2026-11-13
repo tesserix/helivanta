@@ -426,7 +426,11 @@ provenance, and revocation is rechecked before receipt reads. WF0111 supplies th
 concurrent revision receipt lookup index. Required trigger/function/event,
 index/policy/forced-RLS support is checked before reading or saving. This grants
 no document, login, posting, review-decision or operating authority. Local proof,
-replay, build and compile evidence is not remote acceptance. Preparation SDK/UI
-and document authoring/binding are unfinished. Both migrations require specific
+replay, build and compile evidence is not remote acceptance. Strict preparation SDK functions now preserve the original expected workspace,
+validate canonical scope/receipts/pages and cancellation, and never fall back to
+legacy authority. Thirty-three local client tests pass; preparation UI and
+document authoring/binding remain unfinished. The Staff/sponsor locking-read
+extension preserves prior write checks and the separate all-Staff-write denial;
+its first remote candidate still needs acceptance after a 404 on the valid save. Both migrations require specific
 live application and rollback approval after acceptance; keep historical proof
 when rolling back a binary.

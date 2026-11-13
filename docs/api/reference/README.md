@@ -1392,6 +1392,12 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/history` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/revisions/:version/evidence/:binding/content` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/revisions/:version/evidence/:binding/history` | `public` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/revisions/:version/evidence/:binding/withdraw` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/revisions/:version/evidence/:binding` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/revisions/:version/evidence/:binding` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/revisions/:version/evidence` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period` | `public` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods` | `public` | true | false |

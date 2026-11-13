@@ -733,7 +733,7 @@ supplier acceptance failed a posting approval/cutoff race with 503; its diagnost
 rerun and full Go coverage remain pending. This is no evidence of full live
 acceptance. No merge, migration or deployment occurred in this continuation.
 
-### Next slice: exact native employment evidence binding (design only)
+### Exact native employment evidence binding (candidate; remote acceptance pending)
 
 Workforce remains the sole owner of canonical terms revisions, document release,
 evidence bindings and immutable history. The consumer is the hospital governance
@@ -811,3 +811,23 @@ consumer while retaining canonical evidence/history and private provenance. Any
 additive live migration needs its concrete acceptance/rollback evidence and the
 specific approval required by the repository rules. This paragraph authorizes no
 live schema change and does not represent implemented behavior.
+
+The candidate implementation now registers that separate native binding family,
+reuses canonical attach/withdraw/read/list/history operations and protected content,
+and adds WF0114 purpose/provenance controls. Existing Staff/pharmacy scopes leave
+the canonical command-capture hook unset; no legacy grant is substituted. Current
+source and expected Staff basis are checked before each owner phase; the hospital
+supervision lock precedes Staff row locking. Replay requires original native
+command/source provenance; legacy or changed-source receipts cannot be adopted.
+The binary gate retains original authority through binding lookup and both storage
+phases and reuses canonical attached/generation/hash rechecks.
+
+Pure proof/source/command tests, backend build, vet, affected Go lint, architecture
+collection/migration checks and compile-only bootstrap/Global API checks have
+passed locally. The real native fixture now prepares/scans/binds through an exact
+employment preparer, tests replay/history/withdrawal/source replacement and missing
+support, and keeps independent review downstream. These PostgreSQL/storage tests
+have not yet run on this new candidate and are mandatory before release. No local
+application/database/container was started. SDK/UI binding, remote acceptance and
+full Staff/pharmacy completion remain open. WF0114 is an additive source candidate,
+not an applied or specifically approved live migration.

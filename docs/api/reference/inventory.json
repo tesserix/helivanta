@@ -11034,6 +11034,60 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/revisions/:version/evidence/:binding/content",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/revisions/:version/evidence/:binding/history",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/revisions/:version/evidence/:binding/withdraw",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/revisions/:version/evidence/:binding",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/revisions/:version/evidence/:binding",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/revisions/:version/evidence",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period",
           "permission": "public",
           "authentication_required": true,
@@ -13604,6 +13658,11 @@
         {
           "id": "0113_workforce_employment_document_preparation",
           "sql_sha256": "70a64f6e4f92fb5150e6d6afa0d5ecd11b60b8c0c924b4bf23c8d150971a1cfa",
+          "creates_tables": []
+        },
+        {
+          "id": "0114_workforce_employment_binding_preparation",
+          "sql_sha256": "b6fbfca320062ecaf0b9f8f95af47e499a1c047ed75ae882da5837f7b44f136b",
           "creates_tables": []
         }
       ]

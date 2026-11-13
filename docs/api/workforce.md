@@ -2225,3 +2225,25 @@ A selected source basis and private query key include tenant, account, hospital,
 Staff, Staff version and employment epoch. These controls do not bind a file to a
 terms revision, approve employment, activate Staff or assign access. Native evidence
 binding and full live acceptance remain required before release.
+
+### Native governance terms/evidence binding — source candidate
+
+Under the selected hospital/Staff `employment-preparation-periods` family,
+`/:period/revisions/:version/evidence` now registers sealed bounded GET list,
+`/:binding` GET/PUT, `/:binding/history` GET, `/:binding/withdraw` POST and
+`/:binding/content` GET. This is candidate source awaiting real owner/storage
+acceptance. It reuses canonical evidence input/output and freezes actual terms
+revision and scanner generations. Every route requires original expected tenant/
+account and positive `staff_version` / `employment_epoch` query preconditions;
+unknown/duplicate keys are rejected. Only list/history accept pagination keys.
+
+Current native owner/exact hospital employment-preparer authority is required;
+legacy Staff/intake permissions are not fallback authority. WF0114 admits only
+selected reads and exact binding/history/audit writes, adds private immutable
+source provenance and retains the canonical draft/Staff/release/withdrawal guards.
+Replay cannot adopt a legacy or changed-source receipt. Current authority, support,
+Staff basis and attached exact file generation are rechecked during content
+access. Source changes across storage deny disclosure. Historical binding reads
+retain their own terms basis while attaching requires the unchanged current draft.
+No employment, login, posting or access is activated. SDK/UI binding and current
+remote database/browser acceptance remain unfinished; no live migration occurred.

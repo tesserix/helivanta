@@ -79,6 +79,9 @@ func (staffDocuments) permissions(bool) (authz.Permission, authz.Permission) {
 }
 
 func (h *handlers) refreshDocumentPermissions(c *gin.Context, gate documentGate, writing bool) bool {
+	if _, ok := gate.(*governanceBindingDocumentGate); ok {
+		return !writing && authn.Refresh(c)
+	}
 	if c.Query(hrIntakeQuery) == hrIntakeVersion && intakeDocumentGate(gate) {
 		// Every following owner phase resolves and holds the scoped requirements.
 		return true

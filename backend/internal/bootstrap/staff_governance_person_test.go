@@ -9,6 +9,7 @@ import (
 	"image/png"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -313,7 +314,61 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		})
 
 		bindingID := uuid.Must(uuid.NewV7())
-		binding := request(t, http.MethodPut, target+"/employment-periods/"+period.String()+"/revisions/1/evidence/"+bindingID.String(), "admin", map[string]any{"command_id": uuid.Must(uuid.NewV7()), "document_id": employmentFile, "reason": "Released appointment evidence"}, 200)
+		bindingRoot := target + "/employment-preparation-periods/" + period.String() + "/revisions/1/evidence"
+		bindingPath := bindingRoot + "/" + bindingID.String()
+		bindingInput := map[string]any{"command_id": uuid.Must(uuid.NewV7()), "document_id": employmentFile, "reason": "Released appointment evidence"}
+		request(t, http.MethodPut, bindingPath+docBasis, "reviewer", bindingInput, 403)
+		binding := request(t, http.MethodPut, bindingPath+docBasis, "auditor", bindingInput, 200)
+		require.Equal(t, binding, request(t, http.MethodPut, bindingPath+docBasis, "auditor", bindingInput, 200))
+		request(t, http.MethodPut, bindingPath+docBasis, "admin", bindingInput, 409)
+		require.Equal(t, binding, request(t, http.MethodGet, bindingPath+docBasis, "auditor", nil, 200))
+		require.Len(t, request(t, http.MethodGet, bindingRoot+docBasis, "auditor", nil, 200)["data"], 1)
+		require.Len(t, request(t, http.MethodGet, bindingPath+"/history"+docBasis, "auditor", nil, 200)["data"], 1)
+		protected := governanceRequest(router, http.MethodGet, bindingPath+"/content"+docBasis, "auditor", "")
+		require.Equal(t, 200, protected.Code, protected.Body.String())
+		require.Equal(t, pngBytes.Bytes(), protected.Body.Bytes())
+		request(t, http.MethodGet, bindingPath+"?staff_version=999&employment_epoch=1", "auditor", nil, 409)
+		request(t, http.MethodGet, bindingPath+docBasis+"&hr_intake=v1", "auditor", nil, 400)
+		request(t, http.MethodGet, strings.Replace(bindingPath, staff[0].String(), staff[1].String(), 1)+docBasis, "auditor", nil, 404)
+		t.Run("native binding preserves provenance, source identity and withdrawal history", func(t *testing.T) {
+			var recorded struct{ Authority json.RawMessage }
+			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+				return tx.Raw("SELECT changes->'authority' AS authority FROM workforce_audit WHERE tenant_id=? AND hospital_id=? AND resource_id=? AND action='workforce.employment_binding.phase' ORDER BY created_at DESC LIMIT 1", testutil.TenantA, roots[0], period).Take(&recorded).Error
+			}))
+			require.NotEmpty(t, recorded.Authority)
+			assertReadPurposeBlocksStaffMasterEdit(t, db, roots[0], staff[0], "app.workforce_governance_binding_authority", recorded.Authority)
+			cloud.AfterReleasedRead(func() {
+				request(t, http.MethodPut, "/v1/iam/governance-grants/"+prepareGrant.String()+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "admin", map[string]any{"expected_version": 2, "decision": "revoke", "reason": "Withdraw exact native binding source during storage"}, 202)
+				prepareGrant = grant("user-auditor", "workforce.employment_preparer.v1", roots[0])
+			})
+			refused := governanceRequest(router, http.MethodGet, bindingPath+"/content"+docBasis, "auditor", "")
+			require.Equal(t, 403, refused.Code, refused.Body.String())
+			require.NotEqual(t, pngBytes.Bytes(), refused.Body.Bytes())
+			cloud.AfterReleasedRead(nil)
+			fresh := governanceRequest(router, http.MethodGet, bindingPath+"/content"+docBasis, "auditor", "")
+			require.Equal(t, 200, fresh.Code, fresh.Body.String())
+			require.Equal(t, pngBytes.Bytes(), fresh.Body.Bytes())
+			request(t, http.MethodPut, bindingPath+docBasis, "auditor", bindingInput, 409)
+			otherPeriod := uuid.Must(uuid.NewV7())
+			request(t, http.MethodPut, target+"/employment-preparation-periods/"+otherPeriod.String(), "auditor", map[string]any{"command_id": uuid.Must(uuid.NewV7()), "expected_version": 0, "staff_version": source["staff_version"], "employment_epoch": source["employment_epoch"], "engagement_kind": "employee", "duration": "ongoing", "starts_at": time.Now().UTC().Add(-time.Minute).Truncate(time.Microsecond), "reason": "Synthetic independently retained withdrawal", "evidence_reference": "SYN-WITHDRAWAL"}, 200)
+			spareRoot := target + "/employment-preparation-periods/" + otherPeriod.String() + "/revisions/1/evidence/" + uuid.Must(uuid.NewV7()).String()
+			spare := request(t, http.MethodPut, spareRoot+docBasis, "auditor", map[string]any{"command_id": uuid.Must(uuid.NewV7()), "document_id": employmentFile, "reason": "Synthetic scanned file for withdrawal"}, 200)
+			withdrawal := map[string]any{"command_id": uuid.Must(uuid.NewV7()), "expected_version": 1, "reason": "Synthetic attributable withdrawal preserves history"}
+			withdrawn := request(t, http.MethodPost, spareRoot+"/withdraw"+docBasis, "auditor", withdrawal, 200)
+			require.Equal(t, "withdrawn", withdrawn["status"])
+			require.Equal(t, spare["released_generation"], withdrawn["released_generation"])
+			require.Equal(t, withdrawn, request(t, http.MethodPost, spareRoot+"/withdraw"+docBasis, "auditor", withdrawal, 200))
+			require.Len(t, request(t, http.MethodGet, spareRoot+"/history"+docBasis, "auditor", nil, 200)["data"], 2)
+			request(t, http.MethodGet, spareRoot+"/content"+docBasis, "auditor", nil, 404)
+			require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_native_binding_support_disabled", SQL: "ALTER TABLE workforce_employment_evidence_history DISABLE TRIGGER workforce_governance_binding_provenance"}}))
+			func() {
+				defer func() {
+					require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_native_binding_support_restored", SQL: "ALTER TABLE workforce_employment_evidence_history ENABLE TRIGGER workforce_governance_binding_provenance"}}))
+				}()
+				request(t, http.MethodGet, bindingPath+docBasis, "auditor", nil, 503)
+			}()
+		})
+
 		employmentReview := uuid.Must(uuid.NewV7())
 		employmentPath := target + "/employment-reviews/" + employmentReview.String()
 		input := map[string]any{"command_id": uuid.Must(uuid.NewV7()), "staff_version": source["staff_version"], "employment_epoch": source["employment_epoch"], "identity_hash": source["identity_hash"], "period_id": period, "period_revision_id": terms["revision_id"], "period_version": terms["version"], "person_review_id": reviewID, "person_review_revision_id": approved["revision_id"], "person_review_version": approved["version"], "evidence": []map[string]any{{"id": bindingID, "revision_id": binding["revision_id"], "version": binding["version"]}}, "policy_reference": "SYN-EMPLOYMENT-POLICY", "reason": "Freeze exact reviewed person and appointment terms", "terms_examined": true, "known_associations_disclosed": true}

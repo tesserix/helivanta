@@ -66,3 +66,11 @@ removes controls and prevents binary upload, without legacy fallback. Before
 release, finish exact terms/file-generation binding, independent submission/review
 and the full remaining Staff/pharmacy journeys. Investigate the remote posting
 approval/cutoff race returning 503; do not relax its successful-approval assertion.
+
+WF0114/native binding source candidate is now implemented with canonical engine
+reuse, exact-purpose RLS, private original-source receipts and protected download
+reauthorization. Local pure/build/vet/lint/architecture/compile checks passed;
+remote native owner/storage tests and full preserved Staff/pharmacy regressions
+must establish acceptance. Next wire the strict binding SDK/UI, exact terms reread
+and independent submission/review before merging the full workflow. Do not claim
+a document upload, a prepared binding or green compile as completed initiation.

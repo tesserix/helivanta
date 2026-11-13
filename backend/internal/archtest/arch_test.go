@@ -553,6 +553,8 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /iam/membership-enrollments/:id":                                                                                         "one tenant-scoped immutable enrollment receipt by its command primary key; history uses ListRoute",
 	"GET /workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding":                "one private evidence binding; evidence list and history are cursor-paginated",
 	"GET /workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/content":        "one reauthorized protected file at its pinned scanned generation",
+	"GET /workforce/hospitals/:hospital/staff/:id/employment-preparation-source":                                                  "one current governance-authorized concurrency basis for the selected Staff record; no collection",
+	"GET /workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period":                                         "one governance-authorized employment draft selected by its real period ID; draft lists and revision history remain cursor-paginated",
 	"GET /workforce/hospitals/:hospital/staff/:id/employment-source":                                                              "one minimal employment source for one authorized Staff record",
 	"GET /workforce/hospitals/:hospital/staff/:id/employment-periods/:period":                                                     "one private employment draft; period list and revision history are cursor-paginated",
 	"GET /workforce/pharmacies/:pharmacy/staff/:id/employment-source":                                                             "one minimal employment source for one pharmacy Staff record",

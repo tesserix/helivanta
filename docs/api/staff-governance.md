@@ -301,7 +301,8 @@ to the live environment. New candidate
 `0105_workforce_employment_review_authority`,
 `0106_workforce_employment_activation_authority`,
 `0107_workforce_employment_authority_inbox`,
-`0108_workforce_employment_inbox_staff_index` and
+`0108_workforce_employment_inbox_staff_index`,
+`0109_workforce_employment_governance_findings` and
 `0048_iam_governance_employment_bases` have not been approved for live application.
 Before rollout, complete the remaining source consumers, owner-count admission,
 ledger/role admission guards, frontend, remote PostgreSQL/FGA/race/recovery tests
@@ -402,3 +403,15 @@ fallback requires both exact tenant/account headers, so this compatibility does
 not admit owner/delegate operations with an unbound workspace. Staff-source audit
 keeps an explicit `scoped_staff` kind alongside the six existing metadata fields;
 no clinical or personal values enter that read audit.
+
+
+The candidate selected-finding route `employment-person-finding-options` now
+requires current hospital employment preparation authority without a linked Staff
+actor. WF0109 binds private provenance and read/audit-only RLS to the selected
+Staff and expected source version/epoch; no review ID is invented. Cursors bind
+both actual hospital and Staff plus basis filters; the prior single-resource
+inbox cursor scope is unchanged. Local proof, multi-resource cursor and SDK
+routing/denial tests pass; real owner/delegate, revoked source, missing-policy,
+released-evidence and inherited-manager write-denial cases await remote execution.
+Draft terms/document authoring and reviewer preparation UI remain open. This
+candidate is not approved for a live migration or rollout.

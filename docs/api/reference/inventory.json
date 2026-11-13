@@ -10935,6 +10935,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-person-finding-options",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-person-findings",
           "permission": "public",
           "authentication_required": true,
@@ -13430,6 +13439,11 @@
               ]
             }
           ]
+        },
+        {
+          "id": "0109_workforce_employment_governance_findings",
+          "sql_sha256": "3afa9fc5bc1b72d34572b9f0c9917d67f8779a100cca05bc00ce4d7afde3890d",
+          "creates_tables": []
         }
       ]
     },

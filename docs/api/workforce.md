@@ -245,6 +245,24 @@ assertion headers and current reviewed active Staff/login actor checks:
   account intent revalidated against released evidence. No identity files or
   author profiles are returned, and identity-review authority is not granted.
 
+- Candidate `GET /v1/workforce/hospitals/:hospital/staff/:id/employment-person-finding-options`:
+  separate current owner/exact employment-preparer source; same canonical
+  `hr_intake=v1`, Staff version/epoch inputs and finding summary contract as the
+  linked-Staff selector. It admits at most 20 candidates plus one probe and binds
+  sealed cursors to hospital, Staff, both basis filters, route and original
+  tenant/account. Both candidate scan and disclosure recheck current IAM source
+  under one shared five-second/idle budget and require the same retained source.
+  Exact current approved finding/evidence checks run before disclosure.
+  Candidate WF0109 permits only selected Staff/profile/finding and frozen identity
+  evidence metadata, classifications and creation provenance; its only write is
+  an exact minimized selection-read audit. Master edits/deletes and terms/document
+  authoring remain denied even with inherited manager access. Missing read/audit
+  expressions, forced RLS/purpose/delete support, source functions or a valid/ready
+  existing finding-selection index returns 503 before reading. There is no
+  fabricated employment-review ID or actor Staff/link. The original selector and
+  its cursor semantics remain unchanged. Local proof/cursor/SDK checks do not
+  establish database, UI or production acceptance.
+
 The filtered scope/finding scans preserve empty-page continuation; clients must
 follow the returned cursor. Inbox pages reauthorize current original authority
 and commit sensitive-read audit before returning data. The inbox and finding

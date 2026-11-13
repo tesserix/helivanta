@@ -497,3 +497,34 @@ existing single permissive read/write policy, with restrictive purpose/delete
 fences unchanged. It does not weaken the global RLS validator. The runtime
 preflight and fault tests now require the inbox source in the existing read/audit
 expressions. Current-head migration and source acceptance must be rerun remotely.
+
+### Selected governance person-finding preparation
+
+The next candidate adds a separate `employment-person-finding-options` route on
+an exact hospital/Staff resource. It reuses the canonical finding summary and
+basis input without changing linked-Staff route/cursor behavior. Current IAM
+hospital employment preparation authority is required on both candidate scan and
+filtered disclosure; a reviewer, person preparer or supplied Staff ID is not an
+authority substitute. Both original tenant/account assertions are mandatory.
+Sealed cursors bind the actual Staff resource, hospital, expected Staff version
+and employment epoch as well as caller/tenant/route. Pages have at most twenty
+candidates plus one continuation probe. The retained source cannot change between
+scan and disclosure, and each source command has a five-second/idle lease.
+
+A new selected-Staff `employment_finding_selection` proof retains real owner/grant
+provenance and expected basis, with no invented employment-review ID or actor
+Staff/link. Its private purpose permits only the selected Staff/profile, current
+person findings and their frozen identity evidence metadata/classifications and
+creation provenance. The existing finding/evidence freshness checks run before
+returning each option. Only an exact minimized read audit may be inserted; all
+master/decision/terms/document writes and deletes remain denied even with manager
+access. Existing selection indexes serve the query; required read/audit support,
+forced RLS, purpose fences and index readiness are checked before reading.
+
+This requires candidate WF0109, remains unapproved for live application and must
+pass real PostgreSQL source, evidence, policy-failure and revocation tests. Binary
+rollback disables this consumer and retains audits; removing schema support
+requires capturing/restoring prior permissive expressions before dropping the
+new functions/fences. No Staff, identity, findings or audit data is erased. This
+finding selector does not itself authorize draft terms or document authoring;
+those must acquire their own exact preparation consumers and retained provenance.

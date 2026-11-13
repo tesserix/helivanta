@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/tesserix/helivanta/internal/platform/respond"
@@ -23,11 +24,31 @@ func SealedFilteredListRoute[T Keyed](r *Router, path string, permission authz.P
 }
 
 // SealedFilteredQueryListRoute binds private cursors to the caller, resource and filters.
-func SealedFilteredQueryListRoute[T Keyed](r *Router, path string, permission authz.Permission, resourceParam string, filters []QueryFilter, maxCandidates int, scan ListHandler[T], filter func(*gin.Context, []T) ([]T, error)) {
+func SealedFilteredQueryListRoute[T Keyed](r *Router, path string, permission authz.Permission, resourceParam string, filters []QueryFilter, maxCandidates int, scan ListHandler[T], filter func(*gin.Context, []T) ([]T, error), extraResources ...string) {
 	if !hasSegment(r.group.BasePath()+path, resourceParam) {
 		panic("platform: private query list requires its resource parameter")
 	}
-	filteredListRoute(r, path, permission, maxCandidates, scan, filter, true, queryCursorScope(resourceParam, filters, maxCandidates))
+	scopeFor := queryCursorScope(resourceParam, filters, maxCandidates)
+	if len(extraResources) > 0 {
+		resources := append([]string(nil), extraResources...)
+		seen := map[string]bool{resourceParam: true}
+		for _, resource := range resources {
+			if seen[resource] || !hasSegment(r.group.BasePath()+path, resource) {
+				panic("platform: private query list requires distinct resource parameters")
+			}
+			seen[resource] = true
+		}
+		base := scopeFor
+		scopeFor = func(c *gin.Context, p authn.Principal) string {
+			key := base(c, p)
+			for _, resource := range resources {
+				key += "\x00" + strings.ToLower(c.Param(resource))
+			}
+			digest := sha256.Sum256([]byte(key))
+			return hex.EncodeToString(digest[:])
+		}
+	}
+	filteredListRoute(r, path, permission, maxCandidates, scan, filter, true, scopeFor)
 }
 
 func filteredListRoute[T Keyed](r *Router, path string, permission authz.Permission, maxCandidates int, scan ListHandler[T], filter func(*gin.Context, []T) ([]T, error), sealed bool, scopeFor func(*gin.Context, authn.Principal) string) {

@@ -219,7 +219,59 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		employmentPath := target + "/employment-reviews/" + employmentReview.String()
 		input := map[string]any{"command_id": uuid.Must(uuid.NewV7()), "staff_version": source["staff_version"], "employment_epoch": source["employment_epoch"], "identity_hash": source["identity_hash"], "period_id": period, "period_revision_id": terms["revision_id"], "period_version": terms["version"], "person_review_id": reviewID, "person_review_revision_id": approved["revision_id"], "person_review_version": approved["version"], "evidence": []map[string]any{{"id": bindingID, "revision_id": binding["revision_id"], "version": binding["version"]}}, "policy_reference": "SYN-EMPLOYMENT-POLICY", "reason": "Freeze exact reviewed person and appointment terms", "terms_examined": true, "known_associations_disclosed": true}
 		request(t, http.MethodPut, employmentPath+"?hr_intake=v1", "auditor", input, 403)
+		selectionPath := target + "/employment-person-finding-options"
+		selectionQuery := fmt.Sprintf("?hr_intake=v1&staff_version=%v&employment_epoch=%v", source["staff_version"], source["employment_epoch"])
+		request(t, http.MethodGet, selectionPath+selectionQuery, "auditor", nil, 403)
 		prepareGrant := grant("user-auditor", "workforce.employment_preparer.v1", roots[0])
+		t.Run("selected finding preparation needs no Staff actor", func(t *testing.T) {
+			for _, actor := range []string{"owner2", "auditor", "admin"} {
+				rows := request(t, http.MethodGet, selectionPath+selectionQuery, actor, nil, 200)["data"].([]any)
+				require.Len(t, rows, 1)
+				row := rows[0].(map[string]any)
+				require.Equal(t, reviewID.String(), row["id"])
+				require.Equal(t, approved["revision_id"], row["revision_id"])
+				for _, key := range []string{"evidence", "governance_authority", "actor_link_id", "actor_staff_id"} {
+					require.NotContains(t, row, key)
+				}
+			}
+			request(t, http.MethodGet, selectionPath+selectionQuery, "reviewer", nil, 403)
+			request(t, http.MethodGet, "/v1/workforce/hospitals/"+roots[1].String()+"/staff/"+staff[1].String()+"/employment-person-finding-options"+selectionQuery, "auditor", nil, 403)
+			request(t, http.MethodGet, base+"/staff/"+uuid.Must(uuid.NewV7()).String()+"/employment-person-finding-options"+selectionQuery, "owner2", nil, 404)
+			request(t, http.MethodGet, selectionPath+"?hr_intake=v1&staff_version=999&employment_epoch=1", "auditor", nil, 409)
+			request(t, http.MethodGet, selectionPath+selectionQuery+"&limit=21", "auditor", nil, 400)
+			request(t, http.MethodGet, selectionPath+selectionQuery+"&employment_epoch=1", "auditor", nil, 400)
+			for _, policy := range []struct{ table, column, clause string }{{"workforce_documents", "polqual", "USING"}, {"workforce_audit", "polwithcheck", "WITH CHECK"}} {
+				t.Run("missing finding support on "+policy.table, func(t *testing.T) {
+					var saved struct{ Name, Expression string }
+					require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+						return tx.Raw("SELECT polname AS name,pg_get_expr("+policy.column+",polrelid) AS expression FROM pg_policy WHERE polrelid=to_regclass(?) AND polpermissive", "public."+policy.table).Take(&saved).Error
+					}))
+					require.NotEmpty(t, saved.Expression)
+					require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_finding_" + policy.table + "_disabled", SQL: "ALTER POLICY " + saved.Name + " ON " + policy.table + " " + policy.clause + " (false)"}}))
+					defer func() {
+						require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_finding_" + policy.table + "_restored", SQL: "ALTER POLICY " + saved.Name + " ON " + policy.table + " " + policy.clause + " (" + saved.Expression + ")"}}))
+					}()
+					request(t, http.MethodGet, selectionPath+selectionQuery, "auditor", nil, 503)
+				})
+			}
+			var recorded struct{ Authority json.RawMessage }
+			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+				if err := tx.Exec("SELECT set_config('app.workforce_subject','user-admin',true),set_config('app.workforce_hospital',?,true)", roots[0].String()).Error; err != nil {
+					return err
+				}
+				return tx.Raw("SELECT changes->'authority' AS authority FROM workforce_audit WHERE tenant_id=? AND hospital_id=? AND actor_subject='user-admin' AND action='workforce.employment_review.governance_person_selection.read' ORDER BY created_at DESC,id DESC LIMIT 1", testutil.TenantA, roots[0]).Take(&recorded).Error
+			}))
+			require.NotEmpty(t, recorded.Authority)
+			writeErr := db.WithTenant(tenantdb.WithActor(ctx, "user-admin"), testutil.TenantA, func(tx *gorm.DB) error {
+				if err := tx.Exec("SELECT set_config('app.workforce_subject','user-admin',true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_identity_staff',?,true),set_config('app.workforce_governance_finding_authority',?,true)", roots[0].String(), staff[0].String(), string(recorded.Authority)).Error; err != nil {
+					return err
+				}
+				return tx.Exec("UPDATE workforce_staff SET display_name='Forbidden finding master edit' WHERE tenant_id=? AND hospital_id=? AND id=?", testutil.TenantA, roots[0], staff[0]).Error
+			})
+			var denied *pgconn.PgError
+			require.ErrorAs(t, writeErr, &denied)
+			require.Equal(t, "42501", denied.Code)
+		})
 		pending := request(t, http.MethodPut, employmentPath+"?hr_intake=v1", "auditor", input, 200)
 		require.Equal(t, "pending", pending["status"])
 		request(t, http.MethodPut, employmentPath+"?hr_intake=v1", "auditor", input, 200)
@@ -292,7 +344,9 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 			request(t, http.MethodGet, inbox+"?mode=review", "auditor", nil, 403)
 			request(t, http.MethodGet, inbox+"?mode=prepare", "reviewer", nil, 403)
 			request(t, http.MethodGet, "/v1/workforce/hospitals/"+roots[1].String()+"/employment-review-authority-inbox", "reviewer", nil, 403)
-			request(t, http.MethodGet, "/v1/workforce/hospitals/"+uuid.Must(uuid.NewV7()).String()+"/employment-review-authority-inbox", "reviewer", nil, 404)
+			missingInbox := "/v1/workforce/hospitals/" + uuid.Must(uuid.NewV7()).String() + "/employment-review-authority-inbox"
+			request(t, http.MethodGet, missingInbox, "reviewer", nil, 403)
+			request(t, http.MethodGet, missingInbox, "owner2", nil, 404)
 			request(t, http.MethodGet, inbox+"?limit=51", "reviewer", nil, 400)
 			request(t, http.MethodGet, inbox+"?status=pending&status=approved", "reviewer", nil, 400)
 			require.Empty(t, request(t, http.MethodGet, inbox+"?status=approved", "reviewer", nil, 200)["data"])
@@ -444,6 +498,8 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		download := governanceRequest(router, http.MethodGet, evidencePath, "reviewer", "")
 		require.Equal(t, 200, download.Code, download.Body.String())
 		require.Equal(t, pngBytes.Bytes(), download.Body.Bytes())
+		request(t, http.MethodPut, "/v1/iam/governance-grants/"+prepareGrant.String()+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "admin", map[string]any{"expected_version": 2, "decision": "revoke", "reason": "Withdraw exact employment preparation source"}, 202)
+		request(t, http.MethodGet, selectionPath+selectionQuery, "auditor", nil, 403)
 		grant("user-reviewer", "workforce.employment_reviewer.v1", roots[1])
 		cutoff := make(chan *httptest.ResponseRecorder, 1)
 		cloud.AfterReleasedRead(func() {

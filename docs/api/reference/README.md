@@ -1381,6 +1381,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period` | `workforce.enrollment.manage` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period` | `workforce.enrollment.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods` | `workforce.enrollment.manage` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-person-finding-options` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-person-findings` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/activation-source` | `public` | false | false |
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/decision` | `public` | false | false |

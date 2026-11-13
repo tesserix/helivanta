@@ -78,9 +78,9 @@ func validLoginReviewSource(p authn.Principal, root establishment, source authz.
 	}
 	switch source.Kind {
 	case authz.GovernanceOwnerSource:
-		return source.OwnerMembershipID != uuid.Nil && source.GrantID == uuid.Nil && source.Version == 0 && source.TemplateKey == ""
+		return source.OwnerMembershipID != uuid.Nil && source.OwnerMembershipID.Variant() == uuid.RFC4122 && source.GrantID == uuid.Nil && source.Version == 0 && source.TemplateKey == ""
 	case authz.GovernanceGrantSource:
-		return source.OwnerMembershipID == uuid.Nil && source.GrantID != uuid.Nil && source.GrantID.Version() == 7 && source.Version >= 1 && source.Version <= 9007199254740991 && source.TemplateKey == "workforce.account_link_reviewer.v1"
+		return source.OwnerMembershipID == uuid.Nil && source.GrantID != uuid.Nil && source.GrantID.Variant() == uuid.RFC4122 && source.GrantID.Version() == 7 && source.Version >= 1 && source.Version <= 9007199254740991 && source.TemplateKey == "workforce.account_link_reviewer.v1"
 	default:
 		return false
 	}

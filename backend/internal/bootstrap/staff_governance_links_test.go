@@ -39,7 +39,7 @@ func TestGovernanceAccountLinkReviewConsumesExactEmployerSourceWithoutManagerAcc
 			router, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 				Tokens: map[string]string{"admin": testutil.TenantA, "owner2": testutil.TenantA, "auditor": testutil.TenantA},
 				Perms: map[string][]authz.Permission{
-					"admin":   {iam.PermGovernanceManage, iam.PermGovernanceRead, iam.PermGovernanceReview, workforce.PermHospitalManage, workforce.PermSupplierManage, workforce.PermEnrollmentManage, workforce.PermLoginLinkManage, workforce.PermLoginLinkReview, workforce.PermIndependentLoginManage, workforce.PermIndependentLoginReview, pharmacy.PermCatalogueWrite, supply.PermPartyWrite, supply.PermOrganizationManage},
+					"admin":   {iam.PermGovernanceManage, iam.PermGovernanceRead, iam.PermGovernanceReview, workforce.PermHospitalManage, workforce.PermSupplierManage, workforce.PermEnrollmentManage, workforce.PermLoginLinkManage, workforce.PermLoginLinkReview, workforce.PermIndependentLoginManage, workforce.PermIndependentLoginReview, pharmacy.PermCatalogueWrite, pharmacy.PermAccessManage, supply.PermPartyWrite, supply.PermOrganizationManage},
 					"owner2":  {iam.PermGovernanceReview, workforce.PermLoginLinkReview, workforce.PermIndependentLoginReview},
 					"auditor": {workforce.PermLoginLinkReview, workforce.PermIndependentLoginReview},
 				},
@@ -75,6 +75,10 @@ func TestGovernanceAccountLinkReviewConsumesExactEmployerSourceWithoutManagerAcc
 					registered := governanceRequest(router, http.MethodPut, base, "admin", `{}`)
 					require.Equal(t, 200, registered.Code, registered.Body.String())
 				}
+				if kind == "hospital" {
+					ownerAccess := governanceRequest(router, http.MethodPut, base+"/access/user-admin", "admin", `{"level":"manager"}`)
+					require.Equal(t, 200, ownerAccess.Code, ownerAccess.Body.String())
+				}
 				person := uuid.Must(uuid.NewV7())
 				people[i] = person
 				staffPath := base + "/staff/" + person.String()
@@ -104,7 +108,7 @@ func TestGovernanceAccountLinkReviewConsumesExactEmployerSourceWithoutManagerAcc
 				require.Equal(t, expected, proposed.Code, proposed.Body.String())
 			}
 			id := uuid.Must(uuid.NewV7())
-			input := iam.GovernanceGrantInput{Subject: "user-auditor", ExpectedMembershipEpoch: 1, TemplateKey: "workforce.account_link_reviewer.v1", ScopeKind: kind, ScopeID: &roots[0], Reason: "Synthetic exact employer account-link review", ValidFrom: time.Now().UTC().Add(-time.Hour), ExpiresAt: time.Now().UTC().Add(time.Hour)}
+			input := iam.GovernanceGrantInput{Subject: "user-auditor", ExpectedMembershipEpoch: 1, TemplateKey: "workforce.account_link_reviewer.v1", ScopeKind: kind, ScopeID: &roots[0], Reason: "Synthetic exact employer account-link review", ValidFrom: time.Now().UTC().Add(-time.Hour).Truncate(time.Microsecond), ExpiresAt: time.Now().UTC().Add(time.Hour).Truncate(time.Microsecond)}
 			raw, err := json.Marshal(input)
 			require.NoError(t, err)
 			issued := governanceRequest(router, http.MethodPut, "/v1/iam/governance-grants/"+id.String(), "admin", string(raw))

@@ -941,7 +941,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		call(t, "PUT", base+"/staff/"+adminStaff, maker, map[string]any{"employee_code": "SYN-EMP-ADMIN", "display_name": "Synthetic reviewed Staff Admin", "job_category": "other", "employment_status": "active"}, 200)
 		adminLink := base + "/staff/" + adminStaff + "/login-links/" + uuid.Must(uuid.NewV7()).String()
 		call(t, "PUT", adminLink, maker, map[string]any{"subject": maker, "reason": "Synthetic reviewed admin identity"}, 200)
-		call(t, "POST", adminLink+"/decision", checker, map[string]any{"expected_version": 1, "decision": "approve", "reason": "Independent synthetic Staff Admin identity"}, 200)
+		approveFixtureLink(t, adminLink, "Independent synthetic Staff Admin identity")
 		adminProposalID := uuid.Must(uuid.NewV7()).String()
 		adminProposal := "/v1/iam/assignment-proposals/" + adminProposalID
 		call(t, "PUT", adminProposal, maker, map[string]any{"hospital_id": hospital, "subject": maker, "template_key": "workforce.hr_intake.v1", "reason": "Synthetic scoped Staff Admin preparation", "valid_from": time.Now().UTC().Format(time.RFC3339), "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}, 200)

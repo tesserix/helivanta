@@ -50,6 +50,70 @@ scoped admission for assignment consumers. A decision awaiting asynchronous
 Workforce or Organization verification must revalidate its delegate's authority
 at settlement; an old decision cannot become effective after revocation.
 
+### Native hospital assignment admission and settlement — implementation target
+
+The new regression `TestGovernanceAssignmentProposalAdmissionUsesExactHospitalWithoutLegacyManager`
+describes the next consumer. It is an intentionally unmet implementation gate,
+not evidence of an available API. The planned fixed hospital-only template is
+`iam.scoped_access_reviewer.v1`, containing `iam.assignment.manage` and
+`iam.assignment.review`. Its authority kind is nonclinical access governance.
+The existing current-owner or exact-grant, credential, membership-incarnation,
+owner-count and canonical topology requirements apply. A provisional grant
+remains subject to the accepted single-owner policy and independent review;
+neither the grant nor an approved operational assignment fabricates Staff,
+professional eligibility, a posting or a hospital-manager access row.
+
+The separate planned route family is
+`/v1/iam/hospitals/:hospital/assignment-proposals`. A UUIDv7 child identifies the
+canonical proposal, with its existing history, decisions and decision command.
+The selected hospital must equal the proposal's actual hospital on reads and
+writes. Expected tenant and subject headers remain preconditions on the verified
+principal. The legacy owner-only family, onboarding and owner security helpers
+retain their existing admission. Native admission must preserve canonical input
+validation, target membership epoch, proposer/target separation, immutable
+origin/history, compare-and-set versions, original-command replay and snapshot
+projection. A new governance template alone must not enable the legacy family.
+
+Native commands retain their original governance source privately on the
+canonical proposal or decision, binding owner membership or exact grant/version,
+actor membership incarnation and selected hospital. Public proposal/decision
+payloads must exclude this proof. A different source must not adopt a retained
+command. Proof stamping, provenance immutability and scoped database admission
+require an additive migration, with fail-closed support checks; no deployment of
+that migration is authorized by this design.
+
+The native Workforce verification protocol must have separate versioned event
+subjects. It reports canonical hospital existence/type for the exact proposal and
+request; it does not redefine the legacy `Eligible` result, carry bearer
+authority or create a legacy manager. Organization's current department check
+and both-owner conjunction remain required for department proposals. Each answer
+is retained once for its request. Stale, duplicate and wrong-scope answers cannot
+settle another proposal or later request.
+
+Settlement must acquire fresh IAM authority before locking the exact pending
+proposal. Existing event handlers already own a transaction, so a native
+settlement must not nest a guarded command there. Use the consumer's retryable
+after-commit phase to enter a fresh guarded command, compare the original source
+identity and current owner answers, then perform the canonical transition and
+outbox publication atomically. The after-commit phase must also run on redelivery
+after an event is already claimed. Revoked, expired or replaced authority returns
+the proposal to review without creating a snapshot; unavailable authority leaves
+it pending and retries. Successful settlement is the approval pivot. Subsequent
+projection retains existing snapshot/version/scope-epoch and target-membership
+checks; this design does not silently add reviewer dependency to already
+effective assignments. Withdrawal and target/source lifecycle revocation preserve
+their existing histories and immediate denial rules.
+
+Reuse the capacity, five-second authority budget and latency targets below.
+No new infrastructure is needed. Rollback must retain admitted proposals,
+decisions and owner answers and disable new native admission; do not drop proof
+columns or relabel native rows as legacy commands. Release evidence must include
+actual PostgreSQL/FGA/broker tests for independent decisions, both department
+answer orders, duplicate/stale answers, source revocation/replacement between
+decision and settlement, dependency outage/retry, rollback and immutable private
+provenance. Admission tests alone do not complete this consumer or the full
+Staff/pharmacy journey.
+
 Governance actor provenance must be represented explicitly. Never supply nil,
 fabricated or borrowed Staff/link IDs to make existing HR audit or RLS contracts
 appear satisfied. HR governance access is limited to the named nonclinical

@@ -120,6 +120,7 @@ func assertPostingLifecycleExpiredReplay(t *testing.T, db *tenantdb.DB, tenant s
 
 func racePostingLifecycleCommands(t *testing.T, db *tenantdb.DB, tenant, hospital string, first, second func(context.Context) *httptest.ResponseRecorder) [2]*httptest.ResponseRecorder {
 	t.Helper()
+	started := time.Now()
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 	held, unlock := make(chan struct{}), make(chan struct{})
@@ -173,13 +174,16 @@ func racePostingLifecycleCommands(t *testing.T, db *tenantdb.DB, tenant, hospita
 	}
 	go func() { responses[0] <- first(ctx) }()
 	waiters(1)
+	t.Logf("First lifecycle command reached a PostgreSQL lock wait after %s", time.Since(started))
 	go func() { responses[1] <- second(ctx) }()
 	waiters(2)
+	t.Logf("Both lifecycle commands reached PostgreSQL lock waits after %s; releasing supervision gate", time.Since(started))
 	release()
 	var result [2]*httptest.ResponseRecorder
 	for index := range result {
 		select {
 		case result[index] = <-responses[index]:
+			t.Logf("Lifecycle command %d returned status %d after %s", index, result[index].Code, time.Since(started))
 		case <-ctx.Done():
 			t.Fatal("serialized lifecycle commands did not finish")
 		}

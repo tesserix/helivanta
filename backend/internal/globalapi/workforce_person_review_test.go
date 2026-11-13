@@ -36,6 +36,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/session"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
 )
@@ -124,13 +125,29 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	gateway, err := New(Config{Development: true, Timeout: 10 * time.Second, Upstreams: map[string]string{"platform": upstream.URL, "workforce": upstream.URL, "pharmacy": upstream.URL}})
 	require.NoError(t, err)
 	tokens := map[string]string{}
+	var sessionInputs sync.Map
+	mintSession := func(subject string, authTime, idleDeadline time.Time) string {
+		token, mintErr := signer.Mint(subject, testutil.TenantA, authTime, idleDeadline)
+		require.NoError(t, mintErr)
+		claims, verifyErr := verifier.Verify(token)
+		require.NoError(t, verifyErr)
+		sessionInputs.Store(token, claims)
+		return token
+	}
 	for _, subject := range []string{maker, checker, manager, reviewer} {
-		tokens[subject], err = signer.Mint(subject, testutil.TenantA, time.Now(), time.Now().Add(time.Hour))
-		require.NoError(t, err)
+		tokens[subject] = mintSession(subject, time.Now(), time.Now().Add(time.Hour))
+	}
+	accessToken := func(subject string) string {
+		original, ok := sessionInputs.Load(tokens[subject])
+		require.True(t, ok, "the test must retain its original signed authentication and idle bounds")
+		claims := original.(session.Claims)
+		renewed, mintErr := signer.Mint(claims.Subject, claims.TenantID, claims.AuthTime, claims.IdleDeadline)
+		require.NoError(t, mintErr)
+		return renewed
 	}
 	requestWithContext := func(ctx context.Context, method, path, subject string, body []byte, contentType string) *httptest.ResponseRecorder {
 		r := httptest.NewRequestWithContext(ctx, method, path, bytes.NewReader(body))
-		r.Header.Set("Authorization", "Bearer "+tokens[subject])
+		r.Header.Set("Authorization", "Bearer "+accessToken(subject))
 		r.Header.Set("Content-Type", contentType)
 		r.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantA)
 		r.Header.Set("X-Helivanta-Expected-Subject", subject)
@@ -288,7 +305,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		call(t, "GET", "/v1/workforce/person-review-scopes?limit=21", reviewer, nil, 400)
 		for _, missing := range []string{"X-Helivanta-Expected-Tenant", "X-Helivanta-Expected-Subject"} {
 			r := httptest.NewRequest("GET", "/v1/workforce/person-review-scopes", nil)
-			r.Header.Set("Authorization", "Bearer "+tokens[reviewer])
+			r.Header.Set("Authorization", "Bearer "+accessToken(reviewer))
 			r.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantA)
 			r.Header.Set("X-Helivanta-Expected-Subject", reviewer)
 			r.Header.Del(missing)
@@ -1156,7 +1173,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				}
 				for _, missing := range []string{"X-Helivanta-Expected-Tenant", "X-Helivanta-Expected-Subject"} {
 					r := httptest.NewRequest("GET", path, nil)
-					r.Header.Set("Authorization", "Bearer "+tokens[subject])
+					r.Header.Set("Authorization", "Bearer "+accessToken(subject))
 					r.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantA)
 					r.Header.Set("X-Helivanta-Expected-Subject", subject)
 					r.Header.Del(missing)
@@ -1727,7 +1744,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		denied := call(t, "GET", unknown, reviewer, nil, 404)
 		require.NotContains(t, denied, "review")
 		unbound := httptest.NewRequest("GET", path, nil)
-		unbound.Header.Set("Authorization", "Bearer "+tokens[reviewer])
+		unbound.Header.Set("Authorization", "Bearer "+accessToken(reviewer))
 		response := httptest.NewRecorder()
 		gateway.ServeHTTP(response, unbound)
 		require.Equal(t, 409, response.Code)
@@ -2087,8 +2104,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 					require.Equal(t, activation, other, "concurrent exact retries return one immutable receipt")
 				}
 			case "recipient_race", "activation_first":
-				tokens[recipient], err = signer.Mint(recipient, testutil.TenantA, time.Now(), time.Now().Add(time.Hour))
-				require.NoError(t, err)
+				tokens[recipient] = mintSession(recipient, time.Now(), time.Now().Add(time.Hour))
 				legacyStaff := base + "/staff/" + uuid.NewString()
 				call(t, "PUT", legacyStaff, maker, map[string]any{"employee_code": "SYN-LEGACY-" + scenario, "display_name": "Synthetic legacy recipient", "job_category": "other", "employment_status": "active"}, 200)
 				legacyLink := legacyStaff + "/login-links/" + uuid.Must(uuid.NewV7()).String()
@@ -2166,8 +2182,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				return
 			}
 			if scenario == "actor_enforcement" || scenario == "review_discovery" || strings.HasPrefix(scenario, "posting_") {
-				tokens[recipient], err = signer.Mint(recipient, testutil.TenantA, time.Now(), time.Now().Add(time.Hour))
-				require.NoError(t, err)
+				tokens[recipient] = mintSession(recipient, time.Now(), time.Now().Add(time.Hour))
 				grant(recipient, "workforce.identity_manager.v1", workforce.PermIdentityChecksManage)
 				call(t, "GET", base+"/identity-staff/"+joiner, recipient, nil, 404)
 				loginPath := joinerPath + "/login-links/" + uuid.Must(uuid.NewV7()).String()
@@ -2707,8 +2722,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 
 					oldToken := tokens[recipient]
 					require.Eventually(t, func() bool { return time.Now().Truncate(time.Second).After(revocationCompleted) }, 3*time.Second, 10*time.Millisecond, "session auth_time has whole-second precision")
-					tokens[recipient], err = signer.Mint(recipient, testutil.TenantA, time.Now(), time.Now().Add(time.Hour))
-					require.NoError(t, err)
+					tokens[recipient] = mintSession(recipient, time.Now(), time.Now().Add(time.Hour))
 					require.Equal(t, scopedReceipt, call(t, "GET", scopedCommandPath, recipient, nil, 200), "a genuinely new sign-in can use still-current reviewed authority")
 					require.Equal(t, scopedReceipt, call(t, "PUT", scopedCommandPath, recipient, postingIntent, 200))
 					require.Len(t, call(t, "GET", scopedStaffBase+"/posting-drafts/"+scopedDraft+"/history", recipient, nil, 200)["data"], 1)

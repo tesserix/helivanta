@@ -176,7 +176,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 	require.Equal(t, "approved", approved["status"])
 	var readyEmployment workforce.EmploymentReview
 	t.Run("employment submission and independent decision need no Staff actor", func(t *testing.T) {
-		request := func(method, path, token string, input any, status int) map[string]any {
+		request := func(t *testing.T, method, path, token string, input any, status int) map[string]any {
 			t.Helper()
 			var body []byte
 			if input != nil {
@@ -193,15 +193,15 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		grant := func(subject, key string, root uuid.UUID) uuid.UUID {
 			t.Helper()
 			id := uuid.Must(uuid.NewV7())
-			request(http.MethodPut, "/v1/iam/governance-grants/"+id.String(), "admin", iam.GovernanceGrantInput{Subject: subject, ExpectedMembershipEpoch: 1, TemplateKey: key, ScopeKind: "hospital", ScopeID: &root, Reason: "Synthetic nonclinical employment review", ValidFrom: time.Now().UTC().Add(-time.Minute).Truncate(time.Microsecond), ExpiresAt: time.Now().UTC().Add(time.Hour).Truncate(time.Microsecond)}, 202)
-			request(http.MethodPut, "/v1/iam/governance-grants/"+id.String()+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "owner2", map[string]any{"expected_version": 1, "decision": "approve", "reason": "Independent owner confirms exact employment purpose"}, 202)
+			request(t, http.MethodPut, "/v1/iam/governance-grants/"+id.String(), "admin", iam.GovernanceGrantInput{Subject: subject, ExpectedMembershipEpoch: 1, TemplateKey: key, ScopeKind: "hospital", ScopeID: &root, Reason: "Synthetic nonclinical employment review", ValidFrom: time.Now().UTC().Add(-time.Minute).Truncate(time.Microsecond), ExpiresAt: time.Now().UTC().Add(time.Hour).Truncate(time.Microsecond)}, 202)
+			request(t, http.MethodPut, "/v1/iam/governance-grants/"+id.String()+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "owner2", map[string]any{"expected_version": 1, "decision": "approve", "reason": "Independent owner confirms exact employment purpose"}, 202)
 			return id
 		}
 		period := uuid.Must(uuid.NewV7())
-		terms := request(http.MethodPut, target+"/employment-periods/"+period.String(), "admin", map[string]any{"command_id": uuid.Must(uuid.NewV7()), "expected_version": 0, "staff_version": source["staff_version"], "employment_epoch": source["employment_epoch"], "engagement_kind": "employee", "duration": "ongoing", "starts_at": time.Now().UTC().Add(-time.Minute).Truncate(time.Microsecond), "reason": "Synthetic appointment", "evidence_reference": "SYN-APPOINTMENT"}, 200)
+		terms := request(t, http.MethodPut, target+"/employment-periods/"+period.String(), "admin", map[string]any{"command_id": uuid.Must(uuid.NewV7()), "expected_version": 0, "staff_version": source["staff_version"], "employment_epoch": source["employment_epoch"], "engagement_kind": "employee", "duration": "ongoing", "starts_at": time.Now().UTC().Add(-time.Minute).Truncate(time.Microsecond), "reason": "Synthetic appointment", "evidence_reference": "SYN-APPOINTMENT"}, 200)
 		employmentFile := uuid.Must(uuid.NewV7()).String()
 		path := target + "/documents/" + employmentFile
-		request(http.MethodPut, path, "admin", map[string]any{"record_kind": "enrollment", "record_id": staff[0], "category": "employment_evidence", "filename": "synthetic-appointment.png", "content_type": "image/png", "size": pngBytes.Len(), "sha256": fmt.Sprintf("%x", sha256.Sum256(pngBytes.Bytes()))}, 201)
+		request(t, http.MethodPut, path, "admin", map[string]any{"record_kind": "enrollment", "record_id": staff[0], "category": "employment_evidence", "filename": "synthetic-appointment.png", "content_type": "image/png", "size": pngBytes.Len(), "sha256": fmt.Sprintf("%x", sha256.Sum256(pngBytes.Bytes()))}, 201)
 		upload := httptest.NewRequest(http.MethodPut, path+"/content", bytes.NewReader(pngBytes.Bytes()))
 		upload.Header.Set("Authorization", "Bearer admin")
 		upload.Header.Set("Content-Type", "image/png")
@@ -214,34 +214,63 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		require.NoError(t, processErr)
 		require.Equal(t, "available", state)
 		bindingID := uuid.Must(uuid.NewV7())
-		binding := request(http.MethodPut, target+"/employment-periods/"+period.String()+"/revisions/1/evidence/"+bindingID.String(), "admin", map[string]any{"command_id": uuid.Must(uuid.NewV7()), "document_id": employmentFile, "reason": "Released appointment evidence"}, 200)
+		binding := request(t, http.MethodPut, target+"/employment-periods/"+period.String()+"/revisions/1/evidence/"+bindingID.String(), "admin", map[string]any{"command_id": uuid.Must(uuid.NewV7()), "document_id": employmentFile, "reason": "Released appointment evidence"}, 200)
 		employmentReview := uuid.Must(uuid.NewV7())
 		employmentPath := target + "/employment-reviews/" + employmentReview.String()
 		input := map[string]any{"command_id": uuid.Must(uuid.NewV7()), "staff_version": source["staff_version"], "employment_epoch": source["employment_epoch"], "identity_hash": source["identity_hash"], "period_id": period, "period_revision_id": terms["revision_id"], "period_version": terms["version"], "person_review_id": reviewID, "person_review_revision_id": approved["revision_id"], "person_review_version": approved["version"], "evidence": []map[string]any{{"id": bindingID, "revision_id": binding["revision_id"], "version": binding["version"]}}, "policy_reference": "SYN-EMPLOYMENT-POLICY", "reason": "Freeze exact reviewed person and appointment terms", "terms_examined": true, "known_associations_disclosed": true}
-		request(http.MethodPut, employmentPath+"?hr_intake=v1", "auditor", input, 403)
+		request(t, http.MethodPut, employmentPath+"?hr_intake=v1", "auditor", input, 403)
 		prepareGrant := grant("user-auditor", "workforce.employment_preparer.v1", roots[0])
-		pending := request(http.MethodPut, employmentPath+"?hr_intake=v1", "auditor", input, 200)
+		pending := request(t, http.MethodPut, employmentPath+"?hr_intake=v1", "auditor", input, 200)
 		require.Equal(t, "pending", pending["status"])
-		request(http.MethodPut, employmentPath+"?hr_intake=v1", "auditor", input, 200)
-		request(http.MethodGet, employmentPath+"?employment_review=v1", "reviewer", nil, 403)
+		request(t, http.MethodPut, employmentPath+"?hr_intake=v1", "auditor", input, 200)
+		request(t, http.MethodGet, employmentPath+"?employment_review=v1", "reviewer", nil, 403)
 		employmentGrant := grant("user-reviewer", "workforce.employment_reviewer.v1", roots[0])
-		view := request(http.MethodGet, employmentPath+"?employment_review=v1", "reviewer", nil, 200)
+		t.Run("employment authority discovery needs no Staff links", func(t *testing.T) {
+			route := "/v1/workforce/employment-review-authority-scopes"
+			owners := request(t, http.MethodGet, route, "owner2", nil, 200)["data"].([]any)
+			require.Len(t, owners, 2)
+			for _, value := range owners {
+				row := value.(map[string]any)
+				require.Equal(t, true, row["can_submit"])
+				require.Equal(t, true, row["can_review"])
+			}
+			for _, subject := range []string{"auditor", "reviewer"} {
+				rows := request(t, http.MethodGet, route, subject, nil, 200)["data"].([]any)
+				require.Len(t, rows, 1)
+				row := rows[0].(map[string]any)
+				require.Equal(t, roots[0].String(), row["hospital_id"])
+				require.Equal(t, subject == "auditor", row["can_submit"])
+				require.Equal(t, subject == "reviewer", row["can_review"])
+				require.Empty(t, request(t, http.MethodGet, "/v1/workforce/employment-review-scopes", subject, nil, 200)["data"], "the existing linked-Staff discovery contract stays distinct")
+			}
+			first := request(t, http.MethodGet, route+"?limit=1", "reviewer", nil, 200)
+			require.Empty(t, first["data"])
+			cursor := first["page"].(map[string]any)["next_cursor"].(string)
+			require.Equal(t, true, first["page"].(map[string]any)["has_more"])
+			second := request(t, http.MethodGet, route+"?limit=1&cursor="+cursor, "reviewer", nil, 200)
+			require.Len(t, second["data"], 1)
+			require.Equal(t, false, second["page"].(map[string]any)["has_more"])
+			request(t, http.MethodGet, route+"?cursor="+cursor, "auditor", nil, 400)
+			request(t, http.MethodGet, "/v1/workforce/employment-review-scopes?cursor="+cursor, "reviewer", nil, 400)
+			request(t, http.MethodGet, route+"?limit=21", "reviewer", nil, 400)
+		})
+		view := request(t, http.MethodGet, employmentPath+"?employment_review=v1", "reviewer", nil, 200)
 		require.Equal(t, true, view["can_approve"])
 		decision := map[string]any{"command_id": uuid.Must(uuid.NewV7()), "expected_version": 1, "decision": "approve", "reason": "Independent appointment and evidence examination", "terms_examined": true, "independent_person_confirmed": true}
-		request(http.MethodPost, employmentPath+"/decision?employment_review=v1", "auditor", decision, 403)
-		request(http.MethodPost, employmentPath+"/decision?employment_review=v1", "admin", decision, 403)
-		approved := request(http.MethodPost, employmentPath+"/decision?employment_review=v1", "reviewer", decision, 200)
+		request(t, http.MethodPost, employmentPath+"/decision?employment_review=v1", "auditor", decision, 403)
+		request(t, http.MethodPost, employmentPath+"/decision?employment_review=v1", "admin", decision, 403)
+		approved := request(t, http.MethodPost, employmentPath+"/decision?employment_review=v1", "reviewer", decision, 200)
 		require.Equal(t, "approved", approved["status"])
 		raw, marshalErr := json.Marshal(approved)
 		require.NoError(t, marshalErr)
 		require.NoError(t, json.Unmarshal(raw, &readyEmployment))
-		enrollment := request(http.MethodGet, target+"/enrollment", "admin", nil, 200)
+		enrollment := request(t, http.MethodGet, target+"/enrollment", "admin", nil, 200)
 		require.Equal(t, "inactive", enrollment["staff"].(map[string]any)["employment_status"], "approval is not employment activation or operating access")
-		request(http.MethodPost, employmentPath+"/decision?employment_review=v1", "reviewer", decision, 200)
+		request(t, http.MethodPost, employmentPath+"/decision?employment_review=v1", "reviewer", decision, 200)
 		stale := map[string]any{"command_id": uuid.Must(uuid.NewV7()), "expected_version": 1, "decision": "approve", "reason": "Stale review decision must not advance history", "terms_examined": true, "independent_person_confirmed": true}
-		request(http.MethodPost, employmentPath+"/decision?employment_review=v1", "reviewer", stale, 409)
-		request(http.MethodGet, "/v1/workforce/hospitals/"+roots[0].String()+"/staff/"+staff[1].String()+"/employment-reviews/"+employmentReview.String()+"?employment_review=v1", "reviewer", nil, 404)
-		request(http.MethodGet, employmentPath+"/history?employment_review=v1", "reviewer", nil, 200)
+		request(t, http.MethodPost, employmentPath+"/decision?employment_review=v1", "reviewer", stale, 409)
+		request(t, http.MethodGet, "/v1/workforce/hospitals/"+roots[0].String()+"/staff/"+staff[1].String()+"/employment-reviews/"+employmentReview.String()+"?employment_review=v1", "reviewer", nil, 404)
+		request(t, http.MethodGet, employmentPath+"/history?employment_review=v1", "reviewer", nil, 200)
 		var audit struct{ Changes json.RawMessage }
 		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 			return tx.Table("workforce_audit").Select("changes").Where("tenant_id=? AND hospital_id=? AND resource_id=? AND action='workforce.employment_review.decided'", testutil.TenantA, roots[0], employmentReview).Take(&audit).Error
@@ -274,7 +303,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		var deniedWrite *pgconn.PgError
 		require.ErrorAs(t, writeErr, &deniedWrite)
 		require.Equal(t, "42501", deniedWrite.Code)
-		request(http.MethodGet, employmentPath+"?hr_intake=v1", "admin", nil, 200)
+		request(t, http.MethodGet, employmentPath+"?hr_intake=v1", "admin", nil, 200)
 		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 			return tx.Table("workforce_audit").Select("changes").Where("tenant_id=? AND hospital_id=? AND resource_id=? AND actor_subject='user-admin' AND action='workforce.employment_review.read'", testutil.TenantA, roots[0], employmentReview).Take(&audit).Error
 		}))
@@ -352,7 +381,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		require.Equal(t, 403, denied.Code, denied.Body.String())
 		require.NotEqual(t, pngBytes.Bytes(), denied.Body.Bytes())
 		cloud.AfterReleasedRead(nil)
-		request(http.MethodGet, employmentPath+"?employment_review=v1", "reviewer", nil, 403)
+		request(t, http.MethodGet, employmentPath+"?employment_review=v1", "reviewer", nil, 403)
 	})
 	var reviewProof json.RawMessage
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
@@ -428,7 +457,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		return nil
 	}))
 	t.Run("first digital hire activation consumes exact governance basis", func(t *testing.T) {
-		request := func(method, path string, input any, status int) map[string]any {
+		request := func(t *testing.T, method, path string, input any, status int) map[string]any {
 			t.Helper()
 			var body []byte
 			if input != nil {
@@ -443,9 +472,9 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 			return result
 		}
 		sourcePath := target + "/employment-reviews/" + readyEmployment.ID.String() + "/activation-source?employment_activation=v1"
-		request(http.MethodGet, sourcePath, nil, 403)
+		request(t, http.MethodGet, sourcePath, nil, 403)
 		activationGrant := issue("user-reviewer", "workforce.employment_activator.v1", roots[0])
-		ready := request(http.MethodGet, sourcePath, nil, 200)
+		ready := request(t, http.MethodGet, sourcePath, nil, 200)
 		require.Equal(t, "eligible", ready["current_state"])
 		require.Equal(t, true, ready["can_activate"])
 		generation := uuid.Must(uuid.NewV7())
@@ -463,8 +492,8 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 				defer func() {
 					require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_activation_" + prerequisite.trigger + "_restored", SQL: "ALTER TABLE " + prerequisite.table + " ENABLE TRIGGER " + prerequisite.trigger}}))
 				}()
-				request(http.MethodGet, sourcePath, nil, 503)
-				request(http.MethodPut, activationPath, intent, 503)
+				request(t, http.MethodGet, sourcePath, nil, 503)
+				request(t, http.MethodPut, activationPath, intent, 503)
 			})
 		}
 		t.Run("late generation failure rolls back the whole digital activation", func(t *testing.T) {
@@ -473,7 +502,8 @@ CREATE CONSTRAINT TRIGGER test_governance_activation_failure AFTER INSERT ON wor
 			defer func() {
 				require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_activation_commit_failure_removed", SQL: "DROP TRIGGER test_governance_activation_failure ON workforce_employment_generations; DROP FUNCTION test_governance_activation_failure();"}}))
 			}()
-			request(http.MethodPut, activationPath, intent, 400)
+			refused := request(t, http.MethodPut, activationPath, intent, 503)
+			require.Equal(t, "scoped_authorization_unavailable", refused["error"], "a late authority transaction failure is retryable, not invalid input")
 			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 				if err := tx.Exec("SELECT set_config('app.assignment_access','authorized',true),set_config('app.workforce_subject','user-admin',true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_generation','read',true),set_config('app.workforce_generation_staff',?,true)", roots[0].String(), staff[0].String()).Error; err != nil {
 					return err
@@ -497,13 +527,13 @@ CREATE CONSTRAINT TRIGGER test_governance_activation_failure AFTER INSERT ON wor
 				return nil
 			}))
 		})
-		result := request(http.MethodPut, activationPath, intent, 200)
+		result := request(t, http.MethodPut, activationPath, intent, 200)
 		require.Equal(t, "effective", result["current_state"])
 		created := result["generation"].(map[string]any)
 		require.Equal(t, "user-ordinary", created["declared_subject"])
 		require.Equal(t, generation.String(), created["id"])
-		request(http.MethodPut, activationPath, intent, 200)
-		consumed := request(http.MethodGet, sourcePath, nil, 200)
+		request(t, http.MethodPut, activationPath, intent, 200)
+		consumed := request(t, http.MethodGet, sourcePath, nil, 200)
 		require.Equal(t, "consumed", consumed["current_state"])
 		require.Equal(t, false, consumed["can_activate"])
 		var activationProof json.RawMessage
@@ -597,8 +627,8 @@ CREATE CONSTRAINT TRIGGER test_governance_activation_failure AFTER INSERT ON wor
 			})
 		}
 		call(http.MethodPut, "/v1/iam/governance-grants/"+activationGrant.String()+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "admin", map[string]any{"expected_version": 2, "decision": "revoke", "reason": "Withdraw activation authority after the completed digital hire"}, 202)
-		request(http.MethodGet, sourcePath, nil, 403)
-		request(http.MethodPut, activationPath, intent, 403)
+		request(t, http.MethodGet, sourcePath, nil, 403)
+		request(t, http.MethodPut, activationPath, intent, 403)
 	})
 
 }

@@ -89,14 +89,14 @@ func (h *handlers) loginLinkTransaction(c *gin.Context, p authn.Principal, hospi
 	root := establishment{kind: hospitalEstablishmentKind, id: hospital}
 	return h.withAccountLinkAuthority(c, p, root, staffID, command, func(commandCtx context.Context, source *authz.GovernanceSourceEvidence) error {
 		return h.transaction(commandCtx, p, hospital, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.workforce_login_link_access','authorized',true),set_config('app.workforce_login_link_command',?,true)`, command).Error; err != nil {
+				return err
+			}
 			if source == nil {
 				if err := requireStaffAccess(tx, p.TenantID, hospital, true); err != nil {
 					return err
 				}
 			} else if err := prepareLoginReviewPurpose(c, tx, p, root, staffID, command, *source); err != nil {
-				return err
-			}
-			if err := tx.Exec(`SELECT set_config('app.workforce_login_link_access','authorized',true),set_config('app.workforce_login_link_command',?,true)`, command).Error; err != nil {
 				return err
 			}
 			query := tx.Table("workforce_staff").Select(staffColumns).Where("tenant_id=? AND hospital_id=? AND id=?", p.TenantID, hospital, staffID)

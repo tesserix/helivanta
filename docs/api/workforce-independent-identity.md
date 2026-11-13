@@ -85,6 +85,11 @@ History, source evidence, audit, independent command receipts and outbox changes
 commit or roll back together. Known historical actor/target/maker aliases remain
 excluded from independent review, including hospital links.
 
+Current review commands refuse a missing provenance table or inactive recording
+trigger with 503, so an old schema cannot report a governed approval without its
+retained source evidence. Historical migration fixtures are prepared explicitly
+under their old owner rules; they do not manufacture modern governance proof.
+
 Public wire models and event payloads remain unchanged. Canonical generators do
 not add private provenance to v1 responses. Focused Workforce/gateway fixtures use
 an explicit IAM protocol double; bootstrap acceptance uses the actual IAM grant

@@ -87,6 +87,16 @@ func validLoginReviewSource(p authn.Principal, root establishment, source authz.
 }
 
 func prepareLoginReviewPurpose(c *gin.Context, tx *gorm.DB, p authn.Principal, root establishment, staffID uuid.UUID, command string, source authz.GovernanceSourceEvidence) error {
+	if command == "review" {
+		var installed bool
+		if err := tx.Raw("SELECT to_regclass('public.workforce_login_link_authorities') IS NOT NULL AND EXISTS(SELECT 1 FROM pg_catalog.pg_trigger WHERE tgrelid='public.workforce_login_links'::regclass AND tgname='workforce_login_review_record' AND tgenabled IN('O','A'))").Scan(&installed).Error; err != nil {
+			return err
+		}
+		if !installed {
+			return authz.ErrScopedAuthorizationUnavailable
+		}
+	}
+
 	proof := loginReviewAuthority{Capability: authz.GovernanceAccountLinkReview, IdleDeadline: p.IdleDeadline, Kind: source.Kind, TenantID: p.TenantID, EmployerID: root.id, EmployerKind: root.kind, StaffID: staffID, ActorSubject: p.Subject, MembershipEpoch: source.MembershipEpoch, OwnerCount: source.OwnerCount, ExpiresAt: source.ExpiresAt, AuthenticatedAt: p.AuthTime}
 	if source.Kind == authz.GovernanceOwnerSource {
 		proof.OwnerMembershipID = &source.OwnerMembershipID

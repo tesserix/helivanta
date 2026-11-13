@@ -1,10 +1,13 @@
 package bootstrap_test
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,6 +24,39 @@ import (
 	"gorm.io/gorm"
 )
 
+type governanceLinkIdentity struct {
+	roles      platform.RoleLister
+	membership authz.MembershipChecker
+	mu         sync.Mutex
+	before     func(context.Context) error
+}
+
+func (g *governanceLinkIdentity) beforeTarget(ctx context.Context, subject string) error {
+	if subject != "user-reviewer" {
+		return nil
+	}
+	g.mu.Lock()
+	before := g.before
+	g.before = nil
+	g.mu.Unlock()
+	if before != nil {
+		return before(ctx)
+	}
+	return nil
+}
+func (g *governanceLinkIdentity) ListRoles(ctx context.Context, subject string) ([]authz.RoleBinding, error) {
+	if err := g.beforeTarget(ctx, subject); err != nil {
+		return nil, err
+	}
+	return g.roles.ListRoles(ctx, subject)
+}
+func (g *governanceLinkIdentity) IsMember(ctx context.Context, subject, tenant string) (bool, error) {
+	if err := g.beforeTarget(ctx, subject); err != nil {
+		return false, err
+	}
+	return g.membership.IsMember(ctx, subject, tenant)
+}
+
 func TestGovernanceAccountLinkReviewConsumesExactEmployerSourceWithoutManagerAccess(t *testing.T) {
 	graph, err := authz.NewClient(t.Context(), testinfra.StartOpenFGA(t), testinfra.IsolationKey(t))
 	require.NoError(t, err)
@@ -36,6 +72,7 @@ func TestGovernanceAccountLinkReviewConsumesExactEmployerSourceWithoutManagerAcc
 	for _, kind := range []string{"hospital", "pharmacy", "supplier"} {
 		t.Run(kind, func(t *testing.T) {
 			native := &governanceNativeIdentity{}
+			identity := &governanceLinkIdentity{roles: graph, membership: graph}
 			router, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 				Tokens: map[string]string{"admin": testutil.TenantA, "owner2": testutil.TenantA, "auditor": testutil.TenantA},
 				Perms: map[string][]authz.Permission{
@@ -44,7 +81,7 @@ func TestGovernanceAccountLinkReviewConsumesExactEmployerSourceWithoutManagerAcc
 					"auditor": {workforce.PermLoginLinkReview, workforce.PermIndependentLoginReview},
 				},
 				Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(native), workforce.New(), pharmacy.New(), supply.New()},
-				Writer:  graph, Roles: graph, Membership: graph,
+				Writer:  graph, Roles: identity, Membership: identity,
 			})
 			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 				return tx.Exec("INSERT INTO iam_members(tenant_id,subject,role_key)VALUES(?,'user-admin','tenant_admin'),(?,'user-owner2','tenant_admin'),(?,'user-auditor','staff_member'),(?,'user-reviewer','staff_member')", testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA).Error
@@ -185,10 +222,94 @@ func TestGovernanceAccountLinkReviewConsumesExactEmployerSourceWithoutManagerAcc
 			}
 			denied := governanceRequest(router, http.MethodGet, base, "auditor", "")
 			require.True(t, denied.Code == 403 || denied.Code == 404, denied.Body.String())
-			withdrawn := governanceRequest(router, http.MethodPut, "/v1/iam/governance-grants/"+id.String()+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "admin", `{"expected_version":2,"decision":"revoke","reason":"Withdraw independent account-link source"}`)
-			require.Equal(t, 202, withdrawn.Code, withdrawn.Body.String())
-			lost := decide(0, "Independently checked target account")
+
+			siblingID := uuid.Must(uuid.NewV7())
+			siblingInput := input
+			siblingInput.ScopeID = &roots[1]
+			siblingInput.Reason = "Retain a different employer's review source"
+			siblingRaw, err := json.Marshal(siblingInput)
+			require.NoError(t, err)
+			sibling := governanceRequest(router, http.MethodPut, "/v1/iam/governance-grants/"+siblingID.String(), "admin", string(siblingRaw))
+			require.Equal(t, 202, sibling.Code, sibling.Body.String())
+			siblingApproval := governanceRequest(router, http.MethodPut, "/v1/iam/governance-grants/"+siblingID.String()+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "owner2", `{"expected_version":1,"decision":"approve","reason":"Independent owner confirms sibling employer"}`)
+			require.Equal(t, 202, siblingApproval.Code, siblingApproval.Body.String())
+			oldPath, oldMethod := links[0]+"/decision", http.MethodPost
+			if kind != "hospital" {
+				oldPath, oldMethod = links[0]+"/commands/"+uuid.Must(uuid.NewV7()).String(), http.MethodPut
+			}
+			prior := governanceRequest(router, oldMethod, oldPath, "admin", `{"expected_version":2,"decision":"revoke","reason":"Prepare a fresh identity review"}`)
+			changeStatus := 200
+			if kind != "hospital" {
+				changeStatus = 201
+			}
+			require.Equal(t, changeStatus, prior.Code, prior.Body.String())
+			links[0] = links[0][:len(links[0])-36] + uuid.Must(uuid.NewV7()).String()
+			proposal := map[string]any{"subject": "user-reviewer", "reason": "Fresh pending account link"}
+			if kind != "hospital" {
+				proposal["expected_staff_version"] = 1
+			}
+			proposalRaw, err := json.Marshal(proposal)
+			require.NoError(t, err)
+			pending := governanceRequest(router, http.MethodPut, links[0], "admin", string(proposalRaw))
+			expectedProposal := 200
+			if kind != "hospital" {
+				expectedProposal = 201
+			}
+			require.Equal(t, expectedProposal, pending.Code, pending.Body.String())
+			var before int64
+			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+				return tx.Table("audit_events").Where("resource_type='iam_governance_grants' AND resource_id=? AND action='iam.governance.source.use'", id).Count(&before).Error
+			}))
+			hookResult := make(chan error, 1)
+			cutoff := func(nativeCtx context.Context) error {
+				if db.GuardedCommandActive(nativeCtx) {
+					return fmt.Errorf("native target lookup retained a database guard")
+				}
+				var reads int64
+				if err := db.WithTenant(nativeCtx, testutil.TenantA, func(tx *gorm.DB) error {
+					return tx.Table("audit_events").Where("resource_type='iam_governance_grants' AND resource_id=? AND action='iam.governance.source.use'", id).Count(&reads).Error
+				}); err != nil {
+					return err
+				}
+				if reads <= before {
+					return fmt.Errorf("native lookup ran before the source preflight completed")
+				}
+				withdrawn := governanceRequest(router, http.MethodPut, "/v1/iam/governance-grants/"+id.String()+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "admin", `{"expected_version":2,"decision":"revoke","reason":"Withdraw source during native target observation"}`)
+				if withdrawn.Code != 202 {
+					return fmt.Errorf("source cutoff returned %d: %s", withdrawn.Code, withdrawn.Body.String())
+				}
+				return nil
+			}
+			identity.mu.Lock()
+			identity.before = func(nativeCtx context.Context) error { err := cutoff(nativeCtx); hookResult <- err; return err }
+			identity.mu.Unlock()
+			lost := decide(0, "Target identity checked after preflight")
+			select {
+			case err := <-hookResult:
+				require.NoError(t, err)
+			default:
+				t.Fatal("the native target observation did not run after preflight")
+			}
 			require.Equal(t, 403, lost.Code, lost.Body.String())
+			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+				var routing int64
+				require.NoError(t, tx.Table("iam_members").Where("tenant_id=? AND subject='user-auditor' AND role_key='governance_delegate'", testutil.TenantA).Count(&routing).Error)
+				require.EqualValues(t, 1, routing, "a sibling grant preserves coarse routing while this employer's grant is revoked")
+				require.NoError(t, tx.Exec("SELECT set_config('app.workforce_subject','user-admin',true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_login_link_access','authorized',true)", roots[0].String()).Error)
+				linkID := uuid.MustParse(links[0][len(links[0])-36:])
+				var parent struct {
+					Status  string
+					Version int64
+				}
+				require.NoError(t, tx.Table("workforce_login_links").Select("status,version").Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", testutil.TenantA, roots[0], people[0], linkID).Take(&parent).Error)
+				require.Equal(t, "pending", parent.Status)
+				require.EqualValues(t, 1, parent.Version)
+				var evidence int64
+				require.NoError(t, tx.Table("workforce_login_link_authorities").Where("tenant_id=? AND employer_id=? AND link_id=?", testutil.TenantA, roots[0], linkID).Count(&evidence).Error)
+				require.Zero(t, evidence, "stale source cannot append review evidence or activate the link")
+				return nil
+			}))
+
 		})
 	}
 }

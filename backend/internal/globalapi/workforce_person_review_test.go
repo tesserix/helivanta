@@ -227,7 +227,22 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		call(t, "PUT", base+"/staff/"+actor, maker, map[string]any{"employee_code": fmt.Sprintf("SYN-PERSON-OFFICER-%d", i), "display_name": officer.subject, "job_category": "other", "employment_status": "active"}, 200)
 		link := base + "/staff/" + actor + "/login-links/" + uuid.Must(uuid.NewV7()).String()
 		call(t, "PUT", link, maker, map[string]any{"subject": officer.subject, "reason": "Synthetic reviewed identity officer"}, 200)
-		linked := call(t, "POST", link+"/decision", checker, map[string]any{"expected_version": 1, "decision": "approve", "reason": "Independent synthetic officer identity"}, 200)
+		call(t, "POST", link+"/decision", checker, map[string]any{"expected_version": 1, "decision": "approve", "reason": "Independent synthetic officer identity"}, 503)
+		// This phase represents approvals retained before governed-review/provenance migrations.
+		// Current commands must refuse the old schema rather than silently omit source evidence.
+		var legacyVersion int64
+		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			var legacy bool
+			require.NoError(t, tx.Raw("SELECT to_regclass('public.workforce_login_link_authorities') IS NULL").Scan(&legacy).Error)
+			require.True(t, legacy, "historical fixture setup must not bypass current review admission")
+			require.NoError(t, tx.Exec("SELECT set_config('app.workforce_subject',?,true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_login_link_access','authorized',true),set_config('app.workforce_login_link_command','review',true)", checker, hospital).Error)
+			linkID := link[len(link)-36:]
+			changed := tx.Exec("UPDATE workforce_login_links SET status='active',version=version+1,actor_subject=?,reason='Independent synthetic officer identity' WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND id=? AND version=1 AND status='pending' AND proposed_by_subject=? AND subject=?", checker, testutil.TenantA, hospital, actor, linkID, maker, officer.subject)
+			require.NoError(t, changed.Error)
+			require.EqualValues(t, 1, changed.RowsAffected)
+			return tx.Table("workforce_login_links").Select("version").Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", testutil.TenantA, hospital, actor, linkID).Scan(&legacyVersion).Error
+		}))
+		linked := map[string]any{"version": float64(legacyVersion)}
 		proposal := "/v1/iam/assignment-proposals/" + uuid.Must(uuid.NewV7()).String()
 		call(t, "PUT", proposal, maker, map[string]any{"hospital_id": hospital, "subject": officer.subject, "template_key": officer.template, "reason": "Synthetic independent person review", "valid_from": time.Now().UTC().Format(time.RFC3339), "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}, 200)
 		waitForStatus(t, proposal, maker, "pending_review")

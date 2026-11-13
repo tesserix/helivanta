@@ -13261,6 +13261,11 @@
           "id": "0101_workforce_hospital_name_receipts",
           "sql_sha256": "a5fceaefbeb460c42dd79232a4cb059dd50add756fbf774a722bdf7920b412f3",
           "creates_tables": []
+        },
+        {
+          "id": "0102_workforce_governance_topology",
+          "sql_sha256": "62aa08b1e28b0dd30251c009b268fa6d75ea2363f30347b3895529b64a46a3b8",
+          "creates_tables": []
         }
       ]
     },

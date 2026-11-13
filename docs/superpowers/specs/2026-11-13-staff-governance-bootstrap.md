@@ -138,6 +138,32 @@ Authorization or audit failure rolls back/denies. Identity/topology source outag
 returns 503; missing route permission 403; invisible foreign scope/object 404;
 stale or changed command/version 409. Keep current v1 error envelopes.
 
+## Candidate topology source implementation
+
+The draft now includes Workforce's `GovernanceTopology` provider and candidate
+migration `0102_workforce_governance_topology`. It returns only the canonical
+hospital count while verifying the exact requested employer kind/ID inside a
+live, attributable tenant command. The platform binds a sole Workforce owner;
+missing/duplicate owners and unavailable sources deny. It grants no permission.
+
+The owner function retains a shared tenant topology advisory lock through the
+consumer callback. A statement trigger acquires the exclusive counterpart before
+any hospital-root insert/update/delete row locks. This covers existing hospital,
+pharmacy, supplier and onboarding writers without cross-module table reads.
+It prevents a count observation from racing those writers; it does not yet
+implement IAM's owner-count policy or block second-hospital admission itself.
+Those gates and the actual governance ledger/consumers remain required.
+
+This additive migration creates two functions and one trigger; it changes no
+rows, keys, owner identities or native accounts. Production application remains
+unapproved. Rollback first disables all consumers of this guard, then removes
+`workforce_governance_topology_write` from `workforce_hospitals`, drops its
+zero-argument trigger function, and drops
+`workforce_lock_governance_topology(boolean)`. Retained grant/review evidence must
+not be removed. A consumer left running without the function must deny on the
+source error. Scratch-database migration/rollback and full owner/topology race
+verification are required before requesting live approval.
+
 ## Contracts, rollout and acceptance
 
 Define canonical generated Go/Zod command, receipt, fixed-template, review and

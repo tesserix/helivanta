@@ -2,8 +2,9 @@
 
 Status: candidate in PR #1669; not merged or deployed. The current implementation
 covers owner grant admission, retained creation/decision receipts, current auditor
-review and an owner inbox. Effective Workforce reviewer consumers, acknowledgements
-and UI remain unfinished; remote decision acceptance is still pending. Account initiation alone does not complete Staff onboarding.
+review, an owner inbox and hospital/pharmacy/supplier account-link review consumers.
+Employment, assignment and operating-duty consumers, acknowledgements and UI remain
+unfinished. Account initiation alone does not complete Staff onboarding.
 
 IAM owns the governance ledger. Workforce owns the hospital/independent employer
 roots and current hospital count. Native identity remains with the identity owner.
@@ -111,7 +112,8 @@ No direct native administrator role is assigned. A routing tuple or stored
 `provisional_active` status is not effective hospital, HR, clinical, pharmacy,
 stock or financial authority. Actual consumer guards must check current exact
 source, interval, membership incarnation, credential and product prerequisites;
-those consumers are not implemented by this candidate admission slice.
+the candidate implements these checks for account-link review. HR/employment,
+assignment and operating-duty consumers remain unfinished.
 
 IAM retains an owner-count gate before target membership and Workforce topology
 locks. Workforce root insert/update/delete statements take the exclusive topology
@@ -151,8 +153,11 @@ wired in the API and test harness; Hospital and independent account-link review/
 candidate. Source-only reviewers use a selected-resource database purpose;
 owner/grant source evidence is retained with each reviewed link version. The
 remaining HR/employment, assignment and operating-duty consumers are unfinished.
-Its original PostgreSQL grant-source tests passed in CI `43380190287`. New owner
-source and Workforce consumer cases require remote acceptance.
+Real PostgreSQL/FGA owner and exact-employer grant consumer scenarios passed at
+`ede90d7e` in CI `43391789169`, for hospital, pharmacy and supplier employers.
+These scenarios use actual IAM grants and owners without private reviewer manager
+rows. Current-head in-flight revocation and failure-atomicity cases still require
+remote acceptance; earlier green runs do not establish their result.
 
 ## Client integration
 
@@ -171,8 +176,10 @@ governance screen or authorize Workforce consumers.
 
 ## Release and remaining acceptance
 
-Candidate migrations are `0102_workforce_governance_topology` and
-`0047_iam_governance`. Neither has been approved for live application. Before
+Candidate migrations are `0047_iam_governance`,
+`0102_workforce_governance_topology` and `0103_workforce_login_review_authority`.
+User rollout approval has been received; these migrations have not been applied
+to the live environment. Before
 rollout, complete the remaining source consumers, owner-count admission,
 ledger/role admission guards, frontend, remote PostgreSQL/FGA/race/recovery tests
 and tested rollback. Retain identities, original receipts, notices and decisions
@@ -181,8 +188,12 @@ through rollback; never erase evidence to retry onboarding.
 The real PostgreSQL governance suite passed in CI run `43377058047`, including
 independent decisions, stale source rejection between preflight and commit,
 original receipts, owner-notice privacy and opposing auditor revocations. Its
-first decision test returned 404 before implementation. The broader Go, web,
-supplier and browser suites are still running; this evidence does not establish
-Workforce consumer integration. The actual preserved tenant still needs recipient-operated
+first decision test returned 404 before implementation. Current-head Go, web,
+supplier and browser acceptance remains pending. The historical upgrade fixture
+checks that current review commands return 503 before source provenance exists;
+retained prerequisite approvals use the historical schema with its independence,
+history and audit triggers. Once 0103 is installed, reviews use the current API.
+These fixtures do not establish modern IAM authority; the real owner/grant tests
+above provide that evidence. The actual preserved tenant still needs recipient-operated
 private setup, real distinct reviewers and positive/negative/revoked staff and
 pharmacy-access verification before this workflow is complete.

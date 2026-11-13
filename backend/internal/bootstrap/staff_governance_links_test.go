@@ -21,6 +21,7 @@ import (
 	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
 )
 
@@ -189,6 +190,47 @@ func TestGovernanceAccountLinkReviewConsumesExactEmployerSourceWithoutManagerAcc
 				require.Zero(t, managers, "current owner review uses its actual membership source, not a private manager row")
 				return nil
 			}))
+			for _, fault := range []struct {
+				name, install, remove string
+				status                int
+			}{
+				{"recorder_disabled", "ALTER TABLE workforce_login_links DISABLE TRIGGER workforce_login_review_record", "ALTER TABLE workforce_login_links ENABLE TRIGGER workforce_login_review_record", 503},
+				{"evidence_unavailable", `CREATE FUNCTION test_governance_link_fault() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic review evidence failure'; END $$; CREATE TRIGGER test_governance_link_fault BEFORE INSERT ON workforce_login_link_authorities FOR EACH ROW EXECUTE FUNCTION test_governance_link_fault()`, "DROP FUNCTION test_governance_link_fault() CASCADE", 500},
+			} {
+				t.Run(fault.name, func(t *testing.T) {
+					require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_link_" + fault.name, SQL: fault.install}}))
+					defer func() {
+						require.NoError(t, db.Migrate(context.WithoutCancel(ctx), []tenantdb.Migration{{ID: "test_link_restore_" + fault.name, SQL: fault.remove}}))
+					}()
+					failed := decide(0, "Review cannot omit its source evidence")
+					require.Equal(t, fault.status, failed.Code, failed.Body.String())
+					require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+						if err := tx.Exec("SELECT set_config('app.workforce_subject','user-admin',true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_login_link_access','authorized',true)", roots[0].String()).Error; err != nil {
+							return err
+						}
+						linkID := uuid.MustParse(links[0][len(links[0])-36:])
+						var parent struct {
+							Status  string
+							Version int64
+						}
+						require.NoError(t, tx.Table("workforce_login_links").Select("status,version").Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", testutil.TenantA, roots[0], people[0], linkID).Take(&parent).Error)
+						require.Equal(t, "pending", parent.Status)
+						require.EqualValues(t, 1, parent.Version)
+						var evidence, history, changes, commands int64
+						require.NoError(t, tx.Table("workforce_login_link_authorities").Where("tenant_id=? AND employer_id=? AND link_id=?", testutil.TenantA, roots[0], linkID).Count(&evidence).Error)
+						require.Zero(t, evidence)
+						require.NoError(t, tx.Table("workforce_login_link_history").Where("tenant_id=? AND hospital_id=? AND id=? AND version>1", testutil.TenantA, roots[0], linkID).Count(&history).Error)
+						require.Zero(t, history)
+						require.NoError(t, tx.Table("workforce_audit").Where("tenant_id=? AND hospital_id=? AND resource_id=? AND action IN('workforce.login_link.changed','workforce.login_link.review_authority') AND actor_subject='user-auditor'", testutil.TenantA, roots[0], linkID).Count(&changes).Error)
+						require.Zero(t, changes)
+						if kind != "hospital" {
+							require.NoError(t, tx.Table("workforce_independent_link_commands").Where("tenant_id=? AND employer_id=? AND link_id=?", testutil.TenantA, roots[0], linkID).Count(&commands).Error)
+							require.Zero(t, commands, "a failed review cannot retain a successful command receipt")
+						}
+						return nil
+					}))
+				})
+			}
 			result := decide(0, "Independently checked target account")
 			expected := 200
 			if kind != "hospital" {

@@ -97,11 +97,15 @@ func (h *handlers) getIdentitySource(c *gin.Context) {
 		})
 	}
 	err = transaction(PermIdentityChecksManage)
+	hiddenActor := errors.Is(err, errPersonReviewActorHidden)
 	if errors.Is(err, authz.ErrScopedCommandDenied) {
 		canManage = false
 		err = transaction(PermIdentityChecksReview)
 	}
 	if err != nil {
+		if errors.Is(err, errPersonReviewActorHidden) || (hiddenActor && errors.Is(err, authz.ErrScopedCommandDenied)) {
+			err = gorm.ErrRecordNotFound
+		}
 		respondIdentityError(c, err)
 		return
 	}

@@ -18,6 +18,8 @@ import (
 //go:embed person_review_authority.sql
 var personReviewAuthoritySchema string
 
+var errPersonReviewActorHidden = errors.New("reviewed person actor unavailable")
+
 type personReviewAuthority struct {
 	Staff      *reviewedLeaveActor
 	Assignment authz.ScopeGrant
@@ -124,7 +126,7 @@ func (h *handlers) withPersonReviewAuthorityContext(ctx context.Context, p authn
 	}
 	if !governanceAllowed {
 		if staffHidden {
-			return gorm.ErrRecordNotFound
+			return errors.Join(authz.ErrScopedCommandDenied, errPersonReviewActorHidden)
 		}
 		return authz.ErrScopedCommandDenied
 	}
@@ -154,8 +156,11 @@ func (h *handlers) withPersonReviewAuthorityContext(ctx context.Context, p authn
 	if err == nil && callbacks != 1 {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
-	if errors.Is(err, authz.ErrGovernanceScopeHidden) || (staffHidden && errors.Is(err, authz.ErrScopedCommandDenied)) {
+	if errors.Is(err, authz.ErrGovernanceScopeHidden) {
 		return gorm.ErrRecordNotFound
+	}
+	if staffHidden && errors.Is(err, authz.ErrScopedCommandDenied) {
+		return errors.Join(authz.ErrScopedCommandDenied, errPersonReviewActorHidden)
 	}
 	return err
 }

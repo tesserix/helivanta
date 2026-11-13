@@ -6,6 +6,21 @@
 This is source-review tooling. No employment guard, grant classification in a live
 database, migration, account change or runtime activation is performed by it.
 
+## Person authority discovery source review — 13 November 2026
+
+The registry now contains 1,093 registered surfaces: 107 source-classified and
+986 awaiting classification. The new person authority discovery route is
+classified as `mixed`: it accepts a current reviewed Staff assignment or an exact
+owner/person-governance source, solely for authorized hospital names and
+preparation/review capability hints. The legacy actor-link route is unchanged.
+
+The Workforce module differs from the preceding candidate only by that new route
+registration. Nineteen existing source-pinned reviews were rechecked; their route
+registrations, authority and remaining runtime obligations are unchanged. The new
+review pins the candidate scan/filter, authority union, scoped guard and shared
+filtered-pagination implementation. This source review grants no operational
+access and does not establish full onboarding or production acceptance.
+
 ## Business-profile source review — 11 November 2026
 
 The current registry contains 1,044 registered surfaces, with 99 source-classified

@@ -237,7 +237,9 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 	require.NotEqual(t, pngBytes.Bytes(), denied.Body.Bytes())
 	call(http.MethodGet, identityPath, "reviewer", nil, 403)
 	call(http.MethodGet, base+"/person-review-inbox", "reviewer", nil, 403)
-	require.Empty(t, call(http.MethodGet, "/v1/workforce/person-review-authority-scopes", "reviewer", nil, 200)["data"], "sibling coarse routing cannot revive a revoked person source")
+	remainingScopes := call(http.MethodGet, "/v1/workforce/person-review-authority-scopes", "reviewer", nil, 200)["data"].([]any)
+	require.Len(t, remainingScopes, 1)
+	require.Equal(t, roots[1].String(), remainingScopes[0].(map[string]any)["hospital_id"], "the sibling source admits only its own hospital; it cannot revive the revoked root")
 
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		var routing int64

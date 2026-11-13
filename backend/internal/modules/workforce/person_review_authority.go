@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -86,11 +87,29 @@ func (h *handlers) withPersonReviewAuthority(c *gin.Context, p authn.Principal, 
 	if !authn.Refresh(c) {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
+	tenants, subjects := c.Request.Header.Values("X-Helivanta-Expected-Tenant"), c.Request.Header.Values("X-Helivanta-Expected-Subject")
+	if len(tenants) != 1 || tenants[0] != p.TenantID || len(subjects) != 1 || subjects[0] != p.Subject {
+		return errIntakeWorkspaceRequired
+	}
+	permissions, ok := authz.RefreshPermissions(c)
+	if !ok {
+		return authz.ErrScopedAuthorizationUnavailable
+	}
+	ctx, cancel := context.WithDeadline(c.Request.Context(), p.IdleDeadline)
+	defer cancel()
+	ctx, budget := context.WithTimeout(ctx, 5*time.Second)
+	defer budget()
+	return h.withPersonReviewAuthorityContext(ctx, p, hospital, permission, permissions.Has(permission), fn)
+}
+
+func (h *handlers) withPersonReviewAuthorityContext(ctx context.Context, p authn.Principal, hospital uuid.UUID, permission authz.Permission, governanceAllowed bool, fn func(context.Context, personReviewAuthority) error) error {
 	called := false
-	err := h.withIdentityScopeGrant(c, p, hospital, permission, func(ctx context.Context, grant authz.ScopeGrant) error {
+	staffHidden := false
+	err := h.withIdentityScopeGrantContext(ctx, p, hospital, permission, func(ctx context.Context, grant authz.ScopeGrant) error {
 		return h.transaction(ctx, p, hospital, func(tx *gorm.DB) error {
 			actor, err := lockReviewedLeaveActor(tx, p, hospital)
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				staffHidden = true
 				return authz.ErrScopedCommandDenied
 			}
 			if err != nil {
@@ -103,15 +122,10 @@ func (h *handlers) withPersonReviewAuthority(c *gin.Context, p authn.Principal, 
 	if called || !errors.Is(err, authz.ErrScopedCommandDenied) {
 		return err
 	}
-	tenants, subjects := c.Request.Header.Values("X-Helivanta-Expected-Tenant"), c.Request.Header.Values("X-Helivanta-Expected-Subject")
-	if len(tenants) != 1 || tenants[0] != p.TenantID || len(subjects) != 1 || subjects[0] != p.Subject {
-		return errIntakeWorkspaceRequired
-	}
-	permissions, ok := authz.RefreshPermissions(c)
-	if !ok {
-		return authz.ErrScopedAuthorizationUnavailable
-	}
-	if !permissions.Has(permission) {
+	if !governanceAllowed {
+		if staffHidden {
+			return gorm.ErrRecordNotFound
+		}
 		return authz.ErrScopedCommandDenied
 	}
 	capability, template := personReviewCapability(permission)
@@ -120,7 +134,7 @@ func (h *handlers) withPersonReviewAuthority(c *gin.Context, p authn.Principal, 
 	}
 	callbacks := 0
 	var actionErr error
-	err = h.governanceSources.WithGovernanceSource(c.Request.Context(), authz.GovernanceSourceRequest{Principal: p, Capability: capability, Scope: authz.GovernanceEstablishmentScope{TenantID: p.TenantID, Kind: hospitalEstablishmentKind, ID: &hospital}}, func(ctx context.Context, source authz.GovernanceSourceEvidence) error {
+	err = h.governanceSources.WithGovernanceSource(ctx, authz.GovernanceSourceRequest{Principal: p, Capability: capability, Scope: authz.GovernanceEstablishmentScope{TenantID: p.TenantID, Kind: hospitalEstablishmentKind, ID: &hospital}}, func(ctx context.Context, source authz.GovernanceSourceEvidence) error {
 		callbacks++
 		if callbacks != 1 || !h.db.GuardedCommandActive(ctx) || tenantdb.ActorFrom(ctx) != p.Subject {
 			actionErr = authz.ErrScopedAuthorizationUnavailable
@@ -140,10 +154,34 @@ func (h *handlers) withPersonReviewAuthority(c *gin.Context, p authn.Principal, 
 	if err == nil && callbacks != 1 {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
-	if errors.Is(err, authz.ErrGovernanceScopeHidden) {
+	if errors.Is(err, authz.ErrGovernanceScopeHidden) || (staffHidden && errors.Is(err, authz.ErrScopedCommandDenied)) {
 		return gorm.ErrRecordNotFound
 	}
 	return err
+}
+
+func preparePersonBrowseAuthority(tx *gorm.DB, p authn.Principal, hospital uuid.UUID, authority personReviewAuthority) error {
+	if authority.Governance == nil {
+		return nil
+	}
+	var installed bool
+	if err := tx.Raw(`SELECT to_regprocedure('public.workforce_person_governance_source(uuid,uuid)') IS NOT NULL`).Scan(&installed).Error; err != nil {
+		return err
+	}
+	if !installed {
+		return authz.ErrScopedAuthorizationUnavailable
+	}
+	values, err := authority.auditValues()
+	if err != nil {
+		return err
+	}
+	values["tenant_id"], values["hospital_id"], values["actor_subject"], values["purpose"] = p.TenantID, hospital, p.Subject, "person_browse"
+	values["authenticated_at"], values["idle_deadline"] = p.AuthTime, p.IdleDeadline
+	raw, err := json.Marshal(values)
+	if err != nil {
+		return err
+	}
+	return tx.Exec(`SELECT set_config('app.workforce_person_authority',?,true)`, string(raw)).Error
 }
 
 func preparePersonReviewAuthority(c *gin.Context, tx *gorm.DB, p authn.Principal, hospital, staff uuid.UUID, authority personReviewAuthority) error {

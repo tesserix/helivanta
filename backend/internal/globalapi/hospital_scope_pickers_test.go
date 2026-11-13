@@ -96,7 +96,7 @@ func TestHospitalScopePickersIgnoreIndependentEmployerAccounts(t *testing.T) {
 	must("PUT", link, "owner", `{"expected_staff_version":1,"subject":"user-operator","reason":"TEST checked account ownership"}`, 201)
 	approved := must("PUT", link+"/commands/"+uuid.Must(uuid.NewV7()).String(), "reviewer", `{"expected_version":1,"decision":"approve","reason":"TEST independently checked identity"}`, 201)
 	require.Contains(t, approved, `"status":"active"`)
-	for _, picker := range []string{"leave-review-scopes", "hr-intake-scopes", "employment-review-scopes", "person-review-scopes", "posting-scopes", "posting-review-scopes", "staff-actor-scopes"} {
+	for _, picker := range []string{"leave-review-scopes", "hr-intake-scopes", "employment-review-scopes", "person-review-scopes", "person-review-authority-scopes", "posting-scopes", "posting-review-scopes", "staff-actor-scopes"} {
 		t.Run(picker, func(t *testing.T) {
 			code, out := call("GET", "/v1/workforce/"+picker+"?limit=20", "operator", "")
 			require.Equal(t, 200, code, out)

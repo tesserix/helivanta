@@ -30,14 +30,18 @@ func (h *handlers) identityScopeTransaction(c *gin.Context, p authn.Principal, h
 }
 
 func (h *handlers) withIdentityScopeGrant(c *gin.Context, p authn.Principal, hospital uuid.UUID, permission authz.Permission, fn func(context.Context, authz.ScopeGrant) error) error {
-	guard, ok := h.scopeAuthority.(authz.ScopedCommandGuard)
-	if !ok || h.scopeAuthority == nil || p.IdleDeadline.IsZero() {
-		return authz.ErrScopedAuthorizationUnavailable
-	}
 	ctx, cancel := context.WithDeadline(c.Request.Context(), p.IdleDeadline)
 	defer cancel()
 	ctx, budget := context.WithTimeout(ctx, 5*time.Second)
 	defer budget()
+	return h.withIdentityScopeGrantContext(ctx, p, hospital, permission, fn)
+}
+
+func (h *handlers) withIdentityScopeGrantContext(ctx context.Context, p authn.Principal, hospital uuid.UUID, permission authz.Permission, fn func(context.Context, authz.ScopeGrant) error) error {
+	guard, ok := h.scopeAuthority.(authz.ScopedCommandGuard)
+	if !ok || h.scopeAuthority == nil || p.IdleDeadline.IsZero() {
+		return authz.ErrScopedAuthorizationUnavailable
+	}
 	request := authz.ScopeRequest{TenantID: p.TenantID, Subject: p.Subject, HospitalID: hospital.String(), Permission: permission}
 	grant, err := h.scopeAuthority.AuthorizeScope(ctx, request)
 	if err != nil {

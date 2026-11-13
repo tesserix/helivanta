@@ -96,6 +96,40 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 	}
 	issue("user-auditor", "workforce.person_preparer.v1", roots[0])
 	reviewGrant := issue("user-reviewer", "workforce.person_reviewer.v1", roots[0])
+	t.Run("authority discovery without Staff links", func(t *testing.T) {
+		route := "/v1/workforce/person-review-authority-scopes"
+		ownerScopes := call(http.MethodGet, route, "owner2", nil, 200)["data"].([]any)
+		require.Len(t, ownerScopes, 2)
+		for _, scope := range ownerScopes {
+			row := scope.(map[string]any)
+			require.Equal(t, true, row["can_submit"])
+			require.Equal(t, true, row["can_review"])
+		}
+		for _, subject := range []string{"auditor", "reviewer"} {
+			scopes := call(http.MethodGet, route, subject, nil, 200)["data"].([]any)
+			require.Len(t, scopes, 1)
+			row := scopes[0].(map[string]any)
+			require.Equal(t, roots[0].String(), row["hospital_id"])
+			require.Equal(t, subject == "auditor", row["can_submit"])
+			require.Equal(t, subject == "reviewer", row["can_review"])
+			require.Empty(t, call(http.MethodGet, "/v1/workforce/person-review-scopes", subject, nil, 200)["data"], "legacy link discovery must retain its meaning")
+		}
+		first := call(http.MethodGet, route+"?limit=1", "reviewer", nil, 200)
+		require.Empty(t, first["data"], "the newest root has no delegate authority")
+		cursor := first["page"].(map[string]any)["next_cursor"].(string)
+		require.True(t, first["page"].(map[string]any)["has_more"].(bool))
+		second := call(http.MethodGet, route+"?limit=1&cursor="+cursor, "reviewer", nil, 200)
+		require.Len(t, second["data"], 1)
+		require.False(t, second["page"].(map[string]any)["has_more"].(bool))
+		call(http.MethodGet, route+"?limit=1&cursor="+cursor, "auditor", nil, 400)
+		call(http.MethodGet, "/v1/workforce/person-review-scopes?cursor="+cursor, "reviewer", nil, 400)
+		call(http.MethodGet, route+"?limit=21", "reviewer", nil, 400)
+		targets := call(http.MethodPost, base+"/person-review-targets/search", "auditor", map[string]any{"employee_code": "SYN-PERSON"}, 200)["data"].([]any)
+		require.Len(t, targets, 1)
+		require.Equal(t, staff[0].String(), targets[0].(map[string]any)["id"])
+		call(http.MethodPost, base+"/person-review-targets/search", "reviewer", map[string]any{"employee_code": ""}, 403)
+		call(http.MethodPost, "/v1/workforce/hospitals/"+roots[1].String()+"/person-review-targets/search", "auditor", map[string]any{"employee_code": ""}, 403)
+	})
 	source := call(http.MethodGet, identityPath, "auditor", nil, 200)
 	call(http.MethodGet, identityPath+"?projection=identity_drafts", "auditor", nil, 403)
 	call(http.MethodGet, "/v1/workforce/hospitals/"+roots[1].String()+"/identity-staff/"+staff[1].String(), "reviewer", nil, 403)
@@ -129,6 +163,12 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 	input := map[string]any{"command_id": uuid.Must(uuid.NewV7()), "staff_version": source["staff_version"], "employment_epoch": source["employment_epoch"], "identity_hash": source["identity_hash"], "policy_reference": "SYN-PERSON-POLICY", "finding_reference": "Human identity examination", "observed_on": time.Now().UTC().Format(time.DateOnly), "valid_until": time.Now().UTC().Add(time.Hour).Truncate(time.Microsecond), "access_intent": "non_digital", "declared_subject": "", "identity_examined": true, "known_associations_disclosed": true, "document_ids": []string{file}}
 	pending := call(http.MethodPut, reviewPath, "auditor", input, 200)
 	require.Equal(t, "pending", pending["status"])
+	for _, subject := range []string{"owner2", "auditor", "reviewer"} {
+		inbox := call(http.MethodGet, base+"/person-review-inbox", subject, nil, 200)["data"].([]any)
+		require.Len(t, inbox, 1)
+		require.Equal(t, reviewID.String(), inbox[0].(map[string]any)["id"])
+	}
+
 	decision := map[string]any{"command_id": uuid.Must(uuid.NewV7()), "expected_version": 1, "decision": "approve", "reason": "Independent human examination", "identity_examined": true, "independent_person_confirmed": true}
 	call(http.MethodPost, reviewPath+"/decision", "auditor", decision, 403)
 	call(http.MethodPost, reviewPath+"/decision", "admin", decision, 403)
@@ -196,6 +236,9 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 	require.Equal(t, 403, denied.Code, denied.Body.String())
 	require.NotEqual(t, pngBytes.Bytes(), denied.Body.Bytes())
 	call(http.MethodGet, identityPath, "reviewer", nil, 403)
+	call(http.MethodGet, base+"/person-review-inbox", "reviewer", nil, 403)
+	require.Empty(t, call(http.MethodGet, "/v1/workforce/person-review-authority-scopes", "reviewer", nil, 200)["data"], "sibling coarse routing cannot revive a revoked person source")
+
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		var routing int64
 		require.NoError(t, tx.Table("iam_members").Where("tenant_id=? AND subject='user-reviewer' AND role_key='governance_delegate'", testutil.TenantA).Count(&routing).Error)

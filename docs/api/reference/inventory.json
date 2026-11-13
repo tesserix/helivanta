@@ -11381,6 +11381,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/person-review-authority-scopes",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/person-review-scopes",
           "permission": "public",
           "authentication_required": true,
@@ -13344,7 +13353,7 @@
         },
         {
           "id": "0104_workforce_person_review_authority",
-          "sql_sha256": "9387435458ae4b2a44ca130e12e22474b5d3760fa97af9e29e546cb21817746d",
+          "sql_sha256": "211883aad3ca3e2da2f9ada5b67c592e061c6fc41f1979ab13cba56aec1b466c",
           "creates_tables": []
         }
       ]

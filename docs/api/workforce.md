@@ -2038,3 +2038,31 @@ Account-link review continues to require current employer manager context plus
 current Staff/source/independence checks. The aliases grant no authority and add
 no server endpoints or permissions. See
 [reviewer access](../superpowers/specs/2026-11-09-independent-staff-review-access.md).
+
+### Person authority discovery — source candidate
+
+Workforce owns `GET /v1/workforce/person-review-authority-scopes`, consumed through
+Global API by the person-review workspace. Its existing generated
+`PersonReviewHospitalScope` response contains only `hospital_id`, `name`,
+`can_submit` and `can_review`. It scans canonical hospital roots, at most twenty
+plus one continuation probe, in descending creation-time/ID order. The opaque
+cursor is bound to route, verified tenant and account; it cannot be used with
+legacy `person-review-scopes`, whose reviewed-login-link cursor meaning is unchanged.
+Authorization filtering can produce an empty page with `has_more: true`.
+
+Discovery, target search and inbox reads use current reviewed Staff authority or
+current exact owner/person-governance source authority. A title, legacy hospital
+manager row or account-link-review grant does not substitute. Authentication and
+permission refresh precede parallel discovery checks; at most four workers share
+one five-second/idle deadline. Source errors fail closed. Authorized reads retain
+private source proof in audit; unauthorized names are omitted. Matching expected
+tenant/account headers are required, and all responses remain `no-store`.
+Capabilities are discovery hints; subsequent commands repeat current source checks.
+
+WF0104 additionally admits a hospital-bounded target/inbox read purpose with
+explicit source evidence and no fabricated Staff/link references. Existing write
+and DELETE boundaries remain, and the governance read purpose cannot write Staff,
+profile, document or login-link masters. This changes the unapplied WF0104 candidate;
+it is not a deployed schema change. Real database, disclosure-cutoff and rollback
+acceptance remain remote CI/release gates. Employment, first activation and
+operating authority remain separate unfinished workflows.

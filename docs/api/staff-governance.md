@@ -240,8 +240,9 @@ IAM0047/WF0102/WF0103 does not authorize this new live migration. Before applyin
 Rollback disables the new consumers and retains provenance columns and history;
 do not drop evidence to undo the code rollout.
 
-Person scope/target/inbox discovery and delegation UI still need this authority
-path; existing discovery requires a reviewed Staff link. Complete those consumers
-alongside employment and activation before claiming first-staff onboarding works.
+The person-review workspace now uses a separate authority discovery route and
+source-checked target/inbox reads, described in the Workforce contract. The legacy
+actor-link discovery route and cursors remain unchanged. Delegation UI, employment
+and activation still need completion before claiming first-staff onboarding works.
 The new source/snapshot unit tests pass locally; database and protected-release
 cases are candidates awaiting remote execution.

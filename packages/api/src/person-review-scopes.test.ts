@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { listPersonReviewScopes } from "./person-review-scopes";
+import { listPersonReviewScopes, listPersonReviewAuthorityScopes } from "./person-review-scopes";
 
 const workspace = {
   tenantId: "11111111-1111-4111-8111-111111111111",
@@ -62,4 +62,66 @@ it("does not release a scope response after cancellation", async () => {
     }),
   );
   await expect(listPersonReviewScopes(workspace, null, controller.signal)).rejects.toThrow();
+});
+
+it("discovers current person authority separately from legacy actor-link cursors", async () => {
+  const fetcher = vi.fn<typeof fetch>(async () =>
+    Response.json({ data: [hospital], page: { has_more: false, next_cursor: null } }),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  await expect(listPersonReviewAuthorityScopes(workspace)).resolves.toMatchObject({
+    data: [hospital],
+  });
+  expect(fetcher.mock.calls[0][0]).toBe(
+    "/api/v1/workforce/person-review-authority-scopes?limit=20",
+  );
+});
+
+it.each([
+  { data: [hospital, hospital], page: { has_more: false, next_cursor: null } },
+  { data: [hospital], page: { has_more: true, next_cursor: "same" } },
+])("refuses ambiguous authority scope pages", async (body) => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json(body)),
+  );
+  await expect(listPersonReviewAuthorityScopes(workspace, "same")).rejects.toThrow();
+});
+
+it("keeps authority discovery bounded and private across filtered empty pages", async () => {
+  const fetcher = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(
+      Response.json({ data: [], page: { has_more: true, next_cursor: "authority-next" } }),
+    )
+    .mockResolvedValueOnce(
+      Response.json({ data: [hospital], page: { has_more: false, next_cursor: null } }),
+    );
+  vi.stubGlobal("fetch", fetcher);
+  const first = await listPersonReviewAuthorityScopes(workspace);
+  expect(first.data).toEqual([]);
+  expect((await listPersonReviewAuthorityScopes(workspace, first.page.next_cursor)).data).toEqual([
+    hospital,
+  ]);
+  expect(fetcher.mock.calls[1][0]).toBe(
+    "/api/v1/workforce/person-review-authority-scopes?limit=20&cursor=authority-next",
+  );
+  const headers = new Headers(fetcher.mock.calls[1][1]?.headers);
+  expect(headers.get("X-Helivanta-Expected-Tenant")).toBe(workspace.tenantId);
+  expect(headers.get("X-Helivanta-Expected-Subject")).toBe(workspace.subject);
+  expect(fetcher.mock.calls[1][1]?.cache).toBe("no-store");
+});
+
+it("discards authority discovery after workspace cancellation", async () => {
+  const controller = new AbortController();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => {
+      controller.abort();
+      return Response.json({ data: [hospital], page: { has_more: false, next_cursor: null } });
+    }),
+  );
+  await expect(
+    listPersonReviewAuthorityScopes(workspace, null, controller.signal),
+  ).rejects.toThrow();
 });

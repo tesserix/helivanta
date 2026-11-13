@@ -31,23 +31,28 @@ func personBrowseParams(c *gin.Context) (authn.Principal, uuid.UUID, bool) {
 	return p, hospital, authn.Refresh(c)
 }
 
-func (h *handlers) withPersonBrowse(c *gin.Context, p authn.Principal, hospital uuid.UUID, mode string, permission authz.Permission, read func(*gorm.DB, reviewedLeaveActor, authz.ScopeGrant) error) error {
-	return h.withIdentityScopeGrant(c, p, hospital, permission, func(ctx context.Context, grant authz.ScopeGrant) error {
+func (h *handlers) withPersonBrowse(c *gin.Context, p authn.Principal, hospital uuid.UUID, mode string, permission authz.Permission, read func(*gorm.DB, personReviewAuthority) error) error {
+	return h.withPersonReviewAuthority(c, p, hospital, permission, func(ctx context.Context, authority personReviewAuthority) error {
 		return h.transaction(ctx, p, hospital, func(tx *gorm.DB) error {
 			if err := tx.Exec(`SELECT workforce_lock_supervision(?::uuid,?::uuid)`, p.TenantID, hospital).Error; err != nil {
 				return err
 			}
-			actor, err := lockReviewedLeaveActor(tx, p, hospital)
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return authz.ErrScopedCommandDenied
+			actor, link := "", ""
+			if authority.Staff != nil {
+				actor = authority.Staff.StaffID.String()
+				link = authority.Staff.ID.String()
 			}
-			if err != nil {
+			reviewMode := "manage"
+			if permission == PermIdentityChecksReview {
+				reviewMode = "review"
+			}
+			if err := tx.Exec(`SELECT set_config('app.workforce_person_browse',?,true),set_config('app.workforce_person_browse_actor',?,true),set_config('app.workforce_person_browse_link',?,true),set_config('app.workforce_person_review',?,true)`, mode, actor, link, reviewMode).Error; err != nil {
 				return err
 			}
-			if err := tx.Exec(`SELECT set_config('app.workforce_person_browse',?,true),set_config('app.workforce_person_browse_actor',?,true),set_config('app.workforce_person_browse_link',?,true)`, mode, actor.StaffID.String(), actor.ID.String()).Error; err != nil {
+			if err := preparePersonBrowseAuthority(tx, p, hospital, authority); err != nil {
 				return err
 			}
-			return read(tx, actor, grant)
+			return read(tx, authority)
 		})
 	})
 }
@@ -66,7 +71,7 @@ func (h *handlers) searchPersonReviewTargets(c *gin.Context, page pagination.Par
 		return nil, nil
 	}
 	rows := []PersonReviewTarget{}
-	err := h.withPersonBrowse(c, p, hospital, "targets", PermIdentityChecksManage, func(tx *gorm.DB, actor reviewedLeaveActor, grant authz.ScopeGrant) error {
+	err := h.withPersonBrowse(c, p, hospital, "targets", PermIdentityChecksManage, func(tx *gorm.DB, authority personReviewAuthority) error {
 		query := tenantdb.ApplyKeyset(tx, page).Table("workforce_staff").Select("id,hospital_id,employee_code,display_name,employment_status,version AS staff_version,created_at").Where("tenant_id=? AND hospital_id=?", p.TenantID, hospital)
 		if *input.EmployeeCode != "" {
 			query = query.Where("lower(employee_code)=?", strings.ToLower(*input.EmployeeCode))
@@ -75,7 +80,7 @@ func (h *handlers) searchPersonReviewTargets(c *gin.Context, page pagination.Par
 			return err
 		}
 		for _, row := range rows[:min(len(rows), page.Limit)] {
-			if err := personReviewStaffAudit(tx, p, hospital, row.ID, "workforce.person_review.target.read", row.StaffVersion, actor, grant); err != nil {
+			if err := personReviewAudit(tx, p, hospital, row.ID, "workforce.person_review.target.read", row.StaffVersion, authority); err != nil {
 				return err
 			}
 		}
@@ -108,7 +113,7 @@ func (h *handlers) listPersonReviewInbox(c *gin.Context, page pagination.Params)
 		return nil, nil
 	}
 	rows := []PersonReviewSummary{}
-	read := func(tx *gorm.DB, actor reviewedLeaveActor, grant authz.ScopeGrant) error {
+	read := func(tx *gorm.DB, authority personReviewAuthority) error {
 		query := tx.Table("workforce_person_reviews r").Select("r.id,r.hospital_id,r.staff_id,s.employee_code,s.display_name,r.status,r.version,r.valid_until,r.created_at").Joins("JOIN workforce_staff s ON s.tenant_id=r.tenant_id AND s.hospital_id=r.hospital_id AND s.id=r.staff_id").Where("r.tenant_id=? AND r.hospital_id=? AND r.status=?", p.TenantID, hospital, status)
 		if page.After != nil {
 			query = query.Where("(r.created_at,r.id)<(?,?)", page.After.CreatedAt, page.After.ID)
@@ -117,7 +122,7 @@ func (h *handlers) listPersonReviewInbox(c *gin.Context, page pagination.Params)
 			return err
 		}
 		for _, row := range rows[:min(len(rows), page.Limit)] {
-			if err := personReviewStaffAudit(tx, p, hospital, row.ID, "workforce.person_review.inbox.read", row.Version, actor, grant); err != nil {
+			if err := personReviewAudit(tx, p, hospital, row.ID, "workforce.person_review.inbox.read", row.Version, authority); err != nil {
 				return err
 			}
 		}

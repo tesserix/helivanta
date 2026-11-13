@@ -13,7 +13,7 @@ import {
 import {
   useApiQuery,
   useTenantTransition,
-  usePersonReviewScopes,
+  usePersonReviewAuthorityScopes,
   usePersonReviewInbox,
   type PersonReviewHospitalScope,
   type PersonReviewHospitalWorkspace,
@@ -68,7 +68,7 @@ function ReviewWorkspace({ workspace }: { workspace: Workspace }) {
   const [blocked, setBlocked] = useState(false);
   const [revision, setRevision] = useState(0);
   const [notice, setNotice] = useState("");
-  const scopes = usePersonReviewScopes(workspace, cursors.at(-1) ?? null);
+  const scopes = usePersonReviewAuthorityScopes(workspace, cursors.at(-1) ?? null);
   const hospital =
     scopes.data?.data.find((row) => row.hospital_id === selected) ?? scopes.data?.data[0];
   const next = scopes.data?.page.next_cursor;

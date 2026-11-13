@@ -257,8 +257,22 @@ explicit reviewed-Staff versus owner/grant authority union for selected identity
 source/person review operations. WF0104 retains source proof in private review
 history and fences evidence masters against writes under that purpose. Protected
 file release revalidates the exact authority after storage I/O. Employment and
-activation remain unchanged. Hospital/person scope discovery, target/inbox browse
-and UI still require reviewed Staff authority and must be completed before this
-candidate resolves first-reviewer onboarding. No live approval for WF0104 has
+activation remain unchanged. Hospital/person authority discovery, target/inbox browse
+and the review workspace now consume this union in the candidate described below.
+Remote acceptance and the remaining employment/activation consumers are required
+before this candidate resolves first-reviewer onboarding. No live approval for WF0104 has
 been requested or inferred from earlier migration approvals. Remote owner/grant,
 provenance and storage-cutoff evidence remains required.
+
+Person authority discovery uses a separate `GET /workforce/person-review-authority-scopes`
+route. It keeps legacy actor-link discovery and its cursor meaning unchanged.
+The Workforce owner scans at most 20 canonical hospital roots plus one probe,
+then reauthorizes each preparation/review capability through current reviewed
+Staff authority or the exact person-governance source. Only authorized names and
+capabilities leave the server; filtered empty pages retain opaque continuation.
+Root creation time/ID orders the new cursor, sealed to route, tenant and caller.
+One five-second/idle budget and four workers bound authorization. Native session
+and route permission refresh happen before parallel checks, never on a shared
+Gin context inside workers. Capabilities are hints; commands repeat current
+source checks. Target/inbox browse must use the same authority and a read-only
+hospital purpose without inventing Staff/link references.

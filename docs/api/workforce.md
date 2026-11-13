@@ -193,6 +193,19 @@ assertion headers and current reviewed active Staff/login actor checks:
   candidates per page. `can_submit` requires both scoped HR intake grants;
   `can_review` requires the independent employment-review grant. Each capability
   is separately guarded and audited; neither grants a subsequent command.
+- Candidate `GET /v1/workforce/employment-review-authority-scopes`: a distinct
+  current owner/exact employment preparation or review grant list using the
+  canonical hospital-scope response. It scans at most 20 hospital roots plus one
+  continuation probe, rechecks each capability under the IAM source guard before
+  disclosing the hospital name and records private source evidence in audit.
+  It requires matching original tenant/account assertions, has a shared
+  five-second/idle deadline and at most four workers, and returns `no-store`.
+  Encrypted cursors bind route/account/tenant and cannot be used with the
+  existing linked-Staff scope route. A filtered page may be empty with more
+  candidates remaining. No Staff/link/review identifiers are fabricated, and
+  no employment, account or operating authority follows from discovery. SDK
+  support is included; inbox/selection/UI adoption and remote acceptance remain
+  pending.
 - `GET /v1/workforce/hospitals/:hospital/employment-review-inbox`: exactly one
   `hr_intake=v1` or `employment_review=v1`, optional recorded `status` from
   pending/approved/rejected/withdrawn/revoked, and canonical cursor/limit. Minimal

@@ -386,6 +386,7 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.FilteredListRoute(r.Group("/workforce"), "/leave-review-scopes", authz.Public, 20, h.leaveReviewScopeCandidates, h.authorizedLeaveReviewScopes)
 	platform.FilteredListRoute(r.Group("/workforce"), "/hr-intake-scopes", authz.Public, 20, h.hrIntakeScopeCandidates, h.authorizedHRIntakeScopes)
 	platform.FilteredListRoute(r.Group("/workforce"), "/employment-review-scopes", authz.Public, 20, h.employmentReviewScopeCandidates, h.authorizedEmploymentReviewScopes)
+	platform.SealedFilteredListRoute(r.Group("/workforce"), "/employment-review-authority-scopes", authz.Public, 20, h.employmentAuthorityScopeCandidates, h.authorizedEmploymentAuthorityScopes)
 	platform.FilteredListRoute(r.Group("/workforce"), "/person-review-scopes", authz.Public, 20, h.personReviewScopeCandidates, h.authorizedPersonReviewScopes)
 	platform.SealedFilteredListRoute(r.Group("/workforce"), "/person-review-authority-scopes", authz.Public, 20, h.personAuthorityScopeCandidates, h.authorizedPersonAuthorityScopes)
 	platform.FilteredListRoute(r.Group("/workforce"), "/posting-scopes", authz.Public, 20, h.postingScopeCandidates, h.authorizedPostingScopes)

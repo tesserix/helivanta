@@ -8856,6 +8856,15 @@
       "routes": [
         {
           "method": "GET",
+          "path": "/v1/workforce/employment-review-authority-scopes",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/employment-review-scopes",
           "permission": "public",
           "authentication_required": true,

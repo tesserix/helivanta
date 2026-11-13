@@ -9,6 +9,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/tesserix/helivanta/internal/platform/requestid"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
@@ -227,6 +229,12 @@ func (h *handlers) withActivationAuthority(c *gin.Context, p authn.Principal, ho
 	}
 	if actionErr != nil {
 		return actionErr
+	}
+	if err != nil && callbacks != 0 {
+		var pg *pgconn.PgError
+		if errors.As(err, &pg) {
+			requestid.Logger(c).Error("employment activation authority completion refused", "sqlstate", pg.Code, "constraint", pg.ConstraintName, "table", pg.TableName)
+		}
 	}
 	if err == nil && callbacks != 1 {
 		return authz.ErrScopedAuthorizationUnavailable

@@ -182,7 +182,11 @@ func (h *handlers) putEmploymentActivation(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		return h.bus.Publish(tx, workforcecontract.SubjectStaffEnrollmentChanged, events.Event{Type: workforcecontract.SubjectStaffEnrollmentChanged, Version: 1, TenantID: p.TenantID, Data: data})
+		if err := h.bus.Publish(tx, workforcecontract.SubjectStaffEnrollmentChanged, events.Event{Type: workforcecontract.SubjectStaffEnrollmentChanged, Version: 1, TenantID: p.TenantID, Data: data}); err != nil {
+			return err
+		}
+		step = "receipt_fence"
+		return tx.Exec("SET CONSTRAINTS workforce_reviewed_activation_required IMMEDIATE").Error
 	})
 	if err != nil {
 		employmentReviewError(c, err)

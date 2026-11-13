@@ -231,6 +231,8 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		request(http.MethodPost, employmentPath+"/decision?employment_review=v1", "admin", decision, 403)
 		approved := request(http.MethodPost, employmentPath+"/decision?employment_review=v1", "reviewer", decision, 200)
 		require.Equal(t, "approved", approved["status"])
+		enrollment := request(http.MethodGet, target+"/enrollment", "admin", nil, 200)
+		require.Equal(t, "inactive", enrollment["staff"].(map[string]any)["employment_status"], "approval is not employment activation or operating access")
 		request(http.MethodPost, employmentPath+"/decision?employment_review=v1", "reviewer", decision, 200)
 		request(http.MethodGet, employmentPath+"/history?employment_review=v1", "reviewer", nil, 200)
 		var audit struct{ Changes json.RawMessage }
@@ -265,6 +267,47 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		var deniedWrite *pgconn.PgError
 		require.ErrorAs(t, writeErr, &deniedWrite)
 		require.Equal(t, "42501", deniedWrite.Code)
+		request(http.MethodGet, employmentPath+"?hr_intake=v1", "admin", nil, 200)
+		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			return tx.Table("workforce_audit").Select("changes").Where("tenant_id=? AND hospital_id=? AND resource_id=? AND actor_subject='user-admin' AND action='workforce.employment_review.read'", testutil.TenantA, roots[0], employmentReview).Take(&audit).Error
+		}))
+		ownerWriteErr := db.WithTenant(tenantdb.WithActor(ctx, "user-admin"), testutil.TenantA, func(tx *gorm.DB) error {
+			if err := tx.Exec("SELECT set_config('app.workforce_subject','user-admin',true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_identity_source','authorized',true),set_config('app.workforce_identity_staff',?,true),set_config('app.workforce_employment_review','manage',true),set_config('app.workforce_employment_review_id',?,true),set_config('app.workforce_employment_authority',?,true)", roots[0].String(), staff[0].String(), employmentReview.String(), string(audit.Changes)).Error; err != nil {
+				return err
+			}
+			var other int64
+			if err := tx.Table("workforce_staff").Where("tenant_id=? AND hospital_id=? AND id=?", testutil.TenantA, roots[1], staff[1]).Count(&other).Error; err != nil {
+				return err
+			}
+			require.Zero(t, other, "an owner managing both hospitals cannot widen this selected purpose")
+			return tx.Table("workforce_staff").Where("tenant_id=? AND hospital_id=? AND id=?", testutil.TenantA, roots[0], staff[0]).Update("display_name", "Forbidden inherited-manager write").Error
+		})
+		require.ErrorAs(t, ownerWriteErr, &deniedWrite)
+		require.Equal(t, "42501", deniedWrite.Code)
+		for _, trigger := range []string{"workforce_employment_review_zz_authority", "workforce_employment_review_snapshot"} {
+			t.Run("missing recording support "+trigger, func(t *testing.T) {
+				require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_" + trigger + "_disabled", SQL: "ALTER TABLE workforce_employment_reviews DISABLE TRIGGER " + trigger}}))
+				defer func() {
+					require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_" + trigger + "_restored", SQL: "ALTER TABLE workforce_employment_reviews ENABLE TRIGGER " + trigger}}))
+				}()
+				response := governanceRequest(router, http.MethodGet, employmentPath+"?employment_review=v1", "reviewer", "")
+				require.Equal(t, 503, response.Code, response.Body.String())
+			})
+		}
+		t.Run("missing private purpose denies before disclosure", func(t *testing.T) {
+			var policy struct{ Reading, Writing string }
+			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+				return tx.Raw(`SELECT pg_get_expr(polqual,polrelid) AS reading,pg_get_expr(polwithcheck,polrelid) AS writing FROM pg_policy WHERE polrelid='public.workforce_staff'::regclass AND polname='employment_governance_purpose'`).Take(&policy).Error
+			}))
+			require.NotEmpty(t, policy.Reading)
+			require.NotEmpty(t, policy.Writing)
+			require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_employment_purpose_removed", SQL: "DROP POLICY employment_governance_purpose ON workforce_staff"}}))
+			defer func() {
+				require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_employment_purpose_restored", SQL: "CREATE POLICY employment_governance_purpose ON workforce_staff AS RESTRICTIVE FOR ALL USING(" + policy.Reading + ") WITH CHECK(" + policy.Writing + ")"}}))
+			}()
+			response := governanceRequest(router, http.MethodGet, employmentPath+"?employment_review=v1", "reviewer", "")
+			require.Equal(t, 503, response.Code, response.Body.String())
+		})
 		evidencePath := employmentPath + "/evidence/" + employmentFile + "/content?employment_review=v1"
 		download := governanceRequest(router, http.MethodGet, evidencePath, "reviewer", "")
 		require.Equal(t, 200, download.Code, download.Body.String())
@@ -283,6 +326,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		}
 		require.Equal(t, 403, denied.Code, denied.Body.String())
 		require.NotEqual(t, pngBytes.Bytes(), denied.Body.Bytes())
+		cloud.AfterReleasedRead(nil)
 		request(http.MethodGet, employmentPath+"?employment_review=v1", "reviewer", nil, 403)
 	})
 	var reviewProof json.RawMessage

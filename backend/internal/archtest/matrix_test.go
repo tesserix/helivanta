@@ -325,7 +325,7 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	workforce.PermPostingRead:              {authz.RoleTenantAdmin},
 	workforce.PermPostingPrepare:           {authz.RoleTenantAdmin}, // Draft preparation only; exact hospital reader/manager remains required.
 	workforce.PermEmploymentPrepare:        {authz.RoleTenantAdmin, authz.RoleGovernanceDelegate},
-	workforce.PermEmploymentReview:         {authz.RoleTenantAdmin},
+	workforce.PermEmploymentReview:         {authz.RoleTenantAdmin, authz.RoleGovernanceDelegate},
 	workforce.PermEmploymentActivate:       {authz.RoleTenantAdmin},
 	workforce.PermLeaveApprove:             {authz.RoleTenantAdmin},
 	workforce.PermDutyRequest:              {authz.RoleTenantAdmin},

@@ -180,6 +180,11 @@ the time-zone form, register and reminder inbox. A 401, 403, 404 or 409
 
 ## Scoped employment-review workspace
 
+This workspace/discovery remains scoped-Staff-only. Candidate direct submission,
+detail, decisions, history and evidence also support the nonclinical owner/grant
+union described in [Staff governance](staff-governance.md); authority-aware
+workspace adoption remains unfinished.
+
 The normal HR preparation and independent-review workspace uses these additive
 owner routes, all through the Global API with exact original tenant/subject
 assertion headers and current reviewed active Staff/login actor checks:
@@ -282,17 +287,20 @@ The owner exposes
 `GET /v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/evidence/:file/content`.
 Exactly one explicit `hr_intake=v1` or `employment_review=v1` projection and the
 original tenant/subject assertions are required. Paging and unknown query fields
-are refused. Both phases resolve current compound HR-intake or separate scoped
-employment-review authority and a reviewed active actor link, without generic
-document permission or legacy fallback. Only a selected file in a currently
+are refused. Both phases resolve either current compound HR-intake/separate
+scoped review authority with a real reviewed actor, or a current IAM owner/exact
+employment preparer/reviewer source under candidate WF0105. The private purpose
+pins the selected Staff/review and denies master/payroll/clinical writes. Generic
+document permission, a routing role or legacy manager access is insufficient. Only a selected file in a currently
 effective pending/approved frozen review is eligible. The existing current
 person, Staff, terms, classification, binding and complete-provenance checks apply.
 
 The owner commits authorization audit and releases database locks before the
 five-second, login-idle-bounded GCS read. Released generation, metadata/actual
 length and metadata/actual SHA-256 must match the authorized file. A second
-transaction rechecks the original grants, actor link/employment epoch and frozen
-source/review/file basis and commits attributable release audit before returning
+transaction rechecks the original tagged authority (grants/actor or exact IAM
+owner/grant source), target and frozen source/review/file basis and commits
+attributable release audit before returning
 any bytes. Assignment/link replacement, review ending, unavailable person/source
 or changed file cannot authorize an in-flight request. The existing `downloaded`
 audit denotes authorization to release bytes, not proof of client delivery.
@@ -312,9 +320,10 @@ owned current view and selected file before dispatch and preserves the original
 workspace and cancellation signal. A shared person/employment byte validator
 checks MIME and declared length, streams into one bounded authorized-size buffer,
 cancels overflow, verifies raw length/hash, and discards cancelled responses before
-creating a Blob. No new schema, permission or migration is added. This API/SDK
-slice does not implement employment-review discovery/inbox, preparation selection,
-normal reviewer UI acceptance or operational activation and is not deployed here.
+creating a Blob. The original byte-transfer API/SDK added no new wire schema;
+the candidate nonclinical authority union separately requires WF0105. Governance
+workspace discovery, preparation selection, normal reviewer UI acceptance and
+operational activation remain unfinished and are not established by this slice.
 
 ## Protected employment-review history candidate
 
@@ -328,10 +337,12 @@ current legal transitions bound one review to at most three immutable receipts.
 The existing scoped history primary key bounds lookup before ordering, without
 a new migration or infrastructure cost.
 
-Each page reauthorizes the current original workspace, hospital-scoped assignment
-and reviewed active actor link using the same no-legacy-fallback authority as
-protected detail. HR preparation requires both enrollment and document grants;
-reviewer mode requires the separate employment-review permission. Return 403 for
+Each page reauthorizes the original workspace and the same tagged authority as
+protected detail. The Staff alternative requires current hospital-scoped
+assignment(s) and a reviewed active actor link. The candidate governance alternative
+requires a current IAM owner or exact employment preparer/reviewer grant, with
+private purpose and source provenance under WF0105. Neither alternative falls
+back after a business callback or dependency failure. Return 403 for
 missing authority, 404 for an invisible selected review/Staff, 409 for changed
 workspace and 503 when current authority is unavailable. Owner SQL always scopes
 verified tenant, hospital, Staff and review and retains existing forced RLS.
@@ -1866,13 +1877,18 @@ The current implementation candidate adds these owner routes through Global API:
 | `POST /v1/workforce/hospitals/{hospital}/staff/{staff}/employment-reviews/{review}/withdrawal?hr_intake=v1`         | Original preparer withdraws pending terms, including stale submissions                                     |
 | `POST /v1/workforce/hospitals/{hospital}/staff/{staff}/employment-reviews/{review}/revocation?employment_review=v1` | Independent reviewer revokes approved terms, including unavailable evidence/source                         |
 
-Preparation requires exact original expected-tenant/subject headers, both live
-scoped HR-intake permissions, and an active independently reviewed actor Staff/login
-link. Reviewer GET/decision/revocation instead require the separate current
-hospital-scoped `workforce.employment.review` permission and reviewed actor link.
-Exactly one projection is required; missing, mixed and duplicate modes are refused. Neither legacy administration nor identity-review permission supplies the
-new command authority. An administrator with separately reviewed scoped HR
-permissions uses those grants, with no legacy fallback. The target may be inactive
+Preparation requires exact original expected-tenant/subject headers and either
+both live scoped HR-intake permissions with a real reviewed actor, or current IAM
+owner/exact `workforce.employment_preparer.v1` authority. Reviewer GET, decision
+and revocation similarly accept scoped review authority with a reviewed actor,
+or current owner/exact `workforce.employment_reviewer.v1` authority. Candidate
+WF0105 keeps governance source and purpose separate from Staff identities and
+retains it on each immutable revision. It freezes existing draft terms/evidence;
+it does not grant general HR drafting or document-master authority. Missing,
+mixed and duplicate projections are refused. Routing roles, legacy manager rows
+and identity-review grants alone are insufficient. Existing scoped Staff commands
+retain their assignment path; business/dependency failures cannot cause a switch
+to an alternative source. The target may be inactive
 or non-digital; submission neither activates employment nor creates a login,
 IAM grant, card or clinical privilege.
 

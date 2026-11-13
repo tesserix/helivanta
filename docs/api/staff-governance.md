@@ -193,13 +193,56 @@ The view displays stored status and validity dates, without claiming effective
 operating authority. Grant issuance, decisions and acknowledgements in the UI
 remain unfinished.
 
+## Candidate employment submission and review consumers
+
+The hospital employment-review endpoints now use a tagged authority union:
+existing current scoped Staff authority, or a current IAM owner/exact employment
+preparer or reviewer grant. Governance actors do not acquire Staff/link identities,
+hospital-manager rows, payroll permissions or operating assignments. Submission
+requires the preparation/document bundle on the Staff path, or the separate
+`workforce.employment_preparer.v1` source; decisions require the scoped review
+assignment or `workforce.employment_reviewer.v1`. The routing role alone is not
+authority. Both paths require exact tenant/account preconditions and share a
+five-second command budget. Business-callback failures and unavailable scope
+authorization cannot trigger an alternative-source retry.
+
+New candidate `0105_workforce_employment_review_authority` binds the private
+purpose to tenant, account, hospital, Staff and review. Governance preparation
+freezes existing draft terms, a current approved person finding, released evidence
+and contributors; it does not add general HR draft/document authoring. Governance
+review reads only the selected review and its sources. Restrictive policies apply
+to all existing tenant-scoped Workforce tables: master/payroll/clinical writes
+remain denied during this purpose even if the owner also has legacy manager
+access. The only writes are the guarded review, frozen children/history,
+owner-maintained cohort record and attributable review audit. Normal scoped
+commands retain their existing path.
+
+The private `governance_authority` column on the head and immutable history retains
+actual owner membership or grant/version, membership incarnation, owner count,
+capability, target and lease/authentication times. The existing immutable-source
+trigger runs before the recorder; the recorder runs before the history snapshot.
+Absent, disabled or mismatched recording/history support, unforced tenant RLS
+or a missing restrictive purpose policy fails closed before disclosure or command
+work. Future tenant-scoped Workforce tables must add the private purpose policy
+(default deny when unrelated); otherwise governance review stays unavailable. Evidence release reauthorizes after storage I/O and compares
+both the source authority and frozen evidence/source snapshot. No private proof
+is added to public review responses or events.
+
+The remote test first reproduced a 403 at submission after real draft preparation,
+scanning and grant approval. Current candidate PostgreSQL/FGA, concurrency and
+rollback acceptance remains pending. First activation, authority-aware discovery,
+reviewer UI, selected draft/document authoring and full Staff/pharmacy acceptance
+are separate unfinished gates. Approval of terms leaves Staff inactive.
+
 ## Release and remaining acceptance
 
 Candidate migrations are `0047_iam_governance`,
 `0102_workforce_governance_topology` and `0103_workforce_login_review_authority`.
 User rollout approval has been received; these migrations have not been applied
 to the live environment. New candidate
-`0104_workforce_person_review_authority` has not been approved for live application.
+`0104_workforce_person_review_authority`,
+`0105_workforce_employment_review_authority` and
+`0048_iam_governance_employment_bases` have not been approved for live application.
 Before rollout, complete the remaining source consumers, owner-count admission,
 ledger/role admission guards, frontend, remote PostgreSQL/FGA/race/recovery tests
 and tested rollback. Retain identities, original receipts, notices and decisions

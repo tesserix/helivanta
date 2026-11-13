@@ -321,11 +321,29 @@ selected Staff/version/generation, independence and expiry before using the writ
 No generic owner-to-Staff alias or synthetic actor/link ID is introduced.
 
 The canonical catalog generates Go and browser contracts together; generation
-now rejects missing names, unknown metadata, duplicate scopes and wildcard or
-malformed permissions before writing either artifact. The new prepare permission
-is declared for coarse admission only. Existing review/activation route admission
-and Workforce consumers have not yet adopted the governance union, so issuing a
-catalog grant does not establish a completed employment workflow.
+rejects missing names, unknown metadata, duplicate scopes and wildcard or
+malformed permissions before writing either artifact. Preparation and review
+permissions provide coarse routing only; candidate Workforce submission/review
+consumers separately validate the exact owner/grant source. Activation has not
+yet adopted this union, and a catalog grant does not establish a completed
+employment workflow.
+
+Candidate WF0105 retains the exact nonclinical employment source on each review
+revision. Existing scoped Staff authority remains a distinct tagged alternative.
+The new purpose freezes existing draft terms/evidence and supports independent
+review, retained reads and private evidence release; it does not authorize general
+HR drafting or document-master writes. Purpose policies restrict all current
+Workforce tables, including inherited owner/manager authority, to the selected
+Staff/review and required source records. Only review/history/frozen children,
+the owner-maintained cohort marker and attributable review audit may be written.
+Immutable-source validation precedes trusted proof recording, which precedes
+history capture. The Go consumer verifies the matching enabled recorder and
+source/history guards and forced tenant RLS/purpose policies before disclosing a
+target. A new tenant-scoped Workforce table without that policy fails closed
+until its owner adds the appropriate purpose policy. Storage release rechecks the same source
+and frozen basis after I/O. No source fallback is permitted after a business
+callback or dependency failure. This is an unapplied candidate with remote
+acceptance pending; live WF0105 approval and rollback evidence remain required.
 
 Local acceptance covers separate hospital-only capabilities, exact target and
 context lifetime, ordinary membership versus nonclinical delegate membership,
@@ -335,8 +353,8 @@ routing after source revocation, exclusive basis locking, writer escape and
 atomic product-failure rollback. It must run in remote CI; compile/unit evidence
 does not establish its database acceptance.
 
-Before merge or deployment: connect preparation, independent review and first
-activation consumers with purpose-bound data access and attributable write
+Before merge or deployment: verify the new preparation/review consumers and
+connect first activation with purpose-bound data access and attributable write
 provenance; add authority-aware employment discovery and UI; revalidate assignment
 decisions and async settlement; complete operating review, second-hospital
 owner-count admission, privileged legacy admission and real recipient-operated

@@ -32,10 +32,13 @@ import {
   type LoginLinkScope,
 } from "@helivanta/api";
 
+import { StaffAccountInitiation } from "@/components/workforce/staff-account-initiation";
+
 type Props = { hospital: Hospital; staff: Staff; onClose: () => void };
 type Identity = { tenant_id: string; subject: string; data: string[] };
 type View =
-  | { kind: "propose" }
+  | { kind: "propose"; subject?: string }
+  | { kind: "initiate" }
   | { kind: "history"; link: LoginLink }
   | { kind: "decide"; link: LoginLink; decision: LoginLinkDecisionInput["decision"] };
 
@@ -191,7 +194,32 @@ function LinkPanel({ hospital, staff, onClose, identity }: Props & { identity: I
           {staff.employment_status !== "active" && (
             <p className="mt-4">Inactive staff cannot receive a new account link.</p>
           )}
-          {view?.kind === "propose" && <ProposalForm scope={scope} onClose={() => setView(null)} />}
+          {manage &&
+            !current &&
+            staff.employment_status === "active" &&
+            identity.data.includes("iam.member.manage") && (
+              <Button
+                className="mt-4"
+                variant="outline"
+                onClick={() => setView({ kind: "initiate" })}
+              >
+                Set up new staff login
+              </Button>
+            )}
+          {view?.kind === "initiate" && (
+            <StaffAccountInitiation
+              scope={{ tenantId: identity.tenant_id, subject: identity.subject }}
+              onEnrolled={(subject) => setView({ kind: "propose", subject })}
+            />
+          )}
+          {view?.kind === "propose" && (
+            <ProposalForm
+              key={view.subject ?? "existing"}
+              scope={scope}
+              initialSubject={view.subject}
+              onClose={() => setView(null)}
+            />
+          )}
           {view?.kind === "decide" && (
             <DecisionForm
               key={`${view.link.id}:${view.link.version}:${view.decision}`}
@@ -224,10 +252,18 @@ function failure(error: Error) {
   return "The request may have been saved. Retry the same request or check the link history before starting another.";
 }
 
-function ProposalForm({ scope, onClose }: { scope: LoginLinkScope; onClose: () => void }) {
+function ProposalForm({
+  scope,
+  onClose,
+  initialSubject = "",
+}: {
+  scope: LoginLinkScope;
+  onClose: () => void;
+  initialSubject?: string;
+}) {
   const [id] = useState(() => newLoginLinkId());
   const [submitted, setSubmitted] = useState<LoginLinkInput | null>(null);
-  const form = useZodForm(loginLinkInputContract, { subject: "", reason: "" });
+  const form = useZodForm(loginLinkInputContract, { subject: initialSubject, reason: "" });
   const save = useApiMutation((input: LoginLinkInput) => proposeLoginLink(scope, id, input), {
     invalidate: [loginLinksKey(scope)],
     onSuccess: onClose,
@@ -249,7 +285,7 @@ function ProposalForm({ scope, onClose }: { scope: LoginLinkScope; onClose: () =
           <Input
             id="link-subject"
             autoComplete="off"
-            disabled={!!submitted}
+            disabled={!!submitted || !!initialSubject}
             {...form.register("subject")}
           />
         </Field>

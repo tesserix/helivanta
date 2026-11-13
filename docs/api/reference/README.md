@@ -73,6 +73,10 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/purchase-order-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/roles` | `iam.member.manage` | false | false |
 | GET | `/v1/iam/staff-access-templates` | `public` | false | false |
+| PUT | `/v1/iam/staff-account-commands/:id/invitations/:delivery` | `iam.member.manage` | false | false |
+| POST | `/v1/iam/staff-account-commands/:id/observations` | `iam.member.manage` | false | false |
+| GET | `/v1/iam/staff-account-commands/:id` | `iam.member.manage` | false | false |
+| PUT | `/v1/iam/staff-account-commands/:id` | `iam.member.manage` | false | false |
 | POST | `/v1/iam/subjects/:subject/revoke` | `iam.credential.revoke` | false | false |
 | GET | `/v1/iam/supplier-access-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/supplier-grants/:id/commands/:command` | `iam.supplier_grant.read` | false | false |

@@ -27,6 +27,7 @@ import {
   TemplateDefinitionContract,
 } from "@helivanta/api";
 import { AssignmentProposalForm, AssignmentDecisionForm } from "./assignment-forms";
+import { StaffAccountInitiation } from "@/components/workforce/staff-account-initiation";
 import { StaffMembershipForm } from "./membership-form";
 import { MembershipManagement } from "./membership-management";
 
@@ -75,6 +76,9 @@ export default function StaffAccessPage() {
         <div key={`${identity.data.tenant_id}:${identity.data.subject}`}>
           {identity.data.data.includes("iam.member.manage") && (
             <>
+              <StaffAccountInitiation
+                scope={{ tenantId: identity.data.tenant_id, subject: identity.data.subject }}
+              />
               <StaffMembershipForm
                 scope={{ tenantId: identity.data.tenant_id, subject: identity.data.subject }}
               />

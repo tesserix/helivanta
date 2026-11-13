@@ -184,3 +184,12 @@ owner Go and strict SDK Zod models. Existing bill input fields remain canonical
 in `contracts/pharmacy.json`; the SDK composes those inputs with generated receipt
 metadata rather than creating another payable model. See the supplier acquisition
 handoff in [PharmaConnect](domains/pharmacy.md).
+
+## Staff identity owner consumer contracts
+
+Staff initiation and recipient setup consume onboarding-service staffcontract Go
+models and its generated Zod package directly. Its checked dependency pins are in
+backend/go.mod and packages/api/package.json. The identity owner's staff-contracts
+generator is canonical; HMS does not maintain another JSON/Go/Zod copy. See
+[protected initiation](staff-account-initiation.md) and
+[recipient setup](staff-recipient-setup.md) for validation and acceptance limits.

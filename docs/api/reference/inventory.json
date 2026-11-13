@@ -555,6 +555,42 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/iam/staff-account-commands/:id/invitations/:delivery",
+          "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/iam/staff-account-commands/:id/observations",
+          "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/staff-account-commands/:id",
+          "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/iam/staff-account-commands/:id",
+          "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "POST",
           "path": "/v1/iam/subjects/:subject/revoke",
           "permission": "iam.credential.revoke",

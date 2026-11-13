@@ -1,9 +1,9 @@
 {
   "format_version": 1,
-  "registry_sha256": "7d694669f0d104aa821b28751c571db95bf4c516a0c14089f26690b2c1b6cbe7",
+  "registry_sha256": "7fc25d915e7da2f6fa772d12e4e302775065927f37baea6b31ce46ecd87d0cd3",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1091,
+    "total": 1092,
     "unclassified": 986
   },
   "entries": [
@@ -3153,23 +3153,28 @@
         "id": "http iam GET /v1/iam/governance-grants/:id",
         "registration_sha256": "5c2965d44f4e7cfb7795fd2621014f8a9b433a9386f9e5d121ef1ff745fd273e",
         "authority_kind": "governance_recovery",
-        "resource_scope": "verified tenant, current owner; exact recipient membership and employing root for new grants; own recipient for owner notices",
-        "rationale": "Governance source metadata and retained owner admission. Current IAM owner and credential evidence are required; no clinical or pharmacy operation is authorized by a stored grant receipt.",
+        "resource_scope": "verified tenant; current owner or current tenant-auditor source, credential and membership incarnation; one exact retained grant",
+        "rationale": "Read retained governance origin and current stored head through current owner or source-fenced tenant auditor authority. Coarse routing membership alone is insufficient and no product operation follows from the receipt.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "e35c81c302b780173566264a55317f5ad4a4f82265c74ebcd8b956d374a09c4f",
+            "sha256": "74c6f2238bebf7f1222062c642a5606fc429a66567ab9242c1715de1f3a67e29",
             "symbol": "func (m *Module) Routes("
           },
           {
             "path": "backend/internal/modules/iam/governance.go",
-            "sha256": "50b210bcc38ec34a62c6f9d00d5d5b93561786f43422344e7314b66d1e039492",
+            "sha256": "fe99abcd55754d21c0a7e88ffa48d9d4c1caeb6f0d891f03fe5218e7213f4f95",
             "symbol": "func (h *governanceHandlers) withOwner("
           },
           {
             "path": "backend/internal/modules/iam/governance.sql",
-            "sha256": "3ab4806db7116c50438ad558a9c8d7fdd47290eb9b044fb811aa9a508f9719ef",
+            "sha256": "25116b692552d008aeb4416b8f061db2322c52c52a67ae4a498209bf0b76534f",
             "symbol": "iam_governance_owner"
+          },
+          {
+            "path": "backend/internal/modules/iam/governance_review_authority.go",
+            "sha256": "97e0b48a06932a32843cdedceb0f7ddd2cb4091068e6a19c3e6ad05bee54f65c",
+            "symbol": "func (h *governanceHandlers) withReviewer("
           }
         ],
         "remaining": [
@@ -3202,17 +3207,17 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "e35c81c302b780173566264a55317f5ad4a4f82265c74ebcd8b956d374a09c4f",
+            "sha256": "74c6f2238bebf7f1222062c642a5606fc429a66567ab9242c1715de1f3a67e29",
             "symbol": "func (m *Module) Routes("
           },
           {
             "path": "backend/internal/modules/iam/governance.go",
-            "sha256": "50b210bcc38ec34a62c6f9d00d5d5b93561786f43422344e7314b66d1e039492",
+            "sha256": "fe99abcd55754d21c0a7e88ffa48d9d4c1caeb6f0d891f03fe5218e7213f4f95",
             "symbol": "func (h *governanceHandlers) withOwner("
           },
           {
             "path": "backend/internal/modules/iam/governance.sql",
-            "sha256": "3ab4806db7116c50438ad558a9c8d7fdd47290eb9b044fb811aa9a508f9719ef",
+            "sha256": "25116b692552d008aeb4416b8f061db2322c52c52a67ae4a498209bf0b76534f",
             "symbol": "iam_governance_owner"
           }
         ],
@@ -3754,7 +3759,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "e35c81c302b780173566264a55317f5ad4a4f82265c74ebcd8b956d374a09c4f",
+            "sha256": "74c6f2238bebf7f1222062c642a5606fc429a66567ab9242c1715de1f3a67e29",
             "symbol": "m.registerPartnerGrantDrafts(g, deps)"
           },
           {
@@ -3764,7 +3769,7 @@
           },
           {
             "path": "backend/internal/modules/iam/membership_commands.go",
-            "sha256": "0bfb571e385906542485a100d68f058d24df7f00d1aeb5bbe9a1a4895b8db2ad",
+            "sha256": "0b0f1ef759d42b67363f454a1d771842a3baba1f274c4c370072297650778a08",
             "symbol": "func membershipActor("
           },
           {
@@ -3801,7 +3806,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "e35c81c302b780173566264a55317f5ad4a4f82265c74ebcd8b956d374a09c4f",
+            "sha256": "74c6f2238bebf7f1222062c642a5606fc429a66567ab9242c1715de1f3a67e29",
             "symbol": "m.registerPartnerGrantDrafts(g, deps)"
           },
           {
@@ -3811,7 +3816,7 @@
           },
           {
             "path": "backend/internal/modules/iam/membership_commands.go",
-            "sha256": "0bfb571e385906542485a100d68f058d24df7f00d1aeb5bbe9a1a4895b8db2ad",
+            "sha256": "0b0f1ef759d42b67363f454a1d771842a3baba1f274c4c370072297650778a08",
             "symbol": "func membershipActor("
           },
           {
@@ -4088,7 +4093,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "e35c81c302b780173566264a55317f5ad4a4f82265c74ebcd8b956d374a09c4f",
+            "sha256": "74c6f2238bebf7f1222062c642a5606fc429a66567ab9242c1715de1f3a67e29",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -4132,7 +4137,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "e35c81c302b780173566264a55317f5ad4a4f82265c74ebcd8b956d374a09c4f",
+            "sha256": "74c6f2238bebf7f1222062c642a5606fc429a66567ab9242c1715de1f3a67e29",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -4208,7 +4213,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "e35c81c302b780173566264a55317f5ad4a4f82265c74ebcd8b956d374a09c4f",
+            "sha256": "74c6f2238bebf7f1222062c642a5606fc429a66567ab9242c1715de1f3a67e29",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -4337,17 +4342,17 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "e35c81c302b780173566264a55317f5ad4a4f82265c74ebcd8b956d374a09c4f",
+            "sha256": "74c6f2238bebf7f1222062c642a5606fc429a66567ab9242c1715de1f3a67e29",
             "symbol": "func (m *Module) Routes("
           },
           {
             "path": "backend/internal/modules/iam/governance.go",
-            "sha256": "50b210bcc38ec34a62c6f9d00d5d5b93561786f43422344e7314b66d1e039492",
+            "sha256": "fe99abcd55754d21c0a7e88ffa48d9d4c1caeb6f0d891f03fe5218e7213f4f95",
             "symbol": "func (h *governanceHandlers) withOwner("
           },
           {
             "path": "backend/internal/modules/iam/governance.sql",
-            "sha256": "3ab4806db7116c50438ad558a9c8d7fdd47290eb9b044fb811aa9a508f9719ef",
+            "sha256": "25116b692552d008aeb4416b8f061db2322c52c52a67ae4a498209bf0b76534f",
             "symbol": "iam_governance_owner"
           }
         ],
@@ -4355,6 +4360,60 @@
           "Remote real PostgreSQL admission, replay, notice privacy and failure/race tests.",
           "Independent governance decisions and source-fenced Workforce consumers remain unfinished.",
           "Actual recipient login, reviewed Staff and pharmacy access must be verified separately."
+        ]
+      }
+    },
+    {
+      "id": "http iam PUT /v1/iam/governance-grants/:id/decisions/:command",
+      "kind": "http",
+      "module": "iam",
+      "registration": {
+        "source": "backend/internal/modules/iam/module.go",
+        "method": "PUT",
+        "path": "/v1/iam/governance-grants/:id/decisions/:command",
+        "permission": "iam.governance.review",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http iam PUT /v1/iam/governance-grants/:id/decisions/:command",
+        "registration_sha256": "39712bafa44cf0a1d9f53168bc713b36102a1a201189d5cf4d5aaebeab463587",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "verified tenant, current owner or exact unexpired tenant auditor source; ordered source/parent grant locks, actor incarnation and observed parent version",
+        "rationale": "Records independent nonclinical review or owner withdrawal and retained evidence. Issuer/recipient self approval is denied. Mutable grant head, decisions, owner notices, audit and routing projection intent share a guarded transaction. Receipt replay is historical evidence, not current product access.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/iam/module.go",
+            "sha256": "74c6f2238bebf7f1222062c642a5606fc429a66567ab9242c1715de1f3a67e29",
+            "symbol": "func (m *Module) Routes("
+          },
+          {
+            "path": "backend/internal/modules/iam/governance.go",
+            "sha256": "fe99abcd55754d21c0a7e88ffa48d9d4c1caeb6f0d891f03fe5218e7213f4f95",
+            "symbol": "func (h *governanceHandlers) withActor("
+          },
+          {
+            "path": "backend/internal/modules/iam/governance_decisions.go",
+            "sha256": "97c5bf4d3a1920285fbb103b32cec86f58665ff87537cfcb7418e8348ee9f5ea",
+            "symbol": "func (h *governanceHandlers) decide("
+          },
+          {
+            "path": "backend/internal/modules/iam/governance_review_authority.go",
+            "sha256": "97e0b48a06932a32843cdedceb0f7ddd2cb4091068e6a19c3e6ad05bee54f65c",
+            "symbol": "func (h *governanceHandlers) withReviewer("
+          },
+          {
+            "path": "backend/internal/modules/iam/governance.sql",
+            "sha256": "25116b692552d008aeb4416b8f061db2322c52c52a67ae4a498209bf0b76534f",
+            "symbol": "iam_governance_decision_guard"
+          }
+        ],
+        "remaining": [
+          "Remote PG/FGA positive, source expiry/revocation/concurrency and dependency-failure evidence.",
+          "Source-fenced Workforce linking/HR/assignment/operating consumers and owner UI are still unfinished.",
+          "Actual recipient verification, independent human decisions and pharmacy access require live acceptance."
         ]
       }
     },
@@ -4547,7 +4606,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "e35c81c302b780173566264a55317f5ad4a4f82265c74ebcd8b956d374a09c4f",
+            "sha256": "74c6f2238bebf7f1222062c642a5606fc429a66567ab9242c1715de1f3a67e29",
             "symbol": "m.registerPartnerGrantDrafts(g, deps)"
           },
           {
@@ -4557,7 +4616,7 @@
           },
           {
             "path": "backend/internal/modules/iam/membership_commands.go",
-            "sha256": "0bfb571e385906542485a100d68f058d24df7f00d1aeb5bbe9a1a4895b8db2ad",
+            "sha256": "0b0f1ef759d42b67363f454a1d771842a3baba1f274c4c370072297650778a08",
             "symbol": "func membershipActor("
           },
           {

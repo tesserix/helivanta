@@ -126,7 +126,7 @@ func (m *Module) Permissions() []authz.Grant {
 		{Permission: PermOperatingReview, Roles: []authz.Role{authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyCompliance, authz.RolePharmacyOwner}},
 		{Permission: PermOperatingRevoke, Roles: []authz.Role{authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RolePharmacyOwner}},
 		{Permission: PermMemberManage},
-		{Permission: PermGovernanceManage}, {Permission: PermGovernanceRead},
+		{Permission: PermGovernanceManage}, {Permission: PermGovernanceRead, Roles: []authz.Role{authz.RoleGovernanceDelegate}}, {Permission: PermGovernanceReview, Roles: []authz.Role{authz.RoleGovernanceDelegate}},
 		{Permission: PermAssignmentManage},
 		{Permission: PermAssignmentReview},
 		{Permission: PermPartnerGroupMemberRead}, {Permission: PermPartnerGroupMemberPrepare}, {Permission: PermPartnerGroupMemberReview},

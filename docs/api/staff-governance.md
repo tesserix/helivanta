@@ -1,9 +1,9 @@
 # Staff reviewer governance
 
 Status: candidate in PR #1669; not merged or deployed. The current implementation
-covers owner grant admission, original creation receipts and an owner inbox.
-Independent review, effective scoped reviewer consumers, acknowledgements and UI
-remain unfinished. Account initiation alone does not complete Staff onboarding.
+covers owner grant admission, retained creation/decision receipts, current auditor
+review and an owner inbox. Effective Workforce reviewer consumers, acknowledgements
+and UI remain unfinished; remote decision acceptance is still pending. Account initiation alone does not complete Staff onboarding.
 
 IAM owns the governance ledger. Workforce owns the hospital/independent employer
 roots and current hospital count. Native identity remains with the identity owner.
@@ -20,8 +20,16 @@ are `/v1`; preserve the Global API client's existing path mapping.
 | Operation                           | Current authority and outcome                                                                                                                                                                                                                                                      |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `PUT /v1/iam/governance-grants/:id` | `iam.governance.manage` plus a current IAM owner and credential watermark. A canonical UUIDv7 command admits a separately named recipient, subject to native eligibility, current membership incarnation and exact Workforce scope. Returns 202 with an original creation receipt. |
-| `GET /v1/iam/governance-grants/:id` | `iam.governance.read` plus current owner proof; returns retained origin with current stored status/version. It does not report effective route or product access.                                                                                                                  |
+| `GET /v1/iam/governance-grants/:id` | `iam.governance.read` plus current owner or tenant-auditor source proof; returns retained origin with current stored status/version. It does not report effective route or product access.                                                                                         |
 | `GET /v1/iam/governance-notices`    | `iam.governance.read` plus current owner proof; bounded cursor list limited to that owner's own recipient subject.                                                                                                                                                                 |
+
+`PUT /v1/iam/governance-grants/:id/decisions/:command` requires
+`iam.governance.review` and a current owner or tenant-auditor source. Both IDs
+are canonical UUIDv7. The body contains observed `expected_version`, supported
+`decision` (`approve`, `reject`, `revoke`) and reason only. The expected version
+must leave room for its safe integer successor. A 202 decision receipt identifies
+the authenticated actor and resulting version; it does not replace the current
+head or imply product access.
 
 Every operation refreshes authentication/route admission and requires exactly one
 `X-Helivanta-Expected-Tenant` and `X-Helivanta-Expected-Subject`, matching the
@@ -54,6 +62,40 @@ Repeating the same command and intent returns the original 202 receipt; changed
 intent or issuing actor returns 409. Receipt replay does not repeat native
 provisioning, reissue a grant, or claim that its authority is still effective.
 Creation history remains distinct from the mutable current head.
+
+## Independent review and source lifetime
+
+Issuer and recipient cannot approve/reject their own grant. A current owner may
+withdraw their issued grant through `revoke`; a recipient cannot self-review.
+Approval moves pending/provisional state to `active`, rejection to `rejected`,
+and revocation to `revoked`. Decisions and original receipts are immutable; a
+repeated command returns its original decision after later head changes. Changed
+intent, actor, command namespace or observed version conflicts. Creating a new
+command never bypasses a stale version.
+
+Auditor authority comes from a current tenant-scoped
+`iam.governance_auditor.v1` grant and current managed IAM membership incarnation.
+Provisional authority requires exactly one current owner matching its original
+issuer; active authority requires retained independent approval. Credential,
+interval, owner/topology and source status are rechecked under retained locks.
+The command deadline cannot outlive the auditor's source grant.
+
+Source and target grant IDs are locked in sorted order before actor membership
+and Workforce topology. This preserves revocation ordering and avoids inverted
+cross-auditor locks. Private source/lock purposes disclose no parent payload to
+the caller before authority validation. Source table RLS avoids recursive
+self-lookups. Approval checks target native eligibility outside database locks,
+then rechecks source, exact target root, membership incarnation and version.
+Reject/revoke and retained receipt recovery do not re-enable or reprovision the
+target account.
+
+A retained decision records explicit owner/auditor provenance and, for delegated
+review, the exact source grant/version and actor membership epoch. It does not
+fabricate Staff or employment identifiers. A decision, head transition, new
+notices for every current owner, audit and any routing projection change commit
+together. Revocation denies from current source immediately; remaining future
+or current unexpired grants retain the coarse routing identity. Generic role
+creation/removal cannot manage that identity outside its source workflow.
 
 ## Atomicity, scope and routing
 

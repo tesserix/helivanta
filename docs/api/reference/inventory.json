@@ -96,6 +96,15 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/iam/governance-grants/:id/decisions/:command",
+          "permission": "iam.governance.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/iam/governance-grants/:id",
           "permission": "iam.governance.read",
@@ -736,7 +745,15 @@
         },
         {
           "permission": "iam.governance.read",
-          "roles": []
+          "roles": [
+            "governance_delegate"
+          ]
+        },
+        {
+          "permission": "iam.governance.review",
+          "roles": [
+            "governance_delegate"
+          ]
         },
         {
           "permission": "iam.assignment.manage",
@@ -1174,10 +1191,11 @@
         },
         {
           "id": "0047_iam_governance",
-          "sql_sha256": "3ab4806db7116c50438ad558a9c8d7fdd47290eb9b044fb811aa9a508f9719ef",
+          "sql_sha256": "584bd5730f5153e6052ff82e281b4e5b47b34f44f4479930550babf2deb87862",
           "creates_tables": [
             "iam_governance_grants",
-            "iam_governance_owner_notices"
+            "iam_governance_owner_notices",
+            "iam_governance_decisions"
           ]
         }
       ]

@@ -157,3 +157,13 @@ it.each([
 ])("accepts exact microseconds and Indian timezone offsets %j", (valid_from) => {
   expect(GovernanceGrantInputContract.safeParse({ ...input, valid_from }).success).toBe(true);
 });
+
+it("leaves a safe integer successor for a governance decision", () => {
+  expect(
+    GovernanceGrantDecisionInputContract.safeParse({
+      expected_version: 9007199254740991,
+      decision: "approve",
+      reason: "Independent review",
+    }).success,
+  ).toBe(false);
+});

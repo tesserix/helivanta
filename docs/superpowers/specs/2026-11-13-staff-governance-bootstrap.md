@@ -2,7 +2,7 @@
 
 Status: implementation design; no deployed permission or approved migration.
 Implements the accepted ORG-D7 policy in ADR-0044. It does not settle an open
-ORG-D decision. Protected ordinary account initiation was merged in PR #1668; this governance design remains unimplemented.
+ORG-D decision. Protected ordinary account initiation was merged in PR #1668; the governance ledger and independent decision implementation are in draft; consumer adoption and remote acceptance remain unfinished.
 
 ## Source findings and boundary
 
@@ -151,7 +151,19 @@ repeat native provisioning or claim the grant is still effective.
 
 IAM owner membership changes take an exclusive owner-count gate. Governance
 commands hold its shared counterpart before querying current owner membership,
-then take target membership locks and the Workforce topology gate. Under the
+then take selected governance row locks in sorted UUID order, target membership
+locks and the Workforce topology gate. Auditor review locks the union of its
+bounded candidate source grants and target before taking membership locks; it
+revalidates the source after locking. This prevents opposing reviews from taking
+target/source locks in opposite orders and avoids inversion with revocation's
+routing-membership removal. The private audit purpose is set only after current
+source validation and remains inside the guarded transaction. Source expiry
+bounds the guarded command deadline. Owner inbox reads remain recipient-only;
+auditors may insert transition notices for current owners but cannot read them.
+Native eligibility for approval runs between preflight and final locked
+reauthorization. Approve/reject excludes issuer and recipient; a current owner
+may revoke its own issued grant. Decisions retain their original receipts,
+source version and membership epoch; creation evidence remains immutable. Under the
 owner-count gate, read owner membership without row locks: an owner removal may
 already hold its tuple before entering its row trigger, and waiting on that
 tuple while retaining the shared gate would invert the lock order. Recheck the

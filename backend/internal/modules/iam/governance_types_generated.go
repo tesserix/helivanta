@@ -50,7 +50,7 @@ type GovernanceGrantReceipt struct {
 }
 
 type GovernanceGrantDecisionInput struct {
-	ExpectedVersion int64  `json:"expected_version" binding:"required,min=1,max=9007199254740991"`
+	ExpectedVersion int64  `json:"expected_version" binding:"required,min=1,max=9007199254740990"`
 	Decision        string `json:"decision" binding:"required,oneof=approve reject revoke"`
 	Reason          string `json:"reason" binding:"required,min=1,max=500"`
 }

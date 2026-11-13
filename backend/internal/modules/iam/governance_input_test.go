@@ -53,6 +53,7 @@ func TestGovernanceDecisionDecoderKeepsActorAuthorityOutOfTheBody(t *testing.T) 
 		"duplicate":      `{"expected_version":1,"decision":"approve","decision":"reject","reason":"Reviewed"}`,
 		"unsupported":    `{"expected_version":1,"decision":"self_approve","reason":"Reviewed"}`,
 		"zero version":   `{"expected_version":0,"decision":"approve","reason":"Reviewed"}`,
+		"no successor":   `{"expected_version":9007199254740991,"decision":"approve","reason":"Reviewed"}`,
 		"unsafe version": `{"expected_version":9007199254740992,"decision":"approve","reason":"Reviewed"}`,
 		"blank reason":   `{"expected_version":1,"decision":"approve","reason":"   "}`,
 		"control reason": `{"expected_version":1,"decision":"approve","reason":"review\nchanged"}`,

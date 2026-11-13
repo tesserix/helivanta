@@ -126,7 +126,7 @@ export type GovernanceGrantReceipt = z.infer<typeof GovernanceGrantReceiptContra
 
 export const GovernanceGrantDecisionInputContract = z
   .object({
-    expected_version: z.number().int().min(1).max(9007199254740991),
+    expected_version: z.number().int().min(1).max(9007199254740990),
     decision: z.enum(["approve", "reject", "revoke"]),
     reason: z
       .string()

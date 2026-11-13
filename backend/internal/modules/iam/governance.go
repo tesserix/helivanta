@@ -9,6 +9,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -28,6 +29,7 @@ import (
 
 const PermGovernanceManage authz.Permission = "iam.governance.manage"
 const PermGovernanceRead authz.Permission = "iam.governance.read"
+const PermGovernanceReview authz.Permission = "iam.governance.review"
 
 //go:embed governance.sql
 var governanceSchema string
@@ -60,6 +62,7 @@ func (m *Module) registerGovernance(g *platform.Router, deps platform.Deps) {
 	h := &governanceHandlers{db: deps.DB, bus: deps.Bus, identity: m.membershipIdentity, topology: deps.GovernanceTopology}
 	g.PUT("/governance-grants/:id", PermGovernanceManage, h.put)
 	g.GET("/governance-grants/:id", PermGovernanceRead, h.get)
+	g.PUT("/governance-grants/:id/decisions/:command", PermGovernanceReview, h.decide)
 	platform.ListRoute(g, "/governance-notices", PermGovernanceRead, h.notices)
 }
 
@@ -93,7 +96,7 @@ func governanceError(c *gin.Context, err error) {
 	}
 }
 
-func (h *governanceHandlers) withOwner(ctx context.Context, p authn.Principal, action func(context.Context, *gorm.DB, []string) error) error {
+func (h *governanceHandlers) withActor(ctx context.Context, p authn.Principal, action func(context.Context, *gorm.DB, []string) error) error {
 	if h.db == nil || action == nil {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
@@ -126,16 +129,24 @@ func (h *governanceHandlers) withOwner(ctx context.Context, p authn.Principal, a
 		if len(owners) > 1000 {
 			return authz.ErrScopedAuthorizationUnavailable
 		}
-		current := false
-		for _, owner := range owners {
-			current = current || owner == p.Subject
-		}
-		if !current {
-			return errGovernanceDenied
-		}
-		return tx.Exec(`SELECT set_config('app.actor_subject',?,true),set_config('app.iam_governance_access','owner',true)`, p.Subject).Error
+		return tx.Exec(`SELECT set_config('app.actor_subject',?,true),set_config('app.iam_governance_access','',true)`, p.Subject).Error
 	}, func(commandCtx context.Context) error {
 		return h.db.WithTenantCommand(commandCtx, p.TenantID, func(tx *gorm.DB) error { return action(commandCtx, tx, owners) })
+	})
+}
+
+func (h *governanceHandlers) withOwner(ctx context.Context, p authn.Principal, action func(context.Context, *gorm.DB, []string) error) error {
+	if action == nil {
+		return authz.ErrScopedAuthorizationUnavailable
+	}
+	return h.withActor(ctx, p, func(commandCtx context.Context, tx *gorm.DB, owners []string) error {
+		if !slices.Contains(owners, p.Subject) {
+			return errGovernanceDenied
+		}
+		if err := tx.Exec(`SELECT set_config('app.iam_governance_access','owner',true)`).Error; err != nil {
+			return err
+		}
+		return action(commandCtx, tx, owners)
 	})
 }
 
@@ -343,7 +354,7 @@ func (h *governanceHandlers) get(c *gin.Context) {
 		return
 	}
 	var receipt GovernanceGrantReceipt
-	err := h.withOwner(c.Request.Context(), p, func(_ context.Context, tx *gorm.DB, _ []string) error {
+	err := h.withReviewer(c.Request.Context(), p, id, false, PermGovernanceRead, func(_ context.Context, tx *gorm.DB, _ []string, _ governanceReviewAuthority) error {
 		row, err := loadGovernance(tx, p.TenantID, id)
 		if err != nil {
 			return err

@@ -222,7 +222,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		employmentReview := uuid.Must(uuid.NewV7())
 		employmentPath := target + "/employment-reviews/" + employmentReview.String()
 		input := map[string]any{"command_id": uuid.Must(uuid.NewV7()), "staff_version": source["staff_version"], "employment_epoch": source["employment_epoch"], "identity_hash": source["identity_hash"], "period_id": period, "period_revision_id": terms["revision_id"], "period_version": terms["version"], "person_review_id": reviewID, "person_review_revision_id": approved["revision_id"], "person_review_version": approved["version"], "evidence": []map[string]any{{"id": bindingID, "revision_id": binding["revision_id"], "version": binding["version"]}}, "policy_reference": "SYN-EMPLOYMENT-POLICY", "reason": "Freeze exact reviewed person and appointment terms", "terms_examined": true, "known_associations_disclosed": true}
-		request(t, http.MethodPut, employmentPath+"?hr_intake=v1", "auditor", input, 403)
+		request(t, http.MethodPut, employmentPath+"?hr_intake=v1", "reviewer", input, 403)
 
 		t.Run("exact governance authors terms without a Staff actor", func(t *testing.T) {
 			for _, boundary := range []struct{ header, value string }{{"X-Helivanta-Expected-Tenant", ""}, {"X-Helivanta-Expected-Subject", ""}, {"X-Helivanta-Expected-Tenant", testutil.TenantB}, {"X-Helivanta-Expected-Subject", "user-owner2"}} {
@@ -650,6 +650,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		require.EqualValues(t, 1, routing)
 		return nil
 	}))
+	require.NotEqual(t, uuid.Nil, readyEmployment.ID, "the employment fixture must complete before testing activation")
 	t.Run("first digital hire activation consumes exact governance basis", func(t *testing.T) {
 		request := func(t *testing.T, method, path string, input any, status int) map[string]any {
 			t.Helper()

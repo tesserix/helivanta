@@ -13563,7 +13563,7 @@
           },
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
-            "sha256": "eb2f34e006e3f0b362c2c15829822c39baaa1e90dec7414ab05b7a994952c96a",
+            "sha256": "29eb0a9f2af56ab3080b4f85edf5d6a242fa47a6c0c7a55aa187addf2774bce6",
             "symbol": "employment authority discovery needs no Staff links"
           }
         ],
@@ -13837,7 +13837,7 @@
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "current employment governance opens only the employer inbox",
-            "sha256": "eb2f34e006e3f0b362c2c15829822c39baaa1e90dec7414ab05b7a994952c96a"
+            "sha256": "29eb0a9f2af56ab3080b4f85edf5d6a242fa47a6c0c7a55aa187addf2774bce6"
           }
         ],
         "remaining": [
@@ -16015,7 +16015,7 @@
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "selected finding preparation needs no Staff actor",
-            "sha256": "eb2f34e006e3f0b362c2c15829822c39baaa1e90dec7414ab05b7a994952c96a"
+            "sha256": "29eb0a9f2af56ab3080b4f85edf5d6a242fa47a6c0c7a55aa187addf2774bce6"
           }
         ],
         "remaining": [
@@ -16162,7 +16162,7 @@
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "exact governance authors terms without a Staff actor",
-            "sha256": "eb2f34e006e3f0b362c2c15829822c39baaa1e90dec7414ab05b7a994952c96a"
+            "sha256": "29eb0a9f2af56ab3080b4f85edf5d6a242fa47a6c0c7a55aa187addf2774bce6"
           },
           {
             "path": "backend/internal/modules/workforce/module.go",
@@ -16225,7 +16225,7 @@
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "exact governance authors terms without a Staff actor",
-            "sha256": "eb2f34e006e3f0b362c2c15829822c39baaa1e90dec7414ab05b7a994952c96a"
+            "sha256": "29eb0a9f2af56ab3080b4f85edf5d6a242fa47a6c0c7a55aa187addf2774bce6"
           },
           {
             "path": "backend/internal/modules/workforce/module.go",
@@ -16288,7 +16288,7 @@
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "exact governance authors terms without a Staff actor",
-            "sha256": "eb2f34e006e3f0b362c2c15829822c39baaa1e90dec7414ab05b7a994952c96a"
+            "sha256": "29eb0a9f2af56ab3080b4f85edf5d6a242fa47a6c0c7a55aa187addf2774bce6"
           },
           {
             "path": "backend/internal/modules/workforce/module.go",
@@ -16351,7 +16351,7 @@
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "exact governance authors terms without a Staff actor",
-            "sha256": "eb2f34e006e3f0b362c2c15829822c39baaa1e90dec7414ab05b7a994952c96a"
+            "sha256": "29eb0a9f2af56ab3080b4f85edf5d6a242fa47a6c0c7a55aa187addf2774bce6"
           },
           {
             "path": "backend/internal/modules/workforce/module.go",
@@ -20727,7 +20727,7 @@
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "exact governance authors terms without a Staff actor",
-            "sha256": "eb2f34e006e3f0b362c2c15829822c39baaa1e90dec7414ab05b7a994952c96a"
+            "sha256": "29eb0a9f2af56ab3080b4f85edf5d6a242fa47a6c0c7a55aa187addf2774bce6"
           },
           {
             "path": "backend/internal/modules/workforce/module.go",

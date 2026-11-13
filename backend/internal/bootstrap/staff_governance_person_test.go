@@ -296,19 +296,19 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 			request(t, http.MethodGet, inbox+"?limit=51", "reviewer", nil, 400)
 			request(t, http.MethodGet, inbox+"?status=pending&status=approved", "reviewer", nil, 400)
 			require.Empty(t, request(t, http.MethodGet, inbox+"?status=approved", "reviewer", nil, 200)["data"])
-			for _, policy := range []struct{ table, name, command, clause string }{
-				{"workforce_staff", "employment_inbox_read", "SELECT", "USING"},
-				{"workforce_audit", "employment_inbox_audit", "INSERT", "WITH CHECK"},
+			for _, policy := range []struct{ table, column, clause string }{
+				{"workforce_staff", "polqual", "USING"},
+				{"workforce_audit", "polwithcheck", "WITH CHECK"},
 			} {
-				t.Run("missing "+policy.table+" policy fails closed", func(t *testing.T) {
-					var saved struct{ Expression string }
+				t.Run("missing "+policy.table+" policy support fails closed", func(t *testing.T) {
+					var saved struct{ Name, Expression string }
 					require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-						return tx.Raw("SELECT COALESCE(pg_get_expr(polwithcheck,polrelid),pg_get_expr(polqual,polrelid)) AS expression FROM pg_policy WHERE polrelid=to_regclass(?) AND polname=?", "public."+policy.table, policy.name).Take(&saved).Error
+						return tx.Raw("SELECT polname AS name,pg_get_expr("+policy.column+",polrelid) AS expression FROM pg_policy WHERE polrelid=to_regclass(?) AND polpermissive", "public."+policy.table).Take(&saved).Error
 					}))
 					require.NotEmpty(t, saved.Expression)
-					require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_inbox_" + policy.table + "_disabled", SQL: "DROP POLICY " + policy.name + " ON " + policy.table}}))
+					require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_inbox_" + policy.table + "_disabled", SQL: "ALTER POLICY " + saved.Name + " ON " + policy.table + " " + policy.clause + " (false)"}}))
 					defer func() {
-						require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_inbox_" + policy.table + "_restored", SQL: "CREATE POLICY " + policy.name + " ON " + policy.table + " FOR " + policy.command + " " + policy.clause + " (" + saved.Expression + ")"}}))
+						require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_inbox_" + policy.table + "_restored", SQL: "ALTER POLICY " + saved.Name + " ON " + policy.table + " " + policy.clause + " (" + saved.Expression + ")"}}))
 					}()
 					request(t, http.MethodGet, inbox, "reviewer", nil, 503)
 				})

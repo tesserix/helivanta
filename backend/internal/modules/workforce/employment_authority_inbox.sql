@@ -26,7 +26,7 @@ RETURNS boolean LANGUAGE sql STABLE AS $$
 $$;
 
 DO $migration$
-DECLARE item record; reading text; writing text;
+DECLARE item record; prior record; reading text; writing text;
 BEGIN
  FOR item IN SELECT c.relname AS table_name,c.relrowsecurity,c.relforcerowsecurity FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
  WHERE n.nspname='public' AND c.relkind IN('r','p') AND starts_with(c.relname,'workforce_')
@@ -47,11 +47,18 @@ BEGIN
     AND changes=jsonb_build_object('authority',changes->'authority','rows',(changes->>'rows')::integer,'status',changes->>'status')$write$;
    ELSE NULL;
   END CASE;
-  IF reading<>'false' THEN
-   EXECUTE format('CREATE POLICY employment_inbox_read ON %I FOR SELECT USING (%s)',item.table_name,reading);
-  END IF;
-  IF writing<>'false' THEN
-   EXECUTE format('CREATE POLICY employment_inbox_audit ON %I FOR INSERT WITH CHECK (%s)',item.table_name,writing);
+  IF reading<>'false' OR writing<>'false' THEN
+   SELECT p.polname,p.polcmd,pg_get_expr(p.polqual,p.polrelid) AS reading,pg_get_expr(p.polwithcheck,p.polrelid) AS writing
+    INTO STRICT prior FROM pg_policy p WHERE p.polrelid=to_regclass('public.'||item.table_name) AND p.polpermissive;
+   IF prior.polcmd<>'*' OR prior.reading IS NULL OR prior.writing IS NULL THEN
+    RAISE EXCEPTION 'employment inbox requires one explicit tenant read/write policy on %',item.table_name;
+   END IF;
+   IF reading<>'false' THEN
+    EXECUTE format('ALTER POLICY %I ON %I USING ((%s) OR (%s))',prior.polname,item.table_name,prior.reading,reading);
+   END IF;
+   IF writing<>'false' THEN
+    EXECUTE format('ALTER POLICY %I ON %I WITH CHECK ((%s) OR (%s))',prior.polname,item.table_name,prior.writing,writing);
+   END IF;
   END IF;
   EXECUTE format($policy$CREATE POLICY employment_inbox_purpose ON %I AS RESTRICTIVE FOR ALL
    USING(hms_tenant_visible(tenant_id) AND (COALESCE(current_setting('app.workforce_employment_inbox_authority',true),'')='' OR (%s)))

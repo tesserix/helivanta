@@ -56,8 +56,8 @@ func installEmploymentInboxAuthority(tx *gorm.DB, proof map[string]any) error {
 	var installed bool
 	if err := tx.Raw(`SELECT to_regprocedure('public.workforce_employment_inbox_source(uuid,uuid)') IS NOT NULL
  AND EXISTS(SELECT 1 FROM pg_index WHERE indrelid=to_regclass('public.workforce_employment_reviews') AND indexrelid=to_regclass('public.workforce_employment_inbox_staff') AND indisvalid AND indisready)
- AND NOT EXISTS(SELECT 1 FROM (VALUES('workforce_hospitals'),('workforce_staff'),('workforce_employment_reviews')) AS required(table_name) WHERE NOT EXISTS(SELECT 1 FROM pg_policy p WHERE p.polrelid=to_regclass('public.'||required.table_name) AND p.polname='employment_inbox_read' AND p.polpermissive AND p.polcmd='r' AND p.polqual IS NOT NULL))
- AND EXISTS(SELECT 1 FROM pg_policy WHERE polrelid=to_regclass('public.workforce_audit') AND polname='employment_inbox_audit' AND polpermissive AND polcmd='a' AND polwithcheck IS NOT NULL)
+ AND NOT EXISTS(SELECT 1 FROM (VALUES('workforce_hospitals'),('workforce_staff'),('workforce_employment_reviews')) AS required(table_name) WHERE NOT EXISTS(SELECT 1 FROM pg_policy p WHERE p.polrelid=to_regclass('public.'||required.table_name) AND p.polpermissive AND p.polcmd='*' AND pg_get_expr(p.polqual,p.polrelid) LIKE '%workforce_employment_inbox_source%'))
+ AND EXISTS(SELECT 1 FROM pg_policy WHERE polrelid=to_regclass('public.workforce_audit') AND polpermissive AND polcmd='*' AND pg_get_expr(polwithcheck,polrelid) LIKE '%workforce_employment_inbox_source%')
  AND NOT EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind IN('r','p') AND starts_with(c.relname,'workforce_') AND EXISTS(SELECT 1 FROM pg_attribute a WHERE a.attrelid=c.oid AND a.attname='tenant_id' AND NOT a.attisdropped)
  AND (NOT c.relrowsecurity OR NOT c.relforcerowsecurity OR has_table_privilege(current_user,c.oid,'TRUNCATE')
  OR NOT EXISTS(SELECT 1 FROM pg_policy p WHERE p.polrelid=c.oid AND p.polname='employment_inbox_purpose' AND NOT p.polpermissive AND p.polcmd='*' AND p.polqual IS NOT NULL AND p.polwithcheck IS NOT NULL)

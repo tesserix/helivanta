@@ -13563,7 +13563,7 @@
           },
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
-            "sha256": "cc3bce52ee5f2c4c881563b28b42ca4f80011a4834f537d0bbde63fae8e0ef9e",
+            "sha256": "ba74ab5d1d63e661b67180e42f453ce2f8377e38d61e1d49ddd5d4da73be9ea7",
             "symbol": "employment authority discovery needs no Staff links"
           }
         ],
@@ -13817,12 +13817,12 @@
           {
             "path": "backend/internal/modules/workforce/employment_authority_inbox.go",
             "symbol": "withEmploymentAuthorityInbox",
-            "sha256": "429a1f7afe5a36f32af5d8c0ab50073ba84ffb64183b59cc24833c450888c669"
+            "sha256": "4fa1dc45a5e40b3c2e3fbf7ac2c0e70200dae2a24e4f194d02fa291c15d528c9"
           },
           {
             "path": "backend/internal/modules/workforce/employment_authority_inbox.sql",
             "symbol": "CREATE FUNCTION workforce_employment_inbox_source",
-            "sha256": "40985ab4115620bf39ddbd33e0e2d1b3f86931eaf2a3d23abdd9d45feb468bd8"
+            "sha256": "41fd1ff45c3e16a00f2971d6a6a6b1f1ad5b0d869f30c9ec8038a6790c56bb16"
           },
           {
             "path": "backend/internal/platform/filtered_list.go",
@@ -13837,7 +13837,7 @@
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "current employment governance opens only the employer inbox",
-            "sha256": "cc3bce52ee5f2c4c881563b28b42ca4f80011a4834f537d0bbde63fae8e0ef9e"
+            "sha256": "ba74ab5d1d63e661b67180e42f453ce2f8377e38d61e1d49ddd5d4da73be9ea7"
           }
         ],
         "remaining": [

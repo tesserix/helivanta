@@ -40,12 +40,12 @@ No additional service, broker, cache, worker fleet or standing infrastructure.
 
 ## Actor and template rules
 
-| Actor | Authority and scope | Preconditions and approval |
-| --- | --- | --- |
-| Issuing owner | Tenant governance, exact selected employer root | Current verified tenant/session, native human, current owner membership and credential watermark; cannot issue to self |
+| Actor                 | Authority and scope                                                              | Preconditions and approval                                                                                                            |
+| --------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Issuing owner         | Tenant governance, exact selected employer root                                  | Current verified tenant/session, native human, current owner membership and credential watermark; cannot issue to self                |
 | Account-link reviewer | Fixed `workforce.account_link_reviewer.v1`, one hospital or independent employer | Active verified tenant-owned human and ordinary membership; governance intentionally does not depend on the Staff link it must review |
-| Governance auditor | Fixed `iam.governance_auditor.v1`, tenant governance review only | Same identity/membership requirements; may not approve a grant they issued or receive |
-| Staff member | Ordinary membership; no operating authority from this flow | Recipient completes private verification/password; reviewed Staff link, employment, postings and product grants remain separate |
+| Governance auditor    | Fixed `iam.governance_auditor.v1`, tenant governance review only                 | Same identity/membership requirements; may not approve a grant they issued or receive                                                 |
+| Staff member          | Ordinary membership; no operating authority from this flow                       | Recipient completes private verification/password; reviewed Staff link, employment, postings and product grants remain separate       |
 
 Templates compose code-declared permissions only. Account-link review grants
 minimal directory identity/link disclosure and independent review, not broad HR,

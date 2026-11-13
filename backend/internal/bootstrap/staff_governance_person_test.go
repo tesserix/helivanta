@@ -451,6 +451,52 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		generation := uuid.Must(uuid.NewV7())
 		activationPath := target + "/employment-activations/" + generation.String() + "?employment_activation=v1"
 		intent := map[string]any{"command_id": uuid.Must(uuid.NewV7()), "review_id": readyEmployment.ID, "review_revision_id": readyEmployment.RevisionID, "review_version": readyEmployment.Version, "staff_version": readyEmployment.StaffVersion, "employment_epoch": readyEmployment.EmploymentEpoch, "reason": "Synthetic first digital hire with independently approved basis", "activation_examined": true}
+		for _, prerequisite := range []struct{ table, trigger string }{
+			{"workforce_staff", "zz_workforce_governance_activation"},
+			{"workforce_staff", "workforce_reviewed_activation_required"},
+			{"workforce_employment_generations", "workforce_employment_generation_write"},
+			{"workforce_employment_generations", "workforce_employment_generation_immutable"},
+			{"workforce_employment_generations", "workforce_employment_generation_zz_authority"},
+		} {
+			t.Run("missing activation prerequisite "+prerequisite.trigger, func(t *testing.T) {
+				require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_activation_" + prerequisite.trigger + "_disabled", SQL: "ALTER TABLE " + prerequisite.table + " DISABLE TRIGGER " + prerequisite.trigger}}))
+				defer func() {
+					require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_activation_" + prerequisite.trigger + "_restored", SQL: "ALTER TABLE " + prerequisite.table + " ENABLE TRIGGER " + prerequisite.trigger}}))
+				}()
+				request(http.MethodGet, sourcePath, nil, 503)
+				request(http.MethodPut, activationPath, intent, 503)
+			})
+		}
+		t.Run("late generation failure rolls back the whole digital activation", func(t *testing.T) {
+			require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_activation_commit_failure", SQL: `CREATE FUNCTION test_governance_activation_failure() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic deferred activation failure' USING ERRCODE='23514'; END $$;
+CREATE CONSTRAINT TRIGGER test_governance_activation_failure AFTER INSERT ON workforce_employment_generations DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION test_governance_activation_failure();`}}))
+			defer func() {
+				require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_activation_commit_failure_removed", SQL: "DROP TRIGGER test_governance_activation_failure ON workforce_employment_generations; DROP FUNCTION test_governance_activation_failure();"}}))
+			}()
+			request(http.MethodPut, activationPath, intent, 400)
+			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+				if err := tx.Exec("SELECT set_config('app.assignment_access','authorized',true),set_config('app.workforce_subject','user-admin',true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_generation','read',true),set_config('app.workforce_generation_staff',?,true)", roots[0].String(), staff[0].String()).Error; err != nil {
+					return err
+				}
+				var current struct {
+					EmploymentStatus         string
+					Version, EmploymentEpoch int64
+				}
+				require.NoError(t, tx.Table("workforce_staff").Select("employment_status,version,employment_epoch").Where("tenant_id=? AND hospital_id=? AND id=?", testutil.TenantA, roots[0], staff[0]).Take(&current).Error)
+				require.Equal(t, "inactive", current.EmploymentStatus)
+				require.Equal(t, readyEmployment.StaffVersion, current.Version)
+				require.Equal(t, readyEmployment.EmploymentEpoch, current.EmploymentEpoch)
+				for _, table := range []string{"iam_employment_bases", "workforce_employment_generations"} {
+					var count int64
+					require.NoError(t, tx.Table(table).Where("tenant_id=? AND hospital_id=? AND staff_id=?", testutil.TenantA, roots[0], staff[0]).Count(&count).Error)
+					require.Zero(t, count, "a failed commit leaves no basis or generation")
+				}
+				var audits int64
+				require.NoError(t, tx.Table("workforce_audit").Where("tenant_id=? AND hospital_id=? AND actor_subject=? AND action IN ?", testutil.TenantA, roots[0], "user-reviewer", []string{"workforce_staff.update", "workforce.employment.activated"}).Count(&audits).Error)
+				require.Zero(t, audits, "the failed physical transition and activation audits roll back together")
+				return nil
+			}))
+		})
 		result := request(http.MethodPut, activationPath, intent, 200)
 		require.Equal(t, "effective", result["current_state"])
 		created := result["generation"].(map[string]any)
@@ -548,6 +594,9 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 				require.Equal(t, "42501", denied.Code)
 			})
 		}
+		call(http.MethodPut, "/v1/iam/governance-grants/"+activationGrant.String()+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "admin", map[string]any{"expected_version": 2, "decision": "revoke", "reason": "Withdraw activation authority after the completed digital hire"}, 202)
+		request(http.MethodGet, sourcePath, nil, 403)
+		request(http.MethodPut, activationPath, intent, 403)
 	})
 
 }

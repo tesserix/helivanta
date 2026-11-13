@@ -1384,6 +1384,13 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods` | `workforce.enrollment.manage` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-person-finding-options` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-person-findings` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file/content` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file/content` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file/retries/:attempt` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file/revocation` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/history` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period` | `public` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period` | `public` | false | false |

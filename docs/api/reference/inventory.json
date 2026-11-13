@@ -10962,6 +10962,69 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file/content",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file/content",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file/retries/:attempt",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file/revocation",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/history",
           "permission": "public",
           "authentication_required": true,
@@ -13536,6 +13599,11 @@
         {
           "id": "0112_workforce_employment_preparation_targets",
           "sql_sha256": "a2106dc73b98caf0a6d66e778018bcc5a1a51b5633a3b41c77ebfc886f18acb8",
+          "creates_tables": []
+        },
+        {
+          "id": "0113_workforce_employment_document_preparation",
+          "sql_sha256": "70a64f6e4f92fb5150e6d6afa0d5ecd11b60b8c0c924b4bf23c8d150971a1cfa",
           "creates_tables": []
         }
       ]

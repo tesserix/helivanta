@@ -210,6 +210,9 @@ func (h *handlers) registerDocument(c *gin.Context, gate documentGate, p authn.P
 			if err != nil {
 				return err
 			}
+			if err := prepareDocumentMutation(tx, gate, documentMutation{Stage: documentMutationIntent, Input: &in}); err != nil {
+				return err
+			}
 			result := tx.Exec(`INSERT INTO workforce_documents(tenant_id,hospital_id,id,staff_id,record_id,record_kind,record_version,category,filename,content_type,size,sha256)
 		 VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(tenant_id,hospital_id,id) DO NOTHING`, p.TenantID, hospital, id, staffID, in.RecordID, in.RecordKind, version, in.Category, in.Filename, in.ContentType, in.Size, in.SHA256)
 			if result.Error != nil {

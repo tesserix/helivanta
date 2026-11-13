@@ -238,19 +238,80 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		period := uuid.Must(uuid.NewV7())
 		terms := request(t, http.MethodPut, target+"/employment-preparation-periods/"+period.String(), "auditor", map[string]any{"command_id": uuid.Must(uuid.NewV7()), "expected_version": 0, "staff_version": source["staff_version"], "employment_epoch": source["employment_epoch"], "engagement_kind": "employee", "duration": "ongoing", "starts_at": time.Now().UTC().Add(-time.Minute).Truncate(time.Microsecond), "reason": "Synthetic appointment", "evidence_reference": "SYN-APPOINTMENT"}, 200)
 		employmentFile := uuid.Must(uuid.NewV7()).String()
-		path := target + "/documents/" + employmentFile
-		request(t, http.MethodPut, path, "admin", map[string]any{"record_kind": "enrollment", "record_id": staff[0], "category": "employment_evidence", "filename": "synthetic-appointment.png", "content_type": "image/png", "size": pngBytes.Len(), "sha256": fmt.Sprintf("%x", sha256.Sum256(pngBytes.Bytes()))}, 201)
-		upload := httptest.NewRequest(http.MethodPut, path+"/content", bytes.NewReader(pngBytes.Bytes()))
-		upload.Header.Set("Authorization", "Bearer admin")
+		docBasis := fmt.Sprintf("?staff_version=%v&employment_epoch=%v", source["staff_version"], source["employment_epoch"])
+		docRoot := target + "/employment-preparation-documents"
+		path := docRoot + "/" + employmentFile
+		metadata := map[string]any{"record_kind": "enrollment", "record_id": staff[0], "category": "employment_evidence", "filename": "synthetic-appointment.png", "content_type": "image/png", "size": pngBytes.Len(), "sha256": fmt.Sprintf("%x", sha256.Sum256(pngBytes.Bytes()))}
+		request(t, http.MethodPut, path+docBasis, "reviewer", metadata, 403)
+		created := request(t, http.MethodPut, path+docBasis, "auditor", metadata, 201)
+		require.Equal(t, created, request(t, http.MethodPut, path+docBasis, "auditor", metadata, 200))
+		require.Equal(t, created, request(t, http.MethodPut, path+docBasis, "admin", metadata, 200), "canonical metadata replay preserves the original file; it does not relabel its creator")
+		t.Run("native document preparation is narrowly scoped", func(t *testing.T) {
+			changed := map[string]any{}
+			for key, value := range metadata {
+				changed[key] = value
+			}
+			changed["filename"] = "different.png"
+			request(t, http.MethodPut, path+docBasis, "auditor", changed, 409)
+			changed["category"] = "identity_evidence"
+			request(t, http.MethodPut, docRoot+"/"+uuid.NewString()+docBasis, "auditor", changed, 400)
+			request(t, http.MethodGet, path+"?staff_version=999&employment_epoch=1", "auditor", nil, 409)
+			request(t, http.MethodGet, path+docBasis+"&hr_intake=v1", "auditor", nil, 400)
+			request(t, http.MethodGet, base+"/staff/"+staff[1].String()+"/employment-preparation-documents/"+employmentFile+docBasis, "auditor", nil, 404)
+			require.Len(t, request(t, http.MethodGet, docRoot+docBasis, "auditor", nil, 200)["data"], 1)
+			var counts struct{ Total, Creation int64 }
+			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+				if err := tx.Exec("SELECT set_config('app.workforce_subject','user-admin',true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_enrollment','authorized',true)", roots[0].String()).Error; err != nil {
+					return err
+				}
+				return tx.Raw("SELECT count(*) AS total,count(*) FILTER(WHERE creation_captured AND subject='user-auditor') AS creation FROM workforce_document_contributors WHERE tenant_id=? AND hospital_id=? AND document_id=?", testutil.TenantA, roots[0], employmentFile).Scan(&counts).Error
+			}))
+			require.EqualValues(t, 1, counts.Total)
+			require.EqualValues(t, 1, counts.Creation)
+			request(t, http.MethodGet, path+docBasis, "admin", nil, 200)
+			var recorded struct{ Authority json.RawMessage }
+			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+				return tx.Raw("SELECT changes->'authority' AS authority FROM workforce_audit WHERE tenant_id=? AND hospital_id=? AND resource_id=? AND actor_subject='user-admin' AND action='workforce.employment_document.phase' ORDER BY created_at DESC LIMIT 1", testutil.TenantA, roots[0], employmentFile).Take(&recorded).Error
+			}))
+			require.NotEmpty(t, recorded.Authority)
+			assertReadPurposeBlocksStaffMasterEdit(t, db, roots[0], staff[0], "app.workforce_governance_document_authority", recorded.Authority)
+			assertEmploymentDocumentReadRejectsWrites(t, db, roots[0], staff[0], uuid.MustParse(employmentFile), recorded.Authority)
+			require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_native_document_provenance_disabled", SQL: "ALTER TABLE workforce_documents DISABLE TRIGGER workforce_governance_document_provenance"}}))
+			func() {
+				defer func() {
+					require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_native_document_provenance_restored", SQL: "ALTER TABLE workforce_documents ENABLE TRIGGER workforce_governance_document_provenance"}}))
+				}()
+				request(t, http.MethodGet, path+docBasis, "auditor", nil, 503)
+			}()
+		})
+		upload := httptest.NewRequest(http.MethodPut, path+"/content"+docBasis, bytes.NewReader(pngBytes.Bytes()))
+		upload.Header.Set("Authorization", "Bearer auditor")
 		upload.Header.Set("Content-Type", "image/png")
 		upload.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantA)
-		upload.Header.Set("X-Helivanta-Expected-Subject", "user-admin")
+		upload.Header.Set("X-Helivanta-Expected-Subject", "user-auditor")
 		response := httptest.NewRecorder()
 		router.ServeHTTP(response, upload)
 		require.Equal(t, 202, response.Code, response.Body.String())
+		require.Equal(t, "scan_pending", request(t, http.MethodGet, path+docBasis, "auditor", nil, 200)["status"])
 		state, processErr := processor.Process(ctx, workforcecontract.DocumentScanInput{TenantID: testutil.TenantA, HospitalID: roots[0].String(), StaffID: staff[0].String(), FileID: employmentFile, ScanAttempt: 1})
 		require.NoError(t, processErr)
 		require.Equal(t, "available", state)
+		downloaded := governanceRequest(router, http.MethodGet, path+"/content"+docBasis, "auditor", "")
+		require.Equal(t, 200, downloaded.Code, downloaded.Body.String())
+		require.Equal(t, pngBytes.Bytes(), downloaded.Body.Bytes())
+		t.Run("source replacement during released storage cannot inherit the old disclosure", func(t *testing.T) {
+			cloud.AfterReleasedRead(func() {
+				request(t, http.MethodPut, "/v1/iam/governance-grants/"+prepareGrant.String()+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "admin", map[string]any{"expected_version": 2, "decision": "revoke", "reason": "Withdraw employment document source during storage"}, 202)
+				prepareGrant = grant("user-auditor", "workforce.employment_preparer.v1", roots[0])
+			})
+			refused := governanceRequest(router, http.MethodGet, path+"/content"+docBasis, "auditor", "")
+			require.Equal(t, 403, refused.Code, refused.Body.String())
+			require.NotEqual(t, pngBytes.Bytes(), refused.Body.Bytes())
+			fresh := governanceRequest(router, http.MethodGet, path+"/content"+docBasis, "auditor", "")
+			require.Equal(t, 200, fresh.Code, fresh.Body.String())
+			require.Equal(t, pngBytes.Bytes(), fresh.Body.Bytes())
+		})
+
 		bindingID := uuid.Must(uuid.NewV7())
 		binding := request(t, http.MethodPut, target+"/employment-periods/"+period.String()+"/revisions/1/evidence/"+bindingID.String(), "admin", map[string]any{"command_id": uuid.Must(uuid.NewV7()), "document_id": employmentFile, "reason": "Released appointment evidence"}, 200)
 		employmentReview := uuid.Must(uuid.NewV7())
@@ -595,6 +656,8 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		request(t, http.MethodGet, selectionPath+selectionQuery, "auditor", nil, 403)
 		request(t, http.MethodGet, target+"/employment-preparation-source", "auditor", nil, 403)
 		request(t, http.MethodPost, preparationSearch, "auditor", targetInput, 403)
+		request(t, http.MethodGet, path+docBasis, "auditor", nil, 403)
+		request(t, http.MethodGet, path+"/content"+docBasis, "auditor", nil, 403)
 		grant("user-reviewer", "workforce.employment_reviewer.v1", roots[1])
 		cutoff := make(chan *httptest.ResponseRecorder, 1)
 		cloud.AfterReleasedRead(func() {
@@ -884,6 +947,8 @@ func assertReadPurposeBlocksStaffMasterEdit(t *testing.T, db *tenantdb.DB, hospi
 	targets := setting == "app.workforce_governance_draft_authority" && proofScope.Operation == "targets"
 	var sourceQuery string
 	switch setting {
+	case "app.workforce_governance_document_authority":
+		sourceQuery = "SELECT workforce_governance_document_source(?::uuid,?::uuid,?::uuid)"
 	case "app.workforce_governance_draft_authority":
 		sourceQuery = "SELECT workforce_governance_draft_source(?::uuid,?::uuid,?::uuid)"
 	case "app.workforce_governance_finding_authority":
@@ -949,4 +1014,59 @@ func assertReadPurposeBlocksStaffMasterEdit(t *testing.T, db *tenantdb.DB, hospi
 		return tx.Table("workforce_staff").Select("display_name").Where("tenant_id=? AND hospital_id=? AND id=?", testutil.TenantA, hospital, staff).Take(&after).Error
 	}))
 	require.Equal(t, before, after, "the denied write must preserve the stored Staff master")
+}
+
+func assertEmploymentDocumentReadRejectsWrites(t *testing.T, db *tenantdb.DB, hospital, staff, file uuid.UUID, proof json.RawMessage) {
+	t.Helper()
+	scope := func(fn func(*gorm.DB) error) error {
+		return db.WithTenant(tenantdb.WithActor(t.Context(), "user-admin"), testutil.TenantA, func(tx *gorm.DB) error {
+			if err := tx.Exec("SELECT set_config('app.workforce_subject','user-admin',true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_governance_document_authority',?,true)", hospital.String(), string(proof)).Error; err != nil {
+				return err
+			}
+			return fn(tx)
+		})
+	}
+	var visible int64
+	require.NoError(t, scope(func(tx *gorm.DB) error {
+		return tx.Table("workforce_documents").Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", testutil.TenantA, hospital, staff, file).Count(&visible).Error
+	}))
+	require.EqualValues(t, 1, visible, "the proof must genuinely disclose the selected file before write denial is tested")
+	var unexpected map[string]any
+	require.NoError(t, json.Unmarshal(proof, &unexpected))
+	unexpected["filename"] = "forbidden-payload.png"
+	raw, err := json.Marshal(unexpected)
+	require.NoError(t, err)
+	require.NoError(t, scope(func(tx *gorm.DB) error {
+		if err := tx.Exec("SELECT set_config('app.workforce_governance_document_authority',?,true)", string(raw)).Error; err != nil {
+			return err
+		}
+		var accepted bool
+		if err := tx.Raw("SELECT workforce_governance_document_source(?::uuid,?::uuid,?::uuid)", testutil.TenantA, hospital, staff).Scan(&accepted).Error; err != nil {
+			return err
+		}
+		require.False(t, accepted, "unexpected payload fields cannot enter private authority/audit")
+		return nil
+	}))
+
+	for _, update := range []string{"uploaded_at=clock_timestamp()", "uploaded_at=clock_timestamp(),source_generation=42,status='scan_pending'", "frozen=true"} {
+		err := scope(func(tx *gorm.DB) error {
+			return tx.Exec("UPDATE workforce_documents SET "+update+" WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", testutil.TenantA, hospital, staff, file).Error
+		})
+		var denied *pgconn.PgError
+		require.ErrorAs(t, err, &denied)
+		require.Equal(t, "42501", denied.Code)
+	}
+	var retained struct {
+		Status           string
+		UploadedAt       *time.Time
+		SourceGeneration *int64
+		Frozen           bool
+	}
+	require.NoError(t, scope(func(tx *gorm.DB) error {
+		return tx.Table("workforce_documents").Select("status,uploaded_at,source_generation,frozen").Where("tenant_id=? AND hospital_id=? AND id=?", testutil.TenantA, hospital, file).Take(&retained).Error
+	}))
+	require.Equal(t, "upload_pending", retained.Status)
+	require.Nil(t, retained.UploadedAt)
+	require.Nil(t, retained.SourceGeneration)
+	require.False(t, retained.Frozen)
 }

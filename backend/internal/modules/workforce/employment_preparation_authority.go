@@ -167,7 +167,7 @@ func requireEmploymentPreparationReceipt(tx *gorm.DB, p authn.Principal, hospita
 	return nil
 }
 
-func (h *handlers) withEmploymentPreparation(c *gin.Context, p authn.Principal, hospital, staff, period uuid.UUID, operation employmentPreparationOperation, input *EmploymentPeriodDraftInput, fn func(*gorm.DB) error) error {
+func (h *handlers) withEmploymentPreparationSource(c *gin.Context, p authn.Principal, hospital uuid.UUID, fn func(context.Context, authz.GovernanceSourceEvidence) error) error {
 	tenants, subjects := c.Request.Header.Values("X-Helivanta-Expected-Tenant"), c.Request.Header.Values("X-Helivanta-Expected-Subject")
 	if len(tenants) != 1 || tenants[0] != p.TenantID || len(subjects) != 1 || subjects[0] != p.Subject {
 		return errIntakeWorkspaceRequired
@@ -193,12 +193,28 @@ func (h *handlers) withEmploymentPreparation(c *gin.Context, p authn.Principal, 
 			callbackErr = authz.ErrScopedAuthorizationUnavailable
 			return callbackErr
 		}
+		callbackErr = fn(commandCtx, source)
+		return callbackErr
+	})
+	if callbackErr != nil {
+		err = callbackErr
+	}
+	if err == nil && callbacks != 1 {
+		return authz.ErrScopedAuthorizationUnavailable
+	}
+	if errors.Is(err, authz.ErrGovernanceScopeHidden) {
+		return gorm.ErrRecordNotFound
+	}
+	return err
+}
+
+func (h *handlers) withEmploymentPreparation(c *gin.Context, p authn.Principal, hospital, staff, period uuid.UUID, operation employmentPreparationOperation, input *EmploymentPeriodDraftInput, fn func(*gorm.DB) error) error {
+	err := h.withEmploymentPreparationSource(c, p, hospital, func(commandCtx context.Context, source authz.GovernanceSourceEvidence) error {
 		proof, err := employmentPreparationProof(p, hospital, staff, period, operation, input, source)
 		if err != nil {
-			callbackErr = err
 			return err
 		}
-		callbackErr = h.transaction(commandCtx, p, hospital, func(tx *gorm.DB) error {
+		return h.transaction(commandCtx, p, hospital, func(tx *gorm.DB) error {
 			if err := installEmploymentPreparation(tx, proof); err != nil {
 				return err
 			}
@@ -221,17 +237,7 @@ func (h *handlers) withEmploymentPreparation(c *gin.Context, p authn.Principal, 
 			}
 			return fn(tx)
 		})
-		return callbackErr
 	})
-	if callbackErr != nil {
-		err = callbackErr
-	}
-	if err == nil && callbacks != 1 {
-		return authz.ErrScopedAuthorizationUnavailable
-	}
-	if errors.Is(err, authz.ErrGovernanceScopeHidden) {
-		return gorm.ErrRecordNotFound
-	}
 	var pg *pgconn.PgError
 	if errors.As(err, &pg) && pg.Code == "23505" && (pg.ConstraintName == "workforce_employment_period_receipt" || pg.ConstraintName == "workforce_employment_period_drafts_pkey") {
 		return errEmploymentPeriodConflict

@@ -661,3 +661,51 @@ checked against a current source before editing. No general directory or legacy
 intake source is retried. Draft command/period IDs survive uncertain writes for
 exact replay. The recipient and operational workflows remain separate gates.
 Governance document authoring is still unfinished and this is not merge-ready.
+
+### Selected employment document preparation
+
+Workforce remains the file/Staff owner; the existing attachment store, restricted
+scanner worker and canonical document engine own quarantine/verdict/release. Add
+a separate hospital `employment-preparation-documents` family for current native
+owners/exact employment preparers. The canonical document input/output is reused;
+only enrollment records for the selected Staff and category employment_evidence
+are admitted. Expected Staff version/employment epoch are strict query
+preconditions, never authority. Original tenant/account headers remain mandatory.
+No general record-choice, credential, qualification, identity or classification
+workspace is admitted. List is cursor-bounded and sealed to actual hospital,
+Staff, account, tenant and basis. Existing 10 MiB PNG/JPEG and scanner controls
+remain unchanged. Planning volume/latency is the target-selection envelope above;
+file transfer has the existing bounded body/storage deadlines, with each owner
+phase bounded by a fresh maximum five-second/idle source lease. No database
+transaction holds locks across body/storage I/O.
+
+A closed document purpose binds actual Staff/file, basis, operation and canonical
+mutation stage. The source identity is retained across all phases of one HTTP
+request and revalidated after storage. Canonical mutation hooks install only the
+already-validated intent, upload stamp, real quarantine receipt, revoke or retry
+transition; read proof cannot mutate files or masters. A new candidate migration
+extends the existing single tenant policy while adding restrictive purpose/delete
+fences across Workforce tables, exact contributor writes and minimized audit.
+No enrollment authority is broadened. Source/trigger/policy/index support fails
+closed. Worker authority remains its existing service identity and no Staff actor
+is fabricated. Released bytes require both the original source identity and
+unchanged current metadata/generation after storage I/O.
+
+Metadata replay retains canonical immutable intent semantics: same metadata/hash
+returns the original file, a different intent conflicts, and replay does not
+relabel original creation provenance. Each authorized command/read is attributable;
+private provenance stores source identifiers, stages and hashes, never filenames,
+body bytes or copied HR values. Revocation never deletes file or contributor
+history. Dependency failure discloses no partial file/list and never fabricates a
+scan verdict. Binary rollback disables the new consumer while retaining file,
+audit and contributor history. Live migration approval follows concrete remote
+upgrade/rollback and isolation evidence. The simpler legacy document/intake route
+was rejected because it requires a different authority and broader record kinds.
+
+Acceptance includes real current owner/exact preparer with no Staff actor;
+register/replay/conflict, upload/scanned release, retry/revoke, expected workspace
+and basis failures, other hospital/Staff/file/category denial, inherited-manager
+master/verdict/write denial, disabled support and atomic rollback; source
+revocation and source replacement across storage I/O; preserved worker processing
+and canonical Staff/pharmacy behavior. Binding to exact terms and independent
+submission/review remains a separate required part of the full authoring journey.

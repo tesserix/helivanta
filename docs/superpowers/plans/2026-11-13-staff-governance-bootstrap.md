@@ -50,3 +50,11 @@ terms form. Validate the full workspace and preserved legacy tests, then remote
 current-head browser acceptance. Next required slice is exact-source governance
 document metadata/content/release/binding with audit and current grant checks;
 existing legacy Staff document authority must not be reused as a fallback.
+
+Selected document continuation: first reproduce missing native document capability
+through the real governance fixture and add pure closed-proof/stage tests. Reuse
+canonical documentGate/engine with explicit native source acquisition and typed
+canonical mutation stages; add private SQL read/write/audit/contributor fences and
+installed-support preflight. Run remote real storage/worker/source fault cases,
+then adopt strict SDK/UI and exact terms binding. No hidden Staff/intake fallback,
+no direct client object-store URL, no global enrollment-purpose expansion.

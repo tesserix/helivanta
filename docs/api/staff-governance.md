@@ -478,3 +478,51 @@ review/activation/operational access workflow can be accepted or merged. Local
 selection/stale-source/no-fallback/replay/UI gating cases supplement the retained
 Staff terms-form tests; current-head remote browser and PostgreSQL evidence is
 still required.
+
+Candidate WF0113 adds a separate native employment document consumer under
+`/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents`:
+
+- `GET /`: a sealed, at-most-20-row page of current-basis employment evidence.
+- `PUT /:file`: canonical document intent; only this Staff's enrollment record
+  and `employment_evidence` category are admitted. Identical metadata replays the
+  original file; differing metadata conflicts without relabelling the creator.
+- `GET /:file`: exact metadata/status for bounded scan-status polling.
+- `PUT /:file/content` and `GET /:file/content`: canonical bounded PNG/JPEG upload
+  through quarantine/scanning, and reauthorized released bytes.
+- `PUT /:file/revocation` and `PUT /:file/retries/:attempt`: canonical terminal
+  revocation and eligible next-attempt recovery, preserving existing clocks and
+  immutable generation/verdict guards.
+
+Every route requires single original tenant/account headers and canonical positive
+`staff_version`/`employment_epoch` query values (at most 9007199254740990), checked
+against current locked Staff. Lists alone also accept a single `limit`/`cursor`;
+legacy intake flags, category switches and other parameters are refused. Cursors
+bind hospital, actual Staff, account, tenant and both basis values. Source denial
+is 403, stale workspace/basis 409, hidden Staff/file 404 and unavailable source or
+installed support 503; delegates retain source-before-topology privacy.
+
+Each owner phase acquires a current native owner/exact employment-preparer source.
+Its identity is retained across body/storage phases, while leases are refreshed;
+replacement by another grant cannot inherit a pending disclosure. No locks span
+storage I/O. File requests also have a 30-second overall context budget, within
+the Global API's 35-second write deadline; shorter parent deadlines win. A closed private purpose binds actual file, Staff, basis, operation,
+phase and validated canonical mutation. Read proof cannot stamp, queue, revoke,
+retry, write a verdict or alter masters. Queue proof uses the actual verified
+quarantine generation. Existing worker/verdict authority remains separate.
+
+WF0113 extends existing permissive policies and adds restrictive purpose/delete
+fences to all Workforce tables. Actual document/contributor/audit guards,
+provenance trigger, policies, forced RLS and ready/valid document-page index are
+required. Private creation/mutation provenance is atomic; read/phase audit is
+minimized. Source identifiers and intent hashes are private, with no copied
+filenames, document bytes or HR payload. General record choices, identity files,
+credentials, qualifications and classification administration remain outside this
+consumer. The earlier Staff, pharmacy and restricted worker document consumers
+retain their authority and canonical engine.
+
+Pure proof/phase regressions were observed red then green. Real owner/grant,
+metadata replay/conflict, scan/release, changed-source disclosure, scope and
+missing-support cases are included in the remote governance fixture but are not
+yet accepted. Native document SDK/UI and exact employment-term binding remain
+unfinished. WF0113 is unapplied and requires specific live migration/rollback
+approval after concrete acceptance; no rollout is authorized by a source review.

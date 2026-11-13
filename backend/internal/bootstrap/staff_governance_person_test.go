@@ -331,9 +331,10 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		request(t, http.MethodGet, bindingPath+docBasis+"&hr_intake=v1", "auditor", nil, 400)
 		request(t, http.MethodGet, strings.Replace(bindingPath, staff[0].String(), staff[1].String(), 1)+docBasis, "auditor", nil, 404)
 		t.Run("native binding preserves provenance, source identity and withdrawal history", func(t *testing.T) {
+			request(t, http.MethodGet, bindingPath+docBasis, "admin", nil, 200)
 			var recorded struct{ Authority json.RawMessage }
 			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-				return tx.Raw("SELECT changes->'authority' AS authority FROM workforce_audit WHERE tenant_id=? AND hospital_id=? AND resource_id=? AND action='workforce.employment_binding.phase' ORDER BY created_at DESC LIMIT 1", testutil.TenantA, roots[0], period).Take(&recorded).Error
+				return tx.Raw("SELECT changes->'authority' AS authority FROM workforce_audit WHERE tenant_id=? AND hospital_id=? AND resource_id=? AND actor_subject='user-admin' AND action='workforce.employment_binding.phase' ORDER BY created_at DESC LIMIT 1", testutil.TenantA, roots[0], period).Take(&recorded).Error
 			}))
 			require.NotEmpty(t, recorded.Authority)
 			assertReadPurposeBlocksStaffMasterEdit(t, db, roots[0], staff[0], "app.workforce_governance_binding_authority", recorded.Authority)
@@ -1002,6 +1003,8 @@ func assertReadPurposeBlocksStaffMasterEdit(t *testing.T, db *tenantdb.DB, hospi
 	targets := setting == "app.workforce_governance_draft_authority" && proofScope.Operation == "targets"
 	var sourceQuery string
 	switch setting {
+	case "app.workforce_governance_binding_authority":
+		sourceQuery = "SELECT workforce_governance_binding_source(?::uuid,?::uuid,?::uuid)"
 	case "app.workforce_governance_document_authority":
 		sourceQuery = "SELECT workforce_governance_document_source(?::uuid,?::uuid,?::uuid)"
 	case "app.workforce_governance_draft_authority":

@@ -75,10 +75,8 @@ func TestGovernanceAccountLinkReviewConsumesExactEmployerSourceWithoutManagerAcc
 					registered := governanceRequest(router, http.MethodPut, base, "admin", `{}`)
 					require.Equal(t, 200, registered.Code, registered.Body.String())
 				}
-				if kind == "hospital" {
-					ownerAccess := governanceRequest(router, http.MethodPut, base+"/access/user-admin", "admin", `{"level":"manager"}`)
-					require.Equal(t, 200, ownerAccess.Code, ownerAccess.Body.String())
-				}
+				ownerAccess := governanceRequest(router, http.MethodPut, base+"/access/user-admin", "admin", `{"level":"manager"}`)
+				require.Equal(t, 200, ownerAccess.Code, ownerAccess.Body.String())
 				person := uuid.Must(uuid.NewV7())
 				people[i] = person
 				staffPath := base + "/staff/" + person.String()
@@ -126,6 +124,34 @@ func TestGovernanceAccountLinkReviewConsumesExactEmployerSourceWithoutManagerAcc
 			}
 			foreign := decide(1, "Wrong employer must be denied")
 			require.Equal(t, 403, foreign.Code, foreign.Body.String())
+			ownerPath, ownerMethod := links[1]+"/decision", http.MethodPost
+			if kind != "hospital" {
+				ownerPath, ownerMethod = links[1]+"/commands/"+uuid.Must(uuid.NewV7()).String(), http.MethodPut
+			}
+			ownerReview := governanceRequest(router, ownerMethod, ownerPath, "owner2", `{"expected_version":1,"decision":"approve","reason":"Current owner independently reviews target"}`)
+			ownerExpected := 200
+			if kind != "hospital" {
+				ownerExpected = 201
+			}
+			require.Equal(t, ownerExpected, ownerReview.Code, ownerReview.Body.String())
+			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+				require.NoError(t, tx.Exec("SELECT set_config('app.workforce_subject','user-admin',true),set_config('app.workforce_hospital',?,true)", roots[1].String()).Error)
+				var evidence struct {
+					AuthorityKind     string
+					OwnerMembershipID uuid.UUID
+					SourceGrantID     *uuid.UUID
+				}
+				require.NoError(t, tx.Table("workforce_login_link_authorities").Where("tenant_id=? AND employer_id=? AND staff_id=?", testutil.TenantA, roots[1], people[1]).Take(&evidence).Error)
+				require.Equal(t, "owner", evidence.AuthorityKind)
+				require.Nil(t, evidence.SourceGrantID)
+				var owner struct{ ID uuid.UUID }
+				require.NoError(t, tx.Table("iam_members").Select("id").Where("tenant_id=? AND subject='user-owner2' AND role_key='tenant_admin'", testutil.TenantA).Take(&owner).Error)
+				require.Equal(t, owner.ID, evidence.OwnerMembershipID)
+				var managers int64
+				require.NoError(t, tx.Table("workforce_hospital_access").Where("tenant_id=? AND subject='user-owner2'", testutil.TenantA).Count(&managers).Error)
+				require.Zero(t, managers, "current owner review uses its actual membership source, not a private manager row")
+				return nil
+			}))
 			result := decide(0, "Independently checked target account")
 			expected := 200
 			if kind != "hospital" {
@@ -154,6 +180,9 @@ func TestGovernanceAccountLinkReviewConsumesExactEmployerSourceWithoutManagerAcc
 				return nil
 			}))
 			base := "/v1/workforce/" + family + "/" + roots[0].String() + "/staff/" + people[0].String()
+			if kind != "hospital" {
+				base += "?directory_context=v1"
+			}
 			denied := governanceRequest(router, http.MethodGet, base, "auditor", "")
 			require.True(t, denied.Code == 403 || denied.Code == 404, denied.Body.String())
 			withdrawn := governanceRequest(router, http.MethodPut, "/v1/iam/governance-grants/"+id.String()+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "admin", `{"expected_version":2,"decision":"revoke","reason":"Withdraw independent account-link source"}`)

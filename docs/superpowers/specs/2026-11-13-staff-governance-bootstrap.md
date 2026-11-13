@@ -338,9 +338,9 @@ Staff/review and required source records. Only review/history/frozen children,
 the owner-maintained cohort marker and attributable review audit may be written.
 Immutable-source validation precedes trusted proof recording, which precedes
 history capture. The Go consumer verifies the matching enabled recorder and
-source/history guards and forced tenant RLS/purpose policies before disclosing a
-target. A new tenant-scoped Workforce table without that policy fails closed
-until its owner adds the appropriate purpose policy. Storage release rechecks the same source
+source/history guards, forced tenant RLS, purpose/delete policies and absence
+of runtime TRUNCATE privileges before disclosing a target. A new tenant-scoped
+Workforce table without those policies fails closed until its owner adds them. Storage release rechecks the same source
 and frozen basis after I/O. No source fallback is permitted after a business
 callback or dependency failure. This is an unapplied candidate with remote
 acceptance pending; live WF0105 approval and rollback evidence remain required.

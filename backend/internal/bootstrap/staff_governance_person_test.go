@@ -234,10 +234,13 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		enrollment := request(http.MethodGet, target+"/enrollment", "admin", nil, 200)
 		require.Equal(t, "inactive", enrollment["staff"].(map[string]any)["employment_status"], "approval is not employment activation or operating access")
 		request(http.MethodPost, employmentPath+"/decision?employment_review=v1", "reviewer", decision, 200)
+		stale := map[string]any{"command_id": uuid.Must(uuid.NewV7()), "expected_version": 1, "decision": "approve", "reason": "Stale review decision must not advance history", "terms_examined": true, "independent_person_confirmed": true}
+		request(http.MethodPost, employmentPath+"/decision?employment_review=v1", "reviewer", stale, 409)
+		request(http.MethodGet, "/v1/workforce/hospitals/"+roots[0].String()+"/staff/"+staff[1].String()+"/employment-reviews/"+employmentReview.String()+"?employment_review=v1", "reviewer", nil, 404)
 		request(http.MethodGet, employmentPath+"/history?employment_review=v1", "reviewer", nil, 200)
 		var audit struct{ Changes json.RawMessage }
 		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-			return tx.Table("workforce_audit").Select("changes").Where("tenant_id=? AND hospital_id=? AND resource_id=? AND action='workforce.employment_review.approved'", testutil.TenantA, roots[0], employmentReview).Take(&audit).Error
+			return tx.Table("workforce_audit").Select("changes").Where("tenant_id=? AND hospital_id=? AND resource_id=? AND action='workforce.employment_review.decided'", testutil.TenantA, roots[0], employmentReview).Take(&audit).Error
 		}))
 		proof := append(json.RawMessage(nil), audit.Changes...)
 		require.NoError(t, db.WithTenant(tenantdb.WithActor(ctx, "user-reviewer"), testutil.TenantA, func(tx *gorm.DB) error {
@@ -280,6 +283,11 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 				return err
 			}
 			require.Zero(t, other, "an owner managing both hospitals cannot widen this selected purpose")
+			deleted := tx.Exec("DELETE FROM workforce_enrollment_profile WHERE tenant_id=? AND hospital_id=? AND staff_id=?", testutil.TenantA, roots[0], staff[0])
+			if deleted.Error != nil {
+				return deleted.Error
+			}
+			require.Zero(t, deleted.RowsAffected, "the private purpose denies deletion despite inherited manager access")
 			return tx.Table("workforce_staff").Where("tenant_id=? AND hospital_id=? AND id=?", testutil.TenantA, roots[0], staff[0]).Update("display_name", "Forbidden inherited-manager write").Error
 		})
 		require.ErrorAs(t, ownerWriteErr, &deniedWrite)
@@ -304,6 +312,19 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 			require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_employment_purpose_removed", SQL: "DROP POLICY employment_governance_purpose ON workforce_staff"}}))
 			defer func() {
 				require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_employment_purpose_restored", SQL: "CREATE POLICY employment_governance_purpose ON workforce_staff AS RESTRICTIVE FOR ALL USING(" + policy.Reading + ") WITH CHECK(" + policy.Writing + ")"}}))
+			}()
+			response := governanceRequest(router, http.MethodGet, employmentPath+"?employment_review=v1", "reviewer", "")
+			require.Equal(t, 503, response.Code, response.Body.String())
+		})
+		t.Run("truncate privilege denies private-purpose commands", func(t *testing.T) {
+			var canTruncate bool
+			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+				return tx.Raw("SELECT has_table_privilege(current_user,'workforce_staff','TRUNCATE')").Scan(&canTruncate).Error
+			}))
+			require.False(t, canTruncate, "the application role must match production-shaped DML-only privileges")
+			require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_employment_truncate_granted", SQL: "GRANT TRUNCATE ON workforce_staff TO hms_app"}}))
+			defer func() {
+				require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_employment_truncate_revoked", SQL: "REVOKE TRUNCATE ON workforce_staff FROM hms_app"}}))
 			}()
 			response := governanceRequest(router, http.MethodGet, employmentPath+"?employment_review=v1", "reviewer", "")
 			require.Equal(t, 503, response.Code, response.Body.String())

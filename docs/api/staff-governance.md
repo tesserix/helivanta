@@ -222,15 +222,19 @@ actual owner membership or grant/version, membership incarnation, owner count,
 capability, target and lease/authentication times. The existing immutable-source
 trigger runs before the recorder; the recorder runs before the history snapshot.
 Absent, disabled or mismatched recording/history support, unforced tenant RLS
-or a missing restrictive purpose policy fails closed before disclosure or command
-work. Future tenant-scoped Workforce tables must add the private purpose policy
+or a missing restrictive purpose/delete policy fails closed before disclosure or
+command work. The runtime application role must have no TRUNCATE privilege on
+these tables. Future tenant-scoped Workforce tables must add both policies
 (default deny when unrelated); otherwise governance review stays unavailable. Evidence release reauthorizes after storage I/O and compares
 both the source authority and frozen evidence/source snapshot. No private proof
 is added to public review responses or events.
 
 The remote test first reproduced a 403 at submission after real draft preparation,
-scanning and grant approval. Current candidate PostgreSQL/FGA, concurrency and
-rollback acceptance remains pending. First activation, authority-aware discovery,
+scanning and grant approval. Candidate 121a3495 then passed submission, receipt
+replay, exact-grant denials and protected detail before encountering the missing
+canonical `workforce.employment_review.decided` audit action in the purpose
+allowlist. That mapping is corrected; full current-head PostgreSQL/FGA,
+concurrency and rollback acceptance remains pending. First activation, authority-aware discovery,
 reviewer UI, selected draft/document authoring and full Staff/pharmacy acceptance
 are separate unfinished gates. Approval of terms leaves Staff inactive.
 

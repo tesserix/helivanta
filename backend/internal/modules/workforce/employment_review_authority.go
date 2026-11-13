@@ -118,6 +118,7 @@ func employmentReviewGovernanceAudit(tx *gorm.DB, p authn.Principal, row Employm
 		return authz.ErrScopedAuthorizationUnavailable
 	}
 	values["version"], values["revision_id"], values["period_id"], values["person_review_id"] = row.Version, row.RevisionID, row.PeriodID, row.PersonReviewID
+	values["status"] = row.Status
 	for key, value := range extra {
 		if _, exists := values[key]; exists {
 			return authz.ErrScopedAuthorizationUnavailable
@@ -152,9 +153,11 @@ func installEmploymentReviewAuthority(tx *gorm.DB, p authn.Principal, a *employm
  AND NOT EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
  WHERE n.nspname='public' AND c.relkind IN('r','p') AND starts_with(c.relname,'workforce_')
  AND EXISTS(SELECT 1 FROM pg_attribute a WHERE a.attrelid=c.oid AND a.attname='tenant_id' AND NOT a.attisdropped)
- AND (NOT c.relrowsecurity OR NOT c.relforcerowsecurity
+ AND (NOT c.relrowsecurity OR NOT c.relforcerowsecurity OR has_table_privilege(current_user,c.oid,'TRUNCATE')
  OR NOT EXISTS(SELECT 1 FROM pg_policy policy WHERE policy.polrelid=c.oid AND policy.polname='employment_governance_purpose'
- AND NOT policy.polpermissive AND policy.polcmd='*' AND policy.polqual IS NOT NULL AND policy.polwithcheck IS NOT NULL)))`).Scan(&installed).Error; err != nil {
+ AND NOT policy.polpermissive AND policy.polcmd='*' AND policy.polqual IS NOT NULL AND policy.polwithcheck IS NOT NULL)
+ OR NOT EXISTS(SELECT 1 FROM pg_policy policy WHERE policy.polrelid=c.oid AND policy.polname='employment_governance_delete'
+ AND NOT policy.polpermissive AND policy.polcmd='d' AND policy.polqual IS NOT NULL)))`).Scan(&installed).Error; err != nil {
 			return err
 		}
 		if !installed {

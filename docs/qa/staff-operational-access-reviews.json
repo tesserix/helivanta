@@ -162,7 +162,7 @@
       "registration_sha256": "572c70d5d67212c0986682f85a6c0858dd4480da48ab0cfe17a945aa17afd54b",
       "authority_kind": "mixed",
       "resource_scope": "Verified tenant/account, one hospital, selected Staff and employment review; exact frozen person finding, terms/evidence and actual current scoped-Staff or nonclinical owner/grant source.",
-      "rationale": "The candidate consumer admits genuine current scoped Staff authority or a separately validated current IAM owner/exact employment preparation/review grant. Compound preparation/document grants remain required on the Staff preparation path; its actor/link and assignment evidence are retained. Governance has no Staff/link alias: the matching hospital-only capability, subject, tenant, hospital, selected Staff/review, source grant/version or owner membership, membership incarnation, owner count and lease are bound into private purpose. Exact workspace assertions and one shared five-second budget apply; no alternative-source fallback follows a business callback, source change or dependency failure. WF0105 adds private proof to head/history: immutable-source validation runs before trusted proof recording, before history capture; the Go entry verifies matching enabled source and recorder triggers before disclosure. Restrictive purpose policies cover all current tenant-scoped Workforce tables, preventing inherited owner/manager access from widening selected reads or enabling master/payroll/clinical writes. Only guarded review/history/frozen children, the owner-maintained cohort and attributable audit may be written. Human contributor/historical-link/declared-subject independence, current frozen source and CAS/receipt rules remain enforced. Evidence transfer compares both tagged authority and frozen basis after storage I/O before releasing bytes. Public responses/events omit private proof. This source classification is not database, UI, activation or production acceptance; the actual remote test first returned 403 after real term preparation, scanning and grant approval. New WF0105 remains unapplied and unapproved for live rollout. Prerequisite inspection also requires matching history snapshot/immutability guards and forced RLS plus the restrictive private-purpose policy on every current tenant-scoped Workforce table. Missing policy/recording support denies before disclosure; a future table must acquire its default-deny or selected-purpose policy before governance consumers resume.",
+      "rationale": "The candidate consumer admits genuine current scoped Staff authority or a separately validated current IAM owner/exact employment preparation/review grant. Compound preparation/document grants remain required on the Staff preparation path; its actor/link and assignment evidence are retained. Governance has no Staff/link alias: the matching hospital-only capability, subject, tenant, hospital, selected Staff/review, source grant/version or owner membership, membership incarnation, owner count and lease are bound into private purpose. Exact workspace assertions and one shared five-second budget apply; no alternative-source fallback follows a business callback, source change or dependency failure. WF0105 adds private proof to head/history: immutable-source validation runs before trusted proof recording, before history capture; the Go entry verifies matching enabled source and recorder triggers before disclosure. Restrictive purpose policies cover all current tenant-scoped Workforce tables, preventing inherited owner/manager access from widening selected reads or enabling master/payroll/clinical writes. Only guarded review/history/frozen children, the owner-maintained cohort and attributable audit may be written. Human contributor/historical-link/declared-subject independence, current frozen source and CAS/receipt rules remain enforced. Evidence transfer compares both tagged authority and frozen basis after storage I/O before releasing bytes. Public responses/events omit private proof. This source classification is not database, UI, activation or production acceptance; the actual remote test first returned 403 after real term preparation, scanning and grant approval. New WF0105 remains unapplied and unapproved for live rollout. Prerequisite inspection also requires matching history snapshot/immutability guards and forced RLS plus the restrictive private-purpose policy on every current tenant-scoped Workforce table. Missing policy/recording support denies before disclosure; a future table must acquire its default-deny or selected-purpose policy before governance consumers resume. Canonical-audit/deletion review: the decision action is workforce.employment_review.decided with the resulting status; separate restrictive DELETE policies prevent readable master rows from being deleted. Entry also requires that the runtime role lacks TRUNCATE privilege on the protected tables. Candidate 121a3495 passed frozen submission/replay, exact-grant rejection and protected detail before its decision audit was refused; the corrected full scenario remains pending.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
@@ -226,22 +226,22 @@
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.go",
-          "sha256": "d845bd5eafd2290402e9fadc296f36bbe8cd6ef7137a0e12010b03a37d626d61",
+          "sha256": "5bfec78fcccad2be94fecb131f76b6fed11bf753e74c46459bf74c65411f5b92",
           "symbol": "func (h *handlers) withEmploymentReviewAuthority("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.go",
-          "sha256": "d845bd5eafd2290402e9fadc296f36bbe8cd6ef7137a0e12010b03a37d626d61",
+          "sha256": "5bfec78fcccad2be94fecb131f76b6fed11bf753e74c46459bf74c65411f5b92",
           "symbol": "func installEmploymentReviewAuthority("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.sql",
-          "sha256": "b44eb120aef5a27e01934202948f42a779b048006f6bf0f6eb7e206751669edd",
+          "sha256": "157a113fe0af836853e0b0f2d266acd2c2793f25d1421a88099faea4a1c973db",
           "symbol": "CREATE FUNCTION workforce_employment_governance_source("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.sql",
-          "sha256": "b44eb120aef5a27e01934202948f42a779b048006f6bf0f6eb7e206751669edd",
+          "sha256": "157a113fe0af836853e0b0f2d266acd2c2793f25d1421a88099faea4a1c973db",
           "symbol": "CREATE FUNCTION workforce_employment_review_governance_record("
         }
       ],
@@ -258,7 +258,7 @@
       "registration_sha256": "f49a2dccf110537dcda4c8ae2d06b3ff76beb660f532edf5dfc777949328a05a",
       "authority_kind": "mixed",
       "resource_scope": "Verified tenant/account, one hospital, selected Staff and employment review; exact frozen person finding, terms/evidence and actual current scoped-Staff or nonclinical owner/grant source.",
-      "rationale": "The candidate consumer admits genuine current scoped Staff authority or a separately validated current IAM owner/exact employment preparation/review grant. Compound preparation/document grants remain required on the Staff preparation path; its actor/link and assignment evidence are retained. Governance has no Staff/link alias: the matching hospital-only capability, subject, tenant, hospital, selected Staff/review, source grant/version or owner membership, membership incarnation, owner count and lease are bound into private purpose. Exact workspace assertions and one shared five-second budget apply; no alternative-source fallback follows a business callback, source change or dependency failure. WF0105 adds private proof to head/history: immutable-source validation runs before trusted proof recording, before history capture; the Go entry verifies matching enabled source and recorder triggers before disclosure. Restrictive purpose policies cover all current tenant-scoped Workforce tables, preventing inherited owner/manager access from widening selected reads or enabling master/payroll/clinical writes. Only guarded review/history/frozen children, the owner-maintained cohort and attributable audit may be written. Human contributor/historical-link/declared-subject independence, current frozen source and CAS/receipt rules remain enforced. Evidence transfer compares both tagged authority and frozen basis after storage I/O before releasing bytes. Public responses/events omit private proof. This source classification is not database, UI, activation or production acceptance; the actual remote test first returned 403 after real term preparation, scanning and grant approval. New WF0105 remains unapplied and unapproved for live rollout. Prerequisite inspection also requires matching history snapshot/immutability guards and forced RLS plus the restrictive private-purpose policy on every current tenant-scoped Workforce table. Missing policy/recording support denies before disclosure; a future table must acquire its default-deny or selected-purpose policy before governance consumers resume.",
+      "rationale": "The candidate consumer admits genuine current scoped Staff authority or a separately validated current IAM owner/exact employment preparation/review grant. Compound preparation/document grants remain required on the Staff preparation path; its actor/link and assignment evidence are retained. Governance has no Staff/link alias: the matching hospital-only capability, subject, tenant, hospital, selected Staff/review, source grant/version or owner membership, membership incarnation, owner count and lease are bound into private purpose. Exact workspace assertions and one shared five-second budget apply; no alternative-source fallback follows a business callback, source change or dependency failure. WF0105 adds private proof to head/history: immutable-source validation runs before trusted proof recording, before history capture; the Go entry verifies matching enabled source and recorder triggers before disclosure. Restrictive purpose policies cover all current tenant-scoped Workforce tables, preventing inherited owner/manager access from widening selected reads or enabling master/payroll/clinical writes. Only guarded review/history/frozen children, the owner-maintained cohort and attributable audit may be written. Human contributor/historical-link/declared-subject independence, current frozen source and CAS/receipt rules remain enforced. Evidence transfer compares both tagged authority and frozen basis after storage I/O before releasing bytes. Public responses/events omit private proof. This source classification is not database, UI, activation or production acceptance; the actual remote test first returned 403 after real term preparation, scanning and grant approval. New WF0105 remains unapplied and unapproved for live rollout. Prerequisite inspection also requires matching history snapshot/immutability guards and forced RLS plus the restrictive private-purpose policy on every current tenant-scoped Workforce table. Missing policy/recording support denies before disclosure; a future table must acquire its default-deny or selected-purpose policy before governance consumers resume. Canonical-audit/deletion review: the decision action is workforce.employment_review.decided with the resulting status; separate restrictive DELETE policies prevent readable master rows from being deleted. Entry also requires that the runtime role lacks TRUNCATE privilege on the protected tables. Candidate 121a3495 passed frozen submission/replay, exact-grant rejection and protected detail before its decision audit was refused; the corrected full scenario remains pending.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
@@ -332,22 +332,22 @@
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.go",
-          "sha256": "d845bd5eafd2290402e9fadc296f36bbe8cd6ef7137a0e12010b03a37d626d61",
+          "sha256": "5bfec78fcccad2be94fecb131f76b6fed11bf753e74c46459bf74c65411f5b92",
           "symbol": "func (h *handlers) withEmploymentReviewAuthority("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.go",
-          "sha256": "d845bd5eafd2290402e9fadc296f36bbe8cd6ef7137a0e12010b03a37d626d61",
+          "sha256": "5bfec78fcccad2be94fecb131f76b6fed11bf753e74c46459bf74c65411f5b92",
           "symbol": "func installEmploymentReviewAuthority("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.sql",
-          "sha256": "b44eb120aef5a27e01934202948f42a779b048006f6bf0f6eb7e206751669edd",
+          "sha256": "157a113fe0af836853e0b0f2d266acd2c2793f25d1421a88099faea4a1c973db",
           "symbol": "CREATE FUNCTION workforce_employment_governance_source("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.sql",
-          "sha256": "b44eb120aef5a27e01934202948f42a779b048006f6bf0f6eb7e206751669edd",
+          "sha256": "157a113fe0af836853e0b0f2d266acd2c2793f25d1421a88099faea4a1c973db",
           "symbol": "CREATE FUNCTION workforce_employment_review_governance_record("
         }
       ],
@@ -364,7 +364,7 @@
       "registration_sha256": "5c118b02ec412d06bac3fb52082df044b5a6a452313f2ca310aa202bdee935e9",
       "authority_kind": "mixed",
       "resource_scope": "Verified tenant/account, one hospital, selected Staff and employment review; exact frozen person finding, terms/evidence and actual current scoped-Staff or nonclinical owner/grant source.",
-      "rationale": "The candidate consumer admits genuine current scoped Staff authority or a separately validated current IAM owner/exact employment preparation/review grant. Compound preparation/document grants remain required on the Staff preparation path; its actor/link and assignment evidence are retained. Governance has no Staff/link alias: the matching hospital-only capability, subject, tenant, hospital, selected Staff/review, source grant/version or owner membership, membership incarnation, owner count and lease are bound into private purpose. Exact workspace assertions and one shared five-second budget apply; no alternative-source fallback follows a business callback, source change or dependency failure. WF0105 adds private proof to head/history: immutable-source validation runs before trusted proof recording, before history capture; the Go entry verifies matching enabled source and recorder triggers before disclosure. Restrictive purpose policies cover all current tenant-scoped Workforce tables, preventing inherited owner/manager access from widening selected reads or enabling master/payroll/clinical writes. Only guarded review/history/frozen children, the owner-maintained cohort and attributable audit may be written. Human contributor/historical-link/declared-subject independence, current frozen source and CAS/receipt rules remain enforced. Evidence transfer compares both tagged authority and frozen basis after storage I/O before releasing bytes. Public responses/events omit private proof. This source classification is not database, UI, activation or production acceptance; the actual remote test first returned 403 after real term preparation, scanning and grant approval. New WF0105 remains unapplied and unapproved for live rollout. Prerequisite inspection also requires matching history snapshot/immutability guards and forced RLS plus the restrictive private-purpose policy on every current tenant-scoped Workforce table. Missing policy/recording support denies before disclosure; a future table must acquire its default-deny or selected-purpose policy before governance consumers resume.",
+      "rationale": "The candidate consumer admits genuine current scoped Staff authority or a separately validated current IAM owner/exact employment preparation/review grant. Compound preparation/document grants remain required on the Staff preparation path; its actor/link and assignment evidence are retained. Governance has no Staff/link alias: the matching hospital-only capability, subject, tenant, hospital, selected Staff/review, source grant/version or owner membership, membership incarnation, owner count and lease are bound into private purpose. Exact workspace assertions and one shared five-second budget apply; no alternative-source fallback follows a business callback, source change or dependency failure. WF0105 adds private proof to head/history: immutable-source validation runs before trusted proof recording, before history capture; the Go entry verifies matching enabled source and recorder triggers before disclosure. Restrictive purpose policies cover all current tenant-scoped Workforce tables, preventing inherited owner/manager access from widening selected reads or enabling master/payroll/clinical writes. Only guarded review/history/frozen children, the owner-maintained cohort and attributable audit may be written. Human contributor/historical-link/declared-subject independence, current frozen source and CAS/receipt rules remain enforced. Evidence transfer compares both tagged authority and frozen basis after storage I/O before releasing bytes. Public responses/events omit private proof. This source classification is not database, UI, activation or production acceptance; the actual remote test first returned 403 after real term preparation, scanning and grant approval. New WF0105 remains unapplied and unapproved for live rollout. Prerequisite inspection also requires matching history snapshot/immutability guards and forced RLS plus the restrictive private-purpose policy on every current tenant-scoped Workforce table. Missing policy/recording support denies before disclosure; a future table must acquire its default-deny or selected-purpose policy before governance consumers resume. Canonical-audit/deletion review: the decision action is workforce.employment_review.decided with the resulting status; separate restrictive DELETE policies prevent readable master rows from being deleted. Entry also requires that the runtime role lacks TRUNCATE privilege on the protected tables. Candidate 121a3495 passed frozen submission/replay, exact-grant rejection and protected detail before its decision audit was refused; the corrected full scenario remains pending.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
@@ -423,22 +423,22 @@
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.go",
-          "sha256": "d845bd5eafd2290402e9fadc296f36bbe8cd6ef7137a0e12010b03a37d626d61",
+          "sha256": "5bfec78fcccad2be94fecb131f76b6fed11bf753e74c46459bf74c65411f5b92",
           "symbol": "func (h *handlers) withEmploymentReviewAuthority("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.go",
-          "sha256": "d845bd5eafd2290402e9fadc296f36bbe8cd6ef7137a0e12010b03a37d626d61",
+          "sha256": "5bfec78fcccad2be94fecb131f76b6fed11bf753e74c46459bf74c65411f5b92",
           "symbol": "func installEmploymentReviewAuthority("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.sql",
-          "sha256": "b44eb120aef5a27e01934202948f42a779b048006f6bf0f6eb7e206751669edd",
+          "sha256": "157a113fe0af836853e0b0f2d266acd2c2793f25d1421a88099faea4a1c973db",
           "symbol": "CREATE FUNCTION workforce_employment_governance_source("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.sql",
-          "sha256": "b44eb120aef5a27e01934202948f42a779b048006f6bf0f6eb7e206751669edd",
+          "sha256": "157a113fe0af836853e0b0f2d266acd2c2793f25d1421a88099faea4a1c973db",
           "symbol": "CREATE FUNCTION workforce_employment_review_governance_record("
         }
       ],
@@ -455,7 +455,7 @@
       "registration_sha256": "d973f2ffda0e0c03a461a38b4717e43b92b3dc3a21f5966995277e007b93d58a",
       "authority_kind": "mixed",
       "resource_scope": "Verified tenant/account, one hospital, selected Staff and employment review; exact frozen person finding, terms/evidence and actual current scoped-Staff or nonclinical owner/grant source.",
-      "rationale": "The candidate consumer admits genuine current scoped Staff authority or a separately validated current IAM owner/exact employment preparation/review grant. Compound preparation/document grants remain required on the Staff preparation path; its actor/link and assignment evidence are retained. Governance has no Staff/link alias: the matching hospital-only capability, subject, tenant, hospital, selected Staff/review, source grant/version or owner membership, membership incarnation, owner count and lease are bound into private purpose. Exact workspace assertions and one shared five-second budget apply; no alternative-source fallback follows a business callback, source change or dependency failure. WF0105 adds private proof to head/history: immutable-source validation runs before trusted proof recording, before history capture; the Go entry verifies matching enabled source and recorder triggers before disclosure. Restrictive purpose policies cover all current tenant-scoped Workforce tables, preventing inherited owner/manager access from widening selected reads or enabling master/payroll/clinical writes. Only guarded review/history/frozen children, the owner-maintained cohort and attributable audit may be written. Human contributor/historical-link/declared-subject independence, current frozen source and CAS/receipt rules remain enforced. Evidence transfer compares both tagged authority and frozen basis after storage I/O before releasing bytes. Public responses/events omit private proof. This source classification is not database, UI, activation or production acceptance; the actual remote test first returned 403 after real term preparation, scanning and grant approval. New WF0105 remains unapplied and unapproved for live rollout. Prerequisite inspection also requires matching history snapshot/immutability guards and forced RLS plus the restrictive private-purpose policy on every current tenant-scoped Workforce table. Missing policy/recording support denies before disclosure; a future table must acquire its default-deny or selected-purpose policy before governance consumers resume.",
+      "rationale": "The candidate consumer admits genuine current scoped Staff authority or a separately validated current IAM owner/exact employment preparation/review grant. Compound preparation/document grants remain required on the Staff preparation path; its actor/link and assignment evidence are retained. Governance has no Staff/link alias: the matching hospital-only capability, subject, tenant, hospital, selected Staff/review, source grant/version or owner membership, membership incarnation, owner count and lease are bound into private purpose. Exact workspace assertions and one shared five-second budget apply; no alternative-source fallback follows a business callback, source change or dependency failure. WF0105 adds private proof to head/history: immutable-source validation runs before trusted proof recording, before history capture; the Go entry verifies matching enabled source and recorder triggers before disclosure. Restrictive purpose policies cover all current tenant-scoped Workforce tables, preventing inherited owner/manager access from widening selected reads or enabling master/payroll/clinical writes. Only guarded review/history/frozen children, the owner-maintained cohort and attributable audit may be written. Human contributor/historical-link/declared-subject independence, current frozen source and CAS/receipt rules remain enforced. Evidence transfer compares both tagged authority and frozen basis after storage I/O before releasing bytes. Public responses/events omit private proof. This source classification is not database, UI, activation or production acceptance; the actual remote test first returned 403 after real term preparation, scanning and grant approval. New WF0105 remains unapplied and unapproved for live rollout. Prerequisite inspection also requires matching history snapshot/immutability guards and forced RLS plus the restrictive private-purpose policy on every current tenant-scoped Workforce table. Missing policy/recording support denies before disclosure; a future table must acquire its default-deny or selected-purpose policy before governance consumers resume. Canonical-audit/deletion review: the decision action is workforce.employment_review.decided with the resulting status; separate restrictive DELETE policies prevent readable master rows from being deleted. Entry also requires that the runtime role lacks TRUNCATE privilege on the protected tables. Candidate 121a3495 passed frozen submission/replay, exact-grant rejection and protected detail before its decision audit was refused; the corrected full scenario remains pending.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
@@ -514,22 +514,22 @@
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.go",
-          "sha256": "d845bd5eafd2290402e9fadc296f36bbe8cd6ef7137a0e12010b03a37d626d61",
+          "sha256": "5bfec78fcccad2be94fecb131f76b6fed11bf753e74c46459bf74c65411f5b92",
           "symbol": "func (h *handlers) withEmploymentReviewAuthority("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.go",
-          "sha256": "d845bd5eafd2290402e9fadc296f36bbe8cd6ef7137a0e12010b03a37d626d61",
+          "sha256": "5bfec78fcccad2be94fecb131f76b6fed11bf753e74c46459bf74c65411f5b92",
           "symbol": "func installEmploymentReviewAuthority("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.sql",
-          "sha256": "b44eb120aef5a27e01934202948f42a779b048006f6bf0f6eb7e206751669edd",
+          "sha256": "157a113fe0af836853e0b0f2d266acd2c2793f25d1421a88099faea4a1c973db",
           "symbol": "CREATE FUNCTION workforce_employment_governance_source("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.sql",
-          "sha256": "b44eb120aef5a27e01934202948f42a779b048006f6bf0f6eb7e206751669edd",
+          "sha256": "157a113fe0af836853e0b0f2d266acd2c2793f25d1421a88099faea4a1c973db",
           "symbol": "CREATE FUNCTION workforce_employment_review_governance_record("
         }
       ],
@@ -546,7 +546,7 @@
       "registration_sha256": "88dd050a3eb8f054338e37faefb25231924e7a8ae78995da318d0b11ddf38c7b",
       "authority_kind": "mixed",
       "resource_scope": "Verified tenant/account, one hospital, selected Staff and employment review; exact frozen person finding, terms/evidence and actual current scoped-Staff or nonclinical owner/grant source.",
-      "rationale": "The candidate consumer admits genuine current scoped Staff authority or a separately validated current IAM owner/exact employment preparation/review grant. Compound preparation/document grants remain required on the Staff preparation path; its actor/link and assignment evidence are retained. Governance has no Staff/link alias: the matching hospital-only capability, subject, tenant, hospital, selected Staff/review, source grant/version or owner membership, membership incarnation, owner count and lease are bound into private purpose. Exact workspace assertions and one shared five-second budget apply; no alternative-source fallback follows a business callback, source change or dependency failure. WF0105 adds private proof to head/history: immutable-source validation runs before trusted proof recording, before history capture; the Go entry verifies matching enabled source and recorder triggers before disclosure. Restrictive purpose policies cover all current tenant-scoped Workforce tables, preventing inherited owner/manager access from widening selected reads or enabling master/payroll/clinical writes. Only guarded review/history/frozen children, the owner-maintained cohort and attributable audit may be written. Human contributor/historical-link/declared-subject independence, current frozen source and CAS/receipt rules remain enforced. Evidence transfer compares both tagged authority and frozen basis after storage I/O before releasing bytes. Public responses/events omit private proof. This source classification is not database, UI, activation or production acceptance; the actual remote test first returned 403 after real term preparation, scanning and grant approval. New WF0105 remains unapplied and unapproved for live rollout. Prerequisite inspection also requires matching history snapshot/immutability guards and forced RLS plus the restrictive private-purpose policy on every current tenant-scoped Workforce table. Missing policy/recording support denies before disclosure; a future table must acquire its default-deny or selected-purpose policy before governance consumers resume.",
+      "rationale": "The candidate consumer admits genuine current scoped Staff authority or a separately validated current IAM owner/exact employment preparation/review grant. Compound preparation/document grants remain required on the Staff preparation path; its actor/link and assignment evidence are retained. Governance has no Staff/link alias: the matching hospital-only capability, subject, tenant, hospital, selected Staff/review, source grant/version or owner membership, membership incarnation, owner count and lease are bound into private purpose. Exact workspace assertions and one shared five-second budget apply; no alternative-source fallback follows a business callback, source change or dependency failure. WF0105 adds private proof to head/history: immutable-source validation runs before trusted proof recording, before history capture; the Go entry verifies matching enabled source and recorder triggers before disclosure. Restrictive purpose policies cover all current tenant-scoped Workforce tables, preventing inherited owner/manager access from widening selected reads or enabling master/payroll/clinical writes. Only guarded review/history/frozen children, the owner-maintained cohort and attributable audit may be written. Human contributor/historical-link/declared-subject independence, current frozen source and CAS/receipt rules remain enforced. Evidence transfer compares both tagged authority and frozen basis after storage I/O before releasing bytes. Public responses/events omit private proof. This source classification is not database, UI, activation or production acceptance; the actual remote test first returned 403 after real term preparation, scanning and grant approval. New WF0105 remains unapplied and unapproved for live rollout. Prerequisite inspection also requires matching history snapshot/immutability guards and forced RLS plus the restrictive private-purpose policy on every current tenant-scoped Workforce table. Missing policy/recording support denies before disclosure; a future table must acquire its default-deny or selected-purpose policy before governance consumers resume. Canonical-audit/deletion review: the decision action is workforce.employment_review.decided with the resulting status; separate restrictive DELETE policies prevent readable master rows from being deleted. Entry also requires that the runtime role lacks TRUNCATE privilege on the protected tables. Candidate 121a3495 passed frozen submission/replay, exact-grant rejection and protected detail before its decision audit was refused; the corrected full scenario remains pending.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
@@ -605,22 +605,22 @@
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.go",
-          "sha256": "d845bd5eafd2290402e9fadc296f36bbe8cd6ef7137a0e12010b03a37d626d61",
+          "sha256": "5bfec78fcccad2be94fecb131f76b6fed11bf753e74c46459bf74c65411f5b92",
           "symbol": "func (h *handlers) withEmploymentReviewAuthority("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.go",
-          "sha256": "d845bd5eafd2290402e9fadc296f36bbe8cd6ef7137a0e12010b03a37d626d61",
+          "sha256": "5bfec78fcccad2be94fecb131f76b6fed11bf753e74c46459bf74c65411f5b92",
           "symbol": "func installEmploymentReviewAuthority("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.sql",
-          "sha256": "b44eb120aef5a27e01934202948f42a779b048006f6bf0f6eb7e206751669edd",
+          "sha256": "157a113fe0af836853e0b0f2d266acd2c2793f25d1421a88099faea4a1c973db",
           "symbol": "CREATE FUNCTION workforce_employment_governance_source("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.sql",
-          "sha256": "b44eb120aef5a27e01934202948f42a779b048006f6bf0f6eb7e206751669edd",
+          "sha256": "157a113fe0af836853e0b0f2d266acd2c2793f25d1421a88099faea4a1c973db",
           "symbol": "CREATE FUNCTION workforce_employment_review_governance_record("
         }
       ],
@@ -637,7 +637,7 @@
       "registration_sha256": "1103629ced355de309b2ad228bf57ca19f16bdf6fdaece3920ad821989e4dc63",
       "authority_kind": "mixed",
       "resource_scope": "Verified tenant/account, one hospital, selected Staff and employment review; exact frozen person finding, terms/evidence and actual current scoped-Staff or nonclinical owner/grant source.",
-      "rationale": "The candidate consumer admits genuine current scoped Staff authority or a separately validated current IAM owner/exact employment preparation/review grant. Compound preparation/document grants remain required on the Staff preparation path; its actor/link and assignment evidence are retained. Governance has no Staff/link alias: the matching hospital-only capability, subject, tenant, hospital, selected Staff/review, source grant/version or owner membership, membership incarnation, owner count and lease are bound into private purpose. Exact workspace assertions and one shared five-second budget apply; no alternative-source fallback follows a business callback, source change or dependency failure. WF0105 adds private proof to head/history: immutable-source validation runs before trusted proof recording, before history capture; the Go entry verifies matching enabled source and recorder triggers before disclosure. Restrictive purpose policies cover all current tenant-scoped Workforce tables, preventing inherited owner/manager access from widening selected reads or enabling master/payroll/clinical writes. Only guarded review/history/frozen children, the owner-maintained cohort and attributable audit may be written. Human contributor/historical-link/declared-subject independence, current frozen source and CAS/receipt rules remain enforced. Evidence transfer compares both tagged authority and frozen basis after storage I/O before releasing bytes. Public responses/events omit private proof. This source classification is not database, UI, activation or production acceptance; the actual remote test first returned 403 after real term preparation, scanning and grant approval. New WF0105 remains unapplied and unapproved for live rollout. Prerequisite inspection also requires matching history snapshot/immutability guards and forced RLS plus the restrictive private-purpose policy on every current tenant-scoped Workforce table. Missing policy/recording support denies before disclosure; a future table must acquire its default-deny or selected-purpose policy before governance consumers resume.",
+      "rationale": "The candidate consumer admits genuine current scoped Staff authority or a separately validated current IAM owner/exact employment preparation/review grant. Compound preparation/document grants remain required on the Staff preparation path; its actor/link and assignment evidence are retained. Governance has no Staff/link alias: the matching hospital-only capability, subject, tenant, hospital, selected Staff/review, source grant/version or owner membership, membership incarnation, owner count and lease are bound into private purpose. Exact workspace assertions and one shared five-second budget apply; no alternative-source fallback follows a business callback, source change or dependency failure. WF0105 adds private proof to head/history: immutable-source validation runs before trusted proof recording, before history capture; the Go entry verifies matching enabled source and recorder triggers before disclosure. Restrictive purpose policies cover all current tenant-scoped Workforce tables, preventing inherited owner/manager access from widening selected reads or enabling master/payroll/clinical writes. Only guarded review/history/frozen children, the owner-maintained cohort and attributable audit may be written. Human contributor/historical-link/declared-subject independence, current frozen source and CAS/receipt rules remain enforced. Evidence transfer compares both tagged authority and frozen basis after storage I/O before releasing bytes. Public responses/events omit private proof. This source classification is not database, UI, activation or production acceptance; the actual remote test first returned 403 after real term preparation, scanning and grant approval. New WF0105 remains unapplied and unapproved for live rollout. Prerequisite inspection also requires matching history snapshot/immutability guards and forced RLS plus the restrictive private-purpose policy on every current tenant-scoped Workforce table. Missing policy/recording support denies before disclosure; a future table must acquire its default-deny or selected-purpose policy before governance consumers resume. Canonical-audit/deletion review: the decision action is workforce.employment_review.decided with the resulting status; separate restrictive DELETE policies prevent readable master rows from being deleted. Entry also requires that the runtime role lacks TRUNCATE privilege on the protected tables. Candidate 121a3495 passed frozen submission/replay, exact-grant rejection and protected detail before its decision audit was refused; the corrected full scenario remains pending.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
@@ -716,22 +716,22 @@
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.go",
-          "sha256": "d845bd5eafd2290402e9fadc296f36bbe8cd6ef7137a0e12010b03a37d626d61",
+          "sha256": "5bfec78fcccad2be94fecb131f76b6fed11bf753e74c46459bf74c65411f5b92",
           "symbol": "func (h *handlers) withEmploymentReviewAuthority("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.go",
-          "sha256": "d845bd5eafd2290402e9fadc296f36bbe8cd6ef7137a0e12010b03a37d626d61",
+          "sha256": "5bfec78fcccad2be94fecb131f76b6fed11bf753e74c46459bf74c65411f5b92",
           "symbol": "func installEmploymentReviewAuthority("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.sql",
-          "sha256": "b44eb120aef5a27e01934202948f42a779b048006f6bf0f6eb7e206751669edd",
+          "sha256": "157a113fe0af836853e0b0f2d266acd2c2793f25d1421a88099faea4a1c973db",
           "symbol": "CREATE FUNCTION workforce_employment_governance_source("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.sql",
-          "sha256": "b44eb120aef5a27e01934202948f42a779b048006f6bf0f6eb7e206751669edd",
+          "sha256": "157a113fe0af836853e0b0f2d266acd2c2793f25d1421a88099faea4a1c973db",
           "symbol": "CREATE FUNCTION workforce_employment_review_governance_record("
         }
       ],
@@ -748,7 +748,7 @@
       "registration_sha256": "2fea7a327cd7f2c5ec4a574f536c582180cdcf1285486cff0e8ea82aa6a57d9a",
       "authority_kind": "mixed",
       "resource_scope": "Verified tenant/account, one hospital, selected Staff and employment review; exact frozen person finding, terms/evidence and actual current scoped-Staff or nonclinical owner/grant source.",
-      "rationale": "The candidate consumer admits genuine current scoped Staff authority or a separately validated current IAM owner/exact employment preparation/review grant. Compound preparation/document grants remain required on the Staff preparation path; its actor/link and assignment evidence are retained. Governance has no Staff/link alias: the matching hospital-only capability, subject, tenant, hospital, selected Staff/review, source grant/version or owner membership, membership incarnation, owner count and lease are bound into private purpose. Exact workspace assertions and one shared five-second budget apply; no alternative-source fallback follows a business callback, source change or dependency failure. WF0105 adds private proof to head/history: immutable-source validation runs before trusted proof recording, before history capture; the Go entry verifies matching enabled source and recorder triggers before disclosure. Restrictive purpose policies cover all current tenant-scoped Workforce tables, preventing inherited owner/manager access from widening selected reads or enabling master/payroll/clinical writes. Only guarded review/history/frozen children, the owner-maintained cohort and attributable audit may be written. Human contributor/historical-link/declared-subject independence, current frozen source and CAS/receipt rules remain enforced. Evidence transfer compares both tagged authority and frozen basis after storage I/O before releasing bytes. Public responses/events omit private proof. This source classification is not database, UI, activation or production acceptance; the actual remote test first returned 403 after real term preparation, scanning and grant approval. New WF0105 remains unapplied and unapproved for live rollout. Prerequisite inspection also requires matching history snapshot/immutability guards and forced RLS plus the restrictive private-purpose policy on every current tenant-scoped Workforce table. Missing policy/recording support denies before disclosure; a future table must acquire its default-deny or selected-purpose policy before governance consumers resume.",
+      "rationale": "The candidate consumer admits genuine current scoped Staff authority or a separately validated current IAM owner/exact employment preparation/review grant. Compound preparation/document grants remain required on the Staff preparation path; its actor/link and assignment evidence are retained. Governance has no Staff/link alias: the matching hospital-only capability, subject, tenant, hospital, selected Staff/review, source grant/version or owner membership, membership incarnation, owner count and lease are bound into private purpose. Exact workspace assertions and one shared five-second budget apply; no alternative-source fallback follows a business callback, source change or dependency failure. WF0105 adds private proof to head/history: immutable-source validation runs before trusted proof recording, before history capture; the Go entry verifies matching enabled source and recorder triggers before disclosure. Restrictive purpose policies cover all current tenant-scoped Workforce tables, preventing inherited owner/manager access from widening selected reads or enabling master/payroll/clinical writes. Only guarded review/history/frozen children, the owner-maintained cohort and attributable audit may be written. Human contributor/historical-link/declared-subject independence, current frozen source and CAS/receipt rules remain enforced. Evidence transfer compares both tagged authority and frozen basis after storage I/O before releasing bytes. Public responses/events omit private proof. This source classification is not database, UI, activation or production acceptance; the actual remote test first returned 403 after real term preparation, scanning and grant approval. New WF0105 remains unapplied and unapproved for live rollout. Prerequisite inspection also requires matching history snapshot/immutability guards and forced RLS plus the restrictive private-purpose policy on every current tenant-scoped Workforce table. Missing policy/recording support denies before disclosure; a future table must acquire its default-deny or selected-purpose policy before governance consumers resume. Canonical-audit/deletion review: the decision action is workforce.employment_review.decided with the resulting status; separate restrictive DELETE policies prevent readable master rows from being deleted. Entry also requires that the runtime role lacks TRUNCATE privilege on the protected tables. Candidate 121a3495 passed frozen submission/replay, exact-grant rejection and protected detail before its decision audit was refused; the corrected full scenario remains pending.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
@@ -842,22 +842,22 @@
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.go",
-          "sha256": "d845bd5eafd2290402e9fadc296f36bbe8cd6ef7137a0e12010b03a37d626d61",
+          "sha256": "5bfec78fcccad2be94fecb131f76b6fed11bf753e74c46459bf74c65411f5b92",
           "symbol": "func (h *handlers) withEmploymentReviewAuthority("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.go",
-          "sha256": "d845bd5eafd2290402e9fadc296f36bbe8cd6ef7137a0e12010b03a37d626d61",
+          "sha256": "5bfec78fcccad2be94fecb131f76b6fed11bf753e74c46459bf74c65411f5b92",
           "symbol": "func installEmploymentReviewAuthority("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.sql",
-          "sha256": "b44eb120aef5a27e01934202948f42a779b048006f6bf0f6eb7e206751669edd",
+          "sha256": "157a113fe0af836853e0b0f2d266acd2c2793f25d1421a88099faea4a1c973db",
           "symbol": "CREATE FUNCTION workforce_employment_governance_source("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_authority.sql",
-          "sha256": "b44eb120aef5a27e01934202948f42a779b048006f6bf0f6eb7e206751669edd",
+          "sha256": "157a113fe0af836853e0b0f2d266acd2c2793f25d1421a88099faea4a1c973db",
           "symbol": "CREATE FUNCTION workforce_employment_review_governance_record("
         }
       ],

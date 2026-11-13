@@ -140,11 +140,11 @@ BEGIN
     reading:=format($read$workforce_employment_governance_source(tenant_id,hospital_id,%s)
      AND ((resource_id=%s AND action IN('workforce_staff.insert','workforce_staff.update','workforce.enrollment.changed'))
      OR (resource_id=NULLIF(current_setting('app.workforce_employment_review_id',true),'')::uuid
-     AND action IN('workforce.employment_review.submitted','workforce.employment_review.receipt.read','workforce.employment_review.read','workforce.employment_review.history.read','workforce.employment_review.approved','workforce.employment_review.rejected','workforce.employment_review.withdrawn','workforce.employment_review.revoked','workforce.employment_review.evidence.authorized','workforce.employment_review.evidence.downloaded')))$read$,selected_staff,selected_staff);
+     AND action IN('workforce.employment_review.submitted','workforce.employment_review.receipt.read','workforce.employment_review.read','workforce.employment_review.history.read','workforce.employment_review.decided','workforce.employment_review.withdrawn','workforce.employment_review.revoked','workforce.employment_review.evidence.authorized','workforce.employment_review.evidence.downloaded')))$read$,selected_staff,selected_staff);
     writing:=format($write$workforce_employment_governance_source(tenant_id,hospital_id,%s)
      AND actor_subject=NULLIF(current_setting('app.actor_subject',true),'')
      AND resource_id=NULLIF(current_setting('app.workforce_employment_review_id',true),'')::uuid
-     AND action IN('workforce.employment_review.submitted','workforce.employment_review.receipt.read','workforce.employment_review.read','workforce.employment_review.history.read','workforce.employment_review.approved','workforce.employment_review.rejected','workforce.employment_review.withdrawn','workforce.employment_review.revoked','workforce.employment_review.evidence.authorized','workforce.employment_review.evidence.downloaded')
+     AND action IN('workforce.employment_review.submitted','workforce.employment_review.receipt.read','workforce.employment_review.read','workforce.employment_review.history.read','workforce.employment_review.decided','workforce.employment_review.withdrawn','workforce.employment_review.revoked','workforce.employment_review.evidence.authorized','workforce.employment_review.evidence.downloaded')
      AND changes @> NULLIF(current_setting('app.workforce_employment_authority',true),'')::jsonb$write$,selected_staff);
    ELSE NULL;
   END CASE;
@@ -158,5 +158,7 @@ BEGIN
   EXECUTE format($policy$CREATE POLICY employment_governance_purpose ON %I AS RESTRICTIVE FOR ALL
    USING(hms_tenant_visible(tenant_id) AND (COALESCE(current_setting('app.workforce_employment_authority',true),'')='' OR (%s)))
    WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid AND (COALESCE(current_setting('app.workforce_employment_authority',true),'')='' OR (%s)))$policy$,item.table_name,reading,writing);
+  EXECUTE format($policy$CREATE POLICY employment_governance_delete ON %I AS RESTRICTIVE FOR DELETE
+   USING(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid AND COALESCE(current_setting('app.workforce_employment_authority',true),'')='')$policy$,item.table_name);
  END LOOP;
 END $migration$;

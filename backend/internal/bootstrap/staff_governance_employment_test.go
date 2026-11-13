@@ -76,7 +76,7 @@ func TestGovernanceEmploymentBasisSourceRetainsOrdinaryMembershipAndExactTarget(
 	}
 
 	initial := map[string]authz.EmploymentBasis{}
-	for _, subject := range []string{"synthetic-ordinary", "user-auditor"} {
+	for _, subject := range []string{"synthetic-ordinary", "user-auditor", "user-reviewer"} {
 		b := basis(subject)
 		err := guard.WithGovernanceEmploymentActivation(ctx, req, b.StaffID, func(commandCtx context.Context, source authz.GovernanceSourceEvidence, writer authz.EmploymentBasisWriter) error {
 			require.Equal(t, authz.GovernanceOwnerSource, source.Kind)
@@ -107,7 +107,7 @@ func TestGovernanceEmploymentBasisSourceRetainsOrdinaryMembershipAndExactTarget(
 		})
 		require.ErrorIs(t, err, authz.ErrScopedCommandDenied, subject)
 	}
-	t.Run("exact delegated source and revoked source with retained routing", func(t *testing.T) {
+	t.Run("delegation after employment retains exact source and revocation", func(t *testing.T) {
 		grant := issue(t, "user-reviewer", "workforce.employment_activator.v1", 1)
 		issue(t, "user-reviewer", "workforce.person_preparer.v1", 2)
 		delegated := req

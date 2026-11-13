@@ -187,10 +187,11 @@ func TestGovernanceOwnerGrantRefusesStaleAuthorityAndSessionChanges(t *testing.T
 func TestGovernanceIndependentAuditorReviewsAnotherGrantAndRetainsBothReceipts(t *testing.T) {
 	native := &governanceNativeIdentity{}
 	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
-		Tokens: map[string]string{"admin": testutil.TenantA, "auditor": testutil.TenantA},
+		Tokens: map[string]string{"admin": testutil.TenantA, "auditor": testutil.TenantA, "reviewer": testutil.TenantA},
 		Perms: map[string][]authz.Permission{
-			"admin":   {"iam.governance.manage", "iam.governance.read", "iam.governance.review", workforce.PermHospitalManage},
-			"auditor": {"iam.governance.read", "iam.governance.review"},
+			"admin":    {"iam.governance.manage", "iam.governance.read", "iam.governance.review", workforce.PermHospitalManage},
+			"auditor":  {"iam.governance.read", "iam.governance.review"},
+			"reviewer": {"iam.governance.read", "iam.governance.review"},
 		},
 		Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(native), workforce.New()},
 	})
@@ -287,4 +288,34 @@ func TestGovernanceIndependentAuditorReviewsAnotherGrantAndRetainsBothReceipts(t
 	require.NoError(t, json.Unmarshal(unchanged.Body.Bytes(), &current))
 	require.EqualValues(t, 1, current.Version, "stale route permission cannot commit the pending approval")
 	require.Equal(t, "provisional_active", current.Status)
+
+	firstAuditor, _, _ := makeGrant("user-auditor", "iam.governance_auditor.v1", "tenant", nil)
+	secondAuditor, _, _ := makeGrant("user-reviewer", "iam.governance_auditor.v1", "tenant", nil)
+	approvedSecond := governanceRequest(r, http.MethodPut, path(secondAuditor, uuid.Must(uuid.NewV7())), "auditor", decision)
+	require.Equal(t, 202, approvedSecond.Code, approvedSecond.Body.String())
+	approvedFirst := governanceRequest(r, http.MethodPut, path(firstAuditor, uuid.Must(uuid.NewV7())), "reviewer", decision)
+	require.Equal(t, 202, approvedFirst.Code, approvedFirst.Body.String())
+	begin := make(chan struct{})
+	outcomes := make(chan *httptest.ResponseRecorder, 2)
+	for _, attempt := range []struct {
+		target uuid.UUID
+		token  string
+	}{{secondAuditor, "auditor"}, {firstAuditor, "reviewer"}} {
+		go func() {
+			<-begin
+			outcomes <- governanceRequest(r, http.MethodPut, path(attempt.target, uuid.Must(uuid.NewV7())), attempt.token, `{"expected_version":2,"decision":"revoke","reason":"Concurrent independent revocation"}`)
+		}()
+	}
+	close(begin)
+	codes := make(map[int]int)
+	for range 2 {
+		select {
+		case outcome := <-outcomes:
+			codes[outcome.Code]++
+			t.Logf("opposing auditor revocation: %d %s", outcome.Code, outcome.Body.String())
+		case <-time.After(15 * time.Second):
+			t.Fatal("opposing auditor grants must lock in a consistent order without deadlock")
+		}
+	}
+	require.Equal(t, map[int]int{202: 1, 403: 1}, codes, "one revocation commits; the other loses its current source")
 }

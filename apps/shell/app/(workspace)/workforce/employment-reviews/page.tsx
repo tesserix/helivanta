@@ -22,6 +22,7 @@ import {
   type PermissionsResponse,
 } from "@helivanta/api";
 import { EmploymentReviewDetail } from "./review-detail";
+import { GovernanceEmploymentPreparation } from "./governance-preparation";
 
 const subscribeHydration = () => () => {};
 type Workspace = Pick<EmploymentReviewHospitalWorkspace, "tenantId" | "subject">;
@@ -223,6 +224,7 @@ function HospitalReviews({
   onBusy: (value: boolean) => void;
   onAccessLost: () => void;
 }) {
+  const [preparing, setPreparing] = useState(false);
   const [mode, setMode] = useState<"prepare" | "review">(workspace.mode);
   const activeWorkspace = { ...workspace, mode };
   const [status, setStatus] = useState<EmploymentReviewSummary["status"]>("pending");
@@ -238,150 +240,180 @@ function HospitalReviews({
   const next = records.data?.page.next_cursor;
   return (
     <Panel className="space-y-4 p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="font-semibold">Employment review inbox</h2>
-          <p className="text-sm text-muted-foreground">
-            Recorded terms are checked again when you open them.
-          </p>
-        </div>
-        <RefreshButton
-          busy={busy || records.isFetching}
-          refresh={() => {
-            setSelected(null);
-            void records.refetch();
-          }}
-          error={records.error}
-        >
-          Refresh inbox
-        </RefreshButton>
-      </div>
-      {hospital.can_submit && hospital.can_review && (
-        <Field id="employment-review-mode" label="Workspace role">
-          <SelectControl
-            id="employment-review-mode"
-            value={mode}
-            disabled={busy}
-            options={[
-              { value: "review", label: "Independent reviewer" },
-              { value: "prepare", label: "HR preparer" },
-            ]}
-            onValueChange={(value) => {
-              setMode(value as "prepare" | "review");
-              setSelected(null);
-              setCursors([null]);
-              setNotice("");
-            }}
-          />
-        </Field>
-      )}
-      <Field id="employment-review-status" label="Recorded status">
-        <SelectControl
-          id="employment-review-status"
+      {authority === "governance" && hospital.can_submit && (
+        <Button
+          variant="outline"
           disabled={busy}
-          value={status}
-          onValueChange={(value) => {
-            setStatus(value as EmploymentReviewSummary["status"]);
-            setCursors([null]);
+          onClick={() => {
             setSelected(null);
-            setNotice("");
+            setPreparing((value) => !value);
           }}
-          options={[
-            { value: "pending", label: "Pending review" },
-            { value: "approved", label: "Approved terms" },
-            { value: "rejected", label: "Rejected" },
-            { value: "withdrawn", label: "Withdrawn" },
-            { value: "revoked", label: "Revoked" },
-          ]}
-        />
-      </Field>
-      {notice && <p role="status">{notice}</p>}
-      {records.isPending || records.isFetching ? (
-        <p role="status">Loading employment reviews…</p>
-      ) : records.isError ? (
-        <RequestFailure
-          message="Could not verify the review inbox."
-          retry={records.refetch}
-          error={records.error}
+        >
+          {preparing ? "Back to employment inbox" : "Prepare new employment"}
+        </Button>
+      )}
+      {preparing ? (
+        <GovernanceEmploymentPreparation
+          key={`${workspace.tenantId}:${workspace.subject}:${workspace.hospitalId}`}
+          scope={{
+            tenantId: workspace.tenantId,
+            subject: workspace.subject,
+            hospitalId: workspace.hospitalId,
+          }}
+          onBusy={onBusy}
+          onAccessLost={onAccessLost}
         />
       ) : (
         <>
-          {records.data.data.length === 0 ? (
-            <p>No reviews with this recorded status are shown on this page.</p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-semibold">Employment review inbox</h2>
+              <p className="text-sm text-muted-foreground">
+                Recorded terms are checked again when you open them.
+              </p>
+            </div>
+            <RefreshButton
+              busy={busy || records.isFetching}
+              refresh={() => {
+                setSelected(null);
+                void records.refetch();
+              }}
+              error={records.error}
+            >
+              Refresh inbox
+            </RefreshButton>
+          </div>
+          {hospital.can_submit && hospital.can_review && (
+            <Field id="employment-review-mode" label="Workspace role">
+              <SelectControl
+                id="employment-review-mode"
+                value={mode}
+                disabled={busy}
+                options={[
+                  { value: "review", label: "Independent reviewer" },
+                  { value: "prepare", label: "HR preparer" },
+                ]}
+                onValueChange={(value) => {
+                  setMode(value as "prepare" | "review");
+                  setSelected(null);
+                  setCursors([null]);
+                  setNotice("");
+                }}
+              />
+            </Field>
+          )}
+          <Field id="employment-review-status" label="Recorded status">
+            <SelectControl
+              id="employment-review-status"
+              disabled={busy}
+              value={status}
+              onValueChange={(value) => {
+                setStatus(value as EmploymentReviewSummary["status"]);
+                setCursors([null]);
+                setSelected(null);
+                setNotice("");
+              }}
+              options={[
+                { value: "pending", label: "Pending review" },
+                { value: "approved", label: "Approved terms" },
+                { value: "rejected", label: "Rejected" },
+                { value: "withdrawn", label: "Withdrawn" },
+                { value: "revoked", label: "Revoked" },
+              ]}
+            />
+          </Field>
+          {notice && <p role="status">{notice}</p>}
+          {records.isPending || records.isFetching ? (
+            <p role="status">Loading employment reviews…</p>
+          ) : records.isError ? (
+            <RequestFailure
+              message="Could not verify the review inbox."
+              retry={records.refetch}
+              error={records.error}
+            />
           ) : (
-            <ul className="divide-y">
-              {records.data.data.map((row) => (
-                <li key={row.id} className="flex flex-wrap items-center justify-between gap-3 py-4">
-                  <div>
-                    <p className="font-medium">{row.display_name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {row.employee_code} · {row.status}
-                    </p>
-                  </div>
+            <>
+              {records.data.data.length === 0 ? (
+                <p>No reviews with this recorded status are shown on this page.</p>
+              ) : (
+                <ul className="divide-y">
+                  {records.data.data.map((row) => (
+                    <li
+                      key={row.id}
+                      className="flex flex-wrap items-center justify-between gap-3 py-4"
+                    >
+                      <div>
+                        <p className="font-medium">{row.display_name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {row.employee_code} · {row.status}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() => {
+                          setNotice("");
+                          setSelected(row);
+                        }}
+                      >
+                        Open review for {row.display_name}
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="flex gap-2">
+                {cursors.length > 1 && (
                   <Button
                     variant="outline"
                     disabled={busy}
                     onClick={() => {
-                      setNotice("");
-                      setSelected(row);
+                      setSelected(null);
+                      setCursors((value) => value.slice(0, -1));
                     }}
                   >
-                    Open review for {row.display_name}
+                    Previous reviews
                   </Button>
-                </li>
-              ))}
-            </ul>
+                )}
+                {next && (
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => {
+                      setSelected(null);
+                      setCursors((value) => [...value, next]);
+                    }}
+                  >
+                    Next reviews
+                  </Button>
+                )}
+              </div>
+            </>
           )}
-          <div className="flex gap-2">
-            {cursors.length > 1 && (
-              <Button
-                variant="outline"
-                disabled={busy}
-                onClick={() => {
-                  setSelected(null);
-                  setCursors((value) => value.slice(0, -1));
-                }}
-              >
-                Previous reviews
-              </Button>
-            )}
-            {next && (
-              <Button
-                variant="outline"
-                disabled={busy}
-                onClick={() => {
-                  setSelected(null);
-                  setCursors((value) => [...value, next]);
-                }}
-              >
-                Next reviews
-              </Button>
-            )}
-          </div>
+          {selected && !records.isError && !records.isFetching && (
+            <EmploymentReviewDetail
+              key={`${selected.id}:${selected.version}`}
+              scope={
+                mode === "review"
+                  ? { ...workspace, staffId: selected.staff_id, employmentReview: true }
+                  : { ...workspace, staffId: selected.staff_id, hrIntake: true }
+              }
+              item={selected}
+              capabilities={hospital}
+              onBusy={onBusy}
+              onAccessLost={onAccessLost}
+              onClose={() => setSelected(null)}
+              onDone={(receipt) => {
+                onBusy(false);
+                setSelected(null);
+                setNotice(
+                  `Recorded receipt: ${receipt.status}. Reopen the review to check current effectiveness.`,
+                );
+                void records.refetch();
+              }}
+            />
+          )}
         </>
-      )}
-      {selected && !records.isError && !records.isFetching && (
-        <EmploymentReviewDetail
-          key={`${selected.id}:${selected.version}`}
-          scope={
-            mode === "review"
-              ? { ...workspace, staffId: selected.staff_id, employmentReview: true }
-              : { ...workspace, staffId: selected.staff_id, hrIntake: true }
-          }
-          item={selected}
-          capabilities={hospital}
-          onBusy={onBusy}
-          onAccessLost={onAccessLost}
-          onClose={() => setSelected(null)}
-          onDone={(receipt) => {
-            onBusy(false);
-            setSelected(null);
-            setNotice(
-              `Recorded receipt: ${receipt.status}. Reopen the review to check current effectiveness.`,
-            );
-            void records.refetch();
-          }}
-        />
       )}
     </Panel>
   );

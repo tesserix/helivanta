@@ -410,9 +410,10 @@ actor. WF0109 binds private provenance and read/audit-only RLS to the selected
 Staff and expected source version/epoch; no review ID is invented. Cursors bind
 both actual hospital and Staff plus basis filters; the prior single-resource
 inbox cursor scope is unchanged. Local proof, multi-resource cursor and SDK
-routing/denial tests pass; real owner/delegate, revoked source, missing-policy,
-released-evidence and inherited-manager write-denial cases await remote execution.
-Draft terms/document authoring and reviewer preparation UI remain open. This
+routing/denial tests pass. The real owner/delegate, revoked source, missing-policy,
+released-evidence and inherited-manager denial cases passed in the governance
+suite on CI 43506648429 (a258bc16). Terms authoring UI is a candidate below;
+governance document authoring/binding and full operational acceptance remain open. This
 candidate is not approved for a live migration or rollout.
 
 The candidate hospital `employment-preparation-source` and
@@ -427,8 +428,8 @@ index/policy/forced-RLS support is checked before reading or saving. This grants
 no document, login, posting, review-decision or operating authority. Local proof,
 replay, build and compile evidence is not remote acceptance. Strict preparation SDK functions now preserve the original expected workspace,
 validate canonical scope/receipts/pages and cancellation, and never fall back to
-legacy authority. Thirty-three local client tests pass; preparation UI and
-document authoring/binding remain unfinished. The Staff/sponsor locking-read
+legacy authority. The target/preparation SDK has 41 passing local tests; the
+terms UI is described below, and document authoring/binding remains unfinished. The Staff/sponsor locking-read
 extension preserves prior write checks and the separate all-Staff-write denial;
 the corrected source passed real owner/delegate create/edit/replay/history, sponsor, revocation, recorder-failure and inherited-manager denial cases in CI 43501241981 (73afba71). Full current-head coverage, UI and deployment remain open. Both migrations require specific
 live application and rollback approval after acceptance; keep historical proof
@@ -450,8 +451,30 @@ Candidate WF0112 omits Staff/period/command fields for this closed target-read
 operation only and permits exact per-row version-only audit. All prior selected
 preparation operations retain actual Staff/period/command scope and their write
 fences. No HR, employment draft, document or operational write is authorized by
-target selection. Existing Staff keyset/casefold code indexes are reused. Local
-proof, cursor and SDK cases pass; real database/source-revocation/RLS acceptance,
-authoring UI, plan/load evidence and specific migration/rollback approval remain
-open. This does not complete the full Staff/pharmacy workflow or authorize its
+target selection. Existing Staff keyset/casefold code indexes are reused. Local proof, cursor and SDK cases pass. Core real owner/exact preparer,
+revocation, minimal disclosure and inherited-manager denial cases passed in the
+governance suite on CI 43506648429 (a258bc16). Complete target-support failure,
+plan/load, browser and migration/rollback acceptance remain open. This does not complete the full Staff/pharmacy workflow or authorize its
 merge/deployment.
+
+The candidate employment-review screen now offers **Prepare new employment** only
+in the governance access path and when discovery returns `can_submit`. It uses
+the strict preparation SDK for private Staff search, selected source and draft
+list/save; it does not request the Staff directory, person-review targets,
+legacy intake flags or legacy sponsor route. The existing canonical terms form
+is shared by the two explicit authority consumers. Sponsor options use the same
+bounded minimal target reader and only active same-hospital candidates are shown;
+the command owner revalidates the actual sponsor. A stale selected Staff version
+requires a new selection. Opening an existing draft repeats its exact read; a
+concurrent withdrawal prevents editing and offers a close/refresh path. An uncertain write preserves the exact command and
+period ID for replay; source/grant denial cuts off the workspace. Changing the
+account, hospital or access path remounts selection and form state. Draft reads
+are never shown while an updated source/read is pending or failed. Dates retain
+the existing explicit device-timezone display and convert to canonical instants.
+
+This screen creates and edits draft terms only. Governance document metadata,
+content/release/binding consumers and their UI remain required before the full
+review/activation/operational access workflow can be accepted or merged. Local
+selection/stale-source/no-fallback/replay/UI gating cases supplement the retained
+Staff terms-form tests; current-head remote browser and PostgreSQL evidence is
+still required.

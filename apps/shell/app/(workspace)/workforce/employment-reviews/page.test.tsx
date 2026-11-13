@@ -128,6 +128,7 @@ function fixture({
   denial = 0,
   uncertain = false,
   canApprove = true,
+  canSubmit = false,
   refuse = (() => false) as (url: string) => boolean,
 } = {}) {
   const writes: { url: string; body: Record<string, unknown> }[] = [];
@@ -155,7 +156,7 @@ function fixture({
             {
               hospital_id: scope.hospitalId,
               name: "Synthetic Hospital",
-              can_submit: false,
+              can_submit: canSubmit,
               can_review: true,
             },
           ]),
@@ -397,3 +398,31 @@ it.each([403, 503])(
     expect(reads.some((url) => url.includes("/employment-review-authority-inbox?"))).toBe(false);
   },
 );
+
+it("offers new employment authoring only for the governance preparation capability", async () => {
+  fixture({ canSubmit: true });
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <EmploymentReviews />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Prepare new employment" }));
+  expect(screen.getByRole("region", { name: "Hospital employment preparation" })).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: "Open review for Synthetic Joiner" }),
+  ).not.toBeInTheDocument();
+});
+
+it("keeps governance draft authoring out of reviewed Staff access", async () => {
+  fixture({ canSubmit: true });
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <EmploymentReviews />
+    </NavigationGuardProvider>,
+  );
+  await screen.findByRole("button", { name: "Prepare new employment" });
+  await user.click(screen.getByLabelText("Access path"));
+  await user.click(screen.getByRole("option", { name: "Reviewed Staff access" }));
+  await screen.findByRole("button", { name: "Open review for Synthetic Joiner" });
+  expect(screen.queryByRole("button", { name: "Prepare new employment" })).not.toBeInTheDocument();
+});

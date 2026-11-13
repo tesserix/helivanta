@@ -653,3 +653,11 @@ Legacy person-target discovery is rejected as an alternative because it confers
 a different authority. Local pure cursor/proof tests precede implementation;
 remote real owner/grant/revocation/RLS tests precede rollout. This is part of the
 full workflow, not permission to merge an unfinished UI or deployment.
+
+The authoring UI reuses the existing canonical terms form with two explicit
+save/sponsor consumers. Governance discovery `can_submit` gates its entry,
+original account/hospital keys isolate all queries, and selected Staff version is
+checked against a current source before editing. No general directory or legacy
+intake source is retried. Draft command/period IDs survive uncertain writes for
+exact replay. The recipient and operational workflows remain separate gates.
+Governance document authoring is still unfinished and this is not merge-ready.

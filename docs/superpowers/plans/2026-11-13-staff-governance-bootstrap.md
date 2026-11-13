@@ -43,3 +43,10 @@ closed target operation (no fabricated selected Staff) and WF0112 read/audit
 policy extension, then the minimal canonical target scan, SDK and authoring UI.
 Exercise current native owner/exact preparer, no-source, revoked source, hidden
 hospital and inherited manager write denial against remote PostgreSQL/FGA.
+
+Preparation UI continuation implemented: explicit governance-only entry, private
+Staff selection, strict selected-source/list/save SDK consumers and shared legacy
+terms form. Validate the full workspace and preserved legacy tests, then remote
+current-head browser acceptance. Next required slice is exact-source governance
+document metadata/content/release/binding with audit and current grant checks;
+existing legacy Staff document authority must not be reused as a fallback.

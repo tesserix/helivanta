@@ -114,10 +114,10 @@ func installActivationAuthority(tx *gorm.DB, p authn.Principal, a *employmentAct
 		if err := tx.Raw(`SELECT EXISTS(SELECT 1 FROM pg_attribute WHERE attrelid=to_regclass('public.workforce_employment_generations') AND attname='governance_authority' AND NOT attisdropped)
  AND NOT EXISTS(SELECT 1 FROM (VALUES
  ('workforce_employment_generations','workforce_employment_generation_zz_authority','workforce_employment_generation_governance_record',7),
- ('workforce_employment_generations','workforce_employment_generation_guard','workforce_employment_generation_guard',7),
- ('workforce_employment_generations','workforce_employment_generation_immutable','workforce_employment_generation_immutable',58),
+ ('workforce_employment_generations','workforce_employment_generation_write','workforce_employment_generation_write',7),
+ ('workforce_employment_generations','workforce_employment_generation_immutable','workforce_prevent_removal',58),
  ('workforce_staff','zz_workforce_governance_activation','workforce_governance_staff_activation',19),
- ('workforce_staff','workforce_staff_activation_requires_generation','workforce_staff_activation_receipt',17)
+ ('workforce_staff','workforce_reviewed_activation_required','workforce_reviewed_activation_required',17)
  ) AS required(table_name,trigger_name,function_name,trigger_type)
  WHERE NOT EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid=to_regclass('public.'||required.table_name) AND tgname=required.trigger_name AND NOT tgisinternal AND tgtype=required.trigger_type AND tgenabled IN('O','A') AND tgfoid=to_regprocedure('public.'||required.function_name||'()')))
  AND NOT EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind IN('r','p') AND starts_with(c.relname,'workforce_') AND EXISTS(SELECT 1 FROM pg_attribute a WHERE a.attrelid=c.oid AND a.attname='tenant_id' AND NOT a.attisdropped)

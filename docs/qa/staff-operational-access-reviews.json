@@ -4446,12 +4446,12 @@
         {
           "path": "backend/internal/modules/workforce/employment_activation_authority.go",
           "symbol": "func (h *handlers) withActivationAuthority(",
-          "sha256": "a966ed74cc98054476a3f37b634987b8fd8f8dd90321e90f41a519ea004ae9b0"
+          "sha256": "dcf9458908f00b46c4f12a319d322b19d34bf59132ddf53feb765b352c8a9fb5"
         },
         {
           "path": "backend/internal/modules/workforce/employment_activation_authority.go",
           "symbol": "func installActivationAuthority(",
-          "sha256": "a966ed74cc98054476a3f37b634987b8fd8f8dd90321e90f41a519ea004ae9b0"
+          "sha256": "dcf9458908f00b46c4f12a319d322b19d34bf59132ddf53feb765b352c8a9fb5"
         },
         {
           "path": "backend/internal/modules/workforce/employment_activation_authority.sql",
@@ -4489,12 +4489,12 @@
         {
           "path": "backend/internal/modules/workforce/employment_activation_authority.go",
           "symbol": "func (h *handlers) withActivationAuthority(",
-          "sha256": "a966ed74cc98054476a3f37b634987b8fd8f8dd90321e90f41a519ea004ae9b0"
+          "sha256": "dcf9458908f00b46c4f12a319d322b19d34bf59132ddf53feb765b352c8a9fb5"
         },
         {
           "path": "backend/internal/modules/workforce/employment_activation_authority.go",
           "symbol": "func installActivationAuthority(",
-          "sha256": "a966ed74cc98054476a3f37b634987b8fd8f8dd90321e90f41a519ea004ae9b0"
+          "sha256": "dcf9458908f00b46c4f12a319d322b19d34bf59132ddf53feb765b352c8a9fb5"
         },
         {
           "path": "backend/internal/modules/workforce/employment_activation_authority.sql",

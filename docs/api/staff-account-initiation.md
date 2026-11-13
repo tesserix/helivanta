@@ -84,3 +84,29 @@ only within the isolated fixture. CI prepares the owner SQL with a pinned commit
 and checksum and reuses its existing PostgreSQL test server in a separate
 database. These tests do not prove live inbox delivery, recipient login,
 independent review or actual pharmacy operating access.
+
+## Owner workspace journey
+
+The Staff access workspace exposes account creation and saved-command recovery.
+Hospital and independent-employer Staff account-link panels offer the same flow
+when current permissions include account administration and link management.
+Their components are keyed by verified tenant, subject and selected Staff scope.
+
+Creation freezes its command ID and submitted contact across uncertain retries.
+Only a definitive invalid-contact response permits correction, retaining the
+original command ID. The owner can read the exact saved command after leaving
+the page. A recovery or superseded creation receipt offers no setup/enrollment.
+The owner separately requests private setup delivery; uncertain HTTP responses,
+`delivery_unresolved` and `proof_unresolved` retain the same delivery ID. New
+email delivery is an explicit action after a resolved delivery, subject to the
+identity owner's expiry, supersession and recipient budgets.
+
+A fresh active/email-verified source observation exposes ordinary enrollment
+with a fixed account subject, a required reason and a separate consequence
+acknowledgment. Pending, failed or refused observations remove that action.
+Membership admission rechecks the current source server-side; the UI observation
+is not authority. In a selected Staff panel, successful enrollment opens a
+prefilled, unsubmitted link proposal. It neither proposes nor approves a link,
+creates employment/postings, nor assigns operating access. No owner UI receives
+recipient proofs or passwords. Privileged reviewer bootstrap and effective
+pharmacy acceptance remain open gates.

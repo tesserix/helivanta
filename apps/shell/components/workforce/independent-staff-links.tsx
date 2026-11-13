@@ -19,11 +19,14 @@ import {
 } from "@helivanta/api";
 import { Field, Panel, RequestFailure, useZodForm } from "@helivanta/ui";
 
+import { StaffAccountInitiation } from "./staff-account-initiation";
+
 type Props = {
   scope: IndependentStaffScope;
   staffVersion: number;
   canManage: boolean;
   canReview: boolean;
+  canInitiate?: boolean;
 };
 export function IndependentStaffLinks(props: Props) {
   const { scope } = props;
@@ -34,7 +37,7 @@ export function IndependentStaffLinks(props: Props) {
     />
   );
 }
-function Links({ scope, staffVersion, canManage, canReview }: Props) {
+function Links({ scope, staffVersion, canManage, canReview, canInitiate }: Props) {
   const [cursor, setCursor] = useState<string | null>(null);
   const query = useIndependentStaffLinksPage(scope, cursor);
   if (query.isPending) return <p role="status">Loading reviewed accounts…</p>;
@@ -48,7 +51,7 @@ function Links({ scope, staffVersion, canManage, canReview }: Props) {
     );
   return (
     <LinkPage
-      {...{ scope, staffVersion, canManage, canReview, cursor, setCursor }}
+      {...{ scope, staffVersion, canManage, canReview, canInitiate, cursor, setCursor }}
       result={query.data}
     />
   );
@@ -58,6 +61,7 @@ function LinkPage({
   staffVersion,
   canManage,
   canReview,
+  canInitiate,
   cursor,
   setCursor,
   result,
@@ -67,6 +71,8 @@ function LinkPage({
   result: NonNullable<ReturnType<typeof useIndependentStaffLinksPage>["data"]>;
 }) {
   const [busy, setBusy] = useState(false);
+  const [initiating, setInitiating] = useState(false);
+  const [newSubject, setNewSubject] = useState("");
   return (
     <Panel className="mt-6 space-y-5">
       <div>
@@ -89,8 +95,28 @@ function LinkPage({
           ))}
         </ul>
       )}
-      {canManage && !cursor && (
+      {canManage &&
+        canInitiate &&
+        !cursor &&
+        !result.data.some((row) => ["pending", "active"].includes(row.link.status)) &&
+        !newSubject &&
+        (initiating ? (
+          <StaffAccountInitiation
+            scope={scope}
+            onEnrolled={(subject) => {
+              setNewSubject(subject);
+              setInitiating(false);
+            }}
+          />
+        ) : (
+          <Button variant="outline" disabled={busy} onClick={() => setInitiating(true)}>
+            Set up new staff login
+          </Button>
+        ))}
+      {canManage && !cursor && !initiating && (
         <Propose
+          key={newSubject || "existing"}
+          initialSubject={newSubject}
           {...{ scope, staffVersion, busy }}
           onPending={setBusy}
           hasLiveLink={result.data.some((row) => ["pending", "active"].includes(row.link.status))}
@@ -122,13 +148,15 @@ function Propose({
   busy,
   onPending,
   hasLiveLink,
-}: Pick<Props, "scope" | "staffVersion"> & PendingControl & { hasLiveLink: boolean }) {
+  initialSubject = "",
+}: Pick<Props, "scope" | "staffVersion"> &
+  PendingControl & { hasLiveLink: boolean; initialSubject?: string }) {
   const id = useId();
   const [pending, setPending] = useState<{ id: string; input: IndependentLinkInput } | null>(null);
   const [notice, setNotice] = useState("");
   const form = useZodForm(IndependentLinkInputContract, {
     expected_staff_version: staffVersion,
-    subject: "",
+    subject: initialSubject,
     reason: "",
   });
   const success = () => {
@@ -170,7 +198,11 @@ function Propose({
               label="Account ID"
               error={form.formState.errors.subject?.message}
             >
-              <Input id={`${id}-account`} {...form.register("subject")} />
+              <Input
+                id={`${id}-account`}
+                disabled={!!initialSubject}
+                {...form.register("subject")}
+              />
             </Field>
             <Field
               id={`${id}-reason`}

@@ -415,6 +415,7 @@ function EmployerStaffEditor({
               staffId: staff.id,
             }}
             staffVersion={record.data.version}
+            canInitiate={can("iam.member.manage")}
             canManage={
               can("workforce.independent_login.manage") &&
               record.data.employment_status === "active"

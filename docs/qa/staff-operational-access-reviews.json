@@ -3830,7 +3830,7 @@
         },
         {
           "path": "backend/internal/modules/iam/governance.sql",
-          "sha256": "cdf51aeebb1930fd740bf0d4e8d9bfb44a988ac0d192e816726ef48ccf4e7d5c",
+          "sha256": "3ab4806db7116c50438ad558a9c8d7fdd47290eb9b044fb811aa9a508f9719ef",
           "symbol": "iam_governance_owner"
         }
       ],
@@ -3859,7 +3859,7 @@
         },
         {
           "path": "backend/internal/modules/iam/governance.sql",
-          "sha256": "cdf51aeebb1930fd740bf0d4e8d9bfb44a988ac0d192e816726ef48ccf4e7d5c",
+          "sha256": "3ab4806db7116c50438ad558a9c8d7fdd47290eb9b044fb811aa9a508f9719ef",
           "symbol": "iam_governance_owner"
         }
       ],
@@ -3888,7 +3888,7 @@
         },
         {
           "path": "backend/internal/modules/iam/governance.sql",
-          "sha256": "cdf51aeebb1930fd740bf0d4e8d9bfb44a988ac0d192e816726ef48ccf4e7d5c",
+          "sha256": "3ab4806db7116c50438ad558a9c8d7fdd47290eb9b044fb811aa9a508f9719ef",
           "symbol": "iam_governance_owner"
         }
       ],

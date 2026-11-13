@@ -58,7 +58,8 @@ CREATE TABLE iam_governance_grants (
 ALTER TABLE iam_governance_grants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE iam_governance_grants FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON iam_governance_grants
- USING(iam_governance_owner(tenant_id)) WITH CHECK(iam_governance_owner(tenant_id));
+ USING(hms_tenant_visible(tenant_id) AND iam_governance_owner(tenant_id))
+ WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid AND iam_governance_owner(tenant_id));
 CREATE INDEX iam_governance_grants_history ON iam_governance_grants(tenant_id,created_at DESC,id DESC);
 CREATE INDEX iam_governance_grants_subject ON iam_governance_grants(tenant_id,subject,scope_kind,scope_id,expires_at);
 CREATE FUNCTION iam_governance_grant_guard() RETURNS trigger LANGUAGE plpgsql AS $$
@@ -102,8 +103,8 @@ CREATE TABLE iam_governance_owner_notices (
 ALTER TABLE iam_governance_owner_notices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE iam_governance_owner_notices FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON iam_governance_owner_notices
- USING(iam_governance_owner(tenant_id) AND recipient_subject=NULLIF(current_setting('app.actor_subject',true),''))
- WITH CHECK(iam_governance_owner(tenant_id));
+ USING(hms_tenant_visible(tenant_id) AND iam_governance_owner(tenant_id) AND recipient_subject=NULLIF(current_setting('app.actor_subject',true),''))
+ WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid AND iam_governance_owner(tenant_id));
 CREATE INDEX iam_governance_notices_inbox ON iam_governance_owner_notices(tenant_id,recipient_subject,created_at DESC,id DESC);
 CREATE FUNCTION iam_governance_notice_guard() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN

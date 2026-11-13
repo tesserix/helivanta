@@ -3,9 +3,11 @@ package bootstrap_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -20,10 +22,23 @@ import (
 	"gorm.io/gorm"
 )
 
-type governanceNativeIdentity struct{}
+type governanceNativeIdentity struct {
+	calls       atomic.Int64
+	before      func(context.Context) error
+	unavailable bool
+}
 
-func (governanceNativeIdentity) MembershipEligible(_ context.Context, tenant, subject string) (bool, error) {
-	return tenant == testutil.TenantA && subject == "user-reviewer", nil
+func (native *governanceNativeIdentity) MembershipEligible(ctx context.Context, tenant, subject string) (bool, error) {
+	native.calls.Add(1)
+	if native.before != nil {
+		if err := native.before(ctx); err != nil {
+			return false, err
+		}
+	}
+	if native.unavailable {
+		return false, errors.New("synthetic identity owner unavailable")
+	}
+	return tenant == testutil.TenantA && (subject == "user-reviewer" || subject == "user-owner2"), nil
 }
 
 func governanceRequest(r *gin.Engine, method, path, token, body string) *httptest.ResponseRecorder {
@@ -38,14 +53,25 @@ func governanceRequest(r *gin.Engine, method, path, token, body string) *httptes
 }
 
 func TestGovernanceSingleOwnerGrantRetainsIntentAndNotifiesEveryOwner(t *testing.T) {
+	native := &governanceNativeIdentity{}
 	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens:  map[string]string{"admin": testutil.TenantA},
 		Perms:   map[string][]authz.Permission{"admin": {"iam.governance.manage", "iam.governance.read", workforce.PermHospitalManage}},
-		Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(governanceNativeIdentity{}), workforce.New()},
+		Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(native), workforce.New()},
 	})
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key)VALUES(?,'user-admin','tenant_admin'),(?,'user-reviewer','staff_member')`, testutil.TenantA, testutil.TenantA).Error
 	}))
+	native.before = func(nativeCtx context.Context) error {
+		return db.WithTenant(nativeCtx, testutil.TenantA, func(tx *gorm.DB) error {
+			var available bool
+			if err := tx.Raw(`SELECT pg_try_advisory_xact_lock(hashtextextended(?,0))`, "iam.governance_owners:"+testutil.TenantA).Scan(&available).Error; err != nil {
+				return err
+			}
+			require.True(t, available, "the external identity call runs after owner/source database locks are released")
+			return nil
+		})
+	}
 	hospital := uuid.Must(uuid.NewV7())
 	created := governanceRequest(r, http.MethodPut, "/v1/workforce/hospitals/"+hospital.String(), "admin", `{"name":"Synthetic governance hospital"}`)
 	require.Equal(t, 200, created.Code, created.Body.String())
@@ -70,6 +96,8 @@ func TestGovernanceSingleOwnerGrantRetainsIntentAndNotifiesEveryOwner(t *testing
 	replay := governanceRequest(r, http.MethodPut, path, "admin", string(raw))
 	require.Equal(t, http.StatusAccepted, replay.Code, replay.Body.String())
 	require.JSONEq(t, first.Body.String(), replay.Body.String())
+	require.EqualValues(t, 1, native.calls.Load(), "retained command replay must not depend on another native observation")
+	require.Equal(t, "no-store", first.Header().Get("Cache-Control"))
 	changed := strings.Replace(string(raw), input.Reason, "A different delegation intent", 1)
 	conflict := governanceRequest(r, http.MethodPut, path, "admin", changed)
 	require.Equal(t, http.StatusConflict, conflict.Code, conflict.Body.String())
@@ -91,4 +119,67 @@ func TestGovernanceSingleOwnerGrantRetainsIntentAndNotifiesEveryOwner(t *testing
 		return nil
 	}))
 	t.Logf("Retained grant %s and owner notice %s; recipient login and operating access are separate acceptance gates", id, inbox.Data[0].ID)
+}
+
+func TestGovernanceOwnerGrantRefusesStaleAuthorityAndSessionChanges(t *testing.T) {
+	native := &governanceNativeIdentity{}
+	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens: map[string]string{"admin": testutil.TenantA, "stale": testutil.TenantA},
+		Perms: map[string][]authz.Permission{
+			"admin": {"iam.governance.manage", "iam.governance.read", iam.PermMemberManage, workforce.PermHospitalManage},
+			"stale": {"iam.governance.manage", "iam.governance.read"},
+		},
+		Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(native), workforce.New()},
+	})
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key)VALUES(?,'user-admin','tenant_admin'),(?,'user-reviewer','staff_member'),(?,'user-stale','staff_member')`, testutil.TenantA, testutil.TenantA, testutil.TenantA).Error
+	}))
+	hospital := uuid.Must(uuid.NewV7())
+	root := governanceRequest(r, http.MethodPut, "/v1/workforce/hospitals/"+hospital.String(), "admin", `{"name":"Synthetic grant boundary hospital"}`)
+	require.Equal(t, 200, root.Code, root.Body.String())
+	input := iam.GovernanceGrantInput{Subject: "user-reviewer", ExpectedMembershipEpoch: 1, TemplateKey: "workforce.account_link_reviewer.v1", ScopeKind: "hospital", ScopeID: &hospital, Reason: "Separate HR link review", ValidFrom: time.Now().UTC().Add(-time.Hour).Truncate(time.Microsecond), ExpiresAt: time.Now().UTC().Add(time.Hour).Truncate(time.Microsecond)}
+	encode := func(value iam.GovernanceGrantInput) string {
+		raw, err := json.Marshal(value)
+		require.NoError(t, err)
+		return string(raw)
+	}
+	path := "/v1/iam/governance-grants/" + uuid.Must(uuid.NewV7()).String()
+	stale := governanceRequest(r, http.MethodPut, path, "stale", encode(input))
+	require.Equal(t, 403, stale.Code, stale.Body.String())
+	require.EqualValues(t, 0, native.calls.Load(), "stale FGA authority must be rejected before native identity I/O")
+	self := input
+	self.Subject = "user-admin"
+	rejected := governanceRequest(r, http.MethodPut, path, "admin", encode(self))
+	require.Equal(t, 403, rejected.Code, rejected.Body.String())
+	for _, headers := range []map[string][]string{
+		{"X-Helivanta-Expected-Subject": {"user-stale"}},
+		{"X-Helivanta-Expected-Subject": {"user-admin", "user-admin"}},
+		{"X-Helivanta-Expected-Tenant": {testutil.TenantB}},
+	} {
+		request := httptest.NewRequest(http.MethodPut, path, strings.NewReader(encode(input)))
+		request.Header.Set("Authorization", "Bearer admin")
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantA)
+		request.Header.Set("X-Helivanta-Expected-Subject", "user-admin")
+		for key, values := range headers {
+			request.Header[key] = values
+		}
+		response := httptest.NewRecorder()
+		r.ServeHTTP(response, request)
+		require.Equal(t, 409, response.Code, response.Body.String())
+	}
+	bypass := governanceRequest(r, http.MethodPost, "/v1/iam/members", "admin", `{"subject":"user-reviewer","role_key":"governance_delegate"}`)
+	require.Equal(t, 409, bypass.Code, bypass.Body.String())
+	require.Contains(t, bypass.Body.String(), "governance_grant_required")
+	require.EqualValues(t, 0, native.calls.Load())
+	deniedInbox := governanceRequest(r, http.MethodGet, "/v1/iam/governance-notices", "stale", "")
+	require.Equal(t, 403, deniedInbox.Code, deniedInbox.Body.String())
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		var count int64
+		require.NoError(t, tx.Table("iam_members").Where("role_key='governance_delegate'").Count(&count).Error)
+		require.Zero(t, count)
+		require.NoError(t, tx.Table("outbox_events").Count(&count).Error)
+		require.Zero(t, count, "refused commands cannot emit a routing grant")
+		return nil
+	}))
 }

@@ -186,7 +186,7 @@ func TestGovernanceGrantDecoderDoesNotNormalizeMalformedOrTruncatedInstants(t *t
 
 func TestGovernancePersonTemplatesCannotBecomeOperatingOrCrossEmployerRoles(t *testing.T) {
 	id := uuid.Must(uuid.NewV7())
-	start := time.Now().UTC()
+	start := time.Date(2026, 11, 13, 0, 0, 0, 0, time.UTC)
 	for _, key := range []string{"workforce.person_preparer.v1", "workforce.person_reviewer.v1"} {
 		in := iam.GovernanceGrantInput{Subject: "synthetic-reviewer", ExpectedMembershipEpoch: 1, TemplateKey: key, ScopeKind: "hospital", ScopeID: &id, Reason: "Review human identity findings", ValidFrom: start, ExpiresAt: start.Add(time.Hour)}
 		require.NoError(t, in.Validate())

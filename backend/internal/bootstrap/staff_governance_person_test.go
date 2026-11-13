@@ -200,7 +200,39 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		selectionPath := target + "/employment-person-finding-options"
 		selectionQuery := fmt.Sprintf("?hr_intake=v1&staff_version=%v&employment_epoch=%v", source["staff_version"], source["employment_epoch"])
 		request(t, http.MethodGet, selectionPath+selectionQuery, "auditor", nil, 403)
+		preparationSearch := base + "/employment-preparation-targets/search"
+		targetInput := map[string]any{"employee_code": "syn-person"}
+		request(t, http.MethodPost, preparationSearch, "auditor", targetInput, 403)
 		prepareGrant := grant("user-auditor", "workforce.employment_preparer.v1", roots[0])
+		t.Run("employment preparers select minimal targets without person or directory authority", func(t *testing.T) {
+			for _, token := range []string{"admin", "auditor"} {
+				page := request(t, http.MethodPost, preparationSearch, token, targetInput, 200)
+				rows := page["data"].([]any)
+				require.Len(t, rows, 1)
+				row := rows[0].(map[string]any)
+				require.Equal(t, staff[0].String(), row["id"])
+				require.Equal(t, roots[0].String(), row["hospital_id"])
+				for _, key := range []string{"email", "phone", "subject", "identity_hash", "employment_epoch", "governance_authority", "actor_staff_id", "actor_link_id"} {
+					require.NotContains(t, row, key)
+				}
+				require.False(t, page["page"].(map[string]any)["has_more"].(bool))
+			}
+			request(t, http.MethodPost, preparationSearch, "reviewer", targetInput, 403)
+			request(t, http.MethodPost, "/v1/workforce/hospitals/"+roots[1].String()+"/employment-preparation-targets/search", "auditor", targetInput, 404)
+			request(t, http.MethodPost, preparationSearch, "auditor", map[string]any{}, 400)
+			request(t, http.MethodPost, preparationSearch, "auditor", map[string]any{"employee_code": "", "subject": "user-admin"}, 400)
+			request(t, http.MethodPost, preparationSearch+"?employee_code=SYN-PERSON", "auditor", targetInput, 400)
+			request(t, http.MethodPost, preparationSearch+"?limit=21", "auditor", targetInput, 400)
+			require.Empty(t, request(t, http.MethodPost, preparationSearch, "auditor", map[string]any{"employee_code": "MISSING"}, 200)["data"])
+			request(t, http.MethodPost, preparationSearch, "admin", targetInput, 200)
+			var recorded struct{ Authority json.RawMessage }
+			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+				return tx.Raw("SELECT changes->'authority' AS authority FROM workforce_audit WHERE tenant_id=? AND hospital_id=? AND resource_id=? AND actor_subject='user-admin' AND action='workforce.employment_preparation.target.read' ORDER BY created_at DESC LIMIT 1", testutil.TenantA, roots[0], staff[0]).Take(&recorded).Error
+			}))
+			require.NotEmpty(t, recorded.Authority)
+			assertReadPurposeBlocksStaffMasterEdit(t, db, roots[0], staff[0], "app.workforce_governance_draft_authority", recorded.Authority)
+		})
+
 		period := uuid.Must(uuid.NewV7())
 		terms := request(t, http.MethodPut, target+"/employment-preparation-periods/"+period.String(), "auditor", map[string]any{"command_id": uuid.Must(uuid.NewV7()), "expected_version": 0, "staff_version": source["staff_version"], "employment_epoch": source["employment_epoch"], "engagement_kind": "employee", "duration": "ongoing", "starts_at": time.Now().UTC().Add(-time.Minute).Truncate(time.Microsecond), "reason": "Synthetic appointment", "evidence_reference": "SYN-APPOINTMENT"}, 200)
 		employmentFile := uuid.Must(uuid.NewV7()).String()
@@ -560,6 +592,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		request(t, http.MethodPut, "/v1/iam/governance-grants/"+prepareGrant.String()+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "admin", map[string]any{"expected_version": 2, "decision": "revoke", "reason": "Withdraw exact employment preparation source"}, 202)
 		request(t, http.MethodGet, selectionPath+selectionQuery, "auditor", nil, 403)
 		request(t, http.MethodGet, target+"/employment-preparation-source", "auditor", nil, 403)
+		request(t, http.MethodPost, preparationSearch, "auditor", targetInput, 403)
 		grant("user-reviewer", "workforce.employment_reviewer.v1", roots[1])
 		cutoff := make(chan *httptest.ResponseRecorder, 1)
 		cloud.AfterReleasedRead(func() {
@@ -842,6 +875,11 @@ CREATE CONSTRAINT TRIGGER test_governance_activation_failure AFTER INSERT ON wor
 
 func assertReadPurposeBlocksStaffMasterEdit(t *testing.T, db *tenantdb.DB, hospital, staff uuid.UUID, setting string, proof json.RawMessage) {
 	t.Helper()
+	var proofScope struct {
+		Operation string `json:"operation"`
+	}
+	require.NoError(t, json.Unmarshal(proof, &proofScope))
+	targets := setting == "app.workforce_governance_draft_authority" && proofScope.Operation == "targets"
 	var sourceQuery string
 	switch setting {
 	case "app.workforce_governance_draft_authority":
@@ -871,12 +909,21 @@ func assertReadPurposeBlocksStaffMasterEdit(t *testing.T, db *tenantdb.DB, hospi
 	}))
 	var affected int64
 	writeErr := scoped(func(tx *gorm.DB) error {
+		if targets {
+			if err := tx.Exec("SELECT set_config('app.workforce_identity_staff','',true)").Error; err != nil {
+				return err
+			}
+		}
 		if err := tx.Exec("SELECT set_config(?,?,true)", setting, string(proof)).Error; err != nil {
 			return err
 		}
 		args := []any{testutil.TenantA, hospital}
 		if setting != "app.workforce_employment_inbox_authority" {
-			args = append(args, staff)
+			if targets {
+				args = append(args, nil)
+			} else {
+				args = append(args, staff)
+			}
 		}
 		var valid bool
 		require.NoError(t, tx.Raw(sourceQuery, args...).Scan(&valid).Error)

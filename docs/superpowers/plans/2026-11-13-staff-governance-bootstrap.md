@@ -36,3 +36,10 @@ No production migration or grant is authorized by this plan.
    tenant. Complete Staff links, employment/postings, hospital-owned pharmacy
    relationships and exact positive/negative receiving/read access. Record live
    evidence separately from CI. Keep the overall Staff goal active until done.
+
+Employment selection continuation: prove sealed POST body/account/hospital/tenant
+cursor binding, strict query limits and missing-sealer denial locally. Add the
+closed target operation (no fabricated selected Staff) and WF0112 read/audit
+policy extension, then the minimal canonical target scan, SDK and authoring UI.
+Exercise current native owner/exact preparer, no-source, revoked source, hidden
+hospital and inherited manager write denial against remote PostgreSQL/FGA.

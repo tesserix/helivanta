@@ -404,7 +404,6 @@ not admit owner/delegate operations with an unbound workspace. Staff-source audi
 keeps an explicit `scoped_staff` kind alongside the six existing metadata fields;
 no clinical or personal values enter that read audit.
 
-
 The candidate selected-finding route `employment-person-finding-options` now
 requires current hospital employment preparation authority without a linked Staff
 actor. WF0109 binds private provenance and read/audit-only RLS to the selected
@@ -431,6 +430,28 @@ validate canonical scope/receipts/pages and cancellation, and never fall back to
 legacy authority. Thirty-three local client tests pass; preparation UI and
 document authoring/binding remain unfinished. The Staff/sponsor locking-read
 extension preserves prior write checks and the separate all-Staff-write denial;
-its first remote candidate still needs acceptance after a 404 on the valid save. Both migrations require specific
+the corrected source passed real owner/delegate create/edit/replay/history, sponsor, revocation, recorder-failure and inherited-manager denial cases in CI 43501241981 (73afba71). Full current-head coverage, UI and deployment remain open. Both migrations require specific
 live application and rollback approval after acceptance; keep historical proof
 when rolling back a binary.
+
+The separate candidate read-only POST
+`/workforce/hospitals/:hospital/employment-preparation-targets/search` accepts
+`{"employee_code":""}` to browse, or one exact case-insensitive Staff code.
+Only `limit` (maximum 20) and a sealed `cursor` may appear in its query. The
+canonical minimal `PersonReviewTarget` projection is reused; employee codes and
+names never enter URLs. Original tenant/account headers and current native owner
+or exact hospital employment-preparer authority are required. No person-preparer,
+legacy directory or linked Staff authority is inferred or retried. Cursors bind
+normalized body, account, route, actual hospital and verified tenant; mismatches
+fail before scanning. Five-second source/idle expiry, dependency failure and
+missing private database support disclose no partial result.
+
+Candidate WF0112 omits Staff/period/command fields for this closed target-read
+operation only and permits exact per-row version-only audit. All prior selected
+preparation operations retain actual Staff/period/command scope and their write
+fences. No HR, employment draft, document or operational write is authorized by
+target selection. Existing Staff keyset/casefold code indexes are reused. Local
+proof, cursor and SDK cases pass; real database/source-revocation/RLS acceptance,
+authoring UI, plan/load evidence and specific migration/rollback approval remain
+open. This does not complete the full Staff/pharmacy workflow or authorize its
+merge/deployment.

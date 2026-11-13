@@ -23,6 +23,7 @@ import (
 type employmentPreparationOperation string
 
 const (
+	preparationTargets employmentPreparationOperation = "targets"
 	preparationSource  employmentPreparationOperation = "source"
 	preparationList    employmentPreparationOperation = "list"
 	preparationRead    employmentPreparationOperation = "read"
@@ -31,10 +32,14 @@ const (
 )
 
 func employmentPreparationProof(p authn.Principal, hospital, staff, period uuid.UUID, operation employmentPreparationOperation, input *EmploymentPeriodDraftInput, source authz.GovernanceSourceEvidence) (map[string]any, error) {
-	if staff == uuid.Nil {
+	if (operation == preparationTargets) != (staff == uuid.Nil) {
 		return nil, authz.ErrScopedAuthorizationUnavailable
 	}
 	switch operation {
+	case preparationTargets:
+		if period != uuid.Nil || input != nil {
+			return nil, authz.ErrScopedAuthorizationUnavailable
+		}
 	case preparationSource, preparationList:
 		if period != uuid.Nil || input != nil {
 			return nil, authz.ErrScopedAuthorizationUnavailable
@@ -63,7 +68,10 @@ func employmentPreparationProof(p authn.Principal, hospital, staff, period uuid.
 	if err != nil {
 		return nil, err
 	}
-	proof["purpose"], proof["staff_id"], proof["operation"] = "employment_preparation", staff, operation
+	proof["purpose"], proof["operation"] = "employment_preparation", operation
+	if staff != uuid.Nil {
+		proof["staff_id"] = staff
+	}
 	if period != uuid.Nil {
 		proof["period_id"] = period
 	}
@@ -124,7 +132,15 @@ func installEmploymentPreparation(tx *gorm.DB, proof map[string]any) error {
 	if err != nil {
 		return err
 	}
-	return tx.Exec("SELECT set_config('app.workforce_governance_draft_authority',?,true),set_config('app.workforce_identity_staff',?,true)", string(raw), proof["staff_id"]).Error
+	selectedStaff := ""
+	if value, present := proof["staff_id"]; present {
+		staff, ok := value.(uuid.UUID)
+		if !ok || staff == uuid.Nil {
+			return authz.ErrScopedAuthorizationUnavailable
+		}
+		selectedStaff = staff.String()
+	}
+	return tx.Exec("SELECT set_config('app.workforce_governance_draft_authority',?,true),set_config('app.workforce_identity_staff',?,true)", string(raw), selectedStaff).Error
 }
 
 func requireEmploymentPreparationReceipt(tx *gorm.DB, p authn.Principal, hospital, staff, period uuid.UUID, input EmploymentPeriodDraftInput, proof map[string]any) error {
@@ -186,8 +202,12 @@ func (h *handlers) withEmploymentPreparation(c *gin.Context, p authn.Principal, 
 			if err := installEmploymentPreparation(tx, proof); err != nil {
 				return err
 			}
+			var selectedStaff any
+			if staff != uuid.Nil {
+				selectedStaff = staff
+			}
 			var installedProof bool
-			if err := tx.Raw("SELECT workforce_governance_draft_source(?::uuid,?::uuid,?::uuid)", p.TenantID, hospital, staff).Scan(&installedProof).Error; err != nil {
+			if err := tx.Raw("SELECT workforce_governance_draft_source(?::uuid,?::uuid,?::uuid)", p.TenantID, hospital, selectedStaff).Scan(&installedProof).Error; err != nil {
 				return err
 			}
 			if !installedProof {

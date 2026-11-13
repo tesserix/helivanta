@@ -57,3 +57,29 @@ func TestEmploymentPreparationReplayRetainsSourceIdentityButRefreshesLease(t *te
 		current[key] = saved
 	}
 }
+
+func TestEmploymentPreparationTargetsOmitSelectedStaffAndRejectMixedScope(t *testing.T) {
+	hospital := uuid.New()
+	p := authn.Principal{TenantID: uuid.NewString(), Subject: "synthetic-preparer", AuthTime: time.Now().Add(-time.Minute), IdleDeadline: time.Now().Add(time.Hour)}
+	source := authz.GovernanceSourceEvidence{Kind: authz.GovernanceOwnerSource, OwnerMembershipID: uuid.New(), MembershipEpoch: 1, OwnerCount: 2, Scope: authz.GovernanceEstablishmentScope{TenantID: p.TenantID, Kind: "hospital", ID: &hospital}, ExpiresAt: p.IdleDeadline}
+	proof, err := employmentPreparationProof(p, hospital, uuid.Nil, uuid.Nil, preparationTargets, nil, source)
+	require.NoError(t, err)
+	require.Equal(t, preparationTargets, proof["operation"])
+	for _, key := range []string{"staff_id", "period_id", "command_id", "review_id", "actor_staff_id", "actor_link_id"} {
+		require.NotContains(t, proof, key)
+	}
+	for _, row := range []struct {
+		staff, period uuid.UUID
+		operation     employmentPreparationOperation
+		input         *EmploymentPeriodDraftInput
+	}{
+		{uuid.New(), uuid.Nil, preparationTargets, nil},
+		{uuid.Nil, uuid.Must(uuid.NewV7()), preparationTargets, nil},
+		{uuid.Nil, uuid.Nil, preparationTargets, &EmploymentPeriodDraftInput{}},
+		{uuid.Nil, uuid.Nil, preparationSource, nil},
+		{uuid.Nil, uuid.Nil, preparationList, nil},
+	} {
+		_, err := employmentPreparationProof(p, hospital, row.staff, row.period, row.operation, row.input, source)
+		require.ErrorIs(t, err, authz.ErrScopedAuthorizationUnavailable)
+	}
+}

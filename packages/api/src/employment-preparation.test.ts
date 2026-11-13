@@ -1,4 +1,5 @@
 import {
+  searchGovernanceEmploymentTargets,
   getGovernanceEmploymentSource,
   getGovernanceEmploymentDraft,
   listGovernanceEmploymentDrafts,
@@ -225,4 +226,113 @@ it("rejects a command with no representable next revision before network I/O", a
     saveGovernanceEmploymentDraft(scope, id, { ...command, expected_version: 9007199254740990 }),
   ).rejects.toThrow();
   expect(fetcher).not.toHaveBeenCalled();
+});
+
+const targetScope = {
+  tenantId: scope.tenantId,
+  subject: scope.subject,
+  hospitalId: scope.hospitalId,
+};
+const target = {
+  id: scope.staffId,
+  hospital_id: scope.hospitalId,
+  employee_code: "SYN-STAFF",
+  display_name: "Synthetic applicant",
+  employment_status: "inactive",
+  staff_version: 3,
+  created_at: "2026-11-01T00:00:00Z",
+};
+it("searches employment targets by private POST with exact account headers", async () => {
+  const fetcher = vi.fn(async () => Response.json(page([target])));
+  vi.stubGlobal("fetch", fetcher);
+  expect(
+    await searchGovernanceEmploymentTargets(targetScope, { employee_code: "syn-staff" }),
+  ).toEqual(page([target]));
+  const [url, init] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
+  expect(url).toBe(
+    `/api/v1/workforce/hospitals/${scope.hospitalId}/employment-preparation-targets/search?limit=20`,
+  );
+  expect(init.method).toBe("POST");
+  expect(JSON.parse(init.body as string)).toEqual({ employee_code: "syn-staff" });
+  expect(init.cache).toBe("no-store");
+  expect(new Headers(init.headers).get("X-Helivanta-Expected-Tenant")).toBe(scope.tenantId);
+  expect(new Headers(init.headers).get("X-Helivanta-Expected-Subject")).toBe(scope.subject);
+});
+it.each([
+  { rows: [{ ...target, hospital_id: scope.staffId }] },
+  { rows: [{ ...target, email: "private@example.invalid" }] },
+  { rows: [target, { ...target, id: target.id.toUpperCase() }] },
+  { rows: Array.from({ length: 21 }, () => target) },
+])(
+  "rejects invalid target ownership, private data, duplicates and oversized pages",
+  async ({ rows }) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(page(rows))),
+    );
+    await expect(
+      searchGovernanceEmploymentTargets(targetScope, { employee_code: "" }),
+    ).rejects.toThrow();
+  },
+);
+it("rejects mixed preparation scope and invalid search before network", async () => {
+  const fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
+  await expect(
+    searchGovernanceEmploymentTargets(
+      { ...targetScope, staffId: scope.staffId } as typeof targetScope,
+      { employee_code: "" },
+    ),
+  ).rejects.toThrow();
+  await expect(
+    searchGovernanceEmploymentTargets(targetScope, {
+      employee_code: "private email@example.invalid",
+    }),
+  ).rejects.toThrow();
+  expect(fetcher).not.toHaveBeenCalled();
+});
+it("does not retry target denial or disclose a result after cancellation", async () => {
+  const fetcher = vi.fn(async () =>
+    Response.json({ error: "forbidden", message: "Denied" }, { status: 403 }),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  await expect(
+    searchGovernanceEmploymentTargets(targetScope, { employee_code: "" }),
+  ).rejects.toThrow();
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  const controller = new AbortController();
+  controller.abort();
+  fetcher.mockClear();
+  await expect(
+    searchGovernanceEmploymentTargets(targetScope, { employee_code: "" }, null, controller.signal),
+  ).rejects.toThrow();
+  expect(fetcher).not.toHaveBeenCalled();
+  const after = new AbortController();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => {
+      after.abort();
+      return Response.json(page([target]));
+    }),
+  );
+  await expect(
+    searchGovernanceEmploymentTargets(targetScope, { employee_code: "" }, null, after.signal),
+  ).rejects.toThrow();
+});
+
+it("rejects a target outside the exact employee code search and impossible continuations", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json(page([target]))),
+  );
+  await expect(
+    searchGovernanceEmploymentTargets(targetScope, { employee_code: "OTHER" }),
+  ).rejects.toThrow();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json(page([target], true))),
+  );
+  await expect(
+    searchGovernanceEmploymentTargets(targetScope, { employee_code: "" }),
+  ).rejects.toThrow();
 });

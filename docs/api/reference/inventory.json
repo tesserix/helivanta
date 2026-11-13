@@ -8922,6 +8922,15 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/workforce/hospitals/:hospital/employment-preparation-targets/search",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/employment-review-authority-inbox",
           "permission": "public",
@@ -13523,6 +13532,11 @@
               ]
             }
           ]
+        },
+        {
+          "id": "0112_workforce_employment_preparation_targets",
+          "sql_sha256": "a2106dc73b98caf0a6d66e778018bcc5a1a51b5633a3b41c77ebfc886f18acb8",
+          "creates_tables": []
         }
       ]
     },

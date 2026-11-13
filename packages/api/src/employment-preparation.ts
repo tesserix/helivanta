@@ -9,6 +9,12 @@ import {
   type EmploymentPeriodDraft,
 } from "./employment-periods-contract";
 
+import {
+  PersonReviewTargetSearchInputContract,
+  PersonReviewTargetContract,
+  type PersonReviewTargetSearchInput,
+} from "./person-review-contract";
+
 const scopeContract = z
   .object({
     tenantId: EmploymentPeriodSourceContract.shape.hospital_id,
@@ -182,5 +188,48 @@ export async function saveGovernanceEmploymentDraft(
     parsed.data.employment_epoch !== command.employment_epoch
   )
     throw unverifiedReceipt();
+  return parsed.data;
+}
+
+const targetScopeContract = scopeContract.omit({ staffId: true }).strict();
+export type GovernanceEmploymentTargetScope = z.infer<typeof targetScopeContract>;
+const targetsPageContract = pageContract.extend({
+  data: z.array(PersonReviewTargetContract).max(20),
+});
+export async function searchGovernanceEmploymentTargets(
+  scope: GovernanceEmploymentTargetScope,
+  input: PersonReviewTargetSearchInput,
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  signal?.throwIfAborted();
+  const current = targetScopeContract.parse(scope);
+  const body = PersonReviewTargetSearchInputContract.parse(input);
+  const query = new URLSearchParams({ limit: "20" });
+  if (cursor !== null) query.set("cursor", z.string().min(1).max(2048).parse(cursor));
+  const response = await apiFetch<unknown>(
+    `/workforce/hospitals/${current.hospitalId}/employment-preparation-targets/search?${query}`,
+    {
+      ...personReviewRequest(current),
+      method: "POST",
+      body: JSON.stringify(body),
+      signal,
+    },
+  );
+  signal?.throwIfAborted();
+  const parsed = targetsPageContract.safeParse(response);
+  if (!parsed.success) throw unverified();
+  const { data, page } = parsed.data;
+  if (
+    page.has_more !== (page.next_cursor !== null) ||
+    (page.has_more && data.length !== 20) ||
+    data.some(
+      (row) =>
+        row.hospital_id !== current.hospitalId ||
+        (body.employee_code !== "" && row.employee_code !== body.employee_code.toUpperCase()),
+    ) ||
+    new Set(data.map((row) => row.id.toLowerCase())).size !== data.length
+  )
+    throw unverified();
   return parsed.data;
 }

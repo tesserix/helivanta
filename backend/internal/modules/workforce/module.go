@@ -386,7 +386,7 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.FilteredListRoute(r.Group("/workforce"), "/hr-intake-scopes", authz.Public, 20, h.hrIntakeScopeCandidates, h.authorizedHRIntakeScopes)
 	platform.FilteredListRoute(r.Group("/workforce"), "/employment-review-scopes", authz.Public, 20, h.employmentReviewScopeCandidates, h.authorizedEmploymentReviewScopes)
 	platform.FilteredListRoute(r.Group("/workforce"), "/person-review-scopes", authz.Public, 20, h.personReviewScopeCandidates, h.authorizedPersonReviewScopes)
-	platform.FilteredListRoute(r.Group("/workforce"), "/person-review-authority-scopes", authz.Public, 20, h.personAuthorityScopeCandidates, h.authorizedPersonAuthorityScopes)
+	platform.SealedFilteredListRoute(r.Group("/workforce"), "/person-review-authority-scopes", authz.Public, 20, h.personAuthorityScopeCandidates, h.authorizedPersonAuthorityScopes)
 	platform.FilteredListRoute(r.Group("/workforce"), "/posting-scopes", authz.Public, 20, h.postingScopeCandidates, h.authorizedPostingScopes)
 	platform.FilteredListRoute(r.Group("/workforce"), "/posting-review-scopes", authz.Public, 20, h.postingReviewScopeCandidates, h.authorizedPostingReviewScopes)
 	platform.FilteredListRoute(r.Group("/workforce"), "/posting-cutoff-scopes", authz.Public, 20, h.postingCutoffScopeCandidates, h.authorizedPostingCutoffScopes)

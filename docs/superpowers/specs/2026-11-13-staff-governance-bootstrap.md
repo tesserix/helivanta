@@ -270,7 +270,9 @@ The Workforce owner scans at most 20 canonical hospital roots plus one probe,
 then reauthorizes each preparation/review capability through current reviewed
 Staff authority or the exact person-governance source. Only authorized names and
 capabilities leave the server; filtered empty pages retain opaque continuation.
-Root creation time/ID orders the new cursor, sealed to route, tenant and caller.
+Root creation time/ID orders the encrypted new cursor, sealed to route, tenant and caller.
+The existing AES-GCM cursor sealer hides denied root anchors and rejects tampering;
+missing sealer configuration denies the new route before scanning.
 One five-second/idle budget and four workers bound authorization. Native session
 and route permission refresh happen before parallel checks, never on a shared
 Gin context inside workers. Capabilities are hints; commands repeat current

@@ -2045,8 +2045,8 @@ Workforce owns `GET /v1/workforce/person-review-authority-scopes`, consumed thro
 Global API by the person-review workspace. Its existing generated
 `PersonReviewHospitalScope` response contains only `hospital_id`, `name`,
 `can_submit` and `can_review`. It scans canonical hospital roots, at most twenty
-plus one continuation probe, in descending creation-time/ID order. The opaque
-cursor is bound to route, verified tenant and account; it cannot be used with
+plus one continuation probe, in descending creation-time/ID order. The encrypted opaque
+cursor hides filtered hospital anchors and is bound to route, verified tenant and account; it cannot be used with
 legacy `person-review-scopes`, whose reviewed-login-link cursor meaning is unchanged.
 Authorization filtering can produce an empty page with `has_more: true`.
 

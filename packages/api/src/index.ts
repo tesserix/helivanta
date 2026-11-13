@@ -200,3 +200,4 @@ export * from "./owner-security";
 export * from "./account-discovery";
 
 export * from "./staff-accounts";
+export * from "./staff-governance";

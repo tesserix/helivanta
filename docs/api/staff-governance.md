@@ -124,17 +124,35 @@ Missing permission/current owner returns 403. Invisible grant or employer return
 command deadline is 503. Preserve v1 `{error,message}` envelopes; request IDs
 remain in headers.
 
+## Client integration
+
+`@helivanta/api` exposes `issueGovernanceGrant`, `readGovernanceGrant`,
+`decideGovernanceGrant` and `newGovernanceCommandId`. Callers retain the command
+ID and exact input for lost-response recovery. A recovered issue receipt remains
+the original version; read the current head separately.
+
+Requests use the account-scoped Global API client and cancel on workspace
+transitions. The SDK validates canonical input before network I/O and binds
+responses to the requested tenant, grant and decision command. Issue responses
+also bind the issuer and original input; decision responses bind the reviewer,
+input and successor version. Instant comparisons retain microsecond precision
+and accept equivalent UTC/offset representations. These functions do not add a
+governance screen or authorize Workforce consumers.
+
 ## Release and remaining acceptance
 
 Candidate migrations are `0102_workforce_governance_topology` and
 `0047_iam_governance`. Neither has been approved for live application. Before
-rollout, complete independent decisions, source consumers, owner-count admission,
+rollout, complete source consumers, owner-count admission,
 ledger/role admission guards, frontend, remote PostgreSQL/FGA/race/recovery tests
 and tested rollback. Retain identities, original receipts, notices and decisions
 through rollback; never erase evidence to retry onboarding.
 
-The first real cross-module acceptance test was observed returning 404 before
-implementation. Local builds and pure boundary tests do not substitute for its
-remote green result. The actual preserved tenant still needs recipient-operated
+The real PostgreSQL governance suite passed in CI run `43377058047`, including
+independent decisions, stale source rejection between preflight and commit,
+original receipts, owner-notice privacy and opposing auditor revocations. Its
+first decision test returned 404 before implementation. The broader Go, web,
+supplier and browser suites are still running; this evidence does not establish
+Workforce consumer integration. The actual preserved tenant still needs recipient-operated
 private setup, real distinct reviewers and positive/negative/revoked staff and
 pharmacy-access verification before this workflow is complete.

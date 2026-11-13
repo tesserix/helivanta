@@ -1167,6 +1167,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/business-profile` | `workforce.hospital.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/department-leave-review-requests` | `workforce.leave.approve` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/department-team` | `workforce.posting.proposal.read` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/employment-review-authority-inbox` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/employment-review-inbox` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/hr/attendance-settings/history` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/hr/attendance-settings` | `public` | false | false |
@@ -1628,6 +1629,7 @@ Migration table declarations:
 - `0097_workforce_hospital_names`: `workforce_hospital_name_announcements`.
 - `0100_workforce_pharmacy_credential_reviews`: `workforce_pharmacy_time_zones`.
 - `0103_workforce_login_review_authority`: `workforce_login_link_authorities`.
+- `0108_workforce_employment_inbox_staff_index`: concurrent index `workforce_employment_inbox_staff` on `workforce_employment_reviews (tenant_id, hospital_id, staff_id)`.
 
 ## workspace
 

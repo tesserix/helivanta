@@ -251,6 +251,7 @@ for that writer. Scope dependency errors and entered business callbacks cannot
 trigger a fallback to an alternative source. A shared five-second budget applies.
 
 Candidate WF0106 gives activation its own private purpose, distinct from review.
+
 Read access is limited to the target Staff, selected review and required frozen
 source records. The only writes are the exact Staff transition, its immutable
 generation and attributable activation audit. A final BEFORE UPDATE fence rejects
@@ -266,12 +267,22 @@ support, missing purpose/delete policies, unforced RLS or runtime TRUNCATE
 privilege denies governance activation before disclosure. New Workforce tables
 must acquire both private policies. Binary rollback preserves retained proof.
 
-The real digital first-hire regression currently reproduces 403 at activation
-source after its exact activation grant, with person/employment approval already
-complete. Current candidate database, replay, rollback and dependency-failure
-acceptance remains pending. This candidate changes no runtime activation flag; reconcile the deployed flag
-against authorized GitOps configuration before rollout. It does not establish operating-duty approval, reviewed account
-linking, scope publication, reviewer UI or actual pharmacy access.
+The real Staff governance suite on `b0cbe6ec` passed in CI `43477936807`,
+including first digital activation/replay, atomic rollback, retained authority,
+revoked access and bounded employment authority discovery. Full current-head
+regression, native login and operating-access acceptance remain separate. No
+runtime activation flag changes are included; reconcile the deployed flag against
+authorized GitOps configuration before rollout. This result does not establish
+operating-duty approval, reviewed account linking, scope publication, reviewer UI
+or actual pharmacy access.
+
+Candidate WF0107 adds the distinct hospital employment-authority inbox. Its
+private browse purpose admits current owners or exact preparation/review grants,
+minimal summaries and an exact read audit, while denying master writes/deletes
+despite inherited manager access. Its sealed cursor binds hospital and filters
+as well as the account/tenant/route. The existing linked-Staff inbox remains
+unchanged. No Staff/link/review identifiers are manufactured; inbox/SDK runtime
+acceptance and reviewer UI adoption are pending.
 
 ## Release and remaining acceptance
 
@@ -281,7 +292,9 @@ User rollout approval has been received; these migrations have not been applied
 to the live environment. New candidate
 `0104_workforce_person_review_authority`,
 `0105_workforce_employment_review_authority`,
-`0106_workforce_employment_activation_authority` and
+`0106_workforce_employment_activation_authority`,
+`0107_workforce_employment_authority_inbox`,
+`0108_workforce_employment_inbox_staff_index` and
 `0048_iam_governance_employment_bases` have not been approved for live application.
 Before rollout, complete the remaining source consumers, owner-count admission,
 ledger/role admission guards, frontend, remote PostgreSQL/FGA/race/recovery tests

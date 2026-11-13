@@ -14,15 +14,23 @@ import (
 
 // FilteredListRoute pages candidates before authorization filtering, preserving empty-page continuation.
 func FilteredListRoute[T Keyed](r *Router, path string, permission authz.Permission, maxCandidates int, scan ListHandler[T], filter func(*gin.Context, []T) ([]T, error)) {
-	filteredListRoute(r, path, permission, maxCandidates, scan, filter, false)
+	filteredListRoute(r, path, permission, maxCandidates, scan, filter, false, nil)
 }
 
 // SealedFilteredListRoute hides candidate anchors that authorization may filter out.
 func SealedFilteredListRoute[T Keyed](r *Router, path string, permission authz.Permission, maxCandidates int, scan ListHandler[T], filter func(*gin.Context, []T) ([]T, error)) {
-	filteredListRoute(r, path, permission, maxCandidates, scan, filter, true)
+	filteredListRoute(r, path, permission, maxCandidates, scan, filter, true, nil)
 }
 
-func filteredListRoute[T Keyed](r *Router, path string, permission authz.Permission, maxCandidates int, scan ListHandler[T], filter func(*gin.Context, []T) ([]T, error), sealed bool) {
+// SealedFilteredQueryListRoute binds private cursors to the caller, resource and filters.
+func SealedFilteredQueryListRoute[T Keyed](r *Router, path string, permission authz.Permission, resourceParam string, filters []QueryFilter, maxCandidates int, scan ListHandler[T], filter func(*gin.Context, []T) ([]T, error)) {
+	if !hasSegment(r.group.BasePath()+path, resourceParam) {
+		panic("platform: private query list requires its resource parameter")
+	}
+	filteredListRoute(r, path, permission, maxCandidates, scan, filter, true, queryCursorScope(resourceParam, filters, maxCandidates))
+}
+
+func filteredListRoute[T Keyed](r *Router, path string, permission authz.Permission, maxCandidates int, scan ListHandler[T], filter func(*gin.Context, []T) ([]T, error), sealed bool, scopeFor func(*gin.Context, authn.Principal) string) {
 	if maxCandidates < 1 || maxCandidates > pagination.MaxLimit || scan == nil || filter == nil {
 		panic("platform: invalid filtered list registration")
 	}
@@ -34,6 +42,9 @@ func filteredListRoute[T Keyed](r *Router, path string, permission authz.Permiss
 		}
 		digest := sha256.Sum256([]byte(principal.Subject + "\x00" + c.FullPath()))
 		scope := hex.EncodeToString(digest[:])
+		if scopeFor != nil {
+			scope = scopeFor(c, principal)
+		}
 		var params pagination.Params
 		var err error
 		if sealed {

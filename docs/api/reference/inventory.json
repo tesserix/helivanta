@@ -8923,6 +8923,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/employment-review-authority-inbox",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/employment-review-inbox",
           "permission": "public",
           "authentication_required": true,
@@ -13391,6 +13400,36 @@
           "id": "0106_workforce_employment_activation_authority",
           "sql_sha256": "e5d49255d41c14dc8211f26c6c449133620e74d049f9e0b1658421d465019580",
           "creates_tables": []
+        },
+        {
+          "id": "0107_workforce_employment_authority_inbox",
+          "sql_sha256": "40985ab4115620bf39ddbd33e0e2d1b3f86931eaf2a3d23abdd9d45feb468bd8",
+          "creates_tables": []
+        },
+        {
+          "id": "0108_workforce_employment_inbox_staff_index",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "workforce_employment_inbox_staff",
+              "table": "workforce_employment_reviews",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "staff_id",
+                  "descending": false
+                }
+              ]
+            }
+          ]
         }
       ]
     },

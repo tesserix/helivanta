@@ -206,6 +206,25 @@ assertion headers and current reviewed active Staff/login actor checks:
   no employment, account or operating authority follows from discovery. SDK
   support is included; inbox/selection/UI adoption and remote acceptance remain
   pending.
+- Candidate `GET /v1/workforce/hospitals/:hospital/employment-review-authority-inbox`:
+  separate owner/exact-grant summary browsing with `mode=prepare|review` (default
+  review), recorded `status` (default pending), and a page limit of 50 plus one
+  continuation probe. It returns the existing minimal `EmploymentReviewSummary`
+  contract, excluding terms, reasons, evidence, subject and private authority.
+  Sealed cursors bind the route, tenant/account, hospital, mode and status before
+  any owner scan. Every read repeats current IAM source admission under a shared
+  five-second/idle deadline and retains an attributable source audit. Capability
+  discovery is not authorization for this read or a later decision.
+  Unapplied WF0107 adds an employer-only private inbox purpose with forced RLS,
+  explicit select/audit prerequisites and no runtime TRUNCATE privilege. It denies
+  unrelated reads, master writes and deletes even with inherited manager access;
+  the only admitted write is its exact minimized read audit. Missing purpose,
+  read or audit support fails closed. The existing hospital/status inbox index
+  serves paging; candidate WF0108 adds a concurrent tenant/hospital/Staff index
+  for the Staff-label visibility lookup, and reads require it to be ready/valid.
+  No Staff/link/review IDs are fabricated,
+  and the linked-Staff inbox keeps its original contract and cursor meaning.
+  This candidate and its SDK are not UI, production or migration acceptance.
 - `GET /v1/workforce/hospitals/:hospital/employment-review-inbox`: exactly one
   `hr_intake=v1` or `employment_review=v1`, optional recorded `status` from
   pending/approved/rejected/withdrawn/revoked, and canonical cursor/limit. Minimal

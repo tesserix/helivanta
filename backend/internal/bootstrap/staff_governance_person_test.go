@@ -224,6 +224,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		require.Equal(t, "pending", pending["status"])
 		request(t, http.MethodPut, employmentPath+"?hr_intake=v1", "auditor", input, 200)
 		request(t, http.MethodGet, employmentPath+"?employment_review=v1", "reviewer", nil, 403)
+		request(t, http.MethodGet, "/v1/workforce/hospitals/"+roots[0].String()+"/employment-review-authority-inbox", "reviewer", nil, 403)
 		employmentGrant := grant("user-reviewer", "workforce.employment_reviewer.v1", roots[0])
 		t.Run("employment authority discovery needs no Staff links", func(t *testing.T) {
 			route := "/v1/workforce/employment-review-authority-scopes"
@@ -253,6 +254,83 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 			request(t, http.MethodGet, route+"?cursor="+cursor, "auditor", nil, 400)
 			request(t, http.MethodGet, "/v1/workforce/employment-review-scopes?cursor="+cursor, "reviewer", nil, 400)
 			request(t, http.MethodGet, route+"?limit=21", "reviewer", nil, 400)
+		})
+		t.Run("current employment governance opens only the employer inbox", func(t *testing.T) {
+			inbox := "/v1/workforce/hospitals/" + roots[0].String() + "/employment-review-authority-inbox"
+			for _, boundary := range []struct{ header, value string }{
+				{"X-Helivanta-Expected-Tenant", ""}, {"X-Helivanta-Expected-Subject", ""},
+				{"X-Helivanta-Expected-Tenant", testutil.TenantB}, {"X-Helivanta-Expected-Subject", "user-owner2"},
+			} {
+				req := httptest.NewRequest(http.MethodGet, inbox, nil)
+				req.Header.Set("Authorization", "Bearer reviewer")
+				req.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantA)
+				req.Header.Set("X-Helivanta-Expected-Subject", "user-reviewer")
+				if boundary.value == "" {
+					req.Header.Del(boundary.header)
+				} else {
+					req.Header.Set(boundary.header, boundary.value)
+				}
+				refused := httptest.NewRecorder()
+				router.ServeHTTP(refused, req)
+				require.Equal(t, 409, refused.Code)
+				require.NotContains(t, refused.Body.String(), "employee_code")
+			}
+			for _, subject := range []string{"owner2", "reviewer", "auditor"} {
+				mode := "review"
+				if subject == "auditor" {
+					mode = "prepare"
+				}
+				rows := request(t, http.MethodGet, inbox+"?mode="+mode, subject, nil, 200)["data"].([]any)
+				require.Len(t, rows, 1)
+				row := rows[0].(map[string]any)
+				require.Equal(t, employmentReview.String(), row["id"])
+				require.Equal(t, roots[0].String(), row["hospital_id"])
+				for _, key := range []string{"governance_authority", "evidence_ids", "declared_subject", "reason", "metadata", "identity_hash"} {
+					require.NotContains(t, row, key)
+				}
+			}
+			request(t, http.MethodGet, inbox+"?mode=review", "auditor", nil, 403)
+			request(t, http.MethodGet, inbox+"?mode=prepare", "reviewer", nil, 403)
+			request(t, http.MethodGet, "/v1/workforce/hospitals/"+roots[1].String()+"/employment-review-authority-inbox", "reviewer", nil, 403)
+			request(t, http.MethodGet, "/v1/workforce/hospitals/"+uuid.Must(uuid.NewV7()).String()+"/employment-review-authority-inbox", "reviewer", nil, 404)
+			request(t, http.MethodGet, inbox+"?limit=51", "reviewer", nil, 400)
+			request(t, http.MethodGet, inbox+"?status=pending&status=approved", "reviewer", nil, 400)
+			require.Empty(t, request(t, http.MethodGet, inbox+"?status=approved", "reviewer", nil, 200)["data"])
+			for _, policy := range []struct{ table, name, command, clause string }{
+				{"workforce_staff", "employment_inbox_read", "SELECT", "USING"},
+				{"workforce_audit", "employment_inbox_audit", "INSERT", "WITH CHECK"},
+			} {
+				t.Run("missing "+policy.table+" policy fails closed", func(t *testing.T) {
+					var saved struct{ Expression string }
+					require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+						return tx.Raw("SELECT COALESCE(pg_get_expr(polwithcheck,polrelid),pg_get_expr(polqual,polrelid)) AS expression FROM pg_policy WHERE polrelid=to_regclass(?) AND polname=?", "public."+policy.table, policy.name).Take(&saved).Error
+					}))
+					require.NotEmpty(t, saved.Expression)
+					require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_inbox_" + policy.table + "_disabled", SQL: "DROP POLICY " + policy.name + " ON " + policy.table}}))
+					defer func() {
+						require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_inbox_" + policy.table + "_restored", SQL: "CREATE POLICY " + policy.name + " ON " + policy.table + " FOR " + policy.command + " " + policy.clause + " (" + saved.Expression + ")"}}))
+					}()
+					request(t, http.MethodGet, inbox, "reviewer", nil, 503)
+				})
+			}
+			request(t, http.MethodGet, inbox, "admin", nil, 200)
+			var recorded struct{ Authority json.RawMessage }
+			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+				if err := tx.Exec("SELECT set_config('app.workforce_subject','user-admin',true),set_config('app.workforce_hospital',?,true)", roots[0].String()).Error; err != nil {
+					return err
+				}
+				return tx.Raw("SELECT changes->'authority' AS authority FROM workforce_audit WHERE tenant_id=? AND hospital_id=? AND actor_subject='user-admin' AND action='workforce.employment_authority_inbox.read' ORDER BY created_at DESC,id DESC LIMIT 1", testutil.TenantA, roots[0]).Take(&recorded).Error
+			}))
+			require.NotEmpty(t, recorded.Authority)
+			writeErr := db.WithTenant(tenantdb.WithActor(ctx, "user-admin"), testutil.TenantA, func(tx *gorm.DB) error {
+				if err := tx.Exec("SELECT set_config('app.workforce_subject','user-admin',true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_employment_inbox_authority',?,true)", roots[0].String(), string(recorded.Authority)).Error; err != nil {
+					return err
+				}
+				return tx.Exec("UPDATE workforce_staff SET display_name='Forbidden inbox master edit' WHERE tenant_id=? AND hospital_id=? AND id=?", testutil.TenantA, roots[0], staff[0]).Error
+			})
+			var denied *pgconn.PgError
+			require.ErrorAs(t, writeErr, &denied)
+			require.Equal(t, "42501", denied.Code, "inbox purpose denies a master write despite inherited manager access")
 		})
 		view := request(t, http.MethodGet, employmentPath+"?employment_review=v1", "reviewer", nil, 200)
 		require.Equal(t, true, view["can_approve"])

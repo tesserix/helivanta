@@ -14,7 +14,8 @@ const pageContract = z
       .strict(),
   })
   .strict();
-export async function listEmploymentReviewInbox(
+async function listEmploymentInbox(
+  route: "employment-review-inbox" | "employment-review-authority-inbox",
   workspace: EmploymentReviewHospitalWorkspace,
   status: z.infer<typeof EmploymentReviewSummaryContract>["status"] = "pending",
   cursor: string | null = null,
@@ -24,19 +25,24 @@ export async function listEmploymentReviewInbox(
   const mode = z.enum(["prepare", "review"]).parse(workspace.mode);
   const filter = EmploymentReviewSummaryContract.shape.status.parse(status);
   const query = new URLSearchParams(
-    mode === "review" ? { employment_review: "v1" } : { hr_intake: "v1" },
+    route === "employment-review-authority-inbox"
+      ? { mode }
+      : mode === "review"
+        ? { employment_review: "v1" }
+        : { hr_intake: "v1" },
   );
   query.set("limit", "50");
   query.set("status", filter);
   if (cursor !== null) query.set("cursor", z.string().min(1).max(2048).parse(cursor));
   const response = await apiFetch<unknown>(
-    `/workforce/hospitals/${EmploymentReviewSummaryContract.shape.hospital_id.parse(workspace.hospitalId)}/employment-review-inbox?${query}`,
+    `/workforce/hospitals/${EmploymentReviewSummaryContract.shape.hospital_id.parse(workspace.hospitalId)}/${route}?${query}`,
     { ...personReviewRequest(workspace), signal },
   );
   signal?.throwIfAborted();
   const parsed = pageContract.safeParse(response);
   if (
     !parsed.success ||
+    parsed.data.data.length > 50 ||
     parsed.data.page.has_more !== Boolean(parsed.data.page.next_cursor) ||
     new Set(parsed.data.data.map((row) => row.id)).size !== parsed.data.data.length ||
     parsed.data.data.some(
@@ -47,4 +53,28 @@ export async function listEmploymentReviewInbox(
       "The employment-review inbox could not be verified. Refresh before continuing.",
     );
   return parsed.data;
+}
+
+export function listEmploymentReviewInbox(
+  workspace: EmploymentReviewHospitalWorkspace,
+  status: z.infer<typeof EmploymentReviewSummaryContract>["status"] = "pending",
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  return listEmploymentInbox("employment-review-inbox", workspace, status, cursor, signal);
+}
+
+export function listEmploymentReviewAuthorityInbox(
+  workspace: EmploymentReviewHospitalWorkspace,
+  status: z.infer<typeof EmploymentReviewSummaryContract>["status"] = "pending",
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  return listEmploymentInbox(
+    "employment-review-authority-inbox",
+    workspace,
+    status,
+    cursor,
+    signal,
+  );
 }

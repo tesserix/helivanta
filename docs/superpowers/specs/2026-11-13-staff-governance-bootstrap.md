@@ -34,15 +34,15 @@ only. They do not complete Staff onboarding. Additional fixed templates must be
 added as separately named/versioned bundles with their actual consumers and
 scope tests, rather than broadening either existing bundle.
 
-| Boundary                                              | Current source requirement                                                                                                                                       | Required integration before full acceptance                                                                                                                                                |
-| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Ordinary assignment proposal read/review              | `assignmentAccessFor` and asynchronous `decisionScopeStatus` require `assignmentAdministrator`                                                                   | Exact hospital scoped-access reviewer, rechecked both at decision and later owner verification settlement; preserve target/proposer separation and product prerequisites                   |
-| Person findings and identity-source review            | `personReviewTransaction` now has a candidate explicit owner/grant union; ordinary `identityScopeTransaction` retains reviewed Staff                             | Exact nonclinical person-review governance actor; current native human/membership, contributor exclusions, protected document/evidence checks and audit; no invented Staff link            |
-| Employment preparation/review                         | Targeted commands and separate authority discovery have candidate current-governance alternatives; inbox and selected draft authoring still require linked Staff | Separate employer-bound nonclinical preparation and review authority with explicit governance provenance in audit/receipts; retain evidence and independent-person rules                   |
-| First employment activation                           | WF0106 candidate admits the scoped activation/enrollment pair or IAM's exact-Staff governance activation writer; current-head acceptance is pending              | Employer-bound nonclinical activation authority retaining current approved person/employment and native account checks; no operating authority follows from the activation decision itself |
-| Hospital department posting and pharmacy relationship | `scopedPostingTransaction` requires `StaffActorUse` and `WithCurrentStaffActor`                                                                                  | Complete the reviewers' own reviewed employment first, then ordinary reviewed posting/relationship assignments; preserve Staff, department, professional and product guards                |
-| Independent pharmacy/supplier operating duty          | `operatingAdministrationRole` and Workforce `employerAccess(...,"manager",...)` require legacy administrative roles/access                                       | Exact employer-scoped operating-access reviewer through both IAM and Workforce source checks; retain target identity/location eligibility and subject/proposer separation                  |
-| Legacy privileged enrollment                          | `memberHandlers.grant` admits known roles                                                                                                                        | Coordinated admission change preventing new privileged rows from bypassing reviewed delegation, preserving first-owner onboarding and safe retained-row repair                             |
+| Boundary                                              | Current source requirement                                                                                                                                                     | Required integration before full acceptance                                                                                                                                                |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Ordinary assignment proposal read/review              | `assignmentAccessFor` and asynchronous `decisionScopeStatus` require `assignmentAdministrator`                                                                                 | Exact hospital scoped-access reviewer, rechecked both at decision and later owner verification settlement; preserve target/proposer separation and product prerequisites                   |
+| Person findings and identity-source review            | `personReviewTransaction` now has a candidate explicit owner/grant union; ordinary `identityScopeTransaction` retains reviewed Staff                                           | Exact nonclinical person-review governance actor; current native human/membership, contributor exclusions, protected document/evidence checks and audit; no invented Staff link            |
+| Employment preparation/review                         | Targeted commands, separate authority discovery and WF0107 inbox have candidate current-governance alternatives; selected findings/draft authoring and UI adoption remain open | Separate employer-bound nonclinical preparation and review authority with explicit governance provenance in audit/receipts; retain evidence and independent-person rules                   |
+| First employment activation                           | WF0106 candidate admits the scoped activation/enrollment pair or IAM's exact-Staff governance activation writer; current-head acceptance is pending                            | Employer-bound nonclinical activation authority retaining current approved person/employment and native account checks; no operating authority follows from the activation decision itself |
+| Hospital department posting and pharmacy relationship | `scopedPostingTransaction` requires `StaffActorUse` and `WithCurrentStaffActor`                                                                                                | Complete the reviewers' own reviewed employment first, then ordinary reviewed posting/relationship assignments; preserve Staff, department, professional and product guards                |
+| Independent pharmacy/supplier operating duty          | `operatingAdministrationRole` and Workforce `employerAccess(...,"manager",...)` require legacy administrative roles/access                                                     | Exact employer-scoped operating-access reviewer through both IAM and Workforce source checks; retain target identity/location eligibility and subject/proposer separation                  |
+| Legacy privileged enrollment                          | `memberHandlers.grant` admits known roles                                                                                                                                      | Coordinated admission change preventing new privileged rows from bypassing reviewed delegation, preserving first-owner onboarding and safe retained-row repair                             |
 
 Do not broaden `assignmentAdministrator`: its callers include customer workspace
 onboarding and owner MFA settings, which must stay owner-only. Add separately
@@ -438,3 +438,35 @@ The continuation must preserve these separate sources end to end:
 This is the next implementation boundary, not a claim that discovery, inbox,
 authoring, UI, pharmacy access or deployment is accepted. WF0106 activation still
 requires current-head real-database acceptance independently of this continuation.
+
+### Candidate employer inbox purpose — WF0107
+
+The distinct `employment-review-authority-inbox` candidate returns the existing
+minimal employment summary contract under a current owner/exact preparation or
+review source. It preserves the linked-Staff endpoint and cursor semantics. Its
+page has at most fifty records plus one continuation probe, a five-second/idle
+deadline and no external storage I/O. Current IAM authority remains held through
+query, minimized source audit and transaction completion.
+
+A separate private `employment_inbox` proof contains real source, employer and
+actor evidence, with no Staff/link/review actor aliases. WF0107 adds only the
+necessary hospital/review/Staff-label reads and exact audit insert; restrictive
+purpose/delete policies deny unrelated Workforce disclosure and master writes
+even when the actor also holds manager access. All read/audit prerequisites,
+forced RLS and absence of runtime TRUNCATE privilege are checked before browsing.
+Candidate WF0108 builds the tenant/hospital/Staff lookup index concurrently;
+reads require a ready/valid index. The existing hospital/status index still
+serves the inbox page. Query-plan/load acceptance remains pending remote review.
+No grants, clinical/stock actions, employment changes or account links result.
+
+The source review includes an additive sealed query-list adapter that reuses the
+existing resource/filter cursor scope. Hospital, mode, recorded status, verified
+account/tenant and route are bound before a scan; the two older filtered-list
+constructors retain their current cursor meaning. Local cursor tests cover
+foreign resources, changed filters/accounts and continuation. Source/proof and
+strict SDK tests pass locally. Real database policy, no-Staff owner/delegate,
+revocation and fault cases are pending remote CI; no live migration is applied.
+
+This does not complete finding selection, selected terms/document authoring or
+the reviewer workspace. They must adopt current source authority before this
+path is exposed as a complete first-reviewer workflow.

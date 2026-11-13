@@ -21,6 +21,9 @@ func TestGovernanceTopologyCountsOnlyHospitalsAndBindsTheExactEmployer(t *testin
 	_, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{Modules: []platform.Module{module}})
 	first, second, pharmacy := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		if err := governanceTopologyFixtureActor(tx); err != nil {
+			return err
+		}
 		return tx.Exec(`INSERT INTO workforce_hospitals(tenant_id,id,name,establishment_kind,pharmacy_ownership_type) VALUES(?,?,'Synthetic first hospital','hospital',NULL),(?,?,'Synthetic second hospital','hospital',NULL),(?,?,'Synthetic independent pharmacy','pharmacy','independent')`, testutil.TenantA, first, testutil.TenantA, second, testutil.TenantA, pharmacy).Error
 	}))
 	guard := platform.GovernanceTopology([]platform.Module{module}, db)
@@ -88,6 +91,9 @@ func TestGovernanceTopologyRejectsForeignOrMissingEmployerAndPreservesCallbackFa
 	_, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{Modules: []platform.Module{module}})
 	foreign := uuid.Must(uuid.NewV7())
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantB, func(tx *gorm.DB) error {
+		if err := governanceTopologyFixtureActor(tx); err != nil {
+			return err
+		}
 		return tx.Exec(`INSERT INTO workforce_hospitals(tenant_id,id,name) VALUES(?,?,'Synthetic foreign hospital')`, testutil.TenantB, foreign).Error
 	}))
 	ctx = tenantdb.WithActor(ctx, "synthetic-governance-owner")
@@ -118,6 +124,9 @@ func TestGovernanceTopologyWritersRetainTheExclusiveGateBeforeCommit(t *testing.
 		`DELETE FROM workforce_hospitals WHERE tenant_id=? AND id=?`,
 	} {
 		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			if err := governanceTopologyFixtureActor(tx); err != nil {
+				return err
+			}
 			if err := tx.Exec(command, testutil.TenantA, id).Error; err != nil {
 				return err
 			}
@@ -131,4 +140,8 @@ func TestGovernanceTopologyWritersRetainTheExclusiveGateBeforeCommit(t *testing.
 			return nil
 		}))
 	}
+}
+
+func governanceTopologyFixtureActor(tx *gorm.DB) error {
+	return tx.Exec(`SELECT set_config('app.workforce_subject','synthetic-governance-fixture',true)`).Error
 }

@@ -79,12 +79,14 @@ jobs:
           staff_schema=$(mktemp "$RUNNER_TEMP/staff-owner-schema.XXXXXX.sql")
           bash scripts/ci/fetch-staff-identity-schema.sh "$staff_schema"
           printf 'STAFF_IDENTITY_OWNER_SCHEMA=%s\n' "$staff_schema" >> "$GITHUB_ENV"
+      - name: Staff governance input boundaries
+        run: |
+          go test -race ./internal/modules/iam ./internal/modules/workforce -run '^TestGovernance'
+          go test -race ./internal/bootstrap -run '^TestGovernance'
       - name: Customer onboarding authority and replay
         run: |
           go test -race ./internal/customeronboarding
           go test -race ./internal/modules/pharmacy ./internal/modules/workforce -run '^(TestPharmacyBusinessProfileReadIsManagerAndTenantScoped|TestHospitalBusinessProfileReadIsManagerAndHospitalScoped|TestStorageAddressMigrationPreservesLegacyRowsAndReplay)$'
-      - name: Staff governance input boundaries
-        run: go test -race ./internal/modules/iam ./internal/modules/workforce -run '^TestGovernance'
       - name: Tenant identity admission and MFA regression
         run: go test -race ./internal/modules/iam -run '^(TestNewLegacyGrantRequiresCurrentTenantOwnedIdentity|TestLegacyGrant.*|TestLegacyRepair.*|TestFirstEnrollment.*|TestEnrollmentFakeKeepsNativeUserPathBinding|TestTOTPEnrollmentLifecycleConfirmsReplaysCompletesAndProjectsAMR|TestTOTPEnrollmentExpiryAndDependencyFailuresDoNotAdvance|TestRecoveryRequiresEligibleIdentity)$'
       - name: Supplier architecture and tenant preconditions

@@ -40,23 +40,23 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 	for _, subject := range []string{"user-admin", "user-owner2"} {
 		require.NoError(t, graph.GrantRole(ctx, testutil.TenantA, subject, authz.RoleTenantAdmin))
 	}
-	for _, subject := range []string{"user-auditor", "user-reviewer"} {
+	for _, subject := range []string{"user-auditor", "user-reviewer", "user-ordinary"} {
 		require.NoError(t, graph.GrantRole(ctx, testutil.TenantA, subject, authz.RoleStaffMember))
 	}
-	modules := []platform.Module{iam.New(nil).SetMembershipIdentityReader(&governanceNativeIdentity{}), workforce.New()}
+	modules := []platform.Module{iam.New(nil).SetMembershipIdentityReader(&governanceNativeIdentity{additionalSubjects: map[string]bool{"user-ordinary": true}}), workforce.New()}
 	router, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
-		Modules: modules, Documents: documents, Writer: graph, Roles: graph, Membership: graph,
+		Modules: modules, Documents: documents, Writer: graph, Roles: graph, Membership: graph, EmploymentActivationEnabled: true,
 		ScopedAuthorizer: func(db *tenantdb.DB) authz.ScopedAuthorizer { return iam.NewScopedAuthorizer(db, graph) },
 		Tokens:           map[string]string{"admin": testutil.TenantA, "owner2": testutil.TenantA, "auditor": testutil.TenantA, "reviewer": testutil.TenantA},
 		Perms: map[string][]authz.Permission{
-			"admin":    {iam.PermGovernanceManage, iam.PermGovernanceRead, iam.PermGovernanceReview, workforce.PermHospitalManage, workforce.PermEnrollmentManage, workforce.PermDocumentManage, workforce.PermIdentityChecksManage, workforce.PermIdentityChecksReview, workforce.PermEmploymentPrepare, workforce.PermEmploymentReview},
-			"owner2":   {iam.PermGovernanceReview, workforce.PermIdentityChecksManage, workforce.PermIdentityChecksReview, workforce.PermEmploymentPrepare, workforce.PermEmploymentReview},
-			"auditor":  {workforce.PermIdentityChecksManage, workforce.PermIdentityChecksReview, workforce.PermEmploymentPrepare, workforce.PermEmploymentReview},
-			"reviewer": {workforce.PermIdentityChecksManage, workforce.PermIdentityChecksReview, workforce.PermEmploymentPrepare, workforce.PermEmploymentReview},
+			"admin":    {iam.PermGovernanceManage, iam.PermGovernanceRead, iam.PermGovernanceReview, workforce.PermHospitalManage, workforce.PermEnrollmentManage, workforce.PermDocumentManage, workforce.PermIdentityChecksManage, workforce.PermIdentityChecksReview, workforce.PermEmploymentPrepare, workforce.PermEmploymentReview, workforce.PermEmploymentActivate},
+			"owner2":   {iam.PermGovernanceReview, workforce.PermIdentityChecksManage, workforce.PermIdentityChecksReview, workforce.PermEmploymentPrepare, workforce.PermEmploymentReview, workforce.PermEmploymentActivate},
+			"auditor":  {workforce.PermIdentityChecksManage, workforce.PermIdentityChecksReview, workforce.PermEmploymentPrepare, workforce.PermEmploymentReview, workforce.PermEmploymentActivate},
+			"reviewer": {workforce.PermIdentityChecksManage, workforce.PermIdentityChecksReview, workforce.PermEmploymentPrepare, workforce.PermEmploymentReview, workforce.PermEmploymentActivate},
 		},
 	})
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-		return tx.Exec("INSERT INTO iam_members(tenant_id,subject,role_key)VALUES(?,'user-admin','tenant_admin'),(?,'user-owner2','tenant_admin'),(?,'user-auditor','staff_member'),(?,'user-reviewer','staff_member')", testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA).Error
+		return tx.Exec("INSERT INTO iam_members(tenant_id,subject,role_key)VALUES(?,'user-admin','tenant_admin'),(?,'user-owner2','tenant_admin'),(?,'user-auditor','staff_member'),(?,'user-reviewer','staff_member'),(?,'user-ordinary','staff_member')", testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA).Error
 	}))
 	call := func(method, path, token string, input any, status int) map[string]any {
 		t.Helper()
@@ -160,7 +160,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 	require.Equal(t, "available", state)
 	reviewID := uuid.Must(uuid.NewV7())
 	reviewPath := target + "/person-reviews/" + reviewID.String()
-	input := map[string]any{"command_id": uuid.Must(uuid.NewV7()), "staff_version": source["staff_version"], "employment_epoch": source["employment_epoch"], "identity_hash": source["identity_hash"], "policy_reference": "SYN-PERSON-POLICY", "finding_reference": "Human identity examination", "observed_on": time.Now().UTC().Format(time.DateOnly), "valid_until": time.Now().UTC().Add(time.Hour).Truncate(time.Microsecond), "access_intent": "non_digital", "declared_subject": "", "identity_examined": true, "known_associations_disclosed": true, "document_ids": []string{file}}
+	input := map[string]any{"command_id": uuid.Must(uuid.NewV7()), "staff_version": source["staff_version"], "employment_epoch": source["employment_epoch"], "identity_hash": source["identity_hash"], "policy_reference": "SYN-PERSON-POLICY", "finding_reference": "Human identity examination", "observed_on": time.Now().UTC().Format(time.DateOnly), "valid_until": time.Now().UTC().Add(time.Hour).Truncate(time.Microsecond), "access_intent": "digital", "declared_subject": "user-ordinary", "identity_examined": true, "known_associations_disclosed": true, "document_ids": []string{file}}
 	pending := call(http.MethodPut, reviewPath, "auditor", input, 200)
 	require.Equal(t, "pending", pending["status"])
 	for _, subject := range []string{"owner2", "auditor", "reviewer"} {
@@ -174,6 +174,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 	call(http.MethodPost, reviewPath+"/decision", "admin", decision, 403)
 	approved := call(http.MethodPost, reviewPath+"/decision", "reviewer", decision, 200)
 	require.Equal(t, "approved", approved["status"])
+	var readyEmployment workforce.EmploymentReview
 	t.Run("employment submission and independent decision need no Staff actor", func(t *testing.T) {
 		request := func(method, path, token string, input any, status int) map[string]any {
 			t.Helper()
@@ -231,6 +232,9 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		request(http.MethodPost, employmentPath+"/decision?employment_review=v1", "admin", decision, 403)
 		approved := request(http.MethodPost, employmentPath+"/decision?employment_review=v1", "reviewer", decision, 200)
 		require.Equal(t, "approved", approved["status"])
+		raw, marshalErr := json.Marshal(approved)
+		require.NoError(t, marshalErr)
+		require.NoError(t, json.Unmarshal(raw, &readyEmployment))
 		enrollment := request(http.MethodGet, target+"/enrollment", "admin", nil, 200)
 		require.Equal(t, "inactive", enrollment["staff"].(map[string]any)["employment_status"], "approval is not employment activation or operating access")
 		request(http.MethodPost, employmentPath+"/decision?employment_review=v1", "reviewer", decision, 200)
@@ -423,4 +427,73 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		require.EqualValues(t, 1, routing)
 		return nil
 	}))
+	t.Run("first digital hire activation consumes exact governance basis", func(t *testing.T) {
+		request := func(method, path string, input any, status int) map[string]any {
+			t.Helper()
+			var body []byte
+			if input != nil {
+				var marshalErr error
+				body, marshalErr = json.Marshal(input)
+				require.NoError(t, marshalErr)
+			}
+			response := governanceRequest(router, method, path, "reviewer", string(body))
+			require.Equal(t, status, response.Code, "%s %s: %s", method, path, response.Body.String())
+			var result map[string]any
+			require.NoError(t, json.Unmarshal(response.Body.Bytes(), &result))
+			return result
+		}
+		sourcePath := target + "/employment-reviews/" + readyEmployment.ID.String() + "/activation-source?employment_activation=v1"
+		request(http.MethodGet, sourcePath, nil, 403)
+		activationGrant := issue("user-reviewer", "workforce.employment_activator.v1", roots[0])
+		ready := request(http.MethodGet, sourcePath, nil, 200)
+		require.Equal(t, "eligible", ready["current_state"])
+		require.Equal(t, true, ready["can_activate"])
+		generation := uuid.Must(uuid.NewV7())
+		activationPath := target + "/employment-activations/" + generation.String() + "?employment_activation=v1"
+		intent := map[string]any{"command_id": uuid.Must(uuid.NewV7()), "review_id": readyEmployment.ID, "review_revision_id": readyEmployment.RevisionID, "review_version": readyEmployment.Version, "staff_version": readyEmployment.StaffVersion, "employment_epoch": readyEmployment.EmploymentEpoch, "reason": "Synthetic first digital hire with independently approved basis", "activation_examined": true}
+		result := request(http.MethodPut, activationPath, intent, 200)
+		require.Equal(t, "effective", result["current_state"])
+		created := result["generation"].(map[string]any)
+		require.Equal(t, "user-ordinary", created["declared_subject"])
+		require.Equal(t, generation.String(), created["id"])
+		request(http.MethodPut, activationPath, intent, 200)
+		consumed := request(http.MethodGet, sourcePath, nil, 200)
+		require.Equal(t, "consumed", consumed["current_state"])
+		require.Equal(t, false, consumed["can_activate"])
+		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			if err := tx.Exec("SELECT set_config('app.assignment_access','authorized',true)").Error; err != nil {
+				return err
+			}
+			var basis struct {
+				StaffID, GenerationID uuid.UUID
+				EmploymentEpoch       int64
+			}
+			if err := tx.Table("iam_employment_bases").Select("staff_id,generation_id,employment_epoch").Where("tenant_id=? AND hospital_id=? AND subject='user-ordinary'", testutil.TenantA, roots[0]).Take(&basis).Error; err != nil {
+				return err
+			}
+			require.Equal(t, staff[0], basis.StaffID)
+			require.Equal(t, generation, basis.GenerationID)
+			require.Equal(t, readyEmployment.EmploymentEpoch+1, basis.EmploymentEpoch)
+			var retained struct{ Authority json.RawMessage }
+			if err := tx.Table("iam_employment_basis_authorities").Select("authority").Where("tenant_id=? AND generation_id=?", testutil.TenantA, generation).Take(&retained).Error; err != nil {
+				return err
+			}
+			var proof map[string]any
+			require.NoError(t, json.Unmarshal(retained.Authority, &proof))
+			require.Equal(t, activationGrant.String(), proof["source_grant_id"])
+			require.Equal(t, "workforce.employment.activate", proof["capability"])
+			var roles []string
+			if err := tx.Table("iam_members").Where("tenant_id=? AND subject='user-ordinary'", testutil.TenantA).Order("role_key").Pluck("role_key", &roles).Error; err != nil {
+				return err
+			}
+			require.Equal(t, []string{"staff_member"}, roles, "activation must not grant legacy operating roles")
+			var links int64
+			if err := tx.Table("workforce_login_links").Where("tenant_id=? AND hospital_id=? AND staff_id=?", testutil.TenantA, roots[0], staff[0]).Count(&links).Error; err != nil {
+				return err
+			}
+			require.Zero(t, links, "employment is separate from reviewed account linking")
+			return nil
+		}))
+	})
+
 }

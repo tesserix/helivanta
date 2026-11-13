@@ -24,9 +24,10 @@ import (
 )
 
 type governanceNativeIdentity struct {
-	calls       atomic.Int64
-	before      func(context.Context) error
-	unavailable bool
+	calls              atomic.Int64
+	before             func(context.Context) error
+	unavailable        bool
+	additionalSubjects map[string]bool
 }
 
 func (native *governanceNativeIdentity) MembershipEligible(ctx context.Context, tenant, subject string) (bool, error) {
@@ -39,7 +40,7 @@ func (native *governanceNativeIdentity) MembershipEligible(ctx context.Context, 
 	if native.unavailable {
 		return false, errors.New("synthetic identity owner unavailable")
 	}
-	return tenant == testutil.TenantA && (subject == "user-reviewer" || subject == "user-owner2" || subject == "user-auditor"), nil
+	return tenant == testutil.TenantA && (subject == "user-reviewer" || subject == "user-owner2" || subject == "user-auditor" || native.additionalSubjects[subject]), nil
 }
 
 func governanceRequest(r *gin.Engine, method, path, token, body string) *httptest.ResponseRecorder {

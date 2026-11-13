@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "registry_sha256": "7fc25d915e7da2f6fa772d12e4e302775065927f37baea6b31ce46ecd87d0cd3",
+  "registry_sha256": "aa2a4839b51358374661e670aeb9942b762dbb4655ec750efb721817ca41a0c9",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
     "total": 1092,
@@ -3168,7 +3168,7 @@
           },
           {
             "path": "backend/internal/modules/iam/governance.sql",
-            "sha256": "25116b692552d008aeb4416b8f061db2322c52c52a67ae4a498209bf0b76534f",
+            "sha256": "fc5292aa135422a1a8336179fd04f12b4bb368d535d87fc89198361750d10600",
             "symbol": "iam_governance_owner"
           },
           {
@@ -3217,7 +3217,7 @@
           },
           {
             "path": "backend/internal/modules/iam/governance.sql",
-            "sha256": "25116b692552d008aeb4416b8f061db2322c52c52a67ae4a498209bf0b76534f",
+            "sha256": "fc5292aa135422a1a8336179fd04f12b4bb368d535d87fc89198361750d10600",
             "symbol": "iam_governance_owner"
           }
         ],
@@ -4352,7 +4352,7 @@
           },
           {
             "path": "backend/internal/modules/iam/governance.sql",
-            "sha256": "25116b692552d008aeb4416b8f061db2322c52c52a67ae4a498209bf0b76534f",
+            "sha256": "fc5292aa135422a1a8336179fd04f12b4bb368d535d87fc89198361750d10600",
             "symbol": "iam_governance_owner"
           }
         ],
@@ -4406,7 +4406,7 @@
           },
           {
             "path": "backend/internal/modules/iam/governance.sql",
-            "sha256": "25116b692552d008aeb4416b8f061db2322c52c52a67ae4a498209bf0b76534f",
+            "sha256": "fc5292aa135422a1a8336179fd04f12b4bb368d535d87fc89198361750d10600",
             "symbol": "iam_governance_decision_guard"
           }
         ],

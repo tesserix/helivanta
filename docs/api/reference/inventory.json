@@ -1191,7 +1191,7 @@
         },
         {
           "id": "0047_iam_governance",
-          "sql_sha256": "584bd5730f5153e6052ff82e281b4e5b47b34f44f4479930550babf2deb87862",
+          "sql_sha256": "fc5292aa135422a1a8336179fd04f12b4bb368d535d87fc89198361750d10600",
           "creates_tables": [
             "iam_governance_grants",
             "iam_governance_owner_notices",

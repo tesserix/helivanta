@@ -232,7 +232,7 @@ BEGIN
  IF NOT FOUND OR current_setting('app.iam_governance_command',true) IS DISTINCT FROM 'decision'
  OR command.actor_subject IS DISTINCT FROM NULLIF(current_setting('app.actor_subject',true),'')
  OR NEW.version<>command.result_version OR NEW.updated_at<>command.created_at OR NEW.updated_at<=OLD.updated_at
- OR NEW.status IS DISTINCT FROM CASE command.decision WHEN 'approve' THEN 'active' WHEN 'reject' THEN 'rejected' ELSE 'revoked' END THEN
+ OR NEW.status IS DISTINCT FROM (CASE command.decision WHEN 'approve' THEN 'active' WHEN 'reject' THEN 'rejected' ELSE 'revoked' END) THEN
   RAISE EXCEPTION 'governance transition requires its retained decision' USING ERRCODE='23514';
  END IF;
  RETURN NEW;

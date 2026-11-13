@@ -242,4 +242,49 @@ func TestGovernanceIndependentAuditorReviewsAnotherGrantAndRetainsBothReceipts(t
 	initial := governanceRequest(r, http.MethodPut, "/v1/iam/governance-grants/"+grant.String(), "admin", grantBody)
 	require.Equal(t, 202, initial.Code, initial.Body.String())
 	require.JSONEq(t, original.Body.String(), initial.Body.String(), "creation replay cannot masquerade as the later current head")
+
+	changed := governanceRequest(r, http.MethodPut, path(grant, command), "auditor", strings.Replace(decision, "Independent synthetic source examined", "Changed command reason", 1))
+	require.Equal(t, 409, changed.Code, changed.Body.String())
+	stale := governanceRequest(r, http.MethodPut, path(grant, uuid.Must(uuid.NewV7())), "auditor", decision)
+	require.Equal(t, 409, stale.Code, stale.Body.String())
+	inbox := governanceRequest(r, http.MethodGet, "/v1/iam/governance-notices", "admin", "")
+	require.Equal(t, 200, inbox.Code, inbox.Body.String())
+	var notices struct {
+		Data []iam.GovernanceOwnerNotice `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(inbox.Body.Bytes(), &notices))
+	require.Len(t, notices.Data, 4, "two grants, approval and revocation each notify the current owner exactly once")
+	privateInbox := governanceRequest(r, http.MethodGet, "/v1/iam/governance-notices", "auditor", "")
+	require.Equal(t, 403, privateInbox.Code, privateInbox.Body.String())
+
+	pending, _, _ := makeGrant("user-reviewer", "workforce.account_link_reviewer.v1", "hospital", &hospital)
+	native.unavailable = true
+	unavailable := governanceRequest(r, http.MethodPut, path(pending, uuid.Must(uuid.NewV7())), "auditor", decision)
+	require.Equal(t, 503, unavailable.Code, unavailable.Body.String())
+	native.unavailable = false
+	unchanged := governanceRequest(r, http.MethodGet, "/v1/iam/governance-grants/"+pending.String(), "admin", "")
+	require.Equal(t, 200, unchanged.Code, unchanged.Body.String())
+	require.NoError(t, json.Unmarshal(unchanged.Body.Bytes(), &current))
+	require.EqualValues(t, 1, current.Version)
+	require.Equal(t, "provisional_active", current.Status)
+
+	// A different retained grant keeps coarse routing membership after auditor revocation.
+	makeGrant("user-auditor", "workforce.account_link_reviewer.v1", "hospital", &hospital)
+	var revokedSource atomic.Bool
+	native.before = func(context.Context) error {
+		if revokedSource.CompareAndSwap(false, true) {
+			withdrawn := governanceRequest(r, http.MethodPut, path(auditor, uuid.Must(uuid.NewV7())), "admin", `{"expected_version":1,"decision":"revoke","reason":"Withdraw auditor between preflight and commit"}`)
+			require.Equal(t, 202, withdrawn.Code, withdrawn.Body.String())
+		}
+		return nil
+	}
+	lostAuthority := governanceRequest(r, http.MethodPut, path(pending, uuid.Must(uuid.NewV7())), "auditor", decision)
+	require.True(t, revokedSource.Load(), "the independent authority changes while native eligibility runs outside locks")
+	require.Equal(t, 403, lostAuthority.Code, lostAuthority.Body.String())
+	native.before = nil
+	unchanged = governanceRequest(r, http.MethodGet, "/v1/iam/governance-grants/"+pending.String(), "admin", "")
+	require.Equal(t, 200, unchanged.Code, unchanged.Body.String())
+	require.NoError(t, json.Unmarshal(unchanged.Body.Bytes(), &current))
+	require.EqualValues(t, 1, current.Version, "stale route permission cannot commit the pending approval")
+	require.Equal(t, "provisional_active", current.Status)
 }

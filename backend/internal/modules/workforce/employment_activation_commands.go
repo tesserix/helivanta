@@ -83,7 +83,7 @@ func (h *handlers) putEmploymentActivation(c *gin.Context) {
 	}
 	guard := &activationCommandGuard{owner: owner}
 	var result EmploymentGenerationView
-	err = h.employmentActivationWithGuard(c, p, hospital, staff, in.ReviewID, guard, func(tx *gorm.DB, source IdentitySource, authority *intakeAuthority) error {
+	err = h.employmentActivationWithGuard(c, p, hospital, staff, in.ReviewID, guard, &employmentActivationIntent{Generation: id, Command: in.CommandID, StaffVersion: *in.StaffVersion, Epoch: *in.EmploymentEpoch}, func(tx *gorm.DB, source IdentitySource, authority *employmentActivationAuthority) error {
 		var locked struct{ ID uuid.UUID }
 		if err := tx.Table("workforce_staff").Select("id").Clauses(clause.Locking{Strength: "UPDATE"}).Where("tenant_id=? AND hospital_id=? AND id=?", p.TenantID, hospital, staff).Take(&locked).Error; err != nil {
 			return err
@@ -110,7 +110,7 @@ func (h *handlers) putEmploymentActivation(c *gin.Context) {
 		if review.RevisionID != in.ReviewRevisionID || review.Version != *in.ReviewVersion || source.StaffVersion != *in.StaffVersion || source.EmploymentEpoch != *in.EmploymentEpoch {
 			return errEmploymentReviewConflict
 		}
-		readiness, err := employmentActivationSource(tx, p, source, review, authority.Actor)
+		readiness, err := employmentActivationSource(tx, p, source, review, authority)
 		if err != nil {
 			return err
 		}
@@ -133,7 +133,7 @@ func (h *handlers) putEmploymentActivation(c *gin.Context) {
 			until = *review.Terms.EndsAt
 		}
 		if review.AccessIntent == "digital" {
-			if err := guard.writer.ConsumeEmploymentBasis(guard.ctx, authz.EmploymentBasis{TenantID: p.TenantID, HospitalID: hospital, Subject: review.DeclaredSubject, StaffID: staff, GenerationID: id, EmploymentEpoch: source.EmploymentEpoch + 1, Until: until}); err != nil {
+			if err := authority.consume(authz.EmploymentBasis{TenantID: p.TenantID, HospitalID: hospital, Subject: review.DeclaredSubject, StaffID: staff, GenerationID: id, EmploymentEpoch: source.EmploymentEpoch + 1, Until: until}); err != nil {
 				return err
 			}
 		}

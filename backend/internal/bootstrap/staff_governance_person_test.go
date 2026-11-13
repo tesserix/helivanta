@@ -482,6 +482,20 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 			require.NoError(t, json.Unmarshal(retained.Authority, &proof))
 			require.Equal(t, activationGrant.String(), proof["source_grant_id"])
 			require.Equal(t, "workforce.employment.activate", proof["capability"])
+			if err := tx.Exec("SELECT set_config('app.workforce_subject','user-admin',true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_generation','read',true),set_config('app.workforce_generation_staff',?,true)", roots[0].String(), staff[0].String()).Error; err != nil {
+				return err
+			}
+			var generationProof struct{ GovernanceAuthority json.RawMessage }
+			if err := tx.Table("workforce_employment_generations").Select("governance_authority").Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", testutil.TenantA, roots[0], staff[0], generation).Take(&generationProof).Error; err != nil {
+				return err
+			}
+			var retainedGeneration map[string]any
+			require.NoError(t, json.Unmarshal(generationProof.GovernanceAuthority, &retainedGeneration))
+			require.Equal(t, activationGrant.String(), retainedGeneration["source_grant_id"])
+			require.Equal(t, generation.String(), retainedGeneration["generation_id"])
+			require.Equal(t, "employment_activation", retainedGeneration["purpose"])
+			require.NotContains(t, retainedGeneration, "actor_staff_id")
+			require.NotContains(t, retainedGeneration, "actor_link_id")
 			var roles []string
 			if err := tx.Table("iam_members").Where("tenant_id=? AND subject='user-ordinary'", testutil.TenantA).Order("role_key").Pluck("role_key", &roles).Error; err != nil {
 				return err

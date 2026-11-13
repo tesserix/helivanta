@@ -377,3 +377,24 @@ fallback requires both exact tenant/account headers, so this compatibility does
 not admit owner/delegate operations with an unbound workspace. Staff-source audit
 keeps an explicit `scoped_staff` kind alongside the six existing metadata fields;
 no clinical or personal values enter that read audit.
+
+## Candidate first-hire activation adoption
+
+WF0106 separates activation from review purpose. The command uses the real scoped
+activation/enrollment bundle or a current owner/exact activation grant. The latter
+must enter IAM's exact-Staff typed activation callback and consume its writer
+inside that lifetime; it cannot use generic source authorization for IAM writes.
+The private generation proof binds source, actor, hospital, Staff, review,
+generation, command and expected Staff version/epoch. A late Staff UPDATE fence
+permits only inactive→active plus the owned version/epoch/timestamp changes. The
+existing frozen-source generation guard and deferred receipt remain mandatory.
+Purpose policies deny all other Workforce writes/deletes, even under inherited
+owner/manager authority. Prerequisite checks require recording/transition/receipt
+support, forced RLS, purpose/delete policies and no runtime TRUNCATE privilege.
+
+The source API is readonly; it cannot consume a writer or update Staff. No fake
+Staff/link or HR-intake context is manufactured. Callback/dependency failures do
+not switch sources, and a shared five-second budget bounds the command. All
+current-head database/replay/rollback acceptance is pending. No runtime
+release flag changes are included, and native account linking, scoped operating
+approval, settlement, UI and pharmacy acceptance remain unfinished.

@@ -12065,7 +12065,9 @@
         },
         {
           "permission": "workforce.employment.activate",
-          "roles": []
+          "roles": [
+            "governance_delegate"
+          ]
         },
         {
           "permission": "workforce.employment.review",
@@ -13374,6 +13376,11 @@
         {
           "id": "0105_workforce_employment_review_authority",
           "sql_sha256": "157a113fe0af836853e0b0f2d266acd2c2793f25d1421a88099faea4a1c973db",
+          "creates_tables": []
+        },
+        {
+          "id": "0106_workforce_employment_activation_authority",
+          "sql_sha256": "fab115785d4f3b8ac4270742119624be9db1c70d72a7e20126d5473b7a89dda7",
           "creates_tables": []
         }
       ]

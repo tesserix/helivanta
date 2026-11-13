@@ -234,10 +234,13 @@ Implementation: `backend/internal/modules/workforce`. Design: [ADR 0009](../adr/
 ## Reviewed-source activation — production enabled
 
 `GET /v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/activation-source?employment_activation=v1`
-requires exact original tenant/subject headers, current scoped activation **and**
-enrollment grants, and an active independently reviewed Staff/login actor. Legacy
-administration cannot substitute. Both grant receipts are retained in the
-sensitive-read audit. The minimized source returns exact review/source revisions,
+requires exact original tenant/subject headers and either current scoped
+activation/enrollment grants with a real reviewed actor, or candidate WF0106
+owner/exact nonclinical activation authority. The mutation path additionally
+requires the typed IAM exact-Staff writer and its separate private purpose;
+legacy manager access or a generic source alone cannot substitute. Actual scoped
+or governance evidence is retained in private generation proof and sensitive-read
+audit. This candidate addition is not established by the historical release. The minimized source returns exact review/source revisions,
 term dates and eligibility state without private evidence or terms metadata.
 
 A separate `workforce.employment_activator.v1` template contains only

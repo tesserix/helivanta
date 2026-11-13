@@ -166,7 +166,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "7b788d6bf88eb907c02c3802646393e4e9aaddfcf2347fe147ec533d00a72073",
+          "sha256": "d02d5ad02f1814d912bf3446da6fbd7121f8975e9a302cce822a2560b11b85c3",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -262,7 +262,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "7b788d6bf88eb907c02c3802646393e4e9aaddfcf2347fe147ec533d00a72073",
+          "sha256": "d02d5ad02f1814d912bf3446da6fbd7121f8975e9a302cce822a2560b11b85c3",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -368,7 +368,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "7b788d6bf88eb907c02c3802646393e4e9aaddfcf2347fe147ec533d00a72073",
+          "sha256": "d02d5ad02f1814d912bf3446da6fbd7121f8975e9a302cce822a2560b11b85c3",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -459,7 +459,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "7b788d6bf88eb907c02c3802646393e4e9aaddfcf2347fe147ec533d00a72073",
+          "sha256": "d02d5ad02f1814d912bf3446da6fbd7121f8975e9a302cce822a2560b11b85c3",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -550,7 +550,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "7b788d6bf88eb907c02c3802646393e4e9aaddfcf2347fe147ec533d00a72073",
+          "sha256": "d02d5ad02f1814d912bf3446da6fbd7121f8975e9a302cce822a2560b11b85c3",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -641,7 +641,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "7b788d6bf88eb907c02c3802646393e4e9aaddfcf2347fe147ec533d00a72073",
+          "sha256": "d02d5ad02f1814d912bf3446da6fbd7121f8975e9a302cce822a2560b11b85c3",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -752,7 +752,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "7b788d6bf88eb907c02c3802646393e4e9aaddfcf2347fe147ec533d00a72073",
+          "sha256": "d02d5ad02f1814d912bf3446da6fbd7121f8975e9a302cce822a2560b11b85c3",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -878,7 +878,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "7b788d6bf88eb907c02c3802646393e4e9aaddfcf2347fe147ec533d00a72073",
+          "sha256": "d02d5ad02f1814d912bf3446da6fbd7121f8975e9a302cce822a2560b11b85c3",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -937,7 +937,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "7b788d6bf88eb907c02c3802646393e4e9aaddfcf2347fe147ec533d00a72073",
+          "sha256": "d02d5ad02f1814d912bf3446da6fbd7121f8975e9a302cce822a2560b11b85c3",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1001,7 +1001,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "7b788d6bf88eb907c02c3802646393e4e9aaddfcf2347fe147ec533d00a72073",
+          "sha256": "d02d5ad02f1814d912bf3446da6fbd7121f8975e9a302cce822a2560b11b85c3",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1167,7 +1167,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "7b788d6bf88eb907c02c3802646393e4e9aaddfcf2347fe147ec533d00a72073",
+          "sha256": "d02d5ad02f1814d912bf3446da6fbd7121f8975e9a302cce822a2560b11b85c3",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1211,7 +1211,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "7b788d6bf88eb907c02c3802646393e4e9aaddfcf2347fe147ec533d00a72073",
+          "sha256": "d02d5ad02f1814d912bf3446da6fbd7121f8975e9a302cce822a2560b11b85c3",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1255,7 +1255,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "7b788d6bf88eb907c02c3802646393e4e9aaddfcf2347fe147ec533d00a72073",
+          "sha256": "d02d5ad02f1814d912bf3446da6fbd7121f8975e9a302cce822a2560b11b85c3",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1314,7 +1314,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "7b788d6bf88eb907c02c3802646393e4e9aaddfcf2347fe147ec533d00a72073",
+          "sha256": "d02d5ad02f1814d912bf3446da6fbd7121f8975e9a302cce822a2560b11b85c3",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1358,7 +1358,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "7b788d6bf88eb907c02c3802646393e4e9aaddfcf2347fe147ec533d00a72073",
+          "sha256": "d02d5ad02f1814d912bf3446da6fbd7121f8975e9a302cce822a2560b11b85c3",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1402,7 +1402,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "7b788d6bf88eb907c02c3802646393e4e9aaddfcf2347fe147ec533d00a72073",
+          "sha256": "d02d5ad02f1814d912bf3446da6fbd7121f8975e9a302cce822a2560b11b85c3",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1446,7 +1446,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "7b788d6bf88eb907c02c3802646393e4e9aaddfcf2347fe147ec533d00a72073",
+          "sha256": "d02d5ad02f1814d912bf3446da6fbd7121f8975e9a302cce822a2560b11b85c3",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1494,7 +1494,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "7b788d6bf88eb907c02c3802646393e4e9aaddfcf2347fe147ec533d00a72073",
+          "sha256": "d02d5ad02f1814d912bf3446da6fbd7121f8975e9a302cce822a2560b11b85c3",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -4153,7 +4153,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "7b788d6bf88eb907c02c3802646393e4e9aaddfcf2347fe147ec533d00a72073",
+          "sha256": "d02d5ad02f1814d912bf3446da6fbd7121f8975e9a302cce822a2560b11b85c3",
           "symbol": "h.getBusinessProfile"
         },
         {
@@ -4407,7 +4407,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "7b788d6bf88eb907c02c3802646393e4e9aaddfcf2347fe147ec533d00a72073",
+          "sha256": "d02d5ad02f1814d912bf3446da6fbd7121f8975e9a302cce822a2560b11b85c3",
           "symbol": "h.personAuthorityScopeCandidates"
         },
         {
@@ -4434,6 +4434,92 @@
       "remaining": [
         "Run real owner/delegate/reviewed-Staff discovery and source-revocation acceptance through Global API, including sibling/foreign scope, filtered empty pages, stale cursors, credential changes and dependency failures.",
         "Complete remote migration/rollback evidence and recipient-operated review acceptance before production rollout; this source classification does not establish complete first-staff onboarding."
+      ]
+    },
+    {
+      "id": "http workforce GET /v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/activation-source",
+      "registration_sha256": "b4f023b137e9229435411f37aca8a022fc0bfc62ac1dd8155ce53ebdad8f4190",
+      "authority_kind": "mixed",
+      "resource_scope": "Verified tenant/account, exact hospital/Staff/approved review and activation intent; real scoped activation/enrollment actor or current owner/exact activation grant with an exact-target typed IAM writer.",
+      "rationale": "Candidate activation preserves actual scoped Staff authority and admits a separate current owner/exact hospital employment activation source. Mutation requires the typed GovernanceEmploymentActivationGuard writer; generic source authorization cannot supply it. Expected workspace/account, target, generation, command, next epoch and source leases are bound, and no business/dependency failure retries under an alternative authority. WF0106 owns a separate private purpose, immutable generation source and late Staff transition fence. Only inactive-to-active with owned version/epoch/timestamp changes is permitted; identity/job/contact/master edits are denied. Existing approved-source validation and deferred generation receipt remain required. Mandatory recorder/transition/receipt support, forced RLS, purpose/delete policies and no runtime TRUNCATE privilege fail closed. Selected source records are readonly and all other Workforce writes/deletes are denied, even inherited manager access. Actual private owner/grant evidence is retained outside public wire/event models. The digital first-hire test reproduced403 after its exact activation grant; current candidate PostgreSQL/FGA, replay/rollback/fault and production acceptance is pending. This classification does not enable live release or establish account linking, operating scope, UI or pharmacy access.",
+      "authority_sources": [
+        {
+          "path": "backend/internal/modules/workforce/employment_activation_authority.go",
+          "symbol": "func (h *handlers) withActivationAuthority(",
+          "sha256": "a966ed74cc98054476a3f37b634987b8fd8f8dd90321e90f41a519ea004ae9b0"
+        },
+        {
+          "path": "backend/internal/modules/workforce/employment_activation_authority.go",
+          "symbol": "func installActivationAuthority(",
+          "sha256": "a966ed74cc98054476a3f37b634987b8fd8f8dd90321e90f41a519ea004ae9b0"
+        },
+        {
+          "path": "backend/internal/modules/workforce/employment_activation_authority.sql",
+          "symbol": "CREATE FUNCTION workforce_activation_governance_source(",
+          "sha256": "fab115785d4f3b8ac4270742119624be9db1c70d72a7e20126d5473b7a89dda7"
+        },
+        {
+          "path": "backend/internal/modules/workforce/employment_activation_authority.sql",
+          "symbol": "CREATE FUNCTION workforce_governance_staff_activation(",
+          "sha256": "fab115785d4f3b8ac4270742119624be9db1c70d72a7e20126d5473b7a89dda7"
+        },
+        {
+          "path": "backend/internal/modules/workforce/employment_activation_authority.sql",
+          "symbol": "CREATE FUNCTION workforce_employment_generation_governance_record(",
+          "sha256": "fab115785d4f3b8ac4270742119624be9db1c70d72a7e20126d5473b7a89dda7"
+        },
+        {
+          "path": "backend/internal/modules/workforce/employment_activation_commands.go",
+          "symbol": "func (h *handlers) putEmploymentActivation(",
+          "sha256": "e9711d726163cef49f945c502b1ba2bf73dc1a148f1af02396dac13d9c2c0376"
+        }
+      ],
+      "remaining": [
+        "Verify current-head real database source/command, same-source replay, source/gen proof, exact transition, self/wrong/stale/cross-scope denial, source revocation, recording/RLS faults and atomic IAM/Workforce rollback.",
+        "Complete reviewed account linking, operating-duty review, scope publication/settlement, UI and actual hospital/independent pharmacy access; require named live WF0106 approval after acceptance/rollback evidence."
+      ]
+    },
+    {
+      "id": "http workforce PUT /v1/workforce/hospitals/:hospital/staff/:id/employment-activations/:activation",
+      "registration_sha256": "7f4e1e46dedbb8b8c9b73070f4042de12d364732b53b6e7b90d5cd1349ea1786",
+      "authority_kind": "mixed",
+      "resource_scope": "Verified tenant/account, exact hospital/Staff/approved review and activation intent; real scoped activation/enrollment actor or current owner/exact activation grant with an exact-target typed IAM writer.",
+      "rationale": "Candidate activation preserves actual scoped Staff authority and admits a separate current owner/exact hospital employment activation source. Mutation requires the typed GovernanceEmploymentActivationGuard writer; generic source authorization cannot supply it. Expected workspace/account, target, generation, command, next epoch and source leases are bound, and no business/dependency failure retries under an alternative authority. WF0106 owns a separate private purpose, immutable generation source and late Staff transition fence. Only inactive-to-active with owned version/epoch/timestamp changes is permitted; identity/job/contact/master edits are denied. Existing approved-source validation and deferred generation receipt remain required. Mandatory recorder/transition/receipt support, forced RLS, purpose/delete policies and no runtime TRUNCATE privilege fail closed. Selected source records are readonly and all other Workforce writes/deletes are denied, even inherited manager access. Actual private owner/grant evidence is retained outside public wire/event models. The digital first-hire test reproduced403 after its exact activation grant; current candidate PostgreSQL/FGA, replay/rollback/fault and production acceptance is pending. This classification does not enable live release or establish account linking, operating scope, UI or pharmacy access.",
+      "authority_sources": [
+        {
+          "path": "backend/internal/modules/workforce/employment_activation_authority.go",
+          "symbol": "func (h *handlers) withActivationAuthority(",
+          "sha256": "a966ed74cc98054476a3f37b634987b8fd8f8dd90321e90f41a519ea004ae9b0"
+        },
+        {
+          "path": "backend/internal/modules/workforce/employment_activation_authority.go",
+          "symbol": "func installActivationAuthority(",
+          "sha256": "a966ed74cc98054476a3f37b634987b8fd8f8dd90321e90f41a519ea004ae9b0"
+        },
+        {
+          "path": "backend/internal/modules/workforce/employment_activation_authority.sql",
+          "symbol": "CREATE FUNCTION workforce_activation_governance_source(",
+          "sha256": "fab115785d4f3b8ac4270742119624be9db1c70d72a7e20126d5473b7a89dda7"
+        },
+        {
+          "path": "backend/internal/modules/workforce/employment_activation_authority.sql",
+          "symbol": "CREATE FUNCTION workforce_governance_staff_activation(",
+          "sha256": "fab115785d4f3b8ac4270742119624be9db1c70d72a7e20126d5473b7a89dda7"
+        },
+        {
+          "path": "backend/internal/modules/workforce/employment_activation_authority.sql",
+          "symbol": "CREATE FUNCTION workforce_employment_generation_governance_record(",
+          "sha256": "fab115785d4f3b8ac4270742119624be9db1c70d72a7e20126d5473b7a89dda7"
+        },
+        {
+          "path": "backend/internal/modules/workforce/employment_activation_commands.go",
+          "symbol": "func (h *handlers) putEmploymentActivation(",
+          "sha256": "e9711d726163cef49f945c502b1ba2bf73dc1a148f1af02396dac13d9c2c0376"
+        }
+      ],
+      "remaining": [
+        "Verify current-head real database source/command, same-source replay, source/gen proof, exact transition, self/wrong/stale/cross-scope denial, source revocation, recording/RLS faults and atomic IAM/Workforce rollback.",
+        "Complete reviewed account linking, operating-duty review, scope publication/settlement, UI and actual hospital/independent pharmacy access; require named live WF0106 approval after acceptance/rollback evidence."
       ]
     }
   ]

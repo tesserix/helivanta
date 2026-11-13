@@ -238,6 +238,41 @@ concurrency and rollback acceptance remains pending. First activation, authority
 reviewer UI, selected draft/document authoring and full Staff/pharmacy acceptance
 are separate unfinished gates. Approval of terms leaves Staff inactive.
 
+## Candidate first employment activation consumer
+
+The activation source and command now have a separate candidate nonclinical
+union. Existing scoped actors retain their exact activation/enrollment assignment
+bundle and real reviewed Staff identity. A current owner or exact hospital
+`workforce.employment_activator.v1` grant may instead inspect the selected approved
+basis. A mutation requires IAM's typed `GovernanceEmploymentActivationGuard`,
+which supplies an exact-target writer only inside the guarded transaction. The
+consumer never substitutes a Staff actor, HR-intake link or generic IAM source
+for that writer. Scope dependency errors and entered business callbacks cannot
+trigger a fallback to an alternative source. A shared five-second budget applies.
+
+Candidate WF0106 gives activation its own private purpose, distinct from review.
+Read access is limited to the target Staff, selected review and required frozen
+source records. The only writes are the exact Staff transition, its immutable
+generation and attributable activation audit. A final BEFORE UPDATE fence rejects
+changes to Staff identity, job, contact or other master columns and checks the
+expected version/epoch and approved basis. The existing deferred receipt guard
+still requires a matching generation before commit. Ordinary IAM membership,
+basis/history/proof and Workforce state remain in the same command transaction.
+
+Each new generation privately retains the actual owner/grant source, lease,
+membership incarnation, owner count and exact command target. Public generation
+models/events omit that proof. Missing/mismatched recording, transition or receipt
+support, missing purpose/delete policies, unforced RLS or runtime TRUNCATE
+privilege denies governance activation before disclosure. New Workforce tables
+must acquire both private policies. Binary rollback preserves retained proof.
+
+The real digital first-hire regression currently reproduces 403 at activation
+source after its exact activation grant, with person/employment approval already
+complete. Current candidate database, replay, rollback and dependency-failure
+acceptance remains pending. This candidate changes no runtime activation flag; reconcile the deployed flag
+against authorized GitOps configuration before rollout. It does not establish operating-duty approval, reviewed account
+linking, scope publication, reviewer UI or actual pharmacy access.
+
 ## Release and remaining acceptance
 
 Candidate migrations are `0047_iam_governance`,
@@ -245,7 +280,8 @@ Candidate migrations are `0047_iam_governance`,
 User rollout approval has been received; these migrations have not been applied
 to the live environment. New candidate
 `0104_workforce_person_review_authority`,
-`0105_workforce_employment_review_authority` and
+`0105_workforce_employment_review_authority`,
+`0106_workforce_employment_activation_authority` and
 `0048_iam_governance_employment_bases` have not been approved for live application.
 Before rollout, complete the remaining source consumers, owner-count admission,
 ledger/role admission guards, frontend, remote PostgreSQL/FGA/race/recovery tests

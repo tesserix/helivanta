@@ -59,6 +59,7 @@ export function middleware(req: NextRequest) {
     pathname === "/workspace" ||
     pathname === "/signup" ||
     pathname === "/signup/verify" ||
+    pathname === "/staff/accept" ||
     [
       "/api/v1/auth/signup",
       "/api/v1/auth/signup/verify-email",
@@ -66,6 +67,10 @@ export function middleware(req: NextRequest) {
       "/api/v1/auth/signup/email-link",
       "/api/v1/auth/signup/password-link",
       "/api/v1/auth/signup/sign-in",
+      "/api/v1/auth/staff-setup/status",
+      "/api/v1/auth/staff-setup/email",
+      "/api/v1/auth/staff-setup/password",
+      "/api/v1/auth/staff-setup/resend",
     ].includes(pathname) ||
     pathname === "/icon.svg" ||
     pathname === "/ambulance" ||

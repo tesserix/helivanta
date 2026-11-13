@@ -91,3 +91,5 @@ The unreleased [independent operating duty contract](operating-duties.md) record
 
 - [Supplier trade](supplier-trade.md): current source facts, pharmacy scope/withdrawal and bilateral consent; remaining effective-grant/fulfilment/financial consumers are explicitly not complete.
 - [Supplier access](supplier-access.md): source offers, hospital consent, current recipient and record-scoped projection gates; no supplier tenant membership.
+
+[Staff recipient setup](staff-recipient-setup.md) documents the candidate public capability handoff and its remaining access gates.

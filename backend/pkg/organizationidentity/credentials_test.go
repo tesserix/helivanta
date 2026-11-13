@@ -186,3 +186,60 @@ func TestMachineCredentialWaitIsCancellable(t *testing.T) {
 		t.Fatal("credential exchange ignored caller cancellation")
 	}
 }
+
+func TestClientSecretCredentialIsPrivateScopedAndCachesOnlyShortLivedTokens(t *testing.T) {
+	var calls atomic.Int32
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		client, encodedSecret, ok := r.BasicAuth()
+		secret, decodeErr := url.QueryUnescape(encodedSecret)
+		if !ok || decodeErr != nil || client != "TEST-machine" || secret != "PRIVATE+:/=secret" || r.Header.Get("Cookie") != "" || r.URL.Path != "/oauth/v2/token" || r.Method != http.MethodPost || r.ParseForm() != nil {
+			t.Error("client credential escaped its private token exchange")
+		}
+		if r.PostForm.Get("grant_type") != "client_credentials" || r.PostForm.Get("scope") != "openid urn:zitadel:iam:org:project:id:TEST-project:aud" || r.PostForm.Get("client_secret") != "" || r.PostForm.Get("assertion") != "" {
+			t.Error("unexpected credential grant or audience")
+		}
+		_, _ = w.Write([]byte(`{"access_token":"TEST-access","token_type":"Bearer","expires_in":120}`))
+	}))
+	defer server.Close()
+	jar, _ := cookiejar.New(nil)
+	u, _ := url.Parse(server.URL)
+	jar.SetCookies(u, []*http.Cookie{{Name: "browser", Value: "PRIVATE-cookie"}})
+	client := server.Client()
+	client.Jar = jar
+	tokens, err := organizationidentity.NewClientTokens("TEST-machine", []byte("PRIVATE+:/=secret\n"), server.URL, "TEST-project", client)
+	if err != nil {
+		t.Fatal("dedicated client secret rejected")
+	}
+	for range 2 {
+		token, err := tokens.Token(t.Context())
+		if err != nil || token != "TEST-access" {
+			t.Fatal("client exchange unavailable")
+		}
+	}
+	if calls.Load() != 1 {
+		t.Fatal("short lived credential not cached")
+	}
+	if strings.Contains(fmt.Sprintf("%+v|%#v", tokens, *tokens), "PRIVATE+:/=secret") || strings.Contains(fmt.Sprintf("%+v", tokens), "TEST-access") {
+		t.Fatal("diagnostic credential disclosure")
+	}
+}
+
+func TestClientSecretCredentialRejectsUnsafeConfiguration(t *testing.T) {
+	for _, test := range []struct{ name, client, secret, issuer, project string }{
+		{"empty client", "", "PRIVATE-secret", "https://auth.test", "TEST-project"},
+		{"empty secret", "TEST-machine", "", "https://auth.test", "TEST-project"},
+		{"secret newline", "TEST-machine", "PRIVATE\nsecret", "https://auth.test", "TEST-project"},
+		{"oversize secret", "TEST-machine", strings.Repeat("x", 8193), "https://auth.test", "TEST-project"},
+		{"insecure issuer", "TEST-machine", "PRIVATE-secret", "http://auth.test", "TEST-project"},
+		{"issuer query", "TEST-machine", "PRIVATE-secret", "https://auth.test?x=1", "TEST-project"},
+		{"empty audience", "TEST-machine", "PRIVATE-secret", "https://auth.test", ""},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			tokens, err := organizationidentity.NewClientTokens(test.client, []byte(test.secret), test.issuer, test.project, http.DefaultClient)
+			if err == nil || tokens != nil || strings.Contains(err.Error(), "PRIVATE") {
+				t.Fatal("unsafe configuration accepted or disclosed")
+			}
+		})
+	}
+}

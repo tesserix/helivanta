@@ -6,9 +6,12 @@ The existing hospital owner successfully signed in. The live Staff page showed
 its hospital name, Main branch and an empty directory. Add staff opened the
 hospital-scoped enrollment form. No Staff record, invitation, pharmacy, outlet,
 login link or access grant was submitted during this checkpoint. Live form entry
-paused when Chrome moved to another website.
+continues through the Global API. The private backend client accepted the owner
+password and is waiting for the owner's existing TOTP. Anonymous forged identity
+headers returned 401 on Workforce, Pharmacy and IAM reads. No live test record has
+been created by this acceptance run.
 
-The MFA UI candidate uses six separate digit inputs for both verification and
+The deployed MFA UI uses six separate digit inputs for both verification and
 enrollment confirmation, retaining server verification and tenant policy. This
 change does not enroll factors or change authentication policy for test staff.
 Release and browser evidence must be recorded separately from unit evidence.
@@ -37,12 +40,21 @@ has no new-account email invitation action. The identity owner's existing
 ORG_USER_MANAGER and ORG_OWNER_VIEWER, with ORG_OWNER as the omitted-role default.
 It is unsuitable for ordinary Staff provisioning.
 
-Existing candidate work is [identity PR #22](https://github.com/tesserix/onboarding-service/pull/22)
+The deployed identity foundation is [identity PR #22](https://github.com/tesserix/onboarding-service/pull/22)
 and [schema PR #1616](https://github.com/tesserix/tesserix-k8s/pull/1616).
-Both were still draft and open at this checkpoint. The owner candidate retains
-role-free creation and recovery evidence, but its own acceptance record leaves
-HMS Admin → recipient → independent reviewer integration open. Do not duplicate
-this owner or merge its schema as a side effect of creating test records.
+Both are merged. Schema bootstrap is synced/healthy and the identity API is on
+revision `9d9cf3985a0be825f918e799ee13b37cbab27db8` with two ready replicas, verified
+by Kargo. The owner retains role-free creation and recovery evidence. Its recipient
+extension is [identity PR #36](https://github.com/tesserix/onboarding-service/pull/36),
+using additive [schema PR #1672](https://github.com/tesserix/tesserix-k8s/pull/1672).
+The extension adds bounded recipient setup and durable native-command
+acknowledgements. PostgreSQL-backed CI run 43331027800 passed, including
+the projection-delay regression, race tests and container checks. The HMS recipient page and same-origin rate-limited handoff are implemented
+in the current candidate and await release acceptance; protected account creation,
+ordinary membership, reviewed Staff linking and first-reviewer bootstrap are not
+yet accepted. Do not infer effective access from the recipient page or native
+credential setup. Do not duplicate the identity owner or apply a new schema as a
+side effect of creating test records.
 The complete flow and the authorized first-reviewer bootstrap must be verified
 before claiming new Staff can sign in and operate. Do not satisfy a bootstrap
 gap by assigning broad tenant-admin rights to a test account or self-approving.
@@ -106,3 +118,15 @@ fixtures prove their own scenarios; they do not prove delivered invitations,
 recipient verification, live reviewer bootstrap or hospital pharmacy acceptance.
 The related [identity audit](staff-identity-provisioning-audit.md) and
 [Staff tracker](staff-management-progress.md) retain broader open acceptance gates.
+
+## Dedicated machine configuration
+
+Read-only runtime discovery found the operator-managed
+`helivanta-onboarding-client` ready with `clientSecret` credentials, but no
+`ORGANIZATION_IDENTITY_*` configuration on the HMS API. The candidate now accepts
+either its existing machine key or the dedicated client-ID/client-secret file,
+never both. Client credentials exchange only for the configured onboarding
+audience; cookies/redirects are disabled and only bounded short-lived tokens are
+cached. Dedicated credentials must come from the existing scoped OpenBao reader.
+GitOps configuration and live product-machine eligibility still require acceptance;
+a ready operator object is not proof that staff provisioning works.

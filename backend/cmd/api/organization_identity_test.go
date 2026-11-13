@@ -58,3 +58,26 @@ func TestOrganisationIdentityLoadsOnlyTheDedicatedBoundedCredential(t *testing.T
 		t.Fatal("missing credential file did not fail safely")
 	}
 }
+
+func TestOrganisationIdentityAcceptsOnlyOneDedicatedCredentialType(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "client-secret")
+	if err := os.WriteFile(file, []byte("PRIVATE-dedicated-secret"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg := config.Config{OrganizationIdentityURL: "https://onboard.tesserix.app", OrganizationIdentityProductKey: "helivanta", OrganizationIdentityTokenProjectID: "TEST-project", OrganizationIdentityClientID: "TEST-machine", OrganizationIdentityClientSecretFile: file, ZitadelIssuerURL: "https://auth.tesserix.app"}
+	client, err := newOrganizationIdentity(cfg)
+	if err != nil || client == nil {
+		t.Fatal("dedicated operator client secret could not construct identity client")
+	}
+	cfg.OrganizationIdentityKeyFile = file
+	client, err = newOrganizationIdentity(cfg)
+	if err == nil || client != nil || strings.Contains(err.Error(), "PRIVATE") {
+		t.Fatal("ambiguous credentials were accepted or exposed")
+	}
+	cfg.OrganizationIdentityKeyFile = ""
+	cfg.OrganizationIdentityClientID = ""
+	client, err = newOrganizationIdentity(cfg)
+	if err == nil || client != nil {
+		t.Fatal("partial client credentials were accepted")
+	}
+}

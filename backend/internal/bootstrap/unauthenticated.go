@@ -22,6 +22,7 @@ import (
 // must be a route that *cannot* work any other way.
 // #nosec G101 -- These are public route paths and rationales, never credentials.
 var UnauthenticatedRoutes = map[string]string{
+	"POST /v1/auth/staff-setup/:action":  "same-origin, rate-limited opaque Staff invitation and native proof; grants no business access",
 	"POST /v1/auth/accounts":             "same-origin mailbox proof before private separate-account discovery",
 	"POST /v1/auth/accounts/verify":      "browser-bound one-use mailbox proof; no application access",
 	"GET /v1/auth/accounts":              "bounded display-only choices after mailbox proof, no session required",
@@ -73,6 +74,12 @@ var UnauthenticatedRoutes = map[string]string{
 	// service, which is the failure mode these exist to prevent.
 	"GET /healthz": "liveness probe; an authenticated probe cannot report health before auth works",
 	"GET /readyz":  "readiness probe; same reason, and it must answer during a dependency outage",
+}
+
+// MountStaffSetup mounts only the recipient capability endpoint before sign-in.
+func MountStaffSetup(e *gin.Engine, handler gin.HandlerFunc) {
+	mustHandler("POST /v1/auth/staff-setup/:action", handler)
+	e.POST("/v1/auth/staff-setup/:action", handler)
 }
 
 // MountUnauthenticated registers the routes that cannot sit behind the

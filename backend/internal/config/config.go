@@ -47,15 +47,17 @@ type Config struct {
 	RazorpayAPIURL string
 	// PaymentsWebhookBaseURL is the public origin of the Global API that
 	// Razorpay webhooks reach; unset means webhooks are not exposed.
-	PaymentsWebhookBaseURL             string
-	OpenBaoAuthRole                    string
-	OpenBaoTokenPath                   string
-	OrganizationIdentityURL            string
-	OrganizationIdentityProductKey     string
-	OrganizationIdentityTokenProjectID string
-	OrganizationIdentityKeyFile        string
-	OpenFGAURL                         string
-	OpenFGAStore                       string
+	PaymentsWebhookBaseURL               string
+	OpenBaoAuthRole                      string
+	OpenBaoTokenPath                     string
+	OrganizationIdentityURL              string
+	OrganizationIdentityProductKey       string
+	OrganizationIdentityTokenProjectID   string
+	OrganizationIdentityKeyFile          string
+	OrganizationIdentityClientID         string
+	OrganizationIdentityClientSecretFile string
+	OpenFGAURL                           string
+	OpenFGAStore                         string
 
 	// ZitadelIssuerURL and ZitadelClientID configure the standard-OIDC
 	// verifier in pkg/authn/zitadel.go (spike
@@ -246,37 +248,39 @@ func Load() Config {
 		// ADMIN_DATABASE_URL: that role is the schema owner, FORCE RLS
 		// binds it, and every cross-tenant read would return zero rows
 		// while reporting success — which is #894 exactly.
-		SystemDatabaseURL:                  getenv("SYSTEM_DATABASE_URL", "postgres://helivanta_system:helivanta_system@localhost:5432/helivanta?sslmode=disable"),
-		NATSURL:                            getenv("NATS_URL", "nats://localhost:4222"),
-		ValkeyURL:                          getenv("VALKEY_URL", ""),
-		ValkeyTimeout:                      getenvDuration("VALKEY_TIMEOUT", 100*time.Millisecond),
-		DocumentQuarantineBucket:           os.Getenv("DOCUMENT_QUARANTINE_BUCKET"),
-		DocumentReleasedBucket:             os.Getenv("DOCUMENT_RELEASED_BUCKET"),
-		TemporalAddress:                    os.Getenv("TEMPORAL_ADDRESS"),
-		TemporalNamespace:                  os.Getenv("TEMPORAL_NAMESPACE"),
-		DocumentWorkerDatabaseURL:          os.Getenv("DOCUMENT_WORKER_DATABASE_URL"),
-		EmergencyWorkerDatabaseURL:         os.Getenv("EMERGENCY_WORKER_DATABASE_URL"),
-		PrivacyWorkerDatabaseURL:           os.Getenv("PRIVACY_WORKER_DATABASE_URL"),
-		ProxyClinicalCaptureEnabled:        os.Getenv("PATIENTMASTER_PROXY_CLINICAL_CAPTURE_ENABLED") == "true",
-		PrivacyDeadlinesEnabled:            os.Getenv("PRIVACY_DEADLINES_ENABLED") == "true",
-		EmergencyDispatchEnabled:           os.Getenv("EMERGENCY_DISPATCH_ENABLED") == "true",
-		AllergyRecordingEnabled:            os.Getenv("MEDICORE_ALLERGY_RECORDING_ENABLED") == "true",
-		PharmacyEvidenceEnabled:            os.Getenv("PHARMACY_EVIDENCE_ENABLED") == "true",
-		EmergencyWorkflowsEnabled:          os.Getenv("EMERGENCY_WORKFLOWS_ENABLED") == "true" || os.Getenv("EMERGENCY_DISPATCH_ENABLED") == "true",
-		EmploymentActivationEnabled:        os.Getenv("WORKFORCE_EMPLOYMENT_ACTIVATION_ENABLED") == "true",
-		ClamAVAddress:                      os.Getenv("CLAMAV_ADDRESS"),
-		OpenBaoAddr:                        os.Getenv("OPENBAO_ADDR"),
-		OpenBaoTransitMount:                os.Getenv("OPENBAO_TRANSIT_MOUNT"),
-		RazorpayAPIURL:                     getenv("RAZORPAY_API_URL", "https://api.razorpay.com"),
-		PaymentsWebhookBaseURL:             os.Getenv("PAYMENTS_WEBHOOK_BASE_URL"),
-		OpenBaoAuthRole:                    os.Getenv("OPENBAO_AUTH_ROLE"),
-		OpenBaoTokenPath:                   os.Getenv("OPENBAO_TOKEN_PATH"),
-		OrganizationIdentityURL:            os.Getenv("ORGANIZATION_IDENTITY_URL"),
-		OrganizationIdentityProductKey:     os.Getenv("ORGANIZATION_IDENTITY_PRODUCT_KEY"),
-		OrganizationIdentityTokenProjectID: os.Getenv("ORGANIZATION_IDENTITY_TOKEN_PROJECT_ID"),
-		OrganizationIdentityKeyFile:        os.Getenv("ORGANIZATION_IDENTITY_KEY_FILE"),
-		OpenFGAURL:                         getenv("OPENFGA_URL", "http://localhost:8090"),
-		OpenFGAStore:                       getenv("OPENFGA_STORE", "helivanta"),
+		SystemDatabaseURL:                    getenv("SYSTEM_DATABASE_URL", "postgres://helivanta_system:helivanta_system@localhost:5432/helivanta?sslmode=disable"),
+		NATSURL:                              getenv("NATS_URL", "nats://localhost:4222"),
+		ValkeyURL:                            getenv("VALKEY_URL", ""),
+		ValkeyTimeout:                        getenvDuration("VALKEY_TIMEOUT", 100*time.Millisecond),
+		DocumentQuarantineBucket:             os.Getenv("DOCUMENT_QUARANTINE_BUCKET"),
+		DocumentReleasedBucket:               os.Getenv("DOCUMENT_RELEASED_BUCKET"),
+		TemporalAddress:                      os.Getenv("TEMPORAL_ADDRESS"),
+		TemporalNamespace:                    os.Getenv("TEMPORAL_NAMESPACE"),
+		DocumentWorkerDatabaseURL:            os.Getenv("DOCUMENT_WORKER_DATABASE_URL"),
+		EmergencyWorkerDatabaseURL:           os.Getenv("EMERGENCY_WORKER_DATABASE_URL"),
+		PrivacyWorkerDatabaseURL:             os.Getenv("PRIVACY_WORKER_DATABASE_URL"),
+		ProxyClinicalCaptureEnabled:          os.Getenv("PATIENTMASTER_PROXY_CLINICAL_CAPTURE_ENABLED") == "true",
+		PrivacyDeadlinesEnabled:              os.Getenv("PRIVACY_DEADLINES_ENABLED") == "true",
+		EmergencyDispatchEnabled:             os.Getenv("EMERGENCY_DISPATCH_ENABLED") == "true",
+		AllergyRecordingEnabled:              os.Getenv("MEDICORE_ALLERGY_RECORDING_ENABLED") == "true",
+		PharmacyEvidenceEnabled:              os.Getenv("PHARMACY_EVIDENCE_ENABLED") == "true",
+		EmergencyWorkflowsEnabled:            os.Getenv("EMERGENCY_WORKFLOWS_ENABLED") == "true" || os.Getenv("EMERGENCY_DISPATCH_ENABLED") == "true",
+		EmploymentActivationEnabled:          os.Getenv("WORKFORCE_EMPLOYMENT_ACTIVATION_ENABLED") == "true",
+		ClamAVAddress:                        os.Getenv("CLAMAV_ADDRESS"),
+		OpenBaoAddr:                          os.Getenv("OPENBAO_ADDR"),
+		OpenBaoTransitMount:                  os.Getenv("OPENBAO_TRANSIT_MOUNT"),
+		RazorpayAPIURL:                       getenv("RAZORPAY_API_URL", "https://api.razorpay.com"),
+		PaymentsWebhookBaseURL:               os.Getenv("PAYMENTS_WEBHOOK_BASE_URL"),
+		OpenBaoAuthRole:                      os.Getenv("OPENBAO_AUTH_ROLE"),
+		OpenBaoTokenPath:                     os.Getenv("OPENBAO_TOKEN_PATH"),
+		OrganizationIdentityURL:              os.Getenv("ORGANIZATION_IDENTITY_URL"),
+		OrganizationIdentityProductKey:       os.Getenv("ORGANIZATION_IDENTITY_PRODUCT_KEY"),
+		OrganizationIdentityTokenProjectID:   os.Getenv("ORGANIZATION_IDENTITY_TOKEN_PROJECT_ID"),
+		OrganizationIdentityKeyFile:          os.Getenv("ORGANIZATION_IDENTITY_KEY_FILE"),
+		OrganizationIdentityClientID:         os.Getenv("ORGANIZATION_IDENTITY_CLIENT_ID"),
+		OrganizationIdentityClientSecretFile: os.Getenv("ORGANIZATION_IDENTITY_CLIENT_SECRET_FILE"),
+		OpenFGAURL:                           getenv("OPENFGA_URL", "http://localhost:8090"),
+		OpenFGAStore:                         getenv("OPENFGA_STORE", "helivanta"),
 
 		ZitadelIssuerURL: getenv("ZITADEL_ISSUER_URL", "http://auth.tesserix.localhost:20080"),
 		ZitadelClientID:  getenv("ZITADEL_CLIENT_ID", ""),

@@ -418,6 +418,7 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 		OperatingAuthorizer:         operatingAuthorizer,
 		IndependentStaff:            platform.IndependentStaffIdentities(opts.Modules, db),
 		GovernanceTopology:          platform.GovernanceTopology(opts.Modules, db),
+		GovernanceSources:           platform.GovernanceSources(opts.Modules, db),
 		OperatingLocations:          platform.OperatingLocations(opts.Modules, db),
 		TradingEndpoints:            platform.TradingEndpoints(opts.Modules, db, platform.DepartmentReferences(opts.Modules, db)),
 		Membership:                  membership,

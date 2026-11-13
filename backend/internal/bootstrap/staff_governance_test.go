@@ -18,6 +18,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/workforce"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"gorm.io/gorm"
 )
@@ -54,10 +55,11 @@ func governanceRequest(r *gin.Engine, method, path, token, body string) *httptes
 
 func TestGovernanceSingleOwnerGrantRetainsIntentAndNotifiesEveryOwner(t *testing.T) {
 	native := &governanceNativeIdentity{}
+	modules := []platform.Module{iam.New(nil).SetMembershipIdentityReader(native), workforce.New()}
 	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
-		Tokens:  map[string]string{"admin": testutil.TenantA},
-		Perms:   map[string][]authz.Permission{"admin": {"iam.governance.manage", "iam.governance.read", workforce.PermHospitalManage}},
-		Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(native), workforce.New()},
+		Tokens:  map[string]string{"admin": testutil.TenantA, "owner2": testutil.TenantA},
+		Perms:   map[string][]authz.Permission{"admin": {"iam.governance.manage", "iam.governance.read", "iam.governance.review", workforce.PermHospitalManage}, "owner2": {"iam.governance.review"}},
+		Modules: modules,
 	})
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key)VALUES(?,'user-admin','tenant_admin'),(?,'user-reviewer','staff_member')`, testutil.TenantA, testutil.TenantA).Error
@@ -118,6 +120,60 @@ func TestGovernanceSingleOwnerGrantRetainsIntentAndNotifiesEveryOwner(t *testing
 		require.EqualValues(t, 1, count, "replay cannot produce a second grant or grant audit")
 		return nil
 	}))
+	guard := platform.GovernanceSources(modules, db)
+	for _, missing := range [][]platform.Module{nil, {modules[0]}, {modules[1]}, {modules[0], modules[0], modules[1]}, {modules[0], modules[1], modules[1]}} {
+		unavailable := platform.GovernanceSources(missing, db)
+		require.ErrorIs(t, unavailable.WithGovernanceSource(ctx, authz.GovernanceSourceRequest{}, func(context.Context, authz.GovernanceSourceEvidence) error {
+			t.Fatal("missing or duplicate owner cannot call a consumer")
+			return nil
+		}), authz.ErrScopedAuthorizationUnavailable)
+	}
+	use := authz.GovernanceSourceRequest{
+		Principal:  authn.Principal{TenantID: testutil.TenantA, Subject: "user-reviewer", AuthTime: time.Now().Add(-time.Minute), IdleDeadline: time.Now().Add(time.Hour)},
+		Capability: authz.GovernanceAccountLinkReview,
+		Scope:      authz.GovernanceEstablishmentScope{TenantID: testutil.TenantA, Kind: "hospital", ID: &hospital},
+	}
+	calls := 0
+	consume := func(commandCtx context.Context, evidence authz.GovernanceSourceEvidence) error {
+		calls++
+		require.True(t, db.GuardedCommandActive(commandCtx))
+		require.Equal(t, id, evidence.GrantID)
+		require.EqualValues(t, 1, evidence.MembershipEpoch)
+		require.Equal(t, input.TemplateKey, evidence.TemplateKey)
+		require.Equal(t, hospital, *evidence.Scope.ID)
+		require.True(t, evidence.ExpiresAt.Equal(input.ExpiresAt))
+		return nil
+	}
+	require.NoError(t, guard.WithGovernanceSource(ctx, use, consume))
+	require.Equal(t, 1, calls, "grant authority needs no fabricated employment or Staff actor")
+	for _, invalid := range []authz.GovernanceSourceRequest{
+		{Principal: use.Principal, Capability: "invented.capability", Scope: use.Scope},
+		{Principal: use.Principal, Capability: use.Capability, Scope: authz.GovernanceEstablishmentScope{TenantID: testutil.TenantB, Kind: "hospital", ID: &hospital}},
+		{Principal: use.Principal, Capability: use.Capability, Scope: authz.GovernanceEstablishmentScope{TenantID: testutil.TenantA, Kind: "pharmacy", ID: &hospital}},
+	} {
+		require.Error(t, guard.WithGovernanceSource(ctx, invalid, consume))
+	}
+	require.Equal(t, 1, calls)
+	rollback := errors.New("synthetic consumer rollback")
+	require.ErrorIs(t, guard.WithGovernanceSource(ctx, use, func(context.Context, authz.GovernanceSourceEvidence) error { return rollback }), rollback)
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		var count int64
+		require.NoError(t, tx.Table("audit_events").Where("resource_type='iam_governance_grants' AND resource_id=? AND action=?", id, "iam.governance.source.use").Count(&count).Error)
+		require.EqualValues(t, 1, count, "consumer failure rolls back its source-use audit")
+		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key)VALUES(?,'user-owner2','tenant_admin')`, testutil.TenantA).Error
+	}))
+	require.ErrorIs(t, guard.WithGovernanceSource(ctx, use, consume), authz.ErrScopedCommandDenied)
+	require.Equal(t, 1, calls, "adding an owner invalidates provisional use until independent approval")
+	approve := governanceRequest(r, http.MethodPut, path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "owner2", `{"expected_version":1,"decision":"approve","reason":"Second owner independently examined source"}`)
+	require.Equal(t, 202, approve.Code, approve.Body.String())
+	require.NoError(t, guard.WithGovernanceSource(ctx, use, func(commandCtx context.Context, evidence authz.GovernanceSourceEvidence) error {
+		require.EqualValues(t, 2, evidence.Version)
+		return consume(commandCtx, evidence)
+	}))
+	revoke := governanceRequest(r, http.MethodPut, path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "admin", `{"expected_version":2,"decision":"revoke","reason":"Withdraw nonclinical source"}`)
+	require.Equal(t, 202, revoke.Code, revoke.Body.String())
+	require.ErrorIs(t, guard.WithGovernanceSource(ctx, use, consume), authz.ErrScopedCommandDenied)
+	require.Equal(t, 2, calls, "retained coarse membership cannot revive a revoked source")
 	t.Logf("Retained grant %s and owner notice %s; recipient login and operating access are separate acceptance gates", id, inbox.Data[0].ID)
 }
 

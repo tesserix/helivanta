@@ -124,6 +124,29 @@ Missing permission/current owner returns 403. Invisible grant or employer return
 command deadline is 503. Preserve v1 `{error,message}` envelopes; request IDs
 remain in headers.
 
+## Shared command guard
+
+`platform.Deps.GovernanceSources` binds the sole IAM and Workforce owners to
+`authz.CurrentGovernanceSourceGuard`. Its closed capability catalog currently
+contains only `GovernanceAccountLinkReview`, selecting the exact versioned
+account-link reviewer template and one hospital/pharmacy/supplier employer.
+Products construct the request from the verified principal and canonical employer;
+request bodies cannot choose an actor or supply source evidence.
+
+The guard reuses the ledger's bounded source selection, sorted source locks,
+current membership incarnation, credential/session gate, owner-count rules,
+retained approval and current employer topology. Source expiry bounds the command.
+The product callback runs in the same guarded transaction; source-use audit and
+product writes roll back together. Returned grant/version/membership evidence is
+for audit retention; its authority lasts only during that synchronous callback.
+Asynchronous assignment settlement needs separate current-source revalidation.
+
+Only the auditor wrapper enables private audit access to other grants. Ordinary
+source consumers retain access to their selected source rows. Missing/duplicate
+canonical owners or unavailable source dependencies fail closed. This provider is
+wired in the API and test harness; Workforce endpoints have not yet adopted it.
+Its new PostgreSQL consumer-proof tests still require remote acceptance.
+
 ## Client integration
 
 `@helivanta/api` exposes `issueGovernanceGrant`, `readGovernanceGrant`,

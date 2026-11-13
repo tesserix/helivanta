@@ -3835,7 +3835,7 @@
         },
         {
           "path": "backend/internal/modules/iam/governance_review_authority.go",
-          "sha256": "97e0b48a06932a32843cdedceb0f7ddd2cb4091068e6a19c3e6ad05bee54f65c",
+          "sha256": "84ae681b26f245a17b199c58cf1e69325b4d2764de37b588450e8b5246a165a0",
           "symbol": "func (h *governanceHandlers) withReviewer("
         }
       ],
@@ -3927,7 +3927,7 @@
         },
         {
           "path": "backend/internal/modules/iam/governance_review_authority.go",
-          "sha256": "97e0b48a06932a32843cdedceb0f7ddd2cb4091068e6a19c3e6ad05bee54f65c",
+          "sha256": "84ae681b26f245a17b199c58cf1e69325b4d2764de37b588450e8b5246a165a0",
           "symbol": "func (h *governanceHandlers) withReviewer("
         },
         {

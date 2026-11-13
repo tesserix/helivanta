@@ -231,3 +231,11 @@ Live acceptance uses recipient-operated private account setup, real distinct
 reviewers and the existing tenant. Verify reviewed links and scope revocation
 before employment, posting and pharmacy operating tests. This document and a
 successful ordinary invitation do not complete those gates.
+
+The candidate now provides a shared synchronous IAM source guard in
+`platform.Deps.GovernanceSources`, with only account-link review admitted by its
+closed capability catalog. Auditor decisions and product source use share the
+same locked source validator. The ordinary source callback does not enable the
+private auditor read purpose. Source-use audit shares the product transaction;
+source evidence cannot be reused as later or asynchronous authority. Workforce
+consumer adoption and remote acceptance remain unfinished.

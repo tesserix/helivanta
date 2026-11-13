@@ -262,15 +262,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 				return tx.Raw("SELECT changes->'authority' AS authority FROM workforce_audit WHERE tenant_id=? AND hospital_id=? AND actor_subject='user-admin' AND action='workforce.employment_review.governance_person_selection.read' ORDER BY created_at DESC,id DESC LIMIT 1", testutil.TenantA, roots[0]).Take(&recorded).Error
 			}))
 			require.NotEmpty(t, recorded.Authority)
-			writeErr := db.WithTenant(tenantdb.WithActor(ctx, "user-admin"), testutil.TenantA, func(tx *gorm.DB) error {
-				if err := tx.Exec("SELECT set_config('app.workforce_subject','user-admin',true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_identity_staff',?,true),set_config('app.workforce_governance_finding_authority',?,true)", roots[0].String(), staff[0].String(), string(recorded.Authority)).Error; err != nil {
-					return err
-				}
-				return tx.Exec("UPDATE workforce_staff SET display_name='Forbidden finding master edit' WHERE tenant_id=? AND hospital_id=? AND id=?", testutil.TenantA, roots[0], staff[0]).Error
-			})
-			var denied *pgconn.PgError
-			require.ErrorAs(t, writeErr, &denied)
-			require.Equal(t, "42501", denied.Code)
+			assertReadPurposeBlocksStaffMasterEdit(t, db, roots[0], staff[0], "app.workforce_governance_finding_authority", recorded.Authority)
 		})
 		pending := request(t, http.MethodPut, employmentPath+"?hr_intake=v1", "auditor", input, 200)
 		require.Equal(t, "pending", pending["status"])
@@ -376,15 +368,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 				return tx.Raw("SELECT changes->'authority' AS authority FROM workforce_audit WHERE tenant_id=? AND hospital_id=? AND actor_subject='user-admin' AND action='workforce.employment_authority_inbox.read' ORDER BY created_at DESC,id DESC LIMIT 1", testutil.TenantA, roots[0]).Take(&recorded).Error
 			}))
 			require.NotEmpty(t, recorded.Authority)
-			writeErr := db.WithTenant(tenantdb.WithActor(ctx, "user-admin"), testutil.TenantA, func(tx *gorm.DB) error {
-				if err := tx.Exec("SELECT set_config('app.workforce_subject','user-admin',true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_employment_inbox_authority',?,true)", roots[0].String(), string(recorded.Authority)).Error; err != nil {
-					return err
-				}
-				return tx.Exec("UPDATE workforce_staff SET display_name='Forbidden inbox master edit' WHERE tenant_id=? AND hospital_id=? AND id=?", testutil.TenantA, roots[0], staff[0]).Error
-			})
-			var denied *pgconn.PgError
-			require.ErrorAs(t, writeErr, &denied)
-			require.Equal(t, "42501", denied.Code, "inbox purpose denies a master write despite inherited manager access")
+			assertReadPurposeBlocksStaffMasterEdit(t, db, roots[0], staff[0], "app.workforce_employment_inbox_authority", recorded.Authority)
 		})
 		view := request(t, http.MethodGet, employmentPath+"?employment_review=v1", "reviewer", nil, 200)
 		require.Equal(t, true, view["can_approve"])
@@ -765,4 +749,64 @@ CREATE CONSTRAINT TRIGGER test_governance_activation_failure AFTER INSERT ON wor
 		request(t, http.MethodPut, activationPath, intent, 403)
 	})
 
+}
+
+func assertReadPurposeBlocksStaffMasterEdit(t *testing.T, db *tenantdb.DB, hospital, staff uuid.UUID, setting string, proof json.RawMessage) {
+	t.Helper()
+	var sourceQuery string
+	switch setting {
+	case "app.workforce_governance_finding_authority":
+		sourceQuery = "SELECT workforce_governance_finding_source(?::uuid,?::uuid,?::uuid)"
+	case "app.workforce_employment_inbox_authority":
+		sourceQuery = "SELECT workforce_employment_inbox_source(?::uuid,?::uuid)"
+	default:
+		t.Fatal("Unknown read-purpose fixture")
+	}
+	ctx := tenantdb.WithActor(t.Context(), "user-admin")
+	scoped := func(fn func(*gorm.DB) error) error {
+		return db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			if err := tx.Exec("SELECT set_config('app.workforce_subject','user-admin',true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_identity_staff',?,true)", hospital.String(), staff.String()).Error; err != nil {
+				return err
+			}
+			return fn(tx)
+		})
+	}
+	var before struct{ DisplayName string }
+	require.NoError(t, scoped(func(tx *gorm.DB) error {
+		var manager bool
+		require.NoError(t, tx.Raw("SELECT workforce_staff_allowed(?::uuid,?::uuid,true)", testutil.TenantA, hospital).Scan(&manager).Error)
+		require.True(t, manager, "the retained source probe must start with actual manager access")
+		return tx.Table("workforce_staff").Select("display_name").Where("tenant_id=? AND hospital_id=? AND id=?", testutil.TenantA, hospital, staff).Take(&before).Error
+	}))
+	var affected int64
+	writeErr := scoped(func(tx *gorm.DB) error {
+		if err := tx.Exec("SELECT set_config(?,?,true)", setting, string(proof)).Error; err != nil {
+			return err
+		}
+		args := []any{testutil.TenantA, hospital}
+		if setting == "app.workforce_governance_finding_authority" {
+			args = append(args, staff)
+		}
+		var valid bool
+		require.NoError(t, tx.Raw(sourceQuery, args...).Scan(&valid).Error)
+		require.True(t, valid, "an expired or mismatched proof cannot establish purpose isolation")
+		var visible int64
+		require.NoError(t, tx.Table("workforce_staff").Where("tenant_id=? AND hospital_id=? AND id=?", testutil.TenantA, hospital, staff).Count(&visible).Error)
+		require.EqualValues(t, 1, visible, "read purpose must expose the genuine selected Staff before testing writes")
+		result := tx.Exec("UPDATE workforce_staff SET display_name='Forbidden read-purpose master edit' WHERE tenant_id=? AND hospital_id=? AND id=?", testutil.TenantA, hospital, staff)
+		affected = result.RowsAffected
+		return result.Error
+	})
+	if writeErr != nil {
+		var denied *pgconn.PgError
+		require.ErrorAs(t, writeErr, &denied)
+		require.Equal(t, "42501", denied.Code)
+	} else {
+		require.Zero(t, affected, "a read purpose must never update a master row despite manager access")
+	}
+	var after struct{ DisplayName string }
+	require.NoError(t, scoped(func(tx *gorm.DB) error {
+		return tx.Table("workforce_staff").Select("display_name").Where("tenant_id=? AND hospital_id=? AND id=?", testutil.TenantA, hospital, staff).Take(&after).Error
+	}))
+	require.Equal(t, before, after, "the denied write must preserve the stored Staff master")
 }

@@ -13563,7 +13563,7 @@
           },
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
-            "sha256": "c885962b9663879612df8a64084d6cfe2150df87bdb49e7ee4cb91c61c1703cf",
+            "sha256": "4fdbc016d349b78750e47ae23d0a71e1956ab9d7c359dc75ec5528ef7dfd01bd",
             "symbol": "employment authority discovery needs no Staff links"
           }
         ],
@@ -13837,7 +13837,7 @@
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "current employment governance opens only the employer inbox",
-            "sha256": "c885962b9663879612df8a64084d6cfe2150df87bdb49e7ee4cb91c61c1703cf"
+            "sha256": "4fdbc016d349b78750e47ae23d0a71e1956ab9d7c359dc75ec5528ef7dfd01bd"
           }
         ],
         "remaining": [
@@ -16015,7 +16015,7 @@
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "selected finding preparation needs no Staff actor",
-            "sha256": "c885962b9663879612df8a64084d6cfe2150df87bdb49e7ee4cb91c61c1703cf"
+            "sha256": "4fdbc016d349b78750e47ae23d0a71e1956ab9d7c359dc75ec5528ef7dfd01bd"
           }
         ],
         "remaining": [

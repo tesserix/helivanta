@@ -8,7 +8,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
+	"github.com/tesserix/helivanta/internal/platform/requestid"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
@@ -83,11 +85,24 @@ func (h *handlers) putEmploymentActivation(c *gin.Context) {
 	}
 	guard := &activationCommandGuard{owner: owner}
 	var result EmploymentGenerationView
-	err = h.employmentActivationWithGuard(c, p, hospital, staff, in.ReviewID, guard, &employmentActivationIntent{Generation: id, Command: in.CommandID, StaffVersion: *in.StaffVersion, Epoch: *in.EmploymentEpoch}, func(tx *gorm.DB, source IdentitySource, authority *employmentActivationAuthority) error {
+	err = h.employmentActivationWithGuard(c, p, hospital, staff, in.ReviewID, guard, &employmentActivationIntent{Generation: id, Command: in.CommandID, StaffVersion: *in.StaffVersion, Epoch: *in.EmploymentEpoch}, func(tx *gorm.DB, source IdentitySource, authority *employmentActivationAuthority) (commandErr error) {
+		step := "lock_staff"
+		defer func() {
+			if commandErr == nil {
+				return
+			}
+			var pg *pgconn.PgError
+			if errors.As(commandErr, &pg) {
+				requestid.Logger(c).Warn("employment activation database refusal", "step", step, "sqlstate", pg.Code, "constraint", pg.ConstraintName, "table", pg.TableName)
+			} else if errors.Is(commandErr, gorm.ErrRecordNotFound) {
+				requestid.Logger(c).Warn("employment activation source unavailable", "step", step)
+			}
+		}()
 		var locked struct{ ID uuid.UUID }
 		if err := tx.Table("workforce_staff").Select("id").Clauses(clause.Locking{Strength: "UPDATE"}).Where("tenant_id=? AND hospital_id=? AND id=?", p.TenantID, hospital, staff).Take(&locked).Error; err != nil {
 			return err
 		}
+		step = "receipt"
 		prior, err := loadEmploymentGeneration(tx, p, hospital, staff, id)
 		if err == nil {
 			if prior.InputHash != intent || prior.ActivatedBySubject != p.Subject || prior.RevisionID != in.CommandID {
@@ -103,6 +118,7 @@ func (h *handlers) putEmploymentActivation(c *gin.Context) {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
+		step = "review"
 		review, err := loadEmploymentReview(tx, p, hospital, staff, in.ReviewID, uuid.Nil)
 		if err != nil {
 			return err
@@ -110,6 +126,7 @@ func (h *handlers) putEmploymentActivation(c *gin.Context) {
 		if review.RevisionID != in.ReviewRevisionID || review.Version != *in.ReviewVersion || source.StaffVersion != *in.StaffVersion || source.EmploymentEpoch != *in.EmploymentEpoch {
 			return errEmploymentReviewConflict
 		}
+		step = "readiness"
 		readiness, err := employmentActivationSource(tx, p, source, review, authority)
 		if err != nil {
 			return err
@@ -117,6 +134,7 @@ func (h *handlers) putEmploymentActivation(c *gin.Context) {
 		if !readiness.CanActivate {
 			return errEmploymentReviewConflict
 		}
+		step = "links"
 		var oldLinks bool
 		if err := tx.Raw(`SELECT EXISTS(SELECT 1 FROM workforce_login_links WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND status IN ('pending','active'))`, p.TenantID, hospital, staff).Scan(&oldLinks).Error; err != nil {
 			return err
@@ -124,6 +142,7 @@ func (h *handlers) putEmploymentActivation(c *gin.Context) {
 		if oldLinks {
 			return errEmploymentReviewConflict
 		}
+		step = "person"
 		person, err := employmentReviewPerson(tx, p, source, review.PersonReviewID, review.PersonReviewRevisionID, review.PersonReviewVersion)
 		if err != nil {
 			return err
@@ -132,25 +151,30 @@ func (h *handlers) putEmploymentActivation(c *gin.Context) {
 		if review.Terms.EndsAt != nil && review.Terms.EndsAt.Before(until) {
 			until = *review.Terms.EndsAt
 		}
+		step = "iam_basis"
 		if review.AccessIntent == "digital" {
 			if err := authority.consume(authz.EmploymentBasis{TenantID: p.TenantID, HospitalID: hospital, Subject: review.DeclaredSubject, StaffID: staff, GenerationID: id, EmploymentEpoch: source.EmploymentEpoch + 1, Until: until}); err != nil {
 				return err
 			}
 		}
+		step = "staff_transition"
 		if err := tx.Exec(`UPDATE workforce_staff SET employment_status='active',updated_at=clock_timestamp() WHERE tenant_id=? AND hospital_id=? AND id=? AND version=? AND employment_epoch=? AND employment_status='inactive'`, p.TenantID, hospital, staff, source.StaffVersion, source.EmploymentEpoch).Error; err != nil {
 			return err
 		}
 		if err := generationContext(tx, staff, "activate"); err != nil {
 			return err
 		}
+		step = "generation_insert"
 		if err := tx.Exec(`INSERT INTO workforce_employment_generations(tenant_id,hospital_id,staff_id,id,revision_id,version,review_id,review_revision_id,review_version,review_staff_version,review_employment_epoch,staff_version,employment_epoch,identity_hash,identity_epoch,starts_at,ends_at,access_intent,declared_subject,activated_by_subject,reason,input_hash) VALUES(?,?,?,?,?,1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, p.TenantID, hospital, staff, id, in.CommandID, review.ID, review.RevisionID, review.Version, source.StaffVersion, source.EmploymentEpoch, source.StaffVersion+1, source.EmploymentEpoch+1, source.IdentityHash, *review.IdentityEpoch, review.Terms.StartsAt, review.Terms.EndsAt, review.AccessIntent, review.DeclaredSubject, p.Subject, in.Reason, intent).Error; err != nil {
 			return err
 		}
+		step = "generation_read"
 		row, err := loadEmploymentGeneration(tx, p, hospital, staff, id)
 		if err != nil {
 			return err
 		}
 		result = EmploymentGenerationView{Generation: row.EmploymentGeneration, CurrentState: "effective"}
+		step = "audit"
 		if err := employmentActivationAudit(tx, p, hospital, staff, id, 1, "workforce.employment.activated", authority); err != nil {
 			return err
 		}

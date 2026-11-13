@@ -16114,7 +16114,7 @@
           {
             "path": "backend/internal/modules/workforce/employment_activation_commands.go",
             "symbol": "func (h *handlers) putEmploymentActivation(",
-            "sha256": "e9711d726163cef49f945c502b1ba2bf73dc1a148f1af02396dac13d9c2c0376"
+            "sha256": "44acf3017f169531b9bfb9d7e23088a5394f0db0072bcabf2453507d84cde4dc"
           }
         ],
         "remaining": [
@@ -20212,7 +20212,7 @@
           {
             "path": "backend/internal/modules/workforce/employment_activation_commands.go",
             "symbol": "func (h *handlers) putEmploymentActivation(",
-            "sha256": "e9711d726163cef49f945c502b1ba2bf73dc1a148f1af02396dac13d9c2c0376"
+            "sha256": "44acf3017f169531b9bfb9d7e23088a5394f0db0072bcabf2453507d84cde4dc"
           }
         ],
         "remaining": [

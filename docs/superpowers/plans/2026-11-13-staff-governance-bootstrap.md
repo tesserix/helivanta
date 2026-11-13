@@ -74,3 +74,11 @@ remote native owner/storage tests and full preserved Staff/pharmacy regressions
 must establish acceptance. Next wire the strict binding SDK/UI, exact terms reread
 and independent submission/review before merging the full workflow. Do not claim
 a document upload, a prepared binding or green compile as completed initiation.
+
+The native binding SDK/UI, immutable evidence/terms history and explicit native
+finding selection are now implemented in the candidate. Finish the current full
+workspace checks, then remote browser/whole-workflow acceptance. Backend native
+binding acceptance passed source3da62382 in CI43525604797; broader coverage,
+supplier regression and live acceptance are separate. Preserve all remaining
+Staff, assignment/settlement and pharmacy gates; do not close the overall goal on
+this narrower evidence. IAM0048/WF0104-WF0114 remain unapplied live candidates.

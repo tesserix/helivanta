@@ -2245,5 +2245,29 @@ Replay cannot adopt a legacy or changed-source receipt. Current authority, suppo
 Staff basis and attached exact file generation are rechecked during content
 access. Source changes across storage deny disclosure. Historical binding reads
 retain their own terms basis while attaching requires the unchanged current draft.
-No employment, login, posting or access is activated. SDK/UI binding and current
-remote database/browser acceptance remain unfinished; no live migration occurred.
+No employment, login, posting or access is activated. The candidate SDK/UI now binds exact terms and scanned-file metadata, preserves
+uncertain attach/withdraw commands and reads immutable evidence/terms history.
+Native review preparation uses the separate governance person-finding selector;
+it does not retry the Staff selector. Full current database/browser acceptance
+remains required; no live migration occurred.
+
+The binding client validates the selected terms revision, its own historical
+Staff/employment basis and the current expected workspace basis separately. It
+rejects extra/private fields, foreign revisions, unsupported identifiers,
+inconsistent terminal versions, oversized images, invalid media and out-of-range
+file generations. Attach requires an available selected file and unchanged current
+basis; withdrawal keeps the original frozen metadata/generations. Protected reads
+verify bounded size, media and digest. Histories reject ambiguous revisions and
+sealed continuations cannot repeat. Queries isolate tenant/account/hospital/Staff,
+current basis, exact period/revision and historical basis, without persistent cache.
+
+The evidence UI rereads the selected draft before loading its evidence. Changed
+terms block authoring; a later Staff basis permits historical evidence reads and
+withdrawal while disabling new binding/submission. Current released images are
+selected through the closed document family. Uncertain commands retain their
+original identifier, normalized input and selected file snapshot. History and
+protected downloads remain server-authorized, and account transition/unmount aborts
+active I/O. Independent submission uses the existing canonical submission contract
+and explicitly selects native finding discovery. It does not activate employment
+or assign access. These are candidate implementation facts, not deployed browser
+acceptance or completion of the full Staff/pharmacy workflow.

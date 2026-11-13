@@ -1,5 +1,8 @@
 "use client";
-import { listEmploymentPersonFindings } from "./employment-finding-selection";
+import {
+  listEmploymentPersonFindings,
+  listGovernanceEmploymentPersonFindings,
+} from "./employment-finding-selection";
 import { useQuery } from "@tanstack/react-query";
 import {
   listEmploymentReviewScopes,
@@ -93,16 +96,21 @@ export function useEmploymentPersonFindings(
   scope: import("./employment-reviews").EmploymentReviewPreparationScope,
   basis: import("./employment-review-contract").EmploymentPersonFindingSearchInput,
   cursor: string | null,
+  authority: EmploymentReviewBrowseAuthority = "scoped_staff",
 ) {
   return useQuery({
     ...privateRead,
     queryKey: [
       ...employmentReviewsKey(scope),
       "person-findings",
+      authority,
       basis.staff_version,
       basis.employment_epoch,
       cursor,
     ],
-    queryFn: ({ signal }) => listEmploymentPersonFindings(scope, basis, cursor, signal),
+    queryFn: ({ signal }) =>
+      (authority === "governance"
+        ? listGovernanceEmploymentPersonFindings
+        : listEmploymentPersonFindings)(scope, basis, cursor, signal),
   });
 }

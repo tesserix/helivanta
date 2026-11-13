@@ -5,6 +5,7 @@ import { Button, Input } from "@tesserix/web";
 import {
   Field,
   Panel,
+  LoadMore,
   RefreshButton,
   RequestFailure,
   useConfirmLeave,
@@ -18,6 +19,7 @@ import {
   useGovernanceEmploymentSource,
   useGovernanceEmploymentDrafts,
   useGovernanceEmploymentDraft,
+  useGovernanceEmploymentHistory,
   useGovernanceEmploymentSponsors,
   saveGovernanceEmploymentDraft,
   type GovernanceEmploymentTargetScope,
@@ -26,6 +28,7 @@ import {
   type PersonReviewTargetSearchInput,
   type EmploymentPeriodDraft,
 } from "@helivanta/api";
+import { GovernanceEmploymentEvidence } from "./governance-evidence";
 import { GovernanceEmploymentDocuments } from "./governance-documents";
 import { EmploymentTermsForm } from "../employment-periods-panel";
 import { STAFF_ACCESS_CHANGED, useStaffAccessCutoff } from "../staff-access-cutoff";
@@ -177,11 +180,14 @@ function HospitalTerms({
   const [saved, setSaved] = useState(false);
   const [documents, setDocuments] = useState(false);
   const [documentBusy, setDocumentBusy] = useState(false);
+  const [evidence, setEvidence] = useState<EmploymentPeriodDraft | null>(null);
+  const [evidenceBusy, setEvidenceBusy] = useState(false);
+  const [history, setHistory] = useState<string | null>(null);
   const cutoff = useStaffAccessCutoff([source.error, periods.error], onAccessLost);
   useEffect(() => {
-    onBusy(editor !== null || documentBusy);
+    onBusy(editor !== null || documentBusy || evidenceBusy);
     return () => onBusy(false);
-  }, [editor, documentBusy, onBusy]);
+  }, [editor, documentBusy, evidenceBusy, onBusy]);
   if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   return (
     <Panel className="space-y-4 p-4">
@@ -189,7 +195,11 @@ function HospitalTerms({
         <h4 className="font-semibold">
           {target.display_name} · {target.employee_code}
         </h4>
-        <Button variant="ghost" disabled={editor !== null || documentBusy} onClick={onClose}>
+        <Button
+          variant="ghost"
+          disabled={editor !== null || documentBusy || evidenceBusy}
+          onClick={onClose}
+        >
           Choose another Staff record
         </Button>
       </div>
@@ -214,7 +224,19 @@ function HospitalTerms({
       ) : (
         <>
           {saved && <p role="status">Employment terms draft saved.</p>}
-          {documents ? (
+          {evidence ? (
+            <GovernanceEmploymentEvidence
+              scope={{
+                ...scope,
+                staffVersion: source.data.staff_version,
+                employmentEpoch: source.data.employment_epoch,
+              }}
+              terms={evidence}
+              onBusy={setEvidenceBusy}
+              onAccessLost={onAccessLost}
+              onClose={() => setEvidence(null)}
+            />
+          ) : documents ? (
             <GovernanceEmploymentDocuments
               key={`${source.data.staff_version}:${source.data.employment_epoch}`}
               scope={{
@@ -274,6 +296,25 @@ function HospitalTerms({
                         {row.evidence_reference} · Revision {row.version} · {row.status}
                       </p>
                       <p className="text-sm text-muted-foreground">{row.reason}</p>
+                      <Button
+                        variant="ghost"
+                        aria-expanded={history === row.id}
+                        onClick={() => setHistory(history === row.id ? null : row.id)}
+                      >
+                        Terms history for {row.evidence_reference}
+                      </Button>
+                      {history === row.id && (
+                        <GovernanceTermsHistory
+                          scope={scope}
+                          id={row.id}
+                          onAccessLost={onAccessLost}
+                        />
+                      )}
+                      {row.status === "draft" && (
+                        <Button variant="outline" onClick={() => setEvidence(row)}>
+                          Review evidence for {row.evidence_reference}
+                        </Button>
+                      )}
                       {row.status === "draft" && (
                         <Button
                           variant="outline"
@@ -368,5 +409,49 @@ function GovernanceTermsEditor({
       saveDraft={(id, input) => saveGovernanceEmploymentDraft(scope, id, input)}
       invalidate={invalidate}
     />
+  );
+}
+
+function GovernanceTermsHistory({
+  scope,
+  id,
+  onAccessLost,
+}: {
+  scope: GovernanceEmploymentPreparationScope;
+  id: string;
+  onAccessLost: () => void;
+}) {
+  const history = useGovernanceEmploymentHistory(scope, id);
+  const cutoff = useStaffAccessCutoff([history.error], onAccessLost);
+  if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
+  if (history.isPending || history.isFetching) return <p role="status">Checking terms history…</p>;
+  if (history.isError)
+    return (
+      <RequestFailure
+        message="Could not verify exact terms history."
+        error={history.error}
+        retry={history.refetch}
+      />
+    );
+  return (
+    <div className="space-y-3 border-t pt-3">
+      <ol className="space-y-3">
+        {history.data.pages
+          .flatMap((page) => page.data)
+          .map((row) => (
+            <li key={row.revision_id}>
+              <p>
+                Terms revision {row.version} · {row.status}
+              </p>
+              <p className="text-sm text-muted-foreground">{row.reason}</p>
+            </li>
+          ))}
+      </ol>
+      <LoadMore
+        hasMore={history.hasNextPage}
+        isLoading={history.isFetchingNextPage}
+        onClick={() => void history.fetchNextPage()}
+      />
+    </div>
   );
 }

@@ -37,6 +37,7 @@ const schema = z.object({
   ),
 });
 type Props = {
+  authority?: "governance" | "scoped_staff";
   scope: EmploymentReviewPreparationScope;
   terms: EmploymentPeriodDraft;
   evidence: EmploymentEvidenceBinding[];
@@ -45,6 +46,7 @@ type Props = {
   onAccessLost: () => void;
 };
 export function EmploymentReviewPreparation({
+  authority = "scoped_staff",
   scope,
   terms,
   evidence,
@@ -57,6 +59,7 @@ export function EmploymentReviewPreparation({
     scope,
     { staff_version: terms.staff_version, employment_epoch: terms.employment_epoch },
     cursors.at(-1) ?? null,
+    authority,
   );
   const form = useZodForm(schema, {
     person_review_id: "",

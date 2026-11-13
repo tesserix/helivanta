@@ -5,6 +5,7 @@ import {
   getGovernanceEmploymentSource,
   getGovernanceEmploymentDraft,
   listGovernanceEmploymentDrafts,
+  listGovernanceEmploymentHistory,
   searchGovernanceEmploymentTargets,
   type GovernanceEmploymentTargetScope,
   type GovernanceEmploymentPreparationScope,
@@ -15,6 +16,12 @@ import {
   listGovernanceEmploymentDocuments,
   type GovernanceEmploymentDocumentScope,
 } from "./employment-document-preparation";
+
+import {
+  listGovernanceEmploymentEvidence,
+  listGovernanceEmploymentEvidenceHistory,
+  type GovernanceEmploymentBindingScope,
+} from "./employment-binding-preparation";
 
 const privateRead = { gcTime: 0, staleTime: 0, retry: false, refetchOnWindowFocus: false } as const;
 export const governanceEmploymentPreparationKey = (scope: GovernanceEmploymentTargetScope) => [
@@ -92,12 +99,62 @@ export const governanceEmploymentDocumentKey = (scope: GovernanceEmploymentDocum
   scope.staffVersion,
   scope.employmentEpoch,
 ];
-export function useGovernanceEmploymentDocuments(scope: GovernanceEmploymentDocumentScope) {
+export function useGovernanceEmploymentDocuments(
+  scope: GovernanceEmploymentDocumentScope,
+  enabled = true,
+) {
   return useInfiniteQuery({
     ...privateRead,
     queryKey: governanceEmploymentDocumentKey(scope),
+    enabled,
     initialPageParam: null as string | null,
     queryFn: ({ pageParam, signal }) => listGovernanceEmploymentDocuments(scope, pageParam, signal),
+    getNextPageParam: (page) => page.page.next_cursor ?? undefined,
+  });
+}
+
+export const governanceEmploymentBindingKey = (scope: GovernanceEmploymentBindingScope) => [
+  ...governanceEmploymentDocumentKey(scope),
+  "terms-evidence",
+  scope.periodId,
+  scope.periodRevisionId,
+  scope.periodVersion,
+  scope.periodStaffVersion,
+  scope.periodEmploymentEpoch,
+];
+export function useGovernanceEmploymentEvidence(scope: GovernanceEmploymentBindingScope) {
+  return useInfiniteQuery({
+    ...privateRead,
+    queryKey: governanceEmploymentBindingKey(scope),
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam, signal }) => listGovernanceEmploymentEvidence(scope, pageParam, signal),
+    getNextPageParam: (page) => page.page.next_cursor ?? undefined,
+  });
+}
+export function useGovernanceEmploymentEvidenceHistory(
+  scope: GovernanceEmploymentBindingScope,
+  id: string,
+) {
+  return useInfiniteQuery({
+    ...privateRead,
+    queryKey: [...governanceEmploymentBindingKey(scope), "history", id],
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam, signal }) =>
+      listGovernanceEmploymentEvidenceHistory(scope, id, pageParam, signal),
+    getNextPageParam: (page) => page.page.next_cursor ?? undefined,
+  });
+}
+
+export function useGovernanceEmploymentHistory(
+  scope: GovernanceEmploymentPreparationScope,
+  id: string,
+) {
+  return useInfiniteQuery({
+    ...privateRead,
+    queryKey: [...governanceEmploymentPreparationKey(scope), scope.staffId, "terms-history", id],
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam, signal }) =>
+      listGovernanceEmploymentHistory(scope, id, pageParam, signal),
     getNextPageParam: (page) => page.page.next_cursor ?? undefined,
   });
 }

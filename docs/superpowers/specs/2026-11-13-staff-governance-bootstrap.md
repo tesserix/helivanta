@@ -582,8 +582,9 @@ consumed by the employment review through the no-Staff governance route. It also
 covers exact save/edit/replay/conflicting input/stale basis, selected read/history,
 wrong source, original workspace mismatch, disabled provenance trigger, retained
 read-purpose write denial, missing legacy provenance and revoked preparation
-source. These compile; runtime acceptance is pending. UI/SDK preparation adoption,
-document authoring/binding and downstream staffing/access remain unfinished.
+source. These first compiled before runtime acceptance. The later native binding
+acceptance and SDK/UI continuation below supersede this checkpoint; downstream
+staffing/access and complete live acceptance remain unfinished.
 
 WF0110/WF0111 are not approved for live application. Required evidence includes
 remote migration/source/atomicity/retry/negative tests and bounded query plans.
@@ -621,8 +622,9 @@ Requests are no-store and cancellable before/after I/O; 403/503 failures have no
 legacy or linked-Staff fallback. Thirty-three local SDK tests pass after an
 initial missing-module red. Type checking caught a test table flattening its row
 array; corrected cases were rerun as actual duplicate/foreign arrays. Full
-workspace checks and remote current-head acceptance must still pass. This does
-not complete preparation UI or associated document authoring/binding.
+workspace and current-head remote checks were still required at that SDK-only
+checkpoint. The implemented authoring/binding continuation below records the
+subsequent evidence; no individual SDK suite proves the full workflow.
 
 ### Employment preparer target selection
 
@@ -661,8 +663,8 @@ checked against a current source before editing. No general directory or legacy
 intake source is retried. Draft command/period IDs survive uncertain writes for
 exact replay. The recipient and operational workflows remain separate gates.
 Selected governance document authoring is implemented in the candidate below;
-exact terms binding and full workflow acceptance remain unfinished. This is not
-merge-ready.
+exact terms binding is implemented in the subsequent native binding candidate.
+Full workflow acceptance remains unfinished; this is not merge-ready.
 
 ### Selected employment document preparation
 
@@ -826,8 +828,44 @@ Pure proof/source/command tests, backend build, vet, affected Go lint, architect
 collection/migration checks and compile-only bootstrap/Global API checks have
 passed locally. The real native fixture now prepares/scans/binds through an exact
 employment preparer, tests replay/history/withdrawal/source replacement and missing
-support, and keeps independent review downstream. These PostgreSQL/storage tests
-have not yet run on this new candidate and are mandatory before release. No local
-application/database/container was started. SDK/UI binding, remote acceptance and
-full Staff/pharmacy completion remain open. WF0114 is an additive source candidate,
+support, and keeps independent review downstream. The corrected source3da62382
+subsequently passed these PostgreSQL/storage cases as recorded below. No local
+application/database/container was started. SDK/UI binding is implemented below;
+whole-workflow remote/browser and full Staff/pharmacy completion remain open. WF0114 is an additive source candidate,
 not an applied or specifically approved live migration.
+
+### Native binding authoring and review preparation continuation
+
+The candidate now includes a strict native binding SDK and private query hooks,
+selected terms reread, available-file selection, attach/withdraw recovery,
+protected download, evidence history and terms history. It distinguishes current
+expected Staff basis from the bound historical terms basis. A changed terms
+revision prevents authoring; a later Staff basis leaves existing evidence readable
+without enabling a new attachment or submission. Original IDs/input/file metadata
+survive uncertain writes; terminal withdrawal preserves frozen generations. The
+shared review form selects native governance finding discovery explicitly, using
+a separate cache key and no legacy selector fallback. Existing Staff callers keep
+their original discovery consumer. No new public wire schema is copied.
+
+Backend source `3da62382` passed the complete remote **Staff governance input
+boundaries** step in CI `43525604797` at 2026-11-13T23:21:07Z, including the real
+native binding/replay/history/withdrawal, disabled-support and source-replacement
+cases. Its predecessor failed a test helper's unknown read-purpose tag after
+positive binding/list/history/content already passed. The corrected probe reads a
+genuine native owner/admin proof before testing inherited manager-write denial;
+it does not relax the write-denial assertion or alter production authorization.
+This step is not evidence that full coverage/supplier/browser checks passed.
+
+Local focused evidence: 23 binding SDK and 20 selected-file SDK assertions pass;
+the expanded UI exercises attachment recovery, withdrawal/history recovery,
+historical read restrictions, concurrent terms withdrawal, native selector choice
+and the selected-terms entry. Missing component/history/entry and historical-read
+assertions were observed failing before implementation. The final full workspace
+run passed all 30 tasks (21 cached, nine run, 6m11.342s), including 1,990 shell
+and 1,321 API tests. The earlier full run encountered tests while their history/
+historical-read implementation was still being added; the final run used unchanged
+application source and passed. A missing download retry prop was caught by type
+checking and corrected. No assertions or required checks were skipped. Full live Staff initiation, reviewed
+linking, assignment/settlement, operating authority and pharmacy acceptance still
+remain required. No migration, merge, native identity or production mutation has
+been performed in this continuation.

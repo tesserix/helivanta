@@ -12,18 +12,21 @@ import {
   type StaffDocument,
 } from "./documents-fields";
 
-const scopeContract = governanceEmploymentPreparationScopeContract
-  .extend({
-    staffVersion: EmploymentPeriodSourceContract.shape.staff_version,
-    employmentEpoch: EmploymentPeriodSourceContract.shape.employment_epoch,
-  })
-  .strict();
-export type GovernanceEmploymentDocumentScope = z.infer<typeof scopeContract>;
+export const governanceEmploymentDocumentScopeContract =
+  governanceEmploymentPreparationScopeContract
+    .extend({
+      staffVersion: EmploymentPeriodSourceContract.shape.staff_version,
+      employmentEpoch: EmploymentPeriodSourceContract.shape.employment_epoch,
+    })
+    .strict();
+export type GovernanceEmploymentDocumentScope = z.infer<
+  typeof governanceEmploymentDocumentScopeContract
+>;
 const documentContract = staffDocumentSchema.strict();
 const unverified = () =>
   new Error("The employment document could not be verified. Refresh its status before continuing.");
 function workspace(value: GovernanceEmploymentDocumentScope) {
-  const scope = scopeContract.parse(value);
+  const scope = governanceEmploymentDocumentScopeContract.parse(value);
   const query = new URLSearchParams({
     staff_version: String(scope.staffVersion),
     employment_epoch: String(scope.employmentEpoch),

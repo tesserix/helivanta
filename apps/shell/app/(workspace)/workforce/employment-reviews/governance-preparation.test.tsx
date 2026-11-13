@@ -235,3 +235,64 @@ it("opens selected employment files using the current Staff version and epoch", 
     ),
   ).toBe(true);
 });
+
+it("opens evidence from the selected canonical terms revision", async () => {
+  const terms = {
+    id: "019a0000-0000-7000-8000-000000000011",
+    revision_id: "019a0000-0000-7000-8000-000000000012",
+    version: 1,
+    status: "draft",
+    hospital_id: scope.hospitalId,
+    staff_id: staffId,
+    staff_version: 3,
+    employment_epoch: 2,
+    engagement_kind: "employee",
+    duration: "ongoing",
+    starts_at: "2026-11-01T00:00:00Z",
+    contracting_party: "",
+    sponsor_id: "",
+    reason: "Synthetic terms",
+    evidence_reference: "SYN-TERMS",
+    proposed_by_subject: scope.subject,
+    actor_subject: scope.subject,
+    created_at: "2026-11-01T00:00:00Z",
+    updated_at: "2026-11-01T00:00:00Z",
+  };
+  const fetcher = vi.fn(async (url: string) =>
+    Response.json(
+      url.includes("targets/search")
+        ? page([target])
+        : url.endsWith("employment-preparation-source")
+          ? {
+              hospital_id: scope.hospitalId,
+              staff_id: staffId,
+              staff_version: 3,
+              employment_epoch: 2,
+            }
+          : new URL(url, "https://synthetic.invalid").pathname.endsWith(terms.id)
+            ? terms
+            : url.includes("/evidence?")
+              ? page([])
+              : page([terms]),
+    ),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <GovernanceEmploymentPreparation scope={scope} onBusy={() => {}} onAccessLost={() => {}} />
+    </NavigationGuardProvider>,
+  );
+  await user.click(screen.getByRole("button", { name: "Find Staff" }));
+  await user.click(await screen.findByRole("button", { name: "Select Synthetic applicant" }));
+  await user.click(await screen.findByRole("button", { name: "Terms history for SYN-TERMS" }));
+  await screen.findByText("Terms revision 1 · draft");
+  await user.click(await screen.findByRole("button", { name: "Review evidence for SYN-TERMS" }));
+  await screen.findByText("No evidence bound to this terms revision.");
+  expect(
+    fetcher.mock.calls.some(([url]) =>
+      url.includes(
+        `/employment-preparation-periods/${terms.id}/revisions/1/evidence?staff_version=3&employment_epoch=2`,
+      ),
+    ),
+  ).toBe(true);
+});

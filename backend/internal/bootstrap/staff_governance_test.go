@@ -38,7 +38,7 @@ func (native *governanceNativeIdentity) MembershipEligible(ctx context.Context, 
 	if native.unavailable {
 		return false, errors.New("synthetic identity owner unavailable")
 	}
-	return tenant == testutil.TenantA && (subject == "user-reviewer" || subject == "user-owner2"), nil
+	return tenant == testutil.TenantA && (subject == "user-reviewer" || subject == "user-owner2" || subject == "user-auditor"), nil
 }
 
 func governanceRequest(r *gin.Engine, method, path, token, body string) *httptest.ResponseRecorder {
@@ -182,4 +182,64 @@ func TestGovernanceOwnerGrantRefusesStaleAuthorityAndSessionChanges(t *testing.T
 		require.Zero(t, count, "refused commands cannot emit a routing grant")
 		return nil
 	}))
+}
+
+func TestGovernanceIndependentAuditorReviewsAnotherGrantAndRetainsBothReceipts(t *testing.T) {
+	native := &governanceNativeIdentity{}
+	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens: map[string]string{"admin": testutil.TenantA, "auditor": testutil.TenantA},
+		Perms: map[string][]authz.Permission{
+			"admin":   {"iam.governance.manage", "iam.governance.read", "iam.governance.review", workforce.PermHospitalManage},
+			"auditor": {"iam.governance.read", "iam.governance.review"},
+		},
+		Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(native), workforce.New()},
+	})
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key)VALUES(?,'user-admin','tenant_admin'),(?,'user-reviewer','staff_member'),(?,'user-auditor','staff_member')`, testutil.TenantA, testutil.TenantA, testutil.TenantA).Error
+	}))
+	hospital := uuid.Must(uuid.NewV7())
+	created := governanceRequest(r, http.MethodPut, "/v1/workforce/hospitals/"+hospital.String(), "admin", `{"name":"Synthetic independent review hospital"}`)
+	require.Equal(t, 200, created.Code, created.Body.String())
+	start := time.Now().UTC().Add(-time.Hour).Truncate(time.Microsecond)
+	makeGrant := func(subject, key, kind string, scope *uuid.UUID) (uuid.UUID, string, *httptest.ResponseRecorder) {
+		id := uuid.Must(uuid.NewV7())
+		raw, err := json.Marshal(iam.GovernanceGrantInput{Subject: subject, ExpectedMembershipEpoch: 1, TemplateKey: key, ScopeKind: kind, ScopeID: scope, Reason: "Synthetic independent nonclinical review", ValidFrom: start, ExpiresAt: start.Add(24 * time.Hour)})
+		require.NoError(t, err)
+		response := governanceRequest(r, http.MethodPut, "/v1/iam/governance-grants/"+id.String(), "admin", string(raw))
+		require.Equal(t, 202, response.Code, response.Body.String())
+		return id, string(raw), response
+	}
+	grant, grantBody, original := makeGrant("user-reviewer", "workforce.account_link_reviewer.v1", "hospital", &hospital)
+	auditor, _, _ := makeGrant("user-auditor", "iam.governance_auditor.v1", "tenant", nil)
+	decision := `{"expected_version":1,"decision":"approve","reason":"Independent synthetic source examined"}`
+	path := func(parent, command uuid.UUID) string {
+		return "/v1/iam/governance-grants/" + parent.String() + "/decisions/" + command.String()
+	}
+	issuer := governanceRequest(r, http.MethodPut, path(grant, uuid.Must(uuid.NewV7())), "admin", decision)
+	require.Equal(t, 403, issuer.Code, issuer.Body.String(), "the issuer cannot call their own decision independent")
+	self := governanceRequest(r, http.MethodPut, path(auditor, uuid.Must(uuid.NewV7())), "auditor", decision)
+	require.Equal(t, 403, self.Code, self.Body.String(), "the recipient cannot approve their own auditor grant")
+	command := uuid.Must(uuid.NewV7())
+	approved := governanceRequest(r, http.MethodPut, path(grant, command), "auditor", decision)
+	require.Equal(t, 202, approved.Code, approved.Body.String())
+	var receipt iam.GovernanceGrantDecisionReceipt
+	require.NoError(t, json.Unmarshal(approved.Body.Bytes(), &receipt))
+	require.Equal(t, command, receipt.ID)
+	require.Equal(t, grant, receipt.GrantID)
+	require.Equal(t, "user-auditor", receipt.ActorSubject)
+	require.EqualValues(t, 2, receipt.ResultVersion)
+	head := governanceRequest(r, http.MethodGet, "/v1/iam/governance-grants/"+grant.String(), "auditor", "")
+	require.Equal(t, 200, head.Code, head.Body.String())
+	var current iam.GovernanceGrantReceipt
+	require.NoError(t, json.Unmarshal(head.Body.Bytes(), &current))
+	require.Equal(t, "active", current.Status)
+	require.EqualValues(t, 2, current.Version)
+	revoked := governanceRequest(r, http.MethodPut, path(grant, uuid.Must(uuid.NewV7())), "admin", `{"expected_version":2,"decision":"revoke","reason":"Withdraw synthetic review authority"}`)
+	require.Equal(t, 202, revoked.Code, revoked.Body.String())
+	replay := governanceRequest(r, http.MethodPut, path(grant, command), "auditor", decision)
+	require.Equal(t, 202, replay.Code, replay.Body.String())
+	require.JSONEq(t, approved.Body.String(), replay.Body.String(), "decision replay returns the retained decision after later revocation")
+	initial := governanceRequest(r, http.MethodPut, "/v1/iam/governance-grants/"+grant.String(), "admin", grantBody)
+	require.Equal(t, 202, initial.Code, initial.Body.String())
+	require.JSONEq(t, original.Body.String(), initial.Body.String(), "creation replay cannot masquerade as the later current head")
 }

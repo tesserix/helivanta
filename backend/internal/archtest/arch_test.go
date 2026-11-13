@@ -450,6 +450,7 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /iam/governance-grants/:id":                      "one retained governance grant and its current stored head; no collection",
 	"GET /iam/staff-account-commands/:id":                 "one immutable identity-owner command receipt bound to its exact tenant and initiating owner; never a collection",
 	"GET /pharmacy/pharmacies/:pharmacy/business-profile": "one scoped pharmacy business profile",
 	"GET /workforce/hospitals/:hospital/business-profile": "one scoped hospital business profile",

@@ -258,7 +258,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 				require.NotContains(t, authority, "actor_link_id")
 				require.NotContains(t, authority, "actor_staff_id")
 			}
-			proof = append(proof, history[1].GovernanceAuthority...)
+			proof = append(json.RawMessage(nil), history[1].GovernanceAuthority...)
 			return nil
 		}))
 		writeErr := db.WithTenant(tenantdb.WithActor(ctx, "user-reviewer"), testutil.TenantA, func(tx *gorm.DB) error {

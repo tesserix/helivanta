@@ -413,9 +413,9 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	}
 	provenanceMigration := []tenantdb.Migration{legacyEstablishmentKindRemoval}
 	var generationMigration tenantdb.Migration
-	upgrade := false
+	upgrade, partnerGroupScope := false, false
 	for _, migration := range workforce.New().Migrations() {
-		if migration.ID == "0102_workforce_governance_topology" || migration.ID == "0103_workforce_login_review_authority" || migration.ID == "0104_workforce_person_review_authority" {
+		if migration.ID == "0102_workforce_governance_topology" || migration.ID == "0103_workforce_login_review_authority" || migration.ID == "0104_workforce_person_review_authority" || migration.ID == "0105_workforce_employment_review_authority" {
 			continue
 		}
 		if migration.ID == "0066_workforce_employment_generations" {
@@ -428,11 +428,12 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		upgrade = upgrade || migration.ID == "0059_workforce_employment_document_provenance"
 		if upgrade {
 			provenanceMigration = append(provenanceMigration, migration)
+			partnerGroupScope = partnerGroupScope || migration.ID == "0090_workforce_partner_group_scope"
 		}
 	}
 	require.Greater(t, len(provenanceMigration), 1)
 	require.Equal(t, "0059_workforce_employment_document_provenance", provenanceMigration[1].ID)
-	require.Equal(t, "0090_workforce_partner_group_scope", provenanceMigration[len(provenanceMigration)-1].ID)
+	require.True(t, partnerGroupScope, "the provenance phase must include the named partner-group scope migration")
 	require.NoError(t, db.Migrate(ctx, provenanceMigration))
 	file := uuid.Must(uuid.NewV7()).String()
 	filePath := staffBase + "/documents/" + file
@@ -2255,7 +2256,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				require.EqualValues(t, beforeEvidenceBoundary+1, sourceAudits(), "only the original authorized source use commits audit evidence")
 
 				for _, migration := range workforce.New().Migrations() {
-					if migration.ID == "0073_workforce_posting_drafts" || migration.ID == "0074_workforce_scoped_postings" || migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" || migration.ID == "0081_workforce_posting_chain_approvals" || migration.ID == "0082_workforce_posting_supervisor_choices" || migration.ID == "0083_workforce_posting_supervisor_choice_index" || migration.ID == "0084_workforce_posting_cutoffs" || migration.ID == "0085_workforce_posting_lifecycle_reviews" || migration.ID == "0086_workforce_posting_source_use" || migration.ID == "0087_workforce_department_posting_scope" || migration.ID == "0091_workforce_partner_member_candidates" || migration.ID == "0089_workforce_leave_department_scope" || migration.ID == "0092_workforce_pharmacy_staff_directory" || migration.ID == "0093_workforce_supplier_staff" || migration.ID == "0094_workforce_independent_identity" || migration.ID == "0095_workforce_pharmacy_enrollment" || migration.ID == "0096_workforce_business_profile" || migration.ID == "0097_workforce_hospital_names" || migration.ID == "0098_workforce_pharmacy_documents" || migration.ID == "0099_workforce_pharmacy_employment_periods" || migration.ID == "0100_workforce_pharmacy_credential_reviews" || migration.ID == "0101_workforce_hospital_name_receipts" || migration.ID == "0102_workforce_governance_topology" || migration.ID == "0103_workforce_login_review_authority" || migration.ID == "0104_workforce_person_review_authority" {
+					if migration.ID == "0073_workforce_posting_drafts" || migration.ID == "0074_workforce_scoped_postings" || migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" || migration.ID == "0081_workforce_posting_chain_approvals" || migration.ID == "0082_workforce_posting_supervisor_choices" || migration.ID == "0083_workforce_posting_supervisor_choice_index" || migration.ID == "0084_workforce_posting_cutoffs" || migration.ID == "0085_workforce_posting_lifecycle_reviews" || migration.ID == "0086_workforce_posting_source_use" || migration.ID == "0087_workforce_department_posting_scope" || migration.ID == "0091_workforce_partner_member_candidates" || migration.ID == "0089_workforce_leave_department_scope" || migration.ID == "0092_workforce_pharmacy_staff_directory" || migration.ID == "0093_workforce_supplier_staff" || migration.ID == "0094_workforce_independent_identity" || migration.ID == "0095_workforce_pharmacy_enrollment" || migration.ID == "0096_workforce_business_profile" || migration.ID == "0097_workforce_hospital_names" || migration.ID == "0098_workforce_pharmacy_documents" || migration.ID == "0099_workforce_pharmacy_employment_periods" || migration.ID == "0100_workforce_pharmacy_credential_reviews" || migration.ID == "0101_workforce_hospital_name_receipts" || migration.ID == "0102_workforce_governance_topology" || migration.ID == "0103_workforce_login_review_authority" || migration.ID == "0104_workforce_person_review_authority" || migration.ID == "0105_workforce_employment_review_authority" {
 						if migration.ID == "0082_workforce_posting_supervisor_choices" {
 							applySupervisorDiscoveryMigration(t, db, ctx, migration)
 						} else {

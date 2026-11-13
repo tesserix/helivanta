@@ -20,6 +20,10 @@ func (*Module) GovernanceSources(db *tenantdb.DB, topology authz.CurrentGovernan
 }
 
 func (g *governanceSourceGuard) WithGovernanceSource(ctx context.Context, req authz.GovernanceSourceRequest, action func(context.Context, authz.GovernanceSourceEvidence) error) error {
+	return g.withGovernanceSource(ctx, req, false, action)
+}
+
+func (g *governanceSourceGuard) withGovernanceSource(ctx context.Context, req authz.GovernanceSourceRequest, activation bool, action func(context.Context, authz.GovernanceSourceEvidence) error) error {
 	if action == nil || g == nil || g.handlers == nil || g.handlers.db == nil || g.handlers.topology == nil {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
@@ -36,7 +40,13 @@ func (g *governanceSourceGuard) WithGovernanceSource(ctx context.Context, req au
 	req.Scope.ID = &id
 	h := g.handlers
 	var callbackErr error
-	err := h.withActor(ctx, req.Principal, func(commandCtx context.Context, tx *gorm.DB, owners []string) error {
+	var prelude func(*gorm.DB) error
+	if activation {
+		prelude = func(tx *gorm.DB) error {
+			return tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended(?,0))`, "iam.employment:"+req.Scope.TenantID+":"+id.String()).Error
+		}
+	}
+	err := h.withActorPrelude(ctx, req.Principal, prelude, func(commandCtx context.Context, tx *gorm.DB, owners []string) error {
 		if slices.Contains(owners, req.Principal.Subject) {
 			var owner member
 			if err := tx.Select("id").Where("tenant_id=? AND subject=? AND role_key='tenant_admin'", req.Principal.TenantID, req.Principal.Subject).Clauses(clause.Locking{Strength: "SHARE"}).Take(&owner).Error; err != nil {
@@ -90,6 +100,16 @@ func governanceSourceTemplate(capability authz.GovernanceCapability, kind string
 	case authz.GovernancePersonReview:
 		if kind == "hospital" {
 			return "workforce.person_reviewer.v1"
+		}
+	}
+	if kind == "hospital" {
+		switch capability {
+		case authz.GovernanceEmploymentPrepare:
+			return "workforce.employment_preparer.v1"
+		case authz.GovernanceEmploymentReview:
+			return "workforce.employment_reviewer.v1"
+		case authz.GovernanceEmploymentActivate:
+			return "workforce.employment_activator.v1"
 		}
 	}
 	return ""

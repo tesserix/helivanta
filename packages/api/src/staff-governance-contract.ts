@@ -27,6 +27,24 @@ export const governanceTemplates = [
     scope_kinds: ["tenant"],
     permissions: ["iam.governance.read", "iam.governance.review"],
   },
+  {
+    key: "workforce.employment_preparer.v1",
+    scope_kinds: ["hospital"],
+    permissions: ["workforce.employment.prepare"],
+    name: "Nonclinical employment review preparation",
+  },
+  {
+    key: "workforce.employment_reviewer.v1",
+    scope_kinds: ["hospital"],
+    permissions: ["workforce.employment.review"],
+    name: "Nonclinical employment independent review",
+  },
+  {
+    key: "workforce.employment_activator.v1",
+    scope_kinds: ["hospital"],
+    permissions: ["workforce.employment.activate"],
+    name: "Nonclinical employment activation",
+  },
 ] as const;
 const identifier = z
   .uuid()
@@ -55,6 +73,9 @@ const GovernanceGrantInputShape = z
       "workforce.person_preparer.v1",
       "workforce.person_reviewer.v1",
       "iam.governance_auditor.v1",
+      "workforce.employment_preparer.v1",
+      "workforce.employment_reviewer.v1",
+      "workforce.employment_activator.v1",
     ]),
     scope_kind: z.enum(["tenant", "hospital", "pharmacy", "supplier"]),
     scope_id: identifier.optional(),

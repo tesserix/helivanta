@@ -90,9 +90,11 @@ func (h *handlers) withPersonReviewAuthority(c *gin.Context, p authn.Principal, 
 		return authz.ErrScopedAuthorizationUnavailable
 	}
 	tenants, subjects := c.Request.Header.Values("X-Helivanta-Expected-Tenant"), c.Request.Header.Values("X-Helivanta-Expected-Subject")
-	if len(tenants) != 1 || tenants[0] != p.TenantID || len(subjects) != 1 || subjects[0] != p.Subject {
+	if len(tenants) > 1 || len(subjects) > 1 || (len(tenants) == 1 && tenants[0] != p.TenantID) || (len(subjects) == 1 && subjects[0] != p.Subject) {
 		return errIntakeWorkspaceRequired
 	}
+	// Preserve existing scoped Staff calls; governance additionally requires explicit workspace binding.
+	boundWorkspace := len(tenants) == 1 && len(subjects) == 1
 	permissions, ok := authz.RefreshPermissions(c)
 	if !ok {
 		return authz.ErrScopedAuthorizationUnavailable
@@ -101,7 +103,7 @@ func (h *handlers) withPersonReviewAuthority(c *gin.Context, p authn.Principal, 
 	defer cancel()
 	ctx, budget := context.WithTimeout(ctx, 5*time.Second)
 	defer budget()
-	return h.withPersonReviewAuthorityContext(ctx, p, hospital, permission, permissions.Has(permission), fn)
+	return h.withPersonReviewAuthorityContext(ctx, p, hospital, permission, permissions.Has(permission) && boundWorkspace, fn)
 }
 
 func (h *handlers) withPersonReviewAuthorityContext(ctx context.Context, p authn.Principal, hospital uuid.UUID, permission authz.Permission, governanceAllowed bool, fn func(context.Context, personReviewAuthority) error) error {

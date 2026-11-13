@@ -140,6 +140,7 @@ Migration table declarations:
 - `0038_iam_operating_duties`: `iam_operating_duties`, `iam_operating_duty_history`, `iam_operating_snapshots`, `iam_operating_commands`, `iam_operating_projection_acks`.
 - `0039_iam_supplier_grants`: `iam_supplier_grants`, `iam_supplier_grant_commands`, `iam_supplier_grant_history`, `iam_supplier_grant_bases`, `iam_supplier_grant_projection_acks`.
 - `0047_iam_governance`: `iam_governance_grants`, `iam_governance_owner_notices`, `iam_governance_decisions`.
+- `0048_iam_governance_employment_bases`: `iam_employment_basis_authorities`.
 
 ## reference
 

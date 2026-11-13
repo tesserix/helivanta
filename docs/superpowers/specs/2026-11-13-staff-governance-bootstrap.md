@@ -278,3 +278,78 @@ and route permission refresh happen before parallel checks, never on a shared
 Gin context inside workers. Capabilities are hints; commands repeat current
 source checks. Target/inbox browse must use the same authority and a read-only
 hospital purpose without inventing Staff/link references.
+
+### Employment source guard implementation — continuation candidate
+
+The full goal remains Staff initiation, independent findings and employment,
+reviewed account linking, operating assignments and actual pharmacy access.
+The employment consumer is still the next integration boundary; this addition
+implements its IAM source/basis guard, not a working first-activation endpoint.
+
+IAM now declares separate hospital-only templates for
+`workforce.employment_preparer.v1`, `workforce.employment_reviewer.v1` and
+`workforce.employment_activator.v1`. Their respective permissions/capabilities are
+`workforce.employment.prepare`, `workforce.employment.review` and
+`workforce.employment.activate`. An account-link, person-preparer/reviewer,
+auditor, department, supplier or pharmacy source cannot substitute. These are
+nonclinical source decisions, not dispensing, clinical privilege, posting or
+operating authority. Existing owner-count, distinct-person approval, notice,
+effective interval, membership and credential requirements still apply.
+
+`GovernanceEmploymentActivationGuard` adds a callback-only IAM basis writer
+selected by the authenticated account, canonical hospital and exact Staff ID.
+Its selected scope is copied before authority work. It takes the exclusive
+`iam.employment:<tenant>:<hospital>` gate before governance-owner and credential
+locks, matching the existing scoped activation lock order; source membership,
+grant and topology checks then remain held through product work. The writer is
+bound to its issued command context and loses authority on callback exit.
+Product failure rolls back basis, history and IAM audit with the same transaction.
+
+A target must retain actual `staff_member` membership. The additional
+`governance_delegate` routing role is permitted alongside it, so a first reviewer
+can later become employed; that role alone never substitutes for ordinary
+membership. Owner, clinical, operational, unknown and duplicate role combinations
+remain inadmissible. Basis consumption is not an assignment or operating grant.
+The product still must check its exact current approved person/employment source,
+selected Staff/version/generation, independence and expiry before using the writer.
+No generic owner-to-Staff alias or synthetic actor/link ID is introduced.
+
+The canonical catalog generates Go and browser contracts together; generation
+now rejects missing names, unknown metadata, duplicate scopes and wildcard or
+malformed permissions before writing either artifact. The new prepare permission
+is declared for coarse admission only. Existing review/activation route admission
+and Workforce consumers have not yet adopted the governance union, so issuing a
+catalog grant does not establish a completed employment workflow.
+
+Local acceptance covers separate hospital-only capabilities, exact target and
+context lifetime, ordinary membership versus nonclinical delegate membership,
+clinical/owner rejection and canonical/browser parity. A real PostgreSQL
+bootstrap test covers owner and exact delegated sources, retained unrelated
+routing after source revocation, exclusive basis locking, writer escape and
+atomic product-failure rollback. It must run in remote CI; compile/unit evidence
+does not establish its database acceptance.
+
+Before merge or deployment: connect preparation, independent review and first
+activation consumers with purpose-bound data access and attributable write
+provenance; add authority-aware employment discovery and UI; revalidate assignment
+decisions and async settlement; complete operating review, second-hospital
+owner-count admission, privileged legacy admission and real recipient-operated
+Staff/pharmacy tests. No new live rollout or schema approval is inferred here.
+
+IAM migration `0048_iam_governance_employment_bases` is an additional unapplied
+candidate. It records immutable private owner/grant evidence against each
+resulting basis generation and checks the current IAM source identity, version,
+scope and membership epoch. It neither backfills evidence nor rewrites prior
+basis/history rows. The typed writer requires the recording table and its enabled
+matching trigger before admitting the product callback. A disabled/missing
+recorder is unavailable, rather than a successful unattributed activation.
+Rollback disables this new consumer and retains provenance/history. New IAM0048
+live approval is required separately after database/rollback acceptance; no
+production migration or rollout was performed here.
+
+Legacy scoped Staff identity-source reads retain their optional workspace-header
+behavior. Supplied mismatched or ambiguous expectations still fail. Governance
+fallback requires both exact tenant/account headers, so this compatibility does
+not admit owner/delegate operations with an unbound workspace. Staff-source audit
+keeps an explicit `scoped_staff` kind alongside the six existing metadata fields;
+no clinical or personal values enter that read audit.

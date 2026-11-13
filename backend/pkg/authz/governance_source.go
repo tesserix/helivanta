@@ -11,9 +11,12 @@ import (
 type GovernanceCapability string
 
 const (
-	GovernanceAccountLinkReview GovernanceCapability = "workforce.account_link.review"
-	GovernancePersonPrepare     GovernanceCapability = "workforce.person.prepare"
-	GovernancePersonReview      GovernanceCapability = "workforce.person.review"
+	GovernanceAccountLinkReview  GovernanceCapability = "workforce.account_link.review"
+	GovernancePersonPrepare      GovernanceCapability = "workforce.person.prepare"
+	GovernancePersonReview       GovernanceCapability = "workforce.person.review"
+	GovernanceEmploymentPrepare  GovernanceCapability = "workforce.employment.prepare"
+	GovernanceEmploymentReview   GovernanceCapability = "workforce.employment.review"
+	GovernanceEmploymentActivate GovernanceCapability = "workforce.employment.activate"
 )
 
 type GovernanceSourceKind string

@@ -97,6 +97,10 @@ func governanceError(c *gin.Context, err error) {
 }
 
 func (h *governanceHandlers) withActor(ctx context.Context, p authn.Principal, action func(context.Context, *gorm.DB, []string) error) error {
+	return h.withActorPrelude(ctx, p, nil, action)
+}
+
+func (h *governanceHandlers) withActorPrelude(ctx context.Context, p authn.Principal, prelude func(*gorm.DB) error, action func(context.Context, *gorm.DB, []string) error) error {
 	if h.db == nil || action == nil {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
@@ -110,6 +114,11 @@ func (h *governanceHandlers) withActor(ctx context.Context, p authn.Principal, a
 	ctx = tenantdb.WithActor(ctx, p.Subject)
 	var owners []string
 	return h.db.WithGuardedTenantCommand(ctx, p.TenantID, until, func(tx *gorm.DB) error {
+		if prelude != nil {
+			if err := prelude(tx); err != nil {
+				return err
+			}
+		}
 		if err := tx.Exec(`SELECT pg_advisory_xact_lock_shared(hashtextextended(?,0))`, "iam.governance_owners:"+p.TenantID).Error; err != nil {
 			return err
 		}

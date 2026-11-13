@@ -1197,6 +1197,13 @@
             "iam_governance_owner_notices",
             "iam_governance_decisions"
           ]
+        },
+        {
+          "id": "0048_iam_governance_employment_bases",
+          "sql_sha256": "9eec549e0c5d7efcce7b95f27151a06e256ad02a492b8fd055a910f86631ee00",
+          "creates_tables": [
+            "iam_employment_basis_authorities"
+          ]
         }
       ]
     },
@@ -12049,6 +12056,12 @@
         {
           "permission": "workforce.posting.prepare",
           "roles": []
+        },
+        {
+          "permission": "workforce.employment.prepare",
+          "roles": [
+            "governance_delegate"
+          ]
         },
         {
           "permission": "workforce.employment.activate",

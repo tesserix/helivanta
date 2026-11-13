@@ -196,3 +196,16 @@ func TestGovernancePersonTemplatesCannotBecomeOperatingOrCrossEmployerRoles(t *t
 		}
 	}
 }
+
+func TestGovernanceEmploymentTemplatesAreSeparateHospitalOnlyCapabilities(t *testing.T) {
+	id := uuid.Must(uuid.NewV7())
+	start := time.Date(2026, 11, 13, 0, 0, 0, 0, time.UTC)
+	for _, key := range []string{"workforce.employment_preparer.v1", "workforce.employment_reviewer.v1", "workforce.employment_activator.v1"} {
+		in := iam.GovernanceGrantInput{Subject: "synthetic-employment-reviewer", ExpectedMembershipEpoch: 1, TemplateKey: key, ScopeKind: "hospital", ScopeID: &id, Reason: "Independently establish nonclinical employment", ValidFrom: start, ExpiresAt: start.Add(time.Hour)}
+		require.NoError(t, in.Validate(), key)
+		for _, kind := range []string{"tenant", "pharmacy", "supplier", "department"} {
+			in.ScopeKind = kind
+			require.Error(t, in.Validate(), "%s cannot become %s authority", key, kind)
+		}
+	}
+}

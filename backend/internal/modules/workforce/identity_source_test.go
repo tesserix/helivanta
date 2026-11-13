@@ -143,7 +143,8 @@ func TestIdentitySourceAuthority(t *testing.T) {
 	}))
 	var changes map[string]any
 	require.NoError(t, json.Unmarshal([]byte(audit), &changes))
-	require.Len(t, changes, 6, "read audit contains authority metadata only")
+	require.Len(t, changes, 7, "read audit contains the explicit authority kind and bounded authority metadata only")
+	require.Equal(t, "scoped_staff", changes["authority_kind"])
 	require.Equal(t, float64(4), changes["assignment_version"])
 	require.NotContains(t, audit, "SYN-ID-SCOPE")
 	require.Equal(t, "no-store", h.header("/identity-staff/"+target, "hr-manager", "Cache-Control"))

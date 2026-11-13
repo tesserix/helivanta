@@ -91,3 +91,32 @@ test("an ambiguous fixed-template catalog fails before changing any artifact", a
     before,
   );
 });
+
+test("invalid fixed-template metadata fails before generating a false catalog", async (t) => {
+  for (const [name, change] of Object.entries({
+    "missing name": (template) => delete template.name,
+    "unknown field": (template) => (template.label = "Unreviewed alias"),
+    "duplicate scopes": (template) => (template.scope_kinds = ["hospital", "hospital"]),
+    "unknown permission syntax": (template) => (template.permissions = ["workforce.*"]),
+  })) {
+    await t.test(name, async (t) => {
+      const { dir, source } = await fixture(t);
+      change(source.templates[0]);
+      const before = await Promise.all(
+        artifacts.map((file) => readFile(path.join(dir, file), "utf8")),
+      );
+      await writeFile(path.join(dir, "contracts/staff-governance.json"), JSON.stringify(source));
+      const result = generate(dir);
+      assert.notEqual(
+        result.status,
+        0,
+        "a malformed template must not become generated Go/browser authority",
+      );
+      assert.match(result.stderr, /template/i);
+      assert.deepEqual(
+        await Promise.all(artifacts.map((file) => readFile(path.join(dir, file), "utf8"))),
+        before,
+      );
+    });
+  }
+});

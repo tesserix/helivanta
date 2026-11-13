@@ -246,3 +246,47 @@ actor-link discovery route and cursors remain unchanged. Delegation UI, employme
 and activation still need completion before claiming first-staff onboarding works.
 The new source/snapshot unit tests pass locally; database and protected-release
 cases are candidates awaiting remote execution.
+
+### Employment source/basis guard candidate
+
+The canonical catalog additionally defines separate hospital-only employment
+preparer, reviewer and activator templates. Their permissions are respectively
+`workforce.employment.prepare`, `.review` and `.activate`; these confer no clinical,
+stock, dispensing or operating assignment. Existing grant/notice/decision shapes
+remain unchanged. The v1 template enum grows additively in the generated Go/Zod
+contracts; consumers must refresh their catalog and fail closed on unknown keys.
+
+IAM's `GovernanceEmploymentActivationGuard` supplies a source- and Staff-bound
+basis writer only inside a current guarded callback. It acquires the same
+exclusive employment-basis gate before authority/product locks as scoped
+activation. It rejects foreign tenant/hospital/Staff, self activation and retained
+or different command contexts. Source expiry and credential/membership checks
+remain active; product failure rolls back the basis and its history/audit.
+
+Targets must have actual ordinary membership. An additional nonclinical
+`governance_delegate` membership is permitted, while delegate-only and any
+clinical/owner/other legacy role combination remain ineligible. The writer never
+creates membership or any product operating assignment.
+
+This is an IAM guard and contract candidate. Workforce preparation/review,
+provenance recording, activation consumers, discovery and UI still need adoption;
+existing endpoint preconditions remain until that work is verified. It must not
+be presented as completed first-Staff onboarding or pharmacy access.
+
+IAM migration `0048_iam_governance_employment_bases` is an additional unapplied
+candidate. It records immutable private owner/grant evidence against each
+resulting basis generation and checks the current IAM source identity, version,
+scope and membership epoch. It neither backfills evidence nor rewrites prior
+basis/history rows. The typed writer requires the recording table and its enabled
+matching trigger before admitting the product callback. A disabled/missing
+recorder is unavailable, rather than a successful unattributed activation.
+Rollback disables this new consumer and retains provenance/history. New IAM0048
+live approval is required separately after database/rollback acceptance; no
+production migration or rollout was performed here.
+
+Legacy scoped Staff identity-source reads retain their optional workspace-header
+behavior. Supplied mismatched or ambiguous expectations still fail. Governance
+fallback requires both exact tenant/account headers, so this compatibility does
+not admit owner/delegate operations with an unbound workspace. Staff-source audit
+keeps an explicit `scoped_staff` kind alongside the six existing metadata fields;
+no clinical or personal values enter that read audit.

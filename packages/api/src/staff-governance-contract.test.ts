@@ -95,6 +95,21 @@ it("keeps the versioned governance bundles free of operating authority", () => {
       scope_kinds: ["tenant"],
       permissions: ["iam.governance.read", "iam.governance.review"],
     },
+    {
+      key: "workforce.employment_preparer.v1",
+      scope_kinds: ["hospital"],
+      permissions: ["workforce.employment.prepare"],
+    },
+    {
+      key: "workforce.employment_reviewer.v1",
+      scope_kinds: ["hospital"],
+      permissions: ["workforce.employment.review"],
+    },
+    {
+      key: "workforce.employment_activator.v1",
+      scope_kinds: ["hospital"],
+      permissions: ["workforce.employment.activate"],
+    },
   ]);
 });
 it("preserves microsecond interval ordering instead of comparing rounded milliseconds", () => {
@@ -192,3 +207,22 @@ it.each(["workforce.person_preparer.v1", "workforce.person_reviewer.v1"])(
     expect(template.permissions[0]).toMatch(/^workforce\.identity_checks\.(manage|review)$/);
   },
 );
+
+it.each([
+  "workforce.employment_preparer.v1",
+  "workforce.employment_reviewer.v1",
+  "workforce.employment_activator.v1",
+])("keeps %s hospital-only without admitting supplied powers", (template_key) => {
+  expect(GovernanceGrantInputContract.safeParse({ ...input, template_key }).success).toBe(true);
+  for (const scope_kind of ["tenant", "pharmacy", "supplier", "department"])
+    expect(
+      GovernanceGrantInputContract.safeParse({ ...input, template_key, scope_kind }).success,
+    ).toBe(false);
+  expect(
+    GovernanceGrantInputContract.safeParse({
+      ...input,
+      template_key,
+      permissions: ["pharmacy.stock.write"],
+    }).success,
+  ).toBe(false);
+});

@@ -8,7 +8,41 @@ const source = JSON.parse(
   await readFile(path.join(root, "contracts/staff-governance.json"), "utf8"),
 );
 const templateKeys = new Set();
+const templateFields = new Set(["key", "name", "scope_kinds", "permissions"]);
+const permissionCode = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/;
+const scopes = new Set(["tenant", "hospital", "pharmacy", "supplier"]);
+if (
+  !Array.isArray(source.templates) ||
+  source.templates.length < 1 ||
+  source.templates.length > 100
+)
+  throw new Error("Invalid governance template catalog");
 for (const template of source.templates) {
+  if (
+    !template ||
+    typeof template !== "object" ||
+    Array.isArray(template) ||
+    Object.keys(template).some((field) => !templateFields.has(field)) ||
+    typeof template.key !== "string" ||
+    !permissionCode.test(template.key) ||
+    typeof template.name !== "string" ||
+    template.name !== template.name.trim() ||
+    template.name.length < 1 ||
+    template.name.length > 120 ||
+    !Array.isArray(template.scope_kinds) ||
+    template.scope_kinds.length < 1 ||
+    template.scope_kinds.length > scopes.size ||
+    template.scope_kinds.some((kind) => !scopes.has(kind)) ||
+    new Set(template.scope_kinds).size !== template.scope_kinds.length ||
+    !Array.isArray(template.permissions) ||
+    template.permissions.length < 1 ||
+    template.permissions.length > 20 ||
+    template.permissions.some(
+      (value) => typeof value !== "string" || !permissionCode.test(value),
+    ) ||
+    new Set(template.permissions).size !== template.permissions.length
+  )
+    throw new Error("Invalid governance template metadata");
   if (templateKeys.has(template.key))
     throw new Error(`Duplicate governance template: ${template.key}`);
   templateKeys.add(template.key);

@@ -14,9 +14,10 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// KeyTokens exchanges a dedicated product machine key for short-lived OAuth credentials.
+// KeyTokens exchanges a dedicated product machine credential for short-lived OAuth tokens.
 type KeyTokens struct {
 	keyID, userID, issuer, project string
+	clientID, clientSecret         string
 	key                            *rsa.PrivateKey
 	http                           http.Client
 	gate                           chan struct{}
@@ -58,6 +59,19 @@ func NewKeyTokens(raw []byte, issuer, project string, httpClient *http.Client) (
 	return &KeyTokens{keyID: file.KeyID, userID: file.UserID, issuer: strings.TrimSuffix(issuer, "/"), project: project, http: client, gate: make(chan struct{}, 1), key: key}, nil
 }
 
+// NewClientTokens exchanges the operator-managed product machine's client secret.
+func NewClientTokens(clientID string, raw []byte, issuer, project string, httpClient *http.Client) (*KeyTokens, error) {
+	u, err := url.Parse(issuer)
+	secret := strings.TrimSuffix(strings.TrimSuffix(string(raw), "\n"), "\r")
+	if err != nil || u.Scheme != "https" || u.Hostname() == "" || (u.Path != "" && u.Path != "/") || u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.Opaque != "" || httpClient == nil || !sourceID.MatchString(project) || !sourceID.MatchString(clientID) || len(raw) > 8192 || secret == "" || strings.TrimSpace(secret) != secret || strings.ContainsAny(secret, "\r\n\x00") {
+		return nil, ErrUnavailable
+	}
+	client := *httpClient
+	client.Jar = nil
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	return &KeyTokens{clientID: clientID, clientSecret: secret, issuer: strings.TrimSuffix(issuer, "/"), project: project, http: client, gate: make(chan struct{}, 1)}, nil
+}
+
 // Token retains only an expiring access credential; every identity observation stays uncached.
 func (k *KeyTokens) Token(ctx context.Context) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
@@ -75,16 +89,25 @@ func (k *KeyTokens) Token(ctx context.Context) (string, error) {
 	if k.token != "" && now.Before(k.expires.Add(-30*time.Second)) {
 		return k.token, nil
 	}
-	assertion := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.RegisteredClaims{Issuer: k.userID, Subject: k.userID, Audience: jwt.ClaimStrings{k.issuer}, IssuedAt: jwt.NewNumericDate(now), ExpiresAt: jwt.NewNumericDate(now.Add(time.Minute))})
-	assertion.Header["kid"] = k.keyID
-	signed, err := assertion.SignedString(k.key)
-	if err != nil {
-		return "", ErrUnavailable
+	form := url.Values{"scope": {"openid urn:zitadel:iam:org:project:id:" + k.project + ":aud"}}
+	if k.key != nil {
+		assertion := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.RegisteredClaims{Issuer: k.userID, Subject: k.userID, Audience: jwt.ClaimStrings{k.issuer}, IssuedAt: jwt.NewNumericDate(now), ExpiresAt: jwt.NewNumericDate(now.Add(time.Minute))})
+		assertion.Header["kid"] = k.keyID
+		signed, err := assertion.SignedString(k.key)
+		if err != nil {
+			return "", ErrUnavailable
+		}
+		form.Set("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer")
+		form.Set("assertion", signed)
+	} else {
+		form.Set("grant_type", "client_credentials")
 	}
-	form := url.Values{"grant_type": {"urn:ietf:params:oauth:grant-type:jwt-bearer"}, "assertion": {signed}, "scope": {"openid urn:zitadel:iam:org:project:id:" + k.project + ":aud"}}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, k.issuer+"/oauth/v2/token", strings.NewReader(form.Encode()))
 	if err != nil {
 		return "", ErrUnavailable
+	}
+	if k.clientID != "" {
+		req.SetBasicAuth(url.QueryEscape(k.clientID), url.QueryEscape(k.clientSecret))
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	response, err := k.http.Do(req)

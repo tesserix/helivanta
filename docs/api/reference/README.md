@@ -73,6 +73,10 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/purchase-order-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/roles` | `iam.member.manage` | false | false |
 | GET | `/v1/iam/staff-access-templates` | `public` | false | false |
+| PUT | `/v1/iam/staff-account-commands/:id/invitations/:delivery` | `iam.member.manage` | false | false |
+| POST | `/v1/iam/staff-account-commands/:id/observations` | `iam.member.manage` | false | false |
+| GET | `/v1/iam/staff-account-commands/:id` | `iam.member.manage` | false | false |
+| PUT | `/v1/iam/staff-account-commands/:id` | `iam.member.manage` | false | false |
 | POST | `/v1/iam/subjects/:subject/revoke` | `iam.credential.revoke` | false | false |
 | GET | `/v1/iam/supplier-access-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/supplier-grants/:id/commands/:command` | `iam.supplier_grant.read` | false | false |
@@ -1686,9 +1690,12 @@ Migration table declarations:
 | --- | --- |
 | `GET /healthz` | liveness probe; an authenticated probe cannot report health before auth works |
 | `GET /readyz` | readiness probe; same reason, and it must answer during a dependency outage |
+| `GET /v1/auth/accounts` | bounded display-only choices after mailbox proof, no session required |
 | `GET /v1/auth/branding/:tenant` | published display-only branding must render before login; no identity or data access |
 | `GET /v1/auth/login/request/:id` | renders the login form before any Helivanta session exists |
 | `GET /v1/auth/signup` | receipt-bound setup progress before a tenant session exists |
+| `POST /v1/auth/accounts` | same-origin mailbox proof before private separate-account discovery |
+| `POST /v1/auth/accounts/verify` | browser-bound one-use mailbox proof; no application access |
 | `POST /v1/auth/login` | creates the Helivanta session and therefore cannot require one |
 | `POST /v1/auth/login/enroll` | confirms the newly enrolled second factor that creates the session, so it cannot require one |
 | `POST /v1/auth/login/factor` | checks the second factor that creates the session, so it cannot require one |
@@ -1701,6 +1708,7 @@ Migration table declarations:
 | `POST /v1/auth/signup/password-link` | bounded native password setup and recovery without identity disclosure |
 | `POST /v1/auth/signup/sign-in` | receipt-bound continuation using a fresh native ID token and current revocation check before tenant membership exists |
 | `POST /v1/auth/signup/verify-email` | native email proof before sign-in; shared proof budget and receipt rotation |
+| `POST /v1/auth/staff-setup/:action` | same-origin, rate-limited opaque Staff invitation and native proof; grants no business access |
 | `POST /v1/payments/webhooks/razorpay/:tenant/:account` | provider callback authenticated by its HMAC signature, not a session |
 
 ## Platform migration table declarations

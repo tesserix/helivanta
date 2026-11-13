@@ -331,6 +331,7 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 	// signing key (spec D1), so minting and cookie-setting belong in the
 	// same place.
 	c.SetSameSite(http.SameSiteLaxMode)
+	authn.ClearAccountDiscovery(c)
 	c.SetCookie(authn.SessionCookie, token, int(h.ttl.Seconds()), "/", "", h.secureCookie, true)
 	audit.Log(c.Request.Context(), requestid.Logger(c), slog.LevelInfo, "auth.session.issued", "session issued",
 		"subject", principal.Subject, "tenant_id", tenantID)

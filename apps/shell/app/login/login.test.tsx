@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
@@ -24,6 +24,17 @@ vi.mock("@/lib/oidc", () => ({ getUserManager }));
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(window.location.search),
 }));
+
+async function firstMfaDigit(label = "Verification code") {
+  return within(await screen.findByRole("group", { name: label })).getByRole("textbox", {
+    name: "Digit 1",
+  });
+}
+function mfaDigit(label = "Verification code") {
+  return within(screen.getByRole("group", { name: label })).getByRole("textbox", {
+    name: "Digit 1",
+  });
+}
 
 const AUTH_REQUEST_ID = "V2_test-auth-request";
 
@@ -240,11 +251,12 @@ describe("LoginPage", () => {
     // renders none.
     it("renders no credential form", () => {
       renderWithProviders(<LoginPage />);
-      expect(screen.queryByLabelText(/email/i)).not.toBeInTheDocument();
+      expect(screen.getByLabelText("Email")).toBeInTheDocument();
       expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
     });
 
-    it("starts the redirect when the user asks for it", async () => {
+    it("starts a scoped-link redirect when the user asks for it", async () => {
+      window.history.pushState({}, "", "/login?workspace=11111111-1111-4111-8111-111111111111");
       signinRedirect.mockResolvedValue(undefined);
       renderWithProviders(<LoginPage />);
 
@@ -258,6 +270,7 @@ describe("LoginPage", () => {
     // omitting it here would let a live Zitadel session answer silently for
     // whoever is now at the keyboard, which is the whole point of the button.
     it("forces re-authentication rather than accepting a live IdP session", async () => {
+      window.history.pushState({}, "", "/login?workspace=11111111-1111-4111-8111-111111111111");
       signinRedirect.mockResolvedValue(undefined);
       renderWithProviders(<LoginPage />);
 
@@ -268,6 +281,7 @@ describe("LoginPage", () => {
     });
 
     it("shows an error instead of a dead button when the redirect cannot start", async () => {
+      window.history.pushState({}, "", "/login?workspace=11111111-1111-4111-8111-111111111111");
       signinRedirect.mockRejectedValue(new Error("Zitadel unreachable"));
       renderWithProviders(<LoginPage />);
 
@@ -290,7 +304,11 @@ describe("LoginPage", () => {
     // the page goes straight to the credential form instead of asking again.
     describe("arriving from a Sign in link (start=1)", () => {
       beforeEach(() => {
-        window.history.pushState({}, "", "/login?start=1&tenant=abc");
+        window.history.pushState(
+          {},
+          "",
+          "/login?start=1&workspace=11111111-1111-4111-8111-111111111111",
+        );
       });
 
       it("starts sign-in once, forcing re-authentication", async () => {
@@ -305,7 +323,7 @@ describe("LoginPage", () => {
         signinRedirect.mockResolvedValue(undefined);
         renderWithProviders(<LoginPage />);
         await waitFor(() => expect(signinRedirect).toHaveBeenCalled());
-        expect(window.location.search).toBe("?tenant=abc");
+        expect(window.location.search).toBe("?workspace=11111111-1111-4111-8111-111111111111");
       });
 
       // #847 still wins: right after a session ends, nothing starts on arrival.
@@ -759,7 +777,7 @@ describe("LoginPage", () => {
       // The offer must be a REAL control, not just wording — reusing
       // RedirectLanding's Sign in button, which starts a fresh
       // authorization request exactly as a direct /login visit would.
-      it("offers a working Sign in button that starts a fresh authorization request", async () => {
+      it("offers email discovery when an expired attempt has lost its routing context", async () => {
         stubAuthFlow({
           authRequest: () =>
             jsonResponse(400, {
@@ -773,9 +791,8 @@ describe("LoginPage", () => {
         const button = await screen.findByRole("button", { name: "Sign in" });
         await user.click(button);
 
-        await waitFor(() =>
-          expect(signinRedirect).toHaveBeenCalledWith(expect.objectContaining({ prompt: "login" })),
-        );
+        expect(screen.getByLabelText("Email")).toBeInTheDocument();
+        expect(signinRedirect).not.toHaveBeenCalled();
       });
 
       // The expired-request wording and the sign-out wording must never
@@ -825,19 +842,19 @@ describe("LoginPage", () => {
         const { user } = renderWithProviders(<LoginPage />);
         await submitCorrectCredentials(user);
 
-        expect(await screen.findByLabelText(/verification code/i)).toBeInTheDocument();
+        expect(await firstMfaDigit()).toBeInTheDocument();
         expect(screen.queryByRole("alert")).not.toBeInTheDocument();
       });
 
-      // Review finding 1, fix round 1: unlike AuthCredentialForm,
-      // AuthOtpStep does NOT set `noValidate` on its own <form> — and its
-      // <input> carries `pattern="\d{6}"` plus `maxLength`, both native-
-      // validation attributes. Without page.tsx passing `noValidate`
-      // through explicitly, pressing Enter on an incomplete code fires
-      // the browser's native validation popup, which docs/standards/
-      // frontend.md bans outright. Mirrors the credential-form pin above
-      // (`disables native browser validation`) rather than relying on
-      // that other test to prove this by proxy.
+      it("provides six separate digit inputs for authenticator verification", async () => {
+        stubAuthFlow({ password: () => jsonResponse(200, { factor_required: ["totp"] }) });
+        const { user } = renderWithProviders(<LoginPage />);
+        await submitCorrectCredentials(user);
+        const group = await screen.findByRole("group", { name: "Verification code" });
+        expect(within(group).getAllByRole("textbox")).toHaveLength(6);
+        expect(within(group).getByRole("textbox", { name: "Digit 1" })).toHaveFocus();
+      });
+
       it("disables native browser validation on the OTP step", async () => {
         stubAuthFlow({
           password: () => jsonResponse(200, { factor_required: ["totp"] }),
@@ -846,7 +863,7 @@ describe("LoginPage", () => {
         const { user } = renderWithProviders(<LoginPage />);
         await submitCorrectCredentials(user);
 
-        const codeField = await screen.findByLabelText(/verification code/i);
+        const codeField = await firstMfaDigit();
         expect(codeField.closest("form")).toHaveAttribute("novalidate");
       });
 
@@ -862,7 +879,7 @@ describe("LoginPage", () => {
         const { user } = renderWithProviders(<LoginPage />);
         await submitCorrectCredentials(user);
 
-        const codeField = await screen.findByLabelText(/verification code/i);
+        const codeField = await firstMfaDigit();
         await user.type(codeField, "123456");
 
         await waitFor(() =>
@@ -900,12 +917,12 @@ describe("LoginPage", () => {
         const { user } = renderWithProviders(<LoginPage />);
         await submitCorrectCredentials(user);
 
-        const codeField = await screen.findByLabelText(/verification code/i);
+        const codeField = await firstMfaDigit();
         await user.type(codeField, "000000");
 
         const alert = await screen.findByRole("alert");
         expect(alert).toHaveTextContent(/email or password is incorrect/i);
-        expect(screen.getByLabelText(/verification code/i)).toBeInTheDocument();
+        expect(mfaDigit()).toBeInTheDocument();
       });
 
       // A missing/expired/exhausted login_attempt row (spec D6) returns
@@ -924,13 +941,13 @@ describe("LoginPage", () => {
         const { user } = renderWithProviders(<LoginPage />);
         await submitCorrectCredentials(user);
 
-        const codeField = await screen.findByLabelText(/verification code/i);
+        const codeField = await firstMfaDigit();
         await user.type(codeField, "000000");
 
         expect(
           await screen.findByText(/this sign-in attempt has expired; start again/i),
         ).toBeInTheDocument();
-        expect(screen.queryByLabelText(/verification code/i)).not.toBeInTheDocument();
+        expect(screen.queryByRole("group", { name: "Verification code" })).not.toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
       });
 
@@ -953,11 +970,11 @@ describe("LoginPage", () => {
         const { user } = renderWithProviders(<LoginPage />);
         await submitCorrectCredentials(user);
 
-        const codeField = await screen.findByLabelText(/verification code/i);
+        const codeField = await firstMfaDigit();
         await user.type(codeField, "123456");
 
         expect(await screen.findByText(message)).toBeInTheDocument();
-        expect(screen.queryByLabelText(/verification code/i)).not.toBeInTheDocument();
+        expect(screen.queryByRole("group", { name: "Verification code" })).not.toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
         expect(assignSpy).not.toHaveBeenCalled();
       });
@@ -1079,7 +1096,7 @@ describe("LoginPage", () => {
 
         const { user } = renderWithProviders(<LoginPage />);
         await signIn(user);
-        await user.type(await screen.findByLabelText(/verification code/i), "123456");
+        await user.type(await firstMfaDigit(), "123456");
         await chooseNewPassword(user, REPLACEMENT);
 
         await waitFor(() =>
@@ -1181,7 +1198,7 @@ describe("LoginPage", () => {
 
         const { user } = renderWithProviders(<LoginPage />);
         await signIn(user);
-        await user.type(await screen.findByLabelText("Confirmation code"), "123456");
+        await user.type(await firstMfaDigit("Confirmation code"), "123456");
         await chooseNewPassword(user, REPLACEMENT);
 
         await waitFor(() =>
@@ -1247,7 +1264,7 @@ describe("LoginPage", () => {
       expect(screen.getByLabelText("Authenticator setup key")).toHaveTextContent(
         "JBSWY3DPEHPK3PXP",
       );
-      expect(screen.getByLabelText("Confirmation code")).toBeInTheDocument();
+      expect(mfaDigit("Confirmation code")).toBeInTheDocument();
       expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
       expect(screen.queryByText(/contact your administrator/i)).not.toBeInTheDocument();
       expect(assignSpy).not.toHaveBeenCalled();
@@ -1265,7 +1282,7 @@ describe("LoginPage", () => {
       vi.stubGlobal("location", { ...window.location, assign: assignSpy });
 
       const { user } = await signInToEnrolment(fetchMock);
-      await user.type(screen.getByLabelText("Confirmation code"), "123456");
+      await user.type(mfaDigit("Confirmation code"), "123456");
 
       await waitFor(() =>
         expect(assignSpy).toHaveBeenCalledWith(
@@ -1302,10 +1319,10 @@ describe("LoginPage", () => {
       vi.stubGlobal("location", { ...window.location, assign: assignSpy });
 
       const { user } = await signInToEnrolment(fetchMock);
-      await user.type(screen.getByLabelText("Confirmation code"), "000000");
+      await user.type(mfaDigit("Confirmation code"), "000000");
 
       expect(await screen.findByText("email or password is incorrect")).toBeInTheDocument();
-      expect(screen.getByLabelText("Confirmation code")).toHaveValue("");
+      expect(mfaDigit("Confirmation code")).toHaveValue("");
       expect(screen.getByLabelText("Authenticator setup key")).toHaveTextContent(
         "JBSWY3DPEHPK3PXP",
       );
@@ -1325,12 +1342,12 @@ describe("LoginPage", () => {
       vi.stubGlobal("location", { ...window.location, assign: assignSpy });
 
       const { user } = await signInToEnrolment(fetchMock);
-      await user.type(screen.getByLabelText("Confirmation code"), "123456");
+      await user.type(mfaDigit("Confirmation code"), "123456");
 
       expect(
         await screen.findByText("this sign-in attempt has expired; start again"),
       ).toBeInTheDocument();
-      expect(screen.queryByLabelText("Confirmation code")).not.toBeInTheDocument();
+      expect(screen.queryByRole("group", { name: "Confirmation code" })).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
       expect(assignSpy).not.toHaveBeenCalled();
     });

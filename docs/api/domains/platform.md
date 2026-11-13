@@ -582,3 +582,40 @@ registered relying-party origin and returns through the original OIDC callback.
 Existing state/PKCE, token verification, fresh-auth signup binding, revocation,
 verified membership and resource scope remain required. See
 [ADR-0069](../../adr/0069-explicit-native-security-key-continuation.md).
+
+## Email-first separate-account discovery
+
+`POST /v1/auth/accounts` accepts `{email}` under exact same-origin checks and
+returns only `{state:"check_email"}`. The workload-only identity owner reserves
+delivery and mails an eight-digit code without looking up accounts. The browser
+receives a separate Secure, HttpOnly, host-only, SameSite=Strict capability lasting
+ten minutes; signup receipts and delivery budgets are unchanged.
+
+`POST /v1/auth/accounts/verify` accepts `{code}` with that capability. Five atomic
+attempts are allowed, expiry is checked in SQL, success consumes the code, and
+foreign/replayed/expired proof has the same refusal. `GET /v1/auth/accounts`
+uses its verified capability to return `{accounts:[{tenantId,name,account}]}`,
+max twenty, with current native/customer eligibility and sensitive-read audit.
+IDs are internal routing hints; normal password/MFA and current IAM membership
+remain required. No email-based account merge or new membership is introduced.
+All routes go through Global API; responses are no-store. 404 covers unavailable
+proof, 429 delivery budget, 503 identity/provider/storage unavailability. Follow
+Retry-After on delivery limits; resend does not revive an old code.
+
+Canonical wire models are owned by onboarding-service/customercontract and its
+generated `@tesserix/onboarding-contracts` Zod package. See
+[discovery delivery](../../design/account-discovery-delivery.md) for limits,
+retention, rollback, deployment order and uncompleted live acceptance. Existing
+same-subject membership routes do not implement separate-account switching.
+
+The authenticated `/v1/iam/me/profile` response adds optional `tenant_name` for
+the verified session tenant. The private owner projection receives explicit
+`includeTenantName: true` only for profile reads; older requests retain their
+existing response shape. The adapter requires a valid current customer name
+when an opted-in active profile exists and otherwise refuses that profile read.
+The header and role menu use this name as display metadata; it grants no
+membership, role or native account authority. Status and membership projections
+do not request or disclose names. See the
+[current-account name design](../../design/current-account-tenant-name.md) for
+compatibility and failure behavior. The name follow-up requires owner-first
+deployment; it is separate from the deployed discovery release.

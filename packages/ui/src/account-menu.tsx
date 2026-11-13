@@ -56,7 +56,7 @@ export function AccountMenu({
               </div>
               <div>
                 <p id={rolesHeading} className="text-xs font-medium text-muted-foreground">
-                  Role at {hospitalName}
+                  Role at {profile.tenant_name ?? hospitalName}
                 </p>
                 {profile.roles.length > 0 ? (
                   <ul aria-labelledby={rolesHeading} className="mt-1 space-y-0.5 text-sm">

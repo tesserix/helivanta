@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -60,10 +61,13 @@ LEFT JOIN workforce_hospital_name_announcements a ON a.tenant_id=h.tenant_id AND
 WHERE h.establishment_kind='hospital' AND (a.announced_version IS NULL OR a.announced_version<h.name_version OR a.next_attempt_at<=now())
 ORDER BY (a.announced_version IS NULL OR a.announced_version<h.name_version) DESC,a.next_attempt_at NULLS FIRST,h.tenant_id,h.id LIMIT ?`, batch).Scan(&due).Error
 	}); err != nil {
-		return err
+		return fmt.Errorf("scan due hospital names: %w", err)
 	}
 	ctx = tenantdb.WithActor(ctx, hospitalNameAnnouncer)
 	for _, d := range due {
+		// Set inside the transaction, logged only once it commits: a rolled-back re-send was never sent.
+		var attempt int
+		var nameVersion int64
 		if err := db.WithTenant(ctx, d.TenantID.String(), func(tx *gorm.DB) error {
 			var row struct {
 				Name        string
@@ -73,7 +77,7 @@ ORDER BY (a.announced_version IS NULL OR a.announced_version<h.name_version) DES
 			// statement that re-reads the marker, so a replica that waited here cannot repeat a version.
 			err := tx.Raw(`SELECT name,name_version FROM workforce_hospitals WHERE tenant_id=? AND id=? AND establishment_kind='hospital' FOR UPDATE`, d.TenantID, d.ID).Scan(&row).Error
 			if err != nil {
-				return err
+				return fmt.Errorf("lock hospital: %w", err)
 			}
 			if row.NameVersion == 0 {
 				return nil
@@ -82,36 +86,40 @@ ORDER BY (a.announced_version IS NULL OR a.announced_version<h.name_version) DES
 ON CONFLICT(tenant_id,hospital_id) DO UPDATE SET announced_version=EXCLUDED.announced_version,attempts=0,next_attempt_at=EXCLUDED.next_attempt_at,updated_at=clock_timestamp()
 WHERE workforce_hospital_name_announcements.announced_version<EXCLUDED.announced_version`, d.TenantID, d.ID, row.NameVersion, firstRedelivery.Seconds())
 			if claim.Error != nil {
-				return claim.Error
+				return fmt.Errorf("claim hospital name version: %w", claim.Error)
 			}
-			attempt := 0
+			attempt = 0
 			if claim.RowsAffected == 0 {
 				// This version was already announced. Re-send it only if still unconfirmed and due,
 				// re-read under the lock: a confirmation or another replica's re-send may have landed
 				// since the scan. announced_version=name_version makes the current name that version's.
 				var attempts []int
-				if err := tx.Raw(`SELECT attempts FROM workforce_hospital_name_announcements WHERE tenant_id=? AND hospital_id=? AND announced_version=? AND next_attempt_at<=now() FOR UPDATE`, d.TenantID, d.ID, row.NameVersion).Scan(&attempts).Error; err != nil || len(attempts) == 0 {
-					return err
+				if err := tx.Raw(`SELECT attempts FROM workforce_hospital_name_announcements WHERE tenant_id=? AND hospital_id=? AND announced_version=? AND next_attempt_at<=now() FOR UPDATE`, d.TenantID, d.ID, row.NameVersion).Scan(&attempts).Error; err != nil {
+					return fmt.Errorf("re-check unconfirmed hospital name: %w", err)
+				} else if len(attempts) == 0 {
+					return nil
 				}
 				attempt = attempts[0] + 1
 				if err := tx.Exec(`UPDATE workforce_hospital_name_announcements SET attempts=attempts+1,next_attempt_at=clock_timestamp()+make_interval(secs => ?),updated_at=clock_timestamp() WHERE tenant_id=? AND hospital_id=?`,
 					redeliveryDelay(attempt).Seconds(), d.TenantID, d.ID).Error; err != nil {
-					return err
+					return fmt.Errorf("schedule hospital name re-send: %w", err)
 				}
 			}
 			data, err := json.Marshal(workforcecontract.HospitalNamedData{HospitalID: d.ID.String(), Name: row.Name, NameVersion: row.NameVersion})
 			if err != nil {
-				return err
+				return fmt.Errorf("encode hospital name: %w", err)
 			}
 			if err := events.Enqueue(tx, workforcecontract.SubjectHospitalNamed, events.Event{Type: workforcecontract.SubjectHospitalNamed, Version: 1, TenantID: d.TenantID.String(), Data: data}); err != nil {
-				return err
+				return fmt.Errorf("enqueue hospital name: %w", err)
 			}
-			if attempt > 0 {
-				slog.WarnContext(ctx, "re-sent unconfirmed hospital name", "tenant_id", d.TenantID, "hospital_id", d.ID, "name_version", row.NameVersion, "attempt", attempt)
-			}
+			nameVersion = row.NameVersion
 			return nil
-		}); err != nil && !errors.Is(err, context.Canceled) {
-			slog.WarnContext(ctx, "workforce hospital name announcement failed; retrying later", "tenant_id", d.TenantID, "hospital_id", d.ID, "error", err)
+		}); err != nil {
+			if !errors.Is(err, context.Canceled) {
+				slog.WarnContext(ctx, "workforce hospital name announcement failed; retrying later", "tenant_id", d.TenantID, "hospital_id", d.ID, "error", err)
+			}
+		} else if attempt > 0 {
+			slog.WarnContext(ctx, "re-sent unconfirmed hospital name", "tenant_id", d.TenantID, "hospital_id", d.ID, "name_version", nameVersion, "attempt", attempt)
 		}
 	}
 	return nil

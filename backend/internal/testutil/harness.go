@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/tesserix/onboarding-service/api/staffclient"
 	"go.temporal.io/sdk/client"
 	"maps"
 	"net/http/httptest"
@@ -196,6 +197,7 @@ func (neverRevoked) RevokedAfter(context.Context, string) (time.Time, error) {
 // SessionSigner/SessionTTL explicitly, typically from
 // NewSessionSignerForTest.
 type HarnessOptions struct {
+	StaffAccounts               *staffclient.Client
 	EmploymentActivationEnabled bool
 	ProxyClinicalCaptureEnabled bool
 	PrivacyDeadlinesEnabled     bool
@@ -411,6 +413,7 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	}
 	stockProducts := platform.StockProducts(opts.Modules, db)
 	deps := platform.Deps{
+		StaffAccounts:               opts.StaffAccounts,
 		SourceAdministration:        sourceAdministration,
 		OperatingAuthorizer:         operatingAuthorizer,
 		IndependentStaff:            platform.IndependentStaffIdentities(opts.Modules, db),

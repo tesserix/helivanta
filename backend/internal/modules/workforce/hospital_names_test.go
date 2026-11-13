@@ -34,12 +34,13 @@ func (h *establishmentHarness) nameVersion(t *testing.T, id string) (version int
 	return version
 }
 
-// announced returns the decoded hospital_named payloads for one hospital, oldest first.
+// announced returns the decoded hospital_named payloads for one hospital, oldest first;
+// id breaks a created_at tie so the order is stable.
 func (h *establishmentHarness) announced(t *testing.T, id string) []workforcecontract.HospitalNamedData {
 	t.Helper()
 	var raw []string
 	require.NoError(t, h.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
-		return tx.Table("outbox_events").Where("subject=? AND payload->'data'->>'hospital_id'=?", workforcecontract.SubjectHospitalNamed, id).Order("created_at").Pluck("payload", &raw).Error
+		return tx.Table("outbox_events").Where("subject=? AND payload->'data'->>'hospital_id'=?", workforcecontract.SubjectHospitalNamed, id).Order("created_at, id").Pluck("payload", &raw).Error
 	}))
 	out := make([]workforcecontract.HospitalNamedData, len(raw))
 	for i, p := range raw {

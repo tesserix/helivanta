@@ -63,7 +63,7 @@ describe("SessionRenewal", () => {
   });
 
   // Public pages a signed-out visitor reaches; renewing there would 401.
-  it.each(["/", "/workspace", "/signup", "/ambulance"])(
+  it.each(["/", "/workspace", "/signup", "/signup/verify", "/staff/accept", "/ambulance"])(
     "does not schedule a renewal on the public page %s",
     async (path) => {
       usePathname.mockReturnValue(path);

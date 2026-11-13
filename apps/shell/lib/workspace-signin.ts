@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export function workspaceSigninScope(tenantId: string): string {
-  const result = z.string().uuid().safeParse(tenantId);
+  const result = z.string().guid().safeParse(tenantId);
   if (
     !result.success ||
     tenantId === "00000000-0000-0000-0000-000000000000" ||

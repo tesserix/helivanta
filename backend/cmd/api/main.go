@@ -434,7 +434,8 @@ func run() error {
 		PharmacyEvidenceEnabled:     cfg.PharmacyEvidenceEnabled,
 		EmergencyWorkflowsEnabled:   cfg.EmergencyWorkflowsEnabled,
 		PrivacyDeadlinesEnabled:     cfg.PrivacyDeadlinesEnabled,
-		OrganizationIdentity:        identityClient,
+		OrganizationIdentity:        identityClient.proof,
+		StaffAccounts:               identityClient.staff,
 		Documents:                   documents,
 		Transit:                     vault,
 		PaymentsProviderURL:         cfg.RazorpayAPIURL,
@@ -650,6 +651,8 @@ func run() error {
 		zitadelLoginClient.SetTenantUserResolver(resolver)
 		zitadelLoginClient.SetTenantIdentityResolver(resolver)
 	}
+	bootstrap.MountAccountDiscovery(srv.Engine, signupHandlers.DiscoverAccounts, signupHandlers.VerifyAccounts, signupHandlers.AccountChoices)
+	bootstrap.MountStaffSetup(srv.Engine, signupHandlers.StaffSetup(customeronboarding.StaffSetupDeps{Limiter: limiter, Limit: ratelimit.Rule{Rate: 20, Burst: 10, Per: time.Minute}}))
 	bootstrap.MountCustomerSignup(srv.Engine, signupHandlers.Start, signupHandlers.Status, signupHandlers.VerifyEmail, signupHandlers.Password, signupHandlers.EmailLink, signupHandlers.PasswordLink, signupHandlers.Signin(customeronboarding.SigninDeps{Tokens: zitadelVerifier, Revocations: revocationChecker, Limiter: limiter, Limit: bootstrap.LoginRateLimitRule(cfg)}), signupHandlers.NewReceipt)
 
 	for _, m := range registry.All() {

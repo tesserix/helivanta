@@ -52,6 +52,8 @@ func TestEveryEngineRouteIsDeclaredOrAllowlisted(t *testing.T) {
 	stub := func(c *gin.Context) { c.Status(http.StatusOK) }
 	bootstrap.MountUnauthenticated(srv.Engine, stub, stub, stub, stub, stub, stub, stub, stub)
 	bootstrap.MountCustomerSignup(srv.Engine, stub, stub, stub, stub, stub, stub, stub, stub)
+	bootstrap.MountAccountDiscovery(srv.Engine, stub, stub, stub)
+	bootstrap.MountStaffSetup(srv.Engine, stub)
 
 	declared := map[string]bool{}
 	for _, dr := range api.Declared() {
@@ -98,6 +100,8 @@ func TestUnauthenticatedAllowlistHasNoDeadEntries(t *testing.T) {
 	stub := func(c *gin.Context) { c.Status(http.StatusOK) }
 	bootstrap.MountUnauthenticated(srv.Engine, stub, stub, stub, stub, stub, stub, stub, stub)
 	bootstrap.MountCustomerSignup(srv.Engine, stub, stub, stub, stub, stub, stub, stub, stub)
+	bootstrap.MountAccountDiscovery(srv.Engine, stub, stub, stub)
+	bootstrap.MountStaffSetup(srv.Engine, stub)
 
 	onEngine := map[string]bool{}
 	for _, r := range srv.Engine.Routes() {

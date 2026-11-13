@@ -22,6 +22,10 @@ import (
 // must be a route that *cannot* work any other way.
 // #nosec G101 -- These are public route paths and rationales, never credentials.
 var UnauthenticatedRoutes = map[string]string{
+	"POST /v1/auth/staff-setup/:action":  "same-origin, rate-limited opaque Staff invitation and native proof; grants no business access",
+	"POST /v1/auth/accounts":             "same-origin mailbox proof before private separate-account discovery",
+	"POST /v1/auth/accounts/verify":      "browser-bound one-use mailbox proof; no application access",
+	"GET /v1/auth/accounts":              "bounded display-only choices after mailbox proof, no session required",
 	"POST /v1/auth/signup/sign-in":       "receipt-bound continuation using a fresh native ID token and current revocation check before tenant membership exists",
 	"GET /v1/auth/signup":                "receipt-bound setup progress before a tenant session exists",
 	"POST /v1/auth/signup":               "new owner intent before a tenant exists; same-origin receipt and private workload handoff",
@@ -70,6 +74,12 @@ var UnauthenticatedRoutes = map[string]string{
 	// service, which is the failure mode these exist to prevent.
 	"GET /healthz": "liveness probe; an authenticated probe cannot report health before auth works",
 	"GET /readyz":  "readiness probe; same reason, and it must answer during a dependency outage",
+}
+
+// MountStaffSetup mounts only the recipient capability endpoint before sign-in.
+func MountStaffSetup(e *gin.Engine, handler gin.HandlerFunc) {
+	mustHandler("POST /v1/auth/staff-setup/:action", handler)
+	e.POST("/v1/auth/staff-setup/:action", handler)
 }
 
 // MountUnauthenticated registers the routes that cannot sit behind the
@@ -154,4 +164,14 @@ func MountCustomerSignup(e *gin.Engine, start, status, verify, password, emailLi
 		mustHandler(route.method+" "+route.path, route.handler)
 		e.Handle(route.method, route.path, route.handler)
 	}
+}
+
+// MountAccountDiscovery mounts only mailbox-bound identity discovery through Global API.
+func MountAccountDiscovery(e *gin.Engine, start, verify, choices gin.HandlerFunc) {
+	mustHandler("POST /v1/auth/accounts", start)
+	mustHandler("POST /v1/auth/accounts/verify", verify)
+	mustHandler("GET /v1/auth/accounts", choices)
+	e.POST("/v1/auth/accounts", start)
+	e.POST("/v1/auth/accounts/verify", verify)
+	e.GET("/v1/auth/accounts", choices)
 }

@@ -24,6 +24,7 @@ func (h *Handlers) TenantIdentitySnapshot(ctx context.Context, tenant, subject s
 		in.Purpose = "membership"
 	case loginclient.IdentityReadProfile:
 		in.Purpose = "profile"
+		in.IncludeTenantName = true
 	default:
 		return empty, loginclient.ErrUnavailable
 	}
@@ -73,7 +74,10 @@ func (h *Handlers) TenantIdentitySnapshot(ctx context.Context, tenant, subject s
 		snapshot.MembershipEligible = view.Admission == "eligible"
 	}
 	if view.Profile != nil {
-		snapshot.Profile = &loginclient.UserProfile{DisplayName: view.Profile.DisplayName, Email: view.Profile.Email}
+		if view.TenantName == "" {
+			return empty, loginclient.ErrUnavailable
+		}
+		snapshot.Profile = &loginclient.UserProfile{DisplayName: view.Profile.DisplayName, Email: view.Profile.Email, TenantName: view.TenantName}
 	}
 	return snapshot, nil
 }

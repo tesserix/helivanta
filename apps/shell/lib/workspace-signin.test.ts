@@ -7,6 +7,11 @@ describe("workspace sign-in scope", () => {
       "openid profile email urn:zitadel:iam:org:id:helivanta-11111111-1111-4111-8111-111111111111",
     );
   });
+  it("preserves canonical legacy tenant UUID routing hints", () => {
+    expect(workspaceSigninScope("11111111-1111-1111-1111-111111111111")).toContain(
+      "org:id:helivanta-11111111-1111-1111-1111-111111111111",
+    );
+  });
   it.each([
     "",
     "other-org",

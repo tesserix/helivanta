@@ -281,8 +281,15 @@ private browse purpose admits current owners or exact preparation/review grants,
 minimal summaries and an exact read audit, while denying master writes/deletes
 despite inherited manager access. Its sealed cursor binds hospital and filters
 as well as the account/tenant/route. The existing linked-Staff inbox remains
-unchanged. No Staff/link/review identifiers are manufactured; inbox/SDK runtime
-acceptance and reviewer UI adoption are pending.
+unchanged. No Staff/link/review identifiers are manufactured. The candidate
+employment-review page now defaults to governance discovery/inbox and provides an
+explicit reviewed-Staff alternative. Query keys and selected private data are
+separated by path; dependency errors never trigger a source fallback. Local
+component acceptance covers review opening, path changes and 403/503 discovery
+failures. Real database/browser acceptance and finding/terms/document authoring
+remain pending. WF0107 extends the existing single permissive tenant policy while
+its restrictive purpose/delete policies bound every operation; the global RLS
+validator's single-policy requirement is unchanged.
 
 ## Release and remaining acceptance
 

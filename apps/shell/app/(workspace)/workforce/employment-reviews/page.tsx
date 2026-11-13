@@ -18,6 +18,7 @@ import {
   type EmploymentReviewHospitalScope,
   type EmploymentReviewHospitalWorkspace,
   type EmploymentReviewSummary,
+  type EmploymentReviewBrowseAuthority,
   type PermissionsResponse,
 } from "@helivanta/api";
 import { EmploymentReviewDetail } from "./review-detail";
@@ -61,13 +62,50 @@ export default function EmploymentReviews() {
 }
 
 function ReviewWorkspace({ workspace }: { workspace: Workspace }) {
+  const [authority, setAuthority] = useState<EmploymentReviewBrowseAuthority>("governance");
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="space-y-5">
+      <Field id="employment-review-access" label="Access path">
+        <SelectControl
+          id="employment-review-access"
+          value={authority}
+          disabled={busy}
+          options={[
+            { value: "governance", label: "Hospital owner or delegated governance" },
+            { value: "scoped_staff", label: "Reviewed Staff access" },
+          ]}
+          onValueChange={(value) => setAuthority(value as EmploymentReviewBrowseAuthority)}
+        />
+      </Field>
+      <ReviewAccessWorkspace
+        key={authority}
+        workspace={workspace}
+        authority={authority}
+        busy={busy}
+        onBusy={setBusy}
+      />
+    </div>
+  );
+}
+
+function ReviewAccessWorkspace({
+  workspace,
+  authority,
+  busy,
+  onBusy,
+}: {
+  workspace: Workspace;
+  authority: EmploymentReviewBrowseAuthority;
+  busy: boolean;
+  onBusy: (value: boolean) => void;
+}) {
   const [cursors, setCursors] = useState<(string | null)[]>([null]);
   const [selected, setSelected] = useState("");
-  const [busy, setBusy] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [revision, setRevision] = useState(0);
   const [notice, setNotice] = useState("");
-  const scopes = useEmploymentReviewScopes(workspace, cursors.at(-1) ?? null);
+  const scopes = useEmploymentReviewScopes(workspace, cursors.at(-1) ?? null, authority);
   const hospital =
     scopes.data?.data.find((row) => row.hospital_id === selected) ?? scopes.data?.data[0];
   const next = scopes.data?.page.next_cursor;
@@ -124,10 +162,11 @@ function ReviewWorkspace({ workspace }: { workspace: Workspace }) {
                   mode: hospital.can_review ? "review" : "prepare",
                 }}
                 hospital={hospital}
+                authority={authority}
                 busy={busy}
-                onBusy={setBusy}
+                onBusy={onBusy}
                 onAccessLost={() => {
-                  setBusy(false);
+                  onBusy(false);
                   setBlocked(true);
                 }}
               />
@@ -172,12 +211,14 @@ function ReviewWorkspace({ workspace }: { workspace: Workspace }) {
 function HospitalReviews({
   workspace,
   hospital,
+  authority,
   busy,
   onBusy,
   onAccessLost,
 }: {
   workspace: EmploymentReviewHospitalWorkspace;
   hospital: EmploymentReviewHospitalScope;
+  authority: EmploymentReviewBrowseAuthority;
   busy: boolean;
   onBusy: (value: boolean) => void;
   onAccessLost: () => void;
@@ -188,7 +229,12 @@ function HospitalReviews({
   const [cursors, setCursors] = useState<(string | null)[]>([null]);
   const [selected, setSelected] = useState<EmploymentReviewSummary | null>(null);
   const [notice, setNotice] = useState("");
-  const records = useEmploymentReviewInbox(activeWorkspace, status, cursors.at(-1) ?? null);
+  const records = useEmploymentReviewInbox(
+    activeWorkspace,
+    status,
+    cursors.at(-1) ?? null,
+    authority,
+  );
   const next = records.data?.page.next_cursor;
   return (
     <Panel className="space-y-4 p-5">

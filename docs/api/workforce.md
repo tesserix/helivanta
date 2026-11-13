@@ -180,10 +180,15 @@ the time-zone form, register and reminder inbox. A 401, 403, 404 or 409
 
 ## Scoped employment-review workspace
 
-This workspace/discovery remains scoped-Staff-only. Candidate direct submission,
-detail, decisions, history and evidence also support the nonclinical owner/grant
-union described in [Staff governance](staff-governance.md); authority-aware
-workspace adoption remains unfinished.
+The candidate workspace offers an explicit access path: hospital owner/delegated
+governance (the initial choice), or reviewed Staff access. Each path calls its
+own discovery and inbox routes and retains separate query keys/cursors. Changing
+paths unmounts selected terms and restarts discovery; it is disabled while a
+command, dirty form or private download is active. A failed governance read never
+silently retries with linked-Staff authority. Selected details and commands repeat
+the source checks described in [Staff governance](staff-governance.md). Finding
+selection and selected terms/document authoring still require integration; this
+reviewer UI candidate does not complete first-employment onboarding.
 
 The normal HR preparation and independent-review workspace uses these additive
 owner routes, all through the Global API with exact original tenant/subject
@@ -204,8 +209,8 @@ assertion headers and current reviewed active Staff/login actor checks:
   existing linked-Staff scope route. A filtered page may be empty with more
   candidates remaining. No Staff/link/review identifiers are fabricated, and
   no employment, account or operating authority follows from discovery. SDK
-  support is included; inbox/selection/UI adoption and remote acceptance remain
-  pending.
+  and reviewer workspace support are included; finding/terms/document authoring
+  and remote acceptance remain pending.
 - Candidate `GET /v1/workforce/hospitals/:hospital/employment-review-authority-inbox`:
   separate owner/exact-grant summary browsing with `mode=prepare|review` (default
   review), recorded `status` (default pending), and a page limit of 50 plus one
@@ -224,7 +229,9 @@ assertion headers and current reviewed active Staff/login actor checks:
   for the Staff-label visibility lookup, and reads require it to be ready/valid.
   No Staff/link/review IDs are fabricated,
   and the linked-Staff inbox keeps its original contract and cursor meaning.
-  This candidate and its SDK are not UI, production or migration acceptance.
+  The candidate reviewer page uses this route only for the governance access path.
+  Local component tests cover that selection and denial without source fallback;
+  real browser, production and migration acceptance remain pending.
 - `GET /v1/workforce/hospitals/:hospital/employment-review-inbox`: exactly one
   `hr_intake=v1` or `employment_review=v1`, optional recorded `status` from
   pending/approved/rejected/withdrawn/revoked, and canonical cursor/limit. Minimal

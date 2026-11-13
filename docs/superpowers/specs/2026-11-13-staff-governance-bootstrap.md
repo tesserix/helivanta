@@ -38,7 +38,7 @@ scope tests, rather than broadening either existing bundle.
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Ordinary assignment proposal read/review              | `assignmentAccessFor` and asynchronous `decisionScopeStatus` require `assignmentAdministrator`                                                                                 | Exact hospital scoped-access reviewer, rechecked both at decision and later owner verification settlement; preserve target/proposer separation and product prerequisites                   |
 | Person findings and identity-source review            | `personReviewTransaction` now has a candidate explicit owner/grant union; ordinary `identityScopeTransaction` retains reviewed Staff                                           | Exact nonclinical person-review governance actor; current native human/membership, contributor exclusions, protected document/evidence checks and audit; no invented Staff link            |
-| Employment preparation/review                         | Targeted commands, separate authority discovery and WF0107 inbox have candidate current-governance alternatives; selected findings/draft authoring and UI adoption remain open | Separate employer-bound nonclinical preparation and review authority with explicit governance provenance in audit/receipts; retain evidence and independent-person rules                   |
+| Employment preparation/review                         | Targeted commands, separate authority discovery and WF0107 inbox have candidate current-governance alternatives; selected findings/draft authoring and remote UI acceptance remain open | Separate employer-bound nonclinical preparation and review authority with explicit governance provenance in audit/receipts; retain evidence and independent-person rules                   |
 | First employment activation                           | WF0106 candidate admits the scoped activation/enrollment pair or IAM's exact-Staff governance activation writer; current-head acceptance is pending                            | Employer-bound nonclinical activation authority retaining current approved person/employment and native account checks; no operating authority follows from the activation decision itself |
 | Hospital department posting and pharmacy relationship | `scopedPostingTransaction` requires `StaffActorUse` and `WithCurrentStaffActor`                                                                                                | Complete the reviewers' own reviewed employment first, then ordinary reviewed posting/relationship assignments; preserve Staff, department, professional and product guards                |
 | Independent pharmacy/supplier operating duty          | `operatingAdministrationRole` and Workforce `employerAccess(...,"manager",...)` require legacy administrative roles/access                                                     | Exact employer-scoped operating-access reviewer through both IAM and Workforce source checks; retain target identity/location eligibility and subject/proposer separation                  |
@@ -406,7 +406,8 @@ its hospital, discover a pending review, select a person finding, or prepare the
 underlying draft and released evidence. The existing employment scope and inbox
 handlers still require a real linked Staff actor. The separate candidate
 `employment-review-authority-scopes` route discovers current owner/exact grant
-capabilities without changing the linked-Staff route; UI adoption is pending. Do not treat direct-ID review
+capabilities without changing the linked-Staff route; the candidate UI now selects
+its discovery/inbox path explicitly, with remote acceptance pending. Do not treat direct-ID review
 acceptance as completion of this user journey.
 
 The continuation must preserve these separate sources end to end:
@@ -470,3 +471,29 @@ revocation and fault cases are pending remote CI; no live migration is applied.
 This does not complete finding selection, selected terms/document authoring or
 the reviewer workspace. They must adopt current source authority before this
 path is exposed as a complete first-reviewer workflow.
+
+
+### Candidate employment reviewer workspace adoption
+
+The page initially selects hospital governance and allows an explicit switch to
+reviewed Staff browsing. Each selection uses its own registered discovery/inbox
+routes; query keys include the path as well as tenant/account/resource/filter and
+cursor. Switching unmounts private detail and paging state. Busy decision,
+unsaved form and private-download states disable the switch. No dependency or
+permission error falls back to the other source. Exact selected-review commands
+continue to reauthorize their existing tagged source union; the browser selection
+is not authority and cannot bypass independent-person checks.
+
+The initial regression failed on the old linked-Staff-only page, then passed with
+the candidate wiring. Fourteen component tests cover the new governance path,
+explicit Staff path, clearing selected detail, 403/503 discovery failure without
+fallback and existing decision/uncertain-retry behavior. This local evidence is
+not real PostgreSQL/FGA or browser acceptance. Finding selection and draft
+terms/document authoring remain the next integration boundary.
+
+Remote CI on `8de7569a` rejected the inbox migration's extra permissive policies
+before database/browser tests could start. The corrected candidate extends the
+existing single permissive read/write policy, with restrictive purpose/delete
+fences unchanged. It does not weaken the global RLS validator. The runtime
+preflight and fault tests now require the inbox source in the existing read/audit
+expressions. Current-head migration and source acceptance must be rerun remotely.

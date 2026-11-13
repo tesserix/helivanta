@@ -1383,6 +1383,11 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods` | `workforce.enrollment.manage` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-person-finding-options` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-person-findings` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/history` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-source` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/activation-source` | `public` | false | false |
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/decision` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/evidence/:file/content` | `public` | false | false |
@@ -1631,6 +1636,7 @@ Migration table declarations:
 - `0100_workforce_pharmacy_credential_reviews`: `workforce_pharmacy_time_zones`.
 - `0103_workforce_login_review_authority`: `workforce_login_link_authorities`.
 - `0108_workforce_employment_inbox_staff_index`: concurrent index `workforce_employment_inbox_staff` on `workforce_employment_reviews (tenant_id, hospital_id, staff_id)`.
+- `0111_workforce_employment_preparation_receipt`: concurrent index `workforce_employment_preparation_receipt` on `workforce_audit (tenant_id, hospital_id, resource_id, action)`.
 
 ## workspace
 

@@ -415,3 +415,18 @@ routing/denial tests pass; real owner/delegate, revoked source, missing-policy,
 released-evidence and inherited-manager write-denial cases await remote execution.
 Draft terms/document authoring and reviewer preparation UI remain open. This
 candidate is not approved for a live migration or rollout.
+
+The candidate hospital `employment-preparation-source` and
+`employment-preparation-periods` family now acquires real current employment
+preparation authority independently of Staff intake. WF0110 binds reads/saves to
+the exact Staff/period/real command, preserves canonical draft revisions and
+terminal withdrawal checks, and atomically retains private source provenance in
+the immutable audit ledger. A legacy receipt cannot be relabelled as governance
+provenance, and revocation is rechecked before receipt reads. WF0111 supplies the
+concurrent revision receipt lookup index. Required trigger/function/event,
+index/policy/forced-RLS support is checked before reading or saving. This grants
+no document, login, posting, review-decision or operating authority. Local proof,
+replay, build and compile evidence is not remote acceptance. Preparation SDK/UI
+and document authoring/binding are unfinished. Both migrations require specific
+live application and rollback approval after acceptance; keep historical proof
+when rolling back a binary.

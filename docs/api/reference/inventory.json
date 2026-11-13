@@ -10953,6 +10953,51 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/history",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-source",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/activation-source",
           "permission": "public",
           "authentication_required": true,
@@ -13444,6 +13489,40 @@
           "id": "0109_workforce_employment_governance_findings",
           "sql_sha256": "3afa9fc5bc1b72d34572b9f0c9917d67f8779a100cca05bc00ce4d7afde3890d",
           "creates_tables": []
+        },
+        {
+          "id": "0110_workforce_employment_preparation",
+          "sql_sha256": "4fcacb27f7eafee504679f9454d8416f67099c7e6c53c071454a8b0d6ff4b9c3",
+          "creates_tables": []
+        },
+        {
+          "id": "0111_workforce_employment_preparation_receipt",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "workforce_employment_preparation_receipt",
+              "table": "workforce_audit",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "resource_id",
+                  "descending": false
+                },
+                {
+                  "name": "action",
+                  "descending": false
+                }
+              ]
+            }
+          ]
         }
       ]
     },

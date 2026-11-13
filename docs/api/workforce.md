@@ -2149,3 +2149,30 @@ profile, document or login-link masters. This changes the unapplied WF0104 candi
 it is not a deployed schema change. Real database, disclosure-cutoff and rollback
 acceptance remain remote CI/release gates. Employment, first activation and
 operating authority remain separate unfinished workflows.
+
+Candidate hospital governance employment drafting adds these separate routes under
+`/v1/workforce/hospitals/:hospital/staff/:id`:
+
+| Method | Suffix | Authority and result |
+| --- | --- | --- |
+| GET | `/employment-preparation-source` | Current owner/exact employment-preparer; canonical selected Staff basis |
+| GET | `/employment-preparation-periods` | Same source; bounded draft list with hospital/Staff/account/tenant/filter-bound sealed cursor |
+| GET | `/employment-preparation-periods/:period` | Same source; canonical exact selected draft/lifecycle read |
+| GET | `/employment-preparation-periods/:period/history` | Same source; bounded canonical history, with actual period also bound in sealed cursor |
+| PUT | `/employment-preparation-periods/:period` | Same source, exact normalized command; canonical revision/conflict/receipt behavior with mandatory private provenance |
+
+These candidate APIs use the original canonical employment input/source/draft
+models. Expected tenant/account headers are mandatory. Unknown/duplicate query
+keys fail closed. `lifecycle=withdrawal-v1` remains an explicit read option;
+preparation does not authorize withdrawal. Native current membership/source is
+held under a five-second/idle lease; no linked-Staff or legacy fallback occurs.
+Candidate WF0110 restricts every Workforce table to exact selected operations,
+permits only the selected draft/history and minimized audits to change, preserves
+the retained withdrawal/source/sponsor guard, and atomically records private source
+provenance with each canonical history snapshot. A retry cannot rebind a legacy
+receipt or a changed source. WF0111 builds the audit revision lookup index
+concurrently. Missing/disabled trigger, index, policy or RLS support returns 503
+before operation. There is no invented review ID, login or operating grant.
+Public payloads do not expose authority or input hashes. Local proof/replay,
+compile/build/lint evidence does not establish real PostgreSQL, UI, production or
+rollout acceptance. SDK/UI preparation and document authoring remain open.

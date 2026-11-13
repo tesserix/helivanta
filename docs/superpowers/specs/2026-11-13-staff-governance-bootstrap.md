@@ -528,3 +528,68 @@ requires capturing/restoring prior permissive expressions before dropping the
 new functions/fences. No Staff, identity, findings or audit data is erased. This
 finding selector does not itself authorize draft terms or document authoring;
 those must acquire their own exact preparation consumers and retained provenance.
+
+### Candidate hospital governance terms preparation
+
+Separate `employment-preparation-source` and `employment-preparation-periods`
+routes on an exact hospital/Staff resource use current owner or exact hospital
+employment-preparer authority. Source, list, selected read, selected history and
+save are closed registered operations. Original tenant/account assertions and
+native membership/source verification are mandatory, with one five-second/idle
+lease per command. There is no fallback to linked Staff or a coarse legacy role.
+The public input/source/draft/history models are unchanged canonical Workforce
+contracts. List cursors bind actual hospital/Staff, history cursors additionally
+bind actual period, and both bind caller/tenant/route/lifecycle filter. The prior
+Staff and independent-pharmacy routes and cursor behavior remain unchanged.
+
+A typed save-authority closure receives the real normalized canonical command
+only after decoding/validation. It preserves the existing digest/receipt, actor,
+optimistic version, terminal withdrawal, Staff basis, active sponsor, supervision
+lock and owner-kind checks. The actual v7 period path and command/revision ID are
+retained; no review, period or actor IDs are fabricated. A replay must have the
+same retained source identity and payload, under newly verified current authority;
+lease/authentication timestamps can refresh. A legacy receipt without this
+provenance cannot be rebound to a governance source. A new revision retains its
+own source without rewriting earlier contributor history.
+
+WF0110 adds a private selected-operation purpose and restrictive delete fence on
+every Workforce table. Only the exact hospital kind, selected Staff and supplied
+same-hospital active sponsor, selected draft/history and exact private audit are
+permitted. The only master write is the exact selected draft command; canonical
+triggers retain history. It grants no Staff, document, evidence, withdrawal,
+review decision, login, posting, operating or clinical authority. The existing
+single permissive policies are extended; the global RLS validator is unchanged.
+The retained period guard's exact enrollment predicate is extended only for this
+selected command. Migration fails if the expected current withdrawal/sponsor
+checks are absent; it does not recreate an outdated guard or globally broaden
+`workforce_enrollment_allowed`.
+
+An AFTER history-insert trigger atomically retains private source provenance in
+the immutable audit ledger, using the real revision ID as its audit resource.
+Only the canonical history snapshot's trigger depth admits that provenance write.
+It stores source identity, basis and input hash, not duplicated terms/reasons or
+file contents. Normal operation audits also retain the exact private authority;
+legacy audit shape stays version-only. Replay looks up the real revision under
+current target scope and compares retained source identity before accepting the
+canonical receipt. WF0111 creates the plain audit receipt lookup index
+concurrently. Before any preparation read/save, preflight requires valid/ready
+indexes, actual guard/snapshot/history/provenance triggers enabled with their
+expected functions/events, required read/write/audit expressions, forced RLS,
+purpose/delete fences and no runtime TRUNCATE.
+
+Local proof/replay tests were observed failing before implementation, then passed
+with `-race`. The expanded real PostgreSQL fixture now prepares the very terms
+consumed by the employment review through the no-Staff governance route. It also
+covers exact save/edit/replay/conflicting input/stale basis, selected read/history,
+wrong source, original workspace mismatch, disabled provenance trigger, retained
+read-purpose write denial, missing legacy provenance and revoked preparation
+source. These compile; runtime acceptance is pending. UI/SDK preparation adoption,
+document authoring/binding and downstream staffing/access remain unfinished.
+
+WF0110/WF0111 are not approved for live application. Required evidence includes
+remote migration/source/atomicity/retry/negative tests and bounded query plans.
+Binary rollback removes the new consumers while retaining policies, functions,
+indexes and immutable source audits; old paths see an empty new-purpose GUC and
+retain their previous checks. Do not delete provenance or reverse the retained
+history. Any later DDL removal needs a captured prior guard/policy definition and
+specific reviewed migration/rollback approval.

@@ -197,8 +197,12 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 			request(t, http.MethodPut, "/v1/iam/governance-grants/"+id.String()+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "owner2", map[string]any{"expected_version": 1, "decision": "approve", "reason": "Independent owner confirms exact employment purpose"}, 202)
 			return id
 		}
+		selectionPath := target + "/employment-person-finding-options"
+		selectionQuery := fmt.Sprintf("?hr_intake=v1&staff_version=%v&employment_epoch=%v", source["staff_version"], source["employment_epoch"])
+		request(t, http.MethodGet, selectionPath+selectionQuery, "auditor", nil, 403)
+		prepareGrant := grant("user-auditor", "workforce.employment_preparer.v1", roots[0])
 		period := uuid.Must(uuid.NewV7())
-		terms := request(t, http.MethodPut, target+"/employment-periods/"+period.String(), "admin", map[string]any{"command_id": uuid.Must(uuid.NewV7()), "expected_version": 0, "staff_version": source["staff_version"], "employment_epoch": source["employment_epoch"], "engagement_kind": "employee", "duration": "ongoing", "starts_at": time.Now().UTC().Add(-time.Minute).Truncate(time.Microsecond), "reason": "Synthetic appointment", "evidence_reference": "SYN-APPOINTMENT"}, 200)
+		terms := request(t, http.MethodPut, target+"/employment-preparation-periods/"+period.String(), "auditor", map[string]any{"command_id": uuid.Must(uuid.NewV7()), "expected_version": 0, "staff_version": source["staff_version"], "employment_epoch": source["employment_epoch"], "engagement_kind": "employee", "duration": "ongoing", "starts_at": time.Now().UTC().Add(-time.Minute).Truncate(time.Microsecond), "reason": "Synthetic appointment", "evidence_reference": "SYN-APPOINTMENT"}, 200)
 		employmentFile := uuid.Must(uuid.NewV7()).String()
 		path := target + "/documents/" + employmentFile
 		request(t, http.MethodPut, path, "admin", map[string]any{"record_kind": "enrollment", "record_id": staff[0], "category": "employment_evidence", "filename": "synthetic-appointment.png", "content_type": "image/png", "size": pngBytes.Len(), "sha256": fmt.Sprintf("%x", sha256.Sum256(pngBytes.Bytes()))}, 201)
@@ -219,10 +223,81 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		employmentPath := target + "/employment-reviews/" + employmentReview.String()
 		input := map[string]any{"command_id": uuid.Must(uuid.NewV7()), "staff_version": source["staff_version"], "employment_epoch": source["employment_epoch"], "identity_hash": source["identity_hash"], "period_id": period, "period_revision_id": terms["revision_id"], "period_version": terms["version"], "person_review_id": reviewID, "person_review_revision_id": approved["revision_id"], "person_review_version": approved["version"], "evidence": []map[string]any{{"id": bindingID, "revision_id": binding["revision_id"], "version": binding["version"]}}, "policy_reference": "SYN-EMPLOYMENT-POLICY", "reason": "Freeze exact reviewed person and appointment terms", "terms_examined": true, "known_associations_disclosed": true}
 		request(t, http.MethodPut, employmentPath+"?hr_intake=v1", "auditor", input, 403)
-		selectionPath := target + "/employment-person-finding-options"
-		selectionQuery := fmt.Sprintf("?hr_intake=v1&staff_version=%v&employment_epoch=%v", source["staff_version"], source["employment_epoch"])
-		request(t, http.MethodGet, selectionPath+selectionQuery, "auditor", nil, 403)
-		prepareGrant := grant("user-auditor", "workforce.employment_preparer.v1", roots[0])
+
+		t.Run("exact governance authors terms without a Staff actor", func(t *testing.T) {
+			for _, boundary := range []struct{ header, value string }{{"X-Helivanta-Expected-Tenant", ""}, {"X-Helivanta-Expected-Subject", ""}, {"X-Helivanta-Expected-Tenant", testutil.TenantB}, {"X-Helivanta-Expected-Subject", "user-owner2"}} {
+				req := httptest.NewRequest(http.MethodGet, target+"/employment-preparation-source", nil)
+				req.Header.Set("Authorization", "Bearer auditor")
+				req.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantA)
+				req.Header.Set("X-Helivanta-Expected-Subject", "user-auditor")
+				req.Header.Set(boundary.header, boundary.value)
+				response := httptest.NewRecorder()
+				router.ServeHTTP(response, req)
+				require.Equal(t, 409, response.Code, response.Body.String())
+				require.NotContains(t, response.Body.String(), "display_name")
+			}
+			current := request(t, http.MethodGet, target+"/employment-preparation-source", "auditor", nil, 200)
+			require.Equal(t, source["staff_version"], current["staff_version"])
+			id := uuid.Must(uuid.NewV7())
+			draftPath := target + "/employment-preparation-periods/" + id.String()
+			command := map[string]any{"command_id": uuid.Must(uuid.NewV7()), "expected_version": 0, "staff_version": current["staff_version"], "employment_epoch": current["employment_epoch"], "engagement_kind": "employee", "duration": "ongoing", "starts_at": time.Now().UTC().Add(-time.Minute).Truncate(time.Microsecond), "reason": "Synthetic exact governance terms", "evidence_reference": "SYN-GOV-TERMS"}
+			request(t, http.MethodPut, draftPath, "reviewer", command, 403)
+			first := request(t, http.MethodPut, draftPath, "auditor", command, 200)
+			require.Equal(t, float64(1), first["version"])
+			require.Equal(t, "user-auditor", first["actor_subject"])
+			for _, key := range []string{"authority", "governance_source", "input_hash"} {
+				require.NotContains(t, first, key)
+			}
+			require.Equal(t, first, request(t, http.MethodPut, draftPath, "auditor", command, 200))
+			changed := map[string]any{}
+			for key, value := range command {
+				changed[key] = value
+			}
+			changed["reason"] = "Changed digest"
+			request(t, http.MethodPut, draftPath, "auditor", changed, 409)
+			changed["command_id"], changed["expected_version"] = uuid.Must(uuid.NewV7()), 1
+			second := request(t, http.MethodPut, draftPath, "auditor", changed, 200)
+			require.Equal(t, float64(2), second["version"])
+			require.Equal(t, first, request(t, http.MethodPut, draftPath, "auditor", command, 200), "a replay retains the exact original revision after subsequent edits")
+			request(t, http.MethodGet, draftPath, "admin", nil, 200)
+			request(t, http.MethodGet, draftPath, "reviewer", nil, 403)
+			require.Len(t, request(t, http.MethodGet, draftPath+"/history", "auditor", nil, 200)["data"], 2)
+			request(t, http.MethodGet, target+"/employment-preparation-periods?limit=1", "auditor", nil, 200)
+			request(t, http.MethodGet, draftPath+"?unknown=1", "auditor", nil, 400)
+			request(t, http.MethodGet, target+"/employment-periods/"+id.String()+"?hr_intake=v1", "auditor", nil, 403)
+			var recorded struct{ Authority json.RawMessage }
+			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+				if err := tx.Exec("SELECT set_config('app.workforce_subject','user-admin',true),set_config('app.workforce_hospital',?,true)", roots[0].String()).Error; err != nil {
+					return err
+				}
+				return tx.Raw("SELECT changes->'authority' AS authority FROM workforce_audit WHERE tenant_id=? AND hospital_id=? AND actor_subject='user-admin' AND resource_id=? AND action='workforce.employment_period.read' ORDER BY created_at DESC,id DESC LIMIT 1", testutil.TenantA, roots[0], id).Take(&recorded).Error
+			}))
+			assertReadPurposeBlocksStaffMasterEdit(t, db, roots[0], staff[0], "app.workforce_governance_draft_authority", recorded.Authority)
+			next := map[string]any{}
+			for key, value := range changed {
+				next[key] = value
+			}
+			next["command_id"], next["expected_version"] = uuid.Must(uuid.NewV7()), 2
+			next["staff_version"] = 999
+			request(t, http.MethodPut, draftPath, "auditor", next, 409)
+			next["staff_version"] = current["staff_version"]
+			require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_governance_draft_source_disabled", SQL: "ALTER TABLE workforce_employment_period_history DISABLE TRIGGER workforce_governance_draft_provenance"}}))
+			func() {
+				defer func() {
+					require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_governance_draft_source_restored", SQL: "ALTER TABLE workforce_employment_period_history ENABLE TRIGGER workforce_governance_draft_provenance"}}))
+				}()
+				request(t, http.MethodPut, draftPath, "auditor", next, 503)
+			}()
+			require.Len(t, request(t, http.MethodGet, draftPath+"/history", "auditor", nil, 200)["data"], 2)
+			legacy := uuid.Must(uuid.NewV7())
+			legacyInput := map[string]any{}
+			for key, value := range command {
+				legacyInput[key] = value
+			}
+			legacyInput["command_id"] = uuid.Must(uuid.NewV7())
+			request(t, http.MethodPut, target+"/employment-periods/"+legacy.String(), "admin", legacyInput, 200)
+			request(t, http.MethodPut, target+"/employment-preparation-periods/"+legacy.String(), "admin", legacyInput, 409)
+		})
 		t.Run("selected finding preparation needs no Staff actor", func(t *testing.T) {
 			for _, actor := range []string{"owner2", "auditor", "admin"} {
 				rows := request(t, http.MethodGet, selectionPath+selectionQuery, actor, nil, 200)["data"].([]any)
@@ -484,6 +559,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		require.Equal(t, pngBytes.Bytes(), download.Body.Bytes())
 		request(t, http.MethodPut, "/v1/iam/governance-grants/"+prepareGrant.String()+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "admin", map[string]any{"expected_version": 2, "decision": "revoke", "reason": "Withdraw exact employment preparation source"}, 202)
 		request(t, http.MethodGet, selectionPath+selectionQuery, "auditor", nil, 403)
+		request(t, http.MethodGet, target+"/employment-preparation-source", "auditor", nil, 403)
 		grant("user-reviewer", "workforce.employment_reviewer.v1", roots[1])
 		cutoff := make(chan *httptest.ResponseRecorder, 1)
 		cloud.AfterReleasedRead(func() {
@@ -755,6 +831,8 @@ func assertReadPurposeBlocksStaffMasterEdit(t *testing.T, db *tenantdb.DB, hospi
 	t.Helper()
 	var sourceQuery string
 	switch setting {
+	case "app.workforce_governance_draft_authority":
+		sourceQuery = "SELECT workforce_governance_draft_source(?::uuid,?::uuid,?::uuid)"
 	case "app.workforce_governance_finding_authority":
 		sourceQuery = "SELECT workforce_governance_finding_source(?::uuid,?::uuid,?::uuid)"
 	case "app.workforce_employment_inbox_authority":
@@ -784,7 +862,7 @@ func assertReadPurposeBlocksStaffMasterEdit(t *testing.T, db *tenantdb.DB, hospi
 			return err
 		}
 		args := []any{testutil.TenantA, hospital}
-		if setting == "app.workforce_governance_finding_authority" {
+		if setting != "app.workforce_employment_inbox_authority" {
 			args = append(args, staff)
 		}
 		var valid bool

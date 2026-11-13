@@ -1,9 +1,9 @@
 {
   "format_version": 1,
-  "registry_sha256": "1478a96436bdca3d81b0f209e957be232459a54e48180d791fc2f2d933282826",
+  "registry_sha256": "417965573299f7d6e5d4ece00204b616f635a6db7adb542d8cc46165a6dd401b",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1096,
+    "total": 1101,
     "unclassified": 984
   },
   "entries": [
@@ -13538,7 +13538,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "b1be6400c38babcba7f48700bafe07275c993279a12894e668b4f3b47c3fc3b9",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3",
             "symbol": "h.employmentAuthorityScopeCandidates"
           },
           {
@@ -13563,7 +13563,7 @@
           },
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
-            "sha256": "4fdbc016d349b78750e47ae23d0a71e1956ab9d7c359dc75ec5528ef7dfd01bd",
+            "sha256": "7c63d5887528be47244e06be9ffbdc0d476678effb1e74da177248688dd6d17a",
             "symbol": "employment authority discovery needs no Staff links"
           }
         ],
@@ -13596,7 +13596,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "b1be6400c38babcba7f48700bafe07275c993279a12894e668b4f3b47c3fc3b9",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -13686,7 +13686,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "b1be6400c38babcba7f48700bafe07275c993279a12894e668b4f3b47c3fc3b9",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3",
             "symbol": "h.getBusinessProfile"
           },
           {
@@ -13748,7 +13748,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "b1be6400c38babcba7f48700bafe07275c993279a12894e668b4f3b47c3fc3b9",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -13812,7 +13812,7 @@
           {
             "path": "backend/internal/modules/workforce/module.go",
             "symbol": "h.listEmploymentAuthorityInbox",
-            "sha256": "b1be6400c38babcba7f48700bafe07275c993279a12894e668b4f3b47c3fc3b9"
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3"
           },
           {
             "path": "backend/internal/modules/workforce/employment_authority_inbox.go",
@@ -13837,7 +13837,7 @@
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "current employment governance opens only the employer inbox",
-            "sha256": "4fdbc016d349b78750e47ae23d0a71e1956ab9d7c359dc75ec5528ef7dfd01bd"
+            "sha256": "7c63d5887528be47244e06be9ffbdc0d476678effb1e74da177248688dd6d17a"
           }
         ],
         "remaining": [
@@ -13869,7 +13869,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "b1be6400c38babcba7f48700bafe07275c993279a12894e668b4f3b47c3fc3b9",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -15995,7 +15995,7 @@
           {
             "path": "backend/internal/modules/workforce/module.go",
             "symbol": "h.governanceEmploymentFindingCandidates",
-            "sha256": "b1be6400c38babcba7f48700bafe07275c993279a12894e668b4f3b47c3fc3b9"
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3"
           },
           {
             "path": "backend/internal/modules/workforce/employment_governance_findings.go",
@@ -16015,7 +16015,7 @@
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "selected finding preparation needs no Staff actor",
-            "sha256": "4fdbc016d349b78750e47ae23d0a71e1956ab9d7c359dc75ec5528ef7dfd01bd"
+            "sha256": "7c63d5887528be47244e06be9ffbdc0d476678effb1e74da177248688dd6d17a"
           }
         ],
         "remaining": [
@@ -16047,7 +16047,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "b1be6400c38babcba7f48700bafe07275c993279a12894e668b4f3b47c3fc3b9",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -16114,6 +16114,258 @@
       }
     },
     {
+      "id": "http workforce GET /v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "method": "GET",
+        "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": {
+        "id": "http workforce GET /v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods",
+        "registration_sha256": "fbd7bd638721a57025cfa782b12f5471e68cee39110dc23e03d890fce334bdaf",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified original tenant/account and exact hospital/Staff/optional real period/normalized command under current IAM employment preparation source.",
+        "rationale": "Separate hospital governance terms consumers acquire native current owner/exact preparation source without a fabricated Staff/link/review. Closed read/list/history/save purposes bind actual resources and body; bounded sealed list cursors include caller/tenant/filter and both Staff/hospital plus selected history period. Canonical save logic retains validation, revision, optimistic conflict, owner-kind/supervision/source/sponsor and retry checks; the typed save closure receives normalized real input. WF0110 extends only the exact retained period guard predicate and single permissive policy while restrictive purpose/delete fences deny all other Workforce mutations. Canonical history snapshot atomically emits immutable private source provenance; current source identity and payload must match on receipt replay, without relabelling legacy receipts. WF0111 builds an exact revision audit lookup index concurrently. Preflight requires actual enabled guard/snapshot/history/provenance triggers, required expressions, ready/valid indexes, forced RLS and no TRUNCATE. Private authority/input hashes are not returned. Local proof/replay and compile/build checks pass; real database, UI and deployment acceptance are pending.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/workforce/employment_preparation_routes.go",
+            "symbol": "registerEmploymentPreparation",
+            "sha256": "8b7aeee736a198652c6cac24f6ec6bc34e1c80013b24dac001f400eca6c1ba8a"
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_preparation_authority.go",
+            "symbol": "withEmploymentPreparation",
+            "sha256": "2ae66dfeff98e07b3a337cec9cdc0647f2a8de3c12096010c0452fa2b78dbdfc"
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_preparation_authority.sql",
+            "symbol": "workforce_governance_draft_write",
+            "sha256": "4fcacb27f7eafee504679f9454d8416f67099c7e6c53c071454a8b0d6ff4b9c3"
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_periods.go",
+            "symbol": "saveEmploymentPeriod",
+            "sha256": "25de2a8c8bb769ea7c39aa4848cf1e5f0e0404f3fae4cb638fa2f6db4f21a70a"
+          },
+          {
+            "path": "backend/internal/platform/filtered_list.go",
+            "symbol": "SealedFilteredQueryListRoute",
+            "sha256": "981532fbbe4527156bd24be06729be8c75a2d774d6e0f43bc38ee2b15031f622"
+          },
+          {
+            "path": "backend/internal/bootstrap/staff_governance_person_test.go",
+            "symbol": "exact governance authors terms without a Staff actor",
+            "sha256": "7c63d5887528be47244e06be9ffbdc0d476678effb1e74da177248688dd6d17a"
+          },
+          {
+            "path": "backend/internal/modules/workforce/module.go",
+            "symbol": "0111_workforce_employment_preparation_receipt",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3"
+          }
+        ],
+        "remaining": [
+          "Run current-head real PostgreSQL/FGA create/edit/replay/conflicting input/basis/workspace/source/cross-resource/sponsor/terminal state/policy/index/trigger/audit failure and atomic rollback cases; retain query-plan and migration/rollback evidence.",
+          "Complete preparation SDK/UI and document authoring/binding, assignment/operating reviews, recipient setup/reviewed links/postings and both pharmacy ownership access scenarios. WF0110/WF0111 require specific live migration/rollback approval after validation; this classification is source review only."
+        ]
+      }
+    },
+    {
+      "id": "http workforce GET /v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "method": "GET",
+        "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http workforce GET /v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period",
+        "registration_sha256": "d4d99e7a9beb79d43d7ed838a9434b75a279f850a86b80c22839a6b9c1112321",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified original tenant/account and exact hospital/Staff/optional real period/normalized command under current IAM employment preparation source.",
+        "rationale": "Separate hospital governance terms consumers acquire native current owner/exact preparation source without a fabricated Staff/link/review. Closed read/list/history/save purposes bind actual resources and body; bounded sealed list cursors include caller/tenant/filter and both Staff/hospital plus selected history period. Canonical save logic retains validation, revision, optimistic conflict, owner-kind/supervision/source/sponsor and retry checks; the typed save closure receives normalized real input. WF0110 extends only the exact retained period guard predicate and single permissive policy while restrictive purpose/delete fences deny all other Workforce mutations. Canonical history snapshot atomically emits immutable private source provenance; current source identity and payload must match on receipt replay, without relabelling legacy receipts. WF0111 builds an exact revision audit lookup index concurrently. Preflight requires actual enabled guard/snapshot/history/provenance triggers, required expressions, ready/valid indexes, forced RLS and no TRUNCATE. Private authority/input hashes are not returned. Local proof/replay and compile/build checks pass; real database, UI and deployment acceptance are pending.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/workforce/employment_preparation_routes.go",
+            "symbol": "registerEmploymentPreparation",
+            "sha256": "8b7aeee736a198652c6cac24f6ec6bc34e1c80013b24dac001f400eca6c1ba8a"
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_preparation_authority.go",
+            "symbol": "withEmploymentPreparation",
+            "sha256": "2ae66dfeff98e07b3a337cec9cdc0647f2a8de3c12096010c0452fa2b78dbdfc"
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_preparation_authority.sql",
+            "symbol": "workforce_governance_draft_write",
+            "sha256": "4fcacb27f7eafee504679f9454d8416f67099c7e6c53c071454a8b0d6ff4b9c3"
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_periods.go",
+            "symbol": "saveEmploymentPeriod",
+            "sha256": "25de2a8c8bb769ea7c39aa4848cf1e5f0e0404f3fae4cb638fa2f6db4f21a70a"
+          },
+          {
+            "path": "backend/internal/platform/filtered_list.go",
+            "symbol": "SealedFilteredQueryListRoute",
+            "sha256": "981532fbbe4527156bd24be06729be8c75a2d774d6e0f43bc38ee2b15031f622"
+          },
+          {
+            "path": "backend/internal/bootstrap/staff_governance_person_test.go",
+            "symbol": "exact governance authors terms without a Staff actor",
+            "sha256": "7c63d5887528be47244e06be9ffbdc0d476678effb1e74da177248688dd6d17a"
+          },
+          {
+            "path": "backend/internal/modules/workforce/module.go",
+            "symbol": "0111_workforce_employment_preparation_receipt",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3"
+          }
+        ],
+        "remaining": [
+          "Run current-head real PostgreSQL/FGA create/edit/replay/conflicting input/basis/workspace/source/cross-resource/sponsor/terminal state/policy/index/trigger/audit failure and atomic rollback cases; retain query-plan and migration/rollback evidence.",
+          "Complete preparation SDK/UI and document authoring/binding, assignment/operating reviews, recipient setup/reviewed links/postings and both pharmacy ownership access scenarios. WF0110/WF0111 require specific live migration/rollback approval after validation; this classification is source review only."
+        ]
+      }
+    },
+    {
+      "id": "http workforce GET /v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/history",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "method": "GET",
+        "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/history",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": {
+        "id": "http workforce GET /v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/history",
+        "registration_sha256": "2bd8c3391071f920ba64d884febc434dbfd30644dba1aca401513856ad46dade",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified original tenant/account and exact hospital/Staff/optional real period/normalized command under current IAM employment preparation source.",
+        "rationale": "Separate hospital governance terms consumers acquire native current owner/exact preparation source without a fabricated Staff/link/review. Closed read/list/history/save purposes bind actual resources and body; bounded sealed list cursors include caller/tenant/filter and both Staff/hospital plus selected history period. Canonical save logic retains validation, revision, optimistic conflict, owner-kind/supervision/source/sponsor and retry checks; the typed save closure receives normalized real input. WF0110 extends only the exact retained period guard predicate and single permissive policy while restrictive purpose/delete fences deny all other Workforce mutations. Canonical history snapshot atomically emits immutable private source provenance; current source identity and payload must match on receipt replay, without relabelling legacy receipts. WF0111 builds an exact revision audit lookup index concurrently. Preflight requires actual enabled guard/snapshot/history/provenance triggers, required expressions, ready/valid indexes, forced RLS and no TRUNCATE. Private authority/input hashes are not returned. Local proof/replay and compile/build checks pass; real database, UI and deployment acceptance are pending.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/workforce/employment_preparation_routes.go",
+            "symbol": "registerEmploymentPreparation",
+            "sha256": "8b7aeee736a198652c6cac24f6ec6bc34e1c80013b24dac001f400eca6c1ba8a"
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_preparation_authority.go",
+            "symbol": "withEmploymentPreparation",
+            "sha256": "2ae66dfeff98e07b3a337cec9cdc0647f2a8de3c12096010c0452fa2b78dbdfc"
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_preparation_authority.sql",
+            "symbol": "workforce_governance_draft_write",
+            "sha256": "4fcacb27f7eafee504679f9454d8416f67099c7e6c53c071454a8b0d6ff4b9c3"
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_periods.go",
+            "symbol": "saveEmploymentPeriod",
+            "sha256": "25de2a8c8bb769ea7c39aa4848cf1e5f0e0404f3fae4cb638fa2f6db4f21a70a"
+          },
+          {
+            "path": "backend/internal/platform/filtered_list.go",
+            "symbol": "SealedFilteredQueryListRoute",
+            "sha256": "981532fbbe4527156bd24be06729be8c75a2d774d6e0f43bc38ee2b15031f622"
+          },
+          {
+            "path": "backend/internal/bootstrap/staff_governance_person_test.go",
+            "symbol": "exact governance authors terms without a Staff actor",
+            "sha256": "7c63d5887528be47244e06be9ffbdc0d476678effb1e74da177248688dd6d17a"
+          },
+          {
+            "path": "backend/internal/modules/workforce/module.go",
+            "symbol": "0111_workforce_employment_preparation_receipt",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3"
+          }
+        ],
+        "remaining": [
+          "Run current-head real PostgreSQL/FGA create/edit/replay/conflicting input/basis/workspace/source/cross-resource/sponsor/terminal state/policy/index/trigger/audit failure and atomic rollback cases; retain query-plan and migration/rollback evidence.",
+          "Complete preparation SDK/UI and document authoring/binding, assignment/operating reviews, recipient setup/reviewed links/postings and both pharmacy ownership access scenarios. WF0110/WF0111 require specific live migration/rollback approval after validation; this classification is source review only."
+        ]
+      }
+    },
+    {
+      "id": "http workforce GET /v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-source",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "method": "GET",
+        "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-source",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http workforce GET /v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-source",
+        "registration_sha256": "925af0a9272ff2d4c743c71921d8dff6d78771c34a5034966ce58b4de2174bf1",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified original tenant/account and exact hospital/Staff/optional real period/normalized command under current IAM employment preparation source.",
+        "rationale": "Separate hospital governance terms consumers acquire native current owner/exact preparation source without a fabricated Staff/link/review. Closed read/list/history/save purposes bind actual resources and body; bounded sealed list cursors include caller/tenant/filter and both Staff/hospital plus selected history period. Canonical save logic retains validation, revision, optimistic conflict, owner-kind/supervision/source/sponsor and retry checks; the typed save closure receives normalized real input. WF0110 extends only the exact retained period guard predicate and single permissive policy while restrictive purpose/delete fences deny all other Workforce mutations. Canonical history snapshot atomically emits immutable private source provenance; current source identity and payload must match on receipt replay, without relabelling legacy receipts. WF0111 builds an exact revision audit lookup index concurrently. Preflight requires actual enabled guard/snapshot/history/provenance triggers, required expressions, ready/valid indexes, forced RLS and no TRUNCATE. Private authority/input hashes are not returned. Local proof/replay and compile/build checks pass; real database, UI and deployment acceptance are pending.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/workforce/employment_preparation_routes.go",
+            "symbol": "registerEmploymentPreparation",
+            "sha256": "8b7aeee736a198652c6cac24f6ec6bc34e1c80013b24dac001f400eca6c1ba8a"
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_preparation_authority.go",
+            "symbol": "withEmploymentPreparation",
+            "sha256": "2ae66dfeff98e07b3a337cec9cdc0647f2a8de3c12096010c0452fa2b78dbdfc"
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_preparation_authority.sql",
+            "symbol": "workforce_governance_draft_write",
+            "sha256": "4fcacb27f7eafee504679f9454d8416f67099c7e6c53c071454a8b0d6ff4b9c3"
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_periods.go",
+            "symbol": "saveEmploymentPeriod",
+            "sha256": "25de2a8c8bb769ea7c39aa4848cf1e5f0e0404f3fae4cb638fa2f6db4f21a70a"
+          },
+          {
+            "path": "backend/internal/platform/filtered_list.go",
+            "symbol": "SealedFilteredQueryListRoute",
+            "sha256": "981532fbbe4527156bd24be06729be8c75a2d774d6e0f43bc38ee2b15031f622"
+          },
+          {
+            "path": "backend/internal/bootstrap/staff_governance_person_test.go",
+            "symbol": "exact governance authors terms without a Staff actor",
+            "sha256": "7c63d5887528be47244e06be9ffbdc0d476678effb1e74da177248688dd6d17a"
+          },
+          {
+            "path": "backend/internal/modules/workforce/module.go",
+            "symbol": "0111_workforce_employment_preparation_receipt",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3"
+          }
+        ],
+        "remaining": [
+          "Run current-head real PostgreSQL/FGA create/edit/replay/conflicting input/basis/workspace/source/cross-resource/sponsor/terminal state/policy/index/trigger/audit failure and atomic rollback cases; retain query-plan and migration/rollback evidence.",
+          "Complete preparation SDK/UI and document authoring/binding, assignment/operating reviews, recipient setup/reviewed links/postings and both pharmacy ownership access scenarios. WF0110/WF0111 require specific live migration/rollback approval after validation; this classification is source review only."
+        ]
+      }
+    },
+    {
       "id": "http workforce GET /v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review",
       "kind": "http",
       "module": "workforce",
@@ -16136,7 +16388,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "b1be6400c38babcba7f48700bafe07275c993279a12894e668b4f3b47c3fc3b9",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -16315,7 +16567,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "b1be6400c38babcba7f48700bafe07275c993279a12894e668b4f3b47c3fc3b9",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -16456,7 +16708,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "b1be6400c38babcba7f48700bafe07275c993279a12894e668b4f3b47c3fc3b9",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -16796,7 +17048,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "b1be6400c38babcba7f48700bafe07275c993279a12894e668b4f3b47c3fc3b9",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -16855,7 +17107,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "b1be6400c38babcba7f48700bafe07275c993279a12894e668b4f3b47c3fc3b9",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -16914,7 +17166,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "b1be6400c38babcba7f48700bafe07275c993279a12894e668b4f3b47c3fc3b9",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -16973,7 +17225,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "b1be6400c38babcba7f48700bafe07275c993279a12894e668b4f3b47c3fc3b9",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -17032,7 +17284,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "b1be6400c38babcba7f48700bafe07275c993279a12894e668b4f3b47c3fc3b9",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -17139,7 +17391,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "b1be6400c38babcba7f48700bafe07275c993279a12894e668b4f3b47c3fc3b9",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3",
             "symbol": "h.personAuthorityScopeCandidates"
           },
           {
@@ -18968,7 +19220,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "b1be6400c38babcba7f48700bafe07275c993279a12894e668b4f3b47c3fc3b9",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -19074,7 +19326,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "b1be6400c38babcba7f48700bafe07275c993279a12894e668b4f3b47c3fc3b9",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -19180,7 +19432,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "b1be6400c38babcba7f48700bafe07275c993279a12894e668b4f3b47c3fc3b9",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -20080,7 +20332,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "b1be6400c38babcba7f48700bafe07275c993279a12894e668b4f3b47c3fc3b9",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -20427,6 +20679,69 @@
       "review": null
     },
     {
+      "id": "http workforce PUT /v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "method": "PUT",
+        "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http workforce PUT /v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period",
+        "registration_sha256": "4164075bd55d85b66d2a48a126121ab71d6ba56e1ae9d56c030bcbf752a2b7f4",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified original tenant/account and exact hospital/Staff/optional real period/normalized command under current IAM employment preparation source.",
+        "rationale": "Separate hospital governance terms consumers acquire native current owner/exact preparation source without a fabricated Staff/link/review. Closed read/list/history/save purposes bind actual resources and body; bounded sealed list cursors include caller/tenant/filter and both Staff/hospital plus selected history period. Canonical save logic retains validation, revision, optimistic conflict, owner-kind/supervision/source/sponsor and retry checks; the typed save closure receives normalized real input. WF0110 extends only the exact retained period guard predicate and single permissive policy while restrictive purpose/delete fences deny all other Workforce mutations. Canonical history snapshot atomically emits immutable private source provenance; current source identity and payload must match on receipt replay, without relabelling legacy receipts. WF0111 builds an exact revision audit lookup index concurrently. Preflight requires actual enabled guard/snapshot/history/provenance triggers, required expressions, ready/valid indexes, forced RLS and no TRUNCATE. Private authority/input hashes are not returned. Local proof/replay and compile/build checks pass; real database, UI and deployment acceptance are pending.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/workforce/employment_preparation_routes.go",
+            "symbol": "registerEmploymentPreparation",
+            "sha256": "8b7aeee736a198652c6cac24f6ec6bc34e1c80013b24dac001f400eca6c1ba8a"
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_preparation_authority.go",
+            "symbol": "withEmploymentPreparation",
+            "sha256": "2ae66dfeff98e07b3a337cec9cdc0647f2a8de3c12096010c0452fa2b78dbdfc"
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_preparation_authority.sql",
+            "symbol": "workforce_governance_draft_write",
+            "sha256": "4fcacb27f7eafee504679f9454d8416f67099c7e6c53c071454a8b0d6ff4b9c3"
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_periods.go",
+            "symbol": "saveEmploymentPeriod",
+            "sha256": "25de2a8c8bb769ea7c39aa4848cf1e5f0e0404f3fae4cb638fa2f6db4f21a70a"
+          },
+          {
+            "path": "backend/internal/platform/filtered_list.go",
+            "symbol": "SealedFilteredQueryListRoute",
+            "sha256": "981532fbbe4527156bd24be06729be8c75a2d774d6e0f43bc38ee2b15031f622"
+          },
+          {
+            "path": "backend/internal/bootstrap/staff_governance_person_test.go",
+            "symbol": "exact governance authors terms without a Staff actor",
+            "sha256": "7c63d5887528be47244e06be9ffbdc0d476678effb1e74da177248688dd6d17a"
+          },
+          {
+            "path": "backend/internal/modules/workforce/module.go",
+            "symbol": "0111_workforce_employment_preparation_receipt",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3"
+          }
+        ],
+        "remaining": [
+          "Run current-head real PostgreSQL/FGA create/edit/replay/conflicting input/basis/workspace/source/cross-resource/sponsor/terminal state/policy/index/trigger/audit failure and atomic rollback cases; retain query-plan and migration/rollback evidence.",
+          "Complete preparation SDK/UI and document authoring/binding, assignment/operating reviews, recipient setup/reviewed links/postings and both pharmacy ownership access scenarios. WF0110/WF0111 require specific live migration/rollback approval after validation; this classification is source review only."
+        ]
+      }
+    },
+    {
       "id": "http workforce PUT /v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review",
       "kind": "http",
       "module": "workforce",
@@ -20449,7 +20764,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "b1be6400c38babcba7f48700bafe07275c993279a12894e668b4f3b47c3fc3b9",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -20658,7 +20973,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "b1be6400c38babcba7f48700bafe07275c993279a12894e668b4f3b47c3fc3b9",
+            "sha256": "0352d741f74abb311bca39f7062b5b432f2698ec7c7752961fe6f7f34764b7d3",
             "symbol": "func (*Module) Routes("
           },
           {

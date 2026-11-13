@@ -124,8 +124,10 @@ the routing role preserves the membership incarnation; it does not advance its
 epoch or establish operating authority.
 
 IAM retains an owner-count gate before target membership and Workforce topology
-locks. Workforce root insert/update/delete statements take the exclusive topology
-gate before row locks; the source provider retains its shared counterpart through
+locks. An owner-source lookup reads the stable owner membership under the shared
+owner-count gate without taking a tuple lock; owner removal may already hold
+that tuple while waiting for the exclusive gate. Workforce root insert/update/delete
+statements take the exclusive topology gate before row locks; the source provider retains its shared counterpart through
 the consuming callback. Missing/duplicate canonical providers, unavailable
 sources, context/tenant/database escape or an expired command deny.
 

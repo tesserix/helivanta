@@ -9,7 +9,6 @@ import (
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type governanceSourceGuard struct{ handlers *governanceHandlers }
@@ -49,7 +48,8 @@ func (g *governanceSourceGuard) withGovernanceSource(ctx context.Context, req au
 	err := h.withActorPrelude(ctx, req.Principal, prelude, func(commandCtx context.Context, tx *gorm.DB, owners []string) error {
 		if slices.Contains(owners, req.Principal.Subject) {
 			var owner member
-			if err := tx.Select("id").Where("tenant_id=? AND subject=? AND role_key='tenant_admin'", req.Principal.TenantID, req.Principal.Subject).Clauses(clause.Locking{Strength: "SHARE"}).Take(&owner).Error; err != nil {
+			// Owner removal can hold this tuple before waiting for our shared owner-count gate.
+			if err := tx.Select("id").Where("tenant_id=? AND subject=? AND role_key='tenant_admin'", req.Principal.TenantID, req.Principal.Subject).Take(&owner).Error; err != nil {
 				return err
 			}
 			epoch, err := proposalMembershipEpoch(tx, req.Principal.TenantID, req.Principal.Subject)

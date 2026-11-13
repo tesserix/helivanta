@@ -4456,17 +4456,17 @@
         {
           "path": "backend/internal/modules/workforce/employment_activation_authority.sql",
           "symbol": "CREATE FUNCTION workforce_activation_governance_source(",
-          "sha256": "f23efda18c468bce57e93b8d54a9f071fdd09e41de4b516c59775a2323b50e8a"
+          "sha256": "e5d49255d41c14dc8211f26c6c449133620e74d049f9e0b1658421d465019580"
         },
         {
           "path": "backend/internal/modules/workforce/employment_activation_authority.sql",
           "symbol": "CREATE FUNCTION workforce_governance_staff_activation(",
-          "sha256": "f23efda18c468bce57e93b8d54a9f071fdd09e41de4b516c59775a2323b50e8a"
+          "sha256": "e5d49255d41c14dc8211f26c6c449133620e74d049f9e0b1658421d465019580"
         },
         {
           "path": "backend/internal/modules/workforce/employment_activation_authority.sql",
           "symbol": "CREATE FUNCTION workforce_employment_generation_governance_record(",
-          "sha256": "f23efda18c468bce57e93b8d54a9f071fdd09e41de4b516c59775a2323b50e8a"
+          "sha256": "e5d49255d41c14dc8211f26c6c449133620e74d049f9e0b1658421d465019580"
         },
         {
           "path": "backend/internal/modules/workforce/employment_activation_commands.go",
@@ -4499,17 +4499,17 @@
         {
           "path": "backend/internal/modules/workforce/employment_activation_authority.sql",
           "symbol": "CREATE FUNCTION workforce_activation_governance_source(",
-          "sha256": "f23efda18c468bce57e93b8d54a9f071fdd09e41de4b516c59775a2323b50e8a"
+          "sha256": "e5d49255d41c14dc8211f26c6c449133620e74d049f9e0b1658421d465019580"
         },
         {
           "path": "backend/internal/modules/workforce/employment_activation_authority.sql",
           "symbol": "CREATE FUNCTION workforce_governance_staff_activation(",
-          "sha256": "f23efda18c468bce57e93b8d54a9f071fdd09e41de4b516c59775a2323b50e8a"
+          "sha256": "e5d49255d41c14dc8211f26c6c449133620e74d049f9e0b1658421d465019580"
         },
         {
           "path": "backend/internal/modules/workforce/employment_activation_authority.sql",
           "symbol": "CREATE FUNCTION workforce_employment_generation_governance_record(",
-          "sha256": "f23efda18c468bce57e93b8d54a9f071fdd09e41de4b516c59775a2323b50e8a"
+          "sha256": "e5d49255d41c14dc8211f26c6c449133620e74d049f9e0b1658421d465019580"
         },
         {
           "path": "backend/internal/modules/workforce/employment_activation_commands.go",

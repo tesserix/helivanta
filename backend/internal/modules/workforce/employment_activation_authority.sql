@@ -146,7 +146,7 @@ BEGIN
       OR (action IN('workforce.employment.activated','workforce.employment_activation.receipt.read') AND resource_id::text=NULLIF(current_setting('app.workforce_activation_authority',true),'')::jsonb->>'generation_id')))
      OR (workforce_activation_governance_write(tenant_id,hospital_id,resource_id)
       AND action='workforce_staff.update' AND resource_id=%s
-      AND changes=jsonb_build_object('old_level',NULL,'new_level',NULL,'old_status','inactive','new_status','active')))$write$,target,target);
+      AND changes=jsonb_build_object('old_level',NULL,'new_level',NULL,'old_status','inactive','new_status','active','target_subject',NULL)))$write$,target,target);
    ELSE NULL;
   END CASE;
   IF reading<>'false' THEN

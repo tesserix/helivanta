@@ -545,7 +545,7 @@ CREATE CONSTRAINT TRIGGER test_governance_activation_failure AFTER INSERT ON wor
 			require.NotContains(t, retainedGeneration, "actor_link_id")
 			activationProof = append(json.RawMessage(nil), generationProof.GovernanceAuthority...)
 			var transitionAudits, activationAudits int64
-			require.NoError(t, tx.Table("workforce_audit").Where("tenant_id=? AND hospital_id=? AND resource_id=? AND actor_subject=? AND action=? AND changes=?::jsonb", testutil.TenantA, roots[0], staff[0], "user-reviewer", "workforce_staff.update", `{"old_level":null,"new_level":null,"old_status":"inactive","new_status":"active"}`).Count(&transitionAudits).Error)
+			require.NoError(t, tx.Table("workforce_audit").Where("tenant_id=? AND hospital_id=? AND resource_id=? AND actor_subject=? AND action=? AND changes=?::jsonb", testutil.TenantA, roots[0], staff[0], "user-reviewer", "workforce_staff.update", `{"old_level":null,"new_level":null,"old_status":"inactive","new_status":"active","target_subject":null}`).Count(&transitionAudits).Error)
 			require.EqualValues(t, 1, transitionAudits, "activation and replay retain exactly one automatic staff transition audit")
 			require.NoError(t, tx.Table("workforce_audit").Where("tenant_id=? AND hospital_id=? AND resource_id=? AND actor_subject=? AND action=? AND changes @> ?::jsonb", testutil.TenantA, roots[0], generation, "user-reviewer", "workforce.employment.activated", string(generationProof.GovernanceAuthority)).Count(&activationAudits).Error)
 			require.EqualValues(t, 1, activationAudits, "activation retains its separate current-source proof")
@@ -566,12 +566,14 @@ CREATE CONSTRAINT TRIGGER test_governance_activation_failure AFTER INSERT ON wor
 			resource                     uuid.UUID
 			sourceOnly                   bool
 		}{
-			{"other staff", "user-reviewer", "workforce_staff.update", `{"old_level":null,"new_level":null,"old_status":"inactive","new_status":"active"}`, staff[1], false},
-			{"other actor", "user-admin", "workforce_staff.update", `{"old_level":null,"new_level":null,"old_status":"inactive","new_status":"active"}`, staff[0], false},
-			{"other action", "user-reviewer", "workforce_staff.insert", `{"old_level":null,"new_level":null,"old_status":"inactive","new_status":"active"}`, staff[0], false},
-			{"other change", "user-reviewer", "workforce_staff.update", `{"old_level":null,"new_level":null,"old_status":"active","new_status":"inactive"}`, staff[0], false},
-			{"extra private field", "user-reviewer", "workforce_staff.update", `{"old_level":null,"new_level":null,"old_status":"inactive","new_status":"active","display_name":"unrelated"}`, staff[0], false},
-			{"read purpose", "user-reviewer", "workforce_staff.update", `{"old_level":null,"new_level":null,"old_status":"inactive","new_status":"active"}`, staff[0], true},
+			{"other staff", "user-reviewer", "workforce_staff.update", `{"old_level":null,"new_level":null,"old_status":"inactive","new_status":"active","target_subject":null}`, staff[1], false},
+			{"other actor", "user-admin", "workforce_staff.update", `{"old_level":null,"new_level":null,"old_status":"inactive","new_status":"active","target_subject":null}`, staff[0], false},
+			{"other action", "user-reviewer", "workforce_staff.insert", `{"old_level":null,"new_level":null,"old_status":"inactive","new_status":"active","target_subject":null}`, staff[0], false},
+			{"other change", "user-reviewer", "workforce_staff.update", `{"old_level":null,"new_level":null,"old_status":"active","new_status":"inactive","target_subject":null}`, staff[0], false},
+			{"account target", "user-reviewer", "workforce_staff.update", `{"old_level":null,"new_level":null,"old_status":"inactive","new_status":"active","target_subject":"user-ordinary"}`, staff[0], false},
+			{"missing canonical field", "user-reviewer", "workforce_staff.update", `{"old_level":null,"new_level":null,"old_status":"inactive","new_status":"active"}`, staff[0], false},
+			{"extra private field", "user-reviewer", "workforce_staff.update", `{"old_level":null,"new_level":null,"old_status":"inactive","new_status":"active","target_subject":null,"display_name":"unrelated"}`, staff[0], false},
+			{"read purpose", "user-reviewer", "workforce_staff.update", `{"old_level":null,"new_level":null,"old_status":"inactive","new_status":"active","target_subject":null}`, staff[0], true},
 		} {
 			t.Run("audit rejects "+test.name, func(t *testing.T) {
 				proof := activationProof

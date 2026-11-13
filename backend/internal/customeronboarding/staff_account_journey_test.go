@@ -29,6 +29,9 @@ import (
 	"github.com/tesserix/onboarding-service/api/staffcontract"
 )
 
+const staffAccountTenantA = "11111111-1111-4111-8111-111111111111"
+const staffAccountTenantB = "22222222-2222-4222-8222-222222222222"
+
 type staffAccountJourney struct {
 	router *gin.Engine
 	db     *tenantdb.DB
@@ -40,23 +43,23 @@ func newStaffAccountJourney(t *testing.T) *staffAccountJourney {
 	t.Helper()
 	schema := os.Getenv("STAFF_IDENTITY_OWNER_SCHEMA")
 	require.NotEmpty(t, schema, "CI must prepare the hash-checked canonical owner schema")
-	owner := staffclienttest.New(t, testinfra.StartStaffIdentityOwnerPostgres(t), schema, uuid.MustParse(testutil.TenantA), uuid.MustParse(testutil.TenantB))
+	owner := staffclienttest.New(t, testinfra.StartStaffIdentityOwnerPostgres(t), schema, uuid.MustParse(staffAccountTenantA), uuid.MustParse(staffAccountTenantB))
 	token := t.TempDir() + "/workload"
 	require.NoError(t, os.WriteFile(token, []byte(staffclienttest.WorkloadToken), 0600))
 	broker := customeronboarding.NewOwnerIntegrationHandlers(token, owner.Router)
 	identity := loginclient.New("https://unused-native.test", "TEST-login", http.DefaultClient)
 	identity.SetTenantIdentityResolver(broker)
-	tokens := map[string]string{"admin": testutil.TenantA, "other-admin": testutil.TenantA, "stale-admin": testutil.TenantA, "restricted": testutil.TenantA, "foreign-admin": testutil.TenantB}
+	tokens := map[string]string{"admin": staffAccountTenantA, "other-admin": staffAccountTenantA, "stale-admin": staffAccountTenantA, "restricted": staffAccountTenantA, "foreign-admin": staffAccountTenantB}
 	perms := map[string][]authz.Permission{}
 	for _, subject := range []string{"admin", "other-admin", "stale-admin", "foreign-admin"} {
 		perms[subject] = []authz.Permission{iam.PermMemberManage}
 	}
 	router, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: tokens, Perms: perms, StaffAccounts: owner.Client, Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(identity)}})
-	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-		return tx.Exec("INSERT INTO iam_members(tenant_id,subject,role_key)VALUES(?,'user-admin','tenant_admin'),(?,'user-other-admin','tenant_admin')", testutil.TenantA, testutil.TenantA).Error
+	require.NoError(t, db.WithTenant(ctx, staffAccountTenantA, func(tx *gorm.DB) error {
+		return tx.Exec("INSERT INTO iam_members(tenant_id,subject,role_key)VALUES(?,'user-admin','tenant_admin'),(?,'user-other-admin','tenant_admin')", staffAccountTenantA, staffAccountTenantA).Error
 	}))
-	require.NoError(t, db.WithTenant(ctx, testutil.TenantB, func(tx *gorm.DB) error {
-		return tx.Exec("INSERT INTO iam_members(tenant_id,subject,role_key)VALUES(?,'user-foreign-admin','tenant_admin')", testutil.TenantB).Error
+	require.NoError(t, db.WithTenant(ctx, staffAccountTenantB, func(tx *gorm.DB) error {
+		return tx.Exec("INSERT INTO iam_members(tenant_id,subject,role_key)VALUES(?,'user-foreign-admin','tenant_admin')", staffAccountTenantB).Error
 	}))
 	bootstrap.MountStaffSetup(router, broker.StaffSetup(customeronboarding.StaffSetupDeps{Limiter: ratelimit.NewMemory(100), Limit: ratelimit.Rule{Rate: 100, Burst: 100, Per: time.Minute}}))
 	return &staffAccountJourney{router: router, db: db, owner: owner, ctx: ctx}
@@ -73,9 +76,9 @@ func (j *staffAccountJourney) call(t *testing.T, method, path, token string, bod
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Origin", "https://helivanta.app")
 	request.Header.Set("Authorization", "Bearer "+token)
-	tenant := testutil.TenantA
+	tenant := staffAccountTenantA
 	if token == "foreign-admin" {
-		tenant = testutil.TenantB
+		tenant = staffAccountTenantB
 	}
 	request.Header.Set("X-Helivanta-Expected-Tenant", tenant)
 	request.Header.Set("X-Helivanta-Expected-Subject", "user-"+token)
@@ -100,7 +103,7 @@ func TestProtectedStaffAccountJourneyPersistsOnceAndRequiresRecipientBeforeMembe
 	require.NoError(t, json.Unmarshal(first.Body.Bytes(), &created))
 	require.Equal(t, "created", created.CommandState)
 	require.Equal(t, "user-admin", created.ActorSubject)
-	require.Equal(t, uuid.MustParse(testutil.TenantA), created.TenantID)
+	require.Equal(t, uuid.MustParse(staffAccountTenantA), created.TenantID)
 	require.NotEmpty(t, created.UserID)
 	for _, private := range []string{contact["email"], contact["reason"], contact["given_name"]} {
 		require.NotContains(t, first.Body.String(), private)
@@ -146,7 +149,7 @@ func TestProtectedStaffAccountJourneyPersistsOnceAndRequiresRecipientBeforeMembe
 	recipient("password")
 	recipient("password")
 	var count int64
-	require.NoError(t, j.db.WithTenant(j.ctx, testutil.TenantA, func(tx *gorm.DB) error {
+	require.NoError(t, j.db.WithTenant(j.ctx, staffAccountTenantA, func(tx *gorm.DB) error {
 		return tx.Table("iam_members").Where("subject=?", created.UserID).Count(&count).Error
 	}))
 	require.Zero(t, count, "private credentials must not automatically enroll or grant an account")
@@ -164,7 +167,7 @@ func TestProtectedStaffAccountJourneyPersistsOnceAndRequiresRecipientBeforeMembe
 	require.NoError(t, json.Unmarshal(observation.Body.Bytes(), &observed))
 	require.True(t, observed.Observation.EmailVerified)
 	require.Equal(t, "active", observed.Observation.State)
-	require.NoError(t, j.db.WithTenant(j.ctx, testutil.TenantA, func(tx *gorm.DB) error {
+	require.NoError(t, j.db.WithTenant(j.ctx, staffAccountTenantA, func(tx *gorm.DB) error {
 		var roles []string
 		require.NoError(t, tx.Table("iam_members").Where("subject=?", created.UserID).Pluck("role_key", &roles).Error)
 		require.Equal(t, []string{"staff_member"}, roles)

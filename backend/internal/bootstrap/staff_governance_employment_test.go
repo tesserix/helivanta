@@ -56,6 +56,22 @@ func TestGovernanceEmploymentBasisSourceRetainsOrdinaryMembershipAndExactTarget(
 	basis := func(subject string) authz.EmploymentBasis {
 		return authz.EmploymentBasis{TenantID: testutil.TenantA, Subject: subject, HospitalID: hospital, StaffID: uuid.Must(uuid.NewV7()), GenerationID: uuid.Must(uuid.NewV7()), EmploymentEpoch: 2, Until: time.Now().Add(time.Hour)}
 	}
+	t.Run("owner source does not invert its gate against membership tuple locks", func(t *testing.T) {
+		called := false
+		err := db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			var locked struct{ ID uuid.UUID }
+			if err := tx.Raw(`SELECT id FROM iam_members WHERE tenant_id=? AND subject='user-admin' AND role_key='tenant_admin' FOR UPDATE`, testutil.TenantA).Take(&locked).Error; err != nil {
+				return err
+			}
+			return guard.WithGovernanceEmploymentActivation(ctx, req, uuid.Must(uuid.NewV7()), func(_ context.Context, source authz.GovernanceSourceEvidence, _ authz.EmploymentBasisWriter) error {
+				called = true
+				require.Equal(t, locked.ID, source.OwnerMembershipID)
+				return nil
+			})
+		})
+		require.NoError(t, err, "the shared owner-count gate protects membership; waiting for its tuple can invert a deleting owner's lock order")
+		require.True(t, called)
+	})
 	var escaped authz.EmploymentBasisWriter
 	var escapedContext context.Context
 	readAuthority := func(t *testing.T, b authz.EmploymentBasis) map[string]any {

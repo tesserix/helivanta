@@ -56,7 +56,7 @@ func (a *permissiveHospitalAuthority) consultedFor(id string) bool {
 func TestHospitalScopePickersIgnoreIndependentEmployerAccounts(t *testing.T) {
 	permissions := []authz.Permission{supply.PermPartyWrite, supply.PermOrganizationManage, workforce.PermSupplierManage, workforce.PermIndependentLoginManage, workforce.PermIndependentLoginReview}
 	authority := &permissiveHospitalAuthority{}
-	backend, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+	backend, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{GovernanceSources: testutil.GovernanceReviewProtocol,
 		Membership: &supplierIdentityMembership{},
 		Tokens:     map[string]string{"owner": testutil.TenantA, "reviewer": testutil.TenantA, "operator": testutil.TenantA},
 		Perms:      map[string][]authz.Permission{"owner": permissions, "reviewer": permissions, "operator": {}},

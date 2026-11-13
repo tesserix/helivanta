@@ -11989,7 +11989,8 @@
             "supply_owner",
             "supply_admin",
             "supply_compliance",
-            "pharmacy_owner"
+            "pharmacy_owner",
+            "governance_delegate"
           ]
         },
         {
@@ -12062,7 +12063,9 @@
         },
         {
           "permission": "workforce.login_links.review",
-          "roles": []
+          "roles": [
+            "governance_delegate"
+          ]
         },
         {
           "permission": "workforce.hospital.manage",
@@ -13327,6 +13330,13 @@
           "id": "0102_workforce_governance_topology",
           "sql_sha256": "62aa08b1e28b0dd30251c009b268fa6d75ea2363f30347b3895529b64a46a3b8",
           "creates_tables": []
+        },
+        {
+          "id": "0103_workforce_login_review_authority",
+          "sql_sha256": "028408a983360d20b18fa1a96cca2ee81ed0bb23dd7284311689cc99a2a0492e",
+          "creates_tables": [
+            "workforce_login_link_authorities"
+          ]
         }
       ]
     },

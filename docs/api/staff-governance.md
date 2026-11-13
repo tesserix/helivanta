@@ -147,7 +147,10 @@ Asynchronous assignment settlement needs separate current-source revalidation.
 Only the auditor wrapper enables private audit access to other grants. Ordinary
 source consumers retain access to their selected source rows. Missing/duplicate
 canonical owners or unavailable source dependencies fail closed. This provider is
-wired in the API and test harness; Workforce endpoints have not yet adopted it.
+wired in the API and test harness; Hospital and independent account-link review/read paths now adopt it in the
+candidate. Source-only reviewers use a selected-resource database purpose;
+owner/grant source evidence is retained with each reviewed link version. The
+remaining HR/employment, assignment and operating-duty consumers are unfinished.
 Its original PostgreSQL grant-source tests passed in CI `43380190287`. New owner
 source and Workforce consumer cases require remote acceptance.
 
@@ -170,7 +173,7 @@ governance screen or authorize Workforce consumers.
 
 Candidate migrations are `0102_workforce_governance_topology` and
 `0047_iam_governance`. Neither has been approved for live application. Before
-rollout, complete source consumers, owner-count admission,
+rollout, complete the remaining source consumers, owner-count admission,
 ledger/role admission guards, frontend, remote PostgreSQL/FGA/race/recovery tests
 and tested rollback. Retain identities, original receipts, notices and decisions
 through rollback; never erase evidence to retry onboarding.

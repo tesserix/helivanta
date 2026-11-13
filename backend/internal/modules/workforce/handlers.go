@@ -28,6 +28,7 @@ import (
 )
 
 type handlers struct {
+	governanceSources           authz.CurrentGovernanceSourceGuard
 	membership                  authz.MembershipChecker
 	staffActors                 authz.CurrentStaffActorGuard
 	departmentReferences        authz.DepartmentReferenceGuard

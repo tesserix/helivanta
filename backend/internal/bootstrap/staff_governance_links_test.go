@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/modules/iam"
+	"github.com/tesserix/helivanta/internal/modules/pharmacy"
+	"github.com/tesserix/helivanta/internal/modules/supply"
 	"github.com/tesserix/helivanta/internal/modules/workforce"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testinfra"
@@ -22,6 +25,11 @@ func TestGovernanceAccountLinkReviewConsumesExactEmployerSourceWithoutManagerAcc
 	graph, err := authz.NewClient(t.Context(), testinfra.StartOpenFGA(t), testinfra.IsolationKey(t))
 	require.NoError(t, err)
 	require.NoError(t, graph.GrantTenantRole(t.Context(), testutil.TenantA, authz.RoleStaffMember))
+	require.NoError(t, graph.GrantTenantRole(t.Context(), testutil.TenantA, authz.RoleTenantAdmin))
+	for _, subject := range []string{"user-admin", "user-owner2"} {
+		require.NoError(t, graph.GrantRole(t.Context(), testutil.TenantA, subject, authz.RoleTenantAdmin))
+	}
+
 	for _, subject := range []string{"user-reviewer", "user-auditor", "user-owner2"} {
 		require.NoError(t, graph.GrantRole(t.Context(), testutil.TenantA, subject, authz.RoleStaffMember))
 	}
@@ -31,11 +39,11 @@ func TestGovernanceAccountLinkReviewConsumesExactEmployerSourceWithoutManagerAcc
 			router, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 				Tokens: map[string]string{"admin": testutil.TenantA, "owner2": testutil.TenantA, "auditor": testutil.TenantA},
 				Perms: map[string][]authz.Permission{
-					"admin":   {iam.PermGovernanceManage, iam.PermGovernanceRead, iam.PermGovernanceReview, workforce.PermHospitalManage, workforce.PermSupplierManage, workforce.PermEnrollmentManage, workforce.PermLoginLinkManage, workforce.PermLoginLinkReview, workforce.PermIndependentLoginManage, workforce.PermIndependentLoginReview},
+					"admin":   {iam.PermGovernanceManage, iam.PermGovernanceRead, iam.PermGovernanceReview, workforce.PermHospitalManage, workforce.PermSupplierManage, workforce.PermEnrollmentManage, workforce.PermLoginLinkManage, workforce.PermLoginLinkReview, workforce.PermIndependentLoginManage, workforce.PermIndependentLoginReview, pharmacy.PermCatalogueWrite, supply.PermPartyWrite, supply.PermOrganizationManage},
 					"owner2":  {iam.PermGovernanceReview, workforce.PermLoginLinkReview, workforce.PermIndependentLoginReview},
 					"auditor": {workforce.PermLoginLinkReview, workforce.PermIndependentLoginReview},
 				},
-				Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(native), workforce.New()},
+				Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(native), workforce.New(), pharmacy.New(), supply.New()},
 				Writer:  graph, Roles: graph, Membership: graph,
 			})
 			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
@@ -51,13 +59,21 @@ func TestGovernanceAccountLinkReviewConsumesExactEmployerSourceWithoutManagerAcc
 					created := governanceRequest(router, http.MethodPut, base, "admin", `{"name":"Synthetic governed hospital"}`)
 					require.Equal(t, 200, created.Code, created.Body.String())
 				} else {
-					// Retained employer fixture: owner registration/provider proof has separate integration coverage.
-					require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-						if err := tx.Exec("INSERT INTO workforce_hospitals(tenant_id,id,name,establishment_kind)VALUES(?,?,?,?)", testutil.TenantA, root, "Synthetic retained "+kind+" employer", kind).Error; err != nil {
-							return err
-						}
-						return tx.Exec("INSERT INTO workforce_hospital_access(tenant_id,hospital_id,subject,level)VALUES(?,?,'user-admin','manager')", testutil.TenantA, root).Error
-					}))
+					var productPath string
+					var productInput map[string]any
+					if kind == "pharmacy" {
+						productPath = "/v1/pharmacy/pharmacies/" + root.String()
+						productInput = map[string]any{"code": "SYN-GOV-RX-" + strconv.Itoa(i), "name": "Synthetic Independent Pharmacy", "ownership_type": "independent"}
+					} else {
+						productPath = "/v1/supply/parties/" + root.String()
+						productInput = map[string]any{"expected_version": 0, "code": "SYN-GOV-SUP-" + strconv.Itoa(i), "record_kind": "owned_organisation", "legal_name": "Synthetic Supplier", "trading_name": "Synthetic Supplier", "business_kind": "wholesaler", "country_code": "IN", "jurisdiction": "IN-OD", "registration_number": "TEST-REG-" + strconv.Itoa(i), "corporate_group": "", "website": "", "default_credit_days": 30, "contacts": []any{}, "addresses": []any{}, "tax_registrations": []any{}}
+					}
+					raw, err := json.Marshal(productInput)
+					require.NoError(t, err)
+					created := governanceRequest(router, http.MethodPut, productPath, "admin", string(raw))
+					require.Equal(t, 200, created.Code, created.Body.String())
+					registered := governanceRequest(router, http.MethodPut, base, "admin", `{}`)
+					require.Equal(t, 200, registered.Code, registered.Body.String())
 				}
 				person := uuid.Must(uuid.NewV7())
 				people[i] = person

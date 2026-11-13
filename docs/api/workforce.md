@@ -581,6 +581,15 @@ and normal browser/deployed acceptance are still required before release.
 
 ## Reviewed account links (worktree implementation)
 
+The unreleased governed-review candidate replaces manager-row approval authority
+with a current tenant owner or an exact effective account-link governance grant.
+Review-only users receive selected Staff/link identity access, with immutable
+source provenance and no directory-edit or clinical permission. Proposal/change
+administration remains separately authorized. See [governance](staff-governance.md)
+and [consumer/source details](workforce-independent-identity.md#governed-review-provenance-candidate).
+The following legacy manager description applies to proposal/change administration;
+coarse review permission alone is no longer approval authority in the candidate.
+
 Workforce owns the hospital-local binding and immutable review history; IAM owns
 login membership and application access. A link never grants a permission or
 clinical authority. This prerequisite for #1132/#1053 does not implement scoped

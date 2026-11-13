@@ -166,7 +166,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2175707b607ff31950bcfe7806819dd8958b0e83103f15971541fbc76ad13459",
+          "sha256": "69011f91fc07f0786b16a13d468bc85852e288bb8319d7c6e3aa332ebac205e6",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -235,7 +235,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2175707b607ff31950bcfe7806819dd8958b0e83103f15971541fbc76ad13459",
+          "sha256": "69011f91fc07f0786b16a13d468bc85852e288bb8319d7c6e3aa332ebac205e6",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -314,7 +314,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2175707b607ff31950bcfe7806819dd8958b0e83103f15971541fbc76ad13459",
+          "sha256": "69011f91fc07f0786b16a13d468bc85852e288bb8319d7c6e3aa332ebac205e6",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -378,7 +378,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2175707b607ff31950bcfe7806819dd8958b0e83103f15971541fbc76ad13459",
+          "sha256": "69011f91fc07f0786b16a13d468bc85852e288bb8319d7c6e3aa332ebac205e6",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -442,7 +442,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2175707b607ff31950bcfe7806819dd8958b0e83103f15971541fbc76ad13459",
+          "sha256": "69011f91fc07f0786b16a13d468bc85852e288bb8319d7c6e3aa332ebac205e6",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -506,7 +506,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2175707b607ff31950bcfe7806819dd8958b0e83103f15971541fbc76ad13459",
+          "sha256": "69011f91fc07f0786b16a13d468bc85852e288bb8319d7c6e3aa332ebac205e6",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -590,7 +590,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2175707b607ff31950bcfe7806819dd8958b0e83103f15971541fbc76ad13459",
+          "sha256": "69011f91fc07f0786b16a13d468bc85852e288bb8319d7c6e3aa332ebac205e6",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -689,7 +689,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2175707b607ff31950bcfe7806819dd8958b0e83103f15971541fbc76ad13459",
+          "sha256": "69011f91fc07f0786b16a13d468bc85852e288bb8319d7c6e3aa332ebac205e6",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -743,7 +743,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2175707b607ff31950bcfe7806819dd8958b0e83103f15971541fbc76ad13459",
+          "sha256": "69011f91fc07f0786b16a13d468bc85852e288bb8319d7c6e3aa332ebac205e6",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -802,7 +802,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2175707b607ff31950bcfe7806819dd8958b0e83103f15971541fbc76ad13459",
+          "sha256": "69011f91fc07f0786b16a13d468bc85852e288bb8319d7c6e3aa332ebac205e6",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -963,7 +963,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2175707b607ff31950bcfe7806819dd8958b0e83103f15971541fbc76ad13459",
+          "sha256": "69011f91fc07f0786b16a13d468bc85852e288bb8319d7c6e3aa332ebac205e6",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1007,7 +1007,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2175707b607ff31950bcfe7806819dd8958b0e83103f15971541fbc76ad13459",
+          "sha256": "69011f91fc07f0786b16a13d468bc85852e288bb8319d7c6e3aa332ebac205e6",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1051,7 +1051,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2175707b607ff31950bcfe7806819dd8958b0e83103f15971541fbc76ad13459",
+          "sha256": "69011f91fc07f0786b16a13d468bc85852e288bb8319d7c6e3aa332ebac205e6",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1110,7 +1110,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2175707b607ff31950bcfe7806819dd8958b0e83103f15971541fbc76ad13459",
+          "sha256": "69011f91fc07f0786b16a13d468bc85852e288bb8319d7c6e3aa332ebac205e6",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1154,7 +1154,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2175707b607ff31950bcfe7806819dd8958b0e83103f15971541fbc76ad13459",
+          "sha256": "69011f91fc07f0786b16a13d468bc85852e288bb8319d7c6e3aa332ebac205e6",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1198,7 +1198,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2175707b607ff31950bcfe7806819dd8958b0e83103f15971541fbc76ad13459",
+          "sha256": "69011f91fc07f0786b16a13d468bc85852e288bb8319d7c6e3aa332ebac205e6",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1242,7 +1242,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2175707b607ff31950bcfe7806819dd8958b0e83103f15971541fbc76ad13459",
+          "sha256": "69011f91fc07f0786b16a13d468bc85852e288bb8319d7c6e3aa332ebac205e6",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1290,7 +1290,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2175707b607ff31950bcfe7806819dd8958b0e83103f15971541fbc76ad13459",
+          "sha256": "69011f91fc07f0786b16a13d468bc85852e288bb8319d7c6e3aa332ebac205e6",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1909,26 +1909,47 @@
       "id": "http workforce GET /v1/workforce/pharmacies/:pharmacy/staff/:id/account-links",
       "registration_sha256": "6ed92f02708e6597a971dad2ac17bd60eaa7695298f32319f9420190de2b5f2b",
       "authority_kind": "governance_recovery",
-      "resource_scope": "Verified tenant/actor, typed supplier/pharmacy employer, exact private Staff/account link and decision.",
-      "rationale": "Independent identity management uses a typed establishment and private employer-access guard, current administrative membership and independently reviewed account decisions. Identity linkage alone grants neither a stock duty nor hospital employment, clinical or trading authority. Retained proposal/decision recovery checks the original actor and intent. This is an unreleased source review, not runtime acceptance.",
+      "resource_scope": "Verified tenant/actor, exact typed employer and selected Staff/link identity; independent review binds a current owner membership or effective governance grant.",
+      "rationale": "Approval/rejection reauthorizes the closed IAM account-link capability under current credential/session, owner/source, membership incarnation, expiry and employer topology locks. Governance purpose permits selected identity rows plus private maker/actor alias checks, preserves Staff write denial and fences link changes to the selected review. Immutable source evidence links the actual owner membership or grant ID/version to the reviewed link/history version, with audit and outbox atomicity. Separate private management authority still governs proposals, changes and its retained reads. No Staff actor is invented; identity review confers no employment, clinical, stock or trading duty. Candidate source classification only; remote consumer and live acceptance remain required.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/independent_identity.go",
-          "sha256": "ee64fd0c7cc22ad5a2c6c3d6b14f5260057f26760b58ed94bf46ef87437828a9",
+          "sha256": "d3603cd1c5806f3beecc11c772afa321712aa40e7db9154185a6b175deed1571",
           "symbol": "func (h *handlers) independentTransaction("
         },
         {
           "path": "backend/internal/modules/workforce/independent_identity.go",
-          "sha256": "ee64fd0c7cc22ad5a2c6c3d6b14f5260057f26760b58ed94bf46ef87437828a9",
+          "sha256": "d3603cd1c5806f3beecc11c772afa321712aa40e7db9154185a6b175deed1571",
           "symbol": "func (h *handlers) decideIndependentLink("
         },
         {
           "path": "backend/internal/modules/workforce/independent_identity.sql",
           "sha256": "68f777d7552b291f33bf9aa6322b1f4f3938752cca2ee39ce4d70d901be6ccf1",
           "symbol": "CREATE FUNCTION workforce_independent_identity_source("
+        },
+        {
+          "path": "backend/internal/modules/workforce/login_review_authority.go",
+          "sha256": "e09c5076734d1f886931109ae212281b4e3be484b49285a4fbccc55f6db46d11",
+          "symbol": "func (h *handlers) withAccountLinkAuthority("
+        },
+        {
+          "path": "backend/internal/modules/workforce/login_review_authority.sql",
+          "sha256": "028408a983360d20b18fa1a96cca2ee81ed0bb23dd7284311689cc99a2a0492e",
+          "symbol": "CREATE FUNCTION workforce_login_review_context("
+        },
+        {
+          "path": "backend/internal/modules/iam/governance_sources.go",
+          "sha256": "9050a22973b4fd3f92e4a675fb2ccf825b1d48f2169b818e470c2c96c57a3791",
+          "symbol": "func (g *governanceSourceGuard) WithGovernanceSource("
+        },
+        {
+          "path": "backend/internal/modules/iam/governance_review_authority.go",
+          "sha256": "84ae681b26f245a17b199c58cf1e69325b4d2764de37b588450e8b5246a165a0",
+          "symbol": "func (h *governanceHandlers) withCurrentGovernanceSource("
         }
       ],
       "remaining": [
+        "Verify current owner/grant consumer success and denial, alias independence, source cutoff/expiry, selected-resource RLS, atomic provenance/receipt recovery and actual recipient login before release. Focused boundary doubles are not real IAM/provider acceptance.",
         "Source classification is not runtime cutoff, complete receiver-only OIDC/browser, clinical or regulatory acceptance; preserve the candidate tests and fail-closed source/identity/graph behavior.",
         "Complete bilateral relationship, hospital named/group grants, minimized partner disclosure, qualified stock/fulfilment and financial consumers before claiming the full supplier workflow or activating production trade."
       ]
@@ -1937,26 +1958,47 @@
       "id": "http workforce GET /v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link",
       "registration_sha256": "98642f29c28592a1d7034f779a50e2a4c4331e13805326e89e4bb6e4c298c933",
       "authority_kind": "governance_recovery",
-      "resource_scope": "Verified tenant/actor, typed supplier/pharmacy employer, exact private Staff/account link and decision.",
-      "rationale": "Independent identity management uses a typed establishment and private employer-access guard, current administrative membership and independently reviewed account decisions. Identity linkage alone grants neither a stock duty nor hospital employment, clinical or trading authority. Retained proposal/decision recovery checks the original actor and intent. This is an unreleased source review, not runtime acceptance.",
+      "resource_scope": "Verified tenant/actor, exact typed employer and selected Staff/link identity; independent review binds a current owner membership or effective governance grant.",
+      "rationale": "Approval/rejection reauthorizes the closed IAM account-link capability under current credential/session, owner/source, membership incarnation, expiry and employer topology locks. Governance purpose permits selected identity rows plus private maker/actor alias checks, preserves Staff write denial and fences link changes to the selected review. Immutable source evidence links the actual owner membership or grant ID/version to the reviewed link/history version, with audit and outbox atomicity. Separate private management authority still governs proposals, changes and its retained reads. No Staff actor is invented; identity review confers no employment, clinical, stock or trading duty. Candidate source classification only; remote consumer and live acceptance remain required.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/independent_identity.go",
-          "sha256": "ee64fd0c7cc22ad5a2c6c3d6b14f5260057f26760b58ed94bf46ef87437828a9",
+          "sha256": "d3603cd1c5806f3beecc11c772afa321712aa40e7db9154185a6b175deed1571",
           "symbol": "func (h *handlers) independentTransaction("
         },
         {
           "path": "backend/internal/modules/workforce/independent_identity.go",
-          "sha256": "ee64fd0c7cc22ad5a2c6c3d6b14f5260057f26760b58ed94bf46ef87437828a9",
+          "sha256": "d3603cd1c5806f3beecc11c772afa321712aa40e7db9154185a6b175deed1571",
           "symbol": "func (h *handlers) decideIndependentLink("
         },
         {
           "path": "backend/internal/modules/workforce/independent_identity.sql",
           "sha256": "68f777d7552b291f33bf9aa6322b1f4f3938752cca2ee39ce4d70d901be6ccf1",
           "symbol": "CREATE FUNCTION workforce_independent_identity_source("
+        },
+        {
+          "path": "backend/internal/modules/workforce/login_review_authority.go",
+          "sha256": "e09c5076734d1f886931109ae212281b4e3be484b49285a4fbccc55f6db46d11",
+          "symbol": "func (h *handlers) withAccountLinkAuthority("
+        },
+        {
+          "path": "backend/internal/modules/workforce/login_review_authority.sql",
+          "sha256": "028408a983360d20b18fa1a96cca2ee81ed0bb23dd7284311689cc99a2a0492e",
+          "symbol": "CREATE FUNCTION workforce_login_review_context("
+        },
+        {
+          "path": "backend/internal/modules/iam/governance_sources.go",
+          "sha256": "9050a22973b4fd3f92e4a675fb2ccf825b1d48f2169b818e470c2c96c57a3791",
+          "symbol": "func (g *governanceSourceGuard) WithGovernanceSource("
+        },
+        {
+          "path": "backend/internal/modules/iam/governance_review_authority.go",
+          "sha256": "84ae681b26f245a17b199c58cf1e69325b4d2764de37b588450e8b5246a165a0",
+          "symbol": "func (h *governanceHandlers) withCurrentGovernanceSource("
         }
       ],
       "remaining": [
+        "Verify current owner/grant consumer success and denial, alias independence, source cutoff/expiry, selected-resource RLS, atomic provenance/receipt recovery and actual recipient login before release. Focused boundary doubles are not real IAM/provider acceptance.",
         "Source classification is not runtime cutoff, complete receiver-only OIDC/browser, clinical or regulatory acceptance; preserve the candidate tests and fail-closed source/identity/graph behavior.",
         "Complete bilateral relationship, hospital named/group grants, minimized partner disclosure, qualified stock/fulfilment and financial consumers before claiming the full supplier workflow or activating production trade."
       ]
@@ -1965,26 +2007,47 @@
       "id": "http workforce GET /v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link/commands/:command",
       "registration_sha256": "f9891e14af9adbda78514424e5f4fcf6b2df319bb725c400675db231863b191b",
       "authority_kind": "governance_recovery",
-      "resource_scope": "Verified tenant/actor, typed supplier/pharmacy employer, exact private Staff/account link and decision.",
-      "rationale": "Independent identity management uses a typed establishment and private employer-access guard, current administrative membership and independently reviewed account decisions. Identity linkage alone grants neither a stock duty nor hospital employment, clinical or trading authority. Retained proposal/decision recovery checks the original actor and intent. This is an unreleased source review, not runtime acceptance.",
+      "resource_scope": "Verified tenant/actor, exact typed employer and selected Staff/link identity; independent review binds a current owner membership or effective governance grant.",
+      "rationale": "Approval/rejection reauthorizes the closed IAM account-link capability under current credential/session, owner/source, membership incarnation, expiry and employer topology locks. Governance purpose permits selected identity rows plus private maker/actor alias checks, preserves Staff write denial and fences link changes to the selected review. Immutable source evidence links the actual owner membership or grant ID/version to the reviewed link/history version, with audit and outbox atomicity. Separate private management authority still governs proposals, changes and its retained reads. No Staff actor is invented; identity review confers no employment, clinical, stock or trading duty. Candidate source classification only; remote consumer and live acceptance remain required.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/independent_identity.go",
-          "sha256": "ee64fd0c7cc22ad5a2c6c3d6b14f5260057f26760b58ed94bf46ef87437828a9",
+          "sha256": "d3603cd1c5806f3beecc11c772afa321712aa40e7db9154185a6b175deed1571",
           "symbol": "func (h *handlers) independentTransaction("
         },
         {
           "path": "backend/internal/modules/workforce/independent_identity.go",
-          "sha256": "ee64fd0c7cc22ad5a2c6c3d6b14f5260057f26760b58ed94bf46ef87437828a9",
+          "sha256": "d3603cd1c5806f3beecc11c772afa321712aa40e7db9154185a6b175deed1571",
           "symbol": "func (h *handlers) decideIndependentLink("
         },
         {
           "path": "backend/internal/modules/workforce/independent_identity.sql",
           "sha256": "68f777d7552b291f33bf9aa6322b1f4f3938752cca2ee39ce4d70d901be6ccf1",
           "symbol": "CREATE FUNCTION workforce_independent_identity_source("
+        },
+        {
+          "path": "backend/internal/modules/workforce/login_review_authority.go",
+          "sha256": "e09c5076734d1f886931109ae212281b4e3be484b49285a4fbccc55f6db46d11",
+          "symbol": "func (h *handlers) withAccountLinkAuthority("
+        },
+        {
+          "path": "backend/internal/modules/workforce/login_review_authority.sql",
+          "sha256": "028408a983360d20b18fa1a96cca2ee81ed0bb23dd7284311689cc99a2a0492e",
+          "symbol": "CREATE FUNCTION workforce_login_review_context("
+        },
+        {
+          "path": "backend/internal/modules/iam/governance_sources.go",
+          "sha256": "9050a22973b4fd3f92e4a675fb2ccf825b1d48f2169b818e470c2c96c57a3791",
+          "symbol": "func (g *governanceSourceGuard) WithGovernanceSource("
+        },
+        {
+          "path": "backend/internal/modules/iam/governance_review_authority.go",
+          "sha256": "84ae681b26f245a17b199c58cf1e69325b4d2764de37b588450e8b5246a165a0",
+          "symbol": "func (h *governanceHandlers) withCurrentGovernanceSource("
         }
       ],
       "remaining": [
+        "Verify current owner/grant consumer success and denial, alias independence, source cutoff/expiry, selected-resource RLS, atomic provenance/receipt recovery and actual recipient login before release. Focused boundary doubles are not real IAM/provider acceptance.",
         "Source classification is not runtime cutoff, complete receiver-only OIDC/browser, clinical or regulatory acceptance; preserve the candidate tests and fail-closed source/identity/graph behavior.",
         "Complete bilateral relationship, hospital named/group grants, minimized partner disclosure, qualified stock/fulfilment and financial consumers before claiming the full supplier workflow or activating production trade."
       ]
@@ -1993,26 +2056,47 @@
       "id": "http workforce GET /v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link/proposal-receipt",
       "registration_sha256": "70800b7f9e40dea6a665bbf7af98cf52f0e612d17fa27b6f1e8fa0e87b432d87",
       "authority_kind": "governance_recovery",
-      "resource_scope": "Verified tenant/actor, typed supplier/pharmacy employer, exact private Staff/account link and decision.",
-      "rationale": "Independent identity management uses a typed establishment and private employer-access guard, current administrative membership and independently reviewed account decisions. Identity linkage alone grants neither a stock duty nor hospital employment, clinical or trading authority. Retained proposal/decision recovery checks the original actor and intent. This is an unreleased source review, not runtime acceptance.",
+      "resource_scope": "Verified tenant/actor, exact typed employer and selected Staff/link identity; independent review binds a current owner membership or effective governance grant.",
+      "rationale": "Approval/rejection reauthorizes the closed IAM account-link capability under current credential/session, owner/source, membership incarnation, expiry and employer topology locks. Governance purpose permits selected identity rows plus private maker/actor alias checks, preserves Staff write denial and fences link changes to the selected review. Immutable source evidence links the actual owner membership or grant ID/version to the reviewed link/history version, with audit and outbox atomicity. Separate private management authority still governs proposals, changes and its retained reads. No Staff actor is invented; identity review confers no employment, clinical, stock or trading duty. Candidate source classification only; remote consumer and live acceptance remain required.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/independent_identity.go",
-          "sha256": "ee64fd0c7cc22ad5a2c6c3d6b14f5260057f26760b58ed94bf46ef87437828a9",
+          "sha256": "d3603cd1c5806f3beecc11c772afa321712aa40e7db9154185a6b175deed1571",
           "symbol": "func (h *handlers) independentTransaction("
         },
         {
           "path": "backend/internal/modules/workforce/independent_identity.go",
-          "sha256": "ee64fd0c7cc22ad5a2c6c3d6b14f5260057f26760b58ed94bf46ef87437828a9",
+          "sha256": "d3603cd1c5806f3beecc11c772afa321712aa40e7db9154185a6b175deed1571",
           "symbol": "func (h *handlers) decideIndependentLink("
         },
         {
           "path": "backend/internal/modules/workforce/independent_identity.sql",
           "sha256": "68f777d7552b291f33bf9aa6322b1f4f3938752cca2ee39ce4d70d901be6ccf1",
           "symbol": "CREATE FUNCTION workforce_independent_identity_source("
+        },
+        {
+          "path": "backend/internal/modules/workforce/login_review_authority.go",
+          "sha256": "e09c5076734d1f886931109ae212281b4e3be484b49285a4fbccc55f6db46d11",
+          "symbol": "func (h *handlers) withAccountLinkAuthority("
+        },
+        {
+          "path": "backend/internal/modules/workforce/login_review_authority.sql",
+          "sha256": "028408a983360d20b18fa1a96cca2ee81ed0bb23dd7284311689cc99a2a0492e",
+          "symbol": "CREATE FUNCTION workforce_login_review_context("
+        },
+        {
+          "path": "backend/internal/modules/iam/governance_sources.go",
+          "sha256": "9050a22973b4fd3f92e4a675fb2ccf825b1d48f2169b818e470c2c96c57a3791",
+          "symbol": "func (g *governanceSourceGuard) WithGovernanceSource("
+        },
+        {
+          "path": "backend/internal/modules/iam/governance_review_authority.go",
+          "sha256": "84ae681b26f245a17b199c58cf1e69325b4d2764de37b588450e8b5246a165a0",
+          "symbol": "func (h *governanceHandlers) withCurrentGovernanceSource("
         }
       ],
       "remaining": [
+        "Verify current owner/grant consumer success and denial, alias independence, source cutoff/expiry, selected-resource RLS, atomic provenance/receipt recovery and actual recipient login before release. Focused boundary doubles are not real IAM/provider acceptance.",
         "Source classification is not runtime cutoff, complete receiver-only OIDC/browser, clinical or regulatory acceptance; preserve the candidate tests and fail-closed source/identity/graph behavior.",
         "Complete bilateral relationship, hospital named/group grants, minimized partner disclosure, qualified stock/fulfilment and financial consumers before claiming the full supplier workflow or activating production trade."
       ]
@@ -2133,26 +2217,47 @@
       "id": "http workforce GET /v1/workforce/suppliers/:supplier/staff/:id/account-links",
       "registration_sha256": "9de11a666ac77b8f4981501c147a6ee03f1c40aa72b04d80ca3aab6be4fa6b18",
       "authority_kind": "governance_recovery",
-      "resource_scope": "Verified tenant/actor, typed supplier/pharmacy employer, exact private Staff/account link and decision.",
-      "rationale": "Independent identity management uses a typed establishment and private employer-access guard, current administrative membership and independently reviewed account decisions. Identity linkage alone grants neither a stock duty nor hospital employment, clinical or trading authority. Retained proposal/decision recovery checks the original actor and intent. This is an unreleased source review, not runtime acceptance.",
+      "resource_scope": "Verified tenant/actor, exact typed employer and selected Staff/link identity; independent review binds a current owner membership or effective governance grant.",
+      "rationale": "Approval/rejection reauthorizes the closed IAM account-link capability under current credential/session, owner/source, membership incarnation, expiry and employer topology locks. Governance purpose permits selected identity rows plus private maker/actor alias checks, preserves Staff write denial and fences link changes to the selected review. Immutable source evidence links the actual owner membership or grant ID/version to the reviewed link/history version, with audit and outbox atomicity. Separate private management authority still governs proposals, changes and its retained reads. No Staff actor is invented; identity review confers no employment, clinical, stock or trading duty. Candidate source classification only; remote consumer and live acceptance remain required.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/independent_identity.go",
-          "sha256": "ee64fd0c7cc22ad5a2c6c3d6b14f5260057f26760b58ed94bf46ef87437828a9",
+          "sha256": "d3603cd1c5806f3beecc11c772afa321712aa40e7db9154185a6b175deed1571",
           "symbol": "func (h *handlers) independentTransaction("
         },
         {
           "path": "backend/internal/modules/workforce/independent_identity.go",
-          "sha256": "ee64fd0c7cc22ad5a2c6c3d6b14f5260057f26760b58ed94bf46ef87437828a9",
+          "sha256": "d3603cd1c5806f3beecc11c772afa321712aa40e7db9154185a6b175deed1571",
           "symbol": "func (h *handlers) decideIndependentLink("
         },
         {
           "path": "backend/internal/modules/workforce/independent_identity.sql",
           "sha256": "68f777d7552b291f33bf9aa6322b1f4f3938752cca2ee39ce4d70d901be6ccf1",
           "symbol": "CREATE FUNCTION workforce_independent_identity_source("
+        },
+        {
+          "path": "backend/internal/modules/workforce/login_review_authority.go",
+          "sha256": "e09c5076734d1f886931109ae212281b4e3be484b49285a4fbccc55f6db46d11",
+          "symbol": "func (h *handlers) withAccountLinkAuthority("
+        },
+        {
+          "path": "backend/internal/modules/workforce/login_review_authority.sql",
+          "sha256": "028408a983360d20b18fa1a96cca2ee81ed0bb23dd7284311689cc99a2a0492e",
+          "symbol": "CREATE FUNCTION workforce_login_review_context("
+        },
+        {
+          "path": "backend/internal/modules/iam/governance_sources.go",
+          "sha256": "9050a22973b4fd3f92e4a675fb2ccf825b1d48f2169b818e470c2c96c57a3791",
+          "symbol": "func (g *governanceSourceGuard) WithGovernanceSource("
+        },
+        {
+          "path": "backend/internal/modules/iam/governance_review_authority.go",
+          "sha256": "84ae681b26f245a17b199c58cf1e69325b4d2764de37b588450e8b5246a165a0",
+          "symbol": "func (h *governanceHandlers) withCurrentGovernanceSource("
         }
       ],
       "remaining": [
+        "Verify current owner/grant consumer success and denial, alias independence, source cutoff/expiry, selected-resource RLS, atomic provenance/receipt recovery and actual recipient login before release. Focused boundary doubles are not real IAM/provider acceptance.",
         "Source classification is not runtime cutoff, complete receiver-only OIDC/browser, clinical or regulatory acceptance; preserve the candidate tests and fail-closed source/identity/graph behavior.",
         "Complete bilateral relationship, hospital named/group grants, minimized partner disclosure, qualified stock/fulfilment and financial consumers before claiming the full supplier workflow or activating production trade."
       ]
@@ -2161,26 +2266,47 @@
       "id": "http workforce GET /v1/workforce/suppliers/:supplier/staff/:id/account-links/:link",
       "registration_sha256": "9b0f4b6735b2e022d8365c06a9afd337d95c16136e8b41a8602398cf219e15f5",
       "authority_kind": "governance_recovery",
-      "resource_scope": "Verified tenant/actor, typed supplier/pharmacy employer, exact private Staff/account link and decision.",
-      "rationale": "Independent identity management uses a typed establishment and private employer-access guard, current administrative membership and independently reviewed account decisions. Identity linkage alone grants neither a stock duty nor hospital employment, clinical or trading authority. Retained proposal/decision recovery checks the original actor and intent. This is an unreleased source review, not runtime acceptance.",
+      "resource_scope": "Verified tenant/actor, exact typed employer and selected Staff/link identity; independent review binds a current owner membership or effective governance grant.",
+      "rationale": "Approval/rejection reauthorizes the closed IAM account-link capability under current credential/session, owner/source, membership incarnation, expiry and employer topology locks. Governance purpose permits selected identity rows plus private maker/actor alias checks, preserves Staff write denial and fences link changes to the selected review. Immutable source evidence links the actual owner membership or grant ID/version to the reviewed link/history version, with audit and outbox atomicity. Separate private management authority still governs proposals, changes and its retained reads. No Staff actor is invented; identity review confers no employment, clinical, stock or trading duty. Candidate source classification only; remote consumer and live acceptance remain required.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/independent_identity.go",
-          "sha256": "ee64fd0c7cc22ad5a2c6c3d6b14f5260057f26760b58ed94bf46ef87437828a9",
+          "sha256": "d3603cd1c5806f3beecc11c772afa321712aa40e7db9154185a6b175deed1571",
           "symbol": "func (h *handlers) independentTransaction("
         },
         {
           "path": "backend/internal/modules/workforce/independent_identity.go",
-          "sha256": "ee64fd0c7cc22ad5a2c6c3d6b14f5260057f26760b58ed94bf46ef87437828a9",
+          "sha256": "d3603cd1c5806f3beecc11c772afa321712aa40e7db9154185a6b175deed1571",
           "symbol": "func (h *handlers) decideIndependentLink("
         },
         {
           "path": "backend/internal/modules/workforce/independent_identity.sql",
           "sha256": "68f777d7552b291f33bf9aa6322b1f4f3938752cca2ee39ce4d70d901be6ccf1",
           "symbol": "CREATE FUNCTION workforce_independent_identity_source("
+        },
+        {
+          "path": "backend/internal/modules/workforce/login_review_authority.go",
+          "sha256": "e09c5076734d1f886931109ae212281b4e3be484b49285a4fbccc55f6db46d11",
+          "symbol": "func (h *handlers) withAccountLinkAuthority("
+        },
+        {
+          "path": "backend/internal/modules/workforce/login_review_authority.sql",
+          "sha256": "028408a983360d20b18fa1a96cca2ee81ed0bb23dd7284311689cc99a2a0492e",
+          "symbol": "CREATE FUNCTION workforce_login_review_context("
+        },
+        {
+          "path": "backend/internal/modules/iam/governance_sources.go",
+          "sha256": "9050a22973b4fd3f92e4a675fb2ccf825b1d48f2169b818e470c2c96c57a3791",
+          "symbol": "func (g *governanceSourceGuard) WithGovernanceSource("
+        },
+        {
+          "path": "backend/internal/modules/iam/governance_review_authority.go",
+          "sha256": "84ae681b26f245a17b199c58cf1e69325b4d2764de37b588450e8b5246a165a0",
+          "symbol": "func (h *governanceHandlers) withCurrentGovernanceSource("
         }
       ],
       "remaining": [
+        "Verify current owner/grant consumer success and denial, alias independence, source cutoff/expiry, selected-resource RLS, atomic provenance/receipt recovery and actual recipient login before release. Focused boundary doubles are not real IAM/provider acceptance.",
         "Source classification is not runtime cutoff, complete receiver-only OIDC/browser, clinical or regulatory acceptance; preserve the candidate tests and fail-closed source/identity/graph behavior.",
         "Complete bilateral relationship, hospital named/group grants, minimized partner disclosure, qualified stock/fulfilment and financial consumers before claiming the full supplier workflow or activating production trade."
       ]
@@ -2189,26 +2315,47 @@
       "id": "http workforce GET /v1/workforce/suppliers/:supplier/staff/:id/account-links/:link/commands/:command",
       "registration_sha256": "77fa5deb8e46efe9862df46f67d72433656a9b795981680e0f1e90b05c12a509",
       "authority_kind": "governance_recovery",
-      "resource_scope": "Verified tenant/actor, typed supplier/pharmacy employer, exact private Staff/account link and decision.",
-      "rationale": "Independent identity management uses a typed establishment and private employer-access guard, current administrative membership and independently reviewed account decisions. Identity linkage alone grants neither a stock duty nor hospital employment, clinical or trading authority. Retained proposal/decision recovery checks the original actor and intent. This is an unreleased source review, not runtime acceptance.",
+      "resource_scope": "Verified tenant/actor, exact typed employer and selected Staff/link identity; independent review binds a current owner membership or effective governance grant.",
+      "rationale": "Approval/rejection reauthorizes the closed IAM account-link capability under current credential/session, owner/source, membership incarnation, expiry and employer topology locks. Governance purpose permits selected identity rows plus private maker/actor alias checks, preserves Staff write denial and fences link changes to the selected review. Immutable source evidence links the actual owner membership or grant ID/version to the reviewed link/history version, with audit and outbox atomicity. Separate private management authority still governs proposals, changes and its retained reads. No Staff actor is invented; identity review confers no employment, clinical, stock or trading duty. Candidate source classification only; remote consumer and live acceptance remain required.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/independent_identity.go",
-          "sha256": "ee64fd0c7cc22ad5a2c6c3d6b14f5260057f26760b58ed94bf46ef87437828a9",
+          "sha256": "d3603cd1c5806f3beecc11c772afa321712aa40e7db9154185a6b175deed1571",
           "symbol": "func (h *handlers) independentTransaction("
         },
         {
           "path": "backend/internal/modules/workforce/independent_identity.go",
-          "sha256": "ee64fd0c7cc22ad5a2c6c3d6b14f5260057f26760b58ed94bf46ef87437828a9",
+          "sha256": "d3603cd1c5806f3beecc11c772afa321712aa40e7db9154185a6b175deed1571",
           "symbol": "func (h *handlers) decideIndependentLink("
         },
         {
           "path": "backend/internal/modules/workforce/independent_identity.sql",
           "sha256": "68f777d7552b291f33bf9aa6322b1f4f3938752cca2ee39ce4d70d901be6ccf1",
           "symbol": "CREATE FUNCTION workforce_independent_identity_source("
+        },
+        {
+          "path": "backend/internal/modules/workforce/login_review_authority.go",
+          "sha256": "e09c5076734d1f886931109ae212281b4e3be484b49285a4fbccc55f6db46d11",
+          "symbol": "func (h *handlers) withAccountLinkAuthority("
+        },
+        {
+          "path": "backend/internal/modules/workforce/login_review_authority.sql",
+          "sha256": "028408a983360d20b18fa1a96cca2ee81ed0bb23dd7284311689cc99a2a0492e",
+          "symbol": "CREATE FUNCTION workforce_login_review_context("
+        },
+        {
+          "path": "backend/internal/modules/iam/governance_sources.go",
+          "sha256": "9050a22973b4fd3f92e4a675fb2ccf825b1d48f2169b818e470c2c96c57a3791",
+          "symbol": "func (g *governanceSourceGuard) WithGovernanceSource("
+        },
+        {
+          "path": "backend/internal/modules/iam/governance_review_authority.go",
+          "sha256": "84ae681b26f245a17b199c58cf1e69325b4d2764de37b588450e8b5246a165a0",
+          "symbol": "func (h *governanceHandlers) withCurrentGovernanceSource("
         }
       ],
       "remaining": [
+        "Verify current owner/grant consumer success and denial, alias independence, source cutoff/expiry, selected-resource RLS, atomic provenance/receipt recovery and actual recipient login before release. Focused boundary doubles are not real IAM/provider acceptance.",
         "Source classification is not runtime cutoff, complete receiver-only OIDC/browser, clinical or regulatory acceptance; preserve the candidate tests and fail-closed source/identity/graph behavior.",
         "Complete bilateral relationship, hospital named/group grants, minimized partner disclosure, qualified stock/fulfilment and financial consumers before claiming the full supplier workflow or activating production trade."
       ]
@@ -2217,26 +2364,47 @@
       "id": "http workforce GET /v1/workforce/suppliers/:supplier/staff/:id/account-links/:link/proposal-receipt",
       "registration_sha256": "436a6d5d8949717943278f5dd342570c0af0d778322f8f3aafdbf90875e381c5",
       "authority_kind": "governance_recovery",
-      "resource_scope": "Verified tenant/actor, typed supplier/pharmacy employer, exact private Staff/account link and decision.",
-      "rationale": "Independent identity management uses a typed establishment and private employer-access guard, current administrative membership and independently reviewed account decisions. Identity linkage alone grants neither a stock duty nor hospital employment, clinical or trading authority. Retained proposal/decision recovery checks the original actor and intent. This is an unreleased source review, not runtime acceptance.",
+      "resource_scope": "Verified tenant/actor, exact typed employer and selected Staff/link identity; independent review binds a current owner membership or effective governance grant.",
+      "rationale": "Approval/rejection reauthorizes the closed IAM account-link capability under current credential/session, owner/source, membership incarnation, expiry and employer topology locks. Governance purpose permits selected identity rows plus private maker/actor alias checks, preserves Staff write denial and fences link changes to the selected review. Immutable source evidence links the actual owner membership or grant ID/version to the reviewed link/history version, with audit and outbox atomicity. Separate private management authority still governs proposals, changes and its retained reads. No Staff actor is invented; identity review confers no employment, clinical, stock or trading duty. Candidate source classification only; remote consumer and live acceptance remain required.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/independent_identity.go",
-          "sha256": "ee64fd0c7cc22ad5a2c6c3d6b14f5260057f26760b58ed94bf46ef87437828a9",
+          "sha256": "d3603cd1c5806f3beecc11c772afa321712aa40e7db9154185a6b175deed1571",
           "symbol": "func (h *handlers) independentTransaction("
         },
         {
           "path": "backend/internal/modules/workforce/independent_identity.go",
-          "sha256": "ee64fd0c7cc22ad5a2c6c3d6b14f5260057f26760b58ed94bf46ef87437828a9",
+          "sha256": "d3603cd1c5806f3beecc11c772afa321712aa40e7db9154185a6b175deed1571",
           "symbol": "func (h *handlers) decideIndependentLink("
         },
         {
           "path": "backend/internal/modules/workforce/independent_identity.sql",
           "sha256": "68f777d7552b291f33bf9aa6322b1f4f3938752cca2ee39ce4d70d901be6ccf1",
           "symbol": "CREATE FUNCTION workforce_independent_identity_source("
+        },
+        {
+          "path": "backend/internal/modules/workforce/login_review_authority.go",
+          "sha256": "e09c5076734d1f886931109ae212281b4e3be484b49285a4fbccc55f6db46d11",
+          "symbol": "func (h *handlers) withAccountLinkAuthority("
+        },
+        {
+          "path": "backend/internal/modules/workforce/login_review_authority.sql",
+          "sha256": "028408a983360d20b18fa1a96cca2ee81ed0bb23dd7284311689cc99a2a0492e",
+          "symbol": "CREATE FUNCTION workforce_login_review_context("
+        },
+        {
+          "path": "backend/internal/modules/iam/governance_sources.go",
+          "sha256": "9050a22973b4fd3f92e4a675fb2ccf825b1d48f2169b818e470c2c96c57a3791",
+          "symbol": "func (g *governanceSourceGuard) WithGovernanceSource("
+        },
+        {
+          "path": "backend/internal/modules/iam/governance_review_authority.go",
+          "sha256": "84ae681b26f245a17b199c58cf1e69325b4d2764de37b588450e8b5246a165a0",
+          "symbol": "func (h *governanceHandlers) withCurrentGovernanceSource("
         }
       ],
       "remaining": [
+        "Verify current owner/grant consumer success and denial, alias independence, source cutoff/expiry, selected-resource RLS, atomic provenance/receipt recovery and actual recipient login before release. Focused boundary doubles are not real IAM/provider acceptance.",
         "Source classification is not runtime cutoff, complete receiver-only OIDC/browser, clinical or regulatory acceptance; preserve the candidate tests and fail-closed source/identity/graph behavior.",
         "Complete bilateral relationship, hospital named/group grants, minimized partner disclosure, qualified stock/fulfilment and financial consumers before claiming the full supplier workflow or activating production trade."
       ]
@@ -2245,26 +2413,47 @@
       "id": "http workforce PUT /v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link",
       "registration_sha256": "fe050be92e6e362318b87966539cb1040bdd1f9d5346f1d6673cf56809f92775",
       "authority_kind": "governance_recovery",
-      "resource_scope": "Verified tenant/actor, typed supplier/pharmacy employer, exact private Staff/account link and decision.",
-      "rationale": "Independent identity management uses a typed establishment and private employer-access guard, current administrative membership and independently reviewed account decisions. Identity linkage alone grants neither a stock duty nor hospital employment, clinical or trading authority. Retained proposal/decision recovery checks the original actor and intent. This is an unreleased source review, not runtime acceptance.",
+      "resource_scope": "Verified tenant/actor, exact typed employer and selected Staff/link identity; independent review binds a current owner membership or effective governance grant.",
+      "rationale": "Approval/rejection reauthorizes the closed IAM account-link capability under current credential/session, owner/source, membership incarnation, expiry and employer topology locks. Governance purpose permits selected identity rows plus private maker/actor alias checks, preserves Staff write denial and fences link changes to the selected review. Immutable source evidence links the actual owner membership or grant ID/version to the reviewed link/history version, with audit and outbox atomicity. Separate private management authority still governs proposals, changes and its retained reads. No Staff actor is invented; identity review confers no employment, clinical, stock or trading duty. Candidate source classification only; remote consumer and live acceptance remain required.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/independent_identity.go",
-          "sha256": "ee64fd0c7cc22ad5a2c6c3d6b14f5260057f26760b58ed94bf46ef87437828a9",
+          "sha256": "d3603cd1c5806f3beecc11c772afa321712aa40e7db9154185a6b175deed1571",
           "symbol": "func (h *handlers) independentTransaction("
         },
         {
           "path": "backend/internal/modules/workforce/independent_identity.go",
-          "sha256": "ee64fd0c7cc22ad5a2c6c3d6b14f5260057f26760b58ed94bf46ef87437828a9",
+          "sha256": "d3603cd1c5806f3beecc11c772afa321712aa40e7db9154185a6b175deed1571",
           "symbol": "func (h *handlers) decideIndependentLink("
         },
         {
           "path": "backend/internal/modules/workforce/independent_identity.sql",
           "sha256": "68f777d7552b291f33bf9aa6322b1f4f3938752cca2ee39ce4d70d901be6ccf1",
           "symbol": "CREATE FUNCTION workforce_independent_identity_source("
+        },
+        {
+          "path": "backend/internal/modules/workforce/login_review_authority.go",
+          "sha256": "e09c5076734d1f886931109ae212281b4e3be484b49285a4fbccc55f6db46d11",
+          "symbol": "func (h *handlers) withAccountLinkAuthority("
+        },
+        {
+          "path": "backend/internal/modules/workforce/login_review_authority.sql",
+          "sha256": "028408a983360d20b18fa1a96cca2ee81ed0bb23dd7284311689cc99a2a0492e",
+          "symbol": "CREATE FUNCTION workforce_login_review_context("
+        },
+        {
+          "path": "backend/internal/modules/iam/governance_sources.go",
+          "sha256": "9050a22973b4fd3f92e4a675fb2ccf825b1d48f2169b818e470c2c96c57a3791",
+          "symbol": "func (g *governanceSourceGuard) WithGovernanceSource("
+        },
+        {
+          "path": "backend/internal/modules/iam/governance_review_authority.go",
+          "sha256": "84ae681b26f245a17b199c58cf1e69325b4d2764de37b588450e8b5246a165a0",
+          "symbol": "func (h *governanceHandlers) withCurrentGovernanceSource("
         }
       ],
       "remaining": [
+        "Verify current owner/grant consumer success and denial, alias independence, source cutoff/expiry, selected-resource RLS, atomic provenance/receipt recovery and actual recipient login before release. Focused boundary doubles are not real IAM/provider acceptance.",
         "Source classification is not runtime cutoff, complete receiver-only OIDC/browser, clinical or regulatory acceptance; preserve the candidate tests and fail-closed source/identity/graph behavior.",
         "Complete bilateral relationship, hospital named/group grants, minimized partner disclosure, qualified stock/fulfilment and financial consumers before claiming the full supplier workflow or activating production trade."
       ]
@@ -2273,26 +2462,47 @@
       "id": "http workforce PUT /v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link/commands/:command",
       "registration_sha256": "6a0cb9d5d716257420dd984fb7e92dc73518d4ad0a4f8c345eb83135e623ba91",
       "authority_kind": "governance_recovery",
-      "resource_scope": "Verified tenant/actor, typed supplier/pharmacy employer, exact private Staff/account link and decision.",
-      "rationale": "Independent identity management uses a typed establishment and private employer-access guard, current administrative membership and independently reviewed account decisions. Identity linkage alone grants neither a stock duty nor hospital employment, clinical or trading authority. Retained proposal/decision recovery checks the original actor and intent. This is an unreleased source review, not runtime acceptance.",
+      "resource_scope": "Verified tenant/actor, exact typed employer and selected Staff/link identity; independent review binds a current owner membership or effective governance grant.",
+      "rationale": "Approval/rejection reauthorizes the closed IAM account-link capability under current credential/session, owner/source, membership incarnation, expiry and employer topology locks. Governance purpose permits selected identity rows plus private maker/actor alias checks, preserves Staff write denial and fences link changes to the selected review. Immutable source evidence links the actual owner membership or grant ID/version to the reviewed link/history version, with audit and outbox atomicity. Separate private management authority still governs proposals, changes and its retained reads. No Staff actor is invented; identity review confers no employment, clinical, stock or trading duty. Candidate source classification only; remote consumer and live acceptance remain required.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/independent_identity.go",
-          "sha256": "ee64fd0c7cc22ad5a2c6c3d6b14f5260057f26760b58ed94bf46ef87437828a9",
+          "sha256": "d3603cd1c5806f3beecc11c772afa321712aa40e7db9154185a6b175deed1571",
           "symbol": "func (h *handlers) independentTransaction("
         },
         {
           "path": "backend/internal/modules/workforce/independent_identity.go",
-          "sha256": "ee64fd0c7cc22ad5a2c6c3d6b14f5260057f26760b58ed94bf46ef87437828a9",
+          "sha256": "d3603cd1c5806f3beecc11c772afa321712aa40e7db9154185a6b175deed1571",
           "symbol": "func (h *handlers) decideIndependentLink("
         },
         {
           "path": "backend/internal/modules/workforce/independent_identity.sql",
           "sha256": "68f777d7552b291f33bf9aa6322b1f4f3938752cca2ee39ce4d70d901be6ccf1",
           "symbol": "CREATE FUNCTION workforce_independent_identity_source("
+        },
+        {
+          "path": "backend/internal/modules/workforce/login_review_authority.go",
+          "sha256": "e09c5076734d1f886931109ae212281b4e3be484b49285a4fbccc55f6db46d11",
+          "symbol": "func (h *handlers) withAccountLinkAuthority("
+        },
+        {
+          "path": "backend/internal/modules/workforce/login_review_authority.sql",
+          "sha256": "028408a983360d20b18fa1a96cca2ee81ed0bb23dd7284311689cc99a2a0492e",
+          "symbol": "CREATE FUNCTION workforce_login_review_context("
+        },
+        {
+          "path": "backend/internal/modules/iam/governance_sources.go",
+          "sha256": "9050a22973b4fd3f92e4a675fb2ccf825b1d48f2169b818e470c2c96c57a3791",
+          "symbol": "func (g *governanceSourceGuard) WithGovernanceSource("
+        },
+        {
+          "path": "backend/internal/modules/iam/governance_review_authority.go",
+          "sha256": "84ae681b26f245a17b199c58cf1e69325b4d2764de37b588450e8b5246a165a0",
+          "symbol": "func (h *governanceHandlers) withCurrentGovernanceSource("
         }
       ],
       "remaining": [
+        "Verify current owner/grant consumer success and denial, alias independence, source cutoff/expiry, selected-resource RLS, atomic provenance/receipt recovery and actual recipient login before release. Focused boundary doubles are not real IAM/provider acceptance.",
         "Source classification is not runtime cutoff, complete receiver-only OIDC/browser, clinical or regulatory acceptance; preserve the candidate tests and fail-closed source/identity/graph behavior.",
         "Complete bilateral relationship, hospital named/group grants, minimized partner disclosure, qualified stock/fulfilment and financial consumers before claiming the full supplier workflow or activating production trade."
       ]
@@ -2385,26 +2595,47 @@
       "id": "http workforce PUT /v1/workforce/suppliers/:supplier/staff/:id/account-links/:link",
       "registration_sha256": "65b17b4ec5150da7bfc528a48c27395c0da615c4545615151bda14eda44a2887",
       "authority_kind": "governance_recovery",
-      "resource_scope": "Verified tenant/actor, typed supplier/pharmacy employer, exact private Staff/account link and decision.",
-      "rationale": "Independent identity management uses a typed establishment and private employer-access guard, current administrative membership and independently reviewed account decisions. Identity linkage alone grants neither a stock duty nor hospital employment, clinical or trading authority. Retained proposal/decision recovery checks the original actor and intent. This is an unreleased source review, not runtime acceptance.",
+      "resource_scope": "Verified tenant/actor, exact typed employer and selected Staff/link identity; independent review binds a current owner membership or effective governance grant.",
+      "rationale": "Approval/rejection reauthorizes the closed IAM account-link capability under current credential/session, owner/source, membership incarnation, expiry and employer topology locks. Governance purpose permits selected identity rows plus private maker/actor alias checks, preserves Staff write denial and fences link changes to the selected review. Immutable source evidence links the actual owner membership or grant ID/version to the reviewed link/history version, with audit and outbox atomicity. Separate private management authority still governs proposals, changes and its retained reads. No Staff actor is invented; identity review confers no employment, clinical, stock or trading duty. Candidate source classification only; remote consumer and live acceptance remain required.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/independent_identity.go",
-          "sha256": "ee64fd0c7cc22ad5a2c6c3d6b14f5260057f26760b58ed94bf46ef87437828a9",
+          "sha256": "d3603cd1c5806f3beecc11c772afa321712aa40e7db9154185a6b175deed1571",
           "symbol": "func (h *handlers) independentTransaction("
         },
         {
           "path": "backend/internal/modules/workforce/independent_identity.go",
-          "sha256": "ee64fd0c7cc22ad5a2c6c3d6b14f5260057f26760b58ed94bf46ef87437828a9",
+          "sha256": "d3603cd1c5806f3beecc11c772afa321712aa40e7db9154185a6b175deed1571",
           "symbol": "func (h *handlers) decideIndependentLink("
         },
         {
           "path": "backend/internal/modules/workforce/independent_identity.sql",
           "sha256": "68f777d7552b291f33bf9aa6322b1f4f3938752cca2ee39ce4d70d901be6ccf1",
           "symbol": "CREATE FUNCTION workforce_independent_identity_source("
+        },
+        {
+          "path": "backend/internal/modules/workforce/login_review_authority.go",
+          "sha256": "e09c5076734d1f886931109ae212281b4e3be484b49285a4fbccc55f6db46d11",
+          "symbol": "func (h *handlers) withAccountLinkAuthority("
+        },
+        {
+          "path": "backend/internal/modules/workforce/login_review_authority.sql",
+          "sha256": "028408a983360d20b18fa1a96cca2ee81ed0bb23dd7284311689cc99a2a0492e",
+          "symbol": "CREATE FUNCTION workforce_login_review_context("
+        },
+        {
+          "path": "backend/internal/modules/iam/governance_sources.go",
+          "sha256": "9050a22973b4fd3f92e4a675fb2ccf825b1d48f2169b818e470c2c96c57a3791",
+          "symbol": "func (g *governanceSourceGuard) WithGovernanceSource("
+        },
+        {
+          "path": "backend/internal/modules/iam/governance_review_authority.go",
+          "sha256": "84ae681b26f245a17b199c58cf1e69325b4d2764de37b588450e8b5246a165a0",
+          "symbol": "func (h *governanceHandlers) withCurrentGovernanceSource("
         }
       ],
       "remaining": [
+        "Verify current owner/grant consumer success and denial, alias independence, source cutoff/expiry, selected-resource RLS, atomic provenance/receipt recovery and actual recipient login before release. Focused boundary doubles are not real IAM/provider acceptance.",
         "Source classification is not runtime cutoff, complete receiver-only OIDC/browser, clinical or regulatory acceptance; preserve the candidate tests and fail-closed source/identity/graph behavior.",
         "Complete bilateral relationship, hospital named/group grants, minimized partner disclosure, qualified stock/fulfilment and financial consumers before claiming the full supplier workflow or activating production trade."
       ]
@@ -2413,26 +2644,47 @@
       "id": "http workforce PUT /v1/workforce/suppliers/:supplier/staff/:id/account-links/:link/commands/:command",
       "registration_sha256": "6fcd9d03c2b35e68e46958563ac44a5dd11bce59680ce4d5c5087292aeba5265",
       "authority_kind": "governance_recovery",
-      "resource_scope": "Verified tenant/actor, typed supplier/pharmacy employer, exact private Staff/account link and decision.",
-      "rationale": "Independent identity management uses a typed establishment and private employer-access guard, current administrative membership and independently reviewed account decisions. Identity linkage alone grants neither a stock duty nor hospital employment, clinical or trading authority. Retained proposal/decision recovery checks the original actor and intent. This is an unreleased source review, not runtime acceptance.",
+      "resource_scope": "Verified tenant/actor, exact typed employer and selected Staff/link identity; independent review binds a current owner membership or effective governance grant.",
+      "rationale": "Approval/rejection reauthorizes the closed IAM account-link capability under current credential/session, owner/source, membership incarnation, expiry and employer topology locks. Governance purpose permits selected identity rows plus private maker/actor alias checks, preserves Staff write denial and fences link changes to the selected review. Immutable source evidence links the actual owner membership or grant ID/version to the reviewed link/history version, with audit and outbox atomicity. Separate private management authority still governs proposals, changes and its retained reads. No Staff actor is invented; identity review confers no employment, clinical, stock or trading duty. Candidate source classification only; remote consumer and live acceptance remain required.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/independent_identity.go",
-          "sha256": "ee64fd0c7cc22ad5a2c6c3d6b14f5260057f26760b58ed94bf46ef87437828a9",
+          "sha256": "d3603cd1c5806f3beecc11c772afa321712aa40e7db9154185a6b175deed1571",
           "symbol": "func (h *handlers) independentTransaction("
         },
         {
           "path": "backend/internal/modules/workforce/independent_identity.go",
-          "sha256": "ee64fd0c7cc22ad5a2c6c3d6b14f5260057f26760b58ed94bf46ef87437828a9",
+          "sha256": "d3603cd1c5806f3beecc11c772afa321712aa40e7db9154185a6b175deed1571",
           "symbol": "func (h *handlers) decideIndependentLink("
         },
         {
           "path": "backend/internal/modules/workforce/independent_identity.sql",
           "sha256": "68f777d7552b291f33bf9aa6322b1f4f3938752cca2ee39ce4d70d901be6ccf1",
           "symbol": "CREATE FUNCTION workforce_independent_identity_source("
+        },
+        {
+          "path": "backend/internal/modules/workforce/login_review_authority.go",
+          "sha256": "e09c5076734d1f886931109ae212281b4e3be484b49285a4fbccc55f6db46d11",
+          "symbol": "func (h *handlers) withAccountLinkAuthority("
+        },
+        {
+          "path": "backend/internal/modules/workforce/login_review_authority.sql",
+          "sha256": "028408a983360d20b18fa1a96cca2ee81ed0bb23dd7284311689cc99a2a0492e",
+          "symbol": "CREATE FUNCTION workforce_login_review_context("
+        },
+        {
+          "path": "backend/internal/modules/iam/governance_sources.go",
+          "sha256": "9050a22973b4fd3f92e4a675fb2ccf825b1d48f2169b818e470c2c96c57a3791",
+          "symbol": "func (g *governanceSourceGuard) WithGovernanceSource("
+        },
+        {
+          "path": "backend/internal/modules/iam/governance_review_authority.go",
+          "sha256": "84ae681b26f245a17b199c58cf1e69325b4d2764de37b588450e8b5246a165a0",
+          "symbol": "func (h *governanceHandlers) withCurrentGovernanceSource("
         }
       ],
       "remaining": [
+        "Verify current owner/grant consumer success and denial, alias independence, source cutoff/expiry, selected-resource RLS, atomic provenance/receipt recovery and actual recipient login before release. Focused boundary doubles are not real IAM/provider acceptance.",
         "Source classification is not runtime cutoff, complete receiver-only OIDC/browser, clinical or regulatory acceptance; preserve the candidate tests and fail-closed source/identity/graph behavior.",
         "Complete bilateral relationship, hospital named/group grants, minimized partner disclosure, qualified stock/fulfilment and financial consumers before claiming the full supplier workflow or activating production trade."
       ]
@@ -3697,7 +3949,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2175707b607ff31950bcfe7806819dd8958b0e83103f15971541fbc76ad13459",
+          "sha256": "69011f91fc07f0786b16a13d468bc85852e288bb8319d7c6e3aa332ebac205e6",
           "symbol": "h.getBusinessProfile"
         },
         {
@@ -3707,7 +3959,7 @@
         },
         {
           "path": "backend/internal/modules/workforce/handlers.go",
-          "sha256": "6a0434f23b4daf8fdb079be335f9ab2e459be735f362a52c4b38dd28bf7b6380",
+          "sha256": "035854d7e4979567763831a71887df8f329e5921b63ad1acd487fc2a048b2ea4",
           "symbol": "func requireStaffAccess("
         }
       ],

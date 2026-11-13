@@ -40,7 +40,7 @@ func TestWorkforceGlobalAPIAuthority(t *testing.T) {
 	require.NoError(t, fga.GrantRole(ctx, testutil.TenantA, "reviewer", authz.RoleTenantAdmin))
 	require.NoError(t, fga.GrantRole(ctx, testutil.TenantB, "foreign", authz.RoleTenantAdmin))
 	signer, verifier := testutil.NewSessionSignerForTest(t)
-	owner, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+	owner, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{GovernanceSources: testutil.GovernanceReviewProtocol,
 		Verifier: authn.NewSessionVerifier(verifier), Membership: fga, Resolver: fga, Roles: fga,
 		Modules: []platform.Module{module},
 	})

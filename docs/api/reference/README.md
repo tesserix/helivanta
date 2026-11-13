@@ -1624,6 +1624,7 @@ Migration table declarations:
 - `0094_workforce_independent_identity`: `workforce_independent_link_commands`.
 - `0097_workforce_hospital_names`: `workforce_hospital_name_announcements`.
 - `0100_workforce_pharmacy_credential_reviews`: `workforce_pharmacy_time_zones`.
+- `0103_workforce_login_review_authority`: `workforce_login_link_authorities`.
 
 ## workspace
 

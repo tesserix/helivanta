@@ -239,3 +239,15 @@ same locked source validator. The ordinary source callback does not enable the
 private auditor read purpose. Source-use audit shares the product transaction;
 source evidence cannot be reused as later or asynchronous authority. Workforce
 consumer adoption and remote acceptance remain unfinished.
+
+Account-link consumer policy: current owners use an explicit source carrying the
+actual IAM owner-membership ID and membership epoch; recipients use the exact
+current account-link governance grant. Both retain session/credential and canonical
+employer gates. Maker/target/known-person independence remains a separate owner
+rule. General manager permissions or private directory rows cannot substitute for
+a review source. Existing proposal/change administration remains separately
+authorized. A selected Staff/link purpose must permit identity checks and retained
+source evidence without granting generic directory, employment or stock access.
+Hospital and independent wire responses remain unchanged; private retained
+provenance records source kind, source ID/version, actor membership incarnation,
+owner count, employer, target Staff basis and reviewed link version.

@@ -12,6 +12,13 @@ type GovernanceCapability string
 
 const GovernanceAccountLinkReview GovernanceCapability = "workforce.account_link.review"
 
+type GovernanceSourceKind string
+
+const (
+	GovernanceOwnerSource GovernanceSourceKind = "owner"
+	GovernanceGrantSource GovernanceSourceKind = "grant"
+)
+
 // GovernanceSourceRequest is built by a product from its authenticated principal and canonical employer.
 type GovernanceSourceRequest struct {
 	Principal  authn.Principal
@@ -21,6 +28,9 @@ type GovernanceSourceRequest struct {
 
 // GovernanceSourceEvidence is attributable evidence, with authority retained only during the callback.
 type GovernanceSourceEvidence struct {
+	Kind                     GovernanceSourceKind
+	OwnerMembershipID        uuid.UUID
+	OwnerCount               int64
 	GrantID                  uuid.UUID
 	Version, MembershipEpoch int64
 	TemplateKey              string

@@ -128,8 +128,11 @@ remain in headers.
 
 `platform.Deps.GovernanceSources` binds the sole IAM and Workforce owners to
 `authz.CurrentGovernanceSourceGuard`. Its closed capability catalog currently
-contains only `GovernanceAccountLinkReview`, selecting the exact versioned
-account-link reviewer template and one hospital/pharmacy/supplier employer.
+contains only `GovernanceAccountLinkReview`, selecting one exact
+hospital/pharmacy/supplier employer. Current tenant owners retain an explicit
+owner source backed by their actual IAM owner-membership ID and epoch. Other
+reviewers require the exact versioned account-link reviewer grant. Neither source
+requires an invented Staff actor or clinical role.
 Products construct the request from the verified principal and canonical employer;
 request bodies cannot choose an actor or supply source evidence.
 
@@ -145,7 +148,8 @@ Only the auditor wrapper enables private audit access to other grants. Ordinary
 source consumers retain access to their selected source rows. Missing/duplicate
 canonical owners or unavailable source dependencies fail closed. This provider is
 wired in the API and test harness; Workforce endpoints have not yet adopted it.
-Its new PostgreSQL consumer-proof tests still require remote acceptance.
+Its original PostgreSQL grant-source tests passed in CI `43380190287`. New owner
+source and Workforce consumer cases require remote acceptance.
 
 ## Client integration
 

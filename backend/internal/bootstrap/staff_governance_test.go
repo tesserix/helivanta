@@ -133,10 +133,27 @@ func TestGovernanceSingleOwnerGrantRetainsIntentAndNotifiesEveryOwner(t *testing
 		Capability: authz.GovernanceAccountLinkReview,
 		Scope:      authz.GovernanceEstablishmentScope{TenantID: testutil.TenantA, Kind: "hospital", ID: &hospital},
 	}
+	ownerUse := use
+	ownerUse.Principal.Subject = "user-admin"
+	require.NoError(t, guard.WithGovernanceSource(ctx, ownerUse, func(commandCtx context.Context, evidence authz.GovernanceSourceEvidence) error {
+		require.Equal(t, authz.GovernanceOwnerSource, evidence.Kind)
+		require.Equal(t, uuid.Nil, evidence.GrantID, "owner authority is not a manufactured grant")
+		require.NotEqual(t, uuid.Nil, evidence.OwnerMembershipID)
+		require.EqualValues(t, 1, evidence.MembershipEpoch)
+		require.EqualValues(t, 1, evidence.OwnerCount)
+		require.EqualValues(t, 0, evidence.Version)
+		return db.WithTenantCommand(commandCtx, testutil.TenantA, func(tx *gorm.DB) error {
+			var retained struct{ ID uuid.UUID }
+			require.NoError(t, tx.Table("iam_members").Select("id").Where("tenant_id=? AND subject='user-admin' AND role_key='tenant_admin'", testutil.TenantA).Take(&retained).Error)
+			require.Equal(t, retained.ID, evidence.OwnerMembershipID)
+			return nil
+		})
+	}))
 	calls := 0
 	consume := func(commandCtx context.Context, evidence authz.GovernanceSourceEvidence) error {
 		calls++
 		require.True(t, db.GuardedCommandActive(commandCtx))
+		require.Equal(t, authz.GovernanceGrantSource, evidence.Kind)
 		require.Equal(t, id, evidence.GrantID)
 		require.EqualValues(t, 1, evidence.MembershipEpoch)
 		require.Equal(t, input.TemplateKey, evidence.TemplateKey)

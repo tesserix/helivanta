@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "registry_sha256": "12dc462b91fc9662eb97309afc44842807fcc8f21ed0458ce3293aaa6e8c1c53",
+  "registry_sha256": "99f204eaec0bf530472196b7e97f30f9727f087d45b8adaafceefa9ca95c5519",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
     "total": 1093,
@@ -13578,7 +13578,7 @@
           },
           {
             "path": "backend/internal/modules/iam/governance_employment_basis.sql",
-            "sha256": "a4126fb5aaacb2b6d446927e9a2aedaa74647e2896f079348d5d1c89cb74e622",
+            "sha256": "9eec549e0c5d7efcce7b95f27151a06e256ad02a492b8fd055a910f86631ee00",
             "symbol": "CREATE FUNCTION iam_employment_basis_governance_record()"
           }
         ],
@@ -13798,7 +13798,7 @@
           },
           {
             "path": "backend/internal/modules/iam/governance_employment_basis.sql",
-            "sha256": "a4126fb5aaacb2b6d446927e9a2aedaa74647e2896f079348d5d1c89cb74e622",
+            "sha256": "9eec549e0c5d7efcce7b95f27151a06e256ad02a492b8fd055a910f86631ee00",
             "symbol": "CREATE FUNCTION iam_employment_basis_governance_record()"
           }
         ],
@@ -15933,7 +15933,7 @@
           },
           {
             "path": "backend/internal/modules/iam/governance_employment_basis.sql",
-            "sha256": "a4126fb5aaacb2b6d446927e9a2aedaa74647e2896f079348d5d1c89cb74e622",
+            "sha256": "9eec549e0c5d7efcce7b95f27151a06e256ad02a492b8fd055a910f86631ee00",
             "symbol": "CREATE FUNCTION iam_employment_basis_governance_record()"
           }
         ],
@@ -16032,7 +16032,7 @@
           },
           {
             "path": "backend/internal/modules/iam/governance_employment_basis.sql",
-            "sha256": "a4126fb5aaacb2b6d446927e9a2aedaa74647e2896f079348d5d1c89cb74e622",
+            "sha256": "9eec549e0c5d7efcce7b95f27151a06e256ad02a492b8fd055a910f86631ee00",
             "symbol": "CREATE FUNCTION iam_employment_basis_governance_record()"
           }
         ],
@@ -16167,7 +16167,7 @@
           },
           {
             "path": "backend/internal/modules/iam/governance_employment_basis.sql",
-            "sha256": "a4126fb5aaacb2b6d446927e9a2aedaa74647e2896f079348d5d1c89cb74e622",
+            "sha256": "9eec549e0c5d7efcce7b95f27151a06e256ad02a492b8fd055a910f86631ee00",
             "symbol": "CREATE FUNCTION iam_employment_basis_governance_record()"
           }
         ],
@@ -16271,7 +16271,7 @@
           },
           {
             "path": "backend/internal/modules/iam/governance_employment_basis.sql",
-            "sha256": "a4126fb5aaacb2b6d446927e9a2aedaa74647e2896f079348d5d1c89cb74e622",
+            "sha256": "9eec549e0c5d7efcce7b95f27151a06e256ad02a492b8fd055a910f86631ee00",
             "symbol": "CREATE FUNCTION iam_employment_basis_governance_record()"
           }
         ],
@@ -18741,7 +18741,7 @@
           },
           {
             "path": "backend/internal/modules/iam/governance_employment_basis.sql",
-            "sha256": "a4126fb5aaacb2b6d446927e9a2aedaa74647e2896f079348d5d1c89cb74e622",
+            "sha256": "9eec549e0c5d7efcce7b95f27151a06e256ad02a492b8fd055a910f86631ee00",
             "symbol": "CREATE FUNCTION iam_employment_basis_governance_record()"
           }
         ],
@@ -18825,7 +18825,7 @@
           },
           {
             "path": "backend/internal/modules/iam/governance_employment_basis.sql",
-            "sha256": "a4126fb5aaacb2b6d446927e9a2aedaa74647e2896f079348d5d1c89cb74e622",
+            "sha256": "9eec549e0c5d7efcce7b95f27151a06e256ad02a492b8fd055a910f86631ee00",
             "symbol": "CREATE FUNCTION iam_employment_basis_governance_record()"
           }
         ],
@@ -18909,7 +18909,7 @@
           },
           {
             "path": "backend/internal/modules/iam/governance_employment_basis.sql",
-            "sha256": "a4126fb5aaacb2b6d446927e9a2aedaa74647e2896f079348d5d1c89cb74e622",
+            "sha256": "9eec549e0c5d7efcce7b95f27151a06e256ad02a492b8fd055a910f86631ee00",
             "symbol": "CREATE FUNCTION iam_employment_basis_governance_record()"
           }
         ],
@@ -20119,7 +20119,7 @@
           },
           {
             "path": "backend/internal/modules/iam/governance_employment_basis.sql",
-            "sha256": "a4126fb5aaacb2b6d446927e9a2aedaa74647e2896f079348d5d1c89cb74e622",
+            "sha256": "9eec549e0c5d7efcce7b95f27151a06e256ad02a492b8fd055a910f86631ee00",
             "symbol": "CREATE FUNCTION iam_employment_basis_governance_record()"
           }
         ],

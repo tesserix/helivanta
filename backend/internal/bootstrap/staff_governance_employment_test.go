@@ -26,15 +26,30 @@ func TestGovernanceEmploymentBasisSourceRetainsOrdinaryMembershipAndExactTarget(
 	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{Modules: modules, Tokens: map[string]string{"admin": testutil.TenantA}, Perms: map[string][]authz.Permission{"admin": {workforce.PermHospitalManage, iam.PermGovernanceManage, iam.PermGovernanceRead, iam.PermGovernanceReview}}})
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES
-   (?,'user-admin','tenant_admin'),(?,'synthetic-ordinary','staff_member'),
-   (?,'synthetic-delegate','staff_member'),(?,'synthetic-delegate','governance_delegate'),
-   (?,'synthetic-delegate-only','governance_delegate'),(?,'synthetic-clinical','staff_member'),(?,'synthetic-clinical','doctor'),(?,'user-reviewer','staff_member')`,
-			testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA).Error
+   (?,'user-admin','tenant_admin'),(?,'synthetic-ordinary','staff_member'),(?,'user-auditor','staff_member'),
+   (?,'synthetic-clinical','staff_member'),(?,'synthetic-clinical','doctor'),(?,'user-reviewer','staff_member')`,
+			testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA).Error
 	}))
 	hospital := uuid.Must(uuid.NewV7())
 	body, _ := json.Marshal(map[string]string{"name": "Synthetic employment basis hospital"})
 	created := governanceRequest(r, http.MethodPut, "/v1/workforce/hospitals/"+hospital.String(), "admin", string(body))
 	require.Equal(t, 200, created.Code, created.Body.String())
+	issue := func(t *testing.T, subject, template string, epoch int64) uuid.UUID {
+		t.Helper()
+		id := uuid.Must(uuid.NewV7())
+		raw, _ := json.Marshal(map[string]any{"subject": subject, "expected_membership_epoch": epoch, "template_key": template, "scope_kind": "hospital", "scope_id": hospital, "reason": "Synthetic first-reviewer activation source", "valid_from": time.Now().Add(-time.Minute).UTC().Format(time.RFC3339), "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339)})
+		w := governanceRequest(r, http.MethodPut, "/v1/iam/governance-grants/"+id.String(), "admin", string(raw))
+		require.Equal(t, 202, w.Code, w.Body.String())
+		return id
+	}
+	issue(t, "user-auditor", "workforce.person_preparer.v1", 1)
+	t.Run("routing role cannot be seeded without its source intent", func(t *testing.T) {
+		err := db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'synthetic-impossible-delegate','governance_delegate')`, testutil.TenantA).Error
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "governance routing membership requires current source intent")
+	})
 	guard, ok := platform.GovernanceSources(modules, db).(authz.GovernanceEmploymentActivationGuard)
 	require.True(t, ok)
 	req := authz.GovernanceSourceRequest{Principal: authn.Principal{TenantID: testutil.TenantA, Subject: "user-admin", AuthTime: time.Now().Add(-time.Minute), IdleDeadline: time.Now().Add(time.Hour)}, Capability: authz.GovernanceEmploymentActivate, Scope: authz.GovernanceEstablishmentScope{TenantID: testutil.TenantA, Kind: "hospital", ID: &hospital}}
@@ -43,7 +58,7 @@ func TestGovernanceEmploymentBasisSourceRetainsOrdinaryMembershipAndExactTarget(
 	}
 	var escaped authz.EmploymentBasisWriter
 	var escapedContext context.Context
-	readAuthority := func(b authz.EmploymentBasis) map[string]any {
+	readAuthority := func(t *testing.T, b authz.EmploymentBasis) map[string]any {
 		t.Helper()
 		var raw string
 		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
@@ -61,7 +76,7 @@ func TestGovernanceEmploymentBasisSourceRetainsOrdinaryMembershipAndExactTarget(
 	}
 
 	initial := map[string]authz.EmploymentBasis{}
-	for _, subject := range []string{"synthetic-ordinary", "synthetic-delegate"} {
+	for _, subject := range []string{"synthetic-ordinary", "user-auditor"} {
 		b := basis(subject)
 		err := guard.WithGovernanceEmploymentActivation(ctx, req, b.StaffID, func(commandCtx context.Context, source authz.GovernanceSourceEvidence, writer authz.EmploymentBasisWriter) error {
 			require.Equal(t, authz.GovernanceOwnerSource, source.Kind)
@@ -82,10 +97,10 @@ func TestGovernanceEmploymentBasisSourceRetainsOrdinaryMembershipAndExactTarget(
 		})
 		require.NoError(t, err, subject)
 		initial[subject] = b
-		require.Equal(t, "owner", readAuthority(b)["authority_kind"])
+		require.Equal(t, "owner", readAuthority(t, b)["authority_kind"])
 		require.ErrorIs(t, escaped.ConsumeEmploymentBasis(escapedContext, b), authz.ErrScopedCommandDenied)
 	}
-	for _, subject := range []string{"synthetic-delegate-only", "synthetic-clinical", "user-admin"} {
+	for _, subject := range []string{"synthetic-clinical", "user-admin"} {
 		b := basis(subject)
 		err := guard.WithGovernanceEmploymentActivation(ctx, req, b.StaffID, func(commandCtx context.Context, _ authz.GovernanceSourceEvidence, writer authz.EmploymentBasisWriter) error {
 			return writer.ConsumeEmploymentBasis(commandCtx, b)
@@ -93,20 +108,13 @@ func TestGovernanceEmploymentBasisSourceRetainsOrdinaryMembershipAndExactTarget(
 		require.ErrorIs(t, err, authz.ErrScopedCommandDenied, subject)
 	}
 	t.Run("exact delegated source and revoked source with retained routing", func(t *testing.T) {
-		issue := func(template string, epoch int64) uuid.UUID {
-			id := uuid.Must(uuid.NewV7())
-			raw, _ := json.Marshal(map[string]any{"subject": "user-reviewer", "expected_membership_epoch": epoch, "template_key": template, "scope_kind": "hospital", "scope_id": hospital, "reason": "Synthetic first-reviewer activation source", "valid_from": time.Now().Add(-time.Minute).UTC().Format(time.RFC3339), "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339)})
-			w := governanceRequest(r, http.MethodPut, "/v1/iam/governance-grants/"+id.String(), "admin", string(raw))
-			require.Equal(t, 202, w.Code, w.Body.String())
-			return id
-		}
-		grant := issue("workforce.employment_activator.v1", 1)
-		issue("workforce.person_preparer.v1", 2)
+		grant := issue(t, "user-reviewer", "workforce.employment_activator.v1", 1)
+		issue(t, "user-reviewer", "workforce.person_preparer.v1", 2)
 		delegated := req
 		delegated.Principal.Subject = "user-reviewer"
 		supplied := hospital
 		delegated.Scope.ID = &supplied
-		b := initial["synthetic-delegate"]
+		b := initial["user-auditor"]
 		b.GenerationID = uuid.Must(uuid.NewV7())
 		b.EmploymentEpoch = 3
 		err := guard.WithGovernanceEmploymentActivation(ctx, delegated, b.StaffID, func(commandCtx context.Context, source authz.GovernanceSourceEvidence, writer authz.EmploymentBasisWriter) error {
@@ -118,7 +126,7 @@ func TestGovernanceEmploymentBasisSourceRetainsOrdinaryMembershipAndExactTarget(
 			return writer.ConsumeEmploymentBasis(commandCtx, b)
 		})
 		require.NoError(t, err)
-		recorded := readAuthority(b)
+		recorded := readAuthority(t, b)
 		require.Equal(t, "grant", recorded["authority_kind"])
 		require.Equal(t, grant.String(), recorded["source_grant_id"])
 		require.EqualValues(t, 1, recorded["source_grant_version"])

@@ -16,7 +16,7 @@ ALTER TABLE iam_employment_basis_authorities FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON iam_employment_basis_authorities
  USING(hms_tenant_visible(tenant_id) AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid
  AND current_setting('app.assignment_access',true)='authorized')
- WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid
+ WITH CHECK(hms_tenant_visible(tenant_id) AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid
  AND current_setting('app.assignment_access',true)='authorized'
  AND current_setting('app.iam_employment_basis',true)='consume'
  AND actor_subject=current_setting('app.actor_subject',true)

@@ -97,6 +97,33 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/governance-grants/:id",
+          "permission": "iam.governance.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/iam/governance-grants/:id",
+          "permission": "iam.governance.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/governance-notices",
+          "permission": "iam.governance.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member/commands/:command",
           "permission": "public",
           "authentication_required": true,
@@ -704,6 +731,14 @@
           "roles": []
         },
         {
+          "permission": "iam.governance.manage",
+          "roles": []
+        },
+        {
+          "permission": "iam.governance.read",
+          "roles": []
+        },
+        {
           "permission": "iam.assignment.manage",
           "roles": []
         },
@@ -1136,6 +1171,14 @@
           "id": "0046_iam_supplier_acceptance_templates",
           "sql_sha256": "bdcb68a24ffe6041c92db8c1b7e57687106b9a5b877a056cab2a43d018a15672",
           "creates_tables": []
+        },
+        {
+          "id": "0047_iam_governance",
+          "sql_sha256": "cdf51aeebb1930fd740bf0d4e8d9bfb44a988ac0d192e816726ef48ccf4e7d5c",
+          "creates_tables": [
+            "iam_governance_grants",
+            "iam_governance_owner_notices"
+          ]
         }
       ]
     },

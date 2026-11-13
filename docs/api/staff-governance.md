@@ -1,0 +1,98 @@
+# Staff reviewer governance
+
+Status: candidate in PR #1669; not merged or deployed. The current implementation
+covers owner grant admission, original creation receipts and an owner inbox.
+Independent review, effective scoped reviewer consumers, acknowledgements and UI
+remain unfinished. Account initiation alone does not complete Staff onboarding.
+
+IAM owns the governance ledger. Workforce owns the hospital/independent employer
+roots and current hospital count. Native identity remains with the identity owner.
+Canonical Go/Zod models derive from `contracts/staff-governance.json`; regenerate
+with `node scripts/generate-staff-governance.mjs` and check with `--check`.
+The [implementation design](../superpowers/specs/2026-11-13-staff-governance-bootstrap.md)
+records ORG-D7, all remaining lifecycle consumers and operational assumptions.
+
+## Candidate operations
+
+Browser calls enter Global API with the IAM destination. Backend paths below
+are `/v1`; preserve the Global API client's existing path mapping.
+
+| Operation                           | Current authority and outcome                                                                                                                                                                                                                                                      |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PUT /v1/iam/governance-grants/:id` | `iam.governance.manage` plus a current IAM owner and credential watermark. A canonical UUIDv7 command admits a separately named recipient, subject to native eligibility, current membership incarnation and exact Workforce scope. Returns 202 with an original creation receipt. |
+| `GET /v1/iam/governance-grants/:id` | `iam.governance.read` plus current owner proof; returns retained origin with current stored status/version. It does not report effective route or product access.                                                                                                                  |
+| `GET /v1/iam/governance-notices`    | `iam.governance.read` plus current owner proof; bounded cursor list limited to that owner's own recipient subject.                                                                                                                                                                 |
+
+Every operation refreshes authentication/route admission and requires exactly one
+`X-Helivanta-Expected-Tenant` and `X-Helivanta-Expected-Subject`, matching the
+verified session. They detect an unintended account/workspace switch and never
+select authority. Responses are private and non-cacheable.
+
+Creation accepts only subject, expected membership epoch, fixed template key,
+scope kind, optional exact root ID, reason and effective interval. The body is
+bounded to 4096 bytes. Duplicate/unknown/case-alias keys, actor/tenant/role fields,
+nulls, invalid UTF-8, unsafe integers and malformed or precision-losing instants
+are refused. Reasons have a shared 500 UTF16-unit bound and no control characters.
+No contact, password, proof document or native organization is supplied.
+
+The target must already have ordinary tenant membership and be an active verified
+tenant-owned human. An owner cannot issue to themselves or another current owner.
+Native eligibility is read outside database locks. Creation then rechecks owner,
+credential, membership incarnation, exact employing root and topology under a
+single guarded database command. The native read is an observation, not a
+cross-service atomic transaction or proof of subsequent login.
+
+One current owner and at most one hospital admit `provisional_active`, with
+`single_owner_provisional` provenance. Multiple owners admit `pending_review`,
+with `independent_review` provenance. A tenant with multiple hospitals and fewer
+than two current owners is denied. No synthetic independent approval is recorded.
+Second-hospital creation's owner-count admission guard remains unfinished; the
+Workforce topology gate alone only serializes observations against root writes.
+
+A command's canonicalized intent and original receipt are retained immutably.
+Repeating the same command and intent returns the original 202 receipt; changed
+intent or issuing actor returns 409. Receipt replay does not repeat native
+provisioning, reissue a grant, or claim that its authority is still effective.
+Creation history remains distinct from the mutable current head.
+
+## Atomicity, scope and routing
+
+Grant creation, one durable notice for each current owner, audit and any managed
+routing-membership projection intent commit together. Inbox evidence means a row
+was recorded, not that an email was sent or read. Notice acknowledgement is not
+yet exposed.
+
+The single fixed `governance_delegate` membership is managed by this ledger.
+The generic membership grant API returns 409 for it. Existing member outbox
+consumers/reconciliation project this coarse routing identity asynchronously.
+No direct native administrator role is assigned. A routing tuple or stored
+`provisional_active` status is not effective hospital, HR, clinical, pharmacy,
+stock or financial authority. Actual consumer guards must check current exact
+source, interval, membership incarnation, credential and product prerequisites;
+those consumers are not implemented by this candidate admission slice.
+
+IAM retains an owner-count gate before target membership and Workforce topology
+locks. Workforce root insert/update/delete statements take the exclusive topology
+gate before row locks; the source provider retains its shared counterpart through
+the consuming callback. Missing/duplicate canonical providers, unavailable
+sources, context/tenant/database escape or an expired command deny.
+
+Missing permission/current owner returns 403. Invisible grant or employer returns 404. Changed workspace, intent or source version returns 409. Invalid body is
+400; a credential watermark denies with 401; unavailable authority/source or a
+command deadline is 503. Preserve v1 `{error,message}` envelopes; request IDs
+remain in headers.
+
+## Release and remaining acceptance
+
+Candidate migrations are `0102_workforce_governance_topology` and
+`0047_iam_governance`. Neither has been approved for live application. Before
+rollout, complete independent decisions, source consumers, owner-count admission,
+ledger/role admission guards, frontend, remote PostgreSQL/FGA/race/recovery tests
+and tested rollback. Retain identities, original receipts, notices and decisions
+through rollback; never erase evidence to retry onboarding.
+
+The first real cross-module acceptance test was observed returning 404 before
+implementation. Local builds and pure boundary tests do not substitute for its
+remote green result. The actual preserved tenant still needs recipient-operated
+private setup, real distinct reviewers and positive/negative/revoked staff and
+pharmacy-access verification before this workflow is complete.

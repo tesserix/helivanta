@@ -22,6 +22,9 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/employment-activation-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/employment-assignment-proposals` | `public` | true | false |
+| GET | `/v1/iam/governance-grants/:id` | `iam.governance.read` | false | false |
+| PUT | `/v1/iam/governance-grants/:id` | `iam.governance.manage` | false | false |
+| GET | `/v1/iam/governance-notices` | `iam.governance.read` | true | false |
 | GET | `/v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member/commands/:command` | `public` | false | false |
 | PUT | `/v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member/commands/:command` | `public` | false | false |
 | GET | `/v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member` | `public` | false | false |
@@ -135,6 +138,7 @@ Migration table declarations:
 - `0037_iam_partner_grant_drafts`: `iam_partner_grant_drafts`.
 - `0038_iam_operating_duties`: `iam_operating_duties`, `iam_operating_duty_history`, `iam_operating_snapshots`, `iam_operating_commands`, `iam_operating_projection_acks`.
 - `0039_iam_supplier_grants`: `iam_supplier_grants`, `iam_supplier_grant_commands`, `iam_supplier_grant_history`, `iam_supplier_grant_bases`, `iam_supplier_grant_projection_acks`.
+- `0047_iam_governance`: `iam_governance_grants`, `iam_governance_owner_notices`.
 
 ## reference
 

@@ -138,6 +138,33 @@ Authorization or audit failure rolls back/denies. Identity/topology source outag
 returns 503; missing route permission 403; invisible foreign scope/object 404;
 stale or changed command/version 409. Keep current v1 error envelopes.
 
+## Ledger admission and projection composition
+
+The routing projection reuses IAM's existing `MemberGranted`/`MemberRevoked`
+transactional outbox and current-membership reconciler for one fixed
+`governance_delegate` role. This role carries only coarse route admission;
+ordinary membership, exact current source grant, scope, interval, provenance and
+credential checks remain necessary at every consumer. The legacy role API cannot
+create this managed routing membership. Native identity eligibility is observed
+before acquiring database locks. Replaying a retained creation receipt does not
+repeat native provisioning or claim the grant is still effective.
+
+IAM owner membership changes take an exclusive owner-count gate. Governance
+commands hold its shared counterpart before querying current owner membership,
+then take target membership locks and the Workforce topology gate. Under the
+owner-count gate, read owner membership without row locks: an owner removal may
+already hold its tuple before entering its row trigger, and waiting on that
+tuple while retaining the shared gate would invert the lock order. Recheck the
+actor's credential watermark and keep target incarnation and source locks until
+commit. A target already holding owner membership does not need a subordinate
+governance delegation.
+
+Store original receipt bytes as immutable creation evidence separately from the
+mutable current status/version. The same command and intent returns that original
+receipt after later independent decisions; changed intent conflicts. Persist one
+durable notice per current owner in the same transaction as grant, audit and
+routing projection intent. A notice row establishes inbox delivery only.
+
 ## Candidate topology source implementation
 
 The draft now includes Workforce's `GovernanceTopology` provider and candidate

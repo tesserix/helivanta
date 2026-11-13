@@ -1,9 +1,9 @@
 {
   "format_version": 1,
-  "registry_sha256": "ef569bf03d6156eb66e4fadeb51aa2683b7fc91d6bacfd3f0cab087034b72bc9",
+  "registry_sha256": "7e0e3e9409afc5029bc358212dc39ffc65b835f66f1cd4b872349e721cff8289",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1088,
+    "total": 1091,
     "unclassified": 986
   },
   "entries": [
@@ -3136,6 +3136,94 @@
       "review": null
     },
     {
+      "id": "http iam GET /v1/iam/governance-grants/:id",
+      "kind": "http",
+      "module": "iam",
+      "registration": {
+        "source": "backend/internal/modules/iam/module.go",
+        "method": "GET",
+        "path": "/v1/iam/governance-grants/:id",
+        "permission": "iam.governance.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http iam GET /v1/iam/governance-grants/:id",
+        "registration_sha256": "5c2965d44f4e7cfb7795fd2621014f8a9b433a9386f9e5d121ef1ff745fd273e",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "verified tenant, current owner; exact recipient membership and employing root for new grants; own recipient for owner notices",
+        "rationale": "Governance source metadata and retained owner admission. Current IAM owner and credential evidence are required; no clinical or pharmacy operation is authorized by a stored grant receipt.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/iam/module.go",
+            "sha256": "e35c81c302b780173566264a55317f5ad4a4f82265c74ebcd8b956d374a09c4f",
+            "symbol": "func (m *Module) Routes("
+          },
+          {
+            "path": "backend/internal/modules/iam/governance.go",
+            "sha256": "50b210bcc38ec34a62c6f9d00d5d5b93561786f43422344e7314b66d1e039492",
+            "symbol": "func (h *governanceHandlers) withOwner("
+          },
+          {
+            "path": "backend/internal/modules/iam/governance.sql",
+            "sha256": "cdf51aeebb1930fd740bf0d4e8d9bfb44a988ac0d192e816726ef48ccf4e7d5c",
+            "symbol": "iam_governance_owner"
+          }
+        ],
+        "remaining": [
+          "Remote real PostgreSQL admission, replay, notice privacy and failure/race tests.",
+          "Independent governance decisions and source-fenced Workforce consumers remain unfinished.",
+          "Actual recipient login, reviewed Staff and pharmacy access must be verified separately."
+        ]
+      }
+    },
+    {
+      "id": "http iam GET /v1/iam/governance-notices",
+      "kind": "http",
+      "module": "iam",
+      "registration": {
+        "source": "backend/internal/modules/iam/module.go",
+        "method": "GET",
+        "path": "/v1/iam/governance-notices",
+        "permission": "iam.governance.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": {
+        "id": "http iam GET /v1/iam/governance-notices",
+        "registration_sha256": "0a34c0696d0fbb4f1d550e6dcd8522cc4da3811414fbda62fc472d1cffbae1a3",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "verified tenant, current owner; exact recipient membership and employing root for new grants; own recipient for owner notices",
+        "rationale": "Governance source metadata and retained owner admission. Current IAM owner and credential evidence are required; no clinical or pharmacy operation is authorized by a stored grant receipt.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/iam/module.go",
+            "sha256": "e35c81c302b780173566264a55317f5ad4a4f82265c74ebcd8b956d374a09c4f",
+            "symbol": "func (m *Module) Routes("
+          },
+          {
+            "path": "backend/internal/modules/iam/governance.go",
+            "sha256": "50b210bcc38ec34a62c6f9d00d5d5b93561786f43422344e7314b66d1e039492",
+            "symbol": "func (h *governanceHandlers) withOwner("
+          },
+          {
+            "path": "backend/internal/modules/iam/governance.sql",
+            "sha256": "cdf51aeebb1930fd740bf0d4e8d9bfb44a988ac0d192e816726ef48ccf4e7d5c",
+            "symbol": "iam_governance_owner"
+          }
+        ],
+        "remaining": [
+          "Remote real PostgreSQL admission, replay, notice privacy and failure/race tests.",
+          "Independent governance decisions and source-fenced Workforce consumers remain unfinished.",
+          "Actual recipient login, reviewed Staff and pharmacy access must be verified separately."
+        ]
+      }
+    },
+    {
       "id": "http iam GET /v1/iam/hospitals/:hospital/partner-groups",
       "kind": "http",
       "module": "iam",
@@ -3666,7 +3754,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "05cb0251f755d7db7995ef44e00731b18dc82165a4dd54a30031e5f4d2a99de4",
+            "sha256": "e35c81c302b780173566264a55317f5ad4a4f82265c74ebcd8b956d374a09c4f",
             "symbol": "m.registerPartnerGrantDrafts(g, deps)"
           },
           {
@@ -3713,7 +3801,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "05cb0251f755d7db7995ef44e00731b18dc82165a4dd54a30031e5f4d2a99de4",
+            "sha256": "e35c81c302b780173566264a55317f5ad4a4f82265c74ebcd8b956d374a09c4f",
             "symbol": "m.registerPartnerGrantDrafts(g, deps)"
           },
           {
@@ -4000,7 +4088,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "05cb0251f755d7db7995ef44e00731b18dc82165a4dd54a30031e5f4d2a99de4",
+            "sha256": "e35c81c302b780173566264a55317f5ad4a4f82265c74ebcd8b956d374a09c4f",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -4044,7 +4132,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "05cb0251f755d7db7995ef44e00731b18dc82165a4dd54a30031e5f4d2a99de4",
+            "sha256": "e35c81c302b780173566264a55317f5ad4a4f82265c74ebcd8b956d374a09c4f",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -4120,7 +4208,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "05cb0251f755d7db7995ef44e00731b18dc82165a4dd54a30031e5f4d2a99de4",
+            "sha256": "e35c81c302b780173566264a55317f5ad4a4f82265c74ebcd8b956d374a09c4f",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -4225,6 +4313,50 @@
         "counted": false
       },
       "review": null
+    },
+    {
+      "id": "http iam PUT /v1/iam/governance-grants/:id",
+      "kind": "http",
+      "module": "iam",
+      "registration": {
+        "source": "backend/internal/modules/iam/module.go",
+        "method": "PUT",
+        "path": "/v1/iam/governance-grants/:id",
+        "permission": "iam.governance.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http iam PUT /v1/iam/governance-grants/:id",
+        "registration_sha256": "c26398233072c299c80b22e477ea8289fce42110f2e289cae6ee01b0cdd6a8da",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "verified tenant, current owner; exact recipient membership and employing root for new grants; own recipient for owner notices",
+        "rationale": "Governance source metadata and retained owner admission. Current IAM owner and credential evidence are required; no clinical or pharmacy operation is authorized by a stored grant receipt.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/iam/module.go",
+            "sha256": "e35c81c302b780173566264a55317f5ad4a4f82265c74ebcd8b956d374a09c4f",
+            "symbol": "func (m *Module) Routes("
+          },
+          {
+            "path": "backend/internal/modules/iam/governance.go",
+            "sha256": "50b210bcc38ec34a62c6f9d00d5d5b93561786f43422344e7314b66d1e039492",
+            "symbol": "func (h *governanceHandlers) withOwner("
+          },
+          {
+            "path": "backend/internal/modules/iam/governance.sql",
+            "sha256": "cdf51aeebb1930fd740bf0d4e8d9bfb44a988ac0d192e816726ef48ccf4e7d5c",
+            "symbol": "iam_governance_owner"
+          }
+        ],
+        "remaining": [
+          "Remote real PostgreSQL admission, replay, notice privacy and failure/race tests.",
+          "Independent governance decisions and source-fenced Workforce consumers remain unfinished.",
+          "Actual recipient login, reviewed Staff and pharmacy access must be verified separately."
+        ]
+      }
     },
     {
       "id": "http iam PUT /v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member",
@@ -4415,7 +4547,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "05cb0251f755d7db7995ef44e00731b18dc82165a4dd54a30031e5f4d2a99de4",
+            "sha256": "e35c81c302b780173566264a55317f5ad4a4f82265c74ebcd8b956d374a09c4f",
             "symbol": "m.registerPartnerGrantDrafts(g, deps)"
           },
           {

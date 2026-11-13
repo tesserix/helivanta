@@ -185,6 +185,40 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &out))
 		return out
 	}
+	// Before 0103, retained approvals must be built with the historical schema, not today's API.
+	approveFixtureLink := func(t *testing.T, link, reason string) map[string]any {
+		t.Helper()
+		var modern bool
+		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			return tx.Raw("SELECT to_regclass('public.workforce_login_link_authorities') IS NOT NULL").Scan(&modern).Error
+		}))
+		input := map[string]any{"expected_version": 1, "decision": "approve", "reason": reason}
+		if modern {
+			return call(t, "POST", link+"/decision", checker, input, 200)
+		}
+		call(t, "POST", link+"/decision", checker, input, 503)
+		parts := strings.Split(link, "/")
+		require.Len(t, parts, 9)
+		var result struct {
+			Version int64
+			Status  string
+		}
+		require.NoError(t, db.WithTenant(tenantdb.WithActor(ctx, checker), testutil.TenantA, func(tx *gorm.DB) error {
+			var legacy bool
+			require.NoError(t, tx.Raw("SELECT to_regclass('public.workforce_login_link_authorities') IS NULL").Scan(&legacy).Error)
+			require.True(t, legacy, "historical setup must never bypass current source admission")
+			if err := tx.Exec("SELECT set_config('app.workforce_subject',?,true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_login_link_access','authorized',true),set_config('app.workforce_login_link_command','review',true)", checker, parts[4]).Error; err != nil {
+				return err
+			}
+			changed := tx.Exec("UPDATE workforce_login_links SET status='active',version=version+1,actor_subject=?,reason=? WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND id=? AND version=1 AND status='pending' AND proposed_by_subject=? AND subject<>?", checker, reason, testutil.TenantA, parts[4], parts[6], parts[8], maker, checker)
+			require.NoError(t, changed.Error)
+			require.EqualValues(t, 1, changed.RowsAffected)
+			return tx.Table("workforce_login_links").Select("version,status").Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", testutil.TenantA, parts[4], parts[6], parts[8]).Take(&result).Error
+		}))
+		require.EqualValues(t, 2, result.Version)
+		require.Equal(t, "active", result.Status)
+		return map[string]any{"version": float64(result.Version), "status": result.Status}
+	}
 	waitForStatus := func(t *testing.T, path, subject, status string) {
 		t.Helper()
 		pollContext, cancel := context.WithTimeout(t.Context(), 10*time.Second)
@@ -227,22 +261,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		call(t, "PUT", base+"/staff/"+actor, maker, map[string]any{"employee_code": fmt.Sprintf("SYN-PERSON-OFFICER-%d", i), "display_name": officer.subject, "job_category": "other", "employment_status": "active"}, 200)
 		link := base + "/staff/" + actor + "/login-links/" + uuid.Must(uuid.NewV7()).String()
 		call(t, "PUT", link, maker, map[string]any{"subject": officer.subject, "reason": "Synthetic reviewed identity officer"}, 200)
-		call(t, "POST", link+"/decision", checker, map[string]any{"expected_version": 1, "decision": "approve", "reason": "Independent synthetic officer identity"}, 503)
-		// This phase represents approvals retained before governed-review/provenance migrations.
-		// Current commands must refuse the old schema rather than silently omit source evidence.
-		var legacyVersion int64
-		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-			var legacy bool
-			require.NoError(t, tx.Raw("SELECT to_regclass('public.workforce_login_link_authorities') IS NULL").Scan(&legacy).Error)
-			require.True(t, legacy, "historical fixture setup must not bypass current review admission")
-			require.NoError(t, tx.Exec("SELECT set_config('app.workforce_subject',?,true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_login_link_access','authorized',true),set_config('app.workforce_login_link_command','review',true)", checker, hospital).Error)
-			linkID := link[len(link)-36:]
-			changed := tx.Exec("UPDATE workforce_login_links SET status='active',version=version+1,actor_subject=?,reason='Independent synthetic officer identity' WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND id=? AND version=1 AND status='pending' AND proposed_by_subject=? AND subject=?", checker, testutil.TenantA, hospital, actor, linkID, maker, officer.subject)
-			require.NoError(t, changed.Error)
-			require.EqualValues(t, 1, changed.RowsAffected)
-			return tx.Table("workforce_login_links").Select("version").Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", testutil.TenantA, hospital, actor, linkID).Scan(&legacyVersion).Error
-		}))
-		linked := map[string]any{"version": float64(legacyVersion)}
+		linked := approveFixtureLink(t, link, "Independent synthetic officer identity")
 		proposal := "/v1/iam/assignment-proposals/" + uuid.Must(uuid.NewV7()).String()
 		call(t, "PUT", proposal, maker, map[string]any{"hospital_id": hospital, "subject": officer.subject, "template_key": officer.template, "reason": "Synthetic independent person review", "valid_from": time.Now().UTC().Format(time.RFC3339), "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}, 200)
 		waitForStatus(t, proposal, maker, "pending_review")
@@ -288,7 +307,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		call(t, "PUT", otherStaff, maker, map[string]any{"employee_code": "SYN-OTHER-REVIEWER", "display_name": reviewer, "job_category": "other", "employment_status": "active"}, 200)
 		otherLink := otherStaff + "/login-links/" + uuid.Must(uuid.NewV7()).String()
 		call(t, "PUT", otherLink, maker, map[string]any{"subject": reviewer, "reason": "Synthetic link without identity assignment"}, 200)
-		call(t, "POST", otherLink+"/decision", checker, map[string]any{"expected_version": 1, "decision": "approve", "reason": "Synthetic separate hospital actor link"}, 200)
+		approveFixtureLink(t, otherLink, "Synthetic separate hospital actor link")
 		first := call(t, "GET", "/v1/workforce/person-review-scopes?limit=1", reviewer, nil, 200)
 		require.Empty(t, first["data"], "an actor link without a scoped identity assignment discloses no hospital")
 		firstPage := first["page"].(map[string]any)
@@ -396,6 +415,9 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	var generationMigration tenantdb.Migration
 	upgrade := false
 	for _, migration := range workforce.New().Migrations() {
+		if migration.ID == "0102_workforce_governance_topology" || migration.ID == "0103_workforce_login_review_authority" {
+			continue
+		}
 		if migration.ID == "0066_workforce_employment_generations" {
 			generationMigration = migration
 			continue
@@ -522,7 +544,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		call(t, "POST", endpoint, manager, selection, 403)
 		newLink := base + "/staff/" + ref.StaffID + "/login-links/" + uuid.Must(uuid.NewV7()).String()
 		call(t, "PUT", newLink, maker, map[string]any{"subject": manager, "reason": "Synthetic independently reviewed manager link recovery"}, 200)
-		linked := call(t, "POST", newLink+"/decision", checker, map[string]any{"expected_version": 1, "decision": "approve", "reason": "Independent synthetic recovered manager identity"}, 200)
+		linked := approveFixtureLink(t, newLink, "Independent synthetic recovered manager identity")
 		ref.LinkPath, ref.LinkVersion = newLink, linked["version"].(float64)
 		officers[manager] = ref
 		require.Len(t, call(t, "POST", endpoint, manager, selection, 200)["data"].([]any), 1)
@@ -1423,7 +1445,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				call(t, "POST", ref.LinkPath+"/decision", maker, map[string]any{"expected_version": ref.LinkVersion, "decision": "revoke", "reason": "Synthetic employment disclosure actor cutoff"}, 200)
 				link := base + "/staff/" + ref.StaffID + "/login-links/" + uuid.Must(uuid.NewV7()).String()
 				call(t, "PUT", link, maker, map[string]any{"subject": reviewer, "reason": "Synthetic independent actor identity recovery"}, 200)
-				linked := call(t, "POST", link+"/decision", checker, map[string]any{"expected_version": 1, "decision": "approve", "reason": "Independent synthetic actor recovery"}, 200)
+				linked := approveFixtureLink(t, link, "Independent synthetic actor recovery")
 				ref.LinkPath, ref.LinkVersion = link, linked["version"].(float64)
 				officers[reviewer] = ref
 			})
@@ -1605,7 +1627,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			withoutActor := request("GET", evidencePath, reviewer, nil, "application/json")
 			require.Equal(t, 403, withoutActor.Code, "no private disclosure while the reviewer has no current reviewed staff link")
 			call(t, "PUT", newLink, maker, map[string]any{"subject": reviewer, "reason": "Synthetic fresh actor-link proposal"}, 200)
-			linked := call(t, "POST", newLink+"/decision", checker, map[string]any{"expected_version": 1, "decision": "approve", "reason": "Independent synthetic replacement identity"}, 200)
+			linked := approveFixtureLink(t, newLink, "Independent synthetic replacement identity")
 			ref.LinkPath, ref.LinkVersion = newLink, linked["version"].(float64)
 		})
 		require.Equal(t, 403, denied.Code)
@@ -2070,7 +2092,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				call(t, "PUT", legacyStaff, maker, map[string]any{"employee_code": "SYN-LEGACY-" + scenario, "display_name": "Synthetic legacy recipient", "job_category": "other", "employment_status": "active"}, 200)
 				legacyLink := legacyStaff + "/login-links/" + uuid.Must(uuid.NewV7()).String()
 				call(t, "PUT", legacyLink, maker, map[string]any{"subject": recipient, "reason": "Synthetic pre-activation recipient lock fixture"}, 200)
-				call(t, "POST", legacyLink+"/decision", checker, map[string]any{"expected_version": 1, "decision": "approve", "reason": "Independent synthetic recipient binding"}, 200)
+				approveFixtureLink(t, legacyLink, "Independent synthetic recipient binding")
 				grant(recipient, "workforce.identity_manager.v1", workforce.PermIdentityChecksManage)
 				blocker, unlock := holdActivationSupervision(t, db, hospital)
 				readPath := base + "/identity-staff/" + joiner
@@ -2149,7 +2171,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				call(t, "GET", base+"/identity-staff/"+joiner, recipient, nil, 404)
 				loginPath := joinerPath + "/login-links/" + uuid.Must(uuid.NewV7()).String()
 				call(t, "PUT", loginPath, maker, map[string]any{"subject": recipient, "reason": "Synthetic fresh generation login proposal"}, 200)
-				call(t, "POST", loginPath+"/decision", checker, map[string]any{"expected_version": 1, "decision": "approve", "reason": "Independent synthetic generation login review"}, 200)
+				approveFixtureLink(t, loginPath, "Independent synthetic generation login review")
 				call(t, "GET", base+"/identity-staff/"+joiner, recipient, nil, 200)
 				if scenario == "review_discovery" {
 					grant(recipient, "workforce.posting_reviewer.v1", authz.StaffActorUse)
@@ -2233,7 +2255,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				require.EqualValues(t, beforeEvidenceBoundary+1, sourceAudits(), "only the original authorized source use commits audit evidence")
 
 				for _, migration := range workforce.New().Migrations() {
-					if migration.ID == "0073_workforce_posting_drafts" || migration.ID == "0074_workforce_scoped_postings" || migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" || migration.ID == "0081_workforce_posting_chain_approvals" || migration.ID == "0082_workforce_posting_supervisor_choices" || migration.ID == "0083_workforce_posting_supervisor_choice_index" || migration.ID == "0084_workforce_posting_cutoffs" || migration.ID == "0085_workforce_posting_lifecycle_reviews" || migration.ID == "0086_workforce_posting_source_use" || migration.ID == "0087_workforce_department_posting_scope" || migration.ID == "0091_workforce_partner_member_candidates" || migration.ID == "0089_workforce_leave_department_scope" || migration.ID == "0092_workforce_pharmacy_staff_directory" || migration.ID == "0093_workforce_supplier_staff" || migration.ID == "0094_workforce_independent_identity" || migration.ID == "0095_workforce_pharmacy_enrollment" || migration.ID == "0096_workforce_business_profile" || migration.ID == "0097_workforce_hospital_names" || migration.ID == "0098_workforce_pharmacy_documents" || migration.ID == "0099_workforce_pharmacy_employment_periods" || migration.ID == "0100_workforce_pharmacy_credential_reviews" || migration.ID == "0101_workforce_hospital_name_receipts" {
+					if migration.ID == "0073_workforce_posting_drafts" || migration.ID == "0074_workforce_scoped_postings" || migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" || migration.ID == "0081_workforce_posting_chain_approvals" || migration.ID == "0082_workforce_posting_supervisor_choices" || migration.ID == "0083_workforce_posting_supervisor_choice_index" || migration.ID == "0084_workforce_posting_cutoffs" || migration.ID == "0085_workforce_posting_lifecycle_reviews" || migration.ID == "0086_workforce_posting_source_use" || migration.ID == "0087_workforce_department_posting_scope" || migration.ID == "0091_workforce_partner_member_candidates" || migration.ID == "0089_workforce_leave_department_scope" || migration.ID == "0092_workforce_pharmacy_staff_directory" || migration.ID == "0093_workforce_supplier_staff" || migration.ID == "0094_workforce_independent_identity" || migration.ID == "0095_workforce_pharmacy_enrollment" || migration.ID == "0096_workforce_business_profile" || migration.ID == "0097_workforce_hospital_names" || migration.ID == "0098_workforce_pharmacy_documents" || migration.ID == "0099_workforce_pharmacy_employment_periods" || migration.ID == "0100_workforce_pharmacy_credential_reviews" || migration.ID == "0101_workforce_hospital_name_receipts" || migration.ID == "0102_workforce_governance_topology" || migration.ID == "0103_workforce_login_review_authority" {
 						if migration.ID == "0082_workforce_posting_supervisor_choices" {
 							applySupervisorDiscoveryMigration(t, db, ctx, migration)
 						} else {
@@ -2712,7 +2734,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				replacementLinkID := uuid.Must(uuid.NewV7())
 				replacementLinkPath := joinerPath + "/login-links/" + replacementLinkID.String()
 				call(t, "PUT", replacementLinkPath, maker, map[string]any{"subject": recipient, "reason": "Synthetic fresh reviewed login-link proposal"}, 200)
-				replacementLink := call(t, "POST", replacementLinkPath+"/decision", checker, map[string]any{"expected_version": 1, "decision": "approve", "reason": "Independent synthetic replacement link review"}, 200)
+				replacementLink := approveFixtureLink(t, replacementLinkPath, "Independent synthetic replacement link review")
 				require.Equal(t, "active", replacementLink["status"])
 				require.Equal(t, scopedReceipt, call(t, "GET", scopedCommandPath, recipient, nil, 200), "a fresh independently approved link can disclose the retained receipt")
 				require.NoError(t, useSource(func(_ context.Context, reference authz.StaffActorReference) error {

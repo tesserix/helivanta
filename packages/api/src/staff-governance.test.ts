@@ -5,6 +5,7 @@ import {
   decideGovernanceGrant,
   issueGovernanceGrant,
   readGovernanceGrant,
+  listGovernanceNotices,
 } from "./staff-governance";
 
 vi.mock("./client", () => ({ apiFetch: vi.fn() }));
@@ -160,6 +161,74 @@ describe("governance command response binding", () => {
     const abort = new AbortController();
     abort.abort();
     await expect(readGovernanceGrant(scope, grant, abort.signal)).rejects.toThrow();
+    expect(request).not.toHaveBeenCalled();
+  });
+});
+
+const notice = () => ({
+  id: command,
+  tenant_id: tenant,
+  grant_id: grant,
+  grant_version: 1,
+  recipient_subject: scope.subject,
+  version: 1,
+  created_at: "2026-11-13T05:00:00Z",
+});
+const noticePage = () => ({ data: [notice()], page: { has_more: false, next_cursor: null } });
+
+describe("owner governance inbox", () => {
+  it("binds bounded pages to the current owner and tenant", async () => {
+    request.mockResolvedValue(noticePage());
+    await expect(listGovernanceNotices(scope)).resolves.toEqual(noticePage());
+    expect(request).toHaveBeenCalledWith("/iam/governance-notices?limit=50", expect.anything());
+  });
+  it.each([{ tenant_id: foreign }, { recipient_subject: "another-owner" }])(
+    "refuses another account's private notices: %j",
+    async (change) => {
+      request.mockResolvedValue({ ...noticePage(), data: [{ ...notice(), ...change }] });
+      await expect(listGovernanceNotices(scope)).rejects.toThrow();
+    },
+  );
+  it.each([
+    { data: [notice(), notice()] },
+    { page: { has_more: true, next_cursor: null } },
+    { page: { has_more: false, next_cursor: "next" } },
+    { data: Array.from({ length: 51 }, () => notice()) },
+  ])("refuses malformed or duplicated pages: %j", async (change) => {
+    request.mockResolvedValue({ ...noticePage(), ...change });
+    await expect(listGovernanceNotices(scope)).rejects.toThrow();
+  });
+  it("preserves an opaque cursor and refuses repeated continuation", async () => {
+    request.mockResolvedValue(noticePage());
+    await listGovernanceNotices(scope, "opaque+/cursor=");
+    expect(request).toHaveBeenCalledWith(
+      "/iam/governance-notices?limit=50&cursor=opaque%2B%2Fcursor%3D",
+      expect.anything(),
+    );
+    request.mockResolvedValue({
+      ...noticePage(),
+      page: { has_more: true, next_cursor: "previous" },
+    });
+    await expect(listGovernanceNotices(scope, "previous")).rejects.toThrow();
+  });
+  it("does not disclose a response after a workspace switch", async () => {
+    let resolve!: (value: unknown) => void;
+    request.mockImplementationOnce(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    );
+    const result = listGovernanceNotices(scope);
+    beginTenantTransition();
+    resolve(noticePage());
+    await expect(result).rejects.toThrow();
+  });
+  it("honors cancellation and rejects oversized cursors before network I/O", async () => {
+    const abort = new AbortController();
+    abort.abort();
+    await expect(listGovernanceNotices(scope, null, abort.signal)).rejects.toThrow();
+    await expect(listGovernanceNotices(scope, "x".repeat(2049))).rejects.toThrow();
     expect(request).not.toHaveBeenCalled();
   });
 });

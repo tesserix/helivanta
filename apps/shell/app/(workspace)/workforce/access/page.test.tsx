@@ -1636,3 +1636,10 @@ it("keeps a department assignment's scope when its department read is refused", 
   ).toBeInTheDocument();
   expect(screen.queryByText(/secret/)).not.toBeInTheDocument();
 });
+
+it("opens the owner governance inbox without requiring assignment permissions", async () => {
+  setup("synthetic-owner", [], ["iam.governance.manage", "iam.governance.read"]);
+  renderWithProviders(<AccessPage />);
+  expect(await screen.findByText("No governance notices.")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Propose assignment" })).not.toBeInTheDocument();
+});

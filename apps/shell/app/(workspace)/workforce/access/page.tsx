@@ -27,6 +27,7 @@ import {
   TemplateDefinitionContract,
 } from "@helivanta/api";
 import { AssignmentProposalForm, AssignmentDecisionForm } from "./assignment-forms";
+import { GovernanceInbox } from "@/components/workforce/governance-inbox";
 import { StaffAccountInitiation } from "@/components/workforce/staff-account-initiation";
 import { StaffMembershipForm } from "./membership-form";
 import { MembershipManagement } from "./membership-management";
@@ -69,11 +70,18 @@ export default function StaffAccessPage() {
           (p) =>
             p === "iam.assignment.manage" ||
             p === "iam.assignment.review" ||
-            p === "iam.member.manage",
+            p === "iam.member.manage" ||
+            p === "iam.governance.manage",
         ) ? (
         <p>Assignment administration is not available for this account.</p>
       ) : (
         <div key={`${identity.data.tenant_id}:${identity.data.subject}`}>
+          {identity.data.data.includes("iam.governance.manage") &&
+            identity.data.data.includes("iam.governance.read") && (
+              <GovernanceInbox
+                scope={{ tenantId: identity.data.tenant_id, subject: identity.data.subject }}
+              />
+            )}
           {identity.data.data.includes("iam.member.manage") && (
             <>
               <StaffAccountInitiation

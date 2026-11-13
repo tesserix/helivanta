@@ -3,8 +3,8 @@
 Status: candidate in PR #1669; not merged or deployed. The current implementation
 covers owner grant admission, retained creation/decision receipts, current auditor
 review, an owner inbox and hospital/pharmacy/supplier account-link review consumers.
-Employment, assignment and operating-duty consumers, acknowledgements and UI remain
-unfinished. Account initiation alone does not complete Staff onboarding.
+Employment, assignment and operating-duty consumers, acknowledgements and delegation
+commands in the UI remain unfinished. The owner inbox is available in Staff Access. Account initiation alone does not complete Staff onboarding.
 
 IAM owns the governance ledger. Workforce owns the hospital/independent employer
 roots and current hospital count. Native identity remains with the identity owner.
@@ -162,7 +162,7 @@ remote acceptance; earlier green runs do not establish their result.
 ## Client integration
 
 `@helivanta/api` exposes `issueGovernanceGrant`, `readGovernanceGrant`,
-`decideGovernanceGrant` and `newGovernanceCommandId`. Callers retain the command
+`decideGovernanceGrant`, `listGovernanceNotices` and `newGovernanceCommandId`. Callers retain the command
 ID and exact input for lost-response recovery. A recovered issue receipt remains
 the original version; read the current head separately.
 
@@ -172,7 +172,15 @@ responses to the requested tenant, grant and decision command. Issue responses
 also bind the issuer and original input; decision responses bind the reviewer,
 input and successor version. Instant comparisons retain microsecond precision
 and accept equivalent UTC/offset representations. These functions do not add a
-governance screen or authorize Workforce consumers.
+delegation or decision form or authorize Workforce consumers. Staff Access exposes
+the owner inbox when governance management/read permissions are present. The
+server still requires current owner authority. Its 50-row pages bind every notice
+to the current tenant and recipient, reject duplicate rows and invalid continuation,
+and discard in-flight responses after account/workspace changes. Opening a notice
+reads the current grant separately from the notice's historical grant version.
+The view displays stored status and validity dates, without claiming effective
+operating authority. Grant issuance, decisions and acknowledgements in the UI
+remain unfinished.
 
 ## Release and remaining acceptance
 

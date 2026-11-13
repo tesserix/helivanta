@@ -1,8 +1,10 @@
+import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { accountScopedRequest, type AccountRequestScope } from "./account-scoped-request";
 import {
   GovernanceGrantInputContract,
   GovernanceGrantReceiptContract,
+  GovernanceOwnerNoticeContract,
   GovernanceGrantDecisionInputContract,
   GovernanceGrantDecisionReceiptContract,
   type GovernanceGrantInput,
@@ -88,4 +90,55 @@ export async function decideGovernanceGrant(
   )
     throw failure();
   return receipt;
+}
+
+const noticeCursor = z.string().min(1).max(2048);
+const noticePage = z
+  .object({
+    data: z.array(GovernanceOwnerNoticeContract).max(50),
+    page: z.object({ has_more: z.boolean(), next_cursor: noticeCursor.nullable() }).strict(),
+  })
+  .strict();
+
+export async function listGovernanceNotices(
+  scope: GovernanceRequestScope,
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  const query = new URLSearchParams({ limit: "50" });
+  if (cursor !== null) query.set("cursor", noticeCursor.parse(cursor));
+  const result = noticePage.parse(
+    await accountScopedRequest(scope, "/iam/governance-notices?" + query, signal),
+  );
+  if (
+    result.data.some(
+      (row) =>
+        row.tenant_id !== scope.tenantId.toLowerCase() || row.recipient_subject !== scope.subject,
+    ) ||
+    new Set(result.data.map((row) => row.id)).size !== result.data.length ||
+    result.page.has_more !== Boolean(result.page.next_cursor) ||
+    (cursor !== null && result.page.next_cursor === cursor)
+  )
+    throw failure();
+  return result;
+}
+
+export function useGovernanceNotices(scope: GovernanceRequestScope, cursor: string | null) {
+  return useQuery({
+    queryKey: ["governance-notices", scope.tenantId, scope.subject, cursor],
+    queryFn: ({ signal }) => listGovernanceNotices(scope, cursor, signal),
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+  });
+}
+
+export function useGovernanceGrant(scope: GovernanceRequestScope, id: string) {
+  return useQuery({
+    queryKey: ["governance-grant", scope.tenantId, scope.subject, id],
+    queryFn: ({ signal }) => readGovernanceGrant(scope, id, signal),
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+  });
 }

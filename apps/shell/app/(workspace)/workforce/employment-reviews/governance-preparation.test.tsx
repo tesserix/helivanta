@@ -201,3 +201,37 @@ it("rechecks a selected terms draft and refuses a concurrent withdrawal", async 
   );
   expect(screen.queryByRole("form", { name: "Employment terms draft" })).not.toBeInTheDocument();
 });
+
+it("opens selected employment files using the current Staff version and epoch", async () => {
+  const fetcher = vi.fn(async (url: string) =>
+    Response.json(
+      url.includes("targets/search")
+        ? page([target])
+        : url.endsWith("employment-preparation-source")
+          ? {
+              hospital_id: scope.hospitalId,
+              staff_id: staffId,
+              staff_version: 3,
+              employment_epoch: 2,
+            }
+          : page([]),
+    ),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <GovernanceEmploymentPreparation scope={scope} onBusy={() => {}} onAccessLost={() => {}} />
+    </NavigationGuardProvider>,
+  );
+  await user.click(screen.getByRole("button", { name: "Find Staff" }));
+  await user.click(await screen.findByRole("button", { name: "Select Synthetic applicant" }));
+  await user.click(await screen.findByRole("button", { name: "Prepare employment files" }));
+  await screen.findByText("No employment files prepared.");
+  expect(
+    fetcher.mock.calls.some(([url]) =>
+      url.includes(
+        `/staff/${staffId}/employment-preparation-documents?staff_version=3&employment_epoch=2`,
+      ),
+    ),
+  ).toBe(true);
+});

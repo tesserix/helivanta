@@ -11,6 +11,11 @@ import {
 } from "./employment-preparation";
 import type { PersonReviewTargetSearchInput } from "./person-review-contract";
 
+import {
+  listGovernanceEmploymentDocuments,
+  type GovernanceEmploymentDocumentScope,
+} from "./employment-document-preparation";
+
 const privateRead = { gcTime: 0, staleTime: 0, retry: false, refetchOnWindowFocus: false } as const;
 export const governanceEmploymentPreparationKey = (scope: GovernanceEmploymentTargetScope) => [
   "workforce",
@@ -72,6 +77,27 @@ export function useGovernanceEmploymentSponsors(scope: GovernanceEmploymentPrepa
     initialPageParam: null as string | null,
     queryFn: ({ pageParam, signal }) =>
       searchGovernanceEmploymentTargets(targetScope, { employee_code: "" }, pageParam, signal),
+    getNextPageParam: (page) => page.page.next_cursor ?? undefined,
+  });
+}
+
+export const governanceEmploymentDocumentKey = (scope: GovernanceEmploymentDocumentScope) => [
+  ...governanceEmploymentPreparationKey({
+    tenantId: scope.tenantId,
+    subject: scope.subject,
+    hospitalId: scope.hospitalId,
+  }),
+  scope.staffId,
+  "documents",
+  scope.staffVersion,
+  scope.employmentEpoch,
+];
+export function useGovernanceEmploymentDocuments(scope: GovernanceEmploymentDocumentScope) {
+  return useInfiniteQuery({
+    ...privateRead,
+    queryKey: governanceEmploymentDocumentKey(scope),
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam, signal }) => listGovernanceEmploymentDocuments(scope, pageParam, signal),
     getNextPageParam: (page) => page.page.next_cursor ?? undefined,
   });
 }

@@ -2153,13 +2153,13 @@ operating authority remain separate unfinished workflows.
 Candidate hospital governance employment drafting adds these separate routes under
 `/v1/workforce/hospitals/:hospital/staff/:id`:
 
-| Method | Suffix | Authority and result |
-| --- | --- | --- |
-| GET | `/employment-preparation-source` | Current owner/exact employment-preparer; canonical selected Staff basis |
-| GET | `/employment-preparation-periods` | Same source; bounded draft list with hospital/Staff/account/tenant/filter-bound sealed cursor |
-| GET | `/employment-preparation-periods/:period` | Same source; canonical exact selected draft/lifecycle read |
-| GET | `/employment-preparation-periods/:period/history` | Same source; bounded canonical history, with actual period also bound in sealed cursor |
-| PUT | `/employment-preparation-periods/:period` | Same source, exact normalized command; canonical revision/conflict/receipt behavior with mandatory private provenance |
+| Method | Suffix                                            | Authority and result                                                                                                  |
+| ------ | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/employment-preparation-source`                  | Current owner/exact employment-preparer; canonical selected Staff basis                                               |
+| GET    | `/employment-preparation-periods`                 | Same source; bounded draft list with hospital/Staff/account/tenant/filter-bound sealed cursor                         |
+| GET    | `/employment-preparation-periods/:period`         | Same source; canonical exact selected draft/lifecycle read                                                            |
+| GET    | `/employment-preparation-periods/:period/history` | Same source; bounded canonical history, with actual period also bound in sealed cursor                                |
+| PUT    | `/employment-preparation-periods/:period`         | Same source, exact normalized command; canonical revision/conflict/receipt behavior with mandatory private provenance |
 
 These candidate APIs use the original canonical employment input/source/draft
 models. Expected tenant/account headers are mandatory. Unknown/duplicate query
@@ -2179,8 +2179,9 @@ rollout acceptance. The strict preparation SDK uses these five canonical APIs,
 original tenant/account assertions, no-store/cancellation and validated owned
 responses; malformed/private fields, ambiguous histories, mixed pharmacy/intake
 scopes and unsupported real command IDs are rejected. Source errors never cause
-legacy fallback. Thirty-three local client tests pass. Preparation UI and
-associated document authoring remain open.
+legacy fallback. The candidate UI now offers explicit Staff selection, terms
+authoring and selected employment-file preparation. Exact terms-to-file binding
+through native governance authority remains unfinished.
 
 The candidate's selected Staff/active-sponsor locking reads also extend the
 retained restrictive Staff update policy's USING expression, with its prior
@@ -2191,3 +2192,36 @@ that exact read support and confirm the installed private proof before commands.
 The first remote terms candidate failed its valid save with 404; the corrected
 locking-read path and real post-activation same-hospital sponsor case await remote
 acceptance.
+
+### Selected governance employment files — candidate
+
+A current native hospital owner or exact employment preparer can use the separate
+`/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents`
+family without a linked Staff actor. This is candidate source, not a deployed API.
+
+| Method    | Suffix                    | Result                                                                 |
+| --------- | ------------------------- | ---------------------------------------------------------------------- |
+| GET       | base                      | At most 20 selected employment-file receipts and a sealed continuation |
+| PUT / GET | `/:file`                  | Canonical immutable file registration/replay or exact metadata         |
+| PUT / GET | `/:file/content`          | Quarantine intake or verified released bytes                           |
+| PUT       | `/:file/retries/:attempt` | Canonical retained next scan attempt                                   |
+| PUT       | `/:file/revocation`       | Revoke release while preserving history                                |
+
+Every request requires the original expected tenant/account headers and positive
+`staff_version` / `employment_epoch` query preconditions. Only the selected
+Staff enrollment record and `employment_evidence` category are admitted. Other
+record kinds, identity evidence, general document classification and legacy intake
+fallback are excluded. Metadata and commands repeat current owner/preparer checks;
+each storage phase retains the original source and rechecks it after external I/O.
+WF0113 retains worker identity, quarantine, contributor history and release controls;
+missing or disabled source/policy/trigger/index support fails closed.
+
+The strict client rejects extra private fields, foreign/stale receipts, duplicate
+or oversized pages, inconsistent continuation and invalid scan chronology. Binary
+reads verify MIME, bounded length and checksum before download. The candidate UI
+retains uncertain upload IDs, metadata, bytes and retry attempts, offers original-file
+resume, requires explicit revocation confirmation and aborts on workspace change.
+A selected source basis and private query key include tenant, account, hospital,
+Staff, Staff version and employment epoch. These controls do not bind a file to a
+terms revision, approve employment, activate Staff or assign access. Native evidence
+binding and full live acceptance remain required before release.

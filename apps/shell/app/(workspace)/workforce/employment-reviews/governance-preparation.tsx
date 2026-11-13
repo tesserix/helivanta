@@ -26,6 +26,7 @@ import {
   type PersonReviewTargetSearchInput,
   type EmploymentPeriodDraft,
 } from "@helivanta/api";
+import { GovernanceEmploymentDocuments } from "./governance-documents";
 import { EmploymentTermsForm } from "../employment-periods-panel";
 import { STAFF_ACCESS_CHANGED, useStaffAccessCutoff } from "../staff-access-cutoff";
 
@@ -174,11 +175,13 @@ function HospitalTerms({
   const periods = useGovernanceEmploymentDrafts(scope);
   const [editor, setEditor] = useState<{ item?: EmploymentPeriodDraft } | null>(null);
   const [saved, setSaved] = useState(false);
+  const [documents, setDocuments] = useState(false);
+  const [documentBusy, setDocumentBusy] = useState(false);
   const cutoff = useStaffAccessCutoff([source.error, periods.error], onAccessLost);
   useEffect(() => {
-    onBusy(editor !== null);
+    onBusy(editor !== null || documentBusy);
     return () => onBusy(false);
-  }, [editor, onBusy]);
+  }, [editor, documentBusy, onBusy]);
   if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   return (
     <Panel className="space-y-4 p-4">
@@ -186,7 +189,7 @@ function HospitalTerms({
         <h4 className="font-semibold">
           {target.display_name} · {target.employee_code}
         </h4>
-        <Button variant="ghost" disabled={editor !== null} onClick={onClose}>
+        <Button variant="ghost" disabled={editor !== null || documentBusy} onClick={onClose}>
           Choose another Staff record
         </Button>
       </div>
@@ -211,7 +214,19 @@ function HospitalTerms({
       ) : (
         <>
           {saved && <p role="status">Employment terms draft saved.</p>}
-          {editor ? (
+          {documents ? (
+            <GovernanceEmploymentDocuments
+              key={`${source.data.staff_version}:${source.data.employment_epoch}`}
+              scope={{
+                ...scope,
+                staffVersion: source.data.staff_version,
+                employmentEpoch: source.data.employment_epoch,
+              }}
+              onBusy={setDocumentBusy}
+              onClose={() => setDocuments(false)}
+              onAccessLost={onAccessLost}
+            />
+          ) : editor ? (
             <GovernanceTermsEditor
               scope={scope}
               source={source.data}
@@ -239,6 +254,9 @@ function HospitalTerms({
               >
                 Refresh terms
               </RefreshButton>
+              <Button variant="outline" onClick={() => setDocuments(true)}>
+                Prepare employment files
+              </Button>
               <Button
                 onClick={() => {
                   setSaved(false);

@@ -15,7 +15,7 @@ import {
   type PersonReviewTargetSearchInput,
 } from "./person-review-contract";
 
-const scopeContract = z
+export const governanceEmploymentPreparationScopeContract = z
   .object({
     tenantId: EmploymentPeriodSourceContract.shape.hospital_id,
     subject: z
@@ -27,7 +27,9 @@ const scopeContract = z
     staffId: EmploymentPeriodSourceContract.shape.staff_id,
   })
   .strict();
-export type GovernanceEmploymentPreparationScope = z.infer<typeof scopeContract>;
+export type GovernanceEmploymentPreparationScope = z.infer<
+  typeof governanceEmploymentPreparationScopeContract
+>;
 const periodId = z
   .string()
   .uuid()
@@ -47,7 +49,7 @@ const unverified = () =>
 const unverifiedReceipt = () =>
   new Error("The employment draft receipt could not be verified. Check history before retrying.");
 function workspace(value: GovernanceEmploymentPreparationScope) {
-  const scope = scopeContract.parse(value);
+  const scope = governanceEmploymentPreparationScopeContract.parse(value);
   return {
     scope,
     path: `/workforce/hospitals/${scope.hospitalId}/staff/${scope.staffId}`,
@@ -191,7 +193,9 @@ export async function saveGovernanceEmploymentDraft(
   return parsed.data;
 }
 
-const targetScopeContract = scopeContract.omit({ staffId: true }).strict();
+const targetScopeContract = governanceEmploymentPreparationScopeContract
+  .omit({ staffId: true })
+  .strict();
 export type GovernanceEmploymentTargetScope = z.infer<typeof targetScopeContract>;
 const targetsPageContract = pageContract.extend({
   data: z.array(PersonReviewTargetContract).max(20),

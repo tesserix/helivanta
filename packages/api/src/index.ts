@@ -128,6 +128,7 @@ export * from "./staff-intake-queries";
 export * from "./employment-periods-contract";
 export * from "./employment-periods";
 export * from "./employment-preparation";
+export * from "./employment-document-preparation";
 export * from "./employment-preparation-queries";
 
 export * from "./employment-evidence";

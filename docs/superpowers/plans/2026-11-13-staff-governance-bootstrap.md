@@ -58,3 +58,11 @@ canonical mutation stages; add private SQL read/write/audit/contributor fences a
 installed-support preflight. Run remote real storage/worker/source fault cases,
 then adopt strict SDK/UI and exact terms binding. No hidden Staff/intake fallback,
 no direct client object-store URL, no global enrollment-purpose expansion.
+
+Selected-file SDK/UI is implemented and locally validated (all 30 workspace tasks,
+1,983 shell / 1,298 API tests). Resume uses the original identifier and checks the
+same file; uncertain scan retries retain the next attempt. Current source denial
+removes controls and prevents binary upload, without legacy fallback. Before
+release, finish exact terms/file-generation binding, independent submission/review
+and the full remaining Staff/pharmacy journeys. Investigate the remote posting
+approval/cutoff race returning 503; do not relax its successful-approval assertion.

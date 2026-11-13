@@ -660,7 +660,9 @@ original account/hospital keys isolate all queries, and selected Staff version i
 checked against a current source before editing. No general directory or legacy
 intake source is retried. Draft command/period IDs survive uncertain writes for
 exact replay. The recipient and operational workflows remain separate gates.
-Governance document authoring is still unfinished and this is not merge-ready.
+Selected governance document authoring is implemented in the candidate below;
+exact terms binding and full workflow acceptance remain unfinished. This is not
+merge-ready.
 
 ### Selected employment document preparation
 
@@ -709,3 +711,103 @@ master/verdict/write denial, disabled support and atomic rollback; source
 revocation and source replacement across storage I/O; preserved worker processing
 and canonical Staff/pharmacy behavior. Binding to exact terms and independent
 submission/review remains a separate required part of the full authoring journey.
+
+Selected-file SDK/UI continuation: the candidate now exposes upload, original-file
+resume, manual status refresh, scan retry, verified download and confirmed
+revocation from the selected Staff preparation screen. It never uses legacy
+intake/Staff routes. Receipt checking rejects foreign/stale/private fields and
+invalid scan chronology; binary disclosure verifies bounded size, MIME and digest.
+Uncertain operations retain the exact ID/input/file or next scan attempt. Account
+transition and unmount cancel active I/O and release object URLs. Private queries
+include the complete Staff/version/epoch basis and discard inactive results.
+
+Local validation: `pnpm turbo lint format:check type-check test build` passed all
+30 tasks (5m54s), including 1,983 shell tests and 1,298 API tests. Focused document
+client suite: 20 passed; document panel: five passed, including recovery,
+revocation confirmation and registration-time access loss. The entry-point test
+was observed failing before integration, and a scan-before-upload receipt test
+failed before validation was corrected. An initial full check rejected an impure
+render clock; the panel now reuses the existing render-safe clock. No tests were
+skipped or assertions weakened. Current backend-head web/E2E checks passed, while
+supplier acceptance failed a posting approval/cutoff race with 503; its diagnostic
+rerun and full Go coverage remain pending. This is no evidence of full live
+acceptance. No merge, migration or deployment occurred in this continuation.
+
+### Next slice: exact native employment evidence binding (design only)
+
+Workforce remains the sole owner of canonical terms revisions, document release,
+evidence bindings and immutable history. The consumer is the hospital governance
+employment preparer and independent employment reviewer. This slice must connect
+the existing selected-file authoring UI to the existing canonical binding engine;
+a parallel evidence table or a legacy intake grant is rejected. The source is a
+current native owner or the exact hospital employment-preparer assignment. No
+Staff actor, enrollment-manager permission, operating duty or clinical privilege
+is fabricated.
+
+Reuse the preceding planning envelope (100 Staff/tenant, 50/150 tenants at 12/36
+months, maximum 20 evidence bindings per terms revision, maximum 10 MiB/file).
+Metadata commands remain bounded at 4 KiB, lists at 20 plus one probe and each
+source phase at five seconds or the earlier idle/source expiry. The metadata p99
+target remains 500 ms; these are design targets requiring measured remote
+query/load evidence. Storage/scanning uses the existing bounded owner services;
+no new service, queue, cache or datastore is justified. Reads require current
+authority; commands commit binding, immutable history and private provenance in
+one owner transaction. There is no stale-success fallback.
+
+The proposed separate consumer stays under
+`employment-preparation-periods/:period/revisions/:version/evidence` and reuses
+canonical attach/withdraw inputs and binding outputs. It must provide bounded
+list, exact binding read, immutable history, attach, withdrawal and protected
+content. Expected tenant/account and Staff version/employment epoch preconditions
+stay mandatory. Sealed cursors bind account, tenant, hospital, Staff, actual terms
+ID/revision and basis. The public response must not gain private authority fields.
+
+A dedicated private purpose names the exact operation, selected period/version,
+binding, canonical command/fingerprint and selected released file where relevant.
+An attach requires the exact current draft and unchanged Staff/employment basis;
+it freezes the actual terms revision ID and scanner-confirmed source/release
+generations, hash and contributor evidence through the canonical engine. The
+existing twenty-binding limit and unique active-file rule remain database-owned.
+Withdrawal preserves all historical metadata and permits only its existing
+attributable terminal transition. Read/history of a prior revision is distinct
+from attaching to it: historical source versions are checked against that exact
+revision rather than rewritten as the current Staff basis. Historical reads do
+not permit a stale revision to be submitted or activated.
+
+Replay checks the retained original canonical command and original governance
+source provenance. It cannot adopt a legacy receipt, relabel the contributor or
+turn a different source into the original actor. Current source authorization is
+still required for replay. Duplicate command with a different intent conflicts.
+A new private history-provenance trigger must commit atomically with the existing
+canonical snapshot, without changing the public model or history shape.
+
+Restrictive purpose and delete fences must cover every Workforce table, retain
+the single permissive tenant policy and admit only selected locking reads and
+exact binding/history/audit changes. Existing canonical Staff/terms/release guards
+stay intact; only a closed source-specific alternative to their legacy enrollment
+authority may be added. Support preflight checks require forced RLS, current
+trigger functions/enabled state and page/receipt indexes. No runtime TRUNCATE or
+master mutation is admitted, including through inherited manager access.
+
+Protected content must retain the same original source across initial binding
+lookup and both storage authorization phases. It rechecks attached status and the
+unchanged frozen file generation/hash after storage I/O before releasing bytes.
+No database lock is held across storage. A missing/changed binding or foreign
+object returns 404, a missing native grant 403, a changed command/current draft
+409 and unavailable authority/support 503. Source denial cannot fall back to a
+Staff or intake route. The established hospital discovery disclosure rules remain
+unchanged.
+
+Before implementation, reproduce missing capability through the real native
+owner/preparer fixture and write pure purpose/fingerprint tests. Remote acceptance
+must exercise attach/list/history/content/withdraw/replay; changed source and
+legacy receipt refusal; changed Staff, terms and released generation; foreign
+hospital/Staff/period/binding/file; dropped/disabled support; contributor/snapshot/
+audit rollback; and post-storage source/release revocation. Both existing hospital
+Staff and independent pharmacy binding consumers must remain green. Then wire the
+strict SDK and UI to select an available file, retain uncertain commands, show its
+exact terms revision and prepare independent review. Binary rollback disables this
+consumer while retaining canonical evidence/history and private provenance. Any
+additive live migration needs its concrete acceptance/rollback evidence and the
+specific approval required by the repository rules. This paragraph authorizes no
+live schema change and does not represent implemented behavior.

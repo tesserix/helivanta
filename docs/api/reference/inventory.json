@@ -1200,7 +1200,7 @@
         },
         {
           "id": "0048_iam_governance_employment_bases",
-          "sql_sha256": "9eec549e0c5d7efcce7b95f27151a06e256ad02a492b8fd055a910f86631ee00",
+          "sql_sha256": "269cd621db28c1051dcfc1b8c06e6394c491ab38dca84bcc4ff9e2b69b95b7a0",
           "creates_tables": [
             "iam_employment_basis_authorities"
           ]

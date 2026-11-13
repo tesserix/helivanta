@@ -310,6 +310,12 @@ A target must retain actual `staff_member` membership. The additional
 can later become employed; that role alone never substitutes for ordinary
 membership. Owner, clinical, operational, unknown and duplicate role combinations
 remain inadmissible. Basis consumption is not an assignment or operating grant.
+The candidate IAM0048 migration also permits source-managed governance routing
+to be added after employment activation. The original managed-source insert guard
+continues to reject direct routing-role insertion; ordinary employment still
+blocks legacy owner and clinical role elevation. Adding routing membership
+preserves the existing membership incarnation and increases its member count;
+it does not manufacture a new epoch. Tests cover both onboarding orders.
 The product still must check its exact current approved person/employment source,
 selected Staff/version/generation, independence and expiry before using the writer.
 No generic owner-to-Staff alias or synthetic actor/link ID is introduced.

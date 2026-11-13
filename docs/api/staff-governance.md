@@ -116,6 +116,13 @@ source, interval, membership incarnation, credential and product prerequisites;
 the candidate implements these checks for account-link review. HR/employment,
 assignment and operating-duty consumers remain unfinished.
 
+Candidate IAM0048 permits this source-managed routing membership both before and
+after an IAM employment basis is recorded. The managed-source insert guard still
+rejects raw routing-role insertion, and the generic membership API cannot grant
+it. Employment continues to block legacy owner/clinical role elevation. Adding
+the routing role preserves the membership incarnation; it does not advance its
+epoch or establish operating authority.
+
 IAM retains an owner-count gate before target membership and Workforce topology
 locks. Workforce root insert/update/delete statements take the exclusive topology
 gate before row locks; the source provider retains its shared counterpart through

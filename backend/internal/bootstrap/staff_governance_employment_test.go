@@ -107,9 +107,64 @@ func TestGovernanceEmploymentBasisSourceRetainsOrdinaryMembershipAndExactTarget(
 		})
 		require.ErrorIs(t, err, authz.ErrScopedCommandDenied, subject)
 	}
+	t.Run("activation provenance is tenant private and immutable", func(t *testing.T) {
+		b := initial["synthetic-ordinary"]
+		for _, tenant := range []string{testutil.TenantA, testutil.TenantB} {
+			require.NoError(t, db.WithTenant(ctx, tenant, func(tx *gorm.DB) error {
+				if tenant == testutil.TenantB {
+					if err := tx.Exec(`SELECT set_config('app.assignment_access','authorized',true)`).Error; err != nil {
+						return err
+					}
+				}
+				var count int64
+				if err := tx.Table("iam_employment_basis_authorities").Where("tenant_id=? AND generation_id=?", testutil.TenantA, b.GenerationID).Count(&count).Error; err != nil {
+					return err
+				}
+				require.Zero(t, count, "foreign tenant or absent private command purpose must disclose no provenance")
+				return nil
+			}))
+		}
+		for _, statement := range []string{
+			`UPDATE iam_employment_basis_authorities SET authority='{}'::jsonb WHERE tenant_id=? AND generation_id=?`,
+			`DELETE FROM iam_employment_basis_authorities WHERE tenant_id=? AND generation_id=?`,
+		} {
+			err := db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+				if err := tx.Exec(`SELECT set_config('app.assignment_access','authorized',true)`).Error; err != nil {
+					return err
+				}
+				return tx.Exec(statement, testutil.TenantA, b.GenerationID).Error
+			})
+			require.Error(t, err, "even an authorized command cannot rewrite retained provenance")
+		}
+		require.Equal(t, "owner", readAuthority(t, b)["authority_kind"])
+	})
+	t.Run("employment still rejects unmanaged routing and legacy elevation", func(t *testing.T) {
+		for _, role := range []string{"governance_delegate", "doctor", "tenant_admin"} {
+			t.Run(role, func(t *testing.T) {
+				err := db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+					return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'user-reviewer',?)`, testutil.TenantA, role).Error
+				})
+				require.Error(t, err)
+				if role == "governance_delegate" {
+					require.Contains(t, err.Error(), "governance routing membership requires current source intent")
+				} else {
+					require.Contains(t, err.Error(), "reviewed employment requires scoped assignments, not legacy role elevation")
+				}
+			})
+		}
+	})
 	t.Run("delegation after employment retains exact source and revocation", func(t *testing.T) {
 		grant := issue(t, "user-reviewer", "workforce.employment_activator.v1", 1)
-		issue(t, "user-reviewer", "workforce.person_preparer.v1", 2)
+		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			var membership struct{ Epoch, MemberCount int64 }
+			if err := tx.Table("iam_subject_membership_epochs").Select("epoch,member_count").Where("tenant_id=? AND subject='user-reviewer'", testutil.TenantA).Take(&membership).Error; err != nil {
+				return err
+			}
+			require.EqualValues(t, 1, membership.Epoch, "adding a managed routing role does not end the membership incarnation")
+			require.EqualValues(t, 2, membership.MemberCount)
+			return nil
+		}))
+		issue(t, "user-reviewer", "workforce.person_preparer.v1", 1)
 		delegated := req
 		delegated.Principal.Subject = "user-reviewer"
 		supplied := hospital
@@ -161,6 +216,10 @@ func TestGovernanceEmploymentBasisSourceRetainsOrdinaryMembershipAndExactTarget(
 			return err
 		}
 		require.Zero(t, count, "a failed product transaction cannot retain its IAM basis")
+		if err := tx.Table("iam_employment_basis_history").Where("tenant_id=? AND generation_id=?", testutil.TenantA, b.GenerationID).Count(&count).Error; err != nil {
+			return err
+		}
+		require.Zero(t, count, "a failed product transaction cannot retain IAM basis history")
 		if err := tx.Table("iam_employment_basis_authorities").Where("tenant_id=? AND generation_id=?", testutil.TenantA, b.GenerationID).Count(&count).Error; err != nil {
 			return err
 		}

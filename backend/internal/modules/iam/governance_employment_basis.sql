@@ -57,3 +57,15 @@ CREATE TRIGGER iam_employment_basis_zz_authority AFTER INSERT OR UPDATE ON iam_e
  FOR EACH ROW EXECUTE FUNCTION iam_employment_basis_governance_record();
 CREATE TRIGGER iam_employment_basis_authority_preserve BEFORE UPDATE OR DELETE OR TRUNCATE ON iam_employment_basis_authorities
  FOR EACH STATEMENT EXECUTE FUNCTION iam_membership_preserve();
+
+CREATE OR REPLACE FUNCTION iam_employment_membership_boundary() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE prior_access text:=current_setting('app.assignment_access',true); bound boolean;
+BEGIN
+ -- Governance routing remains source-managed by iam_governance_routing_guard.
+ IF NEW.role_key IN('staff_member','governance_delegate') THEN RETURN NULL; END IF;
+ PERFORM set_config('app.assignment_access','authorized',true);
+ SELECT EXISTS(SELECT 1 FROM iam_employment_bases WHERE tenant_id=NEW.tenant_id AND subject=NEW.subject) INTO bound;
+ PERFORM set_config('app.assignment_access',COALESCE(prior_access,''),true);
+ IF bound THEN RAISE EXCEPTION 'reviewed employment requires scoped assignments, not legacy role elevation' USING ERRCODE='23514',CONSTRAINT='iam_employment_legacy_role'; END IF;
+ RETURN NULL;
+END $$;

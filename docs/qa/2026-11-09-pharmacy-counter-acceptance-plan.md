@@ -30,12 +30,13 @@ Every label, message and status here was read from source at that commit; none h
 
 Sign-off cannot complete until all of these are done. The cases they affect are marked **[GATE]**.
 
-| Gate | What                                                                                                  | Why it blocks                                                         |
-| ---- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| G-1  | #1406 step 5: the evidence worker passes synthetic acceptance in production (checklist in that issue) | The prescription-image and licence-evidence gates depend on it        |
-| G-2  | #1581 merged and deployed (licence review UI; migration `0046_pharmacy_licence_evidence_review`)      | Licence review currently has no UI (F-2)                              |
-| G-3  | #1477 merged and deployed after #1581 (`0047_pharmacy_prescription_sale_evidence`)                    | It changes every G/H/H1 sale: a released image becomes mandatory      |
-| G-4  | #1642 merged and deployed (schedule class declare/review UI, F-1)                                     | Without it, no product can be released or sold except through the API |
+| Gate | What                                                                                                                            | Why it blocks                                                                               |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| G-1  | #1406 step 5: the evidence worker passes synthetic acceptance in production (checklist in that issue)                           | The prescription-image and licence-evidence gates depend on it                              |
+| G-2  | #1581 merged and deployed (licence review UI; migration `0046_pharmacy_licence_evidence_review`)                                | Licence review currently has no UI (F-2)                                                    |
+| G-3  | #1477 merged and deployed after #1581 (`0047_pharmacy_prescription_sale_evidence`)                                              | It changes every G/H/H1 sale: a released image becomes mandatory                            |
+| G-4  | #1642 merged and deployed (schedule class declare/review UI, F-1)                                                               | Without it, no product can be released or sold except through the API                       |
+| G-5  | #1672: the production run uses a tenant created through normal signup ([guide](2026-11-14-pharmacy-acceptance-fresh-tenant.md)) | A tenant created before ADR-0070 gets 503 `identity_unavailable` on every protected request |
 
 Run every other section now. Re-run sections 8 and 9 after G-3 deploys.
 
@@ -60,7 +61,7 @@ These come from reading the source. Each needs a decision: fix before sign-off, 
 
 ## 4. Environment, accounts and data
 
-**Environment.** Staging or a local stack, with synthetic data only. Never use real patients, prescribers, licences or payments. Use Razorpay **test mode** with its published test credentials only. Sections 8 and 9 are re-run in production after G-1 to G-3, with a designated synthetic tenant.
+**Environment.** Staging or a local stack, with synthetic data only. Never use real patients, prescribers, licences or payments. Use Razorpay **test mode** with its published test credentials only. Sections 8 and 9 are re-run in production after G-1 to G-3, in a synthetic tenant created through normal signup: tenants created before ADR-0070 cannot pass the identity check (#1672). Follow [the fresh-tenant guide](2026-11-14-pharmacy-acceptance-fresh-tenant.md).
 
 Wherever a step says "API", use a REST client signed in as that account, through the Global API (`/api/v1/...` from the signed-in tab, or `/v1/...` with the session). Never paste a token into a URL.
 
@@ -106,7 +107,7 @@ Wherever a step says "API", use a REST client signed in as that account, through
 - **Failures:** each Fail is fixed and re-tested, or at S3/S4 accepted in writing.
 - **Defects:** no S1 or S2 is open.
 - **Findings:** every finding F-x has its decision recorded.
-- **Gates:** G-1 to G-4 are met.
+- **Gates:** G-1 to G-5 are met.
 - **Automated suite:** green on the signed SHA (section 14).
 
 ## 5. Common refusal rules (apply everywhere)
@@ -567,7 +568,7 @@ A manual case that an automated test already proves still needs its manual run o
 | Run sheet (link)                    |       |
 | Cases: pass / fail / blocked        |       |
 | Open defects (S1–S4, links)         |       |
-| G-1 to G-4 evidence                 |       |
+| G-1 to G-5 evidence                 |       |
 | F-1 to F-12 decisions (who, when)   |       |
 
 | Role                             | Name | Decision | Date |

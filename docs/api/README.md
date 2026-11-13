@@ -93,3 +93,5 @@ The unreleased [independent operating duty contract](operating-duties.md) record
 - [Supplier access](supplier-access.md): source offers, hospital consent, current recipient and record-scoped projection gates; no supplier tenant membership.
 
 [Staff recipient setup](staff-recipient-setup.md) documents the candidate public capability handoff and its remaining access gates.
+
+[Protected Staff account initiation](staff-account-initiation.md) documents the candidate owner-controlled creation, recovery and private-delivery boundary.

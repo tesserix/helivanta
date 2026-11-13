@@ -521,6 +521,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	m.registerPartnerMembers(g, deps)
 	m.registerMembershipCommands(g, deps)
 	m.registerMembershipEnrollments(g, deps)
+	registerStaffAccounts(g, deps)
 
 	rev := &revocationHandlers{db: deps.DB, bus: deps.Bus, checker: m.checker, roles: deps.Roles}
 	// NoTenantMembership: a member whose membership was just revoked must

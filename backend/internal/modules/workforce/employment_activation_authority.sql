@@ -140,9 +140,13 @@ BEGIN
    WHEN 'workforce_audit' THEN
     reading:=format('workforce_activation_governance_source(tenant_id,hospital_id,%s) AND resource_id IN(%s,NULLIF(current_setting(''app.workforce_employment_review_id'',true),'''')::uuid)',target,target);
     writing:=format($write$workforce_activation_governance_source(tenant_id,hospital_id,%s)
-     AND actor_subject=NULLIF(current_setting('app.actor_subject',true),'') AND changes @> NULLIF(current_setting('app.workforce_activation_authority',true),'')::jsonb
-     AND ((action='workforce.employment_activation.source.read' AND resource_id=NULLIF(current_setting('app.workforce_employment_review_id',true),'')::uuid)
-     OR (action IN('workforce.employment.activated','workforce.employment_activation.receipt.read') AND resource_id::text=NULLIF(current_setting('app.workforce_activation_authority',true),'')::jsonb->>'generation_id'))$write$,target);
+     AND actor_subject=NULLIF(current_setting('app.actor_subject',true),'')
+     AND ((changes @> NULLIF(current_setting('app.workforce_activation_authority',true),'')::jsonb
+      AND ((action='workforce.employment_activation.source.read' AND resource_id=NULLIF(current_setting('app.workforce_employment_review_id',true),'')::uuid)
+      OR (action IN('workforce.employment.activated','workforce.employment_activation.receipt.read') AND resource_id::text=NULLIF(current_setting('app.workforce_activation_authority',true),'')::jsonb->>'generation_id')))
+     OR (workforce_activation_governance_write(tenant_id,hospital_id,resource_id)
+      AND action='workforce_staff.update' AND resource_id=%s
+      AND changes=jsonb_build_object('old_level',NULL,'new_level',NULL,'old_status','inactive','new_status','active')))$write$,target,target);
    ELSE NULL;
   END CASE;
   IF reading<>'false' THEN

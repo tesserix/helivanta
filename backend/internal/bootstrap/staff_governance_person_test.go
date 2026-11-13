@@ -460,6 +460,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		consumed := request(http.MethodGet, sourcePath, nil, 200)
 		require.Equal(t, "consumed", consumed["current_state"])
 		require.Equal(t, false, consumed["can_activate"])
+		var activationProof json.RawMessage
 		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 			if err := tx.Exec("SELECT set_config('app.assignment_access','authorized',true)").Error; err != nil {
 				return err
@@ -496,6 +497,12 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 			require.Equal(t, "employment_activation", retainedGeneration["purpose"])
 			require.NotContains(t, retainedGeneration, "actor_staff_id")
 			require.NotContains(t, retainedGeneration, "actor_link_id")
+			activationProof = append(json.RawMessage(nil), generationProof.GovernanceAuthority...)
+			var transitionAudits, activationAudits int64
+			require.NoError(t, tx.Table("workforce_audit").Where("tenant_id=? AND hospital_id=? AND resource_id=? AND actor_subject=? AND action=? AND changes=?::jsonb", testutil.TenantA, roots[0], staff[0], "user-reviewer", "workforce_staff.update", `{"old_level":null,"new_level":null,"old_status":"inactive","new_status":"active"}`).Count(&transitionAudits).Error)
+			require.EqualValues(t, 1, transitionAudits, "activation and replay retain exactly one automatic staff transition audit")
+			require.NoError(t, tx.Table("workforce_audit").Where("tenant_id=? AND hospital_id=? AND resource_id=? AND actor_subject=? AND action=? AND changes @> ?::jsonb", testutil.TenantA, roots[0], generation, "user-reviewer", "workforce.employment.activated", string(generationProof.GovernanceAuthority)).Count(&activationAudits).Error)
+			require.EqualValues(t, 1, activationAudits, "activation retains its separate current-source proof")
 			var roles []string
 			if err := tx.Table("iam_members").Where("tenant_id=? AND subject='user-ordinary'", testutil.TenantA).Order("role_key").Pluck("role_key", &roles).Error; err != nil {
 				return err
@@ -508,6 +515,39 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 			require.Zero(t, links, "employment is separate from reviewed account linking")
 			return nil
 		}))
+		for _, test := range []struct {
+			name, actor, action, changes string
+			resource                     uuid.UUID
+			sourceOnly                   bool
+		}{
+			{"other staff", "user-reviewer", "workforce_staff.update", `{"old_level":null,"new_level":null,"old_status":"inactive","new_status":"active"}`, staff[1], false},
+			{"other actor", "user-admin", "workforce_staff.update", `{"old_level":null,"new_level":null,"old_status":"inactive","new_status":"active"}`, staff[0], false},
+			{"other action", "user-reviewer", "workforce_staff.insert", `{"old_level":null,"new_level":null,"old_status":"inactive","new_status":"active"}`, staff[0], false},
+			{"other change", "user-reviewer", "workforce_staff.update", `{"old_level":null,"new_level":null,"old_status":"active","new_status":"inactive"}`, staff[0], false},
+			{"extra private field", "user-reviewer", "workforce_staff.update", `{"old_level":null,"new_level":null,"old_status":"inactive","new_status":"active","display_name":"unrelated"}`, staff[0], false},
+			{"read purpose", "user-reviewer", "workforce_staff.update", `{"old_level":null,"new_level":null,"old_status":"inactive","new_status":"active"}`, staff[0], true},
+		} {
+			t.Run("audit rejects "+test.name, func(t *testing.T) {
+				proof := activationProof
+				if test.sourceOnly {
+					var values map[string]any
+					require.NoError(t, json.Unmarshal(proof, &values))
+					values["operation"] = "source"
+					var err error
+					proof, err = json.Marshal(values)
+					require.NoError(t, err)
+				}
+				writeErr := db.WithTenant(tenantdb.WithActor(ctx, "user-reviewer"), testutil.TenantA, func(tx *gorm.DB) error {
+					if err := tx.Exec("SELECT set_config('app.workforce_subject','user-reviewer',true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_identity_source','authorized',true),set_config('app.workforce_identity_staff',?,true),set_config('app.workforce_employment_review_id',?,true),set_config('app.workforce_activation_authority',?,true)", roots[0].String(), staff[0].String(), readyEmployment.ID.String(), string(proof)).Error; err != nil {
+						return err
+					}
+					return tx.Exec("INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,?,?,?::jsonb)", testutil.TenantA, roots[0], test.actor, test.action, test.resource, test.changes).Error
+				})
+				var denied *pgconn.PgError
+				require.ErrorAs(t, writeErr, &denied)
+				require.Equal(t, "42501", denied.Code)
+			})
+		}
 	})
 
 }

@@ -242,6 +242,10 @@ legacy manager access or a generic source alone cannot substitute. Actual scoped
 or governance evidence is retained in private generation proof and sensitive-read
 audit. This candidate addition is not established by the historical release. The minimized source returns exact review/source revisions,
 term dates and eligibility state without private evidence or terms metadata.
+Its private write purpose also permits the mandatory automatic Staff audit only
+for the exact inactive-to-active transition, actor and Staff target. The separate
+activation audit retains the current authority proof; replay must not duplicate
+either completed transition or activation audit.
 
 A separate `workforce.employment_activator.v1` template contains only
 `workforce.employment.activate`, introduced through IAM migration 0022 and the

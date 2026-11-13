@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "registry_sha256": "aae0fc6f3f0ec3b92df604ecbe586d9762b9213c7910e7e3a4a9d0c0f093b25f",
+  "registry_sha256": "1e55152f3f8400fb340488314a307c555dccaa022a8890544fc5b6e7b088ba2a",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
     "total": 1093,
@@ -16099,17 +16099,17 @@
           {
             "path": "backend/internal/modules/workforce/employment_activation_authority.sql",
             "symbol": "CREATE FUNCTION workforce_activation_governance_source(",
-            "sha256": "fab115785d4f3b8ac4270742119624be9db1c70d72a7e20126d5473b7a89dda7"
+            "sha256": "f356b9d7b06b519810b98ebda46bb58460d12b1b204cc29a68bb8df8c065aa31"
           },
           {
             "path": "backend/internal/modules/workforce/employment_activation_authority.sql",
             "symbol": "CREATE FUNCTION workforce_governance_staff_activation(",
-            "sha256": "fab115785d4f3b8ac4270742119624be9db1c70d72a7e20126d5473b7a89dda7"
+            "sha256": "f356b9d7b06b519810b98ebda46bb58460d12b1b204cc29a68bb8df8c065aa31"
           },
           {
             "path": "backend/internal/modules/workforce/employment_activation_authority.sql",
             "symbol": "CREATE FUNCTION workforce_employment_generation_governance_record(",
-            "sha256": "fab115785d4f3b8ac4270742119624be9db1c70d72a7e20126d5473b7a89dda7"
+            "sha256": "f356b9d7b06b519810b98ebda46bb58460d12b1b204cc29a68bb8df8c065aa31"
           },
           {
             "path": "backend/internal/modules/workforce/employment_activation_commands.go",
@@ -20197,17 +20197,17 @@
           {
             "path": "backend/internal/modules/workforce/employment_activation_authority.sql",
             "symbol": "CREATE FUNCTION workforce_activation_governance_source(",
-            "sha256": "fab115785d4f3b8ac4270742119624be9db1c70d72a7e20126d5473b7a89dda7"
+            "sha256": "f356b9d7b06b519810b98ebda46bb58460d12b1b204cc29a68bb8df8c065aa31"
           },
           {
             "path": "backend/internal/modules/workforce/employment_activation_authority.sql",
             "symbol": "CREATE FUNCTION workforce_governance_staff_activation(",
-            "sha256": "fab115785d4f3b8ac4270742119624be9db1c70d72a7e20126d5473b7a89dda7"
+            "sha256": "f356b9d7b06b519810b98ebda46bb58460d12b1b204cc29a68bb8df8c065aa31"
           },
           {
             "path": "backend/internal/modules/workforce/employment_activation_authority.sql",
             "symbol": "CREATE FUNCTION workforce_employment_generation_governance_record(",
-            "sha256": "fab115785d4f3b8ac4270742119624be9db1c70d72a7e20126d5473b7a89dda7"
+            "sha256": "f356b9d7b06b519810b98ebda46bb58460d12b1b204cc29a68bb8df8c065aa31"
           },
           {
             "path": "backend/internal/modules/workforce/employment_activation_commands.go",

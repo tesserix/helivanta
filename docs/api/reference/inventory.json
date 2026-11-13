@@ -13380,7 +13380,7 @@
         },
         {
           "id": "0106_workforce_employment_activation_authority",
-          "sql_sha256": "fab115785d4f3b8ac4270742119624be9db1c70d72a7e20126d5473b7a89dda7",
+          "sql_sha256": "f356b9d7b06b519810b98ebda46bb58460d12b1b204cc29a68bb8df8c065aa31",
           "creates_tables": []
         }
       ]

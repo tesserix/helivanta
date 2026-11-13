@@ -16,7 +16,13 @@ No production migration or grant is authorized by this plan.
 4. Implement source-fenced governance authority and its bounded FGA projection.
    Prove stale/removed tuples cannot authorize. Add the closed architecture gates
    before wiring Workforce consumers; no direct cross-module access.
-5. Update hospital and independent-employer account-link RLS/handlers for the
+5. Implement the full lifecycle consumer matrix in the design, including exact
+   assignment review/settlement, nonclinical person/employment preparation, review
+   and first activation, and independent operating-duty review. Preserve owner
+   security/onboarding-only checks; represent governance actor provenance rather
+   than inventing Staff actor references. Complete reviewers' real employment
+   before ordinary posting/pharmacy relationship review.
+   Update hospital and independent-employer account-link RLS/handlers for the
    exact nonclinical purpose, with concurrency, foreign-scope, revoked-membership,
    dependency-failure and callback-escape tests. Preserve existing owner behavior.
 6. Add owner delegation, notification and independent auditor UI through Global

@@ -2,7 +2,7 @@
 
 Status: implementation design; no deployed permission or approved migration.
 Implements the accepted ORG-D7 policy in ADR-0044. It does not settle an open
-ORG-D decision. Protected ordinary account initiation remains PR #1668.
+ORG-D decision. Protected ordinary account initiation was merged in PR #1668; this governance design remains unimplemented.
 
 ## Source findings and boundary
 
@@ -26,6 +26,36 @@ scope identities. Application owners are current IAM `tenant_admin` memberships;
 native organization-management roles are a separate identity-provider concern.
 The protected product does not let a caller select a native organization or
 supply actor/tenant authority.
+
+## Full lifecycle consumers and remaining implementation gates
+
+The two initial contract bundles cover account-link review and governance audit
+only. They do not complete Staff onboarding. Additional fixed templates must be
+added as separately named/versioned bundles with their actual consumers and
+scope tests, rather than broadening either existing bundle.
+
+| Boundary                                              | Current source requirement                                                                                                 | Required integration before full acceptance                                                                                                                                                |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Ordinary assignment proposal read/review              | `assignmentAccessFor` and asynchronous `decisionScopeStatus` require `assignmentAdministrator`                             | Exact hospital scoped-access reviewer, rechecked both at decision and later owner verification settlement; preserve target/proposer separation and product prerequisites                   |
+| Person findings and identity-source review            | `personReviewTransaction` / `identityScopeTransaction` require `lockReviewedLeaveActor`                                    | Exact nonclinical person-review governance actor; current native human/membership, contributor exclusions, protected document/evidence checks and audit; no invented Staff link            |
+| Employment preparation/review                         | `intakeAuthorityWithGuard` requires the reviewer's existing reviewed link even for first reviewers                         | Separate employer-bound nonclinical preparation and review authority with explicit governance provenance in audit/receipts; retain evidence and independent-person rules                   |
+| First employment activation                           | `employmentActivationWithGuard` requires scoped intake actor plus `employment.activate` and `enrollment.manage`            | Employer-bound nonclinical activation authority retaining current approved person/employment and native account checks; no operating authority follows from the activation decision itself |
+| Hospital department posting and pharmacy relationship | `scopedPostingTransaction` requires `StaffActorUse` and `WithCurrentStaffActor`                                            | Complete the reviewers' own reviewed employment first, then ordinary reviewed posting/relationship assignments; preserve Staff, department, professional and product guards                |
+| Independent pharmacy/supplier operating duty          | `operatingAdministrationRole` and Workforce `employerAccess(...,"manager",...)` require legacy administrative roles/access | Exact employer-scoped operating-access reviewer through both IAM and Workforce source checks; retain target identity/location eligibility and subject/proposer separation                  |
+| Legacy privileged enrollment                          | `memberHandlers.grant` admits known roles                                                                                  | Coordinated admission change preventing new privileged rows from bypassing reviewed delegation, preserving first-owner onboarding and safe retained-row repair                             |
+
+Do not broaden `assignmentAdministrator`: its callers include customer workspace
+onboarding and owner MFA settings, which must stay owner-only. Add separately
+scoped admission for assignment consumers. A decision awaiting asynchronous
+Workforce or Organization verification must revalidate its delegate's authority
+at settlement; an old decision cannot become effective after revocation.
+
+Governance actor provenance must be represented explicitly. Never supply nil,
+fabricated or borrowed Staff/link IDs to make existing HR audit or RLS contracts
+appear satisfied. HR governance access is limited to the named nonclinical
+purpose; it does not exempt operational product consumers from employment,
+posting, licensing or narrower resource checks. Lists and capability discovery
+must use the same current authority as the corresponding writes.
 
 ## Capacity and operational assumptions
 

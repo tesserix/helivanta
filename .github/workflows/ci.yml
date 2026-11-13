@@ -83,6 +83,8 @@ jobs:
         run: |
           go test -race ./internal/customeronboarding
           go test -race ./internal/modules/pharmacy ./internal/modules/workforce -run '^(TestPharmacyBusinessProfileReadIsManagerAndTenantScoped|TestHospitalBusinessProfileReadIsManagerAndHospitalScoped|TestStorageAddressMigrationPreservesLegacyRowsAndReplay)$'
+      - name: Staff governance input boundaries
+        run: go test -race ./internal/modules/iam -run '^TestGovernance'
       - name: Tenant identity admission and MFA regression
         run: go test -race ./internal/modules/iam -run '^(TestNewLegacyGrantRequiresCurrentTenantOwnedIdentity|TestLegacyGrant.*|TestLegacyRepair.*|TestFirstEnrollment.*|TestEnrollmentFakeKeepsNativeUserPathBinding|TestTOTPEnrollmentLifecycleConfirmsReplaysCompletesAndProjectsAMR|TestTOTPEnrollmentExpiryAndDependencyFailuresDoNotAdvance|TestRecoveryRequiresEligibleIdentity)$'
       - name: Supplier architecture and tenant preconditions
@@ -235,6 +237,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Verify shared emergency dispatch contract
         run: node scripts/generate-emergency-dispatch.mjs --check
+      - name: Verify Staff governance contracts
+        run: |
+          node scripts/generate-staff-governance.mjs --check
+          node --test scripts/staff-governance-contract.test.mjs
       - name: Verify Staff directory editing contract
         run: node scripts/generate-workforce-directory.mjs --check
       - name: Verify Workforce establishment contract

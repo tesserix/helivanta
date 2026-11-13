@@ -43,3 +43,9 @@ or operating access. Pharmacy outlet-choice metadata belongs to the existing
 - `pharmacy-accounts.json` → `node scripts/generate-pharmacy-accounts.mjs` (and
   `--check`): scoped acquisition receipt/supplier reconciliation projection and
   immutable bill receipt metadata. Bill inputs retain `pharmacy.json` ownership.
+
+`staff-governance.json` defines candidate IAM governance grant, independent
+review and owner-notification models. Run
+`node scripts/generate-staff-governance.mjs` and `--check` for generated Go/Zod
+outputs. These contracts register no endpoint, permission, ledger or access grant;
+see the [implementation design](../docs/superpowers/specs/2026-11-13-staff-governance-bootstrap.md).

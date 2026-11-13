@@ -634,7 +634,7 @@ canonical employee-code search body (empty code browses). No employee code enter
 a URL. Max 20 rows plus one probe, one retained source, a five-second lease and
 original tenant/account headers apply. Sealed cursors bind normalized body,
 account, route, tenant and actual hospital before any scan. Missing sealer/source
-or database proof returns 503; missing permission 403; hidden hospital 404.
+or database proof returns 503; missing permission 403; delegates receive the same 403 for unknown and out-of-grant hospitals, while an authorized owner receives 404 for an absent hospital.
 
 Planning envelope remains 100 Staff per tenant, 50/150 tenants at 12/36 months.
 At 10 peak searches/s, <=1 KiB input and <=20 minimal rows, this reuses the owner

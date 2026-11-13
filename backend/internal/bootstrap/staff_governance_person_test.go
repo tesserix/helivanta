@@ -218,7 +218,9 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 				require.False(t, page["page"].(map[string]any)["has_more"].(bool))
 			}
 			request(t, http.MethodPost, preparationSearch, "reviewer", targetInput, 403)
-			request(t, http.MethodPost, "/v1/workforce/hospitals/"+roots[1].String()+"/employment-preparation-targets/search", "auditor", targetInput, 404)
+			request(t, http.MethodPost, "/v1/workforce/hospitals/"+roots[1].String()+"/employment-preparation-targets/search", "auditor", targetInput, 403)
+			request(t, http.MethodPost, "/v1/workforce/hospitals/"+uuid.NewString()+"/employment-preparation-targets/search", "auditor", targetInput, 403)
+			request(t, http.MethodPost, "/v1/workforce/hospitals/"+uuid.NewString()+"/employment-preparation-targets/search", "admin", targetInput, 404)
 			request(t, http.MethodPost, preparationSearch, "auditor", map[string]any{}, 400)
 			request(t, http.MethodPost, preparationSearch, "auditor", map[string]any{"employee_code": "", "subject": "user-admin"}, 400)
 			request(t, http.MethodPost, preparationSearch+"?employee_code=SYN-PERSON", "auditor", targetInput, 400)

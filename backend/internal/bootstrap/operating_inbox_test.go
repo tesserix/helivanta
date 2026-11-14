@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/testutil"
@@ -25,22 +26,24 @@ type nativeInboxPage struct {
 	} `json:"page"`
 }
 
-func prepareRetainedOperatingDuty(t *testing.T, kind string, employer, location, staff, link uuid.UUID, template string, now time.Time, call nativeInboxCall) uuid.UUID {
+func prepareRetainedOperatingDuty(t *testing.T, router *gin.Engine, kind string, employer, location, staff, link uuid.UUID, template string, now time.Time, call nativeInboxCall) uuid.UUID {
 	t.Helper()
 	id := uuid.Must(uuid.NewV7())
 	path := "/v1/iam/operating-governance-employers/" + kind + "/" + employer.String() + "/duties/" + id.String()
 	input := iam.OperatingDutyInput{Scope: iam.OperatingDutyScope{EmployerKind: kind, EmployerID: employer, LocationID: location, ExpectedEmployerVersion: 1, ExpectedLocationVersion: 1}, Identity: iam.OperatingDutyIdentity{StaffID: staff, StaffVersion: 1, LinkID: link, LinkVersion: 2}, Subject: "user-auditor", TemplateKey: template, Reason: "Synthetic retained duty whose Staff revision will change", ValidFrom: now.Add(-time.Minute), ExpiresAt: now.Add(time.Hour)}
 	call("PUT", path, "owner2", input, 201)
 	call("PUT", path+"/commands/"+uuid.Must(uuid.NewV7()).String(), "admin", iam.OperatingDutyDecisionInput{ExpectedVersion: 1, Decision: "approve", Reason: "A distinct current owner reviews the Staff duty before its revision changes"}, 201)
-	require.Eventually(t, func() bool {
-		var duty iam.OperatingDuty
-		require.NoError(t, json.Unmarshal([]byte(call("GET", path+"?staff="+staff.String(), "owner2", nil, 200)), &duty))
-		require.Equal(t, id, duty.ID)
-		if duty.Status == "active" {
-			return true
+	require.EventuallyWithT(t, func(check *assert.CollectT) {
+		response := governanceRequest(router, "GET", path, "owner2", "")
+		if !assert.Equal(check, 200, response.Code, response.Body.String()) {
+			return
 		}
-		require.Equal(t, "approved_pending_activation", duty.Status)
-		return false
+		var duty iam.OperatingDuty
+		if !assert.NoError(check, json.Unmarshal(response.Body.Bytes(), &duty)) {
+			return
+		}
+		assert.Equal(check, id, duty.ID)
+		assert.Equal(check, "active", duty.Status)
 	}, 10*time.Second, 20*time.Millisecond, "the retained case must activate before its Staff source changes")
 	return id
 }

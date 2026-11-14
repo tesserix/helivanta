@@ -376,3 +376,20 @@ workflow job are now removed. Only the diagnostic defer is removed from the
 original supervised-approval helper; its actual calls/assertions remain intact.
 The normal lifecycle workflow command is unchanged. Pure testinfra checks and
 compile/vet/lint/build are rerun; database runtime checks remain CI-only.
+
+### Latest head reopens the lifecycle performance gate
+
+At `9b8766ba`, supplier run 43640694304/job 132587399962 failed the
+original full Staff lifecycle approval-first cutoff race. Approval returned 200
+after 4.110 seconds; the queued cutoff returned 503 (`posting_source_unavailable`)
+after 5.128 seconds. The preceding two cold passes do not establish a stable
+repair. The original deadline and expected statuses remain unchanged; this
+performance gate is open again. Evidence: `/tmp/helivanta-9b-supplier.log`.
+
+CI run 43640694314 also failed Go/web retained-duty setup because the new
+activation poll appended `?staff=` to the native duty GET. That route correctly
+rejects filters with 400. The corrected fixture polls the canonical bare GET,
+uses collecting assertions in the eventual callback and still requires the exact
+duty to become active before changing Staff. Bootstrap compile-only checks,
+vet, lint and backend build passed after that correction; runtime CI remains
+required. This is a test correction, not a production route change.

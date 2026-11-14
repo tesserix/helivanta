@@ -204,7 +204,7 @@ func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *ten
 		for _, query := range []string{"?limit=21", "?limit=1&limit=20", "?status=active&status=active"} {
 			call(http.MethodGet, staffChoicePath+query, "auditor", nil, http.StatusBadRequest)
 		}
-		historyDuty = prepareRetainedOperatingDuty(t, kind, employer, location, extraStaff, extraLink, template, now, call)
+		historyDuty = prepareRetainedOperatingDuty(t, router, kind, employer, location, extraStaff, extraLink, template, now, call)
 		call(http.MethodPut, staffRoot+"?directory_context=v1", "admin", map[string]any{"employee_code": "SYN-NATIVE-PAGE", "display_name": "Synthetic changed paging Staff", "job_category": "pharmacist", "employment_status": "active", "expected_version": 1, "directory_context_version": "v1"}, http.StatusOK)
 		current := call(http.MethodGet, staffChoicePath+"?limit=20", "auditor", nil, http.StatusOK)
 		require.NotContains(t, current, extraStaff.String(), "a changed Staff revision cannot reuse its old reviewed link")

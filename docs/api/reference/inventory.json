@@ -3591,21 +3591,21 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/tax-classifications/:classification",
+          "permission": "pharmacy.tax.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/tax-classifications",
           "permission": "pharmacy.catalogue.read",
           "authentication_required": true,
           "membership_required": true,
           "paginated": true,
-          "counted": false
-        },
-        {
-          "method": "POST",
-          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/tax-classifications",
-          "permission": "pharmacy.tax.manage",
-          "authentication_required": true,
-          "membership_required": true,
-          "paginated": false,
           "counted": false
         },
         {
@@ -4494,6 +4494,15 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations/:id",
+          "permission": "pharmacy.tax.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations/in-force",
           "permission": "pharmacy.tax.manage",
@@ -4509,15 +4518,6 @@
           "authentication_required": true,
           "membership_required": true,
           "paginated": true,
-          "counted": false
-        },
-        {
-          "method": "POST",
-          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations",
-          "permission": "pharmacy.tax.manage",
-          "authentication_required": true,
-          "membership_required": true,
-          "paginated": false,
           "counted": false
         },
         {
@@ -5361,6 +5361,11 @@
         {
           "id": "0046_pharmacy_licence_evidence_review",
           "sql_sha256": "966dfb31b53e170c41f56d78e4f815a3500e851428e73e8460305c7a678ff916",
+          "creates_tables": []
+        },
+        {
+          "id": "0048_pharmacy_tax_command_identity",
+          "sql_sha256": "88b6fd2092aba3eeb3d147df89b940b76b44461ab861a448a6613b01ffeb28ee",
           "creates_tables": []
         }
       ]

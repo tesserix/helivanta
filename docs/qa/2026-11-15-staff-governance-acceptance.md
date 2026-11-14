@@ -128,3 +128,16 @@ plan metric/binding tests are also pure. An inadvertently broad local architectu
 run attempted container-backed tests and failed before startup because no Docker
 provider exists. No service started; those checks remain for CI and are not marked
 passed locally. Retain every completion gate above through subsequent work.
+
+### Diagnostic correction after Supplier43605854860
+
+At `9def90fd`, Supplier43605854860/job132480212302 failed at the first
+current-destination approval in the coordinated transfer scenario, after the
+initial child approval. It reached `chain_evidence` at 5016ms overall (2392ms
+persistence, 923ms current operation). There were no observer records: the
+observer matched string bindings only, while canonical proposal IDs are passed
+as `uuid.UUID`. A pure binding regression now covers both representations and
+rejects unrelated IDs. This corrects test observation only; it does not repair
+posting performance. The observer remains at the initial child approval and
+still must be removed before accepting a cold workflow result. Web and browser
+jobs passed at `9def90fd`; these do not close the lifecycle or selector gates.

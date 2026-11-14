@@ -3,6 +3,8 @@ package globalapi
 import (
 	"testing"
 
+	"github.com/google/uuid"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,4 +38,12 @@ func TestPostingExplainTemplatePreservesOrderedBindings(t *testing.T) {
 		_, ok := postingUpdateExplainTemplate(input, 4)
 		require.False(t, ok)
 	}
+}
+
+func TestPostingPlanTargetMatchesCanonicalUUIDBindings(t *testing.T) {
+	id := uuid.Must(uuid.NewV7())
+	for _, value := range []any{id, id.String()} {
+		require.True(t, postingPlanTargetMatches([]any{"other", value}, id.String()))
+	}
+	require.False(t, postingPlanTargetMatches([]any{uuid.Must(uuid.NewV7()), "other"}, id.String()))
 }

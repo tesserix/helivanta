@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
@@ -77,6 +78,22 @@ func postingUpdateExplainTemplate(query string, bindings int) (string, bool) {
 	return "EXPLAIN (FORMAT JSON) " + out, true
 }
 
+func postingPlanTargetMatches(values []any, proposal string) bool {
+	for _, value := range values {
+		switch id := value.(type) {
+		case string:
+			if id == proposal {
+				return true
+			}
+		case uuid.UUID:
+			if id.String() == proposal {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func observePostingProposalUpdatePlan(t *testing.T, db *tenantdb.DB, tenant, proposal string) {
 	t.Helper()
 	var fired atomic.Bool
@@ -85,14 +102,7 @@ func observePostingProposalUpdatePlan(t *testing.T, db *tenantdb.DB, tenant, pro
 			if fired.Load() || !strings.HasPrefix(strings.TrimSpace(current.Statement.SQL.String()), "UPDATE workforce_posting_proposals SET ") {
 				return
 			}
-			matched := false
-			for _, value := range current.Statement.Vars {
-				if text, ok := value.(string); ok && text == proposal {
-					matched = true
-					break
-				}
-			}
-			if !matched || fired.Swap(true) {
+			if !postingPlanTargetMatches(current.Statement.Vars, proposal) || fired.Swap(true) {
 				return
 			}
 			template, ok := postingUpdateExplainTemplate(current.Statement.SQL.String(), len(current.Statement.Vars))

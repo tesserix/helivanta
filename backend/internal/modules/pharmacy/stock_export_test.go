@@ -54,7 +54,7 @@ func TestStockExportReconcilesRecordedQuantityAtTheExplicitCutoff(t *testing.T) 
 	require.Equal(t, "25", values["on_hand_units"])
 	require.Equal(t, "25", values["receipt_units"])
 	require.Equal(t, "0", values["correction_units"])
-	require.Equal(t, "0", values["dispensable_units"])
+	require.NotContains(t, values, "dispensable_units", "a snapshot cannot say what was sellable then (#1708)")
 }
 
 func TestStockExportRejectsForeignRevokedAndInvalidScopes(t *testing.T) {

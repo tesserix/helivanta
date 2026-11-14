@@ -1,6 +1,8 @@
 package workforce
 
 import (
+	"bytes"
+	"log/slog"
 	"strings"
 	"sync"
 	"testing"
@@ -10,6 +12,19 @@ import (
 	"github.com/tesserix/helivanta/pkg/pagination"
 	gormschema "gorm.io/gorm/schema"
 )
+
+func TestAssignmentTargetOwnerFailureReportsOnlyFixedDiagnosticFields(t *testing.T) {
+	var output bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&output, nil)))
+	defer slog.SetDefault(previous)
+	reader := New().AssignmentTargets(nil)
+	_, err := reader.ReadAssignmentTargetCandidates(t.Context(), authz.GovernedAssignmentSelectionRequest{}, pagination.Params{Limit: 20})
+	require.ErrorIs(t, err, authz.ErrScopedAuthorizationUnavailable)
+	require.Contains(t, output.String(), `"phase":"scope"`)
+	require.Contains(t, output.String(), `"authorization_unavailable":true`)
+	require.NotContains(t, output.String(), `"err"`)
+}
 
 func TestAssignmentTargetScanMapsOnlyCanonicalDatabaseColumns(t *testing.T) {
 	mapping, err := gormschema.Parse(&[]assignmentTargetScanRow{}, &sync.Map{}, gormschema.NamingStrategy{})

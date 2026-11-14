@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,15 +31,23 @@ func (*Module) AssignmentTargets(db *tenantdb.DB) authz.GovernedAssignmentTarget
 	return &assignmentTargetReader{db: db}
 }
 
-func (reader *assignmentTargetReader) withRead(ctx context.Context, request authz.GovernedAssignmentSelectionRequest, action func(*gorm.DB, []byte) error) error {
+func (reader *assignmentTargetReader) withRead(ctx context.Context, request authz.GovernedAssignmentSelectionRequest, action func(*gorm.DB, []byte) error) (err error) {
+	phase := "scope"
+	defer func() {
+		if err != nil {
+			slog.ErrorContext(ctx, "workforce assignment target read unavailable", "phase", phase, "authorization_unavailable", errors.Is(err, authz.ErrScopedAuthorizationUnavailable), "guard_scope_mismatch", errors.Is(err, tenantdb.ErrGuardedCommandScope), "guard_closed", errors.Is(err, tenantdb.ErrGuardedCommandClosed))
+		}
+	}()
 	if reader.db == nil || !reader.db.GuardedCommandActive(ctx) || tenantdb.ActorFrom(ctx) != request.Principal.Subject {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
+	phase = "deadline"
 	now := time.Now()
 	deadline, bounded := ctx.Deadline()
 	if !bounded || !deadline.After(now) || deadline.After(now.Add(5*time.Second)) {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
+	phase = "proof"
 	proof, err := authz.AssignmentTargetChoiceProof(request, now)
 	if err != nil {
 		return err
@@ -49,10 +58,12 @@ func (reader *assignmentTargetReader) withRead(ctx context.Context, request auth
 	if err != nil {
 		return err
 	}
+	phase = "guard"
 	if err := reader.db.ConstrainGuardedCommand(ctx, request.Principal.TenantID, deadline); err != nil {
 		return err
 	}
 	return reader.db.WithTenantCommand(ctx, request.Principal.TenantID, func(tx *gorm.DB) (err error) {
+		phase = "schema_support"
 		var supported bool
 		if err := tx.Raw(`SELECT CASE WHEN to_regprocedure('public.workforce_assignment_selection_support()')IS NULL THEN false ELSE public.workforce_assignment_selection_support()END`).Scan(&supported).Error; err != nil {
 			return err
@@ -60,6 +71,7 @@ func (reader *assignmentTargetReader) withRead(ctx context.Context, request auth
 		if !supported {
 			return authz.ErrScopedAuthorizationUnavailable
 		}
+		phase = "purpose"
 		var previous string
 		if err = tx.Raw(`SELECT jsonb_object_agg(key,COALESCE(current_setting(key,true),''))::text FROM unnest(ARRAY['app.workforce_hospital','app.workforce_subject','app.workforce_assignment_selection','app.workforce_assignment_target_staff','app.workforce_assignment_target_generation'])AS key`).Scan(&previous).Error; err != nil {
 			return err
@@ -70,10 +82,12 @@ func (reader *assignmentTargetReader) withRead(ctx context.Context, request auth
 		if err = tx.Exec(`SELECT set_config('app.workforce_hospital',?,true),set_config('app.workforce_subject',?,true),set_config('app.workforce_assignment_selection',?,true),set_config('app.workforce_assignment_target_staff','',true),set_config('app.workforce_assignment_target_generation','',true)`, request.HospitalID.String(), request.Principal.Subject, string(raw)).Error; err != nil {
 			return err
 		}
+		phase = "hospital"
 		var hospital struct{ ID uuid.UUID }
 		if err = tx.Table("workforce_hospitals").Select("id").Clauses(clause.Locking{Strength: "SHARE"}).Where("tenant_id=? AND id=? AND establishment_kind='hospital'", request.Principal.TenantID, request.HospitalID).Take(&hospital).Error; err != nil {
 			return err
 		}
+		phase = "candidates"
 		return action(tx, raw)
 	})
 }

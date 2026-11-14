@@ -222,6 +222,7 @@ func (h *assignmentProposalHandlers) assignmentTargetCandidates(c *gin.Context, 
 		if err != nil {
 			return err
 		}
+		c.Set("iam.assignment_target_phase", "workforce_candidate_shape")
 		if len(candidates) > page.Limit+1 {
 			return authz.ErrScopedAuthorizationUnavailable
 		}

@@ -5,6 +5,29 @@ This checkpoint preserves the full goal across the hospital-owned pharmacy and
 independent pharmacy/supplier models. Source inspection, component checks,
 service integration, browser testing and live acceptance are distinct evidence.
 
+## Identity owner release and remaining chooser failure
+
+Identity PR #39 merged as `620d05531794e89b59ca9e5b57e00c3f8dbc6b30` after
+current-main candidate `cd51b3d` passed all PR checks. Main
+[CI43654647655](https://github.com/tesserix/onboarding-service/actions/runs/43654647655)
+passed tests, image publication/signing and deploy advancement. Read-only GKE
+inspection on 2026-11-14 UTC confirmed both `onboarding-api` replicas ready on
+that exact release, digest
+`sha256:fd220eb8086f40aaa752176106653e23a56cddbec11c1c85194b84a3a4bee8ed`.
+Account `unidevidp@gmail.com`, project `tesseracthub-480811`, context
+`gke_tesseracthub-480811_asia-south1_tesseract-prod-in-gke`, namespace `onboarding`.
+No database migration or imperative workload mutation was used. Deployment
+health does not prove candidate account disclosure through the HMS consumer.
+
+HMS candidate `684c3588` passed the corrected foreign-membership fixture and
+reached the first empty chooser assertion, but returned 503 instead of 200.
+[Go job132630120444](https://github.com/tesserix/helivanta/actions/runs/43654525148/job/132630120444)
+logged `phase=workforce_candidates`, 27ms, no SQLSTATE/deadline/cancellation.
+The failure is still unresolved. The candidate adds fixed owner read phases
+and separates candidate-shape validation; it never logs raw errors, Staff/account
+values, proof, SQL, cookies or credentials. A pure diagnostic regression failed
+before the logging change. Further corrected-head runtime acceptance is required.
+
 ## Current checkpoint — 2026-11-14 23:41 UTC
 
 Candidate `866c3eb7` includes current main `07af22ab`. Local full workspace

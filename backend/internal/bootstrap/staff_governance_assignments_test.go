@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/modules/iam"
+	"github.com/tesserix/helivanta/internal/modules/organization"
 	"github.com/tesserix/helivanta/internal/modules/workforce"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testinfra"
@@ -121,6 +122,78 @@ func TestGovernanceAssignmentProposalAdmissionUsesExactHospitalWithoutLegacyMana
 	require.EqualValues(t, 1, effects.Proposals, "replay retains the canonical proposal")
 }
 
+func TestGovernanceAssignmentDepartmentRetirementCannotUseRetainedOwnerApproval(t *testing.T) {
+	owner := &assignmentScopeBarrier{Module: workforce.New()}
+	router, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens: map[string]string{"admin": testutil.TenantA},
+		Perms: map[string][]authz.Permission{"admin": {
+			workforce.PermHospitalManage, iam.PermAssignmentManage, iam.PermAssignmentReview, organization.PermStructureManage,
+		}},
+		Modules: []platform.Module{iam.New(nil), owner, organization.New()},
+	})
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES (?,'user-admin','tenant_admin'),(?,'synthetic-department-recipient','staff_member')`, testutil.TenantA, testutil.TenantA).Error
+	}))
+	hospital, department := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
+	created := governanceRequest(router, http.MethodPut, "/v1/workforce/hospitals/"+hospital.String(), "admin", `{"name":"Synthetic department source hospital"}`)
+	require.Equal(t, http.StatusOK, created.Code, created.Body.String())
+	organizationRoot := "/v1/organization/hospitals/" + hospital.String()
+	registered := governanceRequest(router, http.MethodPut, organizationRoot+"/registrations/"+uuid.Must(uuid.NewV7()).String(), "admin", `{"reason":"Synthetic structural source reference"}`)
+	require.Equal(t, http.StatusOK, registered.Code, registered.Body.String())
+	departmentRoot := organizationRoot + "/departments/" + department.String() + "/revisions/"
+	createRevision := departmentRoot + uuid.Must(uuid.NewV7()).String()
+	active := `{"expected_version":0,"code":"SYN-GOV-ACCESS","name":"Synthetic access review department","kind":"department","parent_id":null,"status":"active","reason":"Synthetic structural setup"}`
+	require.EventuallyWithT(t, func(check *assert.CollectT) {
+		response := governanceRequest(router, http.MethodPut, createRevision, "admin", active)
+		require.Equal(check, http.StatusOK, response.Code, response.Body.String())
+	}, 20*time.Second, 100*time.Millisecond)
+
+	gate := &assignmentScopeGate{entered: make(chan struct{}), release: make(chan struct{})}
+	var release sync.Once
+	unblock := func() { release.Do(func() { close(gate.release) }) }
+	t.Cleanup(unblock)
+	owner.gate.Store(gate)
+	proposalID := uuid.Must(uuid.NewV7())
+	path := "/v1/iam/hospitals/" + hospital.String() + "/assignment-proposals/" + proposalID.String()
+	start := time.Now().UTC().Add(-time.Hour).Truncate(time.Microsecond)
+	body, err := json.Marshal(iam.ProposalInput{HospitalID: hospital, Subject: "synthetic-department-recipient", TemplateKey: "workforce.department_posting_reviewer.v1", DepartmentID: &department, Reason: "Synthetic department assignment review", ValidFrom: start, ExpiresAt: start.Add(12 * time.Hour)})
+	require.NoError(t, err)
+	proposed := governanceRequest(router, http.MethodPut, path, "admin", string(body))
+	require.Equal(t, http.StatusOK, proposed.Code, proposed.Body.String())
+	select {
+	case <-gate.entered:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the native Workforce request did not reach its controlled boundary")
+	}
+	require.EventuallyWithT(t, func(check *assert.CollectT) {
+		var count int64
+		err := db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.assignment_access','authorized',true)`).Error; err != nil {
+				return err
+			}
+			return tx.Table("iam_assignment_department_verifications").Where("tenant_id=? AND proposal_id=? AND owner='organization' AND eligible", testutil.TenantA, proposalID).Count(&count).Error
+		})
+		require.NoError(check, err)
+		require.EqualValues(check, 1, count, "Organization must have actually confirmed the then-active department")
+	}, 20*time.Second, 100*time.Millisecond)
+	retired := governanceRequest(router, http.MethodPut, departmentRoot+uuid.Must(uuid.NewV7()).String(), "admin", `{"expected_version":1,"code":"SYN-GOV-ACCESS","name":"Synthetic access review department","kind":"department","parent_id":null,"status":"retired","reason":"Retire after the first owner answer"}`)
+	require.Equal(t, http.StatusOK, retired.Code, retired.Body.String())
+	before := governanceRequest(router, http.MethodGet, path, "admin", "")
+	require.Equal(t, http.StatusOK, before.Code, before.Body.String())
+	var pending iam.ProposalOutput
+	require.NoError(t, json.Unmarshal(before.Body.Bytes(), &pending))
+	require.Equal(t, "pending_scope", pending.Status, "the remaining owner answer is still held")
+	unblock()
+	owner.gate.Store(nil)
+	require.EventuallyWithT(t, func(check *assert.CollectT) {
+		read := governanceRequest(router, http.MethodGet, path, "admin", "")
+		require.Equal(check, http.StatusOK, read.Code, read.Body.String())
+		var result iam.ProposalOutput
+		require.NoError(check, json.Unmarshal(read.Body.Bytes(), &result))
+		require.Equal(check, "scope_rejected", result.Status, "retained owner approval cannot replace a current structural source")
+	}, 20*time.Second, 100*time.Millisecond)
+}
+
 type assignmentScopeGate struct {
 	entered, release chan struct{}
 	once             sync.Once
@@ -169,7 +242,7 @@ func TestGovernanceAssignmentDecisionRechecksOriginalSourceAfterOwnerAnswer(t *t
 		Writer: graph, Roles: graph, Membership: graph,
 		Tokens: map[string]string{"admin": testutil.TenantA, "reviewer": testutil.TenantA},
 		Perms: map[string][]authz.Permission{
-			"admin":    {iam.PermGovernanceManage, workforce.PermHospitalManage, iam.PermAssignmentManage, iam.PermAssignmentReview},
+			"admin":    {iam.PermGovernanceManage, iam.PermGovernanceReview, workforce.PermHospitalManage, iam.PermAssignmentManage, iam.PermAssignmentReview},
 			"reviewer": {iam.PermAssignmentManage, iam.PermAssignmentReview},
 		},
 		Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(native), owner},

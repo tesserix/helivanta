@@ -35,10 +35,14 @@ func prepareRetainedOperatingDuty(t *testing.T, kind string, employer, location,
 	return id
 }
 
-func exerciseNativeOperatingInbox(t *testing.T, router *gin.Engine, db *tenantdb.DB, prefix, kind string, hidden, current, historical uuid.UUID, input iam.OperatingDutyInput, call nativeInboxCall) {
+func exerciseNativeOperatingInbox(t *testing.T, router *gin.Engine, db *tenantdb.DB, prefix, kind string, hidden, current, historical, extraLocation uuid.UUID, extraLocationVersion int64, input iam.OperatingDutyInput, call nativeInboxCall) {
 	t.Helper()
 	extra := uuid.Must(uuid.NewV7())
-	call("PUT", prefix+"/duties/"+extra.String(), "owner2", input, 201)
+	call("PUT", prefix+"/duties/"+extra.String(), "owner2", input, 409)
+	extraInput := input
+	extraInput.Scope.LocationID = extraLocation
+	extraInput.Scope.ExpectedLocationVersion = extraLocationVersion
+	call("PUT", prefix+"/duties/"+extra.String(), "owner2", extraInput, 201)
 	path := prefix + "/duty-inbox"
 	var first nativeInboxPage
 	require.NoError(t, json.Unmarshal([]byte(call("GET", path+"?limit=1", "auditor", nil, 200)), &first))

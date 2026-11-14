@@ -287,3 +287,45 @@ existing database tests. They failed immediately because rootless Docker is
 unavailable; no database/container started. This was an incorrect local selection,
 not a successful runtime check. Those tests remain CI-only. The new pure
 selection-plan regression is run separately with its exact test name.
+
+### `0a255186` early runtime finding
+
+The complete local shell unit suite passed: 228 files / 2011 tests. Exact-head
+CI43635567911 Go job132571491664 failed the new retained-inbox setup in both
+independent models. Creating its extra pending duty reused the current duty's
+employer/location/subject/template tuple, so the existing
+`iam_operating_duties_one_live_template` constraint correctly returned 409.
+The fixture now explicitly asserts that duplicate conflict, then prepares its
+paging record at the already-created second product-owned location using its
+current version. All paging, scope, audit, cutoff and retained-revocation
+assertions remain intact. Runtime acceptance of that corrected fixture is pending.
+
+Clarification of the prior diagnostic: the failure reported in
+`workforce_posting_root_failure_test.go:56` was the strict concurrent approval
+success check after fault tests, not an expected injected-failure response.
+
+CI43635567911 E2E passed. Its web job132571491930 completed workspace
+lint/format/typecheck/unit tests/builds and emergency browser checks, then ran both
+native operating journeys. At 20:21:21 and 20:21:53 UTC respectively, pharmacy and
+supplier each passed proposal, independent review, lost-response GET recovery,
+worker-acknowledged activation, revocation and the new retained-duty navigation.
+The encompassing web step then failed on the same duplicate pending-duty fixture
+at operating_inbox_test.go:41. This is positive browser evidence for retained
+navigation, not a successful full job, corrected paging/audit/cutoff acceptance or
+deployed identity/login acceptance. The ordinary full lifecycle in
+Supplier43635567961 remains running with tracking disabled; its outcome must be
+collected before pushing the test-only correction, to preserve that measurement.
+
+### Ordinary cold Staff lifecycle passed at `0a255186`
+
+Supplier43635567961/job132571491647 completed successfully. Its original
+`TestPreEmploymentPersonReviewPreservesInactiveJoiner` step passed with function
+tracking disabled; the failure-only diagnostic job was skipped. The same run
+passed supplier grants, owner stock allocation/recovery, current Staff source
+views, financial acquisition evidence/recovery, receiving corrections/custody
+rollback and wholesale product identity checks. Original full lifecycle, injected
+faults, transfer/concurrency assertions and five-second authority budgets remain
+unchanged. This closes the previously failing ordinary cold lifecycle gate on
+that production-code head. It does not close corrected inbox paging/audit/cutoff
+acceptance, hospital native preparation, identity-owner deployment or live tests.
+The queued correction changes only test fixtures and this evidence record.

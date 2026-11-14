@@ -431,7 +431,7 @@ func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *ten
 	require.JSONEq(t, prepared, call(http.MethodPut, path, "owner2", input, http.StatusOK))
 	require.JSONEq(t, prepared, call(http.MethodGet, path+"/proposal-receipt", "owner2", nil, http.StatusOK))
 	require.Contains(t, call(http.MethodGet, prefix+"/staff/"+staff.String()+"/duties", "auditor", nil, http.StatusOK), duty.String())
-	exerciseNativeOperatingInbox(t, router, db, prefix, kind, hiddenEmployer, duty, historyDuty, input, call)
+	exerciseNativeOperatingInbox(t, router, db, prefix, kind, hiddenEmployer, duty, historyDuty, lateLocation, lateLocationVersion, input, call)
 	approval := iam.OperatingDutyDecisionInput{ExpectedVersion: 1, Decision: "approve", Reason: "Independent reviewer verifies current employer and Staff"}
 	call(http.MethodPut, path+"/commands/"+uuid.Must(uuid.NewV7()).String(), "owner2", approval, http.StatusConflict)
 	command := uuid.Must(uuid.NewV7())

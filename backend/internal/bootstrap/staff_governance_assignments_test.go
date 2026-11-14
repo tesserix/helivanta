@@ -40,7 +40,7 @@ func TestGovernanceAssignmentProposalAdmissionUsesExactHospitalWithoutLegacyMana
 	router, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"admin": testutil.TenantA, "reviewer": testutil.TenantA, "auditor": testutil.TenantA},
 		Perms: map[string][]authz.Permission{
-			"admin":    {iam.PermGovernanceManage, iam.PermGovernanceRead, workforce.PermHospitalManage, iam.PermAssignmentManage, iam.PermAssignmentReview, iam.PermGovernanceAssignmentManage, iam.PermGovernanceAssignmentReview},
+			"admin":    {iam.PermGovernanceManage, iam.PermGovernanceRead, iam.PermGovernanceReview, workforce.PermHospitalManage, iam.PermAssignmentManage, iam.PermAssignmentReview, iam.PermGovernanceAssignmentManage, iam.PermGovernanceAssignmentReview},
 			"reviewer": {iam.PermGovernanceAssignmentManage, iam.PermGovernanceAssignmentReview},
 			"auditor":  {iam.PermAssignmentManage, iam.PermAssignmentReview, iam.PermGovernanceAssignmentManage, iam.PermGovernanceAssignmentReview},
 		},

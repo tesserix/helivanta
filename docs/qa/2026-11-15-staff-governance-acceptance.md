@@ -69,7 +69,8 @@ legacy identity/history untouched as specified by the fresh-tenant plan.
       department assignments with real current sources, exact tenant/account
       context, stale/duplicate handling, dependency failure and receipt recovery.
 - [ ] Resolve the supervised child-posting deadline and the earlier coordinated
-      transfer persistence failure. Re-run the entire original current-Staff
+      transfer persistence failure. Remove the temporary one-shot plan observer
+      and verify the ordinary cold path. Re-run the entire original current-Staff
       lifecycle test; do not substitute a smaller scenario or change its expected
       200/500 responses to accept unavailable sources.
 - [ ] Verify department staff, heads, supervisors, chains and transfers through
@@ -99,12 +100,31 @@ legacy identity/history untouched as specified by the fresh-tenant plan.
 
 ## Current next action
 
-Supplier43597336249 at `90950803` is now terminal: child approval again failed,
-with `decision_persistence`, elapsed 5017ms and deadline. Its browser job
-132454642720 passed all three phases (99 main-suite passes plus both workflow
-phases); the Go job reached coverage after passing governance boundaries.
-Add failure-only per-operation elapsed and total-persistence timing, retaining
-causes, error classification and all original SQL/guards/budgets. This must locate
-the slow operation and distinguish persistence cost from earlier command work;
-it is not itself a repair. Push that change with the reviewed ledger correction,
-then verify the original lifecycle and retain every completion gate above.
+Supplier43600273886 at `9c024fab` is terminal: child approval again failed.
+`proposal_update` reached the deadline at 5014ms overall; persistence total was
+2834ms and the update operation had consumed 876ms. Earlier command work therefore
+consumed about 2180ms. Web and browser jobs passed at this head. These measurements
+locate the exhausted budget; they do not establish which policy/trigger/planner
+work caused the cost or a repair.
+
+The next test-only increment observes one matching proposal UPDATE immediately
+before the known successful-approval assertion. It runs plain EXPLAIN under the
+original role, transaction, source context and deadline and reports only numeric
+cost/row/JIT flags, planning duration and targeted JIT configuration. Silent SQL
+logging and an allowlisted numeric projection exclude SQL, parameters, full plans,
+private proofs and arbitrary errors. A one-shot atomic observer, ordered binding
+validation, single-statement check and input/result bounds prevent broad tracing.
+It changes planning work/timing and cannot count as a workflow repair; remove the
+observer and pass the uninstrumented cold path before acceptance.
+
+A private hospital-selection proof validator is implemented as the first increment
+of the missing account/department selection boundary. It does not expose an API,
+query an owner or complete preparation. Workforce/Organization read purposes and
+queries, IAM/membership/identity composition, canonical models, SDK/UI and the
+corresponding runtime/browser gates remain required.
+
+Local pure race tests, build and affected vet/lint checks passed for that validator;
+plan metric/binding tests are also pure. An inadvertently broad local architecture
+run attempted container-backed tests and failed before startup because no Docker
+provider exists. No service started; those checks remain for CI and are not marked
+passed locally. Retain every completion gate above through subsequent work.

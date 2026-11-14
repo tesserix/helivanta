@@ -446,3 +446,19 @@ covering source checks, persistence and guarded completion without raw errors or
 source proofs. Preserve existing 403/500/503 responses and every five-second
 authority budget. Verify the real-service workflows before treating either failure
 as fixed. No live operation follows from these diagnostics.
+
+### Persistence budget evidence and temporary planner observation
+
+At 9c024fab, supplier43600273886 again failed the original child approval: overall
+5014ms, persistence 2834ms, proposal_update 876ms. Both web and all three browser
+phases passed on that head. Next inspect the one targeted update's planner cost,
+JIT availability/options and planning duration with a test-only one-shot observer.
+Keep actual role/context/budget and all original status assertions; output only
+allowlisted numeric/boolean metrics, not SQL, binds, plans or errors. Because the
+observer adds planning work, remove it and pass the normal cold workflow before
+acceptance. This is additional evidence collection, not a root-cause assertion.
+
+The hospital selection proof validator is locally implemented/tested; complete its
+owner query/RLS and IAM/identity composition, canonical output, SDK and form before
+claiming qualified account/department selection. No selector route is exposed by
+this private validation increment.

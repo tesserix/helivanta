@@ -114,6 +114,7 @@ func assertPostingSupervisedApproval(t *testing.T, db *tenantdb.DB, tenant strin
 		call(t, "GET", path, reviewer, nil, 404)
 		require.Len(t, call(t, "GET", childRoot+"/history", reviewer, nil, 200)["data"], 1)
 	}
+	observePostingProposalUpdatePlan(t, db, tenant, pending["id"].(string))
 	before := postingRootApprovalEffects(t, db, tenant, reviewer)
 	approved := call(t, "PUT", path, reviewer, decision, 200)
 	after := postingRootApprovalEffects(t, db, tenant, reviewer)

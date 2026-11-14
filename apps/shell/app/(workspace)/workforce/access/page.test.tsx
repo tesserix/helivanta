@@ -4,6 +4,11 @@ import { renderWithProviders } from "@helivanta/api/testing";
 import { staffAccessTemplates, staffAccessTemplateCatalogs } from "@helivanta/api";
 import { NavigationGuardProvider } from "@helivanta/ui";
 import AccessPage from "./page";
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => "/workforce/access",
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 const tenant = "11111111-1111-4111-8111-111111111111";
 const hospital = "22222222-2222-4222-8222-222222222222";
@@ -1683,4 +1688,26 @@ it("opens hospital assignment discovery for a native reviewer without legacy adm
     ),
   ).toBe(false);
   expect(screen.queryByRole("button", { name: "Propose assignment" })).not.toBeInTheDocument();
+});
+
+it("links an operating-only delegate to independent Staff access without legacy grants", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      Response.json({
+        tenant_id: tenant,
+        subject: "synthetic-operating-delegate",
+        data: ["iam.governance.operating.manage"],
+      }),
+    ),
+  );
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  expect(await screen.findByRole("link", { name: "Independent Staff access" })).toHaveAttribute(
+    "href",
+    "/workforce/operating-access",
+  );
 });

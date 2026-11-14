@@ -1253,3 +1253,47 @@ supervised transfer fault injection: expected persistence 500, received source
 transfer diagnostics now record constant stage, elapsed milliseconds and deadline
 classification without private payloads, so the next real-service run can locate
 the failing boundary. This is diagnostic evidence, not a claimed runtime fix.
+
+### Native independent-duty UI — implemented, acceptance pending
+
+Add a dedicated Workforce operating-access page, linked from Staff access for
+current operating-governance users. Its identity loader retains the original
+scope while a command is uncertain, including a missing/changed permission reply;
+a cookie/account switch is detected through expected tenant/subject headers and
+does not rewrite the frozen command. Normal navigation uses the existing leave
+guard. Current-source loss hides cached names/details and new write controls,
+while GET-only original receipt recovery remains bound to the original scope.
+
+Use the qualified employer and active reviewed-Staff selectors and native
+location hook exclusively. Reuse the canonical duty form and decision controls:
+legacy callers keep their directory/catalogue consumers, while an explicit
+native mode receives the canonical qualified Staff/account projection and uses
+the owner location projection's exact revisions. A missing/mismatched qualified
+account denies preparation rather than invoking a legacy directory. Source
+refresh/paging cannot replace an uncertain proposal's ID, frozen input or source.
+Maker/target/independent-review rules and activation remain server decisions.
+
+The page must freeze employer/Staff navigation during pending commands, retain
+recovery UI on source-query failures, and prevent newly missing/ineligible choices
+from starting commands. Pending decision/proposal controls remain mounted on
+background query failure. Source flags are presentation hints only; every API
+rechecks current governance and canonical identity/location state. No new clinical,
+product catalogue or legacy employer-manager authority is granted. Add native
+prepare/recover/review and scope-cutoff component tests, preserve all legacy tests,
+then run complete workspace checks/build before exact-head CI and live acceptance.
+This UI target does not close historical/recipient/transfer or production gates.
+
+Validation for the native UI candidate: all 30 workspace lint/format/typecheck/
+test/build tasks pass (22 cached), including 227 shell files and 2008 tests.
+The focused recovery/scope/native/legacy suite passes 105 assertions across six
+files. Playwright collects five Staff-access cases, including two new native
+discovery/denial cases; these browser cases have not yet executed on this head.
+Build outputs were removed, retaining dependencies and caches.
+
+At backend head cb8849b8, supplier43592757028 passed the product/owner stages
+but failed supervised child approval at workforce_posting_chain_test.go:118:
+expected 200, received 503, with a posting-review deadline diagnostic. This is
+a different occurrence from the preceding transfer persistence fault. Neither
+that earlier fault nor full Staff workflow acceptance is presumed resolved.
+The dedicated UI currently selects active eligible Staff only; historical/
+ineligible duty management remains an explicit open gate.

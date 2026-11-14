@@ -117,6 +117,31 @@ scope/purpose, source revocation and missing topology are acceptance gates.
 
 ## Native operating-duty administration candidate
 
+### Native workspace consumer
+
+The candidate `/workforce/operating-access` page is linked from Staff access for
+operating-governance users. It selects an authorised employer and a qualified,
+independently reviewed Staff/account choice before showing native duties. Native
+preparation uses only the qualified location projection and its exact structural
+versions; a missing or mismatched Staff/account basis refuses preparation without
+reading legacy directories or catalogues. Existing legacy callers keep their
+original consumers and use the same canonical proposal/decision forms.
+
+The page holds its original tenant/account while a command is unconfirmed.
+Employer/Staff navigation is frozen, changed access hides cached private labels,
+and receipt recovery sends GET only with the original ID/input/context headers.
+An account switch cannot rewrite that intent or repeat the original PUT. A denied
+receipt remains unconfirmed; an explicit receipt recheck for restored access does
+not create another command. Ordinary session-ended behavior still requires sign-in.
+Server source and maker/target/independent-person checks remain authoritative.
+Activation is shown separately from recorded approval.
+
+Native UI and legacy-preservation component tests and Playwright discovery/denial
+checks accompany this consumer. Local test collection/build is not browser or
+production acceptance. Historical/ineligible-target duties, whole Staff/recipient/
+posting journeys, both pharmacy ownership models and live deployment verification
+remain separate open gates.
+
 ### Qualified physical source choices
 
 `GET /v1/iam/operating-governance-employers/:kind/:employer/location-choices`

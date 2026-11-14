@@ -17,6 +17,8 @@ import {
   useApiPagedQuery,
   useApiMutation,
   useIndependentStaffLinksPage,
+  useOperatingLocationChoices,
+  type OperatingGovernanceStaffChoice,
   prepareOperatingDuty,
   recoverOperatingDutyProposal,
   newOperatingDutyId,
@@ -38,8 +40,26 @@ type Props = {
   busy: boolean;
   setBusy: (v: boolean) => void;
   onClose: () => void;
+  reviewedAccount?: OperatingGovernanceStaffChoice;
+  accessSuspended?: boolean;
 };
-type Location = { id: string; label: string; version: number };
+type Location = { id: string; label: string; version: number; employerVersion?: number };
+type Accounts = {
+  rows: Array<{
+    id: string;
+    subject: string;
+    version: number;
+    staffVersion: number;
+    label: string;
+  }>;
+  fixed?: boolean;
+  isPending: boolean;
+  isError: boolean;
+  error: unknown;
+  refresh: () => void;
+  more?: () => void;
+  first?: () => void;
+};
 type Source = {
   employerVersion?: number;
   locations: Location[];
@@ -48,9 +68,28 @@ type Source = {
   error: unknown;
   refresh: () => void;
   more?: () => void;
+  first?: () => void;
   isFetchingMore: boolean;
 };
 export function OperatingDutyPreparation(props: Props) {
+  if (props.scope.administration === "governance") {
+    const account = props.reviewedAccount;
+    if (
+      !account ||
+      account.staff_id !== props.scope.staffId ||
+      account.staff_version !== props.staffVersion
+    )
+      return (
+        <Panel>
+          <p role="alert">Refresh and select a current independently reviewed Staff account.</p>
+          <Button variant="ghost" onClick={props.onClose}>
+            Close duty preparation
+          </Button>
+        </Panel>
+      );
+    return <NativeSource {...props} reviewedAccount={account} />;
+  }
+
   return props.scope.employerKind === "supplier" ? (
     <SupplierSource {...props} />
   ) : (
@@ -73,7 +112,7 @@ function SupplierSource(props: Props) {
   const owned =
     party.data?.id === scope.employerId && party.data.record_kind === "owned_organisation";
   return (
-    <DutyForm
+    <LegacyAccounts
       {...props}
       source={{
         employerVersion: owned ? party.data?.version : undefined,
@@ -117,7 +156,7 @@ function PharmacySource(props: Props) {
   );
   return (
     <>
-      <DutyForm
+      <LegacyAccounts
         {...props}
         source={{
           // Pharma's structural identities are immutable version 1; legal eligibility is a separate owner check.
@@ -148,6 +187,85 @@ function PharmacySource(props: Props) {
     </>
   );
 }
+function LegacyAccounts(props: Props & { source: Source }) {
+  const [cursor, setCursor] = useState<string | null>(null);
+  const links = useIndependentStaffLinksPage(props.scope, cursor);
+  return (
+    <DutyForm
+      {...props}
+      accounts={{
+        rows: (links.data?.data ?? [])
+          .filter((row) => row.link.status === "active")
+          .map((row) => ({
+            id: row.link.id,
+            subject: row.link.subject,
+            version: row.link.version,
+            staffVersion: row.staff_version,
+            label: row.link.subject,
+          })),
+        isPending: links.isPending,
+        isError: links.isError,
+        error: links.error,
+        refresh: () => {
+          void links.refetch();
+        },
+        more: links.data?.page.has_more ? () => setCursor(links.data.page.next_cursor) : undefined,
+        first: cursor ? () => setCursor(null) : undefined,
+      }}
+    />
+  );
+}
+function NativeSource(props: Props & { reviewedAccount: OperatingGovernanceStaffChoice }) {
+  const [cursor, setCursor] = useState<string | null>(null);
+  const locations = useOperatingLocationChoices(
+    props.scope,
+    cursor,
+    !props.busy && !props.accessSuspended,
+  );
+  const account = props.reviewedAccount;
+  return (
+    <DutyForm
+      {...props}
+      accounts={{
+        rows: [
+          {
+            id: account.link_id,
+            subject: account.subject,
+            version: account.link_version,
+            staffVersion: account.staff_version,
+            label: account.display_name,
+          },
+        ],
+        fixed: true,
+        isPending: false,
+        isError: !!props.accessSuspended,
+        error: null,
+        refresh: () => {},
+      }}
+      source={{
+        locations: (locations.data?.data ?? []).map((row) => ({
+          id: row.location_id,
+          label: `${row.code} — ${row.name}`,
+          version: row.location_version,
+          employerVersion: row.employer_version,
+        })),
+        employerVersion: locations.data?.data[0]?.employer_version,
+        isPending: locations.isPending,
+        isError: locations.isError,
+        error: locations.error,
+        refresh: () => {
+          void locations.refetch();
+        },
+        more: locations.data?.page.has_more
+          ? () => setCursor(locations.data.page.next_cursor)
+          : undefined,
+        first: cursor ? () => setCursor(null) : undefined,
+        isFetchingMore: locations.isFetching,
+      }}
+    />
+  );
+}
+
 function DutyForm({
   scope,
   staffVersion,
@@ -155,13 +273,15 @@ function DutyForm({
   setBusy,
   onClose,
   source,
-}: Props & { source: Source }) {
+  accounts,
+  accessSuspended,
+}: Props & { source: Source; accounts: Accounts }) {
   const field = useId();
-  const [linkCursor, setLinkCursor] = useState<string | null>(null);
-  const links = useIndependentStaffLinksPage(scope, linkCursor);
+
   const templates = operatingDutyTemplates.filter((t) => t.employer_kind === scope.employerKind);
   const [template, setTemplate] = useState(templates[0]?.key ?? "");
-  const [account, setAccount] = useState("");
+  const fixedAccount = accounts.fixed ? (accounts.rows[0]?.id ?? "") : "";
+  const [account, setAccount] = useState(fixedAccount);
   const [location, setLocation] = useState("");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
@@ -173,7 +293,7 @@ function DutyForm({
   useLeaveGuard(
     !!pending ||
       !!reason ||
-      !!account ||
+      account !== fixedAccount ||
       !!location ||
       !!start ||
       !!end ||
@@ -186,7 +306,7 @@ function DutyForm({
     setBusy(false);
     setNotice("Operating duty proposed. A separate reviewer must approve it before activation.");
     setReason("");
-    setAccount("");
+    setAccount(fixedAccount);
     setLocation("");
     setStart("");
     setEnd("");
@@ -212,9 +332,8 @@ function DutyForm({
   );
   const frozen = busy || !!pending;
   function submit() {
-    const selected = links.data?.data.find(
-      (r) =>
-        r.link.id === account && r.link.status === "active" && r.staff_version === staffVersion,
+    const selected = accounts.rows.find(
+      (row) => row.id === account && row.staffVersion === staffVersion,
     );
     const locationRecord = source.locations.find((r) => r.id === location);
     const role = templates.find((t) => t.key === template);
@@ -225,7 +344,8 @@ function DutyForm({
       !role ||
       source.isPending ||
       source.isError ||
-      links.isError
+      accounts.isError ||
+      accessSuspended
     ) {
       setValidation("Choose a current reviewed account, operating role and owned source location.");
       return;
@@ -235,16 +355,16 @@ function DutyForm({
         employer_kind: scope.employerKind,
         employer_id: scope.employerId,
         location_id: locationRecord.id,
-        expected_employer_version: source.employerVersion,
+        expected_employer_version: locationRecord.employerVersion ?? source.employerVersion,
         expected_location_version: locationRecord.version,
       },
       identity: {
         staff_id: scope.staffId,
         staff_version: staffVersion,
-        link_id: selected.link.id,
-        link_version: selected.link.version,
+        link_id: selected.id,
+        link_version: selected.version,
       },
-      subject: selected.link.subject,
+      subject: selected.subject,
       template_key: role.key,
       reason,
       valid_from: start ? `${start}:00Z` : "",
@@ -269,10 +389,15 @@ function DutyForm({
     save.mutate(attempt);
   }
   const accessError = recover.error ?? save.error;
-  if (accessError instanceof ApiError && [401, 403, 404].includes(accessError.status))
+  if (
+    accessSuspended ||
+    (accessError instanceof ApiError && [401, 403, 404].includes(accessError.status))
+  )
     return (
       <RequestFailure
         message="Duty preparation is unavailable."
+        recheck={pending ? "Recover duty proposal" : undefined}
+        busy={save.isPending || recover.isPending}
         error={accessError}
         retry={() => {
           if (pending) recover.mutate(pending);
@@ -280,15 +405,15 @@ function DutyForm({
         }}
       />
     );
-  if (!pending && (source.isError || links.isError))
+  if (!pending && (source.isError || accounts.isError))
     return (
       <div>
         <RequestFailure
           message="Current source locations or reviewed accounts could not be verified."
-          error={firstError(source.error, links.error)}
+          error={firstError(source.error, accounts.error)}
           retry={() => {
             source.refresh();
-            void links.refetch();
+            void accounts.refresh();
           }}
         />
         <Button variant="ghost" onClick={onClose}>
@@ -308,9 +433,9 @@ function DutyForm({
         busy={frozen}
         refresh={() => {
           source.refresh();
-          void links.refetch();
+          void accounts.refresh();
         }}
-        error={firstError(source.error, links.error)}
+        error={firstError(source.error, accounts.error)}
       >
         Refresh preparation sources
       </RefreshButton>
@@ -326,45 +451,50 @@ function DutyForm({
               options={templates.map((t) => ({ value: t.key, label: t.label }))}
             />
           </Field>
-          {!links.isPending &&
-            links.data?.data.every(
-              (r) => r.link.status !== "active" || r.staff_version !== staffVersion,
-            ) && (
+          {!accounts.isPending &&
+            accounts.rows.every((row) => row.staffVersion !== staffVersion) && (
               <p>
                 No current reviewed account on this page. Propose and independently approve an
                 account link in Reviewed accounts, or continue to another accounts page.
               </p>
             )}
-          <Field id={`${field}-account`} label="Reviewed account">
-            <SelectControl
-              id={`${field}-account`}
-              disabled={frozen}
-              value={account}
-              onValueChange={setAccount}
-              options={(links.data?.data ?? [])
-                .filter((r) => r.link.status === "active" && r.staff_version === staffVersion)
-                .map((r) => ({ value: r.link.id, label: r.link.subject }))}
-            />
-          </Field>
-          {links.data?.page.has_more && (
+          {accounts.fixed ? (
+            <div className="text-sm">
+              <p className="font-medium">Reviewed account</p>
+              <p>{accounts.rows[0]?.label} · independently reviewed</p>
+            </div>
+          ) : (
+            <Field id={`${field}-account`} label="Reviewed account">
+              <SelectControl
+                id={`${field}-account`}
+                disabled={frozen}
+                value={account}
+                onValueChange={setAccount}
+                options={accounts.rows
+                  .filter((row) => row.staffVersion === staffVersion)
+                  .map((row) => ({ value: row.id, label: row.label }))}
+              />
+            </Field>
+          )}
+          {accounts.more && (
             <Button
               variant="outline"
               disabled={frozen}
               onClick={() => {
                 setAccount("");
-                setLinkCursor(links.data.page.next_cursor);
+                accounts.more?.();
               }}
             >
               More reviewed accounts
             </Button>
           )}
-          {linkCursor && (
+          {accounts.first && (
             <Button
               variant="outline"
               disabled={frozen}
               onClick={() => {
                 setAccount("");
-                setLinkCursor(null);
+                accounts.first?.();
               }}
             >
               First accounts page
@@ -389,6 +519,18 @@ function DutyForm({
               onClick={source.more}
             >
               More locations
+            </Button>
+          )}
+          {source.first && (
+            <Button
+              variant="outline"
+              disabled={frozen}
+              onClick={() => {
+                setLocation("");
+                source.first?.();
+              }}
+            >
+              First locations page
             </Button>
           )}
           <Field id={`${field}-start`} label="Valid from (UTC)">
@@ -417,7 +559,7 @@ function DutyForm({
               disabled={frozen}
             />
           </Field>
-          <Button disabled={frozen || source.isPending || links.isPending} onClick={submit}>
+          <Button disabled={frozen || source.isPending || accounts.isPending} onClick={submit}>
             Propose operating duty
           </Button>
         </>

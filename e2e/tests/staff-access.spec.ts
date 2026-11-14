@@ -198,3 +198,66 @@ test("administrator first-enrolls a verified identity without business permissio
     await context.close();
   }
 });
+
+test("native operating access opens qualified employer discovery without legacy catalogues", async ({
+  page,
+}) => {
+  await login(page);
+  const legacy: string[] = [];
+  page.on("request", (request) => {
+    const path = new URL(request.url()).pathname;
+    if (
+      path.startsWith("/api/v1/supply/parties") ||
+      path.startsWith("/api/v1/pharmacy/pharmacies") ||
+      path.includes("/account-links")
+    )
+      legacy.push(path);
+  });
+  const discovery = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/api/v1/workforce/operating-authority-scopes",
+  );
+  await page.goto("/workforce/operating-access");
+  const response = await discovery;
+  expect(response.status()).toBe(200);
+  expect(response.headers()["cache-control"]).toContain("no-store");
+  await expect(
+    page.getByRole("heading", { name: "Independent Staff access", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Choose an employer", exact: true }),
+  ).toBeVisible();
+  const body = (await response.json()) as {
+    data: unknown[];
+    page: { has_more: boolean; next_cursor: string | null };
+  };
+  expect(body.data.length).toBeLessThanOrEqual(20);
+  expect(typeof body.page.has_more).toBe("boolean");
+  expect(legacy).toEqual([]);
+  await expect(page.getByLabel(/employer ID|Staff ID|subject ID/i)).toHaveCount(0);
+});
+
+test("a member without operating governance cannot discover independent employers", async ({
+  page,
+}) => {
+  await login(page, specPharmacist());
+  const privateRequests: string[] = [];
+  page.on("request", (request) => {
+    const path = new URL(request.url()).pathname;
+    if (
+      path.includes("/operating-authority-scopes") ||
+      path.includes("/operating-governance-employers/")
+    )
+      privateRequests.push(path);
+  });
+  await page.goto("/workforce/operating-access");
+  await expect(
+    page.getByText(
+      "Current independent Staff access could not be verified. Restore your account access before continuing.",
+    ),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Choose an employer", exact: true })).toHaveCount(
+    0,
+  );
+  expect(privateRequests).toEqual([]);
+});

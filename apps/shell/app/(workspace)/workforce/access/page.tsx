@@ -4,6 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@tesserix/web";
 import {
   PageHeading,
+  GuardedLink,
   Panel,
   LoadMore,
   SelectControl,
@@ -74,11 +75,28 @@ export default function StaffAccessPage() {
             p === "iam.governance.assignment.manage" ||
             p === "iam.governance.assignment.review" ||
             p === "iam.member.manage" ||
-            p === "iam.governance.manage",
+            p === "iam.governance.manage" ||
+            p === "iam.governance.operating.manage" ||
+            p === "iam.governance.operating.review",
         ) ? (
         <p>Assignment administration is not available for this account.</p>
       ) : (
         <div key={`${identity.data.tenant_id}:${identity.data.subject}`}>
+          {identity.data.data.some(
+            (p) =>
+              p === "iam.governance.operating.manage" || p === "iam.governance.operating.review",
+          ) && (
+            <Panel className="space-y-3">
+              <h2 className="font-semibold">Independent pharmacy and supplier Staff</h2>
+              <p className="text-sm text-muted-foreground">
+                Prepare operating duties with current reviewed Staff accounts and physical source
+                locations.
+              </p>
+              <GuardedLink href="/workforce/operating-access" className="text-primary underline">
+                Independent Staff access
+              </GuardedLink>
+            </Panel>
+          )}
           {identity.data.data.includes("iam.governance.manage") &&
             identity.data.data.includes("iam.governance.read") && (
               <GovernanceInbox

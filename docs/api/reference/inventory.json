@@ -1371,7 +1371,7 @@
         },
         {
           "id": "0050_iam_operating_governance",
-          "sql_sha256": "796e4b216ccd8f2372ecfc2fdb0c9bc1e351ba3268b940c41c48e359f9e78cfb",
+          "sql_sha256": "26489b9a79b7b24b004eadd344cb21c0a1f63b274cbf80b34230eef0917741e0",
           "creates_tables": [
             "iam_operating_governance_origins",
             "iam_operating_governance_commands"

@@ -72,6 +72,21 @@ func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *ten
 			if err := tx.Exec(`SELECT set_config('app.iam_operating_access','authorized',true),set_config('app.iam_governance_access','authorized',true),set_config('app.iam_operating_command','prepare',true),set_config('app.iam_operating_native_authority',?,true),set_config('app.iam_operating_native_kind',?,true),set_config('app.iam_operating_native_employer',?,true),set_config('app.iam_operating_native_duty',?,true),set_config('app.iam_operating_native_target',?,true)`, string(original.Authority), kind, employer.String(), lateID.String(), input.Subject).Error; err != nil {
 				return err
 			}
+			var lockedEpoch int64
+			if err := tx.Raw(`SELECT epoch FROM iam_subject_membership_epochs WHERE tenant_id=? AND subject=? AND member_count>0 FOR SHARE`, testutil.TenantA, input.Subject).Row().Scan(&lockedEpoch); err != nil {
+				return err
+			}
+			require.EqualValues(t, 1, lockedEpoch)
+			if err := tx.Exec(`SAVEPOINT native_epoch_read_only`).Error; err != nil {
+				return err
+			}
+			forbidden := tx.Exec(`UPDATE iam_subject_membership_epochs SET member_count=member_count WHERE tenant_id=? AND subject=?`, testutil.TenantA, input.Subject).Error
+			var forbiddenPG *pgconn.PgError
+			require.ErrorAs(t, forbidden, &forbiddenPG)
+			require.Equal(t, "42501", forbiddenPG.Code)
+			if err := tx.Exec(`ROLLBACK TO SAVEPOINT native_epoch_read_only`).Error; err != nil {
+				return err
+			}
 			return tx.Exec(`INSERT INTO iam_operating_duties(tenant_id,id,employer_kind,employer_id,location_id,subject,template_key,membership_epoch,input,prepared_by,status,version,authority_epoch,actor_subject,reason,created_at,updated_at)VALUES(?,?,?,?,?,?,?,1,?::jsonb,?,'pending_review',1,1,?,?,clock_timestamp(),clock_timestamp())`, testutil.TenantA, lateID, kind, employer, location, input.Subject, input.TemplateKey, string(body), "user-owner2", "user-owner2", input.Reason).Error
 		})
 		var latePG *pgconn.PgError

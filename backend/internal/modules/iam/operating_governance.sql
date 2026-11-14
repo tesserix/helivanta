@@ -137,7 +137,7 @@ DO $$ DECLARE relation text;BEGIN
  FOR relation IN SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=current_schema()AND c.relkind='r'AND c.relrowsecurity AND c.relname LIKE 'iam\_%'ESCAPE '\' LOOP
   EXECUTE format('CREATE POLICY operating_native_read ON %I AS RESTRICTIVE FOR SELECT USING(iam_operating_native_allows(%L,false))',relation,relation);
   EXECUTE format('CREATE POLICY operating_native_insert ON %I AS RESTRICTIVE FOR INSERT WITH CHECK(iam_operating_native_allows(%L,true))',relation,relation);
-  EXECUTE format('CREATE POLICY operating_native_update ON %I AS RESTRICTIVE FOR UPDATE USING(iam_operating_native_allows(%L,true))WITH CHECK(iam_operating_native_allows(%L,true))',relation,relation,relation);
+  EXECUTE format('CREATE POLICY operating_native_update ON %I AS RESTRICTIVE FOR UPDATE USING(iam_operating_native_allows(%L,false))WITH CHECK(iam_operating_native_allows(%L,true))',relation,relation,relation);
   EXECUTE format('CREATE POLICY operating_native_delete ON %I AS RESTRICTIVE FOR DELETE USING(iam_operating_native_allows(%L,true))',relation,relation);
  END LOOP;
 END $$;

@@ -5265,7 +5265,7 @@
       "registration_sha256": "c8f5abd0308a4e80add6e9e5b58d3fea5cb70a551a4a28237431b98bce24985d",
       "authority_kind": "mixed",
       "resource_scope": "Verified tenant/actor and path-bound independent pharmacy or supplier, exact current owner/grant, canonical target Staff/reviewed link/membership and location revisions. Receipt recovery additionally binds original authority identity.",
-      "rationale": "Native manage/read/withdraw/revoke use iam.governance.operating.manage; approve/reject refresh iam.governance.operating.review. The closed source callback holds current owner or exact-grant authority; Workforce validates that guarded purpose without creating Staff or legacy manager access. Canonical duty/decision semantics, independent maker/target checks and projection are retained. IAM0050 emits immutable origin/decision sources and checks completion before success; forced tenant/resource RLS, mode immutability, policy/function/trigger integrity and original-source replay prevent adoption through legacy routes or replacement authority. No stock, clinical or owner-security authority follows from the governance source alone. This classification is candidate source evidence, not runtime, UI or deployment acceptance.",
+      "rationale": "Native manage/read/withdraw/revoke use iam.governance.operating.manage; approve/reject refresh iam.governance.operating.review. The closed source callback holds current owner or exact-grant authority; Workforce validates that guarded purpose without creating Staff or legacy manager access. Canonical duty/decision semantics, independent maker/target checks and projection are retained. IAM0050 emits immutable origin/decision sources and checks completion before success; forced tenant/resource RLS, mode immutability, policy/function/trigger integrity and original-source replay prevent adoption through legacy routes or replacement authority. No stock, clinical or owner-security authority follows from the governance source alone. This classification is candidate source evidence, not runtime, UI or deployment acceptance. Native purpose UPDATE visibility permits selected read-only metadata row locks; UPDATE WITH CHECK, INSERT and DELETE restrictions still deny unrelated writes. Real membership FOR SHARE and denied metadata UPDATE are required acceptance cases.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/operating_governance.go",
@@ -5289,7 +5289,7 @@
         },
         {
           "path": "backend/internal/modules/iam/operating_governance.sql",
-          "sha256": "796e4b216ccd8f2372ecfc2fdb0c9bc1e351ba3268b940c41c48e359f9e78cfb",
+          "sha256": "26489b9a79b7b24b004eadd344cb21c0a1f63b274cbf80b34230eef0917741e0",
           "symbol": "CREATE FUNCTION iam_operating_governance_support()"
         },
         {
@@ -5308,7 +5308,7 @@
       "registration_sha256": "7f2b06ed737f97bc2f290a314379843b762ee50a6cb02ca13f5157a6289ad420",
       "authority_kind": "mixed",
       "resource_scope": "Verified tenant/actor and path-bound independent pharmacy or supplier, exact current owner/grant, canonical target Staff/reviewed link/membership and location revisions. Receipt recovery additionally binds original authority identity.",
-      "rationale": "Native manage/read/withdraw/revoke use iam.governance.operating.manage; approve/reject refresh iam.governance.operating.review. The closed source callback holds current owner or exact-grant authority; Workforce validates that guarded purpose without creating Staff or legacy manager access. Canonical duty/decision semantics, independent maker/target checks and projection are retained. IAM0050 emits immutable origin/decision sources and checks completion before success; forced tenant/resource RLS, mode immutability, policy/function/trigger integrity and original-source replay prevent adoption through legacy routes or replacement authority. No stock, clinical or owner-security authority follows from the governance source alone. This classification is candidate source evidence, not runtime, UI or deployment acceptance.",
+      "rationale": "Native manage/read/withdraw/revoke use iam.governance.operating.manage; approve/reject refresh iam.governance.operating.review. The closed source callback holds current owner or exact-grant authority; Workforce validates that guarded purpose without creating Staff or legacy manager access. Canonical duty/decision semantics, independent maker/target checks and projection are retained. IAM0050 emits immutable origin/decision sources and checks completion before success; forced tenant/resource RLS, mode immutability, policy/function/trigger integrity and original-source replay prevent adoption through legacy routes or replacement authority. No stock, clinical or owner-security authority follows from the governance source alone. This classification is candidate source evidence, not runtime, UI or deployment acceptance. Native purpose UPDATE visibility permits selected read-only metadata row locks; UPDATE WITH CHECK, INSERT and DELETE restrictions still deny unrelated writes. Real membership FOR SHARE and denied metadata UPDATE are required acceptance cases.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/operating_governance.go",
@@ -5332,7 +5332,7 @@
         },
         {
           "path": "backend/internal/modules/iam/operating_governance.sql",
-          "sha256": "796e4b216ccd8f2372ecfc2fdb0c9bc1e351ba3268b940c41c48e359f9e78cfb",
+          "sha256": "26489b9a79b7b24b004eadd344cb21c0a1f63b274cbf80b34230eef0917741e0",
           "symbol": "CREATE FUNCTION iam_operating_governance_support()"
         },
         {
@@ -5351,7 +5351,7 @@
       "registration_sha256": "eec87ebd10e1cb0353695039e35a0d4b76b810de1f6129ee89bfb584aac87c3a",
       "authority_kind": "mixed",
       "resource_scope": "Verified tenant/actor and path-bound independent pharmacy or supplier, exact current owner/grant, canonical target Staff/reviewed link/membership and location revisions. Receipt recovery additionally binds original authority identity.",
-      "rationale": "Native manage/read/withdraw/revoke use iam.governance.operating.manage; approve/reject refresh iam.governance.operating.review. The closed source callback holds current owner or exact-grant authority; Workforce validates that guarded purpose without creating Staff or legacy manager access. Canonical duty/decision semantics, independent maker/target checks and projection are retained. IAM0050 emits immutable origin/decision sources and checks completion before success; forced tenant/resource RLS, mode immutability, policy/function/trigger integrity and original-source replay prevent adoption through legacy routes or replacement authority. No stock, clinical or owner-security authority follows from the governance source alone. This classification is candidate source evidence, not runtime, UI or deployment acceptance.",
+      "rationale": "Native manage/read/withdraw/revoke use iam.governance.operating.manage; approve/reject refresh iam.governance.operating.review. The closed source callback holds current owner or exact-grant authority; Workforce validates that guarded purpose without creating Staff or legacy manager access. Canonical duty/decision semantics, independent maker/target checks and projection are retained. IAM0050 emits immutable origin/decision sources and checks completion before success; forced tenant/resource RLS, mode immutability, policy/function/trigger integrity and original-source replay prevent adoption through legacy routes or replacement authority. No stock, clinical or owner-security authority follows from the governance source alone. This classification is candidate source evidence, not runtime, UI or deployment acceptance. Native purpose UPDATE visibility permits selected read-only metadata row locks; UPDATE WITH CHECK, INSERT and DELETE restrictions still deny unrelated writes. Real membership FOR SHARE and denied metadata UPDATE are required acceptance cases.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/operating_governance.go",
@@ -5375,7 +5375,7 @@
         },
         {
           "path": "backend/internal/modules/iam/operating_governance.sql",
-          "sha256": "796e4b216ccd8f2372ecfc2fdb0c9bc1e351ba3268b940c41c48e359f9e78cfb",
+          "sha256": "26489b9a79b7b24b004eadd344cb21c0a1f63b274cbf80b34230eef0917741e0",
           "symbol": "CREATE FUNCTION iam_operating_governance_support()"
         },
         {
@@ -5394,7 +5394,7 @@
       "registration_sha256": "df9565c92d1967cbee22c7a1ce766fe06388d960d0dda16a107d52e7e003ca11",
       "authority_kind": "mixed",
       "resource_scope": "Verified tenant/actor and path-bound independent pharmacy or supplier, exact current owner/grant, canonical target Staff/reviewed link/membership and location revisions. Receipt recovery additionally binds original authority identity.",
-      "rationale": "Native manage/read/withdraw/revoke use iam.governance.operating.manage; approve/reject refresh iam.governance.operating.review. The closed source callback holds current owner or exact-grant authority; Workforce validates that guarded purpose without creating Staff or legacy manager access. Canonical duty/decision semantics, independent maker/target checks and projection are retained. IAM0050 emits immutable origin/decision sources and checks completion before success; forced tenant/resource RLS, mode immutability, policy/function/trigger integrity and original-source replay prevent adoption through legacy routes or replacement authority. No stock, clinical or owner-security authority follows from the governance source alone. This classification is candidate source evidence, not runtime, UI or deployment acceptance.",
+      "rationale": "Native manage/read/withdraw/revoke use iam.governance.operating.manage; approve/reject refresh iam.governance.operating.review. The closed source callback holds current owner or exact-grant authority; Workforce validates that guarded purpose without creating Staff or legacy manager access. Canonical duty/decision semantics, independent maker/target checks and projection are retained. IAM0050 emits immutable origin/decision sources and checks completion before success; forced tenant/resource RLS, mode immutability, policy/function/trigger integrity and original-source replay prevent adoption through legacy routes or replacement authority. No stock, clinical or owner-security authority follows from the governance source alone. This classification is candidate source evidence, not runtime, UI or deployment acceptance. Native purpose UPDATE visibility permits selected read-only metadata row locks; UPDATE WITH CHECK, INSERT and DELETE restrictions still deny unrelated writes. Real membership FOR SHARE and denied metadata UPDATE are required acceptance cases.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/operating_governance.go",
@@ -5418,7 +5418,7 @@
         },
         {
           "path": "backend/internal/modules/iam/operating_governance.sql",
-          "sha256": "796e4b216ccd8f2372ecfc2fdb0c9bc1e351ba3268b940c41c48e359f9e78cfb",
+          "sha256": "26489b9a79b7b24b004eadd344cb21c0a1f63b274cbf80b34230eef0917741e0",
           "symbol": "CREATE FUNCTION iam_operating_governance_support()"
         },
         {
@@ -5437,7 +5437,7 @@
       "registration_sha256": "02e3e7611ea9f5fe3fe75876f953f59da2e1c97b7af996b901cff5e2da0e3798",
       "authority_kind": "mixed",
       "resource_scope": "Verified tenant/actor and path-bound independent pharmacy or supplier, exact current owner/grant, canonical target Staff/reviewed link/membership and location revisions. Receipt recovery additionally binds original authority identity.",
-      "rationale": "Native manage/read/withdraw/revoke use iam.governance.operating.manage; approve/reject refresh iam.governance.operating.review. The closed source callback holds current owner or exact-grant authority; Workforce validates that guarded purpose without creating Staff or legacy manager access. Canonical duty/decision semantics, independent maker/target checks and projection are retained. IAM0050 emits immutable origin/decision sources and checks completion before success; forced tenant/resource RLS, mode immutability, policy/function/trigger integrity and original-source replay prevent adoption through legacy routes or replacement authority. No stock, clinical or owner-security authority follows from the governance source alone. This classification is candidate source evidence, not runtime, UI or deployment acceptance.",
+      "rationale": "Native manage/read/withdraw/revoke use iam.governance.operating.manage; approve/reject refresh iam.governance.operating.review. The closed source callback holds current owner or exact-grant authority; Workforce validates that guarded purpose without creating Staff or legacy manager access. Canonical duty/decision semantics, independent maker/target checks and projection are retained. IAM0050 emits immutable origin/decision sources and checks completion before success; forced tenant/resource RLS, mode immutability, policy/function/trigger integrity and original-source replay prevent adoption through legacy routes or replacement authority. No stock, clinical or owner-security authority follows from the governance source alone. This classification is candidate source evidence, not runtime, UI or deployment acceptance. Native purpose UPDATE visibility permits selected read-only metadata row locks; UPDATE WITH CHECK, INSERT and DELETE restrictions still deny unrelated writes. Real membership FOR SHARE and denied metadata UPDATE are required acceptance cases.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/operating_governance.go",
@@ -5461,7 +5461,7 @@
         },
         {
           "path": "backend/internal/modules/iam/operating_governance.sql",
-          "sha256": "796e4b216ccd8f2372ecfc2fdb0c9bc1e351ba3268b940c41c48e359f9e78cfb",
+          "sha256": "26489b9a79b7b24b004eadd344cb21c0a1f63b274cbf80b34230eef0917741e0",
           "symbol": "CREATE FUNCTION iam_operating_governance_support()"
         },
         {
@@ -5480,7 +5480,7 @@
       "registration_sha256": "d53d07ed40289f605d56c8378b368ef36054580e619c0099e64c0ca028e11bbe",
       "authority_kind": "mixed",
       "resource_scope": "Verified tenant/actor and path-bound independent pharmacy or supplier, exact current owner/grant, canonical target Staff/reviewed link/membership and location revisions. Receipt recovery additionally binds original authority identity.",
-      "rationale": "Native manage/read/withdraw/revoke use iam.governance.operating.manage; approve/reject refresh iam.governance.operating.review. The closed source callback holds current owner or exact-grant authority; Workforce validates that guarded purpose without creating Staff or legacy manager access. Canonical duty/decision semantics, independent maker/target checks and projection are retained. IAM0050 emits immutable origin/decision sources and checks completion before success; forced tenant/resource RLS, mode immutability, policy/function/trigger integrity and original-source replay prevent adoption through legacy routes or replacement authority. No stock, clinical or owner-security authority follows from the governance source alone. This classification is candidate source evidence, not runtime, UI or deployment acceptance.",
+      "rationale": "Native manage/read/withdraw/revoke use iam.governance.operating.manage; approve/reject refresh iam.governance.operating.review. The closed source callback holds current owner or exact-grant authority; Workforce validates that guarded purpose without creating Staff or legacy manager access. Canonical duty/decision semantics, independent maker/target checks and projection are retained. IAM0050 emits immutable origin/decision sources and checks completion before success; forced tenant/resource RLS, mode immutability, policy/function/trigger integrity and original-source replay prevent adoption through legacy routes or replacement authority. No stock, clinical or owner-security authority follows from the governance source alone. This classification is candidate source evidence, not runtime, UI or deployment acceptance. Native purpose UPDATE visibility permits selected read-only metadata row locks; UPDATE WITH CHECK, INSERT and DELETE restrictions still deny unrelated writes. Real membership FOR SHARE and denied metadata UPDATE are required acceptance cases.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/operating_governance.go",
@@ -5504,7 +5504,7 @@
         },
         {
           "path": "backend/internal/modules/iam/operating_governance.sql",
-          "sha256": "796e4b216ccd8f2372ecfc2fdb0c9bc1e351ba3268b940c41c48e359f9e78cfb",
+          "sha256": "26489b9a79b7b24b004eadd344cb21c0a1f63b274cbf80b34230eef0917741e0",
           "symbol": "CREATE FUNCTION iam_operating_governance_support()"
         },
         {

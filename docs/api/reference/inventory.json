@@ -5362,6 +5362,11 @@
           "id": "0046_pharmacy_licence_evidence_review",
           "sql_sha256": "966dfb31b53e170c41f56d78e4f815a3500e851428e73e8460305c7a678ff916",
           "creates_tables": []
+        },
+        {
+          "id": "0047_pharmacy_prescription_sale_evidence",
+          "sql_sha256": "8acc69f06789caf86c0af5e81bcdeb5ec518bf89af3e679f2eb73a137cde169b",
+          "creates_tables": []
         }
       ]
     },

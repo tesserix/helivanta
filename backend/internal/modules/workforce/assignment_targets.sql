@@ -177,3 +177,10 @@ BEGIN
  AND NOT EXISTS(SELECT 1 FROM(VALUES %s)expected(name,digest)LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.name)WHERE p.oid IS NULL OR md5(pg_get_functiondef(p.oid))<>expected.digest)
  $body$ $definition$,policies,policy_count,functions);
 END $integrity$;
+
+DO $iam_selection_integrity$
+BEGIN
+ IF to_regprocedure('public.iam_staff_selection_capture_integrity()')IS NOT NULL THEN
+  PERFORM iam_staff_selection_capture_integrity();
+ END IF;
+END $iam_selection_integrity$;

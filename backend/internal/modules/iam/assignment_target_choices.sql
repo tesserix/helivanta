@@ -79,31 +79,6 @@ BEGIN
  END LOOP;
 END $policies$;
 
-DO $integrity$
-DECLARE policies text;functions text;policy_count bigint;
-BEGIN
- SELECT string_agg(format('(%L::regclass,%L,%L)',p.polrelid::regclass::text,p.polname,md5(p.polcmd::text||p.polpermissive::text||p.polroles::text||COALESCE(pg_get_expr(p.polqual,p.polrelid),'')||COALESCE(pg_get_expr(p.polwithcheck,p.polrelid),''))),','),count(*)INTO policies,policy_count
- FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid JOIN pg_namespace n ON n.oid=c.relnamespace
- WHERE n.nspname=current_schema()AND(p.polname IN('assignment_target_purpose','assignment_target_delete')OR c.relname IN('iam_members','iam_subject_membership_epochs','iam_employment_bases','audit_events'));
- SELECT string_agg(format('(%L,%L)',p.oid::regprocedure::text,md5(pg_get_functiondef(p.oid))),',')INTO functions FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
- WHERE n.nspname=current_schema()AND p.proname IN('iam_staff_selection_context','iam_staff_selection_read','iam_staff_selection_audit');
- EXECUTE format($definition$CREATE FUNCTION iam_staff_selection_integrity()RETURNS boolean LANGUAGE sql STABLE AS $body$
- SELECT NOT EXISTS(SELECT 1 FROM(VALUES %s)expected(relation,name,digest)LEFT JOIN pg_policy p ON p.polrelid=expected.relation AND p.polname=expected.name
- WHERE p.oid IS NULL OR md5(p.polcmd::text||p.polpermissive::text||p.polroles::text||COALESCE(pg_get_expr(p.polqual,p.polrelid),'')||COALESCE(pg_get_expr(p.polwithcheck,p.polrelid),''))<>expected.digest)
- AND(SELECT count(*)FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=current_schema()AND(p.polname IN('assignment_target_purpose','assignment_target_delete')OR c.relname IN('iam_members','iam_subject_membership_epochs','iam_employment_bases','audit_events')))=%s
- AND NOT EXISTS(SELECT 1 FROM(VALUES %s)expected(name,digest)LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.name)WHERE p.oid IS NULL OR md5(pg_get_functiondef(p.oid))<>expected.digest)
- $body$ $definition$,policies,policy_count,functions);
-END $integrity$;
-
-CREATE FUNCTION iam_staff_selection_support()RETURNS boolean LANGUAGE sql STABLE SECURITY INVOKER AS $$
- SELECT iam_staff_selection_integrity()AND iam_assignment_governance_integrity()AND iam_operating_governance_integrity()AND NOT EXISTS(
- SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=current_schema()AND c.relkind IN('r','p')AND(c.relname LIKE 'iam_%'OR c.relname='audit_events')
- AND EXISTS(SELECT 1 FROM pg_attribute a WHERE a.attrelid=c.oid AND a.attname='tenant_id'AND NOT a.attisdropped)
- AND(NOT c.relrowsecurity OR NOT c.relforcerowsecurity OR has_table_privilege(current_user,c.oid,'TRUNCATE')
- OR NOT EXISTS(SELECT 1 FROM pg_policy p WHERE p.polrelid=c.oid AND p.polname='assignment_target_purpose'AND NOT p.polpermissive AND p.polcmd='*'AND p.polqual IS NOT NULL AND p.polwithcheck IS NOT NULL)
- OR NOT EXISTS(SELECT 1 FROM pg_policy p WHERE p.polrelid=c.oid AND p.polname='assignment_target_delete'AND NOT p.polpermissive AND p.polcmd='d'AND p.polqual IS NOT NULL)))
-$$;
-
 DO $migration$
 DECLARE policies text;functions text;triggers text;policy_count bigint;trigger_count bigint;
 BEGIN
@@ -121,7 +96,6 @@ BEGIN
  AND (SELECT count(*) FROM pg_trigger t WHERE NOT t.tgisinternal AND t.tgrelid IN('iam_assignment_proposals'::regclass,'iam_assignment_proposal_history'::regclass,'iam_assignment_decisions'::regclass,'iam_assignment_snapshots'::regclass,'iam_assignment_scope_epochs'::regclass,'iam_assignment_department_verifications'::regclass,'iam_assignment_governance_requests'::regclass,'iam_assignment_governance_verifications'::regclass))=%s
  $body$ $definition$,policies,policy_count,functions,triggers,trigger_count);
 END $migration$;
-
 DO $migration$
 DECLARE policies text;functions text;triggers text;policy_count bigint;trigger_count bigint;
 BEGIN
@@ -140,3 +114,34 @@ BEGIN
  AND(SELECT count(*)FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=current_schema()AND NOT t.tgisinternal AND(c.relname LIKE 'iam_operating_%%'OR t.tgname='iam_operating_native_global_mutation_guard'))=%s
  $body$ $definition$,policies,policy_count,functions,triggers,trigger_count);
 END $migration$;
+
+CREATE FUNCTION iam_staff_selection_capture_integrity()RETURNS void LANGUAGE plpgsql SECURITY INVOKER AS $integrity$
+DECLARE policies text;functions text;policy_count bigint;
+BEGIN
+ IF iam_assignment_governance_integrity()IS DISTINCT FROM true OR iam_operating_governance_integrity()IS DISTINCT FROM true THEN
+  RAISE EXCEPTION 'Staff selection capture requires unchanged prior governance authority';
+ END IF;
+ SELECT string_agg(format('(%L::regclass,%L,%L)',p.polrelid::regclass::text,p.polname,md5(p.polcmd::text||p.polpermissive::text||p.polroles::text||COALESCE(pg_get_expr(p.polqual,p.polrelid),'')||COALESCE(pg_get_expr(p.polwithcheck,p.polrelid),''))),','),count(*)INTO policies,policy_count
+ FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid JOIN pg_namespace n ON n.oid=c.relnamespace
+ WHERE n.nspname=current_schema()AND(p.polname IN('assignment_target_purpose','assignment_target_delete')OR c.relname IN('iam_members','iam_subject_membership_epochs','iam_employment_bases','audit_events'));
+ SELECT string_agg(format('(%L,%L)',p.oid::regprocedure::text,md5(pg_get_functiondef(p.oid))),',')INTO functions FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+ WHERE n.nspname=current_schema()AND p.proname IN('iam_staff_selection_context','iam_staff_selection_read','iam_staff_selection_audit','iam_staff_selection_capture_integrity');
+ EXECUTE format($definition$CREATE OR REPLACE FUNCTION iam_staff_selection_integrity()RETURNS boolean LANGUAGE sql STABLE AS $body$
+ SELECT NOT EXISTS(SELECT 1 FROM(VALUES %s)expected(relation,name,digest)LEFT JOIN pg_policy p ON p.polrelid=expected.relation AND p.polname=expected.name
+ WHERE p.oid IS NULL OR md5(p.polcmd::text||p.polpermissive::text||p.polroles::text||COALESCE(pg_get_expr(p.polqual,p.polrelid),'')||COALESCE(pg_get_expr(p.polwithcheck,p.polrelid),''))<>expected.digest)
+ AND(SELECT count(*)FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=current_schema()AND(p.polname IN('assignment_target_purpose','assignment_target_delete')OR c.relname IN('iam_members','iam_subject_membership_epochs','iam_employment_bases','audit_events')))=%s
+ AND NOT EXISTS(SELECT 1 FROM(VALUES %s)expected(name,digest)LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.name)WHERE p.oid IS NULL OR md5(pg_get_functiondef(p.oid))<>expected.digest)
+ $body$ $definition$,policies,policy_count,functions);
+END $integrity$;
+SELECT iam_staff_selection_capture_integrity();
+REVOKE ALL ON FUNCTION iam_staff_selection_capture_integrity() FROM PUBLIC;
+
+CREATE FUNCTION iam_staff_selection_support()RETURNS boolean LANGUAGE sql STABLE SECURITY INVOKER AS $$
+ SELECT iam_staff_selection_integrity()AND iam_assignment_governance_integrity()AND iam_operating_governance_integrity()
+ AND NOT has_function_privilege(current_user,'public.iam_staff_selection_capture_integrity()','EXECUTE')AND NOT EXISTS(
+ SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=current_schema()AND c.relkind IN('r','p')AND(c.relname LIKE 'iam_%'OR c.relname='audit_events')
+ AND EXISTS(SELECT 1 FROM pg_attribute a WHERE a.attrelid=c.oid AND a.attname='tenant_id'AND NOT a.attisdropped)
+ AND(NOT c.relrowsecurity OR NOT c.relforcerowsecurity OR has_table_privilege(current_user,c.oid,'TRUNCATE')
+ OR NOT EXISTS(SELECT 1 FROM pg_policy p WHERE p.polrelid=c.oid AND p.polname='assignment_target_purpose'AND NOT p.polpermissive AND p.polcmd='*'AND p.polqual IS NOT NULL AND p.polwithcheck IS NOT NULL)
+ OR NOT EXISTS(SELECT 1 FROM pg_policy p WHERE p.polrelid=c.oid AND p.polname='assignment_target_delete'AND NOT p.polpermissive AND p.polcmd='d'AND p.polqual IS NOT NULL)))
+$$;

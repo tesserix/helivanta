@@ -51,6 +51,14 @@ func exerciseGovernedAssignmentTargetChoices(t *testing.T, router *gin.Engine, d
 	}
 	require.Empty(t, get(t, path, "admin", 200), "digital employment alone supplies no reviewed login link")
 	require.Zero(t, reads, "unlinked people must not reach the identity provider")
+	t.Run("application capture privilege disables qualification", func(t *testing.T) {
+		require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_choice_capture_granted", SQL: "GRANT EXECUTE ON FUNCTION iam_staff_selection_capture_integrity() TO hms_app"}}))
+		defer func() {
+			require.NoError(t, db.Migrate(context.WithoutCancel(t.Context()), []tenantdb.Migration{{ID: "test_choice_capture_revoked", SQL: "REVOKE EXECUTE ON FUNCTION iam_staff_selection_capture_integrity() FROM hms_app"}}))
+		}()
+		get(t, path, "admin", 503)
+	})
+	require.Empty(t, get(t, path, "admin", 200), "restoring schema-owner-only capture restores qualification")
 	get(t, path, "auditor", 404)
 	get(t, path, "other", 404)
 	get(t, path+"?subject=user-ordinary", "admin", 400)

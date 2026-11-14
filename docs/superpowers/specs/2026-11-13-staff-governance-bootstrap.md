@@ -1350,7 +1350,7 @@ RLS and canonical-model SDK are now candidate code, described below. Qualified
 Staff/account owner queries, target wire models and the SDK are now local candidate
 code. The target migrations are registered and the owner port is wired into IAM
 through platform composition. IAM's two-phase membership/identity composition is
-candidate code; runtime qualification and both native preparation controls remain
+candidate code; runtime qualification and native preparation acceptance remain
 unfinished.
 Real-service/browser/deployed
 acceptance is required before the full selection flow is claimed complete.
@@ -1402,6 +1402,18 @@ Remaining implementation gates: exercise migration staging and real RLS behavior
 exercise real native preparation browser/deployed flows, and exercise
 the real current, stale, foreign, denied, audit/dependency and source-cutoff cases.
 
+The migration-order correction keeps IAM's existing selector fingerprint coverage,
+including the canonical shared audit policy. Workforce's earlier document-worker
+and credential-reminder migrations legitimately change that policy after IAM
+migrations. IAM therefore owns a schema-owner-only capture function, first called
+by IAM0052 and called again by Workforce0119 after those changes. Its source is
+included in the selector fingerprint, it requires both prior governance integrity
+checks to be true, and PUBLIC EXECUTE is revoked. Application roles only verify
+integrity and cannot capture new metadata. The normal bootstrap places Workforce
+after the currently registered audit-policy writers; a future writer must preserve
+that ordering/integrity contract. No row authority, master or runtime cache is
+introduced. Runtime migration and privilege assertions remain required.
+
 ### Governed department-selection owner read
 
 The candidate Organization route and migration are specified in
@@ -1412,7 +1424,7 @@ uses existing sealed keyset pagination (20 rows maximum), and denies master writ
 and unrelated history. It adds no data master or public identity projection.
 Missing source/schema/audit dependencies return no data. This implements the
 selection boundary for ORG-AC-02/07, not assignment activation or the remaining
-qualified target/account selector and native preparation UI.
+qualified target/account selector and native preparation acceptance.
 
 Threat boundary: hospital structure and Staff/account association are sensitive
 assets; a coarse-capability holder, another hospital/tenant account or a revoked

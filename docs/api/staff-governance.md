@@ -62,6 +62,16 @@ after the original expiry. New-form validation still requires a future expiry.
 Authority loss removes selected private details. This candidate has UI tests;
 runtime/browser acceptance remains a separate gate.
 
+IAM0052 captures its full selector policy/function fingerprint through an
+IAM-owned, schema-owner-only function. It captures once at IAM installation and
+Workforce0119 invokes that function after Workforce's legitimate shared audit
+policy changes. This preserves coverage of the canonical audit policy as well
+as selection restrictions, rather than dropping audit checks to accommodate
+migration order. Each capture requires both prior governance integrity checks
+to pass. Application roles have no EXECUTE permission on the capture function;
+runtime requests only verify the captured fingerprint. The normal bootstrap
+orders Workforce after the other currently registered audit-policy writers.
+
 ### Proposal administration
 
 IAM0049 adds a private request/provenance and owner-answer ledger. The fixed

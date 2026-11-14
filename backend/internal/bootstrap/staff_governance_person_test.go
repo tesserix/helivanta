@@ -66,9 +66,9 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 	rlsFindings, err := db.LintRLS(ctx)
 	require.NoError(t, err)
 	require.Empty(t, rlsFindings, "qualified selection migrations must retain canonical forced RLS")
-	var selectionSupport struct{ IAM, Workforce, Assignment, Operating, IAMIntegrity, WorkforceIntegrity bool }
+	var selectionSupport struct{ IAM, Workforce, Assignment, Operating, IAMIntegrity, WorkforceIntegrity, CaptureProtected bool }
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-		return tx.Raw(`SELECT iam_staff_selection_support() AS iam,workforce_assignment_selection_support() AS workforce,iam_assignment_governance_integrity() AS assignment,iam_operating_governance_integrity() AS operating,iam_staff_selection_integrity() AS iam_integrity,workforce_assignment_selection_integrity() AS workforce_integrity`).Scan(&selectionSupport).Error
+		return tx.Raw(`SELECT iam_staff_selection_support() AS iam,workforce_assignment_selection_support() AS workforce,iam_assignment_governance_integrity() AS assignment,iam_operating_governance_integrity() AS operating,iam_staff_selection_integrity() AS iam_integrity,workforce_assignment_selection_integrity() AS workforce_integrity,to_regprocedure('public.iam_staff_selection_capture_integrity()') IS NOT NULL AND NOT has_function_privilege(current_user,to_regprocedure('public.iam_staff_selection_capture_integrity()'),'EXECUTE') AS capture_protected`).Scan(&selectionSupport).Error
 	}))
 	if !selectionSupport.IAM || !selectionSupport.Workforce {
 		var tables []struct {
@@ -90,6 +90,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 	require.True(t, selectionSupport.Operating, "existing operating integrity remains valid after selection migration")
 	require.True(t, selectionSupport.IAMIntegrity, "IAM selector policy/function fingerprint remains current")
 	require.True(t, selectionSupport.WorkforceIntegrity, "Workforce selector policy/function fingerprint remains current")
+	require.True(t, selectionSupport.CaptureProtected, "only the schema owner may refresh selector integrity")
 	require.True(t, selectionSupport.IAM, "IAM selector support is available after migration")
 	require.True(t, selectionSupport.Workforce, "Workforce selector support is available after migration")
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {

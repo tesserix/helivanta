@@ -478,3 +478,28 @@ guards and emits failing table-level RLS/force/TRUNCATE/purpose flags only when
 support fails. Diagnostics contain schema names and booleans, not row data,
 credentials or SQL payloads. No support guard, deadline or status assertion is
 relaxed. `/tmp/helivanta-96f8-go.log` retains the failure evidence.
+
+### Preserve full audit fingerprint across migration staging
+
+CI43647206769 Go job132607715822 at `d2439bc9` confirms
+`IAMIntegrity=false` with Workforce, prior assignment and prior operating
+integrity all true, and no failing table-level support flags. Static source
+verification identifies Workforce document-worker and credential-reminder
+migrations changing `audit_events` after IAM0052's initial capture. The correction
+preserves all policy coverage, including the canonical audit policy, through an
+IAM-owned schema capture function. IAM invokes it after refreshing prior
+integrity; Workforce0119 invokes it after the legitimate shared audit changes.
+Both prior governance integrity checks must be true before capture.
+
+The capture function runs with invoker rights and PUBLIC EXECUTE is revoked.
+Runtime selector support also requires that its application role cannot execute
+capture. The real-owner fixture requires this protection, grants EXECUTE to the
+test application role and expects qualification to fail closed, restores the ACL
+and expects normal discovery again. This is metadata migration staging, with no
+business rows or authority cache. Normal bootstrap places Workforce after the
+other registered audit-policy writers; future writers must maintain that contract.
+
+Local grammar checks pass (IAM13 statements/8 PLpgSQL bodies; Workforce14/8).
+Bootstrap compiles and the selector race tests, backend vet/build/lint and
+contractdocs are rerun. Corrected-head database and browser CI are still required;
+the complete workflow is not accepted or ready for main/deployment.

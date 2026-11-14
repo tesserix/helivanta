@@ -1443,7 +1443,7 @@
         },
         {
           "id": "0052_iam_assignment_target_choices",
-          "sql_sha256": "aeb5467eac051dcf95885a00b73d8ea35b9499402d278828f216dbf4da5bbccf",
+          "sql_sha256": "1df2f2dc350e765a731b251a2113441120a4379ccc7b5de84af44603101c6355",
           "creates_tables": []
         }
       ]
@@ -13971,7 +13971,7 @@
         },
         {
           "id": "0119_workforce_assignment_targets",
-          "sql_sha256": "2686333865e9be9a2502bff41cc3581af01b569fb3c244b1496752bb781f77d0",
+          "sql_sha256": "63a7eec9be657f128eae7b51e067b5c9bc2374b321026b2fd5fe03d020adc26e",
           "creates_tables": []
         }
       ]

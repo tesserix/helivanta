@@ -100,6 +100,16 @@ legacy identity/history untouched as specified by the fresh-tenant plan.
 
 ## Current next action
 
+The first WF0117 CI attempt at `5b2bb8a5` did not establish a lifecycle result:
+the staged legacy-upgrade fixture applied WF0117 in its early batch before its
+deliberately deferred WF0080/WF0081 prerequisites. Later WF0080 failed because
+the replacement function already existed. Both fixture partitions now defer and
+apply WF0117 with the complete posting batch in module order. WF0117 also fails
+explicitly when its existing guard prerequisites are absent. Production module
+order remains unchanged; original test assertions and authority budgets remain.
+The next CI run must execute the complete lifecycle before any repair claim.
+
+
 Supplier43614580558 at `4470fb2a` passed child approvals and coordinated transfer,
 then failed a cutoff/approval race with expected 200/actual 503. The aggregate
 function sample showed root approval context 54 calls, 8463ms self/21925ms total;

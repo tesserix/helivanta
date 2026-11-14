@@ -1,6 +1,14 @@
 SET LOCAL lock_timeout='5s';
 SET LOCAL statement_timeout='60s';
 
+DO $prerequisites$
+BEGIN
+ IF to_regprocedure('public.workforce_posting_root_approval_context(uuid,uuid,uuid,uuid,uuid)') IS NULL
+ OR to_regprocedure('public.workforce_posting_chain_approval_context(uuid,uuid,uuid,uuid,uuid)') IS NULL THEN
+  RAISE EXCEPTION 'posting approval planning requires existing root and chain guards' USING ERRCODE='55000';
+ END IF;
+END $prerequisites$;
+
 CREATE OR REPLACE FUNCTION workforce_posting_root_approval_context(t uuid,h uuid,s uuid,p uuid,initial uuid)
 RETURNS boolean LANGUAGE plpgsql STABLE AS $$
 BEGIN

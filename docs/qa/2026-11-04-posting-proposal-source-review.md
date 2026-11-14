@@ -356,3 +356,15 @@ removing it; if necessary a reviewed forward migration can restore the prior SQL
 function definitions without dropping dependent objects. Scratch application and
 all source-cutoff/rollback/concurrency behavior must pass CI. No local DB or live
 migration was run, and this candidate does not authorize a live rollout.
+
+### Legacy-upgrade fixture ordering — 2026-11-14
+
+Supplier43617432791 at `5b2bb8a5` failed setup, not the intended cold lifecycle:
+the fixture's explicit legacy/deferred posting partitions did not include the
+new WF0117. It ran before intentionally deferred WF0080/WF0081 and created the
+replacement functions, causing later WF0080 CREATE to fail. Both explicit
+partitions now include WF0117; their module-order traversal places it after its
+prerequisites. WF0117 now explicitly rejects missing guard prerequisites rather
+than creating an out-of-order guard. The migration is an unreleased candidate;
+no live database has used either draft. No business assertion, source predicate,
+public status or command budget is relaxed. Cold runtime evidence remains pending.

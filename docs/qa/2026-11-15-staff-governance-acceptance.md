@@ -7,38 +7,32 @@ service integration, browser testing and live acceptance are distinct evidence.
 
 ## Candidate and authoritative evidence
 
-- HMS PR: [#1669](https://github.com/tesserix/helivanta/pull/1669).
-  Native UI head: `89605942`; approval diagnostic head: `90950803`.
-  Source-review correction `0c590133` records the file-level review; the later
-  substep candidate extends that review without changing authority.
+- HMS PR: [#1669](https://github.com/tesserix/helivanta/pull/1669), candidate
+  `e5e016c772ef7f59b3643d22fc59fe41c31d3305`.
 - Identity owner: [onboarding-service #39](https://github.com/tesserix/onboarding-service/pull/39),
-  pinned source `20d240693ac04d779fec504720803a989ca6f5ce`.
-  Its private assignment-candidate purpose is a dependency, not a deployed API claim.
-- [CI43595306491](https://github.com/tesserix/helivanta/actions/runs/43595306491)
-  at `89605942`: web/scripts/secret checks passed; browser job `132448498978`
-  passed all three phases. Main browser suite: 99 passed and one skipped;
-  subsequent workflow phases: one pass each. The two native operating-page
-  cases cover bounded employer discovery and denial without private requests;
-  they do not exercise a complete native Staff-to-duty browser journey.
-  The Go job was cancelled by the subsequent push; it did not pass.
-- [Supplier43595306385](https://github.com/tesserix/helivanta/actions/runs/43595306385)
-  at `89605942`, job `132448415183`: all stages through supplier grant projection
-  isolation passed, including real owner allocation/recovery, financial
-  acquisition and reviewed receiving corrections. The final current-hospital
-  Staff lifecycle stage failed in `activation_posting_chain_child` at
-  `workforce_posting_chain_test.go:135`: expected 200, received 503
-  `posting_source_unavailable`. This is not a successful complete supplier run.
-- `90950803` diagnostics passed local race-tested privacy/status cases, backend
-  build, affected vet/lint, compile-only owner/gateway tests, contractdocs check
-  and redacted secret scan. No authority budget, source predicate or expected
-  lifecycle response was relaxed. Its web job found the source-review hash
-  mismatch corrected in `0c590133`; this is separate from the posting failure.
-- The live environment was inspected read-only on 2026-11-14 UTC: project
-  `tesseracthub-480811`, cluster `tesseract-prod-in-gke` in `asia-south1`,
-  application namespace `helivanta`, Kargo namespace/stage
-  `kargo-helivanta/prod`. Kargo was Healthy/Verified, Helivanta Argo applications
-  were Synced/Healthy, and workloads still used `0a1fad14`. Candidate runtime
-  behavior cannot be inferred from the health of that earlier deployment.
+  pinned source `20d240693ac04d779fec504720803a989ca6f5ce`, unmerged/undeployed at
+  this checkpoint. Its private assignment-candidate projection is a dependency.
+- Exact-head [CI43624573111](https://github.com/tesserix/helivanta/actions/runs/43624573111)
+  and [Supplier43624573143](https://github.com/tesserix/helivanta/actions/runs/43624573143)
+  are not passing yet. The Go job failed the new department integration fixture's
+  initial grant at `assignment_department_choices_test.go:102`: expected 202,
+  actual 400. The fixture sent nanosecond timestamps; the canonical governance
+  contract requires microsecond precision. The fixture is corrected locally with
+  `Truncate(time.Microsecond)`; production validation and expectations are unchanged.
+  Browser/E2E and the full supplier lifecycle are still running.
+- At `87e605b9`, [CI43619827672](https://github.com/tesserix/helivanta/actions/runs/43619827672)
+  web, E2E, scripts and secret scan passed. Both native independent browser branches
+  exited cleanly through acknowledged activation and HTTP/UI revocation.
+- [Supplier43619827649](https://github.com/tesserix/helivanta/actions/runs/43619827649)
+  at `87e605b9` failed the original complete Staff lifecycle at
+  `workforce_department_transfer_test.go:49`, initial destination approval:
+  expected 200, actual 503. Overall 5018ms; persistence 1512ms; chain evidence
+  315ms. This is not successful transfer or complete supplier acceptance.
+- Last read-only live evidence, 2026-11-14 UTC: project `tesseracthub-480811`,
+  cluster `tesseract-prod-in-gke`/`asia-south1`, namespace `helivanta`, Kargo
+  `kargo-helivanta/prod`. Kargo was Healthy/Verified, Argo applications were
+  Synced/Healthy and workloads still used `0a1fad14`. Older deployment health
+  establishes no candidate behavior.
 
 ## Completion gates
 
@@ -69,8 +63,8 @@ legacy identity/history untouched as specified by the fresh-tenant plan.
       department assignments with real current sources, exact tenant/account
       context, stale/duplicate handling, dependency failure and receipt recovery.
 - [ ] Resolve the supervised child-posting deadline and the earlier coordinated
-      transfer persistence failure. Remove the temporary one-shot plan observer
-      and verify the ordinary cold path. Re-run the entire original current-Staff
+      transfer persistence failure. Temporary plan/function observers are removed;
+      verify the ordinary cold path. Re-run the entire original current-Staff
       lifecycle test; do not substitute a smaller scenario or change its expected
       200/500 responses to accept unavailable sources.
 - [ ] Verify department staff, heads, supervisors, chains and transfers through
@@ -98,143 +92,92 @@ legacy identity/history untouched as specified by the fresh-tenant plan.
       and all exclusions. Preserve professional/licence/trading boundaries; do
       not use real patients, real licence assertions or real payments as fixtures.
 
-## Current next action
+## Current implementation and next verification
 
-The first WF0117 CI attempt at `5b2bb8a5` did not establish a lifecycle result:
-the staged legacy-upgrade fixture applied WF0117 in its early batch before its
-deliberately deferred WF0080/WF0081 prerequisites. Later WF0080 failed because
-the replacement function already existed. Both fixture partitions now defer and
-apply WF0117 with the complete posting batch in module order. WF0117 also fails
-explicitly when its existing guard prerequisites are absent. Production module
-order remains unchanged; original test assertions and authority budgets remain.
-The next CI run must execute the complete lifecycle before any repair claim.
+### Independent native browser journeys
 
-Supplier43614580558 at `4470fb2a` passed child approvals and coordinated transfer,
-then failed a cutoff/approval race with expected 200/actual 503. The aggregate
-function sample showed root approval context 54 calls, 8463ms self/21925ms total;
-chain approval context 36 calls, 5633ms self/14781ms total; proposal decider 210
-calls, 2369ms self/45584ms total. The head trigger's own time was only 6.86ms across
-58 calls. This identifies root/chain guard work as material execution cost; it is
-not a per-request timing attribution.
+The CI fixture uses actual Global API, PostgreSQL, OpenFGA, IAM, Workforce and
+product owners. The shell selects a qualified employer, reviewed Staff account
+and product-owned outlet/premise; a scoped delegate proposes and a separate owner
+reviews. Deliberately lost committed proposal/approval responses require GET
+recovery without repeating PUT. Navigation freezes while uncertain; the real
+projection worker must acknowledge active state. The preparer cannot self-approve.
+HTTP-confirmed revocation requires version 4 and the revoked UI state. Legacy
+catalog/account-link/operating-route fallback is rejected.
 
-WF0117 is a controlled planning candidate for those two context functions. It
-uses stable invoker PL/pgSQL, fast-denies an absent matching private purpose and
-preserves each complete original authorization SELECT byte-for-byte for the
-valid-purpose path. Prepared plans can be reused; authority results are never
-cached. Current source/tenant/actor/version/time checks and five-second command
-budgets remain intact. PostgreSQL references and migration/source review are in
-the posting source-review document. The function timing option/helpers are
-removed so the next full lifecycle run is ordinary cold acceptance, including
-all original transfer faults and concurrency expectations. No live migration is
-authorized or applied by this change; scratch migration/runtime behavior is CI-only.
+At `4470fb2a`, both branches passed business assertions but failed at context
+cleanup. `2ae3319b` made cleanup await `unrouteAll({behavior: "wait"})` before
+closing without suppressing errors. Web passed at `5b2bb8a5` and `87e605b9`.
+The fixture uses a synthetic external identity reader and lacks profile/session
+services. It does not prove normal deployed Zitadel/login or allowed/denied
+product operations.
 
-At `4470fb2a`, both native browser branches reached every assertion through
-acknowledged activation and HTTP/UI revocation, but the job failed after success
-because closing a context disposed an in-flight background route. Local commit
-`2ae3319b` makes cleanup await in-flight handlers with `unrouteAll({behavior:
-"wait"})` and does not suppress errors. The next CI exit must be clean before
-this is counted as a passing journey. Standard E2E passed that head.
+The candidate extends both branches after existing replacement-source/receipt
+checks: an authenticated delegate opens current Staff and starts an unsent draft;
+a separate empty owner request context revokes its replacement governance grant
+through Global API. Refresh must return 404, hide Staff/account details and proposal
+controls, show an alert and produce zero duty mutations. It does not substitute
+logout or ordinary-membership removal for management-source cutoff. Exact-head
+runtime acceptance of this extension remains pending.
 
-The private hospital-selection helper still has no owner query, route, SDK or
-UI: those gates remain open. Deployed identity/login, actual product-operation
-access, source cutoffs and full receiving/financial acceptance remain required.
-No main merge or live rollout occurred.
+### Hospital department choices
 
-### Diagnostic correction after Supplier43605854860
+Organization's candidate owner route, read-only private purpose and canonical
+`DepartmentOutput` SDK are implemented. The route holds current owner/exact
+hospital reviewer authority and the restructuring gate, returns only active heads
+from a verified registration, uses sealed pages of at most 20, and commits its
+read audit before disclosure. All master writes and unrelated history are denied
+under this purpose. Runtime support checks fail closed on policy/RLS/index drift.
 
-At `9def90fd`, Supplier43605854860/job132480212302 failed at the first
-current-destination approval in the coordinated transfer scenario, after the
-initial child approval. It reached `chain_evidence` at 5016ms overall (2392ms
-persistence, 923ms current operation). There were no observer records: the
-observer matched string bindings only, while canonical proposal IDs are passed
-as `uuid.UUID`. A pure binding regression now covers both representations and
-rejects unrelated IDs. This corrects test observation only; it does not repair
-posting performance. The observer remains at the initial child approval and
-still must be removed before accepting a cold workflow result. Web and browser
-jobs passed at `9def90fd`; these do not close the lifecycle or selector gates.
+Contractdocs generation caught a startup panic from missing domain-filter binding;
+the corrected registration binds active status and rejects other statuses. A real
+Global API/IAM/Workforce/Organization test is explicitly in CI: owner/delegate
+reads, foreign/sibling scope, paging/cursor replay, audit rollback, revoked source,
+missing registration, RLS/policy tampering and master-write denial. Compile-only
+checks do not establish that it passes. Qualified Staff/account composition and
+native preparation UI remain open.
 
-### Native browser acceptance extension — pending CI
+### Full Staff lifecycle performance
 
-The existing real PostgreSQL/OpenFGA native-governance fixture now invokes
-`scripts/verify-native-operating-owner.mjs` when CI supplies the built shell URL.
-The web job explicitly runs both pharmacy and supplier fixture branches with that
-URL; ordinary backend-only runs retain their existing API assertions. Browser
-requests pass through Global API to the same real IAM, Workforce and product
-owners. The identity boundary remains the fixture's explicitly synthetic identity
-reader; this does not establish deployed Zitadel or normal signup behavior.
+The original full lifecycle remains the acceptance test, including all its injected
+faults, coordinated transfer, cutoff races and original 200/500 expectations. No
+five-second authority deadline or source predicate has been relaxed.
 
-The browser prepares as the employer-scoped auditor and independently reviews as
-the second owner, using the normal employer, reviewed Staff, location and template
-controls. It deliberately drops committed proposal/approval responses, asserts
-navigation freezes, and requires GET receipt recovery without another PUT. It
-checks exact selected identity/location/version bindings, requires acknowledged
-activation through the real projection worker and revokes the synthetic duty
-afterwards. Legacy catalog, account-link and operating-duty route calls fail
-the browser assertion. The browser now refreshes through the normal control until the acknowledged
-active state appears, rather than requiring a transient pending state that can
-race the real worker. Receipt recovery still checks the original immutable
-approval; revocation uses the activated version. Product-operation access, source
-cutoff, hospital selectors and the complete receiving/financial journey remain
-separate gates. Runtime results remain pending.
+Earlier aggregate profiling at `4470fb2a` found root context 54 calls/8463ms self/
+21925ms total, chain context 36 calls/5633ms self/14781ms total and decider 210
+calls/2369ms self/45584ms total. These are aggregate fixture counters, not
+per-request timing attribution. JIT-off did not repair transfer and was reverted.
+Temporary EXPLAIN/function observers and their opt-ins are removed.
 
-Local checks for this test increment: compile-only bootstrap tests, bootstrap vet
-and golangci-lint, JavaScript syntax, Prettier, actionlint, diff whitespace and all
-15 inventory tests/check passed. No local server, browser or database was started.
+WF0117 uses stable invoker PL/pgSQL, fast-denies an absent private purpose, and
+retains the complete original authorization SELECT for each valid purpose.
+Prepared plans may be reused; authority results are never cached. The initial
+WF0117 run exposed fixture migration ordering; both staged partitions now defer
+it with its prerequisites and the SQL explicitly checks those prerequisites.
+`87e605b9` got past ordering but failed initial transfer approval as recorded above.
 
-### Browser runtime evidence at `4470fb2a`
+The current candidate records fixed-label stage durations on the existing error
+path to distinguish scope authorization, proposal reads, decider, source collection
+and persistence. A deterministic regression verifies exact durations, preserved
+503 status and no diagnostic fields in client responses. The next full CI result
+must identify the slow stage before any repair is claimed.
 
-CI43614580588/web job132506828260 reached every native journey assertion for
-both pharmacy and supplier: bounded employer/Staff/location selection, proposal,
-independent review, GET recovery after lost responses, acknowledged active state,
-HTTP-confirmed revocation/version 4 and revoked UI state. Both branches printed
-their success line. The job nevertheless failed when closing browser contexts:
-a background Staff-choice route was still awaiting `route.fetch`, producing
-`Request context disposed` after success. This is not a passing test exit.
+### Local validation of this increment
 
-The cleanup correction awaits `context.unrouteAll({behavior: "wait"})` before
-closing each context. It waits for handlers and does not use `ignoreErrors`,
-suppress route assertions or change business expectations. Syntax/format checks
-pass locally; clean CI completion remains required. This fixture continues to use
-synthetic identity boundaries and does not prove deployed login or product-operation
-access. Hospital preparation and full live acceptance gates remain open.
+Commands actually run and passed:
 
-### Existing-browser management-source cutoff — pending CI
+- API package `vitest run`: 126 files/1403 tests, including 11 new department SDK
+  tests; the focused department/governance SDK run passed 37 tests.
+- New SDK ESLint and `tsc --noEmit`.
+- Organization input and posting diagnostics `go test -race`; compile-only
+  bootstrap; affected `go vet` and `golangci-lint` (0 issues).
+- Backend `go build ./...` and shell production `next build`. Generated shell
+  output was removed; existing cache was retained.
+- Contractdocs generation/check; inventory generation/check and all 15 inventory
+  tests; JavaScript syntax, Prettier, actionlint and diff whitespace.
+- Exact staged-diff redacted secret scan: no leaks. A broader SDK directory scan
+  reported pre-existing fixture strings; it is not recorded as a clean scan.
 
-The native-governance fixture now adds a late browser check for each independent
-model, after its existing replacement-source/receipt tests. It opens the current
-Staff workspace as the delegate, starts an unsent duty draft, and uses a separate
-owner request context to revoke that replacement governance grant through the
-normal Global API. The signed-in delegate refreshes Staff choices: the test
-requires 404, no Staff/account details, no proposal control and no duty mutation.
-It does not substitute logout or removal of ordinary membership for source denial.
-
-The owner request uses an isolated context without the delegate's cookie. The
-fixture uses the subtest lifetime for long browser/DB bookkeeping instead of its
-short setup context; business request/authority deadlines are unchanged. Real
-identity/login and operating product-access cutoff remain separate requirements.
-Compile-only/bootstrap vet/lint, script syntax/format and clean CI execution are
-the relevant checks; no local browser, application or DB is started.
-
-### Checkpoint at `87e605b9` and department-selection candidate
-
-CI43619827672 web, E2E, scripts and secret scan passed. In particular, both
-independent native browser journeys now exit cleanly after acknowledged active
-state and revocation; their synthetic external identity boundary still excludes
-normal deployed login and product operations. The Go job has not returned a
-passing result at this checkpoint.
-
-Supplier43619827649 failed the original complete Staff lifecycle at
-`workforce_department_transfer_test.go:49` (initial destination approval): expected
-200, actual 503. Failure diagnostics show 5018ms overall, 1512ms persistence and
-315ms in chain evidence; about 3506ms was spent before persistence. WF0117 has not
-resolved the full cold-path deadline. No authority deadline or expected response
-was widened.
-
-The candidate now includes Organization's qualified department-choice owner API,
-private read-only purpose, canonical-model SDK and explicit real-owner CI test.
-Local SDK suite: 126 files/1403 assertions passed; Go race-tested input boundaries,
-compile-only bootstrap, affected vet/lint and backend build passed. Contractdocs
-caught and prevented a route-registration panic from a missing domain filter;
-the corrected registration binds the fixed active status and rejects other status
-values. Real database acceptance and native target/account preparation UI remain
-open. No live migration, main merge or deployment is asserted.
+No local app, browser, DB or container was started. Scratch migration, real-owner
+and browser tests run in CI. No main merge, live migration, rollout, cleanup or
+identity rewrite occurred. The broader completion gates above remain required.

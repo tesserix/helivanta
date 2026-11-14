@@ -83,7 +83,8 @@ jobs:
         run: |
           go test -race ./internal/modules/iam ./internal/modules/workforce -run '^TestGovernance'
           go test -race ./internal/bootstrap -run '^TestGovernance'
-          go test -race ./internal/bootstrap -run '^TestGovernedAssignmentDepartmentChoicesUseCurrentOwnerScopeAndDenyMasterWrites$'
+      - name: Qualified hospital assignment department selection
+        run: go test -race ./internal/bootstrap -run '^TestGovernedAssignmentDepartmentChoicesUseCurrentOwnerScopeAndDenyMasterWrites$'
       - name: Customer onboarding authority and replay
         run: |
           go test -race ./internal/customeronboarding

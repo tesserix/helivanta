@@ -457,10 +457,13 @@ allowlisted numeric/boolean metrics, not SQL, binds, plans or errors. Because th
 observer adds planning work, remove it and pass the normal cold workflow before
 acceptance. This is additional evidence collection, not a root-cause assertion.
 
-The hospital selection proof validator is locally implemented/tested; complete its
-owner query/RLS and IAM/identity composition, canonical output, SDK and form before
-claiming qualified account/department selection. No selector route is exposed by
-this private validation increment.
+The hospital-selection proof validator and department owner query/RLS/SDK are
+implemented in the candidate. Complete qualified Staff/account owner queries,
+IAM/identity composition, canonical target output and native preparation controls
+before claiming the whole account/department flow. The department route alone
+does not close this gate. The temporary plan observer and function-tracking
+experiment above have been removed; ordinary request failure timings remain.
+WF0117 did not repair the full lifecycle at `87e605b9`.
 
 ### Department-selection implementation checkpoint
 

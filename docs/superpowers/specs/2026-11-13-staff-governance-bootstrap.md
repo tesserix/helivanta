@@ -1344,10 +1344,12 @@ out of normal editable inputs and still invokes canonical command revalidation;
 a selection never activates an assignment. Target/dependency drift requires a
 fresh choice rather than fallback permission or identity inference.
 
-The current increment implements private proof validation only in
-`backend/pkg/authz/assignment_selection.go`. Owner queries/RLS, composition,
-canonical models, SDK/UI and real-service/browser
-acceptance remain required before either selector is exposed or claimed complete.
+Private proof validation is implemented in
+`backend/pkg/authz/assignment_selection.go`. The department owner route, restrictive
+RLS and canonical-model SDK are now candidate code, described below. Qualified
+Staff/account owner queries, IAM/identity composition, target wire models and both
+native preparation controls remain unfinished. Real-service/browser/deployed
+acceptance is required before the full selection flow is claimed complete.
 
 ### Governed department-selection owner read
 

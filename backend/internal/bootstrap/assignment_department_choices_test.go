@@ -98,7 +98,7 @@ func TestGovernedAssignmentDepartmentChoicesUseCurrentOwnerScopeAndDenyMasterWri
 	version := int64(1)
 	call("PUT", departmentRoot(hospital)+"/departments/"+retired.String()+"/revisions/"+uuid.Must(uuid.NewV7()).String(), "admin", organization.DepartmentCommand{ExpectedVersion: &version, Code: "SYN-RETIRED", Name: "Synthetic retired department", Kind: "department", Status: "retired", Reason: "Retained historical department"}, 200)
 	grantPath := "/v1/iam/governance-grants/" + uuid.Must(uuid.NewV7()).String()
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 	call("PUT", grantPath, "admin", iam.GovernanceGrantInput{Subject: "user-reviewer", ExpectedMembershipEpoch: 1, TemplateKey: "iam.scoped_access_reviewer.v1", ScopeKind: "hospital", ScopeID: &hospital, ValidFrom: now.Add(-time.Minute), ExpiresAt: now.Add(time.Hour), Reason: "Synthetic current department preparation"}, 202)
 	call("PUT", grantPath+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "owner2", iam.GovernanceGrantDecisionInput{ExpectedVersion: 1, Decision: "approve", Reason: "Independent owner review"}, 202)
 	choices := departmentRoot(hospital) + "/assignment-department-choices"

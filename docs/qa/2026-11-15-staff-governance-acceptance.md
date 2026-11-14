@@ -117,7 +117,8 @@ this a repair before that result; internal JIT is still a hypothesis.
 
 The native browser extension below is committed and pending CI. It covers normal
 selection, proposal, independent review, GET-only recovery and revocation for
-both independent models; asynchronous activation/product access remain separate.
+both independent models. The follow-up browser assertion requires acknowledged
+activation before revocation; runtime evidence and product access remain open.
 The private hospital-selection helper still has no owner query, route, SDK or
 UI: those completion gates remain open. No merge or live rollout occurred.
 
@@ -148,11 +149,15 @@ The browser prepares as the employer-scoped auditor and independently reviews as
 the second owner, using the normal employer, reviewed Staff, location and template
 controls. It deliberately drops committed proposal/approval responses, asserts
 navigation freezes, and requires GET receipt recovery without another PUT. It
-checks exact selected identity/location/version bindings and revokes the synthetic
-duty afterwards. Legacy catalog, account-link and operating-duty route calls fail
-the browser assertion. This is proposal/review/revocation coverage: it does not
-claim asynchronous activation, product access, source cutoff, hospital selectors
-or the complete receiving/financial journey. Runtime results remain pending.
+checks exact selected identity/location/version bindings, requires acknowledged
+activation through the real projection worker and revokes the synthetic duty
+afterwards. Legacy catalog, account-link and operating-duty route calls fail
+the browser assertion. The browser now refreshes through the normal control until the acknowledged
+active state appears, rather than requiring a transient pending state that can
+race the real worker. Receipt recovery still checks the original immutable
+approval; revocation uses the activated version. Product-operation access, source
+cutoff, hospital selectors and the complete receiving/financial journey remain
+separate gates. Runtime results remain pending.
 
 Local checks for this test increment: compile-only bootstrap tests, bootstrap vet
 and golangci-lint, JavaScript syntax, Prettier, actionlint, diff whitespace and all

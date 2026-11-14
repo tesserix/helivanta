@@ -155,9 +155,10 @@ try {
     duty.getByRole("button", { name: "Recover duty decision", exact: true }),
   ).toBeEnabled();
   await duty.getByRole("button", { name: "Recover duty decision", exact: true }).click();
-  await expect(
-    duty.getByText("Status: approved pending activation", { exact: true }),
-  ).toBeVisible();
+  await expect(async () => {
+    await reviewer.getByRole("button", { name: "Refresh duties", exact: true }).click();
+    await expect(duty.getByText("Status: active", { exact: true })).toBeVisible();
+  }).toPass({ timeout: 30_000 });
   expect(lostDecision).toBe(true);
   expect(mutations).toHaveLength(2);
   expect(recoveries).toContainEqual({ actor: "owner2", path: mutations[1].path });
@@ -167,9 +168,9 @@ try {
   await duty.getByRole("button", { name: "Revoke duty", exact: true }).click();
   await expect(duty.getByText("Status: revoked", { exact: true })).toBeVisible();
   expect(mutations).toHaveLength(3);
-  expect(mutations[2].body).toMatchObject({ decision: "revoke", expected_version: 2 });
+  expect(mutations[2].body).toMatchObject({ decision: "revoke", expected_version: 3 });
   console.log(
-    `PASS: ${fixture.kind} native employer → reviewed Staff → owner location → proposal → independent review → revocation; lost responses recovered by GET through Global API and real IAM/Workforce/product owners.`,
+    `PASS: ${fixture.kind} native employer → reviewed Staff → owner location → proposal → independent review → acknowledged activation → revocation; lost responses recovered by GET through Global API and real IAM/Workforce/product owners.`,
   );
 } finally {
   await Promise.all(contexts.map((context) => context.close()));

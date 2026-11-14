@@ -95,11 +95,12 @@ func (h *assignmentProposalHandlers) decide(c *gin.Context) {
 		respond.Forbidden(c, "Proposal decision is not permitted.")
 		return
 	}
+	capability := authz.GovernanceAssignmentReview
+	if command == "withdraw" {
+		capability = authz.GovernanceAssignmentManage
+	}
 	var saved assignmentProposal
-	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		if err := assignmentAccessFor(tx, p); err != nil {
-			return err
-		}
+	err := h.assignmentTransaction(c, p, capability, func(tx *gorm.DB) error {
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("tenant_id=? AND id=?", p.TenantID, id).Take(&saved).Error; err != nil {
 			return err
 		}
@@ -124,7 +125,7 @@ func (h *assignmentProposalHandlers) decide(c *gin.Context) {
 			if previous.ActorSubject != p.Subject || previous.Decision != in.Decision || previous.Reason != in.Reason {
 				return errProposalConflict
 			}
-			return nil
+			return assignmentGovernanceReplay(tx, p.TenantID, saved, &previous.RequestID)
 		}
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
@@ -165,6 +166,9 @@ func (h *assignmentProposalHandlers) decide(c *gin.Context) {
 			return err
 		}
 		if command == "withdraw" {
+			if _, err := retainAssignmentGovernanceRequest(tx, p.TenantID, saved, p.Subject); err != nil {
+				return err
+			}
 			if wasApproved {
 				return queueAssignmentProjection(tx, h.bus, p.TenantID, id)
 			}
@@ -184,10 +188,7 @@ func (h *assignmentProposalHandlers) decisions(c *gin.Context, params pagination
 		return nil, nil
 	}
 	var rows []assignmentDecision
-	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		if err := assignmentAccessFor(tx, p); err != nil {
-			return err
-		}
+	err := h.assignmentTransaction(c, p, authz.GovernanceAssignmentReview, func(tx *gorm.DB) error {
 		var proposal assignmentProposal
 		if err := tx.Select("id").Where("tenant_id=? AND id=?", p.TenantID, id).Take(&proposal).Error; err != nil {
 			return err
@@ -207,7 +208,20 @@ func decisionScopeStatus(tx *gorm.DB, tenant string, row assignmentProposal, eli
 	if err := tx.Where("tenant_id=? AND proposal_id=? AND request_id=?", tenant, row.ID, row.RequestID).Take(&decision).Error; err != nil {
 		return "", err
 	}
-	authorized, err := assignmentAdministrator(tx, tenant, decision.ActorSubject)
+	authorized := false
+	var err error
+	var native bool
+	if native, err = assignmentHasGovernanceRequest(tx, tenant, row); err != nil {
+		return "", err
+	}
+	if native {
+		if err = tx.Raw(`SELECT COALESCE(current_setting('app.iam_assignment_native_settlement',true),'')='authorized'`).Scan(&authorized).Error; err != nil {
+			return "", err
+		}
+	} else {
+		authorized, err = assignmentAdministrator(tx, tenant, decision.ActorSubject)
+	}
+
 	if err != nil {
 		return "", err
 	}

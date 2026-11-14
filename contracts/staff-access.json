@@ -81,6 +81,17 @@
         "type": "bool"
       }
     ],
+    "GovernanceScopeRequest": [
+      {"name": "proposal_id", "type": "uuid"},
+      {"name": "request_id", "type": "uuid"},
+      {"name": "hospital_id", "type": "uuid"}
+    ],
+    "GovernanceScopeResult": [
+      {"name": "proposal_id", "type": "uuid"},
+      {"name": "request_id", "type": "uuid"},
+      {"name": "hospital_id", "type": "uuid"},
+      {"name": "eligible", "type": "bool"}
+    ],
     "DepartmentScopeRequest": [
       {
         "name": "proposal_id",

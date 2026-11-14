@@ -473,3 +473,5 @@ type HospitalNamedData struct {
 	Name        string `json:"name"`
 	NameVersion int64  `json:"name_version"`
 }
+
+const SubjectAssignmentGovernanceScopeVerified = "helivanta.in.workforce.assignment_governance_scope_verified.v1"

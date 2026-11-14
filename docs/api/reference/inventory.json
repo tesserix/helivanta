@@ -132,6 +132,60 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/iam/hospitals/:hospital/assignment-proposals/:id/decision",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/hospitals/:hospital/assignment-proposals/:id/decisions",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/hospitals/:hospital/assignment-proposals/:id/history",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/hospitals/:hospital/assignment-proposals/:id",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/iam/hospitals/:hospital/assignment-proposals/:id",
+          "permission": "iam.assignment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/hospitals/:hospital/assignment-proposals",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member/commands/:command",
           "permission": "public",
@@ -757,11 +811,15 @@
         },
         {
           "permission": "iam.assignment.manage",
-          "roles": []
+          "roles": [
+            "governance_delegate"
+          ]
         },
         {
           "permission": "iam.assignment.review",
-          "roles": []
+          "roles": [
+            "governance_delegate"
+          ]
         },
         {
           "permission": "iam.partner_group.members.read",
@@ -830,6 +888,7 @@
         "helivanta.in.iam.partner_group_changed.v1",
         "helivanta.in.iam.partner_group_member_changed.v1",
         "helivanta.in.iam.assignment_scope_requested.v1",
+        "helivanta.in.iam.assignment_governance_scope_requested.v1",
         "helivanta.in.iam.assignment_department_scope_requested.v1",
         "helivanta.in.iam.assignment_projection_requested.v1",
         "helivanta.in.iam.member_granted.v1",
@@ -860,9 +919,14 @@
           "after_commit": false
         },
         {
+          "name": "iam-assignment-governance-scope",
+          "subject": "helivanta.in.workforce.assignment_governance_scope_verified.v1",
+          "after_commit": true
+        },
+        {
           "name": "iam-assignment-department-scope",
           "subject": "helivanta.in.organization.assignment_department_verified.v1",
-          "after_commit": false
+          "after_commit": true
         },
         {
           "name": "iam-assignment-projection",
@@ -1203,6 +1267,14 @@
           "sql_sha256": "269cd621db28c1051dcfc1b8c06e6394c491ab38dca84bcc4ff9e2b69b95b7a0",
           "creates_tables": [
             "iam_employment_basis_authorities"
+          ]
+        },
+        {
+          "id": "0049_iam_assignment_governance",
+          "sql_sha256": "5e5e0a386d2fb5d27fc328b2fd204e52812c561b5ba881cf5c5854021d2f93b5",
+          "creates_tables": [
+            "iam_assignment_governance_requests",
+            "iam_assignment_governance_verifications"
           ]
         }
       ]
@@ -12430,6 +12502,7 @@
         "helivanta.in.workforce.identity_case_changed.v1",
         "helivanta.in.workforce.document_classification_changed.v1",
         "helivanta.in.workforce.assignment_scope_verified.v1",
+        "helivanta.in.workforce.assignment_governance_scope_verified.v1",
         "helivanta.in.workforce.login_link_changed.v1",
         "helivanta.in.workforce.enrollment_changed.v1",
         "helivanta.in.workforce.master_changed.v1",
@@ -12483,6 +12556,11 @@
         {
           "name": "workforce-assignment-scope",
           "subject": "helivanta.in.iam.assignment_scope_requested.v1",
+          "after_commit": false
+        },
+        {
+          "name": "workforce-assignment-governance-scope",
+          "subject": "helivanta.in.iam.assignment_governance_scope_requested.v1",
           "after_commit": false
         },
         {

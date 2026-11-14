@@ -2,10 +2,12 @@
 
 Status: candidate in PR #1669; not merged or deployed. The current implementation
 covers owner grant admission, retained creation/decision receipts, current auditor
-review, an owner inbox, hospital/pharmacy/supplier account-link review consumers
-and selected hospital person-review consumers.
-Employment, assignment and operating-duty consumers, acknowledgements and delegation
-commands in the UI remain unfinished. The owner inbox is available in Staff Access. Account initiation alone does not complete Staff onboarding.
+review, an owner inbox, hospital/pharmacy/supplier account-link review consumers,
+hospital person/employment consumers and selected employment preparation UI.
+The hospital assignment consumer below is a new candidate awaiting real-service
+acceptance. Assignment UI, independent operating-duty review, acknowledgements
+and delegation commands in the UI remain unfinished. The owner inbox is available
+in Staff Access. Account initiation alone does not complete Staff onboarding.
 
 IAM owns the governance ledger. Workforce owns the hospital/independent employer
 roots and current hospital count. Native identity remains with the identity owner.
@@ -13,6 +15,76 @@ Canonical Go/Zod models derive from `contracts/staff-governance.json`; regenerat
 with `node scripts/generate-staff-governance.mjs` and check with `--check`.
 The [implementation design](../superpowers/specs/2026-11-13-staff-governance-bootstrap.md)
 records ORG-D7, all remaining lifecycle consumers and operational assumptions.
+
+## Candidate hospital assignment administration
+
+IAM0049 adds a private request/provenance and owner-answer ledger. The fixed
+hospital-only `iam.scoped_access_reviewer.v1` grants nonclinical assignment
+management/review authority. Admission requires a current native tenant owner or
+the exact current hospital grant through the existing guarded governance source.
+Coarse `governance_delegate` permissions alone cannot admit a command. Ordinary
+assignment endpoints, customer onboarding and owner security retain their
+owner-only admission; this template grants no owner security or clinical role.
+
+The new candidate family is `/v1/iam/hospitals/:hospital/assignment-proposals`:
+
+| Method and suffix    | Behavior                                                                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `PUT /:id`           | Existing canonical `ProposalInput`; hospital must equal the selected root.                                   |
+| `GET /:id`           | Current canonical `ProposalOutput`, without private source/request details.                                  |
+| `GET /`              | Existing bounded keyset list; optional single `family` from the canonical template catalog, default `leave`. |
+| `GET /:id/history`   | Existing immutable proposal history and paging.                                                              |
+| `GET /:id/decisions` | Existing immutable decision history and paging.                                                              |
+| `POST /:id/decision` | Existing expected-version approve/reject/withdraw command and canonical response.                            |
+
+Lists have a maximum of 50 rows per page. Continuations bind the actor, tenant,
+selected resource parameters and filters, including the assignment family.
+
+Every call requires the authenticated session and exactly one matching expected
+tenant and subject header. Business calls use the Global API IAM destination.
+Selected-root restrictive policies fence proposal, history, decision, snapshot,
+scope-epoch and owner-answer access. Sensitive reads retain an audit record.
+IAM0049's support check requires installed forced RLS, exact policy/function
+definitions, enabled critical triggers and no runtime TRUNCATE privilege.
+Missing or altered support and unavailable authority produce 503; callers retain
+the original ID, observed version and intent for retry. Stale/different commands
+or source adoption conflict with 409. Unauthorized writes receive 403; hidden
+read scope/objects receive 404. Revoked credentials require fresh authentication.
+
+Canonical membership incarnation, proposer/target separation, input validation,
+immutable origin/history, CAS versions and projection rules are unchanged.
+Native replay also requires the original owner-membership or grant/version and
+actor membership incarnation; another source cannot adopt a retained command.
+Owner and reviewer source details, authentication times and membership epochs
+remain private. The request ledger supplements canonical command evidence; it
+does not become another assignment master or carry identity tokens.
+
+`helivanta.in.iam.assignment_governance_scope_requested.v1` carries only canonical
+proposal, request and hospital IDs. Workforce answers on
+`helivanta.in.workforce.assignment_governance_scope_verified.v1` with those IDs
+and an explicit boolean hospital existence/type verdict. Both DTOs derive from
+`contracts/staff-access.json`. No actor, Staff identity, grant, bearer proof,
+manager access or cross-tenant destination travels in this protocol. The existing
+legacy manager-based verification event keeps its original semantics and cannot
+settle native requests. Department proposals still require Organization's exact
+department answer as well as Workforce; a refusal prevents approval immediately.
+Only the first owner answer for the exact current request is retained.
+
+The event transaction stores facts without approving the command. On every
+delivery, including an already-claimed retry, the after-commit phase acquires a
+fresh governance source and compares it to the original source before locking
+the exact pending request. Approval and outbox publication remain atomic with
+canonical snapshot creation. An unavailable source retries without approval.
+Known revoked, expired or replaced authority returns a pending decision to
+`pending_review`, or rejects an initial unverified scope. That denial uses a
+separate bounded transaction permitted only to downgrade state; it cannot create
+an approved snapshot. Projection continues to check target membership,
+snapshot version, scope epoch and expiry after this approval pivot.
+
+Local unit/build checks do not validate IAM0049 or the full workflow. The
+real-service admission and interrupted-settlement regressions must pass in CI.
+Department answer-order, fault/replay, browser, load and live release evidence
+remain required. IAM0049 has not been deployed or approved for a live migration.
 
 ## Candidate operations
 

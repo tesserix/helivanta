@@ -30,6 +30,19 @@ type ScopeResult struct {
 	Eligible   bool      `json:"eligible"`
 }
 
+type GovernanceScopeRequest struct {
+	ProposalID uuid.UUID `json:"proposal_id"`
+	RequestID  uuid.UUID `json:"request_id"`
+	HospitalID uuid.UUID `json:"hospital_id"`
+}
+
+type GovernanceScopeResult struct {
+	ProposalID uuid.UUID `json:"proposal_id"`
+	RequestID  uuid.UUID `json:"request_id"`
+	HospitalID uuid.UUID `json:"hospital_id"`
+	Eligible   bool      `json:"eligible"`
+}
+
 type DepartmentScopeRequest struct {
 	ProposalID   uuid.UUID `json:"proposal_id"`
 	RequestID    uuid.UUID `json:"request_id"`

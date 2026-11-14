@@ -45,7 +45,8 @@
       "scope_kinds": ["hospital"],
       "permissions": ["workforce.employment.activate"],
       "name": "Nonclinical employment activation"
-    }
+    },
+    {"key": "iam.scoped_access_reviewer.v1", "name": "Hospital scoped-access reviewer", "scope_kinds": ["hospital"], "permissions": ["iam.assignment.manage", "iam.assignment.review"]}
   ],
   "models": {
     "GovernanceTemplateDefinition": [

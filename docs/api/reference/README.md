@@ -26,6 +26,12 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/governance-grants/:id` | `iam.governance.read` | false | false |
 | PUT | `/v1/iam/governance-grants/:id` | `iam.governance.manage` | false | false |
 | GET | `/v1/iam/governance-notices` | `iam.governance.read` | true | false |
+| POST | `/v1/iam/hospitals/:hospital/assignment-proposals/:id/decision` | `public` | false | false |
+| GET | `/v1/iam/hospitals/:hospital/assignment-proposals/:id/decisions` | `public` | true | false |
+| GET | `/v1/iam/hospitals/:hospital/assignment-proposals/:id/history` | `public` | true | false |
+| GET | `/v1/iam/hospitals/:hospital/assignment-proposals/:id` | `public` | false | false |
+| PUT | `/v1/iam/hospitals/:hospital/assignment-proposals/:id` | `iam.assignment.manage` | false | false |
+| GET | `/v1/iam/hospitals/:hospital/assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member/commands/:command` | `public` | false | false |
 | PUT | `/v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member/commands/:command` | `public` | false | false |
 | GET | `/v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member` | `public` | false | false |
@@ -98,6 +104,7 @@ Published subjects:
 - `helivanta.in.iam.partner_group_changed.v1`
 - `helivanta.in.iam.partner_group_member_changed.v1`
 - `helivanta.in.iam.assignment_scope_requested.v1`
+- `helivanta.in.iam.assignment_governance_scope_requested.v1`
 - `helivanta.in.iam.assignment_department_scope_requested.v1`
 - `helivanta.in.iam.assignment_projection_requested.v1`
 - `helivanta.in.iam.member_granted.v1`
@@ -109,7 +116,8 @@ Subscriptions:
 - `iam-supplier-grant-exchange` ← `helivanta.in.iam.supplier_grant_exchange.v1`; after-commit hook: false.
 - `iam-partner-group-hospital-scope` ← `helivanta.in.workforce.partner_group_hospital_scope_observed.v1`; after-commit hook: false.
 - `iam-assignment-scope` ← `helivanta.in.workforce.assignment_scope_verified.v1`; after-commit hook: false.
-- `iam-assignment-department-scope` ← `helivanta.in.organization.assignment_department_verified.v1`; after-commit hook: false.
+- `iam-assignment-governance-scope` ← `helivanta.in.workforce.assignment_governance_scope_verified.v1`; after-commit hook: true.
+- `iam-assignment-department-scope` ← `helivanta.in.organization.assignment_department_verified.v1`; after-commit hook: true.
 - `iam-assignment-projection` ← `helivanta.in.iam.assignment_projection_requested.v1`; after-commit hook: true.
 - `iam-operating-projection` ← `helivanta.in.iam.operating_assignment_changed.v1`; after-commit hook: true.
 - `iam-fga-sync` ← `helivanta.in.iam.member_granted.v1`; after-commit hook: true.
@@ -141,6 +149,7 @@ Migration table declarations:
 - `0039_iam_supplier_grants`: `iam_supplier_grants`, `iam_supplier_grant_commands`, `iam_supplier_grant_history`, `iam_supplier_grant_bases`, `iam_supplier_grant_projection_acks`.
 - `0047_iam_governance`: `iam_governance_grants`, `iam_governance_owner_notices`, `iam_governance_decisions`.
 - `0048_iam_governance_employment_bases`: `iam_employment_basis_authorities`.
+- `0049_iam_assignment_governance`: `iam_assignment_governance_requests`, `iam_assignment_governance_verifications`.
 
 ## reference
 
@@ -1535,6 +1544,7 @@ Published subjects:
 - `helivanta.in.workforce.identity_case_changed.v1`
 - `helivanta.in.workforce.document_classification_changed.v1`
 - `helivanta.in.workforce.assignment_scope_verified.v1`
+- `helivanta.in.workforce.assignment_governance_scope_verified.v1`
 - `helivanta.in.workforce.login_link_changed.v1`
 - `helivanta.in.workforce.enrollment_changed.v1`
 - `helivanta.in.workforce.master_changed.v1`
@@ -1577,6 +1587,7 @@ Subscriptions:
 - `workforce-partner-group-hospital-scope` ← `helivanta.in.iam.partner_group_hospital_scope_requested.v1`; after-commit hook: false.
 - `workforce-department-link-observation` ← `helivanta.in.organization.department_link_observed.v1`; after-commit hook: false.
 - `workforce-assignment-scope` ← `helivanta.in.iam.assignment_scope_requested.v1`; after-commit hook: false.
+- `workforce-assignment-governance-scope` ← `helivanta.in.iam.assignment_governance_scope_requested.v1`; after-commit hook: false.
 - `workforce-organization-reference` ← `helivanta.in.organization.hospital_reference_requested.v1`; after-commit hook: false.
 - `workforce-hospital-name-receipt` ← `helivanta.in.pharmacy.hospital_name_received.v1`; after-commit hook: false.
 - `workforce-document-scan` ← `helivanta.in.workforce.document_scan_requested.v1`; after-commit hook: true.

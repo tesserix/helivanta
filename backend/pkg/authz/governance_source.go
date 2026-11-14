@@ -11,6 +11,11 @@ import (
 type GovernanceCapability string
 
 const (
+	GovernanceAssignmentManage GovernanceCapability = "iam.assignment.manage"
+	GovernanceAssignmentReview GovernanceCapability = "iam.assignment.review"
+)
+
+const (
 	GovernanceAccountLinkReview  GovernanceCapability = "workforce.account_link.review"
 	GovernancePersonPrepare      GovernanceCapability = "workforce.person.prepare"
 	GovernancePersonReview       GovernanceCapability = "workforce.person.review"

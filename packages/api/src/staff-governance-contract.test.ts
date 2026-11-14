@@ -110,6 +110,11 @@ it("keeps the versioned governance bundles free of operating authority", () => {
       scope_kinds: ["hospital"],
       permissions: ["workforce.employment.activate"],
     },
+    {
+      key: "iam.scoped_access_reviewer.v1",
+      scope_kinds: ["hospital"],
+      permissions: ["iam.assignment.manage", "iam.assignment.review"],
+    },
   ]);
 });
 it("preserves microsecond interval ordering instead of comparing rounded milliseconds", () => {
@@ -225,4 +230,22 @@ it.each([
       permissions: ["pharmacy.stock.write"],
     }).success,
   ).toBe(false);
+});
+
+it.each(["pharmacy", "supplier", "tenant"])(
+  "refuses a hospital assignment reviewer in %s",
+  (scope_kind) => {
+    expect(
+      GovernanceGrantInputContract.safeParse({
+        ...input,
+        template_key: "iam.scoped_access_reviewer.v1",
+        scope_kind,
+      }).success,
+    ).toBe(false);
+  },
+);
+it("admits only the fixed hospital assignment administration bundle", () => {
+  expect(
+    GovernanceGrantInputContract.parse({ ...input, template_key: "iam.scoped_access_reviewer.v1" }),
+  ).toMatchObject({ template_key: "iam.scoped_access_reviewer.v1", scope_kind: "hospital" });
 });

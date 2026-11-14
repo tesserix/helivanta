@@ -104,6 +104,8 @@ func governanceSourceTemplate(capability authz.GovernanceCapability, kind string
 	}
 	if kind == "hospital" {
 		switch capability {
+		case authz.GovernanceAssignmentManage, authz.GovernanceAssignmentReview:
+			return "iam.scoped_access_reviewer.v1"
 		case authz.GovernanceEmploymentPrepare:
 			return "workforce.employment_preparer.v1"
 		case authz.GovernanceEmploymentReview:

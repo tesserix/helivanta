@@ -180,12 +180,18 @@ func racePostingLifecycleCommands(t *testing.T, db *tenantdb.DB, tenant, hospita
 	t.Logf("Both lifecycle commands reached PostgreSQL lock waits after %s; releasing supervision gate", time.Since(started))
 	release()
 	var result [2]*httptest.ResponseRecorder
+	sample := time.NewTimer(time.Second)
+	defer sample.Stop()
 	for index := range result {
-		select {
-		case result[index] = <-responses[index]:
-			t.Logf("Lifecycle command %d returned status %d after %s", index, result[index].Code, time.Since(started))
-		case <-ctx.Done():
-			t.Fatal("serialized lifecycle commands did not finish")
+		for result[index] == nil {
+			select {
+			case result[index] = <-responses[index]:
+				t.Logf("Observed lifecycle command %d status %d after %s", index, result[index].Code, time.Since(started))
+			case <-sample.C:
+				postingLifecycleLockEvidence(t, ctx, db, tenant)
+			case <-ctx.Done():
+				t.Fatal("serialized lifecycle commands did not finish")
+			}
 		}
 	}
 	select {
@@ -195,4 +201,41 @@ func racePostingLifecycleCommands(t *testing.T, db *tenantdb.DB, tenant, hospita
 		t.Fatal("supervision gate holder did not exit")
 	}
 	return result
+}
+
+func postingLifecycleLockEvidence(t *testing.T, ctx context.Context, db *tenantdb.DB, tenant string) {
+	t.Helper()
+	queryCtx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	var rows []struct {
+		PID                                    int `gorm:"column:pid"`
+		Blockers, Phase, WaitType, Wait, Locks string
+	}
+	err := db.WithTenant(queryCtx, tenant, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT a.pid,pg_blocking_pids(a.pid)::text AS blockers,a.wait_event_type AS wait_type,a.wait_event AS wait,
+ CASE WHEN a.query ILIKE '%pg_advisory%' THEN 'advisory'
+ WHEN a.query ILIKE '%workforce_staff_posting_cutoff%' THEN 'posting-cutoff'
+ WHEN a.query ILIKE '%workforce_staff_posting_proposal%' THEN 'posting-proposal'
+ WHEN a.query ILIKE '%workforce_staff_postings%' THEN 'posting'
+ WHEN a.query ILIKE '%iam_assignment_scope_epochs%' THEN 'assignment-epoch'
+ WHEN a.query ILIKE '%iam_assignment_snapshots%' THEN 'assignment-snapshot'
+ WHEN a.query ILIKE '%iam_subject_membership_epochs%' THEN 'membership-epoch'
+ WHEN a.query ILIKE '%iam_members%' THEN 'membership'
+ ELSE 'other' END AS phase,
+ COALESCE((SELECT string_agg(evidence.description,',') FROM (
+ SELECT l.locktype||':'||COALESCE(c.relname,l.transactionid::text,concat_ws(':',l.classid,l.objid,l.objsubid),'key')||':'||l.mode||':'||l.granted::text AS description
+ FROM pg_locks l LEFT JOIN pg_class c ON c.oid=l.relation WHERE l.pid=a.pid
+ AND (l.locktype IN('transactionid','advisory') OR c.relname IN('iam_assignment_scope_epochs','iam_assignment_snapshots','iam_subject_membership_epochs','workforce_staff_posting_proposals','workforce_staff_postings','workforce_staff_posting_cutoffs'))
+ ORDER BY l.granted,l.locktype,c.relname LIMIT 16) evidence),'') AS locks
+ FROM pg_stat_activity a WHERE a.datname=current_database() AND a.pid<>pg_backend_pid()
+ AND a.state='active' AND (a.wait_event_type='Lock' OR cardinality(pg_blocking_pids(a.pid))>0)
+ ORDER BY a.pid LIMIT 16`).Scan(&rows).Error
+	})
+	if err != nil {
+		t.Log("Bounded lifecycle blocker evidence unavailable")
+		return
+	}
+	for _, row := range rows {
+		t.Logf("Lifecycle blocker pid=%d blockers=%s phase=%s wait=%s/%s locks=%s", row.PID, row.Blockers, row.Phase, row.WaitType, row.Wait, row.Locks)
+	}
 }

@@ -98,8 +98,10 @@ type assignmentProposalHistory ProposalHistory
 func (p assignmentProposalHistory) PageKey() (time.Time, uuid.UUID) { return p.CreatedAt, p.ID }
 
 type assignmentProposalHandlers struct {
-	db  *tenantdb.DB
-	bus *events.Bus
+	db      *tenantdb.DB
+	bus     *events.Bus
+	native  bool
+	sources authz.CurrentGovernanceSourceGuard
 }
 
 func assignmentAccess(tx *gorm.DB) error {
@@ -171,6 +173,26 @@ func proposalScope(c *gin.Context) (authn.Principal, uuid.UUID, bool) {
 	return p, id, true
 }
 func proposalError(c *gin.Context, err error) {
+	if c.IsAborted() {
+		return
+	}
+	if errors.Is(err, authz.ErrScopedAuthorizationUnavailable) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, tenantdb.ErrGuardedCommandExpired) {
+		respond.Error(c, 503, "assignment_source_unavailable", "Current assignment authority or its source is unavailable. Retry the original command.")
+		return
+	}
+	if errors.Is(err, authz.ErrScopedCredentialRevoked) {
+		respond.Unauthenticated(c, "Sign in again before managing assignments.")
+		return
+	}
+	if errors.Is(err, authz.ErrGovernanceScopeHidden) {
+		respond.NotFound(c, "assignment scope")
+		return
+	}
+	if errors.Is(err, authz.ErrScopedCommandDenied) {
+		respond.Forbidden(c, "Current hospital assignment authority is required.")
+		return
+	}
+
 	if errors.Is(err, errAssignmentDenied) {
 		respond.Forbidden(c, "Current assignment administration authority is required.")
 		return
@@ -214,9 +236,9 @@ func (h *assignmentProposalHandlers) put(c *gin.Context) {
 		return
 	}
 	var saved assignmentProposal
-	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		if err := assignmentAccessFor(tx, p); err != nil {
-			return err
+	err := h.assignmentTransaction(c, p, authz.GovernanceAssignmentManage, func(tx *gorm.DB) error {
+		if h.native && in.HospitalID.String() != c.Param("hospital") {
+			return gorm.ErrRecordNotFound
 		}
 		if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended(?,0)),set_config('app.actor_subject',?,true)`, p.TenantID+id.String(), p.Subject).Error; err != nil {
 			return err
@@ -236,7 +258,7 @@ func (h *assignmentProposalHandlers) put(c *gin.Context) {
 			if saved.MembershipEpoch != membershipEpoch || saved.ProposedBy != p.Subject || !sameProposal(saved.ProposalInput, in) {
 				return errProposalConflict
 			}
-			return nil
+			return assignmentGovernanceReplay(tx, p.TenantID, saved, nil)
 		}
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
@@ -262,10 +284,21 @@ func (h *assignmentProposalHandlers) put(c *gin.Context) {
 
 // requestProposalScope asks every scope owner about the current request in the caller's transaction.
 func requestProposalScope(tx *gorm.DB, bus *events.Bus, tenant string, row assignmentProposal, actor string) error {
+	if bus == nil {
+		return errors.New("assignment scope transport unavailable")
+	}
+	native, err := retainAssignmentGovernanceRequest(tx, tenant, row, actor)
+	if err != nil {
+		return err
+	}
 	requests := []struct {
 		subject string
 		data    any
 	}{{iamcontract.SubjectAssignmentScopeRequested, iamcontract.AssignmentScopeRequestedData{ProposalID: row.ID, RequestID: row.RequestID, HospitalID: row.HospitalID, ActorSubject: actor}}}
+	if native {
+		requests[0].subject = iamcontract.SubjectAssignmentGovernanceScopeRequested
+		requests[0].data = iamcontract.AssignmentGovernanceScopeRequestedData{ProposalID: row.ID, RequestID: row.RequestID, HospitalID: row.HospitalID}
+	}
 	if row.ScopeKind == "department" {
 		if row.DepartmentID == nil {
 			return errors.New("department proposal without department")
@@ -305,10 +338,7 @@ func (h *assignmentProposalHandlers) get(c *gin.Context) {
 		return
 	}
 	var row assignmentProposal
-	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		if err := assignmentAccessFor(tx, p); err != nil {
-			return err
-		}
+	err := h.assignmentTransaction(c, p, authz.GovernanceAssignmentManage, func(tx *gorm.DB) error {
 		if err := tx.Where("tenant_id=? AND id=?", p.TenantID, id).Take(&row).Error; err != nil {
 			return err
 		}
@@ -326,10 +356,7 @@ func (h *assignmentProposalHandlers) history(c *gin.Context, params pagination.P
 		return nil, nil
 	}
 	var rows []assignmentProposalHistory
-	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		if err := assignmentAccessFor(tx, p); err != nil {
-			return err
-		}
+	err := h.assignmentTransaction(c, p, authz.GovernanceAssignmentManage, func(tx *gorm.DB) error {
 		var exists assignmentProposal
 		if err := tx.Select("id").Where("tenant_id=? AND id=?", p.TenantID, id).Take(&exists).Error; err != nil {
 			return err
@@ -358,6 +385,10 @@ func proposalScopeConsumer(deps platform.Deps) events.Consumer {
 		}
 		row, current, err := lockPendingProposal(tx, evt.TenantID, result.ProposalID, result.RequestID, result.HospitalID)
 		if err != nil || !current {
+			return err
+		}
+		native, err := assignmentHasGovernanceRequest(tx, evt.TenantID, row)
+		if err != nil || native {
 			return err
 		}
 		if row.ScopeKind == "department" {
@@ -411,6 +442,7 @@ func settleProposalScope(tx *gorm.DB, deps platform.Deps, tenant string, row ass
 	return nil
 }
 func (m *Module) registerAssignmentProposals(g *platform.Router, deps platform.Deps) {
+	registerGovernanceAssignments(g, deps)
 	h := &assignmentProposalHandlers{db: deps.DB, bus: deps.Bus}
 	g.POST("/assignment-proposals/:id/decision", authz.Public, h.decide)
 	platform.ListRoute(g, "/assignment-proposals/:id/decisions", authz.Public, h.decisions)
@@ -463,7 +495,26 @@ func (m *Module) registerAssignmentProposals(g *platform.Router, deps platform.D
 }
 
 func (h *assignmentProposalHandlers) list(c *gin.Context, params pagination.Params) ([]assignmentProposal, error) {
-	return h.listFamily(c, params, "leave")
+	family := "leave"
+	if h.native {
+		values, exists := c.Request.URL.Query()["family"]
+		if exists {
+			matched := false
+			if len(values) == 1 {
+				for _, definition := range staffAccessTemplates() {
+					if definition.Family == values[0] {
+						family, matched = values[0], true
+						break
+					}
+				}
+			}
+			if !matched {
+				respond.BadRequest(c, errors.New("choose one canonical assignment family"))
+				return nil, nil
+			}
+		}
+	}
+	return h.listFamily(c, params, family)
 }
 
 func (h *assignmentProposalHandlers) listIdentity(c *gin.Context, params pagination.Params) ([]assignmentProposal, error) {
@@ -502,10 +553,7 @@ func (h *assignmentProposalHandlers) listFamily(c *gin.Context, params paginatio
 			keys = append(keys, template.Key)
 		}
 	}
-	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		if err := assignmentAccessFor(tx, p); err != nil {
-			return err
-		}
+	err := h.assignmentTransaction(c, p, authz.GovernanceAssignmentManage, func(tx *gorm.DB) error {
 		if err := tenantdb.ApplyKeyset(tx, params).Where("tenant_id=? AND template_key IN ?", p.TenantID, keys).Find(&rows).Error; err != nil {
 			return err
 		}

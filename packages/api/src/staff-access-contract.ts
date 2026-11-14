@@ -84,6 +84,25 @@ export const ScopeResultContract = z
   .strict();
 export type ScopeResult = z.infer<typeof ScopeResultContract>;
 
+export const GovernanceScopeRequestContract = z
+  .object({
+    proposal_id: identifier,
+    request_id: identifier,
+    hospital_id: identifier,
+  })
+  .strict();
+export type GovernanceScopeRequest = z.infer<typeof GovernanceScopeRequestContract>;
+
+export const GovernanceScopeResultContract = z
+  .object({
+    proposal_id: identifier,
+    request_id: identifier,
+    hospital_id: identifier,
+    eligible: z.boolean(),
+  })
+  .strict();
+export type GovernanceScopeResult = z.infer<typeof GovernanceScopeResultContract>;
+
 export const DepartmentScopeRequestContract = z
   .object({
     proposal_id: identifier,

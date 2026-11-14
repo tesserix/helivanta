@@ -228,7 +228,7 @@ async function sellableOutlet(
       decision: "approved",
       reason: "TEST synthetic licence checked by a second actor",
     });
-    await owner(admin, "POST", `${outlet}/tax-registrations`, {
+    await owner(admin, "PUT", `${outlet}/tax-registrations/${uuidv7()}`, {
       jurisdiction_code: "27",
       identifier: "27PQRST5678K2Z1",
       effective_from: today,
@@ -254,12 +254,17 @@ async function sellableOutlet(
       mrp_minor: 12500,
       status: "active",
     });
-    await owner(admin, "POST", `${outlet}/catalogue/products/${product}/tax-classifications`, {
-      classification_code: "30049099",
-      supply_nature: "taxable",
-      rate_percent: "12",
-      effective_from: today,
-    });
+    await owner(
+      admin,
+      "PUT",
+      `${outlet}/catalogue/products/${product}/tax-classifications/${uuidv7()}`,
+      {
+        classification_code: "30049099",
+        supply_nature: "taxable",
+        rate_percent: "12",
+        effective_from: today,
+      },
+    );
     const declaration = uuidv7();
     await owner(admin, "PUT", `${outlet}/catalogue/products/${product}/schedule/${declaration}`, {
       regulatory_class: "none",

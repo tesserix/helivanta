@@ -244,6 +244,32 @@ try {
     await expect(duty.getByText("Status: revoked", { exact: true })).toBeVisible();
     expect(mutations).toHaveLength(3);
     expect(mutations[2].body).toMatchObject({ decision: "revoke", expected_version: 3 });
+    const inbox = reviewer.waitForResponse(
+      (response) => new URL(response.url()).pathname === "/api" + root + "/duty-inbox",
+    );
+    await reviewer.getByRole("button", { name: "Manage existing duties", exact: true }).click();
+    const retained = await inbox;
+    expect(retained.status()).toBe(200);
+    const retainedHeads = (await retained.json()).data;
+    expect(retainedHeads.find((head) => head.id === proposal.split("/").at(-1))).toMatchObject({
+      status: "revoked",
+      version: 4,
+    });
+    await expect(
+      reviewer.getByRole("heading", { name: "Existing operating duties", exact: true }),
+    ).toBeVisible();
+    const retainedDuty = reviewer
+      .getByRole("article")
+      .filter({ has: reviewer.getByText(reason, { exact: true }) });
+    await expect(retainedDuty.getByText("Status: revoked", { exact: true })).toBeVisible();
+    await expect(reviewer.getByRole("button", { name: "Approve duty", exact: true })).toHaveCount(
+      0,
+    );
+    await expect(
+      reviewer.getByRole("button", { name: "Assign operating duty", exact: true }),
+    ).toHaveCount(0);
+    expect(mutations).toHaveLength(3);
+
     console.log(
       `PASS: ${fixture.kind} native employer → reviewed Staff → owner location → proposal → independent review → acknowledged activation → revocation; lost responses recovered by GET through Global API and real IAM/Workforce/product owners.`,
     );

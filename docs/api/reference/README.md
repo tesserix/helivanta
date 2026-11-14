@@ -76,6 +76,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/operating-governance-employers/:kind/:employer/duties/:id/proposal-receipt` | `iam.governance.operating.manage` | false | false |
 | GET | `/v1/iam/operating-governance-employers/:kind/:employer/duties/:id` | `iam.governance.operating.manage` | false | false |
 | PUT | `/v1/iam/operating-governance-employers/:kind/:employer/duties/:id` | `iam.governance.operating.manage` | false | false |
+| GET | `/v1/iam/operating-governance-employers/:kind/:employer/duty-inbox` | `iam.governance.operating.manage` | true | false |
 | GET | `/v1/iam/operating-governance-employers/:kind/:employer/location-choices` | `iam.governance.operating.manage` | true | false |
 | GET | `/v1/iam/operating-governance-employers/:kind/:employer/staff/:staff/duties` | `iam.governance.operating.manage` | true | false |
 | GET | `/v1/iam/partner-grant-drafts/:id` | `iam.assignment.manage` | false | false |
@@ -160,6 +161,7 @@ Migration table declarations:
 - `0048_iam_governance_employment_bases`: `iam_employment_basis_authorities`.
 - `0049_iam_assignment_governance`: `iam_assignment_governance_requests`, `iam_assignment_governance_verifications`.
 - `0050_iam_operating_governance`: `iam_operating_governance_origins`, `iam_operating_governance_commands`.
+- `0051_iam_operating_employer_inbox`: concurrent index `iam_operating_employer_inbox` on `iam_operating_duties (tenant_id, employer_kind, employer_id, native_administration, created_at DESC, id DESC)`.
 
 ## reference
 

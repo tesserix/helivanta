@@ -81,7 +81,7 @@ Source and reviewed-account pages retain their server cursors and expected
 workspace headers. Refused reads hide preparation. Role maximum validity is
 checked before submission as well as by IAM. Ambiguous proposal responses freeze
 the original command and recover its immutable receipt. Preparation and approval
-never substitute for acknowledged activation or current authorization. Inactive
+never substitute for acknowledged activation or current authorization. New preparation and approval for inactive
 Staff require an active current directory record and a fresh independently
 reviewed account basis; reactivation does not revive old duties. Hospital Staff
 use the separate reviewed employment, account-link, department posting and
@@ -309,3 +309,42 @@ native command or receipt does not retry through legacy authority. The client
 continues to bind responses to verified tenant/actor expectations, exact employer,
 Staff, request ID and retained intent. Mode selection is routing context, not
 server authority. Qualified discovery and native UI adoption remain outstanding.
+
+## Candidate retained employer-duty inbox
+
+`GET /v1/iam/operating-governance-employers/:kind/:employer/duty-inbox` returns
+canonical `OperatingDuty` heads through Global API under refreshed
+`iam.governance.operating.manage`, held current IAM owner/exact employer reviewer
+source and the Workforce employer-owner gate. It includes native duties for
+changed, inactive or unlinked Staff and closed physical locations; it does not
+claim current target eligibility. Legacy duties remain excluded. No target Staff
+actor, identity lookup, copied master or new permission template is introduced.
+
+The default and maximum limit are 20. Only one limit/cursor and optional fixed
+`status=all` are accepted. The sealed cursor binds tenant, account, employer ID,
+kind and fixed status. Scan at most 21 heads using IAM0051's concurrent
+`iam_operating_employer_inbox` index on tenant/kind/employer/native marker and
+descending creation/ID. Each successful page commits
+`iam.operating.employer_inbox.read` against the logical `iam_operating_employers`
+resource and employer ID before disclosure. Responses are no-store. Missing
+coarse authority is 403, hidden source/employer 404, changed credentials 401,
+malformed input/cursor 400 and unavailable owner/records/audit 503. In particular,
+a read-audit constraint failure is unavailable, not a business conflict or empty
+success. Retain the existing five-second authority budget.
+
+The native employer page offers **Manage existing duties** independently of
+current reviewed-Staff choices. Retained records use canonical revoke and maker
+withdrawal commands and exact GET recovery. New preparation and independent
+approval stay in the current reviewed-Staff flow. History is labelled explicitly;
+old identifiers and reasons are not fresh identity/location verification.
+Refused reads hide cached details. Pending commands freeze navigation/page
+changes; dirty forms use the leave guard. Acknowledged decisions invalidate both
+current Staff and retained employer queries.
+
+The candidate adds actual-owner bootstrap assertions for sealed paging/account/
+employer/kind isolation, read-audit rollback, source cutoff and revocation after a
+Staff revision invalidates its old link. Native browser checks now navigate to
+retained version-4 revoked heads for both models without fallback or extra writes.
+Local unit/SDK tests and compilation do not prove those new runtime assertions
+pass. The index and route remain unreleased; full lifecycle, effective product
+access and deployed acceptance remain separate gates.

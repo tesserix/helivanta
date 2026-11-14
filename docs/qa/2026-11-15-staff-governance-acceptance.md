@@ -234,3 +234,56 @@ RLS/policy-support and master-write-denial assertions. This closes the backend
 runtime test for that endpoint, not native hospital preparation UI, full Go/CI,
 identity-owner deployment or full Staff/operating acceptance. Other jobs were
 still running when the subsequent diagnostic commit was prepared.
+
+## Retained-duty management and WF0118 candidate
+
+At `5f6f70cc`, CI43628051355 web job132548386037 passed both native
+pharmacy/supplier browser journeys, including management-source cutoff. E2E,
+scripts and secret scan also passed. Go job132548386488 failed the department
+master-write-denial fixture: two `clock_timestamp()` calls could produce different
+instants, triggering chronology validation before the expected RLS denial. Both
+fixture timestamps now use `statement_timestamp()`; the exact 42501 assertion is
+retained. This correction requires a new runtime result.
+
+Supplier43628051315/job132548349130 failed the original full Staff lifecycle.
+Conditional diagnostic job132555275876 also failed (at the injected root-failure
+expectation). At 19:19:38 UTC, its aggregate function counters were:
+
+| Function | Calls | Total ms | Self ms |
+| --- | ---: | ---: | ---: |
+| workforce_operating_selection_link | 1803 | 46232.78 | 45657.68 |
+| workforce_employment_review_write | 57 | 22794.18 | 21925.96 |
+| workforce_lock_supervision | 2146 | 14134.75 | 14134.75 |
+| workforce_employment_review_complete | 47 | 15487.27 | 12213.96 |
+| workforce_posting_proposal_decider | 143 | 50102.60 | 2364.74 |
+| workforce_operating_selection_context | 1803 | 575.08 | 575.08 |
+
+These are aggregate measurements, not exact request attribution. WF0118 is a
+candidate response to the dominant selection-link self time: it returns false
+before planning the Staff subquery when the private operating-selection purpose
+is absent. When present, it retains the entire original authorization SELECT.
+There is no authority-result cache, policy change, budget increase or weakened
+lifecycle assertion. Before replacement, the migration requires the previous
+integrity result to be exactly true; it then refreshes the identical policy and
+function coverage. Pure regression tests and backend build/vet/lint passed.
+The ordinary cold full lifecycle with tracking disabled remains mandatory.
+
+The same candidate adds IAM's bounded, employer-scoped retained native-duty inbox,
+SDK and management UI. Current employer management authority is required on every
+read; current Staff eligibility is not a prerequisite to revoking a retained
+record. The UI supports revocation and maker withdrawal, hides cached details on
+source cutoff, and recovers an unresolved command before permitting navigation.
+New real-owner runtime assertions cover paging, scope replay, missing authority,
+audit failure and retained-duty revocation after Staff revision changes. Browser
+coverage adds retained-duty navigation after revocation. Those runtime additions
+remain pending CI; local SDK/UI tests and production shell build passed.
+
+Hospital target/account selection and preparation UI, effective product-access
+cutoffs, identity-owner deployment and real tenant/login journeys remain open.
+No merge, live migration or deployment is claimed by this checkpoint.
+
+Validation correction: the final broad local Workforce regex also selected five
+existing database tests. They failed immediately because rootless Docker is
+unavailable; no database/container started. This was an incorrect local selection,
+not a successful runtime check. Those tests remain CI-only. The new pure
+selection-plan regression is run separately with its exact test name.

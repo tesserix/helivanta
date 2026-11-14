@@ -169,7 +169,7 @@ func TestGovernedAssignmentDepartmentChoicesUseCurrentOwnerScopeAndDenyMasterWri
 			if e := tx.Exec(`SELECT set_config('app.organization_assignment_selection',?,true),set_config('app.organization_department_write','authorized',true)`, string(raw)).Error; e != nil {
 				return e
 			}
-			return tx.Exec(`UPDATE organization_departments SET name='Denied source write',version=version+1,effective_at=clock_timestamp(),updated_at=clock_timestamp()WHERE tenant_id=? AND hospital_id=? AND id=?`, testutil.TenantA, hospital, first).Error
+			return tx.Exec(`UPDATE organization_departments SET name='Denied source write',version=version+1,effective_at=statement_timestamp(),updated_at=statement_timestamp()WHERE tenant_id=? AND hospital_id=? AND id=?`, testutil.TenantA, hospital, first).Error
 		})
 	})
 	require.ErrorAs(t, err, &denied)

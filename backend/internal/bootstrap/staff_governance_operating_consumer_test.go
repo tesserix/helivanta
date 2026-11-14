@@ -161,6 +161,7 @@ func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *ten
 		call(http.MethodGet, staffChoicePath+"?limit=20", "auditor", nil, http.StatusServiceUnavailable)
 	})
 	call(http.MethodGet, staffChoicePath+"?limit=20", "auditor", nil, http.StatusOK)
+	var historyDuty uuid.UUID
 	t.Run("Staff choice paging binds actor employer and kind", func(t *testing.T) {
 		family := "pharmacies"
 		if kind == "supplier" {
@@ -203,6 +204,7 @@ func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *ten
 		for _, query := range []string{"?limit=21", "?limit=1&limit=20", "?status=active&status=active"} {
 			call(http.MethodGet, staffChoicePath+query, "auditor", nil, http.StatusBadRequest)
 		}
+		historyDuty = prepareRetainedOperatingDuty(t, kind, employer, location, extraStaff, extraLink, template, now, call)
 		call(http.MethodPut, staffRoot+"?directory_context=v1", "admin", map[string]any{"employee_code": "SYN-NATIVE-PAGE", "display_name": "Synthetic changed paging Staff", "job_category": "pharmacist", "employment_status": "active", "expected_version": 1, "directory_context_version": "v1"}, http.StatusOK)
 		current := call(http.MethodGet, staffChoicePath+"?limit=20", "auditor", nil, http.StatusOK)
 		require.NotContains(t, current, extraStaff.String(), "a changed Staff revision cannot reuse its old reviewed link")
@@ -429,6 +431,7 @@ func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *ten
 	require.JSONEq(t, prepared, call(http.MethodPut, path, "owner2", input, http.StatusOK))
 	require.JSONEq(t, prepared, call(http.MethodGet, path+"/proposal-receipt", "owner2", nil, http.StatusOK))
 	require.Contains(t, call(http.MethodGet, prefix+"/staff/"+staff.String()+"/duties", "auditor", nil, http.StatusOK), duty.String())
+	exerciseNativeOperatingInbox(t, router, db, prefix, kind, hiddenEmployer, duty, historyDuty, input, call)
 	approval := iam.OperatingDutyDecisionInput{ExpectedVersion: 1, Decision: "approve", Reason: "Independent reviewer verifies current employer and Staff"}
 	call(http.MethodPut, path+"/commands/"+uuid.Must(uuid.NewV7()).String(), "owner2", approval, http.StatusConflict)
 	command := uuid.Must(uuid.NewV7())
@@ -471,6 +474,7 @@ func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *ten
 	call(http.MethodPut, grantPath+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "admin", iam.GovernanceGrantDecisionInput{ExpectedVersion: 2, Decision: "revoke", Reason: "Synthetic native source cutoff"}, http.StatusAccepted)
 	call(http.MethodGet, locationChoicePath+"?limit=20", "auditor", nil, http.StatusNotFound)
 	call(http.MethodGet, staffChoicePath+"?limit=20", "auditor", nil, http.StatusNotFound)
+	call(http.MethodGet, prefix+"/duty-inbox?limit=20", "auditor", nil, http.StatusNotFound)
 	cutoffDirectory := call(http.MethodGet, "/v1/workforce/operating-authority-scopes?limit=20", "auditor", nil, http.StatusOK)
 	require.NotContains(t, cutoffDirectory, employer.String())
 	require.Contains(t, cutoffDirectory, `"data":[]`)
@@ -483,4 +487,5 @@ func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *ten
 	call(http.MethodGet, commandPath, "auditor", nil, http.StatusNotFound)
 	call(http.MethodPut, commandPath, "auditor", approval, http.StatusNotFound)
 	exerciseNativeOperatingBrowser(t, router, kind, employer, staff, location, replacementPath)
+	exerciseIneligibleOperatingInbox(t, prefix, historyDuty, call)
 }

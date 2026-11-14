@@ -583,6 +583,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/operating-governance-employers/:kind/:employer/duty-inbox",
+          "permission": "iam.governance.operating.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/operating-governance-employers/:kind/:employer/location-choices",
           "permission": "iam.governance.operating.manage",
           "authentication_required": true,
@@ -1384,6 +1393,43 @@
           "creates_tables": [
             "iam_operating_governance_origins",
             "iam_operating_governance_commands"
+          ]
+        },
+        {
+          "id": "0051_iam_operating_employer_inbox",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "iam_operating_employer_inbox",
+              "table": "iam_operating_duties",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "employer_kind",
+                  "descending": false
+                },
+                {
+                  "name": "employer_id",
+                  "descending": false
+                },
+                {
+                  "name": "native_administration",
+                  "descending": false
+                },
+                {
+                  "name": "created_at",
+                  "descending": true
+                },
+                {
+                  "name": "id",
+                  "descending": true
+                }
+              ]
+            }
           ]
         }
       ]
@@ -13902,6 +13948,11 @@
         {
           "id": "0117_workforce_posting_approval_plans",
           "sql_sha256": "0f6fc332b0fef1a95292087351219e1aa1e065ab7c5905c6e36c8dfaf00799bb",
+          "creates_tables": []
+        },
+        {
+          "id": "0118_workforce_operating_selection_plans",
+          "sql_sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "creates_tables": []
         }
       ]

@@ -214,3 +214,9 @@ export * from "./operating-staff-choices";
 export * from "./operating-location-choices";
 
 export * from "./assignment-department-choices";
+
+export {
+  listOperatingDutyInbox,
+  operatingDutyInboxKey,
+  type OperatingDutyInboxScope,
+} from "./operating-duty-inbox";

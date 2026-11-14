@@ -1368,3 +1368,61 @@ assets; a coarse-capability holder, another hospital/tenant account or a revoked
 delegate must not enumerate them. Verified current IAM evidence crosses into the
 Organization owner under one guarded command; supplied hospital IDs do not confer
 authority. No network identity lookup occurs inside this structural read.
+
+### Retained native operating-duty management
+
+Current active reviewed-Staff choices intentionally exclude ineligible targets.
+IAM already owns retained native duty heads and authorizes revocation/withdrawal
+through current employer governance without requiring active target eligibility.
+Add `GET /v1/iam/operating-governance-employers/:kind/:employer/duty-inbox` to
+expose those existing heads under the same current management source and canonical
+employer guard. No Workforce/identity master or extra grant vocabulary is added.
+It returns existing `OperatingDuty` models, including terminated and source-stale
+records, and does not assert current eligibility. Legacy duties remain excluded.
+
+Only limit/cursor and optional fixed `status=all` are accepted; default/max page
+is 20. Seal cursors to tenant/account/employer kind/ID/status. Add the concurrent
+IAM0051 index on tenant, employer kind/ID, native marker, descending creation/ID.
+A list is bounded to 21 scanned heads and one scope read audit before disclosure.
+Keep the existing five-second source/owner budget and no-store behavior. Missing
+permission is 403, hidden employer/source is 404 and unavailable owners/audit are
+503; dependency failure never becomes empty success. Scope remains authoritative
+on every page, receipt recovery and mutation. The existing source-provenance
+rules continue to prevent replacement grants adopting earlier command receipts.
+
+The native employer page gains an Existing duties view independent of current
+Staff selection. It uses canonical decision/recovery controls for revoke and
+preparer withdrawal only. New proposals and independent approval remain in the
+qualified current-Staff workflow. Retained identifiers/reasons are historical
+records, not current identity/location verification. Hide stale records on read
+failure; freeze navigation and page changes while a command is uncertain, and
+use the existing leave guard for dirty decisions. Invalidate both current Staff
+and retained inbox queries after acknowledged decisions.
+
+Threat boundary: retained Staff-linked duty reasons and identifiers are sensitive
+commercial/personnel records. Another employer/tenant, a coarse permission alone,
+a legacy administrator or revoked delegate must not enumerate them. Current IAM
+source plus the Workforce employer-owner gate protects each read and command;
+client IDs, old duty provenance and an active browser page confer no authority.
+Existing canonical commands remain the only writers, preserving immutable
+receipts, audit, projection cutoff and independent-person rules.
+
+Planning envelope (assumptions, not measured load): 20-row pages at about 30KiB,
+up to 100,000 retained duty heads per large employer over three years and 20 reads/s
+at peak. The new ordered index bounds scans; no cache, copied identity lookup or
+external network call is introduced. Acceptance requires real-owner scope/audit/
+paging tests, an ineligible-target revocation and native UI lost-response/cutoff
+checks for both ownership models. No rollout or completed acceptance is implied.
+
+### WF0118 operating-selection planning candidate
+
+Full-lifecycle diagnostic aggregate counters identified 45.7 seconds of self time
+across 1803 `workforce_operating_selection_link` calls while the hospital journey
+has no independent operating-selection purpose. WF0118 replaces that function
+with stable invoker PL/pgSQL and an absent-purpose false return before planning
+the Staff EXISTS query. Its valid-purpose SELECT is retained byte-for-byte;
+authority results are never cached. Prior integrity must be exactly true before
+replacement, and the same policy/function coverage is recaptured afterward.
+No RLS predicate, timeout, grant, command transition or acceptance assertion changes.
+The migration preserves the function signature, OID and ACL. Full cold lifecycle
+and current-source/tampering runtime tests must pass before acceptance.

@@ -67,6 +67,9 @@ func TestGovernanceAccountLinkReviewConsumesExactEmployerSourceWithoutManagerAcc
 		require.NoError(t, graph.GrantRole(t.Context(), testutil.TenantA, subject, authz.RoleTenantAdmin))
 	}
 
+	require.NoError(t, graph.GrantTenantRole(t.Context(), testutil.TenantB, authz.RoleTenantAdmin))
+	require.NoError(t, graph.GrantRole(t.Context(), testutil.TenantB, "user-foreign", authz.RoleTenantAdmin))
+	require.NoError(t, graph.GrantRole(t.Context(), testutil.TenantA, "user-ordinary", authz.RoleStaffMember))
 	for _, subject := range []string{"user-reviewer", "user-auditor", "user-owner2"} {
 		require.NoError(t, graph.GrantRole(t.Context(), testutil.TenantA, subject, authz.RoleStaffMember))
 	}
@@ -75,11 +78,12 @@ func TestGovernanceAccountLinkReviewConsumesExactEmployerSourceWithoutManagerAcc
 			native := &governanceNativeIdentity{}
 			identity := &governanceLinkIdentity{roles: graph, membership: graph}
 			router, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
-				Tokens: map[string]string{"admin": testutil.TenantA, "owner2": testutil.TenantA, "auditor": testutil.TenantA},
+				Tokens: map[string]string{"admin": testutil.TenantA, "owner2": testutil.TenantA, "auditor": testutil.TenantA, "ordinary": testutil.TenantA, "foreign": testutil.TenantB},
 				Perms: map[string][]authz.Permission{
-					"admin":   {iam.PermGovernanceManage, iam.PermGovernanceRead, iam.PermGovernanceReview, workforce.PermHospitalManage, workforce.PermSupplierManage, workforce.PermEnrollmentManage, workforce.PermLoginLinkManage, workforce.PermLoginLinkReview, workforce.PermIndependentLoginManage, workforce.PermIndependentLoginReview, pharmacy.PermCatalogueWrite, pharmacy.PermAccessManage, supply.PermPartyWrite, supply.PermOrganizationManage, supply.PermPremiseWrite},
+					"admin":   {authz.Permission(authz.GovernanceOperatingManage), authz.Permission(authz.GovernanceOperatingReview), iam.PermGovernanceManage, iam.PermGovernanceRead, iam.PermGovernanceReview, workforce.PermHospitalManage, workforce.PermSupplierManage, workforce.PermEnrollmentManage, workforce.PermLoginLinkManage, workforce.PermLoginLinkReview, workforce.PermIndependentLoginManage, workforce.PermIndependentLoginReview, pharmacy.PermCatalogueWrite, pharmacy.PermAccessManage, supply.PermPartyWrite, supply.PermOrganizationManage, supply.PermPremiseWrite},
 					"owner2":  {authz.Permission(authz.GovernanceOperatingManage), authz.Permission(authz.GovernanceOperatingReview), iam.PermGovernanceReview, workforce.PermLoginLinkReview, workforce.PermIndependentLoginReview},
 					"auditor": {authz.Permission(authz.GovernanceOperatingManage), authz.Permission(authz.GovernanceOperatingReview), workforce.PermLoginLinkReview, workforce.PermIndependentLoginReview},
+					"foreign": {authz.Permission(authz.GovernanceOperatingManage)},
 				},
 				Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(native), workforce.New(), pharmacy.New(), supply.New()},
 				Writer:  graph, Roles: identity, Membership: identity,
@@ -87,7 +91,10 @@ func TestGovernanceAccountLinkReviewConsumesExactEmployerSourceWithoutManagerAcc
 			// Browser acceptance outlives the harness setup context.
 			ctx := t.Context()
 			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-				return tx.Exec("INSERT INTO iam_members(tenant_id,subject,role_key)VALUES(?,'user-admin','tenant_admin'),(?,'user-owner2','tenant_admin'),(?,'user-auditor','staff_member'),(?,'user-reviewer','staff_member')", testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA).Error
+				return tx.Exec("INSERT INTO iam_members(tenant_id,subject,role_key)VALUES(?,'user-admin','tenant_admin'),(?,'user-owner2','tenant_admin'),(?,'user-auditor','staff_member'),(?,'user-reviewer','staff_member'),(?,'user-ordinary','staff_member')", testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA).Error
+			}))
+			require.NoError(t, db.WithTenant(tenantdb.WithActor(ctx, "user-foreign"), testutil.TenantB, func(tx *gorm.DB) error {
+				return tx.Exec("INSERT INTO iam_members(tenant_id,subject,role_key)VALUES(?,'user-foreign','tenant_admin')", testutil.TenantB).Error
 			}))
 			roots := []uuid.UUID{uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())}
 			family := map[string]string{"hospital": "hospitals", "pharmacy": "pharmacies", "supplier": "suppliers"}[kind]

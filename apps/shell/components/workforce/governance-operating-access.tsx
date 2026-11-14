@@ -9,6 +9,7 @@ import {
   type OperatingGovernanceEmployerScope,
   type OperatingGovernanceStaffChoice,
 } from "@helivanta/api";
+import { OperatingDutyManagement } from "./operating-duty-management";
 import { IndependentOperatingDuties } from "./independent-operating-duties";
 type Props = {
   scope: OperatingAuthorityScope;
@@ -106,6 +107,7 @@ function EmployerAccess({
 }: Props & { employer: OperatingGovernanceEmployerScope; onClose: () => void }) {
   const [cursor, setCursor] = useState<string | null>(null),
     [selected, setSelected] = useState<OperatingGovernanceStaffChoice | null>(null),
+    [history, setHistory] = useState(false),
     [busy, updateBusy] = useState(false);
   const confirmLeave = useConfirmLeave();
   const selectedScope = {
@@ -113,7 +115,11 @@ function EmployerAccess({
     employerKind: employer.employer_kind,
     employerId: employer.employer_id,
   };
-  const query = useOperatingStaffChoices(selectedScope, cursor, !busy && !accessSuspended);
+  const query = useOperatingStaffChoices(
+    selectedScope,
+    cursor,
+    !busy && !accessSuspended && !history,
+  );
   const setBusy = (value: boolean) => {
     updateBusy(value);
     onBusyChange?.(value);
@@ -132,6 +138,17 @@ function EmployerAccess({
   function change(action: () => void) {
     if (!busy) void confirmLeave(action);
   }
+  if (history)
+    return (
+      <OperatingDutyManagement
+        scope={{ ...selectedScope, administration: "governance" }}
+        busy={busy}
+        setBusy={setBusy}
+        accessSuspended={accessSuspended}
+        onBack={() => change(() => setHistory(false))}
+        onClose={() => change(onClose)}
+      />
+    );
   return (
     <Panel className="space-y-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
@@ -142,6 +159,11 @@ function EmployerAccess({
           Change employer
         </Button>
       </header>
+      {!accessSuspended && (
+        <Button variant="outline" disabled={busy} onClick={() => change(() => setHistory(true))}>
+          Manage existing duties
+        </Button>
+      )}
       {!suspended && (
         <p className="text-sm text-muted-foreground">
           Select a current Staff member with an independently reviewed account. A separate reviewer

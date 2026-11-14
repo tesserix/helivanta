@@ -81,7 +81,8 @@ jobs:
           printf 'STAFF_IDENTITY_OWNER_SCHEMA=%s\n' "$staff_schema" >> "$GITHUB_ENV"
       - name: Staff governance input boundaries
         run: |
-          go test -race ./internal/modules/iam ./internal/modules/workforce -run '^TestGovernance'
+          go test -race ./internal/modules/iam -run '^Test(Governance|OperatingInbox)'
+          go test -race ./internal/modules/workforce -run '^Test(Governance|OperatingSelectionPlan)'
           go test -race ./internal/bootstrap -run '^TestGovernance'
       - name: Qualified hospital assignment department selection
         run: go test -race ./internal/bootstrap -run '^TestGovernedAssignmentDepartmentChoicesUseCurrentOwnerScopeAndDenyMasterWrites$'

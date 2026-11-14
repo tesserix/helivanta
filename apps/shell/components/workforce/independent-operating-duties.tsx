@@ -15,6 +15,7 @@ import {
   useApiMutation,
   useOperatingDuties,
   operatingDutiesKey,
+  operatingDutyInboxKey,
   decideOperatingDuty,
   recoverOperatingDutyCommand,
   newOperatingDutyId,
@@ -97,7 +98,7 @@ function Duties({
       </RefreshButton>
       {(query.data?.data ?? []).length === 0 && <p>No operating duties on this page.</p>}
       {(query.data?.data ?? []).map((row) => (
-        <Duty
+        <OperatingDutyReview
           key={row.id}
           {...{ scope, row, busy, setBusy, accessSuspended }}
           canReview={permitted("iam.operating.review", "iam.governance.operating.review")}
@@ -136,7 +137,7 @@ function Duties({
     </Panel>
   );
 }
-function Duty({
+export function OperatingDutyReview({
   scope,
   row,
   busy,
@@ -186,13 +187,23 @@ function Duty({
           setBusy(false);
         }
       },
-      invalidate: [operatingDutiesKey(scope)],
+      invalidate: [
+        operatingDutiesKey(scope),
+        ...(scope.administration === "governance" ? [[...operatingDutyInboxKey(scope)]] : []),
+      ],
       suppressErrorToast: true,
     },
   );
   const recover = useApiMutation(
     (v: NonNullable<typeof pending>) => recoverOperatingDutyCommand(scope, row.id, v.id, v.input),
-    { onSuccess: success, invalidate: [operatingDutiesKey(scope)], suppressErrorToast: true },
+    {
+      onSuccess: success,
+      invalidate: [
+        operatingDutiesKey(scope),
+        ...(scope.administration === "governance" ? [[...operatingDutyInboxKey(scope)]] : []),
+      ],
+      suppressErrorToast: true,
+    },
   );
   const independent = scope.subject !== row.prepared_by && scope.subject !== row.input.subject;
   const actions: OperatingDutyDecisionInput["decision"][] = [];

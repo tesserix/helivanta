@@ -474,3 +474,24 @@ WF0117 did not repair the full lifecycle at `87e605b9`.
   missing registration, RLS tampering and master-write denial.
 - Qualified target/account discovery and native preparation controls remain open.
   Neither SDK presence nor compile-only tests close those gates.
+
+### Retained native duty management checkpoint
+
+- IAM owner inbox, concurrent index IAM0051, canonical-model SDK and native UI are
+  candidate implementation. No independent approval or new-grant shortcut is
+  offered in the retained view; it reuses canonical revocation/withdrawal.
+- New actual-owner tests cover paging/scope/audit and changed-revision target
+  revocation; native browser tests add retained-head navigation. Runtime CI must
+  pass before this gate closes. Current ordinary Staff and account receipt paths
+  retain their admission/provenance rules.
+- The department write-denial fixture now uses one `statement_timestamp()` for
+  effective/update time. Separate volatile clock calls could trigger chronology
+  rejection before RLS on slower runs; the exact 42501 assertion is unchanged.
+
+WF0118 candidate checkpoint: full-lifecycle aggregate diagnosis showed selection-link
+self time dominating the observed counters. The migration skips planning the Staff
+lookup only when the private purpose is absent, retains the complete authorized
+SELECT, requires prior integrity exactly true and refreshes identical coverage.
+Local pure regression/race, backend build/vet/lint and SDK/UI/type checks passed.
+Normal cold lifecycle and new retained-duty owner/browser acceptance remain CI gates;
+no timeout, assertion, source predicate or live configuration was relaxed.

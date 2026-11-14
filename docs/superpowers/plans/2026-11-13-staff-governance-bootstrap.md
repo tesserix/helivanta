@@ -426,3 +426,23 @@ cases, then the inherited-write regression probe failed at its owner lookup with
 now use `? AND`; no API behavior, assertion or RLS guard changes. Bootstrap
 compile-only, backend build, affected vet and lint pass. New exact-head database
 acceptance is required; this correction alone is not full selector acceptance.
+
+### Native operating UI checkpoint and approval timeout diagnosis
+
+Native UI implementation is pushed at 89605942: dedicated operating-access page,
+qualified employer/Staff/location selection, original-scope retention and GET-only
+proposal/decision recovery. All 30 local workspace tasks passed, including 2008
+shell tests; the exact-head focused suite passed 105 tests. CI browser execution
+and complete Staff/pharmacy journeys remain independent acceptance gates.
+
+The current fixed governance reviewer template contains both operating manage
+and review permissions; the Staff selector requires manage. Review-only accounts
+are not a supported separate template. No review-only API/UI authority was added.
+
+The prior supplier run failed child approval at workforce_posting_chain_test.go:118
+with a deadline, distinct from the earlier transfer failure. Add failure-only
+constant approval phase and elapsed-ms attribution to the existing error mapper,
+covering source checks, persistence and guarded completion without raw errors or
+source proofs. Preserve existing 403/500/503 responses and every five-second
+authority budget. Verify the real-service workflows before treating either failure
+as fixed. No live operation follows from these diagnostics.

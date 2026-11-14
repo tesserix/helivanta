@@ -1297,3 +1297,16 @@ a different occurrence from the preceding transfer persistence fault. Neither
 that earlier fault nor full Staff workflow acceptance is presumed resolved.
 The dedicated UI currently selects active eligible Staff only; historical/
 ineligible duty management remains an explicit open gate.
+
+### Approval deadline diagnosis continuation
+
+Native UI web checks pass at 89605942 in CI43595306491. Its other runtime jobs
+remain pending. Candidate approval diagnostics now attribute failures to constant
+phases (scope authorization, proposal basis, receipt read, decision authorization,
+supervision read/source checks, management sources, decision persistence and
+guarded completion) with elapsed milliseconds. The error mapper retains its
+existing status/code and excludes raw error content and private proofs. A
+deterministic race-tested diagnostic test covers deadline/source/storage/denial
+responses and verifies private details remain absent from logs and HTTP bodies.
+This is diagnosis only: it neither increases the fixed authority budget nor
+repairs or bypasses the unresolved child-approval/transfer failures.

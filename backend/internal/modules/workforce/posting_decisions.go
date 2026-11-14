@@ -7,10 +7,12 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
+	"github.com/tesserix/helivanta/internal/platform/requestid"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
@@ -56,6 +58,11 @@ func validPostingDecisionInput(in *StaffPostingDecisionInput) bool {
 		in.SourcesExamined != nil && *in.SourcesExamined && validPostingReason(in.Reason)
 }
 
+func respondPostingDecisionError(c *gin.Context, err error, stage string, elapsed time.Duration) {
+	requestid.Enrich(c, "posting_stage", stage, "elapsed_ms", elapsed.Milliseconds())
+	respondPostingProposalError(c, err)
+}
+
 func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 	if h.scopeAuthority == nil || h.staffActors == nil {
 		respondPostingProposalError(c, authz.ErrScopedAuthorizationUnavailable)
@@ -95,7 +102,10 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 		additional = []authz.Permission{PermPostingRead}
 	}
 	var out StaffPostingProposal
+	started := time.Now()
+	stage := "scope_authorization"
 	err = h.scopedPostingTransaction(c, p, s, true, permission, func(ctx context.Context, tx *gorm.DB, source EmploymentPeriodSource) error {
+		stage = "proposal_basis"
 		if err := postingProposalDecisionContext(tx, s, in.Decision, in.ExpectedRevisionID); err != nil {
 			return err
 		}
@@ -108,11 +118,16 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 			if receipt.ProposalID != s.draft || receipt.ActorSubject != p.Subject || receipt.InputHash != fingerprint {
 				return errPostingProposalConflict
 			}
+			stage = "receipt_read"
 			out, err = postingProposalResult(tx, p, s, receipt.ID)
 			if err != nil {
 				return err
 			}
-			return postingProposalAudit(tx, p, s, "receipt_read", out.Version)
+			if err := postingProposalAudit(tx, p, s, "receipt_read", out.Version); err != nil {
+				return err
+			}
+			stage = "guarded_completion"
+			return nil
 		}
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
@@ -124,6 +139,7 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 		if row.Version != *in.ExpectedVersion || row.RevisionID != in.ExpectedRevisionID || row.Status != "pending" {
 			return errPostingProposalConflict
 		}
+		stage = "decision_authorization"
 		if err := authorizePostingProposalDecider(tx, p, s, in.Decision); err != nil {
 			return err
 		}
@@ -136,10 +152,15 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 			}
 		}
 		persist := func(current *gorm.DB) error {
+			stage = "decision_persistence"
 			out, err = h.recordPostingDecision(ctx, current, p, s, row, in, fingerprint, chain, lifecycle)
+			if err == nil {
+				stage = "guarded_completion"
+			}
 			return err
 		}
 		if in.Decision == "approve" {
+			stage = "supervision_read"
 			intent, readErr := readPostingSupervisionIntent(tx, p.TenantID, s)
 			if readErr != nil {
 				return readErr
@@ -151,6 +172,7 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 				if in.HospitalManagementReviewed != nil {
 					return errPostingSupervisionRequired
 				}
+				stage = "supervision_sources"
 				return h.withSupervisedPostingLifecycleApproval(ctx, tx, p, s, row, source, *intent, lifecycle, func(current *gorm.DB, verified []postingChainSource) error {
 					chain = verified
 					return persist(current)
@@ -159,6 +181,7 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 			if in.HospitalManagementReviewed == nil {
 				return errPostingSupervisionRequired
 			}
+			stage = "management_sources"
 			if lifecycle == nil {
 				return h.withRootPostingApproval(ctx, tx, p, s, row, source, persist)
 			}
@@ -167,7 +190,7 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 		return persist(tx)
 	}, additional...)
 	if err != nil {
-		respondPostingProposalError(c, err)
+		respondPostingDecisionError(c, err, stage, time.Since(started))
 		return
 	}
 	c.Header("Cache-Control", "no-store")

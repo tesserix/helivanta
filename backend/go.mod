@@ -14,7 +14,7 @@ require (
 	github.com/nats-io/nats.go v1.55.0
 	github.com/openfga/go-sdk v0.8.3
 	github.com/stretchr/testify v1.12.1
-	github.com/tesserix/onboarding-service/api v0.0.0-20261113012630-d91aa99f102c
+	github.com/tesserix/onboarding-service/api v0.0.0-20261114061208-c5d3121fc39a
 	github.com/testcontainers/testcontainers-go v0.44.0
 	github.com/testcontainers/testcontainers-go/modules/nats v0.44.0
 	github.com/testcontainers/testcontainers-go/modules/openfga v0.44.0
@@ -196,4 +196,4 @@ require (
 
 replace github.com/tesserix/devai-sandbox-operator => github.com/tesserix/tesserix-operators v0.0.0-20261111042344-fe1127b299d6
 
-replace github.com/tesserix/onboarding-service/api => github.com/tesserix/onboarding-service/apps/api v0.0.0-20261113012630-d91aa99f102c
+replace github.com/tesserix/onboarding-service/api => github.com/tesserix/onboarding-service/apps/api v0.0.0-20261114061208-c5d3121fc39a

@@ -129,6 +129,28 @@ policy read/reconcile with cross-tenant, stale revision, revoked ownership and
 native outage negatives. Follow ORG access-model least privilege and server
 scope requirements. No readiness claim until real deployment acceptance passes.
 
+## Retained organisation self reads
+
+Operator-managed adoption can preserve an existing tenant's numeric or opaque
+native organisation ID. The identity owner must first have the active registry
+binding and product enrolment, verify fresh native organisation/metadata/project/
+grant evidence, and reauthorize that binding with its sensitive-read audit after
+native user I/O. The software repair does not register an unknown tenant.
+
+Helivanta imports the canonical owner projection decoder and matches the exact
+purpose, verified tenant UUID and current subject. It does not reconstruct the
+native organisation ID from the tenant string. The canonical contract permits
+retained native IDs for status/profile only; new membership admission keeps its
+tenant-owned rule and mismatched deterministic tenant IDs remain invalid.
+Unknown scope, malformed/refused proof and outages remain unavailable, never
+invented inactive state or a credential revocation.
+
+Deploy the owner repair and this consumer upgrade before accepting retained
+self reads. Platform-administrator adoption through the normal operator-managed
+workflow and actual pharmacy sign-in/licence acceptance remain separate gates.
+No identity, membership, policy, role or operational authority is inferred from
+the contract upgrade.
+
 ## Private identity lookup integration
 
 A read-only production probe proved ListUsers returns403 for the existing login

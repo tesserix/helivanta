@@ -58,7 +58,10 @@ func (h *Handlers) TenantIdentitySnapshot(ctx context.Context, tenant, subject s
 		return empty, loginclient.ErrUnavailable
 	}
 	view, err := customercontract.DecodeIdentityProjection(raw)
-	if err != nil || view.Purpose != in.Purpose || view.TenantID != tenant || view.Subject != subject || view.OrganizationID != "helivanta-"+tenant {
+	// The authenticated owner verifies the current native organisation binding.
+	// Its canonical contract permits retained IDs on self reads and preserves
+	// the stricter tenant-owned organisation rule for new membership admission.
+	if err != nil || view.Purpose != in.Purpose || view.TenantID != tenant || view.Subject != subject {
 		return empty, loginclient.ErrUnavailable
 	}
 	snapshot := loginclient.IdentitySnapshot{}

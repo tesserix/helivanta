@@ -165,7 +165,18 @@ try {
   await duty
     .getByLabel("Decision reason", { exact: true })
     .fill("End the synthetic browser duty after review acceptance");
+  const revoked = reviewer.waitForResponse((response) => {
+    const path = new URL(response.url()).pathname.replace(/^\/api/, "");
+    return (
+      path.startsWith(root + "/duties/") &&
+      path.includes("/commands/") &&
+      response.request().method() === "PUT"
+    );
+  });
   await duty.getByRole("button", { name: "Revoke duty", exact: true }).click();
+  const revocation = await revoked;
+  expect(revocation.status()).toBe(201);
+  expect((await revocation.json()).result).toMatchObject({ status: "revoked", version: 4 });
   await expect(duty.getByText("Status: revoked", { exact: true })).toBeVisible();
   expect(mutations).toHaveLength(3);
   expect(mutations[2].body).toMatchObject({ decision: "revoke", expected_version: 3 });

@@ -72,6 +72,8 @@ jobs:
       - name: Supplier grant projection isolation
         run: go test -race ./pkg/authz -run '^TestPartnerAssignment'
       - name: Current hospital Staff recipient and membership cutoff
+        env:
+          HELIVANTA_TEST_POSTGRES_TRACK_FUNCTIONS: "1"
         run: go test -race -timeout 35m ./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'
   api-client:
     runs-on: ubuntu-latest

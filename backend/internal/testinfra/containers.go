@@ -128,8 +128,16 @@ func sharedPostgres(t *testing.T) (host, port string) {
 				wait.ForLog("database system is ready to accept connections").
 					WithOccurrence(2).WithStartupTimeout(startupTimeout(t))),
 		}
+		args, err := postgresFunctionTrackingArgs(os.Getenv("HELIVANTA_TEST_POSTGRES_TRACK_FUNCTIONS"))
+		if err != nil {
+			pgErr = err
+			return
+		}
 		if budget != "" {
-			options = append(options, testcontainers.WithCmdArgs("-c", "shared_buffers="+budget))
+			args = append(args, "-c", "shared_buffers="+budget)
+		}
+		if len(args) > 0 {
+			options = append(options, testcontainers.WithCmdArgs(args...))
 		}
 		pgCont, pgErr = tcpostgres.Run(ctx, "postgres:16-alpine", options...)
 
@@ -565,4 +573,15 @@ func ownByProduction(ctx context.Context, name string) error {
  ALTER SCHEMA public OWNER TO helivanta;
  ALTER DEFAULT PRIVILEGES FOR ROLE helivanta IN SCHEMA public GRANT SELECT,INSERT,UPDATE,DELETE ON TABLES TO hms_app;
  ALTER DEFAULT PRIVILEGES FOR ROLE helivanta IN SCHEMA public GRANT USAGE,SELECT ON SEQUENCES TO hms_app;`)
+}
+
+func postgresFunctionTrackingArgs(value string) ([]string, error) {
+	switch value {
+	case "":
+		return nil, nil
+	case "1":
+		return []string{"-c", "track_functions=all"}, nil
+	default:
+		return nil, fmt.Errorf("HELIVANTA_TEST_POSTGRES_TRACK_FUNCTIONS must be unset or 1")
+	}
 }

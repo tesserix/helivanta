@@ -297,3 +297,19 @@ authority classifications and remaining acceptance obligations remain unchanged.
 The temporary EXPLAIN observer, invocation and its helper tests are removed.
 The original cold lifecycle and injected-fault expectations must pass before this
 can be accepted as a repair; nested-query JIT remains a hypothesis until then.
+
+### Execution-mode experiment withdrawn — 2026-11-14
+
+Supplier43611655068 at `66cf365f` passed initial child approvals but transfer's
+injected persistence fault still returned 503 instead of 500. Replacement UPDATE
+execution was 1053ms, persistence 4359ms, total 5031ms. This does not establish an
+internal-JIT repair. The transaction-local setting is removed; shared persistence
+is restored byte-for-byte to the pre-experiment form. The source hash is restored
+accordingly without changing classification or remaining obligations.
+
+The next opt-in CI diagnostic records aggregate PostgreSQL function counters for
+fixed known posting functions on transfer failure. It does not alter production
+code, query plans, authorization/source conditions, HTTP expectations or budgets.
+No SQL/arguments/private proof/arbitrary function names/raw errors are emitted.
+It is diagnostic instrumentation; acceptance still requires the ordinary cold
+full workflow without the timing opt-in.

@@ -100,27 +100,33 @@ legacy identity/history untouched as specified by the fresh-tenant plan.
 
 ## Current next action
 
-Supplier43608785632 at `56928dc9` is terminal and failed initial child approval
-with 503 instead of 200. The corrected observer reported JIT enabled/available
-but no JIT on the UPDATE itself: cost 11.22, planning 9ms. Execution consumed
-1489ms and persistence consumed 4388ms of a 5017ms command. This rules out
-expensive top-level planning/JIT for that query; internal trigger/policy work
-remains unresolved.
+At `66cf365f`, Supplier43611655068 passed the initial child approvals but failed
+coordinated transfer's injected persistence fault: expected 500, received 503.
+The replacement UPDATE took 1053ms, persistence 4359ms, command 5031ms. The
+transaction-local JIT-off experiment therefore did not repair the complete flow
+and is removed. Original persistence SQL/source predicates, authority deadlines
+and expected 200/500 cases remain unchanged. No JIT root cause is claimed.
 
-The controlled candidate sets transaction-local JIT off only when shared posting
-decision persistence starts, including transfers, through deferred checks. All
-source predicates, RLS, authority deadlines, persistence, audit and response
-expectations remain intact. Setting failure rolls back. The temporary observer,
-its invocation and helper tests are removed. Acceptance requires the original
-cold full lifecycle to pass, including its expected 200/500 cases. Do not call
-this a repair before that result; internal JIT is still a hypothesis.
+The next CI-only diagnostic enables PostgreSQL function timing for the isolated
+Staff lifecycle process. On a transfer failure it emits bounded aggregate
+calls/total/self milliseconds for a fixed allowlist of posting functions. It
+captures no SQL, arguments, arbitrary function names, private proof or raw errors.
+Default test-server behavior is unchanged; unknown opt-in values fail closed.
+These are database-wide counters within this isolated fixture, not a per-request
+trace. Counter collection is diagnostic evidence, not an accepted cold benchmark.
+Remove the opt-in and pass the ordinary complete workflow before accepting a fix.
 
-The native browser extension below is committed and pending CI. It covers normal
-selection, proposal, independent review, GET-only recovery and revocation for
-both independent models. The follow-up browser assertion requires acknowledged
-activation before revocation; runtime evidence and product access remain open.
+At `66cf365f`, full workspace lint/format/typecheck/test/build, scripts, secret
+scan, emergency browsers and the standard E2E job passed. Both new native browser
+journeys reached review/recovery but failed at the revoked-card assertion.
+The follow-up requires acknowledged activation before revocation and explicitly
+checks the revocation HTTP status/result before its UI assertion. The result is
+pending; asynchronous activation/version drift is a hypothesis, not established
+cause. The fixture lacks a profile reader/session signer, so profile/activity
+503s do not establish deployed identity behavior.
+
 The private hospital-selection helper still has no owner query, route, SDK or
-UI: those completion gates remain open. No merge or live rollout occurred.
+UI: those gates remain open. No main merge or live rollout occurred.
 
 ### Diagnostic correction after Supplier43605854860
 

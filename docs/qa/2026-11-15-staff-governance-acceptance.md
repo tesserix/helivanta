@@ -141,3 +141,27 @@ rejects unrelated IDs. This corrects test observation only; it does not repair
 posting performance. The observer remains at the initial child approval and
 still must be removed before accepting a cold workflow result. Web and browser
 jobs passed at `9def90fd`; these do not close the lifecycle or selector gates.
+
+### Native browser acceptance extension — pending CI
+
+The existing real PostgreSQL/OpenFGA native-governance fixture now invokes
+`scripts/verify-native-operating-owner.mjs` when CI supplies the built shell URL.
+The web job explicitly runs both pharmacy and supplier fixture branches with that
+URL; ordinary backend-only runs retain their existing API assertions. Browser
+requests pass through Global API to the same real IAM, Workforce and product
+owners. The identity boundary remains the fixture's explicitly synthetic identity
+reader; this does not establish deployed Zitadel or normal signup behavior.
+
+The browser prepares as the employer-scoped auditor and independently reviews as
+the second owner, using the normal employer, reviewed Staff, location and template
+controls. It deliberately drops committed proposal/approval responses, asserts
+navigation freezes, and requires GET receipt recovery without another PUT. It
+checks exact selected identity/location/version bindings and revokes the synthetic
+duty afterwards. Legacy catalog, account-link and operating-duty route calls fail
+the browser assertion. This is proposal/review/revocation coverage: it does not
+claim asynchronous activation, product access, source cutoff, hospital selectors
+or the complete receiving/financial journey. Runtime results remain pending.
+
+Local checks for this test increment: compile-only bootstrap tests, bootstrap vet
+and golangci-lint, JavaScript syntax, Prettier, actionlint, diff whitespace and all
+15 inventory tests/check passed. No local server, browser or database was started.

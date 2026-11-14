@@ -347,6 +347,7 @@ func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *ten
 			require.EqualValues(t, 3, refreshed.Data[0].LocationVersion)
 		}
 	})
+	exerciseNativeOperatingBrowser(t, router, kind, employer, staff, location)
 	input := iam.OperatingDutyInput{Scope: iam.OperatingDutyScope{EmployerKind: kind, EmployerID: employer, LocationID: location, ExpectedEmployerVersion: 1, ExpectedLocationVersion: 1}, Identity: iam.OperatingDutyIdentity{StaffID: staff, StaffVersion: 1, LinkID: link, LinkVersion: 2}, Subject: "user-reviewer", TemplateKey: template, Reason: "Synthetic native staff receiving duty", ValidFrom: now.Add(-time.Minute), ExpiresAt: now.Add(time.Hour)}
 	prefix := "/v1/iam/operating-governance-employers/" + kind + "/" + employer.String()
 	duty := uuid.Must(uuid.NewV7())

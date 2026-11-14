@@ -275,7 +275,7 @@ func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *ten
 		t.Run("selection purpose closes inherited product writes", func(t *testing.T) {
 			var owner struct{ ID uuid.UUID }
 			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-				return tx.Table("iam_members").Select("id").Where("tenant_id=?AND subject='user-admin'AND role_key='tenant_admin'", testutil.TenantA).Take(&owner).Error
+				return tx.Table("iam_members").Select("id").Where("tenant_id=? AND subject='user-admin'AND role_key='tenant_admin'", testutil.TenantA).Take(&owner).Error
 			}))
 			now := time.Now()
 			request := authz.GovernedIndependentEmployerRequest{Principal: authn.Principal{TenantID: testutil.TenantA, Subject: "user-admin", AuthTime: now.Add(-time.Minute), IdleDeadline: now.Add(time.Hour)}, Scope: authz.IndependentEmployerScope{TenantID: testutil.TenantA, EmployerKind: kind, EmployerID: employer}, Capability: authz.GovernanceOperatingManage, Source: authz.GovernanceSourceEvidence{Kind: authz.GovernanceOwnerSource, OwnerMembershipID: owner.ID, OwnerCount: 2, MembershipEpoch: 1, Scope: authz.GovernanceEstablishmentScope{TenantID: testutil.TenantA, Kind: kind, ID: &employer}, ExpiresAt: now.Add(time.Hour)}}
@@ -296,7 +296,7 @@ func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *ten
 				if module == "supply" {
 					update += `,version=version+1`
 				}
-				return tx.Exec(update+` WHERE tenant_id=?AND id=?`, testutil.TenantA, location).Error
+				return tx.Exec(update+` WHERE tenant_id=? AND id=?`, testutil.TenantA, location).Error
 			})
 			var pg *pgconn.PgError
 			require.ErrorAs(t, attempt, &pg)

@@ -390,3 +390,39 @@ supervised transfer fault injection: expected persistence 500, received source
 transfer diagnostics now record constant stage, elapsed milliseconds and deadline
 classification without private payloads, so the next real-service run can locate
 the failing boundary. This is diagnostic evidence, not a claimed runtime fix.
+
+### Native independent-duty UI — implementation target
+
+Add a dedicated Workforce operating-access page, linked from Staff access for
+current operating-governance users. Its identity loader retains the original
+scope while a command is uncertain, including a missing/changed permission reply;
+a cookie/account switch is detected through expected tenant/subject headers and
+does not rewrite the frozen command. Normal navigation uses the existing leave
+guard. Current-source loss hides cached names/details and new write controls,
+while GET-only original receipt recovery remains bound to the original scope.
+
+Use the qualified employer and active reviewed-Staff selectors and native
+location hook exclusively. Reuse the canonical duty form and decision controls:
+legacy callers keep their directory/catalogue consumers, while an explicit
+native mode receives the canonical qualified Staff/account projection and uses
+the owner location projection's exact revisions. A missing/mismatched qualified
+account denies preparation rather than invoking a legacy directory. Source
+refresh/paging cannot replace an uncertain proposal's ID, frozen input or source.
+Maker/target/independent-review rules and activation remain server decisions.
+
+The page must freeze employer/Staff navigation during pending commands, retain
+recovery UI on source-query failures, and prevent newly missing/ineligible choices
+from starting commands. Pending decision/proposal controls remain mounted on
+background query failure. Source flags are presentation hints only; every API
+rechecks current governance and canonical identity/location state. No new clinical,
+product catalogue or legacy employer-manager authority is granted. Add native
+prepare/recover/review and scope-cutoff component tests, preserve all legacy tests,
+then run complete workspace checks/build before exact-head CI and live acceptance.
+This UI target does not close historical/recipient/transfer or production gates.
+
+Remote cd3175ca reached both native product selectors, owner/delegate and paging
+cases, then the inherited-write regression probe failed at its owner lookup with
+42601 (`$1AND`): two `?AND` boundaries lacked SQL whitespace. The test probes
+now use `? AND`; no API behavior, assertion or RLS guard changes. Bootstrap
+compile-only, backend build, affected vet and lint pass. New exact-head database
+acceptance is required; this correction alone is not full selector acceptance.

@@ -169,7 +169,7 @@
 - Consumes: `countryprofile.Tax`, `tax.ValidateRegistration`, `pharmacyVisible`, `registryManager`, Task 3's input.
 - Produces:
   - `GET  /pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations` (`ListRoute`, newest `effective_from` then `seq` first). Each row has `in_force bool` and `replaced bool` computed against the outlet's local today.
-  - `POST /pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations` (`PermTaxManage`) returns `201` with the row.
+  - `POST /pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations` (`PermTaxManage`) returns `201` with the row. Superseded by #1715: now `PUT …/{uuidv7}`.
   - Unexported `registrationInForce(tx, tenant, outlet uuid.UUID, on civil date) (registration, error)` for slice 3.
   - Read permission is `PermTaxManage`, or `PermAccessManage` checked in the handler. Pick whichever matches how `platform.Router` expresses "either"; if it can't, register with `PermTaxManage` and give `RolePharmacyOwner` both, documented in a one-line comment.
 
@@ -200,7 +200,7 @@
 - Consumes: `catalogueScope`, `countryprofile.Tax`, Task 3's input, and `tax.Nature`.
 - Produces:
   - `GET  …/catalogue/products/:id/tax-classifications` (`PermCatalogueRead`, newest first, with `in_force` and `replaced`).
-  - `POST …/catalogue/products/:id/tax-classifications` (`PermTaxManage`) returns `201`.
+  - `POST …/catalogue/products/:id/tax-classifications` (`PermTaxManage`) returns `201`. Superseded by #1715: now `PUT …/{uuidv7}`.
   - The product JSON gains `"tax": {"classification_code", "supply_nature", "rate_ppm", "effective_from"} | null`.
   - Unexported `classificationInForce(tx, tenant, outlet, product uuid.UUID, on civil date)` for slice 3.
 

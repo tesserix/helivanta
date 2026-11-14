@@ -112,12 +112,14 @@ command ID together with the values it was sent with:
 - After a success the form resets, so the next submission starts a new
   command.
 
-The API client paths in `packages/api` and the contract entries change to
-the PUT routes. The input schemas, which are generated from
+The shell calls these routes through `apiFetch` in the two panels, and the
+e2e setup helper does the same; both change to the PUT routes. The input schemas, which are generated from
 `contracts/pharmacy.json`, are unchanged because the body is unchanged.
 
 ### D5. Superseded docs are corrected in the same change
 
+- The #1283 tax setup spec and plan (`2026-10-23-pharmacy-tax-setup*`):
+  their POST routes are marked as superseded by #1715.
 - `docs/api/domains/pharmacy.md`, tax setup row: the routes, replay and 409.
 - The contract registry, regenerated with `go run ./cmd/contractdocs`.
 - Acceptance plan: F-7 is marked done, and SET-14 expects one row with no

@@ -32,6 +32,16 @@ func prepareRetainedOperatingDuty(t *testing.T, kind string, employer, location,
 	input := iam.OperatingDutyInput{Scope: iam.OperatingDutyScope{EmployerKind: kind, EmployerID: employer, LocationID: location, ExpectedEmployerVersion: 1, ExpectedLocationVersion: 1}, Identity: iam.OperatingDutyIdentity{StaffID: staff, StaffVersion: 1, LinkID: link, LinkVersion: 2}, Subject: "user-auditor", TemplateKey: template, Reason: "Synthetic retained duty whose Staff revision will change", ValidFrom: now.Add(-time.Minute), ExpiresAt: now.Add(time.Hour)}
 	call("PUT", path, "owner2", input, 201)
 	call("PUT", path+"/commands/"+uuid.Must(uuid.NewV7()).String(), "admin", iam.OperatingDutyDecisionInput{ExpectedVersion: 1, Decision: "approve", Reason: "A distinct current owner reviews the Staff duty before its revision changes"}, 201)
+	require.Eventually(t, func() bool {
+		var duty iam.OperatingDuty
+		require.NoError(t, json.Unmarshal([]byte(call("GET", path+"?staff="+staff.String(), "owner2", nil, 200)), &duty))
+		require.Equal(t, id, duty.ID)
+		if duty.Status == "active" {
+			return true
+		}
+		require.Equal(t, "approved_pending_activation", duty.Status)
+		return false
+	}, 10*time.Second, 20*time.Millisecond, "the retained case must activate before its Staff source changes")
 	return id
 }
 
@@ -132,7 +142,7 @@ func exerciseIneligibleOperatingInbox(t *testing.T, prefix string, id uuid.UUID,
 		}
 	}
 	require.NotNil(t, selected)
-	require.Contains(t, []string{"approved_pending_activation", "active"}, selected.Status)
+	require.Equal(t, "active", selected.Status)
 	response := call("PUT", prefix+"/duties/"+id.String()+"/commands/"+uuid.Must(uuid.NewV7()).String(), "owner2", iam.OperatingDutyDecisionInput{ExpectedVersion: selected.Version, Decision: "revoke", Reason: "Withdraw retained operating authority after the reviewed Staff revision changed"}, 201)
 	var receipt struct {
 		Result iam.OperatingDuty `json:"result"`

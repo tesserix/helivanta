@@ -347,3 +347,32 @@ new runtime result. No authority scope, identity rule or query was broadened.
 Qualified hospital chooser contract/SDK work is in progress separately and is not
 part of this error-mapping correction. It is not an implemented server endpoint
 or a complete preparation flow.
+
+### `d648852b` retained activation ordering
+
+CI43638575226 Go job132580923254 passed inbox paging, account/tenant/kind replay,
+missing authority, read-audit failure and source cutoff, then failed the final
+retained-duty status assertion in both models. The fixture changed Staff revision
+immediately after approval, while activation was still queued. The real projector
+correctly revoked the duty when its acknowledgement detected the changed basis.
+This is expected production compensation, not permission to accept a weaker
+retained-duty test. The fixture now waits through the owner GET for actual active
+acknowledgement before changing Staff. Its final inbox assertion is tightened to
+exactly active, followed by the original owner revoke and exact version+1 result.
+No projector is paused, replaced or privately seeded. No application timeout or
+authority deadline changes; the new ten-second fixture wait establishes the
+physical ordering being tested. Compile/vet/lint/backend build passed; corrected
+runtime acceptance remains pending.
+
+### Second ordinary cold pass and profiling retirement
+
+Supplier43638575206 completed successfully at `d648852b`; supplier and API-client
+jobs passed and conditional diagnostics were skipped. The unmodified original
+full Staff lifecycle step ran20:43:36–20:59:48 UTC and passed with function tracking
+disabled. Together with43635567961 at0a255186, this supplies two cold production-code
+head passes without relaxed authority deadlines or lifecycle assertions.
+Temporary function-stat collection, its opt-in test-server flag and failure-only
+workflow job are now removed. Only the diagnostic defer is removed from the
+original supervised-approval helper; its actual calls/assertions remain intact.
+The normal lifecycle workflow command is unchanged. Pure testinfra checks and
+compile/vet/lint/build are rerun; database runtime checks remain CI-only.

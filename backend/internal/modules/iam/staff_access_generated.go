@@ -202,3 +202,12 @@ type OperatingGovernanceEmployerScope struct {
 	CanManage    bool      `json:"can_manage"`
 	CanReview    bool      `json:"can_review"`
 }
+
+type OperatingGovernanceStaffChoice struct {
+	StaffID      uuid.UUID `json:"staff_id"`
+	DisplayName  string    `json:"display_name"`
+	StaffVersion int64     `json:"staff_version"`
+	Subject      string    `json:"subject"`
+	LinkID       uuid.UUID `json:"link_id"`
+	LinkVersion  int64     `json:"link_version"`
+}

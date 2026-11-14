@@ -1050,3 +1050,88 @@ unique index so the intended deferred-attribution guard can be exercised. These
 new remote cases have not yet passed. Qualified Staff/location selectors, native
 preparation/review UI, full Staff/pharmacy journeys, merge and deployment remain
 open. IAM0050 remains an unapplied migration candidate.
+
+### Governed operating Staff choices — implementation target
+
+Workforce owns the canonical Staff display name/version and independently reviewed
+account link; IAM owns current nonclinical operating-governance admission. Add
+`GET /v1/workforce/operating-governance-employers/:kind/:employer/staff-choices`
+for exact pharmacy/supplier employers. Native owner or exact current
+`iam.operating_access_reviewer.v1` manage authority is required, with verified
+expected tenant/account headers. This is ORG-D3/D4/D8 consistent: selection creates
+no membership, employment, manager grant, professional or operating authority.
+Assets are Staff names, linked account subjects and immutable identity versions;
+other-tenant users, revoked delegates and privileged insiders must not cross the
+source/owner disclosure boundary. Out-of-scope employer is hidden with 404,
+missing coarse capability is 403 and unavailable dependencies/support are 503.
+
+A generated minimal projection contains Staff ID/display name/version and current
+linked subject/link ID/version. Only active independent Staff and active reviewed
+links matching that Staff revision are selectable. No contacts, HR category,
+documents, evidence, source proof or native organization data is disclosed.
+Keyset order is descending canonical Staff `(created_at,id)`, limit20, with
+sealed tenant/account/employer/kind cursor binding. Source authority is current
+and held through the bounded read/audit transaction. Current target membership,
+identity, source location and versions are still rechecked by IAM on preparation;
+a choice is never a reusable proof. One SQL statement obtains the bounded current
+join and shared row locks, then attributable per-result read audit is atomic.
+
+Candidate WF0116 adds an explicit read-only source purpose and retained policy
+extensions for Staff/link reads and audit insertion. Restrictive purpose/delete
+policies cover all Workforce tenant tables, preserving their existing predicates
+when the purpose is absent and refusing inherited master writes or unrelated
+private reads while it is active. The audit payload binds exact Staff/link
+versions and current private source. Installed functions/policies and forced RLS
+are verified before activation; missing/changed support fails closed. Existing
+review/preparation source purposes are unchanged. No cross-module SQL or new
+identity/Staff master is introduced.
+
+Reuse existing platform planning assumptions and five-second/session source
+budget, twenty-row pages and p99 read target; there is no new infrastructure or
+measured performance claim. Existing tenant/employer/Staff and active-link indexes
+must support the exact join; query-plan evidence is a remote acceptance gate.
+The legacy Staff directory is rejected because it requires broader access. A
+binary rollback stops this endpoint and retains all identity/audit history; no
+column/table replacement or destructive down migration is introduced. WF0116 is
+an additive, unapplied candidate requiring named live migration approval after
+acceptance. Prove source scope, current link/basis, revocation, stale workspace,
+sealed paging, missing support, inherited write denial and audit rollback in
+remote PostgreSQL/FGA tests; complete strict SDK, qualified product-location
+selection and native UI afterward. Neither this design nor a green compile
+completes the full original Staff/pharmacy goal.
+
+### Governed Staff-choice implementation evidence
+
+The candidate now implements the scoped Workforce selector, canonical generated
+Go/Zod model, strict native SDK and WF0116 read-only purpose. Shared Staff/link
+locks and one bounded batched audit insert keep disclosure and read evidence
+atomic without per-row database round trips. Selection preserves canonical v4
+Staff IDs as well as v7, and source-purpose state is restored before returning
+to the outer guarded command. Exact current owners and delegates share the
+projection; no legacy directory or product authority is substituted.
+
+Local red/green evidence: absent source-proof/handler and strict query helpers
+first failed compilation; missing SDK import first failed the public SDK test.
+Their focused tests now pass, with 37 combined SDK assertions. Explicit field
+classification fixed the preceding head's observed architecture failure; no
+classifier or assertion was loosened. Offline migration-ID/collection/route/
+permission-matrix and both field-classification checks pass. Build, affected
+Go race/vet/lint and bootstrap compile-only checks pass; all 30 workspace
+lint/format/type/test/build tasks pass (22 cached). The 15 inventory-script
+assertions pass, and generators/contractdocs/inventory checks are current.
+The attempted local database-backed RLS check could not start because Docker is
+absent; no database/container ran. Its actual migration/RLS acceptance stays in
+CI. SQL statements, SQL function bodies and PL/pgSQL blocks parsed offline;
+that is syntax evidence only. Generated app builds were cleaned, caches retained.
+
+Previous head a016ba0c passed remote Staff governance boundaries, customer
+onboarding, supplier regression, web and E2E. Its Go job stopped at the missing
+employer-model field classification now corrected here. The new Staff-choice
+remote cases compile and cover native owner/delegate, absent/sibling employer
+source, stale expected tenant/account, strict filters, sealed paging across
+account/employer/kind, canonical v4 Staff, stale Staff/link basis exclusion,
+source cutoff, support tampering, raw identity mutation denial and audit rollback
+for pharmacy and supplier. They have not yet passed on PostgreSQL/FGA. Qualified
+product-location choices, native UI adoption, full Staff/recipient/posting and
+both ownership-model live journeys remain open. WF0116 is unapplied; there is no
+new main merge or live deployment in this increment.

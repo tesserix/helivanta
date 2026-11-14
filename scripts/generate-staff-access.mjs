@@ -520,6 +520,12 @@ for (const [module, name, source, filename] of [
   ],
   [
     "workforce",
+    "OperatingGovernanceStaffChoice",
+    "OperatingGovernanceStaffChoice",
+    "operating_governance_staff_choice_generated.go",
+  ],
+  [
+    "workforce",
     "AssignmentGovernanceHospitalScope",
     "AssignmentGovernanceHospitalScope",
     "assignment_governance_hospital_scope_generated.go",

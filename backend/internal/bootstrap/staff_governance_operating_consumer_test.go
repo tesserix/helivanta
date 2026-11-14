@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -18,7 +20,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *tenantdb.DB, ctx context.Context, kind string, employer, staff, link uuid.UUID) {
+func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *tenantdb.DB, ctx context.Context, kind string, employer, hiddenEmployer, staff, link uuid.UUID) {
 	t.Helper()
 	call := func(method, path, actor string, input any, status int) string {
 		t.Helper()
@@ -49,6 +51,8 @@ func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *ten
 		template = "supply.inventory_receiver.v1"
 	}
 
+	staffChoicePath := "/v1/workforce/operating-governance-employers/" + kind + "/" + employer.String() + "/staff-choices"
+	call(http.MethodGet, staffChoicePath+"?limit=20", "auditor", nil, http.StatusNotFound)
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	grant := iam.GovernanceGrantInput{Subject: "user-auditor", ExpectedMembershipEpoch: 1, TemplateKey: "iam.operating_access_reviewer.v1", ScopeKind: kind, ScopeID: &employer, Reason: "Synthetic independent duty reviewer", ValidFrom: now.Add(-time.Minute), ExpiresAt: now.Add(time.Hour)}
 	grantID := uuid.Must(uuid.NewV7())
@@ -67,6 +71,139 @@ func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *ten
 	require.True(t, employers.Data[0].CanManage)
 	require.True(t, employers.Data[0].CanReview)
 	require.NotContains(t, directory, "source_grant_id")
+	choices := call(http.MethodGet, staffChoicePath+"?limit=20", "auditor", nil, http.StatusOK)
+	require.JSONEq(t, choices, call(http.MethodGet, staffChoicePath+"?limit=20", "owner2", nil, http.StatusOK))
+	var selected struct {
+		Data []workforcecontract.OperatingGovernanceStaffChoice `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(choices), &selected))
+	require.Len(t, selected.Data, 1)
+	require.Equal(t, staff, selected.Data[0].StaffID)
+	require.Equal(t, link, selected.Data[0].LinkID)
+	require.Equal(t, "user-reviewer", selected.Data[0].Subject)
+	require.EqualValues(t, 1, selected.Data[0].StaffVersion)
+	require.EqualValues(t, 2, selected.Data[0].LinkVersion)
+	require.NotEmpty(t, selected.Data[0].DisplayName)
+	for _, private := range []string{"source_grant_id", "owner_membership_id", "employee_code", "email", "phone", "job_category"} {
+		require.NotContains(t, choices, private)
+	}
+	call(http.MethodGet, staffChoicePath+"?subject=user-admin", "auditor", nil, http.StatusBadRequest)
+	call(http.MethodGet, staffChoicePath+"?status=inactive", "auditor", nil, http.StatusBadRequest)
+	call(http.MethodGet, "/v1/workforce/operating-governance-employers/"+kind+"/"+uuid.Must(uuid.NewV7()).String()+"/staff-choices?limit=20", "auditor", nil, http.StatusNotFound)
+	call(http.MethodGet, "/v1/workforce/operating-governance-employers/"+kind+"/"+hiddenEmployer.String()+"/staff-choices?limit=20", "auditor", nil, http.StatusNotFound)
+	for header, value := range map[string]string{"X-Helivanta-Expected-Tenant": testutil.TenantB, "X-Helivanta-Expected-Subject": "user-owner2"} {
+		request := httptest.NewRequest(http.MethodGet, staffChoicePath+"?limit=20", nil)
+		request.Header.Set("Authorization", "Bearer auditor")
+		request.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantA)
+		request.Header.Set("X-Helivanta-Expected-Subject", "user-auditor")
+		request.Header.Set(header, value)
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		require.Equal(t, http.StatusConflict, response.Code, response.Body.String())
+		require.NotContains(t, response.Body.String(), selected.Data[0].DisplayName)
+	}
+	auditCount := func() int64 {
+		t.Helper()
+		var count int64
+		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.workforce_subject','user-admin',true),set_config('app.workforce_hospital',?,true)`, employer.String()).Error; err != nil {
+				return err
+			}
+			return tx.Table("workforce_audit").Where("tenant_id=? AND hospital_id=? AND resource_id=? AND action='workforce.operating_staff_choice.read'", testutil.TenantA, employer, staff).Count(&count).Error
+		}))
+		return count
+	}
+	t.Run("Staff choice audit failure rolls back disclosure", func(t *testing.T) {
+		before := auditCount()
+		require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_operating_staff_choice_audit", SQL: `CREATE FUNCTION test_operating_staff_choice_audit()RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='workforce.operating_staff_choice.read' THEN RAISE EXCEPTION 'synthetic read audit unavailable';END IF;RETURN NEW;END $$;CREATE TRIGGER test_operating_staff_choice_audit BEFORE INSERT ON workforce_audit FOR EACH ROW EXECUTE FUNCTION test_operating_staff_choice_audit();`}}))
+		defer func() {
+			require.NoError(t, db.Migrate(context.WithoutCancel(ctx), []tenantdb.Migration{{ID: "test_operating_staff_choice_audit_restore", SQL: `DROP FUNCTION test_operating_staff_choice_audit()CASCADE;`}}))
+		}()
+		denied := call(http.MethodGet, staffChoicePath+"?limit=20", "auditor", nil, http.StatusServiceUnavailable)
+		require.NotContains(t, denied, selected.Data[0].DisplayName)
+		require.Equal(t, before, auditCount())
+	})
+	t.Run("Staff choice purpose cannot modify identity", func(t *testing.T) {
+		var proof struct{ Authority json.RawMessage }
+		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.workforce_subject','user-admin',true),set_config('app.workforce_hospital',?,true)`, employer.String()).Error; err != nil {
+				return err
+			}
+			return tx.Table("workforce_audit").Select("changes->'authority' AS authority").Where("actor_subject=?", "user-auditor").Where("tenant_id=? AND hospital_id=? AND resource_id=? AND action='workforce.operating_staff_choice.read'", testutil.TenantA, employer, staff).Take(&proof).Error
+		}))
+		require.NotEmpty(t, proof.Authority)
+		attempt := db.WithTenant(tenantdb.WithActor(ctx, "user-auditor"), testutil.TenantA, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.workforce_subject','user-auditor',true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_operating_selection',?,true)`, employer.String(), string(proof.Authority)).Error; err != nil {
+				return err
+			}
+			return tx.Exec(`UPDATE workforce_staff SET display_name='Synthetic forbidden selection write',version=version+1 WHERE tenant_id=? AND hospital_id=? AND id=?`, testutil.TenantA, employer, staff).Error
+		})
+		var denied *pgconn.PgError
+		require.ErrorAs(t, attempt, &denied)
+		require.Contains(t, []string{"42501", "23514"}, denied.Code)
+		unchanged := call(http.MethodGet, staffChoicePath+"?limit=20", "auditor", nil, http.StatusOK)
+		require.JSONEq(t, choices, unchanged)
+	})
+	t.Run("Staff choice support fails closed", func(t *testing.T) {
+		var retained string
+		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			return tx.Raw(`SELECT pg_get_functiondef('public.workforce_operating_selection_staff(uuid,uuid,text)'::regprocedure)`).Scan(&retained).Error
+		}))
+		require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_operating_staff_choice_support", SQL: `CREATE OR REPLACE FUNCTION workforce_operating_selection_staff(t uuid,e uuid,state text)RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT true $$;`}}))
+		defer func() {
+			require.NoError(t, db.Migrate(context.WithoutCancel(ctx), []tenantdb.Migration{{ID: "test_operating_staff_choice_support_restore", SQL: retained}}))
+		}()
+		call(http.MethodGet, staffChoicePath+"?limit=20", "auditor", nil, http.StatusServiceUnavailable)
+	})
+	call(http.MethodGet, staffChoicePath+"?limit=20", "auditor", nil, http.StatusOK)
+	t.Run("Staff choice paging binds actor employer and kind", func(t *testing.T) {
+		family := "pharmacies"
+		if kind == "supplier" {
+			family = "suppliers"
+		}
+		extraStaff, extraLink := uuid.New(), uuid.Must(uuid.NewV7())
+		staffRoot := "/v1/workforce/" + family + "/" + employer.String() + "/staff/" + extraStaff.String()
+		call(http.MethodPut, staffRoot+"?directory_context=v1", "admin", map[string]any{"employee_code": "SYN-NATIVE-PAGE", "display_name": "Synthetic paging account", "job_category": "pharmacist", "employment_status": "active", "expected_version": 0, "directory_context_version": "v1"}, http.StatusOK)
+		linkPath := staffRoot + "/account-links/" + extraLink.String()
+		call(http.MethodPut, linkPath, "admin", map[string]any{"expected_staff_version": 1, "subject": "user-auditor", "reason": "Synthetic second selectable Staff account"}, http.StatusCreated)
+		call(http.MethodPut, linkPath+"/commands/"+uuid.Must(uuid.NewV7()).String(), "owner2", map[string]any{"expected_version": 1, "decision": "approve", "reason": "Independent owner checks second account"}, http.StatusCreated)
+		var first struct {
+			Data []workforcecontract.OperatingGovernanceStaffChoice `json:"data"`
+			Page struct {
+				HasMore    bool    `json:"has_more"`
+				NextCursor *string `json:"next_cursor"`
+			} `json:"page"`
+		}
+		raw := call(http.MethodGet, staffChoicePath+"?status=active&limit=1", "auditor", nil, http.StatusOK)
+		require.NoError(t, json.Unmarshal([]byte(raw), &first))
+		require.Len(t, first.Data, 1)
+		require.Equal(t, extraStaff, first.Data[0].StaffID)
+		require.True(t, first.Page.HasMore)
+		require.NotNil(t, first.Page.NextCursor)
+		cursor := url.QueryEscape(*first.Page.NextCursor)
+		next := call(http.MethodGet, staffChoicePath+"?status=active&limit=1&cursor="+cursor, "auditor", nil, http.StatusOK)
+		var second struct {
+			Data []workforcecontract.OperatingGovernanceStaffChoice `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(next), &second))
+		require.Len(t, second.Data, 1)
+		require.Equal(t, staff, second.Data[0].StaffID)
+		call(http.MethodGet, staffChoicePath+"?status=active&limit=1&cursor="+cursor, "owner2", nil, http.StatusBadRequest)
+		call(http.MethodGet, "/v1/workforce/operating-governance-employers/"+kind+"/"+uuid.Must(uuid.NewV7()).String()+"/staff-choices?status=active&limit=1&cursor="+cursor, "auditor", nil, http.StatusBadRequest)
+		otherKind := "supplier"
+		if kind == "supplier" {
+			otherKind = "pharmacy"
+		}
+		call(http.MethodGet, "/v1/workforce/operating-governance-employers/"+otherKind+"/"+employer.String()+"/staff-choices?status=active&limit=1&cursor="+cursor, "auditor", nil, http.StatusBadRequest)
+		for _, query := range []string{"?limit=21", "?limit=1&limit=20", "?status=active&status=active"} {
+			call(http.MethodGet, staffChoicePath+query, "auditor", nil, http.StatusBadRequest)
+		}
+		call(http.MethodPut, staffRoot+"?directory_context=v1", "admin", map[string]any{"employee_code": "SYN-NATIVE-PAGE", "display_name": "Synthetic changed paging Staff", "job_category": "pharmacist", "employment_status": "active", "expected_version": 1, "directory_context_version": "v1"}, http.StatusOK)
+		current := call(http.MethodGet, staffChoicePath+"?limit=20", "auditor", nil, http.StatusOK)
+		require.NotContains(t, current, extraStaff.String(), "a changed Staff revision cannot reuse its old reviewed link")
+		require.JSONEq(t, choices, current)
+
+	})
 	input := iam.OperatingDutyInput{Scope: iam.OperatingDutyScope{EmployerKind: kind, EmployerID: employer, LocationID: location, ExpectedEmployerVersion: 1, ExpectedLocationVersion: 1}, Identity: iam.OperatingDutyIdentity{StaffID: staff, StaffVersion: 1, LinkID: link, LinkVersion: 2}, Subject: "user-reviewer", TemplateKey: template, Reason: "Synthetic native staff receiving duty", ValidFrom: now.Add(-time.Minute), ExpiresAt: now.Add(time.Hour)}
 	prefix := "/v1/iam/operating-governance-employers/" + kind + "/" + employer.String()
 	duty := uuid.Must(uuid.NewV7())
@@ -187,6 +324,7 @@ func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *ten
 		return nil
 	}))
 	call(http.MethodPut, grantPath+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "admin", iam.GovernanceGrantDecisionInput{ExpectedVersion: 2, Decision: "revoke", Reason: "Synthetic native source cutoff"}, http.StatusAccepted)
+	call(http.MethodGet, staffChoicePath+"?limit=20", "auditor", nil, http.StatusNotFound)
 	cutoffDirectory := call(http.MethodGet, "/v1/workforce/operating-authority-scopes?limit=20", "auditor", nil, http.StatusOK)
 	require.NotContains(t, cutoffDirectory, employer.String())
 	require.Contains(t, cutoffDirectory, `"data":[]`)

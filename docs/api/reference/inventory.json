@@ -11776,6 +11776,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/operating-governance-employers/:kind/:employer/staff-choices",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/person-review-authority-scopes",
           "permission": "public",
           "authentication_required": true,
@@ -13864,6 +13873,11 @@
         {
           "id": "0115_workforce_finding_file_isolation",
           "sql_sha256": "3315738cbc5c63c5aceb127ffe59012796b409ce369d22adc6de559be2bee58f",
+          "creates_tables": []
+        },
+        {
+          "id": "0116_workforce_operating_staff_choices",
+          "sql_sha256": "bce817e14c488647cbc5beaf4a99a0a8531eeb7ab6b9d6b8dc3398280f254adb",
           "creates_tables": []
         }
       ]

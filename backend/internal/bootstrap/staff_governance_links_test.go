@@ -259,7 +259,7 @@ func TestGovernanceAccountLinkReviewConsumesExactEmployerSourceWithoutManagerAcc
 				return nil
 			}))
 			if kind != "hospital" {
-				exerciseNativeOperatingGovernance(t, router, db, ctx, kind, roots[0], people[0], uuid.MustParse(links[0][len(links[0])-36:]))
+				exerciseNativeOperatingGovernance(t, router, db, ctx, kind, roots[0], roots[1], people[0], uuid.MustParse(links[0][len(links[0])-36:]))
 			}
 			base := "/v1/workforce/" + family + "/" + roots[0].String() + "/staff/" + people[0].String()
 			if kind != "hospital" {

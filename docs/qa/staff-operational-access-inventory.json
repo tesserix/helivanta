@@ -1,9 +1,9 @@
 {
   "format_version": 1,
-  "registry_sha256": "a2bcb44dabda638a35ca4be7298d2dfa9eed2e4f941b2592578168b73b1dccbf",
+  "registry_sha256": "a3605e1b444f107d4e302c9c1af8bbca0db4816bad3434d80fb731e054fc9e26",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1133,
+    "total": 1134,
     "unclassified": 1001
   },
   "entries": [
@@ -14054,7 +14054,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207",
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d",
             "symbol": "h.employmentAuthorityScopeCandidates"
           },
           {
@@ -14112,7 +14112,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207",
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -14202,7 +14202,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207",
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d",
             "symbol": "h.getBusinessProfile"
           },
           {
@@ -14264,7 +14264,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207",
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -14328,7 +14328,7 @@
           {
             "path": "backend/internal/modules/workforce/module.go",
             "symbol": "h.listEmploymentAuthorityInbox",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207"
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d"
           },
           {
             "path": "backend/internal/modules/workforce/employment_authority_inbox.go",
@@ -14385,7 +14385,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207",
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -16511,7 +16511,7 @@
           {
             "path": "backend/internal/modules/workforce/module.go",
             "symbol": "h.governanceEmploymentFindingCandidates",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207"
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d"
           },
           {
             "path": "backend/internal/modules/workforce/employment_governance_findings.go",
@@ -16563,7 +16563,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207",
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -16872,7 +16872,7 @@
           {
             "path": "backend/internal/modules/workforce/module.go",
             "symbol": "0111_workforce_employment_preparation_receipt",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207"
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d"
           }
         ],
         "remaining": [
@@ -16935,7 +16935,7 @@
           {
             "path": "backend/internal/modules/workforce/module.go",
             "symbol": "0111_workforce_employment_preparation_receipt",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207"
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d"
           }
         ],
         "remaining": [
@@ -16998,7 +16998,7 @@
           {
             "path": "backend/internal/modules/workforce/module.go",
             "symbol": "0111_workforce_employment_preparation_receipt",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207"
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d"
           }
         ],
         "remaining": [
@@ -17125,7 +17125,7 @@
           {
             "path": "backend/internal/modules/workforce/module.go",
             "symbol": "0111_workforce_employment_preparation_receipt",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207"
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d"
           }
         ],
         "remaining": [
@@ -17157,7 +17157,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207",
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -17336,7 +17336,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207",
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -17477,7 +17477,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207",
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -17817,7 +17817,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207",
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -17876,7 +17876,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207",
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -17935,7 +17935,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207",
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -17994,7 +17994,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207",
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -18053,7 +18053,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207",
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -18161,7 +18161,7 @@
           {
             "path": "backend/internal/modules/workforce/module.go",
             "symbol": "operating-authority-scopes",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207"
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d"
           },
           {
             "path": "backend/internal/modules/workforce/operating_authority_scopes.go",
@@ -18177,6 +18177,54 @@
         "remaining": [
           "Execute exact-head PostgreSQL/FGA tests for both employer kinds, root isolation and revoked source alongside immutable command replay and rollback.",
           "Complete qualified Staff/location selectors, native preparation/review UI and both ownership-model journeys. Run upgrade/rollback, load and live acceptance; no deployment or full workflow completion is asserted."
+        ]
+      }
+    },
+    {
+      "id": "http workforce GET /v1/workforce/operating-governance-employers/:kind/:employer/staff-choices",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "method": "GET",
+        "path": "/v1/workforce/operating-governance-employers/:kind/:employer/staff-choices",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": {
+        "id": "http workforce GET /v1/workforce/operating-governance-employers/:kind/:employer/staff-choices",
+        "registration_sha256": "26985387de5b924531f0d6405a1735d8c8f15859b95f5cfe67c80ed2d6274350",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified tenant/account and canonical pharmacy/supplier employer; current owner or exact operating-manage grant, active Staff and independently reviewed matching account link.",
+        "rationale": "Separate sealed Staff projection exposes only canonical Staff ID/display name/version and reviewed account subject/link ID/version. Current source is acquired for the exact employer under guarded actor context; only active matching independent Staff/link revisions are read under shared locks and audited atomically. Strict single-valued active/limit/cursor filters and sealed account/tenant/employer/kind continuation cap pages at twenty. WF0116 extends retained read/audit policy with a read-only purpose, closes unrelated Workforce reads/writes/deletion, and fingerprints installed functions/policies with forced-RLS/runtime privilege checks. Source-purpose state is restored before callback completion. Target identity/membership and product location remain rechecked at duty preparation. No legacy manager, operating or clinical authority is created.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/workforce/module.go",
+            "symbol": "staff-choices",
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d"
+          },
+          {
+            "path": "backend/internal/modules/workforce/operating_staff_choices.go",
+            "symbol": "listOperatingStaffChoices",
+            "sha256": "8fb58919f7c97666238fd8af81959cc30a4e6033c60382173630a152bbe3dfb7"
+          },
+          {
+            "path": "backend/internal/modules/workforce/operating_staff_choices.sql",
+            "symbol": "workforce_operating_selection_support",
+            "sha256": "bce817e14c488647cbc5beaf4a99a0a8531eeb7ab6b9d6b8dc3398280f254adb"
+          },
+          {
+            "path": "backend/internal/modules/workforce/login_review_authority.go",
+            "symbol": "validWorkforceGovernanceSource",
+            "sha256": "22661c1adacad49e5273c5a2bcaaa5fbd3efc4e386c98a2f1fa5fa175ea3cfa4"
+          }
+        ],
+        "remaining": [
+          "Execute real PostgreSQL/FGA source, exact/sibling employer, current/stale Staff/link, sealed account/employer/kind paging, unknown/duplicate filters, support tampering, raw identity write denial, audit rollback and source cutoff tests for both employer kinds.",
+          "Retain query-plan/load and additive upgrade/rollback evidence; obtain named WF0116 live migration approval after acceptance. Complete qualified product-location choices, native UI and full Staff/pharmacy journeys. No full runtime or deployment completion is asserted."
         ]
       }
     },
@@ -18203,7 +18251,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207",
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d",
             "symbol": "h.personAuthorityScopeCandidates"
           },
           {
@@ -20101,7 +20149,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207",
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -20207,7 +20255,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207",
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -20313,7 +20361,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207",
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -21213,7 +21261,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207",
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -21865,7 +21913,7 @@
           {
             "path": "backend/internal/modules/workforce/module.go",
             "symbol": "0111_workforce_employment_preparation_receipt",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207"
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d"
           }
         ],
         "remaining": [
@@ -21913,7 +21961,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207",
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -22122,7 +22170,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "2897931d1541c1d6665f75079f1878eed03db65e29dd3394a91fdd6ab8cc2207",
+            "sha256": "7f7ad0c95c5df9cb4965bd6cc7f323ddfbf73ad59223b1c8ce6876b3a990437d",
             "symbol": "func (*Module) Routes("
           },
           {

@@ -117,6 +117,41 @@ scope/purpose, source revocation and missing topology are acceptance gates.
 
 ## Native operating-duty administration candidate
 
+### Qualified Staff choices
+
+`GET /v1/workforce/operating-governance-employers/:kind/:employer/staff-choices`
+is the separate native Workforce selector. It requires current operating-manage
+authority for that exact pharmacy/supplier employer and exactly matching expected
+tenant/account headers. Missing coarse permission is `403`; an absent, foreign or
+ungranted employer is `404`; stale workspace is `409`; unavailable source, audit
+or installed support is `503`. Native failure never falls back to a legacy directory.
+
+The strict generated `staff-access.json.OperatingGovernanceStaffChoice` projection
+contains only `staff_id`, `display_name`, `staff_version`, `subject`, `link_id`
+and `link_version`. Staff must be active and have an active independently reviewed
+link with a matching independent Staff revision. Canonical existing Staff UUIDs
+are retained, including v4; link and employer IDs use their existing v7 rules.
+Target membership and identity-owner eligibility are checked again by the duty
+command; the selector does not certify them or grant operating authority.
+
+Only single-valued `status=active` (the default), `limit` and `cursor` queries are
+accepted. Pages cap at twenty, ordered by descending Staff `(created_at,id)`.
+Opaque cursors bind current tenant, account, employer, kind and active filter.
+Each bounded read holds current source authority and shared Staff/link locks
+through attributable read audit. Audit failure rolls back the disclosure. SDK
+keys include the whole employer/account scope; results are uncached, cancellable,
+strictly validated and have no automatic retry or legacy fallback.
+
+Candidate WF0116 adds read-only source-purpose RLS and immutable-source audit
+checks. It retains existing policies when the new purpose is absent, and closes
+unrelated Workforce reads, all master writes and deletion during selection.
+Function/policy fingerprints, forced RLS, runtime privileges and active-link
+uniqueness support are checked before disclosure. This migration is unapplied;
+real database/source/paging/rollback acceptance remains required. Qualified
+product-location choices and native preparation/review UI remain unfinished.
+
+### Qualified employer choices
+
 Employer discovery uses `GET /v1/workforce/operating-authority-scopes` through
 the Global API. Workforce owns the employer identity/name; IAM owns the current
 nonclinical owner or exact `iam.operating_access_reviewer.v1` grant. Each returned

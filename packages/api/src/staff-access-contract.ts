@@ -487,3 +487,25 @@ export const OperatingGovernanceEmployerScopeContract = z
 export type OperatingGovernanceEmployerScope = z.infer<
   typeof OperatingGovernanceEmployerScopeContract
 >;
+
+export const OperatingGovernanceStaffChoiceContract = z
+  .object({
+    staff_id: identifier,
+    display_name: z
+      .string()
+      .min(1)
+      .max(150)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    staff_version: z.number().int().min(1).max(9007199254740991),
+    subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .regex(new RegExp("^[^\\s*#:]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    link_id: identifier,
+    link_version: z.number().int().min(2).max(9007199254740991),
+  })
+  .strict();
+export type OperatingGovernanceStaffChoice = z.infer<typeof OperatingGovernanceStaffChoiceContract>;

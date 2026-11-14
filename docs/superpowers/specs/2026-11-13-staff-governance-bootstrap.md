@@ -935,3 +935,42 @@ checking and corrected. No assertions or required checks were skipped. Full live
 linking, assignment/settlement, operating authority and pharmacy acceptance still
 remain required. No migration, merge, native identity or production mutation has
 been performed in this continuation.
+
+### Independent operating-access governance source
+
+The independent-duty consumer needs its own fixed nonclinical authority, rather
+than account-link, hospital assignment or legacy employer-manager authority.
+Add `iam.operating_access_reviewer.v1` with exactly
+`iam.governance.operating.manage` and `iam.governance.operating.review`, scoped to
+one `pharmacy` or `supplier` employer. Hospital, tenant, department, outlet and
+premise grants are rejected for this template. Existing templates keep their
+permissions and scope kinds. The native owner path and exact current grant path
+use the existing IAM governance ledger, membership incarnation, credential
+watermark, topology/owner-count locks, validity and callback lifetime.
+
+This first source increment changes the canonical catalog and closed source
+mapping only. It does not change operating-duty route admission, the legacy
+administrative role helper, Workforce employer-manager access, Staff masters,
+product stock permissions or owner security. IAM owns the grant; Workforce owns
+the employer; the supplier/pharmacy product retains its current location and
+physical stock. No copied identity or new infrastructure is introduced. The
+existing capacity assumptions and five-second source budget above apply, with
+unchanged deployment cost. Source lookup is current and strongly consistent;
+missing source denies, hidden scope remains hidden, and unavailable membership,
+credential or topology dependencies fail closed. Consumer adoption must retain
+exact immutable preparation/decision provenance, original-source replay,
+independent maker/target exclusions and current Staff/link/location gates before
+this source can administer duties. Source availability alone is not operating
+access or completion of the full goal.
+
+Canonical generator parity and local positive/negative scope validation precede
+real PostgreSQL/FGA/broker source tests. Those tests must cover each employer,
+native owner and exact delegate, wrong employer/tenant/template/capability,
+source revocation and dependency failure. Existing routes retain their current
+behavior until the separately tested native consumer is wired. No schema change
+is needed for this catalog/source increment: the existing governance ledger
+stores a validated versioned template key and has no copied catalog enum.
+Rollback disables issuance/consumption of the new template while retaining all
+existing grant, decision, notification and audit history. Full Staff initiation,
+reviewed links, employment/postings, both pharmacy ownership models, live QA and
+Kargo deployment remain required by the original goal.

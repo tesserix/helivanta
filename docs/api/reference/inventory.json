@@ -838,6 +838,18 @@
           ]
         },
         {
+          "permission": "iam.governance.operating.manage",
+          "roles": [
+            "governance_delegate"
+          ]
+        },
+        {
+          "permission": "iam.governance.operating.review",
+          "roles": [
+            "governance_delegate"
+          ]
+        },
+        {
           "permission": "iam.assignment.review",
           "roles": []
         },

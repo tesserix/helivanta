@@ -88,6 +88,12 @@ func (g *governanceSourceGuard) withGovernanceSource(ctx context.Context, req au
 }
 
 func governanceSourceTemplate(capability authz.GovernanceCapability, kind string) string {
+	if kind == "pharmacy" || kind == "supplier" {
+		switch capability {
+		case authz.GovernanceOperatingManage, authz.GovernanceOperatingReview:
+			return "iam.operating_access_reviewer.v1"
+		}
+	}
 	switch capability {
 	case authz.GovernanceAccountLinkReview:
 		if kind == "hospital" || kind == "pharmacy" || kind == "supplier" {

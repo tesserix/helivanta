@@ -46,7 +46,24 @@
       "permissions": ["workforce.employment.activate"],
       "name": "Nonclinical employment activation"
     },
-    {"key": "iam.scoped_access_reviewer.v1", "name": "Hospital scoped-access reviewer", "scope_kinds": ["hospital"], "permissions": ["iam.governance.assignment.manage", "iam.governance.assignment.review"]}
+    {
+      "key": "iam.scoped_access_reviewer.v1",
+      "name": "Hospital scoped-access reviewer",
+      "scope_kinds": ["hospital"],
+      "permissions": [
+        "iam.governance.assignment.manage",
+        "iam.governance.assignment.review"
+      ]
+    },
+    {
+      "key": "iam.operating_access_reviewer.v1",
+      "name": "Independent employer operating-access reviewer",
+      "scope_kinds": ["pharmacy", "supplier"],
+      "permissions": [
+        "iam.governance.operating.manage",
+        "iam.governance.operating.review"
+      ]
+    }
   ],
   "models": {
     "GovernanceTemplateDefinition": [

@@ -26,7 +26,7 @@ type GovernanceTemplateDefinition struct {
 type GovernanceGrantInput struct {
 	Subject                 string     `json:"subject" binding:"required,min=1,max=200"`
 	ExpectedMembershipEpoch int64      `json:"expected_membership_epoch" binding:"required,min=1,max=9007199254740991"`
-	TemplateKey             string     `json:"template_key" binding:"required,oneof=workforce.account_link_reviewer.v1 workforce.person_preparer.v1 workforce.person_reviewer.v1 iam.governance_auditor.v1 workforce.employment_preparer.v1 workforce.employment_reviewer.v1 workforce.employment_activator.v1 iam.scoped_access_reviewer.v1"`
+	TemplateKey             string     `json:"template_key" binding:"required,oneof=workforce.account_link_reviewer.v1 workforce.person_preparer.v1 workforce.person_reviewer.v1 iam.governance_auditor.v1 workforce.employment_preparer.v1 workforce.employment_reviewer.v1 workforce.employment_activator.v1 iam.scoped_access_reviewer.v1 iam.operating_access_reviewer.v1"`
 	ScopeKind               string     `json:"scope_kind" binding:"required,oneof=tenant hospital pharmacy supplier"`
 	ScopeID                 *uuid.UUID `json:"scope_id,omitempty"`
 	Reason                  string     `json:"reason" binding:"required,min=1,max=500"`
@@ -92,4 +92,5 @@ var governanceTemplates = []GovernanceTemplateDefinition{
 	{Key: "workforce.employment_reviewer.v1", Name: "Nonclinical employment independent review", ScopeKinds: []string{"hospital"}, Permissions: []string{"workforce.employment.review"}},
 	{Key: "workforce.employment_activator.v1", Name: "Nonclinical employment activation", ScopeKinds: []string{"hospital"}, Permissions: []string{"workforce.employment.activate"}},
 	{Key: "iam.scoped_access_reviewer.v1", Name: "Hospital scoped-access reviewer", ScopeKinds: []string{"hospital"}, Permissions: []string{"iam.governance.assignment.manage", "iam.governance.assignment.review"}},
+	{Key: "iam.operating_access_reviewer.v1", Name: "Independent employer operating-access reviewer", ScopeKinds: []string{"pharmacy", "supplier"}, Permissions: []string{"iam.governance.operating.manage", "iam.governance.operating.review"}},
 }

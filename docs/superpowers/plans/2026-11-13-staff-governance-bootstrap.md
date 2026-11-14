@@ -82,3 +82,16 @@ binding acceptance passed source3da62382 in CI43525604797; broader coverage,
 supplier regression and live acceptance are separate. Preserve all remaining
 Staff, assignment/settlement and pharmacy gates; do not close the overall goal on
 this narrower evidence. IAM0048/WF0104-WF0114 remain unapplied live candidates.
+
+Independent operating-access source continuation: the separate canonical
+`iam.operating_access_reviewer.v1` bundle and closed pharmacy/supplier-only source
+mapping have been added after observed red local boundary tests. Local mapping,
+input and governance-routing isolation checks pass. Real owner/delegate,
+wrong-employer/purpose/tenant, revocation, unavailable topology and no legacy
+manager creation cases are included for remote acceptance. Existing duty API,
+Workforce employer-manager consumer and product authority remain unchanged.
+Next adopt a separately scoped native duty consumer, preserving private original
+source/version provenance and replay, current target Staff/link and location,
+independent maker/target checks, projection acknowledgement and immediate cutoff.
+Then complete the preparation/review UI and both ownership-model live journeys;
+the source increment does not complete or reduce the original goal.

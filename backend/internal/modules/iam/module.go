@@ -135,6 +135,8 @@ func (m *Module) Permissions() []authz.Grant {
 		{Permission: PermGovernanceManage}, {Permission: PermGovernanceRead, Roles: []authz.Role{authz.RoleGovernanceDelegate}}, {Permission: PermGovernanceReview, Roles: []authz.Role{authz.RoleGovernanceDelegate}},
 		{Permission: PermAssignmentManage},
 		{Permission: PermGovernanceAssignmentManage, Roles: []authz.Role{authz.RoleGovernanceDelegate}},
+		{Permission: authz.Permission(authz.GovernanceOperatingManage), Roles: []authz.Role{authz.RoleGovernanceDelegate}},
+		{Permission: authz.Permission(authz.GovernanceOperatingReview), Roles: []authz.Role{authz.RoleGovernanceDelegate}},
 		{Permission: PermAssignmentReview},
 		{Permission: PermGovernanceAssignmentReview, Roles: []authz.Role{authz.RoleGovernanceDelegate}},
 		{Permission: PermPartnerGroupMemberRead}, {Permission: PermPartnerGroupMemberPrepare}, {Permission: PermPartnerGroupMemberReview},

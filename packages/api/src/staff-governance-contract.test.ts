@@ -115,6 +115,11 @@ it("keeps the versioned governance bundles free of operating authority", () => {
       scope_kinds: ["hospital"],
       permissions: ["iam.governance.assignment.manage", "iam.governance.assignment.review"],
     },
+    {
+      key: "iam.operating_access_reviewer.v1",
+      scope_kinds: ["pharmacy", "supplier"],
+      permissions: ["iam.governance.operating.manage", "iam.governance.operating.review"],
+    },
   ]);
 });
 it("preserves microsecond interval ordering instead of comparing rounded milliseconds", () => {

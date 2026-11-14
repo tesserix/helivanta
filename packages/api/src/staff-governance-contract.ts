@@ -51,6 +51,12 @@ export const governanceTemplates = [
     scope_kinds: ["hospital"],
     permissions: ["iam.governance.assignment.manage", "iam.governance.assignment.review"],
   },
+  {
+    key: "iam.operating_access_reviewer.v1",
+    name: "Independent employer operating-access reviewer",
+    scope_kinds: ["pharmacy", "supplier"],
+    permissions: ["iam.governance.operating.manage", "iam.governance.operating.review"],
+  },
 ] as const;
 const identifier = z
   .uuid()
@@ -83,6 +89,7 @@ const GovernanceGrantInputShape = z
       "workforce.employment_reviewer.v1",
       "workforce.employment_activator.v1",
       "iam.scoped_access_reviewer.v1",
+      "iam.operating_access_reviewer.v1",
     ]),
     scope_kind: z.enum(["tenant", "hospital", "pharmacy", "supplier"]),
     scope_id: identifier.optional(),

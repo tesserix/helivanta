@@ -87,3 +87,30 @@ reviewed account basis; reactivation does not revive old duties. Hospital Staff
 use the separate reviewed employment, account-link, department posting and
 pharmacy-relationship workflows. See
 [the preparation design](../superpowers/specs/2026-11-09-pharmacy-staff-preparation.md).
+
+## Native operating-access governance source candidate
+
+The separate canonical `iam.operating_access_reviewer.v1` bundle contains only
+`iam.governance.operating.manage` and `iam.governance.operating.review`. Each
+grant names one independent pharmacy or supplier employer. Tenant, hospital,
+department, outlet and premise scopes are rejected. Existing account-link,
+hospital assignment and operating-duty templates keep their permissions.
+
+IAM's closed `WithGovernanceSource` mapping recognizes these two capabilities
+and uses its current native-owner or exact-grant authority, credential watermark,
+membership incarnation, validity and canonical employer topology. Revoked or
+absent source denies; dependency failure is unavailable. This grants no stock,
+clinical, financial or operating permission and creates no Workforce manager or
+Staff row. Existing operating-duty route admission still requires its documented
+legacy administrative and employer access until the native consumer is adopted.
+That consumer must retain original-source replay/provenance and all current
+Staff/link, location, membership and independent-decision checks. Catalog/source
+support does not establish working native duty administration or full Staff and
+pharmacy acceptance.
+
+The canonical Go/Zod template enum expands additively; clients must refresh it and
+reject unknown keys. No schema migration is added for this increment. The
+existing IAM governance ledger keeps immutable versioned keys and source facts;
+rollback stops issuance/consumption of the new template and retains history.
+Database source cases for both employer kinds, current owners/delegates, wrong
+scope/purpose, source revocation and missing topology are acceptance gates.

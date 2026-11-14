@@ -9,6 +9,7 @@ import {
   useZodForm,
   type UseFormReturn,
   RequestFailure,
+  useLeaveGuard,
 } from "@helivanta/ui";
 import { useNow } from "@/lib/use-now";
 import { STAFF_ACCESS_CHANGED, useStaffAccessCutoff } from "../staff-access-cutoff";
@@ -518,6 +519,14 @@ export function AssignmentDecisionForm({
     onAccessLost,
     isGovernanceAssignmentAccessChanged,
   );
+  const refused =
+    save.error instanceof ApiError && [400, 401, 403, 404, 409].includes(save.error.status);
+  const unresolved = submitted !== null && !save.isSuccess && !refused;
+  const { confirm } = useLeaveGuard(
+    form.formState.isDirty || unresolved,
+    "assignment decision",
+    unresolved,
+  );
   if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   return (
     <form
@@ -554,7 +563,12 @@ export function AssignmentDecisionForm({
         <Button type="submit" disabled={save.isPending}>
           {save.isPending ? "Saving…" : save.isError ? "Retry same request" : `Confirm ${decision}`}
         </Button>
-        <Button type="button" variant="ghost" disabled={save.isPending} onClick={onClose}>
+        <Button
+          type="button"
+          variant="ghost"
+          disabled={unresolved}
+          onClick={() => confirm(onClose)}
+        >
           Close form
         </Button>
       </div>

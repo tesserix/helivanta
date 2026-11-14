@@ -1,8 +1,10 @@
 package iam
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -14,6 +16,23 @@ import (
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/pkg/authz"
 )
+
+func TestAssignmentTargetFailureLogsOnlyPhaseAndSQLState(t *testing.T) {
+	var output bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&output, nil)))
+	defer slog.SetDefault(previous)
+	response := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(response)
+	c.Request = httptest.NewRequest("GET", "/targets", nil)
+	c.Set("iam.assignment_target_phase", "workforce_candidates")
+	assignmentTargetError(c, &pgconn.PgError{Code: "42501", Message: "PRIVATE-IDENTITY-SECRET", Detail: "PRIVATE-IDENTITY-SECRET"})
+	require.Equal(t, 503, response.Code)
+	require.Contains(t, output.String(), `"phase":"workforce_candidates"`)
+	require.Contains(t, output.String(), `"sqlstate":"42501"`)
+	require.NotContains(t, output.String(), "PRIVATE-IDENTITY-SECRET")
+	require.NotContains(t, response.Body.String(), "PRIVATE-IDENTITY-SECRET")
+}
 
 func TestAssignmentTargetQueryRejectsRawIdentityFilters(t *testing.T) {
 	for _, query := range []string{"?subject=other", "?staff=other", "?membership_epoch=1", "?status=active", "?limit=1&limit=2", "?cursor=", "?limit=%zz", "?limit=20;status=all", "?"} {

@@ -17,6 +17,11 @@ import (
 
 type assignmentTargetReader struct{ db *tenantdb.DB }
 
+type assignmentTargetScanRow struct {
+	StaffID   uuid.UUID
+	CreatedAt time.Time
+}
+
 //go:embed assignment_targets.sql
 var assignmentTargetsSchema string
 
@@ -83,15 +88,16 @@ func (reader *assignmentTargetReader) ReadAssignmentTargetCandidates(ctx context
 		if page.After != nil {
 			query = query.Where("(created_at,id)<(?,?)", page.After.CreatedAt, page.After.ID)
 		}
-		if err := query.Order("created_at DESC,id DESC").Limit(page.Limit + 1).Find(&rows).Error; err != nil {
+		var scanned []assignmentTargetScanRow
+		if err := query.Order("created_at DESC,id DESC").Limit(page.Limit + 1).Find(&scanned).Error; err != nil {
 			return err
 		}
-		for index := range rows {
-			reference, err := reader.qualify(tx, request, rows[index].StaffID, proof)
+		for _, row := range scanned {
+			reference, err := reader.qualify(tx, request, row.StaffID, proof)
 			if err != nil {
 				return err
 			}
-			rows[index].Reference = reference
+			rows = append(rows, authz.AssignmentTargetCandidate{StaffID: row.StaffID, CreatedAt: row.CreatedAt, Reference: reference})
 		}
 		return nil
 	})

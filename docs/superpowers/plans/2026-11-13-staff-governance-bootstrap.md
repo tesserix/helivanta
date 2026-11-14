@@ -495,3 +495,24 @@ SELECT, requires prior integrity exactly true and refreshes identical coverage.
 Local pure regression/race, backend build/vet/lint and SDK/UI/type checks passed.
 Normal cold lifecycle and new retained-duty owner/browser acceptance remain CI gates;
 no timeout, assertion, source predicate or live configuration was relaxed.
+
+### Qualified hospital preparation and runtime continuation
+
+The qualified Staff owner, IAM/identity composition, canonical choice model/SDK
+and native hospital preparation controls are now candidate implementation. IAM0052
+and Workforce0119 preserve full selector/audit fingerprint coverage with an
+IAM-owned schema-owner-only capture after shared audit migration staging.
+Runtime assertions pass at3450485a; complete supplier regression and independent
+browser workflows also pass on that head. The new chooser still returns503:
+a pure regression identifies the owner scan's nested private reference being
+misinterpreted by GORM as an association. The candidate correction maps a bounded
+two-column database projection before attaching private qualification evidence.
+
+The native UI uses named Staff/account and department choices, canonical commands,
+exact uncertain replay and navigation freeze, including decision forms. New CI
+hospital browser coverage uses the existing real-owner employment/reviewed-link
+fixture and Global API, with distinct proposer/reviewer accounts. Local compile,
+pure race tests, affected94 UI tests and production build do not establish this
+browser or deployed acceptance. Runtime query/source/audit/foreign tests, the new
+browser path and fresh normal onboarding/actual pharmacy operations remain gates.
+See the November15 QA checkpoint for exact runs and the current open failures.

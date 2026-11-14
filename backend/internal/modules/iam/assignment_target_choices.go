@@ -5,12 +5,14 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/url"
 	"slices"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
@@ -189,6 +191,8 @@ func (h *assignmentProposalHandlers) assignmentTargetSelection(ctx context.Conte
 }
 
 func (h *assignmentProposalHandlers) assignmentTargetCandidates(c *gin.Context, page pagination.Params) ([]assignmentTargetChoiceRow, error) {
+	c.Set("iam.assignment_target_started", time.Now())
+	c.Set("iam.assignment_target_phase", "source_scan")
 	requestCtx, requestCancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	c.Request = c.Request.WithContext(requestCtx)
 	retained := false
@@ -213,6 +217,7 @@ func (h *assignmentProposalHandlers) assignmentTargetCandidates(c *gin.Context, 
 	err := h.withAssignmentTargetSource(ctx, p, hospital, func(commandCtx context.Context, source authz.GovernanceSourceEvidence, proof assignmentGovernanceProof) error {
 		state.Source = proof
 		request := authz.GovernedAssignmentSelectionRequest{Principal: p, HospitalID: hospital, Capability: authz.GovernanceAssignmentManage, Source: source}
+		c.Set("iam.assignment_target_phase", "workforce_candidates")
 		candidates, err := h.targets.ReadAssignmentTargetCandidates(commandCtx, request, page)
 		if err != nil {
 			return err
@@ -233,6 +238,7 @@ func (h *assignmentProposalHandlers) assignmentTargetCandidates(c *gin.Context, 
 				subjects = append(subjects, candidate.Reference.Subject)
 			}
 		}
+		c.Set("iam.assignment_target_phase", "iam_membership")
 		return h.assignmentTargetSelection(commandCtx, request, subjects, func(tx *gorm.DB) error {
 			for index := range rows {
 				row := &rows[index]
@@ -304,6 +310,7 @@ func assignmentTargetMembership(tx *gorm.DB, tenant string, hospital uuid.UUID, 
 }
 
 func (h *assignmentProposalHandlers) assignmentTargetPresentation(c *gin.Context, rows []assignmentTargetChoiceRow) ([]assignmentTargetChoiceRow, error) {
+	c.Set("iam.assignment_target_phase", "identity_lookup")
 	value, present := c.Get(assignmentTargetReadKey)
 	state, valid := value.(assignmentTargetReadState)
 	if !present || !valid {
@@ -351,11 +358,13 @@ func (h *assignmentProposalHandlers) assignmentTargetPresentation(c *gin.Context
 		}
 	}
 	slices.Sort(subjects)
+	c.Set("iam.assignment_target_phase", "source_recheck")
 	err := h.withAssignmentTargetSource(ctx, p, hospital, func(commandCtx context.Context, source authz.GovernanceSourceEvidence, proof assignmentGovernanceProof) error {
 		if !sameAssignmentSource(state.Source, proof) {
 			return authz.ErrAssignmentTargetChanged
 		}
 		request := authz.GovernedAssignmentSelectionRequest{Principal: p, HospitalID: hospital, Capability: authz.GovernanceAssignmentManage, Source: source}
+		c.Set("iam.assignment_target_phase", "iam_membership_recheck")
 		return h.assignmentTargetSelection(commandCtx, request, subjects, func(tx *gorm.DB) error {
 			for _, subject := range subjects {
 				for _, row := range rows {
@@ -371,6 +380,7 @@ func (h *assignmentProposalHandlers) assignmentTargetPresentation(c *gin.Context
 					}
 				}
 			}
+			c.Set("iam.assignment_target_phase", "workforce_recheck")
 			return h.targets.RecheckAssignmentTargets(commandCtx, request, refs)
 		})
 	})
@@ -396,6 +406,17 @@ func assignmentTargetError(c *gin.Context, err error) {
 	case errors.Is(err, authz.ErrAssignmentTargetChanged):
 		respond.Error(c, 409, "assignment_target_changed", "Staff or account facts changed. Refresh the choices before continuing.")
 	default:
+		fields := []any{"phase", c.GetString("iam.assignment_target_phase"), "deadline_exceeded", errors.Is(err, context.DeadlineExceeded) || errors.Is(err, tenantdb.ErrGuardedCommandExpired), "canceled", errors.Is(err, context.Canceled)}
+		if started, ok := c.Get("iam.assignment_target_started"); ok {
+			if timestamp, valid := started.(time.Time); valid {
+				fields = append(fields, "elapsed_ms", time.Since(timestamp).Milliseconds())
+			}
+		}
+		var databaseError *pgconn.PgError
+		if errors.As(err, &databaseError) {
+			fields = append(fields, "sqlstate", databaseError.Code)
+		}
+		slog.ErrorContext(c.Request.Context(), "hospital assignment target read unavailable", fields...)
 		respond.Error(c, 503, "assignment_targets_unavailable", "Current Staff, account identity or read audit could not be confirmed.")
 	}
 }

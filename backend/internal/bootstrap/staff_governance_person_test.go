@@ -57,8 +57,8 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		Tokens:           map[string]string{"admin": testutil.TenantA, "owner2": testutil.TenantA, "auditor": testutil.TenantA, "reviewer": testutil.TenantA, "other": testutil.TenantB},
 		Perms: map[string][]authz.Permission{
 			"other":    {iam.PermGovernanceAssignmentManage},
-			"admin":    {iam.PermGovernanceAssignmentManage, workforce.PermLoginLinkManage, workforce.PermLoginLinkReview, iam.PermGovernanceManage, iam.PermGovernanceRead, iam.PermGovernanceReview, workforce.PermHospitalManage, workforce.PermEnrollmentManage, workforce.PermDocumentManage, workforce.PermIdentityChecksManage, workforce.PermIdentityChecksReview, workforce.PermEmploymentPrepare, workforce.PermEmploymentReview, workforce.PermEmploymentActivate},
-			"owner2":   {iam.PermGovernanceAssignmentManage, workforce.PermLoginLinkReview, iam.PermGovernanceReview, workforce.PermIdentityChecksManage, workforce.PermIdentityChecksReview, workforce.PermEmploymentPrepare, workforce.PermEmploymentReview, workforce.PermEmploymentActivate},
+			"admin":    {iam.PermGovernanceAssignmentReview, iam.PermGovernanceAssignmentManage, workforce.PermLoginLinkManage, workforce.PermLoginLinkReview, iam.PermGovernanceManage, iam.PermGovernanceRead, iam.PermGovernanceReview, workforce.PermHospitalManage, workforce.PermEnrollmentManage, workforce.PermDocumentManage, workforce.PermIdentityChecksManage, workforce.PermIdentityChecksReview, workforce.PermEmploymentPrepare, workforce.PermEmploymentReview, workforce.PermEmploymentActivate},
+			"owner2":   {iam.PermGovernanceAssignmentReview, iam.PermGovernanceAssignmentManage, workforce.PermLoginLinkReview, iam.PermGovernanceReview, workforce.PermIdentityChecksManage, workforce.PermIdentityChecksReview, workforce.PermEmploymentPrepare, workforce.PermEmploymentReview, workforce.PermEmploymentActivate},
 			"auditor":  {iam.PermGovernanceAssignmentManage, workforce.PermIdentityChecksManage, workforce.PermIdentityChecksReview, workforce.PermEmploymentPrepare, workforce.PermEmploymentReview, workforce.PermEmploymentActivate},
 			"reviewer": {workforce.PermIdentityChecksManage, workforce.PermIdentityChecksReview, workforce.PermEmploymentPrepare, workforce.PermEmploymentReview, workforce.PermEmploymentActivate},
 		},
@@ -94,7 +94,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 	require.True(t, selectionSupport.IAM, "IAM selector support is available after migration")
 	require.True(t, selectionSupport.Workforce, "Workforce selector support is available after migration")
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-		return tx.Exec("INSERT INTO iam_members(tenant_id,subject,role_key)VALUES(?,'user-admin','tenant_admin'),(?,'user-owner2','tenant_admin'),(?,'user-auditor','staff_member'),(?,'user-reviewer','staff_member'),(?,'user-ordinary','staff_member')", testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA).Error
+		return tx.Exec("INSERT INTO iam_members(tenant_id,subject,role_key)VALUES(?,'user-admin','tenant_admin'),(?,'user-owner2','tenant_admin'),(?,'user-auditor','staff_member'),(?,'user-reviewer','staff_member'),(?,'user-ordinary','staff_member'),(?,'user-other','staff_member')", testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantB).Error
 	}))
 	call := func(method, path, token string, input any, status int) map[string]any {
 		t.Helper()

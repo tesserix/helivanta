@@ -86,17 +86,17 @@ BEGIN
   RETURN(row_data->>'staff_id')::uuid=staff AND EXISTS(SELECT 1 FROM workforce_employment_reviews r
    WHERE r.tenant_id=t AND r.hospital_id=h AND r.staff_id=staff AND r.id=workforce_assignment_selection_review(t,h)
    AND(r.period_id,r.period_version,r.period_revision_id)=((row_data->>'id')::uuid,(row_data->>'version')::bigint,(row_data->>'revision_id')::uuid));
- WHEN 'workforce_employment_evidence_drafts','workforce_employment_evidence_history'THEN
+ WHEN 'workforce_employment_evidence_bindings','workforce_employment_evidence_history'THEN
   RETURN(row_data->>'staff_id')::uuid=staff AND EXISTS(SELECT 1 FROM workforce_employment_review_evidence e
    WHERE e.tenant_id=t AND e.hospital_id=h AND e.staff_id=staff AND e.review_id=workforce_assignment_selection_review(t,h)
-   AND e.binding_id=(row_data->>'id')::uuid);
+   AND(e.binding_id,e.binding_version,e.binding_revision_id)=((row_data->>'id')::uuid,(row_data->>'version')::bigint,(row_data->>'revision_id')::uuid));
  WHEN 'workforce_person_reviews'THEN RETURN(row_data->>'staff_id')::uuid=staff AND(row_data->>'id')::uuid=workforce_assignment_selection_person(t,h);
  WHEN 'workforce_person_review_evidence','workforce_person_review_contributors'THEN
   RETURN(row_data->>'staff_id')::uuid=staff AND(row_data->>'review_id')::uuid=workforce_assignment_selection_person(t,h);
  WHEN 'workforce_documents','workforce_document_classifications'THEN RETURN workforce_assignment_selection_file(t,h,(row_data->>'id')::uuid);
- WHEN 'workforce_audit'THEN
-  RETURN(row_data->>'action'='workforce.staff.insert'AND(row_data->>'resource_id')::uuid=staff)
-   OR(row_data->>'action'='workforce.document.created'AND workforce_assignment_selection_file(t,h,(row_data->>'resource_id')::uuid));
+ WHEN 'workforce_document_contributors'THEN
+  RETURN(row_data->>'staff_id')::uuid=staff AND(row_data->>'creation_captured')::boolean
+   AND workforce_assignment_selection_file(t,h,(row_data->>'document_id')::uuid);
  ELSE RETURN false;
  END CASE;
 END $read$;
@@ -127,7 +127,7 @@ BEGIN
   SELECT p.polname,pg_get_expr(p.polqual,p.polrelid)AS reading,pg_get_expr(p.polwithcheck,p.polrelid)AS writing INTO STRICT prior FROM pg_policy p WHERE p.polrelid=target.oid AND p.polpermissive;
   reading:='false';writing:='false';
   IF target.relname='workforce_hospitals'THEN reading:='workforce_assignment_selection_read(tenant_id,id,''workforce_hospitals'',to_jsonb(workforce_hospitals))';
-  ELSIF target.relname IN('workforce_staff','workforce_login_links','workforce_enrollment_profile','workforce_identity_epochs','workforce_employment_generations','workforce_employment_reviews','workforce_employment_review_evidence','workforce_employment_review_contributors','workforce_employment_period_history','workforce_employment_evidence_drafts','workforce_employment_evidence_history','workforce_person_reviews','workforce_person_review_evidence','workforce_person_review_contributors','workforce_documents','workforce_document_classifications','workforce_audit')THEN
+  ELSIF target.relname IN('workforce_staff','workforce_login_links','workforce_enrollment_profile','workforce_identity_epochs','workforce_employment_generations','workforce_employment_reviews','workforce_employment_review_evidence','workforce_employment_review_contributors','workforce_employment_period_history','workforce_employment_evidence_bindings','workforce_employment_evidence_history','workforce_person_reviews','workforce_person_review_evidence','workforce_person_review_contributors','workforce_documents','workforce_document_classifications','workforce_document_contributors')THEN
    reading:=format('workforce_assignment_selection_read(tenant_id,hospital_id,%L,to_jsonb(%I))',target.relname,target.relname);
   END IF;
   IF target.relname='workforce_audit'THEN writing:='workforce_assignment_selection_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes)';END IF;

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -21,18 +23,27 @@ func exerciseGovernedAssignmentTargetChoices(t *testing.T, router *gin.Engine, d
 	t.Helper()
 	path := "/v1/iam/hospitals/" + hospital.String() + "/assignment-target-choices"
 	target := iam.AssignmentTargetChoice{HospitalID: hospital, StaffID: staff, Subject: "user-ordinary", Name: "Synthetic ordinary colleague", Email: "synthetic-ordinary@example.invalid"}
-	reads := 0
+	var reads atomic.Int64
 	eligible := governanceAssignmentIdentityReader(func(_ context.Context, tenant, subject string) (*customercontract.AssignmentCandidateIdentity, error) {
 		if tenant != testutil.TenantA || subject != target.Subject {
 			return nil, fmt.Errorf("unexpected identity selection")
 		}
-		reads++
+		reads.Add(1)
 		return &customercontract.AssignmentCandidateIdentity{DisplayName: target.Name, Email: target.Email}, nil
 	})
 	*identity = eligible
 	get := func(t *testing.T, url, actor string, status int) []iam.AssignmentTargetChoice {
 		t.Helper()
-		response := governanceRequest(router, http.MethodGet, url, actor, "")
+		request := httptest.NewRequest(http.MethodGet, url, nil)
+		request.Header.Set("Authorization", "Bearer "+actor)
+		tenant := testutil.TenantA
+		if actor == "other" {
+			tenant = testutil.TenantB
+		}
+		request.Header.Set("X-Helivanta-Expected-Tenant", tenant)
+		request.Header.Set("X-Helivanta-Expected-Subject", "user-"+actor)
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
 		require.Equal(t, status, response.Code, response.Body.String())
 		if status != http.StatusOK {
 			require.NotContains(t, response.Body.String(), target.Email)
@@ -50,7 +61,7 @@ func exerciseGovernedAssignmentTargetChoices(t *testing.T, router *gin.Engine, d
 		return page.Data
 	}
 	require.Empty(t, get(t, path, "admin", 200), "digital employment alone supplies no reviewed login link")
-	require.Zero(t, reads, "unlinked people must not reach the identity provider")
+	require.Zero(t, reads.Load(), "unlinked people must not reach the identity provider")
 	t.Run("application capture privilege disables qualification", func(t *testing.T) {
 		require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_choice_capture_granted", SQL: "GRANT EXECUTE ON FUNCTION iam_staff_selection_capture_integrity() TO hms_app"}}))
 		defer func() {
@@ -61,6 +72,9 @@ func exerciseGovernedAssignmentTargetChoices(t *testing.T, router *gin.Engine, d
 	require.Empty(t, get(t, path, "admin", 200), "restoring schema-owner-only capture restores qualification")
 	get(t, path, "auditor", 404)
 	get(t, path, "other", 404)
+	staleTenant := governanceRequest(router, http.MethodGet, path, "other", "")
+	require.Equal(t, 409, staleTenant.Code, "a stale browser tenant precondition is distinct from foreign resource access")
+	require.NotContains(t, staleTenant.Body.String(), target.Email)
 	get(t, path+"?subject=user-ordinary", "admin", 400)
 	get(t, "/v1/iam/hospitals/"+uuid.Must(uuid.NewV7()).String()+"/assignment-target-choices", "admin", 404)
 	linkPath := "/v1/workforce/hospitals/" + hospital.String() + "/staff/" + staff.String() + "/login-links/" + uuid.Must(uuid.NewV7()).String()
@@ -70,7 +84,8 @@ func exerciseGovernedAssignmentTargetChoices(t *testing.T, router *gin.Engine, d
 	approved := governanceRequest(router, http.MethodPost, linkPath+"/decision", "owner2", `{"expected_version":1,"decision":"approve","reason":"Independent owner confirms the exact account"}`)
 	require.Equal(t, 200, approved.Code, approved.Body.String())
 	require.Equal(t, []iam.AssignmentTargetChoice{target}, get(t, path+"?status=eligible&limit=20", "admin", 200))
-	require.Equal(t, 1, reads)
+	require.EqualValues(t, 1, reads.Load())
+	exerciseNativeAssignmentBrowser(t, router, hospital, staff, target.Subject, target.Name, target.Email)
 	for _, audit := range []struct{ table, action string }{
 		{"audit_events", "iam.assignment.target_choices.read"},
 		{"workforce_audit", "workforce.assignment_target.qualification.read"},

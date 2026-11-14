@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { staffAccessTemplates } from "@helivanta/api";
 import { renderWithProviders } from "@helivanta/api/testing";
+import { NavigationGuardProvider } from "@helivanta/ui";
 import { GovernanceAssignments } from "./governance-assignments";
 
 const scope = { tenantId: "11111111-1111-4111-8111-111111111111", subject: "synthetic-reviewer" };
@@ -45,7 +46,11 @@ it.each([true, false])(
         return Response.json(page([]));
       }),
     );
-    const { user } = renderWithProviders(<GovernanceAssignments scope={scope} />);
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <GovernanceAssignments scope={scope} />
+      </NavigationGuardProvider>,
+    );
     await user.click(await screen.findByRole("button", { name: "Open Synthetic hospital" }));
     await screen.findByRole("button", { name: "Refresh hospital assignments" });
     if (canManage) expect(screen.getByRole("button", { name: "Prepare assignment" })).toBeVisible();
@@ -105,7 +110,11 @@ it("selects a named hospital and retains the exact reviewed decision after an un
       return Response.json(page([proposal]));
     }),
   );
-  const { user } = renderWithProviders(<GovernanceAssignments scope={scope} />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <GovernanceAssignments scope={scope} />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Open Synthetic hospital" }));
   await user.click(await screen.findByRole("button", { name: "Review assignment" }));
   await user.click(await screen.findByRole("button", { name: "Approve" }));
@@ -116,6 +125,7 @@ it("selects a named hospital and retains the exact reviewed decision after an un
   await user.click(screen.getByRole("button", { name: "Confirm approve" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("may have been recorded");
   expect(screen.getByLabelText("Decision reason")).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Close form" })).toBeDisabled();
   await user.click(screen.getByRole("button", { name: "Retry same request" }));
   await waitFor(() => expect(writes).toHaveLength(2));
   expect(writes[0]).toEqual(writes[1]);
@@ -157,7 +167,11 @@ it("removes disclosed assignment data when current review access is refused", as
       return Response.json(page([proposal]));
     }),
   );
-  const { user } = renderWithProviders(<GovernanceAssignments scope={scope} />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <GovernanceAssignments scope={scope} />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Open Synthetic hospital" }));
   await user.click(await screen.findByRole("button", { name: "Review assignment" }));
   expect(await screen.findByText(proposal.input.reason)).toBeInTheDocument();
@@ -188,7 +202,11 @@ it("does not offer self approval when the selected account proposed the assignme
       return Response.json(page([own]));
     }),
   );
-  const { user } = renderWithProviders(<GovernanceAssignments scope={scope} />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <GovernanceAssignments scope={scope} />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Open Synthetic hospital" }));
   await user.click(await screen.findByRole("button", { name: "Review assignment" }));
   expect(await screen.findByRole("button", { name: "Withdraw" })).toBeInTheDocument();
@@ -240,7 +258,11 @@ it("loads bounded history and decisions only when requested and hides both after
       return Response.json(page([proposal]));
     }),
   );
-  const { user } = renderWithProviders(<GovernanceAssignments scope={scope} />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <GovernanceAssignments scope={scope} />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Open Synthetic hospital" }));
   await user.click(await screen.findByRole("button", { name: "Review assignment" }));
   await screen.findByText(proposal.input.reason);
@@ -266,7 +288,11 @@ it("withholds assignment actions when the server canonical catalog changes", asy
       return Response.json(page([proposal]));
     }),
   );
-  const { user } = renderWithProviders(<GovernanceAssignments scope={scope} />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <GovernanceAssignments scope={scope} />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Open Synthetic hospital" }));
   expect(await screen.findByText("Could not verify assignment templates.")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Review assignment" })).not.toBeInTheDocument();
@@ -289,7 +315,11 @@ it("requires current proposal-qualified identity before offering approval", asyn
       return Response.json(page([proposal]));
     }),
   );
-  const { user } = renderWithProviders(<GovernanceAssignments scope={scope} />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <GovernanceAssignments scope={scope} />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Open Synthetic hospital" }));
   await user.click(await screen.findByRole("button", { name: "Review assignment" }));
   await screen.findByText(proposal.input.reason);
@@ -330,7 +360,11 @@ it("retains withdrawal and history when the target identity is known unavailable
       return Response.json(page([own]));
     }),
   );
-  const { user } = renderWithProviders(<GovernanceAssignments scope={scope} />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <GovernanceAssignments scope={scope} />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Open Synthetic hospital" }));
   await user.click(await screen.findByRole("button", { name: "Review assignment" }));
   expect(await screen.findByText("Current account identity is unavailable.")).toBeInTheDocument();
@@ -361,7 +395,11 @@ it("clears disclosed data after an expected-tenant mismatch on the account read"
       return Response.json(page([proposal]));
     }),
   );
-  const { user } = renderWithProviders(<GovernanceAssignments scope={scope} />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <GovernanceAssignments scope={scope} />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Open Synthetic hospital" }));
   await user.click(await screen.findByRole("button", { name: "Review assignment" }));
   await screen.findByText(/Verified synthetic staff/);

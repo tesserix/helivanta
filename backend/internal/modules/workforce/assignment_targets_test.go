@@ -2,12 +2,23 @@ package workforce
 
 import (
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/pagination"
+	gormschema "gorm.io/gorm/schema"
 )
+
+func TestAssignmentTargetScanMapsOnlyCanonicalDatabaseColumns(t *testing.T) {
+	mapping, err := gormschema.Parse(&[]assignmentTargetScanRow{}, &sync.Map{}, gormschema.NamingStrategy{})
+	require.NoError(t, err, "GORM must parse the actual bounded Staff scan destination without treating qualification evidence as a relation")
+	require.Len(t, mapping.Fields, 2)
+	require.NotNil(t, mapping.LookUpField("staff_id"))
+	require.NotNil(t, mapping.LookUpField("created_at"))
+	require.Empty(t, mapping.Relationships.Relations)
+}
 
 func TestAssignmentTargetOwnerCannotReadWithoutItsDatabaseAndHeldSource(t *testing.T) {
 	reader := New().AssignmentTargets(nil)

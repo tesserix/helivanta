@@ -503,3 +503,57 @@ Local grammar checks pass (IAM13 statements/8 PLpgSQL bodies; Workforce14/8).
 Bootstrap compiles and the selector race tests, backend vet/build/lint and
 contractdocs are rerun. Corrected-head database and browser CI are still required;
 the complete workflow is not accepted or ready for main/deployment.
+
+### Cold supplier pass and concrete chooser scan regression
+
+At `3450485a`, supplier43648210751/job132610698980 passed the entire
+workflow, including effective consent, real-owner allocation/recovery, fulfilment,
+receiving corrections, financial acquisition and the complete original Staff
+lifecycle. The unchanged Staff recipient/membership-cutoff step ran
+22:32:51–22:49:42 UTC on 2026-11-14. Function tracking remains removed; original
+deadlines, fault/concurrency cases and status assertions are unchanged. This is
+one current cold pass, not a deterministic repair claim for the earlier
+intermittent cutoff failure. Web job132610787023 also passed, including the
+independent pharmacy/supplier native browser journeys.
+
+CI43648210819 Go job132610786937 now passes every startup integrity/support
+assertion, then the initial chooser request returns 503. E2E job132610786820
+passed97 cases but failed its new empty chooser case with the same503. A pure
+GORM schema regression reproduced a concrete failure before any SQL: scanning
+`AssignmentTargetCandidate` treats its private `Reference` as an invalid relation.
+The corrected scan uses only canonical Staff ID/creation columns, then attaches
+qualification evidence in the owner port. The regression failed before the fix
+and passes afterward with `-race`; no local database was started.
+
+The existing exact-decision UI regression also exposed an enabled Close form
+after an uncertain response. Its new assertion failed before navigation/close
+guarding and passed afterward. All94 affected UI tests, shell TypeScript and the
+production build passed; generated outputs were removed, preserving cache.
+New selector failure logs expose only fixed phase, elapsed time, deadline flags
+and SQLSTATE. A red/green pure test verifies private DB message/detail never
+appears in logs or public responses. Backend compile/vet/build/lint pass.
+
+The foreign-tenant fixture now supplies the foreign account's real expected-tenant
+header and initial membership; stale expected-tenant rejection remains a separate
+409 assertion. Actual foreign resource access still must return404. No assertion
+was broadened. The identity lookup counter is atomic for concurrent browser reads.
+
+A new real-owner hospital browser helper runs only under the existing CI browser
+environment. Starting after normal reviewed linking, it exercises qualified Staff
+selection, committed/lost proposal and decision responses, exact retry,
+independent owner review, canonical activation and native history through Global
+API. The existing pharmacy/supplier browser command remains unchanged; the same
+CI step additionally runs the original real-owner person fixture. Its identity
+boundary remains synthetic and it does not establish deployed login acceptance.
+The browser helper is authored/syntax checked, not run locally. Corrected-head
+runtime acceptance is required before this gate closes.
+
+Source verification of the canonical protected-generation reader also found that
+the private selection purpose named a nonexistent evidence-draft relation and
+omitted the document creation-provenance rows required by person/employment
+state checks. It now permits the actual evidence bindings/history only at the
+selected consumed binding/version/revision and creation-captured contributors
+only for selected evidence files. Unused audit-history reads are denied;
+qualification audit insertion remains separate. This preserves the canonical
+generation checks rather than replacing them with a weaker local eligibility
+rule. SQL grammar passes; real qualified-target acceptance remains CI-only.

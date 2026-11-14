@@ -90,7 +90,7 @@ request; it does not redefine the legacy `Eligible` result, carry bearer
 authority or create a legacy manager. Organization's current department check
 and both-owner conjunction remain required for department proposals. Each answer
 is retained once for its request. Stale, duplicate and wrong-scope answers cannot
-settle another proposal or later request.
+settle another proposal or later request. The guarded settlement also holds Organization's current active department path through commit before a positive transition; an old positive answer cannot stand in for that current resource proof.
 
 Settlement must acquire fresh IAM authority before locking the exact pending
 proposal. Existing event handlers already own a transaction, so a native

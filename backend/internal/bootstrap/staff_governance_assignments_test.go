@@ -148,6 +148,20 @@ func TestGovernanceAssignmentDepartmentRetirementCannotUseRetainedOwnerApproval(
 		require.Equal(check, http.StatusOK, response.Code, response.Body.String())
 	}, 20*time.Second, 100*time.Millisecond)
 
+	start := time.Now().UTC().Add(-time.Hour).Truncate(time.Microsecond)
+	intent := iam.ProposalInput{HospitalID: hospital, Subject: "synthetic-department-recipient", TemplateKey: "workforce.department_posting_reviewer.v1", DepartmentID: &department, Reason: "Synthetic department assignment review", ValidFrom: start, ExpiresAt: start.Add(12 * time.Hour)}
+	activeBody, err := json.Marshal(intent)
+	require.NoError(t, err)
+	activePath := "/v1/iam/hospitals/" + hospital.String() + "/assignment-proposals/" + uuid.Must(uuid.NewV7()).String()
+	activeScope := governanceRequest(router, http.MethodPut, activePath, "admin", string(activeBody))
+	require.Equal(t, http.StatusOK, activeScope.Code, activeScope.Body.String())
+	require.EventuallyWithT(t, func(check *assert.CollectT) {
+		read := governanceRequest(router, http.MethodGet, activePath, "admin", "")
+		require.Equal(check, http.StatusOK, read.Code, read.Body.String())
+		var result iam.ProposalOutput
+		require.NoError(check, json.Unmarshal(read.Body.Bytes(), &result))
+		require.Equal(check, "pending_review", result.Status, "current owned department paths remain admissible")
+	}, 20*time.Second, 100*time.Millisecond)
 	gate := &assignmentScopeGate{entered: make(chan struct{}), release: make(chan struct{})}
 	var release sync.Once
 	unblock := func() { release.Do(func() { close(gate.release) }) }
@@ -155,8 +169,7 @@ func TestGovernanceAssignmentDepartmentRetirementCannotUseRetainedOwnerApproval(
 	owner.gate.Store(gate)
 	proposalID := uuid.Must(uuid.NewV7())
 	path := "/v1/iam/hospitals/" + hospital.String() + "/assignment-proposals/" + proposalID.String()
-	start := time.Now().UTC().Add(-time.Hour).Truncate(time.Microsecond)
-	body, err := json.Marshal(iam.ProposalInput{HospitalID: hospital, Subject: "synthetic-department-recipient", TemplateKey: "workforce.department_posting_reviewer.v1", DepartmentID: &department, Reason: "Synthetic department assignment review", ValidFrom: start, ExpiresAt: start.Add(12 * time.Hour)})
+	body, err := json.Marshal(intent)
 	require.NoError(t, err)
 	proposed := governanceRequest(router, http.MethodPut, path, "admin", string(body))
 	require.Equal(t, http.StatusOK, proposed.Code, proposed.Body.String())

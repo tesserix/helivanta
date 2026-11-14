@@ -68,7 +68,7 @@ manager access or cross-tenant destination travels in this protocol. The existin
 legacy manager-based verification event keeps its original semantics and cannot
 settle native requests. Department proposals still require Organization's exact
 department answer as well as Workforce; a refusal prevents approval immediately.
-Only the first owner answer for the exact current request is retained.
+Only the first owner answer for the exact current request is retained. Before a positive department settlement, the current Organization department-scope guard must also hold the live active path for the same tenant, hospital and department through the IAM commit. Retained positive answers do not act as a structural lease. A missing guard retries; a retired, moved or changed path cannot approve the request.
 
 The event transaction stores facts without approving the command. On every
 delivery, including an already-claimed retry, the after-commit phase acquires a

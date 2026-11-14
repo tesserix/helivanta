@@ -133,6 +133,8 @@ func settleAssignmentGovernance(ctx context.Context, deps platform.Deps, tenant 
 	var proof assignmentGovernanceProof
 	var original assignmentGovernanceRequest
 	current := false
+	var department *uuid.UUID
+	ownerEligible := false
 	err := deps.DB.WithTenant(ctx, tenant, func(tx *gorm.DB) error {
 		if err := departmentAwareAccess(tx); err != nil {
 			return err
@@ -156,8 +158,15 @@ func settleAssignmentGovernance(ctx context.Context, deps platform.Deps, tenant 
 			}
 			return err
 		}
-		ready, _, err := assignmentGovernanceAnswers(tx, tenant, pending)
-		current = ready
+		if pending.ScopeKind == "department" {
+			if pending.DepartmentID == nil || *pending.DepartmentID == uuid.Nil {
+				return authz.ErrScopedAuthorizationUnavailable
+			}
+			id := *pending.DepartmentID
+			department = &id
+		}
+		ready, eligible, err := assignmentGovernanceAnswers(tx, tenant, pending)
+		current, ownerEligible = ready, eligible
 		return err
 	})
 	if err != nil || !current {
@@ -209,9 +218,17 @@ func settleAssignmentGovernance(ctx context.Context, deps platform.Deps, tenant 
 		if !sameAssignmentSource(proof, fresh) {
 			return errAssignmentSourceReplaced
 		}
+		if department != nil && ownerEligible {
+			if deps.DepartmentScopes == nil {
+				return authz.ErrScopedAuthorizationUnavailable
+			}
+			return deps.DepartmentScopes.WithinCurrentDepartment(commandCtx, tenant, hospital, *department, *department, func(heldCtx context.Context) error {
+				return finish(heldCtx, &fresh, false)
+			})
+		}
 		return finish(commandCtx, &fresh, false)
 	})
-	if errors.Is(err, authz.ErrScopedCommandDenied) || errors.Is(err, authz.ErrScopedCredentialRevoked) || errors.Is(err, authz.ErrGovernanceScopeHidden) || errors.Is(err, errAssignmentSourceReplaced) {
+	if errors.Is(err, authz.ErrScopedCommandDenied) || errors.Is(err, authz.ErrScopedCredentialRevoked) || errors.Is(err, authz.ErrGovernanceScopeHidden) || errors.Is(err, errAssignmentSourceReplaced) || errors.Is(err, authz.ErrDepartmentReferenceHidden) || errors.Is(err, authz.ErrDepartmentReferenceChanged) {
 		denialCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 		return finish(denialCtx, nil, true)

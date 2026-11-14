@@ -54,7 +54,7 @@ func TestStockRegisterReconcilesExactPeriodAndNeverAdvertisesUsableStock(t *test
 	require.Equal(t, "capsule", row["unit_of_issue"])
 	require.Equal(t, "quarantine", row["stock_status"])
 	require.Equal(t, float64(21), row["on_hand_units"])
-	require.Equal(t, float64(0), row["dispensable_units"])
+	require.NotContains(t, row, "dispensable_units", "a snapshot cannot say what was sellable then (#1708)")
 	from := url.QueryEscape(correction.CreatedAt.Format(time.RFC3339Nano))
 	query := fmt.Sprintf("?location_id=%s&batch_id=%s&from=%s&%s", location, batch, from, window)
 	w = do(r, "GET", root+"/reconciliation"+query, "editor", "")
@@ -361,7 +361,7 @@ func TestStockPositionsAndExportFootEveryMovementKind(t *testing.T) {
 	rows, err := csv.NewReader(strings.NewReader(res.Body.String())).ReadAll()
 	require.NoError(t, err)
 	require.Len(t, rows, 3)
-	require.Equal(t, []string{"on_hand_units", "receipt_units", "correction_units", "dispensable_units", "release_units", "sale_units", "return_units", "supplier_dispatch_units"}, rows[0][len(rows[0])-8:])
+	require.Equal(t, []string{"on_hand_units", "receipt_units", "correction_units", "release_units", "sale_units", "return_units", "supplier_dispatch_units"}, rows[0][len(rows[0])-7:])
 	for _, row := range rows[1:] {
 		values := map[string]string{}
 		for i, name := range rows[0] {

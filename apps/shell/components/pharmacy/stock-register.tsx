@@ -187,7 +187,6 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
         "Sales",
         "Returns",
         "Supplied to hospitals",
-        "Dispensable",
         "Inspect",
       ];
   // A failed snapshot hides every earlier figure, the open position's too.
@@ -437,7 +436,6 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
                                 ["sales", row.sale_units],
                                 ["returns", row.return_units],
                                 ["supplied", row.supplier_dispatch_units],
-                                ["dispensable", row.dispensable_units],
                               ] as const)
                           ).map(([field, value]) => (
                             <td className="p-3 text-right tabular-nums" key={field}>

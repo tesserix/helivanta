@@ -71,7 +71,7 @@ func TestStockExpiryBandsUseOutletCalendar(t *testing.T) {
 					band = "days_180"
 				}
 				require.Equal(t, band, row["expiry_band"])
-				require.EqualValues(t, 0, row["dispensable_units"])
+				require.NotContains(t, row, "dispensable_units", "a snapshot cannot say what was sellable then (#1708)")
 			}
 			for _, filter := range []struct {
 				expiry string

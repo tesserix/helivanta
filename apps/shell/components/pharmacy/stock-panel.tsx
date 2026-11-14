@@ -604,6 +604,10 @@ function StockBucket({
               <dd className="mt-1 text-3xl font-semibold tabular-nums">
                 {balance.data?.dispensable_units}
               </dd>
+              {/* The sale's own predicate; it still checks the product and the outlet (#1708). */}
+              <dd className="mt-1 text-sm text-muted-foreground">
+                Before outlet and product checks.
+              </dd>
             </div>
             <div>
               <dt className="text-sm text-muted-foreground">Stock status</dt>

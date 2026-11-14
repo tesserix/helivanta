@@ -117,7 +117,7 @@ func TestAReleaseMovesStockFromQuarantineToSellable(t *testing.T) {
 	require.EqualValues(t, 30, w.balance(t, w.sellable, w.batch), "replay moved nothing twice")
 	res = do(w.r, "GET", stockPath("balance?location_id="+w.sellable+"&batch_id="+w.batch), "editor", "")
 	require.Contains(t, res.Body.String(), `"stock_status":"sellable"`)
-	require.Contains(t, res.Body.String(), `"dispensable_units":0`)
+	require.Contains(t, res.Body.String(), `"dispensable_units":30`)
 
 	code, msg := w.release(w.batch, 71)
 	require.Equal(t, http.StatusConflict, code, msg)

@@ -13,15 +13,18 @@ All values were read-only on 2026-11-05.
   passed (`go`, `web`, `scripts`, `e2e`, secret scan). The signed image workflow
   passed and the deploy branch advanced to that revision.
 - **Promotion.** Kargo freight `1afd48c1` (`nordic-aardwolf`) was promoted to
-  `prod` by `prod.01m6mwm1fjscfvx6162wtj6445.1afd48c`, phase `Succeeded`, at
-  03:39 UTC.
+  `prod` by `prod.01m6mwm1fjscfvx6162wtj6445.1afd48c`, phase `Succeeded`,
+  finished at 03:40:26 UTC.
 - **Migrations.** `helivanta-api-migrate` ran from the exact release image and
   succeeded. The production ledger now holds **240** IDs. All 13 pending IDs were
   applied at 03:39:56–57 UTC. All 13 new tables have row security enabled and
   forced, with policies. The 0083 concurrent index
   `workforce_posting_supervisor_choice_order` is valid and ready, and no invalid
   index exists. The only unvalidated constraint is the earlier, deliberately
-  `NOT VALID` `patients_hospital_required`.
+  `NOT VALID` `patients_hospital_required`. The private execution capture shows
+  12 registered SQL files matching their canonical source SHA-256 values. It also
+  holds the installed body hash and security mode of 18 zero-argument functions;
+  all 18 are security invoker.
 - **Images.** API, Global API, shell and the four workers run tag `62f3f7fd`. Digests:
   API `sha256:012c821c…fe86356`, shell `sha256:e3666aff…497f82f`. The full values
   are in the [migration manifest](2026-11-05-staff-self-acceptance-migrations.json).
@@ -34,7 +37,7 @@ All values were read-only on 2026-11-05.
 
 ## Source and verification
 
-Release assembly: PR1565, source **1ed7080d**. The13 dependent PRs (#1567,
+Release assembly: PR1565, source **1ed7080d**. The 13 dependent PRs (#1567,
 #1569, #1570, #1574–#1580, #1583, #1585, #1586) are merged into their respective
 parent branches with their implementation commits retained. The application tree
 matches **b4f9b466**; an independently concurrent test-clock correction **ca6c9b02**
@@ -45,23 +48,23 @@ After integrating current main, local full SDK passes **872 /86 files**, full
 shell **1,601 /185 files /412.67s**, Pharmacy race suite **337.966s**, Global API
 race suite **690.323s**, and architecture race suite **112.893s**. The corrected
 posting-review workspace passes **60** focused cases. The command/read workspace
-passes25 focused cases; affected typechecks, lint, formatting, canonical
+passes 25 focused cases; affected typechecks, lint, formatting, canonical
 contract/inventory checks and production webpack build passed. The unchanged
-Workforce source suite previously passed601.269s. GitHub's required main checks
+Workforce source suite previously passed 601.269s. GitHub's required main checks
 must still pass on the final assembly; local checks do not bypass that rule.
 
 Two root-branch tests failed on an older CI revision because fixed eligibility
 expired before their time-relative posting interval. The current clock correction
-is retained, and those cases pass in the60-case run. No assertion was weakened.
+is retained, and those cases pass in the 60-case run. No assertion was weakened.
 Redundant queued/running workflows of already merged dependency ancestors were
 cancelled; the current release and unrelated feature work were left running.
 No dependency, container image or software was downloaded locally.
 
 ## Production preflight
 
-Read-only discovery found API, Global API and shell running **main-9f827a66** in
+Read-only discovery found API, Global API and shell running **9f827a66** in
 namespace `helivanta`, project `tesseracthub-480811`, context
-`gke_tesseracthub-480811_australia-southeast1-a_tesseracthub-dev`. The application
+`gke_tesseracthub-480811_asia-south1_tesseract-prod-in-gke`. The application
 host is `https://helivanta.app`. Kargo project `kargo-helivanta` has manual
 production promotion; use the existing `prod` stage/template and image freight.
 Do not patch deployments or edit the unrelated, dirty GitOps worktree.
@@ -90,7 +93,7 @@ The [migration manifest](2026-11-05-staff-self-acceptance-migrations.json) recor
 canonical registered SQL SHA-256 values, affected tables and concurrent-index
 metadata. SQL/Go canonical inputs are committed in their owning modules. The
 production ledger stores IDs/timestamps, not SQL checksums; ledger membership
-alone does not prove installed function bodies. Migration0083 includes the
+alone does not prove installed function bodies. Migration 0083 includes the
 registered concurrent index and must use the existing migration runner. Apply
 through the existing schema-bootstrap job from the exact release image, with its
 global lock, bounded timeouts, receipt handling and RLS/provenance checks.
@@ -106,9 +109,9 @@ role assignment or new professional/operating activation is part of this rollout
 
 The document, Pharmacy evidence and supply evidence workers were running but
 unready before this release. Their `/readyz` reported `scanner unavailable`.
-Read-only ClamAV VERSION returned definitions28173 dated **2026-11-03T06:27:52Z**;
-readiness requires age at most36 hours and release requires age at most48 hours.
-The running updater at2026-11-05T01:55:57Z reported its daily database up-to-date.
+Read-only ClamAV VERSION returned definitions 28173 dated **2026-11-03T06:27:52Z**;
+readiness requires age at most 36 hours and release requires age at most 48 hours.
+The running updater at 2026-11-05T01:55:57Z reported its daily database up-to-date.
 Do not alter timestamps, publish synthetic definitions, bypass scanning or weaken
 freshness thresholds. Obtain a genuinely current trusted upstream definition set
 through the existing updater before declaring those workers healthy. Until then,
@@ -132,7 +135,7 @@ migrations require explicit approval under the user's working agreements; ask
 only after the concrete image/promotion is ready. Retain preflight and execution
 evidence privately; never commit credentials or kubeconfigs.
 
-After approved promotion, verify the240 ledger IDs, new protected table RLS and
+After approved promotion, verify the 240 ledger IDs, new protected table RLS and
 constraints/index validity, deployment image revisions, Global API/API/shell
 health, OpenFGA-backed owner admission and actual external routing. Record each
 worker's real readiness; do not report the entire rollout healthy if the scanner

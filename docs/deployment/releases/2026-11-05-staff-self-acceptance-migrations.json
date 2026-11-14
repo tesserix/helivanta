@@ -132,6 +132,7 @@
     "freight": "1afd48c1194c46b97db1a89afcfe7b7c994ba06f",
     "promotion": "prod.01m6mwm1fjscfvx6162wtj6445.1afd48c",
     "promotion_phase": "Succeeded",
+    "promotion_finished_at": "2026-11-05T03:40:26Z",
     "migration_job_succeeded": true,
     "ledger_receipts_after_apply": 240,
     "applied_at": "2026-11-05T03:39:57Z",
@@ -141,6 +142,9 @@
     },
     "new_tables_forced_rls": 13,
     "concurrent_index_valid": true,
+    "matched_canonical_sql_files": 12,
+    "installed_zero_argument_functions_recorded": 18,
+    "installed_zero_argument_functions_security_definer": 0,
     "unready_workers": [
       "helivanta-document-worker",
       "helivanta-pharmacy-evidence-worker",

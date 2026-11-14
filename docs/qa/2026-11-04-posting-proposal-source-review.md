@@ -242,3 +242,21 @@ rows under Limit; execution 2.124ms/planning 5.003ms on the small synthetic fixt
 The exact index columns are asserted. The plan is captured privately; continuation
 and production-scale/SLO evidence remain open. No runtime code changed after the
 complete suite runs; this final addition is test-only plan/index evidence.
+
+### Approval diagnostic source delta — 2026-11-14
+
+Review of 89605942..90950803 confirms the transfer's shared
+`recordPostingDecision` implementation is byte-identical. The separate decision
+handler only tracks constant phases and elapsed milliseconds and enriches the
+existing error mapper on failure. The successful receipt branch is equivalent: it
+returns the same audit error before marking guarded completion. No permission,
+source predicate, actor eligibility, persistence, time budget, route or transfer
+call path changes. Race tests cover unchanged 403/500/503 responses and absence
+of raw errors/private proof in logs and HTTP bodies.
+
+The source hash for the classified transfer surface is refreshed after this
+review; its authority classification and remaining obligations are preserved.
+At 89605942, browser CI passed all three phases (99 passes/1 skip in the main
+suite); supplier Staff lifecycle still failed child approval at
+`workforce_posting_chain_test.go:135` with 503 instead of 200. Diagnostics and
+this source review do not establish a repair, live rollout or full acceptance.

@@ -95,3 +95,36 @@ source/version provenance and replay, current target Staff/link and location,
 independent maker/target checks, projection acknowledgement and immediate cutoff.
 Then complete the preparation/review UI and both ownership-model live journeys;
 the source increment does not complete or reduce the original goal.
+
+Native independent-duty consumer candidate (2026-11-14): six employer-bound IAM
+routes now use the current native owner/exact operating-grant callback and a
+separate Workforce root-only consumer. The canonical duty, target Staff/reviewed
+link/membership, location, independent approval and projection engine is retained.
+IAM0050 adds immutable administration mode and source provenance, transactional
+recorders/completeness, narrow IAM purpose guards and runtime integrity checks.
+It first checks the earlier assignment integrity and refreshes that checked
+baseline for the additional restrictions. Global pre-tenant authentication tables
+keep their existing visibility; a native duty command cannot mutate them.
+
+Local red/green Workforce consumer and IAM admission/replay tests passed. Backend
+build, affected race/vet/lint and compile-only integration checks pass. Migration
+SQL, SQL/PLpgSQL functions and anonymous blocks parsed locally. Full architecture
+execution exposed and corrected two missing approved permission rows and three
+singleton pagination classifications; the affected pure checks pass. Its six
+service-backed cases require Docker and did not run locally; CI remains required.
+The API-created/reviewed independent Staff fixture now includes pharmacy/supplier
+native duty preparation, independent review, original receipt recovery,
+recorder-failure and late database rollback, legacy mutation rejection,
+source cutoff/replacement nonadoption and no fabricated manager access. These
+integration cases have compiled but have not yet passed remotely. The older
+pharmacy source fixture also now includes its existing access-manage registration
+permission after an observed 403; supplier source acceptance passed beforehand.
+Inventory classifies the six new routes as mixed source/business scope, with
+open runtime obligations; 1001 unrelated/remaining surfaces stay unclassified.
+
+Next: execute and repair the new exact-head migrations/API acceptance, finish
+qualified scope/Staff discovery and native SDK/UI preparation/review, resolve
+broader employment/posting/recipient gates, then complete both ownership-model
+live QA journeys. Main merge, named live migration/rollout approval and Kargo
+verification remain outstanding. The full original goal is active; this candidate
+is not a claim of full Staff, supplier, clinical or regulatory completion.

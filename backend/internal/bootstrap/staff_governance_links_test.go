@@ -77,9 +77,9 @@ func TestGovernanceAccountLinkReviewConsumesExactEmployerSourceWithoutManagerAcc
 			router, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 				Tokens: map[string]string{"admin": testutil.TenantA, "owner2": testutil.TenantA, "auditor": testutil.TenantA},
 				Perms: map[string][]authz.Permission{
-					"admin":   {iam.PermGovernanceManage, iam.PermGovernanceRead, iam.PermGovernanceReview, workforce.PermHospitalManage, workforce.PermSupplierManage, workforce.PermEnrollmentManage, workforce.PermLoginLinkManage, workforce.PermLoginLinkReview, workforce.PermIndependentLoginManage, workforce.PermIndependentLoginReview, pharmacy.PermCatalogueWrite, pharmacy.PermAccessManage, supply.PermPartyWrite, supply.PermOrganizationManage},
-					"owner2":  {iam.PermGovernanceReview, workforce.PermLoginLinkReview, workforce.PermIndependentLoginReview},
-					"auditor": {workforce.PermLoginLinkReview, workforce.PermIndependentLoginReview},
+					"admin":   {iam.PermGovernanceManage, iam.PermGovernanceRead, iam.PermGovernanceReview, workforce.PermHospitalManage, workforce.PermSupplierManage, workforce.PermEnrollmentManage, workforce.PermLoginLinkManage, workforce.PermLoginLinkReview, workforce.PermIndependentLoginManage, workforce.PermIndependentLoginReview, pharmacy.PermCatalogueWrite, pharmacy.PermAccessManage, supply.PermPartyWrite, supply.PermOrganizationManage, supply.PermPremiseWrite},
+					"owner2":  {authz.Permission(authz.GovernanceOperatingManage), authz.Permission(authz.GovernanceOperatingReview), iam.PermGovernanceReview, workforce.PermLoginLinkReview, workforce.PermIndependentLoginReview},
+					"auditor": {authz.Permission(authz.GovernanceOperatingManage), authz.Permission(authz.GovernanceOperatingReview), workforce.PermLoginLinkReview, workforce.PermIndependentLoginReview},
 				},
 				Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(native), workforce.New(), pharmacy.New(), supply.New()},
 				Writer:  graph, Roles: identity, Membership: identity,
@@ -258,6 +258,9 @@ func TestGovernanceAccountLinkReviewConsumesExactEmployerSourceWithoutManagerAcc
 				require.Equal(t, people[0], evidence.StaffID)
 				return nil
 			}))
+			if kind != "hospital" {
+				exerciseNativeOperatingGovernance(t, router, db, ctx, kind, roots[0], people[0], uuid.MustParse(links[0][len(links[0])-36:]))
+			}
 			base := "/v1/workforce/" + family + "/" + roots[0].String() + "/staff/" + people[0].String()
 			if kind != "hospital" {
 				base += "?directory_context=v1"

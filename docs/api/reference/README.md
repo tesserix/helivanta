@@ -71,6 +71,12 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/operating-duties/:id` | `iam.operating.read` | false | false |
 | PUT | `/v1/iam/operating-duties/:id` | `iam.operating.prepare` | false | false |
 | GET | `/v1/iam/operating-employers/:kind/:employer/staff/:staff/duties` | `iam.operating.read` | true | false |
+| GET | `/v1/iam/operating-governance-employers/:kind/:employer/duties/:id/commands/:command` | `iam.governance.operating.manage` | false | false |
+| PUT | `/v1/iam/operating-governance-employers/:kind/:employer/duties/:id/commands/:command` | `public` | false | false |
+| GET | `/v1/iam/operating-governance-employers/:kind/:employer/duties/:id/proposal-receipt` | `iam.governance.operating.manage` | false | false |
+| GET | `/v1/iam/operating-governance-employers/:kind/:employer/duties/:id` | `iam.governance.operating.manage` | false | false |
+| PUT | `/v1/iam/operating-governance-employers/:kind/:employer/duties/:id` | `iam.governance.operating.manage` | false | false |
+| GET | `/v1/iam/operating-governance-employers/:kind/:employer/staff/:staff/duties` | `iam.governance.operating.manage` | true | false |
 | GET | `/v1/iam/partner-grant-drafts/:id` | `iam.assignment.manage` | false | false |
 | PUT | `/v1/iam/partner-grant-drafts/:id` | `iam.assignment.manage` | false | false |
 | GET | `/v1/iam/partner-grant-drafts` | `iam.assignment.manage` | true | false |
@@ -152,6 +158,7 @@ Migration table declarations:
 - `0047_iam_governance`: `iam_governance_grants`, `iam_governance_owner_notices`, `iam_governance_decisions`.
 - `0048_iam_governance_employment_bases`: `iam_employment_basis_authorities`.
 - `0049_iam_assignment_governance`: `iam_assignment_governance_requests`, `iam_assignment_governance_verifications`.
+- `0050_iam_operating_governance`: `iam_operating_governance_origins`, `iam_operating_governance_commands`.
 
 ## reference
 

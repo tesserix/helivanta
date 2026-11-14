@@ -538,6 +538,60 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/operating-governance-employers/:kind/:employer/duties/:id/commands/:command",
+          "permission": "iam.governance.operating.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/iam/operating-governance-employers/:kind/:employer/duties/:id/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/operating-governance-employers/:kind/:employer/duties/:id/proposal-receipt",
+          "permission": "iam.governance.operating.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/operating-governance-employers/:kind/:employer/duties/:id",
+          "permission": "iam.governance.operating.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/iam/operating-governance-employers/:kind/:employer/duties/:id",
+          "permission": "iam.governance.operating.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/operating-governance-employers/:kind/:employer/staff/:staff/duties",
+          "permission": "iam.governance.operating.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/partner-grant-drafts/:id",
           "permission": "iam.assignment.manage",
           "authentication_required": true,
@@ -1313,6 +1367,14 @@
           "creates_tables": [
             "iam_assignment_governance_requests",
             "iam_assignment_governance_verifications"
+          ]
+        },
+        {
+          "id": "0050_iam_operating_governance",
+          "sql_sha256": "796e4b216ccd8f2372ecfc2fdb0c9bc1e351ba3268b940c41c48e359f9e78cfb",
+          "creates_tables": [
+            "iam_operating_governance_origins",
+            "iam_operating_governance_commands"
           ]
         }
       ]

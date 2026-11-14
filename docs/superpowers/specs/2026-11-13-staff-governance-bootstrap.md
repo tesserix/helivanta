@@ -974,3 +974,48 @@ Rollback disables issuance/consumption of the new template while retaining all
 existing grant, decision, notification and audit history. Full Staff initiation,
 reviewed links, employment/postings, both pharmacy ownership models, live QA and
 Kargo deployment remain required by the original goal.
+
+### Native operating-duty consumer
+
+IAM adds `/iam/operating-governance-employers/:kind/:employer/duties/:id`
+(GET/PUT), its `/proposal-receipt` GET and `/commands/:command` GET/PUT, plus
+`/iam/operating-governance-employers/:kind/:employer/staff/:staff/duties` GET.
+Wire commands, canonical duty versions, location/Staff/link checks, independent
+approval, event publication, projection and target operating authority stay owned
+by the existing canonical engine. Global API remains the client entry point.
+Native manage/read/withdraw/revoke require the separate operating manage
+capability; approve/reject require its review capability. The exact current
+owner or grant is held by IAM's source callback throughout each transaction.
+The path employer must match every body, selected row, page and receipt. A
+purpose-bound Workforce callback validates that source and its active guarded
+transaction before reading only the current independent employer root; it does
+not require or create a manager/Staff row and does not replace target identity
+or independent review checks.
+
+Additive IAM0050 records private immutable native origins and decision sources,
+with forced tenant/scope RLS and source-current SQL checks. Canonical insert and
+command-receipt triggers write the provenance in the same transaction. Native
+commands cannot adopt a legacy duty; legacy human commands cannot change a
+native duty. System projection remains able to acknowledge the canonical
+approved revision using its existing worker checks. Original preparation and
+command receipt replays require the same current owner membership or exact
+source-grant ID/version and membership epoch, never an alternate grant or a
+recreated owner membership. Missing or changed provenance fails closed. Native
+source reads do not publish credential/session evidence in existing wire models.
+The source cutoff stops future administrative commands/replays; already issued
+target duties retain their own current identity, location, expiry and explicit
+revocation checks.
+
+Owner locks precede credential, membership, source-grant and topology locks;
+then canonical target-membership/duty/location/Staff locks use existing order.
+Private source reads are bounded by selected duty or paged staff query. No new
+infrastructure or cost is added; source and dependency failure remain bounded by
+the existing five-second command budget. A failed mutation rolls back history,
+source proof, receipt, audit and outbox together; caller request IDs retain the
+canonical retry/conflict rules. Rollback disables the native routes and preserves
+all source/history rows and completed physical/financial records. Acceptance
+requires local source/boundary tests, real database trigger/rollback isolation,
+legacy/native nonadoption, stale source and target, independent reviewer,
+both independent employer kinds and exact-head contract/build/lint/E2E checks.
+The final native UI and both pharmacy ownership-model live journeys remain part
+of the original goal.

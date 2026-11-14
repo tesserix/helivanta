@@ -101,16 +101,71 @@ and uses its current native-owner or exact-grant authority, credential watermark
 membership incarnation, validity and canonical employer topology. Revoked or
 absent source denies; dependency failure is unavailable. This grants no stock,
 clinical, financial or operating permission and creates no Workforce manager or
-Staff row. Existing operating-duty route admission still requires its documented
-legacy administrative and employer access until the native consumer is adopted.
-That consumer must retain original-source replay/provenance and all current
-Staff/link, location, membership and independent-decision checks. Catalog/source
-support does not establish working native duty administration or full Staff and
+Staff row. Existing operating-duty routes retain their legacy administrative and employer
+checks. Separate native routes below use the current operating governance source
+while retaining all current Staff/link, location, membership and independent
+decision checks. Source support alone does not establish complete Staff and
 pharmacy acceptance.
 
 The canonical Go/Zod template enum expands additively; clients must refresh it and
-reject unknown keys. No schema migration is added for this increment. The
+reject unknown keys. The source-only increment needed no schema migration; native consumption below
+adds IAM0050. The
 existing IAM governance ledger keeps immutable versioned keys and source facts;
 rollback stops issuance/consumption of the new template and retains history.
 Database source cases for both employer kinds, current owners/delegates, wrong
 scope/purpose, source revocation and missing topology are acceptance gates.
+
+## Native operating-duty administration candidate
+
+All client traffic uses the Global API, with these IAM-owned destinations:
+
+| Method | Path after `/v1/iam`                                                           | Authority                                                           |
+| ------ | ------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| PUT    | `/operating-governance-employers/:kind/:employer/duties/:id`                   | native operating manage                                             |
+| GET    | `/operating-governance-employers/:kind/:employer/duties/:id`                   | native operating manage                                             |
+| GET    | `/operating-governance-employers/:kind/:employer/duties/:id/proposal-receipt`  | native operating manage, original maker/source                      |
+| PUT    | `/operating-governance-employers/:kind/:employer/duties/:id/commands/:command` | native review for approve/reject; native manage for withdraw/revoke |
+| GET    | `/operating-governance-employers/:kind/:employer/duties/:id/commands/:command` | native operating manage, original actor/source                      |
+| GET    | `/operating-governance-employers/:kind/:employer/staff/:staff/duties`          | native operating manage, bounded staff page                         |
+
+`kind` is exactly `pharmacy` or `supplier`; IDs are canonical v7 UUIDs. Existing
+canonical OperatingDuty input, decision, view and receipt models are reused.
+Non-list commands reject query filters. The verified tenant and path employer
+must match every selected resource and body. Current IAM owner/grant authority
+is held throughout the transaction. Workforce verifies the source in that
+current guarded context and reads only the independent employer root; it creates
+no legacy manager, Staff, login link or location. Target identity/current reviewed
+link, membership incarnation, location evidence and independent maker/target
+exclusions remain in the existing duty engine. The source provides no stock or
+professional clinical authority by itself.
+
+Additive IAM0050 adds a private immutable administration marker and forced-RLS
+source/decision records. Canonical insertion/receipt triggers emit those records;
+a deferred completeness constraint prevents partial attribution. It is checked
+while the command purpose remains active, before a successful API response.
+Actor, employer, capability, membership epoch, credential watermark, validity,
+owner membership ID or exact grant ID/version are verified on native writes.
+Receipt replay requires that same current authority identity, not a replacement
+grant or recreated owner membership. Preparation and command source proof never
+appears in public duty views. `404` hides absent/wrong scope, administration mode
+or original source; missing coarse admission is `403`; stale inputs/transitions
+remain `409`; current source/dependency/integrity failure is `503`.
+
+Existing legacy duties retain their original API and receipt semantics. Native
+commands cannot adopt legacy rows, and legacy human commands cannot change a
+native row. The canonical projection worker still acknowledges valid approvals
+or revokes an invalid target using its service-bound path. Native projection and
+target operating-authority consumption verify the installed source support;
+source expiry/revocation cuts off future administrative commands and replay,
+while completed target duties retain their own current identity, location,
+validity and explicit revocation checks.
+
+The migration verifies the preceding assignment integrity before adding purpose
+policies, then refreshes that checked baseline. Native support pins policy,
+function and trigger definitions, enabled state, forced tenant RLS and protected
+TRUNCATE privileges. Purpose-scoped membership reads select only actor/target;
+unrelated IAM writes stay denied. A selected duty/version index bounds source
+receipt validation. Failed attribution, audit or outbox work rolls back with the
+canonical mutation. No new infrastructure is introduced. Native UI/SDK adoption,
+remote acceptance of the new API/migration and the full both-model live Staff and
+pharmacy journeys remain required. This candidate has not been deployed.

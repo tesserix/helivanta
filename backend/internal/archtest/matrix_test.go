@@ -348,6 +348,8 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	workspace.PermCountryPolicyRead:        {authz.RoleSupplyCompliance, authz.RoleSupplyAuditor, authz.RoleTenantAdmin},
 	iam.PermGovernanceAssignmentManage:     {authz.RoleTenantAdmin, authz.RoleGovernanceDelegate},
 	iam.PermGovernanceAssignmentReview:     {authz.RoleTenantAdmin, authz.RoleGovernanceDelegate},
+	"iam.governance.operating.manage":      {authz.RoleTenantAdmin, authz.RoleGovernanceDelegate},
+	"iam.governance.operating.review":      {authz.RoleTenantAdmin, authz.RoleGovernanceDelegate},
 	iam.PermAssignmentReview:               {authz.RoleTenantAdmin},
 	iam.PermAssignmentManage:               {authz.RoleTenantAdmin},
 	iam.PermMemberManage:                   {authz.RoleTenantAdmin},

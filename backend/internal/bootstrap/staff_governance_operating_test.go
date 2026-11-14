@@ -28,7 +28,7 @@ func TestGovernanceOperatingSourceUsesExactIndependentEmployerWithoutLegacyManag
 			modules := []platform.Module{iam.New(nil).SetMembershipIdentityReader(&governanceNativeIdentity{}), workforce.New(), pharmacy.New(), supply.New()}
 			router, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 				Tokens:  map[string]string{"admin": testutil.TenantA},
-				Perms:   map[string][]authz.Permission{"admin": {iam.PermGovernanceManage, iam.PermGovernanceRead, iam.PermGovernanceReview, workforce.PermHospitalManage, workforce.PermSupplierManage, pharmacy.PermCatalogueWrite, supply.PermPartyWrite, supply.PermOrganizationManage}},
+				Perms:   map[string][]authz.Permission{"admin": {iam.PermGovernanceManage, iam.PermGovernanceRead, iam.PermGovernanceReview, workforce.PermHospitalManage, workforce.PermSupplierManage, pharmacy.PermCatalogueWrite, pharmacy.PermAccessManage, supply.PermPartyWrite, supply.PermOrganizationManage}},
 				Modules: modules,
 			})
 			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {

@@ -12,7 +12,7 @@ import {
   ProposalDecisionRecordContract,
 } from "./staff-access-contract";
 import {
-  staffAssignmentInputContract,
+  staffAssignmentIntentContract,
   staffAssignmentDecisionContract,
   type StaffAssignment,
   type StaffAssignmentInput,
@@ -145,7 +145,7 @@ export async function proposeGovernanceAssignment(
   id: string,
   input: StaffAssignmentInput,
 ) {
-  const intent = staffAssignmentInputContract.parse(input);
+  const intent = staffAssignmentIntentContract.parse(input);
   if (intent.hospital_id !== scope.hospitalId)
     throw new Error(
       "The assignment hospital changed. Select the current hospital before submitting.",

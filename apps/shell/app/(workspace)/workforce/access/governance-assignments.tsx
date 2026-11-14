@@ -30,6 +30,7 @@ import {
   type StaffAssignmentDecision,
 } from "@helivanta/api";
 import { AssignmentDecisionForm } from "./assignment-forms";
+import { GovernanceAssignmentPreparation } from "./governance-assignment-preparation";
 import { STAFF_ACCESS_CHANGED, useStaffAccessCutoff } from "../staff-access-cutoff";
 import { useNow } from "@/lib/use-now";
 
@@ -115,6 +116,7 @@ function HospitalAssignments({
   onAccessLost: () => void;
   onCloseHospital: () => void;
 }) {
+  const [preparing, setPreparing] = useState(false);
   const [family, setFamily] = useState<StaffAssignmentFamily>("leave");
   const [selected, setSelected] = useState<string | null>(null);
   const templates = useQuery({
@@ -124,7 +126,7 @@ function HospitalAssignments({
     gcTime: 0,
     retry: false,
     refetchOnWindowFocus: false,
-    enabled: selected === null,
+    enabled: selected === null && !preparing,
   });
   const records = useInfiniteQuery({
     queryKey: [...governanceAssignmentsKey(scope), "list", family],
@@ -135,7 +137,7 @@ function HospitalAssignments({
     staleTime: 0,
     gcTime: 0,
     retry: false,
-    enabled: selected === null && templates.isSuccess && !templates.isFetching,
+    enabled: selected === null && !preparing && templates.isSuccess && !templates.isFetching,
   });
   const cutoff = useStaffAccessCutoff(
     [records.error, templates.error],
@@ -143,6 +145,21 @@ function HospitalAssignments({
     isGovernanceAssignmentAccessChanged,
   );
   if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
+  if (preparing && hospital.can_manage && templates.isSuccess)
+    return (
+      <GovernanceAssignmentPreparation
+        key={`${scope.tenantId}:${scope.subject}:${scope.hospitalId}:${family}`}
+        scope={scope}
+        family={family}
+        templateKeys={templates.data.map((template) => template.key)}
+        onAccessLost={onAccessLost}
+        onClose={() => setPreparing(false)}
+        onSaved={(id) => {
+          setPreparing(false);
+          setSelected(id);
+        }}
+      />
+    );
   if (selected)
     return (
       <AssignmentReview
@@ -170,6 +187,9 @@ function HospitalAssignments({
       <Button variant="outline" onClick={onCloseHospital}>
         Choose another hospital
       </Button>
+      {hospital.can_manage && (
+        <Button onClick={() => setPreparing(true)}>Prepare assignment</Button>
+      )}
       <Field id="governance-assignment-family" label="Assignment area">
         <SelectControl
           id="governance-assignment-family"

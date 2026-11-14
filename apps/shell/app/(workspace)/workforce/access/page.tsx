@@ -117,20 +117,17 @@ export default function StaffAccessPage() {
             </>
           )}
           {identity.data.data.some(
-            (p) => p === "iam.assignment.manage" || p === "iam.assignment.review",
-          ) ? (
-            <Assignments identity={identity.data} />
-          ) : (
-            identity.data.data.some(
-              (p) =>
-                p === "iam.governance.assignment.manage" ||
-                p === "iam.governance.assignment.review",
-            ) && (
-              <GovernanceAssignments
-                scope={{ tenantId: identity.data.tenant_id, subject: identity.data.subject }}
-              />
-            )
+            (p) =>
+              p === "iam.governance.assignment.manage" || p === "iam.governance.assignment.review",
+          ) && (
+            <GovernanceAssignments
+              key={`${identity.data.tenant_id}:${identity.data.subject}`}
+              scope={{ tenantId: identity.data.tenant_id, subject: identity.data.subject }}
+            />
           )}
+          {identity.data.data.some(
+            (p) => p === "iam.assignment.manage" || p === "iam.assignment.review",
+          ) && <Assignments identity={identity.data} />}
         </div>
       )}
     </>

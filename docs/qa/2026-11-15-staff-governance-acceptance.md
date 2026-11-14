@@ -249,14 +249,14 @@ Supplier43628051315/job132548349130 failed the original full Staff lifecycle.
 Conditional diagnostic job132555275876 also failed (at the injected root-failure
 expectation). At 19:19:38 UTC, its aggregate function counters were:
 
-| Function | Calls | Total ms | Self ms |
-| --- | ---: | ---: | ---: |
-| workforce_operating_selection_link | 1803 | 46232.78 | 45657.68 |
-| workforce_employment_review_write | 57 | 22794.18 | 21925.96 |
-| workforce_lock_supervision | 2146 | 14134.75 | 14134.75 |
-| workforce_employment_review_complete | 47 | 15487.27 | 12213.96 |
-| workforce_posting_proposal_decider | 143 | 50102.60 | 2364.74 |
-| workforce_operating_selection_context | 1803 | 575.08 | 575.08 |
+| Function                              | Calls | Total ms |  Self ms |
+| ------------------------------------- | ----: | -------: | -------: |
+| workforce_operating_selection_link    |  1803 | 46232.78 | 45657.68 |
+| workforce_employment_review_write     |    57 | 22794.18 | 21925.96 |
+| workforce_lock_supervision            |  2146 | 14134.75 | 14134.75 |
+| workforce_employment_review_complete  |    47 | 15487.27 | 12213.96 |
+| workforce_posting_proposal_decider    |   143 | 50102.60 |  2364.74 |
+| workforce_operating_selection_context |  1803 |   575.08 |   575.08 |
 
 These are aggregate measurements, not exact request attribution. WF0118 is a
 candidate response to the dominant selection-link self time: it returns false
@@ -434,3 +434,35 @@ The real-owner bootstrap fixture explicitly calls `LintRLS` after migration and
 requires no findings. This failure was reproduced by CI before the correction;
 SQL/PLpgSQL grammar passes locally (11 statements / 8 bodies), but runtime
 migration acceptance still requires corrected-head CI.
+
+### Operating integrity refresh and native preparation candidate
+
+At `513c1927`, CI43644988816 migrated successfully but Go job132600716846
+returned 503 from retained operating-duty setup and the first chooser read. The
+IAM migration contained the assignment integrity refresh twice and omitted the
+operating refresh, leaving prior operating policy hashes stale after new
+restrictive policies. The correction retains one exact original-coverage refresh
+for each. The bootstrap fixture now explicitly requires both prior integrity
+functions and both IAM/Workforce selection support functions to return true.
+These failures remain open until corrected-head runtime CI passes.
+
+Native hospital preparation now selects named qualified Staff/account and current
+department choices and uses canonical hospital proposal commands. Both owners
+and current delegates can enter it; private account details disappear on source
+loss. Submission freezes the exact request and navigation. A red regression
+showed that validating future expiry again prevented an exact uncertain retry;
+new-form validation retains the future-expiry rule, while immutable command
+serialization preserves interval/reason/structure checks without a clock check.
+Retry retains the ID and payload even after expiry; the server remains authority
+for current validation and recorded-command replay.
+
+Local evidence: focused UI94 tests passed, then the complete shell suite passed
+**2,018 tests**. The complete API suite passed **1,437 tests**; TypeScript and
+affected ESLint checks passed. Next.js production build passed with explicit
+CI-only API/identity build settings after the first attempt correctly rejected
+missing `API_URL`. Generated `.next` outputs were removed, retaining only cache.
+No local app/server/database/browser was started. A Playwright case creates a
+synthetic hospital through its API and checks the real qualified chooser's empty
+state and absence of raw IDs within preparation; it type-checks but is CI-only
+and has not run locally. Browser testing with a fully qualified Staff target,
+deployed acceptance and lifecycle performance remain open.

@@ -66,6 +66,14 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 	rlsFindings, err := db.LintRLS(ctx)
 	require.NoError(t, err)
 	require.Empty(t, rlsFindings, "qualified selection migrations must retain canonical forced RLS")
+	var selectionSupport struct{ IAM, Workforce, Assignment, Operating bool }
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT iam_staff_selection_support() AS iam,workforce_assignment_selection_support() AS workforce,iam_assignment_governance_integrity() AS assignment,iam_operating_governance_integrity() AS operating`).Scan(&selectionSupport).Error
+	}))
+	require.True(t, selectionSupport.Assignment, "existing assignment integrity remains valid after selection migration")
+	require.True(t, selectionSupport.Operating, "existing operating integrity remains valid after selection migration")
+	require.True(t, selectionSupport.IAM, "IAM selector support is available after migration")
+	require.True(t, selectionSupport.Workforce, "Workforce selector support is available after migration")
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Exec("INSERT INTO iam_members(tenant_id,subject,role_key)VALUES(?,'user-admin','tenant_admin'),(?,'user-owner2','tenant_admin'),(?,'user-auditor','staff_member'),(?,'user-reviewer','staff_member'),(?,'user-ordinary','staff_member')", testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA).Error
 	}))

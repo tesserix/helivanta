@@ -1649,6 +1649,32 @@ it("opens the owner governance inbox without requiring assignment permissions", 
   expect(screen.queryByRole("button", { name: "Propose assignment" })).not.toBeInTheDocument();
 });
 
+it("offers qualified hospital preparation to owners alongside existing administration", async () => {
+  setup("synthetic-owner", [], [...permissions, "iam.governance.assignment.manage"]);
+  const prior = fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) =>
+      url.includes("assignment-authority-scopes")
+        ? Response.json(
+            page([
+              {
+                hospital_id: hospital,
+                name: "Synthetic owner hospital",
+                can_manage: true,
+                can_review: true,
+              },
+            ]),
+          )
+        : prior(url, init),
+    ),
+  );
+  renderWithProviders(<AccessPage />);
+  expect(
+    await screen.findByRole("button", { name: "Open Synthetic owner hospital" }),
+  ).toBeVisible();
+});
+
 it("opens hospital assignment discovery for a native reviewer without legacy administrator permissions", async () => {
   const calls: string[] = [];
   vi.stubGlobal(

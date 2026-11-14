@@ -1390,8 +1390,16 @@ before and after external identity I/O. IAM locks its final membership/employmen
 basis before the Workforce recheck; external identity I/O holds no database
 transaction. Registration and compilation do not establish runtime acceptance.
 
+Native preparation controls are now implemented as candidate UI using qualified
+Staff/account and current department choices, canonical template selection and
+the existing hospital proposal command. Owners can enter this workspace alongside
+existing administration. Both selection and submission remove private details on
+source loss. Uncertain writes freeze the exact request and prevent navigation;
+retry preserves its ID/payload even after expiry. New-form time validation remains
+unchanged. Unit tests do not establish real browser or deployed acceptance.
+
 Remaining implementation gates: exercise migration staging and real RLS behavior,
-build native preparation controls, and exercise
+exercise real native preparation browser/deployed flows, and exercise
 the real current, stale, foreign, denied, audit/dependency and source-cutoff cases.
 
 ### Governed department-selection owner read

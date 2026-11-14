@@ -38,6 +38,20 @@ const proposal = {
 const page = { data: [proposal], page: { has_more: false, next_cursor: null } };
 afterEach(() => vi.unstubAllGlobals());
 
+it("replays the same proposal intent after its original expiry without rewriting it", async () => {
+  const fetch = vi.fn().mockImplementation(async () => Response.json(proposal));
+  vi.stubGlobal("fetch", fetch);
+  await proposeGovernanceAssignment(scope, id, input);
+  const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse(input.expires_at) + 1);
+  try {
+    await proposeGovernanceAssignment(scope, id, input);
+    expect(fetch.mock.calls).toHaveLength(2);
+    expect(fetch.mock.calls[0]).toEqual(fetch.mock.calls[1]);
+  } finally {
+    clock.mockRestore();
+  }
+});
+
 it("discovers named authorized hospitals through the Global API with account preconditions", async () => {
   const choice = {
     hospital_id: hospitalId,

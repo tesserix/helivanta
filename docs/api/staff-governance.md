@@ -50,7 +50,17 @@ selected facts 409; revoked credentials 401. Source, identity or audit failures
 return 503 without a partial page. Responses use `Cache-Control: no-store`.
 No legacy directory fallback exists. Pure SDK/handler tests and compilation are
 available; real database qualification, denied/source-drift coverage, native
-preparation UI and deployed acceptance remain required before release.
+preparation browser acceptance and deployed acceptance remain required before release.
+
+The candidate hospital workspace now offers named qualified Staff/account choices,
+named current department choices, template and time-bounded proposal preparation
+to owners and admitted delegates. It never asks for raw account, Staff, department
+or epoch values. Canonical proposal commands still perform authorization and state
+validation. Submission freezes the exact ID/payload and navigation while its result
+is uncertain; retries bypass new-form clock checks and preserve that intent even
+after the original expiry. New-form validation still requires a future expiry.
+Authority loss removes selected private details. This candidate has UI tests;
+runtime/browser acceptance remains a separate gate.
 
 ### Proposal administration
 

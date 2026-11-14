@@ -33,6 +33,27 @@ const hospital = {
 };
 afterEach(() => vi.unstubAllGlobals());
 
+it.each([true, false])(
+  "offers native preparation only with current hospital management: %s",
+  async (canManage) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("assignment-authority-scopes"))
+          return Response.json(page([{ ...hospital, can_manage: canManage }]));
+        if (url.includes("assignment-templates")) return Response.json(staffAccessTemplates);
+        return Response.json(page([]));
+      }),
+    );
+    const { user } = renderWithProviders(<GovernanceAssignments scope={scope} />);
+    await user.click(await screen.findByRole("button", { name: "Open Synthetic hospital" }));
+    await screen.findByRole("button", { name: "Refresh hospital assignments" });
+    if (canManage) expect(screen.getByRole("button", { name: "Prepare assignment" })).toBeVisible();
+    else
+      expect(screen.queryByRole("button", { name: "Prepare assignment" })).not.toBeInTheDocument();
+  },
+);
+
 it("selects a named hospital and retains the exact reviewed decision after an uncertain response", async () => {
   const writes: { url: string; body: string; tenant: string | null; subject: string | null }[] = [];
   const paths: string[] = [];

@@ -4,6 +4,8 @@ import { membershipRequestOptions } from "./membership-commands";
 import { AssignmentTargetChoiceContract, ProposalInputContract } from "./staff-access-contract";
 import type { GovernanceAssignmentScope } from "./governance-assignments";
 
+export type { AssignmentTargetChoice } from "./staff-access-contract";
+
 const resourceId = z
   .guid()
   .refine(

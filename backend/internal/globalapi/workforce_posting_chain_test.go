@@ -13,7 +13,6 @@ import (
 
 func assertPostingSupervisedApproval(t *testing.T, db *tenantdb.DB, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, request postingTestRequest, hospitalBase, childBase, submitter, reviewer, supervisorStaff, rootApprover, rootApproverStaff, organizationMaker, childDraft string, childReceipt, childSource, generation map[string]any, usePostingSource postingSourceUseProbe, changeSupervisorIdentity func() func(), browser func(string, map[string]any, map[string]any), departmentReviewer string, grantDepartment func(string, string, []string), grantSource func(string), usePartnerMember partnerMemberUseProbe, memberScenario func(*testing.T, map[string]any)) {
 	t.Helper()
-	defer postingFunctionFailureMetrics(t, db, tenant)
 	parentBase := hospitalBase + "/posting-staff/" + supervisorStaff
 	parentSource := call(t, "GET", parentBase+"/posting-review-source", reviewer, nil, 200)
 	require.Equal(t, "current", parentSource["generation_state"])

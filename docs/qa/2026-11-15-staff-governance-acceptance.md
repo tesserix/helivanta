@@ -100,33 +100,36 @@ legacy identity/history untouched as specified by the fresh-tenant plan.
 
 ## Current next action
 
-At `66cf365f`, Supplier43611655068 passed the initial child approvals but failed
-coordinated transfer's injected persistence fault: expected 500, received 503.
-The replacement UPDATE took 1053ms, persistence 4359ms, command 5031ms. The
-transaction-local JIT-off experiment therefore did not repair the complete flow
-and is removed. Original persistence SQL/source predicates, authority deadlines
-and expected 200/500 cases remain unchanged. No JIT root cause is claimed.
+Supplier43614580558 at `4470fb2a` passed child approvals and coordinated transfer,
+then failed a cutoff/approval race with expected 200/actual 503. The aggregate
+function sample showed root approval context 54 calls, 8463ms self/21925ms total;
+chain approval context 36 calls, 5633ms self/14781ms total; proposal decider 210
+calls, 2369ms self/45584ms total. The head trigger's own time was only 6.86ms across
+58 calls. This identifies root/chain guard work as material execution cost; it is
+not a per-request timing attribution.
 
-The next CI-only diagnostic enables PostgreSQL function timing for the isolated
-Staff lifecycle process. On a transfer failure it emits bounded aggregate
-calls/total/self milliseconds for a fixed allowlist of posting functions. It
-captures no SQL, arguments, arbitrary function names, private proof or raw errors.
-Default test-server behavior is unchanged; unknown opt-in values fail closed.
-These are database-wide counters within this isolated fixture, not a per-request
-trace. Counter collection is diagnostic evidence, not an accepted cold benchmark.
-Remove the opt-in and pass the ordinary complete workflow before accepting a fix.
+WF0117 is a controlled planning candidate for those two context functions. It
+uses stable invoker PL/pgSQL, fast-denies an absent matching private purpose and
+preserves each complete original authorization SELECT byte-for-byte for the
+valid-purpose path. Prepared plans can be reused; authority results are never
+cached. Current source/tenant/actor/version/time checks and five-second command
+budgets remain intact. PostgreSQL references and migration/source review are in
+the posting source-review document. The function timing option/helpers are
+removed so the next full lifecycle run is ordinary cold acceptance, including
+all original transfer faults and concurrency expectations. No live migration is
+authorized or applied by this change; scratch migration/runtime behavior is CI-only.
 
-At `66cf365f`, full workspace lint/format/typecheck/test/build, scripts, secret
-scan, emergency browsers and the standard E2E job passed. Both new native browser
-journeys reached review/recovery but failed at the revoked-card assertion.
-The follow-up requires acknowledged activation before revocation and explicitly
-checks the revocation HTTP status/result before its UI assertion. The result is
-pending; asynchronous activation/version drift is a hypothesis, not established
-cause. The fixture lacks a profile reader/session signer, so profile/activity
-503s do not establish deployed identity behavior.
+At `4470fb2a`, both native browser branches reached every assertion through
+acknowledged activation and HTTP/UI revocation, but the job failed after success
+because closing a context disposed an in-flight background route. Local commit
+`2ae3319b` makes cleanup await in-flight handlers with `unrouteAll({behavior:
+"wait"})` and does not suppress errors. The next CI exit must be clean before
+this is counted as a passing journey. Standard E2E passed that head.
 
 The private hospital-selection helper still has no owner query, route, SDK or
-UI: those gates remain open. No main merge or live rollout occurred.
+UI: those gates remain open. Deployed identity/login, actual product-operation
+access, source cutoffs and full receiving/financial acceptance remain required.
+No main merge or live rollout occurred.
 
 ### Diagnostic correction after Supplier43605854860
 

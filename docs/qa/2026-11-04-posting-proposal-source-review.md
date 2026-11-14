@@ -313,3 +313,46 @@ code, query plans, authorization/source conditions, HTTP expectations or budgets
 No SQL/arguments/private proof/arbitrary function names/raw errors are emitted.
 It is diagnostic instrumentation; acceptance still requires the ordinary cold
 full workflow without the timing opt-in.
+
+### WF0117 planning candidate from function evidence — 2026-11-14
+
+Supplier43614580558 at `4470fb2a` progressed through child approvals and
+coordinated transfer, then failed a cutoff/approval concurrency case with 503
+instead of 200. The completed-function counters within this isolated fixture
+reported root context 54 calls/8463ms self/21925ms total, chain context 36
+calls/5633ms self/14781ms total, and decider 210 calls/2369ms self/45584ms total.
+The proposal head trigger's own time was 6.86ms across 58 calls. Counts are
+aggregate, not per-command traces. Failed/incomplete calls and concurrent
+activity limit inference; this is not a latency/SLO benchmark.
+
+WF0117 changes only the root and chain context functions to `LANGUAGE plpgsql
+STABLE` with invoker security and the same signatures/return types. A missing
+matching private purpose returns false before preparing its unused query. The
+valid-purpose path retains the entire original authorization SELECT
+byte-for-byte, including its purpose check, independent decider, exact source
+versions/epochs, current Staff, department/generation bindings and clock checks.
+No authorization result or principal is cached. PostgreSQL prepares/reuses the
+query plan while still evaluating all current values. No deadline, RLS policy,
+persistence/outbox/audit operation or expected HTTP result changes.
+
+[PL/pgSQL plan caching](https://www.postgresql.org/docs/16/plpgsql-implementation.html#PLPGSQL-PLAN-CACHING)
+documents reuse of prepared statements/plans.
+[PostgreSQL 16 SQL function execution](https://github.com/postgres/postgres/blob/REL_16_STABLE/src/backend/executor/functions.c)
+invalidates its SQLFunctionCache when the transaction/subtransaction changes.
+These explain the candidate mechanism; only the uninstrumented full real-service
+workflow can establish that it repairs the observed failure.
+
+The original SQL expressions were compared exactly against WF0080/WF0081. The
+module delta is only the new embed/forward migration registration; the rest of
+its source, including all routes, permission bundles and consumer declarations,
+was compared byte-for-byte. Its 30 ledger source hashes were refreshed without
+changing authority classifications or their open obligations. The classified
+transfer surface additionally pins the new function definitions. Function timing
+infrastructure/helpers are removed before the next cold run.
+
+This migration replaces no tables/data and preserves function identities and
+call compatibility for older application code. A code rollback does not require
+removing it; if necessary a reviewed forward migration can restore the prior SQL
+function definitions without dropping dependent objects. Scratch application and
+all source-cutoff/rollback/concurrency behavior must pass CI. No local DB or live
+migration was run, and this candidate does not authorize a live rollout.

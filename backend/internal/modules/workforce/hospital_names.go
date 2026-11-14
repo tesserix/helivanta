@@ -69,6 +69,8 @@ ORDER BY (a.announced_version IS NULL OR a.announced_version<h.name_version) DES
 		var attempt int
 		var nameVersion int64
 		if err := db.WithTenant(ctx, d.TenantID.String(), func(tx *gorm.DB) error {
+			// Reset per run, so a re-run of this callback reports only its own re-send.
+			attempt, nameVersion = 0, 0
 			var row struct {
 				Name        string
 				NameVersion int64
@@ -88,7 +90,6 @@ WHERE workforce_hospital_name_announcements.announced_version<EXCLUDED.announced
 			if claim.Error != nil {
 				return fmt.Errorf("claim hospital name version: %w", claim.Error)
 			}
-			attempt = 0
 			if claim.RowsAffected == 0 {
 				// This version was already announced. Re-send it only if still unconfirmed and due,
 				// re-read under the lock: a confirmation or another replica's re-send may have landed

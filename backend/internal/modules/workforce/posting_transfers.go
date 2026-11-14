@@ -230,6 +230,7 @@ func (h *handlers) putPostingTransfer(c *gin.Context) {
 	}, additional...)
 	if err != nil {
 		if errors.Is(err, authz.ErrScopedAuthorizationUnavailable) || errors.Is(err, context.DeadlineExceeded) {
+			enrichPostingPersistenceFailure(c, err)
 			requestid.Logger(c).WarnContext(c.Request.Context(), "posting transfer unavailable", "stage", stage, "elapsed_ms", time.Since(started).Milliseconds(), "deadline", errors.Is(err, context.DeadlineExceeded))
 		}
 		respondPostingCutoffError(c, err)

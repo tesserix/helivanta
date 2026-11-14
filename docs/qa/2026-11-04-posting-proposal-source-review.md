@@ -260,3 +260,19 @@ At 89605942, browser CI passed all three phases (99 passes/1 skip in the main
 suite); supplier Staff lifecycle still failed child approval at
 `workforce_posting_chain_test.go:135` with 503 instead of 200. Diagnostics and
 this source review do not establish a repair, live rollout or full acceptance.
+
+### Shared persistence substep attribution — 2026-11-14
+
+Supplier43597336249 at 90950803 reproduced the child-approval 503, now located at
+`decision_persistence` after 5017ms overall. The earlier file-level-only delta
+did not repair it. The next candidate adds failure-only operation/elapsed/total
+metadata to the shared persistence method and enriches both handlers' existing
+failure logs. Its result types and all raw SQL literals match 90950803; guards,
+success effects and transaction boundaries are unchanged. The chain-review
+else branch is equivalent. A private error wrapper retains its cause through
+Unwrap, preserving errors.Is/As and PostgreSQL classification without exposing
+raw error content. No timeout or status assertion changes.
+
+Re-review updates the two affected source hashes and additionally pins the small
+diagnostic helper. This is source review of diagnostic error propagation, not
+runtime proof of the method or an acceptance of the unresolved deadline.

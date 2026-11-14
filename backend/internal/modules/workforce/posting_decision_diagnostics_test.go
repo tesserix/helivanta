@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/pkg/authz"
 )
@@ -48,4 +49,38 @@ func TestPostingDecisionFailureRetainsStatusAndLogsOnlyBoundedDiagnostics(t *tes
 			}
 		})
 	}
+}
+
+func TestPostingPersistenceFailurePreservesCauseAndWithholdsPrivateError(t *testing.T) {
+	t.Setenv("HELIVANTA_TEST_SLOG_CAPTURED", "1")
+	var logs bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+	private := "SYNTHETIC-PRIVATE-QUERY-PARAMETER"
+	cause := errors.Join(context.DeadlineExceeded, errors.New(private))
+	wrapped := &postingPersistenceFailure{cause: cause, operation: "chain_evidence", elapsed: 345 * time.Millisecond, total: 1234 * time.Millisecond}
+	require.ErrorIs(t, wrapped, context.DeadlineExceeded)
+	require.NotContains(t, wrapped.Error(), private)
+	response := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(response)
+	c.Request = httptest.NewRequest("PUT", "/synthetic-posting-decision", nil)
+	respondPostingDecisionError(c, errors.Join(authz.ErrScopedAuthorizationUnavailable, wrapped), "decision_persistence", 5*time.Second)
+	require.Equal(t, 503, response.Code)
+	require.Contains(t, response.Body.String(), `"error":"posting_source_unavailable"`)
+	for _, field := range []string{"persistence_operation=chain_evidence", "persistence_operation_ms=345", "persistence_total_ms=1234", "elapsed_ms=5000"} {
+		require.Contains(t, logs.String(), field)
+	}
+	require.NotContains(t, logs.String(), private)
+	require.NotContains(t, response.Body.String(), private)
+	require.NotContains(t, response.Body.String(), "chain_evidence")
+}
+
+func TestPostingPersistenceFailureRetainsPostgresErrorClassification(t *testing.T) {
+	cause := &pgconn.PgError{Code: "23514", ConstraintName: "synthetic_persistence_guard", Message: "SYNTHETIC-PRIVATE-QUERY-PARAMETER"}
+	wrapped := &postingPersistenceFailure{cause: cause, operation: "revision_insert"}
+	var original *pgconn.PgError
+	require.ErrorAs(t, wrapped, &original)
+	require.Same(t, cause, original)
+	require.NotContains(t, wrapped.Error(), cause.Message)
 }

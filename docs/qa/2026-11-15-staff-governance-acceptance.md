@@ -9,7 +9,8 @@ service integration, browser testing and live acceptance are distinct evidence.
 
 - HMS PR: [#1669](https://github.com/tesserix/helivanta/pull/1669).
   Native UI head: `89605942`; approval diagnostic head: `90950803`.
-  Source-review correction `0c590133` is local pending the next push.
+  Source-review correction `0c590133` records the file-level review; the later
+  substep candidate extends that review without changing authority.
 - Identity owner: [onboarding-service #39](https://github.com/tesserix/onboarding-service/pull/39),
   pinned source `20d240693ac04d779fec504720803a989ca6f5ce`.
   Its private assignment-candidate purpose is a dependency, not a deployed API claim.
@@ -98,7 +99,12 @@ legacy identity/history untouched as specified by the fresh-tenant plan.
 
 ## Current next action
 
-Preserve the running `90950803` supplier lifecycle run long enough to capture its
-bounded approval phase/elapsed diagnostic. Use that evidence to repair the actual
-failure. Include the reviewed ledger correction in the next push, re-run its
-inventory gate, and retain the full completion list above through further work.
+Supplier43597336249 at `90950803` is now terminal: child approval again failed,
+with `decision_persistence`, elapsed 5017ms and deadline. Its browser job
+132454642720 passed all three phases (99 main-suite passes plus both workflow
+phases); the Go job reached coverage after passing governance boundaries.
+Add failure-only per-operation elapsed and total-persistence timing, retaining
+causes, error classification and all original SQL/guards/budgets. This must locate
+the slow operation and distinguish persistence cost from earlier command work;
+it is not itself a repair. Push that change with the reviewed ledger correction,
+then verify the original lifecycle and retain every completion gate above.

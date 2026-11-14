@@ -1443,7 +1443,7 @@
         },
         {
           "id": "0052_iam_assignment_target_choices",
-          "sql_sha256": "4eace10650c858f722523ae1583e703f43439f1ae5fd723a86702abf1e750b2e",
+          "sql_sha256": "aeb5467eac051dcf95885a00b73d8ea35b9499402d278828f216dbf4da5bbccf",
           "creates_tables": []
         }
       ]

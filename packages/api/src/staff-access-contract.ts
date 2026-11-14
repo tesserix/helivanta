@@ -140,6 +140,34 @@ export const DepartmentScopeResultContract = z
   .strict();
 export type DepartmentScopeResult = z.infer<typeof DepartmentScopeResultContract>;
 
+export const AssignmentTargetChoiceContract = z
+  .object({
+    hospital_id: identifier,
+    staff_id: identifier,
+    subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .regex(new RegExp("^[^\\s*#:]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    name: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    email: z
+      .string()
+      .min(3)
+      .max(320)
+      .regex(new RegExp("^[^\\s@]+@[^\\s@]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type AssignmentTargetChoice = z.infer<typeof AssignmentTargetChoiceContract>;
+
 export const AssignmentAccountPresentationContract = z
   .object({
     proposal_id: identifier,

@@ -428,6 +428,7 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 		TradingEndpoints:            platform.TradingEndpoints(opts.Modules, db, platform.DepartmentReferences(opts.Modules, db)),
 		Membership:                  membership,
 		StaffActors:                 platform.StaffActors(opts.Modules, db),
+		AssignmentTargets:           platform.AssignmentTargets(opts.Modules, db),
 		PurchaseOrderActors:         platform.PurchaseOrderActors(opts.Modules, db),
 		StockProducts:               stockProducts,
 		OrderProducts:               platform.OrderProducts(opts.Modules, db, stockProducts),

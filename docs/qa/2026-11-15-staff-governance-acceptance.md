@@ -393,3 +393,33 @@ uses collecting assertions in the eventual callback and still requires the exact
 duty to become active before changing Staff. Bootstrap compile-only checks,
 vet, lint and backend build passed after that correction; runtime CI remains
 required. This is a test correction, not a production route change.
+
+### Qualified hospital Staff/account selector candidate
+
+IAM0052 and Workforce0119 are now registered and composed through the production
+bootstrap and test harness. The candidate native IAM chooser uses actual current
+governance source, canonical reviewed link/digital generation and IAM employment
+basis, identity-owner presentation outside transactions, and a final locked
+recheck. Canonical wire fields contain only hospital, Staff, subject, name and
+email; query/paging and SDK checks bind tenant, account and hospital. Neither
+selection nor employment activation confers an operating role.
+
+The existing real-owner person/employment fixture now continues through normal
+login-link proposal and independent approval after its original zero-link
+assertion. New cases exercise pending-link exclusion, exact eligible presentation,
+hospital/tenant isolation, unauthorized discovery, identity failure/ineligibility,
+IAM/Workforce read-audit rejection and recovery, and normal link revocation
+during identity I/O. The last case also checks that identity I/O holds no target
+lock. These database cases are authored and compile, but remain **unrun locally**
+under the no-local-stack constraint; CI must establish their runtime result.
+
+Local validation: 19 selector SDK tests and the complete API suite (128 files,
+1,436 tests) passed; API TypeScript and focused ESLint passed. The focused IAM
+and Workforce selector tests passed with `-race`; bootstrap compile-only,
+`go vet ./...`, `go build ./...` and `golangci-lint run ./...` passed (0 issues).
+Contractdocs generation/check, canonical Staff model check and inventory
+generation/check passed: **1,138 registered / 1,004 unclassified**, no acceptance
+promotion. Existing module and fixture review pins were rechecked for the additive
+composition and tests; the new route remains unclassified. Native preparation
+UI, full lifecycle performance, identity-owner release and deployed acceptance
+are still open. No main merge, live migration or rollout is recorded here.

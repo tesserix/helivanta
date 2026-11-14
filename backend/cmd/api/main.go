@@ -418,6 +418,7 @@ func run() error {
 		TradingEndpoints:            platform.TradingEndpoints(registry.All(), db, platform.DepartmentReferences(registry.All(), db)),
 		Membership:                  currentAuthorization,
 		StaffActors:                 platform.StaffActors(registry.All(), db),
+		AssignmentTargets:           platform.AssignmentTargets(registry.All(), db),
 		PurchaseOrderActors:         platform.PurchaseOrderActors(registry.All(), db),
 		StockProducts:               stockProducts,
 		OrderProducts:               platform.OrderProducts(registry.All(), db, stockProducts),

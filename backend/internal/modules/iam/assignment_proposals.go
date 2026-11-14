@@ -103,6 +103,7 @@ type assignmentProposalHandlers struct {
 	native     bool
 	sources    authz.CurrentGovernanceSourceGuard
 	identities AssignmentIdentityReader
+	targets    authz.GovernedAssignmentTargetReader
 }
 
 func assignmentAccess(tx *gorm.DB) error {

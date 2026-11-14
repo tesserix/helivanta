@@ -65,6 +65,14 @@ type DepartmentScopeResult struct {
 	Eligible     bool      `json:"eligible"`
 }
 
+type AssignmentTargetChoice struct {
+	HospitalID uuid.UUID `json:"hospital_id"`
+	StaffID    uuid.UUID `json:"staff_id"`
+	Subject    string    `json:"subject"`
+	Name       string    `json:"name"`
+	Email      string    `json:"email"`
+}
+
 type AssignmentAccountPresentation struct {
 	ProposalID      uuid.UUID `json:"proposal_id"`
 	ProposalVersion int64     `json:"proposal_version"`

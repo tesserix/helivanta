@@ -138,6 +138,33 @@
         "type": "bool"
       }
     ],
+    "AssignmentTargetChoice": [
+      { "name": "hospital_id", "type": "uuid" },
+      { "name": "staff_id", "type": "uuid" },
+      {
+        "name": "subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "pattern": "^[^\\s*#:]+$",
+        "no_nul": true
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "no_nul": true
+      },
+      {
+        "name": "email",
+        "type": "string",
+        "min": 3,
+        "max": 320,
+        "pattern": "^[^\\s@]+@[^\\s@]+$",
+        "no_nul": true
+      }
+    ],
     "AssignmentAccountPresentation": [
       {
         "name": "proposal_id",

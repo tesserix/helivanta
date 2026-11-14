@@ -69,6 +69,7 @@ type Deps struct {
 	HospitalSourceAuthority   supplierfulfilment.HospitalSourceAuthority
 	SupplierStockCancellation StockCancellation
 	StaffActors               authz.CurrentStaffActorGuard
+	AssignmentTargets         authz.GovernedAssignmentTargetReader
 	PurchaseOrderActors       authz.CurrentPurchaseOrderActorGuard
 	StaffPostingSources       authz.CurrentStaffPostingSourceGuard
 	PartnerMembers            authz.CurrentPartnerMemberGuard

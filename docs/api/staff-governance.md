@@ -19,6 +19,41 @@ records ORG-D7, all remaining lifecycle consumers and operational assumptions.
 
 ## Candidate hospital assignment administration
 
+### Qualified Staff/account choices (candidate)
+
+`GET /v1/iam/hospitals/:hospital/assignment-target-choices` requires
+`iam.governance.assignment.manage` and a current native tenant owner or exact
+hospital `iam.scoped_access_reviewer.v1` source. Every request requires matching
+expected tenant/account headers. The Global API IAM destination owns routing;
+IAM owns membership and assignment authority, Workforce owns Staff, reviewed
+login links and employment generations, and the identity owner supplies current
+human-account presentation.
+
+Only `status=eligible` (the default), `limit` (1–20) and an opaque cursor are
+accepted. Sealed continuations bind tenant, account, hospital and filter. A page
+can contain no eligible choices and still have a continuation after scanning
+ineligible Staff. Each `AssignmentTargetChoice` from `contracts/staff-access.json`
+contains exactly `hospital_id`, `staff_id`, `subject`, `name` and `email`.
+Private generation, link and membership evidence is never returned.
+
+Candidate migrations IAM0052 and Workforce0119 introduce separate read-only
+purposes, qualification/read auditing and integrity checks. Workforce qualifies
+current digital employment and reviewed active links using the actual administrator
+principal. IAM checks the matching current employment basis and membership,
+releases all transactions before identity lookup, then reacquires current source,
+membership and Workforce evidence before disclosure. Lookup concurrency is at
+most four and the complete request has a five-second budget. Selection grants
+no operating access and cannot replace canonical command revalidation.
+
+Hidden scope returns 404; missing coarse permission 403; changed session or
+selected facts 409; revoked credentials 401. Source, identity or audit failures
+return 503 without a partial page. Responses use `Cache-Control: no-store`.
+No legacy directory fallback exists. Pure SDK/handler tests and compilation are
+available; real database qualification, denied/source-drift coverage, native
+preparation UI and deployed acceptance remain required before release.
+
+### Proposal administration
+
 IAM0049 adds a private request/provenance and owner-answer ledger. The fixed
 hospital-only `iam.scoped_access_reviewer.v1` grants nonclinical assignment
 management/review authority. Admission requires a current native tenant owner or
@@ -671,7 +706,6 @@ missing-support cases are included in the remote governance fixture but are not
 yet accepted. Native document SDK/UI and exact employment-term binding remain
 unfinished. WF0113 is unapplied and requires specific live migration/rollback
 approval after concrete acceptance; no rollout is authorized by a source review.
-
 
 Candidate migration `0115_workforce_finding_file_isolation` corrects an existing
 scan-worker policy dependency. The finding, employment, activation and binding file helpers remain invoker-security

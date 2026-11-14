@@ -196,6 +196,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/hospitals/:hospital/assignment-target-choices",
+          "permission": "iam.governance.assignment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/hospitals/:hospital/assignment-templates",
           "permission": "public",
           "authentication_required": true,
@@ -1431,6 +1440,11 @@
               ]
             }
           ]
+        },
+        {
+          "id": "0052_iam_assignment_target_choices",
+          "sql_sha256": "4eace10650c858f722523ae1583e703f43439f1ae5fd723a86702abf1e750b2e",
+          "creates_tables": []
         }
       ]
     },
@@ -13953,6 +13967,11 @@
         {
           "id": "0118_workforce_operating_selection_plans",
           "sql_sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
+          "creates_tables": []
+        },
+        {
+          "id": "0119_workforce_assignment_targets",
+          "sql_sha256": "2686333865e9be9a2502bff41cc3581af01b569fb3c244b1496752bb781f77d0",
           "creates_tables": []
         }
       ]

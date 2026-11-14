@@ -1347,9 +1347,52 @@ fresh choice rather than fallback permission or identity inference.
 Private proof validation is implemented in
 `backend/pkg/authz/assignment_selection.go`. The department owner route, restrictive
 RLS and canonical-model SDK are now candidate code, described below. Qualified
-Staff/account owner queries, IAM/identity composition, target wire models and both
-native preparation controls remain unfinished. Real-service/browser/deployed
+Staff/account owner queries, target wire models and the SDK are now local candidate
+code. The target migrations are registered and the owner port is wired into IAM
+through platform composition. IAM's two-phase membership/identity composition is
+candidate code; runtime qualification and both native preparation controls remain
+unfinished.
+Real-service/browser/deployed
 acceptance is required before the full selection flow is claimed complete.
+
+### Qualified hospital target implementation candidate
+
+`contracts/staff-access.json` owns `AssignmentTargetChoice`: hospital and Staff
+references, account subject, verified display name and email only. Generation,
+link, employment and membership epochs remain private owner facts. The SDK binds
+account preconditions and cache keys to tenant/actor/hospital and supports empty
+filtered pages with sealed continuations. It rejects duplicate Staff/accounts,
+foreign hospital rows, extra private fields and inconsistent pagination; it never
+falls back to a legacy directory.
+
+The private Workforce owner scans at most one bounded Staff page plus continuation
+row, retaining scan boundaries for ineligible rows. Qualification uses the actual
+administrator principal and selected canonical Staff/link/generation, then calls
+the existing protected-generation state reader. It requires current digital access,
+matching declared subject and an effective unexpired basis. A second owner read
+must match all selected versions, employment epoch and eligibility deadline before
+IAM may disclose identity presentation. This port does not grant operating access.
+
+The candidate `0119_workforce_assignment_targets` migration
+(`assignment_targets.sql`), paired with `0052_iam_assignment_target_choices`,
+separates scan metadata from the selected protected basis, uses current consumed
+review/period/evidence and person-review provenance, restores private settings and
+permits qualification audit inserts only. It denies unrelated Workforce reads,
+master writes and deletes even when a caller holds another capability. The migration
+requires prior operating-selection integrity exactly true before policy changes,
+then refreshes identical prior coverage and records its own policy/function coverage.
+Inactive purpose branches preserve earlier policy expressions. SQL/PLpgSQL grammar
+parsing and structural tests do not establish RLS or payload acceptance.
+
+The candidate IAM route is registered as a sealed filtered Global API read with
+fixed `status=eligible`, bounded scan/continuation and actual source validation
+before and after external identity I/O. IAM locks its final membership/employment
+basis before the Workforce recheck; external identity I/O holds no database
+transaction. Registration and compilation do not establish runtime acceptance.
+
+Remaining implementation gates: exercise migration staging and real RLS behavior,
+build native preparation controls, and exercise
+the real current, stale, foreign, denied, audit/dependency and source-cutoff cases.
 
 ### Governed department-selection owner read
 

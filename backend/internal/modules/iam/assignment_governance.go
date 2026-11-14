@@ -233,7 +233,8 @@ func assignmentGovernanceReplay(tx *gorm.DB, tenant string, row assignmentPropos
 }
 
 func registerGovernanceAssignments(g *platform.Router, deps platform.Deps, identities AssignmentIdentityReader) {
-	h := &assignmentProposalHandlers{db: deps.DB, bus: deps.Bus, native: true, sources: deps.GovernanceSources, identities: identities}
+	h := &assignmentProposalHandlers{db: deps.DB, bus: deps.Bus, native: true, sources: deps.GovernanceSources, identities: identities, targets: deps.AssignmentTargets}
+	registerAssignmentTargetChoices(g, h)
 	root := "/hospitals/:hospital/assignment-proposals"
 	g.GET("/hospitals/:hospital/assignment-templates", authz.Public, h.templates)
 	g.PUT(root+"/:id", PermGovernanceAssignmentManage, h.put)

@@ -2,6 +2,7 @@ package bootstrap_test
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -25,6 +26,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
+	"github.com/tesserix/onboarding-service/api/customercontract"
 	"gorm.io/gorm"
 )
 
@@ -44,15 +46,20 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 	for _, subject := range []string{"user-auditor", "user-reviewer", "user-ordinary"} {
 		require.NoError(t, graph.GrantRole(ctx, testutil.TenantA, subject, authz.RoleStaffMember))
 	}
-	modules := []platform.Module{iam.New(nil).SetMembershipIdentityReader(&governanceNativeIdentity{additionalSubjects: map[string]bool{"user-ordinary": true}}), workforce.New()}
+	var assignmentIdentity governanceAssignmentIdentityReader
+	identity := governanceAssignmentIdentityReader(func(ctx context.Context, tenant, subject string) (*customercontract.AssignmentCandidateIdentity, error) {
+		return assignmentIdentity(ctx, tenant, subject)
+	})
+	modules := []platform.Module{iam.New(nil).SetMembershipIdentityReader(&governanceNativeIdentity{additionalSubjects: map[string]bool{"user-ordinary": true}}).SetAssignmentIdentityReader(identity), workforce.New()}
 	router, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 		Modules: modules, Documents: documents, Writer: graph, Roles: graph, Membership: graph, EmploymentActivationEnabled: true,
 		ScopedAuthorizer: func(db *tenantdb.DB) authz.ScopedAuthorizer { return iam.NewScopedAuthorizer(db, graph) },
-		Tokens:           map[string]string{"admin": testutil.TenantA, "owner2": testutil.TenantA, "auditor": testutil.TenantA, "reviewer": testutil.TenantA},
+		Tokens:           map[string]string{"admin": testutil.TenantA, "owner2": testutil.TenantA, "auditor": testutil.TenantA, "reviewer": testutil.TenantA, "other": testutil.TenantB},
 		Perms: map[string][]authz.Permission{
-			"admin":    {iam.PermGovernanceManage, iam.PermGovernanceRead, iam.PermGovernanceReview, workforce.PermHospitalManage, workforce.PermEnrollmentManage, workforce.PermDocumentManage, workforce.PermIdentityChecksManage, workforce.PermIdentityChecksReview, workforce.PermEmploymentPrepare, workforce.PermEmploymentReview, workforce.PermEmploymentActivate},
-			"owner2":   {iam.PermGovernanceReview, workforce.PermIdentityChecksManage, workforce.PermIdentityChecksReview, workforce.PermEmploymentPrepare, workforce.PermEmploymentReview, workforce.PermEmploymentActivate},
-			"auditor":  {workforce.PermIdentityChecksManage, workforce.PermIdentityChecksReview, workforce.PermEmploymentPrepare, workforce.PermEmploymentReview, workforce.PermEmploymentActivate},
+			"other":    {iam.PermGovernanceAssignmentManage},
+			"admin":    {iam.PermGovernanceAssignmentManage, workforce.PermLoginLinkManage, workforce.PermLoginLinkReview, iam.PermGovernanceManage, iam.PermGovernanceRead, iam.PermGovernanceReview, workforce.PermHospitalManage, workforce.PermEnrollmentManage, workforce.PermDocumentManage, workforce.PermIdentityChecksManage, workforce.PermIdentityChecksReview, workforce.PermEmploymentPrepare, workforce.PermEmploymentReview, workforce.PermEmploymentActivate},
+			"owner2":   {iam.PermGovernanceAssignmentManage, workforce.PermLoginLinkReview, iam.PermGovernanceReview, workforce.PermIdentityChecksManage, workforce.PermIdentityChecksReview, workforce.PermEmploymentPrepare, workforce.PermEmploymentReview, workforce.PermEmploymentActivate},
+			"auditor":  {iam.PermGovernanceAssignmentManage, workforce.PermIdentityChecksManage, workforce.PermIdentityChecksReview, workforce.PermEmploymentPrepare, workforce.PermEmploymentReview, workforce.PermEmploymentActivate},
 			"reviewer": {workforce.PermIdentityChecksManage, workforce.PermIdentityChecksReview, workforce.PermEmploymentPrepare, workforce.PermEmploymentReview, workforce.PermEmploymentActivate},
 		},
 	})
@@ -987,6 +994,7 @@ CREATE CONSTRAINT TRIGGER test_governance_activation_failure AFTER INSERT ON wor
 			input["command_id"], input["sponsor_id"] = uuid.Must(uuid.NewV7()), applicant
 			call(http.MethodPut, applicantPath+"/employment-preparation-periods/"+uuid.Must(uuid.NewV7()).String(), "owner2", input, 400)
 		})
+		exerciseGovernedAssignmentTargetChoices(t, router, db, roots[0], roots[1], staff[0], &assignmentIdentity)
 		call(http.MethodPut, "/v1/iam/governance-grants/"+activationGrant.String()+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "admin", map[string]any{"expected_version": 2, "decision": "revoke", "reason": "Withdraw activation authority after the completed digital hire"}, 202)
 		request(t, http.MethodGet, sourcePath, nil, 403)
 		request(t, http.MethodPut, activationPath, intent, 403)

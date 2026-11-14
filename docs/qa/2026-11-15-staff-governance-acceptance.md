@@ -423,3 +423,14 @@ promotion. Existing module and fixture review pins were rechecked for the additi
 composition and tests; the new route remains unclassified. Native preparation
 UI, full lifecycle performance, identity-owner release and deployed acceptance
 are still open. No main merge, live migration or rollout is recorded here.
+
+### IAM policy-count correction
+
+CI43644396375 E2E job132598904759 failed migration lint at `76143cec`:
+`iam_employment_bases` had a second permissive policy. The selector migration
+now alters the one canonical policy under an explicit selection-purpose CASE,
+preserving its prior expressions when inactive; selection writes remain false.
+The real-owner bootstrap fixture explicitly calls `LintRLS` after migration and
+requires no findings. This failure was reproduced by CI before the correction;
+SQL/PLpgSQL grammar passes locally (11 statements / 8 bodies), but runtime
+migration acceptance still requires corrected-head CI.

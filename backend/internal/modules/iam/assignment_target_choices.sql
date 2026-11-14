@@ -58,11 +58,8 @@ BEGIN
  AND resource_type='workforce_hospitals'AND resource=(p->>'hospital_id')::uuid,false);
 END $audit$;
 
-CREATE POLICY assignment_target_read ON iam_employment_bases FOR ALL
- USING(iam_staff_selection_read(tenant_id,'iam_employment_bases',to_jsonb(iam_employment_bases)))WITH CHECK(false);
-
 DO $policies$
-DECLARE target record;reading text;writing text;active text:=$expression$NULLIF(current_setting('app.iam_staff_selection',true),'')IS NOT NULL$expression$;
+DECLARE target record;prior record;reading text;writing text;active text:=$expression$NULLIF(current_setting('app.iam_staff_selection',true),'')IS NOT NULL$expression$;
 BEGIN
  FOR target IN SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
  WHERE n.nspname=current_schema()AND c.relkind IN('r','p')AND(c.relname LIKE 'iam_%'OR c.relname='audit_events')
@@ -70,6 +67,11 @@ BEGIN
   reading:='false';writing:='false';
   IF target.relname IN('iam_members','iam_subject_membership_epochs','iam_employment_bases')THEN
    reading:=format('iam_staff_selection_read(tenant_id,%L,to_jsonb(%I))',target.relname,target.relname);
+  END IF;
+  IF target.relname='iam_employment_bases'THEN
+   IF(SELECT count(*)FROM pg_policy p WHERE p.polrelid='iam_employment_bases'::regclass AND p.polpermissive)<>1 THEN RAISE EXCEPTION 'Staff selection requires one canonical permissive policy';END IF;
+   SELECT p.polname,pg_get_expr(p.polqual,p.polrelid)AS reading,pg_get_expr(p.polwithcheck,p.polrelid)AS writing INTO STRICT prior FROM pg_policy p WHERE p.polrelid='iam_employment_bases'::regclass AND p.polpermissive;
+   EXECUTE format('ALTER POLICY %I ON iam_employment_bases USING(CASE WHEN %s THEN(%s)ELSE(%s)END)WITH CHECK(CASE WHEN %s THEN false ELSE(%s)END)',prior.polname,active,reading,COALESCE(prior.reading,'true'),active,COALESCE(prior.writing,prior.reading,'true'));
   END IF;
   IF target.relname='audit_events'THEN writing:='iam_staff_selection_audit(tenant_id,actor_subject,action,resource_type,resource_id)';END IF;
   EXECUTE format('CREATE POLICY assignment_target_purpose ON %I AS RESTRICTIVE FOR ALL USING(CASE WHEN %s THEN(%s)ELSE true END)WITH CHECK(CASE WHEN %s THEN(%s)ELSE true END)',target.relname,active,reading,active,writing);
@@ -82,13 +84,13 @@ DECLARE policies text;functions text;policy_count bigint;
 BEGIN
  SELECT string_agg(format('(%L::regclass,%L,%L)',p.polrelid::regclass::text,p.polname,md5(p.polcmd::text||p.polpermissive::text||p.polroles::text||COALESCE(pg_get_expr(p.polqual,p.polrelid),'')||COALESCE(pg_get_expr(p.polwithcheck,p.polrelid),''))),','),count(*)INTO policies,policy_count
  FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid JOIN pg_namespace n ON n.oid=c.relnamespace
- WHERE n.nspname=current_schema()AND(p.polname IN('assignment_target_read','assignment_target_purpose','assignment_target_delete')OR c.relname IN('iam_members','iam_subject_membership_epochs','iam_employment_bases','audit_events'));
+ WHERE n.nspname=current_schema()AND(p.polname IN('assignment_target_purpose','assignment_target_delete')OR c.relname IN('iam_members','iam_subject_membership_epochs','iam_employment_bases','audit_events'));
  SELECT string_agg(format('(%L,%L)',p.oid::regprocedure::text,md5(pg_get_functiondef(p.oid))),',')INTO functions FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
  WHERE n.nspname=current_schema()AND p.proname IN('iam_staff_selection_context','iam_staff_selection_read','iam_staff_selection_audit');
  EXECUTE format($definition$CREATE FUNCTION iam_staff_selection_integrity()RETURNS boolean LANGUAGE sql STABLE AS $body$
  SELECT NOT EXISTS(SELECT 1 FROM(VALUES %s)expected(relation,name,digest)LEFT JOIN pg_policy p ON p.polrelid=expected.relation AND p.polname=expected.name
  WHERE p.oid IS NULL OR md5(p.polcmd::text||p.polpermissive::text||p.polroles::text||COALESCE(pg_get_expr(p.polqual,p.polrelid),'')||COALESCE(pg_get_expr(p.polwithcheck,p.polrelid),''))<>expected.digest)
- AND(SELECT count(*)FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=current_schema()AND(p.polname IN('assignment_target_read','assignment_target_purpose','assignment_target_delete')OR c.relname IN('iam_members','iam_subject_membership_epochs','iam_employment_bases','audit_events')))=%s
+ AND(SELECT count(*)FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=current_schema()AND(p.polname IN('assignment_target_purpose','assignment_target_delete')OR c.relname IN('iam_members','iam_subject_membership_epochs','iam_employment_bases','audit_events')))=%s
  AND NOT EXISTS(SELECT 1 FROM(VALUES %s)expected(name,digest)LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.name)WHERE p.oid IS NULL OR md5(pg_get_functiondef(p.oid))<>expected.digest)
  $body$ $definition$,policies,policy_count,functions);
 END $integrity$;

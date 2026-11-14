@@ -55,6 +55,28 @@ func TestGovernanceAssignmentProposalAdmissionUsesExactHospitalWithoutLegacyMana
 	require.NoError(t, json.Unmarshal(delegated.Body.Bytes(), &grantReceipt))
 	require.Equal(t, "provisional_active", grantReceipt.Status)
 
+	discovered := governanceRequest(router, http.MethodGet, "/v1/workforce/assignment-authority-scopes?limit=20", "reviewer", "")
+	require.Equal(t, http.StatusOK, discovered.Code, discovered.Body.String())
+	var choices struct {
+		Data []struct {
+			HospitalID uuid.UUID `json:"hospital_id"`
+			Name       string    `json:"name"`
+			CanManage  bool      `json:"can_manage"`
+			CanReview  bool      `json:"can_review"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(discovered.Body.Bytes(), &choices))
+	require.Len(t, choices.Data, 1)
+	require.Equal(t, hospital, choices.Data[0].HospitalID)
+	require.Equal(t, "Synthetic assignment governance hospital", choices.Data[0].Name)
+	require.True(t, choices.Data[0].CanManage)
+	require.True(t, choices.Data[0].CanReview)
+	hidden := governanceRequest(router, http.MethodGet, "/v1/workforce/assignment-authority-scopes?limit=20", "auditor", "")
+	require.Equal(t, http.StatusOK, hidden.Code, hidden.Body.String())
+	choices.Data = nil
+	require.NoError(t, json.Unmarshal(hidden.Body.Bytes(), &choices))
+	require.Empty(t, choices.Data, "coarse permission alone cannot disclose a hospital choice")
+
 	proposal := iam.ProposalInput{
 		HospitalID: hospital, Subject: "user-auditor", TemplateKey: "workforce.leave_reviewer.v1",
 		Reason: "Synthetic proposed leave review duty", ValidFrom: start, ExpiresAt: start.Add(12 * time.Hour),

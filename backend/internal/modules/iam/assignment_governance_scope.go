@@ -43,7 +43,7 @@ func assignmentGovernanceResult(evt events.Event) (workforcecontract.AssignmentG
 	if err != nil || tenant == uuid.Nil || tenant.String() != evt.TenantID || evt.Type != workforcecontract.SubjectAssignmentGovernanceScopeVerified || evt.Version != 1 || evt.DestinationTenantID != "" || len(evt.Data) > 2048 {
 		return result, errors.New("invalid native assignment scope envelope")
 	}
-	if governanceBody(evt.Data, []string{"proposal_id", "request_id", "hospital_id", "eligible"}) != nil {
+	if governanceRequiredBody(evt.Data, []string{"proposal_id", "request_id", "hospital_id", "eligible"}) != nil {
 		return result, errors.New("ambiguous native assignment scope result")
 	}
 	decoder := json.NewDecoder(bytes.NewReader(evt.Data))
@@ -52,8 +52,7 @@ func assignmentGovernanceResult(evt events.Event) (workforcecontract.AssignmentG
 		return result, errors.New("invalid native assignment scope result")
 	}
 	var extra any
-	var fields map[string]json.RawMessage
-	if !errors.Is(decoder.Decode(&extra), io.EOF) || json.Unmarshal(evt.Data, &fields) != nil || len(fields) != 4 || !bytes.Equal(bytes.TrimSpace(fields["eligible"]), []byte("true")) && !bytes.Equal(bytes.TrimSpace(fields["eligible"]), []byte("false")) || !validV7(result.ProposalID) || !validV7(result.RequestID) || result.HospitalID == uuid.Nil || result.HospitalID.Variant() != uuid.RFC4122 {
+	if !errors.Is(decoder.Decode(&extra), io.EOF) || !validV7(result.ProposalID) || !validV7(result.RequestID) || result.HospitalID == uuid.Nil || result.HospitalID.Variant() != uuid.RFC4122 {
 		return result, errors.New("invalid native assignment scope identity")
 	}
 	return result, nil

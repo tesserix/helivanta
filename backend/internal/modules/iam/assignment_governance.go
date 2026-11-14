@@ -19,6 +19,11 @@ import (
 //go:embed assignment_governance.sql
 var assignmentGovernanceSchema string
 
+const (
+	PermGovernanceAssignmentManage authz.Permission = "iam.governance.assignment.manage"
+	PermGovernanceAssignmentReview authz.Permission = "iam.governance.assignment.review"
+)
+
 type assignmentGovernanceProof struct {
 	TenantID          string                     `json:"tenant_id"`
 	HospitalID        uuid.UUID                  `json:"hospital_id"`
@@ -230,10 +235,17 @@ func assignmentGovernanceReplay(tx *gorm.DB, tenant string, row assignmentPropos
 func registerGovernanceAssignments(g *platform.Router, deps platform.Deps) {
 	h := &assignmentProposalHandlers{db: deps.DB, bus: deps.Bus, native: true, sources: deps.GovernanceSources}
 	root := "/hospitals/:hospital/assignment-proposals"
-	g.PUT(root+"/:id", PermAssignmentManage, h.put)
+	g.PUT(root+"/:id", PermGovernanceAssignmentManage, h.put)
 	g.GET(root+"/:id", authz.Public, h.get)
 	g.POST(root+"/:id/decision", authz.Public, h.decide)
 	platform.ResourceListRoute(g, root, authz.Public, 50, h.list)
 	platform.ResourceListRoute(g, root+"/:id/history", authz.Public, 50, h.history)
 	platform.ResourceListRoute(g, root+"/:id/decisions", authz.Public, 50, h.decisions)
+}
+
+func (h *assignmentProposalHandlers) proposalPrincipal(c *gin.Context) (authn.Principal, uuid.UUID, bool) {
+	if h.native {
+		return proposalScopeWithPermissions(c, PermGovernanceAssignmentManage, PermGovernanceAssignmentReview)
+	}
+	return proposalScope(c)
 }

@@ -91,5 +91,5 @@ var governanceTemplates = []GovernanceTemplateDefinition{
 	{Key: "workforce.employment_preparer.v1", Name: "Nonclinical employment review preparation", ScopeKinds: []string{"hospital"}, Permissions: []string{"workforce.employment.prepare"}},
 	{Key: "workforce.employment_reviewer.v1", Name: "Nonclinical employment independent review", ScopeKinds: []string{"hospital"}, Permissions: []string{"workforce.employment.review"}},
 	{Key: "workforce.employment_activator.v1", Name: "Nonclinical employment activation", ScopeKinds: []string{"hospital"}, Permissions: []string{"workforce.employment.activate"}},
-	{Key: "iam.scoped_access_reviewer.v1", Name: "Hospital scoped-access reviewer", ScopeKinds: []string{"hospital"}, Permissions: []string{"iam.assignment.manage", "iam.assignment.review"}},
+	{Key: "iam.scoped_access_reviewer.v1", Name: "Hospital scoped-access reviewer", ScopeKinds: []string{"hospital"}, Permissions: []string{"iam.governance.assignment.manage", "iam.governance.assignment.review"}},
 }

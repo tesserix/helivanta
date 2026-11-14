@@ -30,7 +30,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/hospitals/:hospital/assignment-proposals/:id/decisions` | `public` | true | false |
 | GET | `/v1/iam/hospitals/:hospital/assignment-proposals/:id/history` | `public` | true | false |
 | GET | `/v1/iam/hospitals/:hospital/assignment-proposals/:id` | `public` | false | false |
-| PUT | `/v1/iam/hospitals/:hospital/assignment-proposals/:id` | `iam.assignment.manage` | false | false |
+| PUT | `/v1/iam/hospitals/:hospital/assignment-proposals/:id` | `iam.governance.assignment.manage` | false | false |
 | GET | `/v1/iam/hospitals/:hospital/assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member/commands/:command` | `public` | false | false |
 | PUT | `/v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member/commands/:command` | `public` | false | false |

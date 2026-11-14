@@ -57,8 +57,8 @@ describes this consumer's admission gate. Its initial real-service run rejected
 an unknown template with 400 instead of 202. The candidate now implements the
 new admission and private settlement path, but has not passed that acceptance
 gate or been merged/deployed. The fixed hospital-only template is
-`iam.scoped_access_reviewer.v1`, containing `iam.assignment.manage` and
-`iam.assignment.review`. Its authority kind is nonclinical access governance.
+`iam.scoped_access_reviewer.v1`, containing `iam.governance.assignment.manage` and
+`iam.governance.assignment.review`. Its authority kind is nonclinical access governance.
 The existing current-owner or exact-grant, credential, membership-incarnation,
 owner-count and canonical topology requirements apply. A provisional grant
 remains subject to the accepted single-owner policy and independent review;

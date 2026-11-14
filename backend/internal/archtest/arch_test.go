@@ -609,6 +609,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /drugmaster/formulations/:id":                                             "one formulation version in force on one date",
 	"GET /drugmaster/products/:id":                                                 "one product version in force today",
 	"GET /drugmaster/products/by-gtin/:gtin":                                       "one product resolved by barcode",
+	"GET /iam/hospitals/:hospital/assignment-proposals/:id":                        "one canonical proposal selected by ID under current hospital governance authority; list/history/decisions use bounded resource cursors",
 	"GET /iam/assignment-proposals/:id":                                            "one tenant-scoped proposal by stable ID; lists and history are separately paginated",
 	"GET /patients/:id/registration-reference":                                     "one exact patient registration reference; not a collection; the HTTP projection test asserts its complete three-field object",
 	"GET /patients/proxy-authorities/:authority":                                   "one reviewed hospital-scoped proxy authority receipt",

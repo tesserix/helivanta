@@ -49,7 +49,7 @@ export const governanceTemplates = [
     key: "iam.scoped_access_reviewer.v1",
     name: "Hospital scoped-access reviewer",
     scope_kinds: ["hospital"],
-    permissions: ["iam.assignment.manage", "iam.assignment.review"],
+    permissions: ["iam.governance.assignment.manage", "iam.governance.assignment.review"],
   },
 ] as const;
 const identifier = z

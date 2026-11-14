@@ -62,7 +62,7 @@ func assignmentAccessFor(tx *gorm.DB, p authn.Principal) error {
 	return nil
 }
 func (h *assignmentProposalHandlers) decide(c *gin.Context) {
-	p, id, ok := proposalScope(c)
+	p, id, ok := h.proposalPrincipal(c)
 	if !ok {
 		return
 	}
@@ -89,6 +89,12 @@ func (h *assignmentProposalHandlers) decide(c *gin.Context) {
 	if in.Decision == "withdraw" {
 		permission = PermAssignmentManage
 		command = "withdraw"
+	}
+	if h.native {
+		permission = PermGovernanceAssignmentReview
+		if command == "withdraw" {
+			permission = PermGovernanceAssignmentManage
+		}
 	}
 	permissions, _ := authz.PermissionsFrom(c)
 	if !permissions.Has(permission) {
@@ -183,7 +189,7 @@ func (h *assignmentProposalHandlers) decide(c *gin.Context) {
 	respond.OK(c, saved.output())
 }
 func (h *assignmentProposalHandlers) decisions(c *gin.Context, params pagination.Params) ([]assignmentDecision, error) {
-	p, id, ok := proposalScope(c)
+	p, id, ok := h.proposalPrincipal(c)
 	if !ok {
 		return nil, nil
 	}

@@ -170,7 +170,7 @@
         {
           "method": "PUT",
           "path": "/v1/iam/hospitals/:hospital/assignment-proposals/:id",
-          "permission": "iam.assignment.manage",
+          "permission": "iam.governance.assignment.manage",
           "authentication_required": true,
           "membership_required": true,
           "paginated": false,
@@ -811,12 +811,20 @@
         },
         {
           "permission": "iam.assignment.manage",
+          "roles": []
+        },
+        {
+          "permission": "iam.governance.assignment.manage",
           "roles": [
             "governance_delegate"
           ]
         },
         {
           "permission": "iam.assignment.review",
+          "roles": []
+        },
+        {
+          "permission": "iam.governance.assignment.review",
           "roles": [
             "governance_delegate"
           ]
@@ -1271,7 +1279,7 @@
         },
         {
           "id": "0049_iam_assignment_governance",
-          "sql_sha256": "5e5e0a386d2fb5d27fc328b2fd204e52812c561b5ba881cf5c5854021d2f93b5",
+          "sql_sha256": "6e44315d6fe348e5916080b0ff454afa004df125254823061d98e4621ad2c55c",
           "creates_tables": [
             "iam_assignment_governance_requests",
             "iam_assignment_governance_verifications"

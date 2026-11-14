@@ -28,9 +28,9 @@ func TestGovernanceAssignmentProposalAdmissionUsesExactHospitalWithoutLegacyMana
 	router, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"admin": testutil.TenantA, "reviewer": testutil.TenantA, "auditor": testutil.TenantA},
 		Perms: map[string][]authz.Permission{
-			"admin":    {iam.PermGovernanceManage, iam.PermGovernanceRead, workforce.PermHospitalManage, iam.PermAssignmentManage, iam.PermAssignmentReview},
-			"reviewer": {iam.PermAssignmentManage, iam.PermAssignmentReview},
-			"auditor":  {iam.PermAssignmentManage, iam.PermAssignmentReview},
+			"admin":    {iam.PermGovernanceManage, iam.PermGovernanceRead, workforce.PermHospitalManage, iam.PermAssignmentManage, iam.PermAssignmentReview, iam.PermGovernanceAssignmentManage, iam.PermGovernanceAssignmentReview},
+			"reviewer": {iam.PermGovernanceAssignmentManage, iam.PermGovernanceAssignmentReview},
+			"auditor":  {iam.PermAssignmentManage, iam.PermAssignmentReview, iam.PermGovernanceAssignmentManage, iam.PermGovernanceAssignmentReview},
 		},
 		Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(native), workforce.New()},
 	})
@@ -66,6 +66,8 @@ func TestGovernanceAssignmentProposalAdmissionUsesExactHospitalWithoutLegacyMana
 	root := "/v1/iam/hospitals/" + hospital.String() + "/assignment-proposals"
 	path := root + "/" + id
 	denied := governanceRequest(router, http.MethodPut, legacy, "reviewer", string(body))
+	require.Equal(t, http.StatusForbidden, denied.Code, denied.Body.String())
+	denied = governanceRequest(router, http.MethodPut, legacy, "auditor", string(body))
 	require.Equal(t, http.StatusForbidden, denied.Code, denied.Body.String())
 	denied = governanceRequest(router, http.MethodPut, path, "auditor", string(body))
 	require.Equal(t, http.StatusForbidden, denied.Code, denied.Body.String())
@@ -127,7 +129,7 @@ func TestGovernanceAssignmentDepartmentRetirementCannotUseRetainedOwnerApproval(
 	router, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"admin": testutil.TenantA},
 		Perms: map[string][]authz.Permission{"admin": {
-			workforce.PermHospitalManage, iam.PermAssignmentManage, iam.PermAssignmentReview, organization.PermStructureManage,
+			workforce.PermHospitalManage, iam.PermAssignmentManage, iam.PermAssignmentReview, iam.PermGovernanceAssignmentManage, iam.PermGovernanceAssignmentReview, organization.PermStructureManage,
 		}},
 		Modules: []platform.Module{iam.New(nil), owner, organization.New()},
 	})
@@ -255,8 +257,8 @@ func TestGovernanceAssignmentDecisionRechecksOriginalSourceAfterOwnerAnswer(t *t
 		Writer: graph, Roles: graph, Membership: graph,
 		Tokens: map[string]string{"admin": testutil.TenantA, "reviewer": testutil.TenantA},
 		Perms: map[string][]authz.Permission{
-			"admin":    {iam.PermGovernanceManage, iam.PermGovernanceReview, workforce.PermHospitalManage, iam.PermAssignmentManage, iam.PermAssignmentReview},
-			"reviewer": {iam.PermAssignmentManage, iam.PermAssignmentReview},
+			"admin":    {iam.PermGovernanceManage, iam.PermGovernanceReview, workforce.PermHospitalManage, iam.PermAssignmentManage, iam.PermAssignmentReview, iam.PermGovernanceAssignmentManage, iam.PermGovernanceAssignmentReview},
+			"reviewer": {iam.PermGovernanceAssignmentManage, iam.PermGovernanceAssignmentReview},
 		},
 		Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(native), owner},
 	})

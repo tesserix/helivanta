@@ -144,6 +144,10 @@ func proposalSubject(s string) bool {
 	return utf8.ValidString(s) && utf8.RuneCountInString(s) > 0 && utf8.RuneCountInString(s) <= 200 && !strings.ContainsAny(s, "*#:\x00") && strings.IndexFunc(s, unicode.IsSpace) < 0
 }
 func proposalScope(c *gin.Context) (authn.Principal, uuid.UUID, bool) {
+	return proposalScopeWithPermissions(c, PermAssignmentManage, PermAssignmentReview)
+}
+
+func proposalScopeWithPermissions(c *gin.Context, manage, review authz.Permission) (authn.Principal, uuid.UUID, bool) {
 	c.Header("Cache-Control", "no-store")
 	p, _, ok := authn.TenantPrincipal(c)
 	if !ok {
@@ -158,7 +162,7 @@ func proposalScope(c *gin.Context) (authn.Principal, uuid.UUID, bool) {
 		return p, uuid.Nil, false
 	}
 	permissions, _ := authz.PermissionsFrom(c)
-	if !permissions.Has(PermAssignmentManage) && !permissions.Has(PermAssignmentReview) {
+	if !permissions.Has(manage) && !permissions.Has(review) {
 		respond.Forbidden(c, "Proposal access is not permitted.")
 		return p, uuid.Nil, false
 	}
@@ -211,7 +215,7 @@ func proposalError(c *gin.Context, err error) {
 var errProposalConflict = errors.New("proposal conflict")
 
 func (h *assignmentProposalHandlers) put(c *gin.Context) {
-	p, id, ok := proposalScope(c)
+	p, id, ok := h.proposalPrincipal(c)
 	if !ok {
 		return
 	}
@@ -333,7 +337,7 @@ func sameProposal(a, b ProposalInput) bool {
 	return sameTimes && sameDepartment && a == b
 }
 func (h *assignmentProposalHandlers) get(c *gin.Context) {
-	p, id, ok := proposalScope(c)
+	p, id, ok := h.proposalPrincipal(c)
 	if !ok {
 		return
 	}
@@ -351,7 +355,7 @@ func (h *assignmentProposalHandlers) get(c *gin.Context) {
 	respond.OK(c, row.output())
 }
 func (h *assignmentProposalHandlers) history(c *gin.Context, params pagination.Params) ([]assignmentProposalHistory, error) {
-	p, id, ok := proposalScope(c)
+	p, id, ok := h.proposalPrincipal(c)
 	if !ok {
 		return nil, nil
 	}
@@ -542,7 +546,7 @@ func (h *assignmentProposalHandlers) listPharmacyBinding(c *gin.Context, params 
 }
 
 func (h *assignmentProposalHandlers) listFamily(c *gin.Context, params pagination.Params, family string) ([]assignmentProposal, error) {
-	p, _, ok := proposalScope(c)
+	p, _, ok := h.proposalPrincipal(c)
 	if !ok {
 		return nil, nil
 	}

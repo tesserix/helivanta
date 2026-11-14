@@ -24,12 +24,8 @@ func proposalDepartmentScopeConsumer(deps platform.Deps) events.Consumer {
 		if err != nil || tenant == uuid.Nil || tenant.String() != evt.TenantID || evt.Type != subject || evt.Version != 1 || evt.DestinationTenantID != "" || len(evt.Data) > 2048 {
 			return errors.New("invalid assignment department envelope")
 		}
-		if governanceBody(evt.Data, []string{"proposal_id", "request_id", "hospital_id", "department_id", "eligible"}) != nil {
+		if governanceRequiredBody(evt.Data, []string{"proposal_id", "request_id", "hospital_id", "department_id", "eligible"}) != nil {
 			return errors.New("ambiguous assignment department result")
-		}
-		var fields map[string]json.RawMessage
-		if json.Unmarshal(evt.Data, &fields) != nil || len(fields) != 5 {
-			return errors.New("incomplete assignment department result")
 		}
 		var result organizationcontract.AssignmentDepartmentVerifiedData
 		d := json.NewDecoder(bytes.NewReader(evt.Data))

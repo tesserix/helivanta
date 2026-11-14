@@ -113,7 +113,7 @@ it("keeps the versioned governance bundles free of operating authority", () => {
     {
       key: "iam.scoped_access_reviewer.v1",
       scope_kinds: ["hospital"],
-      permissions: ["iam.assignment.manage", "iam.assignment.review"],
+      permissions: ["iam.governance.assignment.manage", "iam.governance.assignment.review"],
     },
   ]);
 });

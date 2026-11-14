@@ -22,7 +22,10 @@ IAM0049 adds a private request/provenance and owner-answer ledger. The fixed
 hospital-only `iam.scoped_access_reviewer.v1` grants nonclinical assignment
 management/review authority. Admission requires a current native tenant owner or
 the exact current hospital grant through the existing guarded governance source.
-Coarse `governance_delegate` permissions alone cannot admit a command. Ordinary
+The separate coarse gates are `iam.governance.assignment.manage` and
+`iam.governance.assignment.review`; the older `iam.assignment.manage` and
+`iam.assignment.review` remain owner-only, including their partner-group and
+legacy consumers. Coarse `governance_delegate` permissions alone cannot admit a command. Ordinary
 assignment endpoints, customer onboarding and owner security retain their
 owner-only admission; this template grants no owner security or clinical role.
 

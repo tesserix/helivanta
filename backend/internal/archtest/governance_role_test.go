@@ -11,6 +11,7 @@ import (
 func TestGovernanceRoutingRoleCannotConferOperatingAuthority(t *testing.T) {
 	allowed := map[authz.Permission]bool{
 		"iam.governance.read": true, "iam.governance.review": true,
+		"iam.governance.assignment.manage": true, "iam.governance.assignment.review": true,
 		"workforce.login_links.review": true, "workforce.independent_login.review": true,
 		"workforce.identity_checks.manage": true, "workforce.identity_checks.review": true,
 		"workforce.employment.prepare": true, "workforce.employment.review": true, "workforce.employment.activate": true,

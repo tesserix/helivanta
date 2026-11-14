@@ -79,13 +79,13 @@ BEGIN
   IF p.version<>1 OR p.status<>'pending_scope' OR p.proposed_by<>NEW.actor_subject THEN
    RAISE EXCEPTION 'native assignment origin required' USING ERRCODE='23514';
   END IF;
-  expected_capability:='iam.assignment.manage';
+  expected_capability:='iam.governance.assignment.manage';
  ELSE
   SELECT * INTO d FROM iam_assignment_decisions WHERE tenant_id=NEW.tenant_id AND proposal_id=NEW.proposal_id AND request_id=NEW.request_id AND result_version=NEW.proposal_version;
   IF NOT FOUND OR d.actor_subject<>NEW.actor_subject THEN
    RAISE EXCEPTION 'native assignment decision required' USING ERRCODE='23514';
   END IF;
-  expected_capability:=CASE WHEN d.decision='withdraw' THEN 'iam.assignment.manage' ELSE 'iam.assignment.review' END;
+  expected_capability:=CASE WHEN d.decision='withdraw' THEN 'iam.governance.assignment.manage' ELSE 'iam.governance.assignment.review' END;
  END IF;
  IF NOT iam_assignment_governance_authority_current(proof,NEW.tenant_id,NEW.hospital_id,NEW.actor_subject,expected_capability) THEN
   RAISE EXCEPTION 'native assignment requires exact current governance source' USING ERRCODE='42501';

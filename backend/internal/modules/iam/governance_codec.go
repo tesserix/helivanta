@@ -23,6 +23,12 @@ func DecodeGovernanceGrant(raw []byte) (GovernanceGrantInput, error) {
 }
 
 func governanceBody(raw []byte, fields []string) error {
+	return governanceBodyFields(raw, fields, false)
+}
+func governanceRequiredBody(raw []byte, fields []string) error {
+	return governanceBodyFields(raw, fields, true)
+}
+func governanceBodyFields(raw []byte, fields []string, required bool) error {
 	if len(raw) > governanceMaxRequestBytes || !utf8.Valid(raw) {
 		return errGovernanceInput
 	}
@@ -58,6 +64,9 @@ func governanceBody(raw []byte, fields []string) error {
 		return errGovernanceInput
 	}
 	if _, err := decoder.Token(); err != io.EOF {
+		return errGovernanceInput
+	}
+	if required && len(seen) != len(fields) {
 		return errGovernanceInput
 	}
 	return nil

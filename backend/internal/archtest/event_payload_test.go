@@ -464,6 +464,13 @@ var eventPayloadReviewedNonPHI = map[string]string{
 
 	"mediconnect.AccountCreatedData.AccountID":                   "internally minted opaque account UUID; no subject, contact, patient linkage or clinical content; resolution requires owner authorization",
 	"iam.AssignmentProjectionRequestedData.ProposalID":           "opaque IAM proposal reference; worker rereads current scope without publishing subject or permissions",
+	"iam.AssignmentGovernanceScopeRequestedData.ProposalID":      "opaque IAM authorization proposal correlation; no patient, subject, profile, terms or evidence payload",
+	"iam.AssignmentGovernanceScopeRequestedData.RequestID":       "opaque owner-verification command correlation used for replay isolation; never bearer authority",
+	"iam.AssignmentGovernanceScopeRequestedData.HospitalID":      "opaque establishment resource key for a same-tenant canonical hospital existence/type check; no name, address or patient linkage",
+	"workforce.AssignmentGovernanceScopeVerifiedData.ProposalID": "opaque IAM authorization proposal correlation; no patient, subject, profile, terms or evidence payload",
+	"workforce.AssignmentGovernanceScopeVerifiedData.RequestID":  "opaque owner-verification command correlation used for replay isolation; never bearer authority",
+	"workforce.AssignmentGovernanceScopeVerifiedData.HospitalID": "opaque establishment resource key for a same-tenant canonical hospital existence/type check; no name, address or patient linkage",
+	"workforce.AssignmentGovernanceScopeVerifiedData.Eligible":   "explicit canonical hospital existence/type verdict, not clinical eligibility, patient status or an authorization grant",
 	"iam.AssignmentScopeRequestedData.ProposalID":                "opaque IAM proposal correlation; no target identity or reason",
 	"iam.AssignmentScopeRequestedData.RequestID":                 "opaque owner-verification correlation, never authority",
 	"iam.AssignmentScopeRequestedData.HospitalID":                "opaque owner scope reference",

@@ -31,6 +31,8 @@ jobs:
   supplier:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    outputs:
+      staff_lifecycle_outcome: ${{ steps.staff_lifecycle.outcome }}
     defaults:
       run:
         working-directory: backend
@@ -72,7 +74,27 @@ jobs:
       - name: Supplier grant projection isolation
         run: go test -race ./pkg/authz -run '^TestPartnerAssignment'
       - name: Current hospital Staff recipient and membership cutoff
+        id: staff_lifecycle
         run: go test -race -timeout 35m ./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'
+  posting-diagnostics:
+    needs: supplier
+    if: ${{ failure() && needs.supplier.outputs.staff_lifecycle_outcome == 'failure' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      GOTOOLCHAIN: local
+      HELIVANTA_TEST_POSTGRES_TRACK_FUNCTIONS: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Diagnostic full lifecycle with canonical function timings
+        run: go test -race -count=1 -timeout 35m -v ./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'
   api-client:
     runs-on: ubuntu-latest
     timeout-minutes: 10

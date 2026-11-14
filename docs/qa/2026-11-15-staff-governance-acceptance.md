@@ -206,3 +206,31 @@ Read-only live recheck at 2026-11-14 18:16 UTC confirmed account
 `gke_tesseracthub-480811_asia-south1_tesseract-prod-in-gke`, namespace `helivanta`.
 All Helivanta Argo applications were Synced/Healthy; Kargo was Healthy and the
 application workloads remained ready on `0a1fad14`. No live mutation occurred.
+
+### Conditional full-lifecycle database diagnosis
+
+A separate CI job now runs only when the ordinary supplier job's original full
+Staff lifecycle step fails. It reruns that entire unchanged test with explicit
+PostgreSQL function tracking; the ordinary acceptance job keeps tracking disabled.
+The diagnostic emits at most 30 function counters sorted by self time, admits only
+function names declared by the canonical Workforce migration sources, and rejects
+unknown names, negative/unsafe counts and nonfinite/invalid durations. It emits no
+SQL, bind values, proof, person labels or row contents. Other testinfra settings
+and production configuration are unchanged.
+
+These counters are aggregate fixture measurements, not per-request attribution.
+Tracking can affect execution cost; a diagnostic pass cannot replace the ordinary
+cold lifecycle gate. Both use the same original assertions, fault/race scenarios,
+source predicates and five-second authority budget. The diagnostic job is temporary
+investigation code to remove once the source of the measured cost is repaired.
+
+### Qualified department owner runtime acceptance at `8b622a0b`
+
+CI43627091553 Go job132545330831 passed the full Staff governance boundary
+step at 18:40:52 UTC and the dedicated department-selection integration step at
+18:41:08 UTC. The corrected real Global API/IAM/Workforce/Organization test now
+passes all its original positive, scope/cursor, audit, revocation, registration,
+RLS/policy-support and master-write-denial assertions. This closes the backend
+runtime test for that endpoint, not native hospital preparation UI, full Go/CI,
+identity-owner deployment or full Staff/operating acceptance. Other jobs were
+still running when the subsequent diagnostic commit was prepared.

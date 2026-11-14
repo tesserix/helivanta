@@ -697,7 +697,7 @@ describe("CounterSale", () => {
     const visits = await screen.findByRole("combobox", { name: "For the OPD visit" });
     expect(visits).toHaveTextContent("Not for a visit");
     // When the visit opened, in the outlet's time zone (05:00 UTC is 10:30 IST).
-    await chooseOption(user, visits, /Visit opened 4 Nov 2026, 10:30 am, consultation over/);
+    await chooseOption(user, visits, /Visit opened 4 Nov 2026, 10:30 am, consultation over/i);
     await user.click(screen.getByRole("button", { name: "Post sale" }));
     await screen.findByRole("heading", { name: "Tax invoice TS/2627/1" });
     const put = fetcher.mock.calls.find(

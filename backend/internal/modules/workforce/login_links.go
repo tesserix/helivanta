@@ -1,6 +1,7 @@
 package workforce
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -85,22 +86,31 @@ func (h *handlers) loginCandidate(c *gin.Context, p authn.Principal, subject str
 }
 
 func (h *handlers) loginLinkTransaction(c *gin.Context, p authn.Principal, hospital, staffID uuid.UUID, command string, fn func(*gorm.DB, staff) error) error {
-	return h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
-		if err := requireStaffAccess(tx, p.TenantID, hospital, true); err != nil {
-			return err
-		}
-		if err := tx.Exec(`SELECT set_config('app.workforce_login_link_access','authorized',true),set_config('app.workforce_login_link_command',?,true)`, command).Error; err != nil {
-			return err
-		}
-		query := tx.Table("workforce_staff").Select(staffColumns).Where("tenant_id=? AND hospital_id=? AND id=?", p.TenantID, hospital, staffID)
-		if command != "" {
-			query = query.Clauses(clause.Locking{Strength: "UPDATE"})
-		}
-		var person staff
-		if err := query.Take(&person).Error; err != nil {
-			return err
-		}
-		return fn(tx, person)
+	root := establishment{kind: hospitalEstablishmentKind, id: hospital}
+	return h.withAccountLinkAuthority(c, p, root, staffID, command, func(commandCtx context.Context, source *authz.GovernanceSourceEvidence) error {
+		return h.transaction(commandCtx, p, hospital, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.workforce_login_link_access','authorized',true),set_config('app.workforce_login_link_command',?,true)`, command).Error; err != nil {
+				return err
+			}
+			if source == nil {
+				if err := requireStaffAccess(tx, p.TenantID, hospital, true); err != nil {
+					return err
+				}
+			} else if err := prepareLoginReviewPurpose(c, tx, p, root, staffID, command, *source); err != nil {
+				return err
+			}
+			query := tx.Table("workforce_staff").Select(staffColumns).Where("tenant_id=? AND hospital_id=? AND id=?", p.TenantID, hospital, staffID)
+			if source != nil {
+				query = query.Select("id,employment_status,version").Clauses(clause.Locking{Strength: "SHARE"})
+			} else if command != "" {
+				query = query.Clauses(clause.Locking{Strength: "UPDATE"})
+			}
+			var person staff
+			if err := query.Take(&person).Error; err != nil {
+				return err
+			}
+			return fn(tx, person)
+		})
 	})
 }
 
@@ -134,7 +144,28 @@ func (h *handlers) publishLoginLink(tx *gorm.DB, p authn.Principal, hospital uui
 }
 
 func respondLoginLinkError(c *gin.Context, err error) {
+	if errors.Is(err, authz.ErrScopedCommandDenied) {
+		respond.Forbidden(c, "A current owner or account-link review source is required")
+		return
+	}
+	if errors.Is(err, authz.ErrScopedCredentialRevoked) {
+		respond.Error(c, 401, "session_expired", "Sign in again before continuing.")
+		return
+	}
+	if errors.Is(err, authz.ErrScopedAuthorizationUnavailable) {
+		respond.Error(c, 503, "authority_unavailable", "Account-link authority is temporarily unavailable.")
+		return
+	}
+	if errors.Is(err, authz.ErrGovernanceScopeHidden) {
+		respond.NotFound(c, "staff account link")
+		return
+	}
+
 	var pg *pgconn.PgError
+	if errors.As(err, &pg) && pg.Code == "23514" && pg.ConstraintName == "workforce_login_review_independent" {
+		respond.Forbidden(c, "A different independent person must review this account link")
+		return
+	}
 	if errors.As(err, &pg) && pg.Code == "23514" && pg.ConstraintName == "workforce_login_generation" {
 		respond.Error(c, 409, "employment_generation_changed", "Review the current digital employment generation before creating or approving a new login link.")
 		return

@@ -15,7 +15,8 @@ const pageContract = z
   })
   .strict();
 
-export async function listEmploymentReviewScopes(
+async function listEmploymentScopes(
+  route: "employment-review-scopes" | "employment-review-authority-scopes",
   workspace: Pick<PersonReviewScope, "tenantId" | "subject">,
   cursor: string | null = null,
   signal?: AbortSignal,
@@ -23,7 +24,7 @@ export async function listEmploymentReviewScopes(
   signal?.throwIfAborted();
   const query = new URLSearchParams({ limit: "20" });
   if (cursor !== null) query.set("cursor", z.string().min(1).max(2048).parse(cursor));
-  const response = await apiFetch<unknown>(`/workforce/employment-review-scopes?${query}`, {
+  const response = await apiFetch<unknown>(`/workforce/${route}?${query}`, {
     ...personReviewRequest(workspace),
     signal,
   });
@@ -38,4 +39,20 @@ export async function listEmploymentReviewScopes(
       "The employment-review hospital list could not be verified. Refresh before continuing.",
     );
   return parsed.data;
+}
+
+export function listEmploymentReviewScopes(
+  workspace: Pick<PersonReviewScope, "tenantId" | "subject">,
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  return listEmploymentScopes("employment-review-scopes", workspace, cursor, signal);
+}
+
+export function listEmploymentReviewAuthorityScopes(
+  workspace: Pick<PersonReviewScope, "tenantId" | "subject">,
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  return listEmploymentScopes("employment-review-authority-scopes", workspace, cursor, signal);
 }

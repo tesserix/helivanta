@@ -79,6 +79,10 @@ jobs:
           staff_schema=$(mktemp "$RUNNER_TEMP/staff-owner-schema.XXXXXX.sql")
           bash scripts/ci/fetch-staff-identity-schema.sh "$staff_schema"
           printf 'STAFF_IDENTITY_OWNER_SCHEMA=%s\n' "$staff_schema" >> "$GITHUB_ENV"
+      - name: Staff governance input boundaries
+        run: |
+          go test -race ./internal/modules/iam ./internal/modules/workforce -run '^TestGovernance'
+          go test -race ./internal/bootstrap -run '^TestGovernance'
       - name: Customer onboarding authority and replay
         run: |
           go test -race ./internal/customeronboarding
@@ -140,6 +144,8 @@ jobs:
               sleep 0.2
             done' > /dev/null 2>&1 &
       - run: bash ./scripts/coverage-gate.test.sh
+      - name: Document scan worker and finding isolation
+        run: go test -race -count=1 ./internal/modules/workforce -run '^(TestStaffDocumentUploadPinsBytesAndPublishesOneScanIntent|TestGovernanceFindingFileIsolationSurvivesGuardRollback)$'
       - run: ./scripts/coverage-gate.sh
       # The drug master's latency target (#476 spec D8), measured alone: the
       # gate above runs every package in parallel under -race, where a
@@ -235,6 +241,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Verify shared emergency dispatch contract
         run: node scripts/generate-emergency-dispatch.mjs --check
+      - name: Verify Staff governance contracts
+        run: |
+          node scripts/generate-staff-governance.mjs --check
+          node --test scripts/staff-governance-contract.test.mjs
       - name: Verify Staff directory editing contract
         run: node scripts/generate-workforce-directory.mjs --check
       - name: Verify Workforce establishment contract

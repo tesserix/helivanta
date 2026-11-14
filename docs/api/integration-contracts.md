@@ -120,3 +120,29 @@ Use additive compatible changes within a subject version. Required new fields, r
 For multi-step work with waits, preserve the existing Temporal direction. Define workflow IDs, activity idempotency, deadlines, human signals, compensation before irreversible actions and reconciliation after them. No new orchestrator or deployed service is introduced by these docs. Follow [#667](https://github.com/tesserix/helivanta/issues/667), [#485](https://github.com/tesserix/helivanta/issues/485), [#5](https://github.com/tesserix/helivanta/issues/5), [#6](https://github.com/tesserix/helivanta/issues/6) and [#710](https://github.com/tesserix/helivanta/issues/710).
 
 The [department handoff candidate](workforce-department-links.md) uses Workforce request/Organization observation messages with retained full identifier claims, explicit boolean results, duplicate recovery and atomic audit/outbox. It does not publish Staff data or grant operating authority.
+
+#### Governance employment-basis source candidate
+
+IAM owns the callback-only `authz.GovernanceEmploymentActivationGuard`; Workforce
+is its intended consumer after exact approved person/employment-source and
+independence validation. The caller supplies its verified principal, canonical
+hospital and selected Staff ID, never client assertions of authority. Scope is
+copied before checking current owner/exact activator grant. A person/auditor or
+account-link source cannot substitute. Employment preparation/review/activation
+are separate hospital-only capabilities and confer no operating permission.
+
+The exclusive IAM employment-basis gate precedes owner/credential/product locks.
+The context-bound writer is usable only during that callback, for its selected
+Staff and tenant/hospital, and requires actual ordinary target membership; only
+the additional nonclinical governance routing role is allowed. IAM0048 records
+immutable private source proof against the exact generation. Missing or disabled
+recording support refuses the product callback. A product error rolls back basis,
+source proof, history and audit together. This is not an async capability or an
+independently reusable source snapshot.
+
+Duplicate commands must reread current source and return the original immutable
+product receipt without creating another generation. Workforce consumer RLS,
+provenance, discovery, UI and post-I/O revalidation remain required before live
+adoption. Compile and pure unit results do not establish this boundary's database
+or browser acceptance. New IAM0048 live migration approval is not inferred from
+prior IAM0047/WF0102/WF0103 approvals.

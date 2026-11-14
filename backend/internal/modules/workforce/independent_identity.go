@@ -1,6 +1,7 @@
 package workforce
 
 import (
+	"context"
 	"crypto/sha256"
 	_ "embed"
 	"encoding/hex"
@@ -81,28 +82,36 @@ func independentIdentityScope(p authn.Principal, root establishment, staffID uui
 	return IndependentIdentityScope{OwnerTenantID: uuid.MustParse(p.TenantID), EmployerKind: root.kind, EmployerID: root.id, StaffID: staffID}
 }
 func (h *handlers) independentTransaction(c *gin.Context, p authn.Principal, root establishment, staffID uuid.UUID, command string, fn func(*gorm.DB, staff) error) error {
-	return h.transaction(c.Request.Context(), p, root.id, func(tx *gorm.DB) error {
-		if err := root.requireKind(tx, p.TenantID); err != nil {
-			return err
-		}
-		if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended(?,0))`, "workforce.independent_identity:"+p.TenantID+":"+root.id.String()).Error; err != nil {
-			return err
-		}
-		if err := lockDirectoryManager(tx, p, root.id); err != nil {
-			return err
-		}
-		if err := tx.Exec(`SELECT set_config('app.workforce_login_link_access','authorized',true),set_config('app.workforce_login_link_command',?,true)`, command).Error; err != nil {
-			return err
-		}
-		query := tx.Table("workforce_staff").Select(staffColumns+",version").Where("tenant_id=? AND hospital_id=? AND id=?", p.TenantID, root.id, staffID)
-		if command != "" {
-			query = query.Clauses(clause.Locking{Strength: "UPDATE"})
-		}
-		var person staff
-		if err := query.Take(&person).Error; err != nil {
-			return err
-		}
-		return fn(tx, person)
+	return h.withAccountLinkAuthority(c, p, root, staffID, command, func(commandCtx context.Context, source *authz.GovernanceSourceEvidence) error {
+		return h.transaction(commandCtx, p, root.id, func(tx *gorm.DB) error {
+			if err := root.requireKind(tx, p.TenantID); err != nil {
+				return err
+			}
+			if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended(?,0))`, "workforce.independent_identity:"+p.TenantID+":"+root.id.String()).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec(`SELECT set_config('app.workforce_login_link_access','authorized',true),set_config('app.workforce_login_link_command',?,true)`, command).Error; err != nil {
+				return err
+			}
+			if source == nil {
+				if err := lockDirectoryManager(tx, p, root.id); err != nil {
+					return err
+				}
+			} else if err := prepareLoginReviewPurpose(c, tx, p, root, staffID, command, *source); err != nil {
+				return err
+			}
+			query := tx.Table("workforce_staff").Select(staffColumns+",version").Where("tenant_id=? AND hospital_id=? AND id=?", p.TenantID, root.id, staffID)
+			if source != nil {
+				query = query.Select("id,employment_status,version").Clauses(clause.Locking{Strength: "SHARE"})
+			} else if command != "" {
+				query = query.Clauses(clause.Locking{Strength: "UPDATE"})
+			}
+			var person staff
+			if err := query.Take(&person).Error; err != nil {
+				return err
+			}
+			return fn(tx, person)
+		})
 	})
 }
 
@@ -112,7 +121,7 @@ func independentError(c *gin.Context, err error) {
 		respond.Error(c, 409, "link_conflict", "Refresh the Staff identity and account link before continuing.")
 		return
 	}
-	respondError(c, err)
+	respondLoginLinkError(c, err)
 }
 func (h *handlers) independentCandidate(c *gin.Context, p authn.Principal, subject string) bool {
 	if h.membership == nil {

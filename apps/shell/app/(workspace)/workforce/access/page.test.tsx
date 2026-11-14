@@ -4,6 +4,11 @@ import { renderWithProviders } from "@helivanta/api/testing";
 import { staffAccessTemplates, staffAccessTemplateCatalogs } from "@helivanta/api";
 import { NavigationGuardProvider } from "@helivanta/ui";
 import AccessPage from "./page";
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => "/workforce/access",
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 const tenant = "11111111-1111-4111-8111-111111111111";
 const hospital = "22222222-2222-4222-8222-222222222222";
@@ -1635,4 +1640,74 @@ it("keeps a department assignment's scope when its department read is refused", 
     await screen.findByText(`Applies to: department ${pharmacy}. Its name isn't available to you.`),
   ).toBeInTheDocument();
   expect(screen.queryByText(/secret/)).not.toBeInTheDocument();
+});
+
+it("opens the owner governance inbox without requiring assignment permissions", async () => {
+  setup("synthetic-owner", [], ["iam.governance.manage", "iam.governance.read"]);
+  renderWithProviders(<AccessPage />);
+  expect(await screen.findByText("No governance notices.")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Propose assignment" })).not.toBeInTheDocument();
+});
+
+it("opens hospital assignment discovery for a native reviewer without legacy administrator permissions", async () => {
+  const calls: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      calls.push(url);
+      if (url.includes("/iam/me/permissions"))
+        return Response.json({
+          tenant_id: tenant,
+          subject: "synthetic-native-reviewer",
+          data: ["iam.governance.assignment.review"],
+        });
+      if (url.includes("assignment-authority-scopes"))
+        return Response.json(
+          page([
+            {
+              hospital_id: hospital,
+              name: "Synthetic named hospital",
+              can_manage: false,
+              can_review: true,
+            },
+          ]),
+        );
+      return Response.json(
+        { error: { code: "unexpected", message: "Unexpected legacy request" } },
+        { status: 403 },
+      );
+    }),
+  );
+  renderWithProviders(<AccessPage />);
+  expect(
+    await screen.findByRole("button", { name: "Open Synthetic named hospital" }),
+  ).toBeInTheDocument();
+  expect(
+    calls.some(
+      (url) => url.includes("/staff-access-templates") || url.includes("/iam/assignment-proposals"),
+    ),
+  ).toBe(false);
+  expect(screen.queryByRole("button", { name: "Propose assignment" })).not.toBeInTheDocument();
+});
+
+it("links an operating-only delegate to independent Staff access without legacy grants", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      Response.json({
+        tenant_id: tenant,
+        subject: "synthetic-operating-delegate",
+        data: ["iam.governance.operating.manage"],
+      }),
+    ),
+  );
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  expect(await screen.findByRole("link", { name: "Independent Staff access" })).toHaveAttribute(
+    "href",
+    "/workforce/operating-access",
+  );
 });

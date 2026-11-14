@@ -22,6 +22,18 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/employment-activation-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/employment-assignment-proposals` | `public` | true | false |
+| PUT | `/v1/iam/governance-grants/:id/decisions/:command` | `iam.governance.review` | false | false |
+| GET | `/v1/iam/governance-grants/:id` | `iam.governance.read` | false | false |
+| PUT | `/v1/iam/governance-grants/:id` | `iam.governance.manage` | false | false |
+| GET | `/v1/iam/governance-notices` | `iam.governance.read` | true | false |
+| GET | `/v1/iam/hospitals/:hospital/assignment-proposals/:id/account` | `public` | false | false |
+| POST | `/v1/iam/hospitals/:hospital/assignment-proposals/:id/decision` | `public` | false | false |
+| GET | `/v1/iam/hospitals/:hospital/assignment-proposals/:id/decisions` | `public` | true | false |
+| GET | `/v1/iam/hospitals/:hospital/assignment-proposals/:id/history` | `public` | true | false |
+| GET | `/v1/iam/hospitals/:hospital/assignment-proposals/:id` | `public` | false | false |
+| PUT | `/v1/iam/hospitals/:hospital/assignment-proposals/:id` | `iam.governance.assignment.manage` | false | false |
+| GET | `/v1/iam/hospitals/:hospital/assignment-proposals` | `public` | true | false |
+| GET | `/v1/iam/hospitals/:hospital/assignment-templates` | `public` | false | false |
 | GET | `/v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member/commands/:command` | `public` | false | false |
 | PUT | `/v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member/commands/:command` | `public` | false | false |
 | GET | `/v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member` | `public` | false | false |
@@ -59,6 +71,13 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/operating-duties/:id` | `iam.operating.read` | false | false |
 | PUT | `/v1/iam/operating-duties/:id` | `iam.operating.prepare` | false | false |
 | GET | `/v1/iam/operating-employers/:kind/:employer/staff/:staff/duties` | `iam.operating.read` | true | false |
+| GET | `/v1/iam/operating-governance-employers/:kind/:employer/duties/:id/commands/:command` | `iam.governance.operating.manage` | false | false |
+| PUT | `/v1/iam/operating-governance-employers/:kind/:employer/duties/:id/commands/:command` | `public` | false | false |
+| GET | `/v1/iam/operating-governance-employers/:kind/:employer/duties/:id/proposal-receipt` | `iam.governance.operating.manage` | false | false |
+| GET | `/v1/iam/operating-governance-employers/:kind/:employer/duties/:id` | `iam.governance.operating.manage` | false | false |
+| PUT | `/v1/iam/operating-governance-employers/:kind/:employer/duties/:id` | `iam.governance.operating.manage` | false | false |
+| GET | `/v1/iam/operating-governance-employers/:kind/:employer/location-choices` | `iam.governance.operating.manage` | true | false |
+| GET | `/v1/iam/operating-governance-employers/:kind/:employer/staff/:staff/duties` | `iam.governance.operating.manage` | true | false |
 | GET | `/v1/iam/partner-grant-drafts/:id` | `iam.assignment.manage` | false | false |
 | PUT | `/v1/iam/partner-grant-drafts/:id` | `iam.assignment.manage` | false | false |
 | GET | `/v1/iam/partner-grant-drafts` | `iam.assignment.manage` | true | false |
@@ -94,6 +113,7 @@ Published subjects:
 - `helivanta.in.iam.partner_group_changed.v1`
 - `helivanta.in.iam.partner_group_member_changed.v1`
 - `helivanta.in.iam.assignment_scope_requested.v1`
+- `helivanta.in.iam.assignment_governance_scope_requested.v1`
 - `helivanta.in.iam.assignment_department_scope_requested.v1`
 - `helivanta.in.iam.assignment_projection_requested.v1`
 - `helivanta.in.iam.member_granted.v1`
@@ -105,7 +125,8 @@ Subscriptions:
 - `iam-supplier-grant-exchange` ← `helivanta.in.iam.supplier_grant_exchange.v1`; after-commit hook: false.
 - `iam-partner-group-hospital-scope` ← `helivanta.in.workforce.partner_group_hospital_scope_observed.v1`; after-commit hook: false.
 - `iam-assignment-scope` ← `helivanta.in.workforce.assignment_scope_verified.v1`; after-commit hook: false.
-- `iam-assignment-department-scope` ← `helivanta.in.organization.assignment_department_verified.v1`; after-commit hook: false.
+- `iam-assignment-governance-scope` ← `helivanta.in.workforce.assignment_governance_scope_verified.v1`; after-commit hook: true.
+- `iam-assignment-department-scope` ← `helivanta.in.organization.assignment_department_verified.v1`; after-commit hook: true.
 - `iam-assignment-projection` ← `helivanta.in.iam.assignment_projection_requested.v1`; after-commit hook: true.
 - `iam-operating-projection` ← `helivanta.in.iam.operating_assignment_changed.v1`; after-commit hook: true.
 - `iam-fga-sync` ← `helivanta.in.iam.member_granted.v1`; after-commit hook: true.
@@ -135,6 +156,10 @@ Migration table declarations:
 - `0037_iam_partner_grant_drafts`: `iam_partner_grant_drafts`.
 - `0038_iam_operating_duties`: `iam_operating_duties`, `iam_operating_duty_history`, `iam_operating_snapshots`, `iam_operating_commands`, `iam_operating_projection_acks`.
 - `0039_iam_supplier_grants`: `iam_supplier_grants`, `iam_supplier_grant_commands`, `iam_supplier_grant_history`, `iam_supplier_grant_bases`, `iam_supplier_grant_projection_acks`.
+- `0047_iam_governance`: `iam_governance_grants`, `iam_governance_owner_notices`, `iam_governance_decisions`.
+- `0048_iam_governance_employment_bases`: `iam_employment_basis_authorities`.
+- `0049_iam_assignment_governance`: `iam_assignment_governance_requests`, `iam_assignment_governance_verifications`.
+- `0050_iam_operating_governance`: `iam_operating_governance_origins`, `iam_operating_governance_commands`.
 
 ## reference
 
@@ -1154,12 +1179,16 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 
 | Method | Path | Permission | Cursor pagination | Page total |
 | --- | --- | --- | --- | --- |
+| GET | `/v1/workforce/assignment-authority-scopes` | `public` | true | false |
+| GET | `/v1/workforce/employment-review-authority-scopes` | `public` | true | false |
 | GET | `/v1/workforce/employment-review-scopes` | `public` | true | false |
 | DELETE | `/v1/workforce/hospitals/:hospital/access/:subject` | `workforce.hospital.manage` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/access/:subject` | `workforce.hospital.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/business-profile` | `workforce.hospital.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/department-leave-review-requests` | `workforce.leave.approve` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/department-team` | `workforce.posting.proposal.read` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/employment-preparation-targets/search` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/employment-review-authority-inbox` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/employment-review-inbox` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/hr/attendance-settings/history` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/hr/attendance-settings` | `public` | false | false |
@@ -1373,7 +1402,26 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period` | `workforce.enrollment.manage` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period` | `workforce.enrollment.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods` | `workforce.enrollment.manage` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-person-finding-options` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-person-findings` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file/content` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file/content` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file/retries/:attempt` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file/revocation` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/history` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/revisions/:version/evidence/:binding/content` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/revisions/:version/evidence/:binding/history` | `public` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/revisions/:version/evidence/:binding/withdraw` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/revisions/:version/evidence/:binding` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/revisions/:version/evidence/:binding` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/revisions/:version/evidence` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-source` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/activation-source` | `public` | false | false |
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/decision` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/evidence/:file/content` | `public` | false | false |
@@ -1424,6 +1472,9 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals` | `public` | true | false |
 | GET | `/v1/workforce/hr-intake-scopes` | `public` | true | false |
 | GET | `/v1/workforce/leave-review-scopes` | `public` | true | false |
+| GET | `/v1/workforce/operating-authority-scopes` | `public` | true | false |
+| GET | `/v1/workforce/operating-governance-employers/:kind/:employer/staff-choices` | `public` | true | false |
+| GET | `/v1/workforce/person-review-authority-scopes` | `public` | true | false |
 | GET | `/v1/workforce/person-review-scopes` | `public` | true | false |
 | DELETE | `/v1/workforce/pharmacies/:pharmacy/access/:subject` | `workforce.hospital.manage` | false | false |
 | PUT | `/v1/workforce/pharmacies/:pharmacy/access/:subject` | `workforce.hospital.manage` | false | false |
@@ -1506,6 +1557,7 @@ Published subjects:
 - `helivanta.in.workforce.identity_case_changed.v1`
 - `helivanta.in.workforce.document_classification_changed.v1`
 - `helivanta.in.workforce.assignment_scope_verified.v1`
+- `helivanta.in.workforce.assignment_governance_scope_verified.v1`
 - `helivanta.in.workforce.login_link_changed.v1`
 - `helivanta.in.workforce.enrollment_changed.v1`
 - `helivanta.in.workforce.master_changed.v1`
@@ -1548,6 +1600,7 @@ Subscriptions:
 - `workforce-partner-group-hospital-scope` ← `helivanta.in.iam.partner_group_hospital_scope_requested.v1`; after-commit hook: false.
 - `workforce-department-link-observation` ← `helivanta.in.organization.department_link_observed.v1`; after-commit hook: false.
 - `workforce-assignment-scope` ← `helivanta.in.iam.assignment_scope_requested.v1`; after-commit hook: false.
+- `workforce-assignment-governance-scope` ← `helivanta.in.iam.assignment_governance_scope_requested.v1`; after-commit hook: false.
 - `workforce-organization-reference` ← `helivanta.in.organization.hospital_reference_requested.v1`; after-commit hook: false.
 - `workforce-hospital-name-receipt` ← `helivanta.in.pharmacy.hospital_name_received.v1`; after-commit hook: false.
 - `workforce-document-scan` ← `helivanta.in.workforce.document_scan_requested.v1`; after-commit hook: true.
@@ -1619,6 +1672,9 @@ Migration table declarations:
 - `0094_workforce_independent_identity`: `workforce_independent_link_commands`.
 - `0097_workforce_hospital_names`: `workforce_hospital_name_announcements`.
 - `0100_workforce_pharmacy_credential_reviews`: `workforce_pharmacy_time_zones`.
+- `0103_workforce_login_review_authority`: `workforce_login_link_authorities`.
+- `0108_workforce_employment_inbox_staff_index`: concurrent index `workforce_employment_inbox_staff` on `workforce_employment_reviews (tenant_id, hospital_id, staff_id)`.
+- `0111_workforce_employment_preparation_receipt`: concurrent index `workforce_employment_preparation_receipt` on `workforce_audit (tenant_id, hospital_id, resource_id, action)`.
 
 ## workspace
 

@@ -65,6 +65,18 @@ type OperatingDutyDecision struct {
 	CreatedAt    time.Time                  `json:"created_at"`
 }
 
+type OperatingLocationChoice struct {
+	OwnerTenantID   uuid.UUID `json:"owner_tenant_id"`
+	EmployerKind    string    `json:"employer_kind"`
+	EmployerID      uuid.UUID `json:"employer_id"`
+	LocationID      uuid.UUID `json:"location_id"`
+	Code            string    `json:"code"`
+	Name            string    `json:"name"`
+	CountryCode     string    `json:"country_code"`
+	EmployerVersion int64     `json:"employer_version"`
+	LocationVersion int64     `json:"location_version"`
+}
+
 var operatingDutyTemplates = []OperatingDutyTemplate{
 	{Key: "supply.inventory_receiver.v1", EmployerKind: "supplier", Label: "Warehouse receiving and stock history", Permissions: []string{"supply.operations.read", "supply.operations.write", "drugmaster.stock_reference.read"}, MaxValidityHours: 8784},
 	{Key: "pharmacy.inventory_receiver.v1", EmployerKind: "pharmacy", Label: "Outlet receiving and stock history", Permissions: []string{"pharmacy.stock.read", "pharmacy.stock.receive", "drugmaster.stock_reference.read"}, MaxValidityHours: 8784},

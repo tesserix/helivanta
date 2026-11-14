@@ -42,6 +42,9 @@ func loadOperatingCommand(tx *gorm.DB, p authn.Principal, duty, id uuid.UUID) (O
 	return result, err
 }
 func (h *operatingHandlers) withCurrentBasis(ctx context.Context, p authn.Principal, row operatingDutyRow, in OperatingDutyInput, review bool, action func(authz.OperatingAssignment) error) error {
+	if err := h.selectOperatingTarget(ctx, p, in.Subject); err != nil {
+		return err
+	}
 	epochErr := h.db.WithTenantCommand(ctx, p.TenantID, func(tx *gorm.DB) error {
 		epoch, err := proposalMembershipEpoch(tx, p.TenantID, in.Subject)
 		if err != nil {
@@ -109,7 +112,7 @@ func (h *operatingHandlers) decide(c *gin.Context) {
 		respond.Error(c, 400, "invalid_request", "Choose approve, reject, withdraw or revoke.")
 		return
 	}
-	p, id, ok := operatingScope(c, permission)
+	p, id, ok := h.scope(c, permission)
 	if !ok {
 		return
 	}
@@ -125,14 +128,20 @@ func (h *operatingHandlers) decide(c *gin.Context) {
 	defer cancel()
 	proof, err := h.actorProof(ctx, p, permission)
 	if err != nil {
-		operatingError(c, err)
+		h.operatingError(c, err)
 		return
 	}
 	var result OperatingDutyDecision
 	created := false
-	err = h.transaction(ctx, p, proof, phase, func(commandCtx context.Context, tx *gorm.DB) error {
+	err = h.withAdministration(ctx, p, proof, phase, func(commandCtx context.Context, tx *gorm.DB) error {
+		if err := h.checkOperatingMode(tx, p, id, false, nil); err != nil {
+			return err
+		}
 		existing, err := loadOperatingCommand(tx, p, id, commandID)
 		if err == nil {
+			if err := h.checkOperatingMode(tx, p, id, true, &commandID); err != nil {
+				return err
+			}
 			return h.employerAccess(commandCtx, p.TenantID, existing.Result.Input.Scope, "reader", func(context.Context) error {
 				if existing.Input != in {
 					return errProposalConflict
@@ -145,12 +154,15 @@ func (h *operatingHandlers) decide(c *gin.Context) {
 			return err
 		}
 		var row operatingDutyRow
-		if err := tx.Table("iam_operating_duties").Select("tenant_id,id,input,prepared_by,status,membership_epoch,version,authority_epoch,created_at,updated_at").Where("tenant_id=? AND id=?", p.TenantID, id).Clauses(clause.Locking{Strength: "UPDATE"}).Take(&row).Error; err != nil {
+		if err := tx.Table("iam_operating_duties").Select("tenant_id,id,input,prepared_by,status,membership_epoch,version,authority_epoch,created_at,updated_at,native_administration").Where("tenant_id=? AND id=?", p.TenantID, id).Clauses(clause.Locking{Strength: "UPDATE"}).Take(&row).Error; err != nil {
 			return err
 		}
 		// A concurrent identical command may have completed while this request waited for the owner row.
 		existing, err = loadOperatingCommand(tx, p, id, commandID)
 		if err == nil {
+			if err := h.checkOperatingMode(tx, p, id, true, &commandID); err != nil {
+				return err
+			}
 			return h.employerAccess(commandCtx, p.TenantID, existing.Result.Input.Scope, "reader", func(context.Context) error {
 				if existing.Input != in {
 					return errProposalConflict
@@ -232,7 +244,7 @@ func (h *operatingHandlers) decide(c *gin.Context) {
 		})
 	})
 	if err != nil {
-		operatingError(c, err)
+		h.operatingError(c, err)
 		return
 	}
 	if created {
@@ -242,7 +254,7 @@ func (h *operatingHandlers) decide(c *gin.Context) {
 	}
 }
 func (h *operatingHandlers) getCommand(c *gin.Context) {
-	p, id, ok := operatingScope(c, PermOperatingRead)
+	p, id, ok := h.scope(c, PermOperatingRead)
 	if !ok {
 		return
 	}
@@ -254,11 +266,14 @@ func (h *operatingHandlers) getCommand(c *gin.Context) {
 	defer cancel()
 	proof, err := h.actorProof(ctx, p, PermOperatingRead)
 	if err != nil {
-		operatingError(c, err)
+		h.operatingError(c, err)
 		return
 	}
 	var result OperatingDutyDecision
-	err = h.transaction(ctx, p, proof, "read", func(commandCtx context.Context, tx *gorm.DB) error {
+	err = h.withAdministration(ctx, p, proof, "read", func(commandCtx context.Context, tx *gorm.DB) error {
+		if err := h.checkOperatingMode(tx, p, id, true, &command); err != nil {
+			return err
+		}
 		var err error
 		result, err = loadOperatingCommand(tx, p, id, command)
 		if err != nil {
@@ -267,7 +282,7 @@ func (h *operatingHandlers) getCommand(c *gin.Context) {
 		return h.employerAccess(commandCtx, p.TenantID, result.Result.Input.Scope, "reader", func(context.Context) error { return operatingAudit(tx, p, id, "iam.operating.command_read") })
 	})
 	if err != nil {
-		operatingError(c, err)
+		h.operatingError(c, err)
 		return
 	}
 	respond.OK(c, result)

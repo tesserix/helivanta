@@ -24,3 +24,9 @@ type EmploymentBasisWriter interface {
 type EmploymentActivationGuard interface {
 	WithEmploymentActivation(context.Context, []ScopeCheck, time.Time, func(context.Context, EmploymentBasisWriter) error) error
 }
+
+// GovernanceEmploymentActivationGuard binds a first-Staff activation writer to its exact source and target.
+// Implementations acquire the same employment-basis lock before authority/product locks as the scoped guard.
+type GovernanceEmploymentActivationGuard interface {
+	WithGovernanceEmploymentActivation(context.Context, GovernanceSourceRequest, uuid.UUID, func(context.Context, GovernanceSourceEvidence, EmploymentBasisWriter) error) error
+}

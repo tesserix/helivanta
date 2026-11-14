@@ -22,23 +22,30 @@ type employmentReviewEvidenceSnapshot struct {
 	UploadedAt               time.Time
 }
 
-func employmentReviewEvidenceAudit(tx *gorm.DB, p authn.Principal, row EmploymentReview, file uuid.UUID, authority *intakeAuthority, completed bool) error {
+func employmentReviewEvidenceAudit(tx *gorm.DB, p authn.Principal, row EmploymentReview, file uuid.UUID, authority *employmentReviewAuthority, completed bool) error {
 	action := "workforce.employment_review.evidence.authorized"
 	if completed {
 		action = "workforce.employment_review.evidence.downloaded"
 	}
-	grants, err := json.Marshal(authority.Grants)
+	if !authority.valid() {
+		return authz.ErrScopedAuthorizationUnavailable
+	}
+	if authority.Governance != nil {
+		return employmentReviewGovernanceAudit(tx, p, row, action, authority, map[string]any{"file_id": file})
+	}
+	staff := authority.Staff
+	grants, err := json.Marshal(staff.Grants)
 	if err != nil {
 		return err
 	}
 	return tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes)
- VALUES(?,?,?,?,?,jsonb_build_object('version',?::bigint,'revision_id',?::uuid,'file_id',?::uuid,'grants',?::jsonb,'actor_staff_id',?::uuid,'actor_link_id',?::uuid,'actor_link_version',?::bigint,'actor_employment_epoch',?::bigint))`, p.TenantID, row.HospitalID, p.Subject, action, row.ID, row.Version, row.RevisionID, file, string(grants), authority.Actor.Staff, authority.Actor.Link, authority.Actor.LinkVersion, authority.Actor.EmploymentEpoch).Error
+ VALUES(?,?,?,?,?,jsonb_build_object('version',?::bigint,'revision_id',?::uuid,'file_id',?::uuid,'grants',?::jsonb,'actor_staff_id',?::uuid,'actor_link_id',?::uuid,'actor_link_version',?::bigint,'actor_employment_epoch',?::bigint))`, p.TenantID, row.HospitalID, p.Subject, action, row.ID, row.Version, row.RevisionID, file, string(grants), staff.Actor.Staff, staff.Actor.Link, staff.Actor.LinkVersion, staff.Actor.EmploymentEpoch).Error
 }
 
 func (h *handlers) authorizeEmploymentReviewEvidence(c *gin.Context, p authn.Principal, hospital, staff, review, file uuid.UUID, original *employmentReviewEvidenceSnapshot) (employmentReviewEvidenceSnapshot, error) {
 	var snapshot employmentReviewEvidenceSnapshot
-	err := h.employmentReviewRead(c, p, hospital, staff, review, func(tx *gorm.DB, source IdentitySource, authority *intakeAuthority) error {
-		if authority == nil || !authority.Scoped {
+	err := h.employmentReviewRead(c, p, hospital, staff, review, func(tx *gorm.DB, source IdentitySource, authority *employmentReviewAuthority) error {
+		if !authority.valid() {
 			return authz.ErrScopedCommandDenied
 		}
 		row, err := loadEmploymentReview(tx, p, hospital, staff, review, uuid.Nil)

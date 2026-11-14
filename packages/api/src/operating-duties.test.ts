@@ -5,6 +5,7 @@ import {
   decideOperatingDuty,
   recoverOperatingDutyCommand,
   listOperatingDuties,
+  operatingDutiesKey,
 } from "./operating-duties";
 const scope = {
   tenantId: "11111111-1111-4111-8111-111111111111",
@@ -121,4 +122,95 @@ it("rejects private cross-employer rows and inconsistent continuation", async ()
     Response.json({ data: [row], page: { has_more: true, next_cursor: null } }),
   );
   await expect(listOperatingDuties(scope, null)).rejects.toThrow();
+});
+
+it("keeps native preparation and receipt recovery on the explicit employer path", async () => {
+  const native = { ...scope, administration: "governance" as const };
+  const request = vi.fn<typeof fetch>().mockImplementation(async () => Response.json(row));
+  vi.stubGlobal("fetch", request);
+  await prepareOperatingDuty(native, duty, input);
+  await recoverOperatingDutyProposal(native, duty, input);
+  const prefix = `/api/v1/iam/operating-governance-employers/${scope.employerKind}/${scope.employerId}/duties/${duty}`;
+  expect(request.mock.calls.map(([url, init]) => [url, init?.method ?? "GET"])).toEqual([
+    [prefix, "PUT"],
+    [`${prefix}/proposal-receipt`, "GET"],
+  ]);
+  expect(JSON.parse(request.mock.calls[0]![1]!.body as string)).toEqual(input);
+  expect(new Headers(request.mock.calls[0]![1]?.headers).get("X-Helivanta-Expected-Tenant")).toBe(
+    scope.tenantId,
+  );
+  expect(operatingDutiesKey(native)).not.toEqual(operatingDutiesKey(scope));
+});
+it("pages native duties without falling through to legacy access", async () => {
+  const request = vi
+    .fn<typeof fetch>()
+    .mockResolvedValue(
+      Response.json({ data: [row], page: { has_more: false, next_cursor: null } }),
+    );
+  vi.stubGlobal("fetch", request);
+  const native = { ...scope, administration: "governance" as const };
+  expect((await listOperatingDuties(native, null)).data).toEqual([row]);
+  expect(request.mock.calls[0]?.[0]).toBe(
+    `/api/v1/iam/operating-governance-employers/${scope.employerKind}/${scope.employerId}/staff/${scope.staffId}/duties?limit=25`,
+  );
+});
+it.each(["unexpected", "", null])(
+  "rejects invalid administration mode %j before sending any request",
+  async (mode) => {
+    const request = vi.fn<typeof fetch>();
+    vi.stubGlobal("fetch", request);
+    await expect(
+      prepareOperatingDuty({ ...scope, administration: mode as "governance" }, duty, input),
+    ).rejects.toThrow();
+    expect(request).not.toHaveBeenCalled();
+  },
+);
+it.each(["supplier", "pharmacy"] as const)(
+  "binds native %s decisions and recovery to the same employer",
+  async (kind) => {
+    const native = { ...scope, employerKind: kind, administration: "governance" as const };
+    const target = {
+      ...input,
+      scope: { ...input.scope, employer_kind: kind },
+      template_key: kind === "pharmacy" ? "pharmacy.inventory_receiver.v1" : input.template_key,
+    };
+    const decision = {
+      expected_version: 1,
+      decision: "approve" as const,
+      reason: "Independent native review",
+    };
+    const receipt = {
+      id: command,
+      duty_id: duty,
+      input: decision,
+      result: { ...row, input: target, status: "approved_pending_activation", version: 2 },
+      actor_subject: scope.subject,
+      created_at: row.created_at,
+    };
+    const request = vi.fn<typeof fetch>().mockImplementation(async () => Response.json(receipt));
+    vi.stubGlobal("fetch", request);
+    expect(await decideOperatingDuty(native, duty, command, decision)).toEqual(receipt);
+    expect(await recoverOperatingDutyCommand(native, duty, command, decision)).toEqual(receipt);
+    const path = `/api/v1/iam/operating-governance-employers/${kind}/${scope.employerId}/duties/${duty}/commands/${command}`;
+    expect(request.mock.calls.map(([url, init]) => [url, init?.method ?? "GET"])).toEqual([
+      [path, "PUT"],
+      [path, "GET"],
+    ]);
+  },
+);
+it("does not retry a denied native receipt through legacy authority", async () => {
+  const request = vi
+    .fn<typeof fetch>()
+    .mockImplementation(async () =>
+      Response.json(
+        { error: "forbidden", message: "Current access is unavailable" },
+        { status: 403 },
+      ),
+    );
+  vi.stubGlobal("fetch", request);
+  await expect(
+    recoverOperatingDutyProposal({ ...scope, administration: "governance" }, duty, input),
+  ).rejects.toThrow();
+  expect(request).toHaveBeenCalledTimes(1);
+  expect(request.mock.calls[0]?.[0]).toContain("/operating-governance-employers/");
 });

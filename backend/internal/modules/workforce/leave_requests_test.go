@@ -43,7 +43,7 @@ type requestHarness struct {
 }
 
 func newRequestHarness(t *testing.T, configure ...func(*testutil.HarnessOptions)) *requestHarness {
-	opts := testutil.HarnessOptions{
+	opts := testutil.HarnessOptions{GovernanceSources: testutil.GovernanceReviewProtocol,
 		ScopedAuthorizer: func(*tenantdb.DB) authz.ScopedAuthorizer { return noReviewedLeaveAuthority{} },
 		Tokens:           map[string]string{"admin": testutil.TenantA, "approver": testutil.TenantA, "clerk": testutil.TenantA, "viewer": testutil.TenantA, "reader": testutil.TenantA, "profiler": testutil.TenantA, "foreign": testutil.TenantB},
 		Perms: map[string][]authz.Permission{

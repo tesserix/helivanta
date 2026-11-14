@@ -30,6 +30,26 @@ type ScopeResult struct {
 	Eligible   bool      `json:"eligible"`
 }
 
+type AssignmentGovernanceHospitalScope struct {
+	HospitalID uuid.UUID `json:"hospital_id"`
+	Name       string    `json:"name"`
+	CanManage  bool      `json:"can_manage"`
+	CanReview  bool      `json:"can_review"`
+}
+
+type GovernanceScopeRequest struct {
+	ProposalID uuid.UUID `json:"proposal_id"`
+	RequestID  uuid.UUID `json:"request_id"`
+	HospitalID uuid.UUID `json:"hospital_id"`
+}
+
+type GovernanceScopeResult struct {
+	ProposalID uuid.UUID `json:"proposal_id"`
+	RequestID  uuid.UUID `json:"request_id"`
+	HospitalID uuid.UUID `json:"hospital_id"`
+	Eligible   bool      `json:"eligible"`
+}
+
 type DepartmentScopeRequest struct {
 	ProposalID   uuid.UUID `json:"proposal_id"`
 	RequestID    uuid.UUID `json:"request_id"`
@@ -43,6 +63,15 @@ type DepartmentScopeResult struct {
 	HospitalID   uuid.UUID `json:"hospital_id"`
 	DepartmentID uuid.UUID `json:"department_id"`
 	Eligible     bool      `json:"eligible"`
+}
+
+type AssignmentAccountPresentation struct {
+	ProposalID      uuid.UUID `json:"proposal_id"`
+	ProposalVersion int64     `json:"proposal_version"`
+	Subject         string    `json:"subject"`
+	Available       bool      `json:"available"`
+	Name            *string   `json:"name,omitempty"`
+	Email           *string   `json:"email,omitempty"`
 }
 
 type ProposalOutput struct {
@@ -164,4 +193,21 @@ type MembershipEnrollment struct {
 	MembershipEpoch int64     `json:"membership_epoch"`
 	ActorSubject    string    `json:"actor_subject"`
 	CreatedAt       time.Time `json:"created_at"`
+}
+
+type OperatingGovernanceEmployerScope struct {
+	EmployerKind string    `json:"employer_kind"`
+	EmployerID   uuid.UUID `json:"employer_id"`
+	Name         string    `json:"name"`
+	CanManage    bool      `json:"can_manage"`
+	CanReview    bool      `json:"can_review"`
+}
+
+type OperatingGovernanceStaffChoice struct {
+	StaffID      uuid.UUID `json:"staff_id"`
+	DisplayName  string    `json:"display_name"`
+	StaffVersion int64     `json:"staff_version"`
+	Subject      string    `json:"subject"`
+	LinkID       uuid.UUID `json:"link_id"`
+	LinkVersion  int64     `json:"link_version"`
 }

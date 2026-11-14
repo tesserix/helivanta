@@ -180,6 +180,16 @@ the time-zone form, register and reminder inbox. A 401, 403, 404 or 409
 
 ## Scoped employment-review workspace
 
+The candidate workspace offers an explicit access path: hospital owner/delegated
+governance (the initial choice), or reviewed Staff access. Each path calls its
+own discovery and inbox routes and retains separate query keys/cursors. Changing
+paths unmounts selected terms and restarts discovery; it is disabled while a
+command, dirty form or private download is active. A failed governance read never
+silently retries with linked-Staff authority. Selected details and commands repeat
+the source checks described in [Staff governance](staff-governance.md). Finding
+selection and selected terms/document authoring still require integration; this
+reviewer UI candidate does not complete first-employment onboarding.
+
 The normal HR preparation and independent-review workspace uses these additive
 owner routes, all through the Global API with exact original tenant/subject
 assertion headers and current reviewed active Staff/login actor checks:
@@ -188,6 +198,40 @@ assertion headers and current reviewed active Staff/login actor checks:
   candidates per page. `can_submit` requires both scoped HR intake grants;
   `can_review` requires the independent employment-review grant. Each capability
   is separately guarded and audited; neither grants a subsequent command.
+- Candidate `GET /v1/workforce/employment-review-authority-scopes`: a distinct
+  current owner/exact employment preparation or review grant list using the
+  canonical hospital-scope response. It scans at most 20 hospital roots plus one
+  continuation probe, rechecks each capability under the IAM source guard before
+  disclosing the hospital name and records private source evidence in audit.
+  It requires matching original tenant/account assertions, has a shared
+  five-second/idle deadline and at most four workers, and returns `no-store`.
+  Encrypted cursors bind route/account/tenant and cannot be used with the
+  existing linked-Staff scope route. A filtered page may be empty with more
+  candidates remaining. No Staff/link/review identifiers are fabricated, and
+  no employment, account or operating authority follows from discovery. SDK
+  and reviewer workspace support are included; finding/terms/document authoring
+  and remote acceptance remain pending.
+- Candidate `GET /v1/workforce/hospitals/:hospital/employment-review-authority-inbox`:
+  separate owner/exact-grant summary browsing with `mode=prepare|review` (default
+  review), recorded `status` (default pending), and a page limit of 50 plus one
+  continuation probe. It returns the existing minimal `EmploymentReviewSummary`
+  contract, excluding terms, reasons, evidence, subject and private authority.
+  Sealed cursors bind the route, tenant/account, hospital, mode and status before
+  any owner scan. Every read repeats current IAM source admission under a shared
+  five-second/idle deadline and retains an attributable source audit. Capability
+  discovery is not authorization for this read or a later decision.
+  Unapplied WF0107 adds an employer-only private inbox purpose with forced RLS,
+  explicit select/audit prerequisites and no runtime TRUNCATE privilege. It denies
+  unrelated reads, master writes and deletes even with inherited manager access;
+  the only admitted write is its exact minimized read audit. Missing purpose,
+  read or audit support fails closed. The existing hospital/status inbox index
+  serves paging; candidate WF0108 adds a concurrent tenant/hospital/Staff index
+  for the Staff-label visibility lookup, and reads require it to be ready/valid.
+  No Staff/link/review IDs are fabricated,
+  and the linked-Staff inbox keeps its original contract and cursor meaning.
+  The candidate reviewer page uses this route only for the governance access path.
+  Local component tests cover that selection and denial without source fallback;
+  real browser, production and migration acceptance remain pending.
 - `GET /v1/workforce/hospitals/:hospital/employment-review-inbox`: exactly one
   `hr_intake=v1` or `employment_review=v1`, optional recorded `status` from
   pending/approved/rejected/withdrawn/revoked, and canonical cursor/limit. Minimal
@@ -200,6 +244,24 @@ assertion headers and current reviewed active Staff/login actor checks:
   their exact receipt, source hash/epoch, policy/finding reference, validity and
   account intent revalidated against released evidence. No identity files or
   author profiles are returned, and identity-review authority is not granted.
+
+- Candidate `GET /v1/workforce/hospitals/:hospital/staff/:id/employment-person-finding-options`:
+  separate current owner/exact employment-preparer source; same canonical
+  `hr_intake=v1`, Staff version/epoch inputs and finding summary contract as the
+  linked-Staff selector. It admits at most 20 candidates plus one probe and binds
+  sealed cursors to hospital, Staff, both basis filters, route and original
+  tenant/account. Both candidate scan and disclosure recheck current IAM source
+  under one shared five-second/idle budget and require the same retained source.
+  Exact current approved finding/evidence checks run before disclosure.
+  Candidate WF0109 permits only selected Staff/profile/finding and frozen identity
+  evidence metadata, classifications and creation provenance; its only write is
+  an exact minimized selection-read audit. Master edits/deletes and terms/document
+  authoring remain denied even with inherited manager access. Missing read/audit
+  expressions, forced RLS/purpose/delete support, source functions or a valid/ready
+  existing finding-selection index returns 503 before reading. There is no
+  fabricated employment-review ID or actor Staff/link. The original selector and
+  its cursor semantics remain unchanged. Local proof/cursor/SDK checks do not
+  establish database, UI or production acceptance.
 
 The filtered scope/finding scans preserve empty-page continuation; clients must
 follow the returned cursor. Inbox pages reauthorize current original authority
@@ -229,11 +291,21 @@ Implementation: `backend/internal/modules/workforce`. Design: [ADR 0009](../adr/
 ## Reviewed-source activation — production enabled
 
 `GET /v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/activation-source?employment_activation=v1`
-requires exact original tenant/subject headers, current scoped activation **and**
-enrollment grants, and an active independently reviewed Staff/login actor. Legacy
-administration cannot substitute. Both grant receipts are retained in the
-sensitive-read audit. The minimized source returns exact review/source revisions,
+requires exact original tenant/subject headers and either current scoped
+activation/enrollment grants with a real reviewed actor, or candidate WF0106
+owner/exact nonclinical activation authority. The mutation path additionally
+requires the typed IAM exact-Staff writer and its separate private purpose;
+legacy manager access or a generic source alone cannot substitute. Actual scoped
+or governance evidence is retained in private generation proof and sensitive-read
+audit. This candidate addition is not established by the historical release. The minimized source returns exact review/source revisions,
 term dates and eligibility state without private evidence or terms metadata.
+Its private write purpose also permits the mandatory automatic Staff audit only
+for the exact inactive-to-active transition, actor and Staff target. The separate
+activation audit retains the current authority proof; replay must not duplicate
+either completed transition or activation audit.
+The retained restrictive Staff update guard admits that same exact activation
+write, while preserving its existing checks. The source preflight requires the
+guard and its explicit read/write checks; a missing guard fails closed.
 
 A separate `workforce.employment_activator.v1` template contains only
 `workforce.employment.activate`, introduced through IAM migration 0022 and the
@@ -282,17 +354,20 @@ The owner exposes
 `GET /v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/evidence/:file/content`.
 Exactly one explicit `hr_intake=v1` or `employment_review=v1` projection and the
 original tenant/subject assertions are required. Paging and unknown query fields
-are refused. Both phases resolve current compound HR-intake or separate scoped
-employment-review authority and a reviewed active actor link, without generic
-document permission or legacy fallback. Only a selected file in a currently
+are refused. Both phases resolve either current compound HR-intake/separate
+scoped review authority with a real reviewed actor, or a current IAM owner/exact
+employment preparer/reviewer source under candidate WF0105. The private purpose
+pins the selected Staff/review and denies master/payroll/clinical writes. Generic
+document permission, a routing role or legacy manager access is insufficient. Only a selected file in a currently
 effective pending/approved frozen review is eligible. The existing current
 person, Staff, terms, classification, binding and complete-provenance checks apply.
 
 The owner commits authorization audit and releases database locks before the
 five-second, login-idle-bounded GCS read. Released generation, metadata/actual
 length and metadata/actual SHA-256 must match the authorized file. A second
-transaction rechecks the original grants, actor link/employment epoch and frozen
-source/review/file basis and commits attributable release audit before returning
+transaction rechecks the original tagged authority (grants/actor or exact IAM
+owner/grant source), target and frozen source/review/file basis and commits
+attributable release audit before returning
 any bytes. Assignment/link replacement, review ending, unavailable person/source
 or changed file cannot authorize an in-flight request. The existing `downloaded`
 audit denotes authorization to release bytes, not proof of client delivery.
@@ -312,9 +387,10 @@ owned current view and selected file before dispatch and preserves the original
 workspace and cancellation signal. A shared person/employment byte validator
 checks MIME and declared length, streams into one bounded authorized-size buffer,
 cancels overflow, verifies raw length/hash, and discards cancelled responses before
-creating a Blob. No new schema, permission or migration is added. This API/SDK
-slice does not implement employment-review discovery/inbox, preparation selection,
-normal reviewer UI acceptance or operational activation and is not deployed here.
+creating a Blob. The original byte-transfer API/SDK added no new wire schema;
+the candidate nonclinical authority union separately requires WF0105. Governance
+workspace discovery, preparation selection, normal reviewer UI acceptance and
+operational activation remain unfinished and are not established by this slice.
 
 ## Protected employment-review history candidate
 
@@ -328,10 +404,12 @@ current legal transitions bound one review to at most three immutable receipts.
 The existing scoped history primary key bounds lookup before ordering, without
 a new migration or infrastructure cost.
 
-Each page reauthorizes the current original workspace, hospital-scoped assignment
-and reviewed active actor link using the same no-legacy-fallback authority as
-protected detail. HR preparation requires both enrollment and document grants;
-reviewer mode requires the separate employment-review permission. Return 403 for
+Each page reauthorizes the original workspace and the same tagged authority as
+protected detail. The Staff alternative requires current hospital-scoped
+assignment(s) and a reviewed active actor link. The candidate governance alternative
+requires a current IAM owner or exact employment preparer/reviewer grant, with
+private purpose and source provenance under WF0105. Neither alternative falls
+back after a business callback or dependency failure. Return 403 for
 missing authority, 404 for an invisible selected review/Staff, 409 for changed
 workspace and 503 when current authority is unavailable. Owner SQL always scopes
 verified tenant, hospital, Staff and review and retains existing forced RLS.
@@ -352,6 +430,14 @@ source/evidence selection or protected bytes and is not deployed by this note.
 
 ## Pre-employment current-person review candidate
 
+PR #1669 adds a candidate owner/delegate path for selected source reads and person
+findings, alongside ordinary reviewed Staff authority. Separate hospital-only
+preparer/reviewer templates retain real IAM provenance through review history
+and protected-file reauthorization; they grant no employment or operating duty.
+See [Staff governance](staff-governance.md#candidate-nonclinical-person-review-consumers)
+for 0104's migration/rollback and remaining discovery/acceptance gates. The
+reviewed-actor discovery described below is unchanged until that gate is finished.
+
 The current source adds a private human person-finding review for inactive
 joiners and workers requesting no login. This does not activate employment,
 create an operational account link, enroll a tenant member, issue an ID card or
@@ -369,15 +455,15 @@ input: `contracts/workforce-person-reviews.json`; generator:
 are exported from `@helivanta/api` in `person-reviews.ts`; all requests go through
 Global API and include the original expected tenant/subject, with no-store caching.
 
-| Registered owner route under `/v1/workforce/hospitals/:hospital/staff/:id/person-reviews` | Scope and behavior                                                                                                                                                                             |
-| ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PUT `/:review`                                                                            | Current identity-check manager plus own reviewed active actor link; complete immutable pending submission, 8 KiB limit.                                                                        |
-| GET `/:review`                                                                            | Current identity manager/reviewer plus reviewed actor link; audited original receipt **and separate current effectiveness**.                                                                   |
-| GET `/:review/history`                                                                    | Same read authority; audited cursor pagination, default 50/max 200. Frozen evidence is bounded to ten files per receipt.                                                                       |
-| POST `/:review/decision`                                                                  | Current identity reviewer and independent actor; approve/reject with exact expected version and UUIDv7 command.                                                                                |
-| POST `/:review/withdrawal`                                                                | Current identity manager who submitted it; reasoned pending withdrawal, preserving history.                                                                                                    |
-| POST `/:review/revocation`                                                                | Current identity reviewer; reasoned revocation of an approved finding, including after a source correction.                                                                                    |
-| GET `/:review/evidence/:file/content`                                                     | Current identity manager/reviewer plus own reviewed active actor link; one frozen identity image, capped at 10 MiB; original authority and review/source/file lineage rechecked after storage. |
+| Registered owner route under `/v1/workforce/hospitals/:hospital/staff/:id/person-reviews` | Scope and behavior                                                                                                                                                                           |
+| ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PUT `/:review`                                                                            | Reviewed Staff identity manager or current owner/exact person-preparer source; immutable pending submission, 8 KiB limit.                                                                    |
+| GET `/:review`                                                                            | Reviewed Staff identity manager/reviewer or current owner/exact person source; audited original receipt **and separate current effectiveness**.                                              |
+| GET `/:review/history`                                                                    | Same read authority; audited cursor pagination, default 50/max 200. Frozen evidence is bounded to ten files per receipt.                                                                     |
+| POST `/:review/decision`                                                                  | Current identity reviewer and independent actor; approve/reject with exact expected version and UUIDv7 command.                                                                              |
+| POST `/:review/withdrawal`                                                                | Current identity manager who submitted it; reasoned pending withdrawal, preserving history.                                                                                                  |
+| POST `/:review/revocation`                                                                | Current identity reviewer; reasoned revocation of an approved finding, including after a source correction.                                                                                  |
+| GET `/:review/evidence/:file/content`                                                     | Reviewed Staff identity manager/reviewer or current owner/exact person source; one frozen identity image, capped at 10 MiB; exact authority and source/file lineage rechecked after storage. |
 
 `GET /v1/workforce/person-review-scopes` now discovers hospitals from the
 caller's own reviewed active actor links and held current identity assignments.
@@ -580,6 +666,15 @@ unavailable. The intake user workspace, full lifecycle enforcement, real-scanner
 and normal browser/deployed acceptance are still required before release.
 
 ## Reviewed account links (worktree implementation)
+
+The unreleased governed-review candidate replaces manager-row approval authority
+with a current tenant owner or an exact effective account-link governance grant.
+Review-only users receive selected Staff/link identity access, with immutable
+source provenance and no directory-edit or clinical permission. Proposal/change
+administration remains separately authorized. See [governance](staff-governance.md)
+and [consumer/source details](workforce-independent-identity.md#governed-review-provenance-candidate).
+The following legacy manager description applies to proposal/change administration;
+coarse review permission alone is no longer approval authority in the candidate.
 
 Workforce owns the hospital-local binding and immutable review history; IAM owns
 login membership and application access. A link never grants a permission or
@@ -1849,13 +1944,18 @@ The current implementation candidate adds these owner routes through Global API:
 | `POST /v1/workforce/hospitals/{hospital}/staff/{staff}/employment-reviews/{review}/withdrawal?hr_intake=v1`         | Original preparer withdraws pending terms, including stale submissions                                     |
 | `POST /v1/workforce/hospitals/{hospital}/staff/{staff}/employment-reviews/{review}/revocation?employment_review=v1` | Independent reviewer revokes approved terms, including unavailable evidence/source                         |
 
-Preparation requires exact original expected-tenant/subject headers, both live
-scoped HR-intake permissions, and an active independently reviewed actor Staff/login
-link. Reviewer GET/decision/revocation instead require the separate current
-hospital-scoped `workforce.employment.review` permission and reviewed actor link.
-Exactly one projection is required; missing, mixed and duplicate modes are refused. Neither legacy administration nor identity-review permission supplies the
-new command authority. An administrator with separately reviewed scoped HR
-permissions uses those grants, with no legacy fallback. The target may be inactive
+Preparation requires exact original expected-tenant/subject headers and either
+both live scoped HR-intake permissions with a real reviewed actor, or current IAM
+owner/exact `workforce.employment_preparer.v1` authority. Reviewer GET, decision
+and revocation similarly accept scoped review authority with a reviewed actor,
+or current owner/exact `workforce.employment_reviewer.v1` authority. Candidate
+WF0105 keeps governance source and purpose separate from Staff identities and
+retains it on each immutable revision. It freezes existing draft terms/evidence;
+it does not grant general HR drafting or document-master authority. Missing,
+mixed and duplicate projections are refused. Routing roles, legacy manager rows
+and identity-review grants alone are insufficient. Existing scoped Staff commands
+retain their assignment path; business/dependency failures cannot cause a switch
+to an alternative source. The target may be inactive
 or non-digital; submission neither activates employment nor creates a login,
 IAM grant, card or clinical privilege.
 
@@ -2021,3 +2121,153 @@ Account-link review continues to require current employer manager context plus
 current Staff/source/independence checks. The aliases grant no authority and add
 no server endpoints or permissions. See
 [reviewer access](../superpowers/specs/2026-11-09-independent-staff-review-access.md).
+
+### Person authority discovery — source candidate
+
+Workforce owns `GET /v1/workforce/person-review-authority-scopes`, consumed through
+Global API by the person-review workspace. Its existing generated
+`PersonReviewHospitalScope` response contains only `hospital_id`, `name`,
+`can_submit` and `can_review`. It scans canonical hospital roots, at most twenty
+plus one continuation probe, in descending creation-time/ID order. The encrypted opaque
+cursor hides filtered hospital anchors and is bound to route, verified tenant and account; it cannot be used with
+legacy `person-review-scopes`, whose reviewed-login-link cursor meaning is unchanged.
+Authorization filtering can produce an empty page with `has_more: true`.
+
+Discovery, target search and inbox reads use current reviewed Staff authority or
+current exact owner/person-governance source authority. A title, legacy hospital
+manager row or account-link-review grant does not substitute. Authentication and
+permission refresh precede parallel discovery checks; at most four workers share
+one five-second/idle deadline. Source errors fail closed. Authorized reads retain
+private source proof in audit; unauthorized names are omitted. Matching expected
+tenant/account headers are required, and all responses remain `no-store`.
+Capabilities are discovery hints; subsequent commands repeat current source checks.
+
+WF0104 additionally admits a hospital-bounded target/inbox read purpose with
+explicit source evidence and no fabricated Staff/link references. Existing write
+and DELETE boundaries remain, and the governance read purpose cannot write Staff,
+profile, document or login-link masters. This changes the unapplied WF0104 candidate;
+it is not a deployed schema change. Real database, disclosure-cutoff and rollback
+acceptance remain remote CI/release gates. Employment, first activation and
+operating authority remain separate unfinished workflows.
+
+Candidate hospital governance employment drafting adds these separate routes under
+`/v1/workforce/hospitals/:hospital/staff/:id`:
+
+| Method | Suffix                                            | Authority and result                                                                                                  |
+| ------ | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/employment-preparation-source`                  | Current owner/exact employment-preparer; canonical selected Staff basis                                               |
+| GET    | `/employment-preparation-periods`                 | Same source; bounded draft list with hospital/Staff/account/tenant/filter-bound sealed cursor                         |
+| GET    | `/employment-preparation-periods/:period`         | Same source; canonical exact selected draft/lifecycle read                                                            |
+| GET    | `/employment-preparation-periods/:period/history` | Same source; bounded canonical history, with actual period also bound in sealed cursor                                |
+| PUT    | `/employment-preparation-periods/:period`         | Same source, exact normalized command; canonical revision/conflict/receipt behavior with mandatory private provenance |
+
+These candidate APIs use the original canonical employment input/source/draft
+models. Expected tenant/account headers are mandatory. Unknown/duplicate query
+keys fail closed. `lifecycle=withdrawal-v1` remains an explicit read option;
+preparation does not authorize withdrawal. Native current membership/source is
+held under a five-second/idle lease; no linked-Staff or legacy fallback occurs.
+Candidate WF0110 restricts every Workforce table to exact selected operations,
+permits only the selected draft/history and minimized audits to change, preserves
+the retained withdrawal/source/sponsor guard, and atomically records private source
+provenance with each canonical history snapshot. A retry cannot rebind a legacy
+receipt or a changed source. WF0111 builds the audit revision lookup index
+concurrently. Missing/disabled trigger, index, policy or RLS support returns 503
+before operation. There is no invented review ID, login or operating grant.
+Public payloads do not expose authority or input hashes. Local proof/replay,
+compile/build/lint evidence does not establish real PostgreSQL, UI, production or
+rollout acceptance. The strict preparation SDK uses these five canonical APIs,
+original tenant/account assertions, no-store/cancellation and validated owned
+responses; malformed/private fields, ambiguous histories, mixed pharmacy/intake
+scopes and unsupported real command IDs are rejected. Source errors never cause
+legacy fallback. The candidate UI now offers explicit Staff selection, terms
+authoring and selected employment-file preparation. Exact terms-to-file binding
+through native governance authority remains unfinished.
+
+The candidate's selected Staff/active-sponsor locking reads also extend the
+retained restrictive Staff update policy's USING expression, with its prior
+explicit WITH CHECK preserved. The separate selected-operation purpose still
+forbids all Staff writes. This is needed by canonical `FOR SHARE` basis/sponsor
+reads; a permissive SELECT extension alone is insufficient. Runtime checks require
+that exact read support and confirm the installed private proof before commands.
+The first remote terms candidate failed its valid save with 404; the corrected
+locking-read path and real post-activation same-hospital sponsor case await remote
+acceptance.
+
+### Selected governance employment files — candidate
+
+A current native hospital owner or exact employment preparer can use the separate
+`/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents`
+family without a linked Staff actor. This is candidate source, not a deployed API.
+
+| Method    | Suffix                    | Result                                                                 |
+| --------- | ------------------------- | ---------------------------------------------------------------------- |
+| GET       | base                      | At most 20 selected employment-file receipts and a sealed continuation |
+| PUT / GET | `/:file`                  | Canonical immutable file registration/replay or exact metadata         |
+| PUT / GET | `/:file/content`          | Quarantine intake or verified released bytes                           |
+| PUT       | `/:file/retries/:attempt` | Canonical retained next scan attempt                                   |
+| PUT       | `/:file/revocation`       | Revoke release while preserving history                                |
+
+Every request requires the original expected tenant/account headers and positive
+`staff_version` / `employment_epoch` query preconditions. Only the selected
+Staff enrollment record and `employment_evidence` category are admitted. Other
+record kinds, identity evidence, general document classification and legacy intake
+fallback are excluded. Metadata and commands repeat current owner/preparer checks;
+each storage phase retains the original source and rechecks it after external I/O.
+WF0113 retains worker identity, quarantine, contributor history and release controls;
+missing or disabled source/policy/trigger/index support fails closed.
+
+The strict client rejects extra private fields, foreign/stale receipts, duplicate
+or oversized pages, inconsistent continuation and invalid scan chronology. Binary
+reads verify MIME, bounded length and checksum before download. The candidate UI
+retains uncertain upload IDs, metadata, bytes and retry attempts, offers original-file
+resume, requires explicit revocation confirmation and aborts on workspace change.
+A selected source basis and private query key include tenant, account, hospital,
+Staff, Staff version and employment epoch. These controls do not bind a file to a
+terms revision, approve employment, activate Staff or assign access. Native evidence
+binding and full live acceptance remain required before release.
+
+### Native governance terms/evidence binding — source candidate
+
+Under the selected hospital/Staff `employment-preparation-periods` family,
+`/:period/revisions/:version/evidence` now registers sealed bounded GET list,
+`/:binding` GET/PUT, `/:binding/history` GET, `/:binding/withdraw` POST and
+`/:binding/content` GET. This is candidate source awaiting real owner/storage
+acceptance. It reuses canonical evidence input/output and freezes actual terms
+revision and scanner generations. Every route requires original expected tenant/
+account and positive `staff_version` / `employment_epoch` query preconditions;
+unknown/duplicate keys are rejected. Only list/history accept pagination keys.
+
+Current native owner/exact hospital employment-preparer authority is required;
+legacy Staff/intake permissions are not fallback authority. WF0114 admits only
+selected reads and exact binding/history/audit writes, adds private immutable
+source provenance and retains the canonical draft/Staff/release/withdrawal guards.
+Replay cannot adopt a legacy or changed-source receipt. Current authority, support,
+Staff basis and attached exact file generation are rechecked during content
+access. Source changes across storage deny disclosure. Historical binding reads
+retain their own terms basis while attaching requires the unchanged current draft.
+No employment, login, posting or access is activated. The candidate SDK/UI now binds exact terms and scanned-file metadata, preserves
+uncertain attach/withdraw commands and reads immutable evidence/terms history.
+Native review preparation uses the separate governance person-finding selector;
+it does not retry the Staff selector. Full current database/browser acceptance
+remains required; no live migration occurred.
+
+The binding client validates the selected terms revision, its own historical
+Staff/employment basis and the current expected workspace basis separately. It
+rejects extra/private fields, foreign revisions, unsupported identifiers,
+inconsistent terminal versions, oversized images, invalid media and out-of-range
+file generations. Attach requires an available selected file and unchanged current
+basis; withdrawal keeps the original frozen metadata/generations. Protected reads
+verify bounded size, media and digest. Histories reject ambiguous revisions and
+sealed continuations cannot repeat. Queries isolate tenant/account/hospital/Staff,
+current basis, exact period/revision and historical basis, without persistent cache.
+
+The evidence UI rereads the selected draft before loading its evidence. Changed
+terms block authoring; a later Staff basis permits historical evidence reads and
+withdrawal while disabling new binding/submission. Current released images are
+selected through the closed document family. Uncertain commands retain their
+original identifier, normalized input and selected file snapshot. History and
+protected downloads remain server-authorized, and account transition/unmount aborts
+active I/O. Independent submission uses the existing canonical submission contract
+and explicitly selects native finding discovery. It does not activate employment
+or assign access. These are candidate implementation facts, not deployed browser
+acceptance or completion of the full Staff/pharmacy workflow.

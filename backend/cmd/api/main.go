@@ -412,6 +412,8 @@ func run() error {
 		SourceAdministration:        iam.NewSourceAdministrationGuard(db, fga),
 		OperatingAuthorizer:         iam.NewOperatingAuthorizer(db, fga, platform.IndependentStaffIdentities(registry.All(), db), platform.OperatingLocations(registry.All(), db)),
 		IndependentStaff:            platform.IndependentStaffIdentities(registry.All(), db),
+		GovernanceTopology:          platform.GovernanceTopology(registry.All(), db),
+		GovernanceSources:           platform.GovernanceSources(registry.All(), db),
 		OperatingLocations:          platform.OperatingLocations(registry.All(), db),
 		TradingEndpoints:            platform.TradingEndpoints(registry.All(), db, platform.DepartmentReferences(registry.All(), db)),
 		Membership:                  currentAuthorization,

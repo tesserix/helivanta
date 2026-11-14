@@ -84,6 +84,41 @@ export const ScopeResultContract = z
   .strict();
 export type ScopeResult = z.infer<typeof ScopeResultContract>;
 
+export const AssignmentGovernanceHospitalScopeContract = z
+  .object({
+    hospital_id: identifier,
+    name: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    can_manage: z.boolean(),
+    can_review: z.boolean(),
+  })
+  .strict();
+export type AssignmentGovernanceHospitalScope = z.infer<
+  typeof AssignmentGovernanceHospitalScopeContract
+>;
+
+export const GovernanceScopeRequestContract = z
+  .object({
+    proposal_id: identifier,
+    request_id: identifier,
+    hospital_id: identifier,
+  })
+  .strict();
+export type GovernanceScopeRequest = z.infer<typeof GovernanceScopeRequestContract>;
+
+export const GovernanceScopeResultContract = z
+  .object({
+    proposal_id: identifier,
+    request_id: identifier,
+    hospital_id: identifier,
+    eligible: z.boolean(),
+  })
+  .strict();
+export type GovernanceScopeResult = z.infer<typeof GovernanceScopeResultContract>;
+
 export const DepartmentScopeRequestContract = z
   .object({
     proposal_id: identifier,
@@ -104,6 +139,36 @@ export const DepartmentScopeResultContract = z
   })
   .strict();
 export type DepartmentScopeResult = z.infer<typeof DepartmentScopeResultContract>;
+
+export const AssignmentAccountPresentationContract = z
+  .object({
+    proposal_id: identifier,
+    proposal_version: z.number().int().min(1),
+    subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    available: z.boolean(),
+    name: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    email: z
+      .string()
+      .min(3)
+      .max(320)
+      .regex(new RegExp("^[^\\s@]+@[^\\s@]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+  })
+  .strict();
+export type AssignmentAccountPresentation = z.infer<typeof AssignmentAccountPresentationContract>;
 
 export const ProposalOutputContract = z
   .object({
@@ -405,3 +470,42 @@ export const MembershipEnrollmentContract = z
   })
   .strict();
 export type MembershipEnrollment = z.infer<typeof MembershipEnrollmentContract>;
+
+export const OperatingGovernanceEmployerScopeContract = z
+  .object({
+    employer_kind: z.enum(["pharmacy", "supplier"]),
+    employer_id: identifier,
+    name: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    can_manage: z.boolean(),
+    can_review: z.boolean(),
+  })
+  .strict();
+export type OperatingGovernanceEmployerScope = z.infer<
+  typeof OperatingGovernanceEmployerScopeContract
+>;
+
+export const OperatingGovernanceStaffChoiceContract = z
+  .object({
+    staff_id: identifier,
+    display_name: z
+      .string()
+      .min(1)
+      .max(150)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    staff_version: z.number().int().min(1).max(9007199254740991),
+    subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .regex(new RegExp("^[^\\s*#:]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    link_id: identifier,
+    link_version: z.number().int().min(2).max(9007199254740991),
+  })
+  .strict();
+export type OperatingGovernanceStaffChoice = z.infer<typeof OperatingGovernanceStaffChoiceContract>;

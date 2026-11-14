@@ -216,6 +216,7 @@ type HarnessOptions struct {
 	Writer                      platform.TupleWriter
 	Roles                       platform.RoleLister
 	Membership                  authz.MembershipChecker
+	GovernanceSources           func(*tenantdb.DB) authz.CurrentGovernanceSourceGuard
 	ScopedAuthorizer            func(*tenantdb.DB) authz.ScopedAuthorizer
 	OperatingAuthorizer         func(*tenantdb.DB) authz.OperatingScopeAuthorizer
 	SourceAdministration        func(*tenantdb.DB) authz.SourceAdministrationGuard
@@ -411,12 +412,18 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	if opts.OperatingAuthorizer != nil {
 		operatingAuthorizer = opts.OperatingAuthorizer(db)
 	}
+	governanceSources := platform.GovernanceSources(opts.Modules, db)
+	if opts.GovernanceSources != nil {
+		governanceSources = opts.GovernanceSources(db)
+	}
 	stockProducts := platform.StockProducts(opts.Modules, db)
 	deps := platform.Deps{
 		StaffAccounts:               opts.StaffAccounts,
 		SourceAdministration:        sourceAdministration,
 		OperatingAuthorizer:         operatingAuthorizer,
 		IndependentStaff:            platform.IndependentStaffIdentities(opts.Modules, db),
+		GovernanceTopology:          platform.GovernanceTopology(opts.Modules, db),
+		GovernanceSources:           governanceSources,
 		OperatingLocations:          platform.OperatingLocations(opts.Modules, db),
 		TradingEndpoints:            platform.TradingEndpoints(opts.Modules, db, platform.DepartmentReferences(opts.Modules, db)),
 		Membership:                  membership,

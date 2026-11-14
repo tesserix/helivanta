@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { listPersonReviewScopes } from "./person-review-scopes";
+import { listPersonReviewScopes, listPersonReviewAuthorityScopes } from "./person-review-scopes";
 import {
   listPersonReviewInbox,
   searchPersonReviewTargets,
@@ -26,6 +26,23 @@ export function usePersonReviewScopes(
     ...privateRead,
     queryKey: ["workforce", "person-review-scopes", workspace.tenantId, workspace.subject, cursor],
     queryFn: ({ signal }) => listPersonReviewScopes(workspace, cursor, signal),
+  });
+}
+
+export function usePersonReviewAuthorityScopes(
+  workspace: Pick<PersonReviewScope, "tenantId" | "subject">,
+  cursor: string | null,
+) {
+  return useQuery({
+    ...privateRead,
+    queryKey: [
+      "workforce",
+      "person-review-authority-scopes",
+      workspace.tenantId,
+      workspace.subject,
+      cursor,
+    ],
+    queryFn: ({ signal }) => listPersonReviewAuthorityScopes(workspace, cursor, signal),
   });
 }
 

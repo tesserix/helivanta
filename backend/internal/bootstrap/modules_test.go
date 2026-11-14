@@ -8,6 +8,7 @@ import (
 
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
+	"github.com/tesserix/onboarding-service/api/customercontract"
 )
 
 // fakeUserStateChecker is a minimal iam.IdentityProvider for
@@ -23,6 +24,10 @@ func (*fakeUserStateChecker) UserState(context.Context, string, string) (logincl
 
 func (*fakeUserStateChecker) UserProfile(context.Context, string, string) (loginclient.UserProfile, error) {
 	return loginclient.UserProfile{}, nil
+}
+
+func (*fakeUserStateChecker) AssignmentCandidateIdentity(context.Context, string, string) (*customercontract.AssignmentCandidateIdentity, error) {
+	return nil, nil
 }
 
 func (*fakeUserStateChecker) MembershipEligible(context.Context, string, string) (bool, error) {

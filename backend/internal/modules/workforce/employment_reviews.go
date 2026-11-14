@@ -118,32 +118,25 @@ func employmentReviewError(c *gin.Context, err error) {
 		respondIntakeError(c, err)
 	}
 }
-func (h *handlers) employmentReviewPreparation(c *gin.Context, p authn.Principal, hospital, staff, id uuid.UUID, fn func(*gorm.DB, IdentitySource, *intakeAuthority) error) error {
+func (h *handlers) employmentReviewPreparation(c *gin.Context, p authn.Principal, hospital, staff, id uuid.UUID, fn func(*gorm.DB, IdentitySource, *employmentReviewAuthority) error) error {
 	if !employmentReviewProjection(c, hrIntakeQuery) {
 		return errIntakeProjection
 	}
-	return h.intakeAuthorityTransaction(c, p, hospital, []authz.Permission{PermEnrollmentManage, PermDocumentManage}, true, func(tx *gorm.DB, scoped bool) error {
-		value, present := c.Get(intakeAuthorityKey)
-		current, ok := value.(*intakeAuthority)
-		if !scoped || !present || !ok || current == nil || !current.Scoped {
-			return authz.ErrScopedCommandDenied
-		}
-		source, err := loadIdentitySource(tx, p, hospital, staff)
-		if err != nil {
-			return err
-		}
-		if err := tx.Exec(`SELECT set_config('app.workforce_employment_review','manage',true),set_config('app.workforce_employment_review_id',?,true),set_config('app.workforce_employment_evidence','read',true)`, id.String()).Error; err != nil {
-			return err
-		}
-		return fn(tx, source, current)
-	})
+	return h.withEmploymentReviewAuthority(c, p, hospital, staff, id, PermEmploymentPrepare, []authz.Permission{PermEnrollmentManage, PermDocumentManage}, fn)
 }
-func employmentReviewAudit(tx *gorm.DB, p authn.Principal, row EmploymentReview, action string, authority *intakeAuthority) error {
-	if grant, ok := authority.Grants[PermEmploymentReview]; ok {
-		return personReviewAudit(tx, p, row.HospitalID, row.ID, action, row.Version, reviewedLeaveActor{ID: authority.Actor.Link, StaffID: authority.Actor.Staff, Version: authority.Actor.LinkVersion}, grant)
+func employmentReviewAudit(tx *gorm.DB, p authn.Principal, row EmploymentReview, action string, authority *employmentReviewAuthority) error {
+	if !authority.valid() {
+		return authz.ErrScopedAuthorizationUnavailable
 	}
-	prepare, documents := authority.Grants[PermEnrollmentManage], authority.Grants[PermDocumentManage]
-	return tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,?,?,jsonb_build_object('version',?::bigint,'staff_id',?::uuid,'period_id',?::uuid,'person_review_id',?::uuid,'actor_link_id',?::uuid,'actor_link_version',?::bigint,'prepare_assignment_id',?::text,'prepare_assignment_version',?::bigint,'documents_assignment_id',?::text,'documents_assignment_version',?::bigint,'scope_epoch',?::bigint,'membership_epoch',?::bigint))`, p.TenantID, row.HospitalID, p.Subject, action, row.ID, row.Version, row.StaffID, row.PeriodID, row.PersonReviewID, authority.Actor.Link, authority.Actor.LinkVersion, prepare.AssignmentID, prepare.Version, documents.AssignmentID, documents.Version, prepare.ScopeEpoch, prepare.MembershipEpoch).Error
+	if authority.Governance != nil {
+		return employmentReviewGovernanceAudit(tx, p, row, action, authority, nil)
+	}
+	staff := authority.Staff
+	if grant, ok := staff.Grants[PermEmploymentReview]; ok {
+		return personReviewStaffAudit(tx, p, row.HospitalID, row.ID, action, row.Version, reviewedLeaveActor{ID: staff.Actor.Link, StaffID: staff.Actor.Staff, Version: staff.Actor.LinkVersion}, grant)
+	}
+	prepare, documents := staff.Grants[PermEnrollmentManage], staff.Grants[PermDocumentManage]
+	return tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,?,?,jsonb_build_object('version',?::bigint,'staff_id',?::uuid,'period_id',?::uuid,'person_review_id',?::uuid,'actor_link_id',?::uuid,'actor_link_version',?::bigint,'prepare_assignment_id',?::text,'prepare_assignment_version',?::bigint,'documents_assignment_id',?::text,'documents_assignment_version',?::bigint,'scope_epoch',?::bigint,'membership_epoch',?::bigint))`, p.TenantID, row.HospitalID, p.Subject, action, row.ID, row.Version, row.StaffID, row.PeriodID, row.PersonReviewID, staff.Actor.Link, staff.Actor.LinkVersion, prepare.AssignmentID, prepare.Version, documents.AssignmentID, documents.Version, prepare.ScopeEpoch, prepare.MembershipEpoch).Error
 }
 func employmentReviewPerson(tx *gorm.DB, p authn.Principal, source IdentitySource, review, revision uuid.UUID, version int64) (PersonReview, error) {
 	if err := tx.Exec(`SELECT set_config('app.workforce_employment_person_review',?,true)`, review.String()).Error; err != nil {
@@ -262,7 +255,7 @@ func (h *handlers) putEmploymentReview(c *gin.Context) {
 		return
 	}
 	var result EmploymentReview
-	err = h.employmentReviewPreparation(c, p, hospital, staff, id, func(tx *gorm.DB, source IdentitySource, authority *intakeAuthority) error {
+	err = h.employmentReviewPreparation(c, p, hospital, staff, id, func(tx *gorm.DB, source IdentitySource, authority *employmentReviewAuthority) error {
 		var receipt employmentReviewRecord
 		found := tx.Table("workforce_employment_review_history").Select(employmentReviewColumns).Where("tenant_id=? AND hospital_id=? AND revision_id=?", p.TenantID, hospital, in.CommandID).Take(&receipt).Error
 		if found == nil {
@@ -286,7 +279,7 @@ func (h *handlers) putEmploymentReview(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		if authority.Actor.Staff == staff || p.Subject == finding.DeclaredSubject {
+		if authority.isStaff(staff) || p.Subject == finding.DeclaredSubject {
 			return errPersonReviewIndependence
 		}
 		var associated int64
@@ -423,7 +416,7 @@ func (h *handlers) getEmploymentReview(c *gin.Context) {
 		return
 	}
 	var result EmploymentReviewView
-	err := h.employmentReviewRead(c, p, hospital, staff, id, func(tx *gorm.DB, source IdentitySource, authority *intakeAuthority) error {
+	err := h.employmentReviewRead(c, p, hospital, staff, id, func(tx *gorm.DB, source IdentitySource, authority *employmentReviewAuthority) error {
 		row, err := loadEmploymentReview(tx, p, hospital, staff, id, uuid.Nil)
 		if err != nil {
 			return err
@@ -433,9 +426,9 @@ func (h *handlers) getEmploymentReview(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		_, reviewer := authority.Grants[PermEmploymentReview]
+		reviewer := authority.Capability == authz.GovernanceEmploymentReview
 		if reviewer {
-			independent, err := employmentReviewIndependent(tx, p, row.EmploymentReview, authority.Actor)
+			independent, err := employmentReviewIndependent(tx, p, row.EmploymentReview, authority)
 			if err != nil {
 				return err
 			}
@@ -460,7 +453,7 @@ func (h *handlers) listEmploymentReviewHistory(c *gin.Context, params pagination
 		return nil, nil
 	}
 	rows := []employmentReviewHistory{}
-	err := h.employmentReviewRead(c, p, hospital, staff, id, func(tx *gorm.DB, _ IdentitySource, authority *intakeAuthority) error {
+	err := h.employmentReviewRead(c, p, hospital, staff, id, func(tx *gorm.DB, _ IdentitySource, authority *employmentReviewAuthority) error {
 		head, err := loadEmploymentReview(tx, p, hospital, staff, id, uuid.Nil)
 		if err != nil {
 			return err

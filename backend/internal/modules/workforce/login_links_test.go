@@ -39,7 +39,7 @@ func newLoginLinkFixture(t *testing.T) *loginLinkFixture {
 	require.NoError(t, err)
 	require.NoError(t, fga.GrantTenantRole(t.Context(), testutil.TenantA, authz.RoleStaffMember))
 	require.NoError(t, fga.GrantRole(t.Context(), testutil.TenantA, "user-candidate", authz.RoleStaffMember))
-	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{GovernanceSources: testutil.GovernanceReviewProtocol,
 		Tokens: map[string]string{"manager": testutil.TenantA, "reviewer": testutil.TenantA, "candidate": testutil.TenantA, "reader": testutil.TenantA, "foreign": testutil.TenantB},
 		Perms: map[string][]authz.Permission{
 			"manager":   {workforce.PermHospitalManage, workforce.PermEnrollmentManage, "workforce.login_links.manage", "workforce.login_links.review"},

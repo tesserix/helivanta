@@ -114,6 +114,7 @@ func (*Module) Consumers(deps platform.Deps) []events.Consumer {
 		supplierGrantConsumer(),
 		partnerGroupHospitalObservationConsumer(),
 		proposalScopeConsumer(deps),
+		proposalGovernanceScopeConsumer(deps),
 		proposalDepartmentScopeConsumer(deps),
 		assignmentProjectionConsumer(deps),
 		operatingProjectionConsumer(deps),

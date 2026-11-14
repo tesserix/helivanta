@@ -87,3 +87,225 @@ reviewed account basis; reactivation does not revive old duties. Hospital Staff
 use the separate reviewed employment, account-link, department posting and
 pharmacy-relationship workflows. See
 [the preparation design](../superpowers/specs/2026-11-09-pharmacy-staff-preparation.md).
+
+## Native operating-access governance source candidate
+
+The separate canonical `iam.operating_access_reviewer.v1` bundle contains only
+`iam.governance.operating.manage` and `iam.governance.operating.review`. Each
+grant names one independent pharmacy or supplier employer. Tenant, hospital,
+department, outlet and premise scopes are rejected. Existing account-link,
+hospital assignment and operating-duty templates keep their permissions.
+
+IAM's closed `WithGovernanceSource` mapping recognizes these two capabilities
+and uses its current native-owner or exact-grant authority, credential watermark,
+membership incarnation, validity and canonical employer topology. Revoked or
+absent source denies; dependency failure is unavailable. This grants no stock,
+clinical, financial or operating permission and creates no Workforce manager or
+Staff row. Existing operating-duty routes retain their legacy administrative and employer
+checks. Separate native routes below use the current operating governance source
+while retaining all current Staff/link, location, membership and independent
+decision checks. Source support alone does not establish complete Staff and
+pharmacy acceptance.
+
+The canonical Go/Zod template enum expands additively; clients must refresh it and
+reject unknown keys. The source-only increment needed no schema migration; native consumption below
+adds IAM0050. The
+existing IAM governance ledger keeps immutable versioned keys and source facts;
+rollback stops issuance/consumption of the new template and retains history.
+Database source cases for both employer kinds, current owners/delegates, wrong
+scope/purpose, source revocation and missing topology are acceptance gates.
+
+## Native operating-duty administration candidate
+
+### Native workspace consumer
+
+The candidate `/workforce/operating-access` page is linked from Staff access for
+operating-governance users. It selects an authorised employer and a qualified,
+independently reviewed Staff/account choice before showing native duties. Native
+preparation uses only the qualified location projection and its exact structural
+versions; a missing or mismatched Staff/account basis refuses preparation without
+reading legacy directories or catalogues. Existing legacy callers keep their
+original consumers and use the same canonical proposal/decision forms.
+
+The page holds its original tenant/account while a command is unconfirmed.
+Employer/Staff navigation is frozen, changed access hides cached private labels,
+and receipt recovery sends GET only with the original ID/input/context headers.
+An account switch cannot rewrite that intent or repeat the original PUT. A denied
+receipt remains unconfirmed; an explicit receipt recheck for restored access does
+not create another command. Ordinary session-ended behavior still requires sign-in.
+Server source and maker/target/independent-person checks remain authoritative.
+Activation is shown separately from recorded approval.
+
+Native UI and legacy-preservation component tests and Playwright discovery/denial
+checks accompany this consumer. Local test collection/build is not browser or
+production acceptance. Historical/ineligible-target duties, whole Staff/recipient/
+posting journeys, both pharmacy ownership models and live deployment verification
+remain separate open gates.
+
+### Qualified physical source choices
+
+`GET /v1/iam/operating-governance-employers/:kind/:employer/location-choices`
+uses current operating-manage governance for the exact typed Workforce employer.
+IAM composes the product-owned location interface; each product retains all SQL
+and current structural facts. No legacy catalogue permission is required or
+substituted. Expected tenant/account headers must match the refreshed principal.
+Hidden/ungranted employers return `404`; missing coarse permission is `403`;
+stale context is `409`; source, owner, support or audit failure is `503` with no
+partial successful page. Read refusal never falls back to a product catalogue.
+
+The canonical `operating-assignments.json.OperatingLocationChoice` contains owner
+tenant, employer kind/ID, location ID, code/name, country and exact structural
+employer/location versions. It excludes addresses, contacts, private source proof,
+licences, stock and financial data. Source proof remains callback-only. Each read
+produces immutable, column-name-only platform audit identifying the actor and
+physical resource; field values are not added to that audit contract. Duty commands
+continue retaining their own exact versions and private original-source proof.
+
+Current choices match the existing structural guard: Indian independent/chain
+pharmacy outlets, or active Indian warehouse/depot premises of an owned Indian
+supplier organisation. Pharmacy structural versions remain one; supplier versions
+come from the current locked owner records. An inactive premise disappears, and
+a later structural change produces its new version. This metadata does not
+certify licences, professional eligibility, trading consent, stock suitability or
+authority for a physical act; those checks remain at consequential commands.
+
+Only single-valued `country=IN` (default), `limit` and `cursor` are accepted.
+Twenty-row pages order by descending owner location `(created_at,id)`; sealed
+anchors bind tenant, account, employer, kind and country. Source/session deadlines
+bound the five-second read. Product owners hold shared structural locks and batch
+audit before release. The dispatcher rejects foreign, duplicate, malformed,
+unsupported or incorrectly ordered owner results. The SDK validates exact returned
+scope, continuation and metadata, propagates cancellation and has no cached authority,
+automatic retries or legacy fallback.
+
+Candidate pharmacy0047/supply0018 add read-only purposes and retained read-policy
+extensions, while fencing unrelated product reads, stock/master writes and deletion
+under selection. Installed fingerprints, forced RLS, privileges and existing page
+indexes fail closed if missing or changed. Context is restored before returning
+to IAM. These are unapplied migration candidates; real owner/source/paging/fault
+acceptance and native UI adoption remain required before workflow completion.
+
+### Qualified Staff choices
+
+`GET /v1/workforce/operating-governance-employers/:kind/:employer/staff-choices`
+is the separate native Workforce selector. It requires current operating-manage
+authority for that exact pharmacy/supplier employer and exactly matching expected
+tenant/account headers. Missing coarse permission is `403`; an absent, foreign or
+ungranted employer is `404`; stale workspace is `409`; unavailable source, audit
+or installed support is `503`. Native failure never falls back to a legacy directory.
+
+The strict generated `staff-access.json.OperatingGovernanceStaffChoice` projection
+contains only `staff_id`, `display_name`, `staff_version`, `subject`, `link_id`
+and `link_version`. Staff must be active and have an active independently reviewed
+link with a matching independent Staff revision. Canonical existing Staff UUIDs
+are retained, including v4; link and employer IDs use their existing v7 rules.
+Target membership and identity-owner eligibility are checked again by the duty
+command; the selector does not certify them or grant operating authority.
+
+Only single-valued `status=active` (the default), `limit` and `cursor` queries are
+accepted. Pages cap at twenty, ordered by descending Staff `(created_at,id)`.
+Opaque cursors bind current tenant, account, employer, kind and active filter.
+Each bounded read holds current source authority and shared Staff/link locks
+through attributable read audit. Audit failure rolls back the disclosure. SDK
+keys include the whole employer/account scope; results are uncached, cancellable,
+strictly validated and have no automatic retry or legacy fallback.
+
+Candidate WF0116 adds read-only source-purpose RLS and immutable-source audit
+checks. It retains existing policies when the new purpose is absent, and closes
+unrelated Workforce reads, all master writes and deletion during selection.
+Function/policy fingerprints, forced RLS, runtime privileges and active-link
+uniqueness support are checked before disclosure. This migration is unapplied;
+real database/source/paging/rollback acceptance remains required. Qualified
+product-location choice acceptance and native preparation/review UI remain unfinished.
+
+### Qualified employer choices
+
+Employer discovery uses `GET /v1/workforce/operating-authority-scopes` through
+the Global API. Workforce owns the employer identity/name; IAM owns the current
+nonclinical owner or exact `iam.operating_access_reviewer.v1` grant. Each returned
+row contains only `employer_kind`, `employer_id`, `name`, `can_manage` and
+`can_review`, generated from `staff-access.json.OperatingGovernanceEmployerScope`.
+Only pharmacy/supplier employers with at least one currently authorised capability
+are disclosed; no source grant, Staff, contact or product stock data is returned.
+
+Exactly one expected-tenant and expected-subject header must match the refreshed
+principal (`409 session_changed` otherwise). Missing coarse operating governance
+permission returns `403`; absent root-specific authority filters that root out;
+unavailable identity, source, database or audit returns `503`, without a partial
+successful page. This read never grants access or creates a legacy manager.
+Each disclosed capability is rechecked and audited inside the source callback.
+
+The sealed list scans at most twenty candidates per page, descending by
+`(created_at,id)`, with at most four simultaneous source checks and a five-second
+overall source budget bounded by session expiry. An empty visible page can have
+`has_more:true`; follow its opaque cursor. Cursors bind tenant, subject and route.
+SDK requests cap pages at twenty, propagate cancellation, reject duplicates,
+unknown fields, rows without authority and inconsistent continuation metadata.
+Query keys include tenant/account; results have zero stale/retention time and no
+automatic retries. Names are for selection, never reusable authority. Staff and
+location preparation projections and native UI adoption remain separate gates.
+
+All client traffic uses the Global API, with these IAM-owned destinations:
+
+| Method | Path after `/v1/iam`                                                           | Authority                                                           |
+| ------ | ------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| PUT    | `/operating-governance-employers/:kind/:employer/duties/:id`                   | native operating manage                                             |
+| GET    | `/operating-governance-employers/:kind/:employer/duties/:id`                   | native operating manage                                             |
+| GET    | `/operating-governance-employers/:kind/:employer/duties/:id/proposal-receipt`  | native operating manage, original maker/source                      |
+| PUT    | `/operating-governance-employers/:kind/:employer/duties/:id/commands/:command` | native review for approve/reject; native manage for withdraw/revoke |
+| GET    | `/operating-governance-employers/:kind/:employer/duties/:id/commands/:command` | native operating manage, original actor/source                      |
+| GET    | `/operating-governance-employers/:kind/:employer/staff/:staff/duties`          | native operating manage, bounded staff page                         |
+
+`kind` is exactly `pharmacy` or `supplier`; IDs are canonical v7 UUIDs. Existing
+canonical OperatingDuty input, decision, view and receipt models are reused.
+Non-list commands reject query filters. The verified tenant and path employer
+must match every selected resource and body. Current IAM owner/grant authority
+is held throughout the transaction. Workforce verifies the source in that
+current guarded context and reads only the independent employer root; it creates
+no legacy manager, Staff, login link or location. Target identity/current reviewed
+link, membership incarnation, location evidence and independent maker/target
+exclusions remain in the existing duty engine. The source provides no stock or
+professional clinical authority by itself.
+
+Additive IAM0050 adds a private immutable administration marker and forced-RLS
+source/decision records. Canonical insertion/receipt triggers emit those records;
+a deferred completeness constraint prevents partial attribution. It is checked
+while the command purpose remains active, before a successful API response.
+Actor, employer, capability, membership epoch, credential watermark, validity,
+owner membership ID or exact grant ID/version are verified on native writes.
+Receipt replay requires that same current authority identity, not a replacement
+grant or recreated owner membership. Preparation and command source proof never
+appears in public duty views. `404` hides absent/wrong scope, administration mode
+or original source; missing coarse admission is `403`; stale inputs/transitions
+remain `409`; current source/dependency/integrity failure is `503`.
+
+Existing legacy duties retain their original API and receipt semantics. Native
+commands cannot adopt legacy rows, and legacy human commands cannot change a
+native row. The canonical projection worker still acknowledges valid approvals
+or revokes an invalid target using its service-bound path. Native projection and
+target operating-authority consumption verify the installed source support;
+source expiry/revocation cuts off future administrative commands and replay,
+while completed target duties retain their own current identity, location,
+validity and explicit revocation checks.
+
+The migration verifies the preceding assignment integrity before adding purpose
+policies, then refreshes that checked baseline. Native support pins policy,
+function and trigger definitions, enabled state, forced tenant RLS and protected
+TRUNCATE privileges. Purpose-scoped membership reads select only actor/target;
+unrelated IAM writes stay denied. A selected duty/version index bounds source
+receipt validation. Failed attribution, audit or outbox work rolls back with the
+canonical mutation. No new infrastructure is introduced. Native UI/SDK adoption,
+remote acceptance of the new API/migration and the full both-model live Staff and
+pharmacy journeys remain required. This candidate has not been deployed.
+
+### SDK administration context
+
+`OperatingDutyStaffScope.administration` is an explicit client context: absent or
+`"legacy"` retains the existing duty routes; `"governance"` selects the employer-bound
+native routes for preparation, reads, decision commands and GET-only recovery.
+Unknown values, empty strings and explicit `null` fail before a request. The mode
+is part of the query key and is never added to canonical command bodies. A denied
+native command or receipt does not retry through legacy authority. The client
+continues to bind responses to verified tenant/actor expectations, exact employer,
+Staff, request ID and retained intent. Mode selection is routing context, not
+server authority. Qualified discovery and native UI adoption remain outstanding.

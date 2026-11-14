@@ -127,6 +127,10 @@ export * from "./staff-directory";
 export * from "./staff-intake-queries";
 export * from "./employment-periods-contract";
 export * from "./employment-periods";
+export * from "./employment-preparation";
+export * from "./employment-document-preparation";
+export * from "./employment-binding-preparation";
+export * from "./employment-preparation-queries";
 
 export * from "./employment-evidence";
 export * from "./person-review-contract";
@@ -180,6 +184,7 @@ export * from "./supplier-staff";
 export * from "./supplier-staff-queries";
 export * from "./independent-staff-identity-queries";
 export * from "./operating-duties";
+export * from "./operating-authority-scopes";
 
 export * from "./supplier-access";
 
@@ -200,3 +205,10 @@ export * from "./owner-security";
 export * from "./account-discovery";
 
 export * from "./staff-accounts";
+export * from "./staff-governance";
+
+export * from "./governance-assignments";
+
+export * from "./operating-staff-choices";
+
+export * from "./operating-location-choices";

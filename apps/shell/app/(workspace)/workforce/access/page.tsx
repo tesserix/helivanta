@@ -4,6 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@tesserix/web";
 import {
   PageHeading,
+  GuardedLink,
   Panel,
   LoadMore,
   SelectControl,
@@ -27,6 +28,8 @@ import {
   TemplateDefinitionContract,
 } from "@helivanta/api";
 import { AssignmentProposalForm, AssignmentDecisionForm } from "./assignment-forms";
+import { GovernanceAssignments } from "./governance-assignments";
+import { GovernanceInbox } from "@/components/workforce/governance-inbox";
 import { StaffAccountInitiation } from "@/components/workforce/staff-account-initiation";
 import { StaffMembershipForm } from "./membership-form";
 import { MembershipManagement } from "./membership-management";
@@ -69,11 +72,37 @@ export default function StaffAccessPage() {
           (p) =>
             p === "iam.assignment.manage" ||
             p === "iam.assignment.review" ||
-            p === "iam.member.manage",
+            p === "iam.governance.assignment.manage" ||
+            p === "iam.governance.assignment.review" ||
+            p === "iam.member.manage" ||
+            p === "iam.governance.manage" ||
+            p === "iam.governance.operating.manage" ||
+            p === "iam.governance.operating.review",
         ) ? (
         <p>Assignment administration is not available for this account.</p>
       ) : (
         <div key={`${identity.data.tenant_id}:${identity.data.subject}`}>
+          {identity.data.data.some(
+            (p) =>
+              p === "iam.governance.operating.manage" || p === "iam.governance.operating.review",
+          ) && (
+            <Panel className="space-y-3">
+              <h2 className="font-semibold">Independent pharmacy and supplier Staff</h2>
+              <p className="text-sm text-muted-foreground">
+                Prepare operating duties with current reviewed Staff accounts and physical source
+                locations.
+              </p>
+              <GuardedLink href="/workforce/operating-access" className="text-primary underline">
+                Independent Staff access
+              </GuardedLink>
+            </Panel>
+          )}
+          {identity.data.data.includes("iam.governance.manage") &&
+            identity.data.data.includes("iam.governance.read") && (
+              <GovernanceInbox
+                scope={{ tenantId: identity.data.tenant_id, subject: identity.data.subject }}
+              />
+            )}
           {identity.data.data.includes("iam.member.manage") && (
             <>
               <StaffAccountInitiation
@@ -89,7 +118,19 @@ export default function StaffAccessPage() {
           )}
           {identity.data.data.some(
             (p) => p === "iam.assignment.manage" || p === "iam.assignment.review",
-          ) && <Assignments identity={identity.data} />}
+          ) ? (
+            <Assignments identity={identity.data} />
+          ) : (
+            identity.data.data.some(
+              (p) =>
+                p === "iam.governance.assignment.manage" ||
+                p === "iam.governance.assignment.review",
+            ) && (
+              <GovernanceAssignments
+                scope={{ tenantId: identity.data.tenant_id, subject: identity.data.subject }}
+              />
+            )
+          )}
         </div>
       )}
     </>

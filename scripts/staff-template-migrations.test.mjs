@@ -22,6 +22,11 @@ const artifacts = [
   ...catalog.template_migrations
     .filter((entry) => entry.file !== "assignment_templates_generated.sql")
     .map((entry) => "backend/internal/modules/iam/" + entry.file),
+  "backend/internal/modules/iam/contract/assignment_governance_scope_generated.go",
+  "backend/internal/modules/workforce/contract/assignment_governance_scope_generated.go",
+  "backend/internal/modules/workforce/contract/assignment_governance_hospital_scope_generated.go",
+  "backend/internal/modules/workforce/contract/operating_governance_employer_scope_generated.go",
+  "backend/internal/modules/workforce/contract/operating_governance_staff_choice_generated.go",
   "backend/internal/modules/iam/assignment_templates_generated.sql",
 ];
 async function fixture(t) {

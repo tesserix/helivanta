@@ -62,6 +62,9 @@ func (h *handlers) withdrawDocument(c *gin.Context, gate documentGate, p authn.P
 		if saved.Status != "available" {
 			return errDocumentConflict
 		}
+		if err := prepareDocumentMutation(tx, gate, documentMutation{Stage: documentMutationRevoke, Saved: &saved}); err != nil {
+			return err
+		}
 		res := tx.Raw(`UPDATE workforce_documents SET status='revoked',updated_at=clock_timestamp() WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND id=? AND status='available' RETURNING `+documentColumns, p.TenantID, hospital, staffID, fileID).Scan(&saved)
 		if res.Error != nil {
 			return res.Error
@@ -122,6 +125,9 @@ func (h *handlers) requeueDocument(c *gin.Context, gate documentGate, p authn.Pr
 		}
 		if (saved.Status != "scan_error" && saved.Status != "scan_pending") || saved.ScanAttempt+1 != attempt {
 			return errDocumentConflict
+		}
+		if err := prepareDocumentMutation(tx, gate, documentMutation{Stage: documentMutationRetry, Saved: &saved, Attempt: attempt}); err != nil {
+			return err
 		}
 		res := tx.Raw(`UPDATE workforce_documents SET status='scan_pending',scan_attempt=?,failure_code=NULL,updated_at=clock_timestamp() WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND id=? AND (status='scan_error' OR (status='scan_pending' AND updated_at<=clock_timestamp()-?*interval '1 second')) AND scan_attempt=? RETURNING `+documentColumns, attempt, p.TenantID, hospital, staffID, fileID, documentProcessingTimeoutSeconds, attempt-1).Scan(&saved)
 		if res.Error != nil {
@@ -216,6 +222,9 @@ func (h *handlers) sendDocument(c *gin.Context, gate documentGate, p authn.Princ
 		}
 		if current.Status != "available" || current.ReleasedGeneration == nil || *current.ReleasedGeneration != content.Generation {
 			return errDocumentConflict
+		}
+		if native, ok := gate.(interface{ auditDownload(*gorm.DB) error }); ok {
+			return native.auditDownload(tx)
 		}
 		return tx.Exec(`INSERT INTO workforce_audit (tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES (?,?,?,?,?,jsonb_build_object('file_id',?::uuid))`, p.TenantID, hospital, p.Subject, gate.downloadAction(), staffID, fileID).Error
 	})

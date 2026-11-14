@@ -79,6 +79,9 @@ func (staffDocuments) permissions(bool) (authz.Permission, authz.Permission) {
 }
 
 func (h *handlers) refreshDocumentPermissions(c *gin.Context, gate documentGate, writing bool) bool {
+	if _, ok := gate.(*governanceBindingDocumentGate); ok {
+		return !writing && authn.Refresh(c)
+	}
 	if c.Query(hrIntakeQuery) == hrIntakeVersion && intakeDocumentGate(gate) {
 		// Every following owner phase resolves and holds the scoped requirements.
 		return true
@@ -208,6 +211,9 @@ func (h *handlers) registerDocument(c *gin.Context, gate documentGate, p authn.P
 			}
 			version, err := gate.bind(tx, p, hospital, staffID, in.RecordKind, in.RecordID)
 			if err != nil {
+				return err
+			}
+			if err := prepareDocumentMutation(tx, gate, documentMutation{Stage: documentMutationIntent, Input: &in}); err != nil {
 				return err
 			}
 			result := tx.Exec(`INSERT INTO workforce_documents(tenant_id,hospital_id,id,staff_id,record_id,record_kind,record_version,category,filename,content_type,size,sha256)

@@ -169,3 +169,15 @@ receipt validation. Failed attribution, audit or outbox work rolls back with the
 canonical mutation. No new infrastructure is introduced. Native UI/SDK adoption,
 remote acceptance of the new API/migration and the full both-model live Staff and
 pharmacy journeys remain required. This candidate has not been deployed.
+
+### SDK administration context
+
+`OperatingDutyStaffScope.administration` is an explicit client context: absent or
+`"legacy"` retains the existing duty routes; `"governance"` selects the employer-bound
+native routes for preparation, reads, decision commands and GET-only recovery.
+Unknown values, empty strings and explicit `null` fail before a request. The mode
+is part of the query key and is never added to canonical command bodies. A denied
+native command or receipt does not retry through legacy authority. The client
+continues to bind responses to verified tenant/actor expectations, exact employer,
+Staff, request ID and retained intent. Mode selection is routing context, not
+server authority. Qualified discovery and native UI adoption remain outstanding.

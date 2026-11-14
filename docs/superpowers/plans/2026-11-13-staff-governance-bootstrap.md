@@ -128,3 +128,20 @@ broader employment/posting/recipient gates, then complete both ownership-model
 live QA journeys. Main merge, named live migration/rollout approval and Kargo
 verification remain outstanding. The full original goal is active; this candidate
 is not a claim of full Staff, supplier, clinical or regulatory completion.
+
+SDK continuation: `OperatingDutyStaffScope.administration="governance"` now selects
+native employer-bound preparation, reads, decisions and GET-only receipt recovery.
+Absent/explicit legacy mode retains the existing API. The mode separates query
+keys, does not enter canonical command bodies and rejects explicit null, empty or
+unknown modes before I/O. Native denial never falls back to legacy authority.
+Observed red routing/cache/invalid-mode tests passed after implementation, with
+18 focused cases covering both independent employer kinds and receipt behavior.
+All 30 local workspace checks/builds passed on Node 24 with the frozen jsdom 31
+dependencies. Qualified discovery and native UI adoption remain required.
+
+Remote `131fcc18` advanced through first native preparation for both employer
+kinds. The metadata write-denial case then observed the existing epoch guard's
+specific 23514 membership-transition rejection before RLS WITH CHECK. `6d34e2c4`
+asserts that exact guard message and verifies unchanged epoch/member count after
+an attempted increment. The denial expectation remains strict; no database or
+production admission guard was loosened. Fresh remote acceptance remains pending.

@@ -43,6 +43,22 @@ The new candidate family is `/v1/iam/hospitals/:hospital/assignment-proposals`:
 Lists have a maximum of 50 rows per page. Continuations bind the actor, tenant,
 selected resource parameters and filters, including the assignment family.
 
+Hospital choices come from `GET /v1/workforce/assignment-authority-scopes`.
+Workforce owns the names and returns at most 20 currently authorized hospital
+choices with `hospital_id`, `name`, `can_manage` and `can_review`. The canonical
+model is `AssignmentGovernanceHospitalScope` in `contracts/staff-access.json`.
+The filtered continuation is sealed and account-bound; unauthorized candidate
+roots and their cursor anchors are withheld. Every displayed name is reread
+under its exact current governance source and retained read audit. Checks share
+a five-second request budget with concurrency bounded to four. A missing or
+unavailable source fails the request rather than returning a fabricated empty
+list. A present source that denies every candidate returns a genuinely empty
+choice list. Discovery creates no Staff or legacy hospital-manager access.
+The typed SDK uses the Global API and preserves both account precondition
+headers on discovery, proposal, history and decision calls; no legacy fallback
+is attempted. Its hospital choice or cached action flags do not authorize a
+later command, which is checked again on the server.
+
 Every call requires the authenticated session and exactly one matching expected
 tenant and subject header. Business calls use the Global API IAM destination.
 Selected-root restrictive policies fence proposal, history, decision, snapshot,

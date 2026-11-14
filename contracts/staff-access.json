@@ -81,6 +81,12 @@
         "type": "bool"
       }
     ],
+    "AssignmentGovernanceHospitalScope": [
+      {"name": "hospital_id", "type": "uuid"},
+      {"name": "name", "type": "string", "min": 1, "max": 200},
+      {"name": "can_manage", "type": "bool"},
+      {"name": "can_review", "type": "bool"}
+    ],
     "GovernanceScopeRequest": [
       {"name": "proposal_id", "type": "uuid"},
       {"name": "request_id", "type": "uuid"},

@@ -30,6 +30,13 @@ type ScopeResult struct {
 	Eligible   bool      `json:"eligible"`
 }
 
+type AssignmentGovernanceHospitalScope struct {
+	HospitalID uuid.UUID `json:"hospital_id"`
+	Name       string    `json:"name"`
+	CanManage  bool      `json:"can_manage"`
+	CanReview  bool      `json:"can_review"`
+}
+
 type GovernanceScopeRequest struct {
 	ProposalID uuid.UUID `json:"proposal_id"`
 	RequestID  uuid.UUID `json:"request_id"`

@@ -1169,6 +1169,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 
 | Method | Path | Permission | Cursor pagination | Page total |
 | --- | --- | --- | --- | --- |
+| GET | `/v1/workforce/assignment-authority-scopes` | `public` | true | false |
 | GET | `/v1/workforce/employment-review-authority-scopes` | `public` | true | false |
 | GET | `/v1/workforce/employment-review-scopes` | `public` | true | false |
 | DELETE | `/v1/workforce/hospitals/:hospital/access/:subject` | `workforce.hospital.manage` | false | false |

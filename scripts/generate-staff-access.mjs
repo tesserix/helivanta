@@ -513,6 +513,12 @@ for (const [module, name, source, filename] of [
   ],
   ["workforce", "AssignmentScopeVerifiedData", "ScopeResult", "assignment_scope_generated.go"],
   [
+    "workforce",
+    "AssignmentGovernanceHospitalScope",
+    "AssignmentGovernanceHospitalScope",
+    "assignment_governance_hospital_scope_generated.go",
+  ],
+  [
     "iam",
     "AssignmentGovernanceScopeRequestedData",
     "GovernanceScopeRequest",

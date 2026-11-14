@@ -464,6 +464,10 @@ var eventPayloadReviewedNonPHI = map[string]string{
 
 	"mediconnect.AccountCreatedData.AccountID":                   "internally minted opaque account UUID; no subject, contact, patient linkage or clinical content; resolution requires owner authorization",
 	"iam.AssignmentProjectionRequestedData.ProposalID":           "opaque IAM proposal reference; worker rereads current scope without publishing subject or permissions",
+	"workforce.AssignmentGovernanceHospitalScope.HospitalID":     "opaque establishment key used only after current hospital governance authorization; no patient linkage",
+	"workforce.AssignmentGovernanceHospitalScope.Name":           "authorized institution display name, not a person or patient name; no contact or address data",
+	"workforce.AssignmentGovernanceHospitalScope.CanManage":      "current nonclinical assignment-management capability for the selected institution; not a clinical qualification",
+	"workforce.AssignmentGovernanceHospitalScope.CanReview":      "current nonclinical assignment-review capability for the selected institution; not a clinical qualification",
 	"iam.AssignmentGovernanceScopeRequestedData.ProposalID":      "opaque IAM authorization proposal correlation; no patient, subject, profile, terms or evidence payload",
 	"iam.AssignmentGovernanceScopeRequestedData.RequestID":       "opaque owner-verification command correlation used for replay isolation; never bearer authority",
 	"iam.AssignmentGovernanceScopeRequestedData.HospitalID":      "opaque establishment resource key for a same-tenant canonical hospital existence/type check; no name, address or patient linkage",

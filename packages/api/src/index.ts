@@ -205,3 +205,5 @@ export * from "./account-discovery";
 
 export * from "./staff-accounts";
 export * from "./staff-governance";
+
+export * from "./governance-assignments";

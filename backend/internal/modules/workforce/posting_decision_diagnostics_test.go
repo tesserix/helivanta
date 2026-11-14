@@ -84,3 +84,27 @@ func TestPostingPersistenceFailureRetainsPostgresErrorClassification(t *testing.
 	require.Same(t, cause, original)
 	require.NotContains(t, wrapped.Error(), cause.Message)
 }
+
+func TestPostingDecisionStageTimingsDistinguishPrePersistenceCost(t *testing.T) {
+	t.Setenv("HELIVANTA_TEST_SLOG_CAPTURED", "1")
+	var logs bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+	response := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(response)
+	c.Request = httptest.NewRequest("PUT", "/synthetic-posting-decision", nil)
+	start := time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
+	stages := postingDecisionStages{entered: start, stage: "scope_authorization"}
+	stages.mark(c, "proposal_basis", start.Add(100*time.Millisecond))
+	stages.mark(c, "decision_authorization", start.Add(350*time.Millisecond))
+	stages.mark(c, "supervision_sources", start.Add(550*time.Millisecond))
+	stages.mark(c, "decision_persistence", start.Add(3500*time.Millisecond))
+	stages.mark(c, stages.stage, start.Add(5*time.Second))
+	respondPostingDecisionError(c, context.DeadlineExceeded, stages.stage, 5*time.Second)
+	require.Equal(t, 503, response.Code)
+	for _, field := range []string{"posting_scope_authorization_ms=100", "posting_proposal_basis_ms=250", "posting_decision_authorization_ms=200", "posting_supervision_sources_ms=2950", "posting_decision_persistence_ms=1500"} {
+		require.Contains(t, logs.String(), field)
+		require.NotContains(t, response.Body.String(), field)
+	}
+}

@@ -212,3 +212,5 @@ export * from "./governance-assignments";
 export * from "./operating-staff-choices";
 
 export * from "./operating-location-choices";
+
+export * from "./assignment-department-choices";

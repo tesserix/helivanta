@@ -385,8 +385,7 @@ Prior `9a7d40fb` CI exposed an IAM golden test still expecting 49 migrations.
 The observed local reproduction now passes with exactly 50 plus an explicit
 IAM0050 ID/nonempty-SQL assertion; all prior IDs and hashes remain checked.
 Supplier43587374642 passed the corrected historical ordering but later failed
-supervised transfer fault injection: expected persistence 500, received source
-503. Its failure remains unresolved and the assertion is unchanged. Failure-only
+supervised transfer fault injection: expected persistence 500, received source 503. Its failure remains unresolved and the assertion is unchanged. Failure-only
 transfer diagnostics now record constant stage, elapsed milliseconds and deadline
 classification without private payloads, so the next real-service run can locate
 the failing boundary. This is diagnostic evidence, not a claimed runtime fix.
@@ -462,3 +461,13 @@ The hospital selection proof validator is locally implemented/tested; complete i
 owner query/RLS and IAM/identity composition, canonical output, SDK and form before
 claiming qualified account/department selection. No selector route is exposed by
 this private validation increment.
+
+### Department-selection implementation checkpoint
+
+- Candidate owner query, private-purpose restrictive policies, SDK and unit tests
+  are implemented; `0005_organization_assignment_choices` remains unreleased.
+- Explicit CI integration gate covers real owner and delegated reads, bounded
+  paging, foreign/sibling scope, cursor replay, audit rollback, source revocation,
+  missing registration, RLS tampering and master-write denial.
+- Qualified target/account discovery and native preparation controls remain open.
+  Neither SDK presence nor compile-only tests close those gates.

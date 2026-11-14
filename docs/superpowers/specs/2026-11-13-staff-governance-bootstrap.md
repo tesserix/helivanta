@@ -1248,8 +1248,7 @@ Prior `9a7d40fb` CI exposed an IAM golden test still expecting 49 migrations.
 The observed local reproduction now passes with exactly 50 plus an explicit
 IAM0050 ID/nonempty-SQL assertion; all prior IDs and hashes remain checked.
 Supplier43587374642 passed the corrected historical ordering but later failed
-supervised transfer fault injection: expected persistence 500, received source
-503. Its failure remains unresolved and the assertion is unchanged. Failure-only
+supervised transfer fault injection: expected persistence 500, received source 503. Its failure remains unresolved and the assertion is unchanged. Failure-only
 transfer diagnostics now record constant stage, elapsed milliseconds and deadline
 classification without private payloads, so the next real-service run can locate
 the failing boundary. This is diagnostic evidence, not a claimed runtime fix.
@@ -1349,3 +1348,21 @@ The current increment implements private proof validation only in
 `backend/pkg/authz/assignment_selection.go`. Owner queries/RLS, composition,
 canonical models, SDK/UI and real-service/browser
 acceptance remain required before either selector is exposed or claimed complete.
+
+### Governed department-selection owner read
+
+The candidate Organization route and migration are specified in
+[Organization's contract](../../api/organization.md#candidate-governed-assignment-department-choices).
+Organization owns department facts; IAM supplies the held current owner or exact
+hospital reviewer source. The private purpose exposes active canonical heads only,
+uses existing sealed keyset pagination (20 rows maximum), and denies master writes
+and unrelated history. It adds no data master or public identity projection.
+Missing source/schema/audit dependencies return no data. This implements the
+selection boundary for ORG-AC-02/07, not assignment activation or the remaining
+qualified target/account selector and native preparation UI.
+
+Threat boundary: hospital structure and Staff/account association are sensitive
+assets; a coarse-capability holder, another hospital/tenant account or a revoked
+delegate must not enumerate them. Verified current IAM evidence crosses into the
+Organization owner under one guarded command; supplied hospital IDs do not confer
+authority. No network identity lookup occurs inside this structural read.

@@ -104,9 +104,9 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 	}
 	var out StaffPostingProposal
 	started := time.Now()
-	stage := "scope_authorization"
+	stages := postingDecisionStages{entered: started, stage: "scope_authorization"}
 	err = h.scopedPostingTransaction(c, p, s, true, permission, func(ctx context.Context, tx *gorm.DB, source EmploymentPeriodSource) error {
-		stage = "proposal_basis"
+		stages.mark(c, "proposal_basis", time.Now())
 		if err := postingProposalDecisionContext(tx, s, in.Decision, in.ExpectedRevisionID); err != nil {
 			return err
 		}
@@ -119,7 +119,7 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 			if receipt.ProposalID != s.draft || receipt.ActorSubject != p.Subject || receipt.InputHash != fingerprint {
 				return errPostingProposalConflict
 			}
-			stage = "receipt_read"
+			stages.mark(c, "receipt_read", time.Now())
 			out, err = postingProposalResult(tx, p, s, receipt.ID)
 			if err != nil {
 				return err
@@ -127,7 +127,7 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 			if err := postingProposalAudit(tx, p, s, "receipt_read", out.Version); err != nil {
 				return err
 			}
-			stage = "guarded_completion"
+			stages.mark(c, "guarded_completion", time.Now())
 			return nil
 		}
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -140,7 +140,7 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 		if row.Version != *in.ExpectedVersion || row.RevisionID != in.ExpectedRevisionID || row.Status != "pending" {
 			return errPostingProposalConflict
 		}
-		stage = "decision_authorization"
+		stages.mark(c, "decision_authorization", time.Now())
 		if err := authorizePostingProposalDecider(tx, p, s, in.Decision); err != nil {
 			return err
 		}
@@ -153,15 +153,15 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 			}
 		}
 		persist := func(current *gorm.DB) error {
-			stage = "decision_persistence"
+			stages.mark(c, "decision_persistence", time.Now())
 			out, err = h.recordPostingDecision(ctx, current, p, s, row, in, fingerprint, chain, lifecycle)
 			if err == nil {
-				stage = "guarded_completion"
+				stages.mark(c, "guarded_completion", time.Now())
 			}
 			return err
 		}
 		if in.Decision == "approve" {
-			stage = "supervision_read"
+			stages.mark(c, "supervision_read", time.Now())
 			intent, readErr := readPostingSupervisionIntent(tx, p.TenantID, s)
 			if readErr != nil {
 				return readErr
@@ -173,7 +173,7 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 				if in.HospitalManagementReviewed != nil {
 					return errPostingSupervisionRequired
 				}
-				stage = "supervision_sources"
+				stages.mark(c, "supervision_sources", time.Now())
 				return h.withSupervisedPostingLifecycleApproval(ctx, tx, p, s, row, source, *intent, lifecycle, func(current *gorm.DB, verified []postingChainSource) error {
 					chain = verified
 					return persist(current)
@@ -182,7 +182,7 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 			if in.HospitalManagementReviewed == nil {
 				return errPostingSupervisionRequired
 			}
-			stage = "management_sources"
+			stages.mark(c, "management_sources", time.Now())
 			if lifecycle == nil {
 				return h.withRootPostingApproval(ctx, tx, p, s, row, source, persist)
 			}
@@ -191,7 +191,8 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 		return persist(tx)
 	}, additional...)
 	if err != nil {
-		respondPostingDecisionError(c, err, stage, time.Since(started))
+		stages.mark(c, stages.stage, time.Now())
+		respondPostingDecisionError(c, err, stages.stage, time.Since(started))
 		return
 	}
 	c.Header("Cache-Control", "no-store")

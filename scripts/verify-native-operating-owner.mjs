@@ -78,111 +78,160 @@ try {
     return page;
   }
   const preparer = await open("auditor");
-  await preparer.getByRole("button", { name: "Assign operating duty", exact: true }).click();
-  await preparer.getByLabel("Operating role", { exact: true }).click();
-  await preparer
-    .getByRole("option", {
-      name:
-        fixture.kind === "pharmacy"
-          ? "Outlet receiving and stock history"
-          : "Warehouse receiving and stock history",
-      exact: true,
-    })
-    .click();
-  await preparer
-    .getByLabel(fixture.kind === "pharmacy" ? "Pharmacy outlet" : "Warehouse or depot", {
-      exact: true,
-    })
-    .click();
-  await preparer.getByRole("option", { name: /^SYN-NATIVE-PRIMARY/ }).click();
-  const now = Date.now();
-  await preparer
-    .getByLabel("Valid from (UTC)", { exact: true })
-    .fill(new Date(now - 60_000).toISOString().slice(0, 16));
-  await preparer
-    .getByLabel("Expires at (UTC)", { exact: true })
-    .fill(new Date(now + 30 * 60_000).toISOString().slice(0, 16));
-  await preparer.getByLabel("Duty reason", { exact: true }).fill(reason);
-  await preparer.getByRole("button", { name: "Propose operating duty", exact: true }).click();
-  await expect(
-    preparer.getByRole("button", { name: "Recover duty proposal", exact: true }),
-  ).toBeEnabled();
-  await expect(
-    preparer.getByRole("button", { name: "Change employer", exact: true }),
-  ).toBeDisabled();
-  await expect(
-    preparer.getByRole("button", { name: "Change Staff member", exact: true }),
-  ).toBeDisabled();
-  await preparer.getByRole("button", { name: "Recover duty proposal", exact: true }).click();
-  await expect(
-    preparer.getByText(
-      "Operating duty proposed. A separate reviewer must approve it before activation.",
-      { exact: true },
-    ),
-  ).toBeVisible();
-  const proposedDuty = preparer
-    .getByRole("article")
-    .filter({ has: preparer.getByText(reason, { exact: true }) });
-  await expect(proposedDuty.getByText("Status: pending review", { exact: true })).toBeVisible();
-  await expect(proposedDuty.getByRole("button", { name: "Approve duty", exact: true })).toHaveCount(
-    0,
-  );
-  expect(lostProposal).toBe(true);
-  expect(mutations).toHaveLength(1);
-  expect(mutations[0].body).toMatchObject({
-    subject: "user-reviewer",
-    identity: { staff_id: fixture.staff, staff_version: 1, link_version: 2 },
-    scope: {
-      employer_kind: fixture.kind,
-      employer_id: fixture.employer,
-      location_id: fixture.location,
-      expected_employer_version: 1,
-      expected_location_version: 1,
-    },
-    template_key: `${fixture.kind === "pharmacy" ? "pharmacy" : "supply"}.inventory_receiver.v1`,
-    reason,
-  });
-  expect(recoveries).toContainEqual({ actor: "auditor", path: proposal + "/proposal-receipt" });
-  const reviewer = await open("owner2");
-  const duty = reviewer
-    .getByRole("article")
-    .filter({ has: reviewer.getByText(reason, { exact: true }) });
-  await duty
-    .getByLabel("Decision reason", { exact: true })
-    .fill("Independent browser review of current native Staff and outlet");
-  await duty.getByRole("button", { name: "Approve duty", exact: true }).click();
-  await expect(
-    duty.getByRole("button", { name: "Recover duty decision", exact: true }),
-  ).toBeEnabled();
-  await duty.getByRole("button", { name: "Recover duty decision", exact: true }).click();
-  await expect(async () => {
-    await reviewer.getByRole("button", { name: "Refresh duties", exact: true }).click();
-    await expect(duty.getByText("Status: active", { exact: true })).toBeVisible();
-  }).toPass({ timeout: 30_000 });
-  expect(lostDecision).toBe(true);
-  expect(mutations).toHaveLength(2);
-  expect(recoveries).toContainEqual({ actor: "owner2", path: mutations[1].path });
-  await duty
-    .getByLabel("Decision reason", { exact: true })
-    .fill("End the synthetic browser duty after review acceptance");
-  const revoked = reviewer.waitForResponse((response) => {
-    const path = new URL(response.url()).pathname.replace(/^\/api/, "");
-    return (
-      path.startsWith(root + "/duties/") &&
-      path.includes("/commands/") &&
-      response.request().method() === "PUT"
+  if (fixture.cutoff_grant) {
+    await preparer.getByRole("button", { name: "Assign operating duty", exact: true }).click();
+    await preparer
+      .getByLabel("Duty reason", { exact: true })
+      .fill("Retain a draft only while its management source is current");
+    const owner = await browser.newContext();
+    contexts.push(owner);
+    const revoked = await owner.request.put(
+      fixture.gateway_url + fixture.cutoff_grant + "/decisions/" + fixture.cutoff_command,
+      {
+        headers: {
+          authorization: "Bearer admin",
+          "content-type": "application/json",
+          "x-helivanta-expected-tenant": fixture.tenant_id,
+          "x-helivanta-expected-subject": "user-admin",
+        },
+        data: {
+          expected_version: 2,
+          decision: "revoke",
+          reason: "Owner ends synthetic operating-management authority",
+        },
+      },
     );
-  });
-  await duty.getByRole("button", { name: "Revoke duty", exact: true }).click();
-  const revocation = await revoked;
-  expect(revocation.status()).toBe(201);
-  expect((await revocation.json()).result).toMatchObject({ status: "revoked", version: 4 });
-  await expect(duty.getByText("Status: revoked", { exact: true })).toBeVisible();
-  expect(mutations).toHaveLength(3);
-  expect(mutations[2].body).toMatchObject({ decision: "revoke", expected_version: 3 });
-  console.log(
-    `PASS: ${fixture.kind} native employer → reviewed Staff → owner location → proposal → independent review → acknowledged activation → revocation; lost responses recovered by GET through Global API and real IAM/Workforce/product owners.`,
-  );
+    expect(revoked.status()).toBe(202);
+    expect((await revoked.json()).status).toBe("revoked");
+    const denied = preparer.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname ===
+          `/api/v1/workforce/operating-governance-employers/${fixture.kind}/${fixture.employer}/staff-choices` &&
+        response.status() === 404,
+    );
+    await preparer.getByRole("button", { name: "Refresh reviewed Staff", exact: true }).click();
+    expect(JSON.stringify(await (await denied).json())).not.toContain(
+      "Synthetic account-link target",
+    );
+    await expect(preparer.getByText("Synthetic account-link target", { exact: true })).toHaveCount(
+      0,
+    );
+    await expect(
+      preparer.getByRole("button", { name: "Propose operating duty", exact: true }),
+    ).toHaveCount(0);
+    await expect(preparer.getByRole("alert").first()).toBeVisible();
+    await expect(preparer.getByText("user-reviewer", { exact: true })).toHaveCount(0);
+    expect(mutations).toHaveLength(0);
+    console.log(
+      `PASS: ${fixture.kind} owner revocation denies private Staff choices and hides Staff details/proposal controls in the existing authenticated browser.`,
+    );
+  } else {
+    await preparer.getByRole("button", { name: "Assign operating duty", exact: true }).click();
+    await preparer.getByLabel("Operating role", { exact: true }).click();
+    await preparer
+      .getByRole("option", {
+        name:
+          fixture.kind === "pharmacy"
+            ? "Outlet receiving and stock history"
+            : "Warehouse receiving and stock history",
+        exact: true,
+      })
+      .click();
+    await preparer
+      .getByLabel(fixture.kind === "pharmacy" ? "Pharmacy outlet" : "Warehouse or depot", {
+        exact: true,
+      })
+      .click();
+    await preparer.getByRole("option", { name: /^SYN-NATIVE-PRIMARY/ }).click();
+    const now = Date.now();
+    await preparer
+      .getByLabel("Valid from (UTC)", { exact: true })
+      .fill(new Date(now - 60_000).toISOString().slice(0, 16));
+    await preparer
+      .getByLabel("Expires at (UTC)", { exact: true })
+      .fill(new Date(now + 30 * 60_000).toISOString().slice(0, 16));
+    await preparer.getByLabel("Duty reason", { exact: true }).fill(reason);
+    await preparer.getByRole("button", { name: "Propose operating duty", exact: true }).click();
+    await expect(
+      preparer.getByRole("button", { name: "Recover duty proposal", exact: true }),
+    ).toBeEnabled();
+    await expect(
+      preparer.getByRole("button", { name: "Change employer", exact: true }),
+    ).toBeDisabled();
+    await expect(
+      preparer.getByRole("button", { name: "Change Staff member", exact: true }),
+    ).toBeDisabled();
+    await preparer.getByRole("button", { name: "Recover duty proposal", exact: true }).click();
+    await expect(
+      preparer.getByText(
+        "Operating duty proposed. A separate reviewer must approve it before activation.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    const proposedDuty = preparer
+      .getByRole("article")
+      .filter({ has: preparer.getByText(reason, { exact: true }) });
+    await expect(proposedDuty.getByText("Status: pending review", { exact: true })).toBeVisible();
+    await expect(
+      proposedDuty.getByRole("button", { name: "Approve duty", exact: true }),
+    ).toHaveCount(0);
+    expect(lostProposal).toBe(true);
+    expect(mutations).toHaveLength(1);
+    expect(mutations[0].body).toMatchObject({
+      subject: "user-reviewer",
+      identity: { staff_id: fixture.staff, staff_version: 1, link_version: 2 },
+      scope: {
+        employer_kind: fixture.kind,
+        employer_id: fixture.employer,
+        location_id: fixture.location,
+        expected_employer_version: 1,
+        expected_location_version: 1,
+      },
+      template_key: `${fixture.kind === "pharmacy" ? "pharmacy" : "supply"}.inventory_receiver.v1`,
+      reason,
+    });
+    expect(recoveries).toContainEqual({ actor: "auditor", path: proposal + "/proposal-receipt" });
+    const reviewer = await open("owner2");
+    const duty = reviewer
+      .getByRole("article")
+      .filter({ has: reviewer.getByText(reason, { exact: true }) });
+    await duty
+      .getByLabel("Decision reason", { exact: true })
+      .fill("Independent browser review of current native Staff and outlet");
+    await duty.getByRole("button", { name: "Approve duty", exact: true }).click();
+    await expect(
+      duty.getByRole("button", { name: "Recover duty decision", exact: true }),
+    ).toBeEnabled();
+    await duty.getByRole("button", { name: "Recover duty decision", exact: true }).click();
+    await expect(async () => {
+      await reviewer.getByRole("button", { name: "Refresh duties", exact: true }).click();
+      await expect(duty.getByText("Status: active", { exact: true })).toBeVisible();
+    }).toPass({ timeout: 30_000 });
+    expect(lostDecision).toBe(true);
+    expect(mutations).toHaveLength(2);
+    expect(recoveries).toContainEqual({ actor: "owner2", path: mutations[1].path });
+    await duty
+      .getByLabel("Decision reason", { exact: true })
+      .fill("End the synthetic browser duty after review acceptance");
+    const revoked = reviewer.waitForResponse((response) => {
+      const path = new URL(response.url()).pathname.replace(/^\/api/, "");
+      return (
+        path.startsWith(root + "/duties/") &&
+        path.includes("/commands/") &&
+        response.request().method() === "PUT"
+      );
+    });
+    await duty.getByRole("button", { name: "Revoke duty", exact: true }).click();
+    const revocation = await revoked;
+    expect(revocation.status()).toBe(201);
+    expect((await revocation.json()).result).toMatchObject({ status: "revoked", version: 4 });
+    await expect(duty.getByText("Status: revoked", { exact: true })).toBeVisible();
+    expect(mutations).toHaveLength(3);
+    expect(mutations[2].body).toMatchObject({ decision: "revoke", expected_version: 3 });
+    console.log(
+      `PASS: ${fixture.kind} native employer → reviewed Staff → owner location → proposal → independent review → acknowledged activation → revocation; lost responses recovered by GET through Global API and real IAM/Workforce/product owners.`,
+    );
+  }
 } finally {
   await Promise.all(
     contexts.map(async (context) => {

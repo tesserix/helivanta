@@ -1712,6 +1712,7 @@ Source: [backend/internal/modules/organization/module.go](../../../backend/inter
 
 | Method | Path | Permission | Cursor pagination | Page total |
 | --- | --- | --- | --- | --- |
+| GET | `/v1/organization/hospitals/:hospital/assignment-department-choices` | `public` | true | false |
 | GET | `/v1/organization/hospitals/:hospital/departments/:node/revisions/:revision` | `organization.structure.read` | false | false |
 | PUT | `/v1/organization/hospitals/:hospital/departments/:node/revisions/:revision` | `organization.structure.manage` | false | false |
 | GET | `/v1/organization/hospitals/:hospital/departments/:node/revisions` | `organization.structure.read` | true | false |

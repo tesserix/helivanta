@@ -18,7 +18,7 @@ import (
 	"github.com/tesserix/helivanta/internal/testutil"
 )
 
-func exerciseNativeOperatingBrowser(t *testing.T, owner http.Handler, kind string, employer, staff, location uuid.UUID) {
+func exerciseNativeOperatingBrowser(t *testing.T, owner http.Handler, kind string, employer, staff, location uuid.UUID, cutoffGrant string) {
 	t.Helper()
 	appURL := os.Getenv("HELIVANTA_OPERATING_BROWSER_URL")
 	if appURL == "" {
@@ -30,7 +30,7 @@ func exerciseNativeOperatingBrowser(t *testing.T, owner http.Handler, kind strin
 	require.NoError(t, err)
 	server := httptest.NewServer(gateway)
 	defer server.Close()
-	material, err := json.Marshal(map[string]any{"app_url": appURL, "gateway_url": server.URL, "tenant_id": testutil.TenantA, "kind": kind, "employer": employer, "staff": staff, "location": location})
+	material, err := json.Marshal(map[string]any{"app_url": appURL, "gateway_url": server.URL, "tenant_id": testutil.TenantA, "kind": kind, "employer": employer, "staff": staff, "location": location, "cutoff_grant": cutoffGrant, "cutoff_command": uuid.Must(uuid.NewV7())})
 	require.NoError(t, err)
 	root, err := filepath.Abs("../../..")
 	require.NoError(t, err)

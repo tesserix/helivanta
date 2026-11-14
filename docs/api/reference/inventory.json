@@ -14066,6 +14066,15 @@
       "routes": [
         {
           "method": "GET",
+          "path": "/v1/organization/hospitals/:hospital/assignment-department-choices",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/organization/hospitals/:hospital/departments/:node/revisions/:revision",
           "permission": "organization.structure.read",
           "authentication_required": true,
@@ -14207,6 +14216,11 @@
           "creates_tables": [
             "organization_department_observations"
           ]
+        },
+        {
+          "id": "0005_organization_assignment_choices",
+          "sql_sha256": "cfa724834cba8931aeb1233e53af2b65baa339af239f180b7d0d6bc6d2870f2c",
+          "creates_tables": []
         }
       ]
     }

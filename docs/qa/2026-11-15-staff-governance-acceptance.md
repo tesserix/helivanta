@@ -109,7 +109,6 @@ explicitly when its existing guard prerequisites are absent. Production module
 order remains unchanged; original test assertions and authority budgets remain.
 The next CI run must execute the complete lifecycle before any repair claim.
 
-
 Supplier43614580558 at `4470fb2a` passed child approvals and coordinated transfer,
 then failed a cutoff/approval race with expected 200/actual 503. The aggregate
 function sample showed root approval context 54 calls, 8463ms self/21925ms total;
@@ -198,3 +197,44 @@ suppress route assertions or change business expectations. Syntax/format checks
 pass locally; clean CI completion remains required. This fixture continues to use
 synthetic identity boundaries and does not prove deployed login or product-operation
 access. Hospital preparation and full live acceptance gates remain open.
+
+### Existing-browser management-source cutoff — pending CI
+
+The native-governance fixture now adds a late browser check for each independent
+model, after its existing replacement-source/receipt tests. It opens the current
+Staff workspace as the delegate, starts an unsent duty draft, and uses a separate
+owner request context to revoke that replacement governance grant through the
+normal Global API. The signed-in delegate refreshes Staff choices: the test
+requires 404, no Staff/account details, no proposal control and no duty mutation.
+It does not substitute logout or removal of ordinary membership for source denial.
+
+The owner request uses an isolated context without the delegate's cookie. The
+fixture uses the subtest lifetime for long browser/DB bookkeeping instead of its
+short setup context; business request/authority deadlines are unchanged. Real
+identity/login and operating product-access cutoff remain separate requirements.
+Compile-only/bootstrap vet/lint, script syntax/format and clean CI execution are
+the relevant checks; no local browser, application or DB is started.
+
+### Checkpoint at `87e605b9` and department-selection candidate
+
+CI43619827672 web, E2E, scripts and secret scan passed. In particular, both
+independent native browser journeys now exit cleanly after acknowledged active
+state and revocation; their synthetic external identity boundary still excludes
+normal deployed login and product operations. The Go job has not returned a
+passing result at this checkpoint.
+
+Supplier43619827649 failed the original complete Staff lifecycle at
+`workforce_department_transfer_test.go:49` (initial destination approval): expected
+200, actual 503. Failure diagnostics show 5018ms overall, 1512ms persistence and
+315ms in chain evidence; about 3506ms was spent before persistence. WF0117 has not
+resolved the full cold-path deadline. No authority deadline or expected response
+was widened.
+
+The candidate now includes Organization's qualified department-choice owner API,
+private read-only purpose, canonical-model SDK and explicit real-owner CI test.
+Local SDK suite: 126 files/1403 assertions passed; Go race-tested input boundaries,
+compile-only bootstrap, affected vet/lint and backend build passed. Contractdocs
+caught and prevented a route-registration panic from a missing domain filter;
+the corrected registration binds the fixed active status and rejects other status
+values. Real database acceptance and native target/account preparation UI remain
+open. No live migration, main merge or deployment is asserted.

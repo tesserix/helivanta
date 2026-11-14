@@ -25,3 +25,13 @@ func enrichPostingPersistenceFailure(c *gin.Context, err error) {
 			"persistence_total_ms", failure.total.Milliseconds())
 	}
 }
+
+type postingDecisionStages struct {
+	entered time.Time
+	stage   string
+}
+
+func (s *postingDecisionStages) mark(c *gin.Context, next string, now time.Time) {
+	requestid.Enrich(c, "posting_"+s.stage+"_ms", now.Sub(s.entered).Milliseconds())
+	s.entered, s.stage = now, next
+}

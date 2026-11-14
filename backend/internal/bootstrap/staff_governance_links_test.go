@@ -74,7 +74,7 @@ func TestGovernanceAccountLinkReviewConsumesExactEmployerSourceWithoutManagerAcc
 		t.Run(kind, func(t *testing.T) {
 			native := &governanceNativeIdentity{}
 			identity := &governanceLinkIdentity{roles: graph, membership: graph}
-			router, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
+			router, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 				Tokens: map[string]string{"admin": testutil.TenantA, "owner2": testutil.TenantA, "auditor": testutil.TenantA},
 				Perms: map[string][]authz.Permission{
 					"admin":   {iam.PermGovernanceManage, iam.PermGovernanceRead, iam.PermGovernanceReview, workforce.PermHospitalManage, workforce.PermSupplierManage, workforce.PermEnrollmentManage, workforce.PermLoginLinkManage, workforce.PermLoginLinkReview, workforce.PermIndependentLoginManage, workforce.PermIndependentLoginReview, pharmacy.PermCatalogueWrite, pharmacy.PermAccessManage, supply.PermPartyWrite, supply.PermOrganizationManage, supply.PermPremiseWrite},
@@ -84,6 +84,8 @@ func TestGovernanceAccountLinkReviewConsumesExactEmployerSourceWithoutManagerAcc
 				Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(native), workforce.New(), pharmacy.New(), supply.New()},
 				Writer:  graph, Roles: identity, Membership: identity,
 			})
+			// Browser acceptance outlives the harness setup context.
+			ctx := t.Context()
 			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 				return tx.Exec("INSERT INTO iam_members(tenant_id,subject,role_key)VALUES(?,'user-admin','tenant_admin'),(?,'user-owner2','tenant_admin'),(?,'user-auditor','staff_member'),(?,'user-reviewer','staff_member')", testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA).Error
 			}))

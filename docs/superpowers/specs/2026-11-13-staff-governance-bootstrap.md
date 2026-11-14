@@ -1135,3 +1135,19 @@ for pharmacy and supplier. They have not yet passed on PostgreSQL/FGA. Qualified
 product-location choices, native UI adoption, full Staff/recipient/posting and
 both ownership-model live journeys remain open. WF0116 is unapplied; there is no
 new main merge or live deployment in this increment.
+
+Remote `d7493c2a` passed **Staff governance input boundaries** in CI43586537964
+at 2026-11-14T10:51:07Z, including the new real PostgreSQL/FGA pharmacy/supplier
+Staff-choice cases, v4 paging, exact owner/delegate, current source cutoff,
+changed support, stale basis, raw write denial and audit rollback. This accepts
+that API boundary, not the full original Staff/pharmacy workflow or deployment.
+
+Supplier43586537957 then exposed a historical-upgrade fixture ordering error:
+its document-provenance phase applied new WF0116 while intentionally deferring
+WF0066/WF0094, so `employment_generation_id` did not exist. The fixture now
+explicitly defers WF0116 there and includes it in its later complete posting
+upgrade phase after those prerequisites. Both phase lists are updated; no
+production migration is made optional and no behavioral assertion is changed.
+The observed 42703 is the red evidence. Global API compile-only tests, backend
+build, affected vet and lint pass after this correction. Full historical-upgrade
+and supplier acceptance remain pending on the next exact head.

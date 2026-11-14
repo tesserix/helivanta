@@ -281,17 +281,21 @@ func TestDocumentRecoveryMigrationCanRestorePreviousGuardWithoutErasingFile(t *t
 
 func TestGovernanceFindingFileIsolationSurvivesGuardRollback(t *testing.T) {
 	s := newDocumentScenario(t)
-	read := func() ([]string, error) {
+	read := func(withScope bool) ([]string, error) {
+		hospital, staff, file := "", "", ""
+		if withScope {
+			hospital, staff, file = s.input.HospitalID, s.input.StaffID, s.input.FileID
+		}
 		var ids []string
 		err := s.worker.WithTenant(t.Context(), s.input.TenantID, func(tx *gorm.DB) error {
-			if err := tx.Exec(`SELECT set_config('app.workforce_hospital',?,true),set_config('app.workforce_document_staff',?,true),set_config('app.workforce_document_file',?,true)`, s.input.HospitalID, s.input.StaffID, s.input.FileID).Error; err != nil {
+			if err := tx.Exec(`SELECT set_config('app.workforce_hospital',?,true),set_config('app.workforce_document_staff',?,true),set_config('app.workforce_document_file',?,true)`, hospital, staff, file).Error; err != nil {
 				return err
 			}
 			return tx.Table("workforce_documents").Select("id").Scan(&ids).Error
 		})
 		return ids, err
 	}
-	before, err := read()
+	before, err := read(true)
 	require.NoError(t, err)
 	require.Equal(t, []string{s.input.FileID}, before)
 	prior, err := os.ReadFile("employment_governance_findings.sql")
@@ -301,18 +305,22 @@ func TestGovernanceFindingFileIsolationSurvivesGuardRollback(t *testing.T) {
 	require.GreaterOrEqual(t, start, 0)
 	end := strings.Index(string(prior)[start:], "$$;")
 	require.Greater(t, end, 0)
-	rollback := strings.Replace(string(prior)[start:start+end+3], "CREATE FUNCTION", "CREATE OR REPLACE FUNCTION", 1)
+	rollback := strings.Replace(string(prior)[start:start+end+3], "CREATE FUNCTION", "CREATE OR REPLACE FUNCTION", 1) + "\nALTER FUNCTION workforce_governance_finding_file(uuid,uuid,uuid,uuid) RESET ALL;"
 	require.NoError(t, s.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_finding_file_guard_rollback", SQL: rollback}}))
-	_, err = read()
+	_, err = read(false)
 	var permission *pgconn.PgError
-	require.True(t, errors.As(err, &permission))
+	require.Error(t, err, "the prior unscoped read must reproduce the evidence privilege failure")
+	require.True(t, errors.As(err, &permission), "unexpected prior-guard error type: %T", err)
 	require.Equal(t, "42501", permission.Code, "the prior guard forces an unrelated evidence privilege during document selection")
 	fixed, err := os.ReadFile("finding_file_isolation.sql")
 	require.NoError(t, err)
 	require.NoError(t, s.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_finding_file_guard_restored", SQL: string(fixed)}}))
-	after, err := read()
+	after, err := read(true)
 	require.NoError(t, err)
 	require.Equal(t, before, after, "guard rollback and reapply preserve the file")
+	hidden, err := read(false)
+	require.NoError(t, err)
+	require.Empty(t, hidden, "the corrected guard does not expose unscoped documents")
 	err = s.worker.WithTenant(t.Context(), s.input.TenantID, func(tx *gorm.DB) error {
 		return tx.Exec("SELECT review_id FROM workforce_person_review_evidence").Error
 	})

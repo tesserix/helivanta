@@ -11,6 +11,7 @@ import {
   RequestFailure,
 } from "@helivanta/ui";
 import { useNow } from "@/lib/use-now";
+import { STAFF_ACCESS_CHANGED, useStaffAccessCutoff } from "../staff-access-cutoff";
 import {
   ApiError,
   useApiMutation,
@@ -19,6 +20,9 @@ import {
   newStaffAssignmentId,
   proposeStaffAssignment,
   decideStaffAssignment,
+  decideGovernanceAssignment,
+  governanceAssignmentsKey,
+  type GovernanceAssignmentScope,
   staffAssignmentsKey,
   staffAssignmentInputContract,
   staffAssignmentDecisionContract,
@@ -485,17 +489,31 @@ export function AssignmentDecisionForm({
   decision,
   onClose,
   onSaved,
-}: FormProps & { item: StaffAssignment; decision: StaffAssignmentDecision["decision"] }) {
+  nativeScope,
+  onAccessLost,
+}: FormProps & {
+  item: StaffAssignment;
+  decision: StaffAssignmentDecision["decision"];
+  nativeScope?: GovernanceAssignmentScope;
+  onAccessLost?: () => void;
+}) {
   const [submitted, setSubmitted] = useState<StaffAssignmentDecision | null>(null);
   const form = useZodForm(reasonForm, { reason: "" });
   const save = useApiMutation(
-    (input: StaffAssignmentDecision) => decideStaffAssignment(scope, item.id, input),
+    (input: StaffAssignmentDecision) =>
+      nativeScope
+        ? decideGovernanceAssignment(nativeScope, item.id, input)
+        : decideStaffAssignment(scope, item.id, input),
     {
-      invalidate: [staffAssignmentsKey(scope)],
+      invalidate: [
+        nativeScope ? governanceAssignmentsKey(nativeScope) : staffAssignmentsKey(scope),
+      ],
       onSuccess: onSaved,
       suppressErrorToast: true,
     },
   );
+  const cutoff = useStaffAccessCutoff(nativeScope ? [save.error] : [], onAccessLost);
+  if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   return (
     <form
       aria-label={`${decision} assignment`}

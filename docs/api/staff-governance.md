@@ -4,8 +4,9 @@ Status: candidate in PR #1669; not merged or deployed. The current implementatio
 covers owner grant admission, retained creation/decision receipts, current auditor
 review, an owner inbox, hospital/pharmacy/supplier account-link review consumers,
 hospital person/employment consumers and selected employment preparation UI.
-The hospital assignment consumer below is a new candidate awaiting real-service
-acceptance. Assignment UI, independent operating-duty review, acknowledgements
+The hospital assignment consumer below passed the Staff governance service
+boundary suite on `00f1b32e`; full CI and operational acceptance remain pending. Native assignment selection, review and history UI are candidates;
+native proposal preparation, independent operating-duty review, acknowledgements
 and delegation commands in the UI remain unfinished. The owner inbox is available
 in Staff Access. Account initiation alone does not complete Staff onboarding.
 
@@ -58,6 +59,20 @@ The typed SDK uses the Global API and preserves both account precondition
 headers on discovery, proposal, history and decision calls; no legacy fallback
 is attempted. Its hospital choice or cached action flags do not authorize a
 later command, which is checked again on the server.
+
+The Staff Access page admits an account holding only the native coarse
+assignment permissions to a separate hospital review surface. Hospital names
+come from authorized discovery. Selecting an assignment rereads its canonical
+current record before showing independent approve/reject or proposer withdrawal.
+The UI does not convert a governance reviewer into a Staff actor or grant legacy
+owner permissions. Original decision intent and expected version survive an
+uncertain write and retry. While a decision form is open, automatic detail
+refetch cannot replace the form's retained intent. History and decisions load
+only on request, use bounded cursors, and retain server read audits. Refused
+access removes the hospital review surface and its previously disclosed data.
+Ordinary owner administration retains its existing surface. Native proposal
+creation with authorized account names and department choices is still pending;
+this review slice does not claim to complete that preparation workflow.
 
 Every call requires the authenticated session and exactly one matching expected
 tenant and subject header. Business calls use the Global API IAM destination.

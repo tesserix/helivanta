@@ -1643,3 +1643,44 @@ it("opens the owner governance inbox without requiring assignment permissions", 
   expect(await screen.findByText("No governance notices.")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Propose assignment" })).not.toBeInTheDocument();
 });
+
+it("opens hospital assignment discovery for a native reviewer without legacy administrator permissions", async () => {
+  const calls: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      calls.push(url);
+      if (url.includes("/iam/me/permissions"))
+        return Response.json({
+          tenant_id: tenant,
+          subject: "synthetic-native-reviewer",
+          data: ["iam.governance.assignment.review"],
+        });
+      if (url.includes("assignment-authority-scopes"))
+        return Response.json(
+          page([
+            {
+              hospital_id: hospital,
+              name: "Synthetic named hospital",
+              can_manage: false,
+              can_review: true,
+            },
+          ]),
+        );
+      return Response.json(
+        { error: { code: "unexpected", message: "Unexpected legacy request" } },
+        { status: 403 },
+      );
+    }),
+  );
+  renderWithProviders(<AccessPage />);
+  expect(
+    await screen.findByRole("button", { name: "Open Synthetic named hospital" }),
+  ).toBeInTheDocument();
+  expect(
+    calls.some(
+      (url) => url.includes("/staff-access-templates") || url.includes("/iam/assignment-proposals"),
+    ),
+  ).toBe(false);
+  expect(screen.queryByRole("button", { name: "Propose assignment" })).not.toBeInTheDocument();
+});

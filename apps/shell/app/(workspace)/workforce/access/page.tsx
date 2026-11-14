@@ -27,6 +27,7 @@ import {
   TemplateDefinitionContract,
 } from "@helivanta/api";
 import { AssignmentProposalForm, AssignmentDecisionForm } from "./assignment-forms";
+import { GovernanceAssignments } from "./governance-assignments";
 import { GovernanceInbox } from "@/components/workforce/governance-inbox";
 import { StaffAccountInitiation } from "@/components/workforce/staff-account-initiation";
 import { StaffMembershipForm } from "./membership-form";
@@ -70,6 +71,8 @@ export default function StaffAccessPage() {
           (p) =>
             p === "iam.assignment.manage" ||
             p === "iam.assignment.review" ||
+            p === "iam.governance.assignment.manage" ||
+            p === "iam.governance.assignment.review" ||
             p === "iam.member.manage" ||
             p === "iam.governance.manage",
         ) ? (
@@ -97,7 +100,19 @@ export default function StaffAccessPage() {
           )}
           {identity.data.data.some(
             (p) => p === "iam.assignment.manage" || p === "iam.assignment.review",
-          ) && <Assignments identity={identity.data} />}
+          ) ? (
+            <Assignments identity={identity.data} />
+          ) : (
+            identity.data.data.some(
+              (p) =>
+                p === "iam.governance.assignment.manage" ||
+                p === "iam.governance.assignment.review",
+            ) && (
+              <GovernanceAssignments
+                scope={{ tenantId: identity.data.tenant_id, subject: identity.data.subject }}
+              />
+            )
+          )}
         </div>
       )}
     </>

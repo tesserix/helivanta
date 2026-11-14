@@ -1310,3 +1310,42 @@ deterministic race-tested diagnostic test covers deadline/source/storage/denial
 responses and verifies private details remain absent from logs and HTTP bodies.
 This is diagnosis only: it neither increases the fixed authority budget nor
 repairs or bypasses the unresolved child-approval/transfer failures.
+
+### Native hospital assignment selection boundary — implementation continuation
+
+The missing normal preparation flow needs scoped account and department choices;
+raw subjects, a tenant-wide account directory and legacy directory permissions
+are not acceptable substitutes. IAM remains the assignment/membership owner;
+Workforce supplies current canonical Staff/link/protected-generation facts;
+onboarding-service supplies the verified owned human name/address; Organization
+supplies current hospital department facts. No second identity, Staff or department
+master is introduced.
+
+Both selection reads require a fresh verified tenant/account and current
+`GovernanceAssignmentManage` hospital source: owner membership or the exact
+`iam.scoped_access_reviewer.v1` grant. Private owner-read proof binds the hospital,
+actor, membership incarnation, source identity/version and bounded expiry.
+Dedicated target/department purposes cannot be substituted for each other or an
+existing operating/person/employment purpose. This proof is internal read evidence,
+not browser authority, a reusable credential or permission to mutate any master.
+
+The target owner must bound the number of scanned canonical Staff rows before
+hydrating current digital eligibility, return only eligible source references,
+and retain a sealed continuation for scanned-but-ineligible rows. IAM checks its
+current membership/employment basis and requests identity presentation outside a
+held database transaction, with bounded concurrency and a request deadline. It
+rechecks the exact source, target facts and membership before disclosure; missing
+owners, audit failure and unavailable projections are not empty-success pages.
+Names/addresses stay out of source proofs, audit detail and error logs.
+
+Organization department selection uses the same hospital admission but its own
+read purpose and owner query. Both SDKs bind paging/cache keys to tenant, account
+and hospital. The form uses qualified choices, keeps subject/epoch/department IDs
+out of normal editable inputs and still invokes canonical command revalidation;
+a selection never activates an assignment. Target/dependency drift requires a
+fresh choice rather than fallback permission or identity inference.
+
+The current increment implements private proof validation only in
+`backend/pkg/authz/assignment_selection.go`. Owner queries/RLS, composition,
+canonical models, SDK/UI and real-service/browser
+acceptance remain required before either selector is exposed or claimed complete.

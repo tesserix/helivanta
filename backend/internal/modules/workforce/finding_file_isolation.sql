@@ -36,3 +36,18 @@ BEGIN
  OR (current_setting('app.workforce_employment_review',true)='review'
  AND public.workforce_employment_review_file_context(t,h,f)));
 END $$;
+
+CREATE OR REPLACE FUNCTION workforce_governance_binding_document(t uuid,h uuid,s uuid,file uuid,kind text,record uuid,category text)
+RETURNS boolean LANGUAGE plpgsql STABLE SECURITY INVOKER SET search_path=pg_catalog,public AS $$
+DECLARE proof jsonb;
+BEGIN
+ IF public.workforce_governance_binding_source(t,h,s) IS NOT TRUE THEN
+  RETURN false;
+ END IF;
+ proof:=NULLIF(current_setting('app.workforce_governance_binding_authority',true),'')::jsonb;
+ RETURN kind='enrollment' AND record=s AND category='employment_evidence'
+ AND((proof->>'operation'='attach' AND file=(proof->>'file_id')::uuid)
+ OR EXISTS(SELECT 1 FROM public.workforce_employment_evidence_bindings b
+ WHERE (b.tenant_id,b.hospital_id,b.staff_id,b.document_id)=(t,h,s,file)
+ AND public.workforce_governance_binding_read(b.tenant_id,b.hospital_id,b.staff_id,b.period_id,b.period_version,b.id)));
+END $$;

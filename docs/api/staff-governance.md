@@ -674,11 +674,12 @@ approval after concrete acceptance; no rollout is authorized by a source review.
 
 
 Candidate migration `0115_workforce_finding_file_isolation` corrects an existing
-scan-worker policy dependency. The finding, employment and activation file helpers remain invoker-security
+scan-worker policy dependency. The finding, employment, activation and binding file helpers remain invoker-security
 and keep their source and exact evidence predicates, but use procedural early
 returns when their respective source is absent. This prevents PostgreSQL from preparing
 a personnel-evidence lookup for a worker that lacks and should retain no direct
-permission on that table. No grant, policy visibility or existing migration is
+permission on that table. The binding helper also fences its binding-table lookup, whose row policies depend
+on employment-review evidence. No grant, policy visibility or published migration is
 rewritten. The document worker's tenant/hospital/Staff/file narrowing and private
 column denials remain in force. CI retains the existing positive/wrong-scope
 worker cases and adds explicit evidence-table denial plus restoration of the old

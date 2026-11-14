@@ -470,3 +470,20 @@ export const MembershipEnrollmentContract = z
   })
   .strict();
 export type MembershipEnrollment = z.infer<typeof MembershipEnrollmentContract>;
+
+export const OperatingGovernanceEmployerScopeContract = z
+  .object({
+    employer_kind: z.enum(["pharmacy", "supplier"]),
+    employer_id: identifier,
+    name: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    can_manage: z.boolean(),
+    can_review: z.boolean(),
+  })
+  .strict();
+export type OperatingGovernanceEmployerScope = z.infer<
+  typeof OperatingGovernanceEmployerScopeContract
+>;

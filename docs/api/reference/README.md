@@ -1471,6 +1471,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals` | `public` | true | false |
 | GET | `/v1/workforce/hr-intake-scopes` | `public` | true | false |
 | GET | `/v1/workforce/leave-review-scopes` | `public` | true | false |
+| GET | `/v1/workforce/operating-authority-scopes` | `public` | true | false |
 | GET | `/v1/workforce/person-review-authority-scopes` | `public` | true | false |
 | GET | `/v1/workforce/person-review-scopes` | `public` | true | false |
 | DELETE | `/v1/workforce/pharmacies/:pharmacy/access/:subject` | `workforce.hospital.manage` | false | false |

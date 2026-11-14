@@ -145,3 +145,45 @@ specific 23514 membership-transition rejection before RLS WITH CHECK. `6d34e2c4`
 asserts that exact guard message and verifies unchanged epoch/member count after
 an attempted increment. The denial expectation remains strict; no database or
 production admission guard was loosened. Fresh remote acceptance remains pending.
+
+### Qualified independent employer discovery continuation
+
+The candidate adds a separate Workforce-owned sealed employer-choice page and
+strict SDK. Canonical `staff-access.json` generates its Go/Zod projection;
+hospital discovery and legacy routes retain their contracts. Native nonclinical
+owners/exact operating reviewers receive only canonical employer kind/ID/name and
+current manage/review flags. Current IAM source, credential/membership/topology,
+verified expected tenant/account and an audited guarded Workforce root read are
+required before disclosure. No Staff, private source proof or broad product role
+is released. Assets are employer identities and delegated authority; other-tenant
+users and revoked/compromised delegates must not cross this disclosure boundary.
+
+Reuse the existing sizing/SLO assumptions, twenty-candidate scan, four concurrent
+checks and five-second overall source budget bounded by the session deadline.
+Authorization filtering can yield an empty page with continuation. This adds no
+infrastructure or migration; dependency or audit failure refuses the entire page.
+It does not claim measured throughput/latency. Rollback removes new discovery
+admission while retaining duties/provenance. Reusing the legacy employer directory
+was rejected because it requires broader authority than the native delegate holds.
+
+The unauthenticated discovery and missing SDK module assertions were observed red
+before implementation. Local Go build, focused race, vet/lint and bootstrap
+compile checks pass; 26 focused discovery/native-duty SDK tests pass. Remote
+integration covers exact employer-only disclosure and source revocation alongside
+the existing real independent Staff fixture. The late completeness-fault fixture
+now creates a separate API-owned location, avoiding the legitimate one-live-duty
+unique index so the intended deferred-attribution guard can be exercised. These
+new remote cases have not yet passed. Qualified Staff/location selectors, native
+preparation/review UI, full Staff/pharmacy journeys, merge and deployment remain
+open. IAM0050 remains an unapplied migration candidate.
+
+Qualified employer-discovery local validation completed: `go build ./...`, focused
+Workforce race tests, bootstrap compile-only tests, affected `go vet` and
+`golangci-lint`, contractdocs check, staff-access generator check and inventory
+generation/check all passed. Focused SDK tests passed 26 assertions; inventory
+script tests passed 15; template-history tests passed 107 after the fixture
+included the new canonical generated model. The first full workspace attempt
+failed that missing fixture artifact; the corrected unchanged-source rerun passed
+all 22 lint/type-check/test/build tasks (19 cached). Build outputs were removed
+with `.next/cache` and dependencies preserved. Real-service tests run remotely;
+no local app/database/container, live migration or deployment was started.

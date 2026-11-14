@@ -194,3 +194,11 @@ type MembershipEnrollment struct {
 	ActorSubject    string    `json:"actor_subject"`
 	CreatedAt       time.Time `json:"created_at"`
 }
+
+type OperatingGovernanceEmployerScope struct {
+	EmployerKind string    `json:"employer_kind"`
+	EmployerID   uuid.UUID `json:"employer_id"`
+	Name         string    `json:"name"`
+	CanManage    bool      `json:"can_manage"`
+	CanReview    bool      `json:"can_review"`
+}

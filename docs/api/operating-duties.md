@@ -117,6 +117,31 @@ scope/purpose, source revocation and missing topology are acceptance gates.
 
 ## Native operating-duty administration candidate
 
+Employer discovery uses `GET /v1/workforce/operating-authority-scopes` through
+the Global API. Workforce owns the employer identity/name; IAM owns the current
+nonclinical owner or exact `iam.operating_access_reviewer.v1` grant. Each returned
+row contains only `employer_kind`, `employer_id`, `name`, `can_manage` and
+`can_review`, generated from `staff-access.json.OperatingGovernanceEmployerScope`.
+Only pharmacy/supplier employers with at least one currently authorised capability
+are disclosed; no source grant, Staff, contact or product stock data is returned.
+
+Exactly one expected-tenant and expected-subject header must match the refreshed
+principal (`409 session_changed` otherwise). Missing coarse operating governance
+permission returns `403`; absent root-specific authority filters that root out;
+unavailable identity, source, database or audit returns `503`, without a partial
+successful page. This read never grants access or creates a legacy manager.
+Each disclosed capability is rechecked and audited inside the source callback.
+
+The sealed list scans at most twenty candidates per page, descending by
+`(created_at,id)`, with at most four simultaneous source checks and a five-second
+overall source budget bounded by session expiry. An empty visible page can have
+`has_more:true`; follow its opaque cursor. Cursors bind tenant, subject and route.
+SDK requests cap pages at twenty, propagate cancellation, reject duplicates,
+unknown fields, rows without authority and inconsistent continuation metadata.
+Query keys include tenant/account; results have zero stale/retention time and no
+automatic retries. Names are for selection, never reusable authority. Staff and
+location preparation projections and native UI adoption remain separate gates.
+
 All client traffic uses the Global API, with these IAM-owned destinations:
 
 | Method | Path after `/v1/iam`                                                           | Authority                                                           |

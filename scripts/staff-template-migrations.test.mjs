@@ -25,6 +25,7 @@ const artifacts = [
   "backend/internal/modules/iam/contract/assignment_governance_scope_generated.go",
   "backend/internal/modules/workforce/contract/assignment_governance_scope_generated.go",
   "backend/internal/modules/workforce/contract/assignment_governance_hospital_scope_generated.go",
+  "backend/internal/modules/workforce/contract/operating_governance_employer_scope_generated.go",
   "backend/internal/modules/iam/assignment_templates_generated.sql",
 ];
 async function fixture(t) {

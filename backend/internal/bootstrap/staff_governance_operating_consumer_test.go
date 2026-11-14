@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/modules/iam"
+	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
@@ -31,20 +32,41 @@ func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *ten
 		require.Equal(t, status, response.Code, response.Body.String())
 		return response.Body.String()
 	}
-	location := uuid.Must(uuid.NewV7())
-	template := "pharmacy.inventory_receiver.v1"
-	if kind == "pharmacy" {
-		call(http.MethodPut, "/v1/pharmacy/pharmacies/"+employer.String()+"/outlets/"+location.String(), "admin", map[string]any{"code": "SYN-NATIVE-OUTLET", "name": "Synthetic native duty outlet", "country_code": "IN", "timezone": "Asia/Kolkata"}, http.StatusOK)
-	} else {
-		template = "supply.inventory_receiver.v1"
-		call(http.MethodPut, "/v1/supply/parties/"+employer.String()+"/premises/"+location.String(), "admin", map[string]any{"expected_version": 0, "code": "SYN-NATIVE-WAREHOUSE", "name": "Synthetic native duty warehouse", "kind": "warehouse", "line1": "Synthetic test building", "line2": "", "city": "Bhubaneswar", "region": "IN-OD", "postal_code": "751001", "country_code": "IN", "time_zone": "Asia/Kolkata", "status": "active"}, http.StatusOK)
+
+	createLocation := func(location uuid.UUID, code string) {
+		t.Helper()
+		if kind == "pharmacy" {
+			call(http.MethodPut, "/v1/pharmacy/pharmacies/"+employer.String()+"/outlets/"+location.String(), "admin", map[string]any{"code": code, "name": "Synthetic native duty outlet", "country_code": "IN", "timezone": "Asia/Kolkata"}, http.StatusOK)
+		} else {
+			call(http.MethodPut, "/v1/supply/parties/"+employer.String()+"/premises/"+location.String(), "admin", map[string]any{"expected_version": 0, "code": code, "name": "Synthetic native duty warehouse", "kind": "warehouse", "line1": "Synthetic test building", "line2": "", "city": "Bhubaneswar", "region": "IN-OD", "postal_code": "751001", "country_code": "IN", "time_zone": "Asia/Kolkata", "status": "active"}, http.StatusOK)
+		}
 	}
+	location, lateLocation := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
+	createLocation(location, "SYN-NATIVE-PRIMARY")
+	createLocation(lateLocation, "SYN-NATIVE-FAULT")
+	template := "pharmacy.inventory_receiver.v1"
+	if kind == "supplier" {
+		template = "supply.inventory_receiver.v1"
+	}
+
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	grant := iam.GovernanceGrantInput{Subject: "user-auditor", ExpectedMembershipEpoch: 1, TemplateKey: "iam.operating_access_reviewer.v1", ScopeKind: kind, ScopeID: &employer, Reason: "Synthetic independent duty reviewer", ValidFrom: now.Add(-time.Minute), ExpiresAt: now.Add(time.Hour)}
 	grantID := uuid.Must(uuid.NewV7())
 	grantPath := "/v1/iam/governance-grants/" + grantID.String()
 	call(http.MethodPut, grantPath, "admin", grant, http.StatusAccepted)
 	call(http.MethodPut, grantPath+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "owner2", iam.GovernanceGrantDecisionInput{ExpectedVersion: 1, Decision: "approve", Reason: "Independent owner approves narrow operating source"}, http.StatusAccepted)
+	directory := call(http.MethodGet, "/v1/workforce/operating-authority-scopes?limit=20", "auditor", nil, http.StatusOK)
+	var employers struct {
+		Data []workforcecontract.OperatingGovernanceEmployerScope `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(directory), &employers))
+	require.Len(t, employers.Data, 1)
+	require.Equal(t, employer, employers.Data[0].EmployerID)
+	require.Equal(t, kind, employers.Data[0].EmployerKind)
+	require.NotEmpty(t, employers.Data[0].Name)
+	require.True(t, employers.Data[0].CanManage)
+	require.True(t, employers.Data[0].CanReview)
+	require.NotContains(t, directory, "source_grant_id")
 	input := iam.OperatingDutyInput{Scope: iam.OperatingDutyScope{EmployerKind: kind, EmployerID: employer, LocationID: location, ExpectedEmployerVersion: 1, ExpectedLocationVersion: 1}, Identity: iam.OperatingDutyIdentity{StaffID: staff, StaffVersion: 1, LinkID: link, LinkVersion: 2}, Subject: "user-reviewer", TemplateKey: template, Reason: "Synthetic native staff receiving duty", ValidFrom: now.Add(-time.Minute), ExpiresAt: now.Add(time.Hour)}
 	prefix := "/v1/iam/operating-governance-employers/" + kind + "/" + employer.String()
 	duty := uuid.Must(uuid.NewV7())
@@ -66,7 +88,9 @@ func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *ten
 			return tx.Table("iam_operating_governance_origins").Select("authority").Where("tenant_id=? AND duty_id=?", testutil.TenantA, duty).Take(&original).Error
 		}))
 		lateID := uuid.Must(uuid.NewV7())
-		body, err := json.Marshal(input)
+		lateInput := input
+		lateInput.Scope.LocationID = lateLocation
+		body, err := json.Marshal(lateInput)
 		require.NoError(t, err)
 		lateErr := db.WithTenant(tenantdb.WithActor(ctx, "user-owner2"), testutil.TenantA, func(tx *gorm.DB) error {
 			if err := tx.Exec(`SELECT set_config('app.iam_operating_access','authorized',true),set_config('app.iam_governance_access','authorized',true),set_config('app.iam_operating_command','prepare',true),set_config('app.iam_operating_native_authority',?,true),set_config('app.iam_operating_native_kind',?,true),set_config('app.iam_operating_native_employer',?,true),set_config('app.iam_operating_native_duty',?,true),set_config('app.iam_operating_native_target',?,true)`, string(original.Authority), kind, employer.String(), lateID.String(), input.Subject).Error; err != nil {
@@ -94,7 +118,7 @@ func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *ten
 			}
 			require.Equal(t, lockedEpoch, retainedEpoch)
 			require.Equal(t, lockedMembers, retainedMembers)
-			return tx.Exec(`INSERT INTO iam_operating_duties(tenant_id,id,employer_kind,employer_id,location_id,subject,template_key,membership_epoch,input,prepared_by,status,version,authority_epoch,actor_subject,reason,created_at,updated_at)VALUES(?,?,?,?,?,?,?,1,?::jsonb,?,'pending_review',1,1,?,?,clock_timestamp(),clock_timestamp())`, testutil.TenantA, lateID, kind, employer, location, input.Subject, input.TemplateKey, string(body), "user-owner2", "user-owner2", input.Reason).Error
+			return tx.Exec(`INSERT INTO iam_operating_duties(tenant_id,id,employer_kind,employer_id,location_id,subject,template_key,membership_epoch,input,prepared_by,status,version,authority_epoch,actor_subject,reason,created_at,updated_at)VALUES(?,?,?,?,?,?,?,1,?::jsonb,?,'pending_review',1,1,?,?,clock_timestamp(),clock_timestamp())`, testutil.TenantA, lateID, kind, employer, lateLocation, input.Subject, input.TemplateKey, string(body), "user-owner2", "user-owner2", input.Reason).Error
 		})
 		var latePG *pgconn.PgError
 		require.ErrorAs(t, lateErr, &latePG)
@@ -163,6 +187,9 @@ func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *ten
 		return nil
 	}))
 	call(http.MethodPut, grantPath+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "admin", iam.GovernanceGrantDecisionInput{ExpectedVersion: 2, Decision: "revoke", Reason: "Synthetic native source cutoff"}, http.StatusAccepted)
+	cutoffDirectory := call(http.MethodGet, "/v1/workforce/operating-authority-scopes?limit=20", "auditor", nil, http.StatusOK)
+	require.NotContains(t, cutoffDirectory, employer.String())
+	require.Contains(t, cutoffDirectory, `"data":[]`)
 	response := governanceRequest(router, http.MethodGet, commandPath, "auditor", "")
 	require.True(t, response.Code == http.StatusNotFound || response.Code == http.StatusForbidden, response.Body.String())
 	replacement := uuid.Must(uuid.NewV7())

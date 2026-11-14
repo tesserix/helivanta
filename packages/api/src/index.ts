@@ -184,6 +184,7 @@ export * from "./supplier-staff";
 export * from "./supplier-staff-queries";
 export * from "./independent-staff-identity-queries";
 export * from "./operating-duties";
+export * from "./operating-authority-scopes";
 
 export * from "./supplier-access";
 

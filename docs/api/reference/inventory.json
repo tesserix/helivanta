@@ -11767,6 +11767,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/operating-authority-scopes",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/person-review-authority-scopes",
           "permission": "public",
           "authentication_required": true,

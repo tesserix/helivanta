@@ -1019,3 +1019,34 @@ legacy/native nonadoption, stale source and target, independent reviewer,
 both independent employer kinds and exact-head contract/build/lint/E2E checks.
 The final native UI and both pharmacy ownership-model live journeys remain part
 of the original goal.
+
+### Qualified independent employer discovery continuation
+
+The candidate adds a separate Workforce-owned sealed employer-choice page and
+strict SDK. Canonical `staff-access.json` generates its Go/Zod projection;
+hospital discovery and legacy routes retain their contracts. Native nonclinical
+owners/exact operating reviewers receive only canonical employer kind/ID/name and
+current manage/review flags. Current IAM source, credential/membership/topology,
+verified expected tenant/account and an audited guarded Workforce root read are
+required before disclosure. No Staff, private source proof or broad product role
+is released. Assets are employer identities and delegated authority; other-tenant
+users and revoked/compromised delegates must not cross this disclosure boundary.
+
+Reuse the existing sizing/SLO assumptions, twenty-candidate scan, four concurrent
+checks and five-second overall source budget bounded by the session deadline.
+Authorization filtering can yield an empty page with continuation. This adds no
+infrastructure or migration; dependency or audit failure refuses the entire page.
+It does not claim measured throughput/latency. Rollback removes new discovery
+admission while retaining duties/provenance. Reusing the legacy employer directory
+was rejected because it requires broader authority than the native delegate holds.
+
+The unauthenticated discovery and missing SDK module assertions were observed red
+before implementation. Local Go build, focused race, vet/lint and bootstrap
+compile checks pass; 26 focused discovery/native-duty SDK tests pass. Remote
+integration covers exact employer-only disclosure and source revocation alongside
+the existing real independent Staff fixture. The late completeness-fault fixture
+now creates a separate API-owned location, avoiding the legitimate one-live-duty
+unique index so the intended deferred-attribution guard can be exercised. These
+new remote cases have not yet passed. Qualified Staff/location selectors, native
+preparation/review UI, full Staff/pharmacy journeys, merge and deployment remain
+open. IAM0050 remains an unapplied migration candidate.

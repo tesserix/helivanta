@@ -100,34 +100,26 @@ legacy identity/history untouched as specified by the fresh-tenant plan.
 
 ## Current next action
 
-Supplier43600273886 at `9c024fab` is terminal: child approval again failed.
-`proposal_update` reached the deadline at 5014ms overall; persistence total was
-2834ms and the update operation had consumed 876ms. Earlier command work therefore
-consumed about 2180ms. Web and browser jobs passed at this head. These measurements
-locate the exhausted budget; they do not establish which policy/trigger/planner
-work caused the cost or a repair.
+Supplier43608785632 at `56928dc9` is terminal and failed initial child approval
+with 503 instead of 200. The corrected observer reported JIT enabled/available
+but no JIT on the UPDATE itself: cost 11.22, planning 9ms. Execution consumed
+1489ms and persistence consumed 4388ms of a 5017ms command. This rules out
+expensive top-level planning/JIT for that query; internal trigger/policy work
+remains unresolved.
 
-The next test-only increment observes one matching proposal UPDATE immediately
-before the known successful-approval assertion. It runs plain EXPLAIN under the
-original role, transaction, source context and deadline and reports only numeric
-cost/row/JIT flags, planning duration and targeted JIT configuration. Silent SQL
-logging and an allowlisted numeric projection exclude SQL, parameters, full plans,
-private proofs and arbitrary errors. A one-shot atomic observer, ordered binding
-validation, single-statement check and input/result bounds prevent broad tracing.
-It changes planning work/timing and cannot count as a workflow repair; remove the
-observer and pass the uninstrumented cold path before acceptance.
+The controlled candidate sets transaction-local JIT off only when shared posting
+decision persistence starts, including transfers, through deferred checks. All
+source predicates, RLS, authority deadlines, persistence, audit and response
+expectations remain intact. Setting failure rolls back. The temporary observer,
+its invocation and helper tests are removed. Acceptance requires the original
+cold full lifecycle to pass, including its expected 200/500 cases. Do not call
+this a repair before that result; internal JIT is still a hypothesis.
 
-A private hospital-selection proof validator is implemented as the first increment
-of the missing account/department selection boundary. It does not expose an API,
-query an owner or complete preparation. Workforce/Organization read purposes and
-queries, IAM/membership/identity composition, canonical models, SDK/UI and the
-corresponding runtime/browser gates remain required.
-
-Local pure race tests, build and affected vet/lint checks passed for that validator;
-plan metric/binding tests are also pure. An inadvertently broad local architecture
-run attempted container-backed tests and failed before startup because no Docker
-provider exists. No service started; those checks remain for CI and are not marked
-passed locally. Retain every completion gate above through subsequent work.
+The native browser extension below is committed and pending CI. It covers normal
+selection, proposal, independent review, GET-only recovery and revocation for
+both independent models; asynchronous activation/product access remain separate.
+The private hospital-selection helper still has no owner query, route, SDK or
+UI: those completion gates remain open. No merge or live rollout occurred.
 
 ### Diagnostic correction after Supplier43605854860
 

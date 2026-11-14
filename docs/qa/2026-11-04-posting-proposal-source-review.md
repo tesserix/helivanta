@@ -276,3 +276,24 @@ raw error content. No timeout or status assertion changes.
 Re-review updates the two affected source hashes and additionally pins the small
 diagnostic helper. This is source review of diagnostic error propagation, not
 runtime proof of the method or an acceptance of the unresolved deadline.
+
+### Posting write execution-mode candidate — 2026-11-14
+
+Supplier43608785632 at `56928dc9` failed the original child approval with 503
+instead of 200. The corrected observer reported JIT enabled/available, threshold
+100000, but the UPDATE itself had cost 11.22, no JIT and 9ms planning. The
+proposal update consumed 1489ms; persistence consumed 4388ms of a 5017ms command.
+This rules out expensive planning or top-level JIT for that UPDATE, without
+identifying the internal trigger/policy statement responsible.
+
+The controlled candidate sets `SET LOCAL jit = off` at the start of shared
+posting-decision persistence, including its transfer caller. PostgreSQL restores
+this setting when the transaction ends; it remains in force for deferred checks.
+No source condition, SQL persistence predicate, event, audit, response, RLS
+policy or authority deadline changes. Setting failure propagates normally and
+rolls back. This changes execution mode only for transactions reaching posting
+decision persistence; ordinary tenant/guarded transactions are untouched. All
+authority classifications and remaining acceptance obligations remain unchanged.
+The temporary EXPLAIN observer, invocation and its helper tests are removed.
+The original cold lifecycle and injected-fault expectations must pass before this
+can be accepted as a repair; nested-query JIT remains a hypothesis until then.

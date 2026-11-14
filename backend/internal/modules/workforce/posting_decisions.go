@@ -199,7 +199,7 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 }
 
 func (h *handlers) recordPostingDecision(ctx context.Context, tx *gorm.DB, p authn.Principal, s postingDraftScope, row StaffPostingProposal, in StaffPostingDecisionInput, fingerprint string, chain []postingChainSource, lifecycle *postingLifecycleReview) (result StaffPostingProposal, err error) {
-	operation := "approval_context"
+	operation := "execution_mode"
 	started := time.Now()
 	operationStarted := started
 	defer func() {
@@ -207,6 +207,12 @@ func (h *handlers) recordPostingDecision(ctx context.Context, tx *gorm.DB, p aut
 			err = &postingPersistenceFailure{cause: err, operation: operation, elapsed: time.Since(operationStarted), total: time.Since(started)}
 		}
 	}()
+	// Avoid compilation overhead in short, guarded policy/trigger writes through commit.
+	if err := tx.Exec(`SET LOCAL jit = off`).Error; err != nil {
+		return StaffPostingProposal{}, err
+	}
+	operation = "approval_context"
+	operationStarted = time.Now()
 	if in.LifecycleReview != nil {
 		if !lifecycle.matchesDecision(row, chain, in.LifecycleReview) {
 			return StaffPostingProposal{}, errPostingProposalConflict

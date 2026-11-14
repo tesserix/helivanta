@@ -85,15 +85,16 @@ try {
       .fill("Retain a draft only while its management source is current");
     const owner = await browser.newContext();
     contexts.push(owner);
+    const headers = {
+      authorization: "Bearer admin",
+      "content-type": "application/json",
+      "x-helivanta-expected-tenant": fixture.tenant_id,
+      "x-helivanta-expected-subject": "user-admin",
+    };
     const revoked = await owner.request.put(
       fixture.gateway_url + fixture.cutoff_grant + "/decisions/" + fixture.cutoff_command,
       {
-        headers: {
-          authorization: "Bearer admin",
-          "content-type": "application/json",
-          "x-helivanta-expected-tenant": fixture.tenant_id,
-          "x-helivanta-expected-subject": "user-admin",
-        },
+        headers,
         data: {
           expected_version: 2,
           decision: "revoke",
@@ -102,7 +103,22 @@ try {
       },
     );
     expect(revoked.status()).toBe(202);
-    expect((await revoked.json()).status).toBe("revoked");
+    expect(await revoked.json()).toMatchObject({
+      id: fixture.cutoff_command,
+      tenant_id: fixture.tenant_id,
+      grant_id: fixture.cutoff_grant.split("/").at(-1),
+      actor_subject: "user-admin",
+      result_version: 3,
+      input: { expected_version: 2, decision: "revoke" },
+    });
+    const grant = await owner.request.get(fixture.gateway_url + fixture.cutoff_grant, { headers });
+    expect(grant.status()).toBe(200);
+    expect(await grant.json()).toMatchObject({
+      id: fixture.cutoff_grant.split("/").at(-1),
+      tenant_id: fixture.tenant_id,
+      status: "revoked",
+      version: 3,
+    });
     const denied = preparer.waitForResponse(
       (response) =>
         new URL(response.url()).pathname ===

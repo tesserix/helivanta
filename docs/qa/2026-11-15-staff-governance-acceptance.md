@@ -181,3 +181,28 @@ Commands actually run and passed:
 No local app, browser, DB or container was started. Scratch migration, real-owner
 and browser tests run in CI. No main merge, live migration, rollout, cleanup or
 identity rewrite occurred. The broader completion gates above remain required.
+
+## Terminal results for `e5e016c7`
+
+The main E2E, scripts, secret scan and API client jobs passed. Go failed the
+new grant fixture's nanosecond precision (corrected in `da18ae96`). Workspace
+lint/typecheck/unit tests/builds and emergency browser checks passed, but web
+failed both added management-cutoff branches at the receipt assertion: the test
+incorrectly read `status` from `GovernanceGrantDecisionReceipt`. The canonical
+command receipt contains `input.decision` and `result_version`; current status is
+on the grant head. The test now verifies exact command/grant/tenant/actor/version,
+then independently GETs the revoked version-3 grant before checking browser denial.
+Its cutoff assertions are unchanged and still require a new passing CI result.
+
+Supplier43624573143/job132537451883 failed the same original initial transfer
+approval (expected 200, actual 503). Exact request timings: scope authorization
+1052ms, proposal basis 17ms, decider 356ms, supervision read 10ms, supervision
+sources 1163ms, persistence 2414ms; total 5013ms. The failed persistence operation
+was proposal update (536ms). Cost spans multiple stages; no single-query cause,
+repair, successful full lifecycle, merge or deployment is claimed.
+
+Read-only live recheck at 2026-11-14 18:16 UTC confirmed account
+`unidevidp@gmail.com`, project `tesseracthub-480811`, context
+`gke_tesseracthub-480811_asia-south1_tesseract-prod-in-gke`, namespace `helivanta`.
+All Helivanta Argo applications were Synced/Healthy; Kargo was Healthy and the
+application workloads remained ready on `0a1fad14`. No live mutation occurred.

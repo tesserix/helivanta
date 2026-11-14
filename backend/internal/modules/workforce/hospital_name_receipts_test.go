@@ -259,14 +259,18 @@ func TestResendRacingPassesSendOnce(t *testing.T) {
 		if err := tx.Exec(`SELECT 1 FROM workforce_hospitals WHERE tenant_id=? AND id=? FOR UPDATE`, testutil.TenantA, h.hospital).Error; err != nil {
 			return err
 		}
+		var holder int64
+		if err := tx.Raw(`SELECT pg_backend_pid()`).Scan(&holder).Error; err != nil {
+			return err
+		}
 		for range 2 {
 			go func() { done <- workforce.AnnounceHospitalNamesOnce(t.Context(), h.db) }()
 		}
-		waitForLockWaiters(t, h, 2)
+		waitForLockWaiters(t, h, holder, 2)
 		return nil
 	}))
-	require.NoError(t, <-done)
-	require.NoError(t, <-done)
+	require.NoError(t, passResult(t, done))
+	require.NoError(t, passResult(t, done))
 	require.Len(t, h.announced(t, h.hospital), 2, "two replicas re-sent the same due version")
 	_, attempts, _ := h.marker(t, h.hospital)
 	require.Equal(t, 1, attempts)
@@ -303,16 +307,31 @@ func TestFirstAnnouncementsComeBeforeResends(t *testing.T) {
 	})
 }
 
-// waitForLockWaiters returns once n sessions in this test's database wait on a lock.
-func waitForLockWaiters(t *testing.T, h *establishmentHarness, n int64) {
+// waitForLockWaiters returns once n sessions wait, directly or behind another waiter, on a lock
+// held by the session holder: a second FOR UPDATE waiter queues on the first waiter's tuple lock.
+func waitForLockWaiters(t *testing.T, h *establishmentHarness, holder, n int64) {
 	t.Helper()
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		var waiting int64
 		assert.NoError(c, h.db.WithTenant(t.Context(), testutil.TenantA, func(q *gorm.DB) error {
-			return q.Raw(`SELECT count(*) FROM pg_locks l JOIN pg_stat_activity a ON a.pid=l.pid WHERE NOT l.granted AND a.datname=current_database()`).Scan(&waiting).Error
+			return q.Raw(`WITH RECURSIVE blocked(pid) AS (SELECT pid FROM pg_stat_activity WHERE ?=ANY(pg_blocking_pids(pid))
+UNION SELECT a.pid FROM pg_stat_activity a JOIN blocked b ON b.pid=ANY(pg_blocking_pids(a.pid)))
+SELECT count(*) FROM blocked`, holder).Scan(&waiting).Error
 		}))
 		assert.GreaterOrEqual(c, waiting, n)
 	}, 10*time.Second, 10*time.Millisecond)
+}
+
+// passResult returns a background pass's result, failing the test if the pass never returns.
+func passResult(t *testing.T, done <-chan error) error {
+	t.Helper()
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(30 * time.Second):
+		t.Fatal("announcer pass did not return")
+		return nil
+	}
 }
 
 // A confirmation that commits after the pass's scan, while the pass waits on
@@ -325,21 +344,27 @@ func TestConfirmationDuringAPassStopsItsResend(t *testing.T) {
 		if err := tx.Exec(`SELECT 1 FROM workforce_hospitals WHERE tenant_id=? AND id=? FOR UPDATE`, testutil.TenantA, h.hospital).Error; err != nil {
 			return err
 		}
+		var holder int64
+		if err := tx.Raw(`SELECT pg_backend_pid()`).Scan(&holder).Error; err != nil {
+			return err
+		}
 		if err := tx.Exec(`UPDATE workforce_hospital_name_announcements SET next_attempt_at=NULL WHERE tenant_id=? AND hospital_id=?`, testutil.TenantA, h.hospital).Error; err != nil {
 			return err
 		}
 		go func() { done <- workforce.AnnounceHospitalNamesOnce(t.Context(), h.db) }()
 		// The pass has scanned (it saw the marker due) once it waits on our lock.
-		waitForLockWaiters(t, h, 1)
+		waitForLockWaiters(t, h, holder, 1)
 		return nil
 	}))
-	require.NoError(t, <-done)
+	require.NoError(t, passResult(t, done))
 	require.Len(t, h.announced(t, h.hospital), 1, "a name confirmed during the pass is not re-sent")
 }
 
 // captureLogs sends slog to a buffer for the rest of the test.
 func captureLogs(t *testing.T) *bytes.Buffer {
 	t.Helper()
+	// The slog default is process-wide; t.Setenv makes Go reject this test running in parallel.
+	t.Setenv("HELIVANTA_TEST_SLOG_CAPTURED", "1")
 	var buf bytes.Buffer
 	prev := slog.Default()
 	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))

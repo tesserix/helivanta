@@ -200,7 +200,7 @@ func TestStaffDocumentUploadPinsBytesAndPublishesOneScanIntent(t *testing.T) {
 			return nil
 		}))
 	}
-	for _, query := range []string{`SELECT id FROM workforce_staff`, `SELECT filename FROM workforce_documents`, `SELECT id FROM audit_events`} {
+	for _, query := range []string{`SELECT id FROM workforce_staff`, `SELECT filename FROM workforce_documents`, `SELECT id FROM audit_events`, `SELECT review_id FROM workforce_person_review_evidence`} {
 		require.Error(t, workerDB.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error { return tx.Exec(query).Error }), "the worker cannot read personnel, original names or audit history")
 	}
 	for range 3 {

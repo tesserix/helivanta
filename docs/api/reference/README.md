@@ -26,6 +26,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/governance-grants/:id` | `iam.governance.read` | false | false |
 | PUT | `/v1/iam/governance-grants/:id` | `iam.governance.manage` | false | false |
 | GET | `/v1/iam/governance-notices` | `iam.governance.read` | true | false |
+| GET | `/v1/iam/hospitals/:hospital/assignment-proposals/:id/account` | `public` | false | false |
 | POST | `/v1/iam/hospitals/:hospital/assignment-proposals/:id/decision` | `public` | false | false |
 | GET | `/v1/iam/hospitals/:hospital/assignment-proposals/:id/decisions` | `public` | true | false |
 | GET | `/v1/iam/hospitals/:hospital/assignment-proposals/:id/history` | `public` | true | false |

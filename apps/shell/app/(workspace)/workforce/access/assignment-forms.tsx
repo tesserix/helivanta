@@ -21,6 +21,7 @@ import {
   proposeStaffAssignment,
   decideStaffAssignment,
   decideGovernanceAssignment,
+  isGovernanceAssignmentAccessChanged,
   governanceAssignmentsKey,
   type GovernanceAssignmentScope,
   staffAssignmentsKey,
@@ -512,7 +513,11 @@ export function AssignmentDecisionForm({
       suppressErrorToast: true,
     },
   );
-  const cutoff = useStaffAccessCutoff(nativeScope ? [save.error] : [], onAccessLost);
+  const cutoff = useStaffAccessCutoff(
+    nativeScope ? [save.error] : [],
+    onAccessLost,
+    isGovernanceAssignmentAccessChanged,
+  );
   if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   return (
     <form

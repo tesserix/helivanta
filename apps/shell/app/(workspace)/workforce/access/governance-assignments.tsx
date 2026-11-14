@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@tesserix/web";
 import {
   Field,
@@ -16,6 +16,8 @@ import {
   listGovernanceAssignmentTemplates,
   listGovernanceAssignments,
   getGovernanceAssignment,
+  getGovernanceAssignmentAccount,
+  isGovernanceAssignmentAccessChanged,
   listGovernanceAssignmentHistory,
   listGovernanceAssignmentDecisions,
   governanceAssignmentScopesKey,
@@ -44,7 +46,11 @@ export function GovernanceAssignments({ scope }: { scope: StaffAssignmentScope }
     retry: false,
     enabled: hospital === null && !cutoff,
   });
-  const accessLost = useStaffAccessCutoff([hospitals.error], () => setCutoff(true));
+  const accessLost = useStaffAccessCutoff(
+    [hospitals.error],
+    () => setCutoff(true),
+    isGovernanceAssignmentAccessChanged,
+  );
   if (cutoff || accessLost) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   if (hospital)
     return (
@@ -131,7 +137,11 @@ function HospitalAssignments({
     retry: false,
     enabled: selected === null && templates.isSuccess && !templates.isFetching,
   });
-  const cutoff = useStaffAccessCutoff([records.error, templates.error], onAccessLost);
+  const cutoff = useStaffAccessCutoff(
+    [records.error, templates.error],
+    onAccessLost,
+    isGovernanceAssignmentAccessChanged,
+  );
   if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   if (selected)
     return (
@@ -235,6 +245,7 @@ function AssignmentReview({
   onAccessLost: () => void;
   onClose: () => void;
 }) {
+  const queryClient = useQueryClient();
   const [decision, setDecision] = useState<StaffAssignmentDecision["decision"] | null>(null);
   const [history, setHistory] = useState(false);
   const current = useQuery({
@@ -246,7 +257,37 @@ function AssignmentReview({
     gcTime: 0,
     retry: false,
   });
-  const cutoff = useStaffAccessCutoff([current.error], onAccessLost);
+  const account = useQuery({
+    queryKey: [...governanceAssignmentsKey(scope), "account", id, current.data?.version],
+    queryFn: ({ signal }) => {
+      if (!current.data) throw new Error("Select a current assignment before verifying identity.");
+      return getGovernanceAssignmentAccount(scope, current.data, signal);
+    },
+    enabled: current.isSuccess && !current.isFetching && decision === null,
+    refetchOnWindowFocus: false,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+  });
+  const refreshCurrent = async () => {
+    const result = await current.refetch();
+    const item = result.data;
+    if (!result.isError && item)
+      await queryClient
+        .fetchQuery({
+          queryKey: [...governanceAssignmentsKey(scope), "account", id, item.version],
+          queryFn: ({ signal }) => getGovernanceAssignmentAccount(scope, item, signal),
+          staleTime: 0,
+          gcTime: 0,
+        })
+        .catch(() => undefined);
+    return result;
+  };
+  const cutoff = useStaffAccessCutoff(
+    [current.error, account.error],
+    onAccessLost,
+    isGovernanceAssignmentAccessChanged,
+  );
   const now = useNow();
   if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   if (current.isPending || current.isFetching)
@@ -263,6 +304,9 @@ function AssignmentReview({
   const independent = scope.subject !== item.proposed_by && scope.subject !== item.input.subject;
   const reviewable =
     hospital.can_review &&
+    account.isSuccess &&
+    !account.isFetching &&
+    account.data.available &&
     independent &&
     item.status === "pending_review" &&
     Date.parse(item.input.expires_at) > now;
@@ -275,7 +319,22 @@ function AssignmentReview({
       <h3 className="font-semibold">
         {staffAccessTemplates.find((template) => template.key === item.input.template_key)?.name}
       </h3>
-      <p>Account: {item.input.subject}</p>
+      {account.isPending || account.isFetching ? (
+        <p role="status">Verifying the current account identity…</p>
+      ) : account.isError ? (
+        <RequestFailure
+          message="Could not verify account identity."
+          error={account.error}
+          retry={account.refetch}
+        />
+      ) : account.data.available ? (
+        <p>
+          Account: {account.data.name} ({account.data.email})
+        </p>
+      ) : (
+        <p>Current account identity is unavailable.</p>
+      )}
+      <p className="text-sm text-muted-foreground">Account reference: {item.input.subject}</p>
       <p>Proposed by: {item.proposed_by}</p>
       <p>{item.input.reason}</p>
       <p>
@@ -315,7 +374,11 @@ function AssignmentReview({
           <Button variant="outline" onClick={() => setHistory(!history)}>
             {history ? "Close history" : "History"}
           </Button>
-          <RefreshButton busy={current.isFetching} error={current.error} refresh={current.refetch}>
+          <RefreshButton
+            busy={current.isFetching || account.isFetching}
+            error={current.error ?? account.error}
+            refresh={refreshCurrent}
+          >
             Refresh selected assignment
           </RefreshButton>
           <Button variant="ghost" onClick={onClose}>
@@ -357,7 +420,11 @@ function AssignmentHistory({
     gcTime: 0,
     retry: false,
   });
-  const cutoff = useStaffAccessCutoff([history.error, decisions.error], onAccessLost);
+  const cutoff = useStaffAccessCutoff(
+    [history.error, decisions.error],
+    onAccessLost,
+    isGovernanceAssignmentAccessChanged,
+  );
   if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   if (history.isPending || decisions.isPending)
     return <p role="status">Checking assignment history…</p>;

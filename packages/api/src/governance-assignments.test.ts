@@ -1,9 +1,12 @@
 import { afterEach, expect, it, vi } from "vitest";
+import { ApiError } from "./client";
 import {
   listGovernanceAssignmentScopes,
   listGovernanceAssignmentTemplates,
   listGovernanceAssignments,
   getGovernanceAssignment,
+  getGovernanceAssignmentAccount,
+  isGovernanceAssignmentAccessChanged,
   proposeGovernanceAssignment,
   decideGovernanceAssignment,
 } from "./governance-assignments";
@@ -156,4 +159,56 @@ it.each([
 ])("refuses missing, duplicated or changed template definitions", async (catalog) => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(catalog)));
   await expect(listGovernanceAssignmentTemplates(scope)).rejects.toThrow();
+});
+
+const account = {
+  proposal_id: id,
+  proposal_version: 2,
+  subject: input.subject,
+  available: true,
+  name: "Synthetic Staff",
+  email: "synthetic@example.invalid",
+};
+it("reads account presentation only through the selected hospital proposal", async () => {
+  const fetch = vi.fn().mockResolvedValue(Response.json(account));
+  vi.stubGlobal("fetch", fetch);
+  expect(await getGovernanceAssignmentAccount(scope, proposal)).toEqual(account);
+  expect(new URL(fetch.mock.calls[0]![0], "https://example.invalid").pathname).toBe(
+    `/api/v1/iam/hospitals/${hospitalId}/assignment-proposals/${id}/account`,
+  );
+  expect(new Headers(fetch.mock.calls[0]![1].headers).get("X-Helivanta-Expected-Subject")).toBe(
+    scope.subject,
+  );
+});
+it.each([
+  { ...account, proposal_id: "019aaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaab" },
+  { ...account, proposal_version: 3 },
+  { ...account, subject: "another-user" },
+  { ...account, available: false },
+  { ...account, name: "" },
+  { ...account, email: "not-an-email" },
+])("withholds mismatched, incomplete or contradictory account presentation", async (answer) => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(answer)));
+  await expect(getGovernanceAssignmentAccount(scope, proposal)).rejects.toThrow();
+});
+it("retains explicit known-unavailable presentation without fabricating a name", async () => {
+  const answer = { proposal_id: id, proposal_version: 2, subject: input.subject, available: false };
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(answer)));
+  expect(await getGovernanceAssignmentAccount(scope, proposal)).toEqual(answer);
+});
+
+it.each([
+  "tenant_changed",
+  "assignment_session_context_required",
+  "session_changed",
+  "workspace_changed",
+])("treats %s as a scope cutoff", (code) => {
+  expect(
+    isGovernanceAssignmentAccessChanged(new ApiError(code, "Synthetic scope changed", 409)),
+  ).toBe(true);
+});
+it("keeps a stale proposal conflict separate from an account cutoff", () => {
+  expect(
+    isGovernanceAssignmentAccessChanged(new ApiError("conflict", "Synthetic stale proposal", 409)),
+  ).toBe(false);
 });

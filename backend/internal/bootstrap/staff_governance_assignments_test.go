@@ -3,6 +3,7 @@ package bootstrap_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -20,11 +21,22 @@ import (
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/onboarding-service/api/customercontract"
 	"gorm.io/gorm"
 )
 
+type governanceAssignmentIdentityReader func(context.Context, string, string) (*customercontract.AssignmentCandidateIdentity, error)
+
+func (f governanceAssignmentIdentityReader) AssignmentCandidateIdentity(ctx context.Context, tenant, subject string) (*customercontract.AssignmentCandidateIdentity, error) {
+	return f(ctx, tenant, subject)
+}
+
 func TestGovernanceAssignmentProposalAdmissionUsesExactHospitalWithoutLegacyManager(t *testing.T) {
 	native := &governanceNativeIdentity{}
+	var identityRead governanceAssignmentIdentityReader
+	identity := governanceAssignmentIdentityReader(func(ctx context.Context, tenant, subject string) (*customercontract.AssignmentCandidateIdentity, error) {
+		return identityRead(ctx, tenant, subject)
+	})
 	router, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"admin": testutil.TenantA, "reviewer": testutil.TenantA, "auditor": testutil.TenantA},
 		Perms: map[string][]authz.Permission{
@@ -32,7 +44,7 @@ func TestGovernanceAssignmentProposalAdmissionUsesExactHospitalWithoutLegacyMana
 			"reviewer": {iam.PermGovernanceAssignmentManage, iam.PermGovernanceAssignmentReview},
 			"auditor":  {iam.PermAssignmentManage, iam.PermAssignmentReview, iam.PermGovernanceAssignmentManage, iam.PermGovernanceAssignmentReview},
 		},
-		Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(native), workforce.New()},
+		Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(native).SetAssignmentIdentityReader(identity), workforce.New()},
 	})
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES (?,'user-admin','tenant_admin'),(?,'user-reviewer','staff_member'),(?,'user-auditor','staff_member')`, testutil.TenantA, testutil.TenantA, testutil.TenantA).Error
@@ -169,6 +181,109 @@ func TestGovernanceAssignmentProposalAdmissionUsesExactHospitalWithoutLegacyMana
 	require.Zero(t, effects.Staff, "governance cannot fabricate Staff actors")
 	require.Zero(t, effects.Access, "native hospital verification cannot manufacture legacy manager rows")
 	require.EqualValues(t, 1, effects.Proposals, "replay retains the canonical proposal")
+	reads := 0
+	identityRead = func(_ context.Context, tenant, subject string) (*customercontract.AssignmentCandidateIdentity, error) {
+		reads++
+		require.Equal(t, testutil.TenantA, tenant)
+		require.Equal(t, retained.Input.Subject, subject)
+		return &customercontract.AssignmentCandidateIdentity{DisplayName: "Synthetic proposal recipient", Email: "synthetic-recipient@example.invalid"}, nil
+	}
+	accountPath := path + "/account"
+	account := governanceRequest(router, http.MethodGet, accountPath, "reviewer", "")
+	require.Equal(t, http.StatusOK, account.Code, account.Body.String())
+	require.Equal(t, "no-store", account.Header().Get("Cache-Control"))
+	var presentation iam.AssignmentAccountPresentation
+	require.NoError(t, json.Unmarshal(account.Body.Bytes(), &presentation))
+	require.True(t, presentation.Available)
+	require.Equal(t, retained.Version, presentation.ProposalVersion)
+	require.Equal(t, retained.Input.Subject, presentation.Subject)
+	require.Equal(t, "Synthetic proposal recipient", *presentation.Name)
+	require.Equal(t, "synthetic-recipient@example.invalid", *presentation.Email)
+	require.Equal(t, 1, reads)
+	outside := governanceRequest(router, http.MethodGet, accountPath, "auditor", "")
+	require.Equal(t, http.StatusNotFound, outside.Code, outside.Body.String())
+	outside = governanceRequest(router, http.MethodGet, wrongRoot+"/account", "reviewer", "")
+	require.Equal(t, http.StatusNotFound, outside.Code, outside.Body.String())
+	outside = governanceRequest(router, http.MethodGet, accountPath+"?subject=user-auditor", "reviewer", "")
+	require.Equal(t, http.StatusBadRequest, outside.Code, outside.Body.String())
+	require.Equal(t, 1, reads, "unauthorized, wrong-resource and query-forged reads cannot query native identity")
+	independentGrant := grant
+	independentGrant.Subject = "user-auditor"
+	independentBody, err := json.Marshal(independentGrant)
+	require.NoError(t, err)
+	independent := governanceRequest(router, http.MethodPut, "/v1/iam/governance-grants/"+uuid.Must(uuid.NewV7()).String(), "admin", string(independentBody))
+	require.Equal(t, http.StatusAccepted, independent.Code, independent.Body.String())
+	independentRead := governanceRequest(router, http.MethodGet, accountPath, "auditor", "")
+	require.Equal(t, http.StatusOK, independentRead.Code, independentRead.Body.String())
+	require.Contains(t, independentRead.Body.String(), "Synthetic proposal recipient")
+	require.Equal(t, 2, reads, "an independently sourced reviewer can inspect the same exact proposal account")
+
+	identityRead = func(context.Context, string, string) (*customercontract.AssignmentCandidateIdentity, error) {
+		return nil, nil
+	}
+	absent := governanceRequest(router, http.MethodGet, accountPath, "reviewer", "")
+	require.Equal(t, http.StatusOK, absent.Code, absent.Body.String())
+	require.NotContains(t, absent.Body.String(), `"name"`)
+	require.NotContains(t, absent.Body.String(), `"email"`)
+	require.Contains(t, absent.Body.String(), `"available":false`)
+	identityRead = func(context.Context, string, string) (*customercontract.AssignmentCandidateIdentity, error) {
+		return nil, errors.New("synthetic-recipient@example.invalid private provider failure")
+	}
+	failed := governanceRequest(router, http.MethodGet, accountPath, "reviewer", "")
+	require.Equal(t, http.StatusServiceUnavailable, failed.Code, failed.Body.String())
+	require.NotContains(t, failed.Body.String(), "synthetic-recipient@example.invalid")
+
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES (?,'synthetic-target','staff_member')`, testutil.TenantA).Error
+	}))
+	targetIntent := retained.Input
+	targetIntent.Subject = "synthetic-target"
+	targetBody, err := json.Marshal(targetIntent)
+	require.NoError(t, err)
+	targetPath := root + "/" + uuid.Must(uuid.NewV7()).String()
+	targetCreated := governanceRequest(router, http.MethodPut, targetPath, "reviewer", string(targetBody))
+	require.Equal(t, http.StatusOK, targetCreated.Code, targetCreated.Body.String())
+	require.EventuallyWithT(t, func(check *assert.CollectT) {
+		response := governanceRequest(router, http.MethodGet, targetPath, "reviewer", "")
+		require.Equal(check, http.StatusOK, response.Code, response.Body.String())
+		var row iam.ProposalOutput
+		require.NoError(check, json.Unmarshal(response.Body.Bytes(), &row))
+		require.Equal(check, "pending_review", row.Status)
+	}, 20*time.Second, 100*time.Millisecond)
+	identityRead = func(ctx context.Context, _, subject string) (*customercontract.AssignmentCandidateIdentity, error) {
+		require.Equal(t, "synthetic-target", subject)
+		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			return tx.Exec(`DELETE FROM iam_members WHERE tenant_id=? AND subject=?`, testutil.TenantA, subject).Error
+		}))
+		return &customercontract.AssignmentCandidateIdentity{DisplayName: "Removed target must not disclose", Email: "removed-target@example.invalid"}, nil
+	}
+	removed := governanceRequest(router, http.MethodGet, targetPath+"/account", "reviewer", "")
+	require.Equal(t, http.StatusOK, removed.Code, removed.Body.String())
+	require.Contains(t, removed.Body.String(), `"available":false`)
+	require.NotContains(t, removed.Body.String(), "Removed target")
+	require.NotContains(t, removed.Body.String(), "removed-target@example.invalid")
+	history := governanceRequest(router, http.MethodGet, targetPath+"/history", "reviewer", "")
+	require.Equal(t, http.StatusOK, history.Code, history.Body.String())
+
+	identityRead = func(context.Context, string, string) (*customercontract.AssignmentCandidateIdentity, error) {
+		changed := governanceRequest(router, http.MethodPost, path+"/decision", "reviewer", `{"expected_version":2,"decision":"withdraw","reason":"Withdraw while account presentation is in flight"}`)
+		require.Equal(t, http.StatusOK, changed.Code, changed.Body.String())
+		return &customercontract.AssignmentCandidateIdentity{DisplayName: "Changed proposal must not disclose", Email: "changed-proposal@example.invalid"}, nil
+	}
+	changedAccount := governanceRequest(router, http.MethodGet, accountPath, "reviewer", "")
+	require.Equal(t, http.StatusConflict, changedAccount.Code, changedAccount.Body.String())
+	require.NotContains(t, changedAccount.Body.String(), "Changed proposal")
+	require.NotContains(t, changedAccount.Body.String(), "changed-proposal@example.invalid")
+	identityRead = func(ctx context.Context, _, _ string) (*customercontract.AssignmentCandidateIdentity, error) {
+		withdrawn := governanceRequest(router, http.MethodPut, grantPath+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "admin", `{"expected_version":1,"decision":"revoke","reason":"Withdraw authority while native presentation is in flight"}`)
+		require.Equal(t, http.StatusAccepted, withdrawn.Code, withdrawn.Body.String())
+		return &customercontract.AssignmentCandidateIdentity{DisplayName: "Must not disclose", Email: "must-not-disclose@example.invalid"}, nil
+	}
+	revoked := governanceRequest(router, http.MethodGet, accountPath, "reviewer", "")
+	require.Equal(t, http.StatusNotFound, revoked.Code, revoked.Body.String())
+	require.NotContains(t, revoked.Body.String(), "Must not disclose")
+	require.NotContains(t, revoked.Body.String(), "must-not-disclose@example.invalid")
+
 }
 
 func TestGovernanceAssignmentDepartmentRetirementCannotUseRetainedOwnerApproval(t *testing.T) {

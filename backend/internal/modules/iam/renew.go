@@ -14,6 +14,7 @@ import (
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/session"
+	"github.com/tesserix/onboarding-service/api/customercontract"
 )
 
 // UserStateChecker re-checks a subject's Zitadel state on every renewal
@@ -35,11 +36,17 @@ type MembershipIdentityReader interface {
 	MembershipEligible(ctx context.Context, tenant, subject string) (bool, error)
 }
 
+// AssignmentIdentityReader reads the separate target-account selection purpose.
+type AssignmentIdentityReader interface {
+	AssignmentCandidateIdentity(context.Context, string, string) (*customercontract.AssignmentCandidateIdentity, error)
+}
+
 // IdentityProvider is the shared Zitadel client for identity reads.
 type IdentityProvider interface {
 	UserStateChecker
 	UserProfileReader
 	MembershipIdentityReader
+	AssignmentIdentityReader
 }
 
 // renewalFraction renews short sessions after a third of their lifetime.

@@ -63,6 +63,37 @@ its generated canonical catalog, including permissions and supported scopes;
 missing, duplicated or changed definitions make preparation unavailable. The
 native review surface checks this catalog before exposing assignment actions.
 
+`GET /v1/iam/hospitals/:hospital/assignment-proposals/:id/account` is a
+candidate single-resource presentation, not account discovery. It accepts no
+query parameters or caller-supplied target subject. IAM reads the selected
+proposal and its current target membership incarnation under the current hospital
+source, then releases its transaction before the identity-owner call. It
+reacquires the same source, proposal version and target membership basis before
+its final read audit/commit. Shared row locks hold the final facts through commit.
+The complete request retains a five-second deadline. No identity request occurs
+for unauthorized/wrong-resource reads or a target whose retained membership
+incarnation is no longer current.
+
+The generated `AssignmentAccountPresentation` contains proposal ID/version,
+subject and `available`. Only an available presentation includes both `name` and
+`email`; a known unavailable presentation includes neither. A provider outage,
+refusal or malformed/misbound projection is an explicit 503, not a successful
+empty choice. Source loss withholds the presentation; conflicting source or
+proposal versions require refresh. This is an on-demand view of identity-owned
+values, never an IAM identity master or stored profile snapshot. It does not
+create a Staff link, employment, membership or operating authority.
+
+The consumer uses the identity owner's separate private `assignment_candidate`
+purpose, pinned to owner source `20d2406`. The self-profile purpose and login
+credential privileges are unchanged. Owner PR #39 is an unmerged/undeployed
+candidate, so release requires accepting/deploying that owner before Helivanta
+opts in. The native review UI verifies this proposal-qualified identity before
+showing positive decisions; known unavailability retains history and proposer
+withdrawal. Access refusals, including expected-account/tenant mismatch, remove
+previously disclosed data. Uncertain decision intent remains frozen independently
+of identity refetch. Qualified account and department selection for creating new
+proposals remains unfinished; this lookup does not close that requirement.
+
 The typed SDK uses the Global API and preserves both account precondition
 headers on discovery, proposal, history and decision calls; no legacy fallback
 is attempted. Its hospital choice or cached action flags do not authorize a
@@ -640,3 +671,22 @@ missing-support cases are included in the remote governance fixture but are not
 yet accepted. Native document SDK/UI and exact employment-term binding remain
 unfinished. WF0113 is unapplied and requires specific live migration/rollback
 approval after concrete acceptance; no rollout is authorized by a source review.
+
+
+Candidate migration `0115_workforce_finding_file_isolation` corrects an existing
+scan-worker policy dependency. The finding-file helper remains invoker-security
+and keeps its source and exact evidence predicates, but uses a procedural early
+return when no finding source is present. This prevents PostgreSQL from preparing
+a personnel-evidence lookup for a worker that lacks and should retain no direct
+permission on that table. No grant, policy visibility or existing migration is
+rewritten. The document worker's tenant/hospital/Staff/file narrowing and private
+column denials remain in force. CI retains the existing positive/wrong-scope
+worker cases and adds explicit evidence-table denial plus restoration of the old
+function followed by reapplication of the correction. Function rollback restores
+the prior permission failure without erasing the document; application rollback
+can retain the compatible corrected signature. No live migration occurred.
+
+The full coverage run on `a8c87dee` also returned scoped-source 503s during
+employment review/posting. This repair is not evidence that those availability
+failures are fixed. Required success assertions and production deadlines remain
+unchanged; full real-service acceptance is still required.

@@ -232,12 +232,13 @@ func assignmentGovernanceReplay(tx *gorm.DB, tenant string, row assignmentPropos
 	return nil
 }
 
-func registerGovernanceAssignments(g *platform.Router, deps platform.Deps) {
-	h := &assignmentProposalHandlers{db: deps.DB, bus: deps.Bus, native: true, sources: deps.GovernanceSources}
+func registerGovernanceAssignments(g *platform.Router, deps platform.Deps, identities AssignmentIdentityReader) {
+	h := &assignmentProposalHandlers{db: deps.DB, bus: deps.Bus, native: true, sources: deps.GovernanceSources, identities: identities}
 	root := "/hospitals/:hospital/assignment-proposals"
 	g.GET("/hospitals/:hospital/assignment-templates", authz.Public, h.templates)
 	g.PUT(root+"/:id", PermGovernanceAssignmentManage, h.put)
 	g.GET(root+"/:id", authz.Public, h.get)
+	g.GET(root+"/:id/account", authz.Public, h.account)
 	g.POST(root+"/:id/decision", authz.Public, h.decide)
 	platform.ResourceListRoute(g, root, authz.Public, 50, h.list)
 	platform.ResourceListRoute(g, root+"/:id/history", authz.Public, 50, h.history)

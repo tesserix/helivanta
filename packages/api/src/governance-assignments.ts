@@ -1,9 +1,11 @@
 import { z } from "zod";
-import { apiFetch } from "./client";
+import { isEnrollmentAccessChanged } from "./enrollment";
+import { ApiError, apiFetch } from "./client";
 import { personReviewRequest } from "./person-reviews";
 import { staffAccessTemplates } from "./staff-access-templates";
 import {
   AssignmentGovernanceHospitalScopeContract,
+  AssignmentAccountPresentationContract,
   TemplateDefinitionContract,
   ProposalOutputContract,
   ProposalHistoryContract,
@@ -12,6 +14,7 @@ import {
 import {
   staffAssignmentInputContract,
   staffAssignmentDecisionContract,
+  type StaffAssignment,
   type StaffAssignmentInput,
   type StaffAssignmentDecision,
   type StaffAssignmentFamily,
@@ -229,4 +232,44 @@ export async function listGovernanceAssignmentTemplates(
       "The assignment catalog changed. Refresh this workspace before preparing access.",
     );
   return definitions;
+}
+
+export async function getGovernanceAssignmentAccount(
+  scope: GovernanceAssignmentScope,
+  item: Pick<StaffAssignment, "id" | "input" | "version">,
+  signal?: AbortSignal,
+) {
+  signal?.throwIfAborted();
+  if (item.input.hospital_id !== scope.hospitalId)
+    throw new Error("The selected hospital changed.");
+  const answer = await apiFetch<unknown>(
+    `${root(scope)}/${ProposalOutputContract.shape.id.parse(item.id)}/account`,
+    {
+      ...personReviewRequest(scope),
+      signal,
+    },
+  );
+  signal?.throwIfAborted();
+  const account = AssignmentAccountPresentationContract.parse(answer);
+  if (
+    account.proposal_id !== item.id ||
+    account.proposal_version !== item.version ||
+    account.subject !== item.input.subject ||
+    (account.available
+      ? account.name === undefined || account.email === undefined
+      : account.name !== undefined || account.email !== undefined)
+  )
+    throw new Error(
+      "The selected assignment or account identity changed. Refresh before continuing.",
+    );
+  return account;
+}
+
+export function isGovernanceAssignmentAccessChanged(error: unknown): boolean {
+  return (
+    isEnrollmentAccessChanged(error) ||
+    (error instanceof ApiError &&
+      error.status === 409 &&
+      ["tenant_changed", "assignment_session_context_required"].includes(error.code))
+  );
 }

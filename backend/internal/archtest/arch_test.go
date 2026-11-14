@@ -566,6 +566,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding":                    "one private pharmacy evidence binding; evidence list and history are cursor-paginated",
 	"GET /workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/content":            "one reauthorized protected pharmacy file at its pinned scanned generation",
 	"GET /workforce/hospitals/:hospital/identity-staff/:id/checks/:check":                                                              "one hospital/staff-scoped identity case; case list and revision history are cursor-paginated",
+	"GET /iam/hospitals/:hospital/assignment-proposals/:id/account":                                                                    "one current account presentation for the selected proposal; not a user or Staff collection",
 	"GET /iam/hospitals/:hospital/assignment-templates":                                                                                "finite canonical versioned assignment definitions, with current hospital governance admission; no tenant record collection",
 	"GET /iam/staff-access-templates":                                                            "finite canonical catalogue of three versioned templates, no tenant record collection",
 	"GET /workforce/hospitals/:hospital/identity-staff/:id":                                      "one current identity review source for an authorized staff UUID",

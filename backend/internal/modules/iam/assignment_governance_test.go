@@ -120,10 +120,20 @@ func TestGovernanceAssignmentCatalogRejectsUnauthenticatedRequests(t *testing.T)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	routes := platform.NewRouter(router.Group("/v1/iam"), &CurrentAuthorization{})
-	registerGovernanceAssignments(routes, platform.Deps{})
+	registerGovernanceAssignments(routes, platform.Deps{}, nil)
 	request := httptest.NewRequest(http.MethodGet, "/v1/iam/hospitals/11111111-1111-4111-8111-111111111111/assignment-templates", nil)
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
 	require.Equal(t, http.StatusUnauthorized, response.Code, response.Body.String())
 	require.NotContains(t, response.Body.String(), "workforce.hr_intake.v1")
+}
+
+func TestGovernanceAssignmentAccountIdentityRejectsUnauthenticatedRequests(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	registerGovernanceAssignments(platform.NewRouter(router.Group("/v1/iam"), &CurrentAuthorization{}), platform.Deps{}, nil)
+	request := httptest.NewRequest(http.MethodGet, "/v1/iam/hospitals/11111111-1111-4111-8111-111111111111/assignment-proposals/019aaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa/account", nil)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	require.Equal(t, http.StatusUnauthorized, response.Code, response.Body.String())
 }

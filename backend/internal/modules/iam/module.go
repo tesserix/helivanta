@@ -55,6 +55,7 @@ type Module struct {
 	userState UserStateChecker
 	// profiles reads the caller's Zitadel profile for GET /me/profile.
 	profiles           UserProfileReader
+	assignmentIdentity AssignmentIdentityReader
 	membershipIdentity MembershipIdentityReader
 }
 
@@ -76,6 +77,11 @@ func (m *Module) SetUserStateChecker(u UserStateChecker) *Module {
 }
 
 // SetUserProfileReader wires GET /me/profile's Zitadel read; unset, the route answers 503.
+func (m *Module) SetAssignmentIdentityReader(r AssignmentIdentityReader) *Module {
+	m.assignmentIdentity = r
+	return m
+}
+
 func (m *Module) SetUserProfileReader(r UserProfileReader) *Module {
 	m.profiles = r
 	return m

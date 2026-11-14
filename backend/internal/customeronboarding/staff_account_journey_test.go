@@ -33,10 +33,11 @@ const staffAccountTenantA = "11111111-1111-4111-8111-111111111111"
 const staffAccountTenantB = "22222222-2222-4222-8222-222222222222"
 
 type staffAccountJourney struct {
-	router *gin.Engine
-	db     *tenantdb.DB
-	owner  *staffclienttest.Fixture
-	ctx    context.Context
+	router   *gin.Engine
+	db       *tenantdb.DB
+	owner    *staffclienttest.Fixture
+	ctx      context.Context
+	identity *loginclient.Client
 }
 
 func newStaffAccountJourney(t *testing.T) *staffAccountJourney {
@@ -62,7 +63,7 @@ func newStaffAccountJourney(t *testing.T) *staffAccountJourney {
 		return tx.Exec("INSERT INTO iam_members(tenant_id,subject,role_key)VALUES(?,'user-foreign-admin','tenant_admin')", staffAccountTenantB).Error
 	}))
 	bootstrap.MountStaffSetup(router, broker.StaffSetup(customeronboarding.StaffSetupDeps{Limiter: ratelimit.NewMemory(100), Limit: ratelimit.Rule{Rate: 100, Burst: 100, Per: time.Minute}}))
-	return &staffAccountJourney{router: router, db: db, owner: owner, ctx: ctx}
+	return &staffAccountJourney{router: router, db: db, owner: owner, ctx: ctx, identity: identity}
 }
 func (j *staffAccountJourney) call(t *testing.T, method, path, token string, body any) *httptest.ResponseRecorder {
 	t.Helper()
@@ -148,6 +149,12 @@ func TestProtectedStaffAccountJourneyPersistsOnceAndRequiresRecipientBeforeMembe
 	require.Contains(t, password.Body.String(), "password_action_required")
 	recipient("password")
 	recipient("password")
+	presentation, err := j.identity.AssignmentCandidateIdentity(j.ctx, staffAccountTenantA, created.UserID)
+	require.NoError(t, err)
+	require.NotNil(t, presentation)
+	require.Equal(t, "Synthetic Staff", presentation.DisplayName)
+	require.Equal(t, "synthetic@example.invalid", presentation.Email)
+
 	var count int64
 	require.NoError(t, j.db.WithTenant(j.ctx, staffAccountTenantA, func(tx *gorm.DB) error {
 		return tx.Table("iam_members").Where("subject=?", created.UserID).Count(&count).Error

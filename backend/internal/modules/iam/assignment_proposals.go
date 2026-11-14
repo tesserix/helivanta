@@ -98,10 +98,11 @@ type assignmentProposalHistory ProposalHistory
 func (p assignmentProposalHistory) PageKey() (time.Time, uuid.UUID) { return p.CreatedAt, p.ID }
 
 type assignmentProposalHandlers struct {
-	db      *tenantdb.DB
-	bus     *events.Bus
-	native  bool
-	sources authz.CurrentGovernanceSourceGuard
+	db         *tenantdb.DB
+	bus        *events.Bus
+	native     bool
+	sources    authz.CurrentGovernanceSourceGuard
+	identities AssignmentIdentityReader
 }
 
 func assignmentAccess(tx *gorm.DB) error {
@@ -446,7 +447,7 @@ func settleProposalScope(tx *gorm.DB, deps platform.Deps, tenant string, row ass
 	return nil
 }
 func (m *Module) registerAssignmentProposals(g *platform.Router, deps platform.Deps) {
-	registerGovernanceAssignments(g, deps)
+	registerGovernanceAssignments(g, deps, m.assignmentIdentity)
 	h := &assignmentProposalHandlers{db: deps.DB, bus: deps.Bus}
 	g.POST("/assignment-proposals/:id/decision", authz.Public, h.decide)
 	platform.ListRoute(g, "/assignment-proposals/:id/decisions", authz.Public, h.decisions)

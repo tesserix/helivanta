@@ -132,6 +132,15 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/iam/hospitals/:hospital/assignment-proposals/:id/account",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "POST",
           "path": "/v1/iam/hospitals/:hospital/assignment-proposals/:id/decision",
           "permission": "public",
@@ -13767,6 +13776,11 @@
         {
           "id": "0114_workforce_employment_binding_preparation",
           "sql_sha256": "b6fbfca320062ecaf0b9f8f95af47e499a1c047ed75ae882da5837f7b44f136b",
+          "creates_tables": []
+        },
+        {
+          "id": "0115_workforce_finding_file_isolation",
+          "sql_sha256": "907ca6584f588b1eea04844e990489ae82b964dc1e8c9dd165036e4ac34428ba",
           "creates_tables": []
         }
       ]

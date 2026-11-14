@@ -41,6 +41,15 @@ it("selects a named hospital and retains the exact reviewed decision after an un
     vi.fn(async (url: string, init?: RequestInit) => {
       paths.push(url);
       if (url.includes("assignment-templates")) return Response.json(staffAccessTemplates);
+      if (url.endsWith("/account"))
+        return Response.json({
+          proposal_id: id,
+          proposal_version: 2,
+          subject: proposal.input.subject,
+          available: true,
+          name: "Synthetic Staff",
+          email: "synthetic@example.invalid",
+        });
       if (init?.method === "POST") {
         writes.push({
           url,
@@ -56,6 +65,15 @@ it("selects a named hospital and retains the exact reviewed decision after an un
         return Response.json({ ...proposal, status: "pending_decision_scope", version: 3 });
       }
       if (url.includes("assignment-templates")) return Response.json(staffAccessTemplates);
+      if (url.endsWith("/account"))
+        return Response.json({
+          proposal_id: id,
+          proposal_version: 2,
+          subject: proposal.input.subject,
+          available: true,
+          name: "Synthetic Staff",
+          email: "synthetic@example.invalid",
+        });
       if (url.includes("assignment-authority-scopes")) return Response.json(page([hospital]));
       if (url.endsWith(`/assignment-proposals/${id}`)) return Response.json(proposal);
       if (url.includes("/history"))
@@ -99,6 +117,15 @@ it("removes disclosed assignment data when current review access is refused", as
     "fetch",
     vi.fn(async (url: string) => {
       if (url.includes("assignment-templates")) return Response.json(staffAccessTemplates);
+      if (url.endsWith("/account"))
+        return Response.json({
+          proposal_id: id,
+          proposal_version: 2,
+          subject: proposal.input.subject,
+          available: true,
+          name: "Synthetic Staff",
+          email: "synthetic@example.invalid",
+        });
       if (url.includes("assignment-authority-scopes")) return Response.json(page([hospital]));
       if (revoked)
         return Response.json(
@@ -126,6 +153,15 @@ it("does not offer self approval when the selected account proposed the assignme
     "fetch",
     vi.fn(async (url: string) => {
       if (url.includes("assignment-templates")) return Response.json(staffAccessTemplates);
+      if (url.endsWith("/account"))
+        return Response.json({
+          proposal_id: id,
+          proposal_version: 2,
+          subject: proposal.input.subject,
+          available: true,
+          name: "Synthetic Staff",
+          email: "synthetic@example.invalid",
+        });
       if (url.includes("assignment-authority-scopes")) return Response.json(page([hospital]));
       if (url.endsWith(`/assignment-proposals/${id}`)) return Response.json(own);
       return Response.json(page([own]));
@@ -147,7 +183,25 @@ it("loads bounded history and decisions only when requested and hides both after
     vi.fn(async (url: string) => {
       paths.push(url);
       if (url.includes("assignment-templates")) return Response.json(staffAccessTemplates);
+      if (url.endsWith("/account"))
+        return Response.json({
+          proposal_id: id,
+          proposal_version: 2,
+          subject: proposal.input.subject,
+          available: true,
+          name: "Synthetic Staff",
+          email: "synthetic@example.invalid",
+        });
       if (url.includes("assignment-templates")) return Response.json(staffAccessTemplates);
+      if (url.endsWith("/account"))
+        return Response.json({
+          proposal_id: id,
+          proposal_version: 2,
+          subject: proposal.input.subject,
+          available: true,
+          name: "Synthetic Staff",
+          email: "synthetic@example.invalid",
+        });
       if (url.includes("assignment-authority-scopes")) return Response.json(page([hospital]));
       if (url.includes("/history")) {
         if (nextPage)
@@ -195,4 +249,104 @@ it("withholds assignment actions when the server canonical catalog changes", asy
   await user.click(await screen.findByRole("button", { name: "Open Synthetic hospital" }));
   expect(await screen.findByText("Could not verify assignment templates.")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Review assignment" })).not.toBeInTheDocument();
+});
+
+it("requires current proposal-qualified identity before offering approval", async () => {
+  let release: ((response: Response) => void) | undefined;
+  const held = new Promise<Response>((resolve) => {
+    release = resolve;
+  });
+  const paths: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      paths.push(url);
+      if (url.includes("assignment-authority-scopes")) return Response.json(page([hospital]));
+      if (url.includes("assignment-templates")) return Response.json(staffAccessTemplates);
+      if (url.endsWith("/account")) return held;
+      if (url.endsWith(`/assignment-proposals/${id}`)) return Response.json(proposal);
+      return Response.json(page([proposal]));
+    }),
+  );
+  const { user } = renderWithProviders(<GovernanceAssignments scope={scope} />);
+  await user.click(await screen.findByRole("button", { name: "Open Synthetic hospital" }));
+  await user.click(await screen.findByRole("button", { name: "Review assignment" }));
+  await screen.findByText(proposal.input.reason);
+  expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+  await waitFor(() =>
+    expect(paths.some((url) => url.endsWith(`/assignment-proposals/${id}/account`))).toBe(true),
+  );
+  release!(
+    Response.json({
+      proposal_id: id,
+      proposal_version: 2,
+      subject: proposal.input.subject,
+      available: true,
+      name: "Verified synthetic staff",
+      email: "verified-staff@example.invalid",
+    }),
+  );
+  expect(await screen.findByText(/Verified synthetic staff/)).toBeInTheDocument();
+  expect(await screen.findByText(/verified-staff@example.invalid/)).toBeInTheDocument();
+  expect(await screen.findByRole("button", { name: "Approve" })).toBeInTheDocument();
+});
+
+it("retains withdrawal and history when the target identity is known unavailable", async () => {
+  const own = { ...proposal, proposed_by: scope.subject };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("assignment-authority-scopes")) return Response.json(page([hospital]));
+      if (url.includes("assignment-templates")) return Response.json(staffAccessTemplates);
+      if (url.endsWith("/account"))
+        return Response.json({
+          proposal_id: id,
+          proposal_version: 2,
+          subject: proposal.input.subject,
+          available: false,
+        });
+      if (url.endsWith(`/assignment-proposals/${id}`)) return Response.json(own);
+      return Response.json(page([own]));
+    }),
+  );
+  const { user } = renderWithProviders(<GovernanceAssignments scope={scope} />);
+  await user.click(await screen.findByRole("button", { name: "Open Synthetic hospital" }));
+  await user.click(await screen.findByRole("button", { name: "Review assignment" }));
+  expect(await screen.findByText("Current account identity is unavailable.")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Withdraw" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "History" })).toBeInTheDocument();
+});
+
+it("clears disclosed data after an expected-tenant mismatch on the account read", async () => {
+  let mismatch = false;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("assignment-authority-scopes")) return Response.json(page([hospital]));
+      if (url.includes("assignment-templates")) return Response.json(staffAccessTemplates);
+      if (url.endsWith("/account"))
+        return mismatch
+          ? Response.json({ error: "tenant_changed", message: "Account changed" }, { status: 409 })
+          : Response.json({
+              proposal_id: id,
+              proposal_version: 2,
+              subject: proposal.input.subject,
+              available: true,
+              name: "Verified synthetic staff",
+              email: "verified-staff@example.invalid",
+            });
+      if (url.endsWith(`/assignment-proposals/${id}`)) return Response.json(proposal);
+      return Response.json(page([proposal]));
+    }),
+  );
+  const { user } = renderWithProviders(<GovernanceAssignments scope={scope} />);
+  await user.click(await screen.findByRole("button", { name: "Open Synthetic hospital" }));
+  await user.click(await screen.findByRole("button", { name: "Review assignment" }));
+  await screen.findByText(/Verified synthetic staff/);
+  mismatch = true;
+  await user.click(screen.getByRole("button", { name: "Refresh selected assignment" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Staff access changed");
+  expect(screen.queryByText(proposal.input.reason)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Verified synthetic staff/)).not.toBeInTheDocument();
 });

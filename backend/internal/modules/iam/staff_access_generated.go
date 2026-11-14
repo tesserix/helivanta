@@ -65,6 +65,15 @@ type DepartmentScopeResult struct {
 	Eligible     bool      `json:"eligible"`
 }
 
+type AssignmentAccountPresentation struct {
+	ProposalID      uuid.UUID `json:"proposal_id"`
+	ProposalVersion int64     `json:"proposal_version"`
+	Subject         string    `json:"subject"`
+	Available       bool      `json:"available"`
+	Name            *string   `json:"name,omitempty"`
+	Email           *string   `json:"email,omitempty"`
+}
+
 type ProposalOutput struct {
 	ID         uuid.UUID     `json:"id"`
 	Input      ProposalInput `json:"input"`

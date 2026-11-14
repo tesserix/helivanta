@@ -85,6 +85,7 @@ func (h *operatingHandlers) nativeHandler(c *gin.Context) (*operatingHandlers, b
 	return &copy, true
 }
 func registerOperatingGovernanceRoutes(r *platform.Router, h *operatingHandlers) {
+	registerOperatingLocationChoices(r, h)
 	wrap := func(action func(*operatingHandlers, *gin.Context)) gin.HandlerFunc {
 		return func(c *gin.Context) {
 			copy, ok := h.nativeHandler(c)

@@ -16,6 +16,8 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
 	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
 )
@@ -44,6 +46,7 @@ func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *ten
 		}
 	}
 	location, lateLocation := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
+	lateLocationVersion := int64(1)
 	createLocation(location, "SYN-NATIVE-PRIMARY")
 	createLocation(lateLocation, "SYN-NATIVE-FAULT")
 	template := "pharmacy.inventory_receiver.v1"
@@ -53,6 +56,8 @@ func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *ten
 
 	staffChoicePath := "/v1/workforce/operating-governance-employers/" + kind + "/" + employer.String() + "/staff-choices"
 	call(http.MethodGet, staffChoicePath+"?limit=20", "auditor", nil, http.StatusNotFound)
+	locationChoicePath := "/v1/iam/operating-governance-employers/" + kind + "/" + employer.String() + "/location-choices"
+	call(http.MethodGet, locationChoicePath+"?limit=20", "auditor", nil, http.StatusNotFound)
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	grant := iam.GovernanceGrantInput{Subject: "user-auditor", ExpectedMembershipEpoch: 1, TemplateKey: "iam.operating_access_reviewer.v1", ScopeKind: kind, ScopeID: &employer, Reason: "Synthetic independent duty reviewer", ValidFrom: now.Add(-time.Minute), ExpiresAt: now.Add(time.Hour)}
 	grantID := uuid.Must(uuid.NewV7())
@@ -204,6 +209,144 @@ func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *ten
 		require.JSONEq(t, choices, current)
 
 	})
+	t.Run("native location choices retain product ownership", func(t *testing.T) {
+		rawChoices := call(http.MethodGet, locationChoicePath+"?country=IN&limit=20", "auditor", nil, http.StatusOK)
+		require.JSONEq(t, rawChoices, call(http.MethodGet, locationChoicePath+"?country=IN&limit=20", "owner2", nil, http.StatusOK))
+		var page struct {
+			Data []iam.OperatingLocationChoice `json:"data"`
+			Page struct {
+				HasMore    bool    `json:"has_more"`
+				NextCursor *string `json:"next_cursor"`
+			} `json:"page"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(rawChoices), &page))
+		require.Len(t, page.Data, 2)
+		require.Equal(t, lateLocation, page.Data[0].LocationID)
+		require.Equal(t, location, page.Data[1].LocationID)
+		for _, choice := range page.Data {
+			require.Equal(t, testutil.TenantA, choice.OwnerTenantID.String())
+			require.Equal(t, kind, choice.EmployerKind)
+			require.Equal(t, employer, choice.EmployerID)
+			require.Equal(t, "IN", choice.CountryCode)
+			require.EqualValues(t, 1, choice.EmployerVersion)
+			require.EqualValues(t, 1, choice.LocationVersion)
+			require.NotEmpty(t, choice.Code)
+			require.NotEmpty(t, choice.Name)
+		}
+		for _, private := range []string{"source_grant_id", "owner_membership_id", "line1", "postal_code", "stock", "licence", "license", "financial"} {
+			require.NotContains(t, rawChoices, private)
+		}
+		first := call(http.MethodGet, locationChoicePath+"?country=IN&limit=1", "auditor", nil, http.StatusOK)
+		var anchor struct {
+			Data []iam.OperatingLocationChoice `json:"data"`
+			Page struct {
+				HasMore    bool    `json:"has_more"`
+				NextCursor *string `json:"next_cursor"`
+			} `json:"page"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(first), &anchor))
+		require.Len(t, anchor.Data, 1)
+		require.Equal(t, lateLocation, anchor.Data[0].LocationID)
+		require.True(t, anchor.Page.HasMore)
+		require.NotNil(t, anchor.Page.NextCursor)
+		cursor := url.QueryEscape(*anchor.Page.NextCursor)
+		next := call(http.MethodGet, locationChoicePath+"?country=IN&limit=1&cursor="+cursor, "auditor", nil, http.StatusOK)
+		var nextPage struct {
+			Data []iam.OperatingLocationChoice `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(next), &nextPage))
+		require.Len(t, nextPage.Data, 1)
+		require.Equal(t, location, nextPage.Data[0].LocationID)
+		call(http.MethodGet, locationChoicePath+"?country=IN&limit=1&cursor="+cursor, "owner2", nil, http.StatusBadRequest)
+		call(http.MethodGet, "/v1/iam/operating-governance-employers/"+kind+"/"+hiddenEmployer.String()+"/location-choices?country=IN&limit=1&cursor="+cursor, "auditor", nil, http.StatusBadRequest)
+		call(http.MethodGet, "/v1/iam/operating-governance-employers/"+kind+"/"+hiddenEmployer.String()+"/location-choices?limit=20", "auditor", nil, http.StatusNotFound)
+		otherKind := "supplier"
+		if kind == "supplier" {
+			otherKind = "pharmacy"
+		}
+		call(http.MethodGet, "/v1/iam/operating-governance-employers/"+otherKind+"/"+employer.String()+"/location-choices?country=IN&limit=1&cursor="+cursor, "auditor", nil, http.StatusBadRequest)
+		for _, query := range []string{"?limit=21", "?limit=1&limit=20", "?country=PK", "?country=IN&country=IN", "?subject=user-reviewer"} {
+			call(http.MethodGet, locationChoicePath+query, "auditor", nil, http.StatusBadRequest)
+		}
+		module := "pharmacy"
+		if kind == "supplier" {
+			module = "supply"
+		}
+		t.Run("selection purpose closes inherited product writes", func(t *testing.T) {
+			var owner struct{ ID uuid.UUID }
+			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+				return tx.Table("iam_members").Select("id").Where("tenant_id=?AND subject='user-admin'AND role_key='tenant_admin'", testutil.TenantA).Take(&owner).Error
+			}))
+			now := time.Now()
+			request := authz.GovernedIndependentEmployerRequest{Principal: authn.Principal{TenantID: testutil.TenantA, Subject: "user-admin", AuthTime: now.Add(-time.Minute), IdleDeadline: now.Add(time.Hour)}, Scope: authz.IndependentEmployerScope{TenantID: testutil.TenantA, EmployerKind: kind, EmployerID: employer}, Capability: authz.GovernanceOperatingManage, Source: authz.GovernanceSourceEvidence{Kind: authz.GovernanceOwnerSource, OwnerMembershipID: owner.ID, OwnerCount: 2, MembershipEpoch: 1, Scope: authz.GovernanceEstablishmentScope{TenantID: testutil.TenantA, Kind: kind, ID: &employer}, ExpiresAt: now.Add(time.Hour)}}
+			proof, err := authz.OperatingLocationChoiceProof(request, now)
+			require.NoError(t, err)
+			raw, err := json.Marshal(proof)
+			require.NoError(t, err)
+			table := map[string]string{"pharmacy": "pharmacy_outlets", "supply": "supply_premises"}[module]
+			roots := map[string]string{"pharmacy": "pharmacy_organizations", "supply": "supply_parties"}[module]
+			attempt := db.WithTenant(tenantdb.WithActor(ctx, "user-admin"), testutil.TenantA, func(tx *gorm.DB) error {
+				if err := tx.Exec(`SELECT set_config(?,?,true)`, "app."+module+"_operating_choices", string(raw)).Error; err != nil {
+					return err
+				}
+				var visible int64
+				require.NoError(t, tx.Table(roots).Where("tenant_id=?", testutil.TenantA).Count(&visible).Error)
+				require.EqualValues(t, 1, visible, "even a native owner cannot disclose sibling roots through this selected purpose")
+				update := `UPDATE ` + table + ` SET name='Synthetic forbidden structural mutation'`
+				if module == "supply" {
+					update += `,version=version+1`
+				}
+				return tx.Exec(update+` WHERE tenant_id=?AND id=?`, testutil.TenantA, location).Error
+			})
+			var pg *pgconn.PgError
+			require.ErrorAs(t, attempt, &pg)
+			require.Contains(t, []string{"42501", "23514"}, pg.Code)
+			require.JSONEq(t, rawChoices, call(http.MethodGet, locationChoicePath+"?country=IN&limit=20", "auditor", nil, http.StatusOK))
+		})
+		count := func() int64 {
+			var total int64
+			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+				return tx.Table("audit_events").Where("tenant_id=? AND actor_subject='user-auditor'AND action=?", testutil.TenantA, module+".operating_location_choice.read").Count(&total).Error
+			}))
+			return total
+		}
+		before := count()
+		require.Positive(t, before)
+		apply := func(id, sql string) {
+			require.NoError(t, db.Migrate(context.WithoutCancel(ctx), []tenantdb.Migration{{ID: id, SQL: sql}}))
+		}
+		t.Run("audit failure rolls back response", func(t *testing.T) {
+			apply("test_location_choice_audit", `CREATE FUNCTION test_location_choice_audit()RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action IN('pharmacy.operating_location_choice.read','supply.operating_location_choice.read')THEN RAISE EXCEPTION 'synthetic location read audit unavailable';END IF;RETURN NEW;END $$;CREATE TRIGGER test_location_choice_audit BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION test_location_choice_audit();`)
+			defer apply("test_location_choice_audit_restore", `DROP FUNCTION test_location_choice_audit()CASCADE;`)
+			denied := call(http.MethodGet, locationChoicePath+"?limit=20", "auditor", nil, http.StatusServiceUnavailable)
+			require.NotContains(t, denied, lateLocation.String())
+			require.Equal(t, before, count())
+		})
+		t.Run("missing installed selection support", func(t *testing.T) {
+			apply("test_location_choice_rls", `ALTER TABLE `+module+map[string]string{"pharmacy": "_outlets", "supply": "_premises"}[module]+` DISABLE ROW LEVEL SECURITY;`)
+			defer apply("test_location_choice_rls_restore", `ALTER TABLE `+module+map[string]string{"pharmacy": "_outlets", "supply": "_premises"}[module]+` ENABLE ROW LEVEL SECURITY;`)
+			call(http.MethodGet, locationChoicePath+"?limit=20", "auditor", nil, http.StatusServiceUnavailable)
+		})
+		call(http.MethodGet, locationChoicePath+"?limit=20", "auditor", nil, http.StatusOK)
+		if kind == "supplier" {
+			update := func(expected int64, status string) {
+				call(http.MethodPut, "/v1/supply/parties/"+employer.String()+"/premises/"+lateLocation.String(), "admin", map[string]any{"expected_version": expected, "code": "SYN-NATIVE-FAULT", "name": "Synthetic native duty warehouse", "kind": "warehouse", "line1": "Synthetic test building", "line2": "", "city": "Bhubaneswar", "region": "IN-OD", "postal_code": "751001", "country_code": "IN", "time_zone": "Asia/Kolkata", "status": status}, http.StatusOK)
+			}
+			update(1, "inactive")
+			inactive := call(http.MethodGet, locationChoicePath+"?limit=20", "auditor", nil, http.StatusOK)
+			require.NotContains(t, inactive, lateLocation.String())
+			update(2, "active")
+			lateLocationVersion = 3
+			current := call(http.MethodGet, locationChoicePath+"?limit=20", "auditor", nil, http.StatusOK)
+			var refreshed struct {
+				Data []iam.OperatingLocationChoice `json:"data"`
+			}
+			require.NoError(t, json.Unmarshal([]byte(current), &refreshed))
+			require.Len(t, refreshed.Data, 2)
+			require.Equal(t, lateLocation, refreshed.Data[0].LocationID)
+			require.EqualValues(t, 3, refreshed.Data[0].LocationVersion)
+		}
+	})
 	input := iam.OperatingDutyInput{Scope: iam.OperatingDutyScope{EmployerKind: kind, EmployerID: employer, LocationID: location, ExpectedEmployerVersion: 1, ExpectedLocationVersion: 1}, Identity: iam.OperatingDutyIdentity{StaffID: staff, StaffVersion: 1, LinkID: link, LinkVersion: 2}, Subject: "user-reviewer", TemplateKey: template, Reason: "Synthetic native staff receiving duty", ValidFrom: now.Add(-time.Minute), ExpiresAt: now.Add(time.Hour)}
 	prefix := "/v1/iam/operating-governance-employers/" + kind + "/" + employer.String()
 	duty := uuid.Must(uuid.NewV7())
@@ -227,6 +370,7 @@ func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *ten
 		lateID := uuid.Must(uuid.NewV7())
 		lateInput := input
 		lateInput.Scope.LocationID = lateLocation
+		lateInput.Scope.ExpectedLocationVersion = lateLocationVersion
 		body, err := json.Marshal(lateInput)
 		require.NoError(t, err)
 		lateErr := db.WithTenant(tenantdb.WithActor(ctx, "user-owner2"), testutil.TenantA, func(tx *gorm.DB) error {
@@ -324,6 +468,7 @@ func exerciseNativeOperatingGovernance(t *testing.T, router *gin.Engine, db *ten
 		return nil
 	}))
 	call(http.MethodPut, grantPath+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "admin", iam.GovernanceGrantDecisionInput{ExpectedVersion: 2, Decision: "revoke", Reason: "Synthetic native source cutoff"}, http.StatusAccepted)
+	call(http.MethodGet, locationChoicePath+"?limit=20", "auditor", nil, http.StatusNotFound)
 	call(http.MethodGet, staffChoicePath+"?limit=20", "auditor", nil, http.StatusNotFound)
 	cutoffDirectory := call(http.MethodGet, "/v1/workforce/operating-authority-scopes?limit=20", "auditor", nil, http.StatusOK)
 	require.NotContains(t, cutoffDirectory, employer.String())

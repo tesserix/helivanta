@@ -583,6 +583,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/operating-governance-employers/:kind/:employer/location-choices",
+          "permission": "iam.governance.operating.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/operating-governance-employers/:kind/:employer/staff/:staff/duties",
           "permission": "iam.governance.operating.manage",
           "authentication_required": true,
@@ -5602,6 +5611,11 @@
           "id": "0046_pharmacy_licence_evidence_review",
           "sql_sha256": "966dfb31b53e170c41f56d78e4f815a3500e851428e73e8460305c7a678ff916",
           "creates_tables": []
+        },
+        {
+          "id": "0047_pharmacy_operating_location_choices",
+          "sql_sha256": "523f89e8d5cc1977248b685280809126f84b8cdca2180ee7348b87e1abe249a0",
+          "creates_tables": []
         }
       ]
     },
@@ -8232,6 +8246,11 @@
           "creates_tables": [
             "supply_supplier_received_responses"
           ]
+        },
+        {
+          "id": "0018_supply_operating_location_choices",
+          "sql_sha256": "2a4244623118b87e2d91630a7fc7e216d469ad2bbb4cf841da3f66064453fc9e",
+          "creates_tables": []
         }
       ]
     },

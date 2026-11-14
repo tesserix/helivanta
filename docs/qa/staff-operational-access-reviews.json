@@ -1519,7 +1519,7 @@
         },
         {
           "path": "backend/internal/modules/workforce/posting_transfers.go",
-          "sha256": "6a29d10a650f884c9406a3da0b5a8b67c39baeeef3625389e8b62fad7af49c55",
+          "sha256": "c702b27073ecf6989b2e65bfa576134de038bafd9ee16d9098b0addcb36794de",
           "symbol": "func (h *handlers) putPostingTransfer("
         },
         {
@@ -5269,12 +5269,12 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/operating_governance.go",
-          "sha256": "7463bbbc58c701ab21cd0681fff4ddd71ca96ab2f1b9a2aa655149e4e582c120",
+          "sha256": "48d28729a6a2a5a674b88d1cb4f020de3c2f2371f9af064e5af4a084c8fd3622",
           "symbol": "func (h *operatingHandlers) withAdministration("
         },
         {
           "path": "backend/internal/modules/iam/operating_governance.go",
-          "sha256": "7463bbbc58c701ab21cd0681fff4ddd71ca96ab2f1b9a2aa655149e4e582c120",
+          "sha256": "48d28729a6a2a5a674b88d1cb4f020de3c2f2371f9af064e5af4a084c8fd3622",
           "symbol": "func (h *operatingHandlers) checkOperatingMode("
         },
         {
@@ -5312,12 +5312,12 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/operating_governance.go",
-          "sha256": "7463bbbc58c701ab21cd0681fff4ddd71ca96ab2f1b9a2aa655149e4e582c120",
+          "sha256": "48d28729a6a2a5a674b88d1cb4f020de3c2f2371f9af064e5af4a084c8fd3622",
           "symbol": "func (h *operatingHandlers) withAdministration("
         },
         {
           "path": "backend/internal/modules/iam/operating_governance.go",
-          "sha256": "7463bbbc58c701ab21cd0681fff4ddd71ca96ab2f1b9a2aa655149e4e582c120",
+          "sha256": "48d28729a6a2a5a674b88d1cb4f020de3c2f2371f9af064e5af4a084c8fd3622",
           "symbol": "func (h *operatingHandlers) checkOperatingMode("
         },
         {
@@ -5355,12 +5355,12 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/operating_governance.go",
-          "sha256": "7463bbbc58c701ab21cd0681fff4ddd71ca96ab2f1b9a2aa655149e4e582c120",
+          "sha256": "48d28729a6a2a5a674b88d1cb4f020de3c2f2371f9af064e5af4a084c8fd3622",
           "symbol": "func (h *operatingHandlers) withAdministration("
         },
         {
           "path": "backend/internal/modules/iam/operating_governance.go",
-          "sha256": "7463bbbc58c701ab21cd0681fff4ddd71ca96ab2f1b9a2aa655149e4e582c120",
+          "sha256": "48d28729a6a2a5a674b88d1cb4f020de3c2f2371f9af064e5af4a084c8fd3622",
           "symbol": "func (h *operatingHandlers) checkOperatingMode("
         },
         {
@@ -5398,12 +5398,12 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/operating_governance.go",
-          "sha256": "7463bbbc58c701ab21cd0681fff4ddd71ca96ab2f1b9a2aa655149e4e582c120",
+          "sha256": "48d28729a6a2a5a674b88d1cb4f020de3c2f2371f9af064e5af4a084c8fd3622",
           "symbol": "func (h *operatingHandlers) withAdministration("
         },
         {
           "path": "backend/internal/modules/iam/operating_governance.go",
-          "sha256": "7463bbbc58c701ab21cd0681fff4ddd71ca96ab2f1b9a2aa655149e4e582c120",
+          "sha256": "48d28729a6a2a5a674b88d1cb4f020de3c2f2371f9af064e5af4a084c8fd3622",
           "symbol": "func (h *operatingHandlers) checkOperatingMode("
         },
         {
@@ -5441,12 +5441,12 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/operating_governance.go",
-          "sha256": "7463bbbc58c701ab21cd0681fff4ddd71ca96ab2f1b9a2aa655149e4e582c120",
+          "sha256": "48d28729a6a2a5a674b88d1cb4f020de3c2f2371f9af064e5af4a084c8fd3622",
           "symbol": "func (h *operatingHandlers) withAdministration("
         },
         {
           "path": "backend/internal/modules/iam/operating_governance.go",
-          "sha256": "7463bbbc58c701ab21cd0681fff4ddd71ca96ab2f1b9a2aa655149e4e582c120",
+          "sha256": "48d28729a6a2a5a674b88d1cb4f020de3c2f2371f9af064e5af4a084c8fd3622",
           "symbol": "func (h *operatingHandlers) checkOperatingMode("
         },
         {
@@ -5484,12 +5484,12 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/operating_governance.go",
-          "sha256": "7463bbbc58c701ab21cd0681fff4ddd71ca96ab2f1b9a2aa655149e4e582c120",
+          "sha256": "48d28729a6a2a5a674b88d1cb4f020de3c2f2371f9af064e5af4a084c8fd3622",
           "symbol": "func (h *operatingHandlers) withAdministration("
         },
         {
           "path": "backend/internal/modules/iam/operating_governance.go",
-          "sha256": "7463bbbc58c701ab21cd0681fff4ddd71ca96ab2f1b9a2aa655149e4e582c120",
+          "sha256": "48d28729a6a2a5a674b88d1cb4f020de3c2f2371f9af064e5af4a084c8fd3622",
           "symbol": "func (h *operatingHandlers) checkOperatingMode("
         },
         {
@@ -5577,6 +5577,64 @@
       "remaining": [
         "Execute real PostgreSQL/FGA source, exact/sibling employer, current/stale Staff/link, sealed account/employer/kind paging, unknown/duplicate filters, support tampering, raw identity write denial, audit rollback and source cutoff tests for both employer kinds.",
         "Retain query-plan/load and additive upgrade/rollback evidence; obtain named WF0116 live migration approval after acceptance. Complete qualified product-location choices, native UI and full Staff/pharmacy journeys. No full runtime or deployment completion is asserted."
+      ]
+    },
+    {
+      "id": "http iam GET /v1/iam/operating-governance-employers/:kind/:employer/location-choices",
+      "registration_sha256": "83170c3b394b343cb81bb6c45493262cb6c6ef925c6a23ee31a78cd7554d7ea0",
+      "authority_kind": "governance_recovery",
+      "resource_scope": "Verified tenant/account and exact native pharmacy/supplier employer; current operating-manage owner/grant, canonical Workforce root and product-owned eligible structural locations.",
+      "rationale": "Sealed twenty-row native selector composes IAM current governance and Workforce employer proof with product-owned locked metadata/audit reads. Canonical public DTO contains only exact owner/location identity, code/name/country and structural revisions. Dispatcher rejects malformed, duplicate, foreign or out-of-order results; cursors bind tenant/account/employer/kind/fixed India filter. Shared product locks and batched immutable column-name-only platform audit precede disclosure. Source proof is callback-only and never placed in that audit payload. Candidate pharmacy0047/supply0018 preserve existing policies when absent and apply read-only purposes/fingerprints across product tenant tables, preventing stock/master writes, deletion and unrelated reads even with inherited authority. Missing dependencies/support/audit fail closed with no legacy catalogue fallback. Selection is not licence, trading, professional, stock or physical-action eligibility.",
+      "authority_sources": [
+        {
+          "path": "backend/internal/modules/iam/operating_location_choices.go",
+          "symbol": "locationChoices",
+          "sha256": "91178a4a35a4dd3ad8f4d6ec8f33953f8ae0c72d76ee285cd8d3b0dac39346b6"
+        },
+        {
+          "path": "backend/internal/modules/iam/operating_governance.go",
+          "symbol": "withAdministration",
+          "sha256": "48d28729a6a2a5a674b88d1cb4f020de3c2f2371f9af064e5af4a084c8fd3622"
+        },
+        {
+          "path": "backend/internal/modules/workforce/operating_governance_source.go",
+          "symbol": "WithGovernedIndependentEmployerAccess",
+          "sha256": "7c3eda2ebfef8bc824c8324ecc8f1ae3b4852e314c7697d0d1973143de032225"
+        },
+        {
+          "path": "backend/internal/platform/operating_locations.go",
+          "symbol": "OperatingLocationChoices",
+          "sha256": "f3252345912488502295605d2e86e7ee1cf4dc89677cf3dc6b7d5fc5107dc28c"
+        },
+        {
+          "path": "backend/pkg/authz/operating_location_choices.go",
+          "symbol": "OperatingLocationChoiceProof",
+          "sha256": "3d244ecb6eec030b930238b23bc1f6b9687f6e51e86811cf62491be0688d365d"
+        },
+        {
+          "path": "backend/internal/modules/pharmacy/operating_location_choices.go",
+          "symbol": "OperatingLocationChoices",
+          "sha256": "6b9f96d9afc194426a6dd7fc171c4657723596f74ed56f8605b58de5dff0989a"
+        },
+        {
+          "path": "backend/internal/modules/pharmacy/operating_location_choices.sql",
+          "symbol": "pharmacy_operating_choice_support",
+          "sha256": "523f89e8d5cc1977248b685280809126f84b8cdca2180ee7348b87e1abe249a0"
+        },
+        {
+          "path": "backend/internal/modules/supply/operating_location_choices.go",
+          "symbol": "OperatingLocationChoices",
+          "sha256": "d8c2cf08580e95dfb6baee8b1a91cca59320f47fe30354acbe0fc701a4716b00"
+        },
+        {
+          "path": "backend/internal/modules/supply/operating_location_choices.sql",
+          "symbol": "supply_operating_choice_support",
+          "sha256": "2a4244623118b87e2d91630a7fc7e216d469ad2bbb4cf841da3f66064453fc9e"
+        }
+      ],
+      "remaining": [
+        "Run exact-head PostgreSQL/FGA API-created fixtures for both products: current owner/delegate, absent/sibling source, sealed cross-account/employer/kind paging, strict filters, mutable premise version/inactive cutoff, atomic audit failure, missing support and inherited product write denial.",
+        "Complete native Staff/location preparation/review UI and both hospital-owned/independent pharmacy journeys; retain query-plan/load and additive upgrade/rollback evidence. Named live migration/rollout approval is still required; no live activation or full workflow acceptance is asserted."
       ]
     }
   ]

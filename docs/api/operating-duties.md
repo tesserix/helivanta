@@ -117,6 +117,49 @@ scope/purpose, source revocation and missing topology are acceptance gates.
 
 ## Native operating-duty administration candidate
 
+### Qualified physical source choices
+
+`GET /v1/iam/operating-governance-employers/:kind/:employer/location-choices`
+uses current operating-manage governance for the exact typed Workforce employer.
+IAM composes the product-owned location interface; each product retains all SQL
+and current structural facts. No legacy catalogue permission is required or
+substituted. Expected tenant/account headers must match the refreshed principal.
+Hidden/ungranted employers return `404`; missing coarse permission is `403`;
+stale context is `409`; source, owner, support or audit failure is `503` with no
+partial successful page. Read refusal never falls back to a product catalogue.
+
+The canonical `operating-assignments.json.OperatingLocationChoice` contains owner
+tenant, employer kind/ID, location ID, code/name, country and exact structural
+employer/location versions. It excludes addresses, contacts, private source proof,
+licences, stock and financial data. Source proof remains callback-only. Each read
+produces immutable, column-name-only platform audit identifying the actor and
+physical resource; field values are not added to that audit contract. Duty commands
+continue retaining their own exact versions and private original-source proof.
+
+Current choices match the existing structural guard: Indian independent/chain
+pharmacy outlets, or active Indian warehouse/depot premises of an owned Indian
+supplier organisation. Pharmacy structural versions remain one; supplier versions
+come from the current locked owner records. An inactive premise disappears, and
+a later structural change produces its new version. This metadata does not
+certify licences, professional eligibility, trading consent, stock suitability or
+authority for a physical act; those checks remain at consequential commands.
+
+Only single-valued `country=IN` (default), `limit` and `cursor` are accepted.
+Twenty-row pages order by descending owner location `(created_at,id)`; sealed
+anchors bind tenant, account, employer, kind and country. Source/session deadlines
+bound the five-second read. Product owners hold shared structural locks and batch
+audit before release. The dispatcher rejects foreign, duplicate, malformed,
+unsupported or incorrectly ordered owner results. The SDK validates exact returned
+scope, continuation and metadata, propagates cancellation and has no cached authority,
+automatic retries or legacy fallback.
+
+Candidate pharmacy0047/supply0018 add read-only purposes and retained read-policy
+extensions, while fencing unrelated product reads, stock/master writes and deletion
+under selection. Installed fingerprints, forced RLS, privileges and existing page
+indexes fail closed if missing or changed. Context is restored before returning
+to IAM. These are unapplied migration candidates; real owner/source/paging/fault
+acceptance and native UI adoption remain required before workflow completion.
+
 ### Qualified Staff choices
 
 `GET /v1/workforce/operating-governance-employers/:kind/:employer/staff-choices`
@@ -148,7 +191,7 @@ unrelated Workforce reads, all master writes and deletion during selection.
 Function/policy fingerprints, forced RLS, runtime privileges and active-link
 uniqueness support are checked before disclosure. This migration is unapplied;
 real database/source/paging/rollback acceptance remains required. Qualified
-product-location choices and native preparation/review UI remain unfinished.
+product-location choice acceptance and native preparation/review UI remain unfinished.
 
 ### Qualified employer choices
 

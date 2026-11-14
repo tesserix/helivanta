@@ -76,6 +76,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/operating-governance-employers/:kind/:employer/duties/:id/proposal-receipt` | `iam.governance.operating.manage` | false | false |
 | GET | `/v1/iam/operating-governance-employers/:kind/:employer/duties/:id` | `iam.governance.operating.manage` | false | false |
 | PUT | `/v1/iam/operating-governance-employers/:kind/:employer/duties/:id` | `iam.governance.operating.manage` | false | false |
+| GET | `/v1/iam/operating-governance-employers/:kind/:employer/location-choices` | `iam.governance.operating.manage` | true | false |
 | GET | `/v1/iam/operating-governance-employers/:kind/:employer/staff/:staff/duties` | `iam.governance.operating.manage` | true | false |
 | GET | `/v1/iam/partner-grant-drafts/:id` | `iam.assignment.manage` | false | false |
 | PUT | `/v1/iam/partner-grant-drafts/:id` | `iam.assignment.manage` | false | false |

@@ -158,7 +158,7 @@ or operating access. Pharmacy outlet-choice metadata belongs to the existing
 
 All commands support `--check`. These candidates do not complete or activate supplier collaboration; see [the current identity boundary](workforce-independent-identity.md) and [stock contract](supply-stock.md).
 
-- `contracts/operating-assignments.json` → `node scripts/generate-operating-assignments.mjs`: typed independent operating duties, immutable decisions and closed receiving templates. Generates Go/Zod and the matching SQL permission function; supports `--check`.
+- `contracts/operating-assignments.json` → `node scripts/generate-operating-assignments.mjs`: typed independent operating duties, immutable decisions, structural source choices and closed receiving templates. Generates Go/Zod and the matching SQL permission function; supports `--check`.
 
 - `contracts/supplier-trade.json` → `node scripts/generate-supplier-trade.mjs`: shared source/consent wire models, pharmacy scope input validation and the directed relationship contract. Categories derive from trading-policy; supports `--check`.
 

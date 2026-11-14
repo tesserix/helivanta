@@ -6,7 +6,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/tesserix/helivanta/internal/platform/requestid"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -95,7 +97,10 @@ func (h *handlers) putPostingTransfer(c *gin.Context) {
 	var out StaffPostingTransferReceipt
 	old := s
 	old.draft = in.FromPostingID
+	started := time.Now()
+	stage := "scope_authorization"
 	err = h.scopedPostingTransaction(c, p, s, true, PermPostingReview, func(ctx context.Context, tx *gorm.DB, source EmploymentPeriodSource) error {
+		stage = "proposal_basis"
 		if err := postingProposalDecisionContext(tx, s, "approve", in.Decision.ExpectedRevisionID); err != nil {
 			return err
 		}
@@ -187,6 +192,7 @@ func (h *handlers) putPostingTransfer(c *gin.Context) {
 					return errPostingProposalConflict
 				}
 			}
+			stage = "original_posting_source"
 			sourceErr := guard.WithCurrentStaffPosting(ctx, authz.StaffPostingSourceScope{TenantID: p.TenantID, Subject: p.Subject, HospitalID: s.hospital, StaffID: s.staff, PostingID: previous.ID, RevisionID: previous.RevisionID, DepartmentID: previous.DepartmentID, DepartmentRevisionID: previous.DepartmentRevisionID, Version: previous.Version}, func(held context.Context, ref authz.StaffPostingSourceReference) error {
 				if row.StartsAt.After(ref.SourceUntil) {
 					return errPostingProposalConflict
@@ -194,12 +200,14 @@ func (h *handlers) putPostingTransfer(c *gin.Context) {
 				if err := h.db.ConstrainGuardedCommand(held, p.TenantID, row.StartsAt); err != nil {
 					return errors.Join(authz.ErrScopedAuthorizationUnavailable, err)
 				}
+				stage = "ending_original"
 				if err := withTransferEnding(held, current, p, old, in.FromRevisionID, func() error {
 					out.Ending, err = h.recordPostingCutoff(current, p, old, StaffPostingCutoffInput{ExpectedRevisionID: in.FromRevisionID, ExpectedCutoffVersion: in.FromCutoffVersion, Mode: "scheduled", CutoffAt: &row.StartsAt, Reason: in.Decision.Reason, SourcesExamined: in.Decision.SourcesExamined}, fingerprint)
 					return err
 				}); err != nil {
 					return err
 				}
+				stage = "replacement_decision"
 				out.Replacement, err = h.recordPostingDecision(held, current, p, s, row, in.Decision, fingerprint, chain, lifecycle)
 				return err
 			})
@@ -208,6 +216,7 @@ func (h *handlers) putPostingTransfer(c *gin.Context) {
 			}
 			return sourceErr
 		}
+		stage = "supervision_sources"
 		if intent.Kind == "hospital_management" {
 			if in.Decision.HospitalManagementReviewed == nil {
 				return errPostingSupervisionRequired
@@ -220,6 +229,9 @@ func (h *handlers) putPostingTransfer(c *gin.Context) {
 		return h.withSupervisedPostingLifecycleApproval(ctx, tx, p, s, row, source, *intent, lifecycle, persist)
 	}, additional...)
 	if err != nil {
+		if errors.Is(err, authz.ErrScopedAuthorizationUnavailable) || errors.Is(err, context.DeadlineExceeded) {
+			requestid.Logger(c).WarnContext(c.Request.Context(), "posting transfer unavailable", "stage", stage, "elapsed_ms", time.Since(started).Milliseconds(), "deadline", errors.Is(err, context.DeadlineExceeded))
+		}
 		respondPostingCutoffError(c, err)
 		return
 	}

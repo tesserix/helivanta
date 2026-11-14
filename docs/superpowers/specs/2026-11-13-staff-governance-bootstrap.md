@@ -1151,3 +1151,105 @@ production migration is made optional and no behavioral assertion is changed.
 The observed 42703 is the red evidence. Global API compile-only tests, backend
 build, affected vet and lint pass after this correction. Full historical-upgrade
 and supplier acceptance remain pending on the next exact head.
+
+### Qualified operating location choices — implementation target
+
+Expose one native IAM preparation endpoint,
+`GET /v1/iam/operating-governance-employers/:kind/:employer/location-choices`,
+through Global API. IAM owns current operating-manage admission and composes the
+existing owner-provided operating-location boundary; PharmaConnect/SupplyConnect
+retain all product SQL, structural facts and read audit. Workforce rechecks the
+canonical typed employer under the same guarded current owner/exact grant. No
+broad product catalogue, legacy manager or operational duty is substituted.
+
+Extend the existing location-owner interface with a bounded selection operation
+receiving the current principal, exact employer and retained callback-only source.
+Both actual owners and the platform dispatcher must implement it; missing owners
+fail closed. The generated public model contains owner tenant, employer kind/ID,
+location ID, code/name, country and structural employer/location versions. The
+private owner result additionally carries its canonical creation anchor for sealed
+paging; no private source proof, contacts, addresses, stock, licences or financial
+facts enter the HTTP result. Only current independent/chain Indian pharmacy
+outlets and owned Indian supplier organisations' active warehouse/depot premises
+match the existing structural location guard. This is IN-PH-02/06/10 consistent:
+structural selection is not professional, licence, trading, stock or physical-act
+eligibility. No new state-specific or legal rule is introduced.
+
+Reuse the five-second/session/source deadline, 20-row page cap, descending owner
+location `(created_at,id)` ordering and existing platform capacity/p99 targets.
+Sealed cursors bind verified tenant/account/employer/kind and fixed `country=IN`
+filter. Unknown, duplicate, empty or malformed query fields are refused. Product
+owners validate the exact source/actor in a guarded command, hold shared current
+root/location locks and atomically batch attributable read audit before release.
+Names are never reusable authorization; duty preparation retains its existing
+Staff/link, current membership, source/version, location and independent review.
+
+Candidate pharmacy0047/supply0018 add explicit read-only selection purposes.
+Retained root/premise read predicates are extended only for the exact structural
+source. Restrictive purpose/delete policies fence all product tenant tables,
+closing inherited stock/master writes and unrelated private reads during choice
+lookup; context is restored before returning to IAM. Function/policy fingerprints,
+forced RLS, runtime privileges and existing page indexes fail closed if unavailable.
+No table/master is copied and no physical posting, release, licence, payable or
+identity state changes. Each returned location receives the existing immutable
+platform read audit (tenant, actor, action, resource type/ID and time), batched
+atomically; audit failure rolls back disclosure. Preserve its column-name-only
+privacy contract: names, source proof and revision values are not added to that
+audit schema. The current source proof remains callback-only, and canonical duty
+commands still retain their exact structural versions and immutable private
+source provenance. A new selection-receipt ledger was rejected because a choice
+confers no authority and does not mutate a business record. This decision uses
+the established structural-read audit boundary without weakening command proof.
+
+The simpler legacy catalogue selector was rejected because it requires unrelated
+permissions and exposes broader commercial data. Separate product HTTP endpoints
+would duplicate IAM admission already required by duty preparation; the existing
+owner guard keeps product data ownership explicit inside the modular monolith.
+No service or infrastructure is added. Binary rollback disables this new native
+consumer and retains audit/history; no destructive down migration is proposed.
+These migrations remain unapplied live candidates requiring concrete named
+approval after real PostgreSQL/FGA scope/paging/fault, compatibility, upgrade and
+rollback acceptance. Query-plan/load evidence and both ownership-model journeys
+remain required. Complete strict SDK and native UI adoption before claiming the
+full Staff/pharmacy workflow accepted; no new regulatory policy is activated.
+
+### Operating location-choice candidate validation
+
+The native IAM endpoint, both product-owned guard implementations, platform
+protocol validation and strict SDK are implemented in this candidate. Shared
+source-shape validation rejects wrong tenant/employer/template/capability,
+expired sessions/sources, invalid memberships and malformed human subjects.
+The dispatcher refuses foreign/reverse cursors, foreign/duplicate/malformed
+owner results and missing providers. Missing identity was observed returning a
+dependency error in the first local route test; explicit authentication now
+precedes source refresh and the 401 assertion passes. No legacy fallback exists.
+
+Observed red-to-green tests cover missing source proof/owner interface/route/SDK,
+Unicode/control subjects, foreign cursors and reverse paging. The 51 combined
+SDK assertions pass. Focused IAM/authz/platform/product race tests, offline
+route/pagination/migration-ID/field-classification architecture checks, backend
+build, affected vet/lint and bootstrap/Global API compile-only checks pass.
+All 30 workspace lint/format/type/test/build tasks pass (25 cached). Product
+migration SQL, SQL function bodies and PL/pgSQL blocks parse offline; that is
+syntax evidence only. No local application/database/container was run. Canonical
+operating generator, contractdocs and inventory are current: 1135 registered
+surfaces, 1001 still unclassified. Generated app builds are cleaned with caches
+and dependencies retained.
+
+Real API-created fixtures now cover both owners, current owner/delegate,
+absent/sibling source, scope-bound sealed paging, strict queries, immutable
+pharmacy and mutable supplier revisions, inactive supplier premises, atomic read
+audit failure, missing forced RLS and inherited product write denial. They compile
+but have not run remotely on this location-choice candidate. Pharmacy0047 and
+supply0018 remain unapplied live candidates. Native UI adoption, historical/whole
+Staff and both pharmacy ownership-model journeys remain incomplete.
+
+Prior `9a7d40fb` CI exposed an IAM golden test still expecting 49 migrations.
+The observed local reproduction now passes with exactly 50 plus an explicit
+IAM0050 ID/nonempty-SQL assertion; all prior IDs and hashes remain checked.
+Supplier43587374642 passed the corrected historical ordering but later failed
+supervised transfer fault injection: expected persistence 500, received source
+503. Its failure remains unresolved and the assertion is unchanged. Failure-only
+transfer diagnostics now record constant stage, elapsed milliseconds and deadline
+classification without private payloads, so the next real-service run can locate
+the failing boundary. This is diagnostic evidence, not a claimed runtime fix.

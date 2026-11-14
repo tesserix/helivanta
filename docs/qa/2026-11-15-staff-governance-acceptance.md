@@ -466,3 +466,15 @@ synthetic hospital through its API and checks the real qualified chooser's empty
 state and absence of raw IDs within preparation; it type-checks but is CI-only
 and has not run locally. Browser testing with a fully qualified Staff target,
 deployed acceptance and lifecycle performance remain open.
+
+### Exact-head selector support remains unavailable
+
+CI43646235878 Go job132604666624 at `96f85d64` reports only the real-owner
+person fixture as failing in the governance input-boundary command: the previous
+assignment/operating integrity assertions pass, but IAM selector support is false
+before business setup. This does not establish complete Go/runtime acceptance.
+The fixture now distinguishes the selector's own integrity checks from its schema
+guards and emits failing table-level RLS/force/TRUNCATE/purpose flags only when
+support fails. Diagnostics contain schema names and booleans, not row data,
+credentials or SQL payloads. No support guard, deadline or status assertion is
+relaxed. `/tmp/helivanta-96f8-go.log` retains the failure evidence.

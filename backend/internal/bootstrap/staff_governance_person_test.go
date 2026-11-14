@@ -66,12 +66,30 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 	rlsFindings, err := db.LintRLS(ctx)
 	require.NoError(t, err)
 	require.Empty(t, rlsFindings, "qualified selection migrations must retain canonical forced RLS")
-	var selectionSupport struct{ IAM, Workforce, Assignment, Operating bool }
+	var selectionSupport struct{ IAM, Workforce, Assignment, Operating, IAMIntegrity, WorkforceIntegrity bool }
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-		return tx.Raw(`SELECT iam_staff_selection_support() AS iam,workforce_assignment_selection_support() AS workforce,iam_assignment_governance_integrity() AS assignment,iam_operating_governance_integrity() AS operating`).Scan(&selectionSupport).Error
+		return tx.Raw(`SELECT iam_staff_selection_support() AS iam,workforce_assignment_selection_support() AS workforce,iam_assignment_governance_integrity() AS assignment,iam_operating_governance_integrity() AS operating,iam_staff_selection_integrity() AS iam_integrity,workforce_assignment_selection_integrity() AS workforce_integrity`).Scan(&selectionSupport).Error
 	}))
+	if !selectionSupport.IAM || !selectionSupport.Workforce {
+		var tables []struct {
+			Name                         string
+			RLS, Forced, Truncate        bool
+			IAMPurpose, WorkforcePurpose bool
+		}
+		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			return tx.Raw(`SELECT c.relname AS name,c.relrowsecurity AS rls,c.relforcerowsecurity AS forced,has_table_privilege(current_user,c.oid,'TRUNCATE') AS truncate,EXISTS(SELECT 1 FROM pg_policy p WHERE p.polrelid=c.oid AND p.polname='assignment_target_purpose') AS iam_purpose,EXISTS(SELECT 1 FROM pg_policy p WHERE p.polrelid=c.oid AND p.polname='assignment_selection_purpose') AS workforce_purpose FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=current_schema() AND c.relkind IN('r','p') AND (c.relname LIKE 'iam_%' OR c.relname='audit_events' OR starts_with(c.relname,'workforce_')) AND EXISTS(SELECT 1 FROM pg_attribute a WHERE a.attrelid=c.oid AND a.attname='tenant_id' AND NOT a.attisdropped) ORDER BY c.relname`).Scan(&tables).Error
+		}))
+		t.Logf("selection schema support: %+v", selectionSupport)
+		for _, table := range tables {
+			if !table.RLS || !table.Forced || table.Truncate || (!table.IAMPurpose && !table.WorkforcePurpose) {
+				t.Logf("selection table support: %+v", table)
+			}
+		}
+	}
 	require.True(t, selectionSupport.Assignment, "existing assignment integrity remains valid after selection migration")
 	require.True(t, selectionSupport.Operating, "existing operating integrity remains valid after selection migration")
+	require.True(t, selectionSupport.IAMIntegrity, "IAM selector policy/function fingerprint remains current")
+	require.True(t, selectionSupport.WorkforceIntegrity, "Workforce selector policy/function fingerprint remains current")
 	require.True(t, selectionSupport.IAM, "IAM selector support is available after migration")
 	require.True(t, selectionSupport.Workforce, "Workforce selector support is available after migration")
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {

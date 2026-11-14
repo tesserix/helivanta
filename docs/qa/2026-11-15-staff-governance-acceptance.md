@@ -329,3 +329,21 @@ unchanged. This closes the previously failing ordinary cold lifecycle gate on
 that production-code head. It does not close corrected inbox paging/audit/cutoff
 acceptance, hospital native preparation, identity-owner deployment or live tests.
 The queued correction changes only test fixtures and this evidence record.
+
+### `4ca8fd59` hidden-scope error classification
+
+CI43637629648 Go job132577837958 progressed past the corrected extra-duty
+preparation and first inbox page, then failed the foreign-tenant plain read in
+both employer models at operating_inbox_test.go:68: expected404, actual503.
+`ErrGovernanceScopeHidden` was missing from the new inbox-only error mapper,
+although the operating location chooser already classifies it as hidden404.
+The correction adds that sentinel with `errors.Is`; source/dependency and audit
+failures remain503. New direct and wrapped-sentinel regression cases first failed
+locally with expected404/actual503, then passed with the mapper correction.
+Pure IAM race tests, vet, lint, backend build, contractdocs check and inventory
+check passed. The original foreign-tenant assertions remain unchanged and need a
+new runtime result. No authority scope, identity rule or query was broadened.
+
+Qualified hospital chooser contract/SDK work is in progress separately and is not
+part of this error-mapping correction. It is not an implemented server endpoint
+or a complete preparation flow.

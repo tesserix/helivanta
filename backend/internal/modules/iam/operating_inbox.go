@@ -90,7 +90,7 @@ func operatingInboxError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, authz.ErrScopedCredentialRevoked):
 		respond.Error(c, 401, "credentials_revoked", "Your credentials changed. Sign in again.")
-	case errors.Is(err, authz.ErrScopedCommandDenied), errors.Is(err, gorm.ErrRecordNotFound):
+	case errors.Is(err, authz.ErrGovernanceScopeHidden), errors.Is(err, authz.ErrScopedCommandDenied), errors.Is(err, gorm.ErrRecordNotFound):
 		respond.NotFound(c, "Existing duties are not available for this employer.")
 	case errors.Is(err, errAssignmentDenied):
 		respond.Forbidden(c, "Current employer management access is required.")

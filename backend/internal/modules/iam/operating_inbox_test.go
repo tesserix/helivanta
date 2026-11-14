@@ -31,6 +31,8 @@ func TestOperatingInboxFailuresDoNotDiscloseRecordsOrTurnAuditFailureIntoConflic
 		status int
 	}{
 		{"source", authz.ErrScopedCommandDenied, 404},
+		{"hidden", authz.ErrGovernanceScopeHidden, 404},
+		{"wrapped_hidden", errors.Join(errors.New("synthetic_private_record"), authz.ErrGovernanceScopeHidden), 404},
 		{"credential", authz.ErrScopedCredentialRevoked, 401},
 		{"unavailable", authz.ErrScopedAuthorizationUnavailable, 503},
 		{"audit", &pgconn.PgError{Code: "23514", ConstraintName: "synthetic_private_record"}, 503},

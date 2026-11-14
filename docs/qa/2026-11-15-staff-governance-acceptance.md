@@ -168,3 +168,20 @@ separate gates. Runtime results remain pending.
 Local checks for this test increment: compile-only bootstrap tests, bootstrap vet
 and golangci-lint, JavaScript syntax, Prettier, actionlint, diff whitespace and all
 15 inventory tests/check passed. No local server, browser or database was started.
+
+### Browser runtime evidence at `4470fb2a`
+
+CI43614580588/web job132506828260 reached every native journey assertion for
+both pharmacy and supplier: bounded employer/Staff/location selection, proposal,
+independent review, GET recovery after lost responses, acknowledged active state,
+HTTP-confirmed revocation/version 4 and revoked UI state. Both branches printed
+their success line. The job nevertheless failed when closing browser contexts:
+a background Staff-choice route was still awaiting `route.fetch`, producing
+`Request context disposed` after success. This is not a passing test exit.
+
+The cleanup correction awaits `context.unrouteAll({behavior: "wait"})` before
+closing each context. It waits for handlers and does not use `ignoreErrors`,
+suppress route assertions or change business expectations. Syntax/format checks
+pass locally; clean CI completion remains required. This fixture continues to use
+synthetic identity boundaries and does not prove deployed login or product-operation
+access. Hospital preparation and full live acceptance gates remain open.

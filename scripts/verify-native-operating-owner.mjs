@@ -184,6 +184,11 @@ try {
     `PASS: ${fixture.kind} native employer → reviewed Staff → owner location → proposal → independent review → acknowledged activation → revocation; lost responses recovered by GET through Global API and real IAM/Workforce/product owners.`,
   );
 } finally {
-  await Promise.all(contexts.map((context) => context.close()));
+  await Promise.all(
+    contexts.map(async (context) => {
+      await context.unrouteAll({ behavior: "wait" });
+      await context.close();
+    }),
+  );
   await browser.close();
 }

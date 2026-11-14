@@ -120,6 +120,13 @@ try {
       { exact: true },
     ),
   ).toBeVisible();
+  const proposedDuty = preparer
+    .getByRole("article")
+    .filter({ has: preparer.getByText(reason, { exact: true }) });
+  await expect(proposedDuty.getByText("Status: pending review", { exact: true })).toBeVisible();
+  await expect(proposedDuty.getByRole("button", { name: "Approve duty", exact: true })).toHaveCount(
+    0,
+  );
   expect(lostProposal).toBe(true);
   expect(mutations).toHaveLength(1);
   expect(mutations[0].body).toMatchObject({

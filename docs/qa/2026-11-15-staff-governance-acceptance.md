@@ -5,6 +5,31 @@ This checkpoint preserves the full goal across the hospital-owned pharmacy and
 independent pharmacy/supplier models. Source inspection, component checks,
 service integration, browser testing and live acceptance are distinct evidence.
 
+## Current checkpoint — 2026-11-14 23:41 UTC
+
+Candidate `866c3eb7` includes current main `07af22ab`. Local full workspace
+quality checks (21 tasks), tests (7 tasks; shell 2,020 and API 1,437 tests),
+both production app builds, Go build/vet/lint and generator checks passed.
+Generated app build outputs were removed; no local app, DB, container or browser
+was started. Both candidate image builds passed.
+
+[CI43653934690](https://github.com/tesserix/helivanta/actions/runs/43653934690)
+reproduced a fixture setup error at `staff_governance_person_test.go:96`: a
+TenantB membership was inserted in a TenantA transaction, correctly rejected by
+forced RLS with SQLSTATE 42501. The fixture now uses separate exact-tenant
+transactions; production policy and foreign-tenant HTTP denial assertions are
+unchanged. The existing real-service test is the red reproduction; corrected-head
+runtime acceptance remains required. E2E, web and the full supplier workflow are
+still running. No positive canonical chooser qualification or hospital browser
+acceptance is claimed from this run.
+
+The identity dependency now includes current owner main `918378d`, preserving
+its restored strict tenant-owned identity boundary. Candidate `cd51b3d` passed
+local pure tests, compile checks, build/vet/lint, contract and delivery tests;
+[CI43654282927](https://github.com/tesserix/onboarding-service/actions/runs/43654282927)
+is running. It remains draft/unmerged/undeployed. Older checkpoint entries below
+record historical evidence, not current completion.
+
 ## Candidate and authoritative evidence
 
 - HMS PR: [#1669](https://github.com/tesserix/helivanta/pull/1669), candidate

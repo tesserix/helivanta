@@ -1,50 +1,39 @@
 # Staff posting and Pharmacy workspace release for user acceptance
 
-Status: production promotion succeeded at **2026-11-05T03:40:26Z**. Release
-**62f3f7fd180f5ce9800d70807217b1cb2131d54a** is running. This does not claim
-completed Staff Management or positive-role browser acceptance.
+Status: deployed to production on 2026-11-05. The three file-scanning workers stay
+unready (see [Existing readiness limitation](#existing-readiness-limitation)).
+Independent browser acceptance is pending. This record does not claim completed
+Staff Management acceptance.
 
-## Executed deployment
+## Verified production evidence
 
-The user explicitly approved all 13 migrations and completion of the rollout.
-Kargo promotion `prod.01m6mwm1fjscfvx6162wtj6445.1afd48c` completed all three
-standard promotion steps using freight
-`1afd48c1194c46b97db1a89afcfe7b7c994ba06f`. All five pre-merge checks passed
-in CI run 41956972697. Image build/scan/sign/publish and deploy-branch advancement
-passed in run 41961382408. Repository visibility remains public.
+All values were read-only on 2026-11-05.
 
-Artifact Registry manifest digests verified for the released API and shell:
-
-- API: `sha256:012c821c4b97907760b57ce17c29d59551cba2832738d197ad02fdcdbfe86356`
-- Shell: `sha256:e3666affd91aed0fd8593b30ffb6c689695952206da9c3dc86a85d7d2497f82f`
-
-The API migration hook succeeded. Production now has exactly **240** receipts:
-all 227 previous IDs plus exactly the 13 approved IDs. All 13 new tables exist
-with RLS enabled and forced; no new foreign-key/check constraints are unvalidated.
-The `workforce_posting_supervisor_choice_order` index is valid and ready, with
-the registered table/column ordering. Twelve registered SQL files match canonical
-source SHA-256 values; 18 installed zero-argument function bodies and security
-modes match their final definitions from those files.
-
-API, Global API, shell and emergency workers each have **2/2 ready replicas** on
-the exact released tag. The three document/evidence worker deployments also
-reference the release, but remain unready with the pre-existing antivirus
-freshness issue described below. Argo applications are Synced; Global API and
-shell are Healthy, while API application health remains Progressing because of
-those worker deployments. Promotion success is not a claim that every worker is
-healthy.
-
-External checks: `/workforce/pharmacy-relationships` returns HTTP307 to login;
-unauthenticated `/api/v1/workforce/staff-actor-scopes` returns HTTP401. These
-prove bounded routing/authentication behavior, not positive-role acceptance.
-User browser testing starts at
-`https://helivanta.app/workforce/pharmacy-relationships`. No test accounts or
-operator role grants were added. Detailed execution/schema evidence is retained
-privately under the user's release-self-acceptance-20261105 evidence directory;
-no credentials or environment dumps are included.
-
-The remaining sections retain the preflight and promotion procedure for audit.
-
+- **Source.** PR #1565 merged to main as **62f3f7fd**. Every required main CI job
+  passed (`go`, `web`, `scripts`, `e2e`, secret scan). The signed image workflow
+  passed and the deploy branch advanced to that revision.
+- **Promotion.** Kargo freight `1afd48c1` (`nordic-aardwolf`) was promoted to
+  `prod` by `prod.01m6mwm1fjscfvx6162wtj6445.1afd48c`, phase `Succeeded`,
+  finished at 03:40:26 UTC.
+- **Migrations.** `helivanta-api-migrate` ran from the exact release image and
+  succeeded. The production ledger now holds **240** IDs. All 13 pending IDs were
+  applied at 03:39:56–57 UTC. All 13 new tables have row security enabled and
+  forced, with policies. The 0083 concurrent index
+  `workforce_posting_supervisor_choice_order` is valid and ready, and no invalid
+  index exists. The only unvalidated constraint is the earlier, deliberately
+  `NOT VALID` `patients_hospital_required`. The private execution capture shows
+  12 registered SQL files matching their canonical source SHA-256 values. It also
+  holds the installed body hash and security mode of 18 zero-argument functions;
+  all 18 are security invoker.
+- **Images.** API, Global API, shell and the four workers run tag `62f3f7fd`. Digests:
+  API `sha256:012c821c…fe86356`, shell `sha256:e3666aff…497f82f`. The full values
+  are in the [migration manifest](2026-11-05-staff-self-acceptance-migrations.json).
+- **Health.** API, Global API, shell and emergency worker each have 2/2 ready
+  replicas with no restarts. Argo CD `helivanta-global-api` and `helivanta-shell`
+  are Synced/Healthy. `helivanta-api` is Synced/Degraded, only because of the
+  scanner-worker limitation below.
+- **Routing.** `https://helivanta.app/` and `/login` return 200, and `/api/*`
+  reaches the authenticated Global API (401 without a session).
 
 ## Source and verification
 
@@ -120,14 +109,21 @@ role assignment or new professional/operating activation is part of this rollout
 
 The document, Pharmacy evidence and supply evidence workers were running but
 unready before this release. Their `/readyz` reported `scanner unavailable`.
-Read-only ClamAV VERSION returned definitions28173 dated **2026-11-03T06:27:52Z**;
+Read-only ClamAV VERSION returned definitions 28173 dated **2026-11-03T06:27:52Z**;
 readiness requires age at most 36 hours and release requires age at most 48 hours.
-The running updater at2026-11-05T01:55:57Z reported its daily database up-to-date.
+The running updater at 2026-11-05T01:55:57Z reported its daily database up-to-date.
 Do not alter timestamps, publish synthetic definitions, bypass scanning or weaken
 freshness thresholds. Obtain a genuinely current trusted upstream definition set
-through the existing updater before declaring those workers healthy. Readiness remains degraded. Actual processing/release continues to use its
-independent hard freshness gate; worker readiness alone is not proof that every
-file request fails.
+through the existing updater before declaring those workers healthy. Until then,
+file/evidence processing remains an explicitly reported limitation.
+
+After promotion, at 2026-11-05T03:56Z, the rolled-out workers were still unready
+for the same reason (`/readyz` 503), and the updater still reported 28173 as
+up-to-date. Two public resolvers return 28173 for `current.cvd.clamav.net`, and
+the official CDN's `daily.cvd` has `Last-Modified: 2026-11-03T06:27:00Z`. The
+cluster therefore holds the current upstream set, and the gap is upstream. At
+2026-11-05T06:27:52Z the definitions pass the 48-hour release limit, and file
+release fails closed until ClamAV publishes a newer daily.
 
 ## Promotion and user testing
 

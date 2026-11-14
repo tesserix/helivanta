@@ -145,9 +145,7 @@ it("hides previously loaded rows and forms if refresh fails after a save", async
   await user.click(await screen.findByRole("button", { name: "Edit bin TEST-BIN" }));
   await user.click(screen.getByRole("button", { name: "Save bin" }));
   expect(
-    await screen.findByText(
-      "Could not load warehouse bins. Refresh access or contact your administrator.",
-    ),
+    await screen.findByText("This wasn't found, or you don't have access to it."),
   ).toBeInTheDocument();
   expect(screen.queryByText("TEST-BIN · TEST Private Bin")).not.toBeInTheDocument();
   expect(screen.queryByRole("form", { name: "Storage bin form" })).not.toBeInTheDocument();

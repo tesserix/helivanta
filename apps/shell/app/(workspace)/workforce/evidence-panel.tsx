@@ -13,8 +13,8 @@ import {
   type EvidenceScope,
   type EvidenceUpload,
 } from "@helivanta/api";
-import { Field, useZodForm } from "@helivanta/ui";
-import { Failure } from "./roster-policy/policy-ui";
+import { Field, useZodForm, RequestFailure } from "@helivanta/ui";
+
 import { SaveError } from "./leave-balances/years-panel";
 
 // One per record kind: the client and the words its attach form uses.
@@ -116,9 +116,10 @@ export function EvidencePanel({
           Loading evidence…
         </p>
       ) : evidence.isError ? (
-        <Failure
+        <RequestFailure
           message="Could not load this proposal's evidence."
           retry={() => evidence.refetch()}
+          error={evidence.error}
         />
       ) : (
         <>

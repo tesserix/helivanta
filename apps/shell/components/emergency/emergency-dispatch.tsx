@@ -19,7 +19,7 @@ import {
   type EmergencyDispatchCommandInput,
   type EmergencyVehicle,
 } from "@helivanta/api";
-import { LoadMore, formatTime, SelectControl } from "@helivanta/ui";
+import { LoadMore, RequestFailure, formatTime, isRefusal, SelectControl } from "@helivanta/ui";
 import { useEmergencyCommand, EmergencyCommandFailure } from "./emergency-command";
 
 export function EmergencyDispatchPanel({ baseID, caseID }: { baseID: string; caseID: string }) {
@@ -54,64 +54,77 @@ export function EmergencyDispatchPanel({ baseID, caseID }: { baseID: string; cas
         A reservation holds capacity. Crew acknowledgement and departure are recorded separately.
       </p>
       {rows.isError && (
-        <p role="alert">
-          {rows.error?.message} <Button onClick={rows.retry}>Refresh dispatches</Button>
-        </p>
+        <RequestFailure
+          message="Could not load dispatches."
+          retry={rows.retry}
+          error={rows.error}
+          recheck="Check access again"
+        />
       )}
-      {rows.items.map((row) => (
-        <article key={row.id} className="space-y-3 rounded-lg border p-4">
-          <Badge>{EMERGENCY_DISPATCH_STATES[row.state] ?? "Status requires review"}</Badge>
-          <dl className="grid gap-3 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="text-muted-foreground">Driver acknowledgement</dt>
-              <dd>{row.driver_acknowledged ? "Recorded" : "Pending"}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Clinical crew acknowledgement</dt>
-              <dd>{row.clinician_acknowledged ? "Recorded" : "Pending"}</dd>
-            </div>
-            {row.acknowledgement_deadline && (
+      {/* Dispatches the server now refuses don't stay on screen (#1595). */}
+      {!isRefusal(rows.error) &&
+        rows.items.map((row) => (
+          <article key={row.id} className="space-y-3 rounded-lg border p-4">
+            <Badge>{EMERGENCY_DISPATCH_STATES[row.state] ?? "Status requires review"}</Badge>
+            <dl className="grid gap-3 text-sm sm:grid-cols-2">
               <div>
-                <dt className="text-muted-foreground">Acknowledgement deadline</dt>
-                <dd>{formatTime(row.acknowledgement_deadline)}</dd>
+                <dt className="text-muted-foreground">Driver acknowledgement</dt>
+                <dd>{row.driver_acknowledged ? "Recorded" : "Pending"}</dd>
               </div>
+              <div>
+                <dt className="text-muted-foreground">Clinical crew acknowledgement</dt>
+                <dd>{row.clinician_acknowledged ? "Recorded" : "Pending"}</dd>
+              </div>
+              {row.acknowledgement_deadline && (
+                <div>
+                  <dt className="text-muted-foreground">Acknowledgement deadline</dt>
+                  <dd>{formatTime(row.acknowledgement_deadline)}</dd>
+                </div>
+              )}
+            </dl>
+            {canManage && <EmergencyReceivingDispatch baseID={baseID} row={row} />}
+            {canManage && row.state !== "cleared" && row.state !== "cancelled" && (
+              <DispatchCancellation
+                key={row.id}
+                row={row}
+                supervisor={can("emergency.case.close") && access.data?.level === "supervisor"}
+              />
             )}
-          </dl>
-          {canManage && <EmergencyReceivingDispatch baseID={baseID} row={row} />}
-          {canManage && row.state !== "cleared" && row.state !== "cancelled" && (
-            <DispatchCancellation
-              key={row.id}
-              row={row}
-              supervisor={can("emergency.case.close") && access.data?.level === "supervisor"}
-            />
-          )}
-        </article>
-      ))}
+          </article>
+        ))}
       <LoadMore hasMore={rows.hasMore} isLoading={rows.isFetchingMore} onClick={rows.loadMore} />
       {canManage && eligibility.isError && (
-        <p role="alert">
-          {eligibility.error.message}{" "}
-          <Button onClick={() => void eligibility.refetch()}>Refresh review eligibility</Button>
-        </p>
+        <RequestFailure
+          message="Could not load review eligibility."
+          retry={eligibility.refetch}
+          error={eligibility.error}
+          recheck="Check access again"
+        />
       )}
-      {canManage && eligibility.data && !active && !rows.isPending && !rows.isError && (
-        <>
-          {!eligibility.data.dispatch_enabled ? (
-            <p role="status">Dispatch activation is not enabled for this service.</p>
-          ) : !eligibility.data.eligible ? (
-            <p role="status">
-              A current, independently authorized transport review is required before reserving
-              capacity.
-            </p>
-          ) : (
-            <ReservationForm
-              key={`${caseID}-${eligibility.data.assessment_id}`}
-              baseID={baseID}
-              eligibility={eligibility.data}
-            />
-          )}
-        </>
-      )}
+      {/* A refused eligibility re-read withdraws the reservation it allowed (#1595). */}
+      {canManage &&
+        eligibility.data &&
+        !eligibility.isError &&
+        !active &&
+        !rows.isPending &&
+        !rows.isError && (
+          <>
+            {!eligibility.data.dispatch_enabled ? (
+              <p role="status">Dispatch activation is not enabled for this service.</p>
+            ) : !eligibility.data.eligible ? (
+              <p role="status">
+                A current, independently authorized transport review is required before reserving
+                capacity.
+              </p>
+            ) : (
+              <ReservationForm
+                key={`${caseID}-${eligibility.data.assessment_id}`}
+                baseID={baseID}
+                eligibility={eligibility.data}
+              />
+            )}
+          </>
+        )}
     </section>
   );
 }
@@ -149,7 +162,7 @@ function ReservationForm({
     `/emergency/bases/${baseID}/fleet`,
     { poll: true, request: { cache: "no-store" } },
   );
-  const vehicles = fleet.items.filter(
+  const vehicles = (isRefusal(fleet.error) ? [] : fleet.items).filter(
     (row) =>
       row.dispatchable &&
       row.duty_id &&
@@ -241,9 +254,12 @@ function ReservationForm({
         </div>
       </form>
       {fleet.isError && (
-        <p role="alert">
-          {fleet.error?.message} <Button onClick={fleet.retry}>Refresh fleet</Button>
-        </p>
+        <RequestFailure
+          message="Could not load the fleet."
+          retry={fleet.retry}
+          error={fleet.error}
+          recheck="Check access again"
+        />
       )}
       <LoadMore hasMore={fleet.hasMore} isLoading={fleet.isFetchingMore} onClick={fleet.loadMore} />
       <EmergencyCommandFailure message={error} uncertain={command.uncertain} />

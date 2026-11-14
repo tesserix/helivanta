@@ -8,8 +8,8 @@ import {
   JOB_LABELS,
   type AttendancePunchReportRow,
 } from "@helivanta/api";
-import { Field, SelectControl } from "@helivanta/ui";
-import { Failure, inputClass, today } from "../roster-policy/policy-ui";
+import { Field, SelectControl, RequestFailure } from "@helivanta/ui";
+import { inputClass, today } from "../roster-policy/policy-ui";
 import { useActiveStaff } from "./punch-panel";
 
 const MAX_REPORT_DAYS = 31;
@@ -102,7 +102,11 @@ export function PunchReport({ hospital, base }: { hospital: string; base: string
         </p>
       ) : punches.isError ? (
         <div className="p-5">
-          <Failure message="Could not load the punch report." retry={punches.retry} />
+          <RequestFailure
+            message="Could not load the punch report."
+            retry={punches.retry}
+            error={punches.error}
+          />
         </div>
       ) : punches.items.length === 0 ? (
         <p className="p-5 text-sm text-muted-foreground">

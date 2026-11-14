@@ -1,14 +1,15 @@
 # Standalone pharmacy employers and branch postings
 
 Refs [#19](https://github.com/tesserix/helivanta/issues/19). Implements the
-proposed [ADR-0054](../../adr/0054-typed-employing-establishments.md). It
+accepted [ADR-0054](../../adr/0054-typed-employing-establishments.md). It
 extends the [reusable Staff foundation](2026-11-02-reusable-staff-foundation.md),
 [effective postings](2026-11-02-effective-staff-postings.md) and
 [ADR-0053 supervision](../../adr/0053-reviewed-managerial-posting-supervision.md).
 
 It uses ORG-AU-05, ORG-AC-01/02/04/05/08, ORG-ST-02/03, IN-PH-06 and
-IN-PH-10. It proposes ORG-D8 and leaves ORG-D9 open. Status: design only. No slice starts
-until the product owner accepts ADR-0054.
+IN-PH-10. It applies ORG-D8 and leaves ORG-D9 open. Status: design accepted
+with ADR-0054 on 2026-11-05; each slice still needs its own plan, migration IDs
+and tests.
 
 ## Problem
 
@@ -74,10 +75,12 @@ Pharma employer guard inside the guarded command and commits the registry row,
 audit and outbox together. An exact retry returns the retained row. A
 `hospital_owned` organization or an unknown ID returns 404.
 
-**Route families.** `scope(c)` splits into two extractors: `hospitalScope` for
-`/workforce/hospitals/{hospital}` and `pharmacyScope` for
-`/workforce/pharmacies/{pharmacy}`. Each one checks the registry kind and
-returns a distinct Go type.
+**Route families.** Each family is an establishment router whose admission
+checks the registry kind after authorization: a wrong-kind ID answers 404 and an
+unreadable registry answers 503. `pharmacyScope` reads only `{pharmacy}` and
+returns a distinct Go type. The existing `scope(c)` keeps returning `uuid.UUID`
+until slice 3 adds the distinct hospital type, when a handler first serves both
+families.
 
 - Handlers take the type they support, so a hospital-only handler cannot be
   mounted under the pharmacy family.
@@ -94,14 +97,20 @@ The slice that adds the guard lists every such table it found. It proves each
 listed table refuses a pharmacy establishment, and it proves existing hospital
 writes still succeed.
 
-**IAM root.** `ScopedAssignment` gains `EstablishmentKind` and `EstablishmentID`.
+**IAM root.** `ScopedAssignment` gains `PharmacyID`, and exactly one of
+`HospitalID` and `PharmacyID` names the root. A separate field means a pharmacy
+ID can never travel as `HospitalID`, and no rule is needed to keep two copies of
+the hospital ID equal. The [slice 2 plan](../plans/2026-11-06-typed-iam-root.md)
+records this decision.
 
 - An additive IAM migration backfills every existing assignment as `hospital`,
   with the same ID. Epochs and grants are unchanged.
 - `HospitalID` stays populated for hospital roots and is never set for
-  pharmacy roots.
-- Each template declares `establishment_kinds`. The OpenFGA model and
-  projection add the pharmacy root under the same tenant.
+  pharmacy roots. `PharmacyID` is omitted from a hospital root's content hash,
+  so every existing object key keeps its bytes.
+- Each template declares `establishment_kinds`. The OpenFGA model is
+  unchanged: the root is bound inside the content-hashed object key, so only
+  the projection changes.
 - Real-OpenFGA tests prove three things: a pharmacy-rooted assignment never
   satisfies a hospital check, and the reverse; revocation cuts over; an outage
   returns 503.
@@ -127,10 +136,11 @@ a sibling outlet or the whole establishment.
 - Self-supervision, cycles, interval gaps and cross-establishment supervisors
   are refused.
 
-**Pharma consumer.** For a standalone organization, `/pharmacy/staff` reads the
-pharmacy family with the caller's current Workforce scope. For a
-`hospital_owned` organization, it keeps the hospital family. Neither reading
-grants HR access from pharmacy membership.
+**Pharma consumer.** `/pharmacy/staff` lists the registered pharmacy employers
+the caller has Workforce access to, from `GET /workforce/pharmacies`, and reads
+the chosen one's pharmacy family directory. Only standalone organizations can be
+registered. A `hospital_owned` organization's Staff stay in the hospital family
+source. Neither reading grants HR access from pharmacy membership.
 
 ## Delivery slices
 
@@ -140,13 +150,14 @@ are assigned when a slice starts, from the next free ID in each module.
 
 1. **Establishment kind and registration.** Registry columns, immutability
    trigger, employer guard, the `PUT` and `GET` routes, the hospital-only write
-   guard, typed scope extractors, and UI to register a standalone organization
+   guard, establishment admission, the typed pharmacy scope, and UI to register a standalone organization
    as an employer. Wrong-kind 404 on both families, `hospital_owned` refusal
    and guard outage are tested.
 2. **Typed IAM root.** Assignment root columns, backfill proof against a
-   production-shaped fixture, template kind declarations, the OpenFGA model
-   and projection, and kind-crossing denial tests.
-3. **Core Staff in a pharmacy establishment.** Directory, create and edit,
+   production-shaped fixture, template kind declarations, the root-bound
+   projection, and kind-crossing denial tests.
+3. **Core Staff in a pharmacy establishment.** The distinct hospital scope
+   type, then directory, create and edit,
    access and identity on the pharmacy family, with `pharmacy_id` contract
    versions. The Pharma Staff screen consumes the family.
 4. **HR lifecycle.** Enrollment, employment periods and reviews, credentials,
@@ -158,7 +169,8 @@ are assigned when a slice starts, from the next free ID in each module.
    UI with a branch picker.
 6. **Pharma professional authority at branches.** This is #418's remaining
    pharmacist, PIC and assistant work. It consumes the branch posting and runs
-   in parallel with the hospital pharmacy path.
+   in parallel with the hospital pharmacy path. It is slice 4 of the
+   [pharmacist outlet authority specification](2026-11-05-pharmacist-outlet-authority.md).
 
 ## Required tests
 

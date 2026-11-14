@@ -1,0 +1,155 @@
+{
+  "models": {
+    "PharmacyEmployer": [
+      {
+        "name": "pharmacy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "format": "text"
+      },
+      {
+        "name": "ownership_type",
+        "type": "string",
+        "enum": ["independent", "chain"]
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "PharmacyStaff": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "pharmacy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "employee_code",
+        "type": "string",
+        "min": 1,
+        "max": 40,
+        "pattern": "^[A-Za-z0-9_-]{1,40}$"
+      },
+      {
+        "name": "display_name",
+        "type": "string",
+        "min": 1,
+        "max": 150,
+        "format": "text"
+      },
+      {
+        "name": "job_category",
+        "type": "string",
+        "enum": [
+          "doctor",
+          "nurse",
+          "pharmacist",
+          "lab_technician",
+          "receptionist",
+          "administration",
+          "other"
+        ]
+      },
+      {
+        "name": "employment_status",
+        "type": "string",
+        "enum": ["active", "inactive"]
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "PharmacyAccess": [
+      {
+        "name": "pharmacy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "level",
+        "type": "string",
+        "enum": ["reader", "manager"]
+      }
+    ],
+    "PharmacyStaffSource": [
+      {
+        "name": "pharmacy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "format": "text"
+      },
+      {
+        "name": "access_level",
+        "type": "string",
+        "enum": ["reader", "manager"]
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "SupplierEmployer": [
+      {
+        "name": "supplier_id",
+        "type": "uuid"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "format": "text"
+      },
+      {
+        "name": "source_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ]
+  },
+  "root_projections": [
+    {
+      "source": "PharmacyStaff",
+      "model": "SupplierStaff",
+      "root_field": "supplier_id"
+    },
+    {
+      "source": "PharmacyAccess",
+      "model": "SupplierAccess",
+      "root_field": "supplier_id"
+    },
+    {
+      "source": "PharmacyStaffSource",
+      "model": "SupplierStaffSource",
+      "root_field": "supplier_id"
+    }
+  ]
+}

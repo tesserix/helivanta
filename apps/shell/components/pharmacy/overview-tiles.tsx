@@ -98,6 +98,7 @@ export function OverviewTiles({ scope, outlet }: { scope: PharmacyScope; outlet:
             <RequestFailure
               message="Could not load this outlet's counts."
               retry={overview.refetch}
+              error={overview.error}
             />
           </div>
         ) : overview.isPending ? (
@@ -198,7 +199,11 @@ export function WaitingTile() {
   return (
     <Tile title="Patients waiting" note="Hospital-wide dispense queue">
       {waiting.isError ? (
-        <RequestFailure message="Could not load the dispense queue." retry={waiting.retry} />
+        <RequestFailure
+          message="Could not load the dispense queue."
+          retry={waiting.retry}
+          error={waiting.error}
+        />
       ) : waiting.isPending ? (
         <p role="status" className="px-2 text-sm text-muted-foreground">
           Loading the queue…

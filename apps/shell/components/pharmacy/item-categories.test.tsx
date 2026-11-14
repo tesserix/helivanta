@@ -224,6 +224,45 @@ describe("ProductCategorySection", () => {
     });
   });
 
+  // Review and declaration forms share the pending declaration's id as a key;
+  // as siblings that rendered the review form twice.
+  it("renders one review form for someone who may both declare and review", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    serve({
+      productCategory: {
+        in_force: null,
+        history: [
+          {
+            id: "0199e000-0000-7000-8000-000000000601",
+            category_id: antibiotics.id,
+            subcategory_id: null,
+            effective_from: "2026-11-05",
+            reason: "TEST filed with the antibiotics",
+            declared_by: "user-editor",
+            created_at: "2026-11-04T05:00:00Z",
+            decision: null,
+            decision_reason: null,
+            reviewed_by: null,
+            in_force_from: null,
+          },
+        ],
+      },
+    });
+    renderWithProviders(
+      <ProductCategorySection
+        scope={scope}
+        product={product}
+        today="2026-11-04"
+        canDeclare
+        canReview
+      />,
+    );
+    expect(await screen.findByText("No category approved yet")).toBeVisible();
+    expect(screen.getAllByRole("button", { name: "Approve" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Declare category" })).toHaveLength(1);
+    expect(errors.mock.calls.flat().join(" ")).not.toContain("same key");
+  });
+
   it("offers no review of an older declaration once a newer one is decided", async () => {
     serve({
       productCategory: {

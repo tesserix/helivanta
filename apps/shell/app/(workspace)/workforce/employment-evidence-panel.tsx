@@ -4,33 +4,44 @@ import { useEffect, useId, useRef, useState } from "react";
 import { z } from "zod";
 import { STAFF_ACCESS_CHANGED, useStaffAccessCutoff } from "./staff-access-cutoff";
 import { Button, Input } from "@tesserix/web";
-import { Panel, Field, FormSelectField, LoadMore, useLeaveGuard, useZodForm } from "@helivanta/ui";
+import {
+  Panel,
+  Field,
+  FormSelectField,
+  LoadMore,
+  useLeaveGuard,
+  useZodForm,
+  RequestFailure,
+} from "@helivanta/ui";
 import {
   ApiError,
   withStaffIntakeScope,
   EmploymentEvidenceAttachInputContract,
-  EmploymentEvidenceBindingContract,
   attachEmploymentEvidence,
   downloadEmploymentEvidence,
+  eligibleEmploymentDocuments,
+  employmentEvidenceDocumentsPath,
   employmentEvidenceKey,
-  employmentEvidenceMatches,
   employmentEvidencePath,
   employmentPeriodRequest,
   newEmploymentPeriodId,
-  staffDocumentSchema,
+  ownedEmploymentEvidence,
   useApiMutation,
   useApiPagedQuery,
   withdrawEmploymentEvidence,
   type EmploymentEvidenceAttachInput,
   type EmploymentEvidenceBinding,
+  type EmploymentEvidenceOf,
   type EmploymentPeriodDraft,
+  type EmploymentPeriodScope,
   type EmploymentEvidenceScope,
   type EmploymentEvidenceWithdrawInput,
-  type StaffDocument,
+  type EmploymentTermsOf,
 } from "@helivanta/api";
 const reason = EmploymentEvidenceAttachInputContract.shape.reason;
 const formSchema = z.object({ document_id: z.string(), reason });
-type Action = { kind: "attach" } | { kind: "withdraw"; file: EmploymentEvidenceBinding };
+type Evidence = EmploymentEvidenceOf<EmploymentEvidenceScope>;
+type Action = { kind: "attach" } | { kind: "withdraw"; file: Evidence };
 export function EmploymentEvidencePanel({
   scope,
   staffVersion,
@@ -41,7 +52,7 @@ export function EmploymentEvidencePanel({
 }: {
   scope: EmploymentEvidenceScope;
   staffVersion: number;
-  terms?: EmploymentPeriodDraft;
+  terms?: EmploymentTermsOf<EmploymentPeriodScope>;
   canAttach: boolean;
   onClose: () => void;
   onContextChanged?: () => void;
@@ -59,13 +70,18 @@ export function EmploymentEvidencePanel({
     setAccessChanged(true);
     onContextChanged?.();
   };
-  const files = useApiPagedQuery<EmploymentEvidenceBinding>(
+  const files = useApiPagedQuery<unknown>(
     employmentEvidenceKey(scope),
     withStaffIntakeScope(employmentEvidencePath(scope), scope),
     { gcTime: 0, request: employmentPeriodRequest(scope) },
   );
-  const parsed = EmploymentEvidenceBindingContract.array().safeParse(files.items);
-  const valid = parsed.success && parsed.data.every((row) => employmentEvidenceMatches(scope, row));
+  const rows = ownedEmploymentEvidence(scope, files.items);
+  const valid = rows !== undefined;
+  // Only a hospital HR intake prepares an employment review; pharmacy reviews are not in this slice.
+  const review =
+    scope.hrIntake === true && terms !== undefined && "hospital_id" in terms
+      ? { scope, terms, evidence: ownedEmploymentEvidence(scope, files.items) }
+      : undefined;
   const cutoff = useStaffAccessCutoff([files.error], loseAccess);
   if (accessChanged || cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   if (preparation && scope.hrIntake === true)
@@ -143,17 +159,17 @@ export function EmploymentEvidencePanel({
           employment or access.
         </p>
       )}
-      {terms &&
-        terms.status === "draft" &&
-        scope.hrIntake === true &&
+      {review?.evidence &&
+        review.terms.status === "draft" &&
         canAttach &&
-        valid &&
         !files.isPending &&
         !files.isError &&
         !action && (
           <Button
             variant="outline"
-            onClick={() => setPreparation({ terms, evidence: parsed.data })}
+            onClick={() =>
+              review.evidence && setPreparation({ terms: review.terms, evidence: review.evidence })
+            }
           >
             Prepare employment review
           </Button>
@@ -161,20 +177,19 @@ export function EmploymentEvidencePanel({
 
       {files.isPending ? (
         <p role="status">Loading employment evidence…</p>
-      ) : files.isError || !valid ? (
-        <div role="alert">
-          Could not verify employment evidence.{" "}
-          <Button variant="ghost" onClick={files.retry}>
-            Retry evidence
-          </Button>
-        </div>
-      ) : parsed.data.length === 0 ? (
+      ) : files.isError || rows === undefined ? (
+        <RequestFailure
+          message="Could not verify employment evidence."
+          retry={files.retry}
+          error={files.error}
+        />
+      ) : rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No employment evidence attached to this revision.
         </p>
       ) : (
         <ul className="divide-y">
-          {parsed.data.map((file) => (
+          {rows.map((file) => (
             <li key={file.id} className="space-y-3 py-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -241,35 +256,18 @@ function EvidenceCommand({
     id: string;
     input: EmploymentEvidenceAttachInput | EmploymentEvidenceWithdrawInput;
   } | null>(null);
-  const documents = useApiPagedQuery<StaffDocument>(
+  const documents = useApiPagedQuery<unknown>(
     [...employmentEvidenceKey(scope), "eligible-documents"],
-    withStaffIntakeScope(
-      `/workforce/hospitals/${scope.hospitalId}/staff/${scope.staffId}/documents`,
-      scope,
-    ),
+    withStaffIntakeScope(employmentEvidenceDocumentsPath(scope), scope),
     {
       enabled: action.kind === "attach",
       gcTime: 0,
-
       request: employmentPeriodRequest(scope),
     },
   );
-  const parsed = staffDocumentSchema.array().safeParse(documents.items);
-  const valid =
-    parsed.success &&
-    parsed.data.every(
-      (file) => file.hospital_id === scope.hospitalId && file.staff_id === scope.staffId,
-    );
-  const eligible = valid
-    ? parsed.data.filter(
-        (file) =>
-          file.record_kind === "enrollment" &&
-          file.record_id === scope.staffId &&
-          file.record_version === staffVersion &&
-          file.category === "employment_evidence" &&
-          file.status === "available",
-      )
-    : [];
+  const owned = eligibleEmploymentDocuments(scope, staffVersion, documents.items);
+  const valid = owned !== undefined;
+  const eligible = owned ?? [];
   const form = useZodForm(formSchema, { document_id: "", reason: "" });
   const save = useApiMutation(
     (command: NonNullable<typeof submitted>) =>
@@ -416,25 +414,21 @@ function EvidenceHistory({
   id: string;
   onAccessChanged: () => void;
 }) {
-  const query = useApiPagedQuery<EmploymentEvidenceBinding>(
+  const query = useApiPagedQuery<unknown>(
     [...employmentEvidenceKey(scope), id, "history"],
     withStaffIntakeScope(`${employmentEvidencePath(scope)}/${id}/history`, scope),
     { gcTime: 0, request: employmentPeriodRequest(scope) },
   );
-  const parsed = EmploymentEvidenceBindingContract.array().safeParse(query.items);
+  const revisions = ownedEmploymentEvidence(scope, query.items);
   const cutoff = useStaffAccessCutoff([query.error], onAccessChanged);
   if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   if (query.isPending) return <p role="status">Loading evidence history…</p>;
-  if (
-    query.isError ||
-    !parsed.success ||
-    parsed.data.some((row) => row.id !== id || !employmentEvidenceMatches(scope, row))
-  )
+  if (query.isError || revisions === undefined || revisions.some((row) => row.id !== id))
     return <p role="alert">Could not verify evidence history.</p>;
   return (
     <div className="space-y-3 border-t pt-3">
       <ol className="space-y-2 text-sm">
-        {parsed.data.map((row) => (
+        {revisions.map((row) => (
           <li key={row.revision_id}>
             Revision {row.version} · {row.status} · {new Date(row.updated_at).toLocaleString()}
             <p>{row.reason}</p>
@@ -451,7 +445,7 @@ function EvidenceDownload({
   onAccessChanged,
 }: {
   scope: EmploymentEvidenceScope;
-  file: EmploymentEvidenceBinding;
+  file: Evidence;
   onAccessChanged: () => void;
 }) {
   const controller = useRef<AbortController | null>(null);

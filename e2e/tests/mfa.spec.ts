@@ -46,10 +46,10 @@ const PERMISSIONS_PROBE = "/api/v1/iam/me/permissions";
 // (`Email`, `Password`, `Sign in`, `Verification code`) are the SAME
 // contract e2e/tests/support/login.ts's login() pins for the credential
 // step (spec D6/D7); the OTP step's label comes from @tesserix/web's
-// AuthOtpStep default (`label = "Verification code"`), which
+// MFA form default (`label = "Verification code"`), which
 // apps/shell/app/login/page.tsx's OtpStep does not override.
 async function signInAndReachOtpStep(page: Page): Promise<void> {
-  await page.goto("/dashboard");
+  await page.goto("/login?workspace=11111111-1111-1111-1111-111111111111");
   const landingButton = page.getByRole("button", { name: "Sign in" });
   await landingButton.waitFor({ state: "visible", timeout: 20_000 });
   await landingButton.click();
@@ -70,7 +70,9 @@ async function signInAndReachOtpStep(page: Page): Promise<void> {
   // A correct password against an org policy requiring TOTP answers
   // `{ factor_required: ["totp"] }` (loginui.go's Password handler) —
   // OtpStep is what CredentialForm's onFactorRequired mounts.
-  await expect(page.getByLabel(/verification code/i)).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("group", { name: "Verification code", exact: true })).toBeVisible({
+    timeout: 20_000,
+  });
 }
 
 test.setTimeout(60_000);
@@ -81,13 +83,15 @@ test("a correct TOTP code completes sign-in, provable against the API", async ({
   const secret = readSeededTOTPSecret();
   const code = generateTOTP(secret);
 
-  // AuthOtpStep auto-submits once the 6th digit lands (its own
-  // useEffect — see auth-mfa.mjs) — no button to click. A correct code
+  // The MFA form auto-submits once the 6th digit lands — no button to click. A correct code
   // reaches loginui.go's Factor handler, which checks it against the
   // Zitadel session Password's step stashed (loginclient.VerifyTOTP),
   // threads the ROTATED token through UpdateToken (spec D3 — see this
   // file's header comment), and finalizes via CompleteAfterFactor.
-  await page.getByLabel(/verification code/i).fill(code);
+  await page
+    .getByRole("group", { name: "Verification code", exact: true })
+    .getByRole("textbox", { name: "Digit 1", exact: true })
+    .pressSequentially(code);
 
   // Synchronization only, not the assertion this spec exists to make: a
   // successful factor check navigates via window.location.assign(
@@ -142,7 +146,10 @@ test("a wrong TOTP code keeps the clinician on the OTP step with the shared refu
     "the sibling-step code must differ from the real one to be a genuine wrong guess",
   ).not.toBe(correctCode);
 
-  await page.getByLabel(/verification code/i).fill(wrongCode);
+  await page
+    .getByRole("group", { name: "Verification code", exact: true })
+    .getByRole("textbox", { name: "Digit 1", exact: true })
+    .pressSequentially(wrongCode);
 
   // Filtered on text, not a bare getByRole("alert"): Next.js 16 renders
   // its own empty `role="alert"` route announcer
@@ -153,5 +160,5 @@ test("a wrong TOTP code keeps the clinician on the OTP step with the shared refu
   await expect(alert).toBeVisible({ timeout: 15_000 });
   // Still on the OTP step — a wrong code is a refusal, not an expiry;
   // spec D6 allows five wrong guesses before the attempt is exhausted.
-  await expect(page.getByLabel(/verification code/i)).toBeVisible();
+  await expect(page.getByRole("group", { name: "Verification code", exact: true })).toBeVisible();
 });

@@ -937,7 +937,7 @@ a `json:"-"` field cannot be published because it is never rendered.
 What this layer computes independently is which emitted **key** each tagged
 field corresponds to. Two things decide that, and both are handled without
 guessing: **which tag names `encoding/json` honours** is answered by asking
-`encoding/json` itself, including normalized names. Go 1.27.3 accepts
+`encoding/json` itself, including normalized names. Go 1.27.4 accepts
 international names that older releases rejected and can normalize unusual
 tag syntax; the mask must follow the actual emitted key. A rejected name
 renders under the Go field name instead. The second decision, **which field
@@ -1137,7 +1137,16 @@ Postgres, NATS and OpenFGA are started once per test **binary** (the
 `sync.Once`s in `internal/testinfra`), so tests share them. Each test
 isolates its own state on them:
 
-- **Postgres:** `StartPostgres` gives each test a database of its own.
+- **Postgres:** `StartPostgres` gives each test an empty database of its own.
+  `NewHarness` uses `StartMigratedPostgres` instead (#1620). It migrates
+  one template per distinct migration list and owner, then clones it for each
+  test. The template build runs `Migrate` and `LintRLS`. Each clone is still a
+  database of the test's own: the harness checks that its `schema_migrations`
+  rows match the migration list exactly, then runs `LintDirectedProvenance`,
+  whose tables come from the modules under test. A template whose build fails
+  fails every test that needs it; there is no fallback to migrating an empty
+  database. A migration that sets a database-level ACL, setting or comment is
+  refused, because a clone would not inherit it.
 - **NATS and OpenFGA:** each test names its namespace or store with
   `testinfra.IsolationKey(t)`.
 

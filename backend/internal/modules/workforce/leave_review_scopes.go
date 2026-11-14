@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"slices"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -38,7 +39,8 @@ func (h *handlers) leaveReviewScopeCandidates(c *gin.Context, page pagination.Pa
 			return err
 		}
 		query := tx.Table("workforce_login_links l").Select("l.id,l.staff_id,l.version,l.created_at,l.hospital_id,h.name").
-			Joins("JOIN workforce_hospitals h ON h.tenant_id=l.tenant_id AND h.id=l.hospital_id").
+			// Hospital pickers list only hospital-rooted links; pharmacy and supplier employers are not hospital scopes (ADR-0054).
+			Joins("JOIN workforce_hospitals h ON h.tenant_id=l.tenant_id AND h.id=l.hospital_id AND h.establishment_kind=?", hospitalEstablishmentKind).
 			Where("l.tenant_id=? AND l.subject=? AND l.status='active'", p.TenantID, p.Subject)
 		if page.After != nil {
 			query = query.Where("(l.created_at,l.id)<(?,?)", page.After.CreatedAt, page.After.ID)
@@ -59,6 +61,7 @@ func (h *handlers) authorizedLeaveReviewScopes(c *gin.Context, candidates []leav
 		return nil, nil
 	}
 	allowed := make([]bool, len(candidates))
+	unheld := make([]bool, len(candidates))
 	group, ctx := errgroup.WithContext(c.Request.Context())
 	group.SetLimit(4)
 	for i, candidate := range candidates {
@@ -69,6 +72,7 @@ func (h *handlers) authorizedLeaveReviewScopes(c *gin.Context, candidates []leav
 				return authz.ErrScopedAuthorizationUnavailable
 			}
 			if grant.AssignmentID == "" {
+				unheld[i] = true
 				return nil
 			}
 			err = guard.WithScopeGrant(ctx, request, grant, p.AuthTime, func(commandCtx context.Context) error {
@@ -103,9 +107,62 @@ func (h *handlers) authorizedLeaveReviewScopes(c *gin.Context, candidates []leav
 	}
 	rows := make([]leaveReviewScopeRow, 0, len(candidates))
 	for i, row := range candidates {
+		row.Scope.ScopeKind, row.Scope.DepartmentIDs = "hospital", []uuid.UUID{}
+		// Department grants are admitted one at a time: each guarded department command refreshes the request session.
+		if unheld[i] {
+			departments, err := h.leaveReviewDepartments(c, p, row)
+			if err != nil {
+				respondDepartmentLeaveError(c, err)
+				return nil, nil
+			}
+			row.Scope.ScopeKind, row.Scope.DepartmentIDs = "department", departments
+			allowed[i] = len(departments) > 0
+		}
 		if allowed[i] {
 			rows = append(rows, row)
 		}
 	}
 	return rows, nil
+}
+
+// leaveReviewDepartments lists held leave departments whose current guarded department command succeeds (ADR-0055).
+func (h *handlers) leaveReviewDepartments(c *gin.Context, p authn.Principal, row leaveReviewScopeRow) ([]uuid.UUID, error) {
+	lister, supported := h.scopeAuthority.(authz.DepartmentScopeLister)
+	if !supported {
+		return nil, authz.ErrScopedAuthorizationUnavailable
+	}
+	hospital := row.Scope.HospitalID
+	grants, err := lister.DepartmentScopes(c.Request.Context(), authz.ScopeRequest{TenantID: p.TenantID, Subject: p.Subject, HospitalID: hospital.String(), Permission: PermLeaveApprove})
+	if err != nil {
+		return nil, authz.ErrScopedAuthorizationUnavailable
+	}
+	departments := []uuid.UUID{}
+	for _, grant := range grants {
+		department, err := uuid.Parse(grant.DepartmentID)
+		if err != nil || grant.ScopeKind != "department" {
+			return nil, authz.ErrScopedAuthorizationUnavailable
+		}
+		if slices.Contains(departments, department) {
+			continue
+		}
+		err = h.departmentLeaveTransaction(c, p, hospital, department, func(_ context.Context, tx *gorm.DB, s departmentLeaveSession) error {
+			actor, err := s.reviewer(tx, p, hospital)
+			if err != nil {
+				return err
+			}
+			if actor.ID != row.ID || actor.StaffID != row.StaffID || actor.Version != row.Version {
+				return gorm.ErrRecordNotFound
+			}
+			return departmentLeaveAudit(tx, p, hospital, hospital, "workforce.leave_review_scope.read", actor, s, nil)
+		})
+		switch {
+		case err == nil:
+			departments = append(departments, department)
+		case errors.Is(err, authz.ErrScopedCommandDenied), errors.Is(err, gorm.ErrRecordNotFound), errors.Is(err, authz.ErrDepartmentReferenceHidden), errors.Is(err, authz.ErrDepartmentReferenceChanged), errors.Is(err, errDepartmentScopeChanged):
+			// A denied, hidden or moved department is absent from discovery, never an error.
+		default:
+			return nil, err
+		}
+	}
+	return departments, nil
 }

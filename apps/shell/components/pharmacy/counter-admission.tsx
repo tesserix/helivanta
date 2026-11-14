@@ -14,7 +14,14 @@ import {
   type PharmacyScope,
   pharmacyRoot,
 } from "@helivanta/api";
-import { Field, FormSelectField, RequestFailure, useZodForm } from "@helivanta/ui";
+import {
+  Field,
+  FormSelectField,
+  RequestFailure,
+  useZodForm,
+  type SelectOption,
+} from "@helivanta/ui";
+import { hospitalOptions } from "./hospital-options";
 
 export type CounterAdmission = {
   occupancy_id: string;
@@ -48,11 +55,7 @@ export function CounterAdmissionLookup({
   useEffect(() => {
     if (hasMore && !isFetchingMore) loadMore();
   }, [hasMore, isFetchingMore, loadMore]);
-  const hospitals = [
-    ...new Set(
-      links.items.filter((l) => l.verification_status === "verified").map((l) => l.hospital_id),
-    ),
-  ];
+  const hospitals = hospitalOptions(links.items);
   if (value)
     return (
       <div className="rounded-md border p-3 text-sm">
@@ -76,6 +79,7 @@ export function CounterAdmissionLookup({
       <RequestFailure
         message="Could not check which hospitals have verified this pharmacy."
         retry={links.retry}
+        error={links.error}
       />
     );
   if (links.isPending || links.hasMore) return <p role="status">Checking verified hospitals…</p>;
@@ -94,11 +98,11 @@ function ResolveForm({
   onChange,
 }: {
   scope: PharmacyScope;
-  hospitals: string[];
+  hospitals: SelectOption[];
   onChange: (admission: CounterAdmission | null) => void;
 }) {
   const form = useZodForm(admissionResolveSchema, {
-    hospital_id: hospitals.length === 1 ? hospitals[0] : "",
+    hospital_id: hospitals.length === 1 ? hospitals[0].value : "",
     by: "bed",
     code: "",
   });
@@ -161,7 +165,7 @@ function ResolveForm({
           name="hospital_id"
           id="admission-hospital"
           label="Hospital"
-          options={hospitals.map((h) => ({ value: h, label: h }))}
+          options={hospitals}
         />
         <FormSelectField
           control={form.control}

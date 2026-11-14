@@ -580,6 +580,11 @@
       {
         "name": "can_review",
         "type": "bool"
+      },
+      {
+        "name": "departments",
+        "type": "[]uuid",
+        "max": 50
       }
     ],
     "StaffPostingProposalContextRequest": [
@@ -983,6 +988,126 @@
         "type": "StaffPostingLifecycleHistoryRecord",
         "pointer": true,
         "nullable": true
+      }
+    ],
+    "StaffDepartmentTeamItem": [
+      {
+        "name": "posting_id",
+        "type": "uuid"
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff",
+        "type": "StaffPostingTarget"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 2,
+        "max": 9007199254740990
+      },
+      {
+        "name": "department_id",
+        "type": "uuid"
+      },
+      {
+        "name": "department_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "starts_at",
+        "type": "time"
+      },
+      {
+        "name": "ends_at",
+        "type": "time",
+        "nullable": true,
+        "pointer": true
+      },
+      {
+        "name": "responsibility",
+        "type": "string",
+        "enum": [
+          "hospital_management",
+          "department_supervisor",
+          "department_member"
+        ]
+      },
+      {
+        "name": "supervisor_staff_id",
+        "type": "uuid",
+        "nullable": true,
+        "pointer": true
+      },
+      {
+        "name": "supervisor_posting_id",
+        "type": "uuid",
+        "nullable": true,
+        "pointer": true
+      },
+      {
+        "name": "state",
+        "type": "string",
+        "enum": ["current", "not_current"]
+      },
+      {
+        "name": "checked_at",
+        "type": "time"
+      },
+      {
+        "name": "source_until",
+        "type": "time",
+        "nullable": true,
+        "pointer": true
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "StaffPostingTransferInput": [
+      {
+        "name": "from_posting_id",
+        "type": "uuid"
+      },
+      {
+        "name": "from_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "from_version",
+        "type": "int64",
+        "min": 2,
+        "max": 9007199254740990,
+        "pointer": true
+      },
+      {
+        "name": "from_cutoff_version",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740989,
+        "pointer": true
+      },
+      {
+        "name": "decision",
+        "type": "StaffPostingDecisionInput"
+      }
+    ],
+    "StaffPostingTransferReceipt": [
+      {
+        "name": "replacement",
+        "type": "StaffPostingProposal"
+      },
+      {
+        "name": "ending",
+        "type": "StaffPostingCutoff"
       }
     ]
   },

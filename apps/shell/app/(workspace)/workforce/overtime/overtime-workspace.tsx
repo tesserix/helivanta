@@ -10,8 +10,8 @@ import {
   type Hospital,
   type OvertimeRequest,
 } from "@helivanta/api";
-import { Field, PageHeading, SelectControl } from "@helivanta/ui";
-import { Failure } from "../roster-policy/policy-ui";
+import { Field, PageHeading, SelectControl, RequestFailure } from "@helivanta/ui";
+
 import { OvertimePolicyPanel } from "./policy-panel";
 import { OvertimeForm } from "./overtime-form";
 import { OvertimeReview } from "./overtime-review";
@@ -46,7 +46,11 @@ export function OvertimeWorkspace() {
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (
-        <Failure message="Could not load hospitals." retry={hospitals.retry} />
+        <RequestFailure
+          message="Could not load hospitals."
+          retry={hospitals.retry}
+          error={hospitals.error}
+        />
       ) : hospital ? (
         <HospitalOvertime key={hospital.id} hospital={hospital} />
       ) : (
@@ -153,7 +157,11 @@ function RequestBoard({
         </p>
       ) : requests.isError ? (
         <div className="p-5">
-          <Failure message="Could not load overtime requests." retry={requests.retry} />
+          <RequestFailure
+            message="Could not load overtime requests."
+            retry={requests.retry}
+            error={requests.error}
+          />
         </div>
       ) : requests.items.length === 0 ? (
         <p className="p-5 text-sm text-muted-foreground">

@@ -31,23 +31,26 @@ export function CurrencyAmountField({
   currency,
   initialMinor,
   error,
+  disabled,
   onChange,
 }: {
   id: string;
   label: string;
   currency: string;
-  initialMinor: number;
+  initialMinor: number | null;
   error?: string;
+  disabled?: boolean;
   onChange: (minor: number) => void;
 }) {
   const digits = currencyDigits(currency);
   const scale = 10n ** BigInt(digits);
-  const minor = BigInt(Number.isSafeInteger(initialMinor) ? initialMinor : 0);
-  const [value, setValue] = useState(() =>
-    digits
+  const [value, setValue] = useState(() => {
+    if (initialMinor === null) return "";
+    const minor = BigInt(Number.isSafeInteger(initialMinor) ? initialMinor : 0);
+    return digits
       ? `${minor / scale}.${(minor % scale).toString().padStart(digits, "0")}`
-      : minor.toString(),
-  );
+      : minor.toString();
+  });
   function change(raw: string) {
     setValue(raw);
     const match = new RegExp(digits ? `^(\\d+)(?:\\.(\\d{0,${digits}}))?$` : "^(\\d+)$").exec(raw);
@@ -69,6 +72,7 @@ export function CurrencyAmountField({
         inputMode="decimal"
         maxLength={20}
         value={value}
+        disabled={disabled}
         onChange={(event) => change(event.target.value)}
         aria-invalid={!!error}
         aria-describedby={error ? `${id}-error` : undefined}

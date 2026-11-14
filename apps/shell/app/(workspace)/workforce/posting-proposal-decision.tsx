@@ -3,11 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
-import { Field, useLeaveGuard, useZodForm } from "@helivanta/ui";
+import { Field, RequestFailure, useLeaveGuard, useZodForm } from "@helivanta/ui";
 import {
   ApiError,
   StaffPostingDecisionInputContract,
   decideStaffPostingProposal,
+  transferStaffPosting,
+  type StaffPostingCutoffContext,
   decideStaffPostingLifecycleProposal,
   getStaffPostingDecisionReceipt,
   decideStaffPostingSupervisedProposal,
@@ -34,6 +36,7 @@ type Command = {
   id: string;
   input: StaffPostingDecisionInput;
   lifecycle?: StaffPostingLifecycleReviewContext;
+  transferFrom?: StaffPostingCutoffContext;
 };
 
 export function PostingProposalDecision({
@@ -49,7 +52,9 @@ export function PostingProposalDecision({
   approvalKind = "hospital_management",
   approvalUntil,
   lifecycleContext,
+  transferFrom,
 }: {
+  transferFrom?: StaffPostingCutoffContext;
   lifecycleContext?: StaffPostingLifecycleReviewContext;
   approvalKind?: "hospital_management" | "supervised";
   approvalUntil?: string;
@@ -60,7 +65,7 @@ export function PostingProposalDecision({
   action: "approve" | "reject" | "withdraw" | null;
   busy: boolean;
   onBusy: (value: boolean) => void;
-  onCompleted: (row: StaffPostingProposal) => void;
+  onCompleted: (row: StaffPostingProposal, transferred?: boolean) => void;
   onContextChanged: () => void;
 }) {
   const [now, setNow] = useState(() => Date.now());
@@ -85,6 +90,7 @@ export function PostingProposalDecision({
   const active = useRef<AbortController | null>(null);
   const observationKey = lifecycleContext
     ? JSON.stringify([
+        transferFrom ?? null,
         lifecycleContext.context.proposal.revision_id,
         lifecycleContext.effective_until,
         lifecycleContext.cutoff,
@@ -118,6 +124,25 @@ export function PostingProposalDecision({
     async ({ command, recover }: { command: Command; recover: boolean }) => {
       const controller = new AbortController();
       active.current = controller;
+      if (command.lifecycle && command.transferFrom) {
+        const old = command.transferFrom;
+        const result = await transferStaffPosting(
+          scope,
+          command.lifecycle.context.proposal.id,
+          command.id,
+          {
+            from_posting_id: old.proposal.id,
+            from_revision_id: old.proposal.revision_id,
+            from_version: old.proposal.version,
+            from_cutoff_version: old.cutoff?.version ?? 0,
+            decision: command.input,
+          },
+          command.lifecycle,
+          old,
+          controller.signal,
+        );
+        return result.replacement;
+      }
       if (command.lifecycle) {
         return decideStaffPostingLifecycleProposal(
           scope,
@@ -156,18 +181,24 @@ export function PostingProposalDecision({
         if (
           error instanceof ApiError &&
           error.status === 409 &&
-          ["posting_proposal_conflict", "posting_lifecycle_review_required"].includes(error.code)
+          [
+            "posting_proposal_conflict",
+            "posting_cutoff_conflict",
+            "posting_lifecycle_review_required",
+          ].includes(error.code)
         ) {
           void source.refetch();
           onContextRecheck();
         }
       },
       onSuccess: (row) => {
+        const transferred = original.current?.transferFrom !== undefined;
         original.current = null;
         setRetained(null);
         form.reset();
         onBusy(false);
-        onCompleted(row);
+        if (transferred) onCompleted(row, true);
+        else onCompleted(row);
       },
     },
   );
@@ -218,17 +249,12 @@ export function PostingProposalDecision({
       {source.isPending || source.isFetching ? (
         <p role="status">Checking current employment source…</p>
       ) : source.isError ? (
-        <div role="alert">
-          The current employment source could not be verified.{" "}
-          <Button
-            type="button"
-            variant="outline"
-            disabled={retained !== null}
-            onClick={() => void source.refetch()}
-          >
-            Retry employment source
-          </Button>
-        </div>
+        <RequestFailure
+          message="The current employment source could not be verified."
+          retry={source.refetch}
+          error={source.error}
+          busy={retained !== null}
+        />
       ) : (
         <>
           <p>
@@ -346,7 +372,10 @@ export function PostingProposalDecision({
                 id: newStaffPostingId(),
                 input: parsed.data,
                 ...(action === "approve" && lifecycleContext
-                  ? { lifecycle: structuredClone(lifecycleContext) }
+                  ? {
+                      lifecycle: structuredClone(lifecycleContext),
+                      ...(transferFrom ? { transferFrom: structuredClone(transferFrom) } : {}),
+                    }
                   : {}),
               };
               original.current = command;
@@ -448,13 +477,19 @@ export function PostingProposalDecision({
                   disabled={save.isPending}
                   onClick={() => save.mutate({ command: retained, recover: true })}
                 >
-                  {retained.lifecycle ? "Recover or replay approval" : "Recover decision receipt"}
+                  {retained.transferFrom
+                    ? "Recover or replay transfer"
+                    : retained.lifecycle
+                      ? "Recover or replay approval"
+                      : "Recover decision receipt"}
                 </Button>
               </>
             ) : (
               <Button type="submit" disabled={!available || save.isPending}>
                 {action === "approve"
-                  ? "Approve proposal"
+                  ? transferFrom
+                    ? "Approve coordinated transfer"
+                    : "Approve proposal"
                   : action === "reject"
                     ? "Reject proposal"
                     : "Withdraw proposal"}

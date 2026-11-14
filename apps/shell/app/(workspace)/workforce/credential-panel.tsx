@@ -11,7 +11,9 @@ import {
   credentialReviewsPath,
   credentialsKey,
   credentialsPath,
+  credentialRequest,
   decideCredentialReview,
+  isEnrollmentAccessChanged,
   proposeCredentialReview,
   useApiMutation,
   useApiPagedQuery,
@@ -20,16 +22,18 @@ import {
   useStaffDocuments,
   withdrawCredentialReview,
   type CredentialReview,
+  type CredentialOwner,
   type CredentialReviewForm,
   type CredentialScope,
+  type DocumentScope,
   type EnrollmentRequestScope,
-  type Hospital,
-  type Staff,
+  type HospitalCredentialOwner,
+  type PharmacyCredentialOwner,
   type StaffCredential,
   type StaffCredentials,
 } from "@helivanta/api";
-import { Field, LoadMore, formatDateTime, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass } from "./roster-policy/policy-ui";
+import { Field, LoadMore, formatDateTime, useZodForm, RequestFailure } from "@helivanta/ui";
+import { inputClass } from "./roster-policy/policy-ui";
 
 type View = { kind: "propose" | "decide" | "withdraw" | "history"; credential: StaffCredential };
 const reviewStates: Record<CredentialReview["status"], string> = {
@@ -38,6 +42,17 @@ const reviewStates: Record<CredentialReview["status"], string> = {
   rejected: "Rejected",
   withdrawn: "Withdrawn",
 };
+
+export const credentialPlace = (owner: CredentialOwner) =>
+  owner.pharmacyId === undefined ? "hospital" : "pharmacy";
+
+// A pharmacy answer saying the account or Staff access changed ends the whole source (ADR-0054).
+export function useAccessChange(onContextChanged: (() => void) | undefined, ...errors: unknown[]) {
+  const changed = errors.some(isEnrollmentAccessChanged);
+  useEffect(() => {
+    if (changed) onContextChanged?.();
+  }, [changed, onContextChanged]);
+}
 
 export function standingText(status: StaffCredential["status"], days?: number) {
   const label = CREDENTIAL_STATUSES[status];
@@ -56,24 +71,39 @@ function failureText(error: Error) {
     : error.message;
 }
 
+type PanelOwner =
+  | { scope: HospitalCredentialOwner & { staffId: string }; account: EnrollmentRequestScope }
+  | { scope: PharmacyCredentialOwner & { staffId: string }; onContextChanged: () => void };
+
 export function StaffCredentialPanel({
-  hospital,
+  ownerName,
   staff,
-  account,
   onClose,
-}: {
-  hospital: Hospital;
-  staff: Staff;
-  account: EnrollmentRequestScope;
+  ...owner
+}: PanelOwner & {
+  ownerName: string;
+  staff: { display_name: string; employee_code: string };
   onClose: () => void;
 }) {
   const { can, subject } = usePermissions();
-  const scope = { hospitalId: hospital.id, staffId: staff.id };
+  const scope: CredentialScope = owner.scope;
+  const guard = "onContextChanged" in owner ? owner.onContextChanged : undefined;
+  const documents: DocumentScope =
+    "account" in owner
+      ? { ...owner.account, hospitalId: owner.scope.hospitalId, staffId: owner.scope.staffId }
+      : {
+          tenantId: owner.scope.tenantId,
+          subject: owner.scope.subject,
+          pharmacyId: owner.scope.pharmacyId,
+          staffId: owner.scope.staffId,
+        };
+  const place = credentialPlace(scope);
   const record = useApiQuery<StaffCredentials>(credentialsKey(scope), credentialsPath(scope), {
     gcTime: 0,
     refetchOnWindowFocus: false,
-    request: { cache: "no-store" },
+    request: credentialRequest(scope),
   });
+  useAccessChange(guard, record.error);
   const [view, setView] = useState<View | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
@@ -99,7 +129,7 @@ export function StaffCredentialPanel({
             Credential validity
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            {staff.display_name} · {staff.employee_code} · {hospital.name}
+            {staff.display_name} · {staff.employee_code} · {ownerName}
           </p>
         </div>
         <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close credential validity">
@@ -109,20 +139,26 @@ export function StaffCredentialPanel({
       <div className="space-y-4 p-6">
         <p className="max-w-2xl text-sm text-muted-foreground">
           A licence number or validity change takes effect only after a second person approves it
-          against scanned evidence. Status uses the hospital calendar, and the expiry day still
+          against scanned evidence. Status uses the {place} calendar, and the expiry day still
           counts as valid.
         </p>
         {record.isPending ? (
           <p role="status">Loading credentials…</p>
         ) : record.isError ? (
-          <Failure message="Could not load credentials." retry={() => void record.refetch()} />
+          <RequestFailure
+            message="Could not load credentials."
+            retry={() => void record.refetch()}
+            error={record.error}
+          />
         ) : (
           data && (
             <>
               <p className="text-xs text-muted-foreground">
                 {data.time_zone
                   ? `Today is ${data.local_date} in ${data.time_zone}.`
-                  : "Set the hospital time zone in roster settings to see whether credentials are in date."}
+                  : place === "hospital"
+                    ? "Set the hospital time zone in roster settings to see whether credentials are in date."
+                    : "Set this pharmacy's time zone in its credential register to see whether credentials are in date."}
               </p>
               {data.credentials.length === 0 ? (
                 <p className="rounded-xl border p-6 text-sm">
@@ -205,10 +241,10 @@ export function StaffCredentialPanel({
               )}
               {view?.kind === "propose" && (
                 <ProposeForm
-                  account={account}
-                  key={`${account.tenantId}:${account.subject}:${view.credential.id}`}
+                  key={`${documents.tenantId}:${documents.subject}:${view.credential.id}`}
                   scope={scope}
-                  hospital={hospital}
+                  documentScope={documents}
+                  guard={guard}
                   credential={view.credential}
                   documents={can("workforce.documents.manage")}
                   onClose={close}
@@ -218,6 +254,7 @@ export function StaffCredentialPanel({
                 <DecisionForm
                   key={view.credential.pending.id}
                   scope={scope}
+                  guard={guard}
                   credential={view.credential}
                   review={view.credential.pending}
                   onClose={close}
@@ -227,6 +264,7 @@ export function StaffCredentialPanel({
                 <WithdrawForm
                   key={view.credential.pending.id}
                   scope={scope}
+                  guard={guard}
                   credential={view.credential}
                   review={view.credential.pending}
                   onClose={close}
@@ -236,6 +274,7 @@ export function StaffCredentialPanel({
                 <History
                   key={view.credential.id}
                   scope={scope}
+                  guard={guard}
                   credential={view.credential}
                   onClose={close}
                 />
@@ -282,17 +321,17 @@ function Problem({ error }: { error: Error | null }) {
   ) : null;
 }
 
+type Guarded = { scope: CredentialScope; guard?: () => void };
+
 function ProposeForm({
   scope,
-  account,
-  hospital,
+  documentScope,
+  guard,
   credential,
   documents,
   onClose,
-}: {
-  scope: CredentialScope;
-  account: EnrollmentRequestScope;
-  hospital: Hospital;
+}: Guarded & {
+  documentScope: DocumentScope;
   credential: StaffCredential;
   documents: boolean;
   onClose: () => void;
@@ -321,6 +360,7 @@ function ProposeForm({
       onSuccess: onClose,
     },
   );
+  useAccessChange(guard, save.error);
   const errors = form.formState.errors;
   const chosen = form.watch("evidence_document_ids");
   const toggle = (id: string, on: boolean) =>
@@ -361,9 +401,8 @@ function ProposeForm({
         </fieldset>
         {documents ? (
           <EvidencePicker
-            account={account}
-            hospital={hospital}
-            scope={scope}
+            scope={documentScope}
+            guard={guard}
             credential={credential.id}
             chosen={chosen}
             toggle={toggle}
@@ -393,28 +432,23 @@ function ProposeForm({
 }
 
 function EvidencePicker({
-  account,
-  hospital,
   scope,
+  guard,
   credential,
   chosen,
   toggle,
   error,
 }: {
-  hospital: Hospital;
-  account: EnrollmentRequestScope;
-  scope: CredentialScope;
+  scope: DocumentScope;
+  guard?: () => void;
   credential: string;
   chosen: string[];
   toggle: (id: string, on: boolean) => void;
   error?: string;
 }) {
   const [cursor, setCursor] = useState<string | null>(null);
-  const files = useStaffDocuments(
-    { ...account, hospitalId: hospital.id, staffId: scope.staffId },
-    cursor,
-    !!account.tenantId && !!account.subject,
-  );
+  const files = useStaffDocuments(scope, cursor, !!scope.tenantId && !!scope.subject);
+  useAccessChange(guard, files.error);
   const options = citableEvidence(files.data?.data ?? [], credential);
   return (
     <fieldset
@@ -423,9 +457,10 @@ function EvidencePicker({
     >
       <legend className="text-sm font-medium">Evidence files</legend>
       {files.isError ? (
-        <Failure
+        <RequestFailure
           message="Could not load this credential's evidence."
           retry={() => void files.refetch()}
+          error={files.error}
         />
       ) : files.isPending ? (
         <p role="status" className="text-sm">
@@ -520,11 +555,11 @@ function Proposal({ review, current }: { review: CredentialReview; current: Staf
 
 function DecisionForm({
   scope,
+  guard,
   credential,
   review,
   onClose,
-}: {
-  scope: CredentialScope;
+}: Guarded & {
   credential: StaffCredential;
   review: CredentialReview;
   onClose: () => void;
@@ -544,6 +579,7 @@ function DecisionForm({
     });
   const approve = useApiMutation(post, settle("Credential approved"));
   const reject = useApiMutation(post, settle("Credential rejected"));
+  useAccessChange(guard, approve.error, reject.error);
   const busy = approve.isPending || reject.isPending;
   const submit = (decision: "approve" | "reject") => {
     form.setValue("decision", decision);
@@ -593,11 +629,11 @@ function DecisionForm({
 
 function WithdrawForm({
   scope,
+  guard,
   credential,
   review,
   onClose,
-}: {
-  scope: CredentialScope;
+}: Guarded & {
   credential: StaffCredential;
   review: CredentialReview;
   onClose: () => void;
@@ -612,6 +648,7 @@ function WithdrawForm({
       onSuccess: onClose,
     },
   );
+  useAccessChange(guard, withdraw.error);
   return (
     <Panel label={`Withdraw proposal for ${credential.type}`} onClose={onClose}>
       <Proposal review={review} current={credential} />
@@ -646,23 +683,28 @@ function WithdrawForm({
 
 function History({
   scope,
+  guard,
   credential,
   onClose,
-}: {
-  scope: CredentialScope;
+}: Guarded & {
   credential: StaffCredential;
   onClose: () => void;
 }) {
   const path = credentialReviewsPath(scope, credential.id);
   const history = useApiPagedQuery<CredentialReview>([...credentialsKey(scope), "history"], path, {
-    request: { cache: "no-store" },
+    request: credentialRequest(scope),
   });
+  useAccessChange(guard, history.error);
   return (
     <Panel label={`Review history for ${credential.type}`} onClose={onClose}>
       {history.isPending ? (
         <p role="status">Loading review history…</p>
       ) : history.isError ? (
-        <Failure message="Could not load review history." retry={history.retry} />
+        <RequestFailure
+          message="Could not load review history."
+          retry={history.retry}
+          error={history.error}
+        />
       ) : history.items.length === 0 ? (
         <p className="text-sm text-muted-foreground">No reviews recorded for this credential.</p>
       ) : (

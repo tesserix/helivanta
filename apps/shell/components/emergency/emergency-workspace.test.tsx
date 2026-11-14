@@ -131,7 +131,11 @@ it("fails closed on an unauthorised detail read and hides cached clinical data",
     ),
   );
   renderWithProviders(<EmergencyCaseDetailPanel baseID={base.id} caseID={record.id} />);
-  expect(await screen.findByRole("alert")).toHaveTextContent("Resource not found");
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "This wasn't found, or you don't have access to it.",
+  );
+  expect(screen.queryByText("Resource not found")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /retry|try again/i })).not.toBeInTheDocument();
   expect(screen.queryByText("EC-SYNTHETIC")).not.toBeInTheDocument();
 });
 
@@ -183,4 +187,54 @@ it("requires confirmation before revoking a grant and accepts an empty 204 respo
     ),
   );
   expect(await screen.findByText("Access revoked")).toBeInTheDocument();
+});
+
+it("shows refused operating bases as a refusal, without the server's text or a retry", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url: string) =>
+      Promise.resolve(
+        url.includes("permissions")
+          ? json({ data: ["emergency.base.read"] })
+          : json({ error: "forbidden", message: "secret detail" }, 403),
+      ),
+    ),
+  );
+  renderWithProviders(<EmergencyWorkspace />);
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "This wasn't found, or you don't have access to it.",
+  );
+  expect(screen.queryByText(/secret detail/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /retry|try again/i })).not.toBeInTheDocument();
+});
+
+it("withdraws an open base and its configuration once the bases re-read is refused", async () => {
+  let refused = false;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url: string) =>
+      Promise.resolve(
+        url.includes("permissions")
+          ? json({
+              data: ["emergency.base.read", "emergency.case.read", "emergency.base.manage"],
+            })
+          : refused && url.endsWith("/emergency/bases")
+            ? json({ error: "forbidden", message: "secret detail" }, 403)
+            : json(url.includes("/cases") ? page([record]) : page([base])),
+      ),
+    ),
+  );
+  const { user } = renderWithProviders(<EmergencyWorkspace />);
+  await user.click(await screen.findByRole("button", { name: "Configure Synthetic Odisha Base" }));
+  await user.click(screen.getByRole("button", { name: "Open Synthetic Odisha Base" }));
+  expect(await screen.findByRole("link", { name: "EC-SYNTHETIC" })).toBeInTheDocument();
+  expect(screen.getByDisplayValue("Synthetic Odisha Base")).toBeInTheDocument();
+  refused = true;
+  window.dispatchEvent(new Event("visibilitychange"));
+  expect(
+    await screen.findByText("This wasn't found, or you don't have access to it."),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Open Synthetic Odisha Base" })).toBeNull();
+  expect(screen.queryByRole("link", { name: "EC-SYNTHETIC" })).not.toBeInTheDocument();
+  expect(screen.queryByDisplayValue("Synthetic Odisha Base")).not.toBeInTheDocument();
 });

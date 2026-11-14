@@ -11,8 +11,8 @@ import {
   type Hospital,
   type LeaveRequest,
 } from "@helivanta/api";
-import { Field, PageHeading, SelectControl } from "@helivanta/ui";
-import { Failure } from "../roster-policy/policy-ui";
+import { Field, PageHeading, SelectControl, RequestFailure } from "@helivanta/ui";
+
 import { LeaveRequestForm } from "./request-form";
 import { LeaveRequestReview } from "./request-review";
 
@@ -45,7 +45,11 @@ export function LeaveRequestsWorkspace() {
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (
-        <Failure message="Could not load hospitals." retry={hospitals.retry} />
+        <RequestFailure
+          message="Could not load hospitals."
+          retry={hospitals.retry}
+          error={hospitals.error}
+        />
       ) : hospital ? (
         <RequestBoard key={hospital.id} hospital={hospital} />
       ) : (
@@ -133,7 +137,11 @@ function RequestBoard({ hospital }: { hospital: Hospital }) {
         </p>
       ) : requests.isError ? (
         <div className="p-5">
-          <Failure message="Could not load leave requests." retry={requests.retry} />
+          <RequestFailure
+            message="Could not load leave requests."
+            retry={requests.retry}
+            error={requests.error}
+          />
         </div>
       ) : requests.items.length === 0 ? (
         <p className="p-5 text-sm text-muted-foreground">

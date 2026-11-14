@@ -16,7 +16,9 @@ import (
 
 	"github.com/tesserix/helivanta/internal/modules/pharmacy" //nolint:depguard // external test importing its own module
 	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
@@ -30,6 +32,7 @@ type saleWorld struct {
 	db                   *tenantdb.DB
 	quarantine, sellable string
 	taxFrom              string
+	files                *attachments.GCS
 }
 
 // newSaleWorld is an outlet on 1 Nov 2026 (IST) with a quarantine and a
@@ -37,6 +40,9 @@ type saleWorld struct {
 func newSaleWorld(t *testing.T, ready bool) saleWorld {
 	t.Helper()
 	pharmacy.SetClock(t, func() time.Time { return time.Date(2026, 11, 1, 6, 30, 0, 0, time.UTC) })
+	cloud := testinfra.NewGCSProtocol(t)
+	files, err := attachments.NewGCS(cloud.Client, cloud.Quarantine, cloud.Released)
+	require.NoError(t, err)
 	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"editor": testutil.TenantA, "pharmacist": testutil.TenantA, "clerk": testutil.TenantA, "owner": testutil.TenantA, "stocker": testutil.TenantA, "rxreader": testutil.TenantA, "foreign": testutil.TenantB},
 		Perms: map[string][]authz.Permission{
@@ -49,13 +55,13 @@ func newSaleWorld(t *testing.T, ready bool) saleWorld {
 			// The owner's sale and catalogue reads, without prescriptions.
 			"owner":   {"pharmacy.catalogue.read", "pharmacy.sale.read", "pharmacy.tax.manage", "pharmacy.discount.manage"},
 			"foreign": salePerms,
-		}, Modules: []platform.Module{pharmacy.New()},
+		}, Modules: []platform.Module{pharmacy.New()}, Documents: files, PharmacyEvidenceEnabled: true,
 	})
 	seedPharmacyOutlet(t, r)
 	for _, s := range []string{"user-editor", "user-pharmacist", "user-clerk", "user-owner", "user-stocker", "user-rxreader"} {
 		grantCatalogue(t, r, s, "editor")
 	}
-	w := saleWorld{r: r, db: db, taxFrom: "2026-11-01", quarantine: uuid.Must(uuid.NewV7()).String(), sellable: uuid.Must(uuid.NewV7()).String()}
+	w := saleWorld{r: r, db: db, files: files, taxFrom: "2026-11-01", quarantine: uuid.Must(uuid.NewV7()).String(), sellable: uuid.Must(uuid.NewV7()).String()}
 	require.Equal(t, 200, do(r, "PUT", stockPath("locations/"+w.quarantine), "editor", `{"code":"TEST-Q","name":"TEST Quarantine"}`).Code)
 	require.Equal(t, 200, do(r, "PUT", stockPath("locations/"+w.sellable), "editor", `{"code":"TEST-SHELF","name":"TEST Shelf","stock_status":"sellable"}`).Code)
 	if ready {
@@ -70,6 +76,7 @@ func (w saleWorld) licence(t *testing.T) {
 	t.Helper()
 	id := uuid.Must(uuid.NewV7()).String()
 	require.Equal(t, http.StatusCreated, do(w.r, "PUT", licencePath("/licences/"+id), "editor", licenceBody("2026-01-01", "2030-12-31")).Code)
+	releaseLicenceEvidenceForTest(t, w.r, w.db, w.files, id, "editor")
 	require.Equal(t, http.StatusOK, do(w.r, "POST", licencePath("/licences/"+id+"/review"), "pharmacist", `{"decision":"approved","reason":"checked the original"}`).Code)
 }
 
@@ -426,6 +433,7 @@ func TestOnlyARetailLicenceInAStateSellsAtTheCounter(t *testing.T) {
 	id := uuid.Must(uuid.NewV7()).String()
 	wholesale := strings.Replace(licenceBody("2026-01-01", "2030-12-31"), `"retail"`, `"wholesale"`, 1)
 	require.Equal(t, http.StatusCreated, do(w.r, "PUT", licencePath("/licences/"+id), "editor", wholesale).Code)
+	releaseLicenceEvidenceForTest(t, w.r, w.db, w.files, id, "editor")
 	require.Equal(t, http.StatusOK, do(w.r, "POST", licencePath("/licences/"+id+"/review"), "pharmacist", `{"decision":"approved","reason":"checked"}`).Code)
 	w.profile(t, "TS")
 	res := do(w.r, "POST", registrationsPath(pharmaOutlet), "editor", registrationBody("04", "04ABCDE1234F1Z8", "2026-11-01", ""))

@@ -29,30 +29,32 @@ The proposed OpenAPI-first direction in #4 needs a migration decision. Preserve 
 
 ## Existing canonical inputs
 
-| Input under `contracts/`            | Scope / generator                                                                                                                                                                                             |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `organization-identity.json`        | Organization identity bindings; `generate-organization-identity.mjs`                                                                                                                                          |
-| `country-profiles.json`             | Country/tax vocabulary; `generate-country-profiles.mjs`                                                                                                                                                       |
-| `trading-policy.json`               | Reviewed policy requirements/access/versions; `generate-trading-policy.mjs`                                                                                                                                   |
-| `pharmacy.json`                     | Organization/outlet, catalogue, inventory, safety and accounts inputs; `generate-pharmacy-contract.mjs`                                                                                                       |
-| `supply.json`                       | Parties, licences, premises, access and operations inputs; `generate-supply-contract.mjs`                                                                                                                     |
-| `emergency-dispatch.json`           | Dispatch/receiving models, commands, states and capabilities; `generate-emergency-dispatch.mjs`                                                                                                               |
-| `workforce-enrollment.json`         | Staff enrollment; `generate-workforce-enrollment.mjs`                                                                                                                                                         |
-| `workforce-directory.json`          | Basic directory account/version projection metadata; `generate-workforce-directory.mjs`                                                                                                                       |
-| `workforce-roster-config.json`      | Versioned roster definition; `generate-workforce-roster-config.mjs`                                                                                                                                           |
-| `workforce-documents.json`          | Private staff file models; `generate-workforce-documents.mjs`                                                                                                                                                 |
-| `workforce-leave.json`              | Leave policies/requests/ledger and reviewer scope discovery; `generate-workforce-leave.mjs`                                                                                                                   |
-| `workforce-duty.json`               | Duty exchanges; `generate-workforce-duty.mjs`                                                                                                                                                                 |
-| `workforce-overtime.json`           | Overtime configuration and decisions; `generate-workforce-overtime.mjs`                                                                                                                                       |
-| `workforce-attendance.json`         | Punches/corrections/periods/timesheets; `generate-workforce-attendance.mjs`                                                                                                                                   |
-| `workforce-payroll.json`            | Payroll configuration and review inputs; `generate-workforce-payroll.mjs`                                                                                                                                     |
-| `workforce-credentials.json`        | Credential reviews/reminders; `generate-workforce-credentials.mjs`                                                                                                                                            |
-| `workforce-benefits.json`           | Dependents/benefits proposals and decisions; `generate-workforce-benefits.mjs`                                                                                                                                |
-| `workforce-login-links.json`        | Reviewed staff/account binding commands and history; `generate-workforce-login-links.mjs`                                                                                                                     |
-| `workforce-identity-checks.json`    | Workforce identity source/projection, employment generation, draft commands/receipts and scoped permission identifiers; `generate-workforce-identity.mjs` generates shared Go/Zod models                      |
-| `workforce-employment-periods.json` | Private appointment/contract draft source, commands and immutable revisions; `generate-workforce-employment-periods.mjs` generates Go/Zod models                                                              |
-| `workforce-employment-reviews.json` | Scoped immutable employment submissions, independent decisions/endings, current capabilities and source/evidence receipts; `generate-workforce-employment-reviews.mjs` generates Go/Zod models                |
-| `staff-access.json`                 | IAM assignment proposals, decisions/history, owner verification and projection-request events; `generate-staff-access.mjs` generates IAM-owned Go HTTP models, shared Zod and public owner event declarations |
+| Input under `contracts/`            | Scope / generator                                                                                                                                                                                                      |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `organization-identity.json`        | Organization identity bindings; `generate-organization-identity.mjs`                                                                                                                                                   |
+| `country-profiles.json`             | Country/tax vocabulary; `generate-country-profiles.mjs`                                                                                                                                                                |
+| `trading-policy.json`               | Reviewed policy requirements/access/versions; `generate-trading-policy.mjs`                                                                                                                                            |
+| `pharmacy.json`                     | Organization/outlet, catalogue, inventory, safety and accounts inputs; `generate-pharmacy-contract.mjs`                                                                                                                |
+| `supply.json`                       | Parties, licences, premises, access and operations inputs; `generate-supply-contract.mjs`                                                                                                                              |
+| `emergency-dispatch.json`           | Dispatch/receiving models, commands, states and capabilities; `generate-emergency-dispatch.mjs`                                                                                                                        |
+| `workforce-enrollment.json`         | Staff enrollment; `generate-workforce-enrollment.mjs`                                                                                                                                                                  |
+| `workforce-directory.json`          | Basic directory account/version projection metadata; `generate-workforce-directory.mjs`                                                                                                                                |
+| `workforce-roster-config.json`      | Versioned roster definition; `generate-workforce-roster-config.mjs`                                                                                                                                                    |
+| `workforce-documents.json`          | Private staff file models; `generate-workforce-documents.mjs`                                                                                                                                                          |
+| `workforce-leave.json`              | Leave policies/requests/ledger and reviewer scope discovery; `generate-workforce-leave.mjs`                                                                                                                            |
+| `workforce-duty.json`               | Duty exchanges; `generate-workforce-duty.mjs`                                                                                                                                                                          |
+| `workforce-overtime.json`           | Overtime configuration and decisions; `generate-workforce-overtime.mjs`                                                                                                                                                |
+| `workforce-attendance.json`         | Punches/corrections/periods/timesheets; `generate-workforce-attendance.mjs`                                                                                                                                            |
+| `workforce-payroll.json`            | Payroll configuration and review inputs; `generate-workforce-payroll.mjs`                                                                                                                                              |
+| `workforce-credentials.json`        | Credential reviews/reminders; `generate-workforce-credentials.mjs`                                                                                                                                                     |
+| `workforce-benefits.json`           | Dependents/benefits proposals and decisions; `generate-workforce-benefits.mjs`                                                                                                                                         |
+| `workforce-login-links.json`        | Reviewed staff/account binding commands and history; `generate-workforce-login-links.mjs`                                                                                                                              |
+| `workforce-identity-checks.json`    | Workforce identity source/projection, employment generation, draft commands/receipts and scoped permission identifiers; `generate-workforce-identity.mjs` generates shared Go/Zod models                               |
+| `workforce-employment-periods.json` | Private appointment/contract draft source, commands and immutable revisions; `generate-workforce-employment-periods.mjs` generates Go/Zod models                                                                       |
+| `workforce-employment-reviews.json` | Scoped immutable employment submissions, independent decisions/endings, current capabilities and source/evidence receipts; `generate-workforce-employment-reviews.mjs` generates Go/Zod models                         |
+| `workforce-establishments.json`     | Standalone pharmacy employer registration (ADR-0054); `generate-workforce-establishments.mjs` generates Go/Zod models and supports `--check`                                                                           |
+| `staff-access.json`                 | IAM assignment proposals, decisions/history, owner verification and projection-request events; `generate-staff-access.mjs` generates IAM-owned Go HTTP models, shared Zod and public owner event declarations          |
+| `partner-groups.json`               | Hospital-published partner groups, direct Staff membership/candidate/decision models and identifier-only source/change events; `generate-partner-groups.mjs` generates IAM Go, shared Zod and owner event declarations |
 
 `organization-structure.json` owns the unreleased hospital-registration HTTP
 models and organization/Workforce reference events. Run
@@ -60,14 +62,16 @@ models and organization/Workforce reference events. Run
 Go and Zod outputs. The non-null `exists` boolean must be explicitly present on
 the wire; the consumer rejects omission, null and non-boolean values. Canonical models also cover versioned hospital heads, department commands and
 retained snapshots, and the identifier-only department revision event. Workforce
-effective postings remain a separate unfinished owner contract.
+effective postings use their separate owner contract below.
 
-`workforce-postings.json` owns the local non-operating preparation draft inputs,
-receipts and identifier-only change event. Run
+`workforce-postings.json` owns the local preparation, proposal/review, retained cutoff,
+current department-team observation and paired transfer models, and identifier-only
+posting events. Run
 `node scripts/generate-workforce-postings.mjs` and `--check` for Go/Zod outputs.
 The generator also supplies the shared microsecond instant comparison and draft
 validation used by SDK receipts. See the [candidate contract](workforce-postings.md)
-for exact scope, retry, source binding and unfinished UI/lifecycle gates.
+for exact scope, retry, source binding, implemented local consumer gates and remaining
+review/release boundaries.
 
 Staff access definitions live in `staff-access.json.template_migrations`, an
 ordered canonical history. Each entry records its IAM migration ID, safe generated
@@ -143,3 +147,49 @@ with `node scripts/generate-workforce-staff-actors.mjs` and `--check`. Its only
 fields are hospital ID and current hospital name; it grants no Staff directory
 or operating access. Pharmacy outlet-choice metadata belongs to the existing
 `pharmacy-staff-bindings.json` contract and generator.
+
+## Independent supplier workflow candidate
+
+- `contracts/stock-products.json` → `node scripts/generate-stock-products.mjs`: published owner stock-reference models.
+- `contracts/supply-stock.json` → `node scripts/generate-supply-stock.mjs`: quarantined physical receipts and append-only identity observations.
+- `contracts/workforce-establishments.json` → `node scripts/generate-workforce-establishments.mjs`: typed pharmacy/supplier employer and private directory models, with supplier fields derived from the existing canonical directory definition.
+- `contracts/workforce-independent-identity.json` → `node scripts/generate-workforce-independent-identity.mjs`: reviewed independent identity envelopes; common account-link fields/statuses derive from the hospital-neutral definitions in `workforce-login-links.json`.
+
+All commands support `--check`. These candidates do not complete or activate supplier collaboration; see [the current identity boundary](workforce-independent-identity.md) and [stock contract](supply-stock.md).
+
+- `contracts/operating-assignments.json` → `node scripts/generate-operating-assignments.mjs`: typed independent operating duties, immutable decisions and closed receiving templates. Generates Go/Zod and the matching SQL permission function; supports `--check`.
+
+- `contracts/supplier-trade.json` → `node scripts/generate-supplier-trade.mjs`: shared source/consent wire models, pharmacy scope input validation and the directed relationship contract. Categories derive from trading-policy; supports `--check`.
+
+Supplier access is separately canonical in `contracts/supplier-access.json` (Shared IAM consent and closed record permissions). Run `node scripts/generate-supplier-access.mjs` and `--check`; it emits `backend/pkg/supplieraccess/types_generated.go`, the data-only IAM event DTO and `packages/api/src/supplier-access-contract.ts`. Hospital capability templates remain in the immutable `contracts/staff-access.json` migration history and use `generate-staff-access.mjs`.
+
+Operating-duty template expansions preserve the original SQL in
+`backend/internal/modules/iam/operating_templates_v1.sql`; the generator's
+current `CREATE OR REPLACE` function applies through additive IAM migration 0041.
+Supply-stock quality and inspection models remain in `supply-stock.json` and its
+existing generator. Do not edit generated Go/Zod models or the v1 SQL snapshot.
+
+Supplier-order models and source product-version shapes are canonical in
+`contracts/supplier-orders.json`; `scripts/generate-supplier-orders.mjs` emits
+core Go/Zod models and the SupplyConnect data-only event DTOs. The schema
+collector consumes the generated local event structs, not imported aliases.
+Private local Staff/department references are absent from the directed event.
+The current operating-duty SQL applies through IAM 0043; the exact prior 0041
+bytes are retained as `operating_templates_v2.sql`.
+
+Pharmacy's acquisition-finance projection and immutable bill receipt metadata are
+canonical in `contracts/pharmacy-accounts.json`; run
+`node scripts/generate-pharmacy-accounts.mjs` and `--check`. The generator emits
+owner Go and strict SDK Zod models. Existing bill input fields remain canonical
+in `contracts/pharmacy.json`; the SDK composes those inputs with generated receipt
+metadata rather than creating another payable model. See the supplier acquisition
+handoff in [PharmaConnect](domains/pharmacy.md).
+
+## Staff identity owner consumer contracts
+
+Staff initiation and recipient setup consume onboarding-service staffcontract Go
+models and its generated Zod package directly. Its checked dependency pins are in
+backend/go.mod and packages/api/package.json. The identity owner's staff-contracts
+generator is canonical; HMS does not maintain another JSON/Go/Zod copy. See
+[protected initiation](staff-account-initiation.md) and
+[recipient setup](staff-recipient-setup.md) for validation and acceptance limits.

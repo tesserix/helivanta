@@ -21,6 +21,7 @@ import (
 
 	"github.com/tesserix/helivanta/internal/bootstrap"
 	"github.com/tesserix/helivanta/internal/config"
+	"github.com/tesserix/helivanta/internal/customeronboarding"
 	"github.com/tesserix/helivanta/internal/httpserver"
 	"github.com/tesserix/helivanta/internal/mediconnectclaims"
 	"github.com/tesserix/helivanta/internal/modules/billing"
@@ -31,6 +32,8 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/patientmaster"
 	"github.com/tesserix/helivanta/internal/modules/payments"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
+	"github.com/tesserix/helivanta/internal/modules/supply"
+	"github.com/tesserix/helivanta/internal/modules/workforce"
 	"github.com/tesserix/helivanta/internal/modules/workspace"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
@@ -39,8 +42,10 @@ import (
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/logging"
+	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/ratelimit"
 	"github.com/tesserix/helivanta/pkg/session"
+	"github.com/tesserix/helivanta/pkg/suppliertrade"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"github.com/tesserix/helivanta/pkg/transit"
 	"github.com/tesserix/helivanta/pkg/workloadidentity"
@@ -397,10 +402,29 @@ func run() error {
 		return errors.New("invalid MediConnect current claim owner configuration")
 	}
 	scopedAuthorizer := iam.NewScopedAuthorizer(db, fga)
+	sourceChecks, sourceCaller, err := supplierTradeSourceIdentity()
+	if err != nil {
+		return err
+	}
+	stockProducts := platform.StockProducts(registry.All(), db)
 	deps := platform.Deps{
+		SourceChecks:                sourceChecks,
+		SourceAdministration:        iam.NewSourceAdministrationGuard(db, fga),
+		OperatingAuthorizer:         iam.NewOperatingAuthorizer(db, fga, platform.IndependentStaffIdentities(registry.All(), db), platform.OperatingLocations(registry.All(), db)),
+		IndependentStaff:            platform.IndependentStaffIdentities(registry.All(), db),
+		OperatingLocations:          platform.OperatingLocations(registry.All(), db),
+		TradingEndpoints:            platform.TradingEndpoints(registry.All(), db, platform.DepartmentReferences(registry.All(), db)),
+		Membership:                  currentAuthorization,
 		StaffActors:                 platform.StaffActors(registry.All(), db),
+		PurchaseOrderActors:         platform.PurchaseOrderActors(registry.All(), db),
+		StockProducts:               stockProducts,
+		OrderProducts:               platform.OrderProducts(registry.All(), db, stockProducts),
 		StaffPostingSources:         platform.StaffPostingSources(registry.All(), db),
+		PartnerMembers:              platform.PartnerMembers(registry.All(), db),
 		DepartmentReferences:        platform.DepartmentReferences(registry.All(), db),
+		PharmacyEmployers:           platform.PharmacyEmployers(registry.All(), db),
+		SupplierEmployers:           platform.SupplierEmployers(registry.All(), db),
+		DepartmentScopes:            platform.DepartmentScopes(registry.All(), db),
 		ScopedAuthorizer:            scopedAuthorizer,
 		EmploymentActivationEnabled: cfg.EmploymentActivationEnabled,
 		ProxyClinicalCaptureEnabled: cfg.ProxyClinicalCaptureEnabled,
@@ -410,7 +434,8 @@ func run() error {
 		PharmacyEvidenceEnabled:     cfg.PharmacyEvidenceEnabled,
 		EmergencyWorkflowsEnabled:   cfg.EmergencyWorkflowsEnabled,
 		PrivacyDeadlinesEnabled:     cfg.PrivacyDeadlinesEnabled,
-		OrganizationIdentity:        identityClient,
+		OrganizationIdentity:        identityClient.proof,
+		StaffAccounts:               identityClient.staff,
 		Documents:                   documents,
 		Transit:                     vault,
 		PaymentsProviderURL:         cfg.RazorpayAPIURL,
@@ -436,6 +461,18 @@ func run() error {
 		IdleTimeout: idleTimeout,
 	}
 
+	deps.TradingRelationships = supply.NewRelationshipAuthority(db, deps.TradingEndpoints, sourceChecks, deps.OrganizationIdentity)
+	deps.FulfilmentOrders = platform.FulfilmentOrders(registry.All(), deps)
+	deps.ReceivingAuthority = platform.ReceivingAuthority(registry.All(), deps)
+	deps.SupplierShipmentSafety = platform.SupplierShipmentSafety(registry.All(), deps)
+	deps.HospitalSourceAuthority = platform.HospitalSourceAuthority(registry.All(), deps)
+	deps.SupplierStockCancellation = platform.SupplierStockCancellation(registry.All(), deps)
+	deps.PartnerScopes = iam.NewPartnerScopeAuthorizer(deps)
+
+	if sourceCaller != nil {
+		srv.Engine.POST(suppliertrade.SourceCheckPath, supply.NewTradingSourceCheckHandler(deps, sourceCaller))
+		srv.Engine.POST(suppliertrade.RelationshipCheckPath, supply.NewRelationshipCheckHandler(deps, sourceCaller))
+	}
 	if os.Getenv("MEDICONNECT_CLAIM_VERIFICATION_ENABLED") == "true" {
 		account := os.Getenv("MEDICONNECT_CLAIM_CALLER")
 		if account == "" {
@@ -462,6 +499,7 @@ func run() error {
 			return err
 		}
 		srv.Engine.POST("/internal/v1/hospital-enrolments", iam.NewOnboardingHandler(deps, caller))
+		srv.Engine.POST("/internal/v1/customer-workspaces", customeronboarding.NewWorkspaceHandler(caller, iam.NewCustomerWorkspaceAuthority(deps), workforce.NewCustomerWorkspaceInitializer(deps), pharmacy.NewCustomerWorkspaceInitializer(deps)))
 	}
 
 	// The chain itself lives in bootstrap.V1Chain, not inline here, so
@@ -494,11 +532,16 @@ func run() error {
 	} else {
 		limiter = ratelimit.NewMemory(10_000)
 	}
+	// Filtered list cursors derive their own key from the session seed, so rotating it also retires outstanding cursors.
+	cursorSealer, err := pagination.NewSealer(sessionSeed)
+	if err != nil {
+		return err
+	}
 	api := platform.NewRouter(
 		srv.Engine.Group("/v1", bootstrap.V1Chain(requestVerifier, revocationChecker, limiter, cfg, currentAuthorization,
 			iam.NewIdentityGuard(db, bus, revocationChecker, zitadelLoginClient))...),
 		currentAuthorization,
-	).WithScopedAuthorizer(scopedAuthorizer)
+	).WithScopedAuthorizer(scopedAuthorizer).WithCursorSealer(cursorSealer)
 
 	// POST /v1/auth/login is mounted directly on the raw engine — NOT
 	// through `api`/bootstrap.V1Chain above — because it is the endpoint
@@ -580,6 +623,7 @@ func run() error {
 	// the Rule but not the bucket (iam's enrollRateBucket).
 	loginUIHandlers := iam.NewLoginUIHandlers(zitadelLoginClient, db,
 		limiter, bootstrap.LoginRateLimitRule(cfg), bootstrap.FactorRateLimitRule(cfg))
+	loginUIHandlers.SetNativeWebClientID(cfg.ZitadelClientID)
 
 	// Mounted through bootstrap so the bypass is declared in one
 	// enumerable place and pinned by
@@ -593,7 +637,28 @@ func run() error {
 		loginUIHandlers.AuthRequest, loginUIHandlers.Password, loginUIHandlers.Factor,
 		loginUIHandlers.Enroll, loginUIHandlers.PasswordChange, workspace.PublicHandler(db, limiter), payments.Webhook(deps, limiter))
 
+	signupHandlers, err := customeronboarding.New("http://onboarding-api.onboarding.svc.cluster.local:8080", "/var/run/customer-onboarding/token", "https://helivanta.app")
+	if err != nil {
+		return err
+	}
+	zitadelLoginClient.SetTenantUserResolver(signupHandlers)
+	zitadelLoginClient.SetTenantIdentityResolver(signupHandlers)
+	if enabled := os.Getenv("HELIVANTA_IDENTITY_FIXTURE"); enabled != "" {
+		resolver, fixtureErr := customeronboarding.NewLocalIdentityResolver(cfg.Env, cfg.ZitadelIssuerURL, enabled)
+		if fixtureErr != nil {
+			return fixtureErr
+		}
+		zitadelLoginClient.SetTenantUserResolver(resolver)
+		zitadelLoginClient.SetTenantIdentityResolver(resolver)
+	}
+	bootstrap.MountAccountDiscovery(srv.Engine, signupHandlers.DiscoverAccounts, signupHandlers.VerifyAccounts, signupHandlers.AccountChoices)
+	bootstrap.MountStaffSetup(srv.Engine, signupHandlers.StaffSetup(customeronboarding.StaffSetupDeps{Limiter: limiter, Limit: ratelimit.Rule{Rate: 20, Burst: 10, Per: time.Minute}}))
+	bootstrap.MountCustomerSignup(srv.Engine, signupHandlers.Start, signupHandlers.Status, signupHandlers.VerifyEmail, signupHandlers.Password, signupHandlers.EmailLink, signupHandlers.PasswordLink, signupHandlers.Signin(customeronboarding.SigninDeps{Tokens: zitadelVerifier, Revocations: revocationChecker, Limiter: limiter, Limit: bootstrap.LoginRateLimitRule(cfg)}), signupHandlers.NewReceipt)
+
 	for _, m := range registry.All() {
+		if owner, ok := m.(*iam.Module); ok {
+			owner.SetOwnerSecurityClient(customeronboarding.NewSecurityClient())
+		}
 		m.Routes(api, deps)
 		if err := bus.StartConsumers(ctx, db, m.Consumers(deps)); err != nil {
 			return err
@@ -608,6 +673,8 @@ func run() error {
 	// #1416: re-send affiliation steps the other side has not confirmed;
 	// the bus dead-letters after five failures and nothing replays them.
 	go pharmacy.RunAffiliationRedelivery(ctx, deps)
+	// #1637: announces each hospital name version once for the pharmacy counter pickers.
+	go workforce.RunHospitalNameAnnouncer(ctx, deps)
 	go patientmaster.RunPharmacyAffiliationRedelivery(ctx, deps)
 	// #197: counts each midnight a patient spends in a bed, and applies new
 	// bed-charging setup to the stays it affects.

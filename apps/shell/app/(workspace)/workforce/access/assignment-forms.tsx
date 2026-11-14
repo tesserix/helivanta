@@ -3,11 +3,19 @@
 import { useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
-import { Field, FormSelectField, useZodForm } from "@helivanta/ui";
+import {
+  Field,
+  FormSelectField,
+  useZodForm,
+  type UseFormReturn,
+  RequestFailure,
+} from "@helivanta/ui";
+import { useNow } from "@/lib/use-now";
 import {
   ApiError,
   useApiMutation,
   useApiQuery,
+  useOrganizationDepartments,
   newStaffAssignmentId,
   proposeStaffAssignment,
   decideStaffAssignment,
@@ -52,10 +60,14 @@ const proposalForm = z
       .trim()
       .min(1, "Enter a reason.")
       .pipe(staffAssignmentInputContract.shape.reason),
+    applies_to: z.enum(["hospital", "department"]),
+    department_id: z.string(),
     valid_from: dateTime,
     expires_at: dateTime,
   })
   .superRefine((value, ctx) => {
+    if (value.applies_to === "department" && !value.department_id)
+      ctx.addIssue({ code: "custom", path: ["department_id"], message: "Choose a department." });
     const duration = Date.parse(value.expires_at) - Date.parse(value.valid_from);
     if (duration <= 0 || duration > 366 * 86400000)
       ctx.addIssue({
@@ -68,6 +80,7 @@ const proposalForm = z
   });
 
 type FormProps = { scope: StaffAssignmentScope; onClose: () => void; onSaved: () => void };
+type AppliesTo = StaffAssignment["scope_kind"];
 export function AssignmentProposalForm({
   scope,
   onClose,
@@ -93,11 +106,22 @@ export function AssignmentProposalForm({
     },
   );
   const renewalPrefix = renewal ? `Renewal of ${renewal.id} v${renewal.version}: ` : "";
+  // Only templates the verified catalog confirms for the chosen scope are offered.
+  const offered = (kind: AppliesTo) =>
+    staffAccessTemplates.filter(
+      (template) =>
+        template.family === family &&
+        templateKeys.includes(template.key) &&
+        (template.scope_kinds as readonly AppliesTo[]).includes(kind),
+    );
+  const departmentCapable = offered("department").length > 0;
   const [defaults] = useState(() => ({
     hospital_id: renewal?.input.hospital_id ?? "",
     template_key:
       renewal?.input.template_key ??
       staffAccessTemplates.find((template) => template.family === family)!.key,
+    applies_to: renewal?.scope_kind ?? ("hospital" as AppliesTo),
+    department_id: renewal?.input.department_id ?? "",
     subject: renewal?.input.subject ?? "",
     reason: "",
     valid_from: renewal ? "" : localTime(new Date()),
@@ -105,6 +129,13 @@ export function AssignmentProposalForm({
   }));
   const form = useZodForm(
     proposalForm.superRefine((value, ctx) => {
+      const template = staffAccessTemplates.find((row) => row.key === value.template_key);
+      if (template && !(template.scope_kinds as readonly AppliesTo[]).includes(value.applies_to))
+        ctx.addIssue({
+          code: "custom",
+          path: ["template_key"],
+          message: "Choose a template that allows this scope.",
+        });
       if (!templateKeys.includes(value.template_key))
         ctx.addIssue({
           code: "custom",
@@ -132,6 +163,8 @@ export function AssignmentProposalForm({
     submitted?.template_key ?? form.watch("template_key"),
   );
   const managers = hospitals.data?.data.filter((h) => h.access_level === "manager") ?? [];
+  const appliesTo = form.watch("applies_to");
+  const hospitalId = form.watch("hospital_id");
   return (
     <form
       aria-label={renewal ? "Renew assignment" : "Propose assignment"}
@@ -139,9 +172,11 @@ export function AssignmentProposalForm({
       className="space-y-4 border-t border-border pt-4"
       onSubmit={form.handleSubmit((values) => {
         const command = submitted ?? {
-          ...values,
+          hospital_id: values.hospital_id,
+          ...(values.applies_to === "department" ? { department_id: values.department_id } : {}),
+          template_key: values.template_key,
+          subject: values.subject,
           reason: renewalPrefix + values.reason,
-
           valid_from: new Date(values.valid_from).toISOString(),
           expires_at: new Date(values.expires_at).toISOString(),
         };
@@ -165,27 +200,53 @@ export function AssignmentProposalForm({
           reason. Previous assignment: {renewal.id}, version {renewal.version}.
         </p>
       )}
+      {departmentCapable && !renewal && (
+        <FormSelectField
+          control={form.control}
+          name="applies_to"
+          id="assignment-applies-to"
+          label="Applies to"
+          disabled={!!submitted}
+          options={[
+            { value: "hospital", label: "Whole hospital" },
+            { value: "department", label: "One department and its sub-units" },
+          ]}
+          onValueChange={(value) => {
+            const choices = offered(value as AppliesTo);
+            if (!choices.some((template) => template.key === form.getValues("template_key")))
+              form.setValue("template_key", choices[0]?.key ?? "");
+            form.setValue("department_id", "");
+          }}
+        />
+      )}
       <FormSelectField
         control={form.control}
         name="template_key"
         id="assignment-template"
         label="Access template"
         disabled={!!submitted || !!renewal}
-        options={staffAccessTemplates
-          .filter((template) => template.family === family && templateKeys.includes(template.key))
-          .map((template) => ({ value: template.key, label: template.name }))}
+        options={(renewal
+          ? staffAccessTemplates.filter((template) => template.key === renewal.input.template_key)
+          : offered(appliesTo)
+        ).map((template) => ({ value: template.key, label: template.name }))}
       />
       {renewal ? (
-        <p className="break-all">Hospital: {renewal.input.hospital_id}</p>
+        <>
+          <p className="break-all">Hospital: {renewal.input.hospital_id}</p>
+          {renewal.input.department_id && (
+            <p className="break-all">
+              Applies to: department {renewal.input.department_id} and its current sub-units
+            </p>
+          )}
+        </>
       ) : hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (
-        <p role="alert">
-          Could not load hospitals.{" "}
-          <Button type="button" onClick={() => void hospitals.refetch()}>
-            Retry hospitals
-          </Button>
-        </p>
+        <RequestFailure
+          message="Could not load hospitals."
+          retry={hospitals.refetch}
+          error={hospitals.error}
+        />
       ) : (
         <>
           {!managers.length && (
@@ -200,6 +261,7 @@ export function AssignmentProposalForm({
             id="assignment-hospital"
             label="Hospital"
             disabled={!!submitted}
+            onValueChange={() => form.setValue("department_id", "")}
             options={[
               { value: "", label: "Choose a hospital" },
               ...managers.map((h) => ({ value: h.id, label: h.name })),
@@ -227,6 +289,18 @@ export function AssignmentProposalForm({
               </Button>
             )}
           </div>
+          {appliesTo === "department" &&
+            (hospitalId ? (
+              <AssignmentDepartmentField
+                key={hospitalId}
+                scope={scope}
+                hospital={hospitalId}
+                control={form.control}
+                disabled={!!submitted}
+              />
+            ) : (
+              <p>Choose a hospital before choosing its department.</p>
+            ))}
         </>
       )}
       <Field
@@ -317,6 +391,84 @@ export function AssignmentProposalForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+function AssignmentDepartmentField({
+  scope,
+  hospital,
+  control,
+  disabled,
+}: {
+  scope: StaffAssignmentScope;
+  hospital: string;
+  control: UseFormReturn<
+    z.input<typeof proposalForm>,
+    unknown,
+    z.output<typeof proposalForm>
+  >["control"];
+  disabled: boolean;
+}) {
+  const [cursor, setCursor] = useState<string | null>(null);
+  const departments = useOrganizationDepartments(scope, hospital, cursor);
+  const now = useNow();
+  if (departments.isPending) return <p role="status">Loading departments…</p>;
+  if (departments.error instanceof ApiError && departments.error.status === 403)
+    return (
+      <p role="alert">
+        You cannot read this hospital&apos;s departments. Ask a tenant administrator for hospital
+        structure access.
+      </p>
+    );
+  if (departments.isError)
+    return (
+      <RequestFailure
+        message="Could not load departments."
+        retry={departments.refetch}
+        error={departments.error}
+      />
+    );
+  // Organization verifies the department again before review; retired or scheduled nodes are never offered.
+  const active = departments.data.data.filter(
+    (row) => row.status === "active" && Date.parse(row.effective_at) <= now,
+  );
+  return (
+    <>
+      <FormSelectField
+        control={control}
+        name="department_id"
+        id="assignment-department"
+        label="Department"
+        disabled={disabled}
+        options={[
+          { value: "", label: "Choose a department" },
+          ...active.map((row) => ({ value: row.id, label: row.name })),
+        ]}
+      />
+      <p>The assignment also covers the department&apos;s current sub-units.</p>
+      <div className="flex flex-wrap gap-2">
+        {departments.data.page.has_more && (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={disabled}
+            onClick={() => setCursor(departments.data.page.next_cursor)}
+          >
+            More departments
+          </Button>
+        )}
+        {cursor && (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={disabled}
+            onClick={() => setCursor(null)}
+          >
+            First departments
+          </Button>
+        )}
+      </div>
+    </>
   );
 }
 

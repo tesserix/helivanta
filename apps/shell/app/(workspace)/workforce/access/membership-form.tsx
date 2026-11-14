@@ -1,9 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
-import { Field, Panel, LoadMore, formatDateTime, useZodForm, useLeaveGuard } from "@helivanta/ui";
+import {
+  Field,
+  Panel,
+  LoadMore,
+  formatDateTime,
+  useZodForm,
+  useLeaveGuard,
+  RefreshButton,
+  RequestFailure,
+} from "@helivanta/ui";
 import {
   ApiError,
   enrollStaffMember,
@@ -22,12 +31,25 @@ const schema = staffMembershipInputContract.safeExtend({
     .refine((value) => value, { message: "Acknowledge the membership consequence." }),
 });
 type Command = { id: string; input: StaffMembershipInput };
-export function StaffMembershipForm({ scope }: { scope: StaffAssignmentScope }) {
-  const form = useZodForm(schema, { subject: "", reason: "", acknowledged: false });
+export function StaffMembershipForm({
+  scope,
+  initialSubject = "",
+  onEnrolled,
+}: {
+  scope: StaffAssignmentScope;
+  initialSubject?: string;
+  onEnrolled?: (subject: string) => void;
+}) {
+  const prefix = useId();
+  const form = useZodForm(schema, { subject: initialSubject, reason: "", acknowledged: false });
   const [submitted, setSubmitted] = useState<Command | null>(null);
   const save = useApiMutation(
     (command: Command) => enrollStaffMember(scope, command.id, command.input),
-    { suppressErrorToast: true, invalidate: [membershipsKey(scope)] },
+    {
+      suppressErrorToast: true,
+      invalidate: [membershipsKey(scope)],
+      onSuccess: (receipt) => onEnrolled?.(receipt.subject),
+    },
   );
   const refused =
     save.error instanceof ApiError && [400, 401, 403, 404, 409].includes(save.error.status);
@@ -58,16 +80,18 @@ export function StaffMembershipForm({ scope }: { scope: StaffAssignmentScope }) 
             Access synchronization may still be pending. This does not activate hospital access or
             verify a Staff person's identity.
           </p>
-          <Button
-            variant="outline"
-            onClick={() => {
-              save.reset();
-              setSubmitted(null);
-              form.reset();
-            }}
-          >
-            Enroll another account
-          </Button>
+          {!initialSubject && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                save.reset();
+                setSubmitted(null);
+                form.reset();
+              }}
+            >
+              Enroll another account
+            </Button>
+          )}
         </>
       ) : (
         <form
@@ -85,32 +109,34 @@ export function StaffMembershipForm({ scope }: { scope: StaffAssignmentScope }) 
         >
           <div className="grid gap-4 md:grid-cols-2">
             <Field
-              id="membership-subject"
+              id={`${prefix}-membership-subject`}
               label="Existing account ID"
               error={form.formState.errors.subject?.message}
             >
               <Input
-                id="membership-subject"
+                id={`${prefix}-membership-subject`}
                 autoComplete="off"
-                disabled={submitted !== null}
+                disabled={submitted !== null || !!initialSubject}
                 aria-invalid={!!form.formState.errors.subject}
                 aria-describedby={
-                  form.formState.errors.subject ? "membership-subject-error" : undefined
+                  form.formState.errors.subject ? `${prefix}-membership-subject-error` : undefined
                 }
                 {...form.register("subject")}
               />
             </Field>
             <Field
-              id="membership-enrollment-reason"
+              id={`${prefix}-membership-enrollment-reason`}
               label="Enrollment reason"
               error={form.formState.errors.reason?.message}
             >
               <Input
-                id="membership-enrollment-reason"
+                id={`${prefix}-membership-enrollment-reason`}
                 disabled={submitted !== null}
                 aria-invalid={!!form.formState.errors.reason}
                 aria-describedby={
-                  form.formState.errors.reason ? "membership-enrollment-reason-error" : undefined
+                  form.formState.errors.reason
+                    ? `${prefix}-membership-enrollment-reason-error`
+                    : undefined
                 }
                 {...form.register("reason")}
               />
@@ -121,12 +147,12 @@ export function StaffMembershipForm({ scope }: { scope: StaffAssignmentScope }) 
             substitute.
           </p>
           <Field
-            id="membership-acknowledged"
+            id={`${prefix}-membership-acknowledged`}
             label="I understand this creates ordinary membership only."
             error={form.formState.errors.acknowledged?.message}
           >
             <input
-              id="membership-acknowledged"
+              id={`${prefix}-membership-acknowledged`}
               type="checkbox"
               disabled={submitted !== null}
               aria-invalid={!!form.formState.errors.acknowledged}
@@ -164,20 +190,18 @@ function EnrollmentHistory({ scope }: { scope: StaffAssignmentScope }) {
     <section aria-label="Enrollment history" className="space-y-3 border-t pt-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-semibold">Enrollment history</h3>
-        <Button
-          variant="outline"
-          disabled={history.isFetching}
-          onClick={() => void history.refetch()}
-        >
+        <RefreshButton busy={history.isFetching} refresh={history.refetch} error={history.error}>
           Refresh enrollment history
-        </Button>
+        </RefreshButton>
       </div>
       {history.isPending ? (
         <p role="status">Loading enrollment history…</p>
       ) : history.isError ? (
-        <p role="alert">
-          Could not verify enrollment history. Refresh before reconciling an uncertain enrollment.
-        </p>
+        <RequestFailure
+          message="Could not verify enrollment history. Refresh before reconciling an uncertain enrollment."
+          retry={history.refetch}
+          error={history.error}
+        />
       ) : (
         <>
           {history.data.pages.every((page) => page.data.length === 0) && (

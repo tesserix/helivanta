@@ -151,3 +151,21 @@ it("prepares a scoped draft using only current department choices and mandatory 
   expect(paths.some((path) => path.includes("/posting-department-choices"))).toBe(true);
   expect(paths.some((path) => path.includes(`/hospitals/${hospital}/departments`))).toBe(false);
 });
+
+it("asks again for posting hospitals after an outage", async () => {
+  const fetcher = vi.fn(async () =>
+    Response.json({ error: "unavailable", message: "Synthetic outage" }, { status: 503 }),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <StaffPostingWorkspace scope={scope} onContextChanged={vi.fn()} />
+    </NavigationGuardProvider>,
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Posting hospital access could not be verified.",
+  );
+  const reads = fetcher.mock.calls.length;
+  await user.click(screen.getByRole("button", { name: "Try again" }));
+  await vi.waitFor(() => expect(fetcher.mock.calls.length).toBeGreaterThan(reads));
+});

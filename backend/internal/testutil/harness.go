@@ -3,14 +3,24 @@ package testutil
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/tesserix/onboarding-service/api/staffclient"
 	"go.temporal.io/sdk/client"
+	"maps"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/bootstrap"
 	"github.com/tesserix/helivanta/internal/mediconnectclaims"
@@ -22,6 +32,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/organizationidentity"
+	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/session"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"github.com/tesserix/helivanta/pkg/transit"
@@ -186,6 +197,7 @@ func (neverRevoked) RevokedAfter(context.Context, string) (time.Time, error) {
 // SessionSigner/SessionTTL explicitly, typically from
 // NewSessionSignerForTest.
 type HarnessOptions struct {
+	StaffAccounts               *staffclient.Client
 	EmploymentActivationEnabled bool
 	ProxyClinicalCaptureEnabled bool
 	PrivacyDeadlinesEnabled     bool
@@ -205,6 +217,8 @@ type HarnessOptions struct {
 	Roles                       platform.RoleLister
 	Membership                  authz.MembershipChecker
 	ScopedAuthorizer            func(*tenantdb.DB) authz.ScopedAuthorizer
+	OperatingAuthorizer         func(*tenantdb.DB) authz.OperatingScopeAuthorizer
+	SourceAdministration        func(*tenantdb.DB) authz.SourceAdministrationGuard
 	Resolver                    authz.Resolver
 	// Revocation defaults to a checker that answers "never revoked" for
 	// every subject — see neverRevoked's doc comment. Set it explicitly
@@ -241,6 +255,75 @@ type HarnessOptions struct {
 // fifth substitutable dependency and a sixth is coming — four
 // near-identical variants was already one too many, and a fifth or
 // sixth would only make that worse.
+// CursorSealer is an ephemeral filtered-list cursor key for routers a test builds itself.
+func CursorSealer(t testing.TB) *pagination.Sealer {
+	t.Helper()
+	sealer, err := pagination.NewSealer([]byte(rand.Text() + rand.Text()))
+	require.NoError(t, err)
+	return sealer
+}
+
+// migrationKey hashes the whole list, so only byte-identical migrations share a template (#1620).
+func migrationKey(migs []tenantdb.Migration) (string, error) {
+	raw, err := json.Marshal(migs)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:]), nil
+}
+
+func migrateTemplate(migs []tenantdb.Migration) testinfra.TemplateBuild {
+	return func(app, admin, system string) (err error) {
+		db, err := tenantdb.OpenWithSystem(app, admin, system)
+		if err != nil {
+			return err
+		}
+		defer func() { err = errors.Join(err, db.Close()) }()
+		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		defer cancel()
+		if err = db.Migrate(ctx, migs); err != nil {
+			return err
+		}
+		// LintRLS reads only the catalog, which every clone copies from this closed template.
+		bad, err := db.LintRLS(ctx)
+		if err != nil {
+			return err
+		}
+		if len(bad) > 0 {
+			return fmt.Errorf("tenant tables must carry forced RLS: %s", strings.Join(bad, "; "))
+		}
+		return nil
+	}
+}
+
+// verifyCloneLedger fails closed: a clone whose ledger differs from its migrations came from the wrong template.
+func verifyCloneLedger(ctx context.Context, db *tenantdb.DB, migs []tenantdb.Migration) error {
+	var applied []string
+	if err := db.WithSystem(ctx, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT id FROM schema_migrations`).Scan(&applied).Error
+	}); err != nil {
+		return err
+	}
+	pending := make(map[string]bool, len(migs))
+	for _, m := range migs {
+		pending[m.ID] = true
+	}
+	unexpected := []string{}
+	for _, id := range applied {
+		if !pending[id] {
+			unexpected = append(unexpected, id)
+		}
+		delete(pending, id)
+	}
+	missing := slices.Sorted(maps.Keys(pending))
+	slices.Sort(unexpected)
+	if len(missing) > 0 || len(unexpected) > 0 {
+		return fmt.Errorf("clone ledger differs from its migrations: missing %v, unexpected %v", missing, unexpected)
+	}
+	return nil
+}
+
 func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
 	t.Helper()
 
@@ -269,28 +352,28 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 		idleTimeout = TestSessionTTL
 	}
 
-	start := testinfra.StartPostgres
-	if opts.ProductionOwner {
-		start = testinfra.StartProductionOwnerPostgres
+	migs := bootstrap.PlatformMigrations()
+	for _, m := range opts.Modules {
+		migs = append(migs, m.Migrations()...)
 	}
-	appDSN, adminDSN, systemDSN := start(t)
+	key, err := migrationKey(migs)
+	require.NoError(t, err)
+	owner := testinfra.HarnessOwner
+	if opts.ProductionOwner {
+		owner = testinfra.ProductionOwner
+	}
+	appDSN, adminDSN, systemDSN := testinfra.StartMigratedPostgres(t, owner, key, migrateTemplate(migs))
 	db, err := tenantdb.OpenWithSystem(appDSN, adminDSN, systemDSN)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	t.Cleanup(cancel)
 
-	migs := bootstrap.PlatformMigrations()
-	for _, m := range opts.Modules {
-		migs = append(migs, m.Migrations()...)
-	}
-	require.NoError(t, db.Migrate(ctx, migs))
-	bad, err := db.LintRLS(ctx)
-	require.NoError(t, err)
-	require.Empty(t, bad, "tenant tables must carry forced RLS")
+	// The template already ran Migrate and LintRLS, the first of main.go's two boot-time controls (#932).
+	require.NoError(t, verifyCloneLedger(ctx, db, migs))
 
-	// Both boot-time controls cmd/api/main.go runs, run here too (#932).
-	// The union is taken across exactly the modules under test, so a
+	// The second control is per clone: its table list comes from the
+	// modules under test, which the template key does not cover. A
 	// module declaring a directed-write table whose provenance columns
 	// are nullable fails in its own package's tests instead of only at
 	// production boot.
@@ -320,10 +403,33 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	if opts.ScopedAuthorizer != nil {
 		scopedAuthorizer = opts.ScopedAuthorizer(db)
 	}
+	var sourceAdministration authz.SourceAdministrationGuard
+	if opts.SourceAdministration != nil {
+		sourceAdministration = opts.SourceAdministration(db)
+	}
+	var operatingAuthorizer authz.OperatingScopeAuthorizer
+	if opts.OperatingAuthorizer != nil {
+		operatingAuthorizer = opts.OperatingAuthorizer(db)
+	}
+	stockProducts := platform.StockProducts(opts.Modules, db)
 	deps := platform.Deps{
+		StaffAccounts:               opts.StaffAccounts,
+		SourceAdministration:        sourceAdministration,
+		OperatingAuthorizer:         operatingAuthorizer,
+		IndependentStaff:            platform.IndependentStaffIdentities(opts.Modules, db),
+		OperatingLocations:          platform.OperatingLocations(opts.Modules, db),
+		TradingEndpoints:            platform.TradingEndpoints(opts.Modules, db, platform.DepartmentReferences(opts.Modules, db)),
+		Membership:                  membership,
 		StaffActors:                 platform.StaffActors(opts.Modules, db),
+		PurchaseOrderActors:         platform.PurchaseOrderActors(opts.Modules, db),
+		StockProducts:               stockProducts,
+		OrderProducts:               platform.OrderProducts(opts.Modules, db, stockProducts),
 		StaffPostingSources:         platform.StaffPostingSources(opts.Modules, db),
+		PartnerMembers:              platform.PartnerMembers(opts.Modules, db),
 		DepartmentReferences:        platform.DepartmentReferences(opts.Modules, db),
+		PharmacyEmployers:           platform.PharmacyEmployers(opts.Modules, db),
+		SupplierEmployers:           platform.SupplierEmployers(opts.Modules, db),
+		DepartmentScopes:            platform.DepartmentScopes(opts.Modules, db),
 		ScopedAuthorizer:            scopedAuthorizer,
 		EmploymentActivationEnabled: opts.EmploymentActivationEnabled,
 		ProxyClinicalCaptureEnabled: opts.ProxyClinicalCaptureEnabled,
@@ -343,6 +449,11 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 		SessionSecureCookie: opts.SessionSecureCookie,
 		IdleTimeout:         idleTimeout,
 	}
+	deps.FulfilmentOrders = platform.FulfilmentOrders(opts.Modules, deps)
+	deps.ReceivingAuthority = platform.ReceivingAuthority(opts.Modules, deps)
+	deps.SupplierShipmentSafety = platform.SupplierShipmentSafety(opts.Modules, deps)
+	deps.HospitalSourceAuthority = platform.HospitalSourceAuthority(opts.Modules, deps)
+	deps.SupplierStockCancellation = platform.SupplierStockCancellation(opts.Modules, deps)
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	// Same middleware chain, same order, as cmd/api/main.go: requestid.Middleware()
@@ -369,7 +480,7 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 		authn.Middleware(verifier, revocation),
 		requestid.PrincipalMiddleware(),
 		authz.Middleware(resolver)),
-		membership).WithScopedAuthorizer(scopedAuthorizer)
+		membership).WithScopedAuthorizer(scopedAuthorizer).WithCursorSealer(CursorSealer(t))
 	// Consumers and the dispatcher live as long as the test, not as long as
 	// ctx: ctx's 90s bound would stop them silently mid-test, and every
 	// later wait on an event would time out instead of failing here (#1517).

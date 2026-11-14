@@ -26,10 +26,12 @@ import {
   useConfirmLeave,
   useNavigationPending,
 } from "@helivanta/ui";
+import { SourceFulfilment } from "../suppliers/source-fulfilment";
 import { CataloguePanel } from "./catalogue-panel";
 import { OverviewTiles, WaitingTile } from "./overview-tiles";
 import { AccountsPanel } from "./accounts-panel";
 import { StockPanel } from "./stock-panel";
+import { BusinessProfilePanel } from "../organization/business-profile";
 import { PharmacyRegistrySetup } from "./pharmacy-registry-setup";
 import { StockOverview } from "./stock-overview";
 import { StockRegister } from "./stock-register";
@@ -57,6 +59,7 @@ type PharmacyView =
   | "prescription-register"
   | "stock-overview"
   | "stock"
+  | "supplier-orders"
   | "receiving"
   | "safety"
   | "catalogue"
@@ -75,6 +78,8 @@ const DESCRIPTIONS: Record<PharmacyView, string> = {
     "Every Schedule G, H and H1 supply on a prescription and its returns, for inspection.",
   "stock-overview": "Stock, expiry and recorded purchase value across your accessible outlets.",
   stock: "What each outlet holds, by product and batch, with reconciliation and export.",
+  "supplier-orders":
+    "Accept supplier orders, reserve eligible stock and record attributable dispatches.",
   receiving: "Register manufacturer lots, receive them into quarantine and record movements.",
   safety: "Batches nearing expiry or under a safety concern, and their release decisions.",
   catalogue: "Product identities and their history for this pharmacy.",
@@ -88,7 +93,11 @@ export function PharmacyWorkspace({ view }: { view: PharmacyView }) {
   );
   if (identity.isError)
     return (
-      <RequestFailure message="Could not verify your active tenant." retry={identity.refetch} />
+      <RequestFailure
+        message="Could not verify your active tenant."
+        retry={identity.refetch}
+        error={identity.error}
+      />
     );
   if (!identity.data) return <p role="status">Loading pharmacy workspace…</p>;
   // Suspense: an outlet page reads its starting filter from the URL (#576 D4).
@@ -246,7 +255,11 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
         </div>
       )}
       {pharmacies.isError ? (
-        <RequestFailure message="Could not load your pharmacies." retry={pharmacies.retry} />
+        <RequestFailure
+          message="Could not load your pharmacies."
+          retry={pharmacies.retry}
+          error={pharmacies.error}
+        />
       ) : pharmacies.isPending ? (
         <p role="status">Loading pharmacies…</p>
       ) : !pharmacy ? (
@@ -261,20 +274,35 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
           <p>You do not have permission to read stock.</p>
         )
       ) : view === "setup" ? (
-        <OutletsSetup
-          tenantId={identity.tenant_id}
-          pharmacy={pharmacy}
-          subject={identity.subject}
-          outlets={outlets}
-        />
+        <>
+          {can("pharmacy.access.manage") && (
+            <BusinessProfilePanel
+              tenantId={identity.tenant_id}
+              kind="pharmacy"
+              resourceId={pharmacy.id}
+            />
+          )}
+          <OutletsSetup
+            tenantId={identity.tenant_id}
+            pharmacy={pharmacy}
+            subject={identity.subject}
+            outlets={outlets}
+          />
+        </>
       ) : outlets.isError ? (
-        <RequestFailure message="Could not load this pharmacy's outlets." retry={outlets.retry} />
+        <RequestFailure
+          message="Could not load this pharmacy's outlets."
+          retry={outlets.retry}
+          error={outlets.error}
+        />
       ) : outlets.isPending ? (
         <p role="status">Loading outlets…</p>
       ) : outlet ? (
         <OutletPharmacy
           key={`${identity.tenant_id}:${pharmacy.id}:${outlet.id}:${outlet.timezone}`}
           outlet={outlet}
+          subject={identity.subject}
+          ownership={pharmacy.ownership_type}
           scope={{ tenantId: identity.tenant_id, pharmacyId: pharmacy.id, outletId: outlet.id }}
           view={view}
         />
@@ -346,10 +374,14 @@ function NoOutletAccess({ canGrant, scope }: { canGrant: boolean; scope: Pharmac
 }
 function OutletPharmacy({
   outlet,
+  subject,
+  ownership,
   scope,
   view,
 }: {
   outlet: PharmacyOutlet;
+  subject: string;
+  ownership: PharmacyOrganization["ownership_type"];
   scope: PharmacyScope;
   view: PharmacyView;
 }) {
@@ -357,12 +389,26 @@ function OutletPharmacy({
   const access = useApiQuery<{ level: "reader" | "editor" }>(
     pharmacyKey(scope, "access"),
     `${pharmacyRoot(scope)}/access`,
-    { gcTime: 0, refetchOnWindowFocus: true },
+    { gcTime: 0, refetchOnWindowFocus: true, enabled: view !== "supplier-orders" },
   );
   return (
     <>
       <p className="mb-4 text-xs text-muted-foreground">Times are in {outlet.timezone}.</p>
-      {access.isPending ? (
+      {view === "supplier-orders" ? (
+        ownership === "hospital_owned" ? (
+          <p>Use the hospital department workspace for a hospital-owned pharmacy source.</p>
+        ) : (
+          <SourceFulfilment
+            scope={{
+              tenantId: scope.tenantId,
+              subject,
+              product: "pharmacy",
+              organizationId: scope.pharmacyId,
+              locationId: scope.outletId,
+            }}
+          />
+        )
+      ) : access.isPending ? (
         <p role="status">Checking pharmacy access…</p>
       ) : access.error instanceof ApiError && access.error.status === 404 ? (
         // 404 is the server's settled "no grant here"; retrying cannot change it (#1285).
@@ -371,6 +417,7 @@ function OutletPharmacy({
         <RequestFailure
           message="Could not check your access to this outlet. Try again in a moment."
           retry={access.refetch}
+          error={access.error}
         />
       ) : view === "setup" ? null : view === "overview" ? (
         <OverviewTiles scope={scope} outlet={outlet} />
@@ -448,6 +495,8 @@ function OutletPharmacy({
           canReviewPrice={access.data?.level === "editor" && can("pharmacy.price_control.review")}
           canDeclareCategory={access.data?.level === "editor" && can("pharmacy.category.declare")}
           canReviewCategory={access.data?.level === "editor" && can("pharmacy.category.review")}
+          canDeclareSchedule={access.data?.level === "editor" && can("pharmacy.schedule.declare")}
+          canReviewSchedule={access.data?.level === "editor" && can("pharmacy.schedule.review")}
         />
       ) : view === "stock" ? (
         <StockRegister scope={scope} timeZone={outlet.timezone} />

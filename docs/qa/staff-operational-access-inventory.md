@@ -6,7 +6,47 @@
 This is source-review tooling. No employment guard, grant classification in a live
 database, migration, account change or runtime activation is performed by it.
 
-## Current source findings
+## Business-profile source review — 11 November 2026
+
+The current registry contains 1,044 registered surfaces, with 99 source-classified
+and 945 awaiting classification. PR #1647 adds two management business-profile
+reads for the hospital and pharmacy owner. Both are classified as
+`governance_recovery`, with exact tenant/resource scope, permission, bounded
+profile validation and attributable read audit pinned to the owning handlers.
+
+The source review compared all 954 preceding HTTP registrations and the Workforce
+permission catalogue against their prior definitions. The Workforce route method
+adds the business-profile GET, and its migration list adds the nullable profile
+column. Eighteen existing source-pinned reviews were rechecked against that
+module change. Their recorded runtime acceptance obligations carry the live
+proof requirements. Authenticated first-owner profile read-back for both tenant
+kinds is also recorded as a new acceptance obligation.
+
+## Latest pharmacy receiver source review — 8 November 2026
+
+The generated registry now contains 946 surfaces: 88 source-classified and 858
+unclassified, with no new runtime-cutoff acceptance. #19 slice 3b-ii adds eight
+PharmaConnect outlet routes under `operating-locations/:outlet/stock`, each
+reviewed as `mixed`. They are an independent operating assignment, not hospital
+operational authority. Admission happens only inside the handler, through IAM
+`WithOperatingScope` and transaction-local `pharmacy_operating_stock_scope`
+settings. The pins cover that path, the RLS function, read audit, immutable batch
+replay, and the receipt-only quarantine write. Release, correction, receiver
+self-discovery and real OIDC acceptance remain open.
+
+## Stock-quality source review — 8 November 2026
+
+The generated registry then contained 938 surfaces: 80 source-classified and 858
+unclassified, with no new runtime-cutoff acceptance. The quality checkpoint adds
+three source-scoped stock inspection/decision routes. Its reviewed source pins
+cover the current actor/duty path, exact receipt scope, immutable review, current
+product and local-date expiry checks. Existing stock intake/identity write rights
+remain separate from quality review. IAM migration 0038 retains its original
+SQL bytes; the template expansion is additive migration 0041. These figures
+supersede the historical counts below. The ledger is a source-review record,
+not proof of shared-environment OIDC, physical stock or full fulfilment acceptance.
+
+## Historical source findings
 
 The checked registry contains **727 registered surfaces** across module HTTP
 routes, async subscriptions, broadcasts and unauthenticated allowlist entries.
@@ -155,3 +195,34 @@ legacy/governance review, authoritative effective-time guards, lifecycle command
 all owner cutoff tests, real provider/scanner acceptance and Staff Admin → reviewer
 → recipient browser journeys remain open. Existing local migration approval is
 separate; this tooling does not apply migrations or switch the QA runtime.
+
+## Department-team source review — 2026-11-06
+
+The regenerated registry now has **846 registered surfaces: 25 source-classified
+and 821 explicitly unclassified**. This is source coverage, not full lifecycle or
+production acceptance. The strict classification prerequisite remains incomplete.
+
+Sixteen existing Workforce reviews were re-read after the two additive route
+registrations changed `module.go`. Their paths, registered permissions and owner
+guards remain unchanged. The six draft reviews that also pin `posting_authority.go`
+retain their original behavior: their callers do not request the newly composed
+live-source check. The helper now takes the hospital gate before department/actor
+locks when that source-use permission is independently reserved; it preserves the
+strict read-only disclosure frame for roster reads. Only those two changed source
+files were repinned after this review.
+
+The new current-team GET and paired-transfer PUT have explicit
+`hospital_operational` classifications. Their reviews pin the actual route,
+owner/actor/source guards, hospital visibility check and command/read handlers.
+The transfer additionally pins approval, lifecycle evidence and cutoff persistence.
+The public route marker does not substitute for the five independent permissions.
+The read discloses only permitted minimized team observations; internal ancestor
+verification creates no ancestor-directory authority.
+
+[Department-team validation](../design/staff-and-rbac/department-team-management.md)
+records real owner/browser isolation, exact/changed and concurrent command
+recovery, earlier competing transfer refusal, later ending, and audit/outbox
+rollback. This evidence does not promote the inventory to a runtime-ready marker,
+close parent-plan consumer gaps or authorize production activation. All 15
+inventory-tool tests, regeneration, normal source checking and JSON formatting
+checks pass. The existing source-drift test remains in force and was not weakened.

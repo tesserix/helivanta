@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -64,9 +65,22 @@ var staffPostingSourceTemplatesSchema string
 //go:embed assignment_pharmacy_department_binding_templates_generated.sql
 var pharmacyDepartmentBindingTemplatesSchema string
 
+//go:embed assignment_department_posting_review_templates_generated.sql
+var departmentPostingReviewTemplatesSchema string
+
+//go:embed assignment_department_scope.sql
+var departmentAssignmentScopeSchema string
+
+//go:embed assignment_department_leave_review_templates_generated.sql
+var departmentLeaveReviewTemplatesSchema string
+
+//go:embed assignment_establishment_root.sql
+var establishmentRootSchema string
+
 type assignmentProposal struct {
 	ProposalInput   `gorm:"embedded"`
 	ID              uuid.UUID `json:"id"`
+	ScopeKind       string    `json:"scope_kind"`
 	ProposedBy      string    `json:"proposed_by"`
 	RequestID       uuid.UUID `json:"-"`
 	MembershipEpoch int64     `json:"-"`
@@ -90,6 +104,35 @@ type assignmentProposalHandlers struct {
 
 func assignmentAccess(tx *gorm.DB) error {
 	return tx.Exec(`SELECT set_config('app.assignment_access','authorized',true)`).Error
+}
+
+// assignmentDepartmentAccess reveals department rows; only department-aware paths may call it (ADR-0055).
+func assignmentDepartmentAccess(tx *gorm.DB) error {
+	return tx.Exec(`SELECT set_config('app.assignment_department_scope','enabled',true)`).Error
+}
+
+func departmentAwareAccess(tx *gorm.DB) error {
+	if err := assignmentAccess(tx); err != nil {
+		return err
+	}
+	return assignmentDepartmentAccess(tx)
+}
+
+// proposalScopeKind binds the template to the chosen scope; an unknown template allows none.
+func proposalScopeKind(in ProposalInput) (string, bool) {
+	kind := "hospital"
+	if in.DepartmentID != nil {
+		if in.DepartmentID.Version() != 7 || in.DepartmentID.Variant() != uuid.RFC4122 || *in.DepartmentID == in.HospitalID {
+			return "", false
+		}
+		kind = "department"
+	}
+	for _, template := range staffAccessTemplates() {
+		if template.Key == in.TemplateKey {
+			return kind, slices.Contains(template.ScopeKinds, kind)
+		}
+	}
+	return "", false
 }
 func proposalMember(tx *gorm.DB, tenant, subject string, expected int64) (bool, error) {
 	epoch, err := proposalMembershipEpoch(tx, tenant, subject)
@@ -165,8 +208,9 @@ func (h *assignmentProposalHandlers) put(c *gin.Context) {
 	}
 	in.ValidFrom = in.ValidFrom.UTC().Truncate(time.Microsecond)
 	in.ExpiresAt = in.ExpiresAt.UTC().Truncate(time.Microsecond)
-	if in.HospitalID == uuid.Nil || !proposalSubject(in.Subject) || !proposalSubject(p.Subject) || staffAccessTemplatePermissions(in.TemplateKey) == nil || !utf8.ValidString(in.Reason) || strings.TrimSpace(in.Reason) == "" || utf8.RuneCountInString(in.Reason) > 500 || strings.ContainsRune(in.Reason, 0) || in.ValidFrom.IsZero() || !in.ExpiresAt.After(in.ValidFrom) || in.ExpiresAt.Sub(in.ValidFrom) > 366*24*time.Hour || !in.ExpiresAt.After(time.Now()) {
-		respond.Error(c, 400, "invalid_request", "Provide a member, hospital, supported template, reason and bounded validity.")
+	scopeKind, scopeAllowed := proposalScopeKind(in)
+	if in.HospitalID == uuid.Nil || !scopeAllowed || !proposalSubject(in.Subject) || !proposalSubject(p.Subject) || staffAccessTemplatePermissions(in.TemplateKey) == nil || !utf8.ValidString(in.Reason) || strings.TrimSpace(in.Reason) == "" || utf8.RuneCountInString(in.Reason) > 500 || strings.ContainsRune(in.Reason, 0) || in.ValidFrom.IsZero() || !in.ExpiresAt.After(in.ValidFrom) || in.ExpiresAt.Sub(in.ValidFrom) > 366*24*time.Hour || !in.ExpiresAt.After(time.Now()) {
+		respond.Error(c, 400, "invalid_request", "Provide a member, hospital, supported template for the chosen scope, reason and bounded validity.")
 		return
 	}
 	var saved assignmentProposal
@@ -201,21 +245,13 @@ func (h *assignmentProposalHandlers) put(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		if err := tx.Exec(`INSERT INTO iam_assignment_proposals(tenant_id,id,hospital_id,subject,template_key,reason,valid_from,expires_at,proposed_by,request_id,status,version) VALUES(?,?,?,?,?,?,?,?,?,?,'pending_scope',1)`, p.TenantID, id, in.HospitalID, in.Subject, in.TemplateKey, in.Reason, in.ValidFrom, in.ExpiresAt, p.Subject, requestID).Error; err != nil {
+		if err := tx.Exec(`INSERT INTO iam_assignment_proposals(tenant_id,id,hospital_id,subject,template_key,reason,valid_from,expires_at,proposed_by,request_id,status,version,scope_kind,department_id) VALUES(?,?,?,?,?,?,?,?,?,?,'pending_scope',1,?,?)`, p.TenantID, id, in.HospitalID, in.Subject, in.TemplateKey, in.Reason, in.ValidFrom, in.ExpiresAt, p.Subject, requestID, scopeKind, in.DepartmentID).Error; err != nil {
 			return err
 		}
 		if err := tx.Where("tenant_id=? AND id=?", p.TenantID, id).Take(&saved).Error; err != nil {
 			return err
 		}
-		data, err := json.Marshal(iamcontract.AssignmentScopeRequestedData{ProposalID: id, RequestID: requestID, HospitalID: in.HospitalID, ActorSubject: p.Subject})
-		if err != nil {
-			return err
-		}
-		eventID, err := uuid.NewV7()
-		if err != nil {
-			return err
-		}
-		return h.bus.Publish(tx, iamcontract.SubjectAssignmentScopeRequested, events.Event{ID: eventID.String(), Type: iamcontract.SubjectAssignmentScopeRequested, Version: 1, TenantID: p.TenantID, OccurredAt: time.Now(), Data: data})
+		return requestProposalScope(tx, h.bus, p.TenantID, saved, p.Subject)
 	})
 	if err != nil {
 		proposalError(c, err)
@@ -223,14 +259,45 @@ func (h *assignmentProposalHandlers) put(c *gin.Context) {
 	}
 	respond.OK(c, saved.output())
 }
+
+// requestProposalScope asks every scope owner about the current request in the caller's transaction.
+func requestProposalScope(tx *gorm.DB, bus *events.Bus, tenant string, row assignmentProposal, actor string) error {
+	requests := []struct {
+		subject string
+		data    any
+	}{{iamcontract.SubjectAssignmentScopeRequested, iamcontract.AssignmentScopeRequestedData{ProposalID: row.ID, RequestID: row.RequestID, HospitalID: row.HospitalID, ActorSubject: actor}}}
+	if row.ScopeKind == "department" {
+		if row.DepartmentID == nil {
+			return errors.New("department proposal without department")
+		}
+		requests = append(requests, struct {
+			subject string
+			data    any
+		}{iamcontract.SubjectAssignmentDepartmentScopeRequested, iamcontract.AssignmentDepartmentScopeRequestedData{ProposalID: row.ID, RequestID: row.RequestID, HospitalID: row.HospitalID, DepartmentID: *row.DepartmentID}})
+	}
+	for _, request := range requests {
+		data, err := json.Marshal(request.data)
+		if err != nil {
+			return err
+		}
+		eventID, err := uuid.NewV7()
+		if err != nil {
+			return err
+		}
+		if err := bus.Publish(tx, request.subject, events.Event{ID: eventID.String(), Type: request.subject, Version: 1, TenantID: tenant, OccurredAt: time.Now(), Data: data}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 func (p assignmentProposal) output() ProposalOutput {
-	return ProposalOutput{ID: p.ID, Input: p.ProposalInput, ProposedBy: p.ProposedBy, Status: p.Status, Version: p.Version, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt}
+	return ProposalOutput{ID: p.ID, Input: p.ProposalInput, ScopeKind: p.ScopeKind, ProposedBy: p.ProposedBy, Status: p.Status, Version: p.Version, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt}
 }
 func sameProposal(a, b ProposalInput) bool {
 	sameTimes := a.ValidFrom.Equal(b.ValidFrom) && a.ExpiresAt.Equal(b.ExpiresAt)
-	a.ValidFrom = b.ValidFrom
-	a.ExpiresAt = b.ExpiresAt
-	return sameTimes && a == b
+	sameDepartment := (a.DepartmentID == nil) == (b.DepartmentID == nil) && (a.DepartmentID == nil || *a.DepartmentID == *b.DepartmentID)
+	a.ValidFrom, a.ExpiresAt, a.DepartmentID = b.ValidFrom, b.ExpiresAt, b.DepartmentID
+	return sameTimes && sameDepartment && a == b
 }
 func (h *assignmentProposalHandlers) get(c *gin.Context) {
 	p, id, ok := proposalScope(c)
@@ -289,45 +356,59 @@ func proposalScopeConsumer(deps platform.Deps) events.Consumer {
 		if err := json.Unmarshal(evt.Data, &result); err != nil {
 			return errors.New("invalid assignment scope result")
 		}
-		if err := assignmentAccess(tx); err != nil {
+		row, current, err := lockPendingProposal(tx, evt.TenantID, result.ProposalID, result.RequestID, result.HospitalID)
+		if err != nil || !current {
 			return err
 		}
-		var row assignmentProposal
-		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("tenant_id=? AND id=?", evt.TenantID, result.ProposalID).Take(&row).Error
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil
+		if row.ScopeKind == "department" {
+			return recordDepartmentAnswer(tx, deps, evt.TenantID, row, "workforce", result.Eligible)
 		}
-		if err != nil {
-			return err
-		}
-		if (row.Status != "pending_scope" && row.Status != "pending_decision_scope") || row.RequestID != result.RequestID || row.HospitalID != result.HospitalID {
-			return nil
-		}
-		member, err := proposalMember(tx, evt.TenantID, row.Subject, row.MembershipEpoch)
-		if err != nil {
-			return err
-		}
-		status := "scope_rejected"
-		if result.Eligible && member && row.ExpiresAt.After(time.Now()) {
-			status = "pending_review"
-		}
-		if row.Status == "pending_decision_scope" {
-			status, err = decisionScopeStatus(tx, evt.TenantID, row, result.Eligible)
-			if err != nil {
-				return err
-			}
-		}
-		if err := tx.Exec(`SELECT set_config('app.assignment_scope_result',?,true)`, row.RequestID.String()).Error; err != nil {
-			return err
-		}
-		if err := tx.Model(&assignmentProposal{}).Where("tenant_id=? AND id=?", evt.TenantID, row.ID).Updates(map[string]any{"status": status, "version": row.Version + 1}).Error; err != nil {
-			return err
-		}
-		if status == "approved_pending_activation" {
-			return queueAssignmentProjection(tx, deps.Bus, evt.TenantID, row.ID)
-		}
-		return nil
+		return settleProposalScope(tx, deps, evt.TenantID, row, result.Eligible)
 	}}
+}
+
+// lockPendingProposal reports current only for a pending proposal still waiting on this request.
+func lockPendingProposal(tx *gorm.DB, tenant string, id, request, hospital uuid.UUID) (assignmentProposal, bool, error) {
+	var row assignmentProposal
+	if err := departmentAwareAccess(tx); err != nil {
+		return row, false, err
+	}
+	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("tenant_id=? AND id=?", tenant, id).Take(&row).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return row, false, nil
+	}
+	if err != nil {
+		return row, false, err
+	}
+	return row, (row.Status == "pending_scope" || row.Status == "pending_decision_scope") && row.RequestID == request && row.HospitalID == hospital, nil
+}
+
+// settleProposalScope applies the combined owner answer for the current request.
+func settleProposalScope(tx *gorm.DB, deps platform.Deps, tenant string, row assignmentProposal, eligible bool) error {
+	member, err := proposalMember(tx, tenant, row.Subject, row.MembershipEpoch)
+	if err != nil {
+		return err
+	}
+	status := "scope_rejected"
+	if eligible && member && row.ExpiresAt.After(time.Now()) {
+		status = "pending_review"
+	}
+	if row.Status == "pending_decision_scope" {
+		status, err = decisionScopeStatus(tx, tenant, row, eligible)
+		if err != nil {
+			return err
+		}
+	}
+	if err := tx.Exec(`SELECT set_config('app.assignment_scope_result',?,true)`, row.RequestID.String()).Error; err != nil {
+		return err
+	}
+	if err := tx.Model(&assignmentProposal{}).Where("tenant_id=? AND id=?", tenant, row.ID).Updates(map[string]any{"status": status, "version": row.Version + 1}).Error; err != nil {
+		return err
+	}
+	if status == "approved_pending_activation" {
+		return queueAssignmentProjection(tx, deps.Bus, tenant, row.ID)
+	}
+	return nil
 }
 func (m *Module) registerAssignmentProposals(g *platform.Router, deps platform.Deps) {
 	h := &assignmentProposalHandlers{db: deps.DB, bus: deps.Bus}
@@ -340,6 +421,18 @@ func (m *Module) registerAssignmentProposals(g *platform.Router, deps platform.D
 	platform.ListRoute(g, "/employment-activation-assignment-proposals", authz.Public, h.listEmploymentActivation)
 	platform.ListRoute(g, "/posting-assignment-proposals", authz.Public, h.listPosting)
 	platform.ListRoute(g, "/pharmacy-binding-assignment-proposals", authz.Public, h.listPharmacyBinding)
+	platform.ListRoute(g, "/partner-membership-assignment-proposals", authz.Public, func(c *gin.Context, p pagination.Params) ([]assignmentProposal, error) {
+		return h.listFamily(c, p, "partner_membership")
+	})
+	platform.ListRoute(g, "/supplier-access-assignment-proposals", authz.Public, func(c *gin.Context, p pagination.Params) ([]assignmentProposal, error) {
+		return h.listFamily(c, p, "supplier_access")
+	})
+	platform.ListRoute(g, "/purchase-order-assignment-proposals", authz.Public, func(c *gin.Context, p pagination.Params) ([]assignmentProposal, error) {
+		return h.listFamily(c, p, "purchase_order")
+	})
+	platform.ListRoute(g, "/supplier-receiving-assignment-proposals", authz.Public, func(c *gin.Context, p pagination.Params) ([]assignmentProposal, error) {
+		return h.listFamily(c, p, "supplier_receiving")
+	})
 	g.GET("/staff-access-templates", authz.Public, func(c *gin.Context) {
 		if _, _, ok := proposalScope(c); !ok {
 			return

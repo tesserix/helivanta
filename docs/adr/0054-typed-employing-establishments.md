@@ -1,8 +1,9 @@
 # ADR-0054: Typed employing establishments for standalone pharmacy staff
 
-Date: 2026-11-04. Status: proposed. It needs product-owner acceptance before
-any migration, route, permission or event is built. It proposes ORG-D8 and
-records ORG-D9 as open. ORG-D2, ORG-D5 and ORG-D6 stay open. Related: #19,
+Date: 2026-11-04. Status: accepted by the product owner on 2026-11-05. Each
+migration, route, permission or event still arrives in its own reviewed slice
+of the specification. It settles ORG-D8 and records ORG-D9 as open. ORG-D2,
+ORG-D5 and ORG-D6 stay open. Related: #19,
 #418, #429, [ADR-0008](0008-multi-hospital-tenancy-and-sharing.md),
 [ADR-0024](0024-pharmacy-ownership-and-outlet-tenancy.md),
 [ADR-0044](0044-organization-structure-and-access-defaults.md),

@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/pagination"
 )
 
 // Router wraps a gin route group so that every route must declare the
@@ -23,6 +24,14 @@ type Router struct {
 	declared         *[]DeclaredRoute
 	membership       authz.MembershipChecker
 	scopedAuthorizer authz.ScopedAuthorizer
+	cursorSealer     *pagination.Sealer
+	establishment    *establishment
+}
+
+// ADR-0054: one route family admits one establishment kind.
+type establishment struct {
+	kind, param string
+	admission   gin.HandlerFunc
 }
 
 // DeclaredRoute is one route's method, path and permission, as recorded
@@ -31,11 +40,14 @@ type Router struct {
 // NoTenantMembership allowlist arch test — doesn't have to re-register
 // every module's routes a second time to find out.
 type DeclaredRoute struct {
-	Method         string
-	Path           string
-	Permission     authz.Permission
+	Method     string
+	Path       string
+	Permission authz.Permission
+	// ScopeKind "hospital" admits hospital grants at the route; "department" proves a hospital or department grant in the handler.
 	ScopeKind      string
 	ScopeParameter string
+	// EstablishmentKind is the only kind of Workforce establishment the route admits.
+	EstablishmentKind string
 	// Paginated is true for routes registered through ListRoute. The
 	// arch test uses it to fail any collection GET registered the old
 	// way — the one hole ListRoute's type signature cannot close.
@@ -61,12 +73,48 @@ func NewRouter(g *gin.RouterGroup, membership authz.MembershipChecker) *Router {
 // list and membership checker, so Declared() sees every route regardless
 // of nesting.
 func (r *Router) Group(prefix string) *Router {
-	return &Router{group: r.group.Group(prefix), declared: r.declared, membership: r.membership, scopedAuthorizer: r.scopedAuthorizer}
+	return &Router{group: r.group.Group(prefix), declared: r.declared, membership: r.membership, scopedAuthorizer: r.scopedAuthorizer, cursorSealer: r.cursorSealer, establishment: r.establishment}
+}
+
+// Establishment returns a nested router whose routes run admission after authorization and before the handler.
+func (r *Router) Establishment(kind, param string, admission gin.HandlerFunc) *Router {
+	if kind == "" || param == "" || admission == nil || r.establishment != nil {
+		panic("platform: an establishment router needs exactly one kind, parameter and admission")
+	}
+	nested := *r
+	nested.establishment = &establishment{kind: kind, param: param, admission: admission}
+	return &nested
+}
+
+// establishmentAdmission refuses at registration a route that could reach its handler without naming the establishment.
+func (r *Router) establishmentAdmission(fullPath string, permission authz.Permission) (string, []gin.HandlerFunc) {
+	if r.establishment == nil {
+		return "", nil
+	}
+	if !hasSegment(fullPath, r.establishment.param) || permission == "" || permission == authz.NoTenantMembership {
+		panic("platform: establishment route requires tenant membership and a declared establishment parameter")
+	}
+	return r.establishment.kind, []gin.HandlerFunc{r.establishment.admission}
+}
+
+func hasSegment(path, param string) bool {
+	for _, segment := range strings.Split(path, "/") {
+		if param != "" && segment == ":"+param {
+			return true
+		}
+	}
+	return false
 }
 
 // WithScopedAuthorizer configures scoped authority before route registration.
 func (r *Router) WithScopedAuthorizer(authority authz.ScopedAuthorizer) *Router {
 	r.scopedAuthorizer = authority
+	return r
+}
+
+// WithCursorSealer configures the key filtered lists seal their cursors with.
+func (r *Router) WithCursorSealer(sealer *pagination.Sealer) *Router {
+	r.cursorSealer = sealer
 	return r
 }
 
@@ -105,19 +153,31 @@ func (r *Router) handleHospitalScope(method, path string, permission authz.Permi
 }
 
 func (r *Router) handleHospitalScopeUsing(method, path string, permission authz.Permission, hospitalParam string, paginated bool, admission gin.HandlerFunc, handlers ...gin.HandlerFunc) {
+	r.handleScoped(method, path, permission, "hospital", hospitalParam, paginated, admission, handlers...)
+}
+
+// GETHandlerScoped admits hospital or department grants inside the handler, which must prove them through authz.AdmitHandlerScope.
+func (r *Router) GETHandlerScoped(path string, permission authz.Permission, hospitalParam string, handlers ...gin.HandlerFunc) {
+	r.handleHandlerScope(http.MethodGet, path, permission, hospitalParam, false, handlers...)
+}
+
+// POSTHandlerScoped is the command form of GETHandlerScoped; an unadmitted success becomes a 500.
+func (r *Router) POSTHandlerScoped(path string, permission authz.Permission, hospitalParam string, handlers ...gin.HandlerFunc) {
+	r.handleHandlerScope(http.MethodPost, path, permission, hospitalParam, false, handlers...)
+}
+
+func (r *Router) handleHandlerScope(method, path string, permission authz.Permission, hospitalParam string, paginated bool, handlers ...gin.HandlerFunc) {
+	r.handleScoped(method, path, permission, "department", hospitalParam, paginated, authz.RequireHandlerScope(permission, hospitalParam), handlers...)
+}
+
+func (r *Router) handleScoped(method, path string, permission authz.Permission, kind, hospitalParam string, paginated bool, admission gin.HandlerFunc, handlers ...gin.HandlerFunc) {
 	fullPath := r.group.BasePath() + path
-	found := false
-	for _, segment := range strings.Split(fullPath, "/") {
-		if hospitalParam != "" && segment == ":"+hospitalParam {
-			found = true
-			break
-		}
-	}
-	if !found || permission == "" || permission == authz.Public || permission == authz.NoTenantMembership {
+	if !hasSegment(fullPath, hospitalParam) || permission == "" || permission == authz.Public || permission == authz.NoTenantMembership {
 		panic("platform: scoped route requires a permission and declared hospital parameter")
 	}
-	*r.declared = append(*r.declared, DeclaredRoute{Method: method, Paginated: paginated, Path: fullPath, Permission: permission, ScopeKind: "hospital", ScopeParameter: hospitalParam})
-	chain := []gin.HandlerFunc{authz.RequireMembership(r.membership), admission}
+	establishmentKind, establishmentChain := r.establishmentAdmission(fullPath, permission)
+	*r.declared = append(*r.declared, DeclaredRoute{Method: method, Paginated: paginated, Path: fullPath, Permission: permission, ScopeKind: kind, ScopeParameter: hospitalParam, EstablishmentKind: establishmentKind})
+	chain := append([]gin.HandlerFunc{authz.RequireMembership(r.membership), admission}, establishmentChain...)
 	r.group.Handle(method, path, append(chain, handlers...)...)
 }
 
@@ -149,8 +209,10 @@ func (r *Router) handle(method, path string, perm authz.Permission, paginated bo
 // the membership and permission gates.
 func (r *Router) declare(path string, d DeclaredRoute, h []gin.HandlerFunc) {
 	method, perm := d.Method, d.Permission
+	kind, establishmentChain := r.establishmentAdmission(d.Path, perm)
+	d.EstablishmentKind = kind
 	*r.declared = append(*r.declared, d)
-	chain := make([]gin.HandlerFunc, 0, len(h)+2)
+	chain := make([]gin.HandlerFunc, 0, len(h)+3)
 	// Membership first: a non-member gets the same answer on every route
 	// regardless of what permission it declares, and a route marked
 	// NoTenantMembership never pays for the call at all — see that
@@ -160,6 +222,7 @@ func (r *Router) declare(path string, d DeclaredRoute, h []gin.HandlerFunc) {
 		chain = append(chain, authz.RequireMembership(r.membership))
 	}
 	chain = append(chain, authz.Require(perm))
+	chain = append(chain, establishmentChain...)
 	chain = append(chain, h...)
 	r.group.Handle(method, path, chain...)
 }

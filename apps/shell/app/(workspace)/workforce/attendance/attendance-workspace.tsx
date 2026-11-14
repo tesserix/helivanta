@@ -8,8 +8,8 @@ import {
   type Hospital,
   type RosterSettings,
 } from "@helivanta/api";
-import { Field, PageHeading, SelectControl } from "@helivanta/ui";
-import { Failure } from "../roster-policy/policy-ui";
+import { Field, PageHeading, SelectControl, RequestFailure } from "@helivanta/ui";
+
 import { AttendancePolicyPanel } from "./policy-panel";
 import { DaySheet } from "./day-sheet";
 import { PunchLedger } from "./punch-panel";
@@ -46,7 +46,11 @@ export function AttendanceWorkspace() {
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (
-        <Failure message="Could not load hospitals." retry={hospitals.retry} />
+        <RequestFailure
+          message="Could not load hospitals."
+          retry={hospitals.retry}
+          error={hospitals.error}
+        />
       ) : hospital ? (
         <HospitalAttendance key={hospital.id} hospital={hospital} />
       ) : (

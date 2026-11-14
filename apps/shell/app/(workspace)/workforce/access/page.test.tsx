@@ -19,6 +19,7 @@ const row = {
     valid_from: timestamp,
     expires_at: "2027-01-01T00:00:00Z",
   },
+  scope_kind: "hospital",
   proposed_by: "proposer",
   status: "pending_review",
   version: 2,
@@ -162,7 +163,7 @@ it("validates enrollment before submitting and stops after a workspace conflict"
   expect(screen.getByRole("button", { name: "Retry same enrollment" })).toBeDisabled();
   expect(commands).toHaveLength(1);
 });
-function setup(subject = "reviewer", rows = [row], perms = permissions) {
+function setup(subject = "reviewer", rows: unknown[] = [row], perms = permissions) {
   const writes: Array<{ url: string; body: unknown; tenant: string | null }> = [];
   vi.stubGlobal(
     "fetch",
@@ -803,6 +804,321 @@ it("offers posting reader and preparer assignments only from their exact catalog
   ).toBe(true);
 });
 
+const pharmacy = "019bbbbb-bbbb-7bbb-8bbb-bbbbbbbbbbb1";
+const departmentRow = (node: string, name: string, status: string) => ({
+  id: node,
+  revision_id: `${node.slice(0, -1)}9`,
+  hospital_id: hospital,
+  version: 1,
+  code: name.toUpperCase().replace(/\W/g, "-"),
+  name,
+  kind: "department",
+  status,
+  created_at: timestamp,
+  effective_at: timestamp,
+});
+function departmentCatalogSetup(
+  rows: unknown[] = [],
+  supported: keyof typeof staffAccessTemplateCatalogs = "staff-department-posting-reviews-v1",
+) {
+  setup("proposer", rows);
+  const prior = fetch;
+  const commands: Array<{ url: string; body: Record<string, unknown> }> = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      const catalog = new URL(url, "http://localhost").searchParams.get("catalog");
+      if (catalog === supported) return Response.json(catalogDefinitions(supported));
+      if (url.includes(`/organization/hospitals/${hospital}/departments/${pharmacy}/revisions`))
+        return Response.json(page([departmentRow(pharmacy, "Synthetic Pharmacy", "active")]));
+      if (url.includes(`/organization/hospitals/${hospital}/departments?`))
+        return Response.json(
+          page([
+            departmentRow(pharmacy, "Synthetic Pharmacy", "active"),
+            departmentRow("019bbbbb-bbbb-7bbb-8bbb-bbbbbbbbbbb2", "Retired Ward", "retired"),
+          ]),
+        );
+      if (init?.method === "PUT") {
+        const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+        commands.push({ url, body });
+        return Response.json({
+          ...row,
+          id: url.split("/").at(-1),
+          input: body,
+          scope_kind: body.department_id ? "department" : "hospital",
+          status: "pending_scope",
+          version: 1,
+        });
+      }
+      return prior(url, init);
+    }),
+  );
+  return commands;
+}
+async function openPostingProposal() {
+  const rendered = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  await rendered.user.click(await screen.findByLabelText("Assignment area"));
+  await rendered.user.click(await screen.findByRole("option", { name: "Staff posting access" }));
+  await rendered.user.click(screen.getByRole("button", { name: "Propose assignment" }));
+  return {
+    ...rendered,
+    form: within(await screen.findByRole("form", { name: "Propose assignment" })),
+  };
+}
+async function fillProposal(
+  user: ReturnType<typeof renderWithProviders>["user"],
+  form: ReturnType<typeof within>,
+) {
+  await user.click(form.getByLabelText("Hospital"));
+  await user.click(await screen.findByRole("option", { name: "Synthetic Hospital" }));
+  await user.type(form.getByLabelText("Account ID"), "candidate");
+  await user.type(form.getByLabelText("Reason"), "Pharmacy posting review duty");
+}
+
+it("proposes department posting review for one active department and its sub-units", async () => {
+  const commands = departmentCatalogSetup();
+  const { user, form } = await openPostingProposal();
+  await user.click(form.getByLabelText("Applies to"));
+  await user.click(await screen.findByRole("option", { name: "One department and its sub-units" }));
+  await user.click(form.getByLabelText("Access template"));
+  const templates = screen.getByRole("listbox");
+  expect(templates).toHaveTextContent("Department posting reviewer");
+  expect(templates).not.toHaveTextContent("Staff posting reviewer");
+  await user.click(within(templates).getByRole("option", { name: "Department posting reviewer" }));
+  await fillProposal(user, form);
+  await user.click(await form.findByLabelText("Department"));
+  expect(screen.queryByRole("option", { name: "Retired Ward" })).not.toBeInTheDocument();
+  await user.click(await screen.findByRole("option", { name: "Synthetic Pharmacy" }));
+  await user.click(form.getByRole("button", { name: "Submit proposal" }));
+  await waitFor(() => expect(commands).toHaveLength(1));
+  expect(commands[0]!.body).toMatchObject({
+    hospital_id: hospital,
+    department_id: pharmacy,
+    template_key: "workforce.department_posting_reviewer.v1",
+    subject: "candidate",
+  });
+});
+
+it("requires a department before submitting department-scoped access", async () => {
+  const commands = departmentCatalogSetup();
+  const { user, form } = await openPostingProposal();
+  await user.click(form.getByLabelText("Applies to"));
+  await user.click(await screen.findByRole("option", { name: "One department and its sub-units" }));
+  await fillProposal(user, form);
+  await user.click(form.getByRole("button", { name: "Submit proposal" }));
+  expect(await form.findByText("Choose a department.")).toBeInTheDocument();
+  expect(commands).toHaveLength(0);
+});
+
+it("explains a missing department structure permission instead of offering a retry", async () => {
+  const commands = departmentCatalogSetup();
+  const catalog = fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) =>
+      url.includes(`/organization/hospitals/${hospital}/departments?`)
+        ? Response.json(
+            { error: "forbidden", message: "Synthetic structure cutoff" },
+            { status: 403 },
+          )
+        : catalog(url, init),
+    ),
+  );
+  const { user, form } = await openPostingProposal();
+  await user.click(form.getByLabelText("Applies to"));
+  await user.click(await screen.findByRole("option", { name: "One department and its sub-units" }));
+  await fillProposal(user, form);
+  expect(
+    await form.findByText(
+      "You cannot read this hospital's departments. Ask a tenant administrator for hospital structure access.",
+    ),
+  ).toBeInTheDocument();
+  expect(form.queryByRole("button", { name: "Retry departments" })).not.toBeInTheDocument();
+  expect(form.queryByLabelText("Department")).not.toBeInTheDocument();
+  expect(commands).toHaveLength(0);
+});
+
+it("keeps hospital-wide proposals free of department templates and department IDs", async () => {
+  const commands = departmentCatalogSetup();
+  const { user, form } = await openPostingProposal();
+  await user.click(form.getByLabelText("Access template"));
+  const templates = screen.getByRole("listbox");
+  expect(templates).toHaveTextContent("Staff posting reviewer");
+  expect(templates).not.toHaveTextContent("Department posting reviewer");
+  await user.click(within(templates).getByRole("option", { name: "Staff posting reviewer" }));
+  await fillProposal(user, form);
+  expect(form.queryByLabelText("Department")).not.toBeInTheDocument();
+  await user.click(form.getByRole("button", { name: "Submit proposal" }));
+  await waitFor(() => expect(commands).toHaveLength(1));
+  expect(commands[0]!.body).not.toHaveProperty("department_id");
+  expect(commands[0]!.body.template_key).toBe("workforce.posting_reviewer.v1");
+});
+
+it("shows a department assignment's scope by its current department name", async () => {
+  departmentCatalogSetup([
+    {
+      ...row,
+      input: {
+        ...row.input,
+        department_id: pharmacy,
+        template_key: "workforce.department_posting_reviewer.v1",
+      },
+      scope_kind: "department",
+    },
+  ]);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByLabelText("Assignment area"));
+  await user.click(await screen.findByRole("option", { name: "Staff posting access" }));
+  expect(
+    await screen.findByText("Applies to: Synthetic Pharmacy and its current sub-units"),
+  ).toBeInTheDocument();
+});
+
+async function openLeaveProposal() {
+  const rendered = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  await rendered.user.click(await screen.findByRole("button", { name: "Propose assignment" }));
+  return {
+    ...rendered,
+    form: within(await screen.findByRole("form", { name: "Propose assignment" })),
+  };
+}
+
+it("proposes department leave review for one active department and its sub-units", async () => {
+  const commands = departmentCatalogSetup([], "staff-department-leave-reviews-v1");
+  const { user, form } = await openLeaveProposal();
+  await user.click(form.getByLabelText("Applies to"));
+  await user.click(await screen.findByRole("option", { name: "One department and its sub-units" }));
+  await user.click(form.getByLabelText("Access template"));
+  const templates = screen.getByRole("listbox");
+  expect(templates).toHaveTextContent("Department leave reviewer");
+  expect(templates).not.toHaveTextContent("Department posting reviewer");
+  expect(within(templates).queryByRole("option", { name: "Leave reviewer" })).toBeNull();
+  await user.click(within(templates).getByRole("option", { name: "Department leave reviewer" }));
+  await fillProposal(user, form);
+  await user.click(await form.findByLabelText("Department"));
+  await user.click(await screen.findByRole("option", { name: "Synthetic Pharmacy" }));
+  await user.click(form.getByRole("button", { name: "Submit proposal" }));
+  await waitFor(() => expect(commands).toHaveLength(1));
+  expect(commands[0]!.body).toMatchObject({
+    hospital_id: hospital,
+    department_id: pharmacy,
+    template_key: "workforce.department_leave_reviewer.v1",
+    subject: "candidate",
+  });
+});
+
+it("keeps hospital-wide leave proposals on the hospital leave reviewer", async () => {
+  const commands = departmentCatalogSetup([], "staff-department-leave-reviews-v1");
+  const { user, form } = await openLeaveProposal();
+  await user.click(form.getByLabelText("Access template"));
+  const templates = screen.getByRole("listbox");
+  expect(templates).not.toHaveTextContent("Department leave reviewer");
+  await user.click(within(templates).getByRole("option", { name: "Leave reviewer" }));
+  await fillProposal(user, form);
+  await user.click(form.getByRole("button", { name: "Submit proposal" }));
+  await waitFor(() => expect(commands).toHaveLength(1));
+  expect(commands[0]!.body).not.toHaveProperty("department_id");
+  expect(commands[0]!.body.template_key).toBe("workforce.leave_reviewer.v1");
+});
+
+it("offers no department leave scope before the department leave catalog is verified", async () => {
+  departmentCatalogSetup();
+  const { form } = await openLeaveProposal();
+  await screen.findByRole("form", { name: "Propose assignment" });
+  expect(form.queryByLabelText("Applies to")).not.toBeInTheDocument();
+});
+
+it("shows a department leave assignment's scope by its current department name", async () => {
+  departmentCatalogSetup(
+    [
+      {
+        ...row,
+        input: {
+          ...row.input,
+          department_id: pharmacy,
+          template_key: "workforce.department_leave_reviewer.v1",
+        },
+        scope_kind: "department",
+      },
+    ],
+    "staff-department-leave-reviews-v1",
+  );
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  expect(
+    await screen.findByText("Applies to: Synthetic Pharmacy and its current sub-units"),
+  ).toBeInTheDocument();
+});
+
+it("rejects a template catalog whose declared scope kinds differ", async () => {
+  setup("proposer", []);
+  const prior = fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("catalog=staff-department-posting-reviews-v1"))
+        return Response.json(
+          catalogDefinitions("staff-department-posting-reviews-v1").map((template) =>
+            template.key === "workforce.department_posting_reviewer.v1"
+              ? { ...template, scope_kinds: ["hospital"] }
+              : template,
+          ),
+        );
+      return prior(url, init);
+    }),
+  );
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  expect(
+    await screen.findByText("Staff posting assignments are unavailable in this workspace."),
+  ).toBeInTheDocument();
+});
+
+it("rejects a template catalog whose declared establishment kinds differ", async () => {
+  setup("proposer", []);
+  const prior = fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("catalog=staff-department-posting-reviews-v1"))
+        return Response.json(
+          catalogDefinitions("staff-department-posting-reviews-v1").map((template) =>
+            template.key === "workforce.department_posting_reviewer.v1"
+              ? { ...template, establishment_kinds: ["hospital", "pharmacy"] }
+              : template,
+          ),
+        );
+      return prior(url, init);
+    }),
+  );
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  expect(
+    await screen.findByText("Staff posting assignments are unavailable in this workspace."),
+  ).toBeInTheDocument();
+});
+
 it.each(["missing", "broader", "extra"])(
   "does not offer posting authority from a %s catalog",
   async (kind) => {
@@ -1193,3 +1509,130 @@ it.each(["unavailable", "extra", "widened"] as const)(
     ).not.toBeInTheDocument();
   },
 );
+
+// #1595: a refused hospital or department read is a refusal, not an outage with a retry.
+it("shows refused hospitals in the proposal form as a refusal, with no retry", async () => {
+  departmentCatalogSetup();
+  const catalog = fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) =>
+      new URL(url, "http://localhost").pathname.endsWith("/workforce/hospitals")
+        ? Response.json({ error: "forbidden", message: "secret detail" }, { status: 403 })
+        : catalog(url, init),
+    ),
+  );
+  const { form } = await openPostingProposal();
+  expect(
+    await form.findByText("This wasn't found, or you don't have access to it."),
+  ).toBeInTheDocument();
+  expect(form.queryByRole("button", { name: /retry hospitals|try again/i })).toBeNull();
+});
+
+it("shows hidden departments in the proposal form as a refusal, with no retry", async () => {
+  departmentCatalogSetup();
+  const catalog = fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) =>
+      url.includes(`/organization/hospitals/${hospital}/departments?`)
+        ? Response.json({ error: "not_found", message: "secret detail" }, { status: 404 })
+        : catalog(url, init),
+    ),
+  );
+  const { user, form } = await openPostingProposal();
+  await user.click(form.getByLabelText("Applies to"));
+  await user.click(await screen.findByRole("option", { name: "One department and its sub-units" }));
+  await fillProposal(user, form);
+  expect(
+    await form.findByText("This wasn't found, or you don't have access to it."),
+  ).toBeInTheDocument();
+  expect(form.queryByRole("button", { name: /retry departments|try again/i })).toBeNull();
+});
+
+// #1595: a refused refresh hides the records it had shown, and its button.
+it("shows a refused assignments refresh as a refusal and hides the records", async () => {
+  setup();
+  const prior = fetch;
+  let refused = false;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) =>
+      refused && url.startsWith("/api/v1/iam/assignment-proposals?")
+        ? Response.json({ error: "forbidden", message: "secret" }, { status: 403 })
+        : prior(url, init),
+    ),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  expect(await screen.findByText("Synthetic review")).toBeInTheDocument();
+  refused = true;
+  await user.click(screen.getByRole("button", { name: "Refresh assignments" }));
+  expect(
+    await screen.findByText("This wasn't found, or you don't have access to it."),
+  ).toBeInTheDocument();
+  expect(screen.queryByText("Synthetic review")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Refresh assignments" })).not.toBeInTheDocument();
+  expect(screen.queryByText(/secret/)).not.toBeInTheDocument();
+});
+
+it("asks again for assignment history after an outage", async () => {
+  setup();
+  const prior = fetch;
+  let reads = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (!url.includes("/history?")) return prior(url, init);
+      reads += 1;
+      return Response.json({ error: "unavailable", message: "down" }, { status: 503 });
+    }),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "History" }));
+  const failure = (await screen.findByText("Could not load history.")).closest("[role=alert]");
+  const before = reads;
+  await user.click(within(failure as HTMLElement).getByRole("button", { name: "Try again" }));
+  await waitFor(() => expect(reads).toBeGreaterThan(before));
+});
+
+it("keeps a department assignment's scope when its department read is refused", async () => {
+  departmentCatalogSetup([
+    {
+      ...row,
+      input: {
+        ...row.input,
+        department_id: pharmacy,
+        template_key: "workforce.department_posting_reviewer.v1",
+      },
+      scope_kind: "department",
+    },
+  ]);
+  const prior = fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) =>
+      url.includes(`/departments/${pharmacy}/revisions`)
+        ? Response.json({ error: "forbidden", message: "secret" }, { status: 403 })
+        : prior(url, init),
+    ),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByLabelText("Assignment area"));
+  await user.click(await screen.findByRole("option", { name: "Staff posting access" }));
+  expect(
+    await screen.findByText(`Applies to: department ${pharmacy}. Its name isn't available to you.`),
+  ).toBeInTheDocument();
+  expect(screen.queryByText(/secret/)).not.toBeInTheDocument();
+});

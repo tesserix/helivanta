@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@tesserix/web";
 import { STAFF_ACCESS_CHANGED, useStaffAccessCutoff } from "./staff-access-cutoff";
-import { FormSelectField, useZodForm, Panel } from "@helivanta/ui";
+import { FormSelectField, useZodForm, Panel, RequestFailure } from "@helivanta/ui";
 import {
   ApiError,
   withStaffIntakeScope,
@@ -20,7 +20,7 @@ import {
   saveDocumentClassification,
   documentClassificationInputSchema,
   documentClassificationQueryKey,
-  type DocumentScope,
+  type HospitalDocumentScope,
   type StaffDocument,
   type DocumentClassification,
   type DocumentClassificationInput,
@@ -28,7 +28,7 @@ import {
 } from "@helivanta/api";
 
 type Props = {
-  scope: DocumentScope;
+  scope: HospitalDocumentScope;
   file: StaffDocument;
   onClose: () => void;
   onContextChanged?: () => void;
@@ -60,11 +60,15 @@ export function DocumentClassificationEditor({ scope, file, onClose, onContextCh
   if (current.isPending) return <p role="status">Loading protected document classification…</p>;
   if (current.isError || !current.data)
     return (
-      <section aria-label="Document classification">
-        <p role="alert">Document classification is not available. Reload before making changes.</p>
-        <Button type="button" variant="outline" onClick={() => void current.refetch()}>
-          Try again
-        </Button>
+      <section aria-label="Document classification" className="space-y-3">
+        <RequestFailure
+          message="Document classification is not available. Reload before making changes."
+          // An older owner answers 404 because it has no classification view;
+          // asking again cannot change that, so it reads as unavailable, not an outage.
+          refused="Document classification is not available for this file."
+          retry={current.refetch}
+          error={current.error}
+        />
         <Button type="button" variant="ghost" onClick={onClose}>
           Close classification
         </Button>
@@ -88,7 +92,7 @@ export function DocumentClassificationEditor({ scope, file, onClose, onContextCh
         onContextChanged={loseAccess}
         value={current.data}
         refreshing={current.isFetching}
-        onReload={() => void current.refetch()}
+        refresh={() => void current.refetch()}
         onSaved={() => {
           setNotice("Document classification saved.");
           void current.refetch();
@@ -104,14 +108,15 @@ function ClassificationForm({
   file,
   value,
   refreshing,
-  onReload,
+  refresh,
   onSaved,
   onClose,
   onContextChanged,
 }: Props & {
   value: DocumentClassification;
   refreshing: boolean;
-  onReload: () => void;
+  /** Re-reads the classification; this form renders only while that read succeeds. */
+  refresh: () => void;
   onSaved: () => void;
 }) {
   const form = useZodForm(documentClassificationInputSchema, {
@@ -190,7 +195,7 @@ function ClassificationForm({
       classification_revision_id: value.classification_revision_id,
     });
     masters.retry();
-    onReload();
+    refresh();
   };
   if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   return (
@@ -231,17 +236,12 @@ function ClassificationForm({
           <p role="status">Loading document categories…</p>
         )}
         {masters.isError && (
-          <div role="alert">
-            Document categories could not be loaded. You can retain the recorded value or clear it.{" "}
-            <Button
-              type="button"
-              variant="outline"
-              disabled={blocked}
-              onClick={() => masters.retry()}
-            >
-              Retry categories
-            </Button>
-          </div>
+          <RequestFailure
+            message="Document categories could not be loaded. You can retain the recorded value or clear it."
+            refused="Document categories are not available to you. You can retain the recorded value or clear it."
+            retry={masters.retry}
+            error={masters.error}
+          />
         )}
         {masters.hasMore && (
           <Button
@@ -308,12 +308,11 @@ function ClassificationForm({
           {history.isPending || history.isFetching ? (
             <p role="status">Loading classification history…</p>
           ) : history.isError ? (
-            <div role="alert">
-              Classification history is not available.{" "}
-              <Button type="button" variant="outline" onClick={() => void history.refetch()}>
-                Retry history
-              </Button>
-            </div>
+            <RequestFailure
+              message="Classification history is not available."
+              retry={history.refetch}
+              error={history.error}
+            />
           ) : (
             history.data && (
               <>

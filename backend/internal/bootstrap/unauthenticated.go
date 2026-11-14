@@ -20,8 +20,21 @@ import (
 // The bar for an entry is high: a route here is reachable by anyone on
 // the network, with no principal, no tenant and no permission check. It
 // must be a route that *cannot* work any other way.
+// #nosec G101 -- These are public route paths and rationales, never credentials.
 var UnauthenticatedRoutes = map[string]string{
-	"GET /v1/auth/branding/:tenant": "published display-only branding must render before login; no identity or data access",
+	"POST /v1/auth/staff-setup/:action":  "same-origin, rate-limited opaque Staff invitation and native proof; grants no business access",
+	"POST /v1/auth/accounts":             "same-origin mailbox proof before private separate-account discovery",
+	"POST /v1/auth/accounts/verify":      "browser-bound one-use mailbox proof; no application access",
+	"GET /v1/auth/accounts":              "bounded display-only choices after mailbox proof, no session required",
+	"POST /v1/auth/signup/sign-in":       "receipt-bound continuation using a fresh native ID token and current revocation check before tenant membership exists",
+	"GET /v1/auth/signup":                "receipt-bound setup progress before a tenant session exists",
+	"POST /v1/auth/signup":               "new owner intent before a tenant exists; same-origin receipt and private workload handoff",
+	"POST /v1/auth/signup/new":           "same-origin browser receipt rotation only; no tenant, user or pending intent changes",
+	"POST /v1/auth/signup/verify-email":  "native email proof before sign-in; shared proof budget and receipt rotation",
+	"POST /v1/auth/signup/password":      "native reset code for the immutable signup owner before sign-in",
+	"POST /v1/auth/signup/email-link":    "bounded native verification delivery without identity disclosure",
+	"POST /v1/auth/signup/password-link": "bounded native password setup and recovery without identity disclosure",
+	"GET /v1/auth/branding/:tenant":      "published display-only branding must render before login; no identity or data access",
 	// #1386 C-4a: Razorpay holds no Helivanta session. The account's webhook
 	// secret (HMAC over the raw body) is the credential, and a verified
 	// delivery only triggers a provider API read; it settles nothing itself.
@@ -61,6 +74,12 @@ var UnauthenticatedRoutes = map[string]string{
 	// service, which is the failure mode these exist to prevent.
 	"GET /healthz": "liveness probe; an authenticated probe cannot report health before auth works",
 	"GET /readyz":  "readiness probe; same reason, and it must answer during a dependency outage",
+}
+
+// MountStaffSetup mounts only the recipient capability endpoint before sign-in.
+func MountStaffSetup(e *gin.Engine, handler gin.HandlerFunc) {
+	mustHandler("POST /v1/auth/staff-setup/:action", handler)
+	e.POST("/v1/auth/staff-setup/:action", handler)
 }
 
 // MountUnauthenticated registers the routes that cannot sit behind the
@@ -127,4 +146,32 @@ func mustHandler(route string, h gin.HandlerFunc) {
 		panic("bootstrap.MountUnauthenticated: nil handler for " + route +
 			" — every route in UnauthenticatedRoutes must actually be mounted, never silently skipped")
 	}
+}
+
+// MountCustomerSignup mounts only receipt-bound signup and native-proof operations.
+func MountCustomerSignup(e *gin.Engine, start, status, verify, password, emailLink, passwordLink, signin, newReceipt gin.HandlerFunc) {
+	routes := []struct {
+		method, path string
+		handler      gin.HandlerFunc
+	}{
+		{"POST", "/v1/auth/signup/sign-in", signin},
+		{"POST", "/v1/auth/signup/new", newReceipt},
+		{"GET", "/v1/auth/signup", status}, {"POST", "/v1/auth/signup", start},
+		{"POST", "/v1/auth/signup/verify-email", verify}, {"POST", "/v1/auth/signup/password", password},
+		{"POST", "/v1/auth/signup/email-link", emailLink}, {"POST", "/v1/auth/signup/password-link", passwordLink},
+	}
+	for _, route := range routes {
+		mustHandler(route.method+" "+route.path, route.handler)
+		e.Handle(route.method, route.path, route.handler)
+	}
+}
+
+// MountAccountDiscovery mounts only mailbox-bound identity discovery through Global API.
+func MountAccountDiscovery(e *gin.Engine, start, verify, choices gin.HandlerFunc) {
+	mustHandler("POST /v1/auth/accounts", start)
+	mustHandler("POST /v1/auth/accounts/verify", verify)
+	mustHandler("GET /v1/auth/accounts", choices)
+	e.POST("/v1/auth/accounts", start)
+	e.POST("/v1/auth/accounts/verify", verify)
+	e.GET("/v1/auth/accounts", choices)
 }

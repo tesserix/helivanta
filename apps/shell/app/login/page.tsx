@@ -1,13 +1,12 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { z } from "zod";
 import {
   AuthCardCentered,
   AuthCardFooter,
   AuthCredentialForm,
-  AuthOtpStep,
   AuthSetPasswordForm,
   Button,
   type AuthCredentialValues,
@@ -24,6 +23,9 @@ import {
   TenantLoginHeading,
 } from "@/components/login-branding";
 import { getUserManager } from "@/lib/oidc";
+import { AccountDiscovery } from "@/components/account-discovery";
+import { MfaCodeForm } from "@/components/mfa-code-form";
+import { workspaceSigninScope } from "@/lib/workspace-signin";
 import {
   changePassword,
   checkFactor,
@@ -39,106 +41,10 @@ import {
   type TotpEnrollment,
 } from "@/lib/login-client";
 
-// Helivanta's own sign-in page (spec D2/D6, #854 — supersedes D5a of
-// 2026-08-15-zitadel-tenancy-topology-design.md). D5a said Helivanta must
-// render no credential surface at all, because a compromised Helivanta
-// frontend would then have a password to harvest; that spec has been
-// DELIBERATELY REVERSED. Clinicians now sign in on a page with Helivanta's own
-// theme, not Zitadel's stock hosted login — the Go API still holds the
-// only credential-checking secret (the `IAM_LOGIN_CLIENT` PAT,
-// backend/internal/modules/iam/loginui.go) and never hands it to the
-// browser, so this page collects a credential but never verifies one
-// itself. The trade-off D5a priced (a compromised frontend can now
-// harvest a submitted password) is accepted deliberately in exchange for
-// a Helivanta-branded sign-in; see the design spec for the full accounting.
-//
-// This page has two states, switched on whether `?authRequest=` is on
-// the URL:
-//
-//  - ABSENT: today's landing page. Arriving at /login with no auth
-//    request (a direct hit, or the post-logout redirect target) has
-//    nothing yet to sign the caller into, so this renders the same
-//    button it always has and starts one via signinRedirect() — see the
-//    unchanged commentary below on why that is a button, not a
-//    mount-time effect.
-//  - PRESENT: Zitadel's own /oauth/v2/authorize redirect landed here with
-//    a real auth request id. This renders the credential form and drives
-//    POST /v1/auth/login/password directly against our API.
-//
-// The credential form's accessible names — `Email or username`,
-// `Password`, and a button named `Sign in` — are a CONTRACT, not styling
-// (spec D6/D7). The first was `Email` until #899; see credentialsSchema.
-// e2e/tests/support/login.ts drives every one of this repo's twelve spec
-// files by these exact names at the login step; renaming a label here
-// fails all of them simultaneously, in a way that reads like a broken
-// application rather than a renamed field. Do not "improve" the label
-// text without updating that contract deliberately. #867 (spec D7) moved
-// the credential fields onto `@tesserix/web`'s `AuthCredentialForm`,
-// whose DEFAULT login-name label is `describeLoginName(methodPolicy)` and
-// is policy-derived — CredentialForm below passes `loginNameLabel`,
-// `passwordLabel`, and `submitLabel` explicitly for exactly this reason.
-// The MFA step this same change adds (below) introduces NEW accessible
-// names of its own; they are new, not renamed, so nothing existing
-// depends on them yet, but the e2e spec added alongside this change pins
-// them, so treat them as the same kind of contract from here on.
-//
-// MOST IMPORTANT: a password check alone is NOT sufficient authentication
-// here (spec D4). Zitadel was observed, experimentally, NOT to enforce an
-// org's `forceMfa` policy for a login-client session — a password-only
-// session finalises with a valid authorization code even when a second
-// factor is required. So Helivanta's own API decides sufficiency itself, and
-// answers a submitted password with one of THREE shapes:
-//
-//  - `{ callback_url }` — the login is actually complete; navigate there.
-//  - `{ factor_required: ["totp"] }` — (#867, spec D1/D8) the password was
-//    correct and the org's policy requires a TOTP code, which Helivanta
-//    collects natively. Neither success nor failure: rendering it as a
-//    failed sign-in would send a clinician to reset a password that was
-//    correct. See OtpStep below and login-client.ts's checkPassword doc
-//    comment.
-//  - a 403 `blocked` refusal (#947) — the password was correct, but
-//    Helivanta cannot complete this sign-in: the org requires two-step
-//    verification and none is set up, or the account uses a method
-//    Helivanta does not support yet. Rendered in Helivanta's own words on
-//    the start-again landing. This page NEVER navigates to Zitadel's
-//    hosted login: it used to (`handoff_url`), and that stranded
-//    clinicians on Zitadel's "You are signed in" page. A forced password
-//    change is not among these — verified live 2026-08-16 (#854 Task 8,
-//    spike §5), Zitadel signals `passwordChangeRequired` to a login client
-//    nowhere in the flow, so the API COMPLETES those logins (#856).
-//
-// A genuinely refused credential (wrong password or unknown user) is a
-// FOURTH, distinct outcome: the API answers both cases identically — same
-// status, same body, same timing floor (spec D5) — specifically so a
-// caller cannot learn which hospital accounts exist by trying login
-// names. This page shows that ONE shared message in a single
-// `role="alert"` element and never renders a per-field error for it
-// (e.g. "no account with that email"), which would rebuild the same
-// enumeration oracle the backend just closed. A wrong TOTP code (#867,
-// spec D5/D6) answers with the IDENTICAL wording, one level deeper, for
-// the same reason — see OtpStep below.
-//
-// A FIFTH outcome sits in front of all of the above: the auth request
-// itself can be unknown, expired, or already used — reachable in normal
-// use, per the design spec, by nothing more unusual than a browser left
-// on this page overnight. ValidatedCredentialForm calls
-// GET /v1/auth/login/request/:id on mount specifically to catch that
-// BEFORE a clinician types a credential into a form that can only ever
-// fail — the same expired-request error is also possible from the
-// submit-time POST (checkPassword), which stays in place as the
-// backstop for an auth request that goes stale in the gap between the
-// mount-time check succeeding and the credential being submitted. Either
-// path renders the SAME "start again" affordance: RedirectLanding's own
-// Sign in button, which is a real, working control here — not just an
-// error message with nowhere to go. #867 adds a SIXTH place this exact
-// same situation can be discovered: a `login_attempt` row (the server-
-// side record of an in-progress MFA check) can itself go stale between
-// the password step and the factor step — see OtpStep's `onEnded`,
-// which renders this identical landing rather than a second, different-
-// looking dead end.
-//
-// apps/shell/app/api/auth/callback/page.tsx is unchanged: it is the
-// target `callback_url` redirects to.
+// Ordinary sign-in proves mailbox control before showing separate tenant accounts.
+// Scoped links keep their exact native organisation. Neither discovery nor a
+// routing hint grants membership; native credentials/MFA and session exchange
+// remain the enforcement boundaries. Credential labels are also the e2e contract.
 export default function LoginPage() {
   return (
     // Suspense boundary: useSearchParams() opts a page out of Next's
@@ -256,6 +162,7 @@ function toMethodPolicy(policies: AuthPoliciesInfo): AuthMethodPolicy {
 // the same way, in the step itself.
 type LoginStep =
   | { kind: "credential" }
+  | { kind: "securityKey"; url: string }
   | { kind: "otp"; currentPassword: string }
   | { kind: "enroll"; currentPassword: string; totp: TotpEnrollment }
   | { kind: "passwordChange"; currentPassword: string; change: PasswordChangeRequired };
@@ -301,6 +208,36 @@ function LoginFlow({
     return <RedirectLanding message={endedMessage} />;
   }
 
+  if (step.kind === "securityKey") {
+    return (
+      <TenantLoginLayout>
+        <AuthCardCentered>
+          <div className="space-y-2 text-center">
+            <TenantLoginHeading />
+            <p className="text-sm text-muted-foreground">
+              Complete sign-in with your security key.
+            </p>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Continue securely on {new URL(step.url).hostname}, where your key is registered. You may
+            be asked to enter your password again and touch your key. You will return to Helivanta
+            after verification.
+          </p>
+          <Button className="w-full" onClick={() => window.location.assign(step.url)}>
+            Continue with security key
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => end("Start a new sign-in attempt to use another account.")}
+          >
+            Start again
+          </Button>
+        </AuthCardCentered>
+      </TenantLoginLayout>
+    );
+  }
+
   if (step.kind === "otp" || step.kind === "enroll") {
     const { currentPassword } = step;
     const toPasswordChange = (change: PasswordChangeRequired) =>
@@ -336,6 +273,7 @@ function LoginFlow({
     <CredentialForm
       authRequestId={authRequestId}
       policies={policies}
+      onSecurityKeyRequired={(url) => setStep({ kind: "securityKey", url })}
       onFactorRequired={(currentPassword) => setStep({ kind: "otp", currentPassword })}
       onEnrollmentRequired={(currentPassword, totp) =>
         setStep({ kind: "enroll", currentPassword, totp })
@@ -421,6 +359,7 @@ function saveRememberedUsername(enabled: boolean, username: string) {
 function CredentialForm({
   authRequestId,
   policies,
+  onSecurityKeyRequired,
   onFactorRequired,
   onEnrollmentRequired,
   onPasswordChangeRequired,
@@ -428,6 +367,7 @@ function CredentialForm({
 }: {
   authRequestId: string;
   policies: AuthPoliciesInfo;
+  onSecurityKeyRequired: (url: string) => void;
   onFactorRequired: (currentPassword: string) => void;
   onEnrollmentRequired: (currentPassword: string, totp: TotpEnrollment) => void;
   onPasswordChangeRequired: (currentPassword: string, change: PasswordChangeRequired) => void;
@@ -474,6 +414,9 @@ function CredentialForm({
         switch (result.outcome) {
           case "complete":
             window.location.assign(result.callbackUrl);
+            break;
+          case "securityKeyRequired":
+            onSecurityKeyRequired(result.url);
             break;
           case "factorRequired":
             onFactorRequired(password);
@@ -673,7 +616,7 @@ function OtpStep({
         }
       },
       // Same reasoning as CredentialForm's suppressErrorToast above:
-      // AuthOtpStep's own `error` prop is this mutation's dedicated error
+      // MfaCodeForm's own `error` prop is this mutation's dedicated error
       // surface.
       suppressErrorToast: true,
     },
@@ -689,19 +632,7 @@ function OtpStep({
           </p>
         </div>
 
-        <AuthOtpStep
-          // Review finding, fix round 1: unlike AuthCredentialForm,
-          // AuthRegisterForm and AuthRecovery, AuthOtpStep does NOT set
-          // `noValidate` on its own `<form>` — and its `<input>` carries
-          // `pattern="\d{6}"` plus `maxLength`, both native-validation
-          // attributes. Without this prop, pressing Enter on an
-          // incomplete code fires the browser's native validation popup,
-          // which docs/standards/frontend.md bans outright (§4/§5). This
-          // IS accepted by AuthOtpStepProps (it extends
-          // `FormHTMLAttributes<HTMLFormElement>` and spreads `...props`
-          // onto the `<form>` — see @tesserix/web's source), so passing
-          // it here is sufficient; no DOM workaround needed.
-          noValidate
+        <MfaCodeForm
           value={code}
           onValueChange={(next) => {
             setCode(next);
@@ -815,8 +746,7 @@ function EnrollStep({
           </code>
         </div>
 
-        <AuthOtpStep
-          noValidate
+        <MfaCodeForm
           value={code}
           onValueChange={(next) => {
             setCode(next);
@@ -1069,6 +999,8 @@ function RedirectLanding({
   message?: string;
   autoStart?: boolean;
 }) {
+  const params = useSearchParams();
+  const workspace = params.get("workspace") ?? "";
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(autoStart);
   // React's development double-mount must not start two redirects.
@@ -1093,6 +1025,33 @@ function RedirectLanding({
   // folded into `signedOut`, so the two messages can never be conflated,
   // and this component's effect below is what enforces which one wins.
   const [idleEnded, setIdleEnded] = useState(false);
+
+  const signIn = useCallback(async () => {
+    setError(null);
+    setStarting(true);
+    try {
+      // prompt=login on this request only — never on the silent renewal in
+      // lib/renew.ts, which relies on prompt=none. Applying it there would
+      // make every renewal demand a password and turn a background refresh
+      // into an interruption mid-consultation.
+      //
+      // Here it is cheap and worth it: this is an explicit, deliberate
+      // sign-in, and forcing re-authentication means a live Zitadel session
+      // cannot silently answer for whoever is now at the keyboard.
+      await getUserManager().signinRedirect({
+        prompt: "login",
+        ...(workspace
+          ? {
+              scope: workspaceSigninScope(workspace.trim()),
+              state: { purpose: "workspace-login", tenantId: workspace.trim() },
+            }
+          : {}),
+      });
+    } catch (err: unknown) {
+      setStarting(false);
+      setError(err instanceof Error ? err.message : "Could not reach the sign-in page.");
+    }
+  }, [workspace]);
 
   useEffect(() => {
     // An explicit message (the expired-request state) always wins — see
@@ -1130,33 +1089,17 @@ function RedirectLanding({
       showLanding();
       return;
     }
-    if (!autoStart || autoStarted.current) return;
+    if (!workspace || !autoStart || autoStarted.current) {
+      showLanding();
+      return;
+    }
     autoStarted.current = true;
     // Back from the credential form returns to the landing, not to another start.
     const url = new URL(window.location.href);
     url.searchParams.delete("start");
     window.history.replaceState(window.history.state, "", url);
     void signIn();
-  }, [message, autoStart]);
-
-  async function signIn() {
-    setError(null);
-    setStarting(true);
-    try {
-      // prompt=login on this request only — never on the silent renewal in
-      // lib/renew.ts, which relies on prompt=none. Applying it there would
-      // make every renewal demand a password and turn a background refresh
-      // into an interruption mid-consultation.
-      //
-      // Here it is cheap and worth it: this is an explicit, deliberate
-      // sign-in, and forcing re-authentication means a live Zitadel session
-      // cannot silently answer for whoever is now at the keyboard.
-      await getUserManager().signinRedirect({ prompt: "login" });
-    } catch (err: unknown) {
-      setStarting(false);
-      setError(err instanceof Error ? err.message : "Could not reach the sign-in page.");
-    }
-  }
+  }, [message, autoStart, signIn, workspace]);
 
   return (
     <TenantLoginLayout>
@@ -1174,9 +1117,21 @@ function RedirectLanding({
           </p>
         </div>
 
-        <Button size="lg" className="w-full" onClick={signIn} disabled={starting}>
-          {starting ? "Redirecting…" : "Sign in"}
-        </Button>
+        {workspace ? (
+          <Button size="lg" className="w-full" onClick={signIn} disabled={starting}>
+            {starting ? "Redirecting…" : "Sign in"}
+          </Button>
+        ) : (
+          <AccountDiscovery
+            onSelect={async (tenantId) => {
+              await getUserManager().signinRedirect({
+                prompt: "login",
+                scope: workspaceSigninScope(tenantId),
+                state: { purpose: "workspace-login", tenantId },
+              });
+            }}
+          />
+        )}
 
         {error ? (
           <p role="alert" className="text-sm text-destructive">

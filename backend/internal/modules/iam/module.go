@@ -5,6 +5,7 @@ package iam
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -47,7 +48,8 @@ const PermCredentialRevoke authz.Permission = "iam.credential.revoke" //nolint:g
 // the module's sign-out/revoke handlers silently invalidate a cache
 // nothing on the request path ever reads (#781).
 type Module struct {
-	checker *RevocationChecker
+	ownerSecurity OwnerSecurityClient
+	checker       *RevocationChecker
 	// userState re-checks a subject's Zitadel state on renewal (#916,
 	// design spec D3). See SetUserStateChecker.
 	userState UserStateChecker
@@ -115,18 +117,38 @@ func (m *Module) UserStateCheckerForTest() UserStateChecker { return m.userState
 // UserProfileReaderForTest exposes the profile reader for the same wiring assertion.
 func (m *Module) UserProfileReaderForTest() UserProfileReader { return m.profiles }
 
-// Permissions declares administrative membership, proposal and credential actions.
-// None lists a role: tenant_admin is implicit, and revoking a
-// person's credentials platform-wide is not an authority any clinical
-// role should carry.
+// Permissions keeps membership/credential administration at tenant_admin.
+// Operating administration also requires current employer access at the owner.
 func (m *Module) Permissions() []authz.Grant {
 	return []authz.Grant{
+		{Permission: PermOperatingRead, Roles: []authz.Role{authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor, authz.RolePharmacyOwner}},
+		{Permission: PermOperatingPrepare, Roles: []authz.Role{authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RolePharmacyOwner}},
+		{Permission: PermOperatingReview, Roles: []authz.Role{authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyCompliance, authz.RolePharmacyOwner}},
+		{Permission: PermOperatingRevoke, Roles: []authz.Role{authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RolePharmacyOwner}},
 		{Permission: PermMemberManage},
 		{Permission: PermAssignmentManage},
 		{Permission: PermAssignmentReview},
+		{Permission: PermPartnerGroupMemberRead}, {Permission: PermPartnerGroupMemberPrepare}, {Permission: PermPartnerGroupMemberReview},
 		{Permission: PermCredentialRevoke},
+		{Permission: PermSupplierGrantRead, Roles: []authz.Role{authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RolePharmacyOwner}},
+		{Permission: PermSupplierGrantPrepare, Roles: []authz.Role{authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RolePharmacyOwner}},
+		{Permission: PermSupplierGrantReview, Roles: []authz.Role{authz.RoleSupplyOwner, authz.RolePharmacyOwner}},
+		{Permission: PermSupplierGrantAccept},
+		{Permission: PermSupplierGrantInbox},
+		{Permission: authz.PartnerCatalogueRead},
+		{Permission: authz.PartnerShipmentRead},
+		{Permission: authz.PartnerInvoiceRead},
 	}
 }
+
+//go:embed assignment_supplier_acceptance_templates_generated.sql
+var supplierAcceptanceTemplatesSchema string
+
+//go:embed assignment_supplier_receiving_templates_generated.sql
+var supplierReceivingTemplatesSchema string
+
+//go:embed operating_templates_generated.sql
+var operatingTemplatesFulfilmentSchema string
 
 func (m *Module) Migrations() []tenantdb.Migration {
 	return []tenantdb.Migration{{
@@ -289,7 +311,7 @@ ALTER TABLE login_attempt
 		ALTER TABLE iam_credential_revocations VALIDATE CONSTRAINT iam_credential_revocations_reason_check;`,
 	}, {ID: "0014_iam_staff_templates", SQL: assignmentTemplatesSchema}, {ID: "0015_iam_membership_commands", SQL: membershipCommandsSchema}, {
 		ID: "0016_iam_membership_candidate_index", ConcurrentIndexes: []tenantdb.ConcurrentIndex{{Name: "iam_members_candidate_history", Table: "iam_members", Columns: []tenantdb.IndexColumn{{Name: "tenant_id"}, {Name: "created_at", Descending: true}, {Name: "id", Descending: true}}}},
-	}, {ID: "0017_iam_membership_projection_reader", SQL: membershipProjectionReaderSchema}, {ID: "0018_iam_membership_enrollments", SQL: membershipEnrollmentsSchema}, {ID: "0019_iam_membership_recovery_admission", SQL: membershipRecoveryAdmissionSchema}, {ID: "0020_iam_hr_intake_templates", SQL: hrIntakeTemplatesSchema}, {ID: "0021_iam_employment_templates", SQL: employmentTemplatesSchema}, {ID: "0022_iam_employment_activation_templates", SQL: employmentActivationTemplatesSchema}, {ID: "0023_iam_employment_bases", SQL: employmentBasisSchema}, {ID: "0024_iam_staff_posting_templates", SQL: staffPostingTemplatesSchema}, {ID: "0025_iam_staff_posting_review_templates", SQL: staffPostingReviewTemplatesSchema}, {ID: "0026_iam_staff_posting_management_templates", SQL: staffPostingManagementTemplatesSchema}, {ID: "0027_iam_staff_posting_cutoff_templates", SQL: staffPostingCutoffTemplatesSchema}, {ID: "0028_iam_staff_posting_source_templates", SQL: staffPostingSourceTemplatesSchema}, {ID: "0029_iam_pharmacy_department_binding_templates", SQL: pharmacyDepartmentBindingTemplatesSchema}}
+	}, {ID: "0017_iam_membership_projection_reader", SQL: membershipProjectionReaderSchema}, {ID: "0018_iam_membership_enrollments", SQL: membershipEnrollmentsSchema}, {ID: "0019_iam_membership_recovery_admission", SQL: membershipRecoveryAdmissionSchema}, {ID: "0020_iam_hr_intake_templates", SQL: hrIntakeTemplatesSchema}, {ID: "0021_iam_employment_templates", SQL: employmentTemplatesSchema}, {ID: "0022_iam_employment_activation_templates", SQL: employmentActivationTemplatesSchema}, {ID: "0023_iam_employment_bases", SQL: employmentBasisSchema}, {ID: "0024_iam_staff_posting_templates", SQL: staffPostingTemplatesSchema}, {ID: "0025_iam_staff_posting_review_templates", SQL: staffPostingReviewTemplatesSchema}, {ID: "0026_iam_staff_posting_management_templates", SQL: staffPostingManagementTemplatesSchema}, {ID: "0027_iam_staff_posting_cutoff_templates", SQL: staffPostingCutoffTemplatesSchema}, {ID: "0028_iam_staff_posting_source_templates", SQL: staffPostingSourceTemplatesSchema}, {ID: "0029_iam_pharmacy_department_binding_templates", SQL: pharmacyDepartmentBindingTemplatesSchema}, {ID: "0030_iam_department_posting_review_templates", SQL: departmentPostingReviewTemplatesSchema}, {ID: "0031_iam_department_assignment_scope", SQL: departmentAssignmentScopeSchema}, {ID: "0032_iam_department_leave_review_templates", SQL: departmentLeaveReviewTemplatesSchema}, {ID: "0033_iam_establishment_root", SQL: establishmentRootSchema}, {ID: "0034_iam_partner_groups", SQL: partnerGroupsSchema}, {ID: "0035_iam_partner_membership_templates", SQL: partnerMembershipTemplatesSchema}, {ID: "0036_iam_partner_members", SQL: partnerMembersSchema}, {ID: "0037_iam_partner_grant_drafts", SQL: partnerGrantDraftsSchema}, {ID: "0038_iam_operating_duties", SQL: operatingTemplatesSchema + operatingDutiesSchema}, {ID: "0039_iam_supplier_grants", SQL: supplierGrantsSchema}, {ID: "0040_iam_supplier_access_templates", SQL: supplierAccessTemplatesSchema}, {ID: "0041_iam_stock_quality_template", SQL: operatingTemplatesCurrentSchema}, {ID: "0042_iam_purchase_order_templates", SQL: purchaseOrderTemplatesSchema}, {ID: "0043_iam_order_operating_templates", SQL: operatingTemplatesOrderSchema}, {ID: "0044_iam_fulfilment_operating_templates", SQL: operatingTemplatesFulfilmentSchema}, {ID: "0045_iam_supplier_receiving_templates", SQL: supplierReceivingTemplatesSchema}, {ID: "0046_iam_supplier_acceptance_templates", SQL: supplierAcceptanceTemplatesSchema}}
 }
 
 type role struct {
@@ -329,8 +351,9 @@ func knownRole(key string) bool {
 }
 
 type memberHandlers struct {
-	db  *tenantdb.DB
-	bus *events.Bus
+	db       *tenantdb.DB
+	bus      *events.Bus
+	identity MembershipIdentityReader
 }
 
 // grant adds a role to a subject, or repairs a stuck FGA tuple by
@@ -350,38 +373,72 @@ func (h *memberHandlers) grant(c *gin.Context) {
 		respond.BadRequest(c, fmt.Errorf("unknown role %q", req.RoleKey))
 		return
 	}
+	c.Header("Cache-Control", "no-store")
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 15*time.Second)
+	defer cancel()
+	if h.db == nil {
+		membershipCommandError(c, errMembershipAuthority)
+		return
+	}
 	row := member{TenantID: tenantUUID, Subject: req.Subject, RoleKey: req.RoleKey}
-	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		// Re-granting an existing role is a no-op at the row level,
-		// not a conflict: the caller's intent is already satisfied.
-		// An explicit ON CONFLICT DO NOTHING (rather than GORM's
-		// FirstOrCreate, which has sharp edges around which fields
-		// populate the created row) both sets tenant_id on the
-		// inserted row and makes "already granted" unambiguous:
-		// row.ID stays uuid.Nil because Postgres returns no row for
-		// a skipped insert.
-		if err := tx.Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "subject"}, {Name: "role_key"}},
-			DoNothing: true,
-		}).Create(&row).Error; err != nil {
-			return err
+	existing := false
+	if err := h.db.WithTenant(ctx, p.TenantID, func(tx *gorm.DB) error {
+		err := tx.Where("tenant_id=? AND subject=? AND role_key=?", tenantUUID, req.Subject, req.RoleKey).Take(&row).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
 		}
-		if row.ID == uuid.Nil {
-			// Already granted at the row level, but the outbox
-			// event still publishes unconditionally below (fetch
-			// the existing row first so the response carries its
-			// real id). Re-granting is a request-time repair
-			// mechanism for FGA drift, not the only one:
-			// platform.Reconcile (internal/platform/reconcile.go)
-			// re-applies every iam_members row's role tuple at
-			// boot, so a lost grant event also self-heals the next
-			// time any replica boots. This re-grant path stays
-			// useful because it repairs immediately, on request,
-			// without waiting for a boot. Tuple writes are
-			// idempotent, so the redundant write on a normal
-			// re-grant is harmless.
-			if err := tx.Where("subject = ? AND role_key = ?", req.Subject, req.RoleKey).First(&row).Error; err != nil {
+		existing = err == nil
+		return err
+	}); err != nil {
+		membershipCommandError(c, errors.Join(errMembershipAuthority, err))
+		return
+	}
+	if !existing {
+		if err := requireNewGrantIdentity(ctx, h.identity, p.TenantID, req.Subject); err != nil {
+			membershipCommandError(c, err)
+			return
+		}
+	}
+	err := h.db.WithTenant(ctx, p.TenantID, func(tx *gorm.DB) error {
+		if existing {
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("tenant_id=? AND id=? AND subject=? AND role_key=?", tenantUUID, row.ID, req.Subject, req.RoleKey).Take(&row).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return errMembershipConflict
+				}
 				return err
+			}
+		} else {
+			// Re-granting an existing role is a no-op at the row level,
+			// not a conflict: the caller's intent is already satisfied.
+			// An explicit ON CONFLICT DO NOTHING (rather than GORM's
+			// FirstOrCreate, which has sharp edges around which fields
+			// populate the created row) both sets tenant_id on the
+			// inserted row and makes "already granted" unambiguous:
+			// row.ID stays uuid.Nil because Postgres returns no row for
+			// a skipped insert.
+			if err := tx.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "subject"}, {Name: "role_key"}},
+				DoNothing: true,
+			}).Create(&row).Error; err != nil {
+				return err
+			}
+			if row.ID == uuid.Nil {
+				// Already granted at the row level, but the outbox
+				// event still publishes unconditionally below (fetch
+				// the existing row first so the response carries its
+				// real id). Re-granting is a request-time repair
+				// mechanism for FGA drift, not the only one:
+				// platform.Reconcile (internal/platform/reconcile.go)
+				// re-applies every iam_members row's role tuple at
+				// boot, so a lost grant event also self-heals the next
+				// time any replica boots. This re-grant path stays
+				// useful because it repairs immediately, on request,
+				// without waiting for a boot. Tuple writes are
+				// idempotent, so the redundant write on a normal
+				// re-grant is harmless.
+				if err := tx.Where("subject = ? AND role_key = ?", req.Subject, req.RoleKey).First(&row).Error; err != nil {
+					return err
+				}
 			}
 		}
 		data, err := json.Marshal(iamcontract.MemberChangedData(req))
@@ -402,6 +459,10 @@ func (h *memberHandlers) grant(c *gin.Context) {
 		if errors.As(err, &pg) && pg.Code == "23514" && pg.ConstraintName == "iam_membership_recovery_required" {
 			c.Header("Cache-Control", "no-store")
 			respond.Error(c, http.StatusConflict, "membership_recovery_required", "Use an explicit membership recovery command with the retained removal receipt.")
+			return
+		}
+		if errors.Is(err, errMembershipConflict) {
+			membershipCommandError(c, err)
 			return
 		}
 		respond.InternalErr(c, err, "could not grant role")
@@ -443,8 +504,9 @@ func (h *memberHandlers) list(c *gin.Context, p pagination.Params) ([]member, er
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
+	registerOperatingDutyRoutes(r, deps)
 	g := r.Group("/iam")
-	members := &memberHandlers{db: deps.DB, bus: deps.Bus}
+	members := &memberHandlers{db: deps.DB, bus: deps.Bus, identity: m.membershipIdentity}
 
 	g.POST("/members", PermMemberManage, members.grant)
 	g.DELETE("/members/:subject/:role", PermMemberManage, members.revoke)
@@ -453,8 +515,13 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 
 	m.registerMe(g, deps)
 	m.registerAssignmentProposals(g, deps)
+	m.registerPartnerGroups(g, deps)
+	m.registerSupplierGrants(g, deps)
+	m.registerPartnerGrantDrafts(g, deps)
+	m.registerPartnerMembers(g, deps)
 	m.registerMembershipCommands(g, deps)
 	m.registerMembershipEnrollments(g, deps)
+	registerStaffAccounts(g, deps)
 
 	rev := &revocationHandlers{db: deps.DB, bus: deps.Bus, checker: m.checker, roles: deps.Roles}
 	// NoTenantMembership: a member whose membership was just revoked must
@@ -532,8 +599,12 @@ func (m *Module) registerRenewal(r *platform.Router, deps platform.Deps) {
 
 // Publishes declares membership, assignment verification/projection and revocation events.
 func (m *Module) Publishes() []string {
-	return []string{
+	return []string{iamcontract.SubjectSupplierGrantExchange, iamcontract.SubjectOperatingDutyChanged,
+		iamcontract.SubjectPartnerGroupHospitalScopeRequested,
+		iamcontract.SubjectPartnerGroupChanged,
+		iamcontract.SubjectPartnerGroupMemberChanged,
 		iamcontract.SubjectAssignmentScopeRequested,
+		iamcontract.SubjectAssignmentDepartmentScopeRequested,
 		iamcontract.SubjectAssignmentProjectionRequested,
 		iamcontract.SubjectMemberGranted,
 		iamcontract.SubjectMemberRevoked,
@@ -541,13 +612,15 @@ func (m *Module) Publishes() []string {
 	}
 }
 
-// DirectedSubjects declares none: this module publishes nothing that
-// creates data in another tenant.
-func (m *Module) DirectedSubjects() []string { return nil }
+// DirectedSubjects admits the exact source/hospital supplier grant protocol.
+func (m *Module) DirectedSubjects() []string {
+	return []string{iamcontract.SubjectSupplierGrantExchange}
+}
 
-// DirectedWriteTables declares none: this module writes no table on
-// behalf of another tenant.
-func (m *Module) DirectedWriteTables() []string { return nil }
+// DirectedWriteTables retains original source provenance on consent projections.
+func (m *Module) DirectedWriteTables() []string {
+	return []string{"iam_supplier_grants", "iam_supplier_grant_history"}
+}
 
 // Broadcasts invalidates this replica's revocation cache the instant
 // another replica revokes a credential (#781). The durable truth is

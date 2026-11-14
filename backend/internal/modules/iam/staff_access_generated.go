@@ -7,12 +7,13 @@ import (
 )
 
 type ProposalInput struct {
-	HospitalID  uuid.UUID `json:"hospital_id"`
-	Subject     string    `json:"subject" binding:"required,max=200"`
-	TemplateKey string    `json:"template_key"`
-	Reason      string    `json:"reason" binding:"required,max=500"`
-	ValidFrom   time.Time `json:"valid_from"`
-	ExpiresAt   time.Time `json:"expires_at"`
+	HospitalID   uuid.UUID  `json:"hospital_id"`
+	DepartmentID *uuid.UUID `json:"department_id,omitempty"`
+	Subject      string     `json:"subject" binding:"required,max=200"`
+	TemplateKey  string     `json:"template_key"`
+	Reason       string     `json:"reason" binding:"required,max=500"`
+	ValidFrom    time.Time  `json:"valid_from"`
+	ExpiresAt    time.Time  `json:"expires_at"`
 }
 
 type ScopeRequest struct {
@@ -29,9 +30,25 @@ type ScopeResult struct {
 	Eligible   bool      `json:"eligible"`
 }
 
+type DepartmentScopeRequest struct {
+	ProposalID   uuid.UUID `json:"proposal_id"`
+	RequestID    uuid.UUID `json:"request_id"`
+	HospitalID   uuid.UUID `json:"hospital_id"`
+	DepartmentID uuid.UUID `json:"department_id"`
+}
+
+type DepartmentScopeResult struct {
+	ProposalID   uuid.UUID `json:"proposal_id"`
+	RequestID    uuid.UUID `json:"request_id"`
+	HospitalID   uuid.UUID `json:"hospital_id"`
+	DepartmentID uuid.UUID `json:"department_id"`
+	Eligible     bool      `json:"eligible"`
+}
+
 type ProposalOutput struct {
 	ID         uuid.UUID     `json:"id"`
 	Input      ProposalInput `json:"input"`
+	ScopeKind  string        `json:"scope_kind"`
 	ProposedBy string        `json:"proposed_by"`
 	Status     string        `json:"status"`
 	Version    int64         `json:"version"`
@@ -77,11 +94,13 @@ type MemberGrantResult struct {
 }
 
 type TemplateDefinition struct {
-	Key         string   `json:"key"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Family      string   `json:"family"`
-	Permissions []string `json:"permissions"`
+	Key                string   `json:"key"`
+	Name               string   `json:"name"`
+	Description        string   `json:"description"`
+	Family             string   `json:"family"`
+	Permissions        []string `json:"permissions"`
+	ScopeKinds         []string `json:"scope_kinds"`
+	EstablishmentKinds []string `json:"establishment_kinds"`
 }
 
 type MembershipCommandInput struct {

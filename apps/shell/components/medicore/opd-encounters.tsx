@@ -59,7 +59,13 @@ export function OpdEncounters() {
   const hospitals = useApiPagedQuery<Hospital>(["workforce", "hospitals"], "/workforce/hospitals");
   const hospital = hospitals.items.find((item) => item.id === hospitalId) ?? hospitals.items[0];
   if (hospitals.isError)
-    return <RequestFailure message="Could not load your hospitals." retry={hospitals.retry} />;
+    return (
+      <RequestFailure
+        message="Could not load your hospitals."
+        retry={hospitals.retry}
+        error={hospitals.error}
+      />
+    );
   if (hospitals.isPending) return <p role="status">Loading hospitals…</p>;
   if (!hospital)
     return (
@@ -121,6 +127,7 @@ function HospitalEncounters({ hospital }: { hospital: Hospital }) {
       <RequestFailure
         message="Could not check your MediCore access."
         retry={() => void access.refetch()}
+        error={access.error}
       />
     );
   return (
@@ -154,7 +161,11 @@ function HospitalEncounters({ hospital }: { hospital: Hospital }) {
           </Field>
         </div>
         {encounters.isError ? (
-          <RequestFailure message="Could not load encounters." retry={encounters.retry} />
+          <RequestFailure
+            message="Could not load encounters."
+            retry={encounters.retry}
+            error={encounters.error}
+          />
         ) : encounters.isPending ? (
           <p role="status" className="p-5">
             Loading encounters…
@@ -383,6 +394,7 @@ function OpenEncounter({ hospital }: { hospital: Hospital }) {
         <RequestFailure
           message="Could not search patients. You may need patient-registry access at this hospital."
           retry={patients.retry}
+          error={patients.error}
         />
       )}
       <form

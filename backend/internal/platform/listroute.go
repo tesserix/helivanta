@@ -67,20 +67,41 @@ func ScopedHospitalListRoute[T Keyed](r *Router, path string, permission authz.P
 	r.handleHospitalScope("GET", path, permission, hospitalParam, true, listHandlers(path, h)...)
 }
 
+// QueryFilter is one cursor-bound list filter and its normalized default.
+type QueryFilter struct{ Key, Default string }
+
 // ScopedHospitalQueryListRoute binds new cursors to the caller, hospital and one normalized filter.
 func ScopedHospitalQueryListRoute[T Keyed](r *Router, path string, permission authz.Permission, hospitalParam, queryKey, queryDefault string, maxLimit int, h ListHandler[T]) {
-	if queryKey == "" || queryKey == "cursor" || queryKey == "limit" || maxLimit < 1 || maxLimit > pagination.MaxLimit {
+	scope := queryCursorScope(hospitalParam, []QueryFilter{{Key: queryKey, Default: queryDefault}}, maxLimit)
+	r.handleHospitalScope("GET", path, permission, hospitalParam, true, listHandlersWithScope(path, h, scope, maxLimit)...)
+}
+
+// HandlerScopedQueryListRoute binds cursors to the caller, hospital and every filter; the handler proves hospital or department authority.
+func HandlerScopedQueryListRoute[T Keyed](r *Router, path string, permission authz.Permission, hospitalParam string, filters []QueryFilter, maxLimit int, h ListHandler[T]) {
+	scope := queryCursorScope(hospitalParam, filters, maxLimit)
+	r.handleHandlerScope("GET", path, permission, hospitalParam, true, listHandlersWithScope(path, h, scope, maxLimit)...)
+}
+
+func queryCursorScope(scopeParam string, filters []QueryFilter, maxLimit int) func(*gin.Context, authn.Principal) string {
+	valid := scopeParam != "" && len(filters) > 0 && maxLimit >= 1 && maxLimit <= pagination.MaxLimit
+	for _, filter := range filters {
+		valid = valid && filter.Key != "" && filter.Key != "cursor" && filter.Key != "limit"
+	}
+	if !valid {
 		panic("platform: scoped query list requires a domain filter")
 	}
-	scope := func(c *gin.Context, p authn.Principal) string {
-		value := c.Query(queryKey)
-		if value == "" {
-			value = queryDefault
+	return func(c *gin.Context, p authn.Principal) string {
+		key := p.Subject + "\x00" + c.FullPath() + "\x00" + strings.ToLower(c.Param(scopeParam))
+		for _, filter := range filters {
+			value := c.Query(filter.Key)
+			if value == "" {
+				value = filter.Default
+			}
+			key += "\x00" + value
 		}
-		digest := sha256.Sum256([]byte(p.Subject + "\x00" + c.FullPath() + "\x00" + strings.ToLower(c.Param(hospitalParam)) + "\x00" + value))
+		digest := sha256.Sum256([]byte(key))
 		return hex.EncodeToString(digest[:])
 	}
-	r.handleHospitalScope("GET", path, permission, hospitalParam, true, listHandlersWithScope(path, h, scope, maxLimit)...)
 }
 
 // ScopedHospitalProjectionListRoute preserves list envelopes and legacy admission for opt-in scope consumers.
@@ -93,13 +114,54 @@ func listHandlers[T Keyed](path string, h ListHandler[T]) []gin.HandlerFunc {
 }
 
 func listHandlersWithScope[T Keyed](path string, h ListHandler[T], scopeFor func(*gin.Context, authn.Principal) string, maxLimit int) []gin.HandlerFunc {
+	return pageHandlers(path, h, scopeFor, nil, maxLimit, func(rows []T) []T { return rows })
+}
+
+// Filtered is one scanned candidate; the cursor passes a withheld row without serving it.
+type Filtered[T Keyed] struct {
+	Row     T
+	Visible bool
+}
+
+func (f Filtered[T]) PageKey() (time.Time, uuid.UUID) { return f.Row.PageKey() }
+
+// HandlerScopedFilteredQueryListRoute is HandlerScopedQueryListRoute for rows that pass a per-row check after the scan.
+func HandlerScopedFilteredQueryListRoute[T Keyed](r *Router, path string, permission authz.Permission, hospitalParam string, filters []QueryFilter, maxLimit int, h ListHandler[Filtered[T]]) {
+	if r.cursorSealer == nil {
+		panic("platform: a filtered list seals its cursors, which may anchor on withheld rows")
+	}
+	scope := queryCursorScope(hospitalParam, filters, maxLimit)
+	r.handleHandlerScope("GET", path, permission, hospitalParam, true, pageHandlers(path, h, scope, r.cursorSealer, maxLimit, visibleRows[T])...)
+}
+
+func visibleRows[T Keyed](scanned []Filtered[T]) []T {
+	rows := make([]T, 0, len(scanned))
+	for _, candidate := range scanned {
+		if candidate.Visible {
+			rows = append(rows, candidate.Row)
+		}
+	}
+	return rows
+}
+
+func pageHandlers[T Keyed, O any](path string, h ListHandler[T], scopeFor func(*gin.Context, authn.Principal) string, sealer *pagination.Sealer, maxLimit int, serve func([]T) []O) []gin.HandlerFunc {
 	return []gin.HandlerFunc{func(c *gin.Context) {
 		p, ok := authn.PrincipalFrom(c)
 		if !ok {
 			respond.Unauthenticated(c, "missing principal")
 			return
 		}
-		params, err := pagination.Parse(c, p.TenantID)
+		scope := ""
+		if scopeFor != nil {
+			scope = scopeFor(c, p)
+		}
+		var params pagination.Params
+		var err error
+		if sealer != nil {
+			params, err = pagination.ParseSealed(c, p.TenantID, scope, sealer)
+		} else {
+			params, err = pagination.Parse(c, p.TenantID)
+		}
 		if err != nil {
 			// Both invalid limits and invalid cursors are client errors.
 			// The handler never runs — a bad page request must not reach
@@ -116,13 +178,9 @@ func listHandlersWithScope[T Keyed](path string, h ListHandler[T], scopeFor func
 				return
 			}
 		}
-		scope := ""
-		if scopeFor != nil {
-			scope = scopeFor(c, p)
-			if params.After != nil && params.After.Scope != scope {
-				respond.BadRequest(c, pagination.ErrInvalidCursor)
-				return
-			}
+		if params.After != nil && params.After.Scope != scope {
+			respond.BadRequest(c, pagination.ErrInvalidCursor)
+			return
 		}
 
 		rows, err := h(c, params)
@@ -151,17 +209,22 @@ func listHandlersWithScope[T Keyed](path string, h ListHandler[T], scopeFor func
 		var next *string
 		if hasMore && len(rows) > 0 {
 			at, id := rows[len(rows)-1].PageKey()
-			encoded := pagination.Cursor{TenantID: p.TenantID, CreatedAt: at, ID: id, Scope: scope}.Encode()
+			cursor := pagination.Cursor{TenantID: p.TenantID, CreatedAt: at, ID: id, Scope: scope}
+			encoded := cursor.Encode()
+			if sealer != nil {
+				encoded = sealer.Seal(cursor)
+			}
 			next = &encoded
 		}
 
 		// A nil slice marshals to null; panels branch on an array. Make
 		// it empty rather than letting the zero value through.
-		if rows == nil {
-			rows = []T{}
+		served := serve(rows)
+		if served == nil {
+			served = []O{}
 		}
 		respond.OK(c, gin.H{
-			"data": rows,
+			"data": served,
 			"page": gin.H{"next_cursor": next, "has_more": hasMore},
 		})
 	}}

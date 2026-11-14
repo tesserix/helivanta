@@ -2,7 +2,16 @@
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
-import { Field, LoadMore, Panel, formatDateTime, useZodForm } from "@helivanta/ui";
+import {
+  Field,
+  LoadMore,
+  Panel,
+  formatDateTime,
+  useZodForm,
+  isRefusal,
+  RefreshButton,
+  RequestFailure,
+} from "@helivanta/ui";
 import {
   ApiError,
   LOGIN_LINK_STATUSES,
@@ -23,10 +32,13 @@ import {
   type LoginLinkScope,
 } from "@helivanta/api";
 
+import { StaffAccountInitiation } from "@/components/workforce/staff-account-initiation";
+
 type Props = { hospital: Hospital; staff: Staff; onClose: () => void };
 type Identity = { tenant_id: string; subject: string; data: string[] };
 type View =
-  | { kind: "propose" }
+  | { kind: "propose"; subject?: string }
+  | { kind: "initiate" }
   | { kind: "history"; link: LoginLink }
   | { kind: "decide"; link: LoginLink; decision: LoginLinkDecisionInput["decision"] };
 
@@ -65,7 +77,10 @@ function LinkPanel({ hospital, staff, onClose, identity }: Props & { identity: I
   }, []);
   const manage = identity.data.includes("workforce.login_links.manage");
   const review = identity.data.includes("workforce.login_links.review");
-  const links = records.data?.pages.flatMap((page) => page.data) ?? [];
+  // Links the server now refuses don't stay on screen (#1595).
+  const links = isRefusal(records.error)
+    ? []
+    : (records.data?.pages.flatMap((page) => page.data) ?? []);
   const current = links.some((link) => link.status === "pending" || link.status === "active");
   return (
     <Panel aria-labelledby="account-link-heading" className="mt-6">
@@ -84,16 +99,16 @@ function LinkPanel({ hospital, staff, onClose, identity }: Props & { identity: I
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            disabled={records.isFetching}
-            onClick={() => {
+          <RefreshButton
+            busy={records.isFetching}
+            refresh={() => {
               setView(null);
               void records.refetch();
             }}
+            error={records.error}
           >
             Refresh links
-          </Button>
+          </RefreshButton>
           <Button variant="ghost" onClick={onClose}>
             Close account link
           </Button>
@@ -106,10 +121,11 @@ function LinkPanel({ hospital, staff, onClose, identity }: Props & { identity: I
       {records.isPending ? (
         <p role="status">Loading account links…</p>
       ) : records.isError ? (
-        <div role="alert">
-          Could not load account links.{" "}
-          <Button onClick={() => void records.refetch()}>Try again</Button>
-        </div>
+        <RequestFailure
+          message="Could not load account links."
+          retry={records.refetch}
+          error={records.error}
+        />
       ) : (
         <>
           {!links.length && <p>No account has been linked.</p>}
@@ -178,7 +194,32 @@ function LinkPanel({ hospital, staff, onClose, identity }: Props & { identity: I
           {staff.employment_status !== "active" && (
             <p className="mt-4">Inactive staff cannot receive a new account link.</p>
           )}
-          {view?.kind === "propose" && <ProposalForm scope={scope} onClose={() => setView(null)} />}
+          {manage &&
+            !current &&
+            staff.employment_status === "active" &&
+            identity.data.includes("iam.member.manage") && (
+              <Button
+                className="mt-4"
+                variant="outline"
+                onClick={() => setView({ kind: "initiate" })}
+              >
+                Set up new staff login
+              </Button>
+            )}
+          {view?.kind === "initiate" && (
+            <StaffAccountInitiation
+              scope={{ tenantId: identity.tenant_id, subject: identity.subject }}
+              onEnrolled={(subject) => setView({ kind: "propose", subject })}
+            />
+          )}
+          {view?.kind === "propose" && (
+            <ProposalForm
+              key={view.subject ?? "existing"}
+              scope={scope}
+              initialSubject={view.subject}
+              onClose={() => setView(null)}
+            />
+          )}
           {view?.kind === "decide" && (
             <DecisionForm
               key={`${view.link.id}:${view.link.version}:${view.decision}`}
@@ -211,10 +252,18 @@ function failure(error: Error) {
   return "The request may have been saved. Retry the same request or check the link history before starting another.";
 }
 
-function ProposalForm({ scope, onClose }: { scope: LoginLinkScope; onClose: () => void }) {
+function ProposalForm({
+  scope,
+  onClose,
+  initialSubject = "",
+}: {
+  scope: LoginLinkScope;
+  onClose: () => void;
+  initialSubject?: string;
+}) {
   const [id] = useState(() => newLoginLinkId());
   const [submitted, setSubmitted] = useState<LoginLinkInput | null>(null);
-  const form = useZodForm(loginLinkInputContract, { subject: "", reason: "" });
+  const form = useZodForm(loginLinkInputContract, { subject: initialSubject, reason: "" });
   const save = useApiMutation((input: LoginLinkInput) => proposeLoginLink(scope, id, input), {
     invalidate: [loginLinksKey(scope)],
     onSuccess: onClose,
@@ -236,7 +285,7 @@ function ProposalForm({ scope, onClose }: { scope: LoginLinkScope; onClose: () =
           <Input
             id="link-subject"
             autoComplete="off"
-            disabled={!!submitted}
+            disabled={!!submitted || !!initialSubject}
             {...form.register("subject")}
           />
         </Field>
@@ -329,10 +378,11 @@ function History({
       {history.isPending ? (
         <p role="status">Loading history…</p>
       ) : history.isError ? (
-        <p role="alert">
-          Could not load history.{" "}
-          <Button onClick={() => void history.refetch()}>Retry history</Button>
-        </p>
+        <RequestFailure
+          message="Could not load history."
+          retry={history.refetch}
+          error={history.error}
+        />
       ) : (
         <>
           <ol className="divide-y">

@@ -34,7 +34,7 @@ func TestLeaveReviewRetainedHistoryPlans(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, fga.GrantTenantRole(t.Context(), testutil.TenantA, authz.RoleStaffMember))
 	require.NoError(t, fga.GrantRole(t.Context(), testutil.TenantA, "user-scoped", authz.RoleStaffMember))
-	authority := &leaveScopeAuthority{grant: authz.ScopeGrant{AssignmentID: uuid.Must(uuid.NewV7()).String(), Version: 1, ScopeEpoch: 1, MembershipEpoch: 1}}
+	authority := &leaveScopeAuthority{grant: authz.ScopeGrant{AssignmentID: uuid.Must(uuid.NewV7()).String(), Version: 1, ScopeEpoch: 1, MembershipEpoch: 1, ScopeKind: "hospital"}}
 	h := newRequestHarness(t, func(opts *testutil.HarnessOptions) {
 		opts.Roles = fga
 		opts.Tokens["scoped"] = testutil.TenantA

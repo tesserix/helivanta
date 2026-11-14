@@ -45,6 +45,10 @@ const row = {
   on_hand_units: 0,
   receipt_units: "12",
   correction_units: "-12",
+  release_units: "0",
+  sale_units: "0",
+  return_units: "0",
+  supplier_dispatch_units: "0",
   dispensable_units: 0,
 };
 const page = (data: unknown[], cursor: string | null = null) => ({
@@ -106,6 +110,10 @@ function fixture() {
           opening_units: 10,
           receipt_units: "2",
           correction_units: "-12",
+          release_units: "0",
+          sale_units: "0",
+          return_units: "0",
+          supplier_dispatch_units: "0",
           closing_units: 0,
           movement_count: 2,
         }),
@@ -185,7 +193,8 @@ it("retains zero stock and opens a focused reconciliation using one frozen snaps
     "tabindex",
     "0",
   );
-  expect(within(table).getAllByText("0")).toHaveLength(2);
+  // Dispensable and the five zero movement totals.
+  expect(within(table).getAllByText("0")).toHaveLength(6);
   await user.click(screen.getByRole("button", { name: "Inspect TEST-500 lot TEST-LOT at TEST-Q" }));
   expect(
     await screen.findByRole("heading", { name: "TEST-500 · TEST-LOT · TEST-Q" }),
@@ -288,7 +297,7 @@ it("applies UTC periods to reconciliation and ledger, rejects future starts, and
   );
   const detail = reconciliationPane()!;
   expect(
-    within(detail).getByText(/Opening \+ receipts \+ corrections = closing stock/),
+    within(detail).getByText(/Opening \+ the movements in this period = closing stock/),
   ).toBeInTheDocument();
   const reads = fetcher.mock.calls.length;
   fireEvent.change(input, { target: { value: "2026-10-17T12:01" } });
@@ -373,6 +382,10 @@ it("renders exact cumulative decimal totals without losing units beyond Number s
             opening_units: 0,
             receipt_units: "9007199254740993",
             correction_units: "-9007199254740993",
+            release_units: "0",
+            sale_units: "0",
+            return_units: "0",
+            supplier_dispatch_units: "0",
             closing_units: 0,
             movement_count: 2,
           }),
@@ -386,7 +399,9 @@ it("renders exact cumulative decimal totals without losing units beyond Number s
   await user.click(screen.getByRole("button", { name: "Inspect TEST-500 lot TEST-LOT at TEST-Q" }));
   // Beside an open position the rows drop the receipts column (#1303 D1); the
   // pane carries the exact figure.
-  await waitFor(() => expect(within(reconciliationPane()!).getAllByText(exact)).toHaveLength(1));
+  await waitFor(() =>
+    expect(within(reconciliationPane()!).getAllByText(`+${exact}`)).toHaveLength(1),
+  );
   expect(screen.queryByText(BigInt("9007199254740992").toLocaleString())).not.toBeInTheDocument();
 });
 
@@ -432,7 +447,9 @@ it("hides a previous period ledger and totals when the new reconciliation is den
     target: { value: "2020-01-01T00:00" },
   });
   await user.click(screen.getByRole("button", { name: "Apply period" }));
-  expect(await screen.findByRole("alert")).toHaveTextContent("Could not reconcile");
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "This wasn't found, or you don't have access to it.",
+  );
   expect(screen.queryByText(/TEST-PERIOD-LINE/)).not.toBeInTheDocument();
   expect(screen.queryByText("Closing stock")).not.toBeInTheDocument();
   expect(fetcher.mock.calls.every(([, init]) => !init?.method || init.method === "GET")).toBe(true);
@@ -505,7 +522,10 @@ it.each(["tenantId", "pharmacyId", "outletId"] as const)(
     );
     await screen.findByText("Closing stock");
     await user.click(screen.getByRole("button", { name: "Switch scope" }));
-    expect(await screen.findByText(/Could not load this stock snapshot/)).toBeInTheDocument();
+    expect(
+      await screen.findAllByText("This wasn't found, or you don't have access to it."),
+    ).not.toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
     expect(screen.queryByText("TEST-LOT")).not.toBeInTheDocument();
     expect(reconciliationPane()).not.toBeInTheDocument();
   },
@@ -649,4 +669,131 @@ describe("a position opens beside the register", () => {
     expect(within(pane).getByText(/Expires 2026-10-10/)).toBeInTheDocument();
     expect(within(pane).getByText(/quarantine · active · pending review/i)).toBeInTheDocument();
   });
+});
+
+// #1638: every movement kind, signed, and figures that do not foot are refused.
+async function openReconciliation(reconciliation: Record<string, unknown>) {
+  const base = fixture().getMockImplementation()!;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) =>
+      url.includes("/stock/reconciliation")
+        ? new Response(
+            JSON.stringify({
+              location_id: location,
+              batch_id: batch,
+              from: "1970-01-01T00:00:00Z",
+              as_of: new URL(url, "http://localhost").searchParams.get("as_of"),
+              movement_count: 5,
+              ...reconciliation,
+            }),
+          )
+        : base(url),
+    ),
+  );
+  const { user } = renderWithProviders(<StockRegister scope={scope} />);
+  await user.click(
+    await screen.findByRole("button", { name: "Inspect TEST-500 lot TEST-LOT at TEST-Q" }),
+  );
+  await within(reconciliationPane()!).findByText("Closing stock");
+  return within(reconciliationPane()!);
+}
+
+const footed = {
+  opening_units: 10,
+  receipt_units: "2",
+  correction_units: "-3",
+  release_units: "-4",
+  sale_units: "0",
+  return_units: "1",
+  supplier_dispatch_units: "0",
+  closing_units: 6,
+};
+
+it("shows every movement kind with its sign and the formula", async () => {
+  vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-17T12:00:00Z"));
+  const pane = await openReconciliation(footed);
+  const value = (label: string) => pane.getByText(label).nextElementSibling?.textContent;
+  expect(value("Opening stock")).toMatch(/^10 /);
+  expect(value("Receipts in period")).toMatch(/^\+2 /);
+  expect(value("Corrections in period")).toMatch(/^-3 /);
+  expect(value("Releases in period")).toMatch(/^-4 /);
+  expect(value("Sales in period")).toMatch(/^0 /);
+  expect(value("Returns in period")).toMatch(/^\+1 /);
+  expect(value("Supplied to hospital orders in period")).toMatch(/^0 /);
+  expect(value("Closing stock")).toMatch(/^6 /);
+  expect(
+    screen.getByText(
+      /Opening \+ the movements in this period = closing stock\. Sales and supplies are negative; receipts and returns are positive; releases are negative where stock left and positive where it arrived\./,
+    ),
+  ).toBeInTheDocument();
+  expect(pane.queryByRole("alert")).not.toBeInTheDocument();
+});
+
+it.each([
+  ["a missing part", { ...footed, sale_units: undefined }],
+  [
+    "a part beyond Number safety",
+    { ...footed, receipt_units: "9007199254740993", closing_units: 10 },
+  ],
+  ["a part that is not a whole number", { ...footed, return_units: "1.5" }],
+])("does not present figures with %s as reconciled", async (_name, reconciliation) => {
+  vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-17T12:00:00Z"));
+  const pane = await openReconciliation(reconciliation);
+  expect(pane.getByRole("alert")).toHaveTextContent(
+    "These figures do not add up. Do not use this reconciliation; report it.",
+  );
+});
+
+it("shows every movement kind in the register", async () => {
+  vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-17T12:00:00Z"));
+  fixture();
+  renderWithProviders(<StockRegister scope={scope} />);
+  const table = await screen.findByRole("table", {
+    name: "Stock by location and manufacturer lot",
+  });
+  for (const header of [
+    "Receipts",
+    "Corrections",
+    "Releases",
+    "Sales",
+    "Returns",
+    "Supplied to hospitals",
+  ])
+    expect(within(table).getByRole("columnheader", { name: header })).toBeInTheDocument();
+});
+
+it("keeps the register and the reconciliation on screen when an older server omits totals", async () => {
+  vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-17T12:00:00Z"));
+  const base = fixture().getMockImplementation()!;
+  const older = { ...row, sale_units: undefined };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) =>
+      url.includes("/stock/positions")
+        ? new Response(JSON.stringify(page([older])))
+        : url.includes("/stock/reconciliation")
+          ? new Response(
+              JSON.stringify({
+                location_id: location,
+                batch_id: batch,
+                from: "1970-01-01T00:00:00Z",
+                as_of: new URL(url, "http://localhost").searchParams.get("as_of"),
+                ...footed,
+                opening_units: undefined,
+              }),
+            )
+          : base(url),
+    ),
+  );
+  const { user } = renderWithProviders(<StockRegister scope={scope} />);
+  const table = await screen.findByRole("table", {
+    name: "Stock by location and manufacturer lot",
+  });
+  expect(within(table).getByText("not reported")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Inspect TEST-500 lot TEST-LOT at TEST-Q" }));
+  const pane = within(reconciliationPane()!);
+  await pane.findByText("Closing stock");
+  expect(pane.getByText("Opening stock").nextElementSibling?.textContent).toMatch(/^not reported/);
+  expect(pane.getByRole("alert")).toHaveTextContent("These figures do not add up.");
 });

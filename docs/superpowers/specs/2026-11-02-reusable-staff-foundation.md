@@ -22,9 +22,9 @@ and the relevant current credential/designation. Ending source employment or a
 posting must invalidate dependent authority without erasing historical evidence.
 Cross-tenant borrowing is prohibited. Standalone pharmacy organizations exist;
 they must never be represented by fabricated hospitals to fit current Staff APIs.
-The employer-scope decision is proposed in
-[ADR-0054](../../adr/0054-typed-employing-establishments.md) and awaits
-acceptance. Existing Staff remains hospital-scoped until that contract is
+The employer-scope decision is accepted in
+[ADR-0054](../../adr/0054-typed-employing-establishments.md) but not yet
+implemented. Existing Staff remains hospital-scoped until that contract is
 explicitly evolved. Current enrollment
 already retains hospital-local `department_revision_id` references to Workforce
 HR master revisions. These are HR profile vocabulary, not the platform-owned

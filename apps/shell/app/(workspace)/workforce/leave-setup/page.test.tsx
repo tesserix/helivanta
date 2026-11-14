@@ -223,3 +223,28 @@ it("reads history and hides management controls from readers", async () => {
     ),
   );
 });
+
+it("withdraws loaded configurations and the open history once a re-read is refused", async () => {
+  mock({ allowed: false });
+  const base = vi.mocked(fetch);
+  const original = base.getMockImplementation()!;
+  let refused = false;
+  base.mockImplementation(async (url, init) =>
+    refused && !init?.method && String(url).includes("kind=leave_type")
+      ? new Response(JSON.stringify({ error: "forbidden", message: "secret detail" }), {
+          status: 403,
+        })
+      : original(url, init),
+  );
+  const { user } = renderWithProviders(<LeaveSetup />);
+  await user.click(await screen.findByRole("button", { name: "History for Synthetic Earned" }));
+  expect(await screen.findByRole("region", { name: "Leave configuration history" })).toBeVisible();
+  refused = true;
+  window.dispatchEvent(new Event("visibilitychange"));
+  expect(
+    await screen.findByText("This wasn't found, or you don't have access to it."),
+  ).toBeInTheDocument();
+  expect(screen.queryByText("Synthetic Earned")).not.toBeInTheDocument();
+  expect(screen.queryByRole("region", { name: "Leave configuration history" })).toBeNull();
+  expect(screen.queryByRole("button", { name: /try again|refresh configurations/i })).toBeNull();
+});

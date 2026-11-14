@@ -101,7 +101,7 @@ func (a *routeScopeAuthority) AuthorizeScope(_ context.Context, r authz.ScopeReq
 	if r.TenantID != testutil.TenantA || !ok || r.Permission != workforce.PermLeaveApprove {
 		return authz.ScopeGrant{}, nil
 	}
-	return authz.ScopeGrant{AssignmentID: assignment.String(), Version: 1, ScopeEpoch: 1, MembershipEpoch: 1}, nil
+	return authz.ScopeGrant{AssignmentID: assignment.String(), Version: 1, ScopeEpoch: 1, MembershipEpoch: 1, ScopeKind: "hospital"}, nil
 }
 
 var routeReviewers = []string{"lead1", "lead2", "lead3", "stranger", "approver"}

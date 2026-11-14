@@ -145,6 +145,8 @@ it("does not expose registration when clinical access is missing", async () => {
   renderWithProviders(<PatientWorkspace />);
   expect(await screen.findByRole("alert")).toHaveTextContent("Clinical access is not available");
   expect(screen.queryByRole("button", { name: "Register patient" })).not.toBeInTheDocument();
+  // #1591: a refusal is not an outage, so it offers no retry.
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
 });
 
 it("starts scoped search alongside access verification without showing records before access is granted", async () => {

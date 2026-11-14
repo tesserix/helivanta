@@ -35,8 +35,15 @@ import {
   type TaxDeclarationRevealInput,
   type TaxDeclarationRevision,
 } from "@helivanta/api";
-import { Field, SelectControl, useFieldArray, useZodForm, type UseFormReturn } from "@helivanta/ui";
-import { Failure, inputClass, today } from "../roster-policy/policy-ui";
+import {
+  Field,
+  SelectControl,
+  useFieldArray,
+  useZodForm,
+  type UseFormReturn,
+  RequestFailure,
+} from "@helivanta/ui";
+import { inputClass, today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { Check, Fact, RevisionHistory } from "./payroll-workspace";
 import { TableError } from "./statutory-slabs";
@@ -146,9 +153,10 @@ export function TaxDeclarations({
       {record.isPending ? (
         <p role="status">Loading declarations…</p>
       ) : record.isError && !missing ? (
-        <Failure
+        <RequestFailure
           message="Could not load this staff member's tax declarations."
           retry={() => record.refetch()}
+          error={record.error}
         />
       ) : (
         <>

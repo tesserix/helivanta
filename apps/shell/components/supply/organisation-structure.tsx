@@ -21,7 +21,15 @@ import {
   type SupplyPartySummary,
   type SupplyRegistryScope,
 } from "@helivanta/api";
-import { Field, FormSelectField, LoadMore, useZodForm, RequestFailure } from "@helivanta/ui";
+import {
+  Field,
+  FormSelectField,
+  LoadMore,
+  useZodForm,
+  firstError,
+  RequestFailure,
+  RefreshButton,
+} from "@helivanta/ui";
 
 export function OrganisationStructure({
   scope,
@@ -93,7 +101,9 @@ function CorporatePanel({ scope, roles }: { scope: SupplyRegistryScope; roles: s
       {structure.isError ? (
         <RequestFailure
           message="The corporate relationship is unavailable. Refresh access or contact your administrator."
+          refused="The corporate relationship is unavailable. Refresh access or contact your administrator."
           retry={structure.refetch}
+          error={structure.error}
         />
       ) : !structure.data ? (
         <p role="status">Loading corporate relationship…</p>
@@ -104,7 +114,7 @@ function CorporatePanel({ scope, roles }: { scope: SupplyRegistryScope; roles: s
             scope={scope}
             structure={structure.data}
             onDone={() => setEditing(false)}
-            onReload={() => structure.refetch()}
+            refresh={() => structure.refetch()}
           />
         </div>
       ) : (
@@ -149,7 +159,11 @@ function CorporateHistory({ scope }: { scope: SupplyRegistryScope }) {
   );
   if (rows.isError)
     return (
-      <RequestFailure message="Could not load corporate relationship history." retry={rows.retry} />
+      <RequestFailure
+        message="Could not load corporate relationship history."
+        retry={rows.retry}
+        error={rows.error}
+      />
     );
   if (rows.isPending) return <p role="status">Loading corporate history…</p>;
   return (
@@ -193,12 +207,13 @@ function CorporateEditor({
   scope,
   structure,
   onDone,
-  onReload,
+  refresh,
 }: {
   scope: SupplyRegistryScope;
   structure: CorporateStructure;
   onDone: () => void;
-  onReload: () => unknown;
+  /** Re-reads after a conflicting save. Only rendered while the read succeeds. */
+  refresh: () => unknown;
 }) {
   const form = useZodForm(supplyCorporateInputSchema, {
     expected_version: structure.version,
@@ -288,7 +303,11 @@ function CorporateEditor({
         </p>
       </div>
       {candidates.isError && (
-        <RequestFailure message="Could not load eligible organisations." retry={candidates.retry} />
+        <RequestFailure
+          message="Could not load eligible organisations."
+          retry={candidates.retry}
+          error={candidates.error}
+        />
       )}
       <LoadMore
         hasMore={candidates.hasMore}
@@ -309,9 +328,9 @@ function CorporateEditor({
           <p role="alert" className="text-sm text-destructive">
             {mutation.error.message} Reload this relationship if another administrator changed it.
           </p>
-          <Button type="button" variant="outline" onClick={onReload}>
+          <RefreshButton refresh={refresh} error={null}>
             Reload corporate relationship
-          </Button>
+          </RefreshButton>
         </div>
       )}
       <div className="flex flex-wrap gap-2">
@@ -381,6 +400,7 @@ function TerritoryPanel({
         <RequestFailure
           message="Could not load sales territories. Refresh access before continuing."
           retry={rows.retry}
+          error={rows.error}
         />
       ) : rows.isPending ? (
         <p role="status">Loading sales territories…</p>
@@ -458,7 +478,7 @@ function TerritoryPanel({
             territory={editing}
             admin={roles.includes("administrator") && can("supply.party.access.manage")}
             onDone={() => setEditing(undefined)}
-            onReload={() => {
+            refresh={() => {
               rows.retry();
               setEditing(undefined);
             }}
@@ -474,14 +494,15 @@ function TerritoryEditor({
   territory,
   admin,
   onDone,
-  onReload,
+  refresh,
 }: {
   scope: SupplyRegistryScope;
   country: string;
   territory: Territory | null;
   admin: boolean;
   onDone: () => void;
-  onReload: () => void;
+  /** Re-reads after a conflicting save. Only rendered while the list read succeeds. */
+  refresh: () => void;
 }) {
   const { can } = usePermissions();
   const id = useRef(territory?.id ?? newSupplyId());
@@ -646,7 +667,11 @@ function TerritoryEditor({
         onClick={premises.loadMore}
       />
       {premises.isError && (
-        <RequestFailure message="Could not load operating branches." retry={premises.retry} />
+        <RequestFailure
+          message="Could not load operating branches."
+          retry={premises.retry}
+          error={premises.error}
+        />
       )}
       {branch && selected.isPending && <p role="status">Checking operating branch…</p>}
       {branch && !validBranch && !selected.isPending && (
@@ -669,6 +694,7 @@ function TerritoryEditor({
                 candidates.retry();
                 legacy.retry();
               }}
+              error={firstError(candidates.error, legacy.error)}
             />
           ) : (
             <>
@@ -730,9 +756,9 @@ function TerritoryEditor({
           <p role="alert" className="text-sm text-destructive">
             {mutation.error.message}
           </p>
-          <Button type="button" variant="outline" onClick={onReload}>
+          <RefreshButton refresh={refresh} error={null}>
             Reload sales territories
-          </Button>
+          </RefreshButton>
         </div>
       )}
       <div className="flex flex-wrap gap-2">
@@ -758,7 +784,13 @@ function TerritoryHistory({ scope, id }: { scope: SupplyRegistryScope; id: strin
     { request: { headers: supplyHeaders(scope) } },
   );
   if (rows.isError)
-    return <RequestFailure message="Could not load territory history." retry={rows.retry} />;
+    return (
+      <RequestFailure
+        message="Could not load territory history."
+        retry={rows.retry}
+        error={rows.error}
+      />
+    );
   if (rows.isPending) return <p role="status">Loading territory history…</p>;
   return (
     <div className="space-y-2 rounded-lg border p-3">

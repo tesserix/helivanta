@@ -11,6 +11,8 @@ export function isPublicPath(pathname: string): boolean {
     pathname === "/" ||
     pathname === "/workspace" ||
     pathname === "/signup" ||
+    pathname === "/signup/verify" ||
+    pathname === "/staff/accept" ||
     pathname === "/ambulance" ||
     pathname.startsWith("/login") ||
     pathname.startsWith(AUTH_CALLBACK_PATH)

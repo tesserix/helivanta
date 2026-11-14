@@ -59,6 +59,44 @@ func TestAppendOnlyTemplateSQLPreservesPublishedDefinitions(t *testing.T) {
 		require.Equal(t, definition.Permissions, permissions)
 		baseline[definition.Key] = *value
 	}
+	leaveCatalog := testutil.Do(r, http.MethodGet, "/v1/iam/staff-access-templates?catalog=staff-department-leave-reviews-v1", "admin", "")
+	require.Equal(t, http.StatusOK, leaveCatalog.Code, leaveCatalog.Body.String())
+	var leaveDefinitions []iam.TemplateDefinition
+	require.NoError(t, json.Unmarshal(leaveCatalog.Body.Bytes(), &leaveDefinitions))
+	require.Len(t, leaveDefinitions, 15)
+	departmentLeave := leaveDefinitions[14]
+	require.Equal(t, "workforce.department_leave_reviewer.v1", departmentLeave.Key)
+	require.Equal(t, []string{"department"}, departmentLeave.ScopeKinds)
+	require.JSONEq(t, `["workforce.leave.approve","organization.posting_choices.read","workforce.staff_actor.use"]`, *read(departmentLeave.Key))
+	var leaveScope struct{ Kinds string }
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT array_to_string(iam_assignment_template_scope_kinds(?),',') AS kinds`, departmentLeave.Key).Scan(&leaveScope).Error
+	}))
+	require.Equal(t, "department", leaveScope.Kinds)
+	roots := func(key string) []string {
+		t.Helper()
+		var result struct{ Kinds string }
+		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			return tx.Raw(`SELECT to_jsonb(iam_assignment_template_establishment_kinds(?))::text AS kinds`, key).Scan(&result).Error
+		}))
+		var kinds []string
+		require.NoError(t, json.Unmarshal([]byte(result.Kinds), &kinds))
+		return kinds
+	}
+	bindingCatalog := testutil.Do(r, http.MethodGet, "/v1/iam/staff-access-templates?catalog=pharmacy-department-bindings-v1", "admin", "")
+	require.Equal(t, http.StatusOK, bindingCatalog.Code, bindingCatalog.Body.String())
+	var bindingDefinitions []iam.TemplateDefinition
+	require.NoError(t, json.Unmarshal(bindingCatalog.Body.Bytes(), &bindingDefinitions))
+	every := map[string]iam.TemplateDefinition{}
+	for _, definition := range append(leaveDefinitions, bindingDefinitions...) {
+		every[definition.Key] = definition
+	}
+	require.Len(t, every, 17, "the two catalogs publish every template")
+	for key, definition := range every {
+		require.Equal(t, []string{"hospital"}, definition.EstablishmentKinds, key)
+		require.Equal(t, definition.EstablishmentKinds, roots(key), "published root kinds must be the database's: %s", key)
+	}
+	require.Empty(t, roots(next))
 	sql, err := os.ReadFile("testdata/staff_template_append.sql")
 	require.NoError(t, err)
 	require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_iam_template_append", SQL: string(sql)}}))
@@ -70,6 +108,16 @@ func TestAppendOnlyTemplateSQLPreservesPublishedDefinitions(t *testing.T) {
 	value := read(next)
 	require.NotNil(t, value)
 	require.JSONEq(t, `["workforce.leave.approve"]`, *value)
+	for key := range every {
+		require.Equal(t, []string{"hospital"}, roots(key), key)
+	}
+	require.Equal(t, []string{"hospital"}, roots(next))
+	var rootFunction struct{ Source string }
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT prosrc AS source FROM pg_proc WHERE proname='iam_assignment_template_establishment_kinds'`).Scan(&rootFunction).Error
+	}))
+	require.Contains(t, rootFunction.Source, "WHEN 'workforce.leave_reviewer.v2' THEN ARRAY['hospital']::text[]", "appended SQL from 0034 declares each root kind rather than deriving it")
+	require.Empty(t, roots("workforce.unknown.v1"))
 	require.Nil(t, read("workforce.unknown.v1"))
 	after := testutil.Do(r, http.MethodGet, "/v1/iam/staff-access-templates", "admin", "")
 	require.Equal(t, http.StatusOK, after.Code, after.Body.String())

@@ -74,10 +74,12 @@ export interface AuthRequestInfo {
 // There is no `handoff` outcome. There used to be: the API answered
 // `handoff_url` and this page navigated to Zitadel's hosted login, which
 // stranded clinicians on Zitadel's "You are signed in" page. #947 removed
-// it — Helivanta's users never see Zitadel's UI.
+// it. ADR-0069 adds a separately validated, explicit securityKeyRequired action
+// on the original relying-party origin; it never completes this session.
 export type PasswordCheckResult =
   | { outcome: "complete"; callbackUrl: string }
   | { outcome: "factorRequired"; factors: string[] }
+  | { outcome: "securityKeyRequired"; url: string }
   | { outcome: "enrollmentRequired"; factors: string[]; totp: TotpEnrollment }
   | PasswordChangeRequired
   | SignInBlocked;
@@ -172,6 +174,7 @@ interface PasswordCheckParams {
 // Reused by checkFactor below, whose success shape is the same
 // `passwordSuccessResponse`.
 interface PasswordCheckResponse {
+  security_key_required?: { url: string };
   callback_url?: string;
   factor_required?: string[];
   enrollment_required?: string[];
@@ -248,6 +251,34 @@ export async function checkPassword(params: PasswordCheckParams): Promise<Passwo
     throw err;
   }
 
+  if (body.security_key_required) {
+    let target: URL;
+    try {
+      target = new URL(body.security_key_required.url);
+      const issuer = new URL(process.env.NEXT_PUBLIC_ZITADEL_ISSUER_URL ?? "");
+      const loginName = target.searchParams.get("loginName");
+      if (
+        target.protocol !== "https:" ||
+        target.origin !== issuer.origin ||
+        target.username ||
+        target.password ||
+        target.hash ||
+        target.pathname !== "/ui/v2/login/password" ||
+        target.searchParams.size !== 2 ||
+        target.searchParams.get("requestId") !== `oidc_${params.authRequestId}` ||
+        !loginName ||
+        loginName.length > 200 ||
+        body.callback_url ||
+        body.factor_required ||
+        body.enrollment_required ||
+        body.password_change_required
+      )
+        throw new Error();
+    } catch {
+      throw new Error("Sign-in could not be completed: the security-key continuation is invalid.");
+    }
+    return { outcome: "securityKeyRequired", url: target.href };
+  }
   if (body.callback_url) {
     return { outcome: "complete", callbackUrl: body.callback_url };
   }

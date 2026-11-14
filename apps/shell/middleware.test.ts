@@ -1,6 +1,26 @@
 import { expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { middleware } from "./middleware";
+it("allows only the exact staff recipient page and proof endpoints before login", () => {
+  for (const path of [
+    "/staff/accept",
+    ...["status", "email", "password", "resend"].map(
+      (action) => `/api/v1/auth/staff-setup/${action}`,
+    ),
+  ]) {
+    expect(middleware(new NextRequest(`https://helivanta.app${path}`)).status).toBe(200);
+  }
+  for (const path of [
+    "/staff/accept/private",
+    "/staff/admin",
+    "/api/v1/auth/staff-setup/reset",
+    "/api/v1/auth/staff-setup/status/extra",
+  ]) {
+    expect(middleware(new NextRequest(`https://helivanta.app${path}`)).status).toBe(
+      path.startsWith("/api/") ? 401 : 307,
+    );
+  }
+});
 it("allows published branding before login but protects workspace settings", () => {
   expect(
     middleware(
@@ -99,4 +119,23 @@ it("keeps only the exact report endpoint public", () => {
     middleware(new NextRequest("https://helivanta.app/api/csp-report", { method: "POST" })).status,
   ).toBe(200);
   expect(middleware(new NextRequest("https://helivanta.app/api/csp-report/x")).status).toBe(401);
+});
+
+it("allows only the exact public signup and native verification paths without a tenant session", () => {
+  for (const path of [
+    "/signup/verify",
+    "/api/v1/auth/signup",
+    "/api/v1/auth/signup/verify-email",
+    "/api/v1/auth/signup/password",
+    "/api/v1/auth/signup/email-link",
+    "/api/v1/auth/signup/password-link",
+    "/api/v1/auth/signup/sign-in",
+  ]) {
+    const response = middleware(new NextRequest(`https://helivanta.app${path}`));
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+  }
+  const refused = middleware(
+    new NextRequest("https://helivanta.app/api/v1/auth/signup/tenant-grants"),
+  );
+  expect(refused.status).toBe(401);
 });

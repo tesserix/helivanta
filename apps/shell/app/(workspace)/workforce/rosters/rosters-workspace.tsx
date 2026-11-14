@@ -19,8 +19,8 @@ import {
   type RosterInput,
   type RosterSettings,
 } from "@helivanta/api";
-import { Field, PageHeading, SelectControl, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass } from "../roster-policy/policy-ui";
+import { Field, PageHeading, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
+import { inputClass } from "../roster-policy/policy-ui";
 import { ReviewCheck, SaveError } from "./roster-ui";
 import { RosterDetail } from "./roster-detail";
 
@@ -57,7 +57,11 @@ export function RostersWorkspace() {
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (
-        <Failure message="Could not load hospitals." retry={hospitals.retry} />
+        <RequestFailure
+          message="Could not load hospitals."
+          retry={hospitals.retry}
+          error={hospitals.error}
+        />
       ) : hospital ? (
         <HospitalRosters
           key={hospital.id}
@@ -156,7 +160,11 @@ function HospitalRosters({
           </p>
         ) : rosters.isError ? (
           <div className="p-5">
-            <Failure message="Could not load rosters." retry={rosters.retry} />
+            <RequestFailure
+              message="Could not load rosters."
+              retry={rosters.retry}
+              error={rosters.error}
+            />
           </div>
         ) : rosters.items.length === 0 ? (
           <p className="p-5 text-sm text-muted-foreground">No rosters have been planned yet.</p>

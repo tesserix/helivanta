@@ -62,7 +62,11 @@ export function Returns({ scope, canReturn }: { scope: PharmacyScope; canReturn:
         the medicine goes to quarantine until a pharmacist releases it.
       </p>
       {sales.isError ? (
-        <RequestFailure message="Could not load this outlet's invoices." retry={sales.retry} />
+        <RequestFailure
+          message="Could not load this outlet's invoices."
+          retry={sales.retry}
+          error={sales.error}
+        />
       ) : sales.isPending ? (
         <p role="status">Loading invoices…</p>
       ) : sales.items.length === 0 ? (
@@ -162,7 +166,13 @@ function ReturnForm({
     `${pharmacyRoot(scope)}/stock/locations?limit=100`,
   );
   if (sale.isError)
-    return <RequestFailure message="Could not load this invoice." retry={sale.refetch} />;
+    return (
+      <RequestFailure
+        message="Could not load this invoice."
+        retry={sale.refetch}
+        error={sale.error}
+      />
+    );
   if (!sale.data || locations.isPending) return <p role="status">Loading invoice…</p>;
   return (
     <ReturnFormFor

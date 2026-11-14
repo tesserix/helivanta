@@ -6,14 +6,23 @@ import {
   credentialRegisterFilterSchema,
   credentialRegisterKey,
   credentialRegisterPath,
+  credentialRequest,
   useApiPagedQuery,
   usePermissions,
+  type CredentialOwner,
   type CredentialRegisterEntry,
   type Hospital,
 } from "@helivanta/api";
-import { Field, LoadMore, PageHeading, SelectControl, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass } from "../roster-policy/policy-ui";
-import { standingText } from "../credential-panel";
+import {
+  Field,
+  LoadMore,
+  PageHeading,
+  SelectControl,
+  useZodForm,
+  RequestFailure,
+} from "@helivanta/ui";
+import { inputClass } from "../roster-policy/policy-ui";
+import { credentialPlace, standingText, useAccessChange } from "../credential-panel";
 
 export function CredentialRegisterWorkspace() {
   const hospitals = useApiPagedQuery<Hospital>(
@@ -45,9 +54,19 @@ export function CredentialRegisterWorkspace() {
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (
-        <Failure message="Could not load hospitals." retry={hospitals.retry} />
+        <RequestFailure
+          message="Could not load hospitals."
+          retry={hospitals.retry}
+          error={hospitals.error}
+        />
       ) : hospital ? (
-        <Register key={hospital.id} hospital={hospital} />
+        <section aria-label="Credential register">
+          <CredentialRegister
+            key={hospital.id}
+            owner={{ hospitalId: hospital.id }}
+            ownerName={hospital.name}
+          />
+        </section>
       ) : (
         <p className="rounded-2xl border bg-card p-8">
           Ask your tenant administrator for hospital management access to view the credential
@@ -68,16 +87,28 @@ export function CredentialRegisterWorkspace() {
   );
 }
 
-function Register({ hospital }: { hospital: Hospital }) {
+// filterBlocked explains why the expiry filter is off when the owner has no calendar yet.
+export function CredentialRegister({
+  owner,
+  ownerName,
+  filterBlocked,
+  onContextChanged,
+}: {
+  owner: CredentialOwner;
+  ownerName: string;
+  filterBlocked?: string;
+  onContextChanged?: () => void;
+}) {
   const { can } = usePermissions();
   const form = useZodForm(credentialRegisterFilterSchema, { within: "" });
   const [within, setWithin] = useState<number | null>(null);
   const allowed = can("workforce.enrollment.manage");
   const rows = useApiPagedQuery<CredentialRegisterEntry>(
-    credentialRegisterKey(hospital.id),
-    credentialRegisterPath(hospital.id, within),
-    { enabled: allowed, request: { cache: "no-store" } },
+    credentialRegisterKey(owner),
+    credentialRegisterPath(owner, within),
+    { enabled: allowed, request: credentialRequest(owner) },
   );
+  useAccessChange(onContextChanged, rows.error);
   if (!allowed)
     return (
       <p role="alert" className="rounded-2xl border bg-card p-8">
@@ -87,32 +118,35 @@ function Register({ hospital }: { hospital: Hospital }) {
   const zoneUnset =
     rows.error instanceof ApiError && rows.error.detail.reason === "time_zone_unset";
   return (
-    <section aria-label="Credential register" className="space-y-6">
+    <div className="space-y-6">
       <form
         noValidate
         autoComplete="off"
         aria-label="Register filter"
-        className="flex flex-wrap items-end gap-3"
+        className="space-y-2"
         onSubmit={form.handleSubmit((values) =>
           setWithin(values.within === "" ? null : Number(values.within)),
         )}
       >
-        <div className="w-full sm:w-64">
-          <Field
-            id="register-within"
-            label="Expiring within (days)"
-            error={form.formState.errors.within?.message}
-          >
-            <input
+        <fieldset disabled={!!filterBlocked} className="flex flex-wrap items-end gap-3">
+          <div className="w-full sm:w-64">
+            <Field
               id="register-within"
-              inputMode="numeric"
-              placeholder="All reviewed credentials"
-              className={inputClass}
-              {...form.register("within")}
-            />
-          </Field>
-        </div>
-        <Button type="submit">Show credentials</Button>
+              label="Expiring within (days)"
+              error={form.formState.errors.within?.message}
+            >
+              <input
+                id="register-within"
+                inputMode="numeric"
+                placeholder="All reviewed credentials"
+                className={inputClass}
+                {...form.register("within")}
+              />
+            </Field>
+          </div>
+          <Button type="submit">Show credentials</Button>
+        </fieldset>
+        {filterBlocked && <p className="text-sm text-muted-foreground">{filterBlocked}</p>}
       </form>
       {rows.isPending ? (
         <p role="status">Loading credentials…</p>
@@ -121,17 +155,21 @@ function Register({ hospital }: { hospital: Hospital }) {
           {rows.error?.message}
         </p>
       ) : rows.isError ? (
-        <Failure message="Could not load the credential register." retry={rows.retry} />
+        <RequestFailure
+          message="Could not load the credential register."
+          retry={rows.retry}
+          error={rows.error}
+        />
       ) : rows.items.length === 0 ? (
         <p className="rounded-xl border p-6 text-sm">
           {within === null
-            ? "No credentials have been reviewed at this hospital yet."
+            ? `No credentials have been reviewed at this ${credentialPlace(owner)} yet.`
             : "No reviewed credentials expire in this window."}
         </p>
       ) : (
         <div className="overflow-x-auto rounded-2xl border bg-card">
           <table className="w-full text-left text-sm">
-            <caption className="sr-only">Reviewed credentials at {hospital.name}</caption>
+            <caption className="sr-only">Reviewed credentials at {ownerName}</caption>
             <thead className="bg-muted/40 text-xs text-muted-foreground">
               <tr>
                 {["Staff", "Credential", "Number", "Valid from", "Valid until", "Status"].map(
@@ -171,6 +209,6 @@ function Register({ hospital }: { hospital: Hospital }) {
           />
         </div>
       )}
-    </section>
+    </div>
   );
 }

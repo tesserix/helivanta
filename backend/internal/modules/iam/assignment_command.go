@@ -52,7 +52,7 @@ func (h *assignmentAuthority) withScopeGrants(ctx context.Context, checks []auth
 		if revoked {
 			return authz.ErrScopedCredentialRevoked
 		}
-		if err := assignmentAccess(tx); err != nil {
+		if err := departmentAwareAccess(tx); err != nil {
 			return err
 		}
 		if err := lockScopeChecks(tx, checks); err != nil {
@@ -89,13 +89,14 @@ func validScopeChecks(checks []authz.ScopeCheck) bool {
 	first := checks[0]
 	for i, check := range checks {
 		r, grant := check.Request, check.Grant
-		if !proposalSubject(r.Subject) || !staffAccessPermissionSupported(r.Permission) || grant.Version <= 0 || grant.ScopeEpoch <= 0 || grant.MembershipEpoch <= 0 {
+		if !validScopeRequest(r) || grant.Version <= 0 || grant.ScopeEpoch <= 0 || grant.MembershipEpoch <= 0 {
 			return false
 		}
-		for _, value := range []string{r.TenantID, r.HospitalID, grant.AssignmentID} {
-			if id, err := uuid.Parse(value); err != nil || id == uuid.Nil || id.String() != value {
-				return false
-			}
+		if id, err := uuid.Parse(grant.AssignmentID); err != nil || id == uuid.Nil || id.String() != grant.AssignmentID {
+			return false
+		}
+		if !grantFitsRequest(r, grant) {
+			return false
 		}
 		if r.TenantID != first.Request.TenantID || r.Subject != first.Request.Subject || r.HospitalID != first.Request.HospitalID || grant.ScopeEpoch != first.Grant.ScopeEpoch || grant.MembershipEpoch != first.Grant.MembershipEpoch {
 			return false
@@ -107,6 +108,17 @@ func validScopeChecks(checks []authz.ScopeCheck) bool {
 		}
 	}
 	return true
+}
+
+// grantFitsRequest admits a department grant only for a request whose checked path contains its department.
+func grantFitsRequest(r authz.ScopeRequest, grant authz.ScopeGrant) bool {
+	switch grant.ScopeKind {
+	case "hospital":
+		return grant.DepartmentID == ""
+	case "department":
+		return slices.Contains(r.DepartmentPath, grant.DepartmentID)
+	}
+	return false
 }
 
 func lockScopeChecks(tx *gorm.DB, checks []authz.ScopeCheck) error {
@@ -151,7 +163,11 @@ func currentScopeChecks(tx *gorm.DB, checks []authz.ScopeCheck) (time.Time, erro
 	for _, check := range checks {
 		var current []struct{ ExpiresAt time.Time }
 		grant := check.Grant
-		if err := authorityCandidates(tx, check.Request).Select("LEAST(s.expires_at,COALESCE((SELECT b.valid_until FROM iam_employment_bases b WHERE b.tenant_id=s.tenant_id AND b.hospital_id=s.hospital_id AND b.subject=s.subject),s.expires_at)) AS expires_at").Where("s.id=? AND s.version=? AND s.membership_epoch=? AND q.epoch=?", grant.AssignmentID, grant.Version, grant.MembershipEpoch, grant.ScopeEpoch).Find(&current).Error; err != nil {
+		scope := authorityCandidates(tx, check.Request).Where("s.scope_kind='hospital' AND s.department_id IS NULL")
+		if grant.ScopeKind == "department" {
+			scope = authorityCandidates(tx, check.Request).Where("s.scope_kind='department' AND s.department_id=?", grant.DepartmentID)
+		}
+		if err := scope.Select("LEAST(s.expires_at,COALESCE((SELECT b.valid_until FROM iam_employment_bases b WHERE b.tenant_id=s.tenant_id AND b.hospital_id=s.hospital_id AND b.subject=s.subject),s.expires_at)) AS expires_at").Where("s.id=? AND s.version=? AND s.membership_epoch=? AND q.epoch=?", grant.AssignmentID, grant.Version, grant.MembershipEpoch, grant.ScopeEpoch).Find(&current).Error; err != nil {
 			return time.Time{}, err
 		}
 		if len(current) != 1 {

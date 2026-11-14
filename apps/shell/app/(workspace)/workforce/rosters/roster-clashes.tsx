@@ -7,8 +7,7 @@ import {
   type Roster,
   type RosterCredentialClash,
 } from "@helivanta/api";
-import { LoadMore } from "@helivanta/ui";
-import { Failure } from "../roster-policy/policy-ui";
+import { LoadMore, RequestFailure } from "@helivanta/ui";
 
 const STANDING = { expired: "Expired", not_yet_valid: "Not yet valid" } as const;
 
@@ -30,7 +29,13 @@ export function outstandingClashes(error: unknown): number | null {
 export function ClashTable({ clashes }: { clashes: ReturnType<typeof useRosterClashes> }) {
   if (clashes.isPending) return <p role="status">Checking reviewed credentials…</p>;
   if (clashes.isError)
-    return <Failure message="Could not check reviewed credentials." retry={clashes.retry} />;
+    return (
+      <RequestFailure
+        message="Could not check reviewed credentials."
+        retry={clashes.retry}
+        error={clashes.error}
+      />
+    );
   if (clashes.items.length === 0)
     return (
       <p className="text-sm text-muted-foreground">

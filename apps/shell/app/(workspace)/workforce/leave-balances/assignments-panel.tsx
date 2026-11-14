@@ -12,8 +12,8 @@ import {
   type StaffLeaveAssignment,
   type StaffLeaveAssignmentInput,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass, today } from "../roster-policy/policy-ui";
+import { Field, SelectControl, useZodForm, firstError, RequestFailure } from "@helivanta/ui";
+import { inputClass, today } from "../roster-policy/policy-ui";
 import { LeaveReview, SaveError } from "./years-panel";
 
 export function LeaveAssignmentsPanel({
@@ -66,7 +66,11 @@ export function LeaveAssignmentsPanel({
         </p>
       ) : assignments.isError ? (
         <div className="p-5">
-          <Failure message="Could not load leave assignments." retry={assignments.retry} />
+          <RequestFailure
+            message="Could not load leave assignments."
+            retry={assignments.retry}
+            error={assignments.error}
+          />
         </div>
       ) : assignments.items.length === 0 ? (
         <p className="p-5 text-sm text-muted-foreground">No staff have a leave structure yet.</p>
@@ -323,12 +327,13 @@ function AssignmentEditor({
         </div>
       )}
       {(staff.isError || structures.isError) && (
-        <Failure
+        <RequestFailure
           message="Could not load staff or leave structures."
           retry={() => {
             staff.retry();
             structures.retry();
           }}
+          error={firstError(staff.error, structures.error)}
         />
       )}
       {save.isError && <SaveError message={save.error.message} />}
@@ -377,7 +382,11 @@ function AssignmentHistory({
       {history.isPending ? (
         <p role="status">Loading assignment history…</p>
       ) : history.isError ? (
-        <Failure message="Could not load assignment history." retry={history.retry} />
+        <RequestFailure
+          message="Could not load assignment history."
+          retry={history.retry}
+          error={history.error}
+        />
       ) : (
         <ul className="space-y-3">
           {history.items.map((r) => (

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Button } from "@tesserix/web";
-import { Panel } from "@helivanta/ui";
+import { Panel, RefreshButton, RequestFailure } from "@helivanta/ui";
 import {
   ApiError,
   IdentitySourceContract,
@@ -64,18 +64,16 @@ function IdentityDetails({ hospitalId, staffId, identity }: Props & { identity: 
   if (source.isPending) return <p role="status">Loading current identity details…</p>;
   if (source.isError)
     return (
-      <div role="alert">
-        <p>
-          {source.error instanceof ApiError && source.error.status === 403
+      <RequestFailure
+        message="Could not load current identity details."
+        refused={
+          source.error instanceof ApiError && source.error.status === 403
             ? "A current hospital identity manager or reviewer assignment and active staff account link are required."
-            : source.error instanceof ApiError && source.error.status === 404
-              ? "Identity details are unavailable for this staff member or your current staff account link. Ask Staff administration to review the record and link."
-              : "Could not load current identity details."}
-        </p>
-        <Button variant="outline" onClick={() => void source.refetch()}>
-          Retry identity details
-        </Button>
-      </div>
+            : "Identity details are unavailable for this staff member or your current staff account link. Ask Staff administration to review the record and link."
+        }
+        retry={source.refetch}
+        error={source.error}
+      />
     );
   const parsed = IdentitySourceContract.safeParse(source.data);
   if (!parsed.success || parsed.data.hospital_id !== hospitalId || parsed.data.staff_id !== staffId)
@@ -103,9 +101,9 @@ function IdentityDetails({ hospitalId, staffId, identity }: Props & { identity: 
           </div>
         ))}
       </dl>
-      <Button variant="outline" onClick={() => void source.refetch()} disabled={source.isFetching}>
+      <RefreshButton refresh={source.refetch} error={source.error} busy={source.isFetching}>
         Refresh identity details
-      </Button>
+      </RefreshButton>
       {record.manage_checks_allowed === undefined ? (
         <p className="text-sm text-muted-foreground">
           Review drafts are not available on this server yet.

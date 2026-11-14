@@ -32,6 +32,7 @@ import {
   Panel,
   RequestFailure,
   useZodForm,
+  RefreshButton,
 } from "@helivanta/ui";
 import { useCountryPolicyCommand } from "./command";
 import { CountryPolicyEditor, policyLabel } from "./editor";
@@ -56,6 +57,7 @@ export function CountryPolicyDetail({
       <RequestFailure
         message="Could not load this policy scope. Its access or status may have changed."
         retry={scope.refetch}
+        error={scope.error}
       />
     );
   return (
@@ -63,7 +65,7 @@ export function CountryPolicyDetail({
       identity={identity}
       scope={scope.data}
       onClose={onClose}
-      onRefresh={scope.refetch}
+      refresh={scope.refetch}
     />
   );
 }
@@ -72,12 +74,13 @@ function PolicyRecord({
   identity,
   scope,
   onClose,
-  onRefresh,
+  refresh,
 }: {
   identity: CountryPolicyIdentity;
   scope: CountryPolicyScope;
   onClose: () => void;
-  onRefresh: () => unknown;
+  /** Re-reads the scope. Only rendered while that read succeeds. */
+  refresh: () => unknown;
 }) {
   const { can } = usePermissions();
   const heading = useRef<HTMLHeadingElement>(null);
@@ -154,9 +157,9 @@ function PolicyRecord({
         </Panel>
       )}
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={() => void onRefresh()}>
+        <RefreshButton refresh={refresh} error={null}>
           Refresh policy
-        </Button>
+        </RefreshButton>
         {editable && version.data && !version.isError && (
           <Button
             variant="outline"
@@ -207,7 +210,11 @@ function PolicyRecord({
         {versions.isPending ? (
           <p role="status">Loading policy versions…</p>
         ) : versions.isError ? (
-          <RequestFailure message="Could not load policy versions." retry={versions.retry} />
+          <RequestFailure
+            message="Could not load policy versions."
+            retry={versions.retry}
+            error={versions.error}
+          />
         ) : (
           <div className="flex flex-wrap gap-2">
             {versions.items.map((row) => (
@@ -237,6 +244,7 @@ function PolicyRecord({
           <RequestFailure
             message="Could not load the selected policy version."
             retry={version.refetch}
+            error={version.error}
           />
         ) : (
           <>
@@ -268,7 +276,11 @@ function PolicyRecord({
         {history.isPending ? (
           <p role="status">Loading policy history…</p>
         ) : history.isError ? (
-          <RequestFailure message="Could not load policy history." retry={history.retry} />
+          <RequestFailure
+            message="Could not load policy history."
+            retry={history.retry}
+            error={history.error}
+          />
         ) : (
           <ol className="space-y-3">
             {history.items.map((row) => (

@@ -59,7 +59,7 @@ func TestScopedLeaveReviewerNeedsNoLegacyGrant(t *testing.T) {
 	require.NoError(t, fga.GrantTenantRole(t.Context(), testutil.TenantA, authz.RoleStaffMember))
 	require.NoError(t, fga.GrantRole(t.Context(), testutil.TenantA, "user-scoped", authz.RoleStaffMember))
 	authority := &leaveScopeAuthority{grant: authz.ScopeGrant{
-		AssignmentID: uuid.Must(uuid.NewV7()).String(), Version: 3, ScopeEpoch: 1, MembershipEpoch: 1,
+		AssignmentID: uuid.Must(uuid.NewV7()).String(), Version: 3, ScopeEpoch: 1, MembershipEpoch: 1, ScopeKind: "hospital",
 	}}
 	h := newRequestHarness(t, func(opts *testutil.HarnessOptions) {
 		opts.Roles = fga

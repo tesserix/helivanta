@@ -12,6 +12,7 @@ function link(over: Partial<PharmacyHospitalAffiliation>): PharmacyHospitalAffil
     id: "a1",
     pharmacy_id: "p1",
     hospital_id: "h1",
+    hospital_name: null,
     relationship: "owner",
     verification_status: "pending_validation",
     verification_request_id: null,

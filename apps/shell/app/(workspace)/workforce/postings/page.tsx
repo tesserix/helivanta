@@ -1,12 +1,17 @@
 "use client";
 import { useState } from "react";
 import { Button } from "@tesserix/web";
-import { PageHeading } from "@helivanta/ui";
-import { useApiQuery, type PermissionsResponse } from "@helivanta/api";
+import { PageHeading, RequestFailure } from "@helivanta/ui";
+import { useApiQuery, useTenantTransition, type PermissionsResponse } from "@helivanta/api";
 import { StaffPostingWorkspace } from "../posting-workspace";
 export default function StaffPostings() {
+  const switching = useTenantTransition();
   const [attempt, setAttempt] = useState(0);
-  return <PostingAccount key={attempt} restart={() => setAttempt((value) => value + 1)} />;
+  return switching ? (
+    <p role="status">Switching posting workspace…</p>
+  ) : (
+    <PostingAccount key={attempt} restart={() => setAttempt((value) => value + 1)} />
+  );
 }
 function PostingAccount({ restart }: { restart: () => void }) {
   const [nonce] = useState(() => crypto.randomUUID());
@@ -28,10 +33,12 @@ function PostingAccount({ restart }: { restart: () => void }) {
   if (identity.isPending) return <p role="status">Checking posting workspace…</p>;
   if (identity.isError || !identity.data?.tenant_id || !identity.data.subject)
     return (
-      <section role="alert">
-        Your posting account could not be verified.{" "}
-        <Button onClick={() => void identity.refetch()}>Retry posting account</Button>
-      </section>
+      <RequestFailure
+        message="Your posting account could not be verified."
+        retry={identity.refetch}
+        // A malformed answer has no error, so it keeps the retry.
+        error={identity.error}
+      />
     );
   return (
     <>

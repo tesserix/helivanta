@@ -7,9 +7,11 @@ import {
   storeExpiresAt,
   storeRenewAt,
   notifySessionChanged,
+  continueCustomerSignup,
 } from "@helivanta/api";
 import { getUserManager } from "@/lib/oidc";
 import { exchangeIdToken } from "@/lib/auth-exchange";
+import { customerSignupSigninStateContract } from "@/lib/signup-signin";
 
 // The redirect target Zitadel sends the browser back to after a
 // successful hosted login (registered as helivanta-web's redirect_uri,
@@ -55,15 +57,21 @@ export default function AuthCallbackPage() {
         if (!user.id_token) {
           throw new Error("Zitadel did not return an id_token");
         }
+        const signup = customerSignupSigninStateContract.optional().parse(user.state ?? undefined);
+        if (signup?.purpose === "customer-signup") {
+          await continueCustomerSignup({ idToken: user.id_token });
+          router.replace("/signup");
+          return;
+        }
         // Whoever signs in now owns this browser's permission cache — a
         // session that expired without an explicit sign-out leaves the
         // previous user's entry behind, and the next person signing in on
         // the same browser must not paint the old user's nav.
         clearPermissionsCache();
-        // No tenant_id: this is a first login, so the backend defaults to
-        // the caller's first tenant binding (login.go). Renewal
-        // (lib/renew.ts) is the call site that must always name one.
-        const { renew_at, expires_at } = await exchangeIdToken(user.id_token);
+        const { renew_at, expires_at } = await exchangeIdToken(
+          user.id_token,
+          signup && "tenantId" in signup ? signup.tenantId : undefined,
+        );
         // The server's own schedule for this session's FIRST renewal
         // (#916 Task 4, F3). Stored rather than passed, because
         // components/session-renewal.tsx does not mount on this page —

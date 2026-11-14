@@ -1,3 +1,4 @@
+import { ApiError } from "@helivanta/api";
 import { render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import type { Staff } from "@helivanta/api";
@@ -21,7 +22,8 @@ const props = {
   rows: [staff],
   isPending: false,
   isError: false,
-  onRetry: vi.fn(),
+  error: null,
+  retry: vi.fn(),
 };
 
 it("renders canonical Staff without inventing product authority or management actions", () => {
@@ -99,7 +101,7 @@ it.each([
 it("retries a failed page without showing failure as an empty directory", async () => {
   const user = (await import("@testing-library/user-event")).default.setup();
   const retry = vi.fn();
-  render(<StaffDirectory {...props} isError onRetry={retry} rows={[]} />);
+  render(<StaffDirectory {...props} isError retry={retry} rows={[]} />);
   await user.click(screen.getByRole("button", { name: "Try again" }));
   expect(retry).toHaveBeenCalledOnce();
   expect(screen.queryByText("Your staff directory starts here")).not.toBeInTheDocument();
@@ -128,4 +130,14 @@ it("renders inactive Staff as inactive and escapes the canonical display name", 
   expect(screen.getByRole("cell", { name: "Inactive" })).toBeInTheDocument();
   expect(screen.getByText("<img src=x onerror=alert(1)>")).toBeInTheDocument();
   expect(screen.queryByRole("img")).not.toBeInTheDocument();
+});
+
+it("shows a refused directory as a refusal with no retry", () => {
+  render(
+    <StaffDirectory {...props} isError error={new ApiError("forbidden", "no", 403)} rows={[]} />,
+  );
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "This wasn't found, or you don't have access to it.",
+  );
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
 });

@@ -81,7 +81,8 @@ func (g *departmentScopeGuard) CurrentSubtree(ctx context.Context, tenantID stri
 	}
 	rootArray := "{" + strings.Join(unique, ",") + "}"
 	var ids []uuid.UUID
-	err := g.db.WithTenant(ctx, tenantID, func(tx *gorm.DB) error {
+	// Inside a guarded command the subtree is read under the caller's held structure lock.
+	err := g.db.WithTenantCommand(ctx, tenantID, func(tx *gorm.DB) error {
 		if err := departmentScopeHospital(tx, tenantID, hospitalID); err != nil {
 			return err
 		}

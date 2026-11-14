@@ -22,7 +22,15 @@ import {
   type SupplyLegacyGrant as LegacyGrant,
   type SupplyRegistryScope,
 } from "@helivanta/api";
-import { Field, FormSelectField, LoadMore, useZodForm, RequestFailure } from "@helivanta/ui";
+import {
+  Field,
+  FormSelectField,
+  LoadMore,
+  useZodForm,
+  firstError,
+  RequestFailure,
+  RefreshButton,
+} from "@helivanta/ui";
 import { OrganisationAccessLimits } from "./organisation-access-limits";
 import {
   AccessWindowPolicyStatus,
@@ -82,6 +90,7 @@ function AccessPanel({ scope }: { scope: SupplyRegistryScope }) {
             grants.retry();
             legacy.retry();
           }}
+          error={firstError(grants.error, legacy.error)}
         />
       </section>
     );
@@ -113,6 +122,7 @@ function AccessPanel({ scope }: { scope: SupplyRegistryScope }) {
         <RequestFailure
           message="Could not load time-limited access grants. Refresh access before continuing."
           retry={grants.retry}
+          error={grants.error}
         />
       ) : grants.isPending ? (
         <p role="status">Loading time-limited grants…</p>
@@ -174,7 +184,7 @@ function AccessPanel({ scope }: { scope: SupplyRegistryScope }) {
             grant={editing}
             current={[...grants.items, ...legacy.items]}
             onDone={() => setEditing(undefined)}
-            onReload={() => {
+            refresh={() => {
               grants.retry();
               legacy.retry();
               setEditing(undefined);
@@ -191,7 +201,11 @@ function AccessPanel({ scope }: { scope: SupplyRegistryScope }) {
           access.
         </p>
         {legacy.isError ? (
-          <RequestFailure message="Could not load earlier access grants." retry={legacy.retry} />
+          <RequestFailure
+            message="Could not load earlier access grants."
+            retry={legacy.retry}
+            error={legacy.error}
+          />
         ) : legacy.isPending ? (
           <p role="status">Loading earlier grants…</p>
         ) : (
@@ -271,13 +285,14 @@ function GrantEditor({
   grant,
   current,
   onDone,
-  onReload,
+  refresh,
 }: {
   scope: SupplyRegistryScope;
   grant: Grant | null;
   current: Array<Pick<Grant, "subject">>;
   onDone: () => void;
-  onReload: () => void;
+  /** Re-reads after a conflicting or refused save. Only rendered while the grant lists read succeeds. */
+  refresh: () => void;
 }) {
   const { changed } = useSupplyAccessRefresh(scope);
   const { can } = usePermissions();
@@ -413,6 +428,7 @@ function GrantEditor({
         <RequestFailure
           message="Could not load trusted tenant members. Existing granted members remain selectable."
           retry={members.retry}
+          error={members.error}
         />
       )}
       <div className="grid gap-4 sm:grid-cols-2">
@@ -478,6 +494,7 @@ function GrantEditor({
         <RequestFailure
           message="Could not load location scopes. Refresh before choosing a location."
           retry={premises.retry}
+          error={premises.error}
         />
       )}
       {unavailable && (
@@ -537,9 +554,9 @@ function GrantEditor({
           <p role="alert" className="text-sm text-destructive">
             {mutation.error.message}
           </p>
-          <Button type="button" variant="outline" onClick={onReload}>
+          <RefreshButton refresh={refresh} error={null}>
             Reload organisation grants
-          </Button>
+          </RefreshButton>
         </div>
       )}
       <div className="flex flex-wrap gap-2">
@@ -573,7 +590,13 @@ function GrantHistory({ scope, id }: { scope: SupplyRegistryScope; id: string })
     { request: { headers: supplyHeaders(scope) } },
   );
   if (rows.isError)
-    return <RequestFailure message="Could not load access grant history." retry={rows.retry} />;
+    return (
+      <RequestFailure
+        message="Could not load access grant history."
+        retry={rows.retry}
+        error={rows.error}
+      />
+    );
   if (rows.isPending) return <p role="status">Loading access history…</p>;
   return (
     <div className="w-full space-y-2 border-t pt-3">

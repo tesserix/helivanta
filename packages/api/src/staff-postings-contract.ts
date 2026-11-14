@@ -688,6 +688,7 @@ export const StaffPostingReviewHospitalScopeContract = z
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     can_submit: z.boolean(),
     can_review: z.boolean(),
+    departments: z.array(identifier).max(50),
   })
   .strict();
 export type StaffPostingReviewHospitalScope = z.infer<
@@ -895,3 +896,44 @@ export const StaffPostingLifecycleHistoryContextContract = z
 export type StaffPostingLifecycleHistoryContext = z.infer<
   typeof StaffPostingLifecycleHistoryContextContract
 >;
+
+export const StaffDepartmentTeamItemContract = z
+  .object({
+    posting_id: identifier,
+    revision_id: identifier,
+    hospital_id: identifier,
+    staff: StaffPostingTargetContract,
+    version: z.number().int().min(2).max(9007199254740990),
+    department_id: identifier,
+    department_revision_id: identifier,
+    starts_at: z.string().datetime({ offset: true }),
+    ends_at: z.string().datetime({ offset: true }).nullable(),
+    responsibility: z.enum(["hospital_management", "department_supervisor", "department_member"]),
+    supervisor_staff_id: identifier.nullable(),
+    supervisor_posting_id: identifier.nullable(),
+    state: z.enum(["current", "not_current"]),
+    checked_at: z.string().datetime({ offset: true }),
+    source_until: z.string().datetime({ offset: true }).nullable(),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type StaffDepartmentTeamItem = z.infer<typeof StaffDepartmentTeamItemContract>;
+
+export const StaffPostingTransferInputContract = z
+  .object({
+    from_posting_id: identifier,
+    from_revision_id: identifier,
+    from_version: z.number().int().min(2).max(9007199254740990),
+    from_cutoff_version: z.number().int().min(0).max(9007199254740989),
+    decision: StaffPostingDecisionInputContract,
+  })
+  .strict();
+export type StaffPostingTransferInput = z.infer<typeof StaffPostingTransferInputContract>;
+
+export const StaffPostingTransferReceiptContract = z
+  .object({
+    replacement: StaffPostingProposalContract,
+    ending: StaffPostingCutoffContract,
+  })
+  .strict();
+export type StaffPostingTransferReceipt = z.infer<typeof StaffPostingTransferReceiptContract>;

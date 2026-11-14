@@ -10,6 +10,7 @@ import (
 	"github.com/tesserix/helivanta/internal/bootstrap"
 	"github.com/tesserix/helivanta/internal/httpserver"
 	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testutil"
 )
 
 // TestEveryEngineRouteIsDeclaredOrAllowlisted closes the one hole in the
@@ -36,7 +37,7 @@ func TestEveryEngineRouteIsDeclaredOrAllowlisted(t *testing.T) {
 	// /readyz, every module registers through platform.Router on /v1, and
 	// bootstrap.MountUnauthenticated adds the deliberate bypasses.
 	srv := httpserver.New(nil, nil)
-	api := platform.NewRouter(srv.Engine.Group("/v1"), dryRouteRegistrationChecker{})
+	api := platform.NewRouter(srv.Engine.Group("/v1"), dryRouteRegistrationChecker{}).WithCursorSealer(testutil.CursorSealer(t))
 	for _, m := range allModules() {
 		m.Routes(api, platform.Deps{})
 	}
@@ -50,6 +51,9 @@ func TestEveryEngineRouteIsDeclaredOrAllowlisted(t *testing.T) {
 	// stop pinning them.
 	stub := func(c *gin.Context) { c.Status(http.StatusOK) }
 	bootstrap.MountUnauthenticated(srv.Engine, stub, stub, stub, stub, stub, stub, stub, stub)
+	bootstrap.MountCustomerSignup(srv.Engine, stub, stub, stub, stub, stub, stub, stub, stub)
+	bootstrap.MountAccountDiscovery(srv.Engine, stub, stub, stub)
+	bootstrap.MountStaffSetup(srv.Engine, stub)
 
 	declared := map[string]bool{}
 	for _, dr := range api.Declared() {
@@ -81,7 +85,7 @@ func TestUnauthenticatedAllowlistHasNoDeadEntries(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	srv := httpserver.New(nil, nil)
-	api := platform.NewRouter(srv.Engine.Group("/v1"), dryRouteRegistrationChecker{})
+	api := platform.NewRouter(srv.Engine.Group("/v1"), dryRouteRegistrationChecker{}).WithCursorSealer(testutil.CursorSealer(t))
 	for _, m := range allModules() {
 		m.Routes(api, platform.Deps{})
 	}
@@ -95,6 +99,9 @@ func TestUnauthenticatedAllowlistHasNoDeadEntries(t *testing.T) {
 	// stop pinning them.
 	stub := func(c *gin.Context) { c.Status(http.StatusOK) }
 	bootstrap.MountUnauthenticated(srv.Engine, stub, stub, stub, stub, stub, stub, stub, stub)
+	bootstrap.MountCustomerSignup(srv.Engine, stub, stub, stub, stub, stub, stub, stub, stub)
+	bootstrap.MountAccountDiscovery(srv.Engine, stub, stub, stub)
+	bootstrap.MountStaffSetup(srv.Engine, stub)
 
 	onEngine := map[string]bool{}
 	for _, r := range srv.Engine.Routes() {

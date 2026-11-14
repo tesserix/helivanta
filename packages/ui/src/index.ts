@@ -31,7 +31,14 @@ export {
 // EmptyState is rendered only through QueryState, which checks the pending
 // and failed states first (#1276), so it is deliberately not exported.
 export { QueryState } from "./query-state";
-export { RequestFailure } from "./request-failure";
+export { RefreshButton } from "./refresh-button";
+export {
+  RequestFailure,
+  firstError,
+  isRefusal,
+  refusedDefault,
+  sessionEnded,
+} from "./request-failure";
 export { PageHeading } from "./page-heading";
 export { Panel, PanelLink } from "./panel";
 export { LoadMore } from "./load-more";
@@ -53,4 +60,8 @@ export { TesserixFooter, BrandMark, LoginSurface } from "./branding";
 export { SelectControl, FormSelectField, type SelectOption } from "./select";
 export { Popover, PopoverTrigger, PopoverContent } from "./popover";
 export { Button } from "./button";
-export { StaffDirectory, type StaffDirectoryProps } from "./staff-directory";
+export {
+  StaffDirectory,
+  type StaffDirectoryProps,
+  type StaffDirectoryRow,
+} from "./staff-directory";

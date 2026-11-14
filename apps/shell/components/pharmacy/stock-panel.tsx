@@ -33,6 +33,7 @@ import {
   ListDetail,
   LoadMore,
   Panel,
+  firstError,
   RequestFailure,
   SelectControl,
   useConfirmLeave,
@@ -206,6 +207,7 @@ export function StockPanel({
                     locations.retry();
                     products.retry();
                   }}
+                  error={firstError(locations.error, products.error)}
                 />
               ) : (
                 <>
@@ -274,6 +276,7 @@ export function StockPanel({
                     <RequestFailure
                       message="Could not load manufacturer lots."
                       retry={batches.retry}
+                      error={batches.error}
                     />
                   )}
                 </>
@@ -581,7 +584,11 @@ function StockBucket({
           Selected lot balance
         </h4>
         {balance.isError ? (
-          <RequestFailure message="Could not load this stock balance." retry={balance.refetch} />
+          <RequestFailure
+            message="Could not load this stock balance."
+            retry={balance.refetch}
+            error={balance.error}
+          />
         ) : balance.isPending ? (
           <p role="status">Loading balance…</p>
         ) : (
@@ -634,7 +641,11 @@ function StockBucket({
       <div className="border-t p-6">
         <h4 className="mb-4 font-medium">Movement history</h4>
         {movements.isError ? (
-          <RequestFailure message="Could not load stock movements." retry={movements.retry} />
+          <RequestFailure
+            message="Could not load stock movements."
+            retry={movements.retry}
+            error={movements.error}
+          />
         ) : movements.isPending ? (
           <p role="status">Loading movements…</p>
         ) : movements.items.length === 0 ? (

@@ -25,6 +25,7 @@ import {
   useConfirmLeave,
   useLeaveGuard,
   useZodForm,
+  RefreshButton,
 } from "@helivanta/ui";
 import { useOrganizationCommand } from "./command";
 
@@ -45,7 +46,11 @@ export function OrganizationStructure() {
   const parsed = identityContract.safeParse(identity.data);
   if (identity.isError || !parsed.success)
     return (
-      <RequestFailure message="Could not verify organization access." retry={identity.refetch} />
+      <RequestFailure
+        message="Could not verify organization access."
+        retry={identity.refetch}
+        error={identity.error}
+      />
     );
   if (!parsed.data.data.includes("organization.structure.read"))
     return <Panel role="alert">Organization structure access required</Panel>;
@@ -108,9 +113,9 @@ function StructureHospitals({ scope, canManage }: Props) {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-xl font-semibold">Hospital department structure</h2>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => void query.refetch()}>
+                <RefreshButton refresh={query.refetch} error={query.error}>
                   Refresh hospital references
-                </Button>
+                </RefreshButton>
                 {canManage && (
                   <Button onClick={() => setRegistering(true)}>Register hospital reference</Button>
                 )}
@@ -123,7 +128,11 @@ function StructureHospitals({ scope, canManage }: Props) {
             {query.isPending ? (
               <p role="status">Loading hospital references…</p>
             ) : query.isError ? (
-              <RequestFailure message="Could not load hospital references." retry={query.refetch} />
+              <RequestFailure
+                message="Could not load hospital references."
+                retry={query.refetch}
+                error={query.error}
+              />
             ) : (
               <>
                 {query.data?.data.length === 0 ? (
@@ -263,9 +272,9 @@ function DepartmentDirectory({ scope, canManage, hospital }: Props & { hospital:
             <p className="mt-1 break-all text-sm text-muted-foreground">Hospital {hospital}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => void query.refetch()}>
+            <RefreshButton refresh={query.refetch} error={query.error}>
               Refresh departments
-            </Button>
+            </RefreshButton>
             {canManage && (
               <Button
                 disabled={query.isPending || query.isError}
@@ -286,6 +295,7 @@ function DepartmentDirectory({ scope, canManage, hospital }: Props & { hospital:
           <RequestFailure
             message="Could not load departments. Current access must be verified before editing."
             retry={query.refetch}
+            error={query.error}
           />
         ) : (
           <>
@@ -575,7 +585,11 @@ function DepartmentHistory({
       {query.isPending ? (
         <p role="status">Loading department history…</p>
       ) : query.isError ? (
-        <RequestFailure message="Could not verify department history." retry={query.refetch} />
+        <RequestFailure
+          message="Could not verify department history."
+          retry={query.refetch}
+          error={query.error}
+        />
       ) : (
         <>
           <ol className="divide-y">

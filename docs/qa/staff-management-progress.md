@@ -1,28 +1,417 @@
 # Staff Management delivery tracker
 
+## Pharmacy employment terms (#19 slice 4b) — 2026-11-11
+
+A standalone pharmacy employer now records proposed employment terms for its
+own Staff and binds released employment evidence to a terms revision
+(ADR-0054 decision 3). A draft employs nobody and grants nothing; only an
+employment review generation (slice 4c) can make terms effective. See the
+[spec](../superpowers/specs/2026-11-08-pharmacy-hr-lifecycle.md) and the
+[plan](../superpowers/plans/2026-11-08-pharmacy-employment-periods.md).
+
+- Twelve routes under `/v1/workforce/pharmacies/:pharmacy/staff/:id` cover the
+  employment source, the period list, read, save, withdrawal and history, and
+  the evidence list, read, attach, withdrawal, history and content. Each
+  declares `workforce.enrollment.manage` and requires a `manager` row for that
+  pharmacy, read again inside the command. Evidence routes also require
+  `workforce.documents.manage` inside the command.
+- Hospital and pharmacy handlers run one period and evidence core, so
+  validation, intent hashing, replay, version and epoch checks, the sponsor
+  rule, the binding limit and audit actions match. Hospital routes keep their
+  paths, permissions, projections and `hr_intake` query.
+- The core re-checks the admitted establishment kind before the supervision
+  and Staff locks. A hospital route on an ID registered as a pharmacy after
+  admission answers 404 and writes nothing, and the reverse holds. The HR
+  intake template admits an employment evidence gate only for a hospital.
+- A contractor or agency worker's sponsor must be an active Staff record of
+  the same pharmacy. Pharmacy period reads require `lifecycle=withdrawal-v1`
+  and refuse `hr_intake`.
+- Migration `0099_workforce_pharmacy_employment_periods` moves the
+  establishment triggers on employment drafts and evidence bindings to the
+  enrollment guard, which admits a hospital or a pharmacy and still refuses a
+  supplier or unregistered ID. No RLS changes and no event.
+- In the shell, a pharmacy manager with the permission sees an Employment
+  action on each Staff record. It opens the shared terms panel with a
+  pharmacy-only sponsor picker and no "Prepare employment review".
+
+**Evidence.**
+
+- Five new backend tests pass against Postgres testcontainers: the pharmacy
+  terms, evidence and refusal route tests, the enrollment guard test, and the
+  core kind re-check. Each failed before its code. The hospital period,
+  withdrawal, evidence and review suites pass unchanged.
+- The backend coverage gate (`-race`, 70% floor) passes all 44 gated
+  packages, with workforce at 83.1%. `lint-go`, `go build`, `go vet`,
+  `contractdocs -check`, the workforce generator checks and the
+  operational-access inventory check pass.
+- 13 new SDK tests and 4 new pharmacy Staff source tests pass. Shell Vitest
+  (1897 tests), SDK (1095 tests) and `pnpm turbo lint type-check test build
+format:check` are green.
+
+Employment reviews, cohorts and generations for a pharmacy (4c), delegated
+HR intake for a pharmacy, slices 4e and 4f, slice 5, and deployed runtime and
+real OIDC browser acceptance remain open. Counts are unchanged at
+**10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
+## Pharmacy Staff documents (#19 slice 4d) — 2026-11-08
+
+A standalone pharmacy employer now keeps the HR files of its own Staff:
+identity and employment evidence on the enrollment, and evidence on recorded
+credentials and qualifications (ADR-0054). See the
+[spec](../superpowers/specs/2026-11-08-pharmacy-hr-lifecycle.md) and the
+[plan](../superpowers/plans/2026-11-08-pharmacy-documents.md).
+
+- Under `/v1/workforce/pharmacies/:pharmacy/staff/:id`, the routes for record
+  choices, list, intent, upload, download, revocation and scan retry require
+  `workforce.documents.manage` and a `manager` row for that pharmacy.
+  Responses name `pharmacy_id` and no `hospital_id`.
+- Migration `0098_workforce_pharmacy_documents` admits a pharmacy on
+  `workforce_documents` for `enrollment`, `credential` and `qualification`
+  only. Contributor rows stay on the enrollment guard. Classification
+  revisions get a direct hospital guard, because a cleared classification
+  names no HR master revision. The guard inventory caught this case.
+- Hospital document gates now require the hospital kind, so a hospital route
+  on an ID registered as a pharmacy after admission answers 404 and writes
+  nothing.
+- Defect fixed: a tax declaration or benefits evidence scan retry carrying
+  `?hr_intake=v1` ran in the HR intake transaction. It now runs in the Staff
+  document transaction, as without the query.
+- These callers get 404 on every route: a reader, a caller with no access row,
+  a foreign tenant, a hospital, supplier or unregistered ID, and a hospital
+  Staff, record or file under the pharmacy family (and the reverse). A caller
+  without the permission gets 403, `hr_intake` gets 400, a missing or changed
+  expected account gets 409 `session_changed`, and no storage gets 503
+  `documents_unavailable` with no intent written.
+- Scan events and object keys keep `hospital_id`, which names the owning
+  establishment row. Download audit rows carry the pharmacy ID.
+- In the shell, a pharmacy manager with the permission sees a Documents action
+  on each Staff record. It opens the shared document workspace without
+  classification or HR intake. A 401, 403 or 404 clears the source and shows
+  "Your account or Staff access changed".
+
+**Evidence.**
+
+- Seven new backend tests pass against Postgres testcontainers: three
+  pharmacy route tests, the establishment-kind document guard, the gate race
+  test, and the two intake-query retry regressions. Each one, and the guard
+  inventory, failed before its code. The guard test also fails without the
+  classification trigger alone, admitting the cleared classification row.
+- The full workforce document, classification, evidence and intake suites
+  pass unchanged.
+- `lint-go`, `go build`, `go vet` and `contractdocs -check` pass, and so do the
+  workforce documents generator check and the operational-access inventory
+  check.
+- 6 new SDK tests and 4 new pharmacy Staff source tests pass. Shell Vitest (1891
+  tests), SDK (1082 tests) and `pnpm turbo lint type-check test build format:check`
+  are green.
+- After rebasing onto main, the backend coverage gate (`-race`, 70% floor)
+  passes all 44 gated packages, with workforce at 82.9%. Main had taken 0096
+  and 0097 meanwhile, so the migration moved to 0098 before any deploy.
+
+**Rollout.** Merged as #1655 (`54d2778f`). [Release run 43019356546](https://github.com/tesserix/helivanta/actions/runs/43019356546)
+moved `release/prod` to `54d2778f`. Kargo freight `ill-eel` (`a4731be`)
+auto-promoted in Promotion `prod.01m75909egck8k38xde9phy3m0.a4731be`. The
+migrate job ran the `54d2778f` image from 12:23:32Z and logged "migrations
+applied". Every Helivanta deployment runs `54d2778f` with all replicas ready,
+the three gated Argo CD applications are Synced and Healthy, and the prod stage
+is Ready, Healthy and Verified. Unauthenticated pharmacy document list, record
+choices and content routes answer 401. This is not deployed runtime acceptance.
+
+File classification, identity review, employment evidence and credential
+review for a pharmacy, slices 4b, 4c, 4e and 4f, slice 5, and deployed runtime
+and real OIDC browser acceptance remained open at this rollout. Counts are
+unchanged at **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
+## Pharmacy Staff enrollment (#19 slice 4a) — 2026-11-08
+
+A standalone pharmacy employer now keeps HR enrollment for its own Staff
+(ADR-0054, ADR-0063). See the [spec](../superpowers/specs/2026-11-08-pharmacy-hr-lifecycle.md)
+and the [plan](../superpowers/plans/2026-11-08-pharmacy-enrollment.md).
+
+- `GET` and `PUT /v1/workforce/pharmacies/:pharmacy/staff/:id/enrollment?request_context=v1`
+  require `workforce.enrollment.manage` and a `manager` row for that pharmacy,
+  both read again inside the command transaction.
+- Migration `0095_workforce_pharmacy_enrollment` lets the six
+  `workforce_enrollment_*` tables admit a pharmacy. A supplier or an
+  unregistered establishment is still refused.
+- A pharmacy has no HR masters. The response carries no masters marker and no
+  `hospital_id`. The reporting line must name a Staff record of the same
+  pharmacy, and a supervisor cycle gets 409.
+- Setting the status to inactive revokes the person's independent login. A
+  person employed by a hospital and a pharmacy keeps two enrollments, and
+  neither grants access to the other.
+- These callers get 404: a reader, a caller with no access row, a foreign
+  tenant, another pharmacy's Staff, and a hospital, supplier or unregistered
+  ID. A caller without the permission gets 403, and a changed expected account
+  gets 409 `session_changed`. A refused request writes no audit row. The HR
+  intake and masters views answer 400, so HR intake stays hospital-only.
+- In the shell, the pharmacy Staff source shows an Enrollment action only to a
+  manager with the permission. It reuses the hospital enrollment form without
+  contract type or masters. A 409 keeps the draft until a confirmed reload. A
+  401, 403 or 404 clears the source and shows "Your account or Staff access changed".
+
+**Evidence.**
+
+- Five route tests and two internal command tests pass against Postgres
+  testcontainers. They cover keep, refuse, masters and reporting line, inactive
+  revocation and two enrollments for one person. The establishment-kind guard
+  test checks that exactly the six enrollment tables carry the new trigger,
+  admit a pharmacy and refuse a supplier. The globalapi legacy-upgrade test
+  replays 0095 after the earlier deferred migrations.
+- The backend coverage gate (`-race`, 70% floor) passes. `lint-go`, `go vet`
+  and `contractdocs -check` pass, and so does the operational-access
+  inventory check.
+- 6 SDK tests and 5 new pharmacy Staff source tests pass. The full workforce app
+  suite (620 tests) is unchanged. Removing any meaningful SDK or panel guard
+  fails at least one test.
+- `pnpm turbo lint type-check test build format:check` is green.
+
+**Rollout.** Merged as #1631 (`17aefcaa`). [Release run 42472706234](https://github.com/tesserix/helivanta/actions/runs/42472706234)
+shipped it with #1630 (slice 3b-ii), #1628, #1625 and #1624, and the supply
+commits `4980728d`, `99cf6cef` and `341f67f7`. Kargo freight
+`pining-nightingale` (`5456858`) auto-promoted in Promotion
+`prod.01m6xeacvt9f1vwsnc90pf3z99.5456858`. The migrate job started 11:22:30Z
+and logged "migrations applied". Every Helivanta deployment runs the
+`17aefcaa` digests with ready pods, and the prod stage is Ready, Healthy and
+Verified. Unauthenticated pharmacy enrollment and IAM proposal routes answer 401. This is not deployed runtime acceptance.
+
+Slices 4b to 4f, slice 5, and deployed runtime and real OIDC browser acceptance
+remain open. Counts are unchanged at **10 partial, 10 awaiting audit, 1 research,
+0 fully accepted**.
+
+## Pharmacy outlet receiving under reviewed duty (#19 slice 3b-ii) — 2026-11-08
+
+PharmaConnect now consumes ADR-0064's `pharmacy.inventory_receiver.v1` duty at
+one exact outlet. See the [spec](../superpowers/specs/2026-11-08-pharmacy-receiver-duty.md).
+
+- A new route family,
+  `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock`, is
+  admitted only through IAM's `WithOperatingScope`, never a tenant role.
+- It lets the receiver read products, locations, lots and receipts, record a
+  lot, and record a receipt into quarantine.
+- Migration `0038_pharmacy_operating_receipts` adds forced-RLS branches. They hold
+  only under the transaction-local duty settings.
+- Each write, and each read, appends to `pharmacy_operating_stock_audit` in the
+  same transaction.
+- A receiver gets 404 for a sibling outlet, a foreign or hospital-owned pharmacy,
+  a correction, a release or a new location, and after revocation, Staff or link
+  change, or interruption.
+- The shell deep link `/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/receiving`
+  retains one ID per command, and recovers a lost answer by GET without writing
+  again.
+
+**Evidence.**
+
+- The globalapi end-to-end tests run prepare, approve, acknowledge, record,
+  replay, revoke and refuse. Postgres policy tests and an architecture test for
+  the single settings writer pass against Postgres testcontainers.
+- The full globalapi suite passes. The pharmacy, archtest and operating-duty
+  tests pass under `-race`.
+- `lint-go`, `go vet` and `contractdocs -check` pass.
+- 12 SDK tests, 10 receiver-panel tests and 5 amount-field tests pass. Removing
+  any single SDK or panel guard fails at least one test.
+- `pnpm turbo lint type-check test build format:check` is green.
+
+Receiver self-discovery and navigation, deployed runtime acceptance and real
+OIDC browser acceptance remain open. Slices 4 and 5 remain open. Counts are
+unchanged at **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
+## Hospital link discovery and slice 3b re-plan (#19) — 2026-11-08
+
+#1627 (slice 3b-i, pharmacy login links) was closed. #1621 (`4980728d`,
+ADR-0063, ADR-0064, ADR-0065) supersedes it: it delivers pharmacy and supplier
+account links with their own identity basis. Reconciling the two found two
+defects on main.
+
+**Defect 1: hospital pickers saw supplier and pharmacy links.**
+
+- The hospital-scope pickers selected every active login link. A reviewed
+  supplier or pharmacy account therefore became a hospital candidate.
+- Effect: four pickers listed it as a hospital scope.
+- Effect: three pickers returned 503, because the candidate reached the hospital
+  authority.
+- Fix: candidates now join only `hospital` establishments (ADR-0054).
+
+**Defect 2: the inventory counted a nullable foreign key as a guard.**
+
+- The Workforce establishment inventory counted a foreign key through a nullable
+  column as a structural guard.
+- Fix: it now admits only `NOT NULL` columns or stored generated literals.
+- The login-link tables are now on a reviewed list. A direct test proves that
+  migration 0094 admits each establishment only through its own identity basis.
+
+**Evidence.**
+
+- The new hospital-picker test and the strengthened inventory and login-guard
+  tests each fail without the fix. They pass with it against Postgres
+  testcontainers.
+- `contractdocs -check` and the inventory check pass.
+
+**Re-plan.** The original 3b-ii design is withdrawn. It would have put pharmacy
+roots on the hospital scope. ADR-0064's typed `pharmacy.inventory_receiver.v1`
+duty already covers preparation, review, projection and cutoff. What remains is
+a PharmaConnect outlet receipt route that consumes that reviewed duty, as
+SupplyConnect already does. See the
+[plan](../superpowers/plans/2026-11-08-hospital-link-discovery.md).
+
+Slices 3b-ii, 4 and 5 remain open. This is not deployed runtime acceptance.
+Counts are unchanged at
+**10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
+## Pharmacy employer Staff directory (#19 slice 3a) — 2026-11-07
+
+Workforce 0092 lets a registered standalone pharmacy hold Staff and access rows,
+and makes every Staff child table refuse a pharmacy itself. The pharmacy family
+adds discovery, a paginated directory, versioned record read and edit, and
+reader or manager access grants. Responses name `pharmacy_id` only. A hospital ID
+on the family, or a pharmacy ID on a hospital route, answers 404, and a caller
+without an access row gets 404, never an empty page. The assignment-scope verifier
+answers `eligible=false` for a pharmacy. Registration grants the registrant
+manager access and keeps a retry if that grant fails. `/pharmacy/staff` lists the
+caller's pharmacy employers: a manager adds and edits records, a reader only reads,
+and a 404 says access changed. Evidence: Workforce guard inventory, refusal matrix,
+verifier, route and race tests against Postgres testcontainers, archtest,
+contractdocs, the generated Go and Zod contracts, and SDK and panel Vitest tests.
+IAM on a pharmacy (slice 3b), HR lifecycle (slice 4) and branch postings (slice 5)
+remain open. Merged as #1616 (b41fc4bd). It was promoted to production as Kargo
+freight `melting-hydra` (06bed958). The migrate job applied migrations, the prod
+stage is Healthy and Verified, and unauthenticated pharmacy-family routes answer 401. This is not deployed runtime acceptance. Counts are unchanged at
+**10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
+## Department leave review candidate (#1596, ADR-0055 slice 2) — 2026-11-06
+
+A hospital can grant leave review over one department and its current sub-units
+with the closed IAM 0032 `workforce.department_leave_reviewer.v1` template. Three
+department routes list, read and decide leave. Each call admits the department
+grant for the held Organization path in OpenFGA, holds that department through
+commit and binds the reviewer as a current Staff actor. Workforce 0089 then limits
+the session to requests whose requester has every live posting inside the held
+subtree. Hospital leave review and the hospital leave desk are unchanged. The
+shell offers a department selector. A retired department reads as a refusal with
+no retry, and a moved department structure offers a queue retry.
+
+Evidence: the person-review journey's new `posting_dept_leave` case and the
+department leave journey pass against real IAM, OpenFGA and Postgres. They also
+pass in one run with the five posting department cases that share their
+hospital (213.9s).
+They cover the template grant and its scope discovery, 403 before the grant,
+404 for sibling, foreign and unknown departments, the 0089 RLS session and audit
+evidence. Workforce unit (896s), architecture, `contractdocs -check` and the
+inventory check also pass, as do the leave-review page tests. The inventory
+re-pins 33 hashes across 23 reviews whose router and Workforce/IAM sources changed,
+plus the Workforce pin of the two department-team reviews merged from main (849
+surfaces, 824 unclassified). This is not deployed runtime acceptance;
+real-account browser acceptance with two people remains open. Counts are unchanged
+at **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
+## Standalone pharmacy employer registration (#19 slice 1) — 2026-11-06
+
+Workforce 0088 adds a typed `establishment_kind` to the employer registry.
+`PUT/GET /v1/workforce/pharmacies/:pharmacy` register an `independent` or `chain`
+Pharma organization as an employing establishment, using only the name and
+ownership the Pharma-owned guard returns. A hospital-owned, foreign, unknown or
+non-v7 organization answers 404, and an unavailable guard answers 503. Hospital and
+pharmacy route families each admit one kind after authorization, so a pharmacy ID
+on a hospital route answers 404 even if a later slice lifts the access guard. Pharmacy
+registry setup shows the employer panel to `workforce.hospital.manage` holders.
+Evidence: workforce, platform, archtest, pharmacy and journey tests, SDK and panel
+Vitest tests, and the regenerated contract and operational access ledgers, which
+re-pin the 20 reviews whose router and Workforce route sources changed. The two new
+routes stay unclassified. Pharmacy-family Staff, access grants, IAM roots and
+postings (slices 2–5), unregistering and ORG-D9 remain open. This is not deployed
+runtime acceptance. Counts are unchanged at **10 partial, 10 awaiting audit,
+1 research, 0 fully accepted**.
+
+## Pharmacist outlet authority designed (#418) — 2026-11-05
+
+The [pharmacist outlet authority specification](../superpowers/specs/2026-11-05-pharmacist-outlet-authority.md)
+proposes decisions D1–D7 for product-owner review. Source on `01d4a284` shows the
+gap: the tenant-wide pharmacist role plus an editor outlet grant releases H1 stock,
+and the registers name the login subject, not a registered pharmacist.
+Implementation is blocked on #39 (Practitioner is not in the API bootstrap) and
+#1374 (no practitioner-to-Staff link). No primary source for pharmacist-presence
+or PIC rules is in the India source register yet. No migration, route or
+permission exists. Counts are unchanged at **10 partial, 10 awaiting audit,
+1 research, 0 fully accepted**.
+
+## ADR-0054 accepted (#19) — 2026-11-05
+
+The product owner accepted [ADR-0054](../adr/0054-typed-employing-establishments.md)
+on 2026-11-05. ORG-D8 is settled: an independent or chain pharmacy organization
+becomes a typed Workforce establishment, and its postings reference its Pharma
+outlets. ORG-D9 (grouping branches into areas) stays open, as do ORG-D2, ORG-D5
+and ORG-D6. This is a decision record only. No establishment migration, route,
+permission or event exists yet; each arrives in its own reviewed slice of the
+[standalone pharmacy employer specification](../superpowers/specs/2026-11-04-standalone-pharmacy-employers.md).
+Counts are unchanged at **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
+## Department posting review candidate (#429 slice 1) — 2026-11-05
+
+A hospital can grant Staff posting review for one department and its current
+sub-units. IAM 0030/0031 add the closed `workforce.department_posting_reviewer.v1`
+template and two-owner verification (`pending_scope`, then
+`pending_decision_scope`). Organization binds the #1562 guard into platform deps
+and filters posting choices by a department hint. Workforce 0087 moves the posting
+inbox, review source and decision receipt to handler-scoped admission, holding the
+department path through commit. The shell proposes department access from the
+Organization department list and shows department scope in the access list and
+the posting review inbox. It is integrated into release PR #1565 after the posting
+supervision, cutoff and lifecycle slices. Its migrations were renumbered to IAM
+0030/0031 and Workforce 0087 to follow 0029 and 0086 there, and the supervised
+chain, lifecycle and recorded-history context reads now carry the department hint.
+It is merged to main as #1572 but not yet promoted to production.
+
+The access proposer holds `iam.assignment.manage`, which, like
+`organization.structure.read`, defaults only to tenant administrators, so the form
+uses the department list rather than posting choices (those also need a Staff
+actor link). A missing structure permission now reads as such, without a retry.
+
+Evidence: `go build ./...`, `go vet ./...`, `make lint-go` (0 issues), `go run
+./cmd/contractdocs -check`, `make lint-shell`, both Staff generator checks and the
+84 script tests pass. `go test -race -count=1 -p 2 ./...` passed every package;
+the 16 packages that failed only when the local test VM lost Postgres connections
+all passed on rerun. The frontend gate in CI order under Node 24 passed (shell
+1523, api 650, ui 279, config 72 and emergency-access 9 tests). The local
+coverage gate could not finish because the test VM stopped forwarding container
+ports, so CI's coverage job is the coverage evidence. The pre-integration evidence above is superseded by the release gate rerun.
+
+The 23 operational-access reviews pinned to `router.go`, Workforce/IAM `module.go`,
+`assignment_authority.go`, `posting_drafts.go`, `posting_authority.go` and
+`department_references.go` were rechecked symbol by symbol. Ten pinned symbols are
+byte-identical. Workforce `Routes` changes only the posting-review registrations
+and dependency wiring, `authorityCandidates` also returns scope kind and department
+while every caller binds the kind, and `DepartmentReferences` keeps the same
+fail-closed owner binding. No reviewed route's authority changed. With maintainer approval the 23 pins were refreshed and each review gained a dated #429 recheck note; only hashes and that note changed, and `staff-operational-access-inventory.mjs --check` passes. After release integration the 23 pins were rechecked against the release branch the same way and refreshed again (842 surfaces, 819 unclassified; the two additions are the department-scope event consumers).
+
+Department leave review, clinical department reach, outlet scope (#418),
+standalone employers (#19) and real-account browser acceptance remain open. Counts
+stay **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Deployed for user acceptance — 2026-11-05
 
-**62f3f7fd** is deployed through successful Kargo promotion
-`prod.01m6mwm1fjscfvx6162wtj6445.1afd48c`. All 13 approved migrations are applied:
-production receipts increased **227→240**, with the exact new IDs verified. The
-13 new tables have forced RLS, their constraints validate, the concurrent index
-is valid/ready, and 18 installed function bodies/security modes match canonical
-SQL. The release manifest and execution record are updated.
+Release PR #1565 (main **62f3f7fd**) reached production through Kargo promotion
+`prod.01m6mwm1fjscfvx6162wtj6445.1afd48c`, which finished at
+2026-11-05T03:40:26Z. This supersedes the "Production remains 9f827a66" line in
+the release-assembly entry below.
 
-API, Global API, UI and emergency workers have **2/2 ready replicas** on the
-released tag. The Staff relationship page redirects anonymous users to login;
-unauthenticated Staff metadata requests return 401. The user can test at
-[Pharmacy relationships](https://helivanta.app/workforce/pharmacy-relationships).
-Positive-role browser acceptance is delegated to the user and remains unclaimed.
+- **Migrations.** All 13 approved migrations were applied, taking the ledger from
+  227 to 240 receipts.
+- **Schema checks.** The 13 new tables have forced RLS, no new constraint is
+  unvalidated, and the 0083 concurrent index is valid.
+- **Function capture.** The private capture records 12 SQL files matching
+  canonical hashes, and the body hash and security mode of 18 installed
+  zero-argument functions.
+- **Replicas.** API, Global API, shell and the emergency worker each have 2/2
+  ready replicas.
+- **Workers.** The three document and evidence workers stayed unready because of
+  the antivirus definition age, and the freshness limits stayed enforced.
 
-The three document/evidence workers remain unready from the pre-existing
-antivirus definition age condition. Readiness and file-release freshness limits
-remain enforced; promotion success does not establish full worker health. The
-actual production context is the India GKE context recorded in the release note.
+The [release record](../deployment/releases/2026-11-05-staff-self-acceptance.md)
+holds the full evidence. It also corrects the preflight context to the India
+production cluster `tesseract-prod-in-gke` and the image tag to the bare SHA.
 
-All five foundation requirements remain active. Overall Staff Management is
-still **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**. The broad
-autonomous goal remains paused; this records the explicitly approved deployment.
+Positive-role browser acceptance was left to the user and is not claimed here.
+Counts stay **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
 
 ## Staff release assembly for user testing — 2026-11-05
 
@@ -6340,3 +6729,35 @@ reviewed product-to-department bindings and their lifecycle/positive-role browse
 acceptance remain open. Staff must remain canonical in Workforce; consumer
 projections must not create a second employee master or treat approval/discovery
 hints as operating authorization.
+
+## 2026-11-06 — hospital department teams and paired transfers
+
+The isolated department-team branch completes the hospital consumer journey for
+preparation, independent head/supervisor review, current placement observations,
+endings and coordinated scheduled transfers. The original ownership/collaboration
+documentation was merged by PR #1600. Implementation is tracked through the
+department-team feature branch and PR. Production deployment, migration and
+unrelated issue closure remain separate.
+
+- The roster composes proposal-read, current actor and hospital source-use evidence,
+  holds current department scope, minimizes Staff data and distinguishes current,
+  non-current and expired observations. Known source refusal is not an empty-team
+  success; unavailable verification fails closed.
+- The transfer composes five independently reserved existing permissions, preserves
+  the normal decision fingerprint and commits the original ending, replacement
+  approval, source evidence, audit and outbox together. A shared immutable command,
+  actor and fingerprint link the retained pair. A previous pair prevents another
+  replacement consuming that original, including an earlier proposed move.
+- Exact concurrent requests recover one result; changed intent conflicts. A later
+  source ending does not prevent authorized recovery. The browser deliberately
+  loses a committed response and recovers the same paired command.
+- Final combined-main evidence: shell 1,703 tests, API SDK 895 tests, shared UI 308 tests; full
+  Workforce/authz suites and changed-case race checks pass. The real browser/owner
+  expanded race run, including temporary-grant cleanup and the following department-review scenario, passes in 288.742s. Types, lint, production build, Go build/vet/lint,
+  architecture, canonical generation and registered contracts pass.
+
+See [the scoped delivery/validation record](../design/staff-and-rbac/department-team-management.md),
+[the candidate contract](../api/workforce-postings.md) and
+[ADR-0061](../adr/0061-department-team-and-atomic-transfers.md). External login,
+representative load, statutory HOD/clinical privilege policy and independent
+pharmacy cross-tenant service agreements are separate review/release work.

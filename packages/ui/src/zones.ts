@@ -17,6 +17,8 @@ import {
   Clock,
   ClipboardCheck,
   Contact,
+  BriefcaseMedical,
+  Factory,
   FileText,
   FileScan,
   Fingerprint,
@@ -30,8 +32,10 @@ import {
   LayoutDashboard,
   Gauge,
   ListChecks,
+  Network,
   ShoppingCart,
   PackagePlus,
+  Truck,
   Palette,
   CreditCard,
   Pill,
@@ -238,6 +242,13 @@ export const ZONES: Zone[] = [
       },
       {
         section: "Inventory",
+        label: "Supplier fulfilment",
+        href: "/pharmacy/supplier-orders",
+        icon: Truck,
+        permission: "supply.supplier_order.read",
+      },
+      {
+        section: "Inventory",
         label: "Receiving",
         href: "/pharmacy/receiving",
         icon: PackagePlus,
@@ -346,6 +357,12 @@ export const ZONES: Zone[] = [
         icon: Building2,
         permission: "supply.directory.read",
       },
+      {
+        label: "Supplier Staff",
+        href: "/supply/staff",
+        icon: Contact,
+        permission: "supply.directory.read",
+      },
     ],
   },
   {
@@ -360,6 +377,30 @@ export const ZONES: Zone[] = [
     group: "operations",
     pages: [
       { label: "Staff directory", href: "/workforce", icon: Contact, permission: "public" },
+      {
+        label: "Pharmacy Staff",
+        href: "/workforce/pharmacy-staff",
+        icon: BriefcaseMedical,
+        permission: "public",
+      },
+      {
+        label: "Supplier Staff",
+        href: "/workforce/supplier-staff",
+        icon: Factory,
+        permission: "public",
+      },
+      {
+        label: "Partner teams",
+        href: "/workforce/partner-teams",
+        icon: Network,
+        permission: "public",
+      },
+      {
+        label: "Department teams",
+        href: "/workforce/department-teams",
+        icon: Users,
+        permission: "public",
+      },
       {
         label: "Posting preparation",
         href: "/workforce/postings",
@@ -507,6 +548,12 @@ export const ZONES: Zone[] = [
     hue: "violet",
     group: "admin",
     pages: [
+      {
+        label: "Workspace security",
+        href: "/settings/security",
+        icon: Settings,
+        permission: "iam.member.manage",
+      },
       {
         label: "Organization structure",
         href: "/settings/organization",

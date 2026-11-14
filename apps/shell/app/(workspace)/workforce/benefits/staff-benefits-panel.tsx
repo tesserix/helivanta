@@ -9,8 +9,8 @@ import {
   type Hospital,
   type Staff,
 } from "@helivanta/api";
-import { Field, SelectControl } from "@helivanta/ui";
-import { Failure } from "../roster-policy/policy-ui";
+import { Field, SelectControl, RequestFailure } from "@helivanta/ui";
+
 import { DependentsSection } from "./dependents-section";
 import { EnrollmentsSection } from "./enrollments-section";
 
@@ -59,7 +59,7 @@ export function StaffBenefitsPanel({
       </div>
       {staff.isError ? (
         <div className="p-5">
-          <Failure message="Could not load staff." retry={staff.retry} />
+          <RequestFailure message="Could not load staff." retry={staff.retry} error={staff.error} />
         </div>
       ) : member ? (
         <StaffBenefits

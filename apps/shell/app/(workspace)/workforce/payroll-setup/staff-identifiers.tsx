@@ -26,8 +26,8 @@ import {
   type StatutoryDecisionInput,
   type StatutoryWithdrawInput,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass } from "../roster-policy/policy-ui";
+import { Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
+import { inputClass } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { Fact, RevisionHistory } from "./payroll-workspace";
 
@@ -110,9 +110,10 @@ export function StaffIdentifiers({
       {record.isPending ? (
         <p role="status">Loading identifiers…</p>
       ) : record.isError && !missing ? (
-        <Failure
+        <RequestFailure
           message="Could not load this staff member's identifiers."
           retry={() => record.refetch()}
+          error={record.error}
         />
       ) : (
         <>

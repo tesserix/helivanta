@@ -30,6 +30,7 @@ import {
 import { useListDetail, useReportState, type FormState } from "@/lib/use-list-detail";
 import { OutletForm, PharmacyRegistrySetup } from "./pharmacy-registry-setup";
 import { TaxRegistrationPanel } from "./tax-registration-panel";
+import { LicencePanel } from "./licence-panel";
 
 type Outlets = ReturnType<typeof useApiPagedQuery<PharmacyOutlet>>;
 
@@ -124,6 +125,7 @@ export function OutletsSetup({
               <RequestFailure
                 message="Could not load this pharmacy's outlets."
                 retry={outlets.retry}
+                error={outlets.error}
               />
             ) : outlets.isPending ? (
               <p role="status" className="p-5">
@@ -224,7 +226,11 @@ function OpenOutlet({
             This record was not found, or you do not have access.
           </p>
         ) : outlet.isError ? (
-          <RequestFailure message="Could not load this outlet." retry={outlet.refetch} />
+          <RequestFailure
+            message="Could not load this outlet."
+            retry={outlet.refetch}
+            error={outlet.error}
+          />
         ) : (
           <p role="status">Loading outlet…</p>
         )}
@@ -265,6 +271,15 @@ function OpenOutlet({
           outlet={row}
           today={zonedDateTimeInput(new Date().toISOString(), row.timezone).slice(0, 10)}
           onStateChange={pane.formState("tax")}
+        />
+      )}
+
+      {(can("pharmacy.licence.manage") || can("pharmacy.licence.review")) && (
+        <LicencePanel
+          scope={scope}
+          subject={subject}
+          today={zonedDateTimeInput(new Date().toISOString(), row.timezone).slice(0, 10)}
+          formState={(key) => pane.formState(key)}
         />
       )}
     </div>
@@ -327,6 +342,7 @@ function OutletAccess({
         <RequestFailure
           message="Could not check your access to this outlet. Try again in a moment."
           retry={access.refetch}
+          error={access.error}
         />
       ) : (
         <p className="text-sm">

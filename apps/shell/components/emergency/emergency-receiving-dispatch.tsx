@@ -20,7 +20,7 @@ import {
   type EmergencyReceivingRequestInput,
   type EmergencyReceivingReceipt,
 } from "@helivanta/api";
-import { LoadMore, formatTime, SelectControl } from "@helivanta/ui";
+import { LoadMore, RequestFailure, firstError, formatTime, SelectControl } from "@helivanta/ui";
 import { useEmergencyCommand, EmergencyCommandFailure } from "./emergency-command";
 const invalidates = [
   ["emergency", "receiving"],
@@ -54,7 +54,11 @@ export function useEmergencyReceivingTrip(
       request: { cache: "no-store" },
     },
   );
-  return { records, current, latest };
+  const refresh = () => {
+    records.retry();
+    if (latest) void current.refetch();
+  };
+  return { records, current, latest, refresh, error: firstError(records.error, current.error) };
 }
 export function ReceivingTripStatus({ request }: { request?: EmergencyReceivingRequest }) {
   if (!request)
@@ -120,18 +124,13 @@ export function EmergencyReceivingDispatch({
         A service link permits a pre-alert. Only a current hospital acceptance permits transport.
       </p>
       {failed ? (
-        <div role="alert">
-          Receiving status is unavailable.
-          <Button
-            variant="outline"
-            onClick={() => {
-              receiving.records.retry();
-              void receiving.current.refetch();
-            }}
-          >
-            Refresh receiving plan
-          </Button>
-        </div>
+        <RequestFailure
+          message="Could not load the receiving plan."
+          retry={receiving.refresh}
+          error={receiving.error}
+          refused="Receiving status is unavailable."
+          recheck="Check access again"
+        />
       ) : checking ? (
         <p role="status">Checking the current destination…</p>
       ) : (

@@ -11,7 +11,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
-func assertPostingSupervisedApproval(t *testing.T, db *tenantdb.DB, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, request postingTestRequest, hospitalBase, childBase, submitter, reviewer, supervisorStaff, rootApprover, rootApproverStaff, organizationMaker, childDraft string, childReceipt, childSource, generation map[string]any, usePostingSource postingSourceUseProbe, changeSupervisorIdentity func() func()) {
+func assertPostingSupervisedApproval(t *testing.T, db *tenantdb.DB, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, request postingTestRequest, hospitalBase, childBase, submitter, reviewer, supervisorStaff, rootApprover, rootApproverStaff, organizationMaker, childDraft string, childReceipt, childSource, generation map[string]any, usePostingSource postingSourceUseProbe, changeSupervisorIdentity func() func(), browser func(string, map[string]any, map[string]any), departmentReviewer string, grantDepartment func(string, string, []string), grantSource func(string), usePartnerMember partnerMemberUseProbe, memberScenario func(*testing.T, map[string]any)) {
 	t.Helper()
 	parentBase := hospitalBase + "/posting-staff/" + supervisorStaff
 	parentSource := call(t, "GET", parentBase+"/posting-review-source", reviewer, nil, 200)
@@ -129,6 +129,10 @@ func assertPostingSupervisedApproval(t *testing.T, db *tenantdb.DB, tenant strin
 	require.Nil(t, legacyHistory["review"], "older approval cannot fabricate later lifecycle evidence")
 	assertPostingDepartmentMember(t, db, tenant, call, hospitalBase, reviewer, rootApprover, rootApproverStaff, organizationMaker, approved)
 	assertPostingSupervisorChoiceContinuation(t, db, tenant, call, childReceipt["hospital_id"].(string), submitter, reviewer, approved, selfRootApproved)
+	assertCurrentDepartmentTeam(t, call, hospitalBase, reviewer, approved)
+	assertCurrentPartnerMemberSource(t, reviewer, submitter, approved, usePartnerMember)
+	memberScenario(t, approved)
+	assertAtomicDepartmentTransfer(t, db, tenant, call, request, childBase, submitter, reviewer, organizationMaker, childSource, generation, childReceipt, intent, browser, departmentReviewer, grantDepartment, grantSource)
 	assertPostingRetainedAncestorCutoff(t, db, tenant, call, request, hospitalBase, submitter, reviewer, rootApprover, rootApproverStaff, parentApproved, approved, usePostingSource)
 	assertPostingAncestorSourceCutoff(t, db, tenant, call, hospitalBase, reviewer, rootApprover, rootApproverStaff, approved, changeSupervisorIdentity)
 	assertPostingImmediateCutoff(t, db, tenant, call, hospitalBase, submitter, rootApprover, reviewer, selfRootApproved)
@@ -225,4 +229,23 @@ func assertPostingImmediateCutoff(t *testing.T, db *tenantdb.DB, tenant string, 
 		require.Equal(t, before, postingCutoffEffects(t, db, tenant, administrator), "failed private cutoff disclosures also roll back successful actor-use evidence")
 		clear()
 	}
+}
+
+func assertCurrentDepartmentTeam(t *testing.T, call func(*testing.T, string, string, string, any, int) map[string]any, hospitalBase, reviewer string, approved map[string]any) {
+	t.Helper()
+	page := call(t, "GET", hospitalBase+"/department-team?limit=8", reviewer, nil, 200)
+	members := page["data"].([]any)
+	found := false
+	for _, value := range members {
+		member := value.(map[string]any)
+		require.NotContains(t, member, "reason")
+		if member["posting_id"] == approved["id"] {
+			found = true
+			require.Equal(t, approved["revision_id"], member["revision_id"])
+			require.Equal(t, "department_supervisor", member["responsibility"])
+			require.NotEmpty(t, member["checked_at"])
+			require.NotEmpty(t, member["source_until"])
+		}
+	}
+	require.True(t, found, "the independently reviewed currently usable department supervisor appears in the team")
 }

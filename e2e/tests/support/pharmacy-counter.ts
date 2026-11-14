@@ -1,7 +1,8 @@
-import { expect, type Browser, type Page } from "@playwright/test";
+import { expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
-import type { MembershipCandidate } from "@helivanta/api";
+import type { MembershipCandidate, PharmacyLicenceEvidence } from "@helivanta/api";
 import { login, specAdmin, specPharmacist } from "./login";
 import { api, newOutlet, uuidv7 } from "./pharmacy";
 
@@ -53,19 +54,136 @@ export async function provider(page: Page, path: string, body: unknown) {
   return response.json() as Promise<{ id: string; amount: number }>;
 }
 
-/** Two actors, real owner commands, no table or projection writes. */
-export async function readyCounter(admin: Page, browser: Browser) {
-  await login(admin, specAdmin());
-  const { outlet, stamp } = await newOutlet(admin);
-  const administrator = await owner<{ tenant_id: string; subject: string }>(
+async function releaseCounterLicenceEvidence(admin: Page, outlet: string, licence: string) {
+  const image = readFileSync(path.resolve(__dirname, "../../fixtures/licence-test-page.png"));
+  const imageID = uuidv7();
+  const imagePath = `${outlet}/licences/${licence}/evidence/${imageID}`;
+  await owner(admin, "PUT", imagePath, {
+    filename: "TEST-licence.png",
+    content_type: "image/png",
+    size: image.length,
+    sha256: createHash("sha256").update(image).digest("hex"),
+  });
+  const upload = await admin.request.put(`/api/v1${imagePath}/content`, {
+    headers: { "Content-Type": "image/png" },
+    data: image,
+  });
+  expect(upload.status(), await upload.text()).toBe(202);
+  await expect
+    .poll(
+      async () => {
+        const files = await owner<{ data: PharmacyLicenceEvidence[] }>(
+          admin,
+          "GET",
+          `${outlet}/licences/${licence}/evidence`,
+        );
+        return files.data.find((file) => file.id === imageID)?.status;
+      },
+      { timeout: 45_000, intervals: [500, 1000, 2000] },
+    )
+    .toBe("available");
+}
+
+export async function temporaryPharmacyOwner(admin: Page, reviewer: Page) {
+  const administrator = await owner<Actor>(admin, "GET", "/iam/me/permissions");
+  const reason = "TEST end temporary licence reviewer authority";
+  const end = await temporaryRole(
     admin,
-    "GET",
-    "/iam/me/permissions",
+    administrator,
+    reviewer,
+    "pharmacy_owner",
+    "pharmacy.licence.review",
+    reason,
   );
+  return () => end(reason);
+}
+
+type Actor = { tenant_id: string; subject: string };
+
+/**
+ * Gives the page's own subject `role` until the returned function removes it,
+ * waiting each way until `permission` reaches the real resolver. Callers end
+ * it in a `finally`: a role left behind on a seeded spec account would change
+ * the authority every later run proves its steps under.
+ */
+export async function temporaryRole(
+  admin: Page,
+  administrator: Actor,
+  page: Page,
+  role: string,
+  permission: string,
+  reason: string,
+) {
+  const holds = async () =>
+    (await owner<{ data: string[] }>(page, "GET", "/iam/me/permissions")).data.includes(permission);
+  const { subject } = await owner<Actor>(page, "GET", "/iam/me/permissions");
+  const membership = await owner<Pick<MembershipCandidate, "id">>(admin, "POST", "/iam/members", {
+    subject,
+    role_key: role,
+  });
+  const end = async (reason: string) => {
+    let held: MembershipCandidate | undefined;
+    let cursor: string | null = null;
+    for (let n = 0; n < 20; n++) {
+      const candidates: {
+        data: MembershipCandidate[];
+        page: { has_more: boolean; next_cursor: string | null };
+      } = await membershipOwner(
+        admin,
+        administrator,
+        "GET",
+        `/iam/membership-candidates?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
+      );
+      held = candidates.data.find((candidate) => candidate.id === membership.id);
+      if (held || !candidates.page.has_more) break;
+      expect(candidates.page.next_cursor).toBeTruthy();
+      cursor = candidates.page.next_cursor;
+    }
+    expect(held, "the temporary membership must be attributable").toBeDefined();
+    await membershipOwner(admin, administrator, "PUT", `/iam/membership-commands/${uuidv7()}`, {
+      operation: "remove",
+      basis_id: held!.id,
+      subject,
+      role_key: role,
+      expected_membership_epoch: held!.membership_epoch,
+      reason,
+    });
+    await expect.poll(holds).toBe(false);
+  };
+  try {
+    await expect.poll(holds).toBe(true);
+  } catch (error) {
+    await end(`${reason} (setup failed)`);
+    throw error;
+  }
+  return end;
+}
+
+/** Two actors and a sellable outlet: real owner commands, no table or projection writes. */
+export async function readyOutlet(admin: Page, browser: Browser) {
+  await login(admin, specAdmin());
+  const { outlet, stamp, timeZone } = await newOutlet(admin);
+  const administrator = await owner<Actor>(admin, "GET", "/iam/me/permissions");
   const context = await browser.newContext({
     baseURL: new URL(admin.url()).origin,
     ignoreHTTPSErrors: true,
   });
+  try {
+    return await sellableOutlet(admin, administrator, context, outlet, stamp, timeZone);
+  } catch (error) {
+    await context.close();
+    throw error;
+  }
+}
+
+async function sellableOutlet(
+  admin: Page,
+  administrator: Actor,
+  context: BrowserContext,
+  outlet: string,
+  stamp: string,
+  timeZone: string,
+) {
   const cashier = await context.newPage();
   await login(cashier, specPharmacist());
   const me = await owner<{ subject: string; tenant_id: string; data: string[] }>(
@@ -73,160 +191,120 @@ export async function readyCounter(admin: Page, browser: Browser) {
     "GET",
     "/iam/me/permissions",
   );
-  // The reviewing pharmacist is temporarily also the pharmacy owner; remove that
-  // role after setup so selling/returning is proved under pharmacist authority.
-  const reviewerMembership = await owner<Pick<MembershipCandidate, "id">>(
-    admin,
-    "POST",
-    "/iam/members",
-    {
-      subject: me.subject,
-      role_key: "pharmacy_owner",
-    },
-  );
-  await expect
-    .poll(async () =>
-      (await owner<{ data: string[] }>(cashier, "GET", "/iam/me/permissions")).data.includes(
-        "pharmacy.licence.review",
-      ),
-    )
-    .toBe(true);
-  await owner(admin, "PUT", `${outlet}/access/${encodeURIComponent(me.subject)}`, {
-    level: "editor",
-  });
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
-  const until = `${Number(today.slice(0, 4)) + 2}-12-31`;
-  const licence = uuidv7();
-  await owner(admin, "PUT", `${outlet}/licences/${licence}`, {
-    licence_kind: "retail",
-    form_label: "TEST-FORM-20",
-    licence_number: `TEST-DL-${stamp}`,
-    issuing_authority: "TEST State Drug Controller",
-    valid_from: today,
-    valid_until: until,
-    pharmacist_name: "TEST Pharmacist",
-    pharmacist_registration: "TEST-PCI-001",
-  });
-  await owner(cashier, "POST", `${outlet}/licences/${licence}/review`, {
-    decision: "approved",
-    reason: "TEST synthetic licence checked by a second actor",
-  });
-  await owner(admin, "POST", `${outlet}/tax-registrations`, {
-    jurisdiction_code: "27",
-    identifier: "27PQRST5678K2Z1",
-    effective_from: today,
-  });
-  await owner(admin, "PUT", `${outlet}/invoice-profile/${uuidv7()}`, {
-    legal_name: "TEST Counter Pharmacy LLP",
-    address: "TEST 1 Market Road, Pune",
-    invoice_prefix: "TP",
-  });
   const product = uuidv7();
   const sku = `TEST-PAY-${stamp}`;
-  await owner(admin, "PUT", `${outlet}/catalogue/products/${product}`, {
-    expected_version: 0,
-    sku,
-    brand_name: "TEST Counter Tablets",
-    generic_name: "TEST molecule",
-    dosage_form: "tablet",
-    route: "oral",
-    manufacturer: "TEST Manufacturer",
-    marketing_company: "",
-    ingredients: [{ name: "TEST molecule", strength: "1", unit: "mg" }],
-    pack_size: 10,
-    unit_of_issue: "tablet",
-    currency: "INR",
-    mrp_minor: 12500,
-    status: "active",
-  });
-  await owner(admin, "POST", `${outlet}/catalogue/products/${product}/tax-classifications`, {
-    classification_code: "30049099",
-    supply_nature: "taxable",
-    rate_percent: "12",
-    effective_from: today,
-  });
-  const declaration = uuidv7();
-  await owner(admin, "PUT", `${outlet}/catalogue/products/${product}/schedule/${declaration}`, {
-    regulatory_class: "none",
-    ndps: false,
-    source: "TEST synthetic pack declaration",
-  });
-  await owner(
-    cashier,
-    "POST",
-    `${outlet}/catalogue/products/${product}/schedule/${declaration}/review`,
-    { decision: "approved", reason: "TEST synthetic pack checked by a second actor" },
-  );
   const quarantine = uuidv7(),
     shelf = uuidv7(),
     batch = uuidv7();
-  await owner(admin, "PUT", `${outlet}/stock/locations/${quarantine}`, {
-    code: "TEST-Q",
-    name: "TEST Return quarantine",
-  });
-  await owner(admin, "PUT", `${outlet}/stock/locations/${shelf}`, {
-    code: "TEST-S",
-    name: "TEST Counter shelf",
-    stock_status: "sellable",
-  });
-  await owner(admin, "PUT", `${outlet}/stock/batches/${batch}`, {
-    product_id: product,
-    lot_number: `TEST-LOT-${stamp}`,
-    expires_on: until,
-    mrp_minor: 12500,
-  });
-  await owner(admin, "PUT", `${outlet}/stock/movements/${uuidv7()}`, {
-    location_id: quarantine,
-    batch_id: batch,
-    kind: "receipt",
-    quantity_units: 20,
-    reason: "TEST received",
-    source_reference: `TEST-GRN-${stamp}`,
-  });
-  await owner(cashier, "PUT", `${outlet}/stock/releases/${uuidv7()}`, {
-    batch_id: batch,
-    from_location_id: quarantine,
-    to_location_id: shelf,
-    quantity_units: 20,
-    reason: "TEST checked and shelved",
-  });
-  const account = JSON.parse(
-    readFileSync(path.resolve(__dirname, "../../fixtures/payments-account.json"), "utf8"),
+  // The reviewing pharmacist is temporarily also the pharmacy owner; remove that
+  // role after setup so selling/returning is proved under pharmacist authority.
+  const endReviewer = await temporaryRole(
+    admin,
+    administrator,
+    cashier,
+    "pharmacy_owner",
+    "pharmacy.licence.review",
+    "TEST end temporary licence reviewer role before cashier journey",
   );
-  await owner(admin, "PUT", "/payments/razorpay-account", account);
-  let reviewer: MembershipCandidate | undefined;
-  let cursor: string | null = null;
-  for (let page = 0; page < 20; page++) {
-    const candidates: {
-      data: MembershipCandidate[];
-      page: { has_more: boolean; next_cursor: string | null };
-    } = await membershipOwner(
-      admin,
-      administrator,
-      "GET",
-      `/iam/membership-candidates?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
+  try {
+    await owner(admin, "PUT", `${outlet}/access/${encodeURIComponent(me.subject)}`, {
+      level: "editor",
+    });
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date());
+    const until = `${Number(today.slice(0, 4)) + 2}-12-31`;
+    const licence = uuidv7();
+    await owner(admin, "PUT", `${outlet}/licences/${licence}`, {
+      licence_kind: "retail",
+      form_label: "TEST-FORM-20",
+      licence_number: `TEST-DL-${stamp}`,
+      issuing_authority: "TEST State Drug Controller",
+      valid_from: today,
+      valid_until: until,
+      pharmacist_name: "TEST Pharmacist",
+      pharmacist_registration: "TEST-PCI-001",
+    });
+    await releaseCounterLicenceEvidence(admin, outlet, licence);
+    await owner(cashier, "POST", `${outlet}/licences/${licence}/review`, {
+      decision: "approved",
+      reason: "TEST synthetic licence checked by a second actor",
+    });
+    await owner(admin, "POST", `${outlet}/tax-registrations`, {
+      jurisdiction_code: "27",
+      identifier: "27PQRST5678K2Z1",
+      effective_from: today,
+    });
+    await owner(admin, "PUT", `${outlet}/invoice-profile/${uuidv7()}`, {
+      legal_name: "TEST Counter Pharmacy LLP",
+      address: "TEST 1 Market Road, Pune",
+      invoice_prefix: "TP",
+    });
+    await owner(admin, "PUT", `${outlet}/catalogue/products/${product}`, {
+      expected_version: 0,
+      sku,
+      brand_name: "TEST Counter Tablets",
+      generic_name: "TEST molecule",
+      dosage_form: "tablet",
+      route: "oral",
+      manufacturer: "TEST Manufacturer",
+      marketing_company: "",
+      ingredients: [{ name: "TEST molecule", strength: "1", unit: "mg" }],
+      pack_size: 10,
+      unit_of_issue: "tablet",
+      currency: "INR",
+      mrp_minor: 12500,
+      status: "active",
+    });
+    await owner(admin, "POST", `${outlet}/catalogue/products/${product}/tax-classifications`, {
+      classification_code: "30049099",
+      supply_nature: "taxable",
+      rate_percent: "12",
+      effective_from: today,
+    });
+    const declaration = uuidv7();
+    await owner(admin, "PUT", `${outlet}/catalogue/products/${product}/schedule/${declaration}`, {
+      regulatory_class: "none",
+      ndps: false,
+      source: "TEST synthetic pack declaration",
+    });
+    await owner(
+      cashier,
+      "POST",
+      `${outlet}/catalogue/products/${product}/schedule/${declaration}/review`,
+      { decision: "approved", reason: "TEST synthetic pack checked by a second actor" },
     );
-    reviewer = candidates.data.find((candidate) => candidate.id === reviewerMembership.id);
-    if (reviewer || !candidates.page.has_more) break;
-    expect(candidates.page.next_cursor).toBeTruthy();
-    cursor = candidates.page.next_cursor;
+    await owner(admin, "PUT", `${outlet}/stock/locations/${quarantine}`, {
+      code: "TEST-Q",
+      name: "TEST Return quarantine",
+    });
+    await owner(admin, "PUT", `${outlet}/stock/locations/${shelf}`, {
+      code: "TEST-S",
+      name: "TEST Counter shelf",
+      stock_status: "sellable",
+    });
+    await owner(admin, "PUT", `${outlet}/stock/batches/${batch}`, {
+      product_id: product,
+      lot_number: `TEST-LOT-${stamp}`,
+      expires_on: until,
+      mrp_minor: 12500,
+    });
+    await owner(admin, "PUT", `${outlet}/stock/movements/${uuidv7()}`, {
+      location_id: quarantine,
+      batch_id: batch,
+      kind: "receipt",
+      quantity_units: 20,
+      reason: "TEST received",
+      source_reference: `TEST-GRN-${stamp}`,
+    });
+    await owner(cashier, "PUT", `${outlet}/stock/releases/${uuidv7()}`, {
+      batch_id: batch,
+      from_location_id: quarantine,
+      to_location_id: shelf,
+      quantity_units: 20,
+      reason: "TEST checked and shelved",
+    });
+  } finally {
+    await endReviewer("TEST end temporary licence reviewer role before cashier journey");
   }
-  expect(reviewer, "the current temporary reviewer membership must be attributable").toBeDefined();
-  await membershipOwner(admin, administrator, "PUT", `/iam/membership-commands/${uuidv7()}`, {
-    operation: "remove",
-    basis_id: reviewer!.id,
-    subject: me.subject,
-    role_key: "pharmacy_owner",
-    expected_membership_epoch: reviewer!.membership_epoch,
-    reason: "TEST end temporary licence reviewer role before cashier journey",
-  });
-  await expect
-    .poll(async () =>
-      (await owner<{ data: string[] }>(cashier, "GET", "/iam/me/permissions")).data.includes(
-        "pharmacy.licence.review",
-      ),
-    )
-    .toBe(false);
   await cashier.goto("/dashboard");
   await cashier.evaluate(({ key, value }) => sessionStorage.setItem(key, value), {
     key: `helivanta:pharmacy:scope:${me.tenant_id}`,
@@ -235,7 +313,29 @@ export async function readyCounter(admin: Page, browser: Browser) {
       outletId: outlet.split("/").at(-1),
     }),
   });
-  return { context, cashier, outlet, product, sku, batch, quarantine, subject: me.subject };
+  return {
+    context,
+    cashier,
+    outlet,
+    product,
+    sku,
+    batch,
+    quarantine,
+    shelf,
+    stamp,
+    timeZone,
+    subject: me.subject,
+  };
+}
+
+/** readyOutlet with the synthetic payment provider's account, for UPI sales. */
+export async function readyCounter(admin: Page, browser: Browser) {
+  const fixture = await readyOutlet(admin, browser);
+  const account = JSON.parse(
+    readFileSync(path.resolve(__dirname, "../../fixtures/payments-account.json"), "utf8"),
+  );
+  await owner(admin, "PUT", "/payments/razorpay-account", account);
+  return fixture;
 }
 
 export async function collectUpi(page: Page, sku: string, units = "2") {

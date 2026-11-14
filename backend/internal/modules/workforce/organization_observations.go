@@ -62,7 +62,7 @@ func organizationReferenceConsumer(bus *events.Bus) events.Consumer {
 			return err
 		}
 		var exists bool
-		if err := tx.Raw(`SELECT EXISTS(SELECT 1 FROM workforce_hospitals WHERE tenant_id=? AND id=?)`, evt.TenantID, in.HospitalID).Scan(&exists).Error; err != nil {
+		if err := tx.Raw(`SELECT EXISTS(SELECT 1 FROM workforce_hospitals WHERE tenant_id=? AND id=? AND establishment_kind='hospital')`, evt.TenantID, in.HospitalID).Scan(&exists).Error; err != nil {
 			return err
 		}
 		if err := tx.Exec(`SELECT set_config('app.workforce_organization_observation','authorized',true)`).Error; err != nil {

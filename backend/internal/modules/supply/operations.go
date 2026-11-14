@@ -39,7 +39,9 @@ CASE WHEN status='inactive' THEN CASE WHEN supply_roles_allowed(tenant_id,party_
 || CASE WHEN supply_operating_owned(tenant_id,party_id,id,ARRAY['administrator','inventory']) THEN jsonb_build_array('manage_bins') ELSE '[]'::jsonb END
 || CASE WHEN supply_operating_owned(tenant_id,party_id,id,ARRAY['administrator','dispatcher']) THEN jsonb_build_array('manage_deliveries') ELSE '[]'::jsonb END
 || CASE WHEN supply_operating_owned(tenant_id,party_id,id,ARRAY['administrator','dispatcher','auditor','regulator']) THEN jsonb_build_array('read_deliveries') ELSE '[]'::jsonb END
-|| CASE WHEN supply_operating_owned(tenant_id,party_id,id,ARRAY['driver']) THEN jsonb_build_array('read_assigned_deliveries') ELSE '[]'::jsonb END) END AS allowed_actions`
+|| CASE WHEN supply_operating_owned(tenant_id,party_id,id,ARRAY['driver']) THEN jsonb_build_array('read_assigned_deliveries') ELSE '[]'::jsonb END) END
+|| CASE WHEN kind IN('warehouse','depot') AND supply_operating_owned(tenant_id,party_id,id,ARRAY['administrator','warehouse','inventory','auditor','regulator']) AND (status='active' OR supply_roles_allowed(tenant_id,party_id,ARRAY['administrator','auditor'])) THEN jsonb_build_array('read_stock') ELSE '[]'::jsonb END
+|| CASE WHEN kind IN('warehouse','depot') AND status='active' AND supply_operating_owned(tenant_id,party_id,id,ARRAY['administrator','inventory']) THEN jsonb_build_array('receive_stock','reconcile_stock') ELSE '[]'::jsonb END AS allowed_actions`
 
 func registerOperatingRoutes(g *platform.Router, h *handlers) {
 	platform.ListRoute(g, "/parties/:party/operating-locations", PermOperatingRead, h.listOperatingLocations)

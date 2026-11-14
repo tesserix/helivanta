@@ -2,8 +2,8 @@
 import { useState } from "react";
 import { Button } from "@tesserix/web";
 import { useApiPagedQuery, usePermissions, type Hospital, type LeaveYear } from "@helivanta/api";
-import { Field, PageHeading, SelectControl } from "@helivanta/ui";
-import { Failure } from "../roster-policy/policy-ui";
+import { Field, PageHeading, SelectControl, RequestFailure } from "@helivanta/ui";
+
 import { LeaveSettingsPanel, LeaveYearsPanel } from "./years-panel";
 import { LeaveRoutingPanel } from "./routing-panel";
 import { LeaveAssignmentsPanel } from "./assignments-panel";
@@ -38,7 +38,11 @@ export function LeaveBalancesWorkspace() {
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (
-        <Failure message="Could not load hospitals." retry={hospitals.retry} />
+        <RequestFailure
+          message="Could not load hospitals."
+          retry={hospitals.retry}
+          error={hospitals.error}
+        />
       ) : hospital ? (
         <LeaveLedger key={hospital.id} hospital={hospital} />
       ) : (

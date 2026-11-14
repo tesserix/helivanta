@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/tesserix/onboarding-service/api/customercontract"
 	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/platform"
@@ -20,8 +21,9 @@ import (
 )
 
 type pharmacyOrganization struct {
-	ID                 uuid.UUID `json:"id"`
-	TenantID           uuid.UUID `json:"-"`
+	OnboardingProfile  *customercontract.OrganizationProfile `json:"-" gorm:"serializer:json"`
+	ID                 uuid.UUID                             `json:"id"`
+	TenantID           uuid.UUID                             `json:"-"`
 	OrganizationFields `gorm:"embedded"`
 	OnboardingStatus   string    `json:"onboarding_status"`
 	CreatedAt          time.Time `json:"created_at" gorm:"autoCreateTime:false;default:now()"`
@@ -52,6 +54,8 @@ type hospitalAffiliation struct {
 	// Derived from the verification history (#1416), never stored here.
 	VerificationRequestID *uuid.UUID `json:"verification_request_id" gorm:"-"`
 	VerifiedAt            *time.Time `json:"verified_at" gorm:"-"`
+	// The hospital's name, only while the affiliation is verified (#1637).
+	HospitalName *string `json:"hospital_name" gorm:"-"`
 }
 
 func (hospitalAffiliation) TableName() string                 { return "pharmacy_hospital_affiliations" }
@@ -70,6 +74,7 @@ func registryRoutes(g *platform.Router, deps platform.Deps) {
 	})
 	platform.ListRoute(g, "/pharmacies", PermCatalogueRead, h.listOrganizations)
 	g.PUT("/pharmacies/:pharmacy", PermAccessManage, h.putOrganization)
+	g.GET("/pharmacies/:pharmacy/business-profile", PermAccessManage, h.getBusinessProfile)
 	platform.ListRoute(g, "/pharmacies/:pharmacy/outlets", PermCatalogueRead, h.listOutlets)
 	g.GET("/pharmacies/:pharmacy/outlets/:outlet", PermCatalogueRead, h.getOutlet)
 	g.PUT("/pharmacies/:pharmacy/outlets/:outlet", PermAccessManage, h.putOutlet)
@@ -289,7 +294,10 @@ func (h *catalogueHandlers) listAffiliations(c *gin.Context, params pagination.P
 		if err := tenantdb.ApplyKeyset(tx, params).Select(affiliationColumns).Where("tenant_id=? AND pharmacy_id=?", p.TenantID, id).Find(&rows).Error; err != nil {
 			return err
 		}
-		return fillVerification(tx, p.TenantID, rows)
+		if err := fillVerification(tx, p.TenantID, rows); err != nil {
+			return err
+		}
+		return fillHospitalNames(tx, p.TenantID, rows)
 	})
 	if err != nil {
 		catalogueError(c, err)
@@ -325,6 +333,9 @@ func (h *catalogueHandlers) putAffiliation(c *gin.Context) {
 			}
 			rows := []hospitalAffiliation{result}
 			if err := fillVerification(tx, p.TenantID, rows); err != nil {
+				return err
+			}
+			if err := fillHospitalNames(tx, p.TenantID, rows); err != nil {
 				return err
 			}
 			result = rows[0]

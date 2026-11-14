@@ -155,7 +155,8 @@ const panel = () =>
   renderWithProviders(
     <StaffCredentialPanel
       account={{ tenantId: tenant, subject: "synthetic-hr" }}
-      hospital={hospital}
+      scope={{ hospitalId: hospital.id, staffId: staff.id }}
+      ownerName={hospital.name}
       staff={staff}
       onClose={() => {}}
     />,

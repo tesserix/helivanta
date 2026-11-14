@@ -25,11 +25,11 @@ func (a *withdrawingScopeAuthority) AuthorizeScope(context.Context, authz.ScopeR
 	if a.calls > 1 {
 		return a.nextGrant, a.nextError
 	}
-	return authz.ScopeGrant{AssignmentID: "019aaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa", Version: 3, ScopeEpoch: 1, MembershipEpoch: 1}, nil
+	return authz.ScopeGrant{AssignmentID: "019aaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa", Version: 3, ScopeEpoch: 1, MembershipEpoch: 1, ScopeKind: "hospital"}, nil
 }
 
 func TestScopedCommandRecheckReplacesEvidenceAndFailsClosed(t *testing.T) {
-	valid := authz.ScopeGrant{AssignmentID: "019aaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa", Version: 4, ScopeEpoch: 2, MembershipEpoch: 1}
+	valid := authz.ScopeGrant{AssignmentID: "019aaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa", Version: 4, ScopeEpoch: 2, MembershipEpoch: 1, ScopeKind: "hospital"}
 	for _, tc := range []struct {
 		name   string
 		grant  authz.ScopeGrant
@@ -38,7 +38,9 @@ func TestScopedCommandRecheckReplacesEvidenceAndFailsClosed(t *testing.T) {
 	}{
 		{"current evidence", valid, nil, 200},
 		{"authority unavailable", authz.ScopeGrant{}, errors.New("dependency unavailable"), 503},
-		{"malformed evidence", authz.ScopeGrant{AssignmentID: "not-an-id", Version: 4, ScopeEpoch: 2, MembershipEpoch: 1}, nil, 503},
+		{"malformed evidence", authz.ScopeGrant{AssignmentID: "not-an-id", Version: 4, ScopeEpoch: 2, MembershipEpoch: 1, ScopeKind: "hospital"}, nil, 503},
+		{"department evidence on a hospital route", authz.ScopeGrant{AssignmentID: "019aaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa", Version: 4, ScopeEpoch: 2, MembershipEpoch: 1, ScopeKind: "department", DepartmentID: "019aaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaab"}, nil, 503},
+		{"unlabelled evidence", authz.ScopeGrant{AssignmentID: "019aaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa", Version: 4, ScopeEpoch: 2, MembershipEpoch: 1}, nil, 503},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			gin.SetMode(gin.TestMode)

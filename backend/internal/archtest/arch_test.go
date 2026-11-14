@@ -23,6 +23,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
+	"go.temporal.io/sdk/client"
 	"golang.org/x/tools/go/packages"
 
 	"github.com/tesserix/helivanta/internal/bootstrap"
@@ -42,8 +43,10 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/reference"
 	"github.com/tesserix/helivanta/internal/modules/supply"
 	"github.com/tesserix/helivanta/internal/modules/workforce"
+	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
 	"github.com/tesserix/helivanta/internal/modules/workspace"
 	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
@@ -150,6 +153,103 @@ func TestConsumerContracts(t *testing.T) {
 	}
 }
 
+// workflowsStub stands in for a Temporal client so modules build the consumer
+// list they register in production; constructors only capture it.
+type workflowsStub struct{ client.Client }
+
+// everyFlagOn returns deps with Temporal wired and every boolean feature flag
+// set, so modules whose consumers sit behind a flag list them; a flag added
+// to platform.Deps later is covered without editing this.
+func everyFlagOn() platform.Deps {
+	deps := platform.Deps{Workflows: workflowsStub{}}
+	v := reflect.ValueOf(&deps).Elem()
+	for i := range v.NumField() {
+		if f := v.Field(i); f.Kind() == reflect.Bool {
+			f.SetBool(true)
+		}
+	}
+	return deps
+}
+
+// oneConfirmingConsumer fails unless pharmacy-hospital-names is the only
+// consumer of workforce's hospital_named.v1, whether or not Temporal and the
+// feature flags are on. Workforce keeps one confirmation per announced
+// version (#1653).
+func oneConfirmingConsumer(mods []platform.Module) error {
+	seen := map[string]bool{}
+	for _, mod := range mods {
+		for _, deps := range []platform.Deps{{}, {Workflows: workflowsStub{}}, everyFlagOn()} {
+			for _, c := range mod.Consumers(deps) {
+				if c.Subject == workforcecontract.SubjectHospitalNamed {
+					seen[c.Name] = true
+				}
+			}
+		}
+	}
+	names := make([]string, 0, len(seen))
+	for name := range seen {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	if len(names) != 1 || names[0] != "pharmacy-hospital-names" {
+		return fmt.Errorf("consumers of %s are %v; %s", workforcecontract.SubjectHospitalNamed, names, secondConfirmerMsg)
+	}
+	return nil
+}
+
+const secondConfirmerMsg = "a second consumer needs per-consumer confirmation (#1653): workforce's next_attempt_at records one"
+
+func TestHospitalNamedHasOneConfirmingConsumer(t *testing.T) {
+	require.NoError(t, oneConfirmingConsumer(allModules()))
+}
+
+// stubConsumerModule proves the guard can fail without a production edit.
+type stubConsumerModule struct {
+	platform.Module
+	consumers []events.Consumer
+}
+
+func (m stubConsumerModule) Consumers(platform.Deps) []events.Consumer { return m.consumers }
+
+// workflowOnlyConsumerModule adds its consumer only when Temporal is wired, as workforce's own list differs.
+type workflowOnlyConsumerModule struct{ platform.Module }
+
+func (workflowOnlyConsumerModule) Consumers(deps platform.Deps) []events.Consumer {
+	if deps.Workflows == nil {
+		return nil
+	}
+	return []events.Consumer{{Name: "lab-hospital-names", Subject: workforcecontract.SubjectHospitalNamed}}
+}
+
+// flagGatedConsumerModule adds its consumer only behind a feature flag, as privacy and emergency do.
+type flagGatedConsumerModule struct{ platform.Module }
+
+func (flagGatedConsumerModule) Consumers(deps platform.Deps) []events.Consumer {
+	if deps.Workflows == nil || !deps.EmergencyDispatchEnabled {
+		return nil
+	}
+	return []events.Consumer{{Name: "lab-hospital-names", Subject: workforcecontract.SubjectHospitalNamed}}
+}
+
+func TestOneConfirmingConsumerRejectsAFlagGatedConsumer(t *testing.T) {
+	err := oneConfirmingConsumer(append(allModules(), flagGatedConsumerModule{}))
+	require.ErrorContains(t, err, secondConfirmerMsg)
+	require.ErrorContains(t, err, "lab-hospital-names")
+}
+
+func TestOneConfirmingConsumerRejectsAWorkflowOnlyConsumer(t *testing.T) {
+	err := oneConfirmingConsumer(append(allModules(), workflowOnlyConsumerModule{}))
+	require.ErrorContains(t, err, secondConfirmerMsg)
+	require.ErrorContains(t, err, "lab-hospital-names")
+}
+
+func TestOneConfirmingConsumerRejectsASecondConsumer(t *testing.T) {
+	extra := stubConsumerModule{consumers: []events.Consumer{{Name: "lab-hospital-names", Subject: workforcecontract.SubjectHospitalNamed}}}
+	err := oneConfirmingConsumer(append(allModules(), extra))
+	require.ErrorContains(t, err, secondConfirmerMsg)
+	require.ErrorContains(t, err, "lab-hospital-names")
+}
+
 // TestPublishedSubjectConstants derives its input from ⋃ Publishes()
 // instead of a hand-maintained map. The map this replaced listed four
 // subjects by hand and silently checked nothing when a fifth (iam's
@@ -253,7 +353,7 @@ func TestEveryDeclaredPermissionIsGranted(t *testing.T) {
 			declaredByGrants[g.Permission] = true
 		}
 		e := gin.New()
-		r := platform.NewRouter(e.Group("/v1"), dryRouteRegistrationChecker{})
+		r := platform.NewRouter(e.Group("/v1"), dryRouteRegistrationChecker{}).WithCursorSealer(testutil.CursorSealer(t))
 		m.Routes(r, platform.Deps{})
 		for _, dr := range r.Declared() {
 			if !declaredByGrants[dr.Permission] {
@@ -275,7 +375,7 @@ func routesDeclaring(t *testing.T, perm authz.Permission) []string {
 	var found []string
 	for _, m := range allModules() {
 		e := gin.New()
-		r := platform.NewRouter(e.Group(""), dryRouteRegistrationChecker{})
+		r := platform.NewRouter(e.Group(""), dryRouteRegistrationChecker{}).WithCursorSealer(testutil.CursorSealer(t))
 		m.Routes(r, platform.Deps{})
 		for _, dr := range r.Declared() {
 			if dr.Permission == perm {
@@ -299,7 +399,7 @@ func allDeclaredRoutes(t *testing.T) []platform.DeclaredRoute {
 	var found []platform.DeclaredRoute
 	for _, m := range allModules() {
 		e := gin.New()
-		r := platform.NewRouter(e.Group(""), dryRouteRegistrationChecker{})
+		r := platform.NewRouter(e.Group(""), dryRouteRegistrationChecker{}).WithCursorSealer(testutil.CursorSealer(t))
 		m.Routes(r, platform.Deps{})
 		found = append(found, r.Declared()...)
 	}
@@ -350,6 +450,82 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /iam/staff-account-commands/:id":                 "one immutable identity-owner command receipt bound to its exact tenant and initiating owner; never a collection",
+	"GET /pharmacy/pharmacies/:pharmacy/business-profile": "one scoped pharmacy business profile",
+	"GET /workforce/hospitals/:hospital/business-profile": "one scoped hospital business profile",
+	"GET /pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/creation-receipt":                                   "one exact original receipt, bound to its current original Staff actor; never a collection",
+	"GET /supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/receiving-response-access":                                          "one exact source receiving-response admission under current purpose-specific duty; never a collection",
+	"GET /supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/receiving-response-access":                         "one exact hospital pharmacy receiving-response admission under current department duty; never a collection",
+	"GET /pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/releases/:release":                                  "one exact immutable receipt-bound physical release; never a collection",
+	"GET /supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/shipments/:shipment/receiving/responses/:response":                  "one immutable response under exact order/shipment and original actor/Staff binding; history collections are paginated",
+	"GET /supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/shipments/:shipment/receiving/responses/:response": "one immutable response under exact order/shipment and original actor/Staff binding; history collections are paginated",
+	"GET /supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/review-access":                                                      "one current purpose-specific source review admission for the exact retained order; not an assignment directory or review command",
+	"GET /supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/review-access":                                     "one current purpose-specific source review admission for the exact retained order; not an assignment directory or review command",
+	"GET /supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/shipments/:shipment/receiving":                                      "one current source-scoped receiving summary under the retained order and exact shipment",
+	"GET /supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/shipments/:shipment/receiving":                     "one current source-scoped receiving summary under the retained order and exact shipment",
+	"GET /supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order":                                                                    "one current source-scoped order or immutable actor-bound command receipt; collections use bounded cursor pagination",
+	"GET /supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/commands/:command":                                                  "one current source-scoped order or immutable actor-bound command receipt; collections use bounded cursor pagination",
+	"GET /supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order":                                                   "one current source-scoped order or immutable actor-bound command receipt; collections use bounded cursor pagination",
+	"GET /supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/commands/:command":                                 "one current source-scoped order or immutable actor-bound command receipt; collections use bounded cursor pagination",
+	"GET /pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/corrections/:correction":                            "one exact immutable correction receipt; never a collection",
+	"GET /supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation":                                                                      "one exact allocation, creation receipt or actor-bound command; never a collection",
+	"GET /supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation/creation-receipt":                                                     "one exact allocation, creation receipt or actor-bound command; never a collection",
+	"GET /supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation/commands/:command":                                                    "one exact allocation, creation receipt or actor-bound command; never a collection",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation":                                                                           "one exact allocation, creation receipt or actor-bound command; never a collection",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/creation-receipt":                                                          "one exact allocation, creation receipt or actor-bound command; never a collection",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/commands/:command":                                                         "one exact allocation, creation receipt or actor-bound command; never a collection",
+	"GET /pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation":                               "one exact allocation, creation receipt or actor-bound command; never a collection",
+	"GET /pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/creation-receipt":              "one exact allocation, creation receipt or actor-bound command; never a collection",
+	"GET /pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/commands/:command":             "one exact allocation, creation receipt or actor-bound command; never a collection",
+	"GET /pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receiving":                                                            "one exact shipment receiving summary or receipt; never a collection",
+	"GET /pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt":                                                    "one exact shipment receiving summary or receipt; never a collection",
+	"GET /supply/supplier-orders/:order/shipments/:shipment/receiving":                                                                                                            "one exact shipment receiving summary or receipt; never a collection",
+	"GET /supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order":                                                                              "one owner-scoped purchase order or immutable actor-bound command receipt; no collection or unbounded lookup",
+	"GET /supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order/proposal-receipt":                                                             "one owner-scoped purchase order or immutable actor-bound command receipt; no collection or unbounded lookup",
+	"GET /supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order/commands/:command":                                                            "one owner-scoped purchase order or immutable actor-bound command receipt; no collection or unbounded lookup",
+	"GET /supply/supplier-orders/:order":                                                      "one owner-scoped purchase order or immutable actor-bound command receipt; no collection or unbounded lookup",
+	"GET /supply/supplier-orders/:order/commands/:command":                                    "one owner-scoped purchase order or immutable actor-bound command receipt; no collection or unbounded lookup",
+	"GET /iam/supplier-grants/:id":                                                            "one source-private supplier grant; collection uses ListRoute",
+	"GET /iam/supplier-grants/:id/commands/:command":                                          "one actor-bound immutable grant decision receipt",
+	"GET /iam/hospitals/:hospital/supplier-grants/:id":                                        "one hospital-scoped recipient grant projection",
+	"GET /iam/hospitals/:hospital/supplier-grant-offers/:id":                                  "one hospital-private offer; collection uses ListRoute",
+	"GET /iam/hospitals/:hospital/supplier-grant-offers/:id/commands/:command":                "one actor-bound hospital consent receipt",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id":                   "one outlet trading scope; collection uses ListRoute",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/proposal-receipt":  "one immutable trading-scope proposal receipt",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/commands/:command": "one immutable trading-scope review receipt",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/revocations/:revocation": "one immutable licence revocation receipt",
+	"GET /supply/relationships/:relationship":                                                 "one bilateral relationship; collection uses ListRoute",
+	"GET /supply/relationships/:relationship/proposal-receipt":                                "one immutable bilateral relationship proposal",
+	"GET /supply/relationships/:relationship/commands/:command":                               "one actor-bound bilateral decision receipt",
+
+	"GET /iam/operating-duties/:id":                                                                               "one private typed operating duty lifecycle record",
+	"GET /iam/operating-duties/:id/proposal-receipt":                                                              "one immutable actor-bound operating duty preparation receipt",
+	"GET /iam/operating-duties/:id/commands/:command":                                                             "one immutable actor-bound operating duty decision receipt",
+	"GET /drugmaster/products/by-gtin/:gtin/stock-reference":                                                      "one current published stock reference for one exact GTIN",
+	"GET /supply/parties/:party/operating-locations/:premise/stock/products/by-gtin/:gtin":                        "one current stock-purpose reference at the authorized source location",
+	"GET /pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/batches/:id":                            "one immutable batch identity at the duty's exact outlet",
+	"GET /pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts/:id":                           "one immutable quarantined receipt at the duty's exact outlet",
+	"GET /supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/quality-decisions/:decision": "immutable source-scoped stock quality receipt; current stock access is required",
+	"GET /supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/inspection":                  "current authorized source-scoped identity and quality evidence; not trade availability",
+	"GET /supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt":                             "one immutable physical receipt at the authorized source location",
+	"GET /supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/identity-checks/:check":      "one immutable product observation for one physical receipt",
+	"GET /workforce/suppliers/:supplier":                                                                          "one owned supplier employer registration",
+	"GET /workforce/suppliers/:supplier/staff/:id":                                                                "one private supplier Staff directory record",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/account-links/:link":                                           "one private reviewed account-link state",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/account-links/:link/proposal-receipt":                          "one immutable attributable account-link proposal receipt",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/account-links/:link/commands/:command":                         "one immutable actor-bound account-link decision receipt",
+	"GET /workforce/suppliers/:supplier/staff/:id/account-links/:link":                                            "one private reviewed account-link state",
+	"GET /workforce/suppliers/:supplier/staff/:id/account-links/:link/proposal-receipt":                           "one immutable attributable account-link proposal receipt",
+	"GET /workforce/suppliers/:supplier/staff/:id/account-links/:link/commands/:command":                          "one immutable actor-bound account-link decision receipt",
+
+	"GET /iam/partner-grant-drafts/:id": "one immutable owner-tenant proposal; collections use signed cursor pagination",
+
+	"GET /iam/partner-groups/:id":                                                                   "one tenant-scoped partner group; directory and history are cursor-paginated",
+	"GET /iam/partner-groups/:id/commands/:command":                                                 "one immutable exact partner-group command receipt",
+	"GET /iam/hospitals/:hospital/partner-member-capabilities":                                      "one hospital-scoped response with two fixed capability booleans",
+	"GET /iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member":                   "one scoped membership proposal and source observation; directory and history are cursor-paginated",
+	"GET /iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member/commands/:command": "one immutable exact membership command receipt under current scoped read authority",
+
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding":                   "one exact relationship and current source state; lists and history are separately paginated",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding/commands/:command": "one immutable relationship command receipt; history is separately paginated",
 	"GET /workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/cutoffs/commands/:command":                  "one original-actor immutable cutoff receipt; cutoff history is separately paginated",
@@ -378,6 +554,10 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/content":        "one reauthorized protected file at its pinned scanned generation",
 	"GET /workforce/hospitals/:hospital/staff/:id/employment-source":                                                              "one minimal employment source for one authorized Staff record",
 	"GET /workforce/hospitals/:hospital/staff/:id/employment-periods/:period":                                                     "one private employment draft; period list and revision history are cursor-paginated",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/employment-source":                                                             "one minimal employment source for one pharmacy Staff record",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period":                                                    "one private pharmacy employment draft; period list and revision history are cursor-paginated",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding":               "one private pharmacy evidence binding; evidence list and history are cursor-paginated",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/content":       "one reauthorized protected pharmacy file at its pinned scanned generation",
 	"GET /workforce/hospitals/:hospital/identity-staff/:id/checks/:check":                                                         "one hospital/staff-scoped identity case; case list and revision history are cursor-paginated",
 	"GET /iam/staff-access-templates":                                                            "finite canonical catalogue of three versioned templates, no tenant record collection",
 	"GET /workforce/hospitals/:hospital/identity-staff/:id":                                      "one current identity review source for an authorized staff UUID",
@@ -516,6 +696,13 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /mediconnect/account":                                                      "one current-subject account, with tenant membership and subject RLS",
 	"GET /workspace/branding":                                                       "single current-tenant branding document",
 	"GET /workforce/hospitals/:hospital/staff/:id":                                  "single hospital-local staff entry",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id":                                 "single pharmacy-local staff entry",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/enrollment":                      "single pharmacy Staff profile, with bounded child records",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/document-records":                "one pharmacy Staff enrollment's bounded evidence choices: enrollment plus at most 20 credentials and 20 qualifications",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/documents/:file/content":         "one authorized generation-pinned pharmacy Staff file, not a collection",
+	"GET /workforce/pharmacies/:pharmacy/staff/:id/credentials":                     "one pharmacy Staff record's credential validity, bounded by enrollment's 20 credentials",
+	"GET /workforce/pharmacies/:pharmacy/hr/credential-reminder-policy":             "single current pharmacy credential reminder policy",
+	"GET /workforce/pharmacies/:pharmacy/hr/time-zone":                              "single current pharmacy HR time zone",
 	"GET /reference/pings/:id":                                                      "single item, not a collection",
 	"GET /patients/hospitals/:hospital/access":                                      "current principal hospital grant, not a collection",
 	"GET /patients/:id":       "single item, not a collection",
@@ -523,6 +710,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /iam/me/tenants":     "bounded: one person's memberships",
 	"GET /iam/me/permissions": "bounded: one resolved permission set",
 	"GET /iam/me/profile":     "one person's profile with their roles in one tenant",
+	"GET /iam/me/security":    "one current owner's native MFA policy in the verified tenant, not a collection",
 	"GET /workforce/hospitals/:hospital/hr/roster-settings":                                                                   "single current hospital roster policy",
 	"GET /workforce/hospitals/:hospital/hr/credential-reminder-policy":                                                        "single current hospital credential reminder policy",
 	"GET /workforce/hospitals/:hospital/hr/leave-settings":                                                                    "single fixed hospital leave-year start",
@@ -531,6 +719,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /workforce/hospitals/:hospital/hr/rosters/:id":                                                                       "single roster head; allocations are paginated separately",
 	"GET /workforce/hospitals/:hospital/staff/:id/leave-requests/:request":                                                    "one request with its days in a single leave year, its bounded roster clashes and a pinned route of at most eight steps",
 	"GET /workforce/hospitals/:hospital/staff/:id/leave-review-requests/:request":                                             "one pending review target, counted days within one leave year, and roster clashes capped at 1000; scoped read authorization and audits apply",
+	"GET /workforce/hospitals/:hospital/staff/:id/department-leave-review-requests/:request":                                  "one pending review target in the held department subtree, counted days within one leave year, and roster clashes capped at 1000; department authorization and audits apply",
 	"GET /workforce/hospitals/:hospital/hr/duty-exchanges/:exchange":                                                          "one exchange with at most its six original, replacement and restored allocations",
 	"GET /workforce/hospitals/:hospital/hr/overtime/:request":                                                                 "one overtime request",
 	"GET /workforce/hospitals/:hospital/hr/overtime-settings":                                                                 "the hospital's single current overtime policy revision",
@@ -548,6 +737,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/evidence":               "one coverage proposal's evidence, capped at 10 files by a database trigger",
 	"GET /workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/evidence/:file/content": "one evidence file's released bytes, not a collection",
 	"GET /workforce/hospitals/:hospital/staff/:id/attendance":                                                                 "one person's derived days over a bounded range of at most 42 days",
+	"GET /workforce/pharmacies/:pharmacy":                                                                                     "one standalone pharmacy's employer registration",
 }
 
 // TestEveryCollectionGETIsPaginated is the one hole platform.ListRoute's
@@ -637,8 +827,11 @@ var withAllTenantsAllowlist = map[string]bool{
 	// #1386 C-4a: the payments poller finds due intents across tenants. It
 	// reads only (tenant_id, id) — the system role holds SELECT on just
 	// those columns and next_check_at — and checks each under WithTenant.
-	"internal/modules/payments/reconciler.go":                         true,
-	"internal/modules/pharmacy/affiliation_delivery.go":               true,
+	"internal/modules/payments/reconciler.go":           true,
+	"internal/modules/pharmacy/affiliation_delivery.go": true,
+	// #1637/#1653: finds hospitals with an unannounced name version or an unconfirmed one due again; reads ids, versions and
+	// next_attempt_at only, each is announced or re-sent under WithTenant.
+	"internal/modules/workforce/hospital_names.go":                    true,
 	"internal/modules/patientmaster/pharmacy_affiliation_delivery.go": true,
 	// #197: the bed census finds due stays and unapplied setup across
 	// tenants by key columns alone, and reconciles each under WithTenant.

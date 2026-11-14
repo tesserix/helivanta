@@ -42,6 +42,8 @@ export async function freshOutlet(page: Page) {
 
 /** A new pharmacy and outlet, made this tab's working outlet; already signed in. */
 export async function newOutlet(page: Page) {
+  // The outlet's own zone: its "today" is what its reports call today.
+  const timeZone = "Asia/Kolkata";
   // Not a pharmacy page: one that is open resolves its outlet and saves it
   // as the tab's working outlet (#1303 E8), and could overwrite this one.
   await page.goto("/dashboard");
@@ -60,7 +62,7 @@ export async function newOutlet(page: Page) {
     code: "TEST-OVW",
     name: "TEST Overview Outlet",
     country_code: "IN",
-    timezone: "Asia/Kolkata",
+    timezone: timeZone,
   });
   await api(page, "PUT", `${outlet}/access/${encodeURIComponent(String(me.subject))}`, {
     level: "editor",
@@ -69,7 +71,7 @@ export async function newOutlet(page: Page) {
     key: `helivanta:pharmacy:scope:${String(me.tenant_id)}`,
     value: JSON.stringify({ pharmacyId, outletId }),
   });
-  return { outlet, stamp };
+  return { outlet, stamp, timeZone };
 }
 
 export async function addProduct(page: Page, outlet: string, sku: string, brand: string) {

@@ -24,14 +24,25 @@ type assignmentProjector interface {
 }
 
 type assignmentSnapshot struct {
-	ID          uuid.UUID
-	Version     int64
-	HospitalID  uuid.UUID
-	Subject     string
-	Permissions []authz.Permission `gorm:"serializer:json"`
+	ID           uuid.UUID
+	Version      int64
+	HospitalID   uuid.UUID
+	Subject      string
+	Permissions  []authz.Permission `gorm:"serializer:json"`
+	ScopeKind    string
+	DepartmentID *uuid.UUID
 }
 
 func (assignmentSnapshot) TableName() string { return "iam_assignment_snapshots" }
+
+// scoped names the stored scope; a kind/ID mismatch reaches objectKey and fails rather than widening to the hospital.
+func (s assignmentSnapshot) scoped(tenant string) authz.ScopedAssignment {
+	scope := s.HospitalID.String()
+	if s.DepartmentID != nil {
+		scope = s.DepartmentID.String()
+	}
+	return authz.ScopedAssignment{TenantID: tenant, HospitalID: s.HospitalID.String(), ScopeKind: s.ScopeKind, ScopeID: scope, ID: s.ID.String(), Version: s.Version, Subject: s.Subject, Permissions: s.Permissions}
+}
 
 type assignmentProjection struct {
 	db     *tenantdb.DB
@@ -81,7 +92,7 @@ func (h *assignmentProjection) project(ctx context.Context, evt events.Event) er
 	var proposal assignmentProposal
 	var epoch int64
 	err = h.db.WithTenant(ctx, evt.TenantID, func(tx *gorm.DB) error {
-		if err := assignmentAccess(tx); err != nil {
+		if err := departmentAwareAccess(tx); err != nil {
 			return err
 		}
 		if err := tx.Select("id,hospital_id,subject").Where("tenant_id=? AND id=?", evt.TenantID, id).Take(&proposal).Error; err != nil {
@@ -99,10 +110,10 @@ func (h *assignmentProjection) project(ctx context.Context, evt events.Event) er
 	for {
 		var snapshots []assignmentSnapshot
 		err = h.db.WithTenant(ctx, evt.TenantID, func(tx *gorm.DB) error {
-			if err := assignmentAccess(tx); err != nil {
+			if err := departmentAwareAccess(tx); err != nil {
 				return err
 			}
-			return tx.Table("iam_assignment_snapshots AS s").Select("s.id,s.version,s.hospital_id,s.subject,s.permissions").
+			return tx.Table("iam_assignment_snapshots AS s").Select("s.id,s.version,s.hospital_id,s.subject,s.permissions,s.scope_kind,s.department_id").
 				Joins("JOIN iam_assignment_proposals p ON p.tenant_id=s.tenant_id AND p.id=s.id").
 				Joins("JOIN iam_subject_membership_epochs e ON e.tenant_id=s.tenant_id AND e.subject=s.subject AND e.epoch=s.membership_epoch AND e.member_count>0").
 				Where("s.tenant_id=? AND s.hospital_id=? AND s.subject=? AND s.id>? AND p.status IN ('approved_pending_activation','active') AND s.expires_at>CURRENT_TIMESTAMP", evt.TenantID, proposal.HospitalID, proposal.Subject, after).
@@ -112,7 +123,7 @@ func (h *assignmentProjection) project(ctx context.Context, evt events.Event) er
 			return err
 		}
 		for _, s := range snapshots {
-			if err := h.writer.ProjectScopedAssignment(ctx, authz.ScopedAssignment{TenantID: evt.TenantID, HospitalID: s.HospitalID.String(), ScopeKind: "hospital", ScopeID: s.HospitalID.String(), ID: s.ID.String(), Version: s.Version, Subject: s.Subject, Permissions: s.Permissions}); err != nil {
+			if err := h.writer.ProjectScopedAssignment(ctx, s.scoped(evt.TenantID)); err != nil {
 				return errors.New("assignment graph projection failed")
 			}
 			if err := h.activate(ctx, evt.TenantID, s, epoch); err != nil {

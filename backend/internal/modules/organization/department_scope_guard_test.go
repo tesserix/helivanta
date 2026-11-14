@@ -355,3 +355,32 @@ func TestDepartmentScopeGuardCoversTheFullPersistedDepth(t *testing.T) {
 	require.NoError(t, s.within(t, guard, chain[7], chain[4]))
 	require.ErrorIs(t, s.within(t, guard, chain[3], chain[4]), authz.ErrDepartmentReferenceChanged)
 }
+
+func TestDepartmentScopeGuardReadsTheSubtreeInTheGuardedCommand(t *testing.T) {
+	s := newScopeTree(t)
+	root := s.node(t, "SYN-HELD-ROOT", uuid.Nil)
+	guard := organization.New().DepartmentScopes(s.db)
+	pending, rollback := uuid.Must(uuid.NewV7()), errors.New("roll back the uncommitted node")
+	err := s.db.WithGuardedTenantCommand(tenantdb.WithActor(s.ctx, "user-manager"), testutil.TenantA, time.Now().Add(5*time.Second), func(*gorm.DB) error { return nil }, func(commandCtx context.Context) error {
+		require.NoError(t, s.db.WithTenantCommand(commandCtx, testutil.TenantA, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.organization_department_write','authorized',true)`).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec(`INSERT INTO organization_departments(tenant_id,hospital_id,id,revision_id,code,kind,name,parent_id,status,version,effective_at,created_at,updated_at)
+ VALUES(?,?,?,?,'SYN-HELD-CHILD','sub_unit','Synthetic held child',?,'active',1,transaction_timestamp(),transaction_timestamp(),transaction_timestamp())`, testutil.TenantA, s.hospital, pending, uuid.Must(uuid.NewV7()), root).Error; err != nil {
+				return err
+			}
+			return tx.Exec(`INSERT INTO organization_department_revisions(tenant_id,hospital_id,node_id,id,code,kind,name,parent_id,status,version,expected_version,reason,actor_subject,effective_at,node_created_at,created_at,updated_at)
+ SELECT tenant_id,hospital_id,id,revision_id,code,kind,name,parent_id,status,version,0,'Synthetic held fixture','user-manager',effective_at,created_at,created_at,updated_at
+ FROM organization_departments WHERE tenant_id=? AND hospital_id=? AND id=?`, testutil.TenantA, s.hospital, pending).Error
+		}))
+		ids, err := guard.CurrentSubtree(commandCtx, testutil.TenantA, s.hospitalID(), []uuid.UUID{root})
+		require.NoError(t, err)
+		require.Equal(t, sortedIDs(root, pending), ids, "the subtree is read in the command transaction that holds the structure lock")
+		return rollback
+	})
+	require.ErrorIs(t, err, rollback)
+	ids, err := guard.CurrentSubtree(s.ctx, testutil.TenantA, s.hospitalID(), []uuid.UUID{root})
+	require.NoError(t, err)
+	require.Equal(t, []uuid.UUID{root}, ids)
+}

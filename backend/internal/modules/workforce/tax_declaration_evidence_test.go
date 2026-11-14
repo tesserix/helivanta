@@ -313,3 +313,14 @@ func TestTaxEvidenceDatabaseGuards(t *testing.T) {
 		return tx.Exec(insert(f.staff, proposal, 1)).Error
 	}), "the enrollment scope cannot write payroll evidence")
 }
+
+func TestTaxEvidenceRetryKeepsPayrollAuthorityUnderAnIntakeQuery(t *testing.T) {
+	f := newEvidenceFixture(t)
+	file := f.attach(f.staff, f.propose(f.staff, 0))
+	status, err := f.scan(f.staff, file, 1, "stream: ERROR\x00")
+	require.Error(t, err)
+	require.Equal(t, "scan_error", status)
+	code, out := f.call("PUT", f.evidencePath(f.staff, "/"+file+"/retries/2?hr_intake=v1"), "admin", nil)
+	require.Equal(t, 202, code, "a stray HR intake query must not move a payroll retry onto the Staff document authority: %v", out)
+	require.Equal(t, float64(2), out["scan_attempt"])
+}

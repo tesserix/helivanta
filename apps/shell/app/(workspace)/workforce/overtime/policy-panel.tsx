@@ -13,8 +13,8 @@ import {
   type OvertimeSettings,
   type OvertimeSettingsInput,
 } from "@helivanta/api";
-import { Field, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass, today } from "../roster-policy/policy-ui";
+import { Field, useZodForm, RequestFailure } from "@helivanta/ui";
+import { inputClass, today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 
 export function OvertimePolicyPanel({
@@ -67,7 +67,11 @@ export function OvertimePolicyPanel({
             until a manager sets the limits and filing window.
           </p>
         ) : settings.isError || !current ? (
-          <Failure message="Could not load the overtime policy." retry={() => settings.refetch()} />
+          <RequestFailure
+            message="Could not load the overtime policy."
+            retry={() => settings.refetch()}
+            error={settings.error}
+          />
         ) : (
           <dl className="grid gap-4 text-sm sm:grid-cols-5">
             <Fact label="Daily limit" value={formatMinutes(current.daily_limit_minutes)} />
@@ -244,7 +248,11 @@ function PolicyHistory({
       {history.isPending ? (
         <p role="status">Loading policy history…</p>
       ) : history.isError ? (
-        <Failure message="Could not load policy history." retry={history.retry} />
+        <RequestFailure
+          message="Could not load policy history."
+          retry={history.retry}
+          error={history.error}
+        />
       ) : (
         <ul className="space-y-3">
           {history.items.map((r) => (

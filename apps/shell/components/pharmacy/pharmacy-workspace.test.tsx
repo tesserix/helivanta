@@ -169,6 +169,15 @@ function mockPharmacy(
       );
     if (url.endsWith("/category"))
       return new Response(JSON.stringify({ in_force: null, history: [] }));
+    if (url.endsWith("/schedule"))
+      return new Response(
+        JSON.stringify({
+          in_force: null,
+          origin: "declared_by_outlet",
+          reason: "no schedule class has been declared",
+          history: [],
+        }),
+      );
     // One product, read by its id: a link or a reload reopens it (#1303 E2).
     if (/\/catalogue\/products\/[0-9a-f-]{36}$/.test(url))
       return new Response(
@@ -282,6 +291,38 @@ it("denies missing outlet grants and hides writes from outlet readers", async ()
   renderWorkspace("catalogue");
   expect(await screen.findByText("TEST Counter capsule")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Add product" })).not.toBeInTheDocument();
+});
+
+// #1636: one declares a schedule class, another reviews it; both need editor access.
+it("offers schedule declaration to an editor with the grant", async () => {
+  nav.search = `pharmacy=${pharmacy}&outlet=${outlet}&open=${product.id}`;
+  mockPharmacy("editor", 0, "IN", ["pharmacy.schedule.declare", "pharmacy.schedule.review"]);
+  renderWorkspace("catalogue");
+  expect(await screen.findByRole("heading", { name: "Schedule class" })).toBeVisible();
+  expect(
+    await screen.findByText("No schedule class in force: no schedule class has been declared"),
+  ).toBeVisible();
+  expect(screen.getByRole("button", { name: "Declare schedule class" })).toBeVisible();
+});
+
+it("shows a reader the schedule class without forms", async () => {
+  nav.search = `pharmacy=${pharmacy}&outlet=${outlet}&open=${product.id}`;
+  mockPharmacy("reader", 0, "IN", ["pharmacy.schedule.declare", "pharmacy.schedule.review"]);
+  renderWorkspace("catalogue");
+  expect(
+    await screen.findByText("No schedule class in force: no schedule class has been declared"),
+  ).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Declare schedule class" })).toBeNull();
+});
+
+it("offers no schedule declaration to an editor without the grant", async () => {
+  nav.search = `pharmacy=${pharmacy}&outlet=${outlet}&open=${product.id}`;
+  mockPharmacy("editor");
+  renderWorkspace("catalogue");
+  expect(
+    await screen.findByText("No schedule class in force: no schedule class has been declared"),
+  ).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Declare schedule class" })).toBeNull();
 });
 
 it("does not load products after outlet access is denied", async () => {
@@ -1157,4 +1198,17 @@ describe("Outlets & access", () => {
     await user.click(screen.getByRole("button", { name: "Close outlet" }));
     expect(address().has("open")).toBe(false);
   });
+});
+
+it("opens supplier fulfilment from the selected outlet without requiring its private inventory grant", async () => {
+  const fetcher = mockPharmacy("reader", 404, "IN", ["supply.supplier_order.read"]);
+  renderWorkspace("supplier-orders");
+  await screen.findByText("No supplier orders at this location.");
+  expect(fetcher).toHaveBeenCalledWith(
+    expect.stringContaining(
+      `/supply/stock-owners/pharmacy/organizations/${pharmacy}/locations/${outlet}/supplier-orders?`,
+    ),
+    expect.objectContaining({ cache: "no-store" }),
+  );
+  expect(fetcher.mock.calls.some(([url]) => url.endsWith("/access"))).toBe(false);
 });

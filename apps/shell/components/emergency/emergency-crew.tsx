@@ -19,7 +19,14 @@ import {
   type EmergencyDispatchCommandReceipt,
   type EmergencyReceivingRequest,
 } from "@helivanta/api";
-import { formatTime, LoadMore, PageHeading } from "@helivanta/ui";
+import {
+  firstError,
+  formatTime,
+  LoadMore,
+  PageHeading,
+  RefreshButton,
+  RequestFailure,
+} from "@helivanta/ui";
 import { EmergencyCommandFailure } from "./emergency-command";
 import { useEmergencyReceivingTrip, ReceivingTripStatus } from "./emergency-receiving-dispatch";
 
@@ -40,12 +47,18 @@ export function EmergencyCrewWorkspace() {
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <PageHeading description="Confirm each action when it happens. Both crew members must acknowledge before departure." />
-      <Button variant="outline" onClick={rows.retry}>
+      <RefreshButton refresh={rows.retry} error={rows.error}>
         Refresh assignments
-      </Button>
+      </RefreshButton>
       {rows.isPending && <p role="status">Checking assigned work…</p>}
       {rows.isError ? (
-        <p role="alert">Assignments unavailable. Refresh before acting.</p>
+        <RequestFailure
+          message="Could not load assignments. Try again before acting."
+          retry={rows.retry}
+          error={rows.error}
+          refused="Assignments are unavailable. Contact dispatch and check access before acting."
+          recheck="Check access again"
+        />
       ) : (
         <ul className="space-y-3">
           {!rows.isPending && rows.items.length === 0 && <li>No offered assignments.</li>}
@@ -115,6 +128,12 @@ function CrewAssignment({
     !receiving.current.isError &&
     !receiving.records.isPending &&
     (!receiving.latest || !receiving.current.isPending);
+  const error = firstError(row.error, incident.error);
+  const refresh = () => {
+    void row.refetch();
+    void incident.refetch();
+    if (receivingEnabled) receiving.refresh();
+  };
   return (
     <section
       aria-label="Current crew assignment"
@@ -123,38 +142,17 @@ function CrewAssignment({
       <Button variant="outline" onClick={close}>
         Close assignment
       </Button>
-      <Button
-        variant="outline"
-        onClick={() => {
-          void row.refetch();
-          void incident.refetch();
-          if (receivingEnabled) {
-            receiving.records.retry();
-            if (receiving.latest) void receiving.current.refetch();
-          }
-        }}
-      >
+      <RefreshButton refresh={refresh} error={error}>
         Refresh current assignment
-      </Button>
+      </RefreshButton>
       {row.isError || incident.isError ? (
-        <div role="alert">
-          <p>
-            Assignment or incident access is unavailable. Contact dispatch and refresh before
-            acting.
-          </p>
-          <Button
-            onClick={() => {
-              void row.refetch();
-              void incident.refetch();
-              if (receivingEnabled) {
-                receiving.records.retry();
-                if (receiving.latest) void receiving.current.refetch();
-              }
-            }}
-          >
-            Refresh access
-          </Button>
-        </div>
+        <RequestFailure
+          message="Could not load the current assignment. Try again before acting."
+          retry={refresh}
+          error={error}
+          refused="Assignment or incident access is unavailable. Contact dispatch and check access before acting."
+          recheck="Check access again"
+        />
       ) : !row.data || !incident.data ? (
         <p role="status">Checking current assignment and protected incident…</p>
       ) : (

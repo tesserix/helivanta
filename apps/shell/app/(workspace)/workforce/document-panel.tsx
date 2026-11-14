@@ -28,11 +28,20 @@ import {
   type EnrollmentRequestScope,
   isEnrollmentAccessChanged,
   type DocumentUpload,
+  type EstablishmentDocument,
   type StaffDocument,
   type Staff,
   type Hospital,
 } from "@helivanta/api";
-import { Field, SelectControl, ConfirmDialog, useZodForm, Panel } from "@helivanta/ui";
+import {
+  Field,
+  SelectControl,
+  ConfirmDialog,
+  useZodForm,
+  Panel,
+  RefreshButton,
+  RequestFailure,
+} from "@helivanta/ui";
 
 const fileMetadataSchema = staffDocumentSchema.pick({
   filename: true,
@@ -76,7 +85,7 @@ const states: Record<StaffDocument["status"], string> = {
   revoked: "Revoked",
 };
 type Operation =
-  { kind: "upload" } | { kind: "retry" | "revoke" | "download"; document: StaffDocument };
+  { kind: "upload" } | { kind: "retry" | "revoke" | "download"; document: EstablishmentDocument };
 
 export function StaffDocumentPanel({
   hospital,
@@ -144,7 +153,7 @@ export function StaffDocumentPanel({
   );
 }
 
-function DocumentWorkspace({
+export function DocumentWorkspace({
   scope,
   onContextChanged,
 }: {
@@ -162,9 +171,11 @@ function DocumentWorkspace({
   const [intentID, setIntentID] = useState(() => crypto.randomUUID());
   const [attempted, setAttempted] = useState(false);
   const [notice, setNotice] = useState("");
-  const [resume, setResume] = useState<StaffDocument | null>(null);
-  const [revoking, setRevoking] = useState<StaffDocument | null>(null);
+  const [resume, setResume] = useState<EstablishmentDocument | null>(null);
+  const [revoking, setRevoking] = useState<EstablishmentDocument | null>(null);
   const [classifying, setClassifying] = useState<StaffDocument | null>(null);
+  // Classification is a hospital HR master; a pharmacy has none (ADR-0063).
+  const hospitalScope = scope.pharmacyId === undefined ? scope : null;
   const classificationAnchor = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (classifying)
@@ -214,7 +225,7 @@ function DocumentWorkspace({
       if (tenantTransitionPending()) throw new DOMException("Workspace changed", "AbortError");
       const active = new AbortController();
       controller.current = active;
-      let result: StaffDocument;
+      let result: EstablishmentDocument;
       if (operation.kind === "upload") {
         if (!file || (!selected && !resume))
           throw new Error("Choose a saved record and file first.");
@@ -334,18 +345,19 @@ function DocumentWorkspace({
       <div className="mb-6 flex items-start gap-3 rounded-xl bg-muted/40 p-4 text-sm">
         <ShieldCheck className="mt-0.5 size-5 shrink-0 text-(--hms-accent)" />
         <p>
-          Files are checked before they can be downloaded. Access stays within this hospital’s
-          authorised staff-document team.
+          Files are checked before they can be downloaded. Access stays within this{" "}
+          {hospitalScope ? "hospital" : "pharmacy"}’s authorised staff-document team.
         </p>
       </div>
       {records.isPending ? (
         <p role="status">Loading saved record choices…</p>
       ) : records.isError ? (
-        <div role="alert" className="mb-5">
-          Could not load document choices.{" "}
-          <Button variant="outline" onClick={() => void records.refetch()}>
-            Try again
-          </Button>
+        <div className="mb-5">
+          <RequestFailure
+            message="Could not load document choices."
+            retry={records.refetch}
+            error={records.error}
+          />
         </div>
       ) : (
         <>
@@ -499,11 +511,11 @@ function DocumentWorkspace({
           {notice}
         </p>
       )}
-      {classifying && (
+      {hospitalScope && classifying && (
         <div ref={classificationAnchor} className="mt-6 scroll-mt-6">
           <DocumentClassificationEditor
             key={classifying.id}
-            scope={scope}
+            scope={hospitalScope}
             file={classifying}
             onContextChanged={onContextChanged}
             onClose={() => setClassifying(null)}
@@ -512,25 +524,27 @@ function DocumentWorkspace({
       )}
       <div className="mt-7 flex items-center justify-between gap-3">
         <h4 className="font-semibold">Saved documents</h4>
-        <Button
+        <RefreshButton
           variant="ghost"
           size="sm"
-          disabled={documents.isFetching}
-          onClick={() => void documents.refetch()}
+          busy={documents.isFetching}
+          refresh={documents.refetch}
+          error={documents.error}
         >
           Refresh status
-        </Button>
+        </RefreshButton>
       </div>
       {documents.isPending ? (
         <p role="status" className="py-6 text-sm">
           Loading protected documents…
         </p>
       ) : documents.isError ? (
-        <div role="alert" className="py-6">
-          Could not load documents.{" "}
-          <Button variant="outline" onClick={() => void documents.refetch()}>
-            Try again
-          </Button>
+        <div className="py-6">
+          <RequestFailure
+            message="Could not load documents."
+            retry={documents.refetch}
+            error={documents.error}
+          />
         </div>
       ) : documents.data?.data.length === 0 ? (
         <div className="mt-4 rounded-xl border border-dashed px-5 py-8 text-center">
@@ -573,15 +587,17 @@ function DocumentWorkspace({
                   </p>
                 )}
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={action.isPending}
-                    aria-label={`Classify ${document.filename}`}
-                    onClick={() => setClassifying(document)}
-                  >
-                    Classify
-                  </Button>
+                  {hospitalScope && "hospital_id" in document && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={action.isPending}
+                      aria-label={`Classify ${document.filename}`}
+                      onClick={() => setClassifying(document)}
+                    >
+                      Classify
+                    </Button>
+                  )}
 
                   {document.status === "available" && (
                     <>

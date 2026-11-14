@@ -1,5 +1,88 @@
 # Workforce postings — preparation and independent review
 
+## Department team observations and coordinated transfers — local candidate
+
+[ADR-0061](../adr/0061-department-team-and-atomic-transfers.md) records the candidate
+transaction and disclosure boundary. These routes are implemented locally and
+remain subject to review/release; no production deployment is implied.
+
+| Route                                                                                                           | Required current authority                                                                                                                        | Result                                                                                        |
+| --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `GET /workforce/hospitals/{hospital}/department-team?limit=8&department={optional-current-root}`                | Proposal read in the hospital/current department subtree, Staff actor use, separately held hospital posting-source use                            | Cursor page of minimized approved-placement observations, including explicit non-current rows |
+| `PUT /workforce/hospitals/{hospital}/posting-staff/{staff}/posting-proposals/{replacement}/transfers/{command}` | Hospital-wide posting review, Staff actor use, cutoff and source use, plus posting-read lifecycle support or management-review support for a root | Paired retained replacement approval and original ending, committed atomically                |
+
+All business calls enter the Global API. Both routes require the exact expected
+account headers. Foreign-tenant hospitals return404 before disclosure; missing
+held action returns403, unavailable owners503. A department grant never grants
+cross-department transfer authority. The roster's `department` hint selects its
+current subtree; it is not an authorization claim. Cursors bind the principal,
+hospital route and department view and are not portable between them.
+
+`StaffDepartmentTeamItem` derives from `contracts/workforce-postings.json`. It
+contains only the Staff ID/code/name, posting/revision/version, current department
+reference, declared managerial responsibility, supervisor identifiers, nominal
+interval and `state`, `checked_at`, `source_until`. It excludes private reasons,
+documents, pay and operating permissions. `current` requires the live owner source
+port; `not_current` is retained history, not an active team member. Unavailable
+source verification fails the page. The extra keyset probe is not source-checked
+or returned. The UI labels observations and expires current badges at their
+source deadline; operating actions must still independently authorize live use.
+
+A transfer body pins the exact original approved posting/revision/version and
+observed cutoff version, plus the existing exact replacement decision:
+
+```json
+{
+  "from_posting_id": "019a0000-0000-7000-8000-000000000101",
+  "from_revision_id": "019a0000-0000-7000-8000-000000000102",
+  "from_version": 2,
+  "from_cutoff_version": 0,
+  "decision": {
+    "expected_version": 1,
+    "expected_revision_id": "019a0000-0000-7000-8000-000000000103",
+    "decision": "approve",
+    "reason": "Independently reviewed move to the destination department",
+    "sources_examined": true,
+    "lifecycle_review": {
+      "cutoff_versions": [0, 0],
+      "effective_until": "2026-12-01T00:00:00Z"
+    }
+  }
+}
+```
+
+The example's ordered cutoff observations and deadline are illustrative. Obtain
+them from the protected replacement lifecycle context; never hardcode them. Root
+management also requires `hospital_management_reviewed: true` and its separately
+held capability. The replacement must already be a reviewable pending proposal,
+its start must be explicitly future, and the current original must cover that
+instant. The guarded transaction must commit before that start, including after
+audit/outbox work; crossing the boundary rolls it back. Both placements belong to
+the addressed canonical Staff/hospital.
+There is no implicit immediate-transfer timestamp, cross-employer transfer or
+automatic access grant.
+
+The response is `{ "replacement": StaffPostingProposal, "ending": StaffPostingCutoff }`.
+`replacement.command_id == ending.id == command`, and
+`replacement.starts_at == ending.cutoff_at`. Both immutable records bind the
+same actor and transfer fingerprint. Exact PUT replay recovers both before
+requiring the ended source to remain current. Changed-content reuse, stale
+revisions/cutoffs, a prior completed transfer consuming the same original, and
+conflicting replacement sources return409 without half a transfer. Normal
+posting decisions retain their original fingerprint and response shape.
+
+Scheduled corrections preserve history. Ending the replacement before its start
+uses the ordinary cutoff command; it does not extend or undo the original ending.
+Continuing in the original department requires a newly reviewed placement covering
+the needed interval. Other concurrent responsibilities are untouched. The review
+UI states this rule and retains the exact original command while recovery is
+unresolved. It never converts a timeout into an unlinked second decision.
+
+Audit/source observations and both existing identifier-only outbox events commit
+with the pair. Any failure rolls back all effects. No schema migration, new grant
+family or duplicate Staff master is introduced. The compound guard's capacity is
+five independently checked permissions; it grants none by itself.
+
 ## Retained posting cutoff command — local candidate
 
 The cutoff branch adds Workforce-owned commands at
@@ -601,6 +684,62 @@ ledger 220→223. #1547 added no migrations. Rollback preserves additive schema 
 history; a compensating change needs separate review. No positive operating
 activation is established by these releases.
 
+## Department posting review (#429 slice 1) — candidate, not released
+
+[ADR-0055](../adr/0055-department-scoped-assignments.md) and the
+[specification](../superpowers/specs/2026-11-04-department-scoped-assignments.md)
+add one department-scoped role. The closed `staff-department-posting-reviews-v1`
+catalog is the management catalog plus `workforce.department_posting_reviewer.v1`,
+which carries the five permissions of `workforce.posting_reviewer.v1` and
+`scope_kinds: ["department"]`. Every earlier template declares `["hospital"]`.
+IAM migrations `0030_iam_department_posting_review_templates` and
+`0031_iam_department_assignment_scope` install the template and the department
+columns, paired checks, immutable scope and append-only verifications. Department
+rows are hidden unless `app.assignment_department_scope` is `enabled`, so
+rolled-back code fails closed.
+
+A department proposal stays `pending_scope` until Workforce and Organization both
+answer the current request (`helivanta.in.iam.assignment_department_scope_requested.v1`
+and `helivanta.in.organization.assignment_department_verified.v1`). Either refusal
+is `scope_rejected`. An approval enters `pending_decision_scope` and re-asks both
+owners; a department retired in between returns it to `pending_review`. The grant covers the
+department and its current sub-units only. Organization's path, not a posting or
+HR category, decides membership.
+
+Admission moves to the handler for the inbox, review source and decision receipt
+(`ScopeKind: "department"` in the route inventory). `scopedPostingTransaction`
+reads the target path from Organization, asks IAM for hospital or department
+grants on that path, holds `WithinCurrentDepartment` for each department grant
+and binds the department in Workforce SQL context through migration
+`0082_workforce_department_posting_scope`. `authz.AdmitHandlerScope` releases a
+response only after the fully guarded success, so no route can skip the check.
+
+The inbox and protected review routes accept one optional `department`, echoed
+from the inbox row or the `departments` list in
+`GET /v1/workforce/posting-review-scopes`. A hospital grant may omit it. A
+department grant must send it; the inbox lists only that department's current
+subtree, at most 1,000 nodes. Inbox cursors bind to both status and department.
+`GET /v1/organization/hospitals/:hospital/posting-department-choices` accepts the
+same hint and returns only that subtree.
+
+| Case                                                                  | Status                         |
+| --------------------------------------------------------------------- | ------------------------------ |
+| Unknown, retired or foreign department, or outside every held subtree | 404                            |
+| Department held with read but without the requested permission        | 403                            |
+| Path moved between the hint read and the lock                         | 409 `department_scope_changed` |
+| IAM, OpenFGA or Organization unavailable, or subtree over 1,000 nodes | 503                            |
+
+Audit rows record `scope_kind` and `department_id` with the assignment epochs.
+Self-review and submitter separation are unchanged. The shell's access form
+offers "Whole hospital" or "One department and its sub-units", with templates
+filtered by scope and only active, effective departments. Records show the
+department name. The inbox offers a department selector and reports retired or
+moved departments instead of locking the review account.
+
+Not covered: other department-scoped templates, outlet scope (#418),
+standalone pharmacy employers (#19), production release and normal-account
+browser acceptance.
+
 ## Normal submission UI — candidate, browser acceptance open
 
 The next UI slice adds submission from the normal posting review workspace only
@@ -940,8 +1079,10 @@ tenant-administrator permission default; the owner requires an actual independen
 scoped grant. Closed template `workforce.posting_source_consumer.v1`
 contains only source use and Staff actor use; its catalog is
 `staff-posting-source-v1`. It grants no private HR read, file release or product
-operation. Product permission remains separate; all three requirements fit the
-existing three-check maximum. IAM0028 is append-only and preserves all older
+operation. Product permission remains separate; ordinary source consumers use three
+independently reserved checks. The local department-team transfer candidate extends
+the shared capacity to five; see [ADR-0061](../adr/0061-department-team-and-atomic-transfers.md).
+IAM0028 is append-only and preserves all older
 catalogs and immutable SQL snapshots. Workforce0086 adds a distinct read-only
 source purpose; source use cannot approve or mutate postings.
 

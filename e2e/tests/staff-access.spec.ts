@@ -59,12 +59,54 @@ test("administrator first-enrolls a verified identity without business permissio
     throw new Error("Enrollment fixtures require a local identity provider.");
   const secretDir = resolve(__dirname, "../../dev/zitadel/secrets");
   const pat = readFileSync(join(secretDir, "helivanta-seed.pat"), "utf8").trim();
+  const tenant = "11111111-1111-1111-1111-111111111111";
+  const organizationId = `helivanta-${tenant}`;
+  const existingOrg = await fetch(`${ZITADEL_ORIGIN}/admin/v1/orgs/${organizationId}`, {
+    headers: { Authorization: `Bearer ${pat}` },
+  });
+  if (existingOrg.status === 404) {
+    const createdOrg = await fetch(`${ZITADEL_ORIGIN}/v2/organizations`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${pat}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        organizationId,
+        name: `[${tenant}] Synthetic enrollment tenant`,
+        admins: [
+          {
+            human: {
+              userId: `owner-${tenant}`,
+              username: `owner-${tenant}`,
+              profile: { givenName: "Synthetic", familyName: "Tenant Owner" },
+              email: { email: `e2e-org-owner-${randomUUID()}@helivanta.dev`, isVerified: true },
+            },
+          },
+        ],
+      }),
+    });
+    expect(createdOrg.ok, `Synthetic tenant creation status ${createdOrg.status}`).toBe(true);
+  } else {
+    expect(existingOrg.ok, `Synthetic tenant read status ${existingOrg.status}`).toBe(true);
+  }
   const email = `e2e-enrollment-${randomUUID()}@helivanta.dev`;
   const password = randomBytes(24).toString("base64url") + "Aa1!";
+  const foreign = await fetch(`${ZITADEL_ORIGIN}/v2/users/human`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${pat}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      username: `foreign-${randomUUID()}`,
+      profile: { givenName: "Synthetic", familyName: "Foreign" },
+      email: { email, isVerified: true },
+      password: { password, changeRequired: false },
+    }),
+  });
+  expect(foreign.ok, `Synthetic foreign identity creation status ${foreign.status}`).toBe(true);
+  const foreignIdentity = (await foreign.json()) as { userId: string };
+  expect(foreignIdentity.userId).toBeTruthy();
   const created = await fetch(`${ZITADEL_ORIGIN}/v2/users/human`, {
     method: "POST",
     headers: { Authorization: `Bearer ${pat}`, "Content-Type": "application/json" },
     body: JSON.stringify({
+      organization: { orgId: organizationId },
       username: email,
       profile: { givenName: "Synthetic", familyName: "Enrollment" },
       email: { email, isVerified: true },
@@ -76,6 +118,15 @@ test("administrator first-enrolls a verified identity without business permissio
   if (!identity.userId)
     throw new Error("Synthetic identity creation did not return its account ID.");
   const subject = identity.userId;
+  const nativeUser = await fetch(`${ZITADEL_ORIGIN}/v2/users/${subject}`, {
+    headers: { Authorization: `Bearer ${pat}` },
+  });
+  expect(nativeUser.ok).toBe(true);
+  expect(
+    ((await nativeUser.json()) as { user: { details: { resourceOwner: string } } }).user.details
+      .resourceOwner,
+  ).toBe(organizationId);
+
   writeFileSync(
     join(secretDir, `staff-enrollment-${randomUUID()}.json`),
     JSON.stringify({ email, password, subject, synthetic: true }, null, 2) + "\n",
@@ -85,6 +136,32 @@ test("administrator first-enrolls a verified identity without business permissio
   try {
     await login(page);
     await page.goto("/workforce/access");
+    await page.getByLabel("Existing account ID", { exact: true }).fill(foreignIdentity.userId);
+    await page
+      .getByLabel("Enrollment reason", { exact: true })
+      .fill("Reject a same-email foreign organisation account");
+    await page.getByLabel("I understand this creates ordinary membership only.").check();
+    const rejected = page.waitForResponse(
+      (r) =>
+        new URL(r.url()).pathname.startsWith("/api/v1/iam/membership-enrollments/") &&
+        r.request().method() === "PUT",
+    );
+    await page.getByRole("button", { name: "Enroll staff member", exact: true }).click();
+    expect((await rejected).status()).toBe(409);
+    const legacyStatus = await page.evaluate(
+      async ({ subject, tenantId }) => {
+        const response = await fetch("/api/v1/iam/members", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json", "X-Helivanta-Expected-Tenant": tenantId },
+          body: JSON.stringify({ subject, role_key: "staff_member" }),
+        });
+        return response.status;
+      },
+      { subject: foreignIdentity.userId, tenantId: tenant },
+    );
+    expect(legacyStatus).toBe(409);
+    await page.reload();
     await page.getByLabel("Existing account ID", { exact: true }).fill(subject);
     await page
       .getByLabel("Enrollment reason", { exact: true })
@@ -102,7 +179,7 @@ test("administrator first-enrolls a verified identity without business permissio
       subject,
       reason: "Synthetic verified account first enrollment",
     });
-    expect(response.request().headers()["x-helivanta-expected-tenant"]).toBeTruthy();
+    expect(response.request().headers()["x-helivanta-expected-tenant"]).toBe(tenant);
     expect(response.request().headers()["x-helivanta-expected-subject"]).toBeTruthy();
     await expect(
       page.getByRole("status").filter({ hasText: "Membership recorded for" }),

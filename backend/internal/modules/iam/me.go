@@ -93,6 +93,9 @@ func (m *Module) registerMe(g *platform.Router, deps platform.Deps) {
 	g.GET("/me/permissions", authz.NoTenantMembership, permissions)
 	g.GET("/me/tenants", authz.NoTenantMembership, me.tenants)
 	g.GET("/me/profile", authz.NoTenantMembership, me.profile)
+	security := &ownerSecurityHandlers{deps: deps, client: m.ownerSecurity}
+	g.GET("/me/security", PermMemberManage, security.read)
+	g.POST("/me/security", PermMemberManage, security.reconcile)
 	g.POST("/me/tenant", authz.NoTenantMembership, me.switchTenant)
 }
 
@@ -166,18 +169,22 @@ func (h *meHandlers) profile(c *gin.Context) {
 		respondProfileUnavailable(c, errors.New("no user profile reader configured"))
 		return
 	}
-	user, err := h.profiles.UserProfile(c.Request.Context(), p.Subject)
+	user, err := h.profiles.UserProfile(c.Request.Context(), p.TenantID, p.Subject)
 	if err != nil {
 		respondProfileUnavailable(c, err)
 		return
 	}
-	respond.OK(c, gin.H{
+	view := gin.H{
 		"subject":      p.Subject,
 		"tenant_id":    p.TenantID,
 		"display_name": user.DisplayName,
 		"email":        user.Email,
 		"roles":        rolesInTenant(bindings, p.TenantID),
-	})
+	}
+	if user.TenantName != "" {
+		view["tenant_name"] = user.TenantName
+	}
+	respond.OK(c, view)
 }
 
 // rolesInTenant labels the caller's roles in one tenant, by key when the

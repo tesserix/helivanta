@@ -501,7 +501,7 @@ it("resolves a branch outside the loaded premise page and explicitly unlinks it"
   );
 });
 
-it("blocks saving and offers recovery when the selected private branch is unavailable", async () => {
+it("blocks saving when the selected private branch is refused", async () => {
   const fetcher = fixture();
   fetcher.mockImplementation(async (url: string) => {
     if (url.endsWith("permissions"))
@@ -519,7 +519,7 @@ it("blocks saving and offers recovery when the selected private branch is unavai
     <PartyRegistration scope={scope} country="IN" roles={["administrator"]} owned />,
   );
   await user.click(await screen.findByRole("button", { name: "Edit premise TEST-LINKED-WH" }));
-  await screen.findByText("Could not load the selected branch. Refresh before saving.");
+  await screen.findByText("This wasn't found, or you don't have access to it.");
   expect(screen.getByRole("button", { name: "Save premise" })).toBeDisabled();
   expect(screen.getByRole("combobox", { name: "Operating branch" })).not.toHaveTextContent(
     "TEST Previous branch",

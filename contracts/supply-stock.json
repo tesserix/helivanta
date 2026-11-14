@@ -1,0 +1,298 @@
+{
+  "models": {
+    "WholesaleReceiptInput": [
+      {
+        "name": "product_version_id",
+        "type": "uuid"
+      },
+      {
+        "name": "lot_number",
+        "type": "string",
+        "min": 1,
+        "max": 100,
+        "pattern": "^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$"
+      },
+      {
+        "name": "expires_on",
+        "type": "string",
+        "pattern": "^(19[0-9]{2}|[2-9][0-9]{3})-[0-9]{2}-[0-9]{2}$",
+        "format": "date"
+      },
+      {
+        "name": "unit_code",
+        "type": "string",
+        "min": 1,
+        "max": 40,
+        "pattern": "^[a-z][a-z0-9._-]{0,39}$"
+      },
+      {
+        "name": "quantity_units",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "source_reference",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "pattern": "^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "pattern": "^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$"
+      }
+    ],
+    "WholesaleReceipt": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "party_id",
+        "type": "uuid"
+      },
+      {
+        "name": "premise_id",
+        "type": "uuid"
+      },
+      {
+        "name": "input",
+        "type": "WholesaleReceiptInput"
+      },
+      {
+        "name": "stock_status",
+        "type": "string",
+        "enum": ["quarantine"]
+      },
+      {
+        "name": "available_units",
+        "type": "int64",
+        "min": 0,
+        "max": 0
+      },
+      {
+        "name": "product_identity_verified",
+        "type": "bool",
+        "literal": false
+      },
+      {
+        "name": "actor_subject",
+        "type": "string"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "WholesaleIdentityInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740990
+      },
+      {
+        "name": "product_version_id",
+        "type": "uuid"
+      },
+      {
+        "name": "unit_kind",
+        "type": "string",
+        "enum": ["pack", "unit"]
+      },
+      {
+        "name": "expected_pack_size",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "expected_base_units",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "pattern": "^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$"
+      }
+    ],
+    "WholesaleIdentityCheck": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "party_id",
+        "type": "uuid"
+      },
+      {
+        "name": "premise_id",
+        "type": "uuid"
+      },
+      {
+        "name": "receipt_id",
+        "type": "uuid"
+      },
+      {
+        "name": "input",
+        "type": "WholesaleIdentityInput"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "quantity_base_units",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "source",
+        "type": "StockProductReference"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["matched"]
+      },
+      {
+        "name": "actor_subject",
+        "type": "string"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "WholesaleQualityInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740990
+      },
+      {
+        "name": "identity_check_id",
+        "type": "uuid"
+      },
+      {
+        "name": "identity_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "decision",
+        "type": "string",
+        "enum": ["release", "hold"]
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "pattern": "^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$"
+      }
+    ],
+    "WholesaleQualityDecision": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "party_id",
+        "type": "uuid"
+      },
+      {
+        "name": "premise_id",
+        "type": "uuid"
+      },
+      {
+        "name": "receipt_id",
+        "type": "uuid"
+      },
+      {
+        "name": "input",
+        "type": "WholesaleQualityInput"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["released", "held"]
+      },
+      {
+        "name": "released_base_units",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740991
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "WholesaleStockInspection": [
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "party_id",
+        "type": "uuid"
+      },
+      {
+        "name": "premise_id",
+        "type": "uuid"
+      },
+      {
+        "name": "receipt_id",
+        "type": "uuid"
+      },
+      {
+        "name": "identity",
+        "type": "WholesaleIdentityCheck",
+        "optional": true
+      },
+      {
+        "name": "quality",
+        "type": "WholesaleQualityDecision",
+        "optional": true
+      }
+    ]
+  }
+}

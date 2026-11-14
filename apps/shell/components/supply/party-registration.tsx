@@ -36,6 +36,7 @@ import {
   type FieldPath,
   type UseFormReturn,
   RequestFailure,
+  RefreshButton,
 } from "@helivanta/ui";
 import { WarehouseBins } from "./warehouse-bins";
 import { LicenceReview } from "./licence-review";
@@ -144,7 +145,11 @@ export function PartyRegistration({
             )}
           </div>
           {premises.isError ? (
-            <RequestFailure message="Could not load private premises." retry={premises.retry} />
+            <RequestFailure
+              message="Could not load private premises."
+              retry={premises.retry}
+              error={premises.error}
+            />
           ) : premises.isPending ? (
             <p role="status">Loading premises…</p>
           ) : premises.items.length === 0 ? (
@@ -235,9 +240,13 @@ export function PartyRegistration({
               Declared licences
             </h5>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" disabled={licenses.isRefreshing} onClick={licenses.retry}>
+              <RefreshButton
+                refresh={licenses.retry}
+                error={licenses.error}
+                busy={licenses.isRefreshing}
+              >
                 Refresh licence notices
-              </Button>
+              </RefreshButton>
               {editLicense && premises.items.length > 0 && (
                 <Button
                   variant="outline"
@@ -257,6 +266,7 @@ export function PartyRegistration({
             <RequestFailure
               message="Could not load private licence declarations."
               retry={licenses.retry}
+              error={licenses.error}
             />
           ) : licenses.isPending || licenses.isRefreshing ? (
             <p role="status">Loading licences…</p>
@@ -534,6 +544,7 @@ function PremiseEditor({
                 retry={() => {
                   void selectedBranch.refetch();
                 }}
+                error={selectedBranch.error}
               />
             )}
             <LoadMore
@@ -560,6 +571,7 @@ function PremiseEditor({
         <RequestFailure
           message="Could not load branches. Refresh before saving."
           retry={premises.retry}
+          error={premises.error}
         />
       )}
       {save.isError && (
@@ -676,6 +688,7 @@ function LicenseEditor({
             <RequestFailure
               message="Could not load the selected premise. Your access may have changed."
               retry={selectedPremise.refetch}
+              error={selectedPremise.error}
             />
           )}
           <LoadMore
@@ -767,6 +780,7 @@ function RegistryHistory({
         <RequestFailure
           message="Private history is unavailable. Your access may have changed."
           retry={history.retry}
+          error={history.error}
         />
       ) : history.isPending ? (
         <p role="status">Loading private revisions…</p>

@@ -121,4 +121,25 @@ describe("OrderList", () => {
     expect(await screen.findByText("Could not load lab orders.")).toBeInTheDocument();
     expect(screen.queryByText("No lab orders yet")).not.toBeInTheDocument();
   });
+
+  // #1591: QueryState takes the list's error itself, so this screen needed no edit.
+  it("shows a 403 as a refusal with no retry", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockImplementation((url: string) =>
+          Promise.resolve(
+            url.includes("/iam/me/permissions")
+              ? jsonResponse(200, { data: ["lab.order.fulfil"] })
+              : jsonResponse(403, { error: "forbidden", message: "no" }),
+          ),
+        ),
+    );
+    renderWithProviders(<OrderList />);
+    expect(
+      await screen.findByText("This wasn't found, or you don't have access to it."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+  });
 });

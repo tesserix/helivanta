@@ -164,6 +164,13 @@ func TestLogin_MintsSessionWithRightSubjectTenantAndAuthTime(t *testing.T) {
 
 	w := doLogin(t, r, `{"id_token":"good"}`)
 	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	var discoveryCleared bool
+	for _, cookie := range w.Result().Cookies() {
+		if cookie.Name == authn.AccountDiscoveryCookie {
+			discoveryCleared = cookie.Value == "" && cookie.MaxAge < 0 && cookie.Secure && cookie.HttpOnly
+		}
+	}
+	require.True(t, discoveryCleared, "successful sign-in must clear mailbox discovery from shared terminals")
 
 	var body struct {
 		TenantID string `json:"tenant_id"`

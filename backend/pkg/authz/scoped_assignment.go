@@ -19,8 +19,10 @@ import (
 
 // ScopedAssignment is an immutable IAM projection snapshot, not proof of approval or current validity.
 type ScopedAssignment struct {
-	TenantID    string
-	HospitalID  string
+	TenantID   string
+	HospitalID string
+	// PharmacyID is the root of a pharmacy establishment; omitempty keeps every hospital-rooted key byte-identical.
+	PharmacyID  string `json:",omitempty"`
 	ScopeKind   string
 	ScopeID     string
 	ID          string
@@ -36,14 +38,21 @@ var (
 )
 
 func (a ScopedAssignment) objectKey() (string, error) {
-	for _, value := range []string{a.TenantID, a.HospitalID, a.ScopeID, a.ID} {
+	root := a.HospitalID
+	if a.PharmacyID != "" {
+		if a.HospitalID != "" {
+			return "", ErrInvalidScopedAssignment
+		}
+		root = a.PharmacyID
+	}
+	for _, value := range []string{a.TenantID, root, a.ScopeID, a.ID} {
 		id, err := uuid.Parse(value)
 		if err != nil || id == uuid.Nil || id.String() != value {
 			return "", ErrInvalidScopedAssignment
 		}
 	}
 	id, _ := uuid.Parse(a.ID)
-	if id.Version() != 7 || a.Version < 1 || (a.ScopeKind != "hospital" && a.ScopeKind != "staff") || (a.ScopeKind == "hospital" && a.ScopeID != a.HospitalID) {
+	if id.Version() != 7 || a.Version < 1 || !a.scopeWithinRoot() {
 		return "", ErrInvalidScopedAssignment
 	}
 	if !validAssignmentSubject(a.Subject) || len(a.Permissions) == 0 || len(a.Permissions) > 32 {
@@ -64,6 +73,23 @@ func (a ScopedAssignment) objectKey() (string, error) {
 	}
 	digest := sha256.Sum256(content)
 	return fmt.Sprintf("%s/%x", a.TenantID, digest), nil
+}
+
+// scopeWithinRoot binds each scope kind to one root kind, so no scope reads under the other establishment kind.
+func (a ScopedAssignment) scopeWithinRoot() bool {
+	if a.PharmacyID != "" {
+		return a.ScopeKind == "pharmacy" && a.ScopeID == a.PharmacyID
+	}
+	scope, _ := uuid.Parse(a.ScopeID)
+	switch a.ScopeKind {
+	case "hospital":
+		return a.ScopeID == a.HospitalID
+	case "staff":
+		return true
+	case "department":
+		return scope.Version() == 7 && scope.Variant() == uuid.RFC4122 && a.ScopeID != a.HospitalID
+	}
+	return false
 }
 
 func validAssignmentSubject(subject string) bool {

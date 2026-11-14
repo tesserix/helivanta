@@ -58,7 +58,11 @@ export function ServiceChargesSetup({
           accountant decides how each is taxed; a second person approves every change.
         </p>
         {charges.isError ? (
-          <RequestFailure message="Could not load the service charges." retry={charges.refetch} />
+          <RequestFailure
+            message="Could not load the service charges."
+            retry={charges.refetch}
+            error={charges.error}
+          />
         ) : !charges.data ? (
           <p role="status" className="mt-3 text-sm text-muted-foreground">
             Loading service charges…
@@ -135,7 +139,7 @@ function ChargeRow({
       )}
       {canReview && latest && latest.decision === null && (
         <ReviewForm
-          key={latest.id}
+          key={`review:${latest.id}`}
           version={latest}
           path={`${root}/${charge.id}`}
           invalidate={invalidate}
@@ -144,7 +148,7 @@ function ChargeRow({
       {canDeclare &&
         (editing ? (
           <VersionForm
-            key={latest?.id ?? "none"}
+            key={`version:${latest?.id ?? "none"}`}
             chargeId={charge.id}
             root={root}
             currency={currency}

@@ -59,7 +59,14 @@ function CategoryPickers({
 }) {
   const categories = useItemCategories(scope);
   if (categories.isError)
-    return <RequestFailure message="Could not load the categories." retry={categories.retry} />;
+    return (
+      <RequestFailure
+        message="Could not load the categories."
+        retry={categories.retry}
+        error={categories.error}
+        refused={reportsRefused}
+      />
+    );
   const label = (c: { code: string; name: string; retired_at: string | null }) =>
     `${c.name} (${c.code})${c.retired_at ? ", retired" : ""}`;
   const subs = categories.items.filter((c) => value.categoryId && c.parent_id === value.categoryId);
@@ -160,7 +167,12 @@ function PrescriberPicker({
   );
   if (list.isError)
     return (
-      <RequestFailure message="Could not load the prescribers." retry={() => void list.refetch()} />
+      <RequestFailure
+        message="Could not load the prescribers."
+        retry={() => void list.refetch()}
+        error={list.error}
+        refused={reportsRefused}
+      />
     );
   const prescribers = list.data?.data ?? [];
   const options = prescribers.map((p) => ({
@@ -199,6 +211,9 @@ function PrescriberPicker({
     </div>
   );
 }
+
+/** Said where a report is refused: retrying cannot change an access answer. */
+export const reportsRefused = "You don't have access to this outlet's reports.";
 
 /**
  * A report's CSV, of what it shows (#1060). Keyed by its path, so a new
@@ -272,11 +287,16 @@ export function ItemSales({ scope, period }: { scope: PharmacyScope; period: Per
         recorded={lines.prescriber && "A download of one prescriber's sales is recorded."}
       />
       {items.isError ? (
-        <RequestFailure message="Could not load sales by item." retry={items.retry} />
+        <RequestFailure
+          message="Could not load sales by item."
+          retry={items.retry}
+          error={items.error}
+          refused={reportsRefused}
+        />
       ) : items.isPending ? (
         <p role="status">Loading sales by item…</p>
       ) : items.items.length === 0 ? (
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p role="status" className="mt-2 text-sm text-muted-foreground">
           No items sold or returned{filtered && " for these filters"} from {period.from} to{" "}
           {period.to}.
         </p>
@@ -362,11 +382,16 @@ export function ReceiptsRegister({ scope, period }: { scope: PharmacyScope; peri
       </p>
       <ReportDownload scope={scope} path={path} label="Receipts and refunds export" />
       {entries.isError ? (
-        <RequestFailure message="Could not load receipts and refunds." retry={entries.retry} />
+        <RequestFailure
+          message="Could not load receipts and refunds."
+          retry={entries.retry}
+          error={entries.error}
+          refused={reportsRefused}
+        />
       ) : entries.isPending ? (
         <p role="status">Loading receipts and refunds…</p>
       ) : entries.items.length === 0 ? (
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p role="status" className="mt-2 text-sm text-muted-foreground">
           No receipts or refunds from {period.from} to {period.to}.
         </p>
       ) : (
@@ -472,11 +497,16 @@ export function PatientSaleLines({
         recorded="Each download is recorded."
       />
       {lines.isError ? (
-        <RequestFailure message="Could not load the patient's purchases." retry={lines.retry} />
+        <RequestFailure
+          message="Could not load the patient's purchases."
+          retry={lines.retry}
+          error={lines.error}
+          refused={reportsRefused}
+        />
       ) : lines.isPending ? (
         <p role="status">Loading the patient's purchases…</p>
       ) : lines.items.length === 0 ? (
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p role="status" className="mt-2 text-sm text-muted-foreground">
           {patient.name} bought nothing from {period.from} to {period.to}.
         </p>
       ) : (
@@ -569,11 +599,16 @@ export function StockSales({ scope, period }: { scope: PharmacyScope; period: Pe
       <ReportDownload scope={scope} path={path} label="Sales and stock export" />
 
       {rows.isError ? (
-        <RequestFailure message="Could not load sales and stock." retry={rows.retry} />
+        <RequestFailure
+          message="Could not load sales and stock."
+          retry={rows.retry}
+          error={rows.error}
+          refused={reportsRefused}
+        />
       ) : rows.isPending ? (
         <p role="status">Loading sales and stock…</p>
       ) : rows.items.length === 0 ? (
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p role="status" className="mt-2 text-sm text-muted-foreground">
           {category.categoryId
             ? "No product in this category today has held stock."
             : "No product has held stock yet."}

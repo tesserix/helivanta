@@ -13,8 +13,8 @@ import {
   type Hospital,
   type SalaryHead,
 } from "@helivanta/api";
-import { Field, SelectControl } from "@helivanta/ui";
-import { Failure } from "../roster-policy/policy-ui";
+import { Field, SelectControl, RequestFailure } from "@helivanta/ui";
+
 import { HeadEditor } from "./head-editor";
 import { headsKey, RevisionHistory } from "./payroll-workspace";
 
@@ -96,7 +96,11 @@ export function HeadsPanel({ hospital, writable }: { hospital: Hospital; writabl
         </p>
       ) : heads.isError ? (
         <div className="p-5">
-          <Failure message="Could not load salary heads." retry={heads.retry} />
+          <RequestFailure
+            message="Could not load salary heads."
+            retry={heads.retry}
+            error={heads.error}
+          />
         </div>
       ) : heads.items.length === 0 ? (
         <p className="p-5 text-sm text-muted-foreground">

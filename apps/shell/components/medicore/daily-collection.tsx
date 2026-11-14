@@ -58,6 +58,7 @@ function CollectionPanel({ hospital }: { hospital: Hospital }) {
         <RequestFailure
           message="Could not load the hospital's timezone."
           retry={() => void setup.refetch()}
+          error={setup.error}
         />
       ) : (
         <CollectionDay hospital={hospital} timezone={setup.data.timezone} />
@@ -103,6 +104,7 @@ function Day({ hospital, date }: { hospital: Hospital; date: string }) {
       <RequestFailure
         message={day.error instanceof ApiError ? day.error.message : "Could not load the day."}
         retry={() => void day.refetch()}
+        error={day.error}
       />
     );
   const { shifts, totals } = day.data;

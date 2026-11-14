@@ -252,6 +252,49 @@ browser validation popups are banned for the same reason `noValidate` is
 mandatory (section 4) — they're outside the app's control and inconsistent
 across browsers.
 
+### Failed and refused reads (#1276, #1591)
+
+A read that fails renders `RequestFailure` (`packages/ui/src/request-failure.tsx`),
+or `QueryState` for a paged list, which renders it for you. `RequestFailure`
+takes the request's `error` as a required prop, so a screen that forgets it
+does not compile. The error decides what the person sees:
+
+- **403 or 404:** the screen's `refused` sentence, or by default "This wasn't
+  found, or you don't have access to it." No "Try again": retrying cannot
+  change an access answer.
+- **401:** "Your session has ended. Sign in again to continue.", even where
+  the screen has its own `refused` sentence. No "Try again".
+- **Anything else** (5xx, 409, network): the `message` with "Try again".
+
+A panel reading several queries passes `firstError(a.error, b.error)`, so a
+refusal wins over another query's outage. `QueryState` keeps loaded rows
+under a warning when a refresh or Load more fails, but hides them when it is
+refused: rows the server no longer shows this person must not stay on screen.
+A screen that gives a status its own meaning ("not set up yet" for a 404)
+branches before `RequestFailure`. Failed saves are not covered; they stay
+inline or in toasts.
+
+No screen draws its own button to re-run a read (#1595). A failed read
+retries through `RequestFailure` or `QueryState`. A refresh of data that
+loaded is `RefreshButton` from `@helivanta/ui`. It takes the read's `error`
+and renders nothing on a refusal, so a refused screen never offers to ask
+again. A screen with a `RefreshButton` checks `isRefusal(error)` before it
+renders the data it holds: React Query keeps `data` after a failed refetch,
+and records the server now refuses must not stay on screen. Where access
+changes while the screen is open (an emergency crew assignment), pass
+`recheck="Check access again"` to `RequestFailure`. A 403 or 404 then
+offers that button, never "Try again"; a 401 still offers none. A retry
+that must wait for a command in flight passes `busy`, as `RefreshButton`
+does. Both buttons are `type="button"`, so either can sit inside a form.
+
+The lint rule `helivanta/no-hand-rolled-retry` (`packages/config`) enforces
+this. It fails a handler in `onClick`, `onRetry`, `onRefresh` or `onReload`
+that calls a query's `refetch` or `retry`. A prop that hands a retry to a
+shared component is named `retry` or `refresh` instead. It applies to every
+file in `apps/shell` but tests; there is no exemption list. The
+rule cannot see a retry behind a named handler (`onClick={reload}`), so
+review still checks for one.
+
 ## 6. Chrome & navigation
 
 Navigation links — the rail, the page panel, the home mark and the

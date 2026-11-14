@@ -2,27 +2,31 @@
 
 import { useId, useState, type ReactNode } from "react";
 import { UsersRound } from "lucide-react";
-import { JOB_LABELS, type Staff } from "@helivanta/api";
+import { JOB_LABELS, type Staff, type StaffInput } from "@helivanta/api";
 import { Button } from "./button";
 import { Panel } from "./panel";
 import { QueryState } from "./query-state";
 
-export type StaffDirectoryProps = {
+/** A row from either establishment family; the directory reads only the shared Staff fields. */
+export type StaffDirectoryRow = StaffInput & { id: string };
+export type StaffDirectoryProps<Row extends StaffDirectoryRow = Staff> = {
   title: string;
   description: string;
   emptyDescription: string;
   scopeDescription: string;
-  rows: readonly Staff[];
+  rows: readonly Row[];
   isPending: boolean;
   isError: boolean;
-  onRetry: () => void | Promise<unknown>;
+  /** The failed read's error, so a refusal shows as one (#1591). */
+  error: unknown;
+  retry: () => void | Promise<unknown>;
   headerActions?: ReactNode;
-  rowActions?: (staff: Staff) => ReactNode;
+  rowActions?: (staff: Row) => ReactNode;
   onFirstPage?: () => void;
   onNextPage?: () => void;
 };
 
-export function StaffDirectory({
+export function StaffDirectory<Row extends StaffDirectoryRow = Staff>({
   title,
   description,
   emptyDescription,
@@ -30,12 +34,13 @@ export function StaffDirectory({
   rows,
   isPending,
   isError,
-  onRetry,
+  error,
+  retry,
   headerActions,
   rowActions,
   onFirstPage,
   onNextPage,
-}: StaffDirectoryProps) {
+}: StaffDirectoryProps<Row>) {
   const filterId = useId();
   const headingId = useId();
   const [filter, setFilter] = useState("");
@@ -77,7 +82,7 @@ export function StaffDirectory({
         )}
       </div>
       <QueryState
-        query={{ items: visible, isPending, isError, retry: onRetry }}
+        query={{ items: visible, isPending, isError, error, retry }}
         label="staff"
         empty={{
           icon: UsersRound,

@@ -18,6 +18,7 @@ const input = {
 const proposal = {
   id,
   input,
+  scope_kind: "hospital",
   proposed_by: "synthetic-admin",
   status: "pending_review",
   version: 2,
@@ -179,4 +180,62 @@ it("uses the explicit intake list without mixing existing leave or identity assi
   vi.stubGlobal("fetch", fetch);
   await listStaffAssignments({ tenantId, subject: "reviewer" }, { family: "intake" });
   expect(fetch.mock.calls[0]![0]).toContain("/api/v1/iam/intake-assignment-proposals?");
+});
+
+it.each(["reader", "preparer", "reviewer"])(
+  "lists partner membership %s assignments through their dedicated family",
+  async (role) => {
+    const record = {
+      ...proposal,
+      input: { ...input, template_key: `iam.partner_group_member_${role}.v1` },
+    };
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json({ data: [record], page: { has_more: false, next_cursor: null } }),
+      );
+    vi.stubGlobal("fetch", fetch);
+    const result = await listStaffAssignments(
+      { tenantId, subject: "reviewer" },
+      { family: "partner_membership" },
+    );
+    expect(result.data).toEqual([record]);
+    expect(new URL(fetch.mock.calls[0]![0], "https://example.invalid").pathname).toBe(
+      "/api/v1/iam/partner-membership-assignment-proposals",
+    );
+  },
+);
+
+it.each(["viewer", "reviewer"])(
+  "lists supplier %s capability assignments in the supplier family",
+  async (role) => {
+    const record = { ...proposal, input: { ...input, template_key: `iam.supplier_${role}.v1` } };
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json({ data: [record], page: { has_more: false, next_cursor: null } }),
+      );
+    vi.stubGlobal("fetch", fetch);
+    const result = await listStaffAssignments(
+      { tenantId, subject: "reviewer" },
+      { family: "supplier_access" },
+    );
+    expect(result.data).toEqual([record]);
+    expect(new URL(fetch.mock.calls[0]![0], "https://example.invalid").pathname).toBe(
+      "/api/v1/iam/supplier-access-assignment-proposals",
+    );
+  },
+);
+
+it.each([
+  ["supplier_receiving", "/api/v1/iam/supplier-receiving-assignment-proposals"],
+  ["purchase_order", "/api/v1/iam/purchase-order-assignment-proposals"],
+] as const)("routes the %s staff family to its paginated IAM list", async (family, path) => {
+  const fetch = vi
+    .fn()
+    .mockResolvedValue(Response.json({ data: [], page: { has_more: false, next_cursor: null } }));
+  vi.stubGlobal("fetch", fetch);
+  const result = await listStaffAssignments({ tenantId, subject: "reviewer" }, { family });
+  expect(result.data).toEqual([]);
+  expect(new URL(fetch.mock.calls[0]![0], "https://example.invalid").pathname).toBe(path);
 });

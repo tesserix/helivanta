@@ -2,12 +2,22 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@tesserix/web";
-import { PageHeading, Panel, LoadMore, SelectControl, Field, formatDateTime } from "@helivanta/ui";
+import {
+  PageHeading,
+  Panel,
+  LoadMore,
+  SelectControl,
+  Field,
+  RefreshButton,
+  RequestFailure,
+  formatDateTime,
+} from "@helivanta/ui";
 import {
   useApiQuery,
   useStaffAssignments,
   useStaffAssignmentHistory,
   useStaffAssignmentDecisions,
+  useOrganizationDepartmentRevisions,
   type StaffAssignment,
   type StaffAssignmentDecision,
   type StaffAssignmentScope,
@@ -17,6 +27,7 @@ import {
   TemplateDefinitionContract,
 } from "@helivanta/api";
 import { AssignmentProposalForm, AssignmentDecisionForm } from "./assignment-forms";
+import { StaffAccountInitiation } from "@/components/workforce/staff-account-initiation";
 import { StaffMembershipForm } from "./membership-form";
 import { MembershipManagement } from "./membership-management";
 
@@ -48,7 +59,12 @@ export default function StaffAccessPage() {
       {!hydrated || identity.isPending ? (
         <p role="status">Checking assignment access…</p>
       ) : identity.isError || !identity.data?.tenant_id || !identity.data.subject ? (
-        <p role="alert">Could not verify assignment access. Refresh this page to try again.</p>
+        <RequestFailure
+          message="Could not verify assignment access."
+          retry={identity.refetch}
+          // A malformed answer has no error, so it keeps the retry.
+          error={identity.error}
+        />
       ) : !identity.data.data.some(
           (p) =>
             p === "iam.assignment.manage" ||
@@ -60,6 +76,9 @@ export default function StaffAccessPage() {
         <div key={`${identity.data.tenant_id}:${identity.data.subject}`}>
           {identity.data.data.includes("iam.member.manage") && (
             <>
+              <StaffAccountInitiation
+                scope={{ tenantId: identity.data.tenant_id, subject: identity.data.subject }}
+              />
               <StaffMembershipForm
                 scope={{ tenantId: identity.data.tenant_id, subject: identity.data.subject }}
               />
@@ -112,7 +131,11 @@ function useVerifiedStaffCatalog(
         actual.description === expected.description &&
         actual.family === expected.family &&
         actual.permissions.length === expected.permissions.length &&
-        expected.permissions.every((permission) => actual.permissions.includes(permission))
+        expected.permissions.every((permission) => actual.permissions.includes(permission)) &&
+        actual.scope_kinds.length === expected.scope_kinds.length &&
+        expected.scope_kinds.every((kind) => actual.scope_kinds.includes(kind)) &&
+        actual.establishment_kinds.length === expected.establishment_kinds.length &&
+        expected.establishment_kinds.every((kind) => actual.establishment_kinds.includes(kind))
       );
     });
   return { ...catalog, supported };
@@ -129,35 +152,54 @@ function Assignments({ identity }: { identity: Identity }) {
   const postingManagementCatalog = useVerifiedStaffCatalog(scope, "staff-posting-management-v1");
   const postingLifecycleCatalog = useVerifiedStaffCatalog(scope, "staff-posting-lifecycle-v1");
   const postingSourceCatalog = useVerifiedStaffCatalog(scope, "staff-posting-source-v1");
+  const partnerMembershipCatalog = useVerifiedStaffCatalog(scope, "partner-membership-v1");
+  const supplierAccessCatalog = useVerifiedStaffCatalog(scope, "hospital-supplier-access-v1");
   const pharmacyBindingCatalog = useVerifiedStaffCatalog(scope, "pharmacy-department-bindings-v1");
-  const postingCatalogName = postingSourceCatalog.supported
-    ? "staff-posting-source-v1"
-    : postingLifecycleCatalog.supported
-      ? "staff-posting-lifecycle-v1"
-      : postingManagementCatalog.supported
-        ? "staff-posting-management-v1"
-        : postingReviewCatalog.supported
-          ? "staff-posting-reviews-v1"
-          : "staff-postings-v1";
+  const postingDepartmentCatalog = useVerifiedStaffCatalog(
+    scope,
+    "staff-department-posting-reviews-v1",
+  );
+  const leaveDepartmentCatalog = useVerifiedStaffCatalog(
+    scope,
+    "staff-department-leave-reviews-v1",
+  );
+  const postingCatalogName = postingDepartmentCatalog.supported
+    ? "staff-department-posting-reviews-v1"
+    : postingSourceCatalog.supported
+      ? "staff-posting-source-v1"
+      : postingLifecycleCatalog.supported
+        ? "staff-posting-lifecycle-v1"
+        : postingManagementCatalog.supported
+          ? "staff-posting-management-v1"
+          : postingReviewCatalog.supported
+            ? "staff-posting-reviews-v1"
+            : "staff-postings-v1";
   const postingSupported =
     postingCatalog.supported ||
     postingReviewCatalog.supported ||
     postingManagementCatalog.supported ||
     postingLifecycleCatalog.supported ||
-    postingSourceCatalog.supported;
+    postingSourceCatalog.supported ||
+    postingDepartmentCatalog.supported;
   const templateKeys =
     staffAccessTemplateCatalogs[
-      family === "pharmacy_binding"
-        ? "pharmacy-department-bindings-v1"
-        : family === "posting"
-          ? postingCatalogName
-          : family === "intake"
-            ? "hr-intake-v1"
-            : family === "employment"
-              ? "employment-v1"
-              : family === "activation"
-                ? "employment-activation-v1"
-                : "legacy-v1"
+      family === "supplier_access"
+        ? "hospital-supplier-access-v1"
+        : family === "partner_membership"
+          ? "partner-membership-v1"
+          : family === "pharmacy_binding"
+            ? "pharmacy-department-bindings-v1"
+            : family === "posting"
+              ? postingCatalogName
+              : family === "intake"
+                ? "hr-intake-v1"
+                : family === "employment"
+                  ? "employment-v1"
+                  : family === "activation"
+                    ? "employment-activation-v1"
+                    : leaveDepartmentCatalog.supported
+                      ? "staff-department-leave-reviews-v1"
+                      : "legacy-v1"
     ];
   const intakeSupported = catalog.supported;
   const employmentSupported = employmentCatalog.supported;
@@ -178,23 +220,29 @@ function Assignments({ identity }: { identity: Identity }) {
     (family === "employment" && !employmentSupported) ||
     (family === "activation" && !activationSupported) ||
     (family === "posting" && !postingSupported) ||
-    (family === "pharmacy_binding" && !pharmacyBindingCatalog.supported);
+    (family === "pharmacy_binding" && !pharmacyBindingCatalog.supported) ||
+    (family === "partner_membership" && !partnerMembershipCatalog.supported) ||
+    (family === "supplier_access" && !supplierAccessCatalog.supported);
   return (
     <Panel className="space-y-4">
       <p>
-        {family === "leave"
-          ? "Active leave-review assignments enable the Review leave page when the account also has an independently approved staff link. Both must remain current. These assignments grant no hospital administration, payroll or clinical authority."
-          : family === "pharmacy_binding"
-            ? "Pharmacy relationship preparers and independent reviewers link a hospital-owned outlet to its canonical department. They require a current reviewed Staff account and separate outlet editor access. These assignments grant no dispensing, professional, clinical or private HR access."
-            : family === "posting"
-              ? "Verified posting roles separate draft reading and preparation, proposal submission, independent review and hospital management attestation. Each requires a current reviewed digital Staff account. These assignments grant no operating or clinical access."
-              : family === "identity"
-                ? "Identity manager and reviewer assignments have separate permissions for one hospital. They require a current staff account link and grant no hospital administration, payroll or clinical authority."
-                : family === "employment"
-                  ? "Employment reviewers independently examine appointment terms and selected evidence at one hospital. They require a current reviewed staff account link. Approval of terms does not activate employment, login access, payroll or clinical authority."
-                  : family === "activation"
-                    ? "Employment activators use independently approved terms for one hospital and require separate current enrollment authority and a reviewed staff account link. This assignment alone grants no login, clinical or payroll access."
-                    : "HR intake administrators prepare Staff profiles, employment drafts and protected evidence at one hospital. They require a current reviewed staff account link and cannot approve employment, grant access, or manage payroll or clinical care."}
+        {family === "supplier_access"
+          ? "Supplier collaboration assignments let current hospital Staff open specifically approved supplier catalogues, shipments or invoices. Reviewers accept supplier offers for their hospital. These assignments do not approve their own access or grant supplier stock, clinical or financial decision authority."
+          : family === "partner_membership"
+            ? "Partner team membership roles read, prepare or independently review named hospital members against current Staff, account-link and posting sources. They cannot publish groups, self-enrol, grant supplier access, or operate stock, clinical or financial records."
+            : family === "leave"
+              ? "Active leave-review assignments enable the Review leave page when the account also has an independently approved staff link. Both must remain current. A department leave reviewer decides leave only for Staff whose every current posting is in that department or its sub-units. These assignments grant no hospital administration, payroll or clinical authority."
+              : family === "pharmacy_binding"
+                ? "Pharmacy relationship preparers and independent reviewers link a hospital-owned outlet to its canonical department. They require a current reviewed Staff account and separate outlet editor access. These assignments grant no dispensing, professional, clinical or private HR access."
+                : family === "posting"
+                  ? "Verified posting roles separate draft reading and preparation, proposal submission, independent review and hospital management attestation. Each requires a current reviewed digital Staff account. These assignments grant no operating or clinical access."
+                  : family === "identity"
+                    ? "Identity manager and reviewer assignments have separate permissions for one hospital. They require a current staff account link and grant no hospital administration, payroll or clinical authority."
+                    : family === "employment"
+                      ? "Employment reviewers independently examine appointment terms and selected evidence at one hospital. They require a current reviewed staff account link. Approval of terms does not activate employment, login access, payroll or clinical authority."
+                      : family === "activation"
+                        ? "Employment activators use independently approved terms for one hospital and require separate current enrollment authority and a reviewed staff account link. This assignment alone grants no login, clinical or payroll access."
+                        : "HR intake administrators prepare Staff profiles, employment drafts and protected evidence at one hospital. They require a current reviewed staff account link and cannot approve employment, grant access, or manage payroll or clinical care."}
       </p>
       <p>
         Proposing and reviewing require current tenant administrator membership and a hospital
@@ -214,6 +262,12 @@ function Assignments({ identity }: { identity: Identity }) {
           options={[
             { value: "leave", label: "Leave review" },
             { value: "identity", label: "Staff identity checks" },
+            ...(supplierAccessCatalog.supported || family === "supplier_access"
+              ? [{ value: "supplier_access", label: "Supplier collaboration" }]
+              : []),
+            ...(partnerMembershipCatalog.supported || family === "partner_membership"
+              ? [{ value: "partner_membership", label: "Partner team memberships" }]
+              : []),
             ...(pharmacyBindingCatalog.supported || family === "pharmacy_binding"
               ? [{ value: "pharmacy_binding", label: "Pharmacy department relationships" }]
               : []),
@@ -250,7 +304,8 @@ function Assignments({ identity }: { identity: Identity }) {
         {!postingSupported &&
         (postingCatalog.isPending ||
           postingReviewCatalog.isPending ||
-          postingManagementCatalog.isPending)
+          postingManagementCatalog.isPending ||
+          postingDepartmentCatalog.isPending)
           ? "Checking Staff posting assignments…"
           : !postingSupported
             ? "Staff posting assignments are unavailable in this workspace."
@@ -271,22 +326,29 @@ function Assignments({ identity }: { identity: Identity }) {
               ? "Employment activation assignments are unavailable in this workspace."
               : ""}
         </p>
-        <Button
-          variant="outline"
-          disabled={records.isFetching}
-          onClick={() => {
-            void records.refetch();
-            void catalog.refetch();
-            void employmentCatalog.refetch();
-            void activationCatalog.refetch();
-            void postingCatalog.refetch();
-            void postingReviewCatalog.refetch();
-            void postingManagementCatalog.refetch();
-            void pharmacyBindingCatalog.refetch();
-          }}
+        {/* Only the assignments read's refusal hides it: a refused catalog is
+            shown as unavailable above and must still be refreshable. */}
+        <RefreshButton
+          busy={records.isFetching}
+          error={records.error}
+          refresh={() =>
+            Promise.all([
+              records.refetch(),
+              catalog.refetch(),
+              employmentCatalog.refetch(),
+              activationCatalog.refetch(),
+              postingCatalog.refetch(),
+              postingReviewCatalog.refetch(),
+              postingManagementCatalog.refetch(),
+              pharmacyBindingCatalog.refetch(),
+              supplierAccessCatalog.refetch(),
+              partnerMembershipCatalog.refetch(),
+              postingDepartmentCatalog.refetch(),
+            ])
+          }
         >
           Refresh assignments
-        </Button>
+        </RefreshButton>
         {manage && (
           <Button
             disabled={catalogBlocked}
@@ -321,7 +383,11 @@ function Assignments({ identity }: { identity: Identity }) {
         {records.isPending ? (
           <p role="status">Loading assignments…</p>
         ) : records.isError ? (
-          <p role="alert">Could not load assignments. Refresh to try again.</p>
+          <RequestFailure
+            message="Could not load assignments."
+            retry={records.refetch}
+            error={records.error}
+          />
         ) : (
           <>
             {!records.data?.pages.some((p) => p.data.length) && <p>No assignment proposals yet.</p>}
@@ -400,6 +466,7 @@ function AssignmentRecord({
           item.input.template_key}
       </p>
       <p className="break-all">Hospital: {item.input.hospital_id}</p>
+      <AssignmentAppliesTo scope={scope} item={item} now={now} />
       <p>
         {formatDateTime(item.input.valid_from)} – {formatDateTime(item.input.expires_at)}
       </p>
@@ -446,6 +513,62 @@ function AssignmentRecord({
   );
 }
 
+function AssignmentAppliesTo({
+  scope,
+  item,
+  now,
+}: {
+  scope: StaffAssignmentScope;
+  item: StaffAssignment;
+  now: number;
+}) {
+  if (item.scope_kind === "hospital" || !item.input.department_id)
+    return <p>Applies to: Whole hospital</p>;
+  return (
+    <AssignmentDepartment
+      scope={scope}
+      hospital={item.input.hospital_id}
+      department={item.input.department_id}
+      now={now}
+    />
+  );
+}
+
+function AssignmentDepartment({
+  scope,
+  hospital,
+  department,
+  now,
+}: {
+  scope: StaffAssignmentScope;
+  hospital: string;
+  department: string;
+  now: number;
+}) {
+  // Revisions list newest first; a scheduled future revision is not yet the current name.
+  const revisions = useOrganizationDepartmentRevisions(scope, hospital, department, null);
+  const current = revisions.data?.data.find((row) => Date.parse(row.effective_at) <= now);
+  if (revisions.isPending) return <p role="status">Loading department…</p>;
+  if (!current)
+    return (
+      <RequestFailure
+        message={`Applies to: department ${department}. Its current name could not be verified.`}
+        retry={revisions.refetch}
+        // A list with no current revision has no error, so it keeps the retry.
+        error={revisions.error}
+        // A refusal still names the scope the record applies to.
+        refused={`Applies to: department ${department}. Its name isn't available to you.`}
+      />
+    );
+  if (current.status !== "active")
+    return (
+      <p role="alert">
+        Applies to: {current.name}. Department retired. This access no longer applies.
+      </p>
+    );
+  return <p>Applies to: {current.name} and its current sub-units</p>;
+}
+
 function AssignmentHistory({
   scope,
   item,
@@ -461,10 +584,11 @@ function AssignmentHistory({
       {history.isPending ? (
         <p role="status">Loading history…</p>
       ) : history.isError ? (
-        <p role="alert">
-          Could not load history.{" "}
-          <Button onClick={() => void history.refetch()}>Retry history</Button>
-        </p>
+        <RequestFailure
+          message="Could not load history."
+          retry={history.refetch}
+          error={history.error}
+        />
       ) : (
         <>
           {history.data?.pages
@@ -485,10 +609,11 @@ function AssignmentHistory({
       {decisions.isPending ? (
         <p role="status">Loading decisions…</p>
       ) : decisions.isError ? (
-        <p role="alert">
-          Could not load decisions.{" "}
-          <Button onClick={() => void decisions.refetch()}>Retry decisions</Button>
-        </p>
+        <RequestFailure
+          message="Could not load decisions."
+          retry={decisions.refetch}
+          error={decisions.error}
+        />
       ) : (
         <>
           {!decisions.data?.pages.some((p) => p.data.length) && <p>No decisions recorded.</p>}

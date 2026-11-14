@@ -22,7 +22,14 @@ import {
   type SupplySupportDiagnostics,
   type SupplyRegistryRevision,
 } from "@helivanta/api";
-import { Field, FormSelectField, LoadMore, useZodForm, RequestFailure } from "@helivanta/ui";
+import {
+  Field,
+  FormSelectField,
+  LoadMore,
+  useZodForm,
+  RequestFailure,
+  RefreshButton,
+} from "@helivanta/ui";
 import { dateTimeInputISO, dateTimeInputValue, formatAbsoluteTime } from "./time-input";
 import {
   AccessWindowPolicyStatus,
@@ -77,9 +84,9 @@ function SupportPanel({ scope, admin }: { scope: SupplyRegistryScope; admin: boo
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="ghost" onClick={rows.retry}>
+          <RefreshButton variant="ghost" refresh={rows.retry} error={rows.error}>
             Refresh support requests
-          </Button>
+          </RefreshButton>
           {admin && !rows.isError && (
             <Button
               variant="outline"
@@ -100,6 +107,7 @@ function SupportPanel({ scope, admin }: { scope: SupplyRegistryScope; admin: boo
         <RequestFailure
           message="Support requests are unavailable with your current access. Refresh before continuing."
           retry={rows.retry}
+          error={rows.error}
         />
       ) : rows.isPending ? (
         <p role="status">Loading support requests…</p>
@@ -308,10 +316,18 @@ function SupportEditor({
         </p>
       )}
       {members.isError && (
-        <RequestFailure message="Could not load trusted tenant members." retry={members.retry} />
+        <RequestFailure
+          message="Could not load trusted tenant members."
+          retry={members.retry}
+          error={members.error}
+        />
       )}
       {premises.isError && (
-        <RequestFailure message="Could not load support locations." retry={premises.retry} />
+        <RequestFailure
+          message="Could not load support locations."
+          retry={premises.retry}
+          error={premises.error}
+        />
       )}
       {!can("supply.premise.read") && (
         <p className="text-sm text-muted-foreground">
@@ -552,7 +568,9 @@ function SupportDiagnostics({
     return (
       <RequestFailure
         message="This diagnostic session is no longer available. It may have expired, been revoked or lost its approval."
+        refused="This diagnostic session is no longer available. It may have expired, been revoked or lost its approval."
         retry={result.refetch}
+        error={result.error}
       />
     );
   if (!result.data) return <p role="status">Loading read-only diagnostics…</p>;
@@ -593,7 +611,13 @@ function SupportHistory({ scope, id }: { scope: SupplyRegistryScope; id: string 
     { poll: true, request: { headers: supplyHeaders(scope) } },
   );
   if (rows.isError)
-    return <RequestFailure message="Could not load support access history." retry={rows.retry} />;
+    return (
+      <RequestFailure
+        message="Could not load support access history."
+        retry={rows.retry}
+        error={rows.error}
+      />
+    );
   if (rows.isPending) return <p role="status">Loading support history…</p>;
   return (
     <section aria-label="Support request history" className="space-y-2 border-t pt-3">

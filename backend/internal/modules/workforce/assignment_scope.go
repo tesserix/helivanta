@@ -28,7 +28,7 @@ func assignmentScopeConsumer(bus *events.Bus) events.Consumer {
 			return errors.New("invalid assignment scope fields")
 		}
 		var eligible bool
-		if err := tx.Raw(`SELECT EXISTS(SELECT 1 FROM workforce_hospitals h JOIN workforce_hospital_access a ON a.tenant_id=h.tenant_id AND a.hospital_id=h.id WHERE h.tenant_id=? AND h.id=? AND a.subject=? AND a.level='manager')`, evt.TenantID, request.HospitalID, request.ActorSubject).Scan(&eligible).Error; err != nil {
+		if err := tx.Raw(`SELECT EXISTS(SELECT 1 FROM workforce_hospitals h JOIN workforce_hospital_access a ON a.tenant_id=h.tenant_id AND a.hospital_id=h.id WHERE h.tenant_id=? AND h.id=? AND h.establishment_kind='hospital' AND a.subject=? AND a.level='manager')`, evt.TenantID, request.HospitalID, request.ActorSubject).Scan(&eligible).Error; err != nil {
 			return err
 		}
 		data, err := json.Marshal(workforcecontract.AssignmentScopeVerifiedData{ProposalID: request.ProposalID, RequestID: request.RequestID, HospitalID: request.HospitalID, Eligible: eligible})

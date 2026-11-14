@@ -242,6 +242,7 @@ export function LicenceEvidence({ scope, licence, roles, onClose }: Props) {
             <RequestFailure
               message="Could not load private licence evidence."
               retry={() => void files.refetch()}
+              error={files.error}
             />
           ) : files.isPending ? (
             <p role="status" className="mt-5">

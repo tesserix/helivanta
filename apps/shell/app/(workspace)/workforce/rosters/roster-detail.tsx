@@ -18,8 +18,8 @@ import {
   type RosterStatusInput,
   type StaffRosterAssignment,
 } from "@helivanta/api";
-import { ConfirmDialog, Field, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass } from "../roster-policy/policy-ui";
+import { ConfirmDialog, Field, useZodForm, RequestFailure } from "@helivanta/ui";
+import { inputClass } from "../roster-policy/policy-ui";
 import { ChangeEditor } from "./roster-change";
 import { ClashPanel, ClashTable, outstandingClashes, useRosterClashes } from "./roster-clashes";
 import { ReviewCheck, SaveError, useRosterWrite } from "./roster-ui";
@@ -115,7 +115,11 @@ export function RosterDetail({
         </p>
       ) : roster.isError || !current ? (
         <div className="p-5">
-          <Failure message="Could not load the roster." retry={() => roster.refetch()} />
+          <RequestFailure
+            message="Could not load the roster."
+            retry={() => roster.refetch()}
+            error={roster.error}
+          />
         </div>
       ) : (
         <>
@@ -247,7 +251,11 @@ function AllocationGrid({
       {allocations.isPending ? (
         <p role="status">Loading allocations…</p>
       ) : allocations.isError ? (
-        <Failure message="Could not load allocations." retry={allocations.retry} />
+        <RequestFailure
+          message="Could not load allocations."
+          retry={allocations.retry}
+          error={allocations.error}
+        />
       ) : rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">No shifts are allocated in this version.</p>
       ) : (
@@ -400,7 +408,11 @@ function PopulatePanel({
           replaced. Leave everyone unselected to populate all eligible staff.
         </p>
         {staff.isError ? (
-          <Failure message="Could not load assigned staff." retry={staff.retry} />
+          <RequestFailure
+            message="Could not load assigned staff."
+            retry={staff.retry}
+            error={staff.error}
+          />
         ) : (
           <fieldset className="grid gap-2 sm:grid-cols-3">
             <legend className="mb-2 text-sm font-medium">Limit to staff</legend>
@@ -640,7 +652,11 @@ function HistoryPanel({
       {history.isPending ? (
         <p role="status">Loading roster history…</p>
       ) : history.isError ? (
-        <Failure message="Could not load roster history." retry={history.retry} />
+        <RequestFailure
+          message="Could not load roster history."
+          retry={history.retry}
+          error={history.error}
+        />
       ) : (
         <ul className="space-y-3">
           {history.items.map((r) => (

@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/respond"
@@ -23,46 +24,33 @@ import (
 // reviewed by a second person is valid on the outlet's own date.
 
 var errLicenceReviewed = errors.New("licence already reviewed")
+var errLicenceFourEyes = errors.New("licence requires independent reviewer")
+var errLicenceEvidenceRequired = errors.New("licence clean evidence required")
 
 type outletLicence struct {
-	ID                     uuid.UUID `gorm:"column:id" json:"id"`
-	TenantID               uuid.UUID `gorm:"column:tenant_id" json:"-"`
-	OutletID               uuid.UUID `gorm:"column:outlet_id" json:"outlet_id"`
-	LicenceKind            string    `gorm:"column:licence_kind" json:"licence_kind"`
-	FormLabel              string    `gorm:"column:form_label" json:"form_label"`
-	LicenceNumber          string    `gorm:"column:licence_number" json:"licence_number"`
-	IssuingAuthority       string    `gorm:"column:issuing_authority" json:"issuing_authority"`
-	ValidFrom              string    `gorm:"column:valid_from" json:"valid_from"`
-	ValidUntil             string    `gorm:"column:valid_until" json:"valid_until"`
-	PharmacistName         string    `gorm:"column:pharmacist_name" json:"pharmacist_name"`
-	PharmacistRegistration string    `gorm:"column:pharmacist_registration" json:"pharmacist_registration"`
-	EnteredBy              string    `gorm:"column:entered_by" json:"entered_by"`
-	CreatedAt              time.Time `gorm:"column:created_at" json:"created_at"`
+	ID            uuid.UUID `gorm:"column:id" json:"id"`
+	TenantID      uuid.UUID `gorm:"column:tenant_id" json:"-"`
+	OutletID      uuid.UUID `gorm:"column:outlet_id" json:"outlet_id"`
+	LicenceFields `gorm:"embedded"`
+	EnteredBy     string    `gorm:"column:entered_by" json:"entered_by"`
+	CreatedAt     time.Time `gorm:"column:created_at" json:"created_at"`
 	// Review is the decision, or nil while the licence awaits one.
-	Decision   *string    `gorm:"column:decision" json:"decision"`
-	Reason     *string    `gorm:"column:reason" json:"decision_reason"`
-	ReviewedBy *string    `gorm:"column:reviewed_by" json:"reviewed_by"`
-	ReviewedAt *time.Time `gorm:"column:reviewed_at" json:"reviewed_at"`
+	Decision               *string    `gorm:"column:decision" json:"decision"`
+	Reason                 *string    `gorm:"column:reason" json:"decision_reason"`
+	ReviewedBy             *string    `gorm:"column:reviewed_by" json:"reviewed_by"`
+	ReviewedAt             *time.Time `gorm:"column:reviewed_at" json:"reviewed_at"`
+	ReviewedEvidenceFileID *uuid.UUID `gorm:"column:reviewed_evidence_file_id" json:"reviewed_evidence_file_id"`
 }
 
 func (r outletLicence) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
 
 const licenceQuery = `SELECT l.id, l.tenant_id, l.outlet_id, l.licence_kind, l.form_label, l.licence_number, l.issuing_authority,
 	l.valid_from::text AS valid_from, l.valid_until::text AS valid_until, l.pharmacist_name, l.pharmacist_registration, l.entered_by, l.created_at,
-	r.decision, r.reason, r.reviewed_by, r.created_at AS reviewed_at
+	r.decision, r.reason, r.reviewed_by, r.created_at AS reviewed_at, r.evidence_file_id AS reviewed_evidence_file_id
 	FROM pharmacy_outlet_licences l LEFT JOIN pharmacy_outlet_licence_reviews r
 	ON r.tenant_id = l.tenant_id AND r.outlet_id = l.outlet_id AND r.licence_id = l.id`
 
-type licenceInput struct {
-	LicenceKind            string `json:"licence_kind" binding:"required,oneof=retail wholesale"`
-	FormLabel              string `json:"form_label" binding:"required,max=40"`
-	LicenceNumber          string `json:"licence_number" binding:"required,max=100"`
-	IssuingAuthority       string `json:"issuing_authority" binding:"required,max=200"`
-	ValidFrom              string `json:"valid_from" binding:"required"`
-	ValidUntil             string `json:"valid_until" binding:"required"`
-	PharmacistName         string `json:"pharmacist_name" binding:"required,max=200"`
-	PharmacistRegistration string `json:"pharmacist_registration" binding:"required,max=100"`
-}
+type licenceInput struct{ LicenceFields }
 
 func (in *licenceInput) normalise() bool {
 	for _, f := range []*string{&in.FormLabel, &in.LicenceNumber, &in.IssuingAuthority, &in.PharmacistName, &in.PharmacistRegistration} {
@@ -86,14 +74,17 @@ func licenceRoutes(s *platform.Router, h *catalogueHandlers) {
 	s.PUT("/licences/:id", PermLicenceManage, h.putLicence)
 	s.POST("/licences/:id/review", PermLicenceReview, h.reviewLicence)
 	platform.ListRoute(s, "/licences", PermCatalogueRead, h.listLicences)
+	platform.ListRoute(s, "/licences/renewals", PermCatalogueRead, h.listLicenceRenewals)
 	s.GET("/licence-status", PermCatalogueRead, h.licenceStatus)
 }
 
 func licenceError(c *gin.Context, err error) {
 	var pg *pgconn.PgError
 	switch {
-	case errors.As(err, &pg) && pg.ConstraintName == "pharmacy_licence_four_eyes":
+	case errors.Is(err, errLicenceFourEyes), errors.As(err, &pg) && pg.ConstraintName == "pharmacy_licence_four_eyes":
 		respond.Error(c, http.StatusConflict, "four_eyes", "a licence is reviewed by someone other than who entered it")
+	case errors.Is(err, errLicenceEvidenceRequired), errors.As(err, &pg) && pg.ConstraintName == "pharmacy_licence_evidence_required":
+		respond.Error(c, http.StatusConflict, "licence_evidence_required", "Upload the licence image and wait for its clean scan before reviewing this declaration.")
 	case errors.Is(err, errLicenceReviewed):
 		respond.Conflict(c, "this licence has already been reviewed")
 	case errors.Is(err, errStockIdentity):
@@ -156,10 +147,7 @@ func (h *catalogueHandlers) putLicence(c *gin.Context) {
 	respond.OK(c, result)
 }
 
-type licenceReviewInput struct {
-	Decision string `json:"decision" binding:"required,oneof=approved rejected"`
-	Reason   string `json:"reason" binding:"required,max=500"`
-}
+type licenceReviewInput struct{ LicenceReviewFields }
 
 func (h *catalogueHandlers) reviewLicence(c *gin.Context) {
 	p, outlet, ok := catalogueScope(c)
@@ -181,12 +169,26 @@ func (h *catalogueHandlers) reviewLicence(c *gin.Context) {
 	}
 	var result outletLicence
 	err := h.transaction(c.Request.Context(), p, outlet, true, func(tx *gorm.DB) error {
-		var found int64
-		if err := tx.Raw(`SELECT count(*) FROM pharmacy_outlet_licences WHERE tenant_id=? AND outlet_id=? AND id=?`, p.TenantID, outlet, id).Scan(&found).Error; err != nil {
+		var declaration struct{ EnteredBy string }
+		if err := tx.Table("pharmacy_outlet_licences").Select("entered_by").Where("tenant_id=? AND outlet_id=? AND id=?", p.TenantID, outlet, id).Clauses(clause.Locking{Strength: "UPDATE"}).Take(&declaration).Error; err != nil {
 			return err
 		}
-		if found == 0 {
-			return gorm.ErrRecordNotFound
+		if strings.EqualFold(strings.TrimSpace(declaration.EnteredBy), strings.TrimSpace(p.Subject)) {
+			return errLicenceFourEyes
+		}
+		var reviewed int64
+		if err := tx.Table("pharmacy_outlet_licence_reviews").Where("tenant_id=? AND outlet_id=? AND licence_id=?", p.TenantID, outlet, id).Count(&reviewed).Error; err != nil {
+			return err
+		}
+		if reviewed > 0 {
+			return errLicenceReviewed
+		}
+		var available bool
+		if err := tx.Raw(`SELECT EXISTS(SELECT 1 FROM pharmacy_licence_evidence WHERE tenant_id=? AND outlet_id=? AND licence_id=? AND status='available' AND released_generation IS NOT NULL)`, p.TenantID, outlet, id).Scan(&available).Error; err != nil {
+			return err
+		}
+		if !available {
+			return errLicenceEvidenceRequired
 		}
 		insert := tx.Exec(`INSERT INTO pharmacy_outlet_licence_reviews (tenant_id, outlet_id, licence_id, decision, reason, reviewed_by)
 			VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`, p.TenantID, outlet, id, in.Decision, in.Reason, p.Subject)

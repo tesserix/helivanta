@@ -3,6 +3,7 @@ package authz
 import (
 	"context"
 	"errors"
+	"slices"
 	"time"
 )
 
@@ -19,6 +20,20 @@ type ScopeRequest struct {
 	Subject    string
 	HospitalID string
 	Permission Permission
+	// DepartmentPath is the target's active node-to-root path from Organization; empty selects hospital grants only.
+	DepartmentPath []string
+}
+
+// MaxDepartmentPath matches Organization's persisted department depth.
+const MaxDepartmentPath = 8
+
+// MaxDepartmentScopes bounds one subject's current department grants per hospital and permission (ADR-0055).
+const MaxDepartmentScopes = 50
+
+// Same compares every field, including the exact department path order.
+func (r ScopeRequest) Same(other ScopeRequest) bool {
+	return r.TenantID == other.TenantID && r.Subject == other.Subject && r.HospitalID == other.HospitalID &&
+		r.Permission == other.Permission && slices.Equal(r.DepartmentPath, other.DepartmentPath)
 }
 
 // ScopeGrant is evidence for one authorization check, not a token or cache entry.
@@ -28,6 +43,9 @@ type ScopeGrant struct {
 	Version         int64
 	ScopeEpoch      int64
 	MembershipEpoch int64
+	// ScopeKind is "hospital" or "department"; a department grant reaches only targets inside DepartmentID.
+	ScopeKind    string
+	DepartmentID string
 }
 
 type ScopedAuthorizer interface {
@@ -41,7 +59,7 @@ type ScopedCommandGuard interface {
 }
 
 // MaxScopedCommandChecks bounds independently reserved owner permissions.
-const MaxScopedCommandChecks = 3
+const MaxScopedCommandChecks = 5
 
 // ScopeCheck binds one server-required permission to its current IAM evidence.
 type ScopeCheck struct {
@@ -52,6 +70,11 @@ type ScopeCheck struct {
 // CompoundScopedCommandGuard holds all required grants through one owner commit.
 type CompoundScopedCommandGuard interface {
 	WithScopeGrants(context.Context, []ScopeCheck, time.Time, func(context.Context) error) error
+}
+
+// DepartmentScopeLister discovers current department grants for listing, never as a command receipt.
+type DepartmentScopeLister interface {
+	DepartmentScopes(context.Context, ScopeRequest) ([]ScopeGrant, error)
 }
 
 type ScopedAssignmentChecker interface {

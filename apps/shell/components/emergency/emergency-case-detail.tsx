@@ -21,6 +21,7 @@ import {
   Field,
   FormSelectField,
   LoadMore,
+  RequestFailure,
   formatTime,
   useZodForm,
 } from "@helivanta/ui";
@@ -36,16 +37,11 @@ export function EmergencyCaseDetailPanel({ baseID, caseID }: { baseID: string; c
   });
   if (detail.isError)
     return (
-      <div role="alert" className="space-y-3">
-        <p>{detail.error.message}</p>
-        <Button
-          onClick={() => {
-            void detail.refetch();
-          }}
-        >
-          Retry case
-        </Button>
-      </div>
+      <RequestFailure
+        message="Could not load this case."
+        retry={detail.refetch}
+        error={detail.error}
+      />
     );
   if (!detail.data) return <p role="status">Loading protected case…</p>;
   const row = detail.data;
@@ -217,10 +213,11 @@ function EmergencyHistory({
       <h2 className="font-semibold">Case history</h2>
       {history.isPending && <p role="status">Loading case history…</p>}
       {history.isError ? (
-        <div role="alert">
-          {history.error?.message}
-          <Button onClick={history.retry}>Retry history</Button>
-        </div>
+        <RequestFailure
+          message="Could not load the case history."
+          retry={history.retry}
+          error={history.error}
+        />
       ) : (
         <>
           <ol className="space-y-3">

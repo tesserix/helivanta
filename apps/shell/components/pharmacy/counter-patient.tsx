@@ -16,7 +16,15 @@ import {
   type PharmacyOPDEncounter,
   type PharmacyScope,
 } from "@helivanta/api";
-import { Field, FormSelectField, RequestFailure, SelectControl, useZodForm } from "@helivanta/ui";
+import {
+  Field,
+  FormSelectField,
+  RequestFailure,
+  SelectControl,
+  useZodForm,
+  type SelectOption,
+} from "@helivanta/ui";
+import { hospitalOptions } from "./hospital-options";
 
 export type CounterPatient = { patient_id: string; hospital_id: string; name: string };
 
@@ -45,8 +53,7 @@ export function CounterPatientLookup({
   useEffect(() => {
     if (hasMore && !isFetchingMore) loadMore();
   }, [hasMore, isFetchingMore, loadMore]);
-  const verified = links.items.filter((l) => l.verification_status === "verified");
-  const hospitals = [...new Set(verified.map((l) => l.hospital_id))];
+  const hospitals = hospitalOptions(links.items);
 
   if (value) {
     return (
@@ -71,6 +78,7 @@ export function CounterPatientLookup({
       <RequestFailure
         message="Could not check which hospitals have verified this pharmacy."
         retry={links.retry}
+        error={links.error}
       />
     );
   if (links.isPending || links.hasMore) return <p role="status">Checking verified hospitals…</p>;
@@ -91,11 +99,11 @@ function LookupForm({
   onChange,
 }: {
   scope: PharmacyScope;
-  hospitals: string[];
+  hospitals: SelectOption[];
   onChange: (patient: CounterPatient | null) => void;
 }) {
   const form = useZodForm(pharmacyPatientLookupSchema, {
-    hospital_id: hospitals.length === 1 ? hospitals[0] : "",
+    hospital_id: hospitals.length === 1 ? hospitals[0].value : "",
     mrn: "",
   });
   const [found, setFound] = useState<
@@ -147,7 +155,7 @@ function LookupForm({
           name="hospital_id"
           id="patient-hospital"
           label="Hospital"
-          options={hospitals.map((h) => ({ value: h, label: h }))}
+          options={hospitals}
         />
         <Field id="patient-mrn" label="MRN" error={form.formState.errors.mrn?.message}>
           <Input
@@ -241,6 +249,7 @@ export function CounterVisit({
       <RequestFailure
         message="Could not load the patient's visits. The sale can go ahead without one."
         retry={visits.refetch}
+        error={visits.error}
       />
     );
   if (visits.isPending) return <p role="status">Loading the patient's visits…</p>;

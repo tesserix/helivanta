@@ -2,10 +2,9 @@
 import { useState } from "react";
 import { Button } from "@tesserix/web";
 import { useApiPagedQuery, usePermissions, type Hospital } from "@helivanta/api";
-import { Field, PageHeading, SelectControl } from "@helivanta/ui";
+import { Field, PageHeading, SelectControl, RequestFailure } from "@helivanta/ui";
 import { SettingsPanel } from "./settings-panel";
 import { AssignmentsPanel } from "./assignments-panel";
-import { Failure } from "./policy-ui";
 
 export function PolicyWorkspace() {
   const hospitals = useApiPagedQuery<Hospital>(
@@ -39,7 +38,11 @@ export function PolicyWorkspace() {
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (
-        <Failure message="Could not load hospitals." retry={hospitals.retry} />
+        <RequestFailure
+          message="Could not load hospitals."
+          retry={hospitals.retry}
+          error={hospitals.error}
+        />
       ) : hospital ? (
         <div key={hospital.id} className="space-y-8">
           <SettingsPanel hospital={hospital} writable={writable} />

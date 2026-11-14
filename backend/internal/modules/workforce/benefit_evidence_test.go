@@ -416,3 +416,15 @@ func TestFrozenPendingBenefitEvidenceCannotRestartAfterProcessingDeadline(t *tes
 	code, out := f.call("PUT", f.evidencePath(proposal, "/"+file+"/retries/2"), "hr", nil)
 	require.Equal(t, 409, code, out)
 }
+
+func TestBenefitEvidenceRetryKeepsBenefitsAuthorityUnderAnIntakeQuery(t *testing.T) {
+	f := newBenefitEvidenceFixture(t)
+	proposal := f.propose(f.employee)
+	file := f.attach(proposal)
+	status, err := f.scan(proposal, file, 1, "stream: ERROR\x00")
+	require.Error(t, err)
+	require.Equal(t, "scan_error", status)
+	code, out := f.call("PUT", f.evidencePath(proposal, "/"+file+"/retries/2?hr_intake=v1"), "hr", nil)
+	require.Equal(t, 202, code, "a stray HR intake query must not move a benefits retry onto the Staff document authority: %v", out)
+	require.Equal(t, float64(2), out["scan_attempt"])
+}

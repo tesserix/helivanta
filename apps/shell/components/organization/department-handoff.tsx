@@ -25,6 +25,7 @@ import {
   useConfirmLeave,
   useLeaveGuard,
   useZodForm,
+  RefreshButton,
 } from "@helivanta/ui";
 import { useOrganizationCommand } from "./command";
 
@@ -52,6 +53,7 @@ export function DepartmentHandoff(props: Props) {
       <RequestFailure
         message="Could not verify department mapping access."
         retry={identity.refetch}
+        error={identity.error}
       />
     );
   if (!parsed.data.data.includes("workforce.master.manage"))
@@ -118,6 +120,7 @@ function HandoffEditor({
           const result = await history.refetch();
           if (result.isSuccess) mutation.reset();
         }}
+        error={history.error}
       />
     );
   const submit = form.handleSubmit(async (fields) => {
@@ -167,13 +170,9 @@ function HandoffEditor({
           Close mapping
         </Button>
       </div>
-      <Button
-        variant="outline"
-        disabled={history.isFetching}
-        onClick={() => void history.refetch()}
-      >
+      <RefreshButton refresh={history.refetch} error={history.error} busy={history.isFetching}>
         Refresh mapping history
-      </Button>
+      </RefreshButton>
       <ol className="my-4 space-y-3" aria-label="Department mapping history">
         {history.data?.data.map((row) => (
           <Panel as="li" key={row.request_id}>
@@ -235,6 +234,7 @@ function HandoffEditor({
         <RequestFailure
           message="Could not verify canonical departments."
           retry={departments.refetch}
+          error={departments.error}
         />
       ) : (
         <form noValidate className="mt-5 space-y-4 border-t pt-5" onSubmit={submit}>

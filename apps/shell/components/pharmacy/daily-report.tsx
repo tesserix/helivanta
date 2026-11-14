@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Button, Input } from "@tesserix/web";
 import {
   pharmacyDailyReportPath,
@@ -19,6 +19,7 @@ import {
   PatientSales,
   ReceiptsRegister,
   ReportDownload,
+  reportsRefused,
   StockSales,
 } from "./sales-reports";
 
@@ -27,12 +28,15 @@ import {
  * summed per outlet day, read afresh from the records each time.
  */
 export function DailyReport({ scope, today }: { scope: PharmacyScope; today: string }) {
+  const headingId = useId();
   const [period, setPeriod] = useState<Period>({ from: today.slice(0, 8) + "01", to: today });
   const form = useZodForm(periodSchema, period);
   const { can } = usePermissions();
   return (
-    <Panel>
-      <h3 className="font-semibold">Daily sales</h3>
+    <Panel aria-labelledby={headingId}>
+      <h3 id={headingId} className="font-semibold">
+        Daily sales
+      </h3>
       <p className="mt-1 text-sm text-muted-foreground">
         Each day&apos;s invoices, credit notes, payments taken and refunds paid, by the
         outlet&apos;s date. A return counts on the day it was taken. Cash is what was applied to the
@@ -76,11 +80,18 @@ function Days({ scope, period }: { scope: PharmacyScope; period: Period }) {
     pharmacyDailyReportPath(scope, period.from, period.to),
   );
   if (report.isError)
-    return <RequestFailure message="Could not load the daily report." retry={report.refetch} />;
+    return (
+      <RequestFailure
+        message="Could not load the daily report."
+        retry={report.refetch}
+        error={report.error}
+        refused={reportsRefused}
+      />
+    );
   if (!report.data) return <p role="status">Loading the report…</p>;
   if (report.data.days.length === 0)
     return (
-      <p className="mt-4 text-sm text-muted-foreground">
+      <p role="status" className="mt-4 text-sm text-muted-foreground">
         No sales or returns from {period.from} to {period.to}.
       </p>
     );

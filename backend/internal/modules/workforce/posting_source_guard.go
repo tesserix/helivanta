@@ -50,9 +50,9 @@ func (g *postingSourceGuard) WithCurrentStaffPosting(ctx context.Context, scope 
 	if g.db == nil || g.departments == nil || g.actors == nil || action == nil || !validPostingSourceScope(scope) || !g.db.GuardedCommandActive(ctx) {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
-	request := authz.ScopeRequest{TenantID: scope.TenantID, Subject: scope.Subject, HospitalID: scope.HospitalID.String(), Permission: authz.StaffPostingSourceUse}
+	request := authz.ScopeRequest{TenantID: scope.TenantID, Subject: scope.Subject, HospitalID: scope.HospitalID.String(), Permission: authz.StaffPostingSourceUse, DepartmentPath: scope.DepartmentPath}
 	grant, ok := authz.ScopedCommandGrant(ctx, request)
-	if !ok || grant.AssignmentID == "" {
+	if !ok || grant.AssignmentID == "" || grant.ScopeKind != "hospital" {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
 	invoked := false
@@ -60,9 +60,9 @@ func (g *postingSourceGuard) WithCurrentStaffPosting(ctx context.Context, scope 
 		if err := tx.Exec(`SELECT workforce_lock_supervision(?::uuid,?::uuid)`, scope.TenantID, scope.HospitalID).Error; err != nil {
 			return err
 		}
-		return g.actors.WithCurrentStaffActor(ctx, authz.StaffActorScope{TenantID: scope.TenantID, Subject: scope.Subject, HospitalID: scope.HospitalID}, func(actorCtx context.Context, actor authz.StaffActorReference) error {
+		return g.actors.WithCurrentStaffActor(ctx, authz.StaffActorScope{TenantID: scope.TenantID, Subject: scope.Subject, HospitalID: scope.HospitalID, DepartmentPath: scope.DepartmentPath}, func(actorCtx context.Context, actor authz.StaffActorReference) error {
 			return g.db.WithTenantCommand(actorCtx, scope.TenantID, func(tx *gorm.DB) (err error) {
-				restore, err := savePostingSourceFrame(tx, []string{"app.workforce_subject", "app.workforce_hospital", "app.workforce_posting_staff", "app.workforce_posting", "app.workforce_posting_review_mode", "app.workforce_posting_permission", "app.workforce_posting_scoped", "app.workforce_posting_actor", "app.workforce_posting_link", "app.workforce_posting_generation", "app.workforce_posting_assignment", "app.workforce_posting_assignment_version", "app.workforce_posting_scope_epoch", "app.workforce_posting_membership_epoch"})
+				restore, err := savePostingSourceFrame(tx, []string{"app.workforce_posting_scope_kind", "app.workforce_posting_department_target", "app.workforce_posting_department_scope", "app.workforce_posting_department_subtree", "app.workforce_subject", "app.workforce_hospital", "app.workforce_posting_staff", "app.workforce_posting", "app.workforce_posting_review_mode", "app.workforce_posting_permission", "app.workforce_posting_scoped", "app.workforce_posting_actor", "app.workforce_posting_link", "app.workforce_posting_generation", "app.workforce_posting_assignment", "app.workforce_posting_assignment_version", "app.workforce_posting_scope_epoch", "app.workforce_posting_membership_epoch"})
 				if err != nil {
 					return err
 				}
@@ -73,6 +73,11 @@ func (g *postingSourceGuard) WithCurrentStaffPosting(ctx context.Context, scope 
 					}
 				}()
 				if err = tx.Exec(`SELECT set_config('app.workforce_subject',?,true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_posting_staff',?,true),set_config('app.workforce_posting','read',true),set_config('app.workforce_posting_review_mode','source_use',true),set_config('app.workforce_posting_permission',?,true),set_config('app.workforce_posting_scoped','read',true),set_config('app.workforce_posting_actor',?,true),set_config('app.workforce_posting_link',?,true),set_config('app.workforce_posting_generation',?,true),set_config('app.workforce_posting_assignment',?,true),set_config('app.workforce_posting_assignment_version',?,true),set_config('app.workforce_posting_scope_epoch',?,true),set_config('app.workforce_posting_membership_epoch',?,true)`, scope.Subject, scope.HospitalID.String(), scope.StaffID.String(), string(authz.StaffPostingSourceUse), actor.StaffID.String(), actor.LinkID.String(), actor.GenerationID.String(), grant.AssignmentID, strconv.FormatInt(grant.Version, 10), strconv.FormatInt(grant.ScopeEpoch, 10), strconv.FormatInt(grant.MembershipEpoch, 10)).Error; err != nil {
+					return err
+				}
+				// The genuine hospital source-use grant permits internal ancestor verification only.
+				// Restore the caller's department frame before releasing its identifier-only observation.
+				if err = tx.Exec(`SELECT set_config('app.workforce_posting_scope_kind','hospital',true),set_config('app.workforce_posting_department_target','',true),set_config('app.workforce_posting_department_scope','',true),set_config('app.workforce_posting_department_subtree','',true)`).Error; err != nil {
 					return err
 				}
 				lifecycle, err := newPostingLifecycleReview(tx)

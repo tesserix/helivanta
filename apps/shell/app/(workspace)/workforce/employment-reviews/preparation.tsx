@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
-import { Field, FormSelectField, useLeaveGuard, useZodForm } from "@helivanta/ui";
+import { Field, FormSelectField, useLeaveGuard, useZodForm, RequestFailure } from "@helivanta/ui";
 import {
   ApiError,
   EmploymentReviewSubmissionInputContract,
@@ -205,12 +205,11 @@ export function EmploymentReviewPreparation({
       ) : findings.isPending || findings.isFetching ? (
         <p role="status">Checking current approved person findings…</p>
       ) : findings.isError ? (
-        <div role="alert">
-          <p>Could not verify approved person findings.</p>
-          <Button variant="outline" onClick={() => void findings.refetch()}>
-            Recheck person findings
-          </Button>
-        </div>
+        <RequestFailure
+          message="Could not verify approved person findings."
+          retry={findings.refetch}
+          error={findings.error}
+        />
       ) : (
         <form
           aria-label="Employment review submission"

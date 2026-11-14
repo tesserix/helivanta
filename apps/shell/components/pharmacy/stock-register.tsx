@@ -27,6 +27,7 @@ import {
   ListDetail,
   LoadMore,
   Panel,
+  firstError,
   RequestFailure,
   SelectControl,
   useConfirmLeave,
@@ -43,8 +44,39 @@ const EXPIRY_FILTERS = ["all", "expired", "today", "due_30", "due_90", "due_180"
 const BALANCE_FILTERS = ["all", "on_hand"];
 const known = (value: string | undefined, allowed: string[]) =>
   value && allowed.includes(value) ? value : "all";
-const quantity = (value: number | string) =>
-  typeof value === "string" ? BigInt(value).toLocaleString() : value.toLocaleString();
+// A figure the server did not send is reported as such, never a 0 or a crash.
+const quantity = (value: number | string | undefined) =>
+  typeof value === "string" && /^-?\d+$/.test(value)
+    ? BigInt(value).toLocaleString()
+    : typeof value === "number" && Number.isFinite(value)
+      ? value.toLocaleString()
+      : "not reported";
+// Every movement kind with its in-period label, in reconciliation order (#1638).
+const RECONCILED = [
+  ["receipt_units", "Receipts in period"],
+  ["correction_units", "Corrections in period"],
+  ["release_units", "Releases in period"],
+  ["sale_units", "Sales in period"],
+  ["return_units", "Returns in period"],
+  ["supplier_dispatch_units", "Supplied to hospital orders in period"],
+] as const;
+const WHOLE = /^-?\d+$/;
+const SIGNED = new Intl.NumberFormat(undefined, { signDisplay: "exceptZero" });
+const signed = (value: unknown) =>
+  typeof value === "string" && WHOLE.test(value) ? SIGNED.format(BigInt(value)) : "not reported";
+// Fail closed: parts that are missing or do not sum to closing are not a
+// reconciliation, so the panel says so rather than presenting them as one.
+function reconciles(data: PharmacyStockReconciliation) {
+  const parts: unknown[] = RECONCILED.map(([field]) => data[field]);
+  if (!Number.isSafeInteger(data.opening_units) || !Number.isSafeInteger(data.closing_units))
+    return false;
+  if (!parts.every((part) => typeof part === "string" && WHOLE.test(part))) return false;
+  const sum = parts.reduce<bigint>(
+    (total, part) => total + BigInt(part as string),
+    BigInt(data.opening_units),
+  );
+  return sum === BigInt(data.closing_units);
+}
 const expiryDescription = (days: number) => {
   if (days === 0) return "Expires today";
   const duration = `${Math.abs(days)} ${Math.abs(days) === 1 ? "day" : "days"}`;
@@ -151,6 +183,10 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
         "On hand",
         "Receipts",
         "Corrections",
+        "Releases",
+        "Sales",
+        "Returns",
+        "Supplied to hospitals",
         "Dispensable",
         "Inspect",
       ];
@@ -277,6 +313,7 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
               locations.retry();
               products.retry();
             }}
+            error={firstError(locations.error, products.error)}
           />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
@@ -306,6 +343,7 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
               <RequestFailure
                 message="Could not load this stock snapshot. Previously loaded rows are hidden."
                 retry={positions.retry}
+                error={positions.error}
               />
             ) : positions.isPending ? (
               <p role="status">Loading stock snapshot…</p>
@@ -395,6 +433,10 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
                                 ["on_hand", row.on_hand_units],
                                 ["receipts", row.receipt_units],
                                 ["corrections", row.correction_units],
+                                ["releases", row.release_units],
+                                ["sales", row.sale_units],
+                                ["returns", row.return_units],
+                                ["supplied", row.supplier_dispatch_units],
                                 ["dispensable", row.dispensable_units],
                               ] as const)
                           ).map(([field, value]) => (
@@ -507,7 +549,11 @@ function PositionDetail({
           <p role="status">Loading stock position…</p>
         ) : position.isError &&
           !(position.error instanceof ApiError && position.error.status === 404) ? (
-          <RequestFailure message="Could not load this stock position." retry={position.refetch} />
+          <RequestFailure
+            message="Could not load this stock position."
+            retry={position.refetch}
+            error={position.error}
+          />
         ) : (
           <p role="alert" className="text-sm">
             This record was not found, or you do not have access.
@@ -559,30 +605,35 @@ function PositionDetail({
       </form>
       <p className="break-words text-xs text-muted-foreground">
         {from ? `Period from ${formatZonedDateTime(from, timeZone)}` : "All recorded history"}{" "}
-        through {formatZonedDateTime(asOf, timeZone)} ({timeZone}). Opening + receipts + corrections
-        = closing stock.
+        through {formatZonedDateTime(asOf, timeZone)} ({timeZone}). Opening + the movements in this
+        period = closing stock. Sales and supplies are negative; receipts and returns are positive;
+        releases are negative where stock left and positive where it arrived.
       </p>
       {reconciliation.isError ? (
         <RequestFailure
           message="Could not reconcile this lot for the selected period."
           retry={reconciliation.refetch}
+          error={reconciliation.error}
         />
       ) : reconciliation.isPending ? (
         <p role="status">Loading period reconciliation…</p>
       ) : (
         <>
+          {!reconciles(reconciliation.data) && (
+            <p role="alert" className="text-sm text-destructive">
+              These figures do not add up. Do not use this reconciliation; report it.
+            </p>
+          )}
           <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              ["Opening stock", reconciliation.data?.opening_units],
-              ["Receipts in period", reconciliation.data?.receipt_units],
-              ["Corrections in period", reconciliation.data?.correction_units],
-              ["Closing stock", reconciliation.data?.closing_units],
+              ["Opening stock", quantity(reconciliation.data.opening_units)],
+              ...RECONCILED.map(([field, label]) => [label, signed(reconciliation.data[field])]),
+              ["Closing stock", quantity(reconciliation.data.closing_units)],
             ].map(([label, value]) => (
               <div key={label}>
                 <dt className="text-sm text-muted-foreground">{label}</dt>
                 <dd className="mt-1 text-xl font-semibold tabular-nums">
-                  {quantity(value ?? 0)}{" "}
-                  <span className="text-sm font-normal">{row.unit_of_issue}</span>
+                  {value} <span className="text-sm font-normal">{row.unit_of_issue}</span>
                 </dd>
               </div>
             ))}
@@ -593,7 +644,11 @@ function PositionDetail({
             be edited.
           </p>
           {movements.isError ? (
-            <RequestFailure message="Could not load the period ledger." retry={movements.retry} />
+            <RequestFailure
+              message="Could not load the period ledger."
+              retry={movements.retry}
+              error={movements.error}
+            />
           ) : movements.isPending ? (
             <p role="status">Loading period ledger…</p>
           ) : movements.items.length === 0 ? (

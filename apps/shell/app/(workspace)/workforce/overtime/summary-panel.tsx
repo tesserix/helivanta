@@ -8,8 +8,8 @@ import {
   type Hospital,
   type OvertimeSummaryRow,
 } from "@helivanta/api";
-import { Field } from "@helivanta/ui";
-import { Failure, inputClass, today } from "../roster-policy/policy-ui";
+import { Field, RequestFailure } from "@helivanta/ui";
+import { inputClass, today } from "../roster-policy/policy-ui";
 
 const cell = "px-4 py-3 align-top";
 const head = "px-4 py-3 text-left text-xs font-semibold uppercase";
@@ -60,7 +60,11 @@ export function OvertimeSummary({ hospital }: { hospital: Hospital }) {
         </p>
       ) : rows.isError ? (
         <div className="p-5">
-          <Failure message="Could not load monthly overtime." retry={rows.retry} />
+          <RequestFailure
+            message="Could not load monthly overtime."
+            retry={rows.retry}
+            error={rows.error}
+          />
         </div>
       ) : rows.items.length === 0 ? (
         <p className="p-5 text-sm text-muted-foreground">No overtime was recorded in {month}.</p>

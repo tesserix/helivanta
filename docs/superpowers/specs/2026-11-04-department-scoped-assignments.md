@@ -2,7 +2,9 @@
 
 Status: in progress. Tracks #429 without closing it. Implements the accepted
 [ADR-0055](../../adr/0055-department-scoped-assignments.md). The Organization
-guard is built; IAM, Workforce and UI slices follow. Extends the [scoped staff access foundation](2026-10-27-scoped-staff-access.md)
+guard shipped first in #1562; the IAM, Workforce and UI parts of slice 1 are
+implemented as a candidate on `feat/429-department-assignments`, not released.
+Extends the [scoped staff access foundation](2026-10-27-scoped-staff-access.md)
 and the [scoped posting preparation](2026-11-03-scoped-staff-posting-preparation.md).
 Uses ORG-AC-01/02/05/06/07/08 and ORG-ST-02. Settles no `ORG-D*` decision.
 
@@ -95,11 +97,12 @@ Organization migration: none. Organization reads its existing tables.
 
 1. The proposer submits `department_id` with a department-capable template.
    IAM commits `pending_scope` and publishes both the existing Workforce scope
-   request and a new `iam.assignment.department_scope_requested` event, in one
+   request and a new
+   `helivanta.in.iam.assignment_department_scope_requested.v1` event, in one
    transaction.
 2. Organization consumes the request and answers eligible only for an active
    node of that hospital. It publishes
-   `organization.assignment_department.verified`, following the
+   `helivanta.in.organization.assignment_department_verified.v1`, following the
    department-link pattern from ADR-0051.
 3. IAM moves to `pending_review` only when both owners have answered eligible
    for the current request. Either refusal moves it to `scope_rejected`.
@@ -166,9 +169,15 @@ scope epoch, so any status change invalidates both.
 
 - **Access proposals.** The form adds "Applies to" with two choices: "Whole
   hospital" or "One department and its sub-units". The department list is a
-  `SelectControl` filled from Organization posting choices. Only templates that
-  allow the chosen scope are offered. Review, history and the access list show
-  the scope by department name.
+  `FormSelectField` filled from the Organization department list
+  (`organization.structure.read`), offering only nodes that are active and
+  already effective. The proposer holds `iam.assignment.manage`, which, like
+  structure read, defaults only to tenant administrators; posting choices are
+  not used because they also need a Staff actor link. A 403 explains the
+  missing structure access without a retry. IAM and Organization verify the
+  department again server-side. Only templates that allow the chosen scope are
+  offered. Review and the access list show the scope by department name; the
+  scope is immutable, so history rows inherit the card's scope line.
 - **Posting review inbox.** Each row shows its department. A reviewer with
   only department grants sees the departments they cover in the page header.
 - **Error states.** A retired department reads "Department retired. This access
@@ -190,9 +199,10 @@ scope epoch, so any status change invalidates both.
 
 ## Delivery slices
 
-1. **Department scope and posting review (this specification).** Contract,
-   IAM migration, verification, projection, authority selection, Organization
-   guard, posting review consumer and UI, all in one PR.
+1. **Department scope and posting review (this specification).** The
+   Organization guard shipped first in #1562. Contract, IAM migration,
+   verification, projection, authority selection, posting review consumer and
+   UI follow in one PR.
 2. **Department leave review.** It needs effective postings from the
    supervision slice to know a requester's department. It adds
    `workforce.department_leave_reviewer.v1` and composes with reporting-line
@@ -201,7 +211,9 @@ scope epoch, so any status change invalidates both.
    sensitivity clearance (#426), treating relationships (#430) and
    roster-derived membership get their own specification.
 4. **Outlet scope (#418).** Pharma outlets as a scope kind follow the same
-   pattern with Pharma as the verifying owner.
+   pattern with Pharma as the verifying owner. The
+   [pharmacist outlet authority specification](2026-11-05-pharmacist-outlet-authority.md)
+   designs it.
 
 ## Required tests
 

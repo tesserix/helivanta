@@ -16,7 +16,7 @@ import (
 
 func TestOrganisationIdentityConfigurationDoesNotReuseTheLoginCredential(t *testing.T) {
 	client, err := newOrganizationIdentity(config.Config{ZitadelLoginClientToken: "PRIVATE-login-credential"})
-	if err != nil || client != nil {
+	if err != nil || client.proof != nil || client.staff != nil {
 		t.Fatal("unconfigured organisation identity must remain unavailable without borrowing the login credential")
 	}
 	_, err = newOrganizationIdentity(config.Config{OrganizationIdentityURL: "https://onboard.tesserix.app"})
@@ -38,9 +38,9 @@ func TestOrganisationIdentityLoadsOnlyTheDedicatedBoundedCredential(t *testing.T
 	if err := os.WriteFile(file, raw, 0600); err != nil {
 		t.Fatal(err)
 	}
-	cfg := config.Config{OrganizationIdentityURL: "https://onboard.tesserix.app", OrganizationIdentityProductKey: "TEST-product", OrganizationIdentityTokenProjectID: "TEST-onboarding-project", OrganizationIdentityKeyFile: file, ZitadelIssuerURL: "https://auth.tesserix.app"}
+	cfg := config.Config{OrganizationIdentityURL: "https://onboard.tesserix.app", OrganizationIdentityProductKey: "helivanta", OrganizationIdentityTokenProjectID: "TEST-onboarding-project", OrganizationIdentityKeyFile: file, ZitadelIssuerURL: "https://auth.tesserix.app"}
 	client, err := newOrganizationIdentity(cfg)
-	if err != nil || client == nil {
+	if err != nil || client.proof == nil || client.staff == nil {
 		t.Fatal("complete dedicated configuration did not construct the identity client")
 	}
 	for _, contents := range []string{"PRIVATE-invalid-machine-key", strings.Repeat("PRIVATE", 3000)} {
@@ -48,13 +48,36 @@ func TestOrganisationIdentityLoadsOnlyTheDedicatedBoundedCredential(t *testing.T
 			t.Fatal(err)
 		}
 		client, err := newOrganizationIdentity(cfg)
-		if err == nil || client != nil || strings.Contains(err.Error(), "PRIVATE") || strings.Contains(err.Error(), file) {
+		if err == nil || client.proof != nil || client.staff != nil || strings.Contains(err.Error(), "PRIVATE") || strings.Contains(err.Error(), file) {
 			t.Fatal("unsafe credential file was accepted or included in startup diagnostics")
 		}
 	}
 	cfg.OrganizationIdentityKeyFile = filepath.Join(t.TempDir(), "PRIVATE-missing-file")
 	client, err = newOrganizationIdentity(cfg)
-	if err == nil || client != nil || strings.Contains(err.Error(), "PRIVATE") {
+	if err == nil || client.proof != nil || client.staff != nil || strings.Contains(err.Error(), "PRIVATE") {
 		t.Fatal("missing credential file did not fail safely")
+	}
+}
+
+func TestOrganisationIdentityAcceptsOnlyOneDedicatedCredentialType(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "client-secret")
+	if err := os.WriteFile(file, []byte("PRIVATE-dedicated-secret"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg := config.Config{OrganizationIdentityURL: "https://onboard.tesserix.app", OrganizationIdentityProductKey: "helivanta", OrganizationIdentityTokenProjectID: "TEST-project", OrganizationIdentityClientID: "TEST-machine", OrganizationIdentityClientSecretFile: file, ZitadelIssuerURL: "https://auth.tesserix.app"}
+	client, err := newOrganizationIdentity(cfg)
+	if err != nil || client.proof == nil || client.staff == nil {
+		t.Fatal("dedicated operator client secret could not construct identity client")
+	}
+	cfg.OrganizationIdentityKeyFile = file
+	client, err = newOrganizationIdentity(cfg)
+	if err == nil || client.proof != nil || client.staff != nil || strings.Contains(err.Error(), "PRIVATE") {
+		t.Fatal("ambiguous credentials were accepted or exposed")
+	}
+	cfg.OrganizationIdentityKeyFile = ""
+	cfg.OrganizationIdentityClientID = ""
+	client, err = newOrganizationIdentity(cfg)
+	if err == nil || client.proof != nil || client.staff != nil {
+		t.Fatal("partial client credentials were accepted")
 	}
 }

@@ -77,3 +77,22 @@ it("freezes and retries the same command after an uncertain result", async () =>
     await screen.findByText(/Membership recorded for synthetic-first-account/),
   ).toBeInTheDocument();
 });
+
+// #1595: refused enrollment history is a refusal with no way to ask again.
+it("shows refused enrollment history as a refusal, with no refresh", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      Response.json({ error: "forbidden", message: "secret detail" }, { status: 403 }),
+    ),
+  );
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <StaffMembershipForm scope={scope} />
+    </NavigationGuardProvider>,
+  );
+  expect(
+    await screen.findByText("This wasn't found, or you don't have access to it."),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /refresh enrollment history/i })).toBeNull();
+});

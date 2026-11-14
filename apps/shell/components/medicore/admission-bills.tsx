@@ -77,7 +77,11 @@ export function AdmissionBills({
         </Button>
       )}
       {bills.isError ? (
-        <RequestFailure message="Could not load the bills." retry={bills.retry} />
+        <RequestFailure
+          message="Could not load the bills."
+          retry={bills.retry}
+          error={bills.error}
+        />
       ) : bills.items.length === 0 && !bills.isPending ? (
         <p className="text-sm text-muted-foreground">No bills yet.</p>
       ) : (
@@ -134,7 +138,13 @@ function BillDetail({ path, open }: { path: string; open: boolean }) {
   if (bill.isPending)
     return <p className="mt-2 text-xs text-muted-foreground">Loading the bill…</p>;
   if (bill.isError)
-    return <RequestFailure message="Could not load the bill." retry={() => void bill.refetch()} />;
+    return (
+      <RequestFailure
+        message="Could not load the bill."
+        retry={() => void bill.refetch()}
+        error={bill.error}
+      />
+    );
   const b = bill.data;
   return (
     <section
@@ -172,7 +182,11 @@ function BillDetail({ path, open }: { path: string; open: boolean }) {
         </p>
       )}
       {lines.isError ? (
-        <RequestFailure message="Could not load the bill's entries." retry={lines.retry} />
+        <RequestFailure
+          message="Could not load the bill's entries."
+          retry={lines.retry}
+          error={lines.error}
+        />
       ) : (
         <ul className="divide-y divide-border">
           {lines.items.map((l) => (

@@ -14,7 +14,7 @@ import {
   type CountryPolicyIdentity,
   type CountryPolicyScope,
 } from "@helivanta/api";
-import { LoadMore, PageHeading, Panel, RequestFailure } from "@helivanta/ui";
+import { LoadMore, PageHeading, Panel, RequestFailure, RefreshButton } from "@helivanta/ui";
 import { CountryPolicyEditor, policyLabel } from "./editor";
 import { CountryPolicyDetail } from "./detail";
 
@@ -25,7 +25,11 @@ export function CountryPolicyWorkspace() {
   );
   if (identity.isError)
     return (
-      <RequestFailure message="Could not verify your active tenant." retry={identity.refetch} />
+      <RequestFailure
+        message="Could not verify your active tenant."
+        retry={identity.refetch}
+        error={identity.error}
+      />
     );
   if (!identity.data) return <p role="status">Loading country policy workspace…</p>;
   return (
@@ -72,9 +76,9 @@ function TenantCountryPolicies({ identity }: { identity: CountryPolicyIdentity }
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={policies.retry}>
+            <RefreshButton refresh={policies.retry} error={policies.error}>
               Refresh policies
-            </Button>
+            </RefreshButton>
             {can("workspace.country_policy.manage") && (
               <Button onClick={() => setSelected("new")}>
                 <Plus className="me-2 size-4" />
@@ -87,7 +91,11 @@ function TenantCountryPolicies({ identity }: { identity: CountryPolicyIdentity }
           {policies.isPending ? (
             <p role="status">Loading country policies…</p>
           ) : policies.isError ? (
-            <RequestFailure message="Could not load country policies." retry={policies.retry} />
+            <RequestFailure
+              message="Could not load country policies."
+              retry={policies.retry}
+              error={policies.error}
+            />
           ) : policies.items.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No country policies have been configured for your access.

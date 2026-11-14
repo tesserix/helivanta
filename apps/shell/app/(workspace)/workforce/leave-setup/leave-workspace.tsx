@@ -8,8 +8,15 @@ import {
   type Hospital,
   type LeaveConfig,
 } from "@helivanta/api";
-import { Field, PageHeading, SelectControl } from "@helivanta/ui";
-import { Failure, inputClass } from "../roster-policy/policy-ui";
+import {
+  Field,
+  PageHeading,
+  SelectControl,
+  RequestFailure,
+  isRefusal,
+  RefreshButton,
+} from "@helivanta/ui";
+import { inputClass } from "../roster-policy/policy-ui";
 import { effectiveDate } from "../roster-setup/roster-summary";
 import { LeaveEditor } from "./leave-editor";
 import { LeaveSummary, configNoun } from "./leave-summary";
@@ -60,7 +67,11 @@ export function LeaveWorkspace() {
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (
-        <Failure message="Could not load hospitals." retry={hospitals.retry} />
+        <RequestFailure
+          message="Could not load hospitals."
+          retry={hospitals.retry}
+          error={hospitals.error}
+        />
       ) : hospital ? (
         <LeaveCatalog key={`${hospital.id}:${kind}`} hospital={hospital} kind={kind} />
       ) : (
@@ -99,7 +110,10 @@ function LeaveCatalog({ hospital, kind }: { hospital: Hospital; kind: LeaveConfi
     setHistory(null);
     opener.current?.focus();
   };
-  const rows = records.items.filter((r) =>
+  // Configurations the server now refuses don't stay on screen, nor do the
+  // editor or history opened from them (#1595).
+  const refused = isRefusal(records.error);
+  const rows = (refused ? [] : records.items).filter((r) =>
     `${r.name} ${r.code}`.toLowerCase().includes(filter.toLowerCase()),
   );
   return (
@@ -140,7 +154,11 @@ function LeaveCatalog({ hospital, kind }: { hospital: Hospital; kind: LeaveConfi
             Loading configurations…
           </p>
         ) : records.isError ? (
-          <Failure message="Could not load configurations." retry={records.retry} />
+          <RequestFailure
+            message="Could not load configurations."
+            retry={records.retry}
+            error={records.error}
+          />
         ) : !rows.length ? (
           <div className="p-12 text-center">
             <h4 className="font-semibold">
@@ -222,13 +240,13 @@ function LeaveCatalog({ hospital, kind }: { hospital: Hospital; kind: LeaveConfi
                 Load more configurations
               </Button>
             )}
-            <Button size="sm" variant="outline" onClick={records.retry}>
+            <RefreshButton size="sm" refresh={records.retry} error={records.error}>
               Refresh configurations
-            </Button>
+            </RefreshButton>
           </div>
         </div>
       </section>
-      {editing && (
+      {editing && !refused && (
         <LeaveEditor
           key={editing === "new" ? "new" : editing.id}
           path={path}
@@ -238,7 +256,7 @@ function LeaveCatalog({ hospital, kind }: { hospital: Hospital; kind: LeaveConfi
           onClose={close}
         />
       )}
-      {history && (
+      {history && !refused && (
         <LeaveHistory
           key={history.id}
           path={`${path}/${history.id}/history`}
@@ -294,7 +312,11 @@ function LeaveHistory({
       {history.isPending ? (
         <p role="status">Loading configuration history…</p>
       ) : history.isError ? (
-        <Failure message="Could not load configuration history." retry={history.retry} />
+        <RequestFailure
+          message="Could not load configuration history."
+          retry={history.retry}
+          error={history.error}
+        />
       ) : (
         <ul className="space-y-4">
           {history.items.map((r) => (

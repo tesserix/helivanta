@@ -17,7 +17,14 @@ import {
   type SupplyRegistryRevision,
   type SupplyRegistryScope,
 } from "@helivanta/api";
-import { Controller, Field, LoadMore, useZodForm, RequestFailure } from "@helivanta/ui";
+import {
+  Controller,
+  Field,
+  LoadMore,
+  useZodForm,
+  RequestFailure,
+  RefreshButton,
+} from "@helivanta/ui";
 import { formatAbsoluteTime } from "./time-input";
 
 const rootFor = (scope: SupplyRegistryScope) => `/supply/parties/${scope.partyId}/access-limits`;
@@ -40,7 +47,9 @@ export function OrganisationAccessLimits({ scope }: { scope: SupplyRegistryScope
     return (
       <RequestFailure
         message="Access limits are unavailable. Refresh your organisation access before continuing."
+        refused="Access limits are unavailable. Refresh your organisation access before continuing."
         retry={policy.refetch}
+        error={policy.error}
       />
     );
   if (!policy.data) return <p role="status">Loading organisation access limits…</p>;
@@ -88,7 +97,7 @@ export function OrganisationAccessLimits({ scope }: { scope: SupplyRegistryScope
             scope={scope}
             row={row}
             onDone={() => setEditing(false)}
-            onReload={() => {
+            refresh={() => {
               setEditing(false);
               void policy.refetch();
             }}
@@ -107,12 +116,13 @@ function LimitsEditor({
   scope,
   row,
   onDone,
-  onReload,
+  refresh,
 }: {
   scope: SupplyRegistryScope;
   row: SupplyAccessLimits;
   onDone: () => void;
-  onReload: () => void;
+  /** Re-reads after a conflicting or refused save. Only rendered while the access limits policy read succeeds. */
+  refresh: () => void;
 }) {
   const { denied } = useSupplyAccessRefresh(scope);
   const reveal = useCallback((element: HTMLFormElement | null) => {
@@ -147,7 +157,9 @@ function LimitsEditor({
     return (
       <RequestFailure
         message="You can no longer change access limits. Refresh your organisation access."
-        retry={onReload}
+        retry={refresh}
+        // A refused save, not a failed read (#1591 covers reads): the reload re-reads the policy.
+        error={null}
       />
     );
   return (
@@ -209,9 +221,9 @@ function LimitsEditor({
           <p role="alert" className="text-sm text-destructive">
             {save.error.message}
           </p>
-          <Button type="button" variant="outline" onClick={onReload}>
+          <RefreshButton refresh={refresh} error={null}>
             Reload access limits
-          </Button>
+          </RefreshButton>
         </div>
       )}
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -243,7 +255,13 @@ function LimitsHistory({ scope }: { scope: SupplyRegistryScope }) {
     if (rows.error instanceof ApiError && [401, 403, 404].includes(rows.error.status)) denied();
   }, [rows.error, denied]);
   if (rows.isError)
-    return <RequestFailure message="Could not load access limit history." retry={rows.retry} />;
+    return (
+      <RequestFailure
+        message="Could not load access limit history."
+        retry={rows.retry}
+        error={rows.error}
+      />
+    );
   if (rows.isPending) return <p role="status">Loading access limit history…</p>;
   return (
     <section aria-label="Access limit history" className="space-y-3 border-t pt-4">

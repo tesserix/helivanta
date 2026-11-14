@@ -8,7 +8,15 @@ import {
   type Hospital,
   type RosterConfig,
 } from "@helivanta/api";
-import { Field, PageHeading, SelectControl, useConfirmLeave } from "@helivanta/ui";
+import {
+  Field,
+  PageHeading,
+  SelectControl,
+  useConfirmLeave,
+  RequestFailure,
+  isRefusal,
+  RefreshButton,
+} from "@helivanta/ui";
 import { RosterEditor } from "./roster-editor";
 import { ConfigurationSummary, effectiveDate } from "./roster-summary";
 
@@ -58,7 +66,11 @@ export function RosterWorkspace() {
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (
-        <Failure message="Could not load hospitals." retry={hospitals.retry} />
+        <RequestFailure
+          message="Could not load hospitals."
+          retry={hospitals.retry}
+          error={hospitals.error}
+        />
       ) : hospital ? (
         <ConfigCatalog key={`${hospital.id}:${kind}`} hospital={hospital} kind={kind} />
       ) : (
@@ -77,16 +89,6 @@ export function RosterWorkspace() {
         </Button>
       )}
     </>
-  );
-}
-function Failure({ message, retry }: { message: string; retry: () => void }) {
-  return (
-    <div role="alert" className="rounded-xl border p-6 text-sm">
-      {message}{" "}
-      <Button variant="outline" onClick={retry}>
-        Try again
-      </Button>
-    </div>
   );
 }
 function ConfigCatalog({ hospital, kind }: { hospital: Hospital; kind: RosterConfig["kind"] }) {
@@ -110,7 +112,10 @@ function ConfigCatalog({ hospital, kind }: { hospital: Hospital; kind: RosterCon
   useEffect(() => {
     if (!editing && !history) opener.current?.focus();
   }, [editing, history]);
-  const rows = records.items.filter((r) =>
+  // Configurations the server now refuses don't stay on screen, nor do the
+  // editor or history opened from them (#1595).
+  const refused = isRefusal(records.error);
+  const rows = (refused ? [] : records.items).filter((r) =>
     `${r.name} ${r.code}`.toLowerCase().includes(filter.toLowerCase()),
   );
   return (
@@ -155,7 +160,11 @@ function ConfigCatalog({ hospital, kind }: { hospital: Hospital; kind: RosterCon
             Loading configurations…
           </p>
         ) : records.isError ? (
-          <Failure message="Could not load configurations." retry={records.retry} />
+          <RequestFailure
+            message="Could not load configurations."
+            retry={records.retry}
+            error={records.error}
+          />
         ) : !rows.length ? (
           <div className="p-12 text-center">
             <h4 className="font-semibold">
@@ -242,13 +251,13 @@ function ConfigCatalog({ hospital, kind }: { hospital: Hospital; kind: RosterCon
                 Load more configurations
               </Button>
             )}
-            <Button size="sm" variant="outline" onClick={records.retry}>
+            <RefreshButton size="sm" refresh={records.retry} error={records.error}>
               Refresh configurations
-            </Button>
+            </RefreshButton>
           </div>
         </div>
       </section>
-      {editing && (
+      {editing && !refused && (
         <RosterEditor
           key={`${editing === "new" ? "new" : editing.id}:${editorSession}`}
           path={path}
@@ -258,7 +267,7 @@ function ConfigCatalog({ hospital, kind }: { hospital: Hospital; kind: RosterCon
           onClose={close}
         />
       )}
-      {history && (
+      {history && !refused && (
         <ConfigHistory
           key={history.id}
           path={`${path}/${history.id}/history`}
@@ -313,7 +322,11 @@ function ConfigHistory({
       {history.isPending ? (
         <p role="status">Loading configuration history…</p>
       ) : history.isError ? (
-        <Failure message="Could not load configuration history." retry={history.retry} />
+        <RequestFailure
+          message="Could not load configuration history."
+          retry={history.retry}
+          error={history.error}
+        />
       ) : (
         <ul className="space-y-4">
           {history.items.map((r) => (

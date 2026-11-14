@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CalendarPlus } from "lucide-react";
 import { describe, expect, it, vi } from "vitest";
+import { ApiError } from "@helivanta/api";
 import { QueryState } from "./query-state";
 
 type Visit = { id: string; name: string };
@@ -10,11 +11,12 @@ function renderState(query: {
   items: Visit[];
   isPending: boolean;
   isError: boolean;
+  error?: unknown;
   retry?: () => void;
 }) {
   return render(
     <QueryState
-      query={{ retry: () => {}, ...query }}
+      query={{ retry: () => {}, error: null, ...query }}
       label="visits"
       empty={{ icon: CalendarPlus, title: "No visits yet", hint: "Create the first one above." }}
     >
@@ -51,7 +53,12 @@ describe("QueryState", () => {
   });
 
   it("keeps the loaded rows under a warning when a later load fails", () => {
-    renderState({ items: [visit], isPending: false, isError: true });
+    renderState({
+      items: [visit],
+      isPending: false,
+      isError: true,
+      error: new ApiError("internal", "boom", 500),
+    });
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Could not load all visits. The list may be out of date.",
     );
@@ -70,5 +77,35 @@ describe("QueryState", () => {
     expect(screen.getByText("Asha Rao")).toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+  it("shows a refused first load as a refusal with no retry", () => {
+    renderState({
+      items: [],
+      isPending: false,
+      isError: true,
+      error: new ApiError("forbidden", "no", 403),
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "This wasn't found, or you don't have access to it.",
+    );
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    expect(screen.queryByText("No visits yet")).not.toBeInTheDocument();
+  });
+
+  // #1591: rows the server now refuses must not stay on screen as if current.
+  it.each([
+    [404, "This wasn't found, or you don't have access to it."],
+    [401, "Your session has ended. Sign in again to continue."],
+  ])("hides the rows when a refresh gets a %i", (status, sentence) => {
+    renderState({
+      items: [visit],
+      isPending: false,
+      isError: true,
+      error: new ApiError("refused", "no", status),
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent(sentence);
+    expect(screen.queryByText("Asha Rao")).toBeNull();
+    expect(screen.queryByText(/may be out of date/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   });
 });

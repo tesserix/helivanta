@@ -7,11 +7,176 @@ hospital directory and hospital-local Staff list, using exact original
 `X-Helivanta-Expected-Tenant` and `X-Helivanta-Expected-Subject` assertions.
 Pharmacy membership is not hospital Staff authority. The shared SDK bounds and
 validates the existing responses, normalizes UUID scope comparisons and rejects
-foreign or duplicate records and inconsistent continuation. No new backend API,
-permission, migration or event is added. The source UI is read-only; creation and
-editing stay in the canonical Staff workspace. See the
+foreign or duplicate records and inconsistent continuation. The hospital source
+is read-only; creation and editing stay in the canonical Staff workspace. See the
 [local Pharma acceptance and remaining scope](../qa/2026-11-02-pharma-shared-staff-local.md).
 This is not an outlet posting or a dispensing/credential authorization contract.
+
+The same screen also lists pharmacy employers, described next.
+
+## Pharmacy employer Staff directory (#19 slice 3a)
+
+Design: [ADR-0054](../adr/0054-typed-employing-establishments.md),
+[standalone pharmacy employers](../superpowers/specs/2026-11-04-standalone-pharmacy-employers.md)
+and the [slice plan](../superpowers/plans/2026-11-07-pharmacy-staff-directory.md).
+
+A standalone pharmacy registered with `PUT /v1/workforce/pharmacies/:pharmacy`
+keeps its own Staff directory. Every response names `pharmacy_id` and never
+`hospital_id`. A hospital ID on these routes, or a pharmacy ID on a hospital
+route, answers 404.
+
+| Route                                                             | Authorization                          | Notes                                                                          |
+| ----------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------ |
+| `GET /v1/workforce/pharmacies`                                    | Tenant membership                      | Pharmacies where the caller has an access row, with `access_level`. Paginated. |
+| `GET /v1/workforce/pharmacies/:pharmacy/staff`                    | Access row, checked in the transaction | 404 without a row, never an empty page.                                        |
+| `GET`/`PUT /v1/workforce/pharmacies/:pharmacy/staff/:id`          | Reader to read, manager to write       | `directory_context=v1` is required; 400 without it. `hr_intake` answers 400.   |
+| `PUT`/`DELETE /v1/workforce/pharmacies/:pharmacy/access/:subject` | `workforce.hospital.manage`            | Grants or revokes `reader` or `manager`.                                       |
+
+Record reads and writes follow [versioned directory editing](#versioned-basic-directory-editing):
+account assertion headers, `expected_version`, `409 staff_version_conflict` on a
+stale edit, and an unchanged save keeps its version. Identity, login links,
+employment, credential reviews, leave, rosters, payroll and postings stay
+hospital-only, and their tables refuse a pharmacy establishment.
+
+On `/pharmacy/staff`, the caller picks one of their pharmacy employers. A manager
+can add and edit records; a reader sees the directory only. A 404 means the
+caller's access ended: the screen says so and offers to reopen. Registering a
+pharmacy as an employer also grants the registrant manager access. IAM roles on
+a pharmacy, the remaining HR lifecycle and branch postings are later slices.
+
+### Pharmacy Staff enrollment (#19 slice 4a)
+
+Design: [pharmacy HR lifecycle, 4a](../superpowers/specs/2026-11-08-pharmacy-hr-lifecycle.md#4a--pharmacy-staff-enrollment)
+and the [plan](../superpowers/plans/2026-11-08-pharmacy-enrollment.md).
+
+| Route                                                               | Authorization                                              | Notes                                                                |
+| ------------------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------- |
+| `GET`/`PUT /v1/workforce/pharmacies/:pharmacy/staff/:id/enrollment` | `workforce.enrollment.manage` and a pharmacy `manager` row | `request_context=v1` and both account assertion headers are required |
+
+The pharmacy family shares the hospital enrollment core: the same validation,
+`expected_version`, supervision lock, credential constraints and audited read.
+`staff` carries `pharmacy_id`, never `hospital_id`. A pharmacy has no HR
+masters, so a master ID answers 404 and each `*_masters` view answers 400, as
+does `hr_intake`. Credentials are recorded but stay unreviewed until slice 4e.
+No enrollment event is published for a pharmacy. Migration
+`0095_workforce_pharmacy_enrollment` admits a pharmacy only in the six
+`workforce_enrollment_*` tables.
+
+### Pharmacy Staff documents (#19 slice 4d)
+
+Design: [pharmacy HR lifecycle, 4d](../superpowers/specs/2026-11-08-pharmacy-hr-lifecycle.md#4d--pharmacy-staff-documents)
+and the [plan](../superpowers/plans/2026-11-08-pharmacy-documents.md).
+
+| Route                                                                               | Authorization                                             | Notes                                                       |
+| ----------------------------------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------- |
+| `GET /v1/workforce/pharmacies/:pharmacy/staff/:id/document-records`                 | `workforce.documents.manage` and a pharmacy `manager` row | Enrollment, up to 20 credentials and 20 qualifications      |
+| `GET /v1/workforce/pharmacies/:pharmacy/staff/:id/documents`                        | Same                                                      | Cursor list                                                 |
+| `PUT /v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file`                  | Same                                                      | Upload intent; an identical replay is 200, a different 409  |
+| `PUT`/`GET /v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file/content`    | Same                                                      | Upload to quarantine; download released bytes, audited      |
+| `PUT /v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file/revocation`       | Same                                                      | Revoke an available file                                    |
+| `PUT /v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file/retries/:attempt` | Same                                                      | Next scan attempt after an error or the processing deadline |
+
+Both account assertion headers must appear once and match the session, or the
+route answers 409 `session_changed`; `hr_intake` answers 400. The pharmacy
+family runs the hospital document core, so validation, replay, scanning,
+release, retry, revocation and download headers are the same. Files bind only
+to the `enrollment`, `credential` and `qualification` records of that pharmacy
+Staff record. Each response is the hospital document view with `pharmacy_id`
+in place of `hospital_id`. The `document_scan_requested.v1` and
+`document_changed.v1` events keep `hospital_id`, which names the owning
+establishment row, and object keys keep `t/<tenant>/h/<establishment>/…`.
+Download audit rows are written under the pharmacy ID. File classification,
+identity review and credential review stay hospital-only; employment evidence
+binding is slice 4b below.
+Migration `0098_workforce_pharmacy_documents` admits a pharmacy in
+`workforce_documents` for those three record kinds only, and in
+`workforce_document_contributors`.
+
+### Pharmacy employment periods (#19 slice 4b)
+
+Design: [pharmacy HR lifecycle, 4b](../superpowers/specs/2026-11-08-pharmacy-hr-lifecycle.md#4b--pharmacy-employment-periods)
+and the [plan](../superpowers/plans/2026-11-08-pharmacy-employment-periods.md).
+
+| Route under `/v1/workforce/pharmacies/:pharmacy/staff/:id`             | Authorization                                                         | Notes                                                 |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------- |
+| `GET /employment-source`                                               | `workforce.enrollment.manage` and a pharmacy `manager` row            | Staff version and employment epoch, audited           |
+| `GET /employment-periods?lifecycle=withdrawal-v1`                      | Same                                                                  | Cursor list of drafts and withdrawn drafts            |
+| `PUT /employment-periods/:period`                                      | Same                                                                  | Version 1 or the next version; a replay returns it    |
+| `GET /employment-periods/:period?lifecycle=withdrawal-v1`              | Same                                                                  | One draft                                             |
+| `POST /employment-periods/:period/withdraw`                            | Same                                                                  | Withdraw an open draft with a reason                  |
+| `GET /employment-periods/:period/history?lifecycle=withdrawal-v1`      | Same                                                                  | Immutable revisions                                   |
+| `PUT /employment-periods/:period/revisions/:version/evidence/:binding` | Same, plus `workforce.documents.manage` read again inside the command | Bind a released `employment_evidence` enrollment file |
+| `GET …/evidence`, `GET …/evidence/:binding`, `GET …/:binding/history`  | Same                                                                  | Cursor list, one binding, its revisions               |
+| `POST …/evidence/:binding/withdraw`                                    | Same                                                                  | Withdraw a binding with a reason                      |
+| `GET …/evidence/:binding/content`                                      | Same                                                                  | Bound bytes; the disclosure is audited first          |
+
+Both account assertion headers must appear once and match the session, or the
+route answers 409 `session_changed`; `hr_intake` answers 400, and so does a
+period read without `lifecycle=withdrawal-v1`. The hospital and pharmacy
+families run one period and evidence core, so validation, replay, version and
+epoch checks, the 20-binding limit and audit actions are the same. The core
+re-checks the admitted establishment kind inside the command, so a hospital
+route on an ID registered as a pharmacy after admission answers 404 and writes
+nothing. A contractor or agency sponsor must be an active Staff record of the
+same pharmacy. Responses are the generated pharmacy views, with `pharmacy_id`
+in place of `hospital_id`; no event is published. Drafts stay drafts:
+employment reviews and generations are hospital-only until slice 4c. Migration
+`0099_workforce_pharmacy_employment_periods` admits a pharmacy in
+`workforce_employment_period_drafts` and
+`workforce_employment_evidence_bindings`.
+
+### Pharmacy credential reviews and reminders (#19 slice 4e)
+
+Design: [pharmacy HR lifecycle, 4e](../superpowers/specs/2026-11-08-pharmacy-hr-lifecycle.md#4e--pharmacy-credential-reviews-validity-and-reminders)
+and the [plan](../superpowers/plans/2026-11-12-pharmacy-credential-reviews.md).
+
+| Route under `/v1/workforce/pharmacies/:pharmacy`                  | Authorization                                               | Notes                                                              |
+| ----------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------ |
+| `GET staff/:id/credentials`                                       | `workforce.enrollment.manage` and a pharmacy `manager` row  | Standing in the pharmacy time zone; audited                        |
+| `GET staff/:id/credentials/:credential/reviews`                   | Same                                                        | Cursor list of every review, newest first                          |
+| `PUT staff/:id/credentials/:credential/reviews/:review`           | Same                                                        | Proposal citing 1–5 of this credential's scanned or scanning files |
+| `POST staff/:id/credentials/:credential/reviews/:review/decision` | `workforce.credentials.review` and a pharmacy `manager` row | Approve or reject; never by the proposer or a linked subject       |
+| `POST staff/:id/credentials/:credential/reviews/:review/withdraw` | `workforce.enrollment.manage` and a pharmacy `manager` row  | Proposer only                                                      |
+| `GET hr/credentials?expiring_within=`                             | Same                                                        | Register; 409 `time_zone_unset` when filtering without a zone      |
+| `GET`/`PUT hr/credential-reminder-policy`                         | Same                                                        | As the hospital policy                                             |
+| `GET hr/credential-reminders`, `POST …/:reminder/acknowledgement` | Same                                                        | As the hospital inbox                                              |
+| `GET`/`PUT hr/time-zone`                                          | Same                                                        | `{version: 0}` before a save; `{expected_version, time_zone}`      |
+
+Both account assertion headers must appear once and match the session, or the
+route answers 409 `session_changed`; `hr_intake` answers 400. The hospital and
+pharmacy families run one credential core, so validation, replay, separation of
+duties, version checks and audit actions are the same as
+[credential validity reviews](#credential-validity-reviews) and
+[renewal reminders](#credential-renewal-reminders). The core re-checks the
+admitted establishment kind inside the command, so a hospital route on an ID
+registered as a pharmacy after admission answers 404 and writes nothing.
+Hospital Staff, credential, review and reminder IDs answer 404 on pharmacy
+routes, and pharmacy IDs on hospital routes. Hospital routes keep their paths,
+permissions and no-header requests.
+
+A pharmacy has no roster, so its own HR time zone decides standing, the
+register filter and the reminder date. The `PUT` validates the zone like roster
+settings (400), returns the row unchanged for the same zone at the current
+version, and answers 409 `version_conflict` for any other stale version. It is
+audited as `workforce.pharmacy_time_zone.changed` with the previous and new
+zone, and publishes no event. Until a zone is saved, standing is `date_unknown`,
+the filter answers 409 `time_zone_unset` with "Set this pharmacy's time zone
+before filtering by expiry." and the reminder worker writes nothing. A changed
+zone reaches reminders within a day.
+
+The four credential events keep their payloads; `hospital_id` names the owning
+establishment, which is the pharmacy here. An approval publishes no
+`enrollment_changed.v1` and writes no roster standing, and it grants no
+PharmaConnect role, pharmacist authority or dispensing permission. Licence
+verification with a pharmacy council and expiry effects on employment or access
+are not covered. Migration `0100_workforce_pharmacy_credential_reviews` admits
+a pharmacy in reviews, reminder policies, validity and reminders, keeps roster
+standing hospital-only, and adds `workforce_pharmacy_time_zones`.
+
+On `/pharmacy/staff`, a manager holding `workforce.enrollment.manage` sees
+Credentials on each Staff row and a Credential register for the pharmacy, with
+the time-zone form, register and reminder inbox. A 401, 403, 404 or 409
+`session_changed` or `workspace_changed` ends the panel and clears the source.
 
 ## Scoped employment-review workspace
 
@@ -1151,6 +1316,44 @@ UI shows the policy on **Leave balances**, the route in HR request review and a
 direct or escalated badge in **Review leave**. Self-service filing (#1132) must
 pin under the same trigger.
 
+### Department-scoped leave review (development slice)
+
+Designed in the [department leave review spec](../superpowers/specs/2026-11-06-department-leave-review.md)
+(#1596, ADR-0055 slice 2). IAM 0032 adds the closed
+`workforce.department_leave_reviewer.v1` template, scope kind `department` only,
+with `workforce.leave.approve`, `organization.posting_choices.read` and
+`workforce.staff_actor.use`. It adds no permission to any existing template.
+
+| Endpoint under `/workforce/hospitals/{hospital}`                            | Result                                                                                      |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `GET /department-leave-review-requests?department=`                         | Pending queue for the held subtree, at most 10 rows a page, cursors sealed and caller-bound |
+| `GET /staff/{id}/department-leave-review-requests/{request}?department=`    | The existing `leaveRequestDetail` for one pending in-scope request                          |
+| `POST /staff/{id}/leave-requests/{request}/department-decision?department=` | The existing decision body and result                                                       |
+
+`department` is required and names one held department; the scope is its current
+subtree. Each call admits department-scoped `workforce.leave.approve` and
+`workforce.staff_actor.use` grants on the Organization path in OpenFGA, holds the
+department through commit, then locks the reviewer's Staff row and login link.
+A request is in scope only when every live approved posting of the requester sits
+in the subtree, and there is at least one. Staff posted in two departments stay
+with the hospital reviewer or desk unless one subtree holds both.
+
+Hospital grants never match these routes, and department grants never match the
+hospital routes. `leave-review-scopes` rows add `scope_kind` and `department_ids`.
+A department outside every held subtree, a retired or foreign department, an
+out-of-scope or routed-elsewhere request answers 404; a caller with no department
+leave grant answers 403; a moved department answers 409
+`department_scope_changed`; IAM, OpenFGA or Organization being down answers 503.
+Self and filer decisions are refused as on the hospital route.
+
+Workforce 0089 adds a restrictive `leave_department_review_guard` on
+`workforce_leave_requests` for department sessions and a read-only
+`leave_department` posting context. The command is constrained to the earliest
+live posting deadline. Decision audits add `scope_kind`, the held `department_id`,
+`requester_departments` and `actor_generation_id`, as identifiers only. The
+**Review leave** page shows a department selector for department-held hospitals.
+Browser and live two-person acceptance remain required.
+
 ### Request and decision contract
 
 The scoped decision consumer is implemented in the current development slice;
@@ -1437,6 +1640,20 @@ membership, scope epochs and immutable permission snapshots. The Staff access UI
 selects the appropriate assignment family. Both HR templates can read the current
 identity source; neither read performs a review decision. Identity/background/photo cases,
 evidence review and card issue remain separate unfinished workflows (#1399).
+
+Every published template also carries `establishment_kinds`, the establishment
+roots it may be assigned on ([ADR-0054](../adr/0054-typed-employing-establishments.md)
+§4). Every current template declares `["hospital"]`. IAM migration
+`0033_iam_establishment_root` gives proposals and snapshots an immutable
+`establishment_kind`, backfilled as `hospital`, and the database refuses a root
+that the template does not declare. A restrictive policy hides every
+non-hospital row unless the transaction sets `app.assignment_establishment_root`
+to `typed`. No route sets it yet, so every existing list, decision and
+projection path stays hospital-only. Templates introduced from IAM 0034 must
+declare `["hospital"]` or `["hospital","pharmacy"]`, and only a template with
+hospital scope may declare `pharmacy`. The Staff access UI refuses a catalog
+whose root kinds differ from its bundled definitions. No pharmacy assignment can
+be proposed yet; that arrives with the first pharmacy route.
 
 ### Identity review drafts
 
@@ -1789,3 +2006,18 @@ unauthorized candidates are withheld. This is not a private Staff directory,
 posting qualification or product operating grant. The source is canonical
 `contracts/workforce-staff-actors.json`; browser acceptance and deployment remain
 open.
+
+## Independent Staff workspace navigation
+
+The UI aliases `/workforce/pharmacy-staff` and `/workforce/supplier-staff` reuse
+the same private directory/account/duty components as the existing product URLs.
+Current-member discovery asks Workforce for explicit employer scopes even when
+an account has no pharmacy catalogue or supply directory permission. That
+permission is not Staff authority. No current employer scope reveals no Staff;
+a refused or unavailable owner read is shown as a failure, not an empty directory.
+Pharmacy hospital projections still require the pharmacy catalogue permission.
+Account-link review continues to require current employer manager context plus
+`workforce.independent_login.review`; operating decisions retain Shared IAM's
+current Staff/source/independence checks. The aliases grant no authority and add
+no server endpoints or permissions. See
+[reviewer access](../superpowers/specs/2026-11-09-independent-staff-review-access.md).

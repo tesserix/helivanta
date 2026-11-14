@@ -2,8 +2,8 @@
 import { useState } from "react";
 import { Button } from "@tesserix/web";
 import { useApiPagedQuery, usePermissions, type Hospital } from "@helivanta/api";
-import { Field, PageHeading, SelectControl } from "@helivanta/ui";
-import { Failure } from "../roster-policy/policy-ui";
+import { Field, PageHeading, SelectControl, RequestFailure } from "@helivanta/ui";
+
 import { CoverageExport } from "./coverage-export";
 import { PlansPanel } from "./plans-panel";
 import { StaffBenefitsPanel } from "./staff-benefits-panel";
@@ -48,7 +48,11 @@ export function BenefitsWorkspace() {
       ) : hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (
-        <Failure message="Could not load hospitals." retry={hospitals.retry} />
+        <RequestFailure
+          message="Could not load hospitals."
+          retry={hospitals.retry}
+          error={hospitals.error}
+        />
       ) : hospital ? (
         <HospitalBenefits key={hospital.id} hospital={hospital} />
       ) : (

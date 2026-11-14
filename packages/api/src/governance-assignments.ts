@@ -4,6 +4,7 @@ import { personReviewRequest } from "./person-reviews";
 import { staffAccessTemplates } from "./staff-access-templates";
 import {
   AssignmentGovernanceHospitalScopeContract,
+  TemplateDefinitionContract,
   ProposalOutputContract,
   ProposalHistoryContract,
   ProposalDecisionRecordContract,
@@ -206,4 +207,26 @@ export async function listGovernanceAssignmentDecisions(
   if (page.data.some((row) => row.proposal_id !== verifiedID))
     throw new Error("The assignment decisions do not match the selected request.");
   return page;
+}
+
+export async function listGovernanceAssignmentTemplates(
+  scope: GovernanceAssignmentScope,
+  signal?: AbortSignal,
+) {
+  signal?.throwIfAborted();
+  const answer = await apiFetch<unknown>(
+    `/iam/hospitals/${z.uuid().parse(scope.hospitalId)}/assignment-templates`,
+    { ...personReviewRequest(scope), signal },
+  );
+  signal?.throwIfAborted();
+  const definitions = TemplateDefinitionContract.array()
+    .length(staffAccessTemplates.length)
+    .parse(answer);
+  const expected = TemplateDefinitionContract.array().parse(staffAccessTemplates);
+  const byKey = (a: { key: string }, b: { key: string }) => a.key.localeCompare(b.key);
+  if (JSON.stringify(definitions.toSorted(byKey)) !== JSON.stringify(expected.toSorted(byKey)))
+    throw new Error(
+      "The assignment catalog changed. Refresh this workspace before preparing access.",
+    );
+  return definitions;
 }

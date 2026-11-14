@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
+import { staffAccessTemplates } from "@helivanta/api";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { GovernanceAssignments } from "./governance-assignments";
 
@@ -39,6 +40,7 @@ it("selects a named hospital and retains the exact reviewed decision after an un
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       paths.push(url);
+      if (url.includes("assignment-templates")) return Response.json(staffAccessTemplates);
       if (init?.method === "POST") {
         writes.push({
           url,
@@ -53,6 +55,7 @@ it("selects a named hospital and retains the exact reviewed decision after an un
           );
         return Response.json({ ...proposal, status: "pending_decision_scope", version: 3 });
       }
+      if (url.includes("assignment-templates")) return Response.json(staffAccessTemplates);
       if (url.includes("assignment-authority-scopes")) return Response.json(page([hospital]));
       if (url.endsWith(`/assignment-proposals/${id}`)) return Response.json(proposal);
       if (url.includes("/history"))
@@ -84,7 +87,8 @@ it("selects a named hospital and retains the exact reviewed decision after an un
     paths.every(
       (path) =>
         path.includes("assignment-authority-scopes") ||
-        path.includes(`/iam/hospitals/${hospitalId}/assignment-proposals`),
+        path.includes(`/iam/hospitals/${hospitalId}/assignment-proposals`) ||
+        path.includes(`/iam/hospitals/${hospitalId}/assignment-templates`),
     ),
   ).toBe(true);
 });
@@ -94,6 +98,7 @@ it("removes disclosed assignment data when current review access is refused", as
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) => {
+      if (url.includes("assignment-templates")) return Response.json(staffAccessTemplates);
       if (url.includes("assignment-authority-scopes")) return Response.json(page([hospital]));
       if (revoked)
         return Response.json(
@@ -120,6 +125,7 @@ it("does not offer self approval when the selected account proposed the assignme
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) => {
+      if (url.includes("assignment-templates")) return Response.json(staffAccessTemplates);
       if (url.includes("assignment-authority-scopes")) return Response.json(page([hospital]));
       if (url.endsWith(`/assignment-proposals/${id}`)) return Response.json(own);
       return Response.json(page([own]));
@@ -140,6 +146,8 @@ it("loads bounded history and decisions only when requested and hides both after
     "fetch",
     vi.fn(async (url: string) => {
       paths.push(url);
+      if (url.includes("assignment-templates")) return Response.json(staffAccessTemplates);
+      if (url.includes("assignment-templates")) return Response.json(staffAccessTemplates);
       if (url.includes("assignment-authority-scopes")) return Response.json(page([hospital]));
       if (url.includes("/history")) {
         if (nextPage)
@@ -172,4 +180,19 @@ it("loads bounded history and decisions only when requested and hides both after
   expect(screen.queryByRole("region", { name: "Assignment history" })).not.toBeInTheDocument();
   expect(screen.queryByText(proposal.input.reason)).not.toBeInTheDocument();
   expect(paths.some((url) => url.includes("cursor=opaque-history"))).toBe(true);
+});
+
+it("withholds assignment actions when the server canonical catalog changes", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("assignment-authority-scopes")) return Response.json(page([hospital]));
+      if (url.includes("assignment-templates")) return Response.json(staffAccessTemplates.slice(1));
+      return Response.json(page([proposal]));
+    }),
+  );
+  const { user } = renderWithProviders(<GovernanceAssignments scope={scope} />);
+  await user.click(await screen.findByRole("button", { name: "Open Synthetic hospital" }));
+  expect(await screen.findByText("Could not verify assignment templates.")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Review assignment" })).not.toBeInTheDocument();
 });

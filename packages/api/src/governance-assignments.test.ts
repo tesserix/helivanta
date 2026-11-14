@@ -1,11 +1,14 @@
 import { afterEach, expect, it, vi } from "vitest";
 import {
   listGovernanceAssignmentScopes,
+  listGovernanceAssignmentTemplates,
   listGovernanceAssignments,
   getGovernanceAssignment,
   proposeGovernanceAssignment,
   decideGovernanceAssignment,
 } from "./governance-assignments";
+
+import { staffAccessTemplates } from "./staff-access-templates";
 
 const tenantId = "11111111-1111-4111-8111-111111111111";
 const hospitalId = "22222222-2222-4222-8222-222222222222";
@@ -131,4 +134,26 @@ it("propagates denial without a hidden retry on owner endpoints", async () => {
   vi.stubGlobal("fetch", fetch);
   await expect(listGovernanceAssignments(scope)).rejects.toMatchObject({ status: 403 });
   expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+it("loads the exact canonical assignment catalog under the selected hospital", async () => {
+  const fetch = vi.fn().mockResolvedValue(Response.json(staffAccessTemplates));
+  vi.stubGlobal("fetch", fetch);
+  expect(await listGovernanceAssignmentTemplates(scope)).toEqual(staffAccessTemplates);
+  expect(new URL(fetch.mock.calls[0]![0], "https://example.invalid").pathname).toBe(
+    `/api/v1/iam/hospitals/${hospitalId}/assignment-templates`,
+  );
+  expect(new Headers(fetch.mock.calls[0]![1].headers).get("X-Helivanta-Expected-Subject")).toBe(
+    scope.subject,
+  );
+});
+it.each([
+  staffAccessTemplates.slice(1),
+  [...staffAccessTemplates, staffAccessTemplates[0]],
+  staffAccessTemplates.map((row, index) =>
+    index === 0 ? { ...row, permissions: ["workforce.documents.manage"] } : row,
+  ),
+])("refuses missing, duplicated or changed template definitions", async (catalog) => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(catalog)));
+  await expect(listGovernanceAssignmentTemplates(scope)).rejects.toThrow();
 });

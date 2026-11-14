@@ -13,6 +13,7 @@ import {
 } from "@helivanta/ui";
 import {
   listGovernanceAssignmentScopes,
+  listGovernanceAssignmentTemplates,
   listGovernanceAssignments,
   getGovernanceAssignment,
   listGovernanceAssignmentHistory,
@@ -110,6 +111,15 @@ function HospitalAssignments({
 }) {
   const [family, setFamily] = useState<StaffAssignmentFamily>("leave");
   const [selected, setSelected] = useState<string | null>(null);
+  const templates = useQuery({
+    queryKey: [...governanceAssignmentsKey(scope), "templates"],
+    queryFn: ({ signal }) => listGovernanceAssignmentTemplates(scope, signal),
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+    enabled: selected === null,
+  });
   const records = useInfiniteQuery({
     queryKey: [...governanceAssignmentsKey(scope), "list", family],
     queryFn: ({ pageParam, signal }) =>
@@ -119,9 +129,9 @@ function HospitalAssignments({
     staleTime: 0,
     gcTime: 0,
     retry: false,
-    enabled: selected === null,
+    enabled: selected === null && templates.isSuccess && !templates.isFetching,
   });
-  const cutoff = useStaffAccessCutoff([records.error], onAccessLost);
+  const cutoff = useStaffAccessCutoff([records.error, templates.error], onAccessLost);
   if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   if (selected)
     return (
@@ -134,7 +144,17 @@ function HospitalAssignments({
         onClose={() => setSelected(null)}
       />
     );
-  const families = [...new Set(staffAccessTemplates.map((template) => template.family))];
+  if (templates.isPending || templates.isFetching)
+    return <p role="status">Checking the hospital assignment catalog…</p>;
+  if (templates.isError)
+    return (
+      <RequestFailure
+        message="Could not verify assignment templates."
+        error={templates.error}
+        retry={templates.refetch}
+      />
+    );
+  const families = [...new Set(templates.data.map((template) => template.family))];
   return (
     <div className="space-y-4">
       <Button variant="outline" onClick={onCloseHospital}>
@@ -148,7 +168,11 @@ function HospitalAssignments({
           options={families.map((value) => ({ value, label: value.replaceAll("_", " ") }))}
         />
       </Field>
-      <RefreshButton busy={records.isFetching} error={records.error} refresh={records.refetch}>
+      <RefreshButton
+        busy={records.isFetching || templates.isFetching}
+        error={records.error ?? templates.error}
+        refresh={() => Promise.all([templates.refetch(), records.refetch()])}
+      >
         Refresh hospital assignments
       </RefreshButton>
       {records.isPending || records.isFetching ? (

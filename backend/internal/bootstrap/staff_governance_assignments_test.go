@@ -77,6 +77,31 @@ func TestGovernanceAssignmentProposalAdmissionUsesExactHospitalWithoutLegacyMana
 	require.NoError(t, json.Unmarshal(hidden.Body.Bytes(), &choices))
 	require.Empty(t, choices.Data, "coarse permission alone cannot disclose a hospital choice")
 
+	catalogRoot := "/v1/iam/hospitals/" + hospital.String() + "/assignment-templates"
+	catalog := governanceRequest(router, http.MethodGet, catalogRoot, "reviewer", "")
+	require.Equal(t, http.StatusOK, catalog.Code, catalog.Body.String())
+	require.Equal(t, "no-store", catalog.Header().Get("Cache-Control"))
+	var definitions []iam.TemplateDefinition
+	require.NoError(t, json.Unmarshal(catalog.Body.Bytes(), &definitions))
+	require.NotEmpty(t, definitions)
+	foundIntake := false
+	for _, definition := range definitions {
+		require.Contains(t, definition.EstablishmentKinds, "hospital")
+		if definition.Key == "workforce.hr_intake.v1" {
+			foundIntake = true
+			require.Equal(t, "HR intake administrator", definition.Name)
+			require.ElementsMatch(t, []string{"workforce.enrollment.manage", "workforce.documents.manage"}, definition.Permissions)
+		}
+	}
+	require.True(t, foundIntake)
+	forbiddenCatalog := governanceRequest(router, http.MethodGet, catalogRoot, "auditor", "")
+	require.Equal(t, http.StatusNotFound, forbiddenCatalog.Code, forbiddenCatalog.Body.String())
+	wrongCatalog := governanceRequest(router, http.MethodGet, "/v1/iam/hospitals/"+uuid.Must(uuid.NewV7()).String()+"/assignment-templates", "reviewer", "")
+	require.Equal(t, http.StatusNotFound, wrongCatalog.Code, wrongCatalog.Body.String())
+	legacyCatalog := governanceRequest(router, http.MethodGet, "/v1/iam/staff-access-templates", "reviewer", "")
+	require.Equal(t, http.StatusForbidden, legacyCatalog.Code, legacyCatalog.Body.String())
+	badQuery := governanceRequest(router, http.MethodGet, catalogRoot+"?catalog=legacy-v1", "reviewer", "")
+	require.Equal(t, http.StatusBadRequest, badQuery.Code, badQuery.Body.String())
 	proposal := iam.ProposalInput{
 		HospitalID: hospital, Subject: "user-auditor", TemplateKey: "workforce.leave_reviewer.v1",
 		Reason: "Synthetic proposed leave review duty", ValidFrom: start, ExpiresAt: start.Add(12 * time.Hour),

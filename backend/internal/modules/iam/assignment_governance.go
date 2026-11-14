@@ -235,6 +235,7 @@ func assignmentGovernanceReplay(tx *gorm.DB, tenant string, row assignmentPropos
 func registerGovernanceAssignments(g *platform.Router, deps platform.Deps) {
 	h := &assignmentProposalHandlers{db: deps.DB, bus: deps.Bus, native: true, sources: deps.GovernanceSources}
 	root := "/hospitals/:hospital/assignment-proposals"
+	g.GET("/hospitals/:hospital/assignment-templates", authz.Public, h.templates)
 	g.PUT(root+"/:id", PermGovernanceAssignmentManage, h.put)
 	g.GET(root+"/:id", authz.Public, h.get)
 	g.POST(root+"/:id/decision", authz.Public, h.decide)
@@ -248,4 +249,25 @@ func (h *assignmentProposalHandlers) proposalPrincipal(c *gin.Context) (authn.Pr
 		return proposalScopeWithPermissions(c, PermGovernanceAssignmentManage, PermGovernanceAssignmentReview)
 	}
 	return proposalScope(c)
+}
+
+func (h *assignmentProposalHandlers) templates(c *gin.Context) {
+	p, _, ok := h.proposalPrincipal(c)
+	if !ok {
+		return
+	}
+	if c.Request.URL.RawQuery != "" || c.Request.URL.ForceQuery {
+		respond.Error(c, 400, "invalid_request", "The canonical assignment catalog accepts no query parameters.")
+		return
+	}
+	var templates []TemplateDefinition
+	err := h.assignmentTransaction(c, p, authz.GovernanceAssignmentManage, func(_ *gorm.DB) error {
+		templates = staffAccessTemplates()
+		return nil
+	})
+	if err != nil {
+		proposalError(c, err)
+		return
+	}
+	respond.OK(c, templates)
 }

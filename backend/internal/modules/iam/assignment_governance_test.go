@@ -2,13 +2,17 @@ package iam
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
+	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
@@ -110,4 +114,16 @@ func TestGovernanceAssignmentResultRequiresItsOwnProtocolAndExplicitVerdict(t *t
 	result, err = assignmentGovernanceResult(valid)
 	require.NoError(t, err)
 	require.False(t, result.Eligible, "an explicit owner refusal remains a valid immutable answer")
+}
+
+func TestGovernanceAssignmentCatalogRejectsUnauthenticatedRequests(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	routes := platform.NewRouter(router.Group("/v1/iam"), &CurrentAuthorization{})
+	registerGovernanceAssignments(routes, platform.Deps{})
+	request := httptest.NewRequest(http.MethodGet, "/v1/iam/hospitals/11111111-1111-4111-8111-111111111111/assignment-templates", nil)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	require.Equal(t, http.StatusUnauthorized, response.Code, response.Body.String())
+	require.NotContains(t, response.Body.String(), "workforce.hr_intake.v1")
 }

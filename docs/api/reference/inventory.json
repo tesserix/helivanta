@@ -187,6 +187,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/hospitals/:hospital/assignment-templates",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member/commands/:command",
           "permission": "public",
           "authentication_required": true,

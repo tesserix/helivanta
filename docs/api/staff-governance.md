@@ -55,6 +55,14 @@ a five-second request budget with concurrency bounded to four. A missing or
 unavailable source fails the request rather than returning a fabricated empty
 list. A present source that denies every candidate returns a genuinely empty
 choice list. Discovery creates no Staff or legacy hospital-manager access.
+`GET /v1/iam/hospitals/:hospital/assignment-templates` returns the finite
+canonical `TemplateDefinition` array under the same exact current hospital
+source and read audit. It accepts no query parameters and does not widen the
+older owner-only catalog route. The SDK checks every returned definition against
+its generated canonical catalog, including permissions and supported scopes;
+missing, duplicated or changed definitions make preparation unavailable. The
+native review surface checks this catalog before exposing assignment actions.
+
 The typed SDK uses the Global API and preserves both account precondition
 headers on discovery, proposal, history and decision calls; no legacy fallback
 is attempted. Its hospital choice or cached action flags do not authorize a

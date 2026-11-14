@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "e8d8b26a59ab638c7721f24f47b56d80e2ad4153d6d2f65c8d48a3da56e8cb23",
+  "registry_sha256": "ffd5721375c85231ceff3f2318c286e749e4c87ca6dea7ab2510f2e10b33148d",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1124,
-    "unclassified": 999
+    "total": 1125,
+    "unclassified": 1000
   },
   "entries": [
     {
@@ -3312,6 +3312,22 @@
         "authentication_required": true,
         "membership_required": true,
         "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http iam GET /v1/iam/hospitals/:hospital/assignment-templates",
+      "kind": "http",
+      "module": "iam",
+      "registration": {
+        "source": "backend/internal/modules/iam/module.go",
+        "method": "GET",
+        "path": "/v1/iam/hospitals/:hospital/assignment-templates",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
         "counted": false
       },
       "review": null

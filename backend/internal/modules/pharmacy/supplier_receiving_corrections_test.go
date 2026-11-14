@@ -366,7 +366,7 @@ func supplierReceivingCorrectionFinancialJourney(t *testing.T, sourceOwner strin
 		return err
 	}))
 
-	tax := testutil.Do(r, "POST", root+"/catalogue/products/"+product.String()+"/tax-classifications", "receiver", classificationBody("30041010", "taxable", "5", "", today, ""))
+	tax := testutil.Do(r, "PUT", taxCommandPath(root+"/catalogue/products/"+product.String()+"/tax-classifications"), "receiver", classificationBody("30041010", "taxable", "5", "", today, ""))
 	require.Equal(t, 201, tax.Code, tax.Body.String())
 	schedule := id()
 	declared := testutil.Do(r, "PUT", root+"/catalogue/products/"+product.String()+"/schedule/"+schedule.String(), "receiver", `{"regulatory_class":"H","ndps":false,"source":"TEST pack label"}`)

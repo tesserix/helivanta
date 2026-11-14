@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -137,4 +138,81 @@ func rowID(t *testing.T, w *httptest.ResponseRecorder) string {
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &row))
 	require.NotEmpty(t, row.ID)
 	return row.ID
+}
+
+func classificationCount(t *testing.T, r *gin.Engine, product string) int {
+	t.Helper()
+	w := do(r, "GET", classificationsPath(product), "owner", "")
+	require.Equal(t, 200, w.Code, w.Body.String())
+	var page struct{ Data []json.RawMessage }
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &page))
+	return len(page.Data)
+}
+
+func TestTaxClassificationResendReplays(t *testing.T) {
+	for name, reason := range map[string]string{"first entry": "", "with a reason": "TEST reason"} {
+		t.Run(name, func(t *testing.T) {
+			r := taxHarness(t)
+			product := putTaxProduct(t, r, "TEST-RESEND", "active")
+			path := taxCommandPath(classificationsPath(product))
+			body := classificationBody("30041010", "taxable", "5", "", "2026-11-01", reason)
+			first := do(r, "PUT", path, "owner", body)
+			require.Equal(t, 201, first.Code, first.Body.String())
+			second := do(r, "PUT", path, "owner", body)
+			require.Equal(t, 200, second.Code, second.Body.String())
+			require.Equal(t, rowID(t, first), rowID(t, second))
+			require.Equal(t, 1, classificationCount(t, r, product))
+		})
+	}
+}
+
+func TestTaxClassificationReplayAfterItsDate(t *testing.T) {
+	r := taxHarness(t)
+	product := putTaxProduct(t, r, "TEST-LATER", "active")
+	path := taxCommandPath(classificationsPath(product))
+	body := classificationBody("30041010", "taxable", "5", "", "2026-11-01", "")
+	require.Equal(t, 201, do(r, "PUT", path, "owner", body).Code)
+	pharmacy.SetClock(t, func() time.Time { return time.Date(2026, 11, 3, 6, 30, 0, 0, time.UTC) })
+	w := do(r, "PUT", path, "owner", body)
+	require.Equal(t, 200, w.Code, w.Body.String())
+	require.Equal(t, 1, classificationCount(t, r, product))
+}
+
+func TestTaxClassificationIDReuseConflicts(t *testing.T) {
+	body := classificationBody("30041010", "taxable", "5", "", "2026-11-01", "")
+	for name, tc := range map[string]struct {
+		token, body  string
+		otherProduct bool
+	}{
+		"different rate":   {"owner", classificationBody("30041010", "taxable", "12", "", "2026-11-01", "TEST rate"), false},
+		"different person": {"editor", body, false},
+		"another product":  {"owner", body, true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := taxHarness(t)
+			product := putTaxProduct(t, r, "TEST-FIRST", "active")
+			other := putTaxProduct(t, r, "TEST-OTHER", "active")
+			id := uuid.Must(uuid.NewV7()).String()
+			require.Equal(t, 201, do(r, "PUT", classificationsPath(product)+"/"+id, "owner", body).Code)
+			target := product
+			if tc.otherProduct {
+				target = other
+			}
+			w := do(r, "PUT", classificationsPath(target)+"/"+id, tc.token, tc.body)
+			require.Equal(t, 409, w.Code, w.Body.String())
+			require.Contains(t, w.Body.String(), "already used")
+			require.Equal(t, 1, classificationCount(t, r, product))
+			require.Zero(t, classificationCount(t, r, other))
+		})
+	}
+}
+
+func TestTaxClassificationRefusesABadCommandID(t *testing.T) {
+	r := taxHarness(t)
+	product := putTaxProduct(t, r, "TEST-BADID", "active")
+	// A UUIDv4 is well formed but not a command id; like every pharmacy
+	// path id that is not a UUIDv7, it is not found.
+	w := do(r, "PUT", classificationsPath(product)+"/"+uuid.New().String(), "owner", classificationBody("30041010", "taxable", "5", "", "2026-11-01", ""))
+	require.Equal(t, 404, w.Code, w.Body.String())
+	require.Zero(t, classificationCount(t, r, product))
 }

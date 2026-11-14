@@ -86,7 +86,6 @@ type stockPosition struct {
 	SaleUnits             string    `json:"sale_units"`
 	ReturnUnits           string    `json:"return_units"`
 	SupplierDispatchUnits string    `json:"supplier_dispatch_units"`
-	DispensableUnits      int64     `json:"dispensable_units"`
 }
 
 func (r stockPosition) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
@@ -272,8 +271,7 @@ func stockPositionsSource(tx *gorm.DB, tenant string, outlet uuid.UUID, asOf tim
         ELSE 'later' END AS expiry_band,
    p.status AS product_status,p.regulatory_status,
    sum(m.quantity_units)::bigint AS on_hand_units,
-   `+stockKindTotals("m.", "")+`,
-   0::bigint AS dispensable_units`).
+   `+stockKindTotals("m.", "")).
 		// Unique-key lookup bounds prevent repeated outlet-wide scans under fresh-table RLS estimates.
 		Joins("JOIN LATERAL (SELECT created_at,product_id,lot_number,expires_on,purchase_cost_minor FROM pharmacy_stock_batches WHERE tenant_id=m.tenant_id AND outlet_id=m.outlet_id AND id=m.batch_id LIMIT 1) b ON true").
 		Joins("JOIN LATERAL (SELECT code,name,zone_code,aisle_code,rack_code,shelf_code,stock_status FROM pharmacy_stock_locations WHERE tenant_id=m.tenant_id AND outlet_id=m.outlet_id AND id=m.location_id LIMIT 1) l ON true").

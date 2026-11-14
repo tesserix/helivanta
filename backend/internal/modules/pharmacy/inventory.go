@@ -488,24 +488,42 @@ func (h *catalogueHandlers) getBalance(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var total int64
-	var status []string
+	var total, dispensable int64
+	var found []struct {
+		StockStatus string
+		ProductID   uuid.UUID
+	}
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
-		if err := tx.Raw(`SELECT l.stock_status FROM pharmacy_stock_locations l CROSS JOIN pharmacy_stock_batches b
-   WHERE l.tenant_id=? AND l.outlet_id=? AND l.id=? AND b.tenant_id=l.tenant_id AND b.outlet_id=l.outlet_id AND b.id=?`, p.TenantID, outlet, location, batch).Scan(&status).Error; err != nil {
+		if err := tx.Raw(`SELECT l.stock_status,b.product_id FROM pharmacy_stock_locations l CROSS JOIN pharmacy_stock_batches b
+   WHERE l.tenant_id=? AND l.outlet_id=? AND l.id=? AND b.tenant_id=l.tenant_id AND b.outlet_id=l.outlet_id AND b.id=?`, p.TenantID, outlet, location, batch).Scan(&found).Error; err != nil {
 			return err
 		}
-		if len(status) != 1 {
+		if len(found) != 1 {
 			return gorm.ErrRecordNotFound
 		}
-		return tx.Raw(`SELECT COALESCE(sum(quantity_units),0) FROM pharmacy_stock_movements WHERE tenant_id=? AND outlet_id=? AND location_id=? AND batch_id=?`, p.TenantID, outlet, location, batch).Scan(&total).Error
+		if err := tx.Raw(`SELECT COALESCE(sum(quantity_units),0) FROM pharmacy_stock_movements WHERE tenant_id=? AND outlet_id=? AND location_id=? AND batch_id=?`, p.TenantID, outlet, location, batch).Scan(&total).Error; err != nil {
+			return err
+		}
+		// The sale's own predicate (#1708), so the rules exist once. Product and outlet gates
+		// (status, class, tax, licence, GSTIN) decide whether anything sells, not how much of this batch.
+		today, err := outletLocalDate(tx, p.TenantID, outlet)
+		if err != nil {
+			return err
+		}
+		buckets, err := sellableBuckets(tx, p.TenantID, outlet, found[0].ProductID, today)
+		if err != nil {
+			return err
+		}
+		for _, b := range buckets {
+			if b.LocationID == location && b.BatchID == batch {
+				dispensable = b.OnHand
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		stockError(c, err)
 		return
 	}
-	// Nothing is advertised as available to dispense: quarantine never is,
-	// and sellable stock's availability (expiry, recall, reservations) is the
-	// sale slice's to compute (#1386 B2), not a raw balance's.
-	respond.OK(c, gin.H{"location_id": location, "batch_id": batch, "on_hand_units": total, "dispensable_units": 0, "stock_status": status[0]})
+	respond.OK(c, gin.H{"location_id": location, "batch_id": batch, "on_hand_units": total, "dispensable_units": dispensable, "stock_status": found[0].StockStatus})
 }

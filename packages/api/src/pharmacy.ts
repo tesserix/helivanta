@@ -148,7 +148,6 @@ export type PharmacyStockPosition = z.infer<typeof pharmacyStockExpiryFieldsSche
   sale_units: string;
   return_units: string;
   supplier_dispatch_units: string;
-  dispensable_units: 0;
 };
 export type PharmacyStockReconciliation = {
   location_id: string;

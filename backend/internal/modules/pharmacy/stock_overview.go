@@ -156,7 +156,7 @@ func (h *catalogueHandlers) readStockOverview(c *gin.Context, params pagination.
 			return fmt.Errorf("stock overview currency bound exceeded")
 		}
 		// The position hash includes outlet scope: IDs are only unique within an outlet.
-		const columns = `md5(outlet_id::text||':'||id::text)::uuid AS id,created_at,location_id,batch_id,product_id,location_code,location_name,zone_code,aisle_code,rack_code,shelf_code,sku,brand_name,unit_of_issue,lot_number,expires_on,stock_status,expiry_status,product_status,regulatory_status,on_hand_units,receipt_units,correction_units,release_units,sale_units,return_units,supplier_dispatch_units,dispensable_units,expiry_time_zone,expiry_local_date,days_to_expiry,expiry_band,outlet_id,outlet_code,outlet_name,currency,product_on_hand_units,known_purchase_value_minor,uncosted_units`
+		const columns = `md5(outlet_id::text||':'||id::text)::uuid AS id,created_at,location_id,batch_id,product_id,location_code,location_name,zone_code,aisle_code,rack_code,shelf_code,sku,brand_name,unit_of_issue,lot_number,expires_on,stock_status,expiry_status,product_status,regulatory_status,on_hand_units,receipt_units,correction_units,release_units,sale_units,return_units,supplier_dispatch_units,expiry_time_zone,expiry_local_date,days_to_expiry,expiry_band,outlet_id,outlet_code,outlet_name,currency,product_on_hand_units,known_purchase_value_minor,uncosted_units`
 		keyed := tx.Table("(?) AS valued", valued).Select(columns)
 		return tenantdb.ApplyKeyset(tx, params).Table("(?) AS overview", keyed).Find(&rows).Error
 	})

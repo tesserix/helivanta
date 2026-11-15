@@ -133,6 +133,39 @@ async function recoverSaved() {
   await result.user.click(screen.getByRole("button", { name: "Recover saved account command" }));
   return result;
 }
+it.each([
+  [
+    false,
+    "Email verification is still required. The recipient must use their private setup email.",
+  ],
+  [
+    true,
+    "Email is verified, but the account is not active. The recipient must complete password setup or resolve their account status.",
+  ],
+])(
+  "explains the current identity-provider setup requirement without enabling enrollment (email verified: %s)",
+  async (emailVerified, message) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url.endsWith("/observations")
+          ? Response.json({
+              receipt: recoveredReceipt,
+              observation: {
+                state: "initial",
+                email_verified: emailVerified,
+                observed_at: "2026-11-13T00:00:02Z",
+              },
+            })
+          : Response.json(recoveredReceipt),
+      ),
+    );
+    const { user } = await recoverSaved();
+    await user.click(await screen.findByRole("button", { name: "Check recipient setup" }));
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Enroll staff member" })).toBeNull();
+  },
+);
 it("retries an unresolved source delivery with its original delivery id", async () => {
   const deliveries: string[] = [];
   vi.stubGlobal(

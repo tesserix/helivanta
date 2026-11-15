@@ -1,6 +1,7 @@
 package workforce
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -15,8 +16,7 @@ import (
 
 type personEvidenceSnapshot struct {
 	Permission                     authz.Permission
-	Grant                          authz.ScopeGrant
-	Actor                          reviewedLeaveActor
+	Actor                          personReviewAuthority
 	ActorEpoch                     int64
 	Review, Revision               uuid.UUID
 	ReviewVersion, EmploymentEpoch int64
@@ -30,19 +30,32 @@ func personEvidenceAudit(tx *gorm.DB, p authn.Principal, hospital uuid.UUID, sna
 	if released {
 		action = "workforce.person_review.evidence.downloaded"
 	}
-	return tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes)
- VALUES(?,?,?,?,?,jsonb_build_object('version',?::bigint,'revision_id',?::uuid,'file_id',?::uuid,'assignment_id',?::text,'assignment_version',?::bigint,'scope_epoch',?::bigint,'membership_epoch',?::bigint,'actor_link_id',?::uuid,'actor_link_version',?::bigint,'actor_employment_epoch',?::bigint))`, p.TenantID, hospital, p.Subject, action, snapshot.Review, snapshot.ReviewVersion, snapshot.Revision, snapshot.Evidence.DocumentID, snapshot.Grant.AssignmentID, snapshot.Grant.Version, snapshot.Grant.ScopeEpoch, snapshot.Grant.MembershipEpoch, snapshot.Actor.ID, snapshot.Actor.Version, snapshot.ActorEpoch).Error
+	values, err := snapshot.Actor.auditValues()
+	if err != nil {
+		return err
+	}
+	values["version"], values["revision_id"], values["file_id"] = snapshot.ReviewVersion, snapshot.Revision, snapshot.Evidence.DocumentID
+	if snapshot.Actor.Staff != nil {
+		values["actor_employment_epoch"] = snapshot.ActorEpoch
+	}
+	raw, err := json.Marshal(values)
+	if err != nil {
+		return err
+	}
+	return tx.Exec("INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes)VALUES(?,?,?,?,?,?::jsonb)", p.TenantID, hospital, p.Subject, action, snapshot.Review, string(raw)).Error
 }
 
 func (h *handlers) authorizePersonEvidence(c *gin.Context, p authn.Principal, hospital, staff, review, file uuid.UUID, original *personEvidenceSnapshot) (personEvidenceSnapshot, error) {
 	var result personEvidenceSnapshot
 	check := func(permission authz.Permission) error {
-		return h.personReviewTransaction(c, p, hospital, staff, permission, func(tx *gorm.DB, source IdentitySource, actor reviewedLeaveActor, grant authz.ScopeGrant) error {
+		return h.personReviewTransaction(c, p, hospital, staff, permission, func(tx *gorm.DB, source IdentitySource, actor personReviewAuthority) error {
 			var actorEpoch int64
-			if err := tx.Table("workforce_staff").Select("employment_epoch").Where("tenant_id=? AND hospital_id=? AND id=?", p.TenantID, hospital, actor.StaffID).Take(&actorEpoch).Error; err != nil {
-				return err
+			if actor.Staff != nil {
+				if err := tx.Table("workforce_staff").Select("employment_epoch").Where("tenant_id=? AND hospital_id=? AND id=?", p.TenantID, hospital, actor.Staff.StaffID).Take(&actorEpoch).Error; err != nil {
+					return err
+				}
 			}
-			if original != nil && (original.Permission != permission || original.Grant != grant || original.Actor != actor || original.ActorEpoch != actorEpoch) {
+			if original != nil && (original.Permission != permission || !original.Actor.same(actor) || original.ActorEpoch != actorEpoch) {
 				return authz.ErrScopedCommandDenied
 			}
 			row, err := loadPersonReview(tx, p, hospital, staff, review, false, uuid.Nil)
@@ -70,14 +83,18 @@ func (h *handlers) authorizePersonEvidence(c *gin.Context, p authn.Principal, ho
 			if err := tx.Select(documentColumns).Clauses(clause.Locking{Strength: "SHARE"}).Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", p.TenantID, hospital, staff, file).Take(&stored).Error; err != nil {
 				return err
 			}
-			if stored.UploadedAt == nil || actorEpoch < 1 {
+			if stored.UploadedAt == nil || actor.Staff != nil && actorEpoch < 1 {
 				return errPersonReviewConflict
 			}
 			binding.ScannedAt = binding.ScannedAt.UTC()
 			binding.DefinitionsUpdatedAt = binding.DefinitionsUpdatedAt.UTC()
-			result = personEvidenceSnapshot{Permission: permission, Grant: grant, Actor: actor, ActorEpoch: actorEpoch, Review: review, Revision: row.RevisionID, ReviewVersion: row.Version, EmploymentEpoch: source.EmploymentEpoch, IdentityHash: source.IdentityHash, Evidence: *binding, UploadedAt: stored.UploadedAt.UTC()}
-			if original != nil && result != *original {
-				return errPersonReviewConflict
+			result = personEvidenceSnapshot{Permission: permission, Actor: actor, ActorEpoch: actorEpoch, Review: review, Revision: row.RevisionID, ReviewVersion: row.Version, EmploymentEpoch: source.EmploymentEpoch, IdentityHash: source.IdentityHash, Evidence: *binding, UploadedAt: stored.UploadedAt.UTC()}
+			if original != nil {
+				retained, current := *original, result
+				retained.Actor, current.Actor = personReviewAuthority{}, personReviewAuthority{}
+				if retained != current {
+					return errPersonReviewConflict
+				}
 			}
 			return personEvidenceAudit(tx, p, hospital, result, original != nil)
 		})

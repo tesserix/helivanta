@@ -18,7 +18,7 @@ export type StaffAssignment = ProposalOutput;
 export type StaffAssignmentInput = ProposalInput;
 export type StaffAssignmentDecision = ProposalDecisionInput;
 export type StaffAssignmentScope = { tenantId: string; subject: string };
-export const staffAssignmentInputContract = ProposalInputContract.superRefine((value, ctx) => {
+export const staffAssignmentIntentContract = ProposalInputContract.superRefine((value, ctx) => {
   const duration = Date.parse(value.expires_at) - Date.parse(value.valid_from);
   if (duration <= 0 || duration > 366 * 86400000)
     ctx.addIssue({
@@ -26,11 +26,15 @@ export const staffAssignmentInputContract = ProposalInputContract.superRefine((v
       path: ["expires_at"],
       message: "Choose an end after the start, within 366 days.",
     });
-  if (Date.parse(value.expires_at) <= Date.now())
-    ctx.addIssue({ code: "custom", path: ["expires_at"], message: "Choose a future expiry." });
   if (!value.reason.trim())
     ctx.addIssue({ code: "custom", path: ["reason"], message: "Enter a reason." });
 });
+export const staffAssignmentInputContract = staffAssignmentIntentContract.superRefine(
+  (value, ctx) => {
+    if (Date.parse(value.expires_at) <= Date.now())
+      ctx.addIssue({ code: "custom", path: ["expires_at"], message: "Choose a future expiry." });
+  },
+);
 export const staffAssignmentDecisionContract = ProposalDecisionInputContract;
 const identifier = ProposalOutputContract.shape.id;
 const pageInfo = z.object({ has_more: z.boolean(), next_cursor: z.string().nullable() }).strict();

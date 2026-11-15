@@ -15,30 +15,67 @@ import {
   useApiMutation,
   useOperatingDuties,
   operatingDutiesKey,
+  operatingDutyInboxKey,
   decideOperatingDuty,
   recoverOperatingDutyCommand,
   newOperatingDutyId,
   OperatingDutyDecisionInputContract,
   operatingDutyTemplates,
   type OperatingDutyStaffScope,
+  type OperatingGovernanceStaffChoice,
   type OperatingDuty,
   type OperatingDutyDecisionInput,
 } from "@helivanta/api";
 import { OperatingDutyPreparation } from "./operating-duty-preparation";
 
-type Props = { scope: OperatingDutyStaffScope; staffVersion: number; staffActive: boolean };
+type Props = {
+  scope: OperatingDutyStaffScope;
+  staffVersion: number;
+  staffActive: boolean;
+  reviewedAccount?: OperatingGovernanceStaffChoice;
+  accessSuspended?: boolean;
+  onBusyChange?: (busy: boolean) => void;
+};
 export function IndependentOperatingDuties(props: Props) {
   const { can } = usePermissions();
-  if (!can("iam.operating.read")) return null;
+  if (
+    !can(
+      props.scope.administration === "governance"
+        ? "iam.governance.operating.manage"
+        : "iam.operating.read",
+    ) &&
+    !props.accessSuspended
+  )
+    return null;
   return <Duties key={operatingDutiesKey(props.scope).join(":")} {...props} />;
 }
-function Duties({ scope, staffVersion, staffActive }: Props) {
+function Duties({
+  scope,
+  staffVersion,
+  staffActive,
+  reviewedAccount,
+  accessSuspended,
+  onBusyChange,
+}: Props) {
   const { can } = usePermissions();
   const [cursor, setCursor] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, updateBusy] = useState(false);
+  const setBusy = (value: boolean) => {
+    updateBusy(value);
+    onBusyChange?.(value);
+  };
+  const native = scope.administration === "governance";
+  const permitted = (legacy: string, governance: string) =>
+    !accessSuspended && can(native ? governance : legacy);
   const [preparing, setPreparing] = useState(false);
-  const query = useOperatingDuties(scope, cursor, !busy);
-  if (query.isError)
+  const query = useOperatingDuties(scope, cursor, !busy && !accessSuspended);
+  if (accessSuspended && !busy)
+    return (
+      <p role="alert">
+        Current duty access is unavailable. Restore and refresh the original Staff context.
+      </p>
+    );
+  if (query.isError && !busy)
     return (
       <RequestFailure
         message="Current operating duties could not be verified."
@@ -46,7 +83,7 @@ function Duties({ scope, staffVersion, staffActive }: Props) {
         retry={query.refetch}
       />
     );
-  if (!query.data) return <p role="status">Loading operating duties…</p>;
+  if (!query.data && !busy) return <p role="status">Loading operating duties…</p>;
   return (
     <Panel className="mt-6 space-y-5">
       <div>
@@ -59,14 +96,14 @@ function Duties({ scope, staffVersion, staffActive }: Props) {
       <RefreshButton busy={busy} refresh={query.refetch} error={query.error}>
         Refresh duties
       </RefreshButton>
-      {query.data.data.length === 0 && <p>No operating duties on this page.</p>}
-      {query.data.data.map((row) => (
-        <Duty
+      {(query.data?.data ?? []).length === 0 && <p>No operating duties on this page.</p>}
+      {(query.data?.data ?? []).map((row) => (
+        <OperatingDutyReview
           key={row.id}
-          {...{ scope, row, busy, setBusy }}
-          canReview={can("iam.operating.review")}
-          canRevoke={can("iam.operating.revoke")}
-          canPrepare={can("iam.operating.prepare")}
+          {...{ scope, row, busy, setBusy, accessSuspended }}
+          canReview={permitted("iam.operating.review", "iam.governance.operating.review")}
+          canRevoke={permitted("iam.operating.revoke", "iam.governance.operating.manage")}
+          canPrepare={permitted("iam.operating.prepare", "iam.governance.operating.manage")}
         />
       ))}
       <nav aria-label="Operating duty pages" className="flex gap-3">
@@ -75,7 +112,7 @@ function Duties({ scope, staffVersion, staffActive }: Props) {
             First duties page
           </Button>
         )}
-        {query.data.page.has_more && (
+        {query.data?.page.has_more && (
           <Button
             variant="outline"
             disabled={busy}
@@ -86,21 +123,21 @@ function Duties({ scope, staffVersion, staffActive }: Props) {
         )}
       </nav>
       {staffActive &&
-        can("iam.operating.prepare") &&
+        (preparing || permitted("iam.operating.prepare", "iam.governance.operating.manage")) &&
         (!preparing ? (
           <Button disabled={busy} onClick={() => setPreparing(true)}>
             Assign operating duty
           </Button>
         ) : (
           <OperatingDutyPreparation
-            {...{ scope, staffVersion, busy, setBusy }}
+            {...{ scope, staffVersion, busy, setBusy, reviewedAccount, accessSuspended }}
             onClose={() => setPreparing(false)}
           />
         ))}
     </Panel>
   );
 }
-function Duty({
+export function OperatingDutyReview({
   scope,
   row,
   busy,
@@ -108,6 +145,7 @@ function Duty({
   canReview,
   canRevoke,
   canPrepare,
+  accessSuspended,
 }: {
   scope: OperatingDutyStaffScope;
   row: OperatingDuty;
@@ -116,6 +154,7 @@ function Duty({
   canReview: boolean;
   canRevoke: boolean;
   canPrepare: boolean;
+  accessSuspended?: boolean;
 }) {
   const fieldId = useId();
   const [pending, setPending] = useState<{ id: string; input: OperatingDutyDecisionInput } | null>(
@@ -148,13 +187,23 @@ function Duty({
           setBusy(false);
         }
       },
-      invalidate: [operatingDutiesKey(scope)],
+      invalidate: [
+        operatingDutiesKey(scope),
+        ...(scope.administration === "governance" ? [[...operatingDutyInboxKey(scope)]] : []),
+      ],
       suppressErrorToast: true,
     },
   );
   const recover = useApiMutation(
     (v: NonNullable<typeof pending>) => recoverOperatingDutyCommand(scope, row.id, v.id, v.input),
-    { onSuccess: success, invalidate: [operatingDutiesKey(scope)], suppressErrorToast: true },
+    {
+      onSuccess: success,
+      invalidate: [
+        operatingDutiesKey(scope),
+        ...(scope.administration === "governance" ? [[...operatingDutyInboxKey(scope)]] : []),
+      ],
+      suppressErrorToast: true,
+    },
   );
   const independent = scope.subject !== row.prepared_by && scope.subject !== row.input.subject;
   const actions: OperatingDutyDecisionInput["decision"][] = [];
@@ -182,10 +231,15 @@ function Duty({
     })();
   }
   const accessError = recover.error ?? save.error;
-  if (accessError instanceof ApiError && [401, 403, 404].includes(accessError.status))
+  if (
+    accessSuspended ||
+    (accessError instanceof ApiError && [401, 403, 404].includes(accessError.status))
+  )
     return (
       <RequestFailure
         message="This duty is unavailable."
+        recheck={pending ? "Recover duty decision" : undefined}
+        busy={save.isPending || recover.isPending}
         error={accessError}
         retry={() => {
           if (pending) recover.mutate(pending);

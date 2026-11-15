@@ -13,6 +13,7 @@ import {
 export * from "./operating-assignments-contract";
 export { v7 as newOperatingDutyId } from "uuid";
 export type OperatingDutyStaffScope = {
+  administration?: "legacy" | "governance";
   tenantId: string;
   subject: string;
   employerKind: "supplier" | "pharmacy";
@@ -24,7 +25,14 @@ const staffId = z
   .string()
   .guid()
   .refine((v) => v !== "00000000-0000-0000-0000-000000000000" && v === v.toLowerCase());
-const base = (duty: string) => `/iam/operating-duties/${id.parse(duty)}`;
+const administration = (s: OperatingDutyStaffScope) =>
+  z.enum(["legacy", "governance"]).default("legacy").parse(s.administration);
+const employer = (s: OperatingDutyStaffScope) =>
+  `${z.enum(["supplier", "pharmacy"]).parse(s.employerKind)}/${id.parse(s.employerId)}`;
+const base = (s: OperatingDutyStaffScope, duty: string) =>
+  administration(s) === "governance"
+    ? `/iam/operating-governance-employers/${employer(s)}/duties/${id.parse(duty)}`
+    : `/iam/operating-duties/${id.parse(duty)}`;
 export const operatingDutiesKey = (s: OperatingDutyStaffScope) => [
   "iam",
   "operating-duties",
@@ -33,6 +41,7 @@ export const operatingDutiesKey = (s: OperatingDutyStaffScope) => [
   s.employerKind,
   s.employerId,
   s.staffId,
+  administration(s),
 ];
 function within(s: OperatingDutyStaffScope, input: OperatingDutyInput) {
   if (
@@ -90,7 +99,7 @@ export async function prepareOperatingDuty(
     s,
     duty,
     body,
-    await apiFetch(base(duty), {
+    await apiFetch(base(s, duty), {
       ...membershipRequestOptions(s),
       method: "PUT",
       body: JSON.stringify(body),
@@ -108,7 +117,7 @@ export async function recoverOperatingDutyProposal(
     s,
     duty,
     body,
-    await apiFetch(`${base(duty)}/proposal-receipt`, membershipRequestOptions(s)),
+    await apiFetch(`${base(s, duty)}/proposal-receipt`, membershipRequestOptions(s)),
   );
 }
 export async function getOperatingDuty(
@@ -116,7 +125,7 @@ export async function getOperatingDuty(
   duty: string,
   signal?: AbortSignal,
 ) {
-  return owned(s, await apiFetch(base(duty), { ...membershipRequestOptions(s), signal }), duty);
+  return owned(s, await apiFetch(base(s, duty), { ...membershipRequestOptions(s), signal }), duty);
 }
 function decision(
   s: OperatingDutyStaffScope,
@@ -156,7 +165,7 @@ export async function decideOperatingDuty(
     duty,
     command,
     body,
-    await apiFetch(`${base(duty)}/commands/${id.parse(command)}`, {
+    await apiFetch(`${base(s, duty)}/commands/${id.parse(command)}`, {
       ...membershipRequestOptions(s),
       method: "PUT",
       body: JSON.stringify(body),
@@ -175,7 +184,7 @@ export async function recoverOperatingDutyCommand(
     duty,
     command,
     body,
-    await apiFetch(`${base(duty)}/commands/${id.parse(command)}`, membershipRequestOptions(s)),
+    await apiFetch(`${base(s, duty)}/commands/${id.parse(command)}`, membershipRequestOptions(s)),
   );
 }
 const pageContract = z
@@ -200,7 +209,9 @@ export async function listOperatingDuties(
 ) {
   const params = new URLSearchParams({ limit: "25" });
   if (cursor) params.set("cursor", cursor);
-  const path = `/iam/operating-employers/${z.enum(["supplier", "pharmacy"]).parse(s.employerKind)}/${id.parse(s.employerId)}/staff/${staffId.parse(s.staffId)}/duties`;
+  const segment =
+    administration(s) === "governance" ? "operating-governance-employers" : "operating-employers";
+  const path = `/iam/${segment}/${employer(s)}/staff/${staffId.parse(s.staffId)}/duties`;
   const page = pageContract.parse(
     await apiFetch(`${path}?${params}`, { ...membershipRequestOptions(s), signal }),
   );

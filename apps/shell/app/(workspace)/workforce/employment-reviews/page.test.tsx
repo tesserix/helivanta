@@ -128,6 +128,7 @@ function fixture({
   denial = 0,
   uncertain = false,
   canApprove = true,
+  canSubmit = false,
   refuse = (() => false) as (url: string) => boolean,
 } = {}) {
   const writes: { url: string; body: Record<string, unknown> }[] = [];
@@ -146,18 +147,24 @@ function fixture({
         });
       if (!init?.method && refuse(url))
         return Response.json({ error: "forbidden", message: "secret detail" }, { status: 403 });
-      if (url.includes("/employment-review-scopes"))
+      if (
+        url.includes("/employment-review-scopes") ||
+        url.includes("/employment-review-authority-scopes")
+      )
         return Response.json(
           page([
             {
               hospital_id: scope.hospitalId,
               name: "Synthetic Hospital",
-              can_submit: false,
+              can_submit: canSubmit,
               can_review: true,
             },
           ]),
         );
-      if (url.includes("/employment-review-inbox"))
+      if (
+        url.includes("/employment-review-inbox") ||
+        url.includes("/employment-review-authority-inbox")
+      )
         return Response.json(page(done ? [] : [summary]));
       if (url.includes("/decision")) {
         const body = JSON.parse(String(init?.body));
@@ -295,7 +302,7 @@ it("freezes an uncertain command and retries its exact original bytes", async ()
 });
 
 it("shows refused employment-review access as a refusal, with no way to ask again", async () => {
-  fixture({ refuse: (url) => url.includes("/employment-review-scopes") });
+  fixture({ refuse: (url) => url.includes("/employment-review-authority-scopes") });
   renderWithProviders(
     <NavigationGuardProvider>
       <EmploymentReviews />
@@ -309,7 +316,7 @@ it("shows refused employment-review access as a refusal, with no way to ask agai
 
 it("withdraws the loaded inbox once a refreshed read is refused", async () => {
   let refused = false;
-  fixture({ refuse: (url) => refused && url.includes("/employment-review-inbox") });
+  fixture({ refuse: (url) => refused && url.includes("/employment-review-authority-inbox") });
   const { user } = renderWithProviders(
     <NavigationGuardProvider>
       <EmploymentReviews />
@@ -325,4 +332,97 @@ it("withdraws the loaded inbox once a refreshed read is refused", async () => {
   ).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Open review for Synthetic Joiner" })).toBeNull();
   expect(screen.queryByRole("button", { name: /refresh inbox|try again/i })).toBeNull();
+});
+
+it("opens governance discovery and inbox without requesting a linked Staff scope", async () => {
+  const { reads } = fixture();
+  await open();
+  expect(await screen.findByText("Synthetic appointment terms")).toBeVisible();
+  expect(reads.some((url) => url.includes("/employment-review-authority-scopes?"))).toBe(true);
+  expect(
+    reads.some(
+      (url) => url.includes("/employment-review-authority-inbox?") && url.includes("mode=review"),
+    ),
+  ).toBe(true);
+  expect(
+    reads.some(
+      (url) =>
+        url.includes("/employment-review-scopes?") || url.includes("/employment-review-inbox?"),
+    ),
+  ).toBe(false);
+});
+
+it("clears selected terms and restarts discovery when the access path changes", async () => {
+  const { reads, writes } = fixture();
+  const { user } = await open();
+  expect(await screen.findByText("Synthetic appointment terms")).toBeVisible();
+  await user.click(screen.getByRole("combobox", { name: "Access path" }));
+  await user.click(screen.getByRole("option", { name: "Reviewed Staff access" }));
+  await screen.findByRole("button", { name: "Open review for Synthetic Joiner" });
+  expect(screen.queryByText("Synthetic appointment terms")).not.toBeInTheDocument();
+  expect(reads.some((url) => url.includes("/employment-review-scopes?limit=20"))).toBe(true);
+  expect(reads.some((url) => url.includes("/employment-review-inbox?employment_review=v1"))).toBe(
+    true,
+  );
+  expect(writes).toHaveLength(0);
+});
+
+it.each([403, 503])(
+  "does not fall back to linked Staff after governance discovery failure %s",
+  async (status) => {
+    const reads: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        reads.push(url);
+        if (url.includes("/iam/me/permissions"))
+          return Response.json({ tenant_id: scope.tenantId, subject: scope.subject, data: [] });
+        return Response.json(
+          { error: "unavailable", message: "Synthetic source failure" },
+          { status },
+        );
+      }),
+    );
+    renderWithProviders(
+      <NavigationGuardProvider>
+        <EmploymentReviews />
+      </NavigationGuardProvider>,
+    );
+    await screen.findByText(
+      status === 403
+        ? "This wasn't found, or you don't have access to it."
+        : "Could not verify employment-review access.",
+    );
+    expect(reads.some((url) => url.includes("/employment-review-scopes?"))).toBe(false);
+    expect(reads.some((url) => url.includes("/employment-review-authority-inbox?"))).toBe(false);
+  },
+);
+
+it("offers new employment authoring only for the governance preparation capability", async () => {
+  fixture({ canSubmit: true });
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <EmploymentReviews />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Prepare new employment" }));
+  expect(screen.getByRole("region", { name: "Hospital employment preparation" })).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: "Open review for Synthetic Joiner" }),
+  ).not.toBeInTheDocument();
+});
+
+it("keeps governance draft authoring out of reviewed Staff access", async () => {
+  fixture({ canSubmit: true });
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <EmploymentReviews />
+    </NavigationGuardProvider>,
+  );
+  await screen.findByRole("button", { name: "Prepare new employment" });
+  await user.click(screen.getByLabelText("Access path"));
+  await user.click(screen.getByRole("option", { name: "Reviewed Staff access" }));
+  await screen.findByRole("button", { name: "Open review for Synthetic Joiner" });
+  expect(screen.queryByRole("button", { name: "Prepare new employment" })).not.toBeInTheDocument();
 });

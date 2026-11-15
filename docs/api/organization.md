@@ -90,6 +90,39 @@ authorization dependency failure 503, out-of-scope objects 404, invalid input 40
 and stale/invalid structural commands 409. Raw database errors are not disclosed.
 Successful sensitive metadata reads and writes have atomic owner audit records.
 
+## Candidate governed assignment department choices
+
+`GET /v1/organization/hospitals/:hospital/assignment-department-choices` enters
+through Global API's platform destination. It requires a refreshed account and
+`iam.governance.assignment.manage`, followed by a held current IAM tenant-owner
+source or exact hospital `iam.scoped_access_reviewer.v1` grant. Neither an
+operational Staff actor nor `organization.structure.read` is required. Ordinary
+membership and the coarse capability alone do not authorize disclosure.
+
+The list returns the existing canonical `DepartmentOutput` shape for active
+heads in the exact verified hospital registration. Only `limit`, `cursor` and
+optional `status=active` are accepted, once each; the default and maximum limit are 20. The platform seals
+keyset cursors to tenant, account, hospital and query. Responses use `no-store`.
+Selection is an observation; proposal and approval must recheck current sources
+and revisions. No posting, access assignment or clinical authority follows.
+
+Organization holds its restructuring gate and department SHARE locks within the
+held governance source, and commits `organization.assignment_department_choices.read`
+audit before disclosing results. Migration `0005_organization_assignment_choices`
+adds a private read purpose with restrictive policies: only verified registration
+and active departments are visible; requests/history and all master mutations are
+denied, including when a legacy write hint is also present. Runtime support checks
+pin policies/function definitions, forced RLS and the existing page index. Missing
+registration, support, source or audit dependencies fail closed with 503 and
+`assignment_selection_unavailable`; scope denial is 404, missing coarse capability
+403, revoked credentials 401, and invalid query/cursor 400.
+
+The SDK consumes the canonical model and verifies hospital, active state, UUIDv7
+node/revision identities and page consistency. Backend unit/race checks and SDK
+checks are local evidence only. The real Global API/IAM/Workforce/Organization
+integration test runs in CI and must pass before acceptance. Native account and
+department preparation controls and deployed acceptance remain unfinished.
+
 ## Migration and acceptance limits
 
 Forward migrations `0001_organization`, `0002_organization_departments`,

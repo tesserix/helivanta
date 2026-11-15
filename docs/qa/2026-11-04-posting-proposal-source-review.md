@@ -242,3 +242,129 @@ rows under Limit; execution 2.124ms/planning 5.003ms on the small synthetic fixt
 The exact index columns are asserted. The plan is captured privately; continuation
 and production-scale/SLO evidence remain open. No runtime code changed after the
 complete suite runs; this final addition is test-only plan/index evidence.
+
+### Approval diagnostic source delta — 2026-11-14
+
+Review of 89605942..90950803 confirms the transfer's shared
+`recordPostingDecision` implementation is byte-identical. The separate decision
+handler only tracks constant phases and elapsed milliseconds and enriches the
+existing error mapper on failure. The successful receipt branch is equivalent: it
+returns the same audit error before marking guarded completion. No permission,
+source predicate, actor eligibility, persistence, time budget, route or transfer
+call path changes. Race tests cover unchanged 403/500/503 responses and absence
+of raw errors/private proof in logs and HTTP bodies.
+
+The source hash for the classified transfer surface is refreshed after this
+review; its authority classification and remaining obligations are preserved.
+At 89605942, browser CI passed all three phases (99 passes/1 skip in the main
+suite); supplier Staff lifecycle still failed child approval at
+`workforce_posting_chain_test.go:135` with 503 instead of 200. Diagnostics and
+this source review do not establish a repair, live rollout or full acceptance.
+
+### Shared persistence substep attribution — 2026-11-14
+
+Supplier43597336249 at 90950803 reproduced the child-approval 503, now located at
+`decision_persistence` after 5017ms overall. The earlier file-level-only delta
+did not repair it. The next candidate adds failure-only operation/elapsed/total
+metadata to the shared persistence method and enriches both handlers' existing
+failure logs. Its result types and all raw SQL literals match 90950803; guards,
+success effects and transaction boundaries are unchanged. The chain-review
+else branch is equivalent. A private error wrapper retains its cause through
+Unwrap, preserving errors.Is/As and PostgreSQL classification without exposing
+raw error content. No timeout or status assertion changes.
+
+Re-review updates the two affected source hashes and additionally pins the small
+diagnostic helper. This is source review of diagnostic error propagation, not
+runtime proof of the method or an acceptance of the unresolved deadline.
+
+### Posting write execution-mode candidate — 2026-11-14
+
+Supplier43608785632 at `56928dc9` failed the original child approval with 503
+instead of 200. The corrected observer reported JIT enabled/available, threshold
+100000, but the UPDATE itself had cost 11.22, no JIT and 9ms planning. The
+proposal update consumed 1489ms; persistence consumed 4388ms of a 5017ms command.
+This rules out expensive planning or top-level JIT for that UPDATE, without
+identifying the internal trigger/policy statement responsible.
+
+The controlled candidate sets `SET LOCAL jit = off` at the start of shared
+posting-decision persistence, including its transfer caller. PostgreSQL restores
+this setting when the transaction ends; it remains in force for deferred checks.
+No source condition, SQL persistence predicate, event, audit, response, RLS
+policy or authority deadline changes. Setting failure propagates normally and
+rolls back. This changes execution mode only for transactions reaching posting
+decision persistence; ordinary tenant/guarded transactions are untouched. All
+authority classifications and remaining acceptance obligations remain unchanged.
+The temporary EXPLAIN observer, invocation and its helper tests are removed.
+The original cold lifecycle and injected-fault expectations must pass before this
+can be accepted as a repair; nested-query JIT remains a hypothesis until then.
+
+### Execution-mode experiment withdrawn — 2026-11-14
+
+Supplier43611655068 at `66cf365f` passed initial child approvals but transfer's
+injected persistence fault still returned 503 instead of 500. Replacement UPDATE
+execution was 1053ms, persistence 4359ms, total 5031ms. This does not establish an
+internal-JIT repair. The transaction-local setting is removed; shared persistence
+is restored byte-for-byte to the pre-experiment form. The source hash is restored
+accordingly without changing classification or remaining obligations.
+
+The next opt-in CI diagnostic records aggregate PostgreSQL function counters for
+fixed known posting functions on transfer failure. It does not alter production
+code, query plans, authorization/source conditions, HTTP expectations or budgets.
+No SQL/arguments/private proof/arbitrary function names/raw errors are emitted.
+It is diagnostic instrumentation; acceptance still requires the ordinary cold
+full workflow without the timing opt-in.
+
+### WF0117 planning candidate from function evidence — 2026-11-14
+
+Supplier43614580558 at `4470fb2a` progressed through child approvals and
+coordinated transfer, then failed a cutoff/approval concurrency case with 503
+instead of 200. The completed-function counters within this isolated fixture
+reported root context 54 calls/8463ms self/21925ms total, chain context 36
+calls/5633ms self/14781ms total, and decider 210 calls/2369ms self/45584ms total.
+The proposal head trigger's own time was 6.86ms across 58 calls. Counts are
+aggregate, not per-command traces. Failed/incomplete calls and concurrent
+activity limit inference; this is not a latency/SLO benchmark.
+
+WF0117 changes only the root and chain context functions to `LANGUAGE plpgsql
+STABLE` with invoker security and the same signatures/return types. A missing
+matching private purpose returns false before preparing its unused query. The
+valid-purpose path retains the entire original authorization SELECT
+byte-for-byte, including its purpose check, independent decider, exact source
+versions/epochs, current Staff, department/generation bindings and clock checks.
+No authorization result or principal is cached. PostgreSQL prepares/reuses the
+query plan while still evaluating all current values. No deadline, RLS policy,
+persistence/outbox/audit operation or expected HTTP result changes.
+
+[PL/pgSQL plan caching](https://www.postgresql.org/docs/16/plpgsql-implementation.html#PLPGSQL-PLAN-CACHING)
+documents reuse of prepared statements/plans.
+[PostgreSQL 16 SQL function execution](https://github.com/postgres/postgres/blob/REL_16_STABLE/src/backend/executor/functions.c)
+invalidates its SQLFunctionCache when the transaction/subtransaction changes.
+These explain the candidate mechanism; only the uninstrumented full real-service
+workflow can establish that it repairs the observed failure.
+
+The original SQL expressions were compared exactly against WF0080/WF0081. The
+module delta is only the new embed/forward migration registration; the rest of
+its source, including all routes, permission bundles and consumer declarations,
+was compared byte-for-byte. Its 30 ledger source hashes were refreshed without
+changing authority classifications or their open obligations. The classified
+transfer surface additionally pins the new function definitions. Function timing
+infrastructure/helpers are removed before the next cold run.
+
+This migration replaces no tables/data and preserves function identities and
+call compatibility for older application code. A code rollback does not require
+removing it; if necessary a reviewed forward migration can restore the prior SQL
+function definitions without dropping dependent objects. Scratch application and
+all source-cutoff/rollback/concurrency behavior must pass CI. No local DB or live
+migration was run, and this candidate does not authorize a live rollout.
+
+### Legacy-upgrade fixture ordering — 2026-11-14
+
+Supplier43617432791 at `5b2bb8a5` failed setup, not the intended cold lifecycle:
+the fixture's explicit legacy/deferred posting partitions did not include the
+new WF0117. It ran before intentionally deferred WF0080/WF0081 and created the
+replacement functions, causing later WF0080 CREATE to fail. Both explicit
+partitions now include WF0117; their module-order traversal places it after its
+prerequisites. WF0117 now explicitly rejects missing guard prerequisites rather
+than creating an out-of-order guard. The migration is an unreleased candidate;
+no live database has used either draft. No business assertion, source predicate,
+public status or command budget is relaxed. Cold runtime evidence remains pending.

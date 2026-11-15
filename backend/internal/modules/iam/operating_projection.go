@@ -68,6 +68,11 @@ func (h *operatingHandlers) projectOperating(ctx context.Context, tenant string,
 		if err != nil {
 			return err
 		}
+		if row.NativeAdministration {
+			if err := operatingNativeSupport(tx); err != nil {
+				return err
+			}
+		}
 		if row.Status != "approved_pending_activation" || row.Version != version {
 			return nil
 		}
@@ -101,14 +106,19 @@ func (h *operatingHandlers) projectOperating(ctx context.Context, tenant string,
 	}
 	deadline := time.Now().Add(5 * time.Second)
 	return h.db.WithGuardedTenantCommand(ctx, tenant, deadline, func(tx *gorm.DB) error {
-		return tx.Exec(`SELECT set_config('app.iam_operating_access','authorized',true),set_config('app.iam_operating_command','project',true)`).Error
+		return tx.Exec(`SELECT set_config('app.iam_operating_access','authorized',true),set_config('app.iam_operating_command','project',true),set_config('app.iam_operating_native_projector','authorized',true)`).Error
 	}, func(commandCtx context.Context) error {
 		return h.db.WithTenantCommand(commandCtx, tenant, func(tx *gorm.DB) error {
 			var row operatingDutyRow
-			if err := tx.Table("iam_operating_duties").Select("tenant_id,id,input,prepared_by,status,membership_epoch,version,authority_epoch,created_at,updated_at").Where("tenant_id=? AND id=?", tenant, id).Clauses(clause.Locking{Strength: "UPDATE"}).Take(&row).Error; errors.Is(err, gorm.ErrRecordNotFound) {
+			if err := tx.Table("iam_operating_duties").Select("tenant_id,id,input,prepared_by,status,membership_epoch,version,authority_epoch,created_at,updated_at,native_administration").Where("tenant_id=? AND id=?", tenant, id).Clauses(clause.Locking{Strength: "UPDATE"}).Take(&row).Error; errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil
 			} else if err != nil {
 				return err
+			}
+			if row.NativeAdministration {
+				if err := operatingNativeSupport(tx); err != nil {
+					return err
+				}
 			}
 			if row.Status != "approved_pending_activation" || row.Version != snapshot.Version || row.AuthorityEpoch != snapshot.ScopeEpoch {
 				return nil

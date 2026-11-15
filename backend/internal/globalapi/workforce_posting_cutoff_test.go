@@ -27,7 +27,7 @@ func postingCutoffEffects(t *testing.T, db *tenantdb.DB, tenant, actor string) [
 	return counts
 }
 
-func assertPostingRetainedAncestorCutoff(t *testing.T, db *tenantdb.DB, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, request postingTestRequest, hospitalBase, submitter, reviewer, administrator, thirdStaff string, rootTemplate, childTemplate map[string]any, usePostingSource postingSourceUseProbe) {
+func assertPostingRetainedAncestorCutoff(t *testing.T, db *tenantdb.DB, observer *postingLifecycleQueryObserver, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, request postingTestRequest, hospitalBase, submitter, reviewer, administrator, thirdStaff string, rootTemplate, childTemplate map[string]any, usePostingSource postingSourceUseProbe) {
 	t.Helper()
 	prepare := func(template map[string]any, maker string, supervision map[string]any) (string, map[string]any) {
 		base := fmt.Sprintf("%s/posting-staff/%s", hospitalBase, template["staff_id"])
@@ -39,8 +39,8 @@ func assertPostingRetainedAncestorCutoff(t *testing.T, db *tenantdb.DB, tenant s
 		pending := call(t, "PUT", root+"/commands/"+uuid.Must(uuid.NewV7()).String(), maker, map[string]any{"expected_version": 0, "draft_id": draft, "draft_revision_id": drafted["revision_id"], "draft_version": drafted["version"], "generation_id": source["generation_id"], "staff_version": source["staff_version"], "employment_epoch": source["employment_epoch"], "reason": "Synthetic exact source pins for retained-cutoff acceptance", "sources_examined": true, "supervision": supervision}, 200)
 		return root, pending
 	}
-	assertPostingSourceUseCutoffRaces(t, db, tenant, call, request, prepare, rootTemplate, childTemplate, submitter, reviewer, administrator, usePostingSource)
-	assertPostingLifecycleCutoffRaces(t, db, tenant, call, request, prepare, rootTemplate, childTemplate, submitter, reviewer, administrator)
+	assertPostingSourceUseCutoffRaces(t, db, observer, tenant, call, request, prepare, rootTemplate, childTemplate, submitter, reviewer, administrator, usePostingSource)
+	assertPostingLifecycleCutoffRaces(t, db, observer, tenant, call, request, prepare, rootTemplate, childTemplate, submitter, reviewer, administrator)
 	assertPostingLifecycleExpiredReplay(t, db, tenant, call, prepare, rootTemplate, childTemplate, submitter, reviewer, administrator)
 	assertPostingLifecycleFarAncestor(t, db, tenant, call, prepare, rootTemplate, childTemplate, thirdStaff, submitter, reviewer, administrator)
 	parentRoot, parentPending := prepare(rootTemplate, reviewer, map[string]any{"kind": "hospital_management"})

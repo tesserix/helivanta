@@ -1,5 +1,8 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { listEmploymentPersonFindings } from "./employment-finding-selection";
+import {
+  listEmploymentPersonFindings,
+  listGovernanceEmploymentPersonFindings,
+} from "./employment-finding-selection";
 const scope = {
   tenantId: "11111111-1111-4111-8111-111111111111",
   subject: "synthetic-preparer",
@@ -57,3 +60,35 @@ it("preserves empty filtered-page continuation", async () => {
   );
   expect((await listEmploymentPersonFindings(scope, basis)).page.next_cursor).toBe("opaque-next");
 });
+
+it("uses the separate governance selector with original workspace and cancellation", async () => {
+  const fetcher = vi.fn(async () => Response.json(page([finding])));
+  vi.stubGlobal("fetch", fetcher);
+  const controller = new AbortController();
+  expect(
+    await listGovernanceEmploymentPersonFindings(scope, basis, "private-next", controller.signal),
+  ).toEqual(page([finding]));
+  const [url, init] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
+  expect(url).toContain(
+    "/employment-person-finding-options?hr_intake=v1&staff_version=3&employment_epoch=2&limit=20&cursor=private-next",
+  );
+  expect(new Headers(init.headers).get("X-Helivanta-Expected-Tenant")).toBe(scope.tenantId);
+  expect(new Headers(init.headers).get("X-Helivanta-Expected-Subject")).toBe(scope.subject);
+  expect(init.signal).toBe(controller.signal);
+});
+it.each([403, 503])(
+  "does not fall back after governance finding source failure %s",
+  async (status) => {
+    const fetcher = vi.fn(async () =>
+      Response.json(
+        { error: "source_unavailable", message: "Synthetic source failure" },
+        { status },
+      ),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    await expect(listGovernanceEmploymentPersonFindings(scope, basis)).rejects.toMatchObject({
+      status,
+    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  },
+);

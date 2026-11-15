@@ -79,6 +79,13 @@ jobs:
           staff_schema=$(mktemp "$RUNNER_TEMP/staff-owner-schema.XXXXXX.sql")
           bash scripts/ci/fetch-staff-identity-schema.sh "$staff_schema"
           printf 'STAFF_IDENTITY_OWNER_SCHEMA=%s\n' "$staff_schema" >> "$GITHUB_ENV"
+      - name: Staff governance input boundaries
+        run: |
+          go test -race ./internal/modules/iam -run '^Test(Governance|OperatingInbox)'
+          go test -race ./internal/modules/workforce -run '^Test(Governance|OperatingSelectionPlan)'
+          go test -race ./internal/bootstrap -run '^TestGovernance'
+      - name: Qualified hospital assignment department selection
+        run: go test -race ./internal/bootstrap -run '^TestGovernedAssignmentDepartmentChoicesUseCurrentOwnerScopeAndDenyMasterWrites$'
       - name: Customer onboarding authority and replay
         run: |
           go test -race ./internal/customeronboarding
@@ -140,6 +147,8 @@ jobs:
               sleep 0.2
             done' > /dev/null 2>&1 &
       - run: bash ./scripts/coverage-gate.test.sh
+      - name: Document scan worker and finding isolation
+        run: go test -race -count=1 ./internal/modules/workforce -run '^(TestStaffDocumentUploadPinsBytesAndPublishesOneScanIntent|TestGovernanceFindingFileIsolationSurvivesGuardRollback)$'
       - run: ./scripts/coverage-gate.sh
       # The drug master's latency target (#476 spec D8), measured alone: the
       # gate above runs every package in parallel under -race, where a
@@ -235,6 +244,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Verify shared emergency dispatch contract
         run: node scripts/generate-emergency-dispatch.mjs --check
+      - name: Verify Staff governance contracts
+        run: |
+          node scripts/generate-staff-governance.mjs --check
+          node --test scripts/staff-governance-contract.test.mjs
       - name: Verify Staff directory editing contract
         run: node scripts/generate-workforce-directory.mjs --check
       - name: Verify Workforce establishment contract
@@ -310,6 +323,38 @@ jobs:
           done
           curl --fail --silent --max-time 2 "$HELIVANTA_BROWSER_ORIGIN/ambulance" > /dev/null
           go -C backend test -tags emergencybrowser -run "Test(EmergencyConsole|ReceivingTransport)Browser" -count=1 -v ./internal/modules/emergency
+      - name: Verify native hospital, pharmacy and supplier Staff browser workflows
+        id: operating_browser
+        timeout-minutes: 18
+        env:
+          NEXT_PUBLIC_ZITADEL_CLIENT_ID: ci-build-client-id
+          NEXT_PUBLIC_ZITADEL_ISSUER_URL: http://auth.tesserix.localhost:20080
+          HOSTNAME: 127.0.0.1
+          PORT: "4344"
+          API_URL: http://127.0.0.1:8081
+          HELIVANTA_OPERATING_BROWSER_URL: http://127.0.0.1:4344
+        run: |
+          set -euo pipefail
+          node apps/shell/.next/standalone/apps/shell/server.js > "$RUNNER_TEMP/operating-web.log" 2>&1 &
+          operating_pid=$!
+          trap 'kill "$operating_pid" 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do
+            kill -0 "$operating_pid"
+            if curl --fail --silent --max-time 2 "$HELIVANTA_OPERATING_BROWSER_URL/login" > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail --silent --max-time 2 "$HELIVANTA_OPERATING_BROWSER_URL/login" > /dev/null
+          go -C backend test -race -timeout 16m -run '^TestGovernanceAccountLinkReviewConsumesExactEmployerSourceWithoutManagerAccess$/(pharmacy|supplier)$' -count=1 -v ./internal/bootstrap
+          go -C backend test -race -timeout 16m -run '^TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure$' -count=1 -v ./internal/bootstrap
+      - name: Upload native operating runtime diagnostics on failure
+        if: ${{ failure() && steps.operating_browser.outcome == 'failure' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-operating-web-runtime
+          path: ${{ runner.temp }}/operating-web.log
+          retention-days: 7
       - name: Upload emergency runtime diagnostics on failure
         if: ${{ failure() && steps.emergency_browser.outcome == 'failure' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

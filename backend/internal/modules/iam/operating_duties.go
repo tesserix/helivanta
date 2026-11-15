@@ -49,13 +49,16 @@ var operatingTemplatesCurrentSchema string
 var operatingTemplatesOrderSchema string
 
 type operatingHandlers struct {
-	db        *tenantdb.DB
-	bus       *events.Bus
-	graph     currentGraph
-	staff     authz.CurrentIndependentStaffGuard
-	locations authz.CurrentOperatingLocationGuard
+	governanceSources authz.CurrentGovernanceSourceGuard
+	native            *operatingNativeRequest
+	db                *tenantdb.DB
+	bus               *events.Bus
+	graph             currentGraph
+	staff             authz.CurrentIndependentStaffGuard
+	locations         authz.CurrentOperatingLocationGuard
 }
 type operatingDutyRow struct {
+	NativeAdministration                     bool
 	TenantID                                 uuid.UUID
 	ID                                       uuid.UUID
 	Input                                    json.RawMessage
@@ -66,7 +69,7 @@ type operatingDutyRow struct {
 
 func registerOperatingDutyRoutes(r *platform.Router, deps platform.Deps) {
 	r = r.Group("/iam")
-	h := &operatingHandlers{db: deps.DB, bus: deps.Bus, staff: deps.IndependentStaff, locations: deps.OperatingLocations}
+	h := &operatingHandlers{db: deps.DB, bus: deps.Bus, staff: deps.IndependentStaff, locations: deps.OperatingLocations, governanceSources: deps.GovernanceSources}
 	h.graph, _ = deps.Authz.(currentGraph)
 	platform.ListRoute(r, "/operating-employers/:kind/:employer/staff/:staff/duties", PermOperatingRead, h.list)
 	r.PUT("/operating-duties/:id", PermOperatingPrepare, h.prepare)
@@ -74,6 +77,7 @@ func registerOperatingDutyRoutes(r *platform.Router, deps platform.Deps) {
 	r.GET("/operating-duties/:id/proposal-receipt", PermOperatingRead, h.proposalReceipt)
 	r.PUT("/operating-duties/:id/commands/:command", authz.Public, h.decide)
 	r.GET("/operating-duties/:id/commands/:command", PermOperatingRead, h.getCommand)
+	registerOperatingGovernanceRoutes(r, h)
 }
 func operatingScope(c *gin.Context, permission authz.Permission) (authn.Principal, uuid.UUID, bool) {
 	c.Header("Cache-Control", "no-store")
@@ -125,6 +129,8 @@ func operatingError(c *gin.Context, err error) {
 		respond.NotFound(c, "operating duty")
 	case errors.Is(err, errAssignmentDenied):
 		respond.Forbidden(c, "Current operating duty administration authority is required.")
+	case errors.As(err, &pg) && pg.ConstraintName == "iam_operating_native_completion":
+		respond.Error(c, 503, "authorization_unavailable", "Current operating source evidence is unavailable.")
 	case errors.Is(err, errProposalConflict), errors.As(err, &pg) && (pg.Code == "23505" || pg.Code == "23514"):
 		respond.Error(c, 409, "operating_conflict", "The duty or its source basis changed. Refresh before continuing.")
 	case errors.Is(err, authz.ErrScopedCredentialRevoked):
@@ -153,12 +159,15 @@ func operatingAdministrationRole(permission authz.Permission, role authz.Role) b
 	return role == authz.RoleSupplyAuditor && permission == PermOperatingRead
 }
 func (h *operatingHandlers) employerAccess(ctx context.Context, tenant string, scope OperatingDutyScope, minimum string, action func(context.Context) error) error {
+	if h.native != nil {
+		return h.governedEmployerAccess(ctx, tenant, scope, action)
+	}
 	if h.staff == nil {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
 	return h.staff.WithIndependentEmployerAccess(ctx, authz.IndependentEmployerScope{TenantID: tenant, EmployerKind: scope.EmployerKind, EmployerID: scope.EmployerID}, minimum, action)
 }
-func (h *operatingHandlers) actorProof(ctx context.Context, p authn.Principal, permission authz.Permission) (authz.Membership, error) {
+func (h *operatingHandlers) legacyActorProof(ctx context.Context, p authn.Principal, permission authz.Permission) (authz.Membership, error) {
 	return h.actorProofFor(ctx, p, permission, func(role authz.Role) bool { return operatingAdministrationRole(permission, role) })
 }
 func (h *operatingHandlers) actorProofFor(ctx context.Context, p authn.Principal, permission authz.Permission, roleAllowed func(authz.Role) bool) (authz.Membership, error) {
@@ -230,7 +239,7 @@ func (h *operatingHandlers) transaction(ctx context.Context, p authn.Principal, 
 }
 func loadOperatingDuty(tx *gorm.DB, tenant string, id uuid.UUID) (operatingDutyRow, error) {
 	var row operatingDutyRow
-	err := tx.Table("iam_operating_duties").Select("tenant_id,id,input,prepared_by,status,membership_epoch,version,authority_epoch,created_at,updated_at").Where("tenant_id=? AND id=?", tenant, id).Take(&row).Error
+	err := tx.Table("iam_operating_duties").Select("tenant_id,id,input,prepared_by,status,membership_epoch,version,authority_epoch,created_at,updated_at,native_administration").Where("tenant_id=? AND id=?", tenant, id).Take(&row).Error
 	return row, err
 }
 func operatingDutyView(row operatingDutyRow, receipt bool) (OperatingDuty, error) {
@@ -273,7 +282,7 @@ func validateOperatingInput(in *OperatingDutyInput, now time.Time, tenant string
 	return authz.ValidOperatingLocationScope(authz.OperatingLocationScope{TenantID: tenant, EmployerKind: in.Scope.EmployerKind, EmployerID: in.Scope.EmployerID, LocationID: in.Scope.LocationID}) && in.Identity.StaffID != uuid.Nil && in.Identity.LinkID.Version() == 7 && in.Identity.LinkID.Variant() == uuid.RFC4122 && in.Identity.LinkVersion >= 2 && proposalSubject(in.Subject) && utf8.ValidString(in.Reason) && utf8.RuneCountInString(in.Reason) >= 1 && utf8.RuneCountInString(in.Reason) <= 500 && !strings.ContainsRune(in.Reason, 0) && !in.ValidFrom.IsZero() && in.ExpiresAt.After(in.ValidFrom) && in.ExpiresAt.Sub(in.ValidFrom) <= time.Duration(template.MaxValidityHours)*time.Hour && in.ValidFrom.Before(now.AddDate(1, 0, 0))
 }
 func (h *operatingHandlers) prepare(c *gin.Context) {
-	p, id, ok := operatingScope(c, PermOperatingPrepare)
+	p, id, ok := h.scope(c, PermOperatingPrepare)
 	if !ok {
 		return
 	}
@@ -289,13 +298,16 @@ func (h *operatingHandlers) prepare(c *gin.Context) {
 	defer cancel()
 	proof, err := h.actorProof(ctx, p, PermOperatingPrepare)
 	if err != nil {
-		operatingError(c, err)
+		h.operatingError(c, err)
 		return
 	}
 	var result OperatingDuty
 	created := false
-	err = h.transaction(ctx, p, proof, "prepare", func(commandCtx context.Context, tx *gorm.DB) error {
+	err = h.withAdministration(ctx, p, proof, "prepare", func(commandCtx context.Context, tx *gorm.DB) error {
 		recover := func(row operatingDutyRow) error {
+			if err := h.checkOperatingMode(tx, p, id, true, nil); err != nil {
+				return err
+			}
 			expected, err := json.Marshal(in)
 			if err != nil {
 				return err
@@ -329,6 +341,9 @@ func (h *operatingHandlers) prepare(c *gin.Context) {
 			return errOperatingValidity
 		}
 		return h.employerAccess(commandCtx, p.TenantID, in.Scope, "manager", func(commandCtx context.Context) error {
+			if err := h.selectOperatingTarget(commandCtx, p, in.Subject); err != nil {
+				return err
+			}
 			epoch, err := proposalMembershipEpoch(tx, p.TenantID, in.Subject)
 			if err != nil {
 				return err
@@ -378,7 +393,7 @@ func (h *operatingHandlers) prepare(c *gin.Context) {
 		})
 	})
 	if err != nil {
-		operatingError(c, err)
+		h.operatingError(c, err)
 		return
 	}
 	if created {
@@ -400,7 +415,7 @@ func (h *operatingHandlers) publish(tx *gorm.DB, tenant string, id uuid.UUID, ve
 func (h *operatingHandlers) get(c *gin.Context)             { h.read(c, false) }
 func (h *operatingHandlers) proposalReceipt(c *gin.Context) { h.read(c, true) }
 func (h *operatingHandlers) read(c *gin.Context, receipt bool) {
-	p, id, ok := operatingScope(c, PermOperatingRead)
+	p, id, ok := h.scope(c, PermOperatingRead)
 	if !ok {
 		return
 	}
@@ -408,13 +423,16 @@ func (h *operatingHandlers) read(c *gin.Context, receipt bool) {
 	defer cancel()
 	proof, err := h.actorProof(ctx, p, PermOperatingRead)
 	if err != nil {
-		operatingError(c, err)
+		h.operatingError(c, err)
 		return
 	}
 	var result OperatingDuty
-	err = h.transaction(ctx, p, proof, "read", func(commandCtx context.Context, tx *gorm.DB) error {
+	err = h.withAdministration(ctx, p, proof, "read", func(commandCtx context.Context, tx *gorm.DB) error {
 		row, err := loadOperatingDuty(tx, p.TenantID, id)
 		if err != nil {
+			return err
+		}
+		if err := h.checkOperatingMode(tx, p, id, receipt, nil); err != nil {
 			return err
 		}
 		if receipt && row.PreparedBy != p.Subject {
@@ -427,7 +445,7 @@ func (h *operatingHandlers) read(c *gin.Context, receipt bool) {
 		return h.employerAccess(commandCtx, p.TenantID, result.Input.Scope, "reader", func(context.Context) error { return operatingAudit(tx, p, id, "iam.operating.read") })
 	})
 	if err != nil {
-		operatingError(c, err)
+		h.operatingError(c, err)
 		return
 	}
 	respond.OK(c, result)
@@ -435,7 +453,7 @@ func (h *operatingHandlers) read(c *gin.Context, receipt bool) {
 
 func (d OperatingDuty) PageKey() (time.Time, uuid.UUID) { return d.CreatedAt, d.ID }
 func (h *operatingHandlers) list(c *gin.Context, page pagination.Params) ([]OperatingDuty, error) {
-	p, _, ok := operatingScope(c, PermOperatingRead)
+	p, _, ok := h.scope(c, PermOperatingRead)
 	if !ok {
 		return nil, nil
 	}
@@ -456,14 +474,17 @@ func (h *operatingHandlers) list(c *gin.Context, page pagination.Params) ([]Oper
 	defer cancel()
 	proof, err := h.actorProof(ctx, p, PermOperatingRead)
 	if err != nil {
-		operatingError(c, err)
+		h.operatingError(c, err)
 		return nil, err
 	}
 	result := []OperatingDuty{}
-	err = h.transaction(ctx, p, proof, "read", func(commandCtx context.Context, tx *gorm.DB) error {
+	err = h.withAdministration(ctx, p, proof, "read", func(commandCtx context.Context, tx *gorm.DB) error {
 		return h.employerAccess(commandCtx, p.TenantID, OperatingDutyScope{EmployerKind: kind, EmployerID: employer}, "reader", func(context.Context) error {
 			var rows []operatingDutyRow
-			query := tx.Table("iam_operating_duties").Select("tenant_id,id,input,prepared_by,status,membership_epoch,version,authority_epoch,created_at,updated_at").Where("tenant_id=? AND employer_kind=? AND employer_id=? AND input#>>'{identity,staff_id}'=?", p.TenantID, kind, employer, staff.String()).Order("created_at DESC,id DESC").Limit(page.Limit + 1)
+			query := tx.Table("iam_operating_duties").Select("tenant_id,id,input,prepared_by,status,membership_epoch,version,authority_epoch,created_at,updated_at,native_administration").Where("tenant_id=? AND employer_kind=? AND employer_id=? AND input#>>'{identity,staff_id}'=?", p.TenantID, kind, employer, staff.String()).Order("created_at DESC,id DESC").Limit(page.Limit + 1)
+			if h.native == nil {
+				query = query.Where("native_administration=false")
+			}
 			if page.After != nil {
 				query = query.Where("(created_at,id)<(?,?)", page.After.CreatedAt, page.After.ID)
 			}
@@ -481,7 +502,7 @@ func (h *operatingHandlers) list(c *gin.Context, page pagination.Params) ([]Oper
 		})
 	})
 	if err != nil {
-		operatingError(c, err)
+		h.operatingError(c, err)
 	}
 	return result, err
 }

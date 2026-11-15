@@ -14,41 +14,22 @@ import (
 	"gorm.io/gorm"
 )
 
-func (h *handlers) employmentReviewReviewer(c *gin.Context, p authn.Principal, hospital, staff, id uuid.UUID, fn func(*gorm.DB, IdentitySource, *intakeAuthority) error) error {
+func (h *handlers) employmentReviewReviewer(c *gin.Context, p authn.Principal, hospital, staff, id uuid.UUID, fn func(*gorm.DB, IdentitySource, *employmentReviewAuthority) error) error {
 	if !employmentReviewProjection(c, "employment_review") {
 		return errIntakeProjection
 	}
-	return h.intakeAuthorityTransaction(c, p, hospital, []authz.Permission{PermEmploymentReview}, true, func(tx *gorm.DB, scoped bool) error {
-		value, present := c.Get(intakeAuthorityKey)
-		authority, ok := value.(*intakeAuthority)
-		if !scoped || !present || !ok || authority == nil || !authority.Scoped {
-			return authz.ErrScopedCommandDenied
-		}
-		if err := tx.Exec(`SELECT set_config('app.workforce_employment_review','review',true),set_config('app.workforce_employment_review_id',?,true),set_config('app.workforce_employment_review_actor',?,true),set_config('app.workforce_employment_review_link',?,true),set_config('app.workforce_identity_source','authorized',true),set_config('app.workforce_identity_staff',?,true)`, id.String(), authority.Actor.Staff.String(), authority.Actor.Link.String(), staff.String()).Error; err != nil {
-			return err
-		}
-		// Verify the selected parent before disclosing a target's identity projection.
-		var parent struct{ ID uuid.UUID }
-		if err := tx.Table("workforce_employment_reviews").Select("id").Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", p.TenantID, hospital, staff, id).Take(&parent).Error; err != nil {
-			return err
-		}
-		source, err := loadIdentitySource(tx, p, hospital, staff)
-		if err != nil {
-			return err
-		}
-		return fn(tx, source, authority)
-	})
+	return h.withEmploymentReviewAuthority(c, p, hospital, staff, id, PermEmploymentReview, []authz.Permission{PermEmploymentReview}, fn)
 }
 
-func (h *handlers) employmentReviewRead(c *gin.Context, p authn.Principal, hospital, staff, id uuid.UUID, fn func(*gorm.DB, IdentitySource, *intakeAuthority) error) error {
+func (h *handlers) employmentReviewRead(c *gin.Context, p authn.Principal, hospital, staff, id uuid.UUID, fn func(*gorm.DB, IdentitySource, *employmentReviewAuthority) error) error {
 	if _, reviewer := c.Request.URL.Query()["employment_review"]; reviewer {
 		return h.employmentReviewReviewer(c, p, hospital, staff, id, fn)
 	}
 	return h.employmentReviewPreparation(c, p, hospital, staff, id, fn)
 }
 
-func employmentReviewIndependent(tx *gorm.DB, p authn.Principal, row EmploymentReview, actor intakeActorReference) (bool, error) {
-	if actor.Staff == row.StaffID || row.ProposedBySubject == p.Subject || row.DeclaredSubject == p.Subject {
+func employmentReviewIndependent(tx *gorm.DB, p authn.Principal, row EmploymentReview, authority *employmentReviewAuthority) (bool, error) {
+	if authority.isStaff(row.StaffID) || row.ProposedBySubject == p.Subject || row.DeclaredSubject == p.Subject {
 		return false, nil
 	}
 	var excluded int64
@@ -94,12 +75,12 @@ func (h *handlers) decideEmploymentReview(c *gin.Context) {
 		return
 	}
 	var result EmploymentReview
-	err = h.employmentReviewReviewer(c, p, hospital, staff, id, func(tx *gorm.DB, source IdentitySource, authority *intakeAuthority) error {
+	err = h.employmentReviewReviewer(c, p, hospital, staff, id, func(tx *gorm.DB, source IdentitySource, authority *employmentReviewAuthority) error {
 		row, err := loadEmploymentReview(tx, p, hospital, staff, id, uuid.Nil)
 		if err != nil {
 			return err
 		}
-		independent, err := employmentReviewIndependent(tx, p, row.EmploymentReview, authority.Actor)
+		independent, err := employmentReviewIndependent(tx, p, row.EmploymentReview, authority)
 		if err != nil {
 			return err
 		}
@@ -178,7 +159,7 @@ func (h *handlers) endEmploymentReview(c *gin.Context, withdraw bool) {
 		return
 	}
 	var result EmploymentReview
-	err = transaction(c, p, hospital, staff, id, func(tx *gorm.DB, _ IdentitySource, authority *intakeAuthority) error {
+	err = transaction(c, p, hospital, staff, id, func(tx *gorm.DB, _ IdentitySource, authority *employmentReviewAuthority) error {
 		row, err := loadEmploymentReview(tx, p, hospital, staff, id, uuid.Nil)
 		if err != nil {
 			return err
@@ -188,7 +169,7 @@ func (h *handlers) endEmploymentReview(c *gin.Context, withdraw bool) {
 				return authz.ErrScopedCommandDenied
 			}
 		} else {
-			independent, err := employmentReviewIndependent(tx, p, row.EmploymentReview, authority.Actor)
+			independent, err := employmentReviewIndependent(tx, p, row.EmploymentReview, authority)
 			if err != nil {
 				return err
 			}

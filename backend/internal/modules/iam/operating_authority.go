@@ -126,10 +126,15 @@ func (a *operatingAuthority) consume(ctx context.Context, p authn.Principal, sco
 		if err := tx.Exec(`SELECT set_config('app.iam_operating_access','authorized',true)`).Error; err != nil {
 			return err
 		}
-		if err := tx.Table("iam_operating_duties").Select("tenant_id,id,input,prepared_by,status,membership_epoch,version,authority_epoch,created_at,updated_at").Where("tenant_id=? AND id=? AND subject=?", p.TenantID, id, p.Subject).Clauses(clause.Locking{Strength: "SHARE"}).Take(&row).Error; errors.Is(err, gorm.ErrRecordNotFound) {
+		if err := tx.Table("iam_operating_duties").Select("tenant_id,id,input,prepared_by,status,membership_epoch,version,authority_epoch,created_at,updated_at,native_administration").Where("tenant_id=? AND id=? AND subject=?", p.TenantID, id, p.Subject).Clauses(clause.Locking{Strength: "SHARE"}).Take(&row).Error; errors.Is(err, gorm.ErrRecordNotFound) {
 			return authz.ErrScopedCommandDenied
 		} else if err != nil {
 			return err
+		}
+		if row.NativeAdministration {
+			if err := operatingNativeSupport(tx); err != nil {
+				return err
+			}
 		}
 		now := time.Now()
 		if row.Status != "active" || row.Version != version || row.AuthorityEpoch != snapshot.ScopeEpoch || row.MembershipEpoch != snapshot.MembershipEpoch || now.Before(snapshot.ValidFrom) || !now.Before(snapshot.ExpiresAt) {

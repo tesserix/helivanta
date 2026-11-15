@@ -1,5 +1,8 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { listEmploymentReviewScopes } from "./employment-review-scopes";
+import {
+  listEmploymentReviewAuthorityScopes,
+  listEmploymentReviewScopes,
+} from "./employment-review-scopes";
 
 const workspace = {
   tenantId: "11111111-1111-4111-8111-111111111111",
@@ -12,6 +15,61 @@ const hospital = {
   can_review: true,
 };
 afterEach(() => vi.unstubAllGlobals());
+
+it("keeps governance discovery on its own Global API route and cursor", async () => {
+  const first = { data: [], page: { has_more: true, next_cursor: "authority-next" } };
+  const last = { data: [hospital], page: { has_more: false, next_cursor: null } };
+  const fetcher = vi
+    .fn()
+    .mockResolvedValueOnce(Response.json(first))
+    .mockResolvedValueOnce(Response.json(last));
+  vi.stubGlobal("fetch", fetcher);
+  expect(await listEmploymentReviewAuthorityScopes(workspace)).toEqual(first);
+  expect(await listEmploymentReviewAuthorityScopes(workspace, "authority-next")).toEqual(last);
+  expect(fetcher.mock.calls[0][0]).toBe(
+    "/api/v1/workforce/employment-review-authority-scopes?limit=20",
+  );
+  expect(fetcher.mock.calls[1][0]).toBe(
+    "/api/v1/workforce/employment-review-authority-scopes?limit=20&cursor=authority-next",
+  );
+  for (const [, init] of fetcher.mock.calls) {
+    expect(init.cache).toBe("no-store");
+    expect(new Headers(init.headers).get("X-Helivanta-Expected-Tenant")).toBe(workspace.tenantId);
+    expect(new Headers(init.headers).get("X-Helivanta-Expected-Subject")).toBe(workspace.subject);
+  }
+});
+
+it("rejects private or unverified governance discovery responses", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      Response.json({
+        data: [{ ...hospital, staff_id: "unrequested-private-value" }],
+        page: { has_more: false, next_cursor: null },
+      }),
+    ),
+  );
+  await expect(listEmploymentReviewAuthorityScopes(workspace)).rejects.toThrow(
+    /could not be verified/i,
+  );
+  await expect(listEmploymentReviewAuthorityScopes(workspace)).rejects.not.toThrow(
+    /unrequested-private-value/,
+  );
+});
+
+it("does not release governance discovery after cancellation", async () => {
+  const controller = new AbortController();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => {
+      controller.abort();
+      return Response.json({ data: [hospital], page: { has_more: false, next_cursor: null } });
+    }),
+  );
+  await expect(
+    listEmploymentReviewAuthorityScopes(workspace, null, controller.signal),
+  ).rejects.toThrow();
+});
 
 it("preserves empty-page continuation and original workspace through the Global API", async () => {
   const first = { data: [], page: { has_more: true, next_cursor: "opaque-next" } };

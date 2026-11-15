@@ -42,7 +42,7 @@ func (*Module) Permissions() []authz.Grant {
 	return []authz.Grant{{Permission: PermPostingChoicesRead}, {Permission: PermStructureRead}, {Permission: PermStructureManage}}
 }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_organization", SQL: schema}, {ID: "0002_organization_departments", SQL: departmentsSchema}, {ID: "0003_organization_department_revision_integrity", SQL: departmentRevisionIntegritySchema}, {ID: "0004_organization_department_observations", SQL: departmentObservationsSchema}}
+	return []tenantdb.Migration{{ID: "0001_organization", SQL: schema}, {ID: "0002_organization_departments", SQL: departmentsSchema}, {ID: "0003_organization_department_revision_integrity", SQL: departmentRevisionIntegritySchema}, {ID: "0004_organization_department_observations", SQL: departmentObservationsSchema}, {ID: "0005_organization_assignment_choices", SQL: assignmentChoicesSchema}}
 }
 func (*Module) Publishes() []string {
 	return []string{organizationcontract.SubjectDepartmentLinkObserved, organizationcontract.SubjectHospitalReferenceRequested, organizationcontract.SubjectDepartmentRevisionChanged, organizationcontract.SubjectAssignmentDepartmentVerified}
@@ -54,8 +54,9 @@ func (*Module) Consumers(deps platform.Deps) []events.Consumer {
 }
 func (*Module) Broadcasts(platform.Deps) []events.Broadcast { return nil }
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {
-	h := &handlers{db: deps.DB, bus: deps.Bus, scopeAuthority: deps.ScopedAuthorizer, staffActors: deps.StaffActors}
+	h := &handlers{db: deps.DB, bus: deps.Bus, scopeAuthority: deps.ScopedAuthorizer, staffActors: deps.StaffActors, governanceSources: deps.GovernanceSources}
 	g := r.Group("/organization")
+	platform.SealedFilteredQueryListRoute(g, "/hospitals/:hospital/assignment-department-choices", authz.Public, "hospital", []platform.QueryFilter{{Key: "status", Default: "active"}}, 20, h.listAssignmentDepartmentChoices, func(_ *gin.Context, rows []departmentRecord) ([]departmentRecord, error) { return rows, nil })
 	platform.HandlerScopedQueryListRoute(g, "/hospitals/:hospital/posting-department-choices", PermPostingChoicesRead, "hospital", []platform.QueryFilter{{Key: "department"}}, 50, h.listPostingDepartmentChoices)
 	platform.ListRoute(g, "/hospitals", PermStructureRead, h.list)
 	g.PUT("/hospitals/:hospital/registrations/:request", PermStructureManage, h.put)
@@ -67,10 +68,11 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 }
 
 type handlers struct {
-	scopeAuthority authz.ScopedAuthorizer
-	staffActors    authz.CurrentStaffActorGuard
-	db             *tenantdb.DB
-	bus            *events.Bus
+	scopeAuthority    authz.ScopedAuthorizer
+	staffActors       authz.CurrentStaffActorGuard
+	governanceSources authz.CurrentGovernanceSourceGuard
+	db                *tenantdb.DB
+	bus               *events.Bus
 }
 type registration struct {
 	TenantID  uuid.UUID `json:"-"`

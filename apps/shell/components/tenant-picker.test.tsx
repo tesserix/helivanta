@@ -128,10 +128,19 @@ describe("Separate account switching", () => {
 it("remembers the currently authenticated tenant only as a sign-in routing hint", async () => {
   window.localStorage.clear();
   const tenantID = "11111111-1111-4111-8111-111111111111";
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({
-    subject: "synthetic-owner", tenant_id: tenantID, tenant_name: "Yes Hospital",
-    display_name: "Synthetic Owner", email: "owner@example.test", roles: [],
-  })));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(
+      Response.json({
+        subject: "synthetic-owner",
+        tenant_id: tenantID,
+        tenant_name: "Yes Hospital",
+        display_name: "Synthetic Owner",
+        email: "owner@example.test",
+        roles: [],
+      }),
+    ),
+  );
   renderPicker();
   await screen.findByText("Yes Hospital");
   const hint = JSON.parse(window.localStorage.getItem("helivanta.login.workspace.v1") ?? "null");

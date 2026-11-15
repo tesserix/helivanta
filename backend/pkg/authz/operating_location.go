@@ -3,6 +3,7 @@ package authz
 import (
 	"context"
 	"github.com/google/uuid"
+	"github.com/tesserix/helivanta/pkg/pagination"
 )
 
 // OperatingLocationScope names one independently owned physical stock source.
@@ -19,6 +20,7 @@ type OperatingLocationReference struct {
 }
 
 type CurrentOperatingLocationGuard interface {
+	OperatingLocationChoices(context.Context, GovernedIndependentEmployerRequest, pagination.Params) ([]OperatingLocationChoice, error)
 	CurrentOperatingLocation(context.Context, OperatingLocationScope) (OperatingLocationReference, error)
 }
 

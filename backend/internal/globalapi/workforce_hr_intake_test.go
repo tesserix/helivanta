@@ -50,7 +50,7 @@ func TestHRIntakeDelegationPreparesInactiveStaffWithoutManagerGrant(t *testing.T
 		require.NoError(t, graph.GrantRole(ctx, testutil.TenantA, subject, authz.RoleTenantAdmin))
 	}
 	signer, verifier := testutil.NewSessionSignerForTest(t)
-	owner, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+	owner, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{GovernanceSources: testutil.GovernanceReviewProtocol,
 		Writer: graph, Roles: graph, Membership: graph, Resolver: graph,
 		Verifier: authn.NewSessionVerifier(verifier), Modules: modules, Documents: documents,
 		ScopedAuthorizer: func(db *tenantdb.DB) authz.ScopedAuthorizer { return iam.NewScopedAuthorizer(db, graph) },

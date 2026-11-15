@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
-	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
@@ -32,7 +31,7 @@ func (h *handlers) searchPersonReviewEvidence(c *gin.Context, page pagination.Pa
 		return nil, nil
 	}
 	rows := []PersonReviewEvidenceOption{}
-	err := h.personReviewTransaction(c, p, hospital, staff, PermIdentityChecksManage, func(tx *gorm.DB, source IdentitySource, actor reviewedLeaveActor, grant authz.ScopeGrant) error {
+	err := h.personReviewTransaction(c, p, hospital, staff, PermIdentityChecksManage, func(tx *gorm.DB, source IdentitySource, actor personReviewAuthority) error {
 		if source.StaffVersion != *input.StaffVersion || source.EmploymentEpoch != *input.EmploymentEpoch || source.IdentityHash != input.IdentityHash {
 			return errPersonReviewConflict
 		}
@@ -44,7 +43,7 @@ func (h *handlers) searchPersonReviewEvidence(c *gin.Context, page pagination.Pa
 			return err
 		}
 		for _, row := range rows[:min(len(rows), page.Limit)] {
-			if err := personReviewAudit(tx, p, hospital, row.ID, "workforce.person_review.evidence_selection.read", row.RecordVersion, actor, grant); err != nil {
+			if err := personReviewAudit(tx, p, hospital, row.ID, "workforce.person_review.evidence_selection.read", row.RecordVersion, actor); err != nil {
 				return err
 			}
 		}

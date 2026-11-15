@@ -43,6 +43,7 @@ type employmentRecord struct {
 	owner         establishment
 	staff, period uuid.UUID
 	authority     establishmentAuthority
+	prepareDraft  func(EmploymentPeriodDraftInput, func(*gorm.DB, EmploymentPeriodSource) error) error
 }
 
 // establishmentAuthority opens the admitting family's authorized transaction for the permissions a route needs.
@@ -85,7 +86,7 @@ func employmentPeriodSource(tx *gorm.DB, p authn.Principal, hospital, staff uuid
 	return source, err
 }
 func employmentPeriodAudit(tx *gorm.DB, p authn.Principal, hospital, resource uuid.UUID, action string, version int64) error {
-	return tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,?,?,jsonb_build_object('version',?::bigint))`, p.TenantID, hospital, p.Subject, action, resource, version).Error
+	return tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,?,?,jsonb_build_object('version',?::bigint) || CASE WHEN COALESCE(current_setting('app.workforce_governance_draft_authority',true),'')='' THEN '{}'::jsonb ELSE jsonb_build_object('authority',current_setting('app.workforce_governance_draft_authority',true)::jsonb) END)`, p.TenantID, hospital, p.Subject, action, resource, version).Error
 }
 func (r employmentRecord) transaction(fn func(*gorm.DB, EmploymentPeriodSource) error) error {
 	return r.authorized([]authz.Permission{PermEnrollmentManage}, fn)
@@ -218,7 +219,11 @@ func saveEmploymentPeriod(c *gin.Context, r employmentRecord) (EmploymentPeriodD
 	}
 	digest := sha256.Sum256(raw)
 	intent := hex.EncodeToString(digest[:])
-	err = r.transaction(func(tx *gorm.DB, source EmploymentPeriodSource) error {
+	run := r.transaction
+	if r.prepareDraft != nil {
+		run = func(fn func(*gorm.DB, EmploymentPeriodSource) error) error { return r.prepareDraft(in, fn) }
+	}
+	err = run(func(tx *gorm.DB, source EmploymentPeriodSource) error {
 		var receipt employmentPeriodRecord
 		err := tx.Table("workforce_employment_period_history").Select(employmentPeriodColumns).Where("tenant_id=? AND hospital_id=? AND revision_id=?", p.TenantID, hospital, in.CommandID).Take(&receipt).Error
 		if err == nil {

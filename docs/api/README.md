@@ -95,3 +95,5 @@ The unreleased [independent operating duty contract](operating-duties.md) record
 [Staff recipient setup](staff-recipient-setup.md) documents the candidate public capability handoff and its remaining access gates.
 
 [Protected Staff account initiation](staff-account-initiation.md) documents the candidate owner-controlled creation, recovery and private-delivery boundary.
+
+[Staff reviewer governance](staff-governance.md) documents the candidate owner grant, retained receipt and owner inbox boundaries. Independent governance decisions, effective reviewer consumers and live access acceptance remain unfinished.

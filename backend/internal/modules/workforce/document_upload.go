@@ -105,6 +105,9 @@ func (h *handlers) receiveDocument(c *gin.Context, gate documentGate, p authn.Pr
 		if err != nil || saved.Status != "upload_pending" {
 			return err
 		}
+		if err := prepareDocumentMutation(tx, gate, documentMutation{Stage: documentMutationStamp, Saved: &saved}); err != nil {
+			return err
+		}
 		result := tx.Raw(`UPDATE workforce_documents SET uploaded_at=COALESCE(uploaded_at,GREATEST(clock_timestamp(),created_at)),updated_at=clock_timestamp()
 		 WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND id=? AND status='upload_pending' AND expires_at>clock_timestamp()
 		 RETURNING `+documentColumns, p.TenantID, hospital, staffID, fileID).Scan(&saved)
@@ -154,6 +157,9 @@ func (h *handlers) receiveDocument(c *gin.Context, gate documentGate, p authn.Pr
 		if receipt.Size != saved.Size || receipt.SHA256 != saved.SHA256 {
 			return errDocumentConflict
 		}
+		if err := prepareDocumentMutation(tx, gate, documentMutation{Stage: documentMutationQueue, Saved: &saved, Generation: receipt.Generation}); err != nil {
+			return err
+		}
 		result := tx.Raw(`UPDATE workforce_documents SET status='scan_pending',source_generation=?,updated_at=clock_timestamp()
 		 WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND id=? AND status='upload_pending' AND expires_at>clock_timestamp()
 		 RETURNING `+documentColumns, receipt.Generation, p.TenantID, hospital, staffID, fileID).Scan(&saved)
@@ -195,6 +201,8 @@ func documentUploadError(c *gin.Context, err error) bool {
 		respond.ConflictWithDetail(c, "This proposal has been decided, so its evidence can no longer change.", gin.H{"reason": "not_pending"})
 	} else if isPG && (pg.ConstraintName == "workforce_tax_evidence_limit" || pg.ConstraintName == "workforce_benefit_evidence_limit") {
 		respond.ConflictWithDetail(c, "A proposal takes at most 10 evidence files.", gin.H{"reason": "evidence_limit"})
+	} else if errors.Is(err, errEmploymentDocumentBasis) {
+		respond.Error(c, 409, "employment_source_changed", "Staff details changed. Refresh the employment workspace before continuing.")
 	} else if errors.Is(err, errDocumentConflict) {
 		respond.Conflict(c, "The document intent is expired, changed or conflicts with stored bytes. Create a new intent.")
 	} else if errors.Is(err, errDocumentsUnavailable) {

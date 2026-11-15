@@ -90,8 +90,9 @@ func newPostingDraftFixtureWithFault(t *testing.T, fault string) *postingDraftFi
 	}
 	require.NoError(t, fga.GrantRole(t.Context(), testutil.TenantB, "user-foreign", authz.RoleTenantAdmin))
 	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
-		Tokens:  map[string]string{"manager": testutil.TenantA, "reader": testutil.TenantA, "foreign": testutil.TenantB},
-		Modules: modules, Resolver: fga, Membership: fga, Writer: fga, Roles: fga,
+		GovernanceSources: testutil.GovernanceReviewProtocol,
+		Tokens:            map[string]string{"manager": testutil.TenantA, "reader": testutil.TenantA, "foreign": testutil.TenantB},
+		Modules:           modules, Resolver: fga, Membership: fga, Writer: fga, Roles: fga,
 	})
 	f := &postingDraftFixture{t: t, handler: r, db: db, graph: fga, hospital: uuid.NewString(), staff: uuid.Must(uuid.NewV7()).String(), department: uuid.Must(uuid.NewV7()).String(), revision: uuid.Must(uuid.NewV7()).String()}
 	base := "/v1/workforce/hospitals/" + f.hospital

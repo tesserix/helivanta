@@ -11,7 +11,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
-func assertPostingSupervisedApproval(t *testing.T, db *tenantdb.DB, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, request postingTestRequest, hospitalBase, childBase, submitter, reviewer, supervisorStaff, rootApprover, rootApproverStaff, organizationMaker, childDraft string, childReceipt, childSource, generation map[string]any, usePostingSource postingSourceUseProbe, changeSupervisorIdentity func() func(), browser func(string, map[string]any, map[string]any), departmentReviewer string, grantDepartment func(string, string, []string), grantSource func(string), usePartnerMember partnerMemberUseProbe, memberScenario func(*testing.T, map[string]any)) {
+func assertPostingSupervisedApproval(t *testing.T, db *tenantdb.DB, observer *postingLifecycleQueryObserver, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, request postingTestRequest, hospitalBase, childBase, submitter, reviewer, supervisorStaff, rootApprover, rootApproverStaff, organizationMaker, childDraft string, childReceipt, childSource, generation map[string]any, usePostingSource postingSourceUseProbe, changeSupervisorIdentity func() func(), browser func(string, map[string]any, map[string]any), departmentReviewer string, grantDepartment func(string, string, []string), grantSource func(string), usePartnerMember partnerMemberUseProbe, memberScenario func(*testing.T, map[string]any)) {
 	t.Helper()
 	parentBase := hospitalBase + "/posting-staff/" + supervisorStaff
 	parentSource := call(t, "GET", parentBase+"/posting-review-source", reviewer, nil, 200)
@@ -133,7 +133,7 @@ func assertPostingSupervisedApproval(t *testing.T, db *tenantdb.DB, tenant strin
 	assertCurrentPartnerMemberSource(t, reviewer, submitter, approved, usePartnerMember)
 	memberScenario(t, approved)
 	assertAtomicDepartmentTransfer(t, db, tenant, call, request, childBase, submitter, reviewer, organizationMaker, childSource, generation, childReceipt, intent, browser, departmentReviewer, grantDepartment, grantSource)
-	assertPostingRetainedAncestorCutoff(t, db, tenant, call, request, hospitalBase, submitter, reviewer, rootApprover, rootApproverStaff, parentApproved, approved, usePostingSource)
+	assertPostingRetainedAncestorCutoff(t, db, observer, tenant, call, request, hospitalBase, submitter, reviewer, rootApprover, rootApproverStaff, parentApproved, approved, usePostingSource)
 	assertPostingAncestorSourceCutoff(t, db, tenant, call, hospitalBase, reviewer, rootApprover, rootApproverStaff, approved, changeSupervisorIdentity)
 	assertPostingImmediateCutoff(t, db, tenant, call, hospitalBase, submitter, rootApprover, reviewer, selfRootApproved)
 }

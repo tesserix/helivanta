@@ -1,9 +1,16 @@
 "use client";
-import { listEmploymentPersonFindings } from "./employment-finding-selection";
+import {
+  listEmploymentPersonFindings,
+  listGovernanceEmploymentPersonFindings,
+} from "./employment-finding-selection";
 import { useQuery } from "@tanstack/react-query";
-import { listEmploymentReviewScopes } from "./employment-review-scopes";
+import {
+  listEmploymentReviewScopes,
+  listEmploymentReviewAuthorityScopes,
+} from "./employment-review-scopes";
 import {
   listEmploymentReviewInbox,
+  listEmploymentReviewAuthorityInbox,
   type EmploymentReviewHospitalWorkspace,
 } from "./employment-review-browse";
 import {
@@ -14,32 +21,40 @@ import {
 } from "./employment-reviews";
 import type { EmploymentReviewSummary } from "./employment-review-contract";
 const privateRead = { gcTime: 0, staleTime: 0, retry: false, refetchOnWindowFocus: false } as const;
+export type EmploymentReviewBrowseAuthority = "governance" | "scoped_staff";
 export function useEmploymentReviewScopes(
   workspace: Pick<EmploymentReviewScope, "tenantId" | "subject">,
   cursor: string | null,
+  authority: EmploymentReviewBrowseAuthority = "scoped_staff",
 ) {
   return useQuery({
     ...privateRead,
     queryKey: [
       "workforce",
       "employment-review-scopes",
+      authority,
       workspace.tenantId,
       workspace.subject,
       cursor,
     ],
-    queryFn: ({ signal }) => listEmploymentReviewScopes(workspace, cursor, signal),
+    queryFn: ({ signal }) =>
+      (authority === "governance"
+        ? listEmploymentReviewAuthorityScopes
+        : listEmploymentReviewScopes)(workspace, cursor, signal),
   });
 }
 export function useEmploymentReviewInbox(
   workspace: EmploymentReviewHospitalWorkspace,
   status: EmploymentReviewSummary["status"],
   cursor: string | null,
+  authority: EmploymentReviewBrowseAuthority = "scoped_staff",
 ) {
   return useQuery({
     ...privateRead,
     queryKey: [
       "workforce",
       "employment-review-inbox",
+      authority,
       workspace.tenantId,
       workspace.subject,
       workspace.hospitalId,
@@ -47,7 +62,13 @@ export function useEmploymentReviewInbox(
       status,
       cursor,
     ],
-    queryFn: ({ signal }) => listEmploymentReviewInbox(workspace, status, cursor, signal),
+    queryFn: ({ signal }) =>
+      (authority === "governance" ? listEmploymentReviewAuthorityInbox : listEmploymentReviewInbox)(
+        workspace,
+        status,
+        cursor,
+        signal,
+      ),
   });
 }
 export function useEmploymentReviewDetail(scope: EmploymentReviewScope, id: string) {
@@ -75,16 +96,21 @@ export function useEmploymentPersonFindings(
   scope: import("./employment-reviews").EmploymentReviewPreparationScope,
   basis: import("./employment-review-contract").EmploymentPersonFindingSearchInput,
   cursor: string | null,
+  authority: EmploymentReviewBrowseAuthority = "scoped_staff",
 ) {
   return useQuery({
     ...privateRead,
     queryKey: [
       ...employmentReviewsKey(scope),
       "person-findings",
+      authority,
       basis.staff_version,
       basis.employment_epoch,
       cursor,
     ],
-    queryFn: ({ signal }) => listEmploymentPersonFindings(scope, basis, cursor, signal),
+    queryFn: ({ signal }) =>
+      (authority === "governance"
+        ? listGovernanceEmploymentPersonFindings
+        : listEmploymentPersonFindings)(scope, basis, cursor, signal),
   });
 }

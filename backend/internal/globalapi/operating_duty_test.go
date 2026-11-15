@@ -113,7 +113,7 @@ func newOperatingDutyFixtureWithOwners(t *testing.T, documents *attachments.GCS,
 		}
 	}
 	authenticatedAt := time.Now().Add(-time.Minute)
-	backend, db, _, fixtureCtx := testutil.NewHarness(t, testutil.HarnessOptions{Documents: documents, PharmacyEvidenceEnabled: documents != nil, SourceAdministration: func(db *tenantdb.DB) authz.SourceAdministrationGuard {
+	backend, db, _, fixtureCtx := testutil.NewHarness(t, testutil.HarnessOptions{GovernanceSources: testutil.GovernanceReviewProtocol, Documents: documents, PharmacyEvidenceEnabled: documents != nil, SourceAdministration: func(db *tenantdb.DB) authz.SourceAdministrationGuard {
 		return iam.NewSourceAdministrationGuard(db, graph)
 	}, Verifier: operatingVerifier{at: authenticatedAt}, Writer: projection, Roles: graph, OperatingAuthorizer: func(db *tenantdb.DB) authz.OperatingScopeAuthorizer {
 		return iam.NewOperatingAuthorizer(db, checks, platform.IndependentStaffIdentities(modules, db), platform.OperatingLocations(modules, db))

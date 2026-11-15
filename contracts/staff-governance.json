@@ -1,0 +1,332 @@
+{
+  "max_request_bytes": 4096,
+  "templates": [
+    {
+      "key": "workforce.account_link_reviewer.v1",
+      "name": "Staff account-link reviewer",
+      "scope_kinds": ["hospital", "pharmacy", "supplier"],
+      "permissions": [
+        "workforce.login_links.review",
+        "workforce.independent_login.review"
+      ]
+    },
+    {
+      "key": "workforce.person_preparer.v1",
+      "name": "Nonclinical person-review preparer",
+      "scope_kinds": ["hospital"],
+      "permissions": ["workforce.identity_checks.manage"]
+    },
+    {
+      "key": "workforce.person_reviewer.v1",
+      "name": "Nonclinical person reviewer",
+      "scope_kinds": ["hospital"],
+      "permissions": ["workforce.identity_checks.review"]
+    },
+    {
+      "key": "iam.governance_auditor.v1",
+      "name": "Governance auditor",
+      "scope_kinds": ["tenant"],
+      "permissions": ["iam.governance.read", "iam.governance.review"]
+    },
+    {
+      "key": "workforce.employment_preparer.v1",
+      "scope_kinds": ["hospital"],
+      "permissions": ["workforce.employment.prepare"],
+      "name": "Nonclinical employment review preparation"
+    },
+    {
+      "key": "workforce.employment_reviewer.v1",
+      "scope_kinds": ["hospital"],
+      "permissions": ["workforce.employment.review"],
+      "name": "Nonclinical employment independent review"
+    },
+    {
+      "key": "workforce.employment_activator.v1",
+      "scope_kinds": ["hospital"],
+      "permissions": ["workforce.employment.activate"],
+      "name": "Nonclinical employment activation"
+    },
+    {
+      "key": "iam.scoped_access_reviewer.v1",
+      "name": "Hospital scoped-access reviewer",
+      "scope_kinds": ["hospital"],
+      "permissions": [
+        "iam.governance.assignment.manage",
+        "iam.governance.assignment.review"
+      ]
+    },
+    {
+      "key": "iam.operating_access_reviewer.v1",
+      "name": "Independent employer operating-access reviewer",
+      "scope_kinds": ["pharmacy", "supplier"],
+      "permissions": [
+        "iam.governance.operating.manage",
+        "iam.governance.operating.review"
+      ]
+    }
+  ],
+  "models": {
+    "GovernanceTemplateDefinition": [
+      {
+        "name": "key",
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "scope_kinds",
+        "type": "[]string",
+        "min": 1,
+        "max": 4
+      },
+      {
+        "name": "permissions",
+        "type": "[]string",
+        "min": 1,
+        "max": 2
+      }
+    ],
+    "GovernanceGrantInput": [
+      {
+        "name": "subject",
+        "type": "string",
+        "min": 1,
+        "pattern": "^[^\\p{White_Space}\\p{Cc}\\uFEFF*#:]+$",
+        "binding": "required,min=1",
+        "max_ref": "subject"
+      },
+      {
+        "name": "expected_membership_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991,
+        "binding": "required,min=1,max=9007199254740991"
+      },
+      {
+        "name": "template_key",
+        "type": "string",
+        "binding": "required",
+        "enum_ref": "templates"
+      },
+      {
+        "name": "scope_kind",
+        "type": "string",
+        "enum": ["tenant", "hospital", "pharmacy", "supplier"],
+        "binding": "required"
+      },
+      {
+        "name": "scope_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "binding": "required,min=1",
+        "pattern": "^[^\\p{Cc}]*$",
+        "max_ref": "reason"
+      },
+      {
+        "name": "valid_from",
+        "type": "time",
+        "binding": "required"
+      },
+      {
+        "name": "expires_at",
+        "type": "time",
+        "binding": "required"
+      }
+    ],
+    "GovernanceGrantReceipt": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "tenant_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "input",
+        "type": "GovernanceGrantInput"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "pending_review",
+          "provisional_active",
+          "active",
+          "rejected",
+          "revoked"
+        ]
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991,
+        "binding": "required,min=1,max=9007199254740991"
+      },
+      {
+        "name": "issued_by",
+        "type": "string",
+        "min": 1,
+        "max_ref": "subject"
+      },
+      {
+        "name": "owner_count",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991,
+        "binding": "required,min=1,max=9007199254740991"
+      },
+      {
+        "name": "authorization_mode",
+        "type": "string",
+        "enum": ["independent_review", "single_owner_provisional"]
+      },
+      {
+        "name": "created_at",
+        "type": "time",
+        "binding": "required"
+      },
+      {
+        "name": "updated_at",
+        "type": "time",
+        "binding": "required"
+      }
+    ],
+    "GovernanceGrantDecisionInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990,
+        "binding": "required,min=1,max=9007199254740990"
+      },
+      {
+        "name": "decision",
+        "type": "string",
+        "enum": ["approve", "reject", "revoke"],
+        "binding": "required"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "binding": "required,min=1",
+        "pattern": "^[^\\p{Cc}]*$",
+        "max_ref": "reason"
+      }
+    ],
+    "GovernanceGrantDecisionReceipt": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "tenant_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "grant_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "input",
+        "type": "GovernanceGrantDecisionInput"
+      },
+      {
+        "name": "result_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991,
+        "binding": "required,min=1,max=9007199254740991"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max_ref": "subject"
+      },
+      {
+        "name": "created_at",
+        "type": "time",
+        "binding": "required"
+      }
+    ],
+    "GovernanceOwnerNotice": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "tenant_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "grant_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "grant_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991,
+        "binding": "required,min=1,max=9007199254740991"
+      },
+      {
+        "name": "recipient_subject",
+        "type": "string",
+        "min": 1,
+        "max_ref": "subject"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991,
+        "binding": "required,min=1,max=9007199254740991"
+      },
+      {
+        "name": "created_at",
+        "type": "time",
+        "binding": "required"
+      },
+      {
+        "name": "seen_at",
+        "type": "time",
+        "optional": true
+      }
+    ],
+    "GovernanceNoticeAcknowledgementInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991,
+        "binding": "required,min=1,max=9007199254740991"
+      }
+    ]
+  },
+  "time_precision_digits": 6,
+  "instant_bounds": ["0001-01-01T00:00:00Z", "9999-12-31T23:59:59.999999Z"],
+  "text_length_unit": "utf16",
+  "text_limits": {
+    "subject": 200,
+    "reason": 500
+  },
+  "instant_pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\\.[0-9]{1,6}0*)?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$"
+}

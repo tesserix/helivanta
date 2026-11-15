@@ -424,6 +424,52 @@ function EmploymentTermsEditor({
   onSaved: () => void;
   onAccessChanged: () => void;
 }) {
+  const sponsors = useApiPagedQuery<Sponsor>(
+    [...employmentPeriodsKey(scope), "sponsors"],
+    withStaffIntakeScope(employmentSponsorsPath(scope), scope),
+    { gcTime: 0, request: employmentPeriodRequest(scope) },
+  );
+  return (
+    <EmploymentTermsForm
+      scope={scope}
+      source={source}
+      basisAvailable={basisAvailable}
+      item={item}
+      onClose={onClose}
+      onSaved={onSaved}
+      onAccessChanged={onAccessChanged}
+      sponsors={sponsors}
+      saveDraft={(id, command) => saveEmploymentPeriodDraft(scope, id, command)}
+      invalidate={[employmentPeriodsKey(scope)]}
+    />
+  );
+}
+export function EmploymentTermsForm({
+  scope,
+  source,
+  basisAvailable,
+  item,
+  onClose,
+  onSaved,
+  onAccessChanged,
+  sponsors,
+  saveDraft,
+  invalidate,
+}: {
+  scope: EmploymentPeriodScope;
+  source: Source;
+  basisAvailable: boolean;
+  item?: Terms;
+  onClose: () => void;
+  onSaved: () => void;
+  onAccessChanged: () => void;
+  sponsors: Pick<
+    ReturnType<typeof useApiPagedQuery<Sponsor>>,
+    "items" | "hasMore" | "loadMore" | "isFetchingMore" | "isError" | "error" | "retry"
+  >;
+  saveDraft: (id: string, command: EmploymentPeriodDraftInput) => Promise<unknown>;
+  invalidate: unknown[][];
+}) {
   const [id] = useState(() => item?.id ?? newEmploymentPeriodId());
   const [basis] = useState(() => source);
   const [submitted, setSubmitted] = useState<EmploymentPeriodDraftInput | null>(null);
@@ -437,10 +483,11 @@ function EmploymentTermsEditor({
     reason: item?.reason ?? "",
     evidence_reference: item?.evidence_reference ?? "",
   });
-  const save = useApiMutation(
-    (command: EmploymentPeriodDraftInput) => saveEmploymentPeriodDraft(scope, id, command),
-    { invalidate: [employmentPeriodsKey(scope)], onSuccess: onSaved, suppressErrorToast: true },
-  );
+  const save = useApiMutation((command: EmploymentPeriodDraftInput) => saveDraft(id, command), {
+    invalidate,
+    onSuccess: onSaved,
+    suppressErrorToast: true,
+  });
   const { confirm: confirmLeave } = useLeaveGuard(
     form.formState.isDirty,
     "employment terms",
@@ -449,11 +496,6 @@ function EmploymentTermsEditor({
   const changed =
     basis.staff_version !== source.staff_version ||
     basis.employment_epoch !== source.employment_epoch;
-  const sponsors = useApiPagedQuery<Sponsor>(
-    [...employmentPeriodsKey(scope), "sponsors"],
-    withStaffIntakeScope(employmentSponsorsPath(scope), scope),
-    { gcTime: 0, request: employmentPeriodRequest(scope) },
-  );
   const cutoff = useStaffAccessCutoff([save.error, sponsors.error], onAccessChanged);
   const sponsor = form.watch("sponsor_id");
   const fixed = form.watch("duration") === "fixed";

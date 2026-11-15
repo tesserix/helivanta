@@ -13,7 +13,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
-func assertPostingSourceUseCutoffRaces(t *testing.T, db *tenantdb.DB, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, request postingTestRequest, prepare postingTestPreparer, rootTemplate, childTemplate map[string]any, submitter, reviewer, administrator string, use postingSourceUseProbe) {
+func assertPostingSourceUseCutoffRaces(t *testing.T, db *tenantdb.DB, observer *postingLifecycleQueryObserver, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, request postingTestRequest, prepare postingTestPreparer, rootTemplate, childTemplate map[string]any, submitter, reviewer, administrator string, use postingSourceUseProbe) {
 	t.Helper()
 	for _, useFirst := range []bool{true, false} {
 		root, pending := prepare(rootTemplate, reviewer, map[string]any{"kind": "hospital_management"})
@@ -44,7 +44,7 @@ func assertPostingSourceUseCutoffRaces(t *testing.T, db *tenantdb.DB, tenant str
 			first, second = consume, ending
 		}
 		before := postingSourceUseEffects(t, db, tenant, submitter)
-		results := racePostingLifecycleCommands(t, db, tenant, parent["hospital_id"].(string), first, second)
+		results := racePostingLifecycleCommands(t, db, observer, tenant, parent["hospital_id"].(string), first, second)
 		require.Equal(t, 200, results[0].Code, results[0].Body.String())
 		after := postingSourceUseEffects(t, db, tenant, submitter)
 		if useFirst {

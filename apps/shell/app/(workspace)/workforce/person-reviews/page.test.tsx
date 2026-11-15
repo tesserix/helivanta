@@ -128,7 +128,7 @@ function fixture({
         return Response.json({ tenant_id: tenant, subject, data: [] });
       if (!init?.method && refuse(url))
         return Response.json({ error: "forbidden", message: "secret detail" }, { status: 403 });
-      if (url.includes("/person-review-scopes"))
+      if (url.includes("/person-review-authority-scopes"))
         return Response.json(
           emptyFirst && !url.includes("cursor=")
             ? page([], "next-hospitals")
@@ -825,7 +825,7 @@ it("clears private detail when history access is refused", async () => {
 });
 
 it("shows refused person-review access as a refusal, with no way to ask again", async () => {
-  fixture({ refuse: (url) => url.includes("/person-review-scopes") });
+  fixture({ refuse: (url) => url.includes("/person-review-authority-scopes") });
   renderWithProviders(
     <NavigationGuardProvider>
       <PersonReviews />

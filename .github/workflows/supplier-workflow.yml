@@ -16,11 +16,13 @@ on:
       - "contracts/supplier-orders.json"
       - "packages/api/src/supplier-orders*"
       - "backend/internal/modules/iam/**"
+      - "backend/internal/modules/workforce/**"
       - "backend/internal/modules/supply/**"
       - "backend/internal/modules/pharmacy/**"
       - "backend/internal/globalapi/supplier_recipient_test.go"
       - "backend/internal/globalapi/supplier_order_http_test.go"
       - "backend/internal/globalapi/workforce_person_review_test.go"
+      - "backend/internal/globalapi/workforce_posting*"
       - ".github/workflows/supplier-workflow.yml"
 permissions:
   contents: read
@@ -28,6 +30,20 @@ concurrency:
   group: supplier-workflow-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  staff-query-plans:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Compare bounded Staff point reads with unchanged tenant isolation
+        run: go test -race -v -timeout 5m ./internal/modules/workforce -run '^TestStaffPointReadPlansPreserveTenantIsolation$'
   supplier:
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -72,7 +88,7 @@ jobs:
       - name: Supplier grant projection isolation
         run: go test -race ./pkg/authz -run '^TestPartnerAssignment'
       - name: Current hospital Staff recipient and membership cutoff
-        run: go test -race -timeout 35m ./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'
+        run: go test -race -v -timeout 35m ./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'
   api-client:
     runs-on: ubuntu-latest
     timeout-minutes: 10

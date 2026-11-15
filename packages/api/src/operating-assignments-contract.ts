@@ -125,6 +125,31 @@ export const OperatingDutyDecisionContract = z
   .strict();
 export type OperatingDutyDecision = z.infer<typeof OperatingDutyDecisionContract>;
 
+export const OperatingLocationChoiceContract = z
+  .object({
+    owner_tenant_id: identifier,
+    employer_kind: z.enum(["pharmacy", "supplier"]),
+    employer_id: identifier,
+    location_id: identifier,
+    code: z
+      .string()
+      .min(1)
+      .max(40)
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    name: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    country_code: z.enum(["IN"]),
+    employer_version: z.number().int().min(1).max(9007199254740991),
+    location_version: z.number().int().min(1).max(9007199254740991),
+  })
+  .strict();
+export type OperatingLocationChoice = z.infer<typeof OperatingLocationChoiceContract>;
+
 export const operatingDutyTemplates: readonly OperatingDutyTemplate[] = [
   {
     key: "supply.inventory_receiver.v1",

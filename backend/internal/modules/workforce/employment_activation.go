@@ -27,12 +27,12 @@ func (h *handlers) activationAvailable(c *gin.Context) bool {
 	return false
 }
 
-func (h *handlers) employmentActivationTransaction(c *gin.Context, p authn.Principal, hospital, staff, review uuid.UUID, fn func(*gorm.DB, IdentitySource, *intakeAuthority) error) error {
+func (h *handlers) employmentActivationTransaction(c *gin.Context, p authn.Principal, hospital, staff, review uuid.UUID, fn func(*gorm.DB, IdentitySource, *employmentActivationAuthority) error) error {
 	guard, _ := h.scopeAuthority.(authz.CompoundScopedCommandGuard)
-	return h.employmentActivationWithGuard(c, p, hospital, staff, review, guard, fn)
+	return h.employmentActivationWithGuard(c, p, hospital, staff, review, guard, nil, fn)
 }
 
-func (h *handlers) employmentActivationWithGuard(c *gin.Context, p authn.Principal, hospital, staff, review uuid.UUID, guard authz.CompoundScopedCommandGuard, fn func(*gorm.DB, IdentitySource, *intakeAuthority) error) error {
+func (h *handlers) employmentActivationWithGuard(c *gin.Context, p authn.Principal, hospital, staff, review uuid.UUID, guard authz.CompoundScopedCommandGuard, intent *employmentActivationIntent, fn func(*gorm.DB, IdentitySource, *employmentActivationAuthority) error) error {
 	query := c.Request.URL.Query()
 	if len(query) != 1 || len(query[employmentActivationQuery]) != 1 || query.Get(employmentActivationQuery) != "v1" {
 		return errIntakeProjection
@@ -42,21 +42,7 @@ func (h *handlers) employmentActivationWithGuard(c *gin.Context, p authn.Princip
 	if len(tenants) != 1 || tenants[0] != p.TenantID || len(subjects) != 1 || subjects[0] != p.Subject {
 		return errIntakeWorkspaceRequired
 	}
-	return h.intakeAuthorityWithGuard(c, p, hospital, []authz.Permission{PermEmploymentActivate, PermEnrollmentManage}, true, guard, func(tx *gorm.DB, scoped bool) error {
-		value, present := c.Get(intakeAuthorityKey)
-		authority, ok := value.(*intakeAuthority)
-		if !scoped || !present || !ok || authority == nil || !authority.Scoped {
-			return authz.ErrScopedCommandDenied
-		}
-		source, err := loadIdentitySource(tx, p, hospital, staff)
-		if err != nil {
-			return err
-		}
-		if err := tx.Exec(`SELECT set_config('app.workforce_employment_review','manage',true),set_config('app.workforce_employment_review_id',?,true),set_config('app.workforce_employment_evidence','read',true)`, review.String()).Error; err != nil {
-			return err
-		}
-		return fn(tx, source, authority)
-	})
+	return h.withActivationAuthority(c, p, hospital, staff, review, guard, intent, fn)
 }
 
 type activationCommandGuard struct {
@@ -73,7 +59,7 @@ func (g *activationCommandGuard) WithScopeGrants(ctx context.Context, checks []a
 	})
 }
 
-func employmentActivationSource(tx *gorm.DB, p authn.Principal, source IdentitySource, row employmentReviewRecord, actor intakeActorReference) (EmploymentActivationSource, error) {
+func employmentActivationSource(tx *gorm.DB, p authn.Principal, source IdentitySource, row employmentReviewRecord, authority *employmentActivationAuthority) (EmploymentActivationSource, error) {
 	review := row.EmploymentReview
 	result := EmploymentActivationSource{
 		HospitalID: source.HospitalID, StaffID: source.StaffID,
@@ -146,7 +132,7 @@ func employmentActivationSource(tx *gorm.DB, p authn.Principal, source IdentityS
 		return result, nil
 	}
 	var associated bool
-	if actor.Staff == source.StaffID || review.DeclaredSubject == p.Subject {
+	if authority.isStaff(source.StaffID) || review.DeclaredSubject == p.Subject {
 		associated = true
 	} else if err := tx.Raw(`SELECT EXISTS(SELECT 1 FROM workforce_login_links WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND subject=?)`, p.TenantID, source.HospitalID, source.StaffID, p.Subject).Scan(&associated).Error; err != nil {
 		return result, err
@@ -201,12 +187,12 @@ func (h *handlers) getEmploymentActivationSource(c *gin.Context) {
 		return
 	}
 	var result EmploymentActivationSource
-	err := h.employmentActivationTransaction(c, p, hospital, staff, review, func(tx *gorm.DB, source IdentitySource, authority *intakeAuthority) error {
+	err := h.employmentActivationTransaction(c, p, hospital, staff, review, func(tx *gorm.DB, source IdentitySource, authority *employmentActivationAuthority) error {
 		row, err := loadEmploymentReview(tx, p, hospital, staff, review, uuid.Nil)
 		if err != nil {
 			return err
 		}
-		result, err = employmentActivationSource(tx, p, source, row, authority.Actor)
+		result, err = employmentActivationSource(tx, p, source, row, authority)
 		if err != nil {
 			return err
 		}
@@ -224,16 +210,35 @@ func (h *handlers) getEmploymentActivationSource(c *gin.Context) {
 	respond.OK(c, result)
 }
 
-func employmentActivationAudit(tx *gorm.DB, p authn.Principal, hospital, staff, resource uuid.UUID, version int64, action string, authority *intakeAuthority) error {
-	activation := authority.Grants[PermEmploymentActivate]
-	enrollment := authority.Grants[PermEnrollmentManage]
+func employmentActivationAudit(tx *gorm.DB, p authn.Principal, hospital, staff, resource uuid.UUID, version int64, action string, authority *employmentActivationAuthority) error {
+	if !authority.valid() || hospital != authority.Hospital || staff != authority.Target {
+		return authz.ErrScopedAuthorizationUnavailable
+	}
+	if authority.Governance != nil {
+		if (action == "workforce.employment_activation.source.read" && resource != authority.Review) || (action != "workforce.employment_activation.source.read" && (authority.Intent == nil || resource != authority.Intent.Generation)) {
+			return authz.ErrScopedAuthorizationUnavailable
+		}
+		values, err := authority.proof(p)
+		if err != nil {
+			return err
+		}
+		values["version"] = version
+		raw, err := json.Marshal(values)
+		if err != nil {
+			return err
+		}
+		return tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,?,?,?::jsonb)`, p.TenantID, hospital, p.Subject, action, resource, string(raw)).Error
+	}
+	staffAuthority := authority.Staff
+	activation := staffAuthority.Grants[PermEmploymentActivate]
+	enrollment := staffAuthority.Grants[PermEnrollmentManage]
 	changes, err := json.Marshal(map[string]any{
 		"staff_id": staff, "version": version,
 		"activation_assignment_id": activation.AssignmentID, "activation_assignment_version": activation.Version,
 		"enrollment_assignment_id": enrollment.AssignmentID, "enrollment_assignment_version": enrollment.Version,
 		"scope_epoch": activation.ScopeEpoch, "membership_epoch": activation.MembershipEpoch,
-		"actor_staff_id": authority.Actor.Staff, "actor_link_id": authority.Actor.Link,
-		"actor_link_version": authority.Actor.LinkVersion, "actor_employment_epoch": authority.Actor.EmploymentEpoch,
+		"actor_staff_id": staffAuthority.Actor.Staff, "actor_link_id": staffAuthority.Actor.Link,
+		"actor_link_version": staffAuthority.Actor.LinkVersion, "actor_employment_epoch": staffAuthority.Actor.EmploymentEpoch,
 	})
 	if err != nil {
 		return err

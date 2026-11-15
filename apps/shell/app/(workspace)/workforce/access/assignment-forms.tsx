@@ -9,8 +9,10 @@ import {
   useZodForm,
   type UseFormReturn,
   RequestFailure,
+  useLeaveGuard,
 } from "@helivanta/ui";
 import { useNow } from "@/lib/use-now";
+import { STAFF_ACCESS_CHANGED, useStaffAccessCutoff } from "../staff-access-cutoff";
 import {
   ApiError,
   useApiMutation,
@@ -19,6 +21,10 @@ import {
   newStaffAssignmentId,
   proposeStaffAssignment,
   decideStaffAssignment,
+  decideGovernanceAssignment,
+  isGovernanceAssignmentAccessChanged,
+  governanceAssignmentsKey,
+  type GovernanceAssignmentScope,
   staffAssignmentsKey,
   staffAssignmentInputContract,
   staffAssignmentDecisionContract,
@@ -485,17 +491,43 @@ export function AssignmentDecisionForm({
   decision,
   onClose,
   onSaved,
-}: FormProps & { item: StaffAssignment; decision: StaffAssignmentDecision["decision"] }) {
+  nativeScope,
+  onAccessLost,
+}: FormProps & {
+  item: StaffAssignment;
+  decision: StaffAssignmentDecision["decision"];
+  nativeScope?: GovernanceAssignmentScope;
+  onAccessLost?: () => void;
+}) {
   const [submitted, setSubmitted] = useState<StaffAssignmentDecision | null>(null);
   const form = useZodForm(reasonForm, { reason: "" });
   const save = useApiMutation(
-    (input: StaffAssignmentDecision) => decideStaffAssignment(scope, item.id, input),
+    (input: StaffAssignmentDecision) =>
+      nativeScope
+        ? decideGovernanceAssignment(nativeScope, item.id, input)
+        : decideStaffAssignment(scope, item.id, input),
     {
-      invalidate: [staffAssignmentsKey(scope)],
+      invalidate: [
+        nativeScope ? governanceAssignmentsKey(nativeScope) : staffAssignmentsKey(scope),
+      ],
       onSuccess: onSaved,
       suppressErrorToast: true,
     },
   );
+  const cutoff = useStaffAccessCutoff(
+    nativeScope ? [save.error] : [],
+    onAccessLost,
+    isGovernanceAssignmentAccessChanged,
+  );
+  const refused =
+    save.error instanceof ApiError && [400, 401, 403, 404, 409].includes(save.error.status);
+  const unresolved = submitted !== null && !save.isSuccess && !refused;
+  const { confirm } = useLeaveGuard(
+    form.formState.isDirty || unresolved,
+    "assignment decision",
+    unresolved,
+  );
+  if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   return (
     <form
       aria-label={`${decision} assignment`}
@@ -531,7 +563,12 @@ export function AssignmentDecisionForm({
         <Button type="submit" disabled={save.isPending}>
           {save.isPending ? "Saving…" : save.isError ? "Retry same request" : `Confirm ${decision}`}
         </Button>
-        <Button type="button" variant="ghost" disabled={save.isPending} onClick={onClose}>
+        <Button
+          type="button"
+          variant="ghost"
+          disabled={unresolved}
+          onClick={() => confirm(onClose)}
+        >
           Close form
         </Button>
       </div>

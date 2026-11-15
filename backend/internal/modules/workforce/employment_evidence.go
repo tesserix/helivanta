@@ -44,8 +44,9 @@ func employmentEvidenceUTC(r EmploymentEvidenceBinding) EmploymentEvidenceBindin
 
 type employmentEvidenceScope struct {
 	employmentRecord
-	binding uuid.UUID
-	version int64
+	binding        uuid.UUID
+	version        int64
+	prepareCommand func(string, any, string) error
 }
 
 func (h *handlers) hospitalEmploymentEvidence(c *gin.Context) (employmentEvidenceScope, bool) {
@@ -162,6 +163,13 @@ func attachEmploymentEvidence(c *gin.Context, s employmentEvidenceScope) (Employ
 		evidenceError(c, err)
 		return result, false
 	}
+	if s.prepareCommand != nil {
+		if err := s.prepareCommand("attach", in, intent); err != nil {
+			evidenceError(c, err)
+			return result, false
+		}
+	}
+
 	err = employmentEvidenceTransaction(s, true, func(tx *gorm.DB, source EmploymentPeriodSource, period EmploymentPeriodDraft) error {
 		receipt, found, err := evidenceReceipt(tx, s, in.CommandID, intent)
 		if err != nil {
@@ -215,6 +223,13 @@ func withdrawEmploymentEvidence(c *gin.Context, s employmentEvidenceScope) (Empl
 		evidenceError(c, err)
 		return result, false
 	}
+	if s.prepareCommand != nil {
+		if err := s.prepareCommand("withdraw", in, intent); err != nil {
+			evidenceError(c, err)
+			return result, false
+		}
+	}
+
 	err = employmentEvidenceTransaction(s, true, func(tx *gorm.DB, _ EmploymentPeriodSource, _ EmploymentPeriodDraft) error {
 		receipt, found, err := evidenceReceipt(tx, s, in.CommandID, intent)
 		if err != nil {

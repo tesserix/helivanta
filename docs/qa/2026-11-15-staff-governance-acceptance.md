@@ -5,6 +5,37 @@ This checkpoint preserves the full goal across the hospital-owned pharmacy and
 independent pharmacy/supplier models. Source inspection, component checks,
 service integration, browser testing and live acceptance are distinct evidence.
 
+## Latest native browser acceptance and unchanged lifecycle failure
+
+At `1c488f79`, [CI43665142567](https://github.com/tesserix/helivanta/actions/runs/43665142567)
+passed the web job, including the real native hospital, independent pharmacy and
+supplier Staff browser workflows. Its E2E job also passed. The Go job was still
+running its coverage gate at the latest inspection; no overall green CI is
+claimed.
+
+[Supplier43665142621](https://github.com/tesserix/helivanta/actions/runs/43665142621)
+failed the original `activation_posting_chain_child` lifecycle race. After both
+commands queued, approval completed200 at4.143s and the cutoff returned503 at5.142s.
+The fixture now observes statement timings only during these original races to
+separate query time from locking and transaction completion. Output contains only
+fixed operation classes, counts, failure flags and durations; it contains no SQL,
+parameters, row values or credentials. Production code, the five-second deadline,
+full fixture and expected200/409 responses remain unchanged. This is diagnostic
+instrumentation, not a claimed concurrency fix.
+
+The separate identity owner [PR42](https://github.com/tesserix/onboarding-service/pull/42)
+was merged as `748ac8a571ad8cd35bc41819a41119bcb886cca9` after all checks passed and
+released through Kargo. Both onboarding replicas were ready on digest
+`sha256:2dab467c85db92af1c764c1721a622ee61770f2d4c188b33484643c44660ff70`, with Argo
+Synced/Healthy. Public API checks against the existing Yes Hospital owner passed:
+fresh challenge202, code verification200, account choices200 twice with exactly
+one Yes Hospital account, and no-proof lookup404. Scoped OIDC authorization reached
+the password page, and the password in the approved file was accepted200 with
+the expected TOTP requirement. Full session verification awaits the owner's
+current authenticator code; full browser login remains unverified. No account,
+credential, tenant data or grant was changed. The Helivanta candidate remains
+unmerged and undeployed.
+
 ## Successful qualified API checks; remaining release gates
 
 At `88974167`, [CI43661273089](https://github.com/tesserix/helivanta/actions/runs/43661273089)
@@ -22,7 +53,8 @@ because it configured an unknown Global API destination `organization`.
 The fixture now supplies only the registered `platform` and `workforce`
 destinations required by its real handlers. It keeps the Global API routing,
 source authorization, response-loss replay and independent review assertions.
-Actual hospital browser runtime acceptance remains outstanding.
+Actual hospital browser runtime acceptance was outstanding at that checkpoint;
+see the later exact-head evidence above.
 
 [Supplier43661273193](https://github.com/tesserix/helivanta/actions/runs/43661273193)
 failed the unchanged original posting-cutoff race with `posting_source_unavailable`
@@ -38,9 +70,9 @@ the existing onboarding workload credential and owner database permissions found
 one active verified native account, active matching org/tenant metadata, project
 and current grant, and matching canonical store records. No credential value,
 private identity ID, proof, cookie or email code was emitted or committed. No
-identity, grant, tenant, data or credential was changed. The sign-in failure is
-still under investigation; `/tmp/secret` has not been used because the password
-step has not yet been reached.
+identity, grant, tenant, data or credential was changed. At that checkpoint sign-in remained under investigation and the password step
+had not been reached. See the identity-owner release and live API evidence above
+for the subsequent recovery; no password value is retained here.
 
 ## Current acceptance target and successful healthy empty reads
 

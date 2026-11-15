@@ -120,6 +120,8 @@ func assertPostingLifecycleExpiredReplay(t *testing.T, db *tenantdb.DB, tenant s
 
 func racePostingLifecycleCommands(t *testing.T, db *tenantdb.DB, tenant, hospital string, first, second func(context.Context) *httptest.ResponseRecorder) [2]*httptest.ResponseRecorder {
 	t.Helper()
+	finishObservation := observePostingLifecycleQueries(t, db, tenant)
+	defer finishObservation()
 	started := time.Now()
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()

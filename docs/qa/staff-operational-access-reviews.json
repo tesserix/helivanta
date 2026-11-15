@@ -166,7 +166,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4",
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -248,6 +248,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -267,7 +272,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4",
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -359,6 +364,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -378,7 +388,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4",
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -455,6 +465,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -474,7 +489,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4",
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -551,6 +566,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -570,7 +590,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4",
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -647,6 +667,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -666,7 +691,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4",
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -763,6 +788,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -782,7 +812,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4",
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -894,6 +924,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -913,7 +948,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4",
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -960,6 +995,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -977,7 +1017,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4",
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1029,6 +1069,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -1046,7 +1091,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4",
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1108,6 +1153,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -1217,7 +1267,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4",
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1249,6 +1299,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -1266,7 +1321,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4",
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1298,6 +1353,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -1315,7 +1375,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4",
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1362,6 +1422,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -1379,7 +1444,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4",
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1411,6 +1476,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -1428,7 +1498,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4",
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1460,6 +1530,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -1477,7 +1552,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4",
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1509,6 +1584,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -1526,7 +1606,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4",
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1563,6 +1643,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -1579,7 +1664,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4",
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1636,6 +1721,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -4253,7 +4343,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4",
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b",
           "symbol": "h.getBusinessProfile"
         },
         {
@@ -4270,6 +4360,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -4512,7 +4607,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4",
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b",
           "symbol": "h.personAuthorityScopeCandidates"
         },
         {
@@ -4539,6 +4634,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -4641,7 +4741,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4",
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b",
           "symbol": "h.employmentAuthorityScopeCandidates"
         },
         {
@@ -4673,6 +4773,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -4690,7 +4795,7 @@
         {
           "path": "backend/internal/modules/workforce/module.go",
           "symbol": "h.listEmploymentAuthorityInbox",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4"
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b"
         },
         {
           "path": "backend/internal/modules/workforce/employment_authority_inbox.go",
@@ -4721,6 +4826,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -4738,7 +4848,7 @@
         {
           "path": "backend/internal/modules/workforce/module.go",
           "symbol": "h.governanceEmploymentFindingCandidates",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4"
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b"
         },
         {
           "path": "backend/internal/modules/workforce/employment_governance_findings.go",
@@ -4764,6 +4874,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -4811,12 +4926,17 @@
         {
           "path": "backend/internal/modules/workforce/module.go",
           "symbol": "0111_workforce_employment_preparation_receipt",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4"
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b"
         },
         {
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -4864,12 +4984,17 @@
         {
           "path": "backend/internal/modules/workforce/module.go",
           "symbol": "0111_workforce_employment_preparation_receipt",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4"
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b"
         },
         {
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -4917,12 +5042,17 @@
         {
           "path": "backend/internal/modules/workforce/module.go",
           "symbol": "0111_workforce_employment_preparation_receipt",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4"
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b"
         },
         {
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -4970,12 +5100,17 @@
         {
           "path": "backend/internal/modules/workforce/module.go",
           "symbol": "0111_workforce_employment_preparation_receipt",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4"
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b"
         },
         {
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -5023,12 +5158,17 @@
         {
           "path": "backend/internal/modules/workforce/module.go",
           "symbol": "0111_workforce_employment_preparation_receipt",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4"
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b"
         },
         {
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -5678,7 +5818,7 @@
         {
           "path": "backend/internal/modules/workforce/module.go",
           "symbol": "operating-authority-scopes",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4"
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b"
         },
         {
           "path": "backend/internal/modules/workforce/operating_authority_scopes.go",
@@ -5694,6 +5834,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [
@@ -5711,7 +5856,7 @@
         {
           "path": "backend/internal/modules/workforce/module.go",
           "symbol": "staff-choices",
-          "sha256": "3eb6aa7a697b822ab096ed0e2ac8dbf861500f20467a1140c721a2346744cdc4"
+          "sha256": "87ad936cc84688add4d7340d854c27c8434d1328bb18d80fedb942be6438477b"
         },
         {
           "path": "backend/internal/modules/workforce/operating_staff_choices.go",
@@ -5732,6 +5877,11 @@
           "path": "backend/internal/modules/workforce/operating_selection_plans.sql",
           "sha256": "eeda257e2c1dc26e8cf99b2fcf6322685e1d7362ccd6ce67e321496a3ab4e6bf",
           "symbol": "workforce_operating_selection_link"
+        },
+        {
+          "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
+          "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "symbol": "workforce_staff_read_policy"
         }
       ],
       "remaining": [

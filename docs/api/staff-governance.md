@@ -345,6 +345,15 @@ remain in headers.
 
 ## Shared command guard
 
+Scoped hospital posting transactions set PostgreSQL JIT off locally before their
+bounded Staff/source reads and evidence writes. The setting ends with the guarded
+transaction; it changes execution planning only. The original five-second authority
+budget, forced RLS, current actor/source locks, independent review, audit/outbox and
+idempotent command rules remain in force. Setting failure refuses the command.
+Paired `EXPLAIN (ANALYZE, BUFFERS)` checks retain positive owner admission and foreign
+tenant denial in both modes; the unchanged full lifecycle acceptance remains the
+release gate. This candidate does not establish a deployment or a production SLO.
+
 `platform.Deps.GovernanceSources` binds the sole IAM and Workforce owners to
 `authz.CurrentGovernanceSourceGuard`. Its closed capability catalog currently
 contains `GovernanceAccountLinkReview` for one exact hospital/pharmacy/supplier

@@ -5,6 +5,33 @@ This checkpoint preserves the full goal across the hospital-owned pharmacy and
 independent pharmacy/supplier models. Source inspection, component checks,
 service integration, browser testing and live acceptance are distinct evidence.
 
+## Scoped posting query-execution candidate; runtime validation pending
+
+At `ed832b58`, [Supplier43671446518](https://github.com/tesserix/helivanta/actions/runs/43671446518)
+reproduced the original lifecycle failure. Both queued commands returned503 at
+5.067s and5.179s. Safe phase timing recorded1,618ms in scope authorization,
+1,409ms in supervision-source validation and1,949ms in decision persistence.
+Across that race eight Staff statements consumed2,483ms, with a longest statement
+of464ms; separate source/chain/review statements each consumed384–480ms. Earlier
+Staff statements reached469ms and summed to3,563ms. There was also an unchanged
+term-expiry acceptance failure: its request did not reach the expected audit lock
+boundary. Both failures remain required gates.
+
+The candidate turns JIT off transaction-locally inside scoped posting commands to
+test whether compilation of broad RLS expressions dominates these bounded point
+reads. This is a hypothesis until paired execution plans and the original full
+workflow establish the effect. A separate CI job compares `EXPLAIN (ANALYZE,
+BUFFERS)` for the same real-owner Staff row in both modes and checks foreign-tenant
+row denial. It logs only operator/count/cost/timing metadata. No stored policies,
+functions, migrations, authority budgets or original assertions are rewritten.
+
+At that preceding head, web and E2E jobs passed, including native hospital,
+pharmacy and supplier Staff browser workflows. The full Go coverage job was still
+active at last inspection. Local validation of the execution-setting candidate:
+Workforce package compile-only, full Go vet/build and GolangCI-Lint0issues passed;
+workflow Actionlint and whitespace checks passed. No local application, database,
+container or browser stack was started.
+
 ## Passing original cold suite; intermittent timeout still unresolved
 
 At `ab00b02c`, [Supplier43669596367](https://github.com/tesserix/helivanta/actions/runs/43669596367)

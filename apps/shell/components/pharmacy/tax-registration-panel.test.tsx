@@ -35,14 +35,23 @@ const row = (over: Partial<PharmacyTaxRegistration>): PharmacyTaxRegistration =>
   ...over,
 });
 
+const commandURL =
+  /\/tax-registrations\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
 function serve(
   rows: () => PharmacyTaxRegistration[],
   status = 200,
   inForce?: () => PharmacyTaxRegistration | null,
+  failWrites = 0,
 ) {
   const posted: unknown[] = [];
+  const sent: string[] = [];
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
-    if (init?.method === "POST") {
+    if (init?.method === "PUT") {
+      expect(url).toMatch(commandURL);
+      sent.push(url);
+      if (sent.length <= failWrites)
+        return new Response(JSON.stringify({ error: "unavailable" }), { status: 503 });
       posted.push(JSON.parse(String(init.body)));
       return new Response(JSON.stringify(row({})), { status: 201 });
     }
@@ -61,7 +70,8 @@ function serve(
     throw new Error(`Unexpected test API request: ${url}`);
   });
   vi.stubGlobal("fetch", fetcher);
-  return posted;
+  // Not enumerable, so toEqual on the bodies still compares only bodies.
+  return Object.defineProperty(posted, "sent", { value: sent }) as unknown[] & { sent: string[] };
 }
 
 afterEach(() => vi.unstubAllGlobals());
@@ -169,6 +179,46 @@ describe("TaxRegistrationPanel", () => {
     await user.click(screen.getByRole("button", { name: "Record registration" }));
     await waitFor(() => expect(posted).toHaveLength(1));
     expect(posted[0]).toMatchObject({ reason: "Wrong state" });
+  });
+
+  // #1715: a retry of the same entry is the same command, so the server
+  // can recognise it; a changed entry is a new one.
+  it("resends a failed registration under the same command id", async () => {
+    const posted = serve(() => [], 200, undefined, 1);
+    const { user } = renderWithProviders(
+      <TaxRegistrationPanel scope={scope} outlet={outlet} today="2026-11-01" />,
+    );
+    await chooseOption(
+      user,
+      await screen.findByRole("combobox", { name: "State or union territory" }),
+      /Delhi/,
+    );
+    await user.type(screen.getByLabelText("GSTIN"), "07ABCDE1234F1Z2");
+    await user.click(screen.getByRole("button", { name: "Record registration" }));
+    await screen.findByRole("alert");
+    await user.click(screen.getByRole("button", { name: "Record registration" }));
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted.sent).toHaveLength(2);
+    expect(posted.sent[1]).toBe(posted.sent[0]);
+  });
+
+  it("sends a changed registration as a new command", async () => {
+    const posted = serve(() => [], 200, undefined, 1);
+    const { user } = renderWithProviders(
+      <TaxRegistrationPanel scope={scope} outlet={outlet} today="2026-11-01" />,
+    );
+    await chooseOption(
+      user,
+      await screen.findByRole("combobox", { name: "State or union territory" }),
+      /Delhi/,
+    );
+    await user.type(screen.getByLabelText("GSTIN"), "07ABCDE1234F1Z2");
+    await user.click(screen.getByRole("button", { name: "Record registration" }));
+    await screen.findByRole("alert");
+    await user.type(screen.getByLabelText("Reason for a correction (optional)"), "Typed again");
+    await user.click(screen.getByRole("button", { name: "Record registration" }));
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted.sent[1]).not.toBe(posted.sent[0]);
   });
 
   it("says tax setup is unavailable, with no form, for a country without a scheme", () => {

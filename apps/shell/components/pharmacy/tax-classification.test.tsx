@@ -72,17 +72,26 @@ const page = (data: unknown[]) =>
     },
   );
 
+const commandURL =
+  /\/tax-classifications\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
 function serve(
   history: () => PharmacyTaxClassification[],
   products: PharmacyProduct[] = [product],
+  failWrites = 0,
 ) {
   const posted: unknown[] = [];
   const urls: string[] = [];
+  const sent: string[] = [];
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       urls.push(url);
-      if (init?.method === "POST") {
+      if (init?.method === "PUT") {
+        expect(url).toMatch(commandURL);
+        sent.push(url);
+        if (sent.length <= failWrites)
+          return new Response(JSON.stringify({ error: "unavailable" }), { status: 503 });
         posted.push(JSON.parse(String(init.body)));
         return new Response(JSON.stringify(classification({})), { status: 201 });
       }
@@ -107,7 +116,7 @@ function serve(
       throw new Error(`Unexpected test API request: ${url}`);
     }),
   );
-  return { posted, urls };
+  return { posted, urls, sent };
 }
 
 // A live address: router.replace changes what useSearchParams returns and
@@ -179,6 +188,25 @@ describe("ProductTaxSection", () => {
         },
       ]),
     );
+  });
+
+  // #1715: a retry of the same entry reuses its command id; a changed
+  // entry does not.
+  it("resends a failed classification under the same command id, and a changed one under a new id", async () => {
+    const { posted, sent } = serve(() => [], [product], 2);
+    const { user } = renderWithProviders(section(true));
+    await user.type(await screen.findByLabelText("HSN code"), "30049099");
+    await user.type(screen.getByLabelText("Rate (%)"), "5");
+    await user.click(screen.getByRole("button", { name: "Record classification" }));
+    await screen.findByRole("alert");
+    await user.click(screen.getByRole("button", { name: "Record classification" }));
+    await waitFor(() => expect(sent).toHaveLength(2));
+    expect(sent[1]).toBe(sent[0]);
+    await user.clear(screen.getByLabelText("Rate (%)"));
+    await user.type(screen.getByLabelText("Rate (%)"), "12");
+    await user.click(screen.getByRole("button", { name: "Record classification" }));
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(sent[2]).not.toBe(sent[0]);
   });
 
   it("requires the basis of an exemption", async () => {

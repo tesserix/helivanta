@@ -61,6 +61,7 @@ type taxClassification struct {
 	EffectiveFrom      string    `json:"effective_from"`
 	Reason             *string   `json:"reason"`
 	RecordedBy         string    `json:"recorded_by"`
+	IntentSHA256       string    `json:"-" gorm:"column:intent_sha256"`
 	CreatedAt          time.Time `json:"created_at" gorm:"autoCreateTime:false;default:now()"`
 	InForce            bool      `json:"in_force" gorm:"->;-:migration"`
 	Replaced           bool      `json:"replaced" gorm:"->;-:migration"`
@@ -85,7 +86,7 @@ const classificationInForce = `SELECT DISTINCT ON (product_id) product_id,classi
 
 func taxClassificationRoutes(s *platform.Router, h *catalogueHandlers) {
 	platform.ListRoute(s, "/catalogue/products/:id/tax-classifications", PermCatalogueRead, h.listTaxClassifications)
-	s.POST("/catalogue/products/:id/tax-classifications", PermTaxManage, h.postTaxClassification)
+	s.PUT("/catalogue/products/:id/tax-classifications/:classification", PermTaxManage, h.putTaxClassification)
 }
 
 // outletLocalDate is the outlet's date for in-force lookups; a country
@@ -181,12 +182,18 @@ func (h *catalogueHandlers) listTaxClassifications(c *gin.Context, params pagina
 	return rows, nil
 }
 
-func (h *catalogueHandlers) postTaxClassification(c *gin.Context) {
+// putTaxClassification records the classification under the client's id;
+// an identical resend by the same person returns the row it recorded (#1715).
+func (h *catalogueHandlers) putTaxClassification(c *gin.Context) {
 	p, outlet, ok := catalogueScope(c)
 	if !ok {
 		return
 	}
 	id, ok := catalogueID(c)
+	if !ok {
+		return
+	}
+	command, ok := registryID(c, "classification")
 	if !ok {
 		return
 	}
@@ -203,11 +210,28 @@ func (h *catalogueHandlers) postTaxClassification(c *gin.Context) {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "invalid rate, supply nature, exemption basis or reason")
 		return
 	}
+	code := strings.ToUpper(strings.TrimSpace(in.ClassificationCode))
+	intent := taxIntent(outlet.String(), id.String(), code, in.SupplyNature, strconv.FormatInt(rate, 10),
+		optionalField(basis), in.EffectiveFrom, optionalField(reason))
 	var row taxClassification
+	created := false
 	err := h.transaction(c.Request.Context(), p, outlet, true, func(tx *gorm.DB) error {
 		var product catalogueProduct
 		if err := tx.Select("id,status").Where("tenant_id=? AND outlet_id=? AND id=?", p.TenantID, outlet, id).First(&product).Error; err != nil {
 			return err
+		}
+		// Decided before the state, date and code checks, as for
+		// registrations: a resend of a recorded command returns its row.
+		replay, err := priorTaxCommand(tx, row.TableName(), p.TenantID, command, intent, p.Subject)
+		if err != nil {
+			return err
+		}
+		if replay {
+			today, err := outletLocalDate(tx, p.TenantID, outlet)
+			if err != nil {
+				return err
+			}
+			return tx.Table("pharmacy_product_tax_classifications AS r").Select(classificationColumns, today).Where("r.tenant_id=? AND r.outlet_id=? AND r.id=?", p.TenantID, outlet, command).Take(&row).Error
 		}
 		if product.Status == "withdrawn" {
 			return errCatalogueWithdrawn
@@ -219,25 +243,28 @@ func (h *catalogueHandlers) postTaxClassification(c *gin.Context) {
 		if err := checkEffectiveFrom(in.EffectiveFrom, today); err != nil {
 			return err
 		}
-		code := strings.ToUpper(strings.TrimSpace(in.ClassificationCode))
 		if !regexp.MustCompile(scheme.ClassificationPattern).MatchString(code) {
 			return errTaxClassification
 		}
-		row = taxClassification{ID: uuid.Must(uuid.NewV7()), TenantID: uuid.MustParse(p.TenantID), OutletID: outlet, ProductID: id,
+		row = taxClassification{ID: command, TenantID: uuid.MustParse(p.TenantID), OutletID: outlet, ProductID: id,
 			ClassificationCode: code, SupplyNature: in.SupplyNature, RatePPM: rate, ExemptionBasis: basis,
-			EffectiveFrom: in.EffectiveFrom, Reason: reason, RecordedBy: p.Subject}
+			EffectiveFrom: in.EffectiveFrom, Reason: reason, RecordedBy: p.Subject, IntentSHA256: intent}
 		if err := tx.Omit("CreatedAt", "InForce", "Replaced").Create(&row).Error; err != nil {
 			return err
 		}
+		created = true
 		return tx.Table("pharmacy_product_tax_classifications AS r").Select(classificationColumns, today).Where("r.tenant_id=? AND r.outlet_id=? AND r.id=?", p.TenantID, outlet, row.ID).Take(&row).Error
 	})
 	if errors.Is(err, errTaxClassification) {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "classification code does not match the country's scheme")
 		return
 	}
-	if err != nil {
+	switch {
+	case err != nil:
 		taxError(c, err)
-		return
+	case created:
+		respond.Created(c, row)
+	default:
+		respond.OK(c, row)
 	}
-	respond.Created(c, row)
 }

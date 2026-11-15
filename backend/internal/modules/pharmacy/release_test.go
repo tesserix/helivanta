@@ -62,7 +62,7 @@ func newReleaseWorld(t *testing.T) releaseWorld {
 
 func classify(t *testing.T, r *gin.Engine, product string) {
 	t.Helper()
-	res := do(r, "POST", productPath(product)+"/tax-classifications", "editor", classificationBody("30041010", "taxable", "5", "", "2026-11-01", ""))
+	res := do(r, "PUT", taxCommandPath(productPath(product)+"/tax-classifications"), "editor", classificationBody("30041010", "taxable", "5", "", "2026-11-01", ""))
 	require.Equal(t, http.StatusCreated, res.Code, res.Body.String())
 }
 

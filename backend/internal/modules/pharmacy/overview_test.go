@@ -193,7 +193,7 @@ func TestOverviewCountsEqualTheirLists(t *testing.T) {
 	require.NotNil(t, got.Setup.RegistrationInForce)
 	require.False(t, *got.Setup.RegistrationInForce)
 
-	w := do(r, "POST", outletPath("/tax-registrations"), "editor", registrationBody("07", "07ABCDE1234F1Z2", "2026-11-01", ""))
+	w := do(r, "PUT", taxCommandPath(outletPath("/tax-registrations")), "editor", registrationBody("07", "07ABCDE1234F1Z2", "2026-11-01", ""))
 	require.Equal(t, 201, w.Code, w.Body.String())
 	_, got, _ = getOverview(t, r, "editor")
 	require.True(t, *got.Setup.RegistrationInForce)

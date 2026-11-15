@@ -426,12 +426,25 @@ func TestCredentialRegisterListsSoonestExpiryInTheHospitalCalendar(t *testing.T)
 		}
 		return result
 	}
+	remainingDays := func() int {
+		t.Helper()
+		var days int
+		require.NoError(t, f.db.WithSystem(t.Context(), func(tx *gorm.DB) error {
+			return tx.Raw(`SELECT ?::date - (clock_timestamp() AT TIME ZONE 'Pacific/Auckland')::date`, expiries["REG-02"]).Scan(&days).Error
+		}))
+		return days
+	}
+	beforeRequest := remainingDays()
 	code, out = f.call("GET", f.base+"/hr/credentials?expiring_within=30", "hr", nil)
+	afterRequest := remainingDays()
 	require.Equal(t, 200, code, out)
 	require.Equal(t, []string{"REG-02", "REG-03"}, codes(out), "expired and expiring soon, soonest first; unreviewed staff are absent")
 	first := out["data"].([]any)[0].(map[string]any)
 	require.Equal(t, "expired", first["status"])
-	require.EqualValues(t, -3, first["days_remaining"])
+	// The hospital may cross midnight during fixture setup or the request itself.
+	actualDays := first["days_remaining"].(float64)
+	require.GreaterOrEqual(t, actualDays, float64(afterRequest))
+	require.LessOrEqual(t, actualDays, float64(beforeRequest))
 
 	code, out = f.call("GET", f.base+"/hr/credentials?limit=2", "hr", nil)
 	require.Equal(t, 200, code, out)

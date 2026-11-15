@@ -181,7 +181,7 @@ func TestCountedCatalogueReadsTheOutletDateOnce(t *testing.T) {
 	r, _ := overviewHarness(t)
 	id := uuid.Must(uuid.NewV7()).String()
 	require.Equal(t, 200, do(r, "PUT", productPath(id), "editor", productBody(0, "TEST Midnight")).Code)
-	w := do(r, "POST", classificationsPath(id), "editor", classificationBody("3004", "taxable", "5", "", "2026-11-02", ""))
+	w := do(r, "PUT", taxCommandPath(classificationsPath(id)), "editor", classificationBody("3004", "taxable", "5", "", "2026-11-02", ""))
 	require.Equal(t, 201, w.Code, w.Body.String())
 
 	// 23:59 on 1 November in Kolkata for the first read, 00:01 on the 2nd after.

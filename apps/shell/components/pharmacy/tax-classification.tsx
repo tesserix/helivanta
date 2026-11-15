@@ -20,6 +20,7 @@ import {
 } from "@helivanta/api";
 import { Field, FormSelectField, LoadMore, QueryState, useZodForm } from "@helivanta/ui";
 import { useReportState, type FormState } from "@/lib/use-list-detail";
+import { useCommandId } from "./command-id";
 
 export function taxLabel(tax: PharmacyProductTax | null | undefined, name = "HSN"): string {
   if (!tax) return "Not classified";
@@ -143,10 +144,10 @@ export function ProductTaxSection({
             history={history.items}
             today={today}
             onStateChange={onStateChange}
-            submit={(values) =>
+            submit={(values, id) =>
               apiFetch<PharmacyTaxClassification>(
-                `${pharmacyRoot(scope)}/catalogue/products/${product.id}/tax-classifications`,
-                { method: "POST", body: JSON.stringify(values) },
+                `${pharmacyRoot(scope)}/catalogue/products/${product.id}/tax-classifications/${id}`,
+                { method: "PUT", body: JSON.stringify(values) },
               )
             }
             invalidate={[
@@ -214,7 +215,7 @@ function ClassificationForm({
   scheme: TaxScheme;
   history: PharmacyTaxClassification[];
   today: string;
-  submit: (values: Record<string, string>) => Promise<PharmacyTaxClassification>;
+  submit: (values: Record<string, string>, id: string) => Promise<PharmacyTaxClassification>;
   invalidate: unknown[][];
   onStateChange?: FormState;
 }) {
@@ -226,11 +227,15 @@ function ClassificationForm({
     effective_from: today,
     reason: "",
   });
-  const record = useApiMutation(submit, {
-    successToast: "Classification recorded",
-    invalidate,
-    suppressErrorToast: true,
-  });
+  const commandId = useCommandId();
+  const record = useApiMutation(
+    (values: Record<string, string>) => submit(values, commandId(values)),
+    {
+      successToast: "Classification recorded",
+      invalidate,
+      suppressErrorToast: true,
+    },
+  );
   useReportState(onStateChange, form.formState.isDirty, record.isPending);
   const nature = form.watch("supply_nature");
   const errors = form.formState.errors;

@@ -21,6 +21,7 @@ import {
 } from "@helivanta/api";
 import { Field, FormSelectField, LoadMore, Panel, QueryState, useZodForm } from "@helivanta/ui";
 import { useReportState, type FormState } from "@/lib/use-list-detail";
+import { useCommandId } from "./command-id";
 
 const registrationMessages = {
   format: "Enter the 15-character GSTIN.",
@@ -113,9 +114,9 @@ export function TaxRegistrationPanel({
         history={history.items}
         today={today}
         onStateChange={onStateChange}
-        submit={(values) =>
-          apiFetch<PharmacyTaxRegistration>(`${pharmacyRoot(scope)}/tax-registrations`, {
-            method: "POST",
+        submit={(values, id) =>
+          apiFetch<PharmacyTaxRegistration>(`${pharmacyRoot(scope)}/tax-registrations/${id}`, {
+            method: "PUT",
             body: JSON.stringify(values),
           })
         }
@@ -184,7 +185,7 @@ function RegistrationForm({
   scheme: TaxScheme;
   history: PharmacyTaxRegistration[];
   today: string;
-  submit: (values: Record<string, string>) => Promise<PharmacyTaxRegistration>;
+  submit: (values: Record<string, string>, id: string) => Promise<PharmacyTaxRegistration>;
   invalidate: unknown[];
   onStateChange?: FormState;
 }) {
@@ -194,11 +195,15 @@ function RegistrationForm({
     effective_from: today,
     reason: "",
   });
-  const record = useApiMutation(submit, {
-    successToast: "Registration recorded",
-    invalidate: [invalidate],
-    suppressErrorToast: true,
-  });
+  const commandId = useCommandId();
+  const record = useApiMutation(
+    (values: Record<string, string>) => submit(values, commandId(values)),
+    {
+      successToast: "Registration recorded",
+      invalidate: [invalidate],
+      suppressErrorToast: true,
+    },
+  );
   const errors = form.formState.errors;
   const onSubmit = (values: RegistrationValues) => {
     const { reason, ...rest } = values;

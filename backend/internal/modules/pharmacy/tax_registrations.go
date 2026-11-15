@@ -76,6 +76,8 @@ func optionalReason(reason *string) (*string, bool) {
 
 func taxError(c *gin.Context, err error) {
 	switch {
+	case errors.Is(err, errStockIdentity):
+		respond.Conflict(c, "this tax command id was already used with different details")
 	case errors.Is(err, errTaxSchemeUnavailable):
 		respond.Error(c, http.StatusConflict, "tax_scheme_unavailable", "tax setup is not available for this outlet's country yet")
 	case errors.Is(err, errTaxBackdated):
@@ -104,6 +106,7 @@ type taxRegistration struct {
 	OutletID         uuid.UUID `json:"outlet_id"`
 	JurisdictionCode string    `json:"jurisdiction_code"`
 	IdentifierKind   string    `json:"identifier_kind"`
+	IntentSHA256     string    `json:"-" gorm:"column:intent_sha256"`
 	Identifier       string    `json:"identifier"`
 	EffectiveFrom    string    `json:"effective_from"`
 	Reason           *string   `json:"reason"`
@@ -130,7 +133,7 @@ func taxRegistrationRoutes(g *platform.Router, h *catalogueHandlers) {
 	// Registration is outlet administration: reads and writes are the
 	// owner's (pharmacy.tax.manage), scoped like the outlet registry.
 	platform.ListRoute(g, "/pharmacies/:pharmacy/outlets/:outlet/tax-registrations", PermTaxManage, h.listTaxRegistrations)
-	g.POST("/pharmacies/:pharmacy/outlets/:outlet/tax-registrations", PermTaxManage, h.postTaxRegistration)
+	g.PUT("/pharmacies/:pharmacy/outlets/:outlet/tax-registrations/:id", PermTaxManage, h.putTaxRegistration)
 	g.GET("/pharmacies/:pharmacy/outlets/:outlet/tax-registrations/in-force", PermTaxManage, h.getTaxRegistrationInForce)
 }
 
@@ -215,8 +218,14 @@ func (h *catalogueHandlers) listTaxRegistrations(c *gin.Context, params paginati
 	return rows, nil
 }
 
-func (h *catalogueHandlers) postTaxRegistration(c *gin.Context) {
+// putTaxRegistration records the registration under the client's id; an
+// identical resend by the same person returns the row it recorded (#1715).
+func (h *catalogueHandlers) putTaxRegistration(c *gin.Context) {
 	tenant, pharmacy, outlet, ok := h.registrationScope(c)
+	if !ok {
+		return
+	}
+	id, ok := registryID(c, "id")
 	if !ok {
 		return
 	}
@@ -230,7 +239,10 @@ func (h *catalogueHandlers) postTaxRegistration(c *gin.Context) {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "reason cannot be blank")
 		return
 	}
+	identifier := tax.NormalizeRegistration(in.Identifier)
+	intent := taxIntent(outlet.String(), in.JurisdictionCode, identifier, in.EffectiveFrom, optionalField(reason))
 	var row taxRegistration
+	created := false
 	err := h.db.WithTenant(tenantdb.WithActor(c.Request.Context(), p.Subject), tenant, func(tx *gorm.DB) error {
 		if err := pharmacyVisible(tx, p, pharmacy, registryManager(c)); err != nil {
 			return err
@@ -239,24 +251,36 @@ func (h *catalogueHandlers) postTaxRegistration(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		if err := checkEffectiveFrom(in.EffectiveFrom, today); err != nil {
+		// A replay is decided before the date and format checks: the
+		// command already succeeded, so a resend after its date has
+		// passed must return its row, not a "before today" refusal.
+		replay, err := priorTaxCommand(tx, row.TableName(), tenant, id, intent, p.Subject)
+		if err != nil {
 			return err
 		}
-		identifier := tax.NormalizeRegistration(in.Identifier)
-		if err := tax.ValidateRegistration(scheme, in.JurisdictionCode, scheme.RegistrationKind, identifier); err != nil {
-			return err
+		if !replay {
+			if err := checkEffectiveFrom(in.EffectiveFrom, today); err != nil {
+				return err
+			}
+			if err := tax.ValidateRegistration(scheme, in.JurisdictionCode, scheme.RegistrationKind, identifier); err != nil {
+				return err
+			}
+			row = taxRegistration{ID: id, TenantID: uuid.MustParse(tenant), OutletID: outlet,
+				JurisdictionCode: in.JurisdictionCode, IdentifierKind: scheme.RegistrationKind, Identifier: identifier,
+				EffectiveFrom: in.EffectiveFrom, Reason: reason, RecordedBy: p.Subject, IntentSHA256: intent}
+			if err := tx.Omit("CreatedAt", "InForce", "Replaced").Create(&row).Error; err != nil {
+				return err
+			}
+			created = true
 		}
-		row = taxRegistration{ID: uuid.Must(uuid.NewV7()), TenantID: uuid.MustParse(tenant), OutletID: outlet,
-			JurisdictionCode: in.JurisdictionCode, IdentifierKind: scheme.RegistrationKind, Identifier: identifier,
-			EffectiveFrom: in.EffectiveFrom, Reason: reason, RecordedBy: p.Subject}
-		if err := tx.Omit("CreatedAt", "InForce", "Replaced").Create(&row).Error; err != nil {
-			return err
-		}
-		return tx.Table("pharmacy_outlet_tax_registrations AS r").Select(registrationColumns, today).Where("r.tenant_id=? AND r.id=?", tenant, row.ID).Take(&row).Error
+		return tx.Table("pharmacy_outlet_tax_registrations AS r").Select(registrationColumns, today).Where("r.tenant_id=? AND r.outlet_id=? AND r.id=?", tenant, outlet, id).Take(&row).Error
 	})
-	if err != nil {
+	switch {
+	case err != nil:
 		taxError(c, err)
-		return
+	case created:
+		respond.Created(c, row)
+	default:
+		respond.OK(c, row)
 	}
-	respond.Created(c, row)
 }

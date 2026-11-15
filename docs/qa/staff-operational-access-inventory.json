@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "registry_sha256": "a394a5129b81b561c2d8e96008134e00b3d832e65c31fb27d68c089fb20760f3",
+  "registry_sha256": "a88341703c81aa09a554efbbdae61b441a26ae2ce498b8d2cac3271adad459b3",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
     "total": 1138,
@@ -9963,22 +9963,6 @@
       "review": null
     },
     {
-      "id": "http pharmacy POST /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/tax-classifications",
-      "kind": "http",
-      "module": "pharmacy",
-      "registration": {
-        "source": "backend/internal/modules/pharmacy/module.go",
-        "method": "POST",
-        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/tax-classifications",
-        "permission": "pharmacy.tax.manage",
-        "authentication_required": true,
-        "membership_required": true,
-        "paginated": false,
-        "counted": false
-      },
-      "review": null
-    },
-    {
       "id": "http pharmacy POST /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id/cancel",
       "kind": "http",
       "module": "pharmacy",
@@ -10085,22 +10069,6 @@
         "method": "POST",
         "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges/:charge/versions/:version/review",
         "permission": "pharmacy.service_charge.review",
-        "authentication_required": true,
-        "membership_required": true,
-        "paginated": false,
-        "counted": false
-      },
-      "review": null
-    },
-    {
-      "id": "http pharmacy POST /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations",
-      "kind": "http",
-      "module": "pharmacy",
-      "registration": {
-        "source": "backend/internal/modules/pharmacy/module.go",
-        "method": "POST",
-        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations",
-        "permission": "pharmacy.tax.manage",
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,
@@ -10535,6 +10503,22 @@
       "review": null
     },
     {
+      "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/tax-classifications/:classification",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "PUT",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/tax-classifications/:classification",
+        "permission": "pharmacy.tax.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id",
       "kind": "http",
       "module": "pharmacy",
@@ -10929,6 +10913,22 @@
         "method": "PUT",
         "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/commands/:command",
         "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations/:id",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "PUT",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations/:id",
+        "permission": "pharmacy.tax.manage",
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,

@@ -104,7 +104,7 @@ A pure Go package with no database, usable later by MediCore (#208). All amounts
 - Reads:
   - classification reads ride on `pharmacy.catalogue.read`, through the catalogue's outlet scope;
   - registration reads need `pharmacy.tax.manage`, under the D2 registry scope. `GET …/tax-registrations/in-force` returns the row in force today (or `null`), so a screen never infers it from a history page.
-- Routes, under the existing outlet scope:
+- Routes, under the existing outlet scope. Superseded by #1715: both records are now created by `PUT …/{uuidv7}`, and an identical resend replays ([spec](2026-11-14-pharmacy-tax-command-identity-design.md)).
   - `GET` and `POST` `…/tax-registrations`: list the outlet's registrations, newest first, or record a new one.
   - `GET` and `POST` `…/catalogue/products/{id}/tax-classifications`: list a product's history, or record a new classification.
   - `POST` returns `201`. A bad field is a `400` whose message names the field (the module has no field-error envelope). An unknown or out-of-scope product or outlet is a `404`. A null scheme is a `409 tax_scheme_unavailable`. A withdrawn product is a `409`. A same-date correction without a `reason` is a `400`.

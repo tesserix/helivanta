@@ -5,6 +5,29 @@ This checkpoint preserves the full goal across the hospital-owned pharmacy and
 independent pharmacy/supplier models. Source inspection, component checks,
 service integration, browser testing and live acceptance are distinct evidence.
 
+## Current-main integration checkpoint
+
+Main advanced to `7f85a42e` (pharmacy tax-command replay, PR #1717) while
+`4bd9151e` was queued. GitHub reported a merge conflict, so PR CI did not start
+for that head; only image builds started. Integration preserves both Pharmacy
+`0047_pharmacy_operating_location_choices` and main's
+`0048_pharmacy_tax_command_identity` in migration order. Both conflicted
+inventories were regenerated from canonical source; no main business change was
+replaced or omitted.
+
+After integration, local workspace quality checks passed 21/21 tasks; workspace
+unit tests passed 7/7 tasks; the shell production Next.js build and AmbulanceConnect Expo export passed
+2/2 build tasks (the unchanged Expo task used its cache). Explicit CI-only
+API/identity settings were used for the shell build. Generated shell `.next`
+and AmbulanceConnect `dist` outputs were removed. The shell suite passed
+2,023 tests across 229 files. Focused IAM and
+Workforce race tests, compile-only bootstrap, full Go vet/build/lint (0 issues),
+contractdocs generation/check, canonical Staff generator and inventory checks/tests
+passed. No local app, DB, container or browser test stack was started. The
+existing Chrome login was inspected read-only through native accessibility;
+email-based discovery is present and no credentials or tenant data were changed.
+The integrated-head runtime checks remain required before merge or HMS rollout.
+
 ## Qualified locking-read correction
 
 Candidate `c4bfef80` passed exact restoration checks and Workforce schema support.

@@ -345,7 +345,7 @@ remain in headers.
 
 ## Shared command guard
 
-Candidate Workforce0120 moves the existing canonical Staff read predicate and
+Workforce0120 moves the existing canonical Staff read predicate and
 shared-lock UPDATE `USING` predicate into typed, `STABLE SECURITY INVOKER`
 functions. Their exact prior expressions are retained and evaluated against each
 current row and transaction context. PostgreSQL can reuse their internal query
@@ -363,13 +363,17 @@ index and restrictive-purpose checks remain intact. Public API regressions requi
 both owner and delegate preparation searches to fail closed when either helper is
 altered and recover only after exact restoration.
 
-Candidate Workforce0121 additionally sets `plan_cache_mode=force_generic_plan`
+Workforce0121 additionally sets `plan_cache_mode=force_generic_plan`
 only on those two predicate functions. Their bodies and every policy stay unchanged;
 current-row/context evaluation is retained. Both complete integrity definitions
 update only the helper fingerprints so the function configuration is covered.
-The plan regression compares119,120 and121; full cold lifecycle and full Go
-race/coverage remain separate required gates. This follow-up is an unverified
-performance hypothesis until its real-database results pass.
+The real-database regression compared migrations 119, 120 and 121 and passed
+owner/foreign admission, write-rule preservation, RLS lint and helper tamper checks.
+The unchanged cold lifecycle, full Go race/coverage and native hospital, pharmacy
+and supplier browser workflows also passed. Repeated owner reads in that fixture
+changed from about 275 ms to 144 ms including planning; this is a fixture result,
+not a production SLO. The [release evidence](../deployment/releases/2026-11-15-staff-governance-release.json)
+records the deployed commit, signed digests and successful migration/promotion.
 
 These are forward-only performance migrations with no business-data rewrite.
 Rollback retains the migration and requires support-aware governance handlers;
@@ -379,7 +383,8 @@ budget, current actor/source locks, independent review and audit/outbox rules re
 unchanged. Real-database checks compare plans before/after the migration, current
 owner admission, foreign-tenant denial, unchanged write metadata and fail-closed
 function tampering/restoration. The original full cold lifecycle remains a separate
-required gate; no deployed acceptance or production SLO is established here.
+required regression gate. Deployment consistency is verified; authenticated live
+Staff acceptance and a production SLO remain unproven.
 
 `platform.Deps.GovernanceSources` binds the sole IAM and Workforce owners to
 `authz.CurrentGovernanceSourceGuard`. Its closed capability catalog currently

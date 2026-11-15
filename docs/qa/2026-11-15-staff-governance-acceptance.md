@@ -1,9 +1,40 @@
 # Staff initiation, reviewed linking and pharmacy-access acceptance
 
-Status: incomplete candidate; no merge or live rollout is established here.
+Status: implementation merged and deployed; authenticated live Staff acceptance is incomplete.
 This checkpoint preserves the full goal across the hospital-owned pharmacy and
 independent pharmacy/supplier models. Source inspection, component checks,
 service integration, browser testing and live acceptance are distinct evidence.
+
+## Released implementation; authenticated live acceptance pending
+
+PR [#1669](https://github.com/tesserix/helivanta/pull/1669) merged as
+`2a59d46ad2933c64401bd13f9e965516f96370f7`. Its complete source tree matches tested
+commit `2212cb764ca3ca877d8f7e8c87a159146009fe06`. All feature checks passed,
+including full Go race/coverage, the unchanged original Staff lifecycle, all three
+native Staff browser ownership models, E2E, builds, lint and secret scanning.
+Workforce coverage was 83.0%; the original lifecycle completed in 988.80 seconds.
+No original five-second authority budget or race assertion was relaxed.
+
+[Production release 43686794263](https://github.com/tesserix/helivanta/actions/runs/43686794263)
+verified image revisions and signatures and advanced `release/prod`. Freight
+`3d8b622a006f6834c27fa2e1513c5cc50f08d19e` promoted successfully. The new migration
+hook completed and logged `migrations applied`. All seven application/worker
+deployments were ready on the expected digests; Argo was Synced/Healthy and Kargo
+Ready/Healthy/Verified. Public smoke checks returned 200 for `/login` and 401 for
+anonymous permissions access. The [release evidence](../deployment/releases/2026-11-15-staff-governance-release.json)
+records exact commits, digests, checks and the 30 registry migrations new relative
+to the previous running release.
+
+This proves the recorded deployment and CI results. The existing Yes Hospital
+owner login and the ordinary Staff invitation, independent review, linking,
+pharmacy access and both-owner trade journeys still require live execution using
+the [run sheet](2026-11-15-live-staff-acceptance.md). No tenant or password was reset,
+and no Staff business fixture was created for this release. The existing
+live-issuer security-key test remains skipped outside its required live context.
+
+The sections below preserve historical pre-merge checkpoints. Their pending and
+failure statements refer to the named earlier revisions; they are not current
+release status.
 
 ## Full coverage reproduced the race; generic-plan follow-up pending
 

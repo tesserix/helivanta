@@ -93,6 +93,23 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 	require.True(t, selectionSupport.CaptureProtected, "only the schema owner may refresh selector integrity")
 	require.True(t, selectionSupport.IAM, "IAM selector support is available after migration")
 	require.True(t, selectionSupport.Workforce, "Workforce selector support is available after migration")
+	selectionSchemaSnapshot := func(t *testing.T) map[string]string {
+		t.Helper()
+		var rows []struct{ Key, Digest string }
+		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			return tx.Raw(`SELECT c.relname||'/'||p.polname AS key,md5(p.polcmd::text||p.polpermissive::text||p.polroles::text||COALESCE(pg_get_expr(p.polqual,p.polrelid),'')||COALESCE(pg_get_expr(p.polwithcheck,p.polrelid),'')) AS digest FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=current_schema() AND starts_with(c.relname,'workforce_') UNION ALL SELECT p.oid::regprocedure::text AS key,md5(pg_get_functiondef(p.oid)) AS digest FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname=current_schema() AND starts_with(p.proname,'workforce_')`).Scan(&rows).Error
+		}))
+		result := make(map[string]string, len(rows))
+		for _, row := range rows {
+			result[row.Key] = row.Digest
+		}
+		return result
+	}
+	originalSelectionSchema := selectionSchemaSnapshot(t)
+	assertSelectionSchemaRestored := func(t *testing.T) {
+		t.Helper()
+		require.Equal(t, originalSelectionSchema, selectionSchemaSnapshot(t), "fault injection must restore every canonical Workforce policy/function fingerprint")
+	}
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Exec("INSERT INTO iam_members(tenant_id,subject,role_key)VALUES(?,'user-admin','tenant_admin'),(?,'user-owner2','tenant_admin'),(?,'user-auditor','staff_member'),(?,'user-reviewer','staff_member'),(?,'user-ordinary','staff_member')", testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA).Error
 	}))
@@ -321,6 +338,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 			func() {
 				defer func() {
 					require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_native_document_provenance_restored", SQL: "ALTER TABLE workforce_documents ENABLE TRIGGER workforce_governance_document_provenance"}}))
+					assertSelectionSchemaRestored(t)
 				}()
 				request(t, http.MethodGet, path+docBasis, "auditor", nil, 503)
 			}()
@@ -405,6 +423,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 			func() {
 				defer func() {
 					require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_native_binding_support_restored", SQL: "ALTER TABLE workforce_employment_evidence_history ENABLE TRIGGER workforce_governance_binding_provenance"}}))
+					assertSelectionSchemaRestored(t)
 				}()
 				request(t, http.MethodGet, bindingPath+docBasis, "auditor", nil, 503)
 			}()
@@ -476,6 +495,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 			func() {
 				defer func() {
 					require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_governance_draft_source_restored", SQL: "ALTER TABLE workforce_employment_period_history ENABLE TRIGGER workforce_governance_draft_provenance"}}))
+					assertSelectionSchemaRestored(t)
 				}()
 				request(t, http.MethodPut, draftPath, "auditor", next, 503)
 			}()
@@ -516,6 +536,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 					require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_finding_" + policy.table + "_disabled", SQL: "ALTER POLICY " + saved.Name + " ON " + policy.table + " " + policy.clause + " (false)"}}))
 					defer func() {
 						require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_finding_" + policy.table + "_restored", SQL: "ALTER POLICY " + saved.Name + " ON " + policy.table + " " + policy.clause + " (" + saved.Expression + ")"}}))
+						assertSelectionSchemaRestored(t)
 					}()
 					request(t, http.MethodGet, selectionPath+selectionQuery, "auditor", nil, 503)
 				})
@@ -621,6 +642,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 					require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_inbox_" + policy.table + "_disabled", SQL: "ALTER POLICY " + saved.Name + " ON " + policy.table + " " + policy.clause + " (false)"}}))
 					defer func() {
 						require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_inbox_" + policy.table + "_restored", SQL: "ALTER POLICY " + saved.Name + " ON " + policy.table + " " + policy.clause + " (" + saved.Expression + ")"}}))
+						assertSelectionSchemaRestored(t)
 					}()
 					request(t, http.MethodGet, inbox, "reviewer", nil, 503)
 				})
@@ -712,6 +734,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 				require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_" + trigger + "_disabled", SQL: "ALTER TABLE workforce_employment_reviews DISABLE TRIGGER " + trigger}}))
 				defer func() {
 					require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_" + trigger + "_restored", SQL: "ALTER TABLE workforce_employment_reviews ENABLE TRIGGER " + trigger}}))
+					assertSelectionSchemaRestored(t)
 				}()
 				response := governanceRequest(router, http.MethodGet, employmentPath+"?employment_review=v1", "reviewer", "")
 				require.Equal(t, 503, response.Code, response.Body.String())
@@ -727,6 +750,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 			require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_employment_purpose_removed", SQL: "DROP POLICY employment_governance_purpose ON workforce_staff"}}))
 			defer func() {
 				require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_employment_purpose_restored", SQL: "CREATE POLICY employment_governance_purpose ON workforce_staff AS RESTRICTIVE FOR ALL USING(" + policy.Reading + ") WITH CHECK(" + policy.Writing + ")"}}))
+				assertSelectionSchemaRestored(t)
 			}()
 			response := governanceRequest(router, http.MethodGet, employmentPath+"?employment_review=v1", "reviewer", "")
 			require.Equal(t, 503, response.Code, response.Body.String())
@@ -811,6 +835,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 		require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_person_authority_disabled", SQL: "ALTER TABLE workforce_person_reviews DISABLE TRIGGER workforce_person_review_zz_authority"}}))
 		defer func() {
 			require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_person_authority_restored", SQL: "ALTER TABLE workforce_person_reviews ENABLE TRIGGER workforce_person_review_zz_authority"}}))
+			assertSelectionSchemaRestored(t)
 		}()
 		call(http.MethodGet, identityPath, "reviewer", nil, 503)
 	})
@@ -880,6 +905,7 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 				require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_activation_" + prerequisite.trigger + "_disabled", SQL: "ALTER TABLE " + prerequisite.table + " DISABLE TRIGGER " + prerequisite.trigger}}))
 				defer func() {
 					require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_activation_" + prerequisite.trigger + "_restored", SQL: "ALTER TABLE " + prerequisite.table + " ENABLE TRIGGER " + prerequisite.trigger}}))
+					assertSelectionSchemaRestored(t)
 				}()
 				request(t, http.MethodGet, sourcePath, nil, 503)
 				request(t, http.MethodPut, activationPath, intent, 503)

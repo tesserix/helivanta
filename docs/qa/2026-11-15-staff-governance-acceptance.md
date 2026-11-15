@@ -5,6 +5,22 @@ This checkpoint preserves the full goal across the hospital-owned pharmacy and
 independent pharmacy/supplier models. Source inspection, component checks,
 service integration, browser testing and live acceptance are distinct evidence.
 
+## Exact Workforce schema-support diagnosis
+
+Candidate `87e25e99` reached the same empty chooser failure. Its owner diagnostic
+in [Go job132633393419](https://github.com/tesserix/helivanta/actions/runs/43655573636/job/132633393419)
+identified `phase=schema_support`, `authorization_unavailable=true`, with no guard
+scope mismatch/closure. Startup support was true. This narrows investigation to
+schema support after the fixture's policy/trigger fault injections; it does not
+prove that qualification or identity lookup has run successfully.
+
+The real-service fixture now snapshots canonical Workforce policy and function
+hashes after migration, checks exact restoration after each policy/trigger
+restoring cleanup, and checks again before the chooser. Failure output contains
+schema object names and hashes, without database row contents, identity or secrets.
+The support/fingerprint checks are unchanged. Corrected-head CI must identify the
+remaining difference before any production policy change is considered.
+
 ## Identity owner release and remaining chooser failure
 
 Identity PR #39 merged as `620d05531794e89b59ca9e5b57e00c3f8dbc6b30` after

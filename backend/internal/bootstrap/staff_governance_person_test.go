@@ -108,7 +108,11 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 	originalSelectionSchema := selectionSchemaSnapshot(t)
 	assertSelectionSchemaRestored := func(t *testing.T) {
 		t.Helper()
-		require.Equal(t, originalSelectionSchema, selectionSchemaSnapshot(t), "fault injection must restore every canonical Workforce policy/function fingerprint")
+		actual := selectionSchemaSnapshot(t)
+		require.Len(t, actual, len(originalSelectionSchema), "fault injection must restore the canonical schema object set")
+		for key, expected := range originalSelectionSchema {
+			require.Equal(t, expected, actual[key], "fault injection must restore the canonical Workforce policy/function fingerprint: %s", key)
+		}
 	}
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Exec("INSERT INTO iam_members(tenant_id,subject,role_key)VALUES(?,'user-admin','tenant_admin'),(?,'user-owner2','tenant_admin'),(?,'user-auditor','staff_member'),(?,'user-reviewer','staff_member'),(?,'user-ordinary','staff_member')", testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA, testutil.TenantA).Error
@@ -741,17 +745,19 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 			})
 		}
 		t.Run("missing private purpose denies before disclosure", func(t *testing.T) {
-			var policy struct{ Reading, Writing string }
-			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-				return tx.Raw(`SELECT pg_get_expr(polqual,polrelid) AS reading,pg_get_expr(polwithcheck,polrelid) AS writing FROM pg_policy WHERE polrelid='public.workforce_staff'::regclass AND polname='employment_governance_purpose'`).Take(&policy).Error
-			}))
-			require.NotEmpty(t, policy.Reading)
-			require.NotEmpty(t, policy.Writing)
-			require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_employment_purpose_removed", SQL: "DROP POLICY employment_governance_purpose ON workforce_staff"}}))
+			require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_employment_purpose_removed", SQL: "ALTER POLICY employment_governance_purpose ON workforce_staff RENAME TO test_missing_employment_governance_purpose"}}))
 			defer func() {
-				require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_employment_purpose_restored", SQL: "CREATE POLICY employment_governance_purpose ON workforce_staff AS RESTRICTIVE FOR ALL USING(" + policy.Reading + ") WITH CHECK(" + policy.Writing + ")"}}))
+				require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_employment_purpose_restored", SQL: "ALTER POLICY test_missing_employment_governance_purpose ON workforce_staff RENAME TO employment_governance_purpose"}}))
 				assertSelectionSchemaRestored(t)
 			}()
+			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+				var expectedPolicyPresent bool
+				if err := tx.Raw("SELECT EXISTS(SELECT 1 FROM pg_policy WHERE polrelid='public.workforce_staff'::regclass AND polname='employment_governance_purpose')").Scan(&expectedPolicyPresent).Error; err != nil {
+					return err
+				}
+				require.False(t, expectedPolicyPresent)
+				return nil
+			}))
 			response := governanceRequest(router, http.MethodGet, employmentPath+"?employment_review=v1", "reviewer", "")
 			require.Equal(t, 503, response.Code, response.Body.String())
 		})

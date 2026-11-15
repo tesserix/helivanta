@@ -5,6 +5,30 @@ This checkpoint preserves the full goal across the hospital-owned pharmacy and
 independent pharmacy/supplier models. Source inspection, component checks,
 service integration, browser testing and live acceptance are distinct evidence.
 
+## Reversible missing-policy fixture repair
+
+Candidate `fc073aa5` identified one changed object in
+[Go job132636773703](https://github.com/tesserix/helivanta/actions/runs/43656653249/job/132636773703):
+`workforce_staff/employment_governance_purpose`. The first failing restoration was
+`missing_private_purpose_denies_before_disclosure`: dropping and reconstructing
+that policy from its deparsed expressions changed its canonical fingerprint from
+`b5524ac6499281fa4265d55c23d12890` to `11120fac27c0a76460951cf5a3e78ab3`.
+Later trigger-cleanup comparisons inherited that same single difference. No
+production policy defect or exact expression-level cause is inferred from the
+hash comparison.
+
+The missing-policy metadata test now temporarily renames the original policy,
+asserts that the required canonical name is absent, and still requires HTTP 503.
+It then renames the same original object back and checks every original policy
+and function fingerprint. This tests absence of the required named policy while
+preserving its OID, command, roles and predicates across cleanup; it does not
+physically remove the renamed restrictive predicate during the request. The
+application's policy-existence/integrity checks, public assertions and deadlines
+are unchanged. This avoids reconstructing trusted metadata and never recaptures
+an altered schema as trusted. Failure diagnostics now compare one schema key at
+a time rather than printing the entire snapshot. Corrected-head runtime evidence
+is still required for the chooser and hospital browser journey.
+
 ## Exact Workforce schema-support diagnosis
 
 Candidate `87e25e99` reached the same empty chooser failure. Its owner diagnostic

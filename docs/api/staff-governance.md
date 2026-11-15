@@ -356,9 +356,17 @@ their full earlier conditions, update the two changed policy fingerprints and ad
 exact fingerprints for both new predicate functions. Missing or changed functions
 fail qualification closed.
 
-This is a forward-only performance migration with no business-data rewrite. Earlier
-application code remains compatible with it; rollback retains the migration and
-uses a corrective forward migration if required. The original five-second authority
+The preparation, evidence, finding and inbox schema checks resolve the two wrapped
+read definitions only after both full integrity checks succeed. Earlier schemas
+retain direct policy inspection. The write expressions and all existing trigger,
+index and restrictive-purpose checks remain intact. Public API regressions require
+both owner and delegate preparation searches to fail closed when either helper is
+altered and recover only after exact restoration.
+
+This is a forward-only performance migration with no business-data rewrite.
+Rollback retains the migration and requires support-aware governance handlers;
+unreleased earlier candidates that inspect only direct policy text are not valid
+rollback targets. Use a corrective forward migration if required. The original five-second authority
 budget, current actor/source locks, independent review and audit/outbox rules remain
 unchanged. Real-database checks compare plans before/after the migration, current
 owner admission, foreign-tenant denial, unchanged write metadata and fail-closed

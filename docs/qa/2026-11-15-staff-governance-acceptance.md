@@ -26,8 +26,24 @@ hospital/access/Staff APIs against the complete prefix schema, then captures own
 and foreign plans. It applies0120, verifies unchanged write metadata and clean RLS
 lint, compares cold/warm plans and row admission, and tests fail-closed tampering and
 exact restoration of both new helpers. The unchanged full original lifecycle,
-including the observed term-expiry failure, still must pass. Performance improvement
-and live readiness remain unproven until the corrected-head results arrive.
+including the observed term-expiry failure, still must pass.
+
+At `adb76682`, plan job132698264151 passed. Owner planning/execution changed from
+377.030/13.258ms to132.134/146.825ms, with warm129.858/141.005ms. Foreign
+planning/execution changed from376.762/12.445ms to128.162/4.260ms. Row admission
+remained1/0; write metadata, startup RLS lint, forced RLS and both helper tamper and
+restoration checks passed. The combined owner time improved in this fixture;
+this does not establish the full lifecycle request budget or live readiness.
+
+That same head failed the bootstrap governance test: an allowed employment
+preparation search returned503. Five new governance schema checks still inspected
+only direct policy text after0120 moved it into helpers. The follow-up resolves
+those definitions through a shared catalog projection only after both complete
+selection integrity checks pass. It keeps the original checks on unwrapped
+schemas and leaves write expressions unchanged. API regressions alter each helper,
+require owner and delegate searches to return503 without Staff data, restore exact
+definitions and require positive search again. Corrected-head runtime validation
+remains pending; the previous positive regression must pass unchanged.
 
 ## Earlier JIT hypothesis and measured failure
 

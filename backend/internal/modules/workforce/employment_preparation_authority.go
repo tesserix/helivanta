@@ -105,24 +105,24 @@ var employmentPreparationSchema string
 
 func installEmploymentPreparation(tx *gorm.DB, proof map[string]any) error {
 	var installed bool
-	if err := tx.Raw(`SELECT to_regprocedure('public.workforce_governance_draft_source(uuid,uuid,uuid)') IS NOT NULL
+	if err := scanWorkforcePolicySupport(tx, `SELECT to_regprocedure('public.workforce_governance_draft_source(uuid,uuid,uuid)') IS NOT NULL
  AND to_regprocedure('public.workforce_governance_draft_staff_read(uuid,uuid,uuid,text)') IS NOT NULL
- AND EXISTS(SELECT 1 FROM pg_policy WHERE polrelid=to_regclass('public.workforce_staff') AND polname='partner_candidate_update_guard' AND NOT polpermissive AND polcmd='w' AND polwithcheck IS NOT NULL AND pg_get_expr(polqual,polrelid) LIKE '%workforce_governance_draft_staff_read%')
+ AND EXISTS(SELECT 1 FROM workforce_policy_reads WHERE polrelid=to_regclass('public.workforce_staff') AND polname='partner_candidate_update_guard' AND NOT polpermissive AND polcmd='w' AND polwithcheck IS NOT NULL AND read_expression LIKE '%workforce_governance_draft_staff_read%')
  AND to_regprocedure('public.workforce_governance_draft_write(uuid,uuid,uuid,uuid,uuid,bigint,bigint,bigint,text,text,text)') IS NOT NULL
  AND pg_get_functiondef(to_regprocedure('public.workforce_employment_period_guard()')) LIKE '%workforce_governance_draft_write%'
  AND EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid=to_regclass('public.workforce_employment_period_history') AND tgname='workforce_governance_draft_provenance' AND tgfoid=to_regprocedure('public.workforce_governance_draft_provenance()') AND tgtype=5 AND NOT tgisinternal AND tgenabled IN('O','A'))
  AND NOT EXISTS(SELECT 1 FROM(VALUES('workforce_employment_period_drafts','workforce_employment_period_guard',31),('workforce_employment_period_drafts','workforce_employment_period_snapshot',21),('workforce_employment_period_history','workforce_employment_period_history_guard',31)) required(table_name,trigger_name,trigger_type)
  WHERE NOT EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid=to_regclass('public.'||required.table_name) AND tgname=required.trigger_name AND tgfoid=to_regprocedure('public.'||required.trigger_name||'()') AND tgtype=required.trigger_type AND NOT tgisinternal AND tgenabled IN('O','A')))
  AND NOT EXISTS(SELECT 1 FROM(VALUES('workforce_hospitals'),('workforce_staff'),('workforce_employment_period_drafts'),('workforce_employment_period_history'),('workforce_audit')) required(table_name)
- WHERE NOT EXISTS(SELECT 1 FROM pg_policy p WHERE p.polrelid=to_regclass('public.'||required.table_name) AND p.polpermissive AND p.polcmd='*' AND pg_get_expr(p.polqual,p.polrelid) LIKE '%workforce_governance_draft_%'))
+ WHERE NOT EXISTS(SELECT 1 FROM workforce_policy_reads p WHERE p.polrelid=to_regclass('public.'||required.table_name) AND p.polpermissive AND p.polcmd='*' AND p.read_expression LIKE '%workforce_governance_draft_%'))
  AND NOT EXISTS(SELECT 1 FROM(VALUES('workforce_employment_period_drafts'),('workforce_employment_period_history'),('workforce_audit')) required(table_name)
- WHERE NOT EXISTS(SELECT 1 FROM pg_policy p WHERE p.polrelid=to_regclass('public.'||required.table_name) AND p.polpermissive AND p.polcmd='*' AND pg_get_expr(p.polwithcheck,p.polrelid) LIKE '%workforce_governance_draft_%'))
+ WHERE NOT EXISTS(SELECT 1 FROM workforce_policy_reads p WHERE p.polrelid=to_regclass('public.'||required.table_name) AND p.polpermissive AND p.polcmd='*' AND pg_get_expr(p.polwithcheck,p.polrelid) LIKE '%workforce_governance_draft_%'))
  AND NOT EXISTS(SELECT 1 FROM(VALUES('workforce_employment_period_drafts_page','workforce_employment_period_drafts'),('workforce_employment_period_history_page','workforce_employment_period_history'),('workforce_employment_preparation_receipt','workforce_audit')) required(index_name,table_name)
  WHERE NOT EXISTS(SELECT 1 FROM pg_index WHERE indrelid=to_regclass('public.'||required.table_name) AND indexrelid=to_regclass('public.'||required.index_name) AND indisvalid AND indisready))
  AND NOT EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind IN('r','p') AND starts_with(c.relname,'workforce_') AND EXISTS(SELECT 1 FROM pg_attribute a WHERE a.attrelid=c.oid AND a.attname='tenant_id' AND NOT a.attisdropped)
  AND(NOT c.relrowsecurity OR NOT c.relforcerowsecurity OR has_table_privilege(current_user,c.oid,'TRUNCATE')
- OR NOT EXISTS(SELECT 1 FROM pg_policy p WHERE p.polrelid=c.oid AND p.polname='governance_draft_purpose' AND NOT p.polpermissive AND p.polcmd='*' AND p.polqual IS NOT NULL AND p.polwithcheck IS NOT NULL)
- OR NOT EXISTS(SELECT 1 FROM pg_policy p WHERE p.polrelid=c.oid AND p.polname='governance_draft_delete' AND NOT p.polpermissive AND p.polcmd='d' AND p.polqual IS NOT NULL)))`).Scan(&installed).Error; err != nil {
+ OR NOT EXISTS(SELECT 1 FROM workforce_policy_reads p WHERE p.polrelid=c.oid AND p.polname='governance_draft_purpose' AND NOT p.polpermissive AND p.polcmd='*' AND p.polqual IS NOT NULL AND p.polwithcheck IS NOT NULL)
+ OR NOT EXISTS(SELECT 1 FROM workforce_policy_reads p WHERE p.polrelid=c.oid AND p.polname='governance_draft_delete' AND NOT p.polpermissive AND p.polcmd='d' AND p.polqual IS NOT NULL)))`, &installed); err != nil {
 		return err
 	}
 	if !installed {

@@ -297,6 +297,27 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 			}))
 			require.NotEmpty(t, recorded.Authority)
 			assertReadPurposeBlocksStaffMasterEdit(t, db, roots[0], staff[0], "app.workforce_governance_draft_authority", recorded.Authority)
+			for _, helper := range []string{"workforce_staff_read_policy", "workforce_staff_lock_policy"} {
+				t.Run("altered "+helper+" refuses preparation disclosure", func(t *testing.T) {
+					var original string
+					require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+						return tx.Raw(`SELECT pg_get_functiondef(to_regprocedure(?))`, helper+"(workforce_staff)").Scan(&original).Error
+					}))
+					restoration := tenantdb.Migration{ID: "test_preparation_policy_restore_" + uuid.NewString(), SQL: original}
+					restore := func() {
+						require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{restoration}))
+					}
+					t.Cleanup(restore)
+					require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_preparation_policy_fault_" + uuid.NewString(), SQL: "CREATE OR REPLACE FUNCTION " + helper + "(staff_record workforce_staff)RETURNS boolean LANGUAGE plpgsql STABLE SECURITY INVOKER AS $$ BEGIN RETURN true;END $$;"}}))
+					for _, token := range []string{"admin", "auditor"} {
+						denied := request(t, http.MethodPost, preparationSearch, token, targetInput, 503)
+						require.NotContains(t, denied, "data", "an altered predicate cannot authorize preparation disclosure")
+					}
+					restore()
+					assertSelectionSchemaRestored(t)
+					require.Len(t, request(t, http.MethodPost, preparationSearch, "admin", targetInput, 200)["data"].([]any), 1)
+				})
+			}
 		})
 
 		period := uuid.Must(uuid.NewV7())

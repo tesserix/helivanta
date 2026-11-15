@@ -14494,7 +14494,7 @@
           {
             "path": "backend/internal/modules/workforce/employment_authority_inbox.go",
             "symbol": "withEmploymentAuthorityInbox",
-            "sha256": "4fa1dc45a5e40b3c2e3fbf7ac2c0e70200dae2a24e4f194d02fa291c15d528c9"
+            "sha256": "fdd7b8516a4093dd8237fcbf7bf7b441fd08b6d05361ad24295fc5e8f4dac794"
           },
           {
             "path": "backend/internal/modules/workforce/employment_authority_inbox.sql",
@@ -14525,6 +14525,11 @@
             "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
             "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
             "symbol": "workforce_staff_read_policy"
+          },
+          {
+            "path": "backend/internal/modules/workforce/policy_read_support.go",
+            "sha256": "9225c971f601e49c3c8b8ff90cf9067f82ac1354e9bf6e40c8664184c233dcf7",
+            "symbol": "func scanWorkforcePolicySupport("
           }
         ],
         "remaining": [
@@ -16697,7 +16702,7 @@
           {
             "path": "backend/internal/modules/workforce/employment_governance_findings.go",
             "symbol": "withGovernanceFindingSelection",
-            "sha256": "72d53a279ea8b5019f1ff279c099cd13ac9892896f825849f95da7c806b29fdf"
+            "sha256": "854d655cc9e669b1463c59f8e151d73a0b2c848e3a302e81cf66db25126d09bb"
           },
           {
             "path": "backend/internal/modules/workforce/employment_governance_findings.sql",
@@ -16723,6 +16728,11 @@
             "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
             "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
             "symbol": "workforce_staff_read_policy"
+          },
+          {
+            "path": "backend/internal/modules/workforce/policy_read_support.go",
+            "sha256": "9225c971f601e49c3c8b8ff90cf9067f82ac1354e9bf6e40c8664184c233dcf7",
+            "symbol": "func scanWorkforcePolicySupport("
           }
         ],
         "remaining": [
@@ -16859,7 +16869,7 @@
           {
             "path": "backend/internal/modules/workforce/employment_document_gate.go",
             "symbol": "installEmploymentDocument",
-            "sha256": "04517b9ff40eb7ca428487d564b1dfbd7274b683c786258a29cfbc89dcbea1e6"
+            "sha256": "7c6dd6c7754599ccfe15cfa8954e73f885b043eb2025cdebd93be7302ed539d8"
           },
           {
             "path": "backend/internal/modules/workforce/employment_document_authority.go",
@@ -16869,7 +16879,7 @@
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.go",
             "symbol": "withEmploymentPreparationSource",
-            "sha256": "d281ab9d161586656686501bf5825b04b60f71c548a9f34cfd62b986c111d6f7"
+            "sha256": "d4f43e4a9a4997994fe3a44f6be9dd45fb432270fd85b54825c384cd42e84bc6"
           },
           {
             "path": "backend/internal/modules/workforce/employment_document_preparation.sql",
@@ -16885,6 +16895,11 @@
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "native document preparation is narrowly scoped",
             "sha256": "2611e8cc6d97ba0c0895b5cf3de3718ef90002b924fa2023957cd702facc4757"
+          },
+          {
+            "path": "backend/internal/modules/workforce/policy_read_support.go",
+            "sha256": "9225c971f601e49c3c8b8ff90cf9067f82ac1354e9bf6e40c8664184c233dcf7",
+            "symbol": "func scanWorkforcePolicySupport("
           }
         ],
         "remaining": [
@@ -16922,7 +16937,7 @@
           {
             "path": "backend/internal/modules/workforce/employment_document_gate.go",
             "symbol": "installEmploymentDocument",
-            "sha256": "04517b9ff40eb7ca428487d564b1dfbd7274b683c786258a29cfbc89dcbea1e6"
+            "sha256": "7c6dd6c7754599ccfe15cfa8954e73f885b043eb2025cdebd93be7302ed539d8"
           },
           {
             "path": "backend/internal/modules/workforce/employment_document_authority.go",
@@ -16932,7 +16947,7 @@
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.go",
             "symbol": "withEmploymentPreparationSource",
-            "sha256": "d281ab9d161586656686501bf5825b04b60f71c548a9f34cfd62b986c111d6f7"
+            "sha256": "d4f43e4a9a4997994fe3a44f6be9dd45fb432270fd85b54825c384cd42e84bc6"
           },
           {
             "path": "backend/internal/modules/workforce/employment_document_preparation.sql",
@@ -16948,6 +16963,11 @@
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "native document preparation is narrowly scoped",
             "sha256": "2611e8cc6d97ba0c0895b5cf3de3718ef90002b924fa2023957cd702facc4757"
+          },
+          {
+            "path": "backend/internal/modules/workforce/policy_read_support.go",
+            "sha256": "9225c971f601e49c3c8b8ff90cf9067f82ac1354e9bf6e40c8664184c233dcf7",
+            "symbol": "func scanWorkforcePolicySupport("
           }
         ],
         "remaining": [
@@ -16985,7 +17005,7 @@
           {
             "path": "backend/internal/modules/workforce/employment_document_gate.go",
             "symbol": "installEmploymentDocument",
-            "sha256": "04517b9ff40eb7ca428487d564b1dfbd7274b683c786258a29cfbc89dcbea1e6"
+            "sha256": "7c6dd6c7754599ccfe15cfa8954e73f885b043eb2025cdebd93be7302ed539d8"
           },
           {
             "path": "backend/internal/modules/workforce/employment_document_authority.go",
@@ -16995,7 +17015,7 @@
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.go",
             "symbol": "withEmploymentPreparationSource",
-            "sha256": "d281ab9d161586656686501bf5825b04b60f71c548a9f34cfd62b986c111d6f7"
+            "sha256": "d4f43e4a9a4997994fe3a44f6be9dd45fb432270fd85b54825c384cd42e84bc6"
           },
           {
             "path": "backend/internal/modules/workforce/employment_document_preparation.sql",
@@ -17011,6 +17031,11 @@
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "native document preparation is narrowly scoped",
             "sha256": "2611e8cc6d97ba0c0895b5cf3de3718ef90002b924fa2023957cd702facc4757"
+          },
+          {
+            "path": "backend/internal/modules/workforce/policy_read_support.go",
+            "sha256": "9225c971f601e49c3c8b8ff90cf9067f82ac1354e9bf6e40c8664184c233dcf7",
+            "symbol": "func scanWorkforcePolicySupport("
           }
         ],
         "remaining": [
@@ -17048,7 +17073,7 @@
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.go",
             "symbol": "withEmploymentPreparation",
-            "sha256": "d281ab9d161586656686501bf5825b04b60f71c548a9f34cfd62b986c111d6f7"
+            "sha256": "d4f43e4a9a4997994fe3a44f6be9dd45fb432270fd85b54825c384cd42e84bc6"
           },
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.sql",
@@ -17084,6 +17109,11 @@
             "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
             "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
             "symbol": "workforce_staff_read_policy"
+          },
+          {
+            "path": "backend/internal/modules/workforce/policy_read_support.go",
+            "sha256": "9225c971f601e49c3c8b8ff90cf9067f82ac1354e9bf6e40c8664184c233dcf7",
+            "symbol": "func scanWorkforcePolicySupport("
           }
         ],
         "remaining": [
@@ -17121,7 +17151,7 @@
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.go",
             "symbol": "withEmploymentPreparation",
-            "sha256": "d281ab9d161586656686501bf5825b04b60f71c548a9f34cfd62b986c111d6f7"
+            "sha256": "d4f43e4a9a4997994fe3a44f6be9dd45fb432270fd85b54825c384cd42e84bc6"
           },
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.sql",
@@ -17157,6 +17187,11 @@
             "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
             "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
             "symbol": "workforce_staff_read_policy"
+          },
+          {
+            "path": "backend/internal/modules/workforce/policy_read_support.go",
+            "sha256": "9225c971f601e49c3c8b8ff90cf9067f82ac1354e9bf6e40c8664184c233dcf7",
+            "symbol": "func scanWorkforcePolicySupport("
           }
         ],
         "remaining": [
@@ -17194,7 +17229,7 @@
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.go",
             "symbol": "withEmploymentPreparation",
-            "sha256": "d281ab9d161586656686501bf5825b04b60f71c548a9f34cfd62b986c111d6f7"
+            "sha256": "d4f43e4a9a4997994fe3a44f6be9dd45fb432270fd85b54825c384cd42e84bc6"
           },
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.sql",
@@ -17230,6 +17265,11 @@
             "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
             "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
             "symbol": "workforce_staff_read_policy"
+          },
+          {
+            "path": "backend/internal/modules/workforce/policy_read_support.go",
+            "sha256": "9225c971f601e49c3c8b8ff90cf9067f82ac1354e9bf6e40c8664184c233dcf7",
+            "symbol": "func scanWorkforcePolicySupport("
           }
         ],
         "remaining": [
@@ -17331,7 +17371,7 @@
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.go",
             "symbol": "withEmploymentPreparation",
-            "sha256": "d281ab9d161586656686501bf5825b04b60f71c548a9f34cfd62b986c111d6f7"
+            "sha256": "d4f43e4a9a4997994fe3a44f6be9dd45fb432270fd85b54825c384cd42e84bc6"
           },
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.sql",
@@ -17367,6 +17407,11 @@
             "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
             "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
             "symbol": "workforce_staff_read_policy"
+          },
+          {
+            "path": "backend/internal/modules/workforce/policy_read_support.go",
+            "sha256": "9225c971f601e49c3c8b8ff90cf9067f82ac1354e9bf6e40c8664184c233dcf7",
+            "symbol": "func scanWorkforcePolicySupport("
           }
         ],
         "remaining": [
@@ -19777,7 +19822,7 @@
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.go",
             "symbol": "withEmploymentPreparation",
-            "sha256": "d281ab9d161586656686501bf5825b04b60f71c548a9f34cfd62b986c111d6f7"
+            "sha256": "d4f43e4a9a4997994fe3a44f6be9dd45fb432270fd85b54825c384cd42e84bc6"
           },
           {
             "path": "backend/internal/modules/workforce/employment_preparation_targets.sql",
@@ -19793,6 +19838,11 @@
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "employment preparers select minimal targets",
             "sha256": "2611e8cc6d97ba0c0895b5cf3de3718ef90002b924fa2023957cd702facc4757"
+          },
+          {
+            "path": "backend/internal/modules/workforce/policy_read_support.go",
+            "sha256": "9225c971f601e49c3c8b8ff90cf9067f82ac1354e9bf6e40c8664184c233dcf7",
+            "symbol": "func scanWorkforcePolicySupport("
           }
         ],
         "remaining": [
@@ -22037,7 +22087,7 @@
           {
             "path": "backend/internal/modules/workforce/employment_document_gate.go",
             "symbol": "installEmploymentDocument",
-            "sha256": "04517b9ff40eb7ca428487d564b1dfbd7274b683c786258a29cfbc89dcbea1e6"
+            "sha256": "7c6dd6c7754599ccfe15cfa8954e73f885b043eb2025cdebd93be7302ed539d8"
           },
           {
             "path": "backend/internal/modules/workforce/employment_document_authority.go",
@@ -22047,7 +22097,7 @@
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.go",
             "symbol": "withEmploymentPreparationSource",
-            "sha256": "d281ab9d161586656686501bf5825b04b60f71c548a9f34cfd62b986c111d6f7"
+            "sha256": "d4f43e4a9a4997994fe3a44f6be9dd45fb432270fd85b54825c384cd42e84bc6"
           },
           {
             "path": "backend/internal/modules/workforce/employment_document_preparation.sql",
@@ -22063,6 +22113,11 @@
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "native document preparation is narrowly scoped",
             "sha256": "2611e8cc6d97ba0c0895b5cf3de3718ef90002b924fa2023957cd702facc4757"
+          },
+          {
+            "path": "backend/internal/modules/workforce/policy_read_support.go",
+            "sha256": "9225c971f601e49c3c8b8ff90cf9067f82ac1354e9bf6e40c8664184c233dcf7",
+            "symbol": "func scanWorkforcePolicySupport("
           }
         ],
         "remaining": [
@@ -22100,7 +22155,7 @@
           {
             "path": "backend/internal/modules/workforce/employment_document_gate.go",
             "symbol": "installEmploymentDocument",
-            "sha256": "04517b9ff40eb7ca428487d564b1dfbd7274b683c786258a29cfbc89dcbea1e6"
+            "sha256": "7c6dd6c7754599ccfe15cfa8954e73f885b043eb2025cdebd93be7302ed539d8"
           },
           {
             "path": "backend/internal/modules/workforce/employment_document_authority.go",
@@ -22110,7 +22165,7 @@
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.go",
             "symbol": "withEmploymentPreparationSource",
-            "sha256": "d281ab9d161586656686501bf5825b04b60f71c548a9f34cfd62b986c111d6f7"
+            "sha256": "d4f43e4a9a4997994fe3a44f6be9dd45fb432270fd85b54825c384cd42e84bc6"
           },
           {
             "path": "backend/internal/modules/workforce/employment_document_preparation.sql",
@@ -22126,6 +22181,11 @@
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "native document preparation is narrowly scoped",
             "sha256": "2611e8cc6d97ba0c0895b5cf3de3718ef90002b924fa2023957cd702facc4757"
+          },
+          {
+            "path": "backend/internal/modules/workforce/policy_read_support.go",
+            "sha256": "9225c971f601e49c3c8b8ff90cf9067f82ac1354e9bf6e40c8664184c233dcf7",
+            "symbol": "func scanWorkforcePolicySupport("
           }
         ],
         "remaining": [
@@ -22163,7 +22223,7 @@
           {
             "path": "backend/internal/modules/workforce/employment_document_gate.go",
             "symbol": "installEmploymentDocument",
-            "sha256": "04517b9ff40eb7ca428487d564b1dfbd7274b683c786258a29cfbc89dcbea1e6"
+            "sha256": "7c6dd6c7754599ccfe15cfa8954e73f885b043eb2025cdebd93be7302ed539d8"
           },
           {
             "path": "backend/internal/modules/workforce/employment_document_authority.go",
@@ -22173,7 +22233,7 @@
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.go",
             "symbol": "withEmploymentPreparationSource",
-            "sha256": "d281ab9d161586656686501bf5825b04b60f71c548a9f34cfd62b986c111d6f7"
+            "sha256": "d4f43e4a9a4997994fe3a44f6be9dd45fb432270fd85b54825c384cd42e84bc6"
           },
           {
             "path": "backend/internal/modules/workforce/employment_document_preparation.sql",
@@ -22189,6 +22249,11 @@
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "native document preparation is narrowly scoped",
             "sha256": "2611e8cc6d97ba0c0895b5cf3de3718ef90002b924fa2023957cd702facc4757"
+          },
+          {
+            "path": "backend/internal/modules/workforce/policy_read_support.go",
+            "sha256": "9225c971f601e49c3c8b8ff90cf9067f82ac1354e9bf6e40c8664184c233dcf7",
+            "symbol": "func scanWorkforcePolicySupport("
           }
         ],
         "remaining": [
@@ -22226,7 +22291,7 @@
           {
             "path": "backend/internal/modules/workforce/employment_document_gate.go",
             "symbol": "installEmploymentDocument",
-            "sha256": "04517b9ff40eb7ca428487d564b1dfbd7274b683c786258a29cfbc89dcbea1e6"
+            "sha256": "7c6dd6c7754599ccfe15cfa8954e73f885b043eb2025cdebd93be7302ed539d8"
           },
           {
             "path": "backend/internal/modules/workforce/employment_document_authority.go",
@@ -22236,7 +22301,7 @@
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.go",
             "symbol": "withEmploymentPreparationSource",
-            "sha256": "d281ab9d161586656686501bf5825b04b60f71c548a9f34cfd62b986c111d6f7"
+            "sha256": "d4f43e4a9a4997994fe3a44f6be9dd45fb432270fd85b54825c384cd42e84bc6"
           },
           {
             "path": "backend/internal/modules/workforce/employment_document_preparation.sql",
@@ -22252,6 +22317,11 @@
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
             "symbol": "native document preparation is narrowly scoped",
             "sha256": "2611e8cc6d97ba0c0895b5cf3de3718ef90002b924fa2023957cd702facc4757"
+          },
+          {
+            "path": "backend/internal/modules/workforce/policy_read_support.go",
+            "sha256": "9225c971f601e49c3c8b8ff90cf9067f82ac1354e9bf6e40c8664184c233dcf7",
+            "symbol": "func scanWorkforcePolicySupport("
           }
         ],
         "remaining": [
@@ -22289,7 +22359,7 @@
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.go",
             "symbol": "withEmploymentPreparation",
-            "sha256": "d281ab9d161586656686501bf5825b04b60f71c548a9f34cfd62b986c111d6f7"
+            "sha256": "d4f43e4a9a4997994fe3a44f6be9dd45fb432270fd85b54825c384cd42e84bc6"
           },
           {
             "path": "backend/internal/modules/workforce/employment_preparation_authority.sql",
@@ -22325,6 +22395,11 @@
             "path": "backend/internal/modules/workforce/staff_policy_plans.sql",
             "sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
             "symbol": "workforce_staff_read_policy"
+          },
+          {
+            "path": "backend/internal/modules/workforce/policy_read_support.go",
+            "sha256": "9225c971f601e49c3c8b8ff90cf9067f82ac1354e9bf6e40c8664184c233dcf7",
+            "symbol": "func scanWorkforcePolicySupport("
           }
         ],
         "remaining": [

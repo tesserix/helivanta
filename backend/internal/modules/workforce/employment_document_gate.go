@@ -138,21 +138,21 @@ func (g *employmentPreparationDocuments) prepareMutation(tx *gorm.DB, mutation d
 }
 func installEmploymentDocument(tx *gorm.DB, proof map[string]any) error {
 	var installed bool
-	err := tx.Raw(`SELECT to_regprocedure('public.workforce_governance_document_source(uuid,uuid,uuid)') IS NOT NULL
+	err := scanWorkforcePolicySupport(tx, `SELECT to_regprocedure('public.workforce_governance_document_source(uuid,uuid,uuid)') IS NOT NULL
  AND to_regprocedure('public.workforce_governance_document_write(workforce_documents)') IS NOT NULL
  AND to_regprocedure('public.workforce_governance_document_hash(text,uuid,text,text,text,bigint,text)') IS NOT NULL
  AND to_regprocedure('public.workforce_governance_document_audit(uuid,uuid,text,text,uuid,jsonb)') IS NOT NULL
- AND EXISTS(SELECT 1 FROM pg_policy WHERE polrelid=to_regclass('public.workforce_staff') AND polname='partner_candidate_update_guard' AND NOT polpermissive AND polwithcheck IS NOT NULL AND pg_get_expr(polqual,polrelid) LIKE '%workforce_governance_document_source%')
+ AND EXISTS(SELECT 1 FROM workforce_policy_reads WHERE polrelid=to_regclass('public.workforce_staff') AND polname='partner_candidate_update_guard' AND NOT polpermissive AND polwithcheck IS NOT NULL AND read_expression LIKE '%workforce_governance_document_source%')
  AND NOT EXISTS(SELECT 1 FROM(VALUES('workforce_document_creation',7),('workforce_document_identity',19),('workforce_document_contributor_record',21),('workforce_documents_audit',29),('workforce_governance_document_provenance',21)) required(trigger_name,trigger_type) WHERE NOT EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid=to_regclass('public.workforce_documents') AND tgname=required.trigger_name AND tgtype=required.trigger_type AND tgfoid=to_regprocedure('public.'||CASE required.trigger_name WHEN 'workforce_documents_audit' THEN 'audit_record_change' ELSE required.trigger_name END||'()') AND NOT tgisinternal AND tgenabled IN('O','A')))
  AND EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid=to_regclass('public.workforce_document_contributors') AND tgname='workforce_document_contributor_guard' AND tgtype=31 AND tgfoid=to_regprocedure('public.workforce_document_contributor_guard()') AND NOT tgisinternal AND tgenabled IN('O','A'))
  AND EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid=to_regclass('public.workforce_audit') AND tgname='workforce_audit_immutable' AND tgtype=58 AND tgfoid=to_regprocedure('public.workforce_audit_immutable()') AND NOT tgisinternal AND tgenabled IN('O','A'))
  AND EXISTS(SELECT 1 FROM pg_index WHERE indrelid=to_regclass('public.workforce_documents') AND indexrelid=to_regclass('public.workforce_documents_page') AND indisvalid AND indisready)
- AND NOT EXISTS(SELECT 1 FROM(VALUES('workforce_hospitals'),('workforce_staff'),('workforce_documents'),('workforce_document_contributors')) required(table_name) WHERE NOT EXISTS(SELECT 1 FROM pg_policy p WHERE p.polrelid=to_regclass('public.'||required.table_name) AND p.polpermissive AND p.polcmd='*' AND pg_get_expr(p.polqual,p.polrelid) LIKE '%workforce_governance_document_%'))
- AND NOT EXISTS(SELECT 1 FROM(VALUES('workforce_documents'),('workforce_document_contributors'),('workforce_audit')) required(table_name) WHERE NOT EXISTS(SELECT 1 FROM pg_policy p WHERE p.polrelid=to_regclass('public.'||required.table_name) AND p.polpermissive AND p.polcmd='*' AND pg_get_expr(p.polwithcheck,p.polrelid) LIKE '%workforce_governance_document_%'))
+ AND NOT EXISTS(SELECT 1 FROM(VALUES('workforce_hospitals'),('workforce_staff'),('workforce_documents'),('workforce_document_contributors')) required(table_name) WHERE NOT EXISTS(SELECT 1 FROM workforce_policy_reads p WHERE p.polrelid=to_regclass('public.'||required.table_name) AND p.polpermissive AND p.polcmd='*' AND p.read_expression LIKE '%workforce_governance_document_%'))
+ AND NOT EXISTS(SELECT 1 FROM(VALUES('workforce_documents'),('workforce_document_contributors'),('workforce_audit')) required(table_name) WHERE NOT EXISTS(SELECT 1 FROM workforce_policy_reads p WHERE p.polrelid=to_regclass('public.'||required.table_name) AND p.polpermissive AND p.polcmd='*' AND pg_get_expr(p.polwithcheck,p.polrelid) LIKE '%workforce_governance_document_%'))
  AND NOT EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind IN('r','p') AND starts_with(c.relname,'workforce_') AND EXISTS(SELECT 1 FROM pg_attribute a WHERE a.attrelid=c.oid AND a.attname='tenant_id' AND NOT a.attisdropped)
  AND(NOT c.relrowsecurity OR NOT c.relforcerowsecurity OR has_table_privilege(current_user,c.oid,'TRUNCATE')
- OR NOT EXISTS(SELECT 1 FROM pg_policy p WHERE p.polrelid=c.oid AND p.polname='governance_document_purpose' AND NOT p.polpermissive AND p.polcmd='*' AND p.polqual IS NOT NULL AND p.polwithcheck IS NOT NULL)
- OR NOT EXISTS(SELECT 1 FROM pg_policy p WHERE p.polrelid=c.oid AND p.polname='governance_document_delete' AND NOT p.polpermissive AND p.polcmd='d' AND p.polqual IS NOT NULL)))`).Scan(&installed).Error
+ OR NOT EXISTS(SELECT 1 FROM workforce_policy_reads p WHERE p.polrelid=c.oid AND p.polname='governance_document_purpose' AND NOT p.polpermissive AND p.polcmd='*' AND p.polqual IS NOT NULL AND p.polwithcheck IS NOT NULL)
+ OR NOT EXISTS(SELECT 1 FROM workforce_policy_reads p WHERE p.polrelid=c.oid AND p.polname='governance_document_delete' AND NOT p.polpermissive AND p.polcmd='d' AND p.polqual IS NOT NULL)))`, &installed)
 	if err != nil {
 		return err
 	}

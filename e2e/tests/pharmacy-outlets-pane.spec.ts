@@ -29,10 +29,10 @@ for (const [label, size] of [
     await expect(pane.getByText("Asia/Kolkata")).toBeVisible();
     const list = (await row.boundingBox())!;
     expect((await pane.boundingBox())!.x).toBeGreaterThanOrEqual(list.x + list.width);
-    // Already granted by the fixture: granting again says so.
-    await pane.getByLabel("Grant my account pharmacy access to this outlet").check();
-    await pane.getByRole("button", { name: "Grant pharmacy access" }).click();
-    await expect(page.getByText("Pharmacy access granted")).toBeVisible();
+    // The fixture granted this account: the outlet's access list shows it (#1718).
+    const access = pane.getByRole("list", { name: "Who has access" });
+    await expect(access.getByText("You")).toBeVisible();
+    await expect(access.getByRole("combobox", { name: /^Access level for / })).toHaveText("Editor");
 
     await page.reload();
     await expect(pane).toBeVisible();

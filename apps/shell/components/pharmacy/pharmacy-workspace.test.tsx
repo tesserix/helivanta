@@ -1179,9 +1179,7 @@ describe("Outlets & access", () => {
     nav.search = `pharmacy=${pharmacy}&outlet=${outlet}`;
     const { user } = renderWorkspace("setup");
     await user.click(await screen.findByRole("button", { name: "Open TEST-MAIN" }));
-    await user.click(
-      await screen.findByLabelText("Grant my account pharmacy access to this outlet"),
-    );
+    await user.click(await screen.findByLabelText("Confirm this is the outlet to grant access at"));
     await user.click(screen.getByRole("button", { name: "Next outlet" }));
     expect(await screen.findByRole("dialog")).toHaveTextContent(
       "Discard changes to TEST Main Outlet?",

@@ -61,6 +61,16 @@ test("a hospital owner registers a pharmacy and outlet without acquiring operati
   await expect(pane).toBeVisible();
   await expect(pane.getByText("Nobody has access to this outlet yet.")).toBeVisible();
   await expect(pane.getByText("You don't have access to this outlet yet.")).toBeVisible();
+  const profile = await api(page, "GET", "/iam/me/profile");
+  await expect(pane.getByRole("combobox", { name: "Person", exact: true })).toBeEnabled();
+  await pane.getByRole("combobox", { name: "Person", exact: true }).click();
+  const ownerChoice = page.getByRole("option").filter({ hasText: String(profile.email) });
+  await expect(ownerChoice).toContainText(String(profile.display_name));
+  for (const role of profile.roles as { label: string }[])
+    await expect(ownerChoice).toContainText(role.label);
+  await expect(ownerChoice).not.toContainText(String(me.subject));
+  await page.keyboard.press("Escape");
+
   const outletId = new URL(page.url()).searchParams.get("outlet");
   expect(outletId).toMatch(/^[0-9a-f-]{36}$/);
   const outlet = await api(page, "GET", `${root}/outlets/${outletId}`);

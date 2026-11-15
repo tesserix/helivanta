@@ -57,6 +57,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | POST | `/v1/iam/me/sign-out` | `no_tenant_membership` | false | false |
 | POST | `/v1/iam/me/tenant` | `no_tenant_membership` | false | false |
 | GET | `/v1/iam/me/tenants` | `no_tenant_membership` | false | false |
+| POST | `/v1/iam/member-presentations` | `iam.member.manage` | false | false |
 | DELETE | `/v1/iam/members/:subject/:role` | `iam.member.manage` | false | false |
 | GET | `/v1/iam/members` | `iam.member.manage` | true | false |
 | POST | `/v1/iam/members` | `iam.member.manage` | false | false |

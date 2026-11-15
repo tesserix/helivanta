@@ -527,6 +527,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.DELETE("/members/:subject/:role", PermMemberManage, members.revoke)
 	platform.ListRoute(g, "/members", PermMemberManage, members.list)
 	g.GET("/roles", PermMemberManage, listRoles)
+	m.registerMemberPresentations(g, deps)
 
 	m.registerGovernance(g, deps)
 	m.registerMe(g, deps)

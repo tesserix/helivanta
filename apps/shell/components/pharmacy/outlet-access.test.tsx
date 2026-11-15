@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
@@ -12,6 +12,25 @@ const scope = {
 };
 const me = "user-owner";
 let ids = 0;
+const personNames: Record<string, string> = {
+  [me]: "Asha Rao",
+  "user-ph1": "Priya Shah",
+  "user-new": "Mahesh Rao",
+};
+const personRoles: Record<string, { key: string; label: string }> = {
+  [me]: { key: "pharmacy_owner", label: "Pharmacy owner" },
+  "user-ph1": { key: "pharmacist", label: "Pharmacist" },
+  "user-new": { key: "pharmacist", label: "Pharmacist" },
+};
+const optionName = (subject: string) =>
+  `${personNames[subject]} — ${personRoles[subject].label} · ${subject}@example.test`;
+const presentation = (subject: string) => ({
+  subject,
+  available: true,
+  name: personNames[subject],
+  email: `${subject}@example.test`,
+  roles: [personRoles[subject]],
+});
 const grant = (subject: string, level: "reader" | "editor") => ({
   id: `0199e000-0000-7000-8000-${String(++ids).padStart(12, "0")}`,
   subject,
@@ -41,6 +60,20 @@ function serve({
     vi.fn(async (url: string, init?: RequestInit) => {
       const method = init?.method ?? "GET";
       sent.push({ method, url, body: init?.body ? JSON.parse(String(init.body)) : undefined });
+      if (url.endsWith("/iam/member-presentations"))
+        return json({
+          tenant_id: scope.tenantId,
+          actor_subject: me,
+          data: JSON.parse(String(init?.body)).subjects.map(presentation),
+        });
+      if (url.endsWith("/iam/me/profile"))
+        return json({
+          subject: me,
+          tenant_id: scope.tenantId,
+          display_name: personNames[me],
+          email: `${me}@example.test`,
+          roles: [personRoles[me]],
+        });
       if (method === "DELETE") removed.add(decodeURIComponent(url.split("/access/")[1]));
       if (method === "PUT" || method === "DELETE") return json({ revoked: method === "DELETE" });
       if (url.includes("/access-grants"))
@@ -84,11 +117,76 @@ const render = (canManage = true) =>
   );
 const reads = (sent: Sent[], part: string) =>
   sent.filter((s) => s.method === "GET" && s.url.includes(part)).length;
-const writes = (sent: Sent[]) => sent.filter((s) => s.method !== "GET");
+const writes = (sent: Sent[]) =>
+  sent.filter((s) => s.method !== "GET" && !s.url.endsWith("/iam/member-presentations"));
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe("OutletAccess", () => {
+  it("withholds stale names and blocks a retained selection after identity lookup fails", async () => {
+    const sent = serve({ grants: () => [] });
+    const original = globalThis.fetch;
+    let unavailable = false;
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) =>
+      unavailable && url.endsWith("/iam/member-presentations")
+        ? json({ error: "unavailable" }, 503)
+        : original(url, init),
+    );
+    const { user } = render();
+    await screen.findByRole("button", { name: "Refresh account details" });
+    await chooseOption(
+      user,
+      screen.getByRole("combobox", { name: "Person" }),
+      optionName("user-new"),
+    );
+    await user.click(screen.getByLabelText("Confirm this is the outlet to grant access at"));
+    unavailable = true;
+    await user.click(screen.getByRole("button", { name: "Refresh account details" }));
+    await screen.findByText("Could not load account names and roles.");
+    expect(screen.queryByText(/Mahesh Rao/)).not.toBeInTheDocument();
+    const submit = screen.getByRole("button", { name: "Grant pharmacy access" });
+    expect(submit).toBeDisabled();
+    await act(async () => {
+      fireEvent.submit(submit.closest("form")!);
+    });
+    expect(writes(sent)).toEqual([]);
+  });
+
+  it("does not substitute account IDs for an unavailable identity", async () => {
+    serve({ grants: () => [] });
+    const original = globalThis.fetch;
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/iam/member-presentations"))
+        return json({
+          tenant_id: scope.tenantId,
+          actor_subject: me,
+          data: JSON.parse(String(init?.body)).subjects.map((subject: string) =>
+            subject === "user-new"
+              ? { subject, available: false, roles: [personRoles[subject]] }
+              : presentation(subject),
+          ),
+        });
+      return original(url, init);
+    });
+    const { user } = render();
+    await screen.findByText(/Some accounts are unavailable for selection/);
+    await user.click(screen.getByRole("combobox", { name: "Person" }));
+    expect(screen.queryByRole("option", { name: /Mahesh Rao|user-new/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: optionName(me) })).toBeInTheDocument();
+  });
+
+  it("shows people by their identity names and organization roles while retaining account IDs for commands", async () => {
+    serve({ grants: () => [] });
+    render();
+    await screen.findByText("Nobody has access to this outlet yet.");
+    await userEvent.click(screen.getByRole("combobox", { name: "Person" }));
+    expect(
+      await screen.findByRole("option", { name: /Asha Rao.*Pharmacy owner/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /Priya Shah.*Pharmacist/ })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: me })).not.toBeInTheDocument();
+  });
+
   it("without the manage permission shows only your own access", async () => {
     const sent = serve();
     render(false);
@@ -101,10 +199,11 @@ describe("OutletAccess", () => {
   it("lists who has access and marks you", async () => {
     serve();
     render();
+    await screen.findByRole("combobox", { name: "Access level for Asha Rao" });
     const list = await screen.findByRole("list", { name: "Who has access" });
     const row = (subject: string) =>
       within(list)
-        .getByRole("combobox", { name: `Access level for ${subject}` })
+        .getByRole("combobox", { name: `Access level for ${personNames[subject]}` })
         .closest("li")!;
     expect(within(row(me)).getByText("You")).toBeInTheDocument();
     expect(within(row("user-ph1")).queryByText("You")).not.toBeInTheDocument();
@@ -129,10 +228,10 @@ describe("OutletAccess", () => {
     await screen.findByRole("list", { name: "Who has access" });
     const person = screen.getByRole("combobox", { name: "Person" });
     await user.click(person);
-    expect(screen.getByRole("option", { name: "user-new" })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "user-ph1" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: me })).not.toBeInTheDocument();
-    await user.click(screen.getByRole("option", { name: "user-new" }));
+    expect(await screen.findByRole("option", { name: optionName("user-new") })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: optionName("user-ph1") })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: optionName(me) })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("option", { name: optionName("user-new") }));
     await chooseOption(user, screen.getByRole("combobox", { name: "Level" }), "Reader");
     await user.click(screen.getByLabelText("Confirm this is the outlet to grant access at"));
     const before = reads(sent, "/access-grants");
@@ -151,7 +250,11 @@ describe("OutletAccess", () => {
     const sent = serve();
     render();
     await screen.findByRole("list", { name: "Who has access" });
-    await chooseOption(user, screen.getByRole("combobox", { name: "Person" }), "user-new");
+    await chooseOption(
+      user,
+      screen.getByRole("combobox", { name: "Person" }),
+      optionName("user-new"),
+    );
     await user.click(screen.getByRole("button", { name: "Grant pharmacy access" }));
     expect(
       await screen.findByText("Confirm the outlet before granting access."),
@@ -165,7 +268,7 @@ describe("OutletAccess", () => {
     render();
     await chooseOption(
       user,
-      await screen.findByRole("combobox", { name: "Access level for user-ph1" }),
+      await screen.findByRole("combobox", { name: "Access level for Priya Shah" }),
       "Editor",
     );
     await waitFor(() =>
@@ -181,13 +284,13 @@ describe("OutletAccess", () => {
     const user = userEvent.setup();
     const sent = serve();
     render();
-    await user.click(await screen.findByRole("button", { name: "Remove user-ph1" }));
+    await user.click(await screen.findByRole("button", { name: "Remove Priya Shah" }));
     const dialog = await screen.findByRole("dialog");
-    expect(dialog).toHaveTextContent("Remove user-ph1's access to TEST Main Outlet?");
+    expect(dialog).toHaveTextContent("Remove Priya Shah's access to TEST Main Outlet?");
     expect(dialog).not.toHaveTextContent("You will lose access to this outlet.");
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(writes(sent)).toEqual([]);
-    await user.click(screen.getByRole("button", { name: "Remove user-ph1" }));
+    await user.click(screen.getByRole("button", { name: "Remove Priya Shah" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Remove access" }),
     );
@@ -202,7 +305,7 @@ describe("OutletAccess", () => {
     const user = userEvent.setup();
     serve();
     render();
-    await user.click(await screen.findByRole("button", { name: `Remove ${me}` }));
+    await user.click(await screen.findByRole("button", { name: `Remove ${personNames[me]}` }));
     const dialog = await screen.findByRole("dialog");
     expect(dialog).toHaveTextContent("You will lose access to this outlet.");
     await user.click(within(dialog).getByRole("button", { name: "Remove access" }));
@@ -222,9 +325,11 @@ describe("OutletAccess", () => {
         "Only a tenant administrator can add a new person here. You can still change or remove existing access.",
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole("list", { name: "Who has access" })).toHaveTextContent("user-ph1");
+    expect(screen.getByRole("list", { name: "Who has access" })).toHaveTextContent(
+      "Account details unavailable",
+    );
     await user.click(screen.getByRole("combobox", { name: "Person" }));
-    expect(screen.getByRole("option", { name: me })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "user-new" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: optionName(me) })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: optionName("user-new") })).not.toBeInTheDocument();
   });
 });

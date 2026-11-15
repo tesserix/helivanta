@@ -345,14 +345,25 @@ remain in headers.
 
 ## Shared command guard
 
-Scoped hospital posting transactions set PostgreSQL JIT off locally before their
-bounded Staff/source reads and evidence writes. The setting ends with the guarded
-transaction; it changes execution planning only. The original five-second authority
-budget, forced RLS, current actor/source locks, independent review, audit/outbox and
-idempotent command rules remain in force. Setting failure refuses the command.
-Paired `EXPLAIN (ANALYZE, BUFFERS)` checks retain positive owner admission and foreign
-tenant denial in both modes; the unchanged full lifecycle acceptance remains the
-release gate. This candidate does not establish a deployment or a production SLO.
+Candidate Workforce0120 moves the existing canonical Staff read predicate and
+shared-lock UPDATE `USING` predicate into typed, `STABLE SECURITY INVOKER`
+functions. Their exact prior expressions are retained and evaluated against each
+current row and transaction context. PostgreSQL can reuse their internal query
+plans; authorization results are not cached. The canonical outer tenant-visibility
+check remains explicit, as do all prior write checks, roles, policy command kinds,
+restrictive purposes and forced RLS. Both existing selection integrity checks retain
+their full earlier conditions, update the two changed policy fingerprints and add
+exact fingerprints for both new predicate functions. Missing or changed functions
+fail qualification closed.
+
+This is a forward-only performance migration with no business-data rewrite. Earlier
+application code remains compatible with it; rollback retains the migration and
+uses a corrective forward migration if required. The original five-second authority
+budget, current actor/source locks, independent review and audit/outbox rules remain
+unchanged. Real-database checks compare plans before/after the migration, current
+owner admission, foreign-tenant denial, unchanged write metadata and fail-closed
+function tampering/restoration. The original full cold lifecycle remains a separate
+required gate; no deployed acceptance or production SLO is established here.
 
 `platform.Deps.GovernanceSources` binds the sole IAM and Workforce owners to
 `authz.CurrentGovernanceSourceGuard`. Its closed capability catalog currently

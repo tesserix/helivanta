@@ -5,7 +5,31 @@ This checkpoint preserves the full goal across the hospital-owned pharmacy and
 independent pharmacy/supplier models. Source inspection, component checks,
 service integration, browser testing and live acceptance are distinct evidence.
 
-## Scoped posting query-execution candidate; runtime validation pending
+## Staff predicate planning migration candidate; validation pending
+
+The paired plan job at `d80ead99` disproved the JIT hypothesis. With JIT on and off,
+PostgreSQL compiled zero JIT functions. Owner planning took268.532/270.468ms and
+execution12.981/12.488ms; foreign planning271.442/269.614ms and
+execution11.588/11.123ms. Both modes retained one owner row and zero foreign rows.
+The transaction-local JIT setting has been removed from the candidate.
+
+Forward-only Workforce0120 now retains the exact prior canonical Staff read and
+locking-read predicates inside two typed invoker functions, allowing their internal
+query plans to be reused across the command's bounded reads. It keeps the outer
+canonical tenant-visibility guard, every existing write check, policy role/command
+and forced-RLS setting. Both earlier integrity functions retain their complete
+checks and gain the new helper fingerprints. No older migration is edited, and no
+business data is changed.
+
+The paired real-database test first creates an actual Staff row using the ordinary
+hospital/access/Staff APIs against the complete prefix schema, then captures owner
+and foreign plans. It applies0120, verifies unchanged write metadata and clean RLS
+lint, compares cold/warm plans and row admission, and tests fail-closed tampering and
+exact restoration of both new helpers. The unchanged full original lifecycle,
+including the observed term-expiry failure, still must pass. Performance improvement
+and live readiness remain unproven until the corrected-head results arrive.
+
+## Earlier JIT hypothesis and measured failure
 
 At `ed832b58`, [Supplier43671446518](https://github.com/tesserix/helivanta/actions/runs/43671446518)
 reproduced the original lifecycle failure. Both queued commands returned503 at
@@ -17,13 +41,12 @@ Staff statements reached469ms and summed to3,563ms. There was also an unchanged
 term-expiry acceptance failure: its request did not reach the expected audit lock
 boundary. Both failures remain required gates.
 
-The candidate turns JIT off transaction-locally inside scoped posting commands to
-test whether compilation of broad RLS expressions dominates these bounded point
-reads. This is a hypothesis until paired execution plans and the original full
-workflow establish the effect. A separate CI job compares `EXPLAIN (ANALYZE,
-BUFFERS)` for the same real-owner Staff row in both modes and checks foreign-tenant
-row denial. It logs only operator/count/cost/timing metadata. No stored policies,
-functions, migrations, authority budgets or original assertions are rewritten.
+That earlier experiment turned JIT off transaction-locally to test compilation
+cost. Its paired `EXPLAIN (ANALYZE, BUFFERS)` job disproved the hypothesis, as
+recorded above, and the setting was removed. The paired check logged only
+operator/count/cost/timing metadata and preserved owning-tenant row admission and
+foreign-tenant denial. Authority budgets and original lifecycle assertions stayed
+unchanged.
 
 At that preceding head, web and E2E jobs passed, including native hospital,
 pharmacy and supplier Staff browser workflows. The full Go coverage job was still

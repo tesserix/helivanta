@@ -13978,6 +13978,11 @@
           "id": "0119_workforce_assignment_targets",
           "sql_sha256": "4c2eb68d735992614fd38f43c2a33ee8931d8d722a750b7a32b9489eb011fc81",
           "creates_tables": []
+        },
+        {
+          "id": "0120_workforce_staff_policy_plans",
+          "sql_sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
+          "creates_tables": []
         }
       ]
     },

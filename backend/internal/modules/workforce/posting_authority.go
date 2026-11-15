@@ -107,12 +107,6 @@ func (h *handlers) scopedPostingTransaction(c *gin.Context, p authn.Principal, s
 		kind, target, held, reviewMode = "department", scope.department.String(), departments[0].String(), "read"
 	}
 	return guard.WithScopeGrants(ctx, checks, p.AuthTime, func(commandCtx context.Context) error {
-		// These bounded point reads must not compile broad RLS expressions for every statement.
-		if err := h.db.WithTenantCommand(commandCtx, p.TenantID, func(tx *gorm.DB) error {
-			return tx.Exec(`SET LOCAL jit=off`).Error
-		}); err != nil {
-			return errors.Join(authz.ErrScopedAuthorizationUnavailable, err)
-		}
 		if writing || slices.Contains(additional, authz.StaffPostingSourceUse) {
 			// Live source reads and writes take the hospital gate before department/actor locks.
 			if err := h.db.WithTenantCommand(commandCtx, p.TenantID, func(tx *gorm.DB) error {

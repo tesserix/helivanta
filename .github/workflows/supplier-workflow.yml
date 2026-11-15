@@ -43,7 +43,7 @@ jobs:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
       - name: Compare bounded Staff point reads with unchanged tenant isolation
-        run: go test -race -v -timeout 5m ./internal/modules/workforce -run '^TestStaffPointReadJITPreservesTenantIsolation$'
+        run: go test -race -v -timeout 5m ./internal/modules/workforce -run '^TestStaffPointReadPlansPreserveTenantIsolation$'
   supplier:
     runs-on: ubuntu-latest
     timeout-minutes: 45

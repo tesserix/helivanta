@@ -35,15 +35,20 @@ function serve({
   membersStatus?: number;
 } = {}) {
   const sent: Sent[] = [];
+  const removed = new Set<string>();
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       const method = init?.method ?? "GET";
       sent.push({ method, url, body: init?.body ? JSON.parse(String(init.body)) : undefined });
+      if (method === "DELETE") removed.add(decodeURIComponent(url.split("/access/")[1]));
       if (method === "PUT" || method === "DELETE") return json({ revoked: method === "DELETE" });
       if (url.includes("/access-grants"))
-        return grantsStatus === 200 ? page(grants()) : json({ error: "down" }, grantsStatus);
-      if (url.endsWith("/access")) return json({ level: "editor" });
+        return grantsStatus === 200
+          ? page(grants().filter((row) => !removed.has(row.subject)))
+          : json({ error: "down" }, grantsStatus);
+      if (url.endsWith("/access"))
+        return removed.has(me) ? json({ error: "not found" }, 404) : json({ level: "editor" });
       if (url.includes("/iam/members"))
         return membersStatus === 200
           ? page([
@@ -193,14 +198,19 @@ describe("OutletAccess", () => {
     expect(await screen.findByText("Access removed")).toBeInTheDocument();
   });
 
-  it("warns before you remove your own access", async () => {
+  it("warns before you remove your own access, then shows you have none", async () => {
     const user = userEvent.setup();
     serve();
     render();
     await user.click(await screen.findByRole("button", { name: `Remove ${me}` }));
-    expect(await screen.findByRole("dialog")).toHaveTextContent(
-      "You will lose access to this outlet.",
-    );
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("You will lose access to this outlet.");
+    await user.click(within(dialog).getByRole("button", { name: "Remove access" }));
+    // The panel shows the server's answer, not the level you had.
+    expect(
+      await screen.findByText(/You don.t have access to this outlet yet\./),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Your access here/)).not.toBeInTheDocument();
   });
 
   it("without tenant member access still lists grants and offers yourself", async () => {

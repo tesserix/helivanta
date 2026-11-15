@@ -58,7 +58,9 @@ repeating mailbox discovery. It stores no password, token, email or account list
 and grants no access. “Use another account” clears the hint and restores
 email-proven account discovery. Invalid, expired or unavailable storage falls
 back to discovery. The hint remains untrusted UUID-validated routing input;
-credentials and server-side membership checks still apply.
+credentials and server-side membership checks still apply. “Switch account” also clears
+the routing hint after successful server sign-out so the account chooser starts
+fresh; a failed sign-out retains both the current account and its hint.
 
 Authenticator MFA remains required when the identity provider requires it.
 A valid session renews without another email or authenticator code. Expiry,

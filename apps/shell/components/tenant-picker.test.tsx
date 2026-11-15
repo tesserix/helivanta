@@ -4,6 +4,7 @@ import { renderWithProviders } from "@helivanta/api/testing";
 import { cancelTenantTransition, PERMISSIONS_CACHE_KEY } from "@helivanta/api";
 import { NavigationGuardProvider } from "@helivanta/ui";
 import { TenantPicker } from "./tenant-picker";
+import { rememberWorkspace, readRememberedWorkspace } from "@/lib/workspace-signin";
 const endSession = vi.hoisted(() => vi.fn());
 vi.mock("@helivanta/ui", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@helivanta/ui")>()),
@@ -87,10 +88,11 @@ describe("Separate account switching", () => {
       expect(endSession).not.toHaveBeenCalled();
     },
   );
-  it("requires confirmation and ends the current session before clearing cached data", async () => {
+  it("requires confirmation and clears previous routing only after the session ends", async () => {
     const fetch = vi.fn(async () => Response.json({ ok: true }));
     vi.stubGlobal("fetch", fetch);
     window.localStorage.setItem(PERMISSIONS_CACHE_KEY, "old permissions");
+    rememberWorkspace("11111111-1111-4111-8111-111111111111");
     const { user } = renderPicker();
     await user.click(screen.getByRole("button", { name: "Switch account" }));
     expect(fetch).not.toHaveBeenCalledWith("/logout", { method: "POST" });
@@ -98,6 +100,7 @@ describe("Separate account switching", () => {
     await waitFor(() => expect(endSession).toHaveBeenCalled());
     expect(fetch).toHaveBeenCalledWith("/logout", { method: "POST" });
     expect(window.localStorage.getItem(PERMISSIONS_CACHE_KEY)).toBeNull();
+    expect(readRememberedWorkspace()).toBeNull();
   });
   it("keeps the current account when logout fails", async () => {
     vi.stubGlobal(
@@ -105,6 +108,7 @@ describe("Separate account switching", () => {
       vi.fn().mockResolvedValue(Response.json({ error: "sign_out_failed" }, { status: 502 })),
     );
     window.localStorage.setItem(PERMISSIONS_CACHE_KEY, "old permissions");
+    rememberWorkspace("11111111-1111-4111-8111-111111111111");
     const { user } = renderPicker();
     await user.click(screen.getByRole("button", { name: "Switch account" }));
     await user.click(screen.getByRole("button", { name: "Sign out and choose account" }));
@@ -113,6 +117,7 @@ describe("Separate account switching", () => {
     );
     expect(endSession).not.toHaveBeenCalled();
     expect(window.localStorage.getItem(PERMISSIONS_CACHE_KEY)).toBe("old permissions");
+    expect(readRememberedWorkspace()).toBe("11111111-1111-4111-8111-111111111111");
   });
   it("cancels without changing the session", async () => {
     const fetch = vi.fn();

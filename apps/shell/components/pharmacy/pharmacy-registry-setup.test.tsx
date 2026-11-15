@@ -42,6 +42,52 @@ afterEach(() => {
   localStorage.clear();
 });
 
+it("withholds hospital choices when the owner response repeats a hospital identity", async () => {
+  const base = registry();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) =>
+      url.includes("/workforce/hospitals")
+        ? Response.json(
+            page([
+              { id: hospital, name: "Synthetic main hospital", access_level: "manager" },
+              { id: hospital, name: "Conflicting hospital name", access_level: "manager" },
+            ]),
+          )
+        : base(url, init),
+    ),
+  );
+  renderWithProviders(<PharmacyRegistrySetup tenantId={tenant} pharmacy={pharmacy} />);
+  expect(await screen.findByRole("alert")).toHaveTextContent("Could not load your hospitals.");
+  expect(screen.queryByLabelText("Owning hospital")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Declare hospital affiliation" })).toBeDisabled();
+});
+
+it("continues an empty hospital page without claiming that the owner must register another hospital", async () => {
+  const base = registry();
+  const fetcher = vi.fn(async (url: string, init?: RequestInit) =>
+    url.includes("/workforce/hospitals") && !url.includes("cursor=")
+      ? Response.json({ data: [], page: { has_more: true, next_cursor: "next-hospitals" } })
+      : base(url, init),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = renderWithProviders(
+    <PharmacyRegistrySetup tenantId={tenant} pharmacy={pharmacy} />,
+  );
+  const more = await screen.findByRole("button", { name: "Load more hospitals" });
+  expect(screen.queryByText(/Register your hospital in Staff/)).not.toBeInTheDocument();
+  await user.click(more);
+  await chooseOption(user, screen.getByLabelText("Owning hospital"), "Synthetic main hospital");
+  expect(screen.getByRole("button", { name: "Declare hospital affiliation" })).toBeEnabled();
+  const requests = fetcher.mock.calls.filter(([url]) => url.includes("/workforce/hospitals"));
+  expect(requests).toHaveLength(2);
+  expect(requests[1][0]).toContain("cursor=next-hospitals");
+  expect(new Headers(requests[1][1]!.headers).get("X-Helivanta-Expected-Tenant")).toBe(tenant);
+  expect(new Headers(requests[1][1]!.headers).get("X-Helivanta-Expected-Subject")).toBe(
+    "synthetic-owner",
+  );
+});
+
 it("declares hospital ownership by choosing a named accessible hospital without granting access", async () => {
   const fetcher = registry();
   vi.stubGlobal("fetch", fetcher);

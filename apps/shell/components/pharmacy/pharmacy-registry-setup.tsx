@@ -8,6 +8,8 @@ import {
   countryProfile,
   useApiMutation,
   useApiPagedQuery,
+  usePagedQuery,
+  listStaffHospitalsPage,
   usePermissions,
   newPharmacyId,
   pharmacyOrganizationInputSchema,
@@ -258,10 +260,11 @@ function AffiliationForm({
   const { can, subject } = usePermissions();
   const choosingOwner =
     pharmacy.ownership_type === "hospital_owned" && form.watch("relationship") === "owner";
-  const hospitals = useApiPagedQuery<Hospital>(
+  const hospitals = usePagedQuery<Hospital>(
     ["pharmacy", tenantId, subject, pharmacy.id, "ownership-hospitals"],
-    "/workforce/hospitals",
-    { enabled: choosingOwner && !!subject, gcTime: 0 },
+    (cursor, signal) =>
+      listStaffHospitalsPage({ tenantId, subject: subject ?? "" }, cursor, signal),
+    { enabled: choosingOwner && !!subject, gcTime: 0, retry: false },
   );
   const ownerAvailable =
     !choosingOwner ||
@@ -343,7 +346,7 @@ function AffiliationForm({
                     }))}
                   />
                 </Field>
-                {!hospitals.items.length && (
+                {!hospitals.items.length && !hospitals.hasMore && (
                   <p className="text-sm text-muted-foreground">
                     Register your hospital in Staff and obtain hospital access before declaring
                     ownership.

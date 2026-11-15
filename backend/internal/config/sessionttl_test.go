@@ -67,8 +67,8 @@ func TestRequireSessionTTL_Unset_TakesTheDocumentedDefault(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, config.DefaultSessionTTL, got)
-	require.Equal(t, 12*time.Hour, config.DefaultSessionTTL,
-		"the requested session policy survives browser suspension for twelve hours")
+	require.Equal(t, 48*time.Hour, config.DefaultSessionTTL,
+		"the requested session policy survives browser suspension for 48 hours")
 }
 
 // TestRequireSessionTTL_Unparseable_StillFallsBackToTheDefault pins the

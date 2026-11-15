@@ -1,13 +1,13 @@
 # Session lifetime and remembered login
 
-The requested policy on 2026-10-14 changes the session and inactivity defaults
-from fifteen minutes to twelve hours. This supersedes the default durations
+The requested policy on 2026-11-15 changes the session and inactivity defaults
+from twelve hours to forty-eight hours. This supersedes the default durations
 in the earlier session and idle-timeout design documents; their authorization,
 revocation and activity rules still apply.
 
 `SESSION_TTL` controls the signed cookie's lifetime and browser expiry.
 `IDLE_TIMEOUT` independently controls how long a session can remain inactive.
-Both default to `12h`. Explicit environment overrides remain supported, and
+Both default to `48h`. Explicit environment overrides remain supported, and
 invalid non-positive values still refuse startup.
 
 The browser follows the server's renewal schedule. Long sessions renew every
@@ -44,8 +44,26 @@ not prevent sign-in. The remembered name never authenticates a user or changes
 their tenant membership. Password saving and autofill belong to the browser's
 password manager and its user-controlled preferences.
 
-Verification includes a virtual-clock check of validity until twelve hours and
+Verification includes a virtual-clock check of validity until forty-eight hours and
 expiry at that boundary, frequent renewal/access checks, existing logout and
 revocation tests, remembered-name reload and opt-out, storage failures, and
 autofill without React change events. Short-duration idle/renewal E2E fixtures
 retain explicit overrides to exercise timeout handling quickly.
+
+A returning browser keeps a tenant UUID routing hint for up to 48 hours under
+`helivanta.login.workspace.v1`, written after successful session exchange or an
+authenticated current-account profile response. “Sign in to your previous
+account” starts the existing native password and configured MFA flow without
+repeating mailbox discovery. It stores no password, token, email or account list
+and grants no access. “Use another account” clears the hint and restores
+email-proven account discovery. Invalid, expired or unavailable storage falls
+back to discovery. The hint remains untrusted UUID-validated routing input;
+credentials and server-side membership checks still apply.
+
+Authenticator MFA remains required when the identity provider requires it.
+A valid session renews without another email or authenticator code. Expiry,
+revocation or a new account sign-in can require authentication again. New
+defaults apply to newly issued cookies; deployment does not extend an existing
+cookie's original inactivity deadline. There is no absolute 48-hour maximum:
+attributable activity can extend inactivity and renewal can issue another
+cookie, subject to current identity and membership.

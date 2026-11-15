@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// DefaultIdleTimeout allows twelve hours without user interaction.
-const DefaultIdleTimeout = 12 * time.Hour
+// DefaultIdleTimeout allows 48 hours without user interaction.
+const DefaultIdleTimeout = 48 * time.Hour
 
 // ErrInvalidIdleTimeout is returned by RequireIdleTimeout when
 // IDLE_TIMEOUT resolved to a non-positive duration. See the function's

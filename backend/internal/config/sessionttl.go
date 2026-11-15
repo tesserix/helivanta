@@ -5,8 +5,8 @@ import (
 	"time"
 )
 
-// DefaultSessionTTL keeps a signed session usable for twelve hours.
-const DefaultSessionTTL = 12 * time.Hour
+// DefaultSessionTTL keeps a signed session usable for 48 hours.
+const DefaultSessionTTL = 48 * time.Hour
 
 // MinSessionTTL is the shortest SESSION_TTL RequireSessionTTL accepts.
 //

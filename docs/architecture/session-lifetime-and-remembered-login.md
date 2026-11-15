@@ -58,7 +58,9 @@ repeating mailbox discovery. It stores no password, token, email or account list
 and grants no access. “Use another account” clears the hint and restores
 email-proven account discovery. Invalid, expired or unavailable storage falls
 back to discovery. The hint remains untrusted UUID-validated routing input;
-credentials and server-side membership checks still apply.
+credentials and server-side membership checks still apply. “Switch account” also clears
+the routing hint after successful server sign-out so the account chooser starts
+fresh; a failed sign-out retains both the current account and its hint.
 
 Authenticator MFA remains required when the identity provider requires it.
 A valid session renews without another email or authenticator code. Expiry,
@@ -67,3 +69,17 @@ defaults apply to newly issued cookies; deployment does not extend an existing
 cookie's original inactivity deadline. There is no absolute 48-hour maximum:
 attributable activity can extend inactivity and renewal can issue another
 cookie, subject to current identity and membership.
+
+The ordinary login entry (including the marketing `start=1` link without a
+workspace) checks the current browser cookie through the existing same-origin
+`POST /auth/renew` before showing sign-in controls. A successful server
+verification resumes the dashboard and preserves its renewal/expiry schedule.
+The server still verifies identity, current tenant membership, expiry and
+revocation. Refused sessions show sign-in; unavailable/network checks offer a
+retry without ending the session or automatically requesting credentials or codes.
+
+Explicit sign-out/inactivity markers preserve their existing landing state.
+Workspace-specific links and native auth-request flows keep their exact scope
+and credential/MFA handling. The entry check never initiates OIDC on mount.
+Strict Mode shares only the in-flight check; completed proof is not cached for
+a later check, and a response after leaving the check cannot navigate the UI.

@@ -1,4 +1,5 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
+import { StrictMode } from "react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
@@ -6,6 +7,7 @@ import { SIGNED_OUT_MARK, IDLE_ENDED_MARK } from "@helivanta/ui";
 
 import LoginPage from "./page";
 
+const router = vi.hoisted(() => ({ replace: vi.fn() }));
 const signinRedirect = vi.hoisted(() => vi.fn());
 const getUserManager = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/oidc", () => ({ getUserManager }));
@@ -23,6 +25,7 @@ vi.mock("@/lib/oidc", () => ({ getUserManager }));
 // rather than an independent fixture that could drift from it.
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(window.location.search),
+  useRouter: () => router,
 }));
 
 async function firstMfaDigit(label = "Verification code") {
@@ -132,11 +135,119 @@ function stubAuthFlow(
 
 describe("LoginPage", () => {
   beforeEach(() => {
+    router.replace.mockReset();
     signinRedirect.mockReset();
     getUserManager.mockReturnValue({ signinRedirect });
     window.sessionStorage.clear();
     window.localStorage.clear();
     window.history.pushState({}, "", "/login");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url === "/api/v1/auth/renew") return jsonResponse(401, { error: "unauthenticated" });
+        throw new Error(`unexpected request ${url}`);
+      }),
+    );
+  });
+
+  it.each(["/login", "/login?start=1"])(
+    "resumes a server-verified session without another email or MFA request: %s",
+    async (path) => {
+      window.history.pushState({}, "", path);
+      const request = vi.fn().mockResolvedValue(
+        jsonResponse(200, {
+          renew_at: "2030-01-01T00:05:00Z",
+          expires_at: "2030-01-03T00:00:00Z",
+        }),
+      );
+      vi.stubGlobal("fetch", request);
+      renderWithProviders(<LoginPage />);
+      await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/dashboard"));
+      expect(signinRedirect).not.toHaveBeenCalled();
+      expect(request).toHaveBeenCalledTimes(1);
+      expect(request).toHaveBeenCalledWith(
+        "/api/v1/auth/renew",
+        expect.objectContaining({ method: "POST" }),
+      );
+    },
+  );
+
+  it("retries an unavailable session check without requesting credentials or email codes", async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(503, { error: "identity_unavailable" }))
+      .mockResolvedValueOnce(jsonResponse(200, { renew_at: "2030-01-01T00:05:00Z" }));
+    vi.stubGlobal("fetch", request);
+    const { user } = renderWithProviders(<LoginPage />);
+    await user.click(await screen.findByRole("button", { name: "Retry session check" }));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/dashboard"));
+    expect(signinRedirect).not.toHaveBeenCalled();
+    expect(request.mock.calls.map(([url]) => url)).toEqual([
+      "/api/v1/auth/renew",
+      "/api/v1/auth/renew",
+    ]);
+  });
+
+  it("checks a valid session only once under Strict Mode", async () => {
+    const request = vi.fn().mockResolvedValue(jsonResponse(200, {}));
+    vi.stubGlobal("fetch", request);
+    renderWithProviders(
+      <StrictMode>
+        <LoginPage />
+      </StrictMode>,
+    );
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/dashboard"));
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(router.replace).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [SIGNED_OUT_MARK, /you are signed out/i],
+    [IDLE_ENDED_MARK, /ended after a period of inactivity/i],
+  ])("preserves an explicit session end instead of resuming: %s", async (mark, message) => {
+    window.sessionStorage.setItem(mark, "1");
+    const request = vi.fn().mockResolvedValue(jsonResponse(200, {}));
+    vi.stubGlobal("fetch", request);
+    renderWithProviders(
+      <StrictMode>
+        <LoginPage />
+      </StrictMode>,
+    );
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(request).not.toHaveBeenCalled();
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it.each([401, 404])(
+    "requires sign-in when the server refuses the session: %s",
+    async (status) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(jsonResponse(status, { error: "unauthenticated" })),
+      );
+      renderWithProviders(<LoginPage />);
+      expect(await screen.findByLabelText("Email")).toBeInTheDocument();
+      expect(router.replace).not.toHaveBeenCalled();
+      expect(signinRedirect).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not navigate after leaving a pending session check", async () => {
+    let finish!: (response: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockReturnValue(
+        new Promise<Response>((resolve) => {
+          finish = resolve;
+        }),
+      ),
+    );
+    const view = renderWithProviders(<LoginPage />);
+    view.unmount();
+    await act(async () => {
+      finish(jsonResponse(200, {}));
+    });
+    expect(router.replace).not.toHaveBeenCalled();
   });
 
   it("pins a workspace link to its exact native organisation", async () => {
@@ -159,10 +270,10 @@ describe("LoginPage", () => {
     // out" to someone who was never signed in is untrue, and on a shared
     // terminal it implies the previous clinician's session was ended when
     // nothing of the sort occurred.
-    it("does not claim the user signed out when they simply arrived here", () => {
+    it("does not claim the user signed out when they simply arrived here", async () => {
       renderWithProviders(<LoginPage />);
       expect(screen.queryByText(/you are signed out/i)).not.toBeInTheDocument();
-      expect(screen.getByText(/sign in to continue/i)).toBeInTheDocument();
+      expect(await screen.findByText(/sign in to continue/i)).toBeInTheDocument();
     });
 
     it("confirms the sign-out when the user actually signed out", async () => {
@@ -191,7 +302,7 @@ describe("LoginPage", () => {
       first.unmount();
 
       renderWithProviders(<LoginPage />);
-      expect(screen.getByText(/sign in to continue/i)).toBeInTheDocument();
+      expect(await screen.findByText(/sign in to continue/i)).toBeInTheDocument();
     });
 
     // CRITICAL review finding: a stale SIGNED_OUT_MARK from an earlier,
@@ -213,7 +324,7 @@ describe("LoginPage", () => {
       first.unmount();
 
       renderWithProviders(<LoginPage />);
-      expect(screen.getByText(/sign in to continue/i)).toBeInTheDocument();
+      expect(await screen.findByText(/sign in to continue/i)).toBeInTheDocument();
       expect(screen.queryByText(/you are signed out/i)).not.toBeInTheDocument();
       expect(screen.queryByText(/ended after a period of inactivity/i)).not.toBeInTheDocument();
     });
@@ -227,7 +338,7 @@ describe("LoginPage", () => {
       first.unmount();
 
       renderWithProviders(<LoginPage />);
-      expect(screen.getByText(/sign in to continue/i)).toBeInTheDocument();
+      expect(await screen.findByText(/sign in to continue/i)).toBeInTheDocument();
     });
 
     // #847: the redirect must NOT fire on mount. Sign-out lands on this page
@@ -249,9 +360,9 @@ describe("LoginPage", () => {
     // Design spec D6 (formerly D5a): with no auth request yet, there is
     // nothing for a credential form to check against, so this state still
     // renders none.
-    it("renders no credential form", () => {
+    it("renders no credential form", async () => {
       renderWithProviders(<LoginPage />);
-      expect(screen.getByLabelText("Email")).toBeInTheDocument();
+      expect(await screen.findByLabelText("Email")).toBeInTheDocument();
       expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
     });
 
@@ -791,7 +902,7 @@ describe("LoginPage", () => {
         const button = await screen.findByRole("button", { name: "Sign in" });
         await user.click(button);
 
-        expect(screen.getByLabelText("Email")).toBeInTheDocument();
+        expect(await screen.findByLabelText("Email")).toBeInTheDocument();
         expect(signinRedirect).not.toHaveBeenCalled();
       });
 

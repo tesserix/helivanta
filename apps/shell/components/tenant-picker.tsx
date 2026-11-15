@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { rememberWorkspace } from "@/lib/workspace-signin";
+import { forgetWorkspace, rememberWorkspace } from "@/lib/workspace-signin";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   beginTenantTransition,
@@ -49,6 +49,7 @@ export function TenantPicker() {
           "Account switching could not be confirmed. Your current account has not been replaced. Please try again.",
         );
       }
+      forgetWorkspace();
       clearPermissionsCache();
       clearRenewAt();
       cache.clear();

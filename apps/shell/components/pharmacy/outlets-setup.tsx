@@ -34,11 +34,13 @@ export function OutletsSetup({
   pharmacy,
   subject,
   outlets,
+  onRegistered,
 }: {
   tenantId: string;
   pharmacy: PharmacyOrganization;
   subject: string;
   outlets: Outlets;
+  onRegistered?: (id: string) => void;
 }) {
   const { can } = usePermissions();
   const pane = useListDetail({
@@ -161,7 +163,13 @@ export function OutletsSetup({
         }
       />
       {/* The pharmacy's own setup, not an outlet's: below the list. */}
-      {manage && <PharmacyRegistrySetup tenantId={tenantId} pharmacy={pharmacy} />}
+      {manage && (
+        <PharmacyRegistrySetup
+          tenantId={tenantId}
+          pharmacy={pharmacy}
+          onRegistered={onRegistered}
+        />
+      )}
     </div>
   );
 }

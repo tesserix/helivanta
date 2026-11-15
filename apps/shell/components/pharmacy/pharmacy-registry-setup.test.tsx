@@ -1,7 +1,9 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import type { PharmacyOrganization } from "@helivanta/api";
+import { refusedDefault } from "@helivanta/ui";
 import { chooseOption } from "../../test/select";
 import { PharmacyRegistrySetup } from "./pharmacy-registry-setup";
 
@@ -65,3 +67,45 @@ it("declares hospital ownership by choosing a named accessible hospital without 
   expect(screen.queryByLabelText("Hospital reference ID")).not.toBeInTheDocument();
   expect(screen.getByText(/grants nothing until that hospital verifies it/)).toBeInTheDocument();
 });
+
+it.each([403, 503])(
+  "withholds the selected hospital and refuses form submission after lookup failure (%s)",
+  async (status) => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const base = registry();
+    let refused = false;
+    const fetcher = vi.fn(async (url: string, init?: RequestInit) =>
+      refused && url.includes("/workforce/hospitals")
+        ? Response.json({ error: "hospital_unavailable" }, { status })
+        : base(url, init),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    const { user } = renderWithProviders(
+      <QueryClientProvider client={client}>
+        <PharmacyRegistrySetup tenantId={tenant} pharmacy={pharmacy} />
+      </QueryClientProvider>,
+    );
+    await chooseOption(
+      user,
+      await screen.findByLabelText("Owning hospital"),
+      "Synthetic main hospital",
+    );
+    const submit = screen.getByRole("button", { name: "Declare hospital affiliation" });
+    const form = submit.closest("form")!;
+    refused = true;
+    await act(async () => {
+      await client.invalidateQueries({
+        queryKey: ["pharmacy", tenant, "synthetic-owner", pharmacy.id, "ownership-hospitals"],
+      });
+    });
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      status === 403 ? refusedDefault : "Could not load your hospitals.",
+    );
+    expect(screen.queryByLabelText("Owning hospital")).not.toBeInTheDocument();
+    expect(submit).toBeDisabled();
+    await act(async () => {
+      fireEvent.submit(form);
+    });
+    expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(0);
+  },
+);

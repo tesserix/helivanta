@@ -32,9 +32,11 @@ import { PharmacyEmployer } from "./pharmacy-employer";
 export function PharmacyRegistrySetup({
   tenantId,
   pharmacy,
+  onRegistered,
 }: {
   tenantId: string;
   pharmacy?: PharmacyOrganization;
+  onRegistered?: (id: string) => void;
 }) {
   const { can } = usePermissions();
   return (
@@ -48,7 +50,7 @@ export function PharmacyRegistrySetup({
       </p>
       {/* Outlets register in the Outlets & access pane, beside their list (#1303 E6). */}
       <div className="mt-6 max-w-2xl">
-        <OrganizationForm tenantId={tenantId} />
+        <OrganizationForm tenantId={tenantId} onRegistered={onRegistered} />
       </div>
       {pharmacy && (
         <PharmacyEmployer
@@ -68,7 +70,13 @@ export function PharmacyRegistrySetup({
     </Panel>
   );
 }
-function OrganizationForm({ tenantId }: { tenantId: string }) {
+function OrganizationForm({
+  tenantId,
+  onRegistered,
+}: {
+  tenantId: string;
+  onRegistered?: (id: string) => void;
+}) {
   const [id, setId] = useState(() => newPharmacyId());
   const form = useZodForm(pharmacyOrganizationInputSchema, {
     code: "",
@@ -82,6 +90,7 @@ function OrganizationForm({ tenantId }: { tenantId: string }) {
       successToast: "Pharmacy registered",
       invalidate: [["pharmacy", tenantId, "organizations"]],
       onSuccess: () => {
+        onRegistered?.(id);
         setId(newPharmacyId());
         form.reset();
       },
@@ -297,7 +306,9 @@ function AffiliationForm({
       <form
         noValidate
         className="mt-4 grid items-end gap-4 sm:grid-cols-2 lg:grid-cols-3"
-        onSubmit={form.handleSubmit((values) => save.mutate(values))}
+        onSubmit={form.handleSubmit((values) => {
+          if (ownerAvailable) save.mutate(values);
+        })}
       >
         {choosingOwner ? (
           <div className="space-y-3">

@@ -5,6 +5,31 @@ This checkpoint preserves the full goal across the hospital-owned pharmacy and
 independent pharmacy/supplier models. Source inspection, component checks,
 service integration, browser testing and live acceptance are distinct evidence.
 
+## Current acceptance target and successful healthy empty reads
+
+The user directed acceptance against the existing **Yes Hospital** tenant and
+its already-approved owner account. Do not create a replacement hospital tenant,
+reset the owner credential, delete retained data or infer that a legacy identity
+mapping is valid. Normal sign-in and live authorization still need verification.
+The earlier fresh-tenant run sheet is historical; it is not authorization to
+replace this selected acceptance target. Credentials stay in the approved local
+secret file and are never copied into documentation or logs.
+
+Candidate `c81eb52e` passed the healthy empty chooser request (200), the
+app-role capture-privilege failure (503), and recovery after revoke (200).
+[Go job132647316697](https://github.com/tesserix/helivanta/actions/runs/43660115536/job/132647316697)
+then failed the independent foreign-member check: expected hidden-scope404,
+actual403 `not a member of this tenant`. Its IAM membership row existed, but the
+fixture's real OpenFGA checker had no matching TenantB role/member relation.
+The fixture now grants only TenantB's ordinary Staff role/member relation,
+matching its existing IAM row. No foreign hospital, department, employment,
+login-link or operating access is granted. The foreign assertion remains404;
+the separate stale-header assertion remains409. These negative checks run in an
+independent subtest so a refusal mismatch cannot suppress later positive tests.
+Positive linked qualification and hospital browser acceptance remain unproven
+until corrected-head CI reaches them. No deployment or full-flow acceptance is
+claimed from these successful empty reads.
+
 ## Current-main integration checkpoint
 
 Main advanced to `7f85a42e` (pharmacy tax-command replay, PR #1717) while

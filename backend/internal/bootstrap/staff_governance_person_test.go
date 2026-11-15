@@ -46,6 +46,8 @@ func TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure(t *te
 	for _, subject := range []string{"user-auditor", "user-reviewer", "user-ordinary"} {
 		require.NoError(t, graph.GrantRole(ctx, testutil.TenantA, subject, authz.RoleStaffMember))
 	}
+	require.NoError(t, graph.GrantTenantRole(ctx, testutil.TenantB, authz.RoleStaffMember))
+	require.NoError(t, graph.GrantRole(ctx, testutil.TenantB, "user-other", authz.RoleStaffMember))
 	var assignmentIdentity governanceAssignmentIdentityReader
 	identity := governanceAssignmentIdentityReader(func(ctx context.Context, tenant, subject string) (*customercontract.AssignmentCandidateIdentity, error) {
 		return assignmentIdentity(ctx, tenant, subject)

@@ -15,6 +15,7 @@ import {
   pharmacyAffiliationInputSchema,
   type PharmacyOrganization,
   type PharmacyHospitalAffiliation,
+  type Hospital,
 } from "@helivanta/api";
 import {
   Field,
@@ -242,10 +243,22 @@ function AffiliationForm({
   const [id, setId] = useState(() => newPharmacyId());
   const form = useZodForm(pharmacyAffiliationInputSchema, {
     hospital_id: "",
-    relationship: "serving",
+    relationship: pharmacy.ownership_type === "hospital_owned" ? "owner" : "serving",
   });
   const key = ["pharmacy", tenantId, pharmacy.id, "affiliations"];
-  const { can } = usePermissions();
+  const { can, subject } = usePermissions();
+  const choosingOwner =
+    pharmacy.ownership_type === "hospital_owned" && form.watch("relationship") === "owner";
+  const hospitals = useApiPagedQuery<Hospital>(
+    ["pharmacy", tenantId, subject, pharmacy.id, "ownership-hospitals"],
+    "/workforce/hospitals",
+    { enabled: choosingOwner && !!subject, gcTime: 0 },
+  );
+  const ownerAvailable =
+    !choosingOwner ||
+    (!hospitals.isError &&
+      !hospitals.isPending &&
+      hospitals.items.some((hospital) => hospital.id === form.watch("hospital_id")));
   const links = useApiPagedQuery<PharmacyHospitalAffiliation>(
     key,
     `/pharmacy/pharmacies/${pharmacy.id}/hospital-affiliations`,
@@ -254,6 +267,7 @@ function AffiliationForm({
     (values: z.infer<typeof pharmacyAffiliationInputSchema>) =>
       apiFetch(`/pharmacy/pharmacies/${pharmacy.id}/hospital-affiliations/${id}`, {
         method: "PUT",
+        headers: { "X-Helivanta-Expected-Tenant": tenantId },
         body: JSON.stringify(values),
       }),
     {
@@ -268,23 +282,80 @@ function AffiliationForm({
   );
   return (
     <Panel className="mt-6">
-      <h3 className="font-semibold">Optional hospital affiliations</h3>
+      <h3 className="font-semibold">
+        {pharmacy.ownership_type === "hospital_owned"
+          ? "Owning hospital and affiliations"
+          : "Optional hospital affiliations"}
+      </h3>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">
-        Use the canonical hospital reference supplied during onboarding. A declared link grants
-        nothing until that hospital verifies it, and the hospital can revoke it at any time.
+        {choosingOwner
+          ? "Choose the owning hospital from your hospital directory. "
+          : "Use the canonical hospital reference supplied during onboarding. "}
+        A declared link grants nothing until that hospital verifies it, and the hospital can revoke
+        it at any time.
       </p>
       <form
         noValidate
         className="mt-4 grid items-end gap-4 sm:grid-cols-2 lg:grid-cols-3"
         onSubmit={form.handleSubmit((values) => save.mutate(values))}
       >
-        <Field
-          id="affiliation-hospital"
-          label="Hospital reference ID"
-          error={form.formState.errors.hospital_id?.message}
-        >
-          <Input id="affiliation-hospital" {...form.register("hospital_id")} />
-        </Field>
+        {choosingOwner ? (
+          <div className="space-y-3">
+            {hospitals.isError ? (
+              <RequestFailure
+                message="Could not load your hospitals."
+                error={hospitals.error}
+                retry={hospitals.retry}
+              />
+            ) : hospitals.isPending ? (
+              <p role="status">Loading your hospitals…</p>
+            ) : (
+              <>
+                <Field
+                  id="affiliation-hospital"
+                  label="Owning hospital"
+                  error={form.formState.errors.hospital_id?.message}
+                >
+                  <SelectControl
+                    id="affiliation-hospital"
+                    value={ownerAvailable ? form.watch("hospital_id") : ""}
+                    placeholder="Choose the owning hospital"
+                    onValueChange={(value) =>
+                      form.setValue("hospital_id", value, {
+                        shouldValidate: true,
+                        shouldDirty: true,
+                      })
+                    }
+                    options={hospitals.items.map((hospital) => ({
+                      value: hospital.id,
+                      label: hospital.name,
+                    }))}
+                  />
+                </Field>
+                {!hospitals.items.length && (
+                  <p className="text-sm text-muted-foreground">
+                    Register your hospital in Staff and obtain hospital access before declaring
+                    ownership.
+                  </p>
+                )}
+              </>
+            )}
+            <LoadMore
+              label="Load more hospitals"
+              hasMore={hospitals.hasMore}
+              isLoading={hospitals.isFetchingMore}
+              onClick={hospitals.loadMore}
+            />
+          </div>
+        ) : (
+          <Field
+            id="affiliation-hospital"
+            label="Hospital reference ID"
+            error={form.formState.errors.hospital_id?.message}
+          >
+            <Input id="affiliation-hospital" {...form.register("hospital_id")} />
+          </Field>
+        )}
         <FormSelectField
           control={form.control}
           name="relationship"
@@ -296,7 +367,7 @@ function AffiliationForm({
             { value: "partner", label: "Hospital partner" },
           ]}
         />
-        <Button type="submit" disabled={save.isPending}>
+        <Button type="submit" disabled={save.isPending || !ownerAvailable}>
           {save.isPending ? "Declaring…" : "Declare hospital affiliation"}
         </Button>
         {save.isError && (

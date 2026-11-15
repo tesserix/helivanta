@@ -3348,6 +3348,15 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access-grants",
+          "permission": "pharmacy.access.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "DELETE",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access/:subject",
           "permission": "pharmacy.access.manage",

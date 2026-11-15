@@ -477,6 +477,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts/:id` | `public` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts/:id` | `public` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts` | `public` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access-grants` | `pharmacy.access.manage` | true | false |
 | DELETE | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access/:subject` | `pharmacy.access.manage` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access/:subject` | `pharmacy.access.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access` | `pharmacy.catalogue.read` | false | false |

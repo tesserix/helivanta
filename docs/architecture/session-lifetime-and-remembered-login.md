@@ -67,3 +67,17 @@ defaults apply to newly issued cookies; deployment does not extend an existing
 cookie's original inactivity deadline. There is no absolute 48-hour maximum:
 attributable activity can extend inactivity and renewal can issue another
 cookie, subject to current identity and membership.
+
+The ordinary login entry (including the marketing `start=1` link without a
+workspace) checks the current browser cookie through the existing same-origin
+`POST /auth/renew` before showing sign-in controls. A successful server
+verification resumes the dashboard and preserves its renewal/expiry schedule.
+The server still verifies identity, current tenant membership, expiry and
+revocation. Refused sessions show sign-in; unavailable/network checks offer a
+retry without ending the session or automatically requesting credentials or codes.
+
+Explicit sign-out/inactivity markers preserve their existing landing state.
+Workspace-specific links and native auth-request flows keep their exact scope
+and credential/MFA handling. The entry check never initiates OIDC on mount.
+Strict Mode shares only the in-flight check; completed proof is not cached for
+a later check, and a response after leaving the check cannot navigate the UI.

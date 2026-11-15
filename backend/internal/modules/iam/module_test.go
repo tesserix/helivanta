@@ -17,7 +17,11 @@ func TestMigrationIDIsPhaseScoped(t *testing.T) {
 	for i, migration := range migs {
 		ids[i] = migration.ID
 	}
-	require.Len(t, ids, 50)
+	require.Len(t, ids, 52)
+	require.Equal(t, "0052_iam_assignment_target_choices", migs[51].ID)
+	require.NotEmpty(t, migs[51].SQL)
+	require.Equal(t, "0051_iam_operating_employer_inbox", migs[50].ID)
+	require.NotEmpty(t, migs[50].ConcurrentIndexes)
 	require.Equal(t, "0050_iam_operating_governance", migs[49].ID)
 	require.NotEmpty(t, migs[49].SQL)
 	require.Equal(t, "0049_iam_assignment_governance", migs[48].ID)

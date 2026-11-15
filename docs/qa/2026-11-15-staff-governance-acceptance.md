@@ -5,6 +5,43 @@ This checkpoint preserves the full goal across the hospital-owned pharmacy and
 independent pharmacy/supplier models. Source inspection, component checks,
 service integration, browser testing and live acceptance are distinct evidence.
 
+## Successful qualified API checks; remaining release gates
+
+At `88974167`, [CI43661273089](https://github.com/tesserix/helivanta/actions/runs/43661273089)
+passed the complete Staff governance input-boundary step, including healthy empty
+choices, positive reviewed Staff/account qualification, foreign membership denial,
+source change/revocation checks and the actual-owner shared-lock/mutation-refusal
+regression. Its E2E job passed. Go later failed the old IAM migration-count test
+(still50 despite the registered0051/0052 additions). That test now expects52 and
+explicitly checks both new migrations, preserving all prior migration hashes.
+The exact pure test reproduced red locally before correction and passed green.
+
+The web job passed workspace quality/tests/build and the original independent
+owner browser scenarios. Its new hospital browser fixture failed before navigation
+because it configured an unknown Global API destination `organization`.
+The fixture now supplies only the registered `platform` and `workforce`
+destinations required by its real handlers. It keeps the Global API routing,
+source authorization, response-loss replay and independent review assertions.
+Actual hospital browser runtime acceptance remains outstanding.
+
+[Supplier43661273193](https://github.com/tesserix/helivanta/actions/runs/43661273193)
+failed the unchanged original posting-cutoff race with `posting_source_unavailable`
+(503 where200 is required) after both commands reached their PostgreSQL waits.
+One observed lifecycle command completed200 in1.47s. The five-second public
+budget is unchanged; this intermittent cutoff failure remains unresolved and
+must not be hidden by a timeout increase, skipped test or one previous cold pass.
+There is no HMS merge/rollout or complete fulfilment/Staff acceptance claim.
+
+The existing-owner sign-in was attempted normally through email discovery. Code
+verification succeeded, followed by account-choices503. Read-only checks using
+the existing onboarding workload credential and owner database permissions found
+one active verified native account, active matching org/tenant metadata, project
+and current grant, and matching canonical store records. No credential value,
+private identity ID, proof, cookie or email code was emitted or committed. No
+identity, grant, tenant, data or credential was changed. The sign-in failure is
+still under investigation; `/tmp/secret` has not been used because the password
+step has not yet been reached.
+
 ## Current acceptance target and successful healthy empty reads
 
 The user directed acceptance against the existing **Yes Hospital** tenant and

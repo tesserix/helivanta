@@ -1,6 +1,6 @@
 # Yes Hospital and independent pharmacy: live Staff acceptance
 
-Status: prepared run sheet; execution results are pending. Use the existing Yes Hospital and its existing owner account. Record the deployed commit and running image digest before starting. The identity-owner sign-in repair is deployed; the Staff candidate must pass CI and its approved GitOps/Kargo release first.
+Status: prepared run sheet; execution results are pending. Use the existing Yes Hospital and its existing owner account. Record the deployed commit and running image digest before starting. The identity-owner sign-in repair and Staff implementation are deployed. PR #1669 passed all feature CI and released merge `2a59d46a` through GitOps/Kargo; see the [deployment evidence](../deployment/releases/2026-11-15-staff-governance-release.json). Authenticated execution of this run sheet remains pending.
 
 ## People and evidence
 

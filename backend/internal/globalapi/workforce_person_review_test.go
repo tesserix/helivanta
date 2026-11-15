@@ -114,11 +114,15 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		require.NoError(t, graph.GrantRole(ctx, testutil.TenantA, subject, authz.RoleTenantAdmin))
 	}
 	signer, verifier := testutil.NewSessionSignerForTest(t)
+	var postingQueryObserver *postingLifecycleQueryObserver
 	owner, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{GovernanceSources: testutil.GovernanceReviewProtocol,
 		EmploymentActivationEnabled: true,
 		Writer:                      graph, Roles: graph, Membership: graph, Resolver: graph,
 		Verifier: authn.NewSessionVerifier(verifier), Modules: modules, Documents: documents,
-		ScopedAuthorizer: func(db *tenantdb.DB) authz.ScopedAuthorizer { return iam.NewScopedAuthorizer(db, graph) },
+		ScopedAuthorizer: func(db *tenantdb.DB) authz.ScopedAuthorizer {
+			postingQueryObserver = newPostingLifecycleQueryObserver(t, db, testutil.TenantA)
+			return iam.NewScopedAuthorizer(db, graph)
+		},
 	})
 	upstream := httptest.NewServer(owner)
 	t.Cleanup(upstream.Close)
@@ -2461,7 +2465,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 					cleanupPostingFixtureGrant(authz.ScopeRequest{TenantID: testutil.TenantA, Subject: recipient, HospitalID: hospital, Permission: authz.PartnerMemberSourceUse})
 
 					cleanupPostingFixtureGrant(authz.ScopeRequest{TenantID: testutil.TenantA, Subject: postingRootReviewer, HospitalID: hospital, Permission: iam.PermPartnerGroupMemberPrepare})
-					assertPostingSupervisedApproval(t, db, testutil.TenantA, call, requestWithContext, base, scopedStaffBase, recipient, postingRootReviewer, postingRootReviewerStaff, postingRootApprover, postingRootApproverStaff, maker, scopedDraft, scopedReceipt, scopedSource, generation, newPostingSourceUseProbe(db, authority, platform.StaffPostingSources([]platform.Module{workforce.New(), organization.New()}, db), testutil.TenantA), func() func() {
+					assertPostingSupervisedApproval(t, db, postingQueryObserver, testutil.TenantA, call, requestWithContext, base, scopedStaffBase, recipient, postingRootReviewer, postingRootReviewerStaff, postingRootApprover, postingRootApproverStaff, maker, scopedDraft, scopedReceipt, scopedSource, generation, newPostingSourceUseProbe(db, authority, platform.StaffPostingSources([]platform.Module{workforce.New(), organization.New()}, db), testutil.TenantA), func() func() {
 						initial := call(t, "GET", joinerPath+"/enrollment?hr_intake=v1", manager, nil, 200)
 						originalProfile := initial["profile"].(map[string]any)
 						setIdentity := func(givenName, phone any) {

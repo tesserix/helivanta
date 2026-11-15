@@ -1,10 +1,10 @@
 package globalapi
 
 import (
-	"context"
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -13,54 +13,73 @@ import (
 	"gorm.io/gorm"
 )
 
-// Observe only the original race's statements; SQL and bound values never leave the callback.
-func observePostingLifecycleQueries(t *testing.T, db *tenantdb.DB, tenant string) func() {
+type postingLifecycleQueryObserver struct {
+	active atomic.Pointer[postingLifecycleQueryObservation]
+}
+
+type postingLifecycleQueryTiming struct {
+	count, failed  int
+	total, longest time.Duration
+}
+
+type postingLifecycleQueryObservation struct {
+	mu            sync.Mutex
+	closed        bool
+	groups        map[string]postingLifecycleQueryTiming
+	lastCompleted time.Time
+}
+
+type postingLifecycleQueryStart struct {
+	observation *postingLifecycleQueryObservation
+	started     time.Time
+}
+
+// Register before the harness starts workers; callbacks live with this isolated database.
+func newPostingLifecycleQueryObserver(t *testing.T, db *tenantdb.DB, tenant string) *postingLifecycleQueryObserver {
 	t.Helper()
-	started := time.Now()
-	type timing struct {
-		count, failed  int
-		total, longest time.Duration
+	observer := new(postingLifecycleQueryObserver)
+	before := func(tx *gorm.DB) {
+		if observation := observer.active.Load(); observation != nil {
+			tx.Statement.Settings.Store("synthetic_posting_query_started", postingLifecycleQueryStart{observation, time.Now()})
+		}
 	}
-	var mu sync.Mutex
-	groups := make(map[string]timing)
-	var lastCompleted time.Time
-	before := func(tx *gorm.DB) { tx.Statement.Settings.Store("synthetic_posting_query_started", time.Now()) }
 	after := func(tx *gorm.DB) {
 		value, found := tx.Statement.Settings.LoadAndDelete("synthetic_posting_query_started")
 		if !found {
 			return
 		}
+		start := value.(postingLifecycleQueryStart)
 		finished := time.Now()
-		elapsed := finished.Sub(value.(time.Time))
+		elapsed := finished.Sub(start.started)
 		phase := postingLifecycleQueryPhase(tx.Statement.SQL.String())
-		mu.Lock()
-		defer mu.Unlock()
-		group := groups[phase]
+		observation := start.observation
+		observation.mu.Lock()
+		defer observation.mu.Unlock()
+		if observation.closed {
+			return
+		}
+		group := observation.groups[phase]
 		group.count++
 		if tx.Error != nil {
 			group.failed++
 		}
 		group.total += elapsed
 		group.longest = max(group.longest, elapsed)
-		groups[phase] = group
-		lastCompleted = finished
+		observation.groups[phase] = group
+		observation.lastCompleted = finished
 	}
-	type callbacks struct {
-		before, after func(string, func(*gorm.DB)) error
-		remove        func(string) error
-	}
-	var registered []callbacks
 	require.NoError(t, db.WithTenant(t.Context(), tenant, func(tx *gorm.DB) error {
 		c := tx.Callback()
-		registered = []callbacks{
-			{c.Raw().Before("*").Register, c.Raw().After("*").Register, c.Raw().Remove},
-			{c.Row().Before("*").Register, c.Row().After("*").Register, c.Row().Remove},
-			{c.Query().Before("*").Register, c.Query().After("*").Register, c.Query().Remove},
-			{c.Create().Before("*").Register, c.Create().After("*").Register, c.Create().Remove},
-			{c.Update().Before("*").Register, c.Update().After("*").Register, c.Update().Remove},
-			{c.Delete().Before("*").Register, c.Delete().After("*").Register, c.Delete().Remove},
-		}
-		for _, processor := range registered {
+		for _, processor := range []struct {
+			before, after func(string, func(*gorm.DB)) error
+		}{
+			{c.Raw().Before("*").Register, c.Raw().After("*").Register},
+			{c.Row().Before("*").Register, c.Row().After("*").Register},
+			{c.Query().Before("*").Register, c.Query().After("*").Register},
+			{c.Create().Before("*").Register, c.Create().After("*").Register},
+			{c.Update().Before("*").Register, c.Update().After("*").Register},
+			{c.Delete().Before("*").Register, c.Delete().After("*").Register},
+		} {
 			if err := processor.before("synthetic_posting_timing_before", before); err != nil {
 				return err
 			}
@@ -70,32 +89,31 @@ func observePostingLifecycleQueries(t *testing.T, db *tenantdb.DB, tenant string
 		}
 		return nil
 	}))
+	return observer
+}
+
+func (observer *postingLifecycleQueryObserver) observe(t *testing.T) func() {
+	t.Helper()
+	started := time.Now()
+	observation := &postingLifecycleQueryObservation{groups: make(map[string]postingLifecycleQueryTiming)}
+	require.True(t, observer.active.CompareAndSwap(nil, observation), "lifecycle observations must not overlap")
 	return func() {
 		finished := time.Now()
-		require.NoError(t, db.WithTenant(context.WithoutCancel(t.Context()), tenant, func(_ *gorm.DB) error {
-			for _, processor := range registered {
-				if err := processor.remove("synthetic_posting_timing_before"); err != nil {
-					return err
-				}
-				if err := processor.remove("synthetic_posting_timing_after"); err != nil {
-					return err
-				}
-			}
-			return nil
-		}))
-		mu.Lock()
-		defer mu.Unlock()
-		phases := make([]string, 0, len(groups))
-		for phase := range groups {
+		require.True(t, observer.active.CompareAndSwap(observation, nil))
+		observation.mu.Lock()
+		defer observation.mu.Unlock()
+		observation.closed = true
+		phases := make([]string, 0, len(observation.groups))
+		for phase := range observation.groups {
 			phases = append(phases, phase)
 		}
 		sort.Strings(phases)
 		for _, phase := range phases {
-			group := groups[phase]
+			group := observation.groups[phase]
 			t.Logf("Lifecycle SQL phase=%s count=%d failed=%d total_ms=%d longest_ms=%d", phase, group.count, group.failed, group.total.Milliseconds(), group.longest.Milliseconds())
 		}
-		if !lastCompleted.IsZero() {
-			t.Logf("Lifecycle SQL observation elapsed_ms=%d final_statement_gap_ms=%d", finished.Sub(started).Milliseconds(), max(time.Duration(0), finished.Sub(lastCompleted)).Milliseconds())
+		if !observation.lastCompleted.IsZero() {
+			t.Logf("Lifecycle SQL observation elapsed_ms=%d final_statement_gap_ms=%d", finished.Sub(started).Milliseconds(), max(time.Duration(0), finished.Sub(observation.lastCompleted)).Milliseconds())
 		}
 	}
 }

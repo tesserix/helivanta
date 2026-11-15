@@ -18,7 +18,7 @@ type postingTestRequest func(context.Context, string, string, string, []byte, st
 
 type postingTestPreparer func(map[string]any, string, map[string]any) (string, map[string]any)
 
-func assertPostingLifecycleCutoffRaces(t *testing.T, db *tenantdb.DB, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, request postingTestRequest, prepare postingTestPreparer, rootTemplate, childTemplate map[string]any, submitter, reviewer, administrator string) {
+func assertPostingLifecycleCutoffRaces(t *testing.T, db *tenantdb.DB, observer *postingLifecycleQueryObserver, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, request postingTestRequest, prepare postingTestPreparer, rootTemplate, childTemplate map[string]any, submitter, reviewer, administrator string) {
 	t.Helper()
 	for _, approvalFirst := range []bool{true, false} {
 		t.Logf("Racing actual cutoff and lifecycle approval; approval queued first: %v", approvalFirst)
@@ -47,7 +47,7 @@ func assertPostingLifecycleCutoffRaces(t *testing.T, db *tenantdb.DB, tenant str
 			first, second = approve, cutoff
 		}
 		before := postingRootApprovalEffects(t, db, tenant, reviewer)
-		responses := racePostingLifecycleCommands(t, db, tenant, parent["hospital_id"].(string), first, second)
+		responses := racePostingLifecycleCommands(t, db, observer, tenant, parent["hospital_id"].(string), first, second)
 		require.Equal(t, 200, responses[0].Code, responses[0].Body.String())
 		proof := readRetainedPostingLifecycleProof(t, db, tenant, tenant, child["hospital_id"].(string), child["staff_id"].(string), child["id"].(string))
 		if approvalFirst {
@@ -118,9 +118,9 @@ func assertPostingLifecycleExpiredReplay(t *testing.T, db *tenantdb.DB, tenant s
 	require.Equal(t, "rejected", rejected["status"])
 }
 
-func racePostingLifecycleCommands(t *testing.T, db *tenantdb.DB, tenant, hospital string, first, second func(context.Context) *httptest.ResponseRecorder) [2]*httptest.ResponseRecorder {
+func racePostingLifecycleCommands(t *testing.T, db *tenantdb.DB, observer *postingLifecycleQueryObserver, tenant, hospital string, first, second func(context.Context) *httptest.ResponseRecorder) [2]*httptest.ResponseRecorder {
 	t.Helper()
-	finishObservation := observePostingLifecycleQueries(t, db, tenant)
+	finishObservation := observer.observe(t)
 	defer finishObservation()
 	started := time.Now()
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)

@@ -44,10 +44,10 @@ func catalogueSetup(t *testing.T) (*gin.Engine, *tenantdb.DB, *events.Bus, conte
 			"steward": {"pharmacy.catalogue.read", "pharmacy.access.manage"},
 			// A registry manager in another tenant, for cross-tenant grant reads.
 			"registrar": {"pharmacy.catalogue.read", "pharmacy.access.manage"},
-			"finance": {"pharmacy.accounts.read", "pharmacy.accounts.write", "pharmacy.accounts.payment", "pharmacy.accounts.adjust"},
-			"reader":  {"pharmacy.catalogue.read", "pharmacy.catalogue.write", "pharmacy.stock.read", "pharmacy.stock.receive", "pharmacy.stock.quarantine"},
-			"sibling": {"pharmacy.accounts.read", "pharmacy.accounts.write", "pharmacy.accounts.payment", "pharmacy.accounts.adjust", "pharmacy.catalogue.read", "pharmacy.catalogue.write", "pharmacy.stock.read", "pharmacy.stock.receive", "pharmacy.stock.quarantine"},
-			"foreign": {"pharmacy.accounts.read", "pharmacy.accounts.write", "pharmacy.accounts.payment", "pharmacy.accounts.adjust", "pharmacy.catalogue.read", "pharmacy.catalogue.write", "pharmacy.stock.read", "pharmacy.stock.receive", "pharmacy.stock.quarantine"},
+			"finance":   {"pharmacy.accounts.read", "pharmacy.accounts.write", "pharmacy.accounts.payment", "pharmacy.accounts.adjust"},
+			"reader":    {"pharmacy.catalogue.read", "pharmacy.catalogue.write", "pharmacy.stock.read", "pharmacy.stock.receive", "pharmacy.stock.quarantine"},
+			"sibling":   {"pharmacy.accounts.read", "pharmacy.accounts.write", "pharmacy.accounts.payment", "pharmacy.accounts.adjust", "pharmacy.catalogue.read", "pharmacy.catalogue.write", "pharmacy.stock.read", "pharmacy.stock.receive", "pharmacy.stock.quarantine"},
+			"foreign":   {"pharmacy.accounts.read", "pharmacy.accounts.write", "pharmacy.accounts.payment", "pharmacy.accounts.adjust", "pharmacy.catalogue.read", "pharmacy.catalogue.write", "pharmacy.stock.read", "pharmacy.stock.receive", "pharmacy.stock.quarantine"},
 		}, Modules: []platform.Module{pharmacy.New()},
 	})
 	// Exercise PostgreSQL's microsecond precision even on clocks with lower resolution.

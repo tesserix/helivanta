@@ -77,7 +77,8 @@ func exerciseGovernedAssignmentTargetChoices(t *testing.T, router *gin.Engine, d
 	require.NotContains(t, staleTenant.Body.String(), target.Email)
 	get(t, path+"?subject=user-ordinary", "admin", 400)
 	get(t, "/v1/iam/hospitals/"+uuid.Must(uuid.NewV7()).String()+"/assignment-target-choices", "admin", 404)
-	linkPath := "/v1/workforce/hospitals/" + hospital.String() + "/staff/" + staff.String() + "/login-links/" + uuid.Must(uuid.NewV7()).String()
+	link := uuid.Must(uuid.NewV7())
+	linkPath := "/v1/workforce/hospitals/" + hospital.String() + "/staff/" + staff.String() + "/login-links/" + link.String()
 	proposed := governanceRequest(router, http.MethodPut, linkPath, "admin", `{"subject":"user-ordinary","reason":"Synthetic reviewed chooser account"}`)
 	require.Equal(t, 200, proposed.Code, proposed.Body.String())
 	require.Empty(t, get(t, path, "admin", 200), "pending links confer no choice eligibility")
@@ -85,6 +86,7 @@ func exerciseGovernedAssignmentTargetChoices(t *testing.T, router *gin.Engine, d
 	require.Equal(t, 200, approved.Code, approved.Body.String())
 	require.Equal(t, []iam.AssignmentTargetChoice{target}, get(t, path+"?status=eligible&limit=20", "admin", 200))
 	require.EqualValues(t, 1, reads.Load())
+	assertAssignmentQualificationLocksAreReadOnly(t, db, t.Context(), hospital, staff, link)
 	exerciseNativeAssignmentBrowser(t, router, hospital, staff, target.Subject, target.Name, target.Email)
 	for _, audit := range []struct{ table, action string }{
 		{"audit_events", "iam.assignment.target_choices.read"},

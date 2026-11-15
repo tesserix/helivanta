@@ -5,6 +5,33 @@ This checkpoint preserves the full goal across the hospital-owned pharmacy and
 independent pharmacy/supplier models. Source inspection, component checks,
 service integration, browser testing and live acceptance are distinct evidence.
 
+## Qualified locking-read correction
+
+Candidate `c4bfef80` passed exact restoration checks and Workforce schema support.
+[Go job132639901854](https://github.com/tesserix/helivanta/actions/runs/43657664728/job/132639901854)
+then reached candidate qualification and returned404 (previously503) at the first
+empty-page assertion. The read owner logged `phase=candidates`, without an
+authorization-unavailable or guard mismatch/closure flag. No successful public
+chooser response is claimed yet.
+
+Source inspection identified the canonical `partner_candidate_update_guard` on
+Staff/login links: PostgreSQL applies UPDATE `USING` policies to `FOR SHARE`.
+The adjacent operating chooser explicitly admits its narrow read predicate there;
+assignment selection had not. Workforce0119 now adds the same bounded selection
+read predicate to exactly those two existing guards, retaining their explicit
+prior `WITH CHECK` and rejecting missing guards/checks during migration. The
+selection's restrictive `WITH CHECK=false` for business records and independent
+DELETE guard remain unchanged. All old behavior is retained outside this purpose.
+
+A new real-database regression obtains the actual current IAM owner source and
+Workforce topology, installs the derived short-lived selection proof, locks the
+reviewed Staff/link rows, and attempts updates to each. Both attempts must fail;
+savepoint recovery confirms the original versions and restores purpose settings.
+It adds no grant, membership, employment or stock seed and does not impersonate
+the target. Canonical source ownership, public five-second deadlines and foreign
+scope assertions are unchanged. SQL/PLpgSQL grammar passes (14 statements,
+8 bodies); the real locking-read and mutation-refusal result still requires CI.
+
 ## Reversible missing-policy fixture repair
 
 Candidate `fc073aa5` identified one changed object in

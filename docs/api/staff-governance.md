@@ -44,6 +44,13 @@ releases all transactions before identity lookup, then reacquires current source
 membership and Workforce evidence before disclosure. Lookup concurrency is at
 most four and the complete request has a five-second budget. Selection grants
 no operating access and cannot replace canonical command revalidation.
+Share-lock qualification uses the narrow selection predicate in the existing
+Staff/login-link UPDATE `USING` guards, because PostgreSQL applies those guards
+to `FOR SHARE`. Their prior write checks stay unchanged, and the restrictive
+selection purpose still rejects business writes and deletes. The only selection
+write remains attributable qualification audit. A real-owner regression verifies
+locked reads and refused updates for both canonical Staff and login-link rows;
+its runtime acceptance remains CI-only.
 
 Hidden scope returns 404; missing coarse permission 403; changed session or
 selected facts 409; revoked credentials 401. Source, identity or audit failures

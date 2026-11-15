@@ -118,7 +118,7 @@ BEGIN
 END $audit$;
 
 DO $policies$
-DECLARE target record;prior record;reading text;writing text;active text:=$expression$NULLIF(current_setting('app.workforce_assignment_selection',true),'')IS NOT NULL$expression$;
+DECLARE target record;prior record;locking_guard record;reading text;writing text;active text:=$expression$NULLIF(current_setting('app.workforce_assignment_selection',true),'')IS NOT NULL$expression$;
 BEGIN
  FOR target IN SELECT c.oid,c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
  WHERE n.nspname=current_schema()AND c.relkind IN('r','p')AND starts_with(c.relname,'workforce_')
@@ -132,6 +132,12 @@ BEGIN
   END IF;
   IF target.relname='workforce_audit'THEN writing:='workforce_assignment_selection_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes)';END IF;
   EXECUTE format('ALTER POLICY %I ON %I USING(CASE WHEN %s THEN(%s)ELSE(%s)END)WITH CHECK(CASE WHEN %s THEN(%s)ELSE(%s)END)',prior.polname,target.relname,active,reading,COALESCE(prior.reading,'true'),active,writing,COALESCE(prior.writing,prior.reading,'true'));
+  IF target.relname IN('workforce_staff','workforce_login_links')THEN
+   SELECT pg_get_expr(p.polqual,p.polrelid)AS reading,pg_get_expr(p.polwithcheck,p.polrelid)AS writing INTO STRICT locking_guard
+   FROM pg_policy p WHERE p.polrelid=target.oid AND p.polname='partner_candidate_update_guard'AND NOT p.polpermissive AND p.polcmd='w';
+   IF locking_guard.writing IS NULL THEN RAISE EXCEPTION 'assignment locking reads require explicit unchanged write checks';END IF;
+   EXECUTE format('ALTER POLICY partner_candidate_update_guard ON %I USING(CASE WHEN %s THEN(%s)ELSE(%s)END)WITH CHECK(%s)',target.relname,active,reading,locking_guard.reading,locking_guard.writing);
+  END IF;
   EXECUTE format('CREATE POLICY assignment_selection_purpose ON %I AS RESTRICTIVE FOR ALL USING(CASE WHEN %s THEN(%s)ELSE true END)WITH CHECK(CASE WHEN %s THEN(%s)ELSE true END)',target.relname,active,reading,active,writing);
   EXECUTE format('CREATE POLICY assignment_selection_delete ON %I AS RESTRICTIVE FOR DELETE USING(NOT(%s))',target.relname,active);
  END LOOP;

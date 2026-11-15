@@ -123,6 +123,40 @@ const writes = (sent: Sent[]) =>
 afterEach(() => vi.unstubAllGlobals());
 
 describe("OutletAccess", () => {
+  it("resolves existing access outside the loaded membership page without adding it to new choices", async () => {
+    serve({ grants: () => [grant("user-outside", "reader")] });
+    const original = globalThis.fetch;
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/iam/member-presentations"))
+        return json({
+          tenant_id: scope.tenantId,
+          actor_subject: me,
+          data: JSON.parse(String(init?.body)).subjects.map((subject: string) =>
+            subject === "user-outside"
+              ? {
+                  subject,
+                  available: true,
+                  name: "Kiran Das",
+                  email: "kiran@example.test",
+                  roles: [{ key: "pharmacist", label: "Pharmacist" }],
+                }
+              : presentation(subject),
+          ),
+        });
+      return original(url, init);
+    });
+    const { user } = render();
+    expect(
+      await screen.findByRole("combobox", { name: "Access level for Kiran Das" }),
+    ).toHaveTextContent("Reader");
+    await screen.findByRole("button", { name: "Refresh account details" });
+    await user.click(screen.getByRole("combobox", { name: "Person" }));
+    expect(
+      screen.queryByRole("option", { name: /Kiran Das|user-outside/ }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: optionName(me) })).toBeInTheDocument();
+  });
+
   it("withholds stale names and blocks a retained selection after identity lookup fails", async () => {
     const sent = serve({ grants: () => [] });
     const original = globalThis.fetch;

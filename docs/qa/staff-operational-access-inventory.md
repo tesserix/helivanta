@@ -6,6 +6,21 @@
 This is source-review tooling. No employment guard, grant classification in a live
 database, migration, account change or runtime activation is performed by it.
 
+## Member presentation source review — 16 November 2026
+
+The new IAM member-presentation read is classified as `governance_recovery`:
+current tenant owners may read bounded identity-owner name/email projections
+and current IAM role labels for existing same-tenant members. It grants no
+membership or operating authority. The handler releases transactions for the
+identity lookup and rechecks actor/target membership incarnations before audit
+and disclosure. Provider failure, source change and hidden scope withhold names.
+
+Ten existing reviews pin the IAM registration file. The preceding file is
+byte-identical after excluding the new registration, so their classifications,
+permissions and remaining runtime obligations are preserved. Their pins and dated
+recheck notes are refreshed. Real database and deployed display acceptance remain
+separate from this source review.
+
 ## Person authority discovery source review — 13 November 2026
 
 The registry now contains 1,093 registered surfaces: 107 source-classified and

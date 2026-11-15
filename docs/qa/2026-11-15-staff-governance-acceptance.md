@@ -5,6 +5,26 @@ This checkpoint preserves the full goal across the hospital-owned pharmacy and
 independent pharmacy/supplier models. Source inspection, component checks,
 service integration, browser testing and live acceptance are distinct evidence.
 
+## Passing original cold suite; intermittent timeout still unresolved
+
+At `ab00b02c`, [Supplier43669596367](https://github.com/tesserix/helivanta/actions/runs/43669596367)
+passed every step, including the original full Staff lifecycle fixture in996.604s.
+This head changes observation only. It is not a production concurrency repair and
+does not invalidate the earlier503 failures. The successful run suppressed its
+Go diagnostic logs because the command lacked `-v`; the workflow now retains
+verbose output without changing the fixture, assertions or timeouts. The observer
+registers callbacks before harness workers start and toggles collection atomically,
+so collection does not mutate callbacks while background workers execute queries.
+
+[CI43669596281](https://github.com/tesserix/helivanta/actions/runs/43669596281)
+passed scripts and secrets, and its workspace lint/tests/build step passed; native
+Staff browser runtime, E2E and the full Go coverage gate were still running at the
+latest inspection. No overall CI success or stable lifecycle repair is claimed.
+
+The [live acceptance run sheet](2026-11-15-live-staff-acceptance.md) is prepared
+from current native UI labels. Its live results are pending; private test mailbox
+mappings and credentials are excluded from this public repository.
+
 ## Latest native browser acceptance and unchanged lifecycle failure
 
 At `1c488f79`, [CI43665142567](https://github.com/tesserix/helivanta/actions/runs/43665142567)

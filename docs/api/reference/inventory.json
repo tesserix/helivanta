@@ -13983,6 +13983,11 @@
           "id": "0120_workforce_staff_policy_plans",
           "sql_sha256": "fbfb79d8ebf5920f79fa26cd0282207e686fdfdbac4c0b0c675b7e078611884b",
           "creates_tables": []
+        },
+        {
+          "id": "0121_workforce_staff_generic_plans",
+          "sql_sha256": "3ac9ae0f905fabf86238c4637ee4f42fe0d2c2b52587ee5745017fe5b5da2b7c",
+          "creates_tables": []
         }
       ]
     },

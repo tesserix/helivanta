@@ -363,7 +363,15 @@ index and restrictive-purpose checks remain intact. Public API regressions requi
 both owner and delegate preparation searches to fail closed when either helper is
 altered and recover only after exact restoration.
 
-This is a forward-only performance migration with no business-data rewrite.
+Candidate Workforce0121 additionally sets `plan_cache_mode=force_generic_plan`
+only on those two predicate functions. Their bodies and every policy stay unchanged;
+current-row/context evaluation is retained. Both complete integrity definitions
+update only the helper fingerprints so the function configuration is covered.
+The plan regression compares119,120 and121; full cold lifecycle and full Go
+race/coverage remain separate required gates. This follow-up is an unverified
+performance hypothesis until its real-database results pass.
+
+These are forward-only performance migrations with no business-data rewrite.
 Rollback retains the migration and requires support-aware governance handlers;
 unreleased earlier candidates that inspect only direct policy text are not valid
 rollback targets. Use a corrective forward migration if required. The original five-second authority

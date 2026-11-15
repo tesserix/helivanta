@@ -37,7 +37,7 @@ type staffPointPlanPreviousModule struct{ *workforce.Module }
 
 func (module staffPointPlanPreviousModule) Migrations() []tenantdb.Migration {
 	all := module.Module.Migrations()
-	return all[:len(all)-1]
+	return all[:len(all)-2]
 }
 
 type staffPointPolicyWriteRule struct {
@@ -48,8 +48,9 @@ type staffPointPolicyWriteRule struct {
 func TestStaffPointReadPlansPreserveTenantIsolation(t *testing.T) {
 	module := workforce.New()
 	migrations := module.Migrations()
-	forward := migrations[len(migrations)-1]
-	require.Equal(t, "0120_workforce_staff_policy_plans", forward.ID)
+	barrier, forward := migrations[len(migrations)-2], migrations[len(migrations)-1]
+	require.Equal(t, "0120_workforce_staff_policy_plans", barrier.ID)
+	require.Equal(t, "0121_workforce_staff_generic_plans", forward.ID)
 	router, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens:  map[string]string{"admin": testutil.TenantA, "staff": testutil.TenantA},
 		Perms:   map[string][]authz.Permission{"admin": {workforce.PermHospitalManage}},
@@ -106,6 +107,8 @@ func TestStaffPointReadPlansPreserveTenantIsolation(t *testing.T) {
 	}
 	beforeRules := writeRules()
 	before := measure("before", 1)
+	require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{barrier}))
+	measure("custom", 2)
 	require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{forward}))
 	bad, err := db.LintRLS(ctx)
 	require.NoError(t, err)
@@ -128,6 +131,14 @@ func TestStaffPointReadPlansPreserveTenantIsolation(t *testing.T) {
 		}))
 	}
 	integrity(true)
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		var configured int64
+		if err := tx.Raw(`SELECT count(*) FROM pg_proc WHERE oid IN(to_regprocedure('workforce_staff_read_policy(workforce_staff)'),to_regprocedure('workforce_staff_lock_policy(workforce_staff)')) AND proconfig @> ARRAY['plan_cache_mode=force_generic_plan']::text[]`).Scan(&configured).Error; err != nil {
+			return err
+		}
+		require.EqualValues(t, 2, configured)
+		return nil
+	}))
 	for _, name := range []string{"workforce_staff_read_policy", "workforce_staff_lock_policy"} {
 		var original string
 		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {

@@ -5,6 +5,32 @@ This checkpoint preserves the full goal across the hospital-owned pharmacy and
 independent pharmacy/supplier models. Source inspection, component checks,
 service integration, browser testing and live acceptance are distinct evidence.
 
+## Full coverage reproduced the race; generic-plan follow-up pending
+
+At `6ed88933`, supplier43678325835 passed the unchanged full lifecycle in1,068.68s.
+The web job passed all three native hospital/pharmacy/supplier Staff workflows;
+E2E passed100 main-stack cases plus idle-timeout and degraded-dependency scenarios.
+One existing live-issuer security-key case was skipped outside the live issuer.
+
+Full Go race/coverage job132703350587 nevertheless reproduced the original child
+chain cutoff/approval race. Both requests queued by270ms; the first completed200
+at4.123s and the second returned503 at5.255s. Ten Staff statements consumed2,874ms,
+with a longest389ms. The supervision gate's longest wait was3,864ms. The standalone
+pass therefore does not establish a stable repair. No merge or deployment occurred.
+
+Forward-only Workforce0121 configures only the two predicate functions introduced
+by0120 to use generic internal prepared plans. The hypothesis is that parameterized
+custom plans still require repeated planning during a cold command. Predicate
+bodies, policies and current-context evaluation remain unchanged; no authorization
+result is cached. Both full integrity definitions retain every condition and update
+only the two helper fingerprints, including their function configuration.
+
+The real-database regression now compares the119 prefix,120 custom-plan barrier
+and121 generic-plan configuration; it retains owner/foreign rows1/0, write metadata,
+forced RLS, lint and tamper/restoration assertions. Generic-plan timing improvement
+and the unchanged full race/coverage gates remain pending. Original request budgets
+and assertions are unchanged.
+
 ## Staff predicate planning migration candidate; validation pending
 
 The paired plan job at `d80ead99` disproved the JIT hypothesis. With JIT on and off,

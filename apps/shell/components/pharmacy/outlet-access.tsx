@@ -167,9 +167,12 @@ function ManageAccess({
     staleTime: 0,
     retry: false,
   });
+  const identityAuthorityLost = [identities.error, additionalIdentities.error].some(
+    (error) => error instanceof ApiError && [401, 403, 409].includes(error.status),
+  );
   const own = useApiQuery(["iam", "me", "profile", scope.tenantId, subject], "/iam/me/profile", {
     gcTime: 0,
-    enabled: members.isError,
+    enabled: members.isError || identityAuthorityLost,
   });
   const profile = accountProfileSchema.safeParse(own.data);
   const self: MemberPresentation | undefined =
@@ -189,12 +192,18 @@ function ManageAccess({
         }
       : undefined;
   const people =
-    !members.isError && !identities.isError ? (identities.data ?? []) : self ? [self] : [];
+    !identityAuthorityLost && !members.isError && !identities.isError
+      ? (identities.data ?? [])
+      : self
+        ? [self]
+        : [];
   const choices = people
     .filter((person) => person.available && !granted.has(person.subject))
     .map((person) => ({ value: person.subject, label: personLabel(person) }));
   const additionalPeople =
-    members.isError || additionalIdentities.isError ? [] : (additionalIdentities.data ?? []);
+    identityAuthorityLost || members.isError || additionalIdentities.isError
+      ? []
+      : (additionalIdentities.data ?? []);
   const details = new Map(
     [...people, ...additionalPeople].map((person) => [person.subject, person]),
   );
@@ -255,7 +264,9 @@ function ManageAccess({
         disabled={
           grants.isError ||
           grants.isPending ||
-          (!members.isError && (identities.isPending || identities.isError))
+          (!members.isError &&
+            !identityAuthorityLost &&
+            (identities.isPending || identities.isError))
         }
         onStateChange={onStateChange}
       />

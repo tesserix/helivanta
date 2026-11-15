@@ -123,6 +123,26 @@ const writes = (sent: Sent[]) =>
 afterEach(() => vi.unstubAllGlobals());
 
 describe("OutletAccess", () => {
+  it("withholds other identities if any member-detail request loses owner authority", async () => {
+    serve({ grants: () => [grant("user-outside", "reader")] });
+    const original = globalThis.fetch;
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      if (
+        url.endsWith("/iam/member-presentations") &&
+        JSON.parse(String(init?.body)).subjects.includes("user-outside")
+      )
+        return json({ error: "forbidden" }, 403);
+      return original(url, init);
+    });
+    const { user } = render();
+    await screen.findByText("Some existing account details are unavailable.");
+    await user.click(screen.getByRole("combobox", { name: "Person" }));
+    expect(await screen.findByRole("option", { name: optionName(me) })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: /Priya Shah|Mahesh Rao|user-ph1|user-new/ }),
+    ).not.toBeInTheDocument();
+  });
+
   it("resolves existing access outside the loaded membership page without adding it to new choices", async () => {
     serve({ grants: () => [grant("user-outside", "reader")] });
     const original = globalThis.fetch;

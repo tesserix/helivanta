@@ -124,7 +124,7 @@ type Config struct {
 	// every five minutes. Local revocation and authorization checks still apply.
 	SessionTTL time.Duration
 
-	// IdleTimeout ends a session after twelve hours without user interaction.
+	// IdleTimeout ends a session after 48 hours without user interaction.
 	// Background renewal preserves this deadline instead of counting as activity.
 	IdleTimeout time.Duration
 

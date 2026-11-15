@@ -11,7 +11,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/session"
 )
 
-func TestDefaultSessionStaysValidUntilTwelveHours(t *testing.T) {
+func TestDefaultSessionStaysValidUntilFortyEightHours(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		pub, priv, err := ed25519.GenerateKey(nil)
 		require.NoError(t, err)
@@ -22,11 +22,11 @@ func TestDefaultSessionStaysValidUntilTwelveHours(t *testing.T) {
 		now := time.Now().UTC()
 		token, err := signer.Mint("synthetic-owner", "synthetic-tenant", now, now.Add(config.DefaultIdleTimeout))
 		require.NoError(t, err)
-		time.Sleep(12*time.Hour - time.Second)
+		time.Sleep(48*time.Hour - time.Second)
 		claims, err := verifier.Verify(token)
 		require.NoError(t, err)
 		require.Equal(t, "synthetic-owner", claims.Subject)
-		require.Equal(t, now.Add(12*time.Hour), claims.IdleDeadline)
+		require.Equal(t, now.Add(48*time.Hour), claims.IdleDeadline)
 		time.Sleep(time.Second)
 		_, err = verifier.Verify(token)
 		require.ErrorIs(t, err, session.ErrInvalidToken)

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import {
   AccountDiscoveryCodeContract,
   AccountDiscoveryRequestContract,
@@ -11,10 +11,16 @@ import {
   type AccountDiscoveryChoice,
 } from "@helivanta/api";
 import { Button, Field, useZodForm } from "@helivanta/ui";
+import {
+  forgetWorkspace,
+  readRememberedWorkspace,
+  subscribeWorkspace,
+} from "@/lib/workspace-signin";
 
 type Props = { onSelect: (tenantId: string) => Promise<void> };
 
 export function AccountDiscovery({ onSelect }: Props) {
+  const remembered = useSyncExternalStore(subscribeWorkspace, readRememberedWorkspace, () => null);
   const [phase, setPhase] = useState<"email" | "code" | "choices">("email");
   const [choices, setChoices] = useState<AccountDiscoveryChoice[]>([]);
   const emailForm = useZodForm(AccountDiscoveryRequestContract, { email: "" });
@@ -49,7 +55,27 @@ export function AccountDiscovery({ onSelect }: Props) {
 
   return (
     <div className="space-y-4">
-      {phase === "email" ? (
+      {phase === "email" && remembered ? (
+        <>
+          <p className="text-sm text-muted-foreground">
+            Continue with your previous account using its password and configured two-step
+            verification.
+          </p>
+          <Button className="w-full" disabled={pending} onClick={() => select.mutate(remembered)}>
+            Sign in to your previous account
+          </Button>
+          <Button
+            variant="ghost"
+            disabled={pending}
+            onClick={() => {
+              forgetWorkspace();
+              select.reset();
+            }}
+          >
+            Use another account
+          </Button>
+        </>
+      ) : phase === "email" ? (
         <form
           noValidate
           onSubmit={emailForm.handleSubmit(({ email }) => send.mutate(email))}

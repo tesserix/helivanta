@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/google/uuid"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -33,7 +35,7 @@ func presentationHarness(t *testing.T, identity memberPresentationIdentity) (*gi
 	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens:  map[string]string{"admin": testutil.TenantA, "staff": testutil.TenantA, "foreign-admin": testutil.TenantB},
 		Perms:   map[string][]authz.Permission{"admin": {iam.PermMemberManage}, "staff": {iam.PermMemberManage}, "foreign-admin": {iam.PermMemberManage}},
-		Modules: []platform.Module{iam.New(nil).SetAssignmentIdentityReader(identity)},
+		Modules: []platform.Module{iam.New(nil).SetAssignmentIdentityReader(identity).SetMembershipIdentityReader(membershipIdentity{})},
 	})
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'user-admin','tenant_admin'),(?,'user-staff','staff_member'),(?,'candidate','staff_member')`, testutil.TenantA, testutil.TenantA, testutil.TenantA).Error
@@ -137,6 +139,8 @@ func TestMemberPresentationsWithholdIdentityOnFailureAndMembershipReplacement(t 
 		t.Run(mode, func(t *testing.T) {
 			var db *tenantdb.DB
 			var ctx context.Context
+			var router *gin.Engine
+			var candidate iam.MembershipCandidate
 			identity := memberPresentationIdentity(func(context.Context, string, string) (*customercontract.AssignmentCandidateIdentity, error) {
 				if mode == "unavailable" {
 					return nil, errors.New("PRIVATE provider details")
@@ -144,23 +148,56 @@ func TestMemberPresentationsWithholdIdentityOnFailureAndMembershipReplacement(t 
 				if mode == "inactive" {
 					return nil, nil
 				}
-				err := db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-					if mode == "revoked" {
-						return tx.Exec(`INSERT INTO iam_credential_revocations(subject,revoked_at) VALUES('user-admin',clock_timestamp())`).Error
+				if mode == "revoked" {
+					err := db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+						return iam.NewRevocationChecker(db).RevokeTx(tx, "user-admin", time.Now(), "synthetic member presentation revocation", "user-admin")
+					})
+					if err != nil {
+						t.Errorf("revoke test credential: %v", err)
+						return nil, err
 					}
-					if err := tx.Exec(`DELETE FROM iam_members WHERE subject='candidate'`).Error; err != nil {
-						return err
+				} else {
+					apply := func(input iam.MembershipCommandInput) (iam.MembershipCommand, error) {
+						var receipt iam.MembershipCommand
+						body, err := json.Marshal(input)
+						if err != nil {
+							return receipt, err
+						}
+						response := membershipCommandRequest(router, http.MethodPut, "/v1/iam/membership-commands/"+uuid.Must(uuid.NewV7()).String(), "admin", string(body))
+						if response.Code != http.StatusAccepted {
+							t.Errorf("concurrent membership command: %d %s", response.Code, response.Body.String())
+							return receipt, errors.New("membership command refused")
+						}
+						err = json.Unmarshal(response.Body.Bytes(), &receipt)
+						return receipt, err
 					}
-					return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'candidate','staff_member')`, testutil.TenantA).Error
-				})
-				if err != nil {
-					t.Errorf("replace test membership: %v", err)
-					return nil, err
+					removed, err := apply(iam.MembershipCommandInput{Operation: "remove", BasisID: candidate.ID, Subject: candidate.Subject, RoleKey: candidate.RoleKey, ExpectedMembershipEpoch: candidate.MembershipEpoch, Reason: "Synthetic concurrent membership removal"})
+					if err != nil {
+						return nil, err
+					}
+					_, err = apply(iam.MembershipCommandInput{Operation: "recover", BasisID: removed.ID, Subject: candidate.Subject, RoleKey: "staff_member", ExpectedMembershipEpoch: removed.ResultMembershipEpoch, Reason: "Synthetic concurrent ordinary membership recovery"})
+					if err != nil {
+						return nil, err
+					}
 				}
+
 				return &customercontract.AssignmentCandidateIdentity{DisplayName: "PRIVATE NAME", Email: "private@example.test"}, nil
 			})
 			r, database, harnessContext := presentationHarness(t, identity)
 			db, ctx = database, harnessContext
+			router = r
+			if mode == "replaced" {
+				response := membershipCommandRequest(r, http.MethodGet, "/v1/iam/membership-candidates?limit=50", "admin", "")
+				require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+				var members struct{ Data []iam.MembershipCandidate }
+				require.NoError(t, json.Unmarshal(response.Body.Bytes(), &members))
+				for _, member := range members.Data {
+					if member.Subject == "candidate" {
+						candidate = member
+					}
+				}
+				require.NotEqual(t, uuid.Nil, candidate.ID)
+			}
 			res := membershipCommandRequest(r, http.MethodPost, "/v1/iam/member-presentations", "admin", `{"subjects":["candidate"]}`)
 			status := map[string]int{"unavailable": 503, "replaced": 409, "inactive": 200, "revoked": 401}[mode]
 			require.Equal(t, status, res.Code, res.Body.String())

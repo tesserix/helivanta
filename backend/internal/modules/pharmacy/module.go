@@ -306,6 +306,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	staffDepartmentBindingRoutes(g, deps, deps.StaffActors)
 	admissionRoutes(g, deps)
 	catalogueRoutes(g, deps)
+	outletAccessGrantRoutes(g, deps)
 	tradingScopeRoutes(g, deps)
 	licenceRevocationRoutes(g, deps)
 	inventoryRoutes(g, deps)

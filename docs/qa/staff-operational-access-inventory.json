@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "0538ccc3548d4389c3282ed4b0b11c081b77836943602293673320349e055c8a",
+  "registry_sha256": "49651197965b3f090ef5886ec66308f0b411073f8908d5f24fcf33800e7135dd",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1138,
-    "unclassified": 1004
+    "total": 1139,
+    "unclassified": 1005
   },
   "entries": [
     {
@@ -8227,6 +8227,22 @@
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access-grants",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access-grants",
+        "permission": "pharmacy.access.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
         "counted": false
       },
       "review": null

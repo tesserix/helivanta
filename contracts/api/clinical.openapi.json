@@ -239,10 +239,7 @@
             "description": "Only dispenses in this state. Any other value is a 400 (#1258).",
             "schema": {
               "type": "string",
-              "enum": [
-                "pending",
-                "dispensed"
-              ]
+              "enum": ["pending", "dispensed"]
             }
           },
           {
@@ -260,34 +257,20 @@
     "/v1/pharmacy/dispenses/{id}/dispense": {
       "post": {
         "operationId": "completeDispense",
-        "summary": "Complete a pending legacy dispense task",
+        "summary": "Retired free-text dispense (#1680)",
         "tags": ["pharmacy"],
-        "description": "Guarded pending-to-dispensed update and event. Repeated/concurrent completion returns 409. This handler does not validate a signed prescription, deduct outlet stock or post a hospital charge.",
+        "description": "Retired. It recorded a hand-over with no product, stock, schedule, prescription or register check. After the shared session and pharmacy-tenant checks it answers 410 dispense_retired for every row, without reading or writing it. Dispense to an OPD patient with a counter sale citing their encounter.",
         "x-contract-status": "descriptive-current",
         "x-source": "backend/internal/modules/pharmacy/dispenses.go",
         "x-permission": "pharmacy.dispense.fulfil",
         "responses": {
-          "200": {
-            "description": "Successful operation.",
-            "headers": {
-              "X-Request-ID": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CompletedDispense"
-                }
-              }
-            }
-          },
-          "default": {
+          "410": {
             "$ref": "#/components/responses/Error"
           },
           "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         },
@@ -304,17 +287,7 @@
           {
             "$ref": "#/components/parameters/ExpectedTenant"
           }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DispenseInput"
-              }
-            }
-          }
-        }
+        ]
       }
     },
     "/v1/pharmacy/medications": {
@@ -903,31 +876,6 @@
           "created_at"
         ]
       },
-      "DispenseInput": {
-        "type": "object",
-        "properties": {
-          "medication": {
-            "type": "string",
-            "minLength": 1,
-            "pattern": "\\S",
-            "maxLength": 200
-          }
-        },
-        "required": ["medication"]
-      },
-      "CompletedDispense": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "status": {
-            "const": "dispensed"
-          }
-        },
-        "required": ["id", "status"]
-      },
       "MedicationInput": {
         "type": "object",
         "properties": {
@@ -1014,7 +962,15 @@
             }
           }
         },
-        "required": ["from", "to", "interval", "timezone", "as_at", "totals", "series"]
+        "required": [
+          "from",
+          "to",
+          "interval",
+          "timezone",
+          "as_at",
+          "totals",
+          "series"
+        ]
       },
       "VisitPage": {
         "type": "object",

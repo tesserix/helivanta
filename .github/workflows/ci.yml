@@ -244,6 +244,10 @@ jobs:
       # plan with no org secrets, so `secrets.PKG_READ_TOKEN` resolves to an
       # empty string and an authenticated fetch against GHCR 401s.
       - run: pnpm install --frozen-lockfile
+      - name: Verify release capability inventory and generated contracts
+        run: |
+          node --test scripts/release-capabilities.test.mjs
+          node scripts/generate-release-capabilities.mjs --check
       - name: Verify shared emergency dispatch contract
         run: node scripts/generate-emergency-dispatch.mjs --check
       - name: Verify Staff governance contracts

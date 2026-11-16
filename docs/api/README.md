@@ -97,3 +97,7 @@ The unreleased [independent operating duty contract](operating-duties.md) record
 [Protected Staff account initiation](staff-account-initiation.md) documents the candidate owner-controlled creation, recovery and private-delivery boundary.
 
 [Staff reviewer governance](staff-governance.md) documents the candidate owner grant, retained receipt and owner inbox boundaries. Independent governance decisions, effective reviewer consumers and live access acceptance remain unfinished.
+
+[Release capabilities](release-capabilities.md) documents the candidate bounded
+GrowthBook admission and account-bound UI snapshot; production activation gates
+remain open.

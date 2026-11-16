@@ -1,6 +1,6 @@
 import { screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { releaseSnapshotForTest, renderWithProviders } from "@helivanta/api/testing";
 import Dashboard from "./page";
 
 function jsonResponse(status: number, body: unknown) {
@@ -14,8 +14,16 @@ function mockPermissions(perms: string[]) {
   vi.stubGlobal(
     "fetch",
     vi.fn().mockImplementation((url: string) => {
+      const scope = {
+        tenantId: "11111111-1111-4111-8111-111111111111",
+        subject: "synthetic-owner",
+      };
+      if (url.endsWith("/workspace/release-capabilities"))
+        return Promise.resolve(jsonResponse(200, releaseSnapshotForTest(scope)));
       if (url.includes("/iam/me/permissions")) {
-        return Promise.resolve(jsonResponse(200, { data: perms }));
+        return Promise.resolve(
+          jsonResponse(200, { data: perms, tenant_id: scope.tenantId, subject: scope.subject }),
+        );
       }
       return Promise.resolve(
         jsonResponse(200, { data: [], page: { next_cursor: null, has_more: false } }),

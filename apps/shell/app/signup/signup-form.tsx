@@ -7,6 +7,7 @@ import {
   CustomerSignupInputContract,
   CustomerOrganizationProfileContract,
   CustomerSignupReceiptContract,
+  usePublicReleaseCapabilities,
   useCustomerSignup,
   type CustomerSignupReceipt,
 } from "@helivanta/api";
@@ -61,6 +62,9 @@ export function SignupForm() {
     });
   }
   const parsed = CustomerSignupReceiptContract.safeParse(progress.data);
+  const release = usePublicReleaseCapabilities(
+    parsed.success && parsed.data.state === "not_started",
+  );
   if (progress.isPending) return <p role="status">Checking workspace setup…</p>;
   if (progress.isError || !parsed.success)
     return (
@@ -76,6 +80,22 @@ export function SignupForm() {
       <SignupStatus receipt={receipt} resend={resend} begin={begin} beginAnother={beginAnother} />
     );
   const errors = form.formState.errors;
+  if (release.isPending) return <p role="status">Checking registration availability…</p>;
+  if (release.isError)
+    return (
+      <RequestFailure
+        message="Registration availability could not be verified."
+        error={release.error}
+        retry={release.refetch}
+      />
+    );
+  if (!release.available) {
+    return (
+      <p role="status">
+        New workspace registration is not available. Existing accounts can still sign in.
+      </p>
+    );
+  }
   function submit(event: FormEvent<HTMLFormElement>) {
     form.setValue("stateCode", form.getValues("profile.headOffice.stateCode"));
     if (sameAddress)

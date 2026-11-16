@@ -1122,12 +1122,12 @@
     {
       "method": "GET",
       "path": "/v1/iam/me/security",
-      "capability": "team_accounts"
+      "capability": "baseline"
     },
     {
       "method": "POST",
       "path": "/v1/iam/me/security",
-      "capability": "team_accounts"
+      "capability": "baseline"
     },
     {
       "method": "POST",
@@ -5590,7 +5590,7 @@
     },
     {
       "path": "/pharmacy/receiving",
-      "capability": "pharmacy_setup"
+      "capability": "supplier_collaboration"
     },
     {
       "path": "/pharmacy/returns",
@@ -5670,7 +5670,7 @@
     },
     {
       "path": "/workforce/credential-reminders",
-      "capability": "staff_core"
+      "capability": "workforce_advanced"
     },
     {
       "path": "/workforce/credentials",

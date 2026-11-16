@@ -223,3 +223,5 @@ export {
 
 export * from "./assignment-target-choices";
 export * from "./member-presentations";
+export * from "./release-capabilities";
+export * from "./use-release-capabilities";

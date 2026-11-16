@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { ZONES, activePage, railName, visibleZones, type Zone } from "./zones";
+const permissionZones = (
+  can: Parameters<typeof visibleZones>[0],
+  zones?: Parameters<typeof visibleZones>[2],
+) => visibleZones(can, () => true, zones);
 
 // Mirrors the real can() semantics (packages/api/src/permissions.tsx):
 // "public" always resolves true, everything else must be explicitly
@@ -11,14 +15,14 @@ function canWith(granted: string[]): (permission: string) => boolean {
 
 describe("visibleZones", () => {
   it("opens country policies for a reviewer without branding administration", () => {
-    const settings = visibleZones(canWith(["workspace.country_policy.read"])).find(
+    const settings = permissionZones(canWith(["workspace.country_policy.read"])).find(
       (zone) => zone.key === "settings",
     );
     expect(settings?.href).toBe("/settings/country-policies");
     expect(settings?.pages.map((page) => page.label)).toEqual(["Country policies"]);
   });
   it("opens PharmaConnect at the first permitted pharmacy screen", () => {
-    const pharmacy = visibleZones(canWith(["pharmacy.catalogue.read"])).find(
+    const pharmacy = permissionZones(canWith(["pharmacy.catalogue.read"])).find(
       (zone) => zone.key === "pharmacy",
     );
 
@@ -34,7 +38,7 @@ describe("visibleZones", () => {
 
   it("lists benefits only for a benefits reader, never for directory access", () => {
     const staffPages = (granted: string[]) =>
-      visibleZones(canWith(granted))
+      permissionZones(canWith(granted))
         .find((zone) => zone.key === "workforce")
         ?.pages.map((page) => page.href);
 
@@ -46,18 +50,18 @@ describe("visibleZones", () => {
   });
 
   it("hides zones whose permission the user lacks", () => {
-    const keys = visibleZones(canWith(["pharmacy.dispense.read"])).map((z) => z.key);
+    const keys = permissionZones(canWith(["pharmacy.dispense.read"])).map((z) => z.key);
 
     expect(keys).toContain("pharmacy");
     expect(keys).not.toContain("lab");
   });
 
   it("always keeps the dashboard", () => {
-    expect(visibleZones(canWith([])).map((z) => z.key)).toEqual(["dashboard", "workforce"]);
+    expect(permissionZones(canWith([])).map((z) => z.key)).toEqual(["dashboard", "workforce"]);
   });
 
   it("filters pages within a visible zone", () => {
-    const pharmacy = visibleZones(canWith(["pharmacy.dispense.read"])).find(
+    const pharmacy = permissionZones(canWith(["pharmacy.dispense.read"])).find(
       (z) => z.key === "pharmacy",
     );
 
@@ -95,7 +99,7 @@ describe("visibleZones", () => {
       pages: [{ ...ZONES[0].pages[0], href: "/reports", permission: "public" }],
     };
 
-    const keys = visibleZones(strictCan, [nonDashboardPublicPageZone]).map((z) => z.key);
+    const keys = permissionZones(strictCan, [nonDashboardPublicPageZone]).map((z) => z.key);
 
     // Pre-fix: zone-level check is `zone.key === "dashboard" ||
     // can(zone.permission)` — "reports" isn't "dashboard" but
@@ -120,14 +124,14 @@ describe("visibleZones", () => {
 
     // The zone-level permission is granted, but every one of its pages
     // is filtered out — the zone itself must not appear.
-    const keys = visibleZones(canWith(["empty.zone.read"]), zones).map((z) => z.key);
+    const keys = permissionZones(canWith(["empty.zone.read"]), zones).map((z) => z.key);
 
     expect(keys).not.toContain("empty");
   });
 });
 
 it("offers the supply directory to non-clinical purchasing users", () => {
-  const zones = visibleZones(canWith(["supply.directory.read"]));
+  const zones = permissionZones(canWith(["supply.directory.read"]));
   const supply = zones.find((zone) => zone.key === "supply");
   expect(supply?.href).toBe("/supply/parties");
   expect(supply?.pages.map((page) => page.href)).toEqual(["/supply/parties", "/supply/staff"]);
@@ -135,7 +139,7 @@ it("offers the supply directory to non-clinical purchasing users", () => {
 });
 
 it("opens only crew assignments for an emergency crew user", () => {
-  const emergency = visibleZones(canWith(["emergency.crew.read"])).find(
+  const emergency = permissionZones(canWith(["emergency.crew.read"])).find(
     (zone) => zone.key === "emergency",
   );
   expect(emergency?.href).toBe("/emergency/crew");
@@ -143,7 +147,7 @@ it("opens only crew assignments for an emergency crew user", () => {
 });
 
 it("opens only the receiving inbox for a hospital receiver", () => {
-  const emergency = visibleZones(canWith(["emergency.receiving.read"])).find(
+  const emergency = permissionZones(canWith(["emergency.receiving.read"])).find(
     (zone) => zone.key === "emergency",
   );
   expect(emergency?.href).toBe("/emergency/receiving");
@@ -193,12 +197,14 @@ it("names every rail link with both of its labels", () => {
 
 describe("billing desk", () => {
   it("opens for the billing desk without MediCore clinical access", () => {
-    const zone = visibleZones(canWith(["billing.account.read"])).find((z) => z.key === "billing");
-    expect(zone?.href).toBe("/billing");
-    expect(visibleZones(canWith(["billing.account.read"])).some((z) => z.key === "medicore")).toBe(
-      false,
+    const zone = permissionZones(canWith(["billing.account.read"])).find(
+      (z) => z.key === "billing",
     );
-    expect(visibleZones(canWith(["medicore.visit.read"])).some((z) => z.key === "billing")).toBe(
+    expect(zone?.href).toBe("/billing");
+    expect(
+      permissionZones(canWith(["billing.account.read"])).some((z) => z.key === "medicore"),
+    ).toBe(false);
+    expect(permissionZones(canWith(["medicore.visit.read"])).some((z) => z.key === "billing")).toBe(
       false,
     );
   });
@@ -295,43 +301,55 @@ describe("zone width", () => {
 it.each(["iam.member.manage", "iam.assignment.manage", "iam.assignment.review"])(
   "shows Staff access to a caller holding %s",
   (permission) => {
-    const pages = visibleZones((p) => p === "public" || p === permission).flatMap((z) => z.pages);
+    const pages = permissionZones((p) => p === "public" || p === permission).flatMap(
+      (z) => z.pages,
+    );
     expect(pages.some((p) => p.href === "/workforce/access")).toBe(true);
   },
 );
 
 it("hides Staff access from callers without membership or assignment administration", () => {
-  const pages = visibleZones((p) => p === "public").flatMap((z) => z.pages);
+  const pages = permissionZones((p) => p === "public").flatMap((z) => z.pages);
   expect(pages.some((p) => p.href === "/workforce/access")).toBe(false);
 });
 
 it("shows the scoped leave review entry without tenant-wide business grants", () => {
-  const pages = visibleZones((permission) => permission === "public").flatMap((zone) => zone.pages);
+  const pages = permissionZones((permission) => permission === "public").flatMap(
+    (zone) => zone.pages,
+  );
   expect(pages.some((page) => page.href === "/workforce/leave-review")).toBe(true);
 });
 
 it("shows person reviews without tenant-wide identity or document grants", () => {
-  const pages = visibleZones((permission) => permission === "public").flatMap((zone) => zone.pages);
+  const pages = permissionZones((permission) => permission === "public").flatMap(
+    (zone) => zone.pages,
+  );
   expect(pages.some((page) => page.href === "/workforce/person-reviews")).toBe(true);
 });
 
 it("shows employment reviews without tenant-wide HR or document grants", () => {
-  const pages = visibleZones((permission) => permission === "public").flatMap((zone) => zone.pages);
+  const pages = permissionZones((permission) => permission === "public").flatMap(
+    (zone) => zone.pages,
+  );
   expect(pages.some((page) => page.href === "/workforce/employment-reviews")).toBe(true);
 });
 
 it("shows scoped posting reviews without tenant-wide Staff grants", () => {
-  const pages = visibleZones((permission) => permission === "public").flatMap((zone) => zone.pages);
+  const pages = permissionZones((permission) => permission === "public").flatMap(
+    (zone) => zone.pages,
+  );
   expect(pages.some((page) => page.href === "/workforce/posting-reviews")).toBe(true);
 });
 
 it("shows posting cutoff discovery without requiring a tenant-wide Staff grant", () => {
-  const pages = visibleZones((permission) => permission === "public").flatMap((zone) => zone.pages);
+  const pages = permissionZones((permission) => permission === "public").flatMap(
+    (zone) => zone.pages,
+  );
   expect(pages.some((page) => page.href === "/workforce/posting-cutoffs")).toBe(true);
 });
 
 it("exposes independent Staff directories under Staff without granting product inventory navigation", () => {
-  const zones = visibleZones(canWith(["workforce.independent_login.review"]));
+  const zones = permissionZones(canWith(["workforce.independent_login.review"]));
   const staff = zones.find((zone) => zone.key === "workforce");
   expect(staff?.pages.map((page) => page.href)).toContain("/workforce/pharmacy-staff");
   expect(staff?.pages.map((page) => page.href)).toContain("/workforce/supplier-staff");

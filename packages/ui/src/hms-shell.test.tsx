@@ -4,6 +4,17 @@ import { act, fireEvent, screen, waitFor, within } from "@testing-library/react"
 import { renderWithProviders } from "@helivanta/api/testing";
 import { PERMISSIONS_CACHE_KEY, RENEW_AT_KEY, storeRenewAt } from "@helivanta/api";
 import { HmsShell } from "./hms-shell";
+// These cases isolate chrome/session behavior. Release refusal and page mounting
+// are exercised with the real hook in hms-shell-release.test.tsx.
+vi.mock("@helivanta/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@helivanta/api")>()),
+  useReleaseCapabilities: () => ({
+    available: (key: unknown) => !!key,
+    isLoading: false,
+    error: null,
+    refresh: vi.fn(),
+  }),
+}));
 import { WARNING_LEAD_MS, type IdleTracker } from "./idle-timer";
 import { IDLE_ENDED_MARK, SIGNED_OUT_MARK } from "./zitadel-session";
 
@@ -117,7 +128,7 @@ describe("HmsShell", () => {
     endZitadelSession.mockResolvedValue(true);
     noteDeadlineSpy.mockReset();
     createdTrackers.length = 0;
-    pathname.current = "/";
+    pathname.current = "/dashboard";
     // Deliberately different from the seeded cache: the two prove
     // different things. If the stub matched the cache, `Lab` would render
     // whether or not the cache was ever read, since the network response

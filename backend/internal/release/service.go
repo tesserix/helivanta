@@ -59,7 +59,7 @@ func New(cfg Config) (*Service, error) {
 	if err != nil || origin.Hostname() == "" || origin.User != nil || origin.RawQuery != "" || origin.Fragment != "" || (origin.Path != "" && origin.Path != "/") {
 		return nil, errors.New("invalid release provider origin")
 	}
-	if origin.Scheme != "https" && !(origin.Scheme == "http" && origin.Hostname() == "growthbook.growthbook.svc.cluster.local" && origin.Port() == "3100") {
+	if origin.Scheme != "https" && (origin.Scheme != "http" || origin.Hostname() != "growthbook.growthbook.svc.cluster.local" || origin.Port() != "3100") {
 		return nil, errors.New("release provider requires HTTPS or the declared in-cluster service")
 	}
 	if !regexp.MustCompile(`^[a-zA-Z0-9_-]{1,128}$`).MatchString(cfg.ClientKey) {
@@ -101,7 +101,10 @@ func (s *Service) Refresh(ctx context.Context) error {
 	if err != nil {
 		return ErrUnavailable
 	}
-	defer response.Body.Close()
+	defer func() {
+		// The read outcome governs snapshot publication; closing a read-only body cannot change it.
+		_ = response.Body.Close()
+	}()
 	if response.StatusCode != http.StatusOK {
 		return ErrUnavailable
 	}

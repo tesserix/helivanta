@@ -103,20 +103,17 @@ test (self-import), not cross-module coupling` comment — see the top of
   depguard's glob can miss.
 
 When one module needs to react to another module's write, it consumes
-that module's published event. Pharmacy needs a medicore visit's ID and
-patient name to open a pending dispense — it does not import medicore.
-Instead it repeats medicore's subject string by value and consumes it:
+that module's published event. Lab needs a medicore visit's ID and
+patient name to open a pending order — it does not import medicore.
+It imports medicore's `contract` package (subjects and payload types
+only, never the module) and consumes the event:
 
 ```go
-const (
-	// SubjectVisitCreated is medicore's subject, repeated by value —
-	// modules must not import each other (spec D6 / phase 1).
-	subjectVisitCreated     = "helivanta.in.medicore.visit_created.v1"
-	SubjectDispenseRecorded = "helivanta.in.pharmacy.dispense_recorded.v1"
-)
+// medicorecontract is internal/modules/medicore/contract.
+Subject: medicorecontract.SubjectVisitCreated,
 ```
 
-(`backend/internal/modules/pharmacy/module.go`)
+(`backend/internal/modules/lab/consumers.go`)
 
 ## 3. Data access
 
@@ -260,15 +257,15 @@ construction rather than by tenant data.
 invisible to the query in the first place — the handler cannot even
 distinguish "doesn't exist" from "exists, wrong tenant," and must not try
 to (returning 403 there would leak the row's existence to a
-non-authorized caller). Pharmacy's dispense lookup is the canonical
-example: a cross-tenant `POST .../dispense` fails at
+non-authorized caller). Lab's order lookup is the canonical
+example: a cross-tenant `POST .../result` fails at
 `tx.First(&row, "id = ?", id)` with `gorm.ErrRecordNotFound` because the
 RLS-scoped transaction never sees the other tenant's row, and the
 handler maps that straight to `respond.NotFound`:
 
 ```go
 if errors.Is(err, gorm.ErrRecordNotFound) {
-	respond.NotFound(c, "dispense")
+	respond.NotFound(c, "order")
 	return
 }
 ```
@@ -279,11 +276,11 @@ against a concurrent request between the two statements unless you take
 a row lock and hold the transaction, which this codebase avoids in favor
 of a single conditional `UPDATE ... WHERE status = '<precondition>'` and
 checking `RowsAffected`. From
-`backend/internal/modules/pharmacy/module.go`'s dispense transition:
+`backend/internal/modules/lab/orders.go`'s result transition:
 
 ```go
 err = deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-	var row dispense
+	var row order
 	if err := tx.First(&row, "id = ?", id).Error; err != nil {
 		return err
 	}
@@ -292,29 +289,29 @@ err = deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) erro
 		return nil
 	}
 	now := time.Now().UTC()
-	result := tx.Model(&dispense{}).Where("id = ? AND status = 'pending'", id).
-		Updates(map[string]any{"status": "dispensed", "medication": req.Medication, "dispensed_at": now})
+	result := tx.Model(&order{}).Where("id = ? AND status = 'pending'", id).
+		Updates(map[string]any{"status": "completed", "result_value": req.ResultValue, "resulted_at": now})
 	if result.Error != nil {
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
-		// Lost the race to a concurrent dispense between the
-		// pre-check above and this guarded UPDATE.
+		// Lost the race to a concurrent result submission between
+		// the pre-check above and this guarded UPDATE.
 		status = http.StatusConflict
 		return nil
 	}
-	data, err := json.Marshal(dispenseRecordedData{DispenseID: row.ID.String(), VisitID: row.VisitID.String()})
+	data, err := json.Marshal(labcontract.ResultReadyData{OrderID: row.ID.String(), VisitID: row.VisitID.String()})
 	if err != nil {
 		return err
 	}
-	return deps.Bus.Publish(tx, SubjectDispenseRecorded, events.Event{
-		Type: "DispenseRecorded", Version: 1, TenantID: p.TenantID, Data: data,
+	return h.bus.Publish(tx, labcontract.SubjectResultReady, events.Event{
+		Type: "ResultReady", Version: 1, TenantID: p.TenantID, Data: data,
 	})
 })
 ```
 
 The initial `row.Status != "pending"` check is a fast path for the
-common case (already dispensed); the `RowsAffected == 0` check after the
+common case (already resulted); the `RowsAffected == 0` check after the
 `WHERE status = 'pending'` UPDATE is what actually closes the race — a
 second concurrent request that passes the fast-path check but loses the
 `UPDATE` still gets `RowsAffected == 0` and 409s correctly. Publishing
@@ -326,7 +323,7 @@ the outbox/consumer pipeline (section 6) rather than completing
 synchronously in the request returns `respond.Accepted`, not `Created` —
 medicore's visit creation is the reference: the visit row and the
 `visit_created` outbox row commit together, but pharmacy's consumption
-of that event (opening a pending dispense) happens asynchronously, so
+of that event (lab opening a pending order) happens asynchronously, so
 the caller only gets confirmation the write was accepted, not that every
 downstream module has reacted.
 
@@ -341,8 +338,8 @@ err := deps.DB.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) err
 })
 ```
 
-(`backend/internal/modules/pharmacy/module.go`'s medication/dispense
-list handlers; the `(tenant_id, created_at DESC)` index from section 3
+(`backend/internal/modules/pharmacy/module.go`'s medication list and
+`backend/internal/modules/lab/orders.go`'s order list handlers; the `(tenant_id, created_at DESC)` index from section 3
 is what keeps this cheap.)
 
 ## 5. Auth
@@ -567,9 +564,9 @@ All cross-module data flows through NATS JetStream via
 **Subjects** must match
 `^helivanta\.[a-z]+\.[a-z]+\.[a-z_]+\.v\d+$` (`archtest`'s `subjectRe`) —
 direction, module, event name, version:
-`helivanta.in.pharmacy.dispense_recorded.v1`. **Consumer names** must match
+`helivanta.in.lab.result_ready.v1`. **Consumer names** must match
 `^[a-z]+-[a-z-]+$` (`consumerRe`) — module prefix, purpose:
-`pharmacy-visit-intake`. Both are checked in CI by
+`lab-visit-intake`. Both are checked in CI by
 `TestConsumerContracts` and `TestPublishedSubjectConstants` in
 `backend/internal/archtest/arch_test.go`, against every module's
 `Consumers(deps)` and every module's exported `Subject*` constant.
@@ -624,22 +621,22 @@ A module's `Consumer.Handle` never opens its own transaction and never
 inserts into `processed_events` itself — both are handled by the bus.
 The tx handed to `Handle` is also tenant-scoped from `evt.TenantID`
 before the handler runs, which is what lets a consumer make
-RLS-forced writes without re-deriving the tenant itself; pharmacy's
+RLS-forced writes without re-deriving the tenant itself; lab's
 visit-intake consumer relies on exactly this:
 
 ```go
 func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
 	return []events.Consumer{{
-		Name:    "pharmacy-visit-intake",
-		Subject: subjectVisitCreated,
+		Name:    "lab-visit-intake",
+		Subject: medicorecontract.SubjectVisitCreated,
 		Handle: func(ctx context.Context, tx *gorm.DB, evt events.Event) error {
-			var d visitCreatedData
+			var d medicorecontract.VisitCreatedData
 			if err := json.Unmarshal(evt.Data, &d); err != nil {
 				return err
 			}
 			// The bus scoped this tx to evt.TenantID (Task 1), so this
 			// RLS-forced insert lands under the visit's tenant.
-			return tx.Exec(`INSERT INTO pharmacy_dispenses (tenant_id, visit_id, patient_name)
+			return tx.Exec(`INSERT INTO lab_orders (tenant_id, visit_id, patient_name)
 				VALUES (?, ?, ?)`, evt.TenantID, d.VisitID, d.PatientName).Error
 		},
 	}}
@@ -675,7 +672,7 @@ duplicate the write; committing the outbox row in the same transaction
 as the row it describes means the event is guaranteed to eventually
 publish if and only if the transaction committed. Every module route
 that publishes does so from inside its `WithTenant`/`WithSystem` closure,
-on the same `tx` as the row create — see pharmacy's dispense handler and
+on the same `tx` as the row create — see lab's result handler and
 the generated `new-module.sh` template's `items` create handler for the
 pattern.
 
@@ -759,8 +756,8 @@ garbage.
 second number. `processed_events` is the idempotency ledger and JetStream
 redelivers for `streamMaxAge`, so pruning the ledger sooner makes a redelivered
 event indistinguishable from a new one: the consumer's `ON CONFLICT DO NOTHING`
-claim finds no row, runs the handler again, and writes a **second dispense
-record**. A duplicate clinical row produced by a cleanup job.
+claim finds no row, runs the handler again, and writes a **second lab
+order**. A duplicate clinical row produced by a cleanup job.
 `TestProcessedRetentionOutlivesRedelivery` makes the invariant a CI failure
 rather than a comment.
 
@@ -1091,18 +1088,18 @@ real example):
    appears (`TestMedicationsCrud`).
 2. **Tenant isolation** — the same list call under a second token does
    not see the first tenant's row (`require.NotContains` in
-   `TestMedicationsCrud` / `TestVisitIntakeCreatesPendingDispense`).
+   `TestMedicationsCrud` / lab's `TestVisitIntakeCreatesPendingOrder`).
 3. **Cross-tenant 404** — a mutating call against another tenant's
    resource ID returns 404, not 403 (section 4):
    ```go
    require.Equal(t, http.StatusNotFound,
-   	do(r, "POST", "/v1/pharmacy/dispenses/"+dispenseID+"/dispense", "tokB", `{"medication":"Paracetamol 500mg"}`).Code)
+   	do(r, "POST", "/v1/lab/orders/"+orderID+"/result", "tokB", `{"result_value":"WBC 6.1"}`).Code)
    ```
-4. **Transition 409** — the guarded-UPDATE case: dispensing once
-   succeeds, dispensing again 409s (`TestDispenseFlow`).
+4. **Transition 409** — the guarded-UPDATE case: resulting once
+   succeeds, resulting again 409s (lab's `TestResultFlow`).
 5. **Outbox assertion** — the published event actually landed and was
    marked published, via `require.Eventually` polling `outbox_events`
-   directly (both `TestCreateAndListVisits` and `TestDispenseFlow`
+   directly (both `TestCreateAndListVisits` and `TestResultFlow`
    assert this by subject string).
 
 **Arch tests** (`backend/internal/archtest/`) run once for the whole

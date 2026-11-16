@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "68e973870f46bcde0964f039c3119c55d6c11f2d5cea750d1d8ff8d1bfd5d3f8",
+  "registry_sha256": "36a0622b026ff3ac69c33c65737df5180cf8f0f9695fdb6216b07b350aa8ccb2",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1140,
-    "unclassified": 1005
+    "total": 1139,
+    "unclassified": 1004
   },
   "entries": [
     {
@@ -684,18 +684,6 @@
         "name": "pharmacy-prescription-image-scan",
         "subject": "helivanta.in.pharmacy.prescription_image_scan_requested.v1",
         "after_commit": true
-      },
-      "review": null
-    },
-    {
-      "id": "consumer pharmacy pharmacy-visit-intake helivanta.in.medicore.visit_created.v1",
-      "kind": "consumer",
-      "module": "pharmacy",
-      "registration": {
-        "source": "backend/internal/modules/pharmacy/module.go",
-        "name": "pharmacy-visit-intake",
-        "subject": "helivanta.in.medicore.visit_created.v1",
-        "after_commit": false
       },
       "review": null
     },

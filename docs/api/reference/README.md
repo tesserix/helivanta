@@ -658,7 +658,6 @@ Published subjects:
 - `helivanta.in.pharmacy.licence_evidence_scan_requested.v1`
 - `helivanta.in.pharmacy.licence_evidence_changed.v1`
 - `helivanta.in.pharmacy.unused_payment_refund_recorded.v1`
-- `helivanta.in.pharmacy.dispense_recorded.v1`
 - `helivanta.in.pharmacy.catalogue_updated.v1`
 - `helivanta.in.pharmacy.stock_movement_recorded.v1`
 - `helivanta.in.pharmacy.payable_recorded.v1`
@@ -679,7 +678,6 @@ Published subjects:
 
 Subscriptions:
 
-- `pharmacy-visit-intake` ← `helivanta.in.medicore.visit_created.v1`; after-commit hook: false.
 - `pharmacy-prescription-image-scan` ← `helivanta.in.pharmacy.prescription_image_scan_requested.v1`; after-commit hook: true.
 - `pharmacy-licence-evidence-scan` ← `helivanta.in.pharmacy.licence_evidence_scan_requested.v1`; after-commit hook: true.
 - `pharmacy-payment-opened` ← `helivanta.in.payments.intent_opened.v1`; after-commit hook: false.

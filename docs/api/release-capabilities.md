@@ -44,6 +44,13 @@ and deliver it using the namespace's ESO identity. Missing configuration refuses
 startup. The explicit local synthetic-identity fixture is allowed only for the
 existing dev issuer/environment; it cannot substitute for production wiring.
 
+Production-only owner callbacks are explicitly listed in `internal_routes` as
+baseline and may be absent when their integration is disabled. They retain their
+existing workload identity, audience and owner authorization checks and are not
+published as browser APIs. Unknown internal callbacks still fail startup; every
+normal registered API remains required. This keeps current-authority checks and
+accepted onboarding continuations available independently of release flags.
+
 ## Remaining activation gates
 
 Nested Staff posting drafts, setup department mappings and assignment families

@@ -60,3 +60,18 @@ test("unknown declaration fields and ambiguous routes are refused", () => {
   value.routes[0].path = "/v1/iam/members?enabled=true";
   assert.throws(() => validateReleaseManifest(value, value.routes), /invalid route/);
 });
+
+test("conditional owner callbacks are explicit baseline routes, never public capabilities", () => {
+  const value = manifest();
+  value.internal_routes = [
+    { method: "POST", path: "/v1/supply/internal/trading-source/check", capability: "baseline" },
+  ];
+  assert.doesNotThrow(() => validateReleaseManifest(value, value.routes));
+  value.internal_routes[0].capability = "staff_core";
+  assert.throws(() => validateReleaseManifest(value, value.routes), /invalid internal owner route/);
+  value.internal_routes[0].capability = "baseline";
+  value.internal_routes[0].path = "/v1/public-command";
+  assert.throws(() => validateReleaseManifest(value, value.routes), /invalid internal owner route/);
+  value.internal_routes[0].path = "/internal/:any";
+  assert.throws(() => validateReleaseManifest(value, value.routes), /invalid internal owner route/);
+});

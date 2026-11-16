@@ -49,6 +49,12 @@ const bindings = manifest.routes
   )
   .join(",\n");
 
+const internalRoutes = (manifest.internal_routes ?? [])
+  .map(
+    (route) =>
+      `${JSON.stringify(`${route.method} ${route.path}`)}:${JSON.stringify(route.capability)}`,
+  )
+  .join(",\n");
 const assignmentFamilies = manifest.panels
   .filter((panel) => panel.key.startsWith("staff.assignments."))
   .map(
@@ -66,6 +72,7 @@ import ("time"; "github.com/google/uuid")
 const PolicyVersion=${JSON.stringify(manifest.policy_version)}
 var definitions=[]Definition{${definitions},}
 var routeCapabilities=map[string]string{${bindings},}
+var internalRouteCapabilities=map[string]string{${internalRoutes}}
 var assignmentFamilyCapabilities=map[string]string{${assignmentFamilies},}
 ${models.go}`,
   "packages/api/src/release-capabilities-contract.ts",

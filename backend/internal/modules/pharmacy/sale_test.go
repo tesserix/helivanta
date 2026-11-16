@@ -520,13 +520,6 @@ func TestReplaysAreStableAndTheSeriesFollowsTheFinancialYear(t *testing.T) {
 
 	code, _, out := w.sell(t, cashSale(product, 3, 3900, 3900))
 	require.Equal(t, http.StatusCreated, code, out)
-	approveClass(t, w.r, product, "H", false)
-	again := do(w.r, "PUT", salePath("/"+id), "pharmacist", body)
-	require.Equal(t, http.StatusOK, again.Code, "a replay is the posted invoice, whatever changed since")
-	require.Contains(t, again.Body.String(), `"invoice_number":"TS/2627/1"`)
-	require.Contains(t, again.Body.String(), `"quantity_units":2`)
-
-	approveClass(t, w.r, product, "none", false)
 	// 31 March 23:30 IST is still 2026-27; 1 April 00:30 IST is 2027-28.
 	pharmacy.SetClock(t, func() time.Time { return time.Date(2027, 3, 31, 18, 0, 0, 0, time.UTC) })
 	_, s, out := w.sell(t, cashSale(product, 1, 1300, 1300))
@@ -534,4 +527,11 @@ func TestReplaysAreStableAndTheSeriesFollowsTheFinancialYear(t *testing.T) {
 	pharmacy.SetClock(t, func() time.Time { return time.Date(2027, 3, 31, 19, 0, 0, 0, time.UTC) })
 	_, s, out = w.sell(t, cashSale(product, 1, 1300, 1300))
 	require.Equal(t, "TS/2728/1", s.InvoiceNumber, out)
+
+	// Raised last: a lower class takes a Helivanta decision (#1681).
+	approveClass(t, w.r, product, "H", false)
+	again := do(w.r, "PUT", salePath("/"+id), "pharmacist", body)
+	require.Equal(t, http.StatusOK, again.Code, "a replay is the posted invoice, whatever changed since")
+	require.Contains(t, again.Body.String(), `"invoice_number":"TS/2627/1"`)
+	require.Contains(t, again.Body.String(), `"quantity_units":2`)
 }

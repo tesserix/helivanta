@@ -2,7 +2,7 @@
 
 - **Issue:** #1681 (milestone R1 — Hospital pharmacy pilot)
 - **Date:** 2026-11-16
-- **Status:** approved
+- **Status:** implemented (branch `feat/1681-schedule-class-lowering`)
 
 ## Problem
 
@@ -198,6 +198,26 @@ platform role, like `drugmaster-release`:
 - Whether the platform role's audit trail needs an extra grant for
   `audit_record_change`. Verify under that role, don't assume.
 - Exact copy on the screen and in error messages.
+
+## Implementation notes
+
+- Lowering is compared with the latest **approved** declaration, not the class
+  in force: while a raise waits, nothing is in force, and a lowering filed
+  behind it must still count as one.
+- The review guard also refuses a tenant approval of a declaration that is
+  lower than the class approved by review time. Two declarations filed before
+  either was approved would otherwise let the tenant approve the stricter one,
+  then the laxer one.
+- Tenant members may still reject a lowering; rejecting only keeps the stricter
+  class.
+- The platform role reads through each table's single `tenant_isolation`
+  policy, widened with `CASE` for it alone (the RLS lint allows one permissive
+  policy), and through the restrictive `operating_choice_purpose` policy on the
+  same tables. Its column grants bound what it reads.
+- The command reads `SCHEDULE_REVIEW_DATABASE_URL`. A tenant administrator
+  also holds `pharmacy.schedule.countersign`, as with every permission.
+- No OpenAPI file describes the schedule routes; `docs/api/domains/pharmacy.md`
+  is the contract.
 
 ## Not covered by this slice
 

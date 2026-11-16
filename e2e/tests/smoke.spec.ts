@@ -1,6 +1,5 @@
 import { test, expect } from "@playwright/test";
 import { login } from "./support/login";
-import { DISPENSED, waitingFor } from "./support/queue";
 
 test("seeded admin sees every zone", async ({ page }) => {
   await login(page);
@@ -17,7 +16,7 @@ test("seeded admin sees every zone", async ({ page }) => {
   }
 });
 
-test("login, OPD visit, pharmacy dispense, lab result", async ({ page }) => {
+test("login, OPD visit, lab result", async ({ page }) => {
   const patient = `E2E Patient ${Date.now()}`;
 
   // Unauthenticated → redirected to login.
@@ -40,21 +39,8 @@ test("login, OPD visit, pharmacy dispense, lab result", async ({ page }) => {
   await page.getByRole("button", { name: "Create visit" }).click();
   await expect(page.getByText(patient).first()).toBeVisible();
 
-  // Pharmacy zone: visit_created fans out asynchronously; the page
-  // polls every 3s, so just wait for the patient to appear.
-  await page.goto(waitingFor(patient));
-  await expect(page.getByText(patient).first()).toBeVisible({
-    timeout: 30_000,
-  });
-  const row = page.locator("li", { hasText: patient });
-  await row.getByLabel("Medication").fill("Amoxicillin 250mg");
-  await row.getByRole("button", { name: "Dispense" }).click();
-  // Dispensing moves the row from Waiting to the Dispensed tab (#1295).
-  await expect(page.locator("li", { hasText: patient })).toHaveCount(0);
-  await page.goto(DISPENSED);
-  await expect(
-    page.locator("li", { hasText: patient }).getByText("Amoxicillin 250mg"),
-  ).toBeVisible();
+  // The pharmacy step is gone: its free-text dispense queue is retired
+  // (#1680); journey.spec.ts proves the counter sale against an OPD encounter.
 
   // Lab zone: pending order for the same visit; record a result.
   await page.goto("/lab");

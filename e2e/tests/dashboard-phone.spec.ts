@@ -1,6 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
 import { login } from "./support/login";
-import { waitingFor } from "./support/queue";
 
 // #1255: the dashboard and its floating panels fit a 390px phone. Measured on
 // the rendered page: no element inside <main> reaches past the viewport, and
@@ -39,19 +38,11 @@ test("the dashboard fits a phone", async ({ page }) => {
   await onScreen(page, "About Patient activity");
 });
 
-// #1293: a waiting row's medication form fits a phone, and the patient's name
-// keeps a readable width instead of wrapping a letter at a time.
-test("the dispense queue fits a phone", async ({ page }) => {
+// #1293, #1680: Past dispenses, with its retired-queue notice, fits a phone.
+// New visits no longer open rows here, so there is no fresh row to measure.
+test("past dispenses fit a phone", async ({ page }) => {
   await login(page);
-  const patient = `Phone Patient ${Date.now()}`;
-  await page.goto("/medicore/opd");
-  await page.getByLabel("Patient name").fill(patient);
-  await page.getByRole("button", { name: "Create visit" }).click();
-  await expect(page.getByText(patient).first()).toBeVisible();
-
-  await page.goto(waitingFor(patient));
-  const name = page.getByText(patient).first();
-  await expect(name).toBeAttached({ timeout: 30_000 });
+  await page.goto("/pharmacy/dispense?tab=waiting");
+  await expect(page.getByText(/dispense queue is retired/)).toBeVisible();
   expect(await overflowing(page)).toEqual([]);
-  expect((await name.boundingBox())!.width, "patient name squeezed").toBeGreaterThan(120);
 });

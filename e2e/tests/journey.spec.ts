@@ -1,15 +1,19 @@
 import { expect, test } from "@playwright/test";
 import { login, specAdmin, specPharmacist } from "./support/login";
-import { DISPENSED, waitingFor } from "./support/queue";
-import { signOut } from "./support/sign-out";
+import { uuidv7 } from "./support/pharmacy";
+import { choose, owner, readyOutlet } from "./support/pharmacy-counter";
+import { affiliatedPatient } from "./support/pharmacy-reports";
+import { waitingFor } from "./support/queue";
 
 // The cross-zone journey with authorization actually enforced: an admin
-// creates a visit that fans out to pharmacy and lab, and a
+// creates a visit that reaches lab, and a
 // differently-privileged pharmacist sees only what pharmacist holds
 // permission for — in the sidebar, on the dashboard, and when navigating
 // directly to a route the UI would otherwise hide the action on.
 
-test("admin creates a visit and it lands in pharmacy and lab", async ({ page }) => {
+test("admin creates a visit and it lands in lab, not the retired dispense queue", async ({
+  page,
+}) => {
   await login(page, specAdmin());
 
   const patient = `Journey Patient ${Date.now()}`;
@@ -21,16 +25,14 @@ test("admin creates a visit and it lands in pharmacy and lab", async ({ page }) 
   await page.getByRole("button", { name: "Create visit" }).click();
   await expect(page.getByText(patient).first()).toBeVisible();
 
-  // visit_created flows through JetStream into both consumers.
-  await page.goto(waitingFor(patient));
-  await expect(page.getByText(patient).first()).toBeVisible({
-    timeout: 30_000,
-  });
-
+  // visit_created reaches lab through JetStream. Pharmacy no longer
+  // consumes it (#1680): the free-text dispense queue it fed is retired.
   await page.goto("/lab");
   await expect(page.getByText(patient).first()).toBeVisible({
     timeout: 30_000,
   });
+  await page.goto(waitingFor(patient));
+  await expect(page.getByText("No waiting patient matches")).toBeVisible();
 });
 
 test("pharmacist sees only the pharmacy zone, in the sidebar and on the dashboard", async ({
@@ -69,68 +71,90 @@ test("pharmacist cannot create a visit even by navigating directly", async ({ pa
   await expect(page.getByRole("button", { name: "Create visit" })).toHaveCount(0);
 });
 
-test("pharmacist can dispense a visit created by admin", async ({ page }) => {
-  // Self-contained rather than relying on a pending dispense left over by
-  // another test: create the visit as admin, hand off to the pharmacist,
-  // and prove the dispense actually completes — not just that the button
-  // is present.
-  await login(page, specAdmin());
+// #1680, replacing #976's free-text dispense: a pharmacist serves an OPD
+// patient with a counter sale citing the encounter admin opened, and the sale
+// moves stock and is recorded as an OPD sale.
+test("pharmacist sells against an OPD encounter opened by admin", async ({ page, browser }) => {
+  test.setTimeout(240_000);
+  const fixture = await readyOutlet(page, browser);
+  const { cashier, outlet, product, sku } = fixture;
+  try {
+    const patient = await affiliatedPatient(page, cashier, outlet);
+    const administrator = await owner<{ subject: string }>(page, "GET", "/iam/me/permissions");
+    const clinical = `/medicore/hospitals/${patient.hospitalId}`;
+    await owner(page, "PUT", `${clinical}/access/${encodeURIComponent(administrator.subject)}`);
+    // Opening is idempotent under its id; retry until patientmaster's
+    // registration has reached MediCore.
+    const encounter = uuidv7();
+    await expect
+      .poll(
+        async () =>
+          (
+            await page.request.put(`/api/v1${clinical}/encounters/${encounter}`, {
+              data: {
+                patient_id: patient.patientId,
+                consult_mode: "in_person",
+                visit_type: "first",
+              },
+            })
+          ).status(),
+        { timeout: 30_000, message: "the registered patient reaches MediCore" },
+      )
+      .toBeLessThan(300);
+    await expect
+      .poll(
+        async () => {
+          const visits = await owner<{ data: { encounter_id: string }[] }>(
+            cashier,
+            "GET",
+            `${outlet}/opd-encounters?patient_id=${patient.patientId}&hospital_id=${patient.hospitalId}`,
+          );
+          return visits.data.some((v) => v.encounter_id === encounter);
+        },
+        { timeout: 30_000, message: "encounter_opened.v1 reaches the pharmacy" },
+      )
+      .toBe(true);
+    const availability = async () =>
+      (
+        await owner<{ sellable_units: number }>(
+          cashier,
+          "GET",
+          `${outlet}/sales/availability?product_id=${product}`,
+        )
+      ).sellable_units;
+    const before = await availability();
 
-  const patient = `Journey Dispense ${Date.now()}`;
-  await page.locator('a[href="/medicore/opd"]').first().click();
-  await expect(page).toHaveURL(/\/medicore\/opd$/);
-  await page.waitForLoadState("networkidle");
-  await page.getByLabel("Patient name").fill(patient);
-  await page.getByRole("button", { name: "Create visit" }).click();
-  await expect(page.getByText(patient).first()).toBeVisible();
+    await cashier.goto("/pharmacy/counter");
+    await choose(cashier, "Product", new RegExp(sku));
+    await cashier.getByLabel("Units", { exact: true }).fill("2");
+    await cashier.getByRole("button", { name: "Add to basket", exact: true }).click();
+    await cashier.getByRole("button", { name: "Price basket", exact: true }).click();
+    await choose(cashier, "Customer", "Registered patient");
+    // #1637: the hospital shows by name once announced, by id until then.
+    await choose(cashier, "Hospital", new RegExp(`${patient.hospitalName}|${patient.hospitalId}`));
+    await cashier.getByLabel("MRN", { exact: true }).fill(patient.mrn);
+    await cashier.getByRole("button", { name: "Find patient", exact: true }).click();
+    await expect(cashier.getByText(patient.name, { exact: true })).toBeVisible();
+    await cashier.getByRole("button", { name: "This is the patient", exact: true }).click();
+    await choose(cashier, "For the OPD visit", /^Visit opened/);
+    await choose(cashier, "Paid by", "Cash");
+    const posted = cashier.waitForResponse(
+      (r) => r.request().method() === "PUT" && r.url().includes(`${outlet}/sales/`),
+    );
+    await cashier.getByRole("button", { name: "Post sale", exact: true }).click();
+    const response = await posted;
+    expect(response.status(), await response.text()).toBe(201);
+    const sale = (await response.json()) as { id: string; encounter_id: string | null };
+    expect(sale.encounter_id).toBe(encounter);
 
-  // /logout is a same-origin-checked POST now, not a GET a test (or an
-  // attacker's <img> tag) can navigate to directly — see
-  // apps/shell/app/logout/route.ts and #781. Every zone renders the same
-  // HmsShell sign-out control, including the medicore page we're on.
-  await signOut(page);
-  // Sign-out (lib/sign-out.ts) is a MULTI-HOP redirect chain: Helivanta
-  // dashboard -> Zitadel's end_session endpoint (which is what actually
-  // clears Zitadel's own SSO cookie) -> back to Helivanta's /login -> /login's
-  // own effect immediately redirects onward to Zitadel's authorize
-  // endpoint. Calling login() (which itself starts with a fresh
-  // page.goto("/")) before that chain has fully settled does not merely
-  // race a URL assertion — it can WIN the race and cancel the
-  // still-pending navigation to end_session outright, so Zitadel's
-  // session is never actually cleared. The very next authorize() call
-  // then succeeds silently, using admin's still-live SSO session instead
-  // of prompting the pharmacist for real credentials — observed live in
-  // an earlier version of this wait, which raced on a URL check instead
-  // and reached the dashboard as admin without ever calling login() at
-  // all.
-  //
-  // Since #847 the chain settles on Helivanta's own /login landing page — it no
-  // longer carries on to Zitadel by itself. The unambiguous "chain
-  // finished" signal is therefore that page's Sign in button rendering.
-  //
-  // Note what this does and does NOT prove. It proves the sign-out
-  // navigation completed, which is all this spec needs before handing off
-  // to the pharmacist. It does NOT prove Zitadel's SSO session was
-  // cleared: the Sign in button sends prompt=login, so a credential form
-  // would appear either way. That guarantee lives in signout.spec.ts,
-  // where it is asserted against an authorize request WITHOUT prompt —
-  // the only form of it that cannot pass vacuously.
-  await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible({
-    timeout: 20_000,
-  });
-  await login(page, specPharmacist());
-
-  await page.goto(waitingFor(patient));
-  await expect(page.getByText(patient).first()).toBeVisible({
-    timeout: 30_000,
-  });
-  const row = page.locator("li", { hasText: patient });
-  await row.getByLabel("Medication").fill("Amoxicillin 250mg");
-  await row.getByRole("button", { name: "Dispense" }).click();
-  // Dispensing moves the row from Waiting to the Dispensed tab (#1295).
-  await expect(page.locator("li", { hasText: patient })).toHaveCount(0);
-  await page.goto(DISPENSED);
-  await expect(
-    page.locator("li", { hasText: patient }).getByText("Amoxicillin 250mg"),
-  ).toBeVisible();
+    expect(await availability()).toBe(before - 2);
+    const summary = await owner<{ linkage: string }>(
+      cashier,
+      "GET",
+      `${outlet}/sales/${sale.id}/summary`,
+    );
+    expect(summary.linkage).toBe("opd");
+  } finally {
+    await fixture.context.close();
+  }
 });

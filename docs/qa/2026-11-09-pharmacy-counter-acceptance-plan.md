@@ -554,7 +554,7 @@ On the signed SHA, attach the CI run showing these green:
 - **Browser (Playwright):**
   - `pharmacy-payment-return.spec.ts`: verified UPI used once, a return, and an unused payment refunded and refused for a sale.
   - `pharmacy-reports.spec.ts`: every report and CSV agrees; empty, invalid-period, failed and refused states.
-  - `pharmacy-tax.spec.ts`, `pharmacy-overview.spec.ts`, `pharmacy-paging.spec.ts` and `pharmacy-detail-pane.spec.ts`.
+  - `pharmacy-tax.spec.ts`, `pharmacy-overview.spec.ts` and `pharmacy-detail-pane.spec.ts` (`pharmacy-paging.spec.ts` was removed with the retired dispense queue, #1680).
   - `pharmacy-catalogue-pane.spec.ts`, `pharmacy-outlets-pane.spec.ts`, `pharmacy-stock-pane.spec.ts` and `pharmacy-safety-pane.spec.ts`.
 
 A manual case that an automated test already proves still needs its manual run once, on the signed build.

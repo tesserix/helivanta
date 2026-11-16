@@ -20,6 +20,7 @@ import (
 	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/internal/release"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
@@ -98,12 +99,13 @@ type assignmentProposalHistory ProposalHistory
 func (p assignmentProposalHistory) PageKey() (time.Time, uuid.UUID) { return p.CreatedAt, p.ID }
 
 type assignmentProposalHandlers struct {
-	db         *tenantdb.DB
-	bus        *events.Bus
-	native     bool
-	sources    authz.CurrentGovernanceSourceGuard
-	identities AssignmentIdentityReader
-	targets    authz.GovernedAssignmentTargetReader
+	releasePolicy *release.Service
+	db            *tenantdb.DB
+	bus           *events.Bus
+	native        bool
+	sources       authz.CurrentGovernanceSourceGuard
+	identities    AssignmentIdentityReader
+	targets       authz.GovernedAssignmentTargetReader
 }
 
 func assignmentAccess(tx *gorm.DB) error {
@@ -267,6 +269,9 @@ func (h *assignmentProposalHandlers) put(c *gin.Context) {
 			return assignmentGovernanceReplay(tx, p.TenantID, saved, nil)
 		}
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+		if err := h.assignmentTemplateRelease(c, p, in.TemplateKey); err != nil {
 			return err
 		}
 		requestID, err := uuid.NewV7()
@@ -449,7 +454,7 @@ func settleProposalScope(tx *gorm.DB, deps platform.Deps, tenant string, row ass
 }
 func (m *Module) registerAssignmentProposals(g *platform.Router, deps platform.Deps) {
 	registerGovernanceAssignments(g, deps, m.assignmentIdentity)
-	h := &assignmentProposalHandlers{db: deps.DB, bus: deps.Bus}
+	h := &assignmentProposalHandlers{db: deps.DB, bus: deps.Bus, releasePolicy: deps.ReleasePolicy}
 	g.POST("/assignment-proposals/:id/decision", authz.Public, h.decide)
 	platform.ListRoute(g, "/assignment-proposals/:id/decisions", authz.Public, h.decisions)
 	platform.ListRoute(g, "/assignment-proposals", authz.Public, h.list)
@@ -552,6 +557,9 @@ func (h *assignmentProposalHandlers) listFamily(c *gin.Context, params paginatio
 	if !ok {
 		return nil, nil
 	}
+	if err := h.assignmentFamilyRelease(c, p, family); err != nil {
+		return nil, nil
+	}
 	var rows []assignmentProposal
 	var keys []string
 	for _, template := range staffAccessTemplates() {
@@ -571,3 +579,33 @@ func (h *assignmentProposalHandlers) listFamily(c *gin.Context, params paginatio
 	return rows, err
 }
 func (p assignmentProposal) MarshalJSON() ([]byte, error) { return json.Marshal(p.output()) }
+
+func (h *assignmentProposalHandlers) assignmentFamilyRelease(c *gin.Context, p authn.Principal, family string) error {
+	tenant, err := uuid.Parse(p.TenantID)
+	if err != nil || h.releasePolicy == nil {
+		respond.Error(c, 503, "release_unavailable", "Feature availability could not be verified.")
+		return release.ErrUnavailable
+	}
+	available, err := h.releasePolicy.AssignmentEnabled(c.Request.Context(), tenant, p.Subject, family)
+	if err != nil {
+		respond.Error(c, 503, "release_unavailable", "Feature availability could not be verified.")
+		return err
+	}
+	if !available {
+		respond.NotFound(c, "assignment area")
+		return errAssignmentRelease
+	}
+	return nil
+}
+
+var errAssignmentRelease = errors.New("assignment area is not released")
+
+func (h *assignmentProposalHandlers) assignmentTemplateRelease(c *gin.Context, p authn.Principal, key string) error {
+	for _, template := range staffAccessTemplates() {
+		if template.Key == key {
+			return h.assignmentFamilyRelease(c, p, template.Family)
+		}
+	}
+	respond.Error(c, 503, "release_unavailable", "Feature availability could not be verified.")
+	return release.ErrUnavailable
+}

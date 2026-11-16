@@ -6,6 +6,7 @@ import {
   RELEASE_POLICY_VERSION,
   releaseDefinitions,
   releasePages,
+  releasePanels,
   type PublicReleaseSnapshot,
   type ReleaseSnapshot,
 } from "./release-capabilities-contract";
@@ -74,4 +75,8 @@ export function capabilityForPage(pathname: string): ReleaseCapabilityKey | "bas
       )
     );
   })?.capability;
+}
+
+export function capabilityForPanel(key: string): ReleaseCapabilityKey | undefined {
+  return releasePanels.find((panel) => panel.key === key)?.capability;
 }

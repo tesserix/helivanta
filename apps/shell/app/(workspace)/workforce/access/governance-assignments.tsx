@@ -34,7 +34,13 @@ import { GovernanceAssignmentPreparation } from "./governance-assignment-prepara
 import { STAFF_ACCESS_CHANGED, useStaffAccessCutoff } from "../staff-access-cutoff";
 import { useNow } from "@/lib/use-now";
 
-export function GovernanceAssignments({ scope }: { scope: StaffAssignmentScope }) {
+export function GovernanceAssignments({
+  scope,
+  releasedFamilies,
+}: {
+  scope: StaffAssignmentScope;
+  releasedFamilies: readonly StaffAssignmentFamily[];
+}) {
   const [hospital, setHospital] = useState<GovernanceAssignmentHospital | null>(null);
   const [cutoff, setCutoff] = useState(false);
   const hospitals = useInfiniteQuery({
@@ -45,13 +51,15 @@ export function GovernanceAssignments({ scope }: { scope: StaffAssignmentScope }
     staleTime: 0,
     gcTime: 0,
     retry: false,
-    enabled: hospital === null && !cutoff,
+    enabled: releasedFamilies.length > 0 && hospital === null && !cutoff,
   });
   const accessLost = useStaffAccessCutoff(
     [hospitals.error],
     () => setCutoff(true),
     isGovernanceAssignmentAccessChanged,
   );
+  if (!releasedFamilies.length)
+    return <p role="status">Hospital assignment preparation is not available.</p>;
   if (cutoff || accessLost) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   if (hospital)
     return (
@@ -59,6 +67,7 @@ export function GovernanceAssignments({ scope }: { scope: StaffAssignmentScope }
         <h2 className="text-lg font-semibold">{hospital.name} · Assignment reviews</h2>
         <HospitalAssignments
           key={hospital.hospital_id}
+          releasedFamilies={releasedFamilies}
           scope={{ ...scope, hospitalId: hospital.hospital_id }}
           hospital={hospital}
           onAccessLost={() => setCutoff(true)}
@@ -106,18 +115,53 @@ export function GovernanceAssignments({ scope }: { scope: StaffAssignmentScope }
 }
 
 function HospitalAssignments({
+  releasedFamilies,
   scope,
   hospital,
   onAccessLost,
   onCloseHospital,
 }: {
+  releasedFamilies: readonly StaffAssignmentFamily[];
   scope: GovernanceAssignmentScope;
   hospital: GovernanceAssignmentHospital;
   onAccessLost: () => void;
   onCloseHospital: () => void;
 }) {
+  const [requested, setRequested] = useState<StaffAssignmentFamily>("leave");
+  const family = releasedFamilies.includes(requested) ? requested : releasedFamilies[0];
+  if (!family) return <p role="status">No assignment areas are available.</p>;
+  return (
+    <HospitalAssignmentWorkspace
+      key={releasedFamilies.join("|")}
+      scope={scope}
+      hospital={hospital}
+      onAccessLost={onAccessLost}
+      onCloseHospital={onCloseHospital}
+      family={family}
+      setFamily={setRequested}
+      releasedFamilies={releasedFamilies}
+    />
+  );
+}
+
+function HospitalAssignmentWorkspace({
+  scope,
+  hospital,
+  onAccessLost,
+  onCloseHospital,
+  family,
+  setFamily,
+  releasedFamilies,
+}: {
+  scope: GovernanceAssignmentScope;
+  hospital: GovernanceAssignmentHospital;
+  onAccessLost: () => void;
+  onCloseHospital: () => void;
+  family: StaffAssignmentFamily;
+  setFamily: (family: StaffAssignmentFamily) => void;
+  releasedFamilies: readonly StaffAssignmentFamily[];
+}) {
   const [preparing, setPreparing] = useState(false);
-  const [family, setFamily] = useState<StaffAssignmentFamily>("leave");
   const [selected, setSelected] = useState<string | null>(null);
   const templates = useQuery({
     queryKey: [...governanceAssignmentsKey(scope), "templates"],
@@ -181,7 +225,9 @@ function HospitalAssignments({
         retry={templates.refetch}
       />
     );
-  const families = [...new Set(templates.data.map((template) => template.family))];
+  const families = [...new Set(templates.data.map((template) => template.family))].filter((value) =>
+    releasedFamilies.some((released) => released === value),
+  );
   return (
     <div className="space-y-4">
       <Button variant="outline" onClick={onCloseHospital}>

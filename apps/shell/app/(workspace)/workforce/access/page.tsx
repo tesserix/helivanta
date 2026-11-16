@@ -15,6 +15,9 @@ import {
 } from "@helivanta/ui";
 import {
   useApiQuery,
+  useReleaseCapabilities,
+  capabilityForPage,
+  capabilityForPanel,
   useStaffAssignments,
   useStaffAssignmentHistory,
   useStaffAssignmentDecisions,
@@ -56,6 +59,7 @@ export default function StaffAccessPage() {
     () => false,
   );
   const identity = useApiQuery<Identity>(["iam", "me", "permissions"], "/iam/me/permissions");
+  const release = useReleaseCapabilities();
   return (
     <>
       <PageHeading description="Propose and independently review hospital-scoped assignments." />
@@ -82,21 +86,22 @@ export default function StaffAccessPage() {
         <p>Assignment administration is not available for this account.</p>
       ) : (
         <div key={`${identity.data.tenant_id}:${identity.data.subject}`}>
-          {identity.data.data.some(
-            (p) =>
-              p === "iam.governance.operating.manage" || p === "iam.governance.operating.review",
-          ) && (
-            <Panel className="space-y-3">
-              <h2 className="font-semibold">Independent pharmacy and supplier Staff</h2>
-              <p className="text-sm text-muted-foreground">
-                Prepare operating duties with current reviewed Staff accounts and physical source
-                locations.
-              </p>
-              <GuardedLink href="/workforce/operating-access" className="text-primary underline">
-                Independent Staff access
-              </GuardedLink>
-            </Panel>
-          )}
+          {release.available(capabilityForPage("/workforce/operating-access")) &&
+            identity.data.data.some(
+              (p) =>
+                p === "iam.governance.operating.manage" || p === "iam.governance.operating.review",
+            ) && (
+              <Panel className="space-y-3">
+                <h2 className="font-semibold">Independent pharmacy and supplier Staff</h2>
+                <p className="text-sm text-muted-foreground">
+                  Prepare operating duties with current reviewed Staff accounts and physical source
+                  locations.
+                </p>
+                <GuardedLink href="/workforce/operating-access" className="text-primary underline">
+                  Independent Staff access
+                </GuardedLink>
+              </Panel>
+            )}
           {identity.data.data.includes("iam.governance.manage") &&
             identity.data.data.includes("iam.governance.read") && (
               <GovernanceInbox
@@ -123,6 +128,11 @@ export default function StaffAccessPage() {
             <GovernanceAssignments
               key={`${identity.data.tenant_id}:${identity.data.subject}`}
               scope={{ tenantId: identity.data.tenant_id, subject: identity.data.subject }}
+              releasedFamilies={[
+                ...new Set(staffAccessTemplates.map((template) => template.family)),
+              ].filter((family) =>
+                release.available(capabilityForPanel(`staff.assignments.${family}`)),
+              )}
             />
           )}
           {identity.data.data.some(
@@ -137,12 +147,16 @@ export default function StaffAccessPage() {
 function useVerifiedStaffCatalog(
   scope: StaffAssignmentScope,
   catalogName: keyof typeof staffAccessTemplateCatalogs,
+  family: StaffAssignmentFamily,
 ) {
+  const release = useReleaseCapabilities();
+  const enabled = release.available(capabilityForPanel(`staff.assignments.${family}`));
   const catalog = useApiQuery<unknown>(
     ["iam", "staff-access-templates", scope.tenantId, scope.subject, catalogName],
     `/iam/staff-access-templates?catalog=${catalogName}`,
     {
       gcTime: 0,
+      enabled,
       request: {
         cache: "no-store",
         headers: {
@@ -155,6 +169,7 @@ function useVerifiedStaffCatalog(
   const definitions = TemplateDefinitionContract.array().safeParse(catalog.data);
   const catalogKeys = staffAccessTemplateCatalogs[catalogName];
   const supported =
+    enabled &&
     !catalog.isError &&
     !catalog.isFetching &&
     definitions.success &&
@@ -176,30 +191,111 @@ function useVerifiedStaffCatalog(
         expected.establishment_kinds.every((kind) => actual.establishment_kinds.includes(kind))
       );
     });
-  return { ...catalog, supported };
+  return {
+    ...catalog,
+    supported,
+    isPending: enabled && catalog.isPending,
+    refetch: enabled ? catalog.refetch : () => Promise.resolve(undefined),
+  };
 }
 
 function Assignments({ identity }: { identity: Identity }) {
+  const release = useReleaseCapabilities();
+  const [requested, setRequested] = useState<StaffAssignmentFamily>("leave");
+  const families: StaffAssignmentFamily[] = [
+    "leave",
+    "identity",
+    "supplier_access",
+    "partner_membership",
+    "pharmacy_binding",
+    "intake",
+    "employment",
+    "posting",
+    "activation",
+  ];
+  const released = families.filter((family) =>
+    release.available(capabilityForPanel(`staff.assignments.${family}`)),
+  );
+  const family = released.includes(requested) ? requested : released[0];
+  if (!family)
+    return (
+      <p role="status">
+        {release.isLoading
+          ? "Checking released assignment areas…"
+          : "Assignment preparation is not available."}
+      </p>
+    );
+  return (
+    <AssignmentWorkspace
+      key={released.join("|")}
+      identity={identity}
+      family={family}
+      setFamily={setRequested}
+      releasedFamilies={released}
+    />
+  );
+}
+
+function AssignmentWorkspace({
+  identity,
+  family,
+  setFamily,
+  releasedFamilies,
+}: {
+  identity: Identity;
+  family: StaffAssignmentFamily;
+  setFamily: (family: StaffAssignmentFamily) => void;
+  releasedFamilies: StaffAssignmentFamily[];
+}) {
   const scope: StaffAssignmentScope = { tenantId: identity.tenant_id, subject: identity.subject };
-  const [family, setFamily] = useState<StaffAssignmentFamily>("leave");
-  const catalog = useVerifiedStaffCatalog(scope, "hr-intake-v1");
-  const employmentCatalog = useVerifiedStaffCatalog(scope, "employment-v1");
-  const activationCatalog = useVerifiedStaffCatalog(scope, "employment-activation-v1");
-  const postingCatalog = useVerifiedStaffCatalog(scope, "staff-postings-v1");
-  const postingReviewCatalog = useVerifiedStaffCatalog(scope, "staff-posting-reviews-v1");
-  const postingManagementCatalog = useVerifiedStaffCatalog(scope, "staff-posting-management-v1");
-  const postingLifecycleCatalog = useVerifiedStaffCatalog(scope, "staff-posting-lifecycle-v1");
-  const postingSourceCatalog = useVerifiedStaffCatalog(scope, "staff-posting-source-v1");
-  const partnerMembershipCatalog = useVerifiedStaffCatalog(scope, "partner-membership-v1");
-  const supplierAccessCatalog = useVerifiedStaffCatalog(scope, "hospital-supplier-access-v1");
-  const pharmacyBindingCatalog = useVerifiedStaffCatalog(scope, "pharmacy-department-bindings-v1");
+  const catalog = useVerifiedStaffCatalog(scope, "hr-intake-v1", "intake");
+  const employmentCatalog = useVerifiedStaffCatalog(scope, "employment-v1", "employment");
+  const activationCatalog = useVerifiedStaffCatalog(
+    scope,
+    "employment-activation-v1",
+    "activation",
+  );
+  const postingCatalog = useVerifiedStaffCatalog(scope, "staff-postings-v1", "posting");
+  const postingReviewCatalog = useVerifiedStaffCatalog(
+    scope,
+    "staff-posting-reviews-v1",
+    "posting",
+  );
+  const postingManagementCatalog = useVerifiedStaffCatalog(
+    scope,
+    "staff-posting-management-v1",
+    "posting",
+  );
+  const postingLifecycleCatalog = useVerifiedStaffCatalog(
+    scope,
+    "staff-posting-lifecycle-v1",
+    "posting",
+  );
+  const postingSourceCatalog = useVerifiedStaffCatalog(scope, "staff-posting-source-v1", "posting");
+  const partnerMembershipCatalog = useVerifiedStaffCatalog(
+    scope,
+    "partner-membership-v1",
+    "partner_membership",
+  );
+  const supplierAccessCatalog = useVerifiedStaffCatalog(
+    scope,
+    "hospital-supplier-access-v1",
+    "supplier_access",
+  );
+  const pharmacyBindingCatalog = useVerifiedStaffCatalog(
+    scope,
+    "pharmacy-department-bindings-v1",
+    "pharmacy_binding",
+  );
   const postingDepartmentCatalog = useVerifiedStaffCatalog(
     scope,
     "staff-department-posting-reviews-v1",
+    "posting",
   );
   const leaveDepartmentCatalog = useVerifiedStaffCatalog(
     scope,
     "staff-department-leave-reviews-v1",
+    "leave",
   );
   const postingCatalogName = postingDepartmentCatalog.supported
     ? "staff-department-posting-reviews-v1"
@@ -321,7 +417,7 @@ function Assignments({ identity }: { identity: Identity }) {
             ...(activationSupported || family === "activation"
               ? [{ value: "activation", label: "Employment activation" }]
               : []),
-          ]}
+          ].filter((option) => releasedFamilies.includes(option.value as StaffAssignmentFamily))}
         />
       </Field>
       <p aria-live="polite" className="text-sm text-muted-foreground">

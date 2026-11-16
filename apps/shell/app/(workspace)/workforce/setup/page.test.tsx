@@ -2,7 +2,7 @@ import "@/test/select";
 import { chooseOption } from "@/test/select";
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { releaseSnapshotForTest, renderWithProviders } from "@helivanta/api/testing";
 import { NavigationGuardProvider } from "@helivanta/ui";
 import HRSetup from "./page";
 
@@ -23,6 +23,7 @@ function mockSetup(
     allowed?: boolean;
     fail?: boolean;
     mapping?: boolean;
+    departmentTeams?: boolean;
     /** Reads whose URL this matches answer 403. */
     refuse?: (url: string) => boolean;
   } = {},
@@ -31,6 +32,12 @@ function mockSetup(
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
     let body: unknown = page([]);
     let status = 200;
+    if (url.endsWith("/workspace/release-capabilities")) {
+      const snapshot = releaseSnapshotForTest({ tenantId: hospital, subject: "synthetic-manager" });
+      if (options.departmentTeams === false)
+        snapshot.capabilities.find((row) => row.key === "department_teams")!.available = false;
+      return Response.json(snapshot);
+    }
     if (url.includes("permissions"))
       body = {
         tenant_id: hospital,
@@ -184,4 +191,15 @@ it("shows refused revision history as a refusal, with no retry", async () => {
   await user.click(await screen.findByRole("button", { name: "History for Synthetic Department" }));
   expect(await screen.findByText(refusal)).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+});
+
+it("hides department mapping within core HR setup when department teams are not released", async () => {
+  const { fetcher } = mockSetup({ mapping: true, departmentTeams: false });
+  mountSetup();
+  expect(await screen.findByText("Synthetic Department")).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: "Organization mapping for Synthetic Department" }),
+  ).not.toBeInTheDocument();
+  expect(fetcher.mock.calls.some(([url]) => url.includes("/department-links"))).toBe(false);
+  expect(screen.getByRole("button", { name: "Add setup record" })).toBeVisible();
 });

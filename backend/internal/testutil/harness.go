@@ -26,6 +26,7 @@ import (
 	"github.com/tesserix/helivanta/internal/mediconnectclaims"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
+	"github.com/tesserix/helivanta/internal/release"
 	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authn"
@@ -197,6 +198,7 @@ func (neverRevoked) RevokedAfter(context.Context, string) (time.Time, error) {
 // SessionSigner/SessionTTL explicitly, typically from
 // NewSessionSignerForTest.
 type HarnessOptions struct {
+	ReleasePolicy               *release.Service
 	StaffAccounts               *staffclient.Client
 	EmploymentActivationEnabled bool
 	ProxyClinicalCaptureEnabled bool
@@ -417,7 +419,16 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 		governanceSources = opts.GovernanceSources(db)
 	}
 	stockProducts := platform.StockProducts(opts.Modules, db)
+	releasePolicy := opts.ReleasePolicy
+	if releasePolicy == nil {
+		var err error
+		releasePolicy, err = release.DevelopmentFixture("dev", "http://auth.tesserix.localhost:20080", "true")
+		require.NoError(t, err)
+		require.NoError(t, releasePolicy.Refresh(t.Context()))
+		go releasePolicy.Run(t.Context())
+	}
 	deps := platform.Deps{
+		ReleasePolicy:               releasePolicy,
 		StaffAccounts:               opts.StaffAccounts,
 		SourceAdministration:        sourceAdministration,
 		OperatingAuthorizer:         operatingAuthorizer,

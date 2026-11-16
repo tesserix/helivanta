@@ -220,7 +220,7 @@ export const releasePages = [
   { path: "/workforce/leave-requests", capability: "workforce_scheduling" },
   { path: "/workforce/leave-review", capability: "workforce_scheduling" },
   { path: "/workforce/leave-setup", capability: "workforce_scheduling" },
-  { path: "/workforce/operating-access", capability: "department_teams" },
+  { path: "/workforce/operating-access", capability: "supplier_collaboration" },
   { path: "/workforce/overtime", capability: "workforce_scheduling" },
   { path: "/workforce", capability: "staff_core" },
   { path: "/workforce/partner-teams", capability: "supplier_collaboration" },
@@ -241,7 +241,17 @@ export const releasePages = [
 export const releasePanels = [
   { key: "staff.posting_drafts", capability: "department_teams" },
   { key: "staff.setup_departments", capability: "department_teams" },
-  { key: "staff.setup_advanced", capability: "workforce_advanced" },
+  { key: "staff.assignments.leave", capability: "workforce_scheduling" },
+  { key: "staff.assignments.identity", capability: "staff_core" },
+  { key: "staff.assignments.supplier_access", capability: "supplier_collaboration" },
+  { key: "staff.assignments.partner_membership", capability: "supplier_collaboration" },
+  { key: "staff.assignments.pharmacy_binding", capability: "pharmacy_staff" },
+  { key: "staff.assignments.intake", capability: "staff_core" },
+  { key: "staff.assignments.employment", capability: "staff_core" },
+  { key: "staff.assignments.posting", capability: "department_teams" },
+  { key: "staff.assignments.activation", capability: "staff_core" },
+  { key: "staff.assignments.purchase_order", capability: "supplier_collaboration" },
+  { key: "staff.assignments.supplier_receiving", capability: "supplier_collaboration" },
 ] as const;
 const identifier = z
   .string()

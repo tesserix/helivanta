@@ -7,6 +7,8 @@ import {
   useApiMutation,
   useApiPagedQuery,
   usePermissions,
+  useReleaseCapabilities,
+  capabilityForPanel,
   hrMasterSchema,
   HR_MASTER_LABELS,
   type HRMaster,
@@ -89,6 +91,8 @@ export default function HRSetup() {
 function MasterCatalog({ hospital }: { hospital: Hospital }) {
   const confirm = useConfirmLeave();
   const { can } = usePermissions();
+  const release = useReleaseCapabilities();
+  const departmentsReleased = release.available(capabilityForPanel("staff.setup_departments"));
   const [kind, setKind] = useState<HRMasterKind>("department");
   const [filter, setFilter] = useState("");
   const [editing, setEditing] = useState<HRMaster | "new" | null>(null);
@@ -231,24 +235,26 @@ function MasterCatalog({ hospital }: { hospital: Hospital }) {
                     <td className="px-5 py-4">{row.version}</td>
                     <td className="px-5 py-4">
                       <div className="flex gap-1">
-                        {row.kind === "department" && can("workforce.master.manage") && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            aria-label={`Organization mapping for ${row.name}`}
-                            onClick={(event) => {
-                              const button = event.currentTarget;
-                              confirm(() => {
-                                opener.current = button;
-                                setEditing(null);
-                                setHistory(null);
-                                setMapping(row);
-                              });
-                            }}
-                          >
-                            Organization mapping
-                          </Button>
-                        )}
+                        {departmentsReleased &&
+                          row.kind === "department" &&
+                          can("workforce.master.manage") && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              aria-label={`Organization mapping for ${row.name}`}
+                              onClick={(event) => {
+                                const button = event.currentTarget;
+                                confirm(() => {
+                                  opener.current = button;
+                                  setEditing(null);
+                                  setHistory(null);
+                                  setMapping(row);
+                                });
+                              }}
+                            >
+                              Organization mapping
+                            </Button>
+                          )}
                         {writable && (
                           <Button
                             size="sm"
@@ -312,14 +318,18 @@ function MasterCatalog({ hospital }: { hospital: Hospital }) {
           </div>
         </div>
       </section>
-      {mapping && kind === "department" && !records.isError && !records.isPending && (
-        <DepartmentHandoff
-          key={`${hospital.id}:${mapping.id}`}
-          hospital={hospital}
-          master={records.items.find((row) => row.id === mapping.id) ?? mapping}
-          onClose={close}
-        />
-      )}
+      {departmentsReleased &&
+        mapping &&
+        kind === "department" &&
+        !records.isError &&
+        !records.isPending && (
+          <DepartmentHandoff
+            key={`${hospital.id}:${mapping.id}`}
+            hospital={hospital}
+            master={records.items.find((row) => row.id === mapping.id) ?? mapping}
+            onClose={close}
+          />
+        )}
       {editing && !refused && (
         <MasterEditor
           key={editing === "new" ? `new-${kind}` : editing.id}

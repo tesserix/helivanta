@@ -139,6 +139,11 @@ func (h *assignmentProposalHandlers) decide(c *gin.Context) {
 		if saved.Version != in.ExpectedVersion {
 			return errProposalConflict
 		}
+		if in.Decision == "approve" {
+			if err := h.assignmentTemplateRelease(c, p, saved.TemplateKey); err != nil {
+				return err
+			}
+		}
 		wasApproved := saved.Status == "approved_pending_activation" || saved.Status == "active"
 		next := "pending_decision_scope"
 		if command == "withdraw" {

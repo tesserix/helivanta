@@ -2,17 +2,25 @@ import { NavigationGuardProvider } from "@helivanta/ui";
 import { chooseOption } from "@/test/select";
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { releaseSnapshotForTest, renderWithProviders } from "@helivanta/api/testing";
 import Workforce from "./page";
 
 const hospital = "11111111-1111-4111-8111-111111111111";
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
 afterEach(() => vi.unstubAllGlobals());
-it("opens non-operating posting preparation only with its permission and hospital scope", async () => {
+function stubPostingDirectory(released = true) {
   const staff = "33333333-3333-4333-8333-333333333333";
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) => {
+      if (url.endsWith("/workspace/release-capabilities")) {
+        const snapshot = releaseSnapshotForTest({
+          tenantId: hospital,
+          subject: "synthetic-manager",
+        });
+        snapshot.capabilities.find((row) => row.key === "department_teams")!.available = released;
+        return Response.json(snapshot);
+      }
       if (url.includes("permissions"))
         return Response.json({
           tenant_id: hospital,
@@ -49,6 +57,9 @@ it("opens non-operating posting preparation only with its permission and hospita
       return Response.json(page([]));
     }),
   );
+}
+it("opens non-operating posting preparation only with its permission and hospital scope", async () => {
+  stubPostingDirectory();
   const { user } = renderWithProviders(
     <NavigationGuardProvider>
       <Workforce />
@@ -450,4 +461,17 @@ it("withdraws onboarding hospitals and their directory once a re-read answers 40
   ).toBeInTheDocument();
   expect(screen.queryByText("Synthetic Intake Target")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /try again|retry hospital access/i })).toBeNull();
+});
+
+it("hides posting preparation when department teams are off despite its permission", async () => {
+  stubPostingDirectory(false);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
+  expect(await screen.findByText("Synthetic Posting Applicant")).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: "Posting preparation for Synthetic Posting Applicant" }),
+  ).not.toBeInTheDocument();
 });

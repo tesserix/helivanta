@@ -932,32 +932,32 @@
     {
       "method": "GET",
       "path": "/v1/iam/assignment-proposals",
-      "capability": "department_teams"
+      "capability": "baseline"
     },
     {
       "method": "GET",
       "path": "/v1/iam/assignment-proposals/:id",
-      "capability": "department_teams"
+      "capability": "baseline"
     },
     {
       "method": "PUT",
       "path": "/v1/iam/assignment-proposals/:id",
-      "capability": "department_teams"
+      "capability": "baseline"
     },
     {
       "method": "POST",
       "path": "/v1/iam/assignment-proposals/:id/decision",
-      "capability": "department_teams"
+      "capability": "baseline"
     },
     {
       "method": "GET",
       "path": "/v1/iam/assignment-proposals/:id/decisions",
-      "capability": "department_teams"
+      "capability": "baseline"
     },
     {
       "method": "GET",
       "path": "/v1/iam/assignment-proposals/:id/history",
-      "capability": "department_teams"
+      "capability": "baseline"
     },
     {
       "method": "GET",
@@ -992,37 +992,37 @@
     {
       "method": "GET",
       "path": "/v1/iam/hospitals/:hospital/assignment-proposals",
-      "capability": "department_teams"
+      "capability": "baseline"
     },
     {
       "method": "GET",
       "path": "/v1/iam/hospitals/:hospital/assignment-proposals/:id",
-      "capability": "department_teams"
+      "capability": "baseline"
     },
     {
       "method": "PUT",
       "path": "/v1/iam/hospitals/:hospital/assignment-proposals/:id",
-      "capability": "department_teams"
+      "capability": "baseline"
     },
     {
       "method": "GET",
       "path": "/v1/iam/hospitals/:hospital/assignment-proposals/:id/account",
-      "capability": "department_teams"
+      "capability": "baseline"
     },
     {
       "method": "POST",
       "path": "/v1/iam/hospitals/:hospital/assignment-proposals/:id/decision",
-      "capability": "department_teams"
+      "capability": "baseline"
     },
     {
       "method": "GET",
       "path": "/v1/iam/hospitals/:hospital/assignment-proposals/:id/decisions",
-      "capability": "department_teams"
+      "capability": "baseline"
     },
     {
       "method": "GET",
       "path": "/v1/iam/hospitals/:hospital/assignment-proposals/:id/history",
-      "capability": "department_teams"
+      "capability": "baseline"
     },
     {
       "method": "GET",
@@ -1102,7 +1102,7 @@
     {
       "method": "GET",
       "path": "/v1/iam/identity-assignment-proposals",
-      "capability": "department_teams"
+      "capability": "staff_core"
     },
     {
       "method": "GET",
@@ -1227,42 +1227,42 @@
     {
       "method": "GET",
       "path": "/v1/iam/operating-governance-employers/:kind/:employer/duties/:id",
-      "capability": "department_teams"
+      "capability": "supplier_collaboration"
     },
     {
       "method": "PUT",
       "path": "/v1/iam/operating-governance-employers/:kind/:employer/duties/:id",
-      "capability": "department_teams"
+      "capability": "supplier_collaboration"
     },
     {
       "method": "GET",
       "path": "/v1/iam/operating-governance-employers/:kind/:employer/duties/:id/commands/:command",
-      "capability": "department_teams"
+      "capability": "supplier_collaboration"
     },
     {
       "method": "PUT",
       "path": "/v1/iam/operating-governance-employers/:kind/:employer/duties/:id/commands/:command",
-      "capability": "department_teams"
+      "capability": "supplier_collaboration"
     },
     {
       "method": "GET",
       "path": "/v1/iam/operating-governance-employers/:kind/:employer/duties/:id/proposal-receipt",
-      "capability": "department_teams"
+      "capability": "supplier_collaboration"
     },
     {
       "method": "GET",
       "path": "/v1/iam/operating-governance-employers/:kind/:employer/duty-inbox",
-      "capability": "department_teams"
+      "capability": "supplier_collaboration"
     },
     {
       "method": "GET",
       "path": "/v1/iam/operating-governance-employers/:kind/:employer/location-choices",
-      "capability": "department_teams"
+      "capability": "supplier_collaboration"
     },
     {
       "method": "GET",
       "path": "/v1/iam/operating-governance-employers/:kind/:employer/staff/:staff/duties",
-      "capability": "department_teams"
+      "capability": "supplier_collaboration"
     },
     {
       "method": "GET",
@@ -5710,7 +5710,7 @@
     },
     {
       "path": "/workforce/operating-access",
-      "capability": "department_teams"
+      "capability": "supplier_collaboration"
     },
     {
       "path": "/workforce/overtime",
@@ -5787,8 +5787,48 @@
       "capability": "department_teams"
     },
     {
-      "key": "staff.setup_advanced",
-      "capability": "workforce_advanced"
+      "key": "staff.assignments.leave",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "key": "staff.assignments.identity",
+      "capability": "staff_core"
+    },
+    {
+      "key": "staff.assignments.supplier_access",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "key": "staff.assignments.partner_membership",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "key": "staff.assignments.pharmacy_binding",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "key": "staff.assignments.intake",
+      "capability": "staff_core"
+    },
+    {
+      "key": "staff.assignments.employment",
+      "capability": "staff_core"
+    },
+    {
+      "key": "staff.assignments.posting",
+      "capability": "department_teams"
+    },
+    {
+      "key": "staff.assignments.activation",
+      "capability": "staff_core"
+    },
+    {
+      "key": "staff.assignments.purchase_order",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "key": "staff.assignments.supplier_receiving",
+      "capability": "supplier_collaboration"
     }
   ],
   "models": {

@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { releaseSnapshotForTest, renderWithProviders } from "@helivanta/api/testing";
 import { staffAccessTemplates, staffAccessTemplateCatalogs } from "@helivanta/api";
 import { NavigationGuardProvider } from "@helivanta/ui";
 import AccessPage from "./page";
@@ -9,6 +9,31 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/workforce/access",
   useSearchParams: () => new URLSearchParams(),
 }));
+
+function stubAssignmentApi(
+  name: "fetch",
+  handler: (url: string, init?: RequestInit) => Promise<Response>,
+) {
+  let identity: { tenantId: string; subject: string } | undefined;
+  vi.stubGlobal(
+    name,
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/workspace/release-capabilities"))
+        return identity
+          ? Response.json(releaseSnapshotForTest(identity))
+          : new Response(null, { status: 503 });
+      const response = await handler(url, init);
+      if (url.endsWith("/iam/me/permissions") && response.ok) {
+        const value = await response.clone().json();
+        identity =
+          value.tenant_id && value.subject
+            ? { tenantId: value.tenant_id, subject: value.subject }
+            : undefined;
+      }
+      return response;
+    }),
+  );
+}
 
 const tenant = "11111111-1111-4111-8111-111111111111";
 const hospital = "22222222-2222-4222-8222-222222222222";
@@ -43,7 +68,7 @@ it("lets a membership administrator enroll staff without assignment permissions"
   setup("membership-admin", [], ["iam.member.manage"]);
   const prior = fetch;
   const commands: Array<{ url: string; init?: RequestInit }> = [];
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       if (url.includes("/iam/membership-enrollments/") && init?.method === "PUT") {
@@ -94,7 +119,7 @@ it("retains the exact tenant and subject when enrollment has an uncertain outcom
   setup("membership-admin", [], ["iam.member.manage"]);
   const prior = fetch;
   const commands: Array<{ body: string; tenant: string | null }> = [];
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       if (url.includes("/iam/membership-enrollments/") && init?.method === "PUT") {
@@ -139,7 +164,7 @@ it("validates enrollment before submitting and stops after a workspace conflict"
   setup("membership-admin", [], ["iam.member.manage"]);
   const prior = fetch;
   const commands: unknown[] = [];
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       if (url.includes("/iam/membership-enrollments/") && init?.method === "PUT") {
@@ -170,7 +195,7 @@ it("validates enrollment before submitting and stops after a workspace conflict"
 });
 function setup(subject = "reviewer", rows: unknown[] = [row], perms = permissions) {
   const writes: Array<{ url: string; body: unknown; tenant: string | null }> = [];
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       if (url.includes("/iam/me/permissions"))
@@ -235,9 +260,15 @@ it("does not call private assignment APIs without administrative permission", as
   expect(
     await screen.findByText("Assignment administration is not available for this account."),
   ).toBeInTheDocument();
-  expect(vi.mocked(fetch).mock.calls.every(([url]) => String(url).includes("permissions"))).toBe(
-    true,
-  );
+  expect(
+    vi
+      .mocked(fetch)
+      .mock.calls.every(([url]) =>
+        ["/iam/me/permissions", "/workspace/release-capabilities"].some((path) =>
+          String(url).endsWith(path),
+        ),
+      ),
+  ).toBe(true);
 });
 
 it("describes projection progress without presenting pending approval as active access", async () => {
@@ -265,7 +296,7 @@ it("retries an uncertain decision with the same immutable command", async () => 
   setup();
   const read = fetch;
   const attempts: Array<{ body: string; tenant: string | null }> = [];
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       if (init?.method !== "POST") return read(url, init);
@@ -363,7 +394,7 @@ it("prepares renewal as a new independently reviewed proposal without changing t
   setup("proposer", [{ ...row, status: "active" }]);
   const read = fetch;
   const proposals: Array<{ url: string; body: typeof row.input; tenant: string | null }> = [];
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       if (init?.method !== "PUT") return read(url, init);
@@ -468,7 +499,7 @@ it("retains the renewal proposal ID and exact payload after an uncertain respons
   setup("proposer", [{ ...row, status: "active" }]);
   const read = fetch;
   const attempts: Array<{ url: string; body: string }> = [];
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       if (init?.method !== "PUT") return read(url, init);
@@ -515,7 +546,7 @@ it("retains the renewal proposal ID and exact payload after an uncertain respons
 it("offers HR intake separately when the explicit server catalog confirms its permissions", async () => {
   setup();
   const prior = fetch;
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       if (url.includes("/iam/staff-access-templates?catalog=hr-intake-v1"))
@@ -556,7 +587,7 @@ it.each(["legacy", "changed-permissions"])(
               ? { ...template, permissions: ["workforce.payroll.approve"] }
               : template,
           );
-    vi.stubGlobal(
+    stubAssignmentApi(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
         if (url.includes("/iam/staff-access-templates?catalog=hr-intake-v1"))
@@ -584,7 +615,7 @@ it.each(["unavailable", "changed"])(
     setup("reviewer", []);
     const prior = fetch;
     let catalogReads = 0;
-    vi.stubGlobal(
+    stubAssignmentApi(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
         if (url.includes("/iam/staff-access-templates?catalog=hr-intake-v1")) {
@@ -632,7 +663,7 @@ it.each(["unavailable", "changed"])(
 it("offers employment review separately only after its exact server catalog is verified", async () => {
   setup();
   const prior = fetch;
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       if (url.includes("/iam/staff-access-templates?catalog=employment-v1"))
@@ -664,7 +695,7 @@ it("offers employment review separately only after its exact server catalog is v
 it("offers separately reviewed activation assignments only from their exact catalog", async () => {
   setup();
   const prior = fetch;
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       if (url.includes("/iam/staff-access-templates?catalog=employment-activation-v1"))
@@ -715,7 +746,7 @@ it.each(["missing", "broader", "extra"])(
                   }
                 : template,
             );
-    vi.stubGlobal(
+    stubAssignmentApi(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
         if (url.includes("/iam/staff-access-templates?catalog=employment-activation-v1"))
@@ -752,7 +783,7 @@ it.each(["missing", "broader", "extra"])(
                   }
                 : template,
             );
-    vi.stubGlobal(
+    stubAssignmentApi(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
         if (url.includes("/iam/staff-access-templates?catalog=employment-v1"))
@@ -776,7 +807,7 @@ it.each(["missing", "broader", "extra"])(
 it("offers posting reader and preparer assignments only from their exact catalog", async () => {
   setup();
   const prior = fetch;
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       if (url.includes("/iam/staff-access-templates?catalog=staff-postings-v1"))
@@ -829,7 +860,7 @@ function departmentCatalogSetup(
   setup("proposer", rows);
   const prior = fetch;
   const commands: Array<{ url: string; body: Record<string, unknown> }> = [];
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       const catalog = new URL(url, "http://localhost").searchParams.get("catalog");
@@ -922,7 +953,7 @@ it("requires a department before submitting department-scoped access", async () 
 it("explains a missing department structure permission instead of offering a retry", async () => {
   const commands = departmentCatalogSetup();
   const catalog = fetch;
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) =>
       url.includes(`/organization/hospitals/${hospital}/departments?`)
@@ -1073,7 +1104,7 @@ it("shows a department leave assignment's scope by its current department name",
 it("rejects a template catalog whose declared scope kinds differ", async () => {
   setup("proposer", []);
   const prior = fetch;
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       if (url.includes("catalog=staff-department-posting-reviews-v1"))
@@ -1100,7 +1131,7 @@ it("rejects a template catalog whose declared scope kinds differ", async () => {
 it("rejects a template catalog whose declared establishment kinds differ", async () => {
   setup("proposer", []);
   const prior = fetch;
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       if (url.includes("catalog=staff-department-posting-reviews-v1"))
@@ -1143,7 +1174,7 @@ it.each(["missing", "broader", "extra"])(
                   }
                 : template,
             );
-    vi.stubGlobal(
+    stubAssignmentApi(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
         if (url.includes("/iam/staff-access-templates?catalog=staff-postings-v1"))
@@ -1165,7 +1196,7 @@ it.each(["missing", "broader", "extra"])(
 it("offers cutoff administration only from its verified lifecycle catalog", async () => {
   setup();
   const prior = fetch;
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       if (url.includes("catalog=staff-posting-lifecycle-v1"))
@@ -1206,7 +1237,7 @@ it.each(["missing", "broader", "extra", "unavailable"])(
                 ? { ...t, permissions: [...t.permissions, "workforce.posting.review"] }
                 : t,
             );
-    vi.stubGlobal(
+    stubAssignmentApi(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
         if (url.includes("catalog=staff-posting-lifecycle-v1"))
@@ -1254,7 +1285,7 @@ it.each(["missing", "broader", "extra", "unavailable"])(
                   }
                 : template,
             );
-    vi.stubGlobal(
+    stubAssignmentApi(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
         if (url.includes("catalog=staff-posting-management-v1"))
@@ -1295,7 +1326,7 @@ it("retains an uncertain management renewal and blocks retry until its exact cat
   const prior = fetch;
   let available = true;
   const commands: Array<{ url: string; body: string; tenant: string | null }> = [];
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       if (url.includes("catalog=staff-posting-management-v1"))
@@ -1374,7 +1405,7 @@ it("retains an uncertain management renewal and blocks retry until its exact cat
 it("offers source consumption only from its exact verified source catalog", async () => {
   setup();
   const prior = fetch;
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       if (url.includes("catalog=staff-posting-source-v1"))
@@ -1413,7 +1444,7 @@ it.each(["missing", "broader", "extra", "unavailable"])(
                 ? { ...t, permissions: [...t.permissions, "workforce.posting.proposal.read"] }
                 : t,
             );
-    vi.stubGlobal(
+    stubAssignmentApi(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
         if (url.includes("catalog=staff-posting-source-v1"))
@@ -1448,7 +1479,7 @@ it("offers the exact Pharmacy relationship templates in their own assignment are
   setup("proposer", []);
   const prior = fetch;
   const requests: string[] = [];
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       requests.push(url);
@@ -1485,7 +1516,7 @@ it.each(["unavailable", "extra", "widened"] as const)(
     setup("proposer", []);
     const prior = fetch;
     const definitions = catalogDefinitions("pharmacy-department-bindings-v1");
-    vi.stubGlobal(
+    stubAssignmentApi(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
         if (url.includes("catalog=pharmacy-department-bindings-v1")) {
@@ -1519,7 +1550,7 @@ it.each(["unavailable", "extra", "widened"] as const)(
 it("shows refused hospitals in the proposal form as a refusal, with no retry", async () => {
   departmentCatalogSetup();
   const catalog = fetch;
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) =>
       new URL(url, "http://localhost").pathname.endsWith("/workforce/hospitals")
@@ -1537,7 +1568,7 @@ it("shows refused hospitals in the proposal form as a refusal, with no retry", a
 it("shows hidden departments in the proposal form as a refusal, with no retry", async () => {
   departmentCatalogSetup();
   const catalog = fetch;
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) =>
       url.includes(`/organization/hospitals/${hospital}/departments?`)
@@ -1560,7 +1591,7 @@ it("shows a refused assignments refresh as a refusal and hides the records", asy
   setup();
   const prior = fetch;
   let refused = false;
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) =>
       refused && url.startsWith("/api/v1/iam/assignment-proposals?")
@@ -1588,7 +1619,7 @@ it("asks again for assignment history after an outage", async () => {
   setup();
   const prior = fetch;
   let reads = 0;
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       if (!url.includes("/history?")) return prior(url, init);
@@ -1621,7 +1652,7 @@ it("keeps a department assignment's scope when its department read is refused", 
     },
   ]);
   const prior = fetch;
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) =>
       url.includes(`/departments/${pharmacy}/revisions`)
@@ -1652,7 +1683,7 @@ it("opens the owner governance inbox without requiring assignment permissions", 
 it("offers qualified hospital preparation to owners alongside existing administration", async () => {
   setup("synthetic-owner", [], [...permissions, "iam.governance.assignment.manage"]);
   const prior = fetch;
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) =>
       url.includes("assignment-authority-scopes")
@@ -1677,7 +1708,7 @@ it("offers qualified hospital preparation to owners alongside existing administr
 
 it("opens hospital assignment discovery for a native reviewer without legacy administrator permissions", async () => {
   const calls: string[] = [];
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async (url: string) => {
       calls.push(url);
@@ -1717,7 +1748,7 @@ it("opens hospital assignment discovery for a native reviewer without legacy adm
 });
 
 it("links an operating-only delegate to independent Staff access without legacy grants", async () => {
-  vi.stubGlobal(
+  stubAssignmentApi(
     "fetch",
     vi.fn(async () =>
       Response.json({

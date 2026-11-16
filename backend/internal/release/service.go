@@ -59,7 +59,7 @@ func New(cfg Config) (*Service, error) {
 	if err != nil || origin.Hostname() == "" || origin.User != nil || origin.RawQuery != "" || origin.Fragment != "" || (origin.Path != "" && origin.Path != "/") {
 		return nil, errors.New("invalid release provider origin")
 	}
-	if origin.Scheme != "https" && (origin.Scheme != "http" || origin.Hostname() != "growthbook.growthbook.svc.cluster.local" || origin.Port() != "3100") {
+	if origin.Scheme != "https" && (origin.Scheme != "http" || (origin.Hostname() != "growthbook.growthbook.svc.cluster.local" && origin.Hostname() != "helivanta-growthbook.helivanta-growthbook.svc.cluster.local") || origin.Port() != "3100") {
 		return nil, errors.New("release provider requires HTTPS or the declared in-cluster service")
 	}
 	if !regexp.MustCompile(`^[a-zA-Z0-9_-]{1,128}$`).MatchString(cfg.ClientKey) {
@@ -353,4 +353,22 @@ func unambiguousJSON(body []byte) bool {
 func jsonBoolean(value []byte) bool {
 	value = bytes.TrimSpace(value)
 	return bytes.Equal(value, []byte("true")) || bytes.Equal(value, []byte("false"))
+}
+
+// AssignmentEnabled resolves an owner-selected assignment family without granting authority.
+func (s *Service) AssignmentEnabled(ctx context.Context, tenant uuid.UUID, subject, family string) (bool, error) {
+	key, known := assignmentFamilyCapabilities[family]
+	if !known {
+		return false, ErrUnavailable
+	}
+	snapshot, err := s.Snapshot(ctx, tenant, subject)
+	if err != nil {
+		return false, err
+	}
+	for _, row := range snapshot.Capabilities {
+		if row.Key == key {
+			return row.Available, nil
+		}
+	}
+	return false, ErrUnavailable
 }

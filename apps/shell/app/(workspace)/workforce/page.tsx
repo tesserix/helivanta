@@ -14,6 +14,8 @@ import {
   type EnrollmentRequestScope,
   type PermissionsResponse,
   useApiQuery,
+  useReleaseCapabilities,
+  capabilityForPanel,
   useApiMutation,
   type Hospital,
   type Staff,
@@ -326,6 +328,8 @@ function Directory({
   useEffect(() => {
     if (isEnrollmentAccessChanged(query.error)) onContextChanged();
   }, [query.error, onContextChanged]);
+  const release = useReleaseCapabilities();
+  const postingReleased = release.available(capabilityForPanel("staff.posting_drafts"));
   const manager = choice.kind === "legacy" && choice.hospital.access_level === "manager";
   const canPrepare =
     choice.kind === "intake"
@@ -406,7 +410,7 @@ function Directory({
                 Identity details
               </Button>
             )}
-            {choice.kind === "legacy" && can("workforce.posting.prepare") && (
+            {postingReleased && choice.kind === "legacy" && can("workforce.posting.prepare") && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -540,19 +544,22 @@ function Directory({
           </>
         )}
       />
-      {postingStaff && choice.kind === "legacy" && can("workforce.posting.prepare") && (
-        <StaffPostingDraftPanel
-          key={`${scope.tenantId}:${scope.subject}:${hospital.id}:${postingStaff.id}`}
-          scope={{ ...scope, hospitalId: hospital.id, staffId: postingStaff.id }}
-          staffLabel={`${postingStaff.display_name} · ${postingStaff.employee_code}`}
-          canManage={manager}
-          onContextChanged={onContextChanged}
-          onClose={() => {
-            setPostingStaff(null);
-            opener.current?.focus();
-          }}
-        />
-      )}
+      {postingReleased &&
+        postingStaff &&
+        choice.kind === "legacy" &&
+        can("workforce.posting.prepare") && (
+          <StaffPostingDraftPanel
+            key={`${scope.tenantId}:${scope.subject}:${hospital.id}:${postingStaff.id}`}
+            scope={{ ...scope, hospitalId: hospital.id, staffId: postingStaff.id }}
+            staffLabel={`${postingStaff.display_name} · ${postingStaff.employee_code}`}
+            canManage={manager}
+            onContextChanged={onContextChanged}
+            onClose={() => {
+              setPostingStaff(null);
+              opener.current?.focus();
+            }}
+          />
+        )}
       {employmentStaff && canPrepare && (
         <StaffEmploymentPeriods
           canManageDocuments={canDocuments}

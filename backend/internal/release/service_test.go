@@ -147,3 +147,41 @@ func TestCancelledRefreshCannotPublishAnEnabledSnapshot(t *testing.T) {
 	_, err := service.Snapshot(t.Context(), uuid.MustParse("018f8f5b-2222-7222-8222-222222222222"), "owner")
 	require.ErrorIs(t, err, ErrUnavailable)
 }
+
+func TestDedicatedHelivantaProviderUsesOnlyItsDeclaredInternalOrigin(t *testing.T) {
+	_, err := New(Config{URL: "http://helivanta-growthbook.helivanta-growthbook.svc.cluster.local:3100", ClientKey: "sdk-synthetic"})
+	require.NoError(t, err)
+	for _, origin := range []string{"http://127.0.0.1:3100", "http://helivanta-growthbook.evil.svc.cluster.local:3100", "http://helivanta-growthbook.helivanta-growthbook.svc.cluster.local:3000"} {
+		_, err = New(Config{URL: origin, ClientKey: "sdk-synthetic"})
+		require.Error(t, err)
+	}
+}
+
+func TestAssignmentFamiliesRequireTheirReleasedDependencies(t *testing.T) {
+	tenant := uuid.MustParse("018f8f5b-1111-7111-8111-111111111111")
+	for _, test := range []struct {
+		name, family, payload string
+		want                  bool
+		unavailable           bool
+	}{
+		{name: "core identity", family: "identity", payload: `{"features":{"helivanta.release.team_accounts":{"defaultValue":true},"helivanta.release.staff_core":{"defaultValue":true}}}`, want: true},
+		{name: "missing dependency", family: "identity", payload: `{"features":{"helivanta.release.staff_core":{"defaultValue":true}}}`},
+		{name: "off", family: "posting", payload: `{"features":{}}`},
+		{name: "unreleased supplier", family: "supplier_access", payload: `{"features":{"helivanta.release.supplier_collaboration":{"defaultValue":true}}}`},
+		{name: "unknown family", family: "invented", payload: `{"features":{}}`, unavailable: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			now := time.Now().UTC()
+			payload := test.payload
+			service := testService(t, &payload, &now)
+			require.NoError(t, service.Refresh(t.Context()))
+			enabled, err := service.AssignmentEnabled(t.Context(), tenant, "owner", test.family)
+			if test.unavailable {
+				require.ErrorIs(t, err, ErrUnavailable)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, test.want, enabled)
+		})
+	}
+}

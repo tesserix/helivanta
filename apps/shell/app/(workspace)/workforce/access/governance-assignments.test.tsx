@@ -48,7 +48,10 @@ it.each([true, false])(
     );
     const { user } = renderWithProviders(
       <NavigationGuardProvider>
-        <GovernanceAssignments scope={scope} />
+        <GovernanceAssignments
+          releasedFamilies={[...new Set(staffAccessTemplates.map((row) => row.family))]}
+          scope={scope}
+        />
       </NavigationGuardProvider>,
     );
     await user.click(await screen.findByRole("button", { name: "Open Synthetic hospital" }));
@@ -112,7 +115,10 @@ it("selects a named hospital and retains the exact reviewed decision after an un
   );
   const { user } = renderWithProviders(
     <NavigationGuardProvider>
-      <GovernanceAssignments scope={scope} />
+      <GovernanceAssignments
+        releasedFamilies={[...new Set(staffAccessTemplates.map((row) => row.family))]}
+        scope={scope}
+      />
     </NavigationGuardProvider>,
   );
   await user.click(await screen.findByRole("button", { name: "Open Synthetic hospital" }));
@@ -169,7 +175,10 @@ it("removes disclosed assignment data when current review access is refused", as
   );
   const { user } = renderWithProviders(
     <NavigationGuardProvider>
-      <GovernanceAssignments scope={scope} />
+      <GovernanceAssignments
+        releasedFamilies={[...new Set(staffAccessTemplates.map((row) => row.family))]}
+        scope={scope}
+      />
     </NavigationGuardProvider>,
   );
   await user.click(await screen.findByRole("button", { name: "Open Synthetic hospital" }));
@@ -204,7 +213,10 @@ it("does not offer self approval when the selected account proposed the assignme
   );
   const { user } = renderWithProviders(
     <NavigationGuardProvider>
-      <GovernanceAssignments scope={scope} />
+      <GovernanceAssignments
+        releasedFamilies={[...new Set(staffAccessTemplates.map((row) => row.family))]}
+        scope={scope}
+      />
     </NavigationGuardProvider>,
   );
   await user.click(await screen.findByRole("button", { name: "Open Synthetic hospital" }));
@@ -260,7 +272,10 @@ it("loads bounded history and decisions only when requested and hides both after
   );
   const { user } = renderWithProviders(
     <NavigationGuardProvider>
-      <GovernanceAssignments scope={scope} />
+      <GovernanceAssignments
+        releasedFamilies={[...new Set(staffAccessTemplates.map((row) => row.family))]}
+        scope={scope}
+      />
     </NavigationGuardProvider>,
   );
   await user.click(await screen.findByRole("button", { name: "Open Synthetic hospital" }));
@@ -290,7 +305,10 @@ it("withholds assignment actions when the server canonical catalog changes", asy
   );
   const { user } = renderWithProviders(
     <NavigationGuardProvider>
-      <GovernanceAssignments scope={scope} />
+      <GovernanceAssignments
+        releasedFamilies={[...new Set(staffAccessTemplates.map((row) => row.family))]}
+        scope={scope}
+      />
     </NavigationGuardProvider>,
   );
   await user.click(await screen.findByRole("button", { name: "Open Synthetic hospital" }));
@@ -317,7 +335,10 @@ it("requires current proposal-qualified identity before offering approval", asyn
   );
   const { user } = renderWithProviders(
     <NavigationGuardProvider>
-      <GovernanceAssignments scope={scope} />
+      <GovernanceAssignments
+        releasedFamilies={[...new Set(staffAccessTemplates.map((row) => row.family))]}
+        scope={scope}
+      />
     </NavigationGuardProvider>,
   );
   await user.click(await screen.findByRole("button", { name: "Open Synthetic hospital" }));
@@ -362,7 +383,10 @@ it("retains withdrawal and history when the target identity is known unavailable
   );
   const { user } = renderWithProviders(
     <NavigationGuardProvider>
-      <GovernanceAssignments scope={scope} />
+      <GovernanceAssignments
+        releasedFamilies={[...new Set(staffAccessTemplates.map((row) => row.family))]}
+        scope={scope}
+      />
     </NavigationGuardProvider>,
   );
   await user.click(await screen.findByRole("button", { name: "Open Synthetic hospital" }));
@@ -397,7 +421,10 @@ it("clears disclosed data after an expected-tenant mismatch on the account read"
   );
   const { user } = renderWithProviders(
     <NavigationGuardProvider>
-      <GovernanceAssignments scope={scope} />
+      <GovernanceAssignments
+        releasedFamilies={[...new Set(staffAccessTemplates.map((row) => row.family))]}
+        scope={scope}
+      />
     </NavigationGuardProvider>,
   );
   await user.click(await screen.findByRole("button", { name: "Open Synthetic hospital" }));

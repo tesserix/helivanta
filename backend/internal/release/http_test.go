@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -73,4 +74,22 @@ func TestDevelopmentReleaseFixtureCannotRunWithProductionIdentity(t *testing.T) 
 	fixture, err := DevelopmentFixture("dev", "http://auth.tesserix.localhost:20080", "true")
 	require.NoError(t, err)
 	require.NoError(t, fixture.Refresh(t.Context()))
+}
+
+func TestCompleteRouteValidationPermitsOnlyExplicitConditionalOwnerCallbacks(t *testing.T) {
+	routes := gin.RoutesInfo{}
+	for key := range routeCapabilities {
+		parts := strings.SplitN(key, " ", 2)
+		routes = append(routes, gin.RouteInfo{Method: parts[0], Path: parts[1]})
+	}
+	policy := &Service{}
+	require.NoError(t, policy.ValidateCompleteRoutes(routes), "disabled internal integrations must not prevent startup")
+	for key := range internalRouteCapabilities {
+		parts := strings.SplitN(key, " ", 2)
+		routes = append(routes, gin.RouteInfo{Method: parts[0], Path: parts[1]})
+	}
+	require.NoError(t, policy.ValidateCompleteRoutes(routes), "all production callbacks must be classified")
+	routes = append(routes, gin.RouteInfo{Method: "POST", Path: "/internal/v1/unknown"})
+	require.ErrorContains(t, policy.ValidateCompleteRoutes(routes), "unclassified release route")
+	require.ErrorContains(t, policy.ValidateCompleteRoutes(nil), "missing release route")
 }

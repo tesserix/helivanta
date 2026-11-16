@@ -38,8 +38,16 @@ export function validateReleaseManifest(value, declaredRoutes) {
   const known = (key) => {
     if (key !== "baseline" && !capabilities.has(key)) fail(`unknown capability ${key}`);
   };
+  for (const route of value.internal_routes ?? []) {
+    if (
+      route.capability !== "baseline" ||
+      !route.path?.includes("/internal/") ||
+      /[:*]/.test(route.path)
+    )
+      fail("invalid internal owner route");
+  }
   const routeKeys = new Set();
-  for (const route of value.routes ?? []) {
+  for (const route of [...(value.routes ?? []), ...(value.internal_routes ?? [])]) {
     for (const field of Object.keys(route)) {
       if (!["method", "path", "capability"].includes(field)) fail(`unknown route field ${field}`);
     }

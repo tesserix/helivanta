@@ -81,6 +81,9 @@ func New(cfg Config) (*Service, error) {
 // RouteCapability returns only an explicitly classified method and route pattern.
 func RouteCapability(method, path string) (string, bool) {
 	key, ok := routeCapabilities[method+" "+path]
+	if !ok {
+		key, ok = internalRouteCapabilities[method+" "+path]
+	}
 	return key, ok
 }
 

@@ -5918,5 +5918,32 @@
         "type": "bool"
       }
     ]
-  }
+  },
+  "internal_routes": [
+    {
+      "method": "POST",
+      "path": "/v1/supply/internal/trading-source/check",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/supply/internal/relationship/check",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/mediconnect/current-claim",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/hospital-enrolments",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/customer-workspaces",
+      "capability": "baseline"
+    }
+  ]
 }

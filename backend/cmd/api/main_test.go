@@ -10,7 +10,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/tesserix/helivanta/internal/httpserver"
+	mediconnectcontract "github.com/tesserix/helivanta/internal/modules/mediconnect/contract"
+	"github.com/tesserix/helivanta/internal/release"
 	"github.com/tesserix/helivanta/pkg/logging"
+	"github.com/tesserix/helivanta/pkg/suppliertrade"
 )
 
 // TestGinRecoveryOutputIsRedacted proves the fix for the gin.Recovery() gap:
@@ -55,4 +58,14 @@ func TestGinRecoveryOutputIsRedacted(t *testing.T) {
 		"raw PHI reached gin's recovery output unredacted: %s", out)
 	require.Contains(t, out, "[REDACTED:mobile]",
 		"expected the mobile-number marker in the redacted recovery output: %s", out)
+}
+
+func TestConditionalProductionOwnerCallbacksHaveReleaseClassification(t *testing.T) {
+	for _, path := range []string{suppliertrade.SourceCheckPath, suppliertrade.RelationshipCheckPath, mediconnectcontract.CurrentClaimPath, "/internal/v1/hospital-enrolments", "/internal/v1/customer-workspaces"} {
+		t.Run(path, func(t *testing.T) {
+			capability, known := release.RouteCapability(http.MethodPost, path)
+			require.True(t, known)
+			require.Equal(t, "baseline", capability)
+		})
+	}
 }

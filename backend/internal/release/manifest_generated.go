@@ -1096,6 +1096,11 @@ var routeCapabilities = map[string]string{"GET /healthz": "baseline",
 	"GET /v1/workspace/country-policies/:scope/versions":          "unreleased",
 	"GET /v1/workspace/country-policies/:scope/versions/:version": "unreleased",
 	"GET /v1/workspace/release-capabilities":                      "baseline"}
+var internalRouteCapabilities = map[string]string{"POST /v1/supply/internal/trading-source/check": "baseline",
+	"POST /v1/supply/internal/relationship/check": "baseline",
+	"POST /internal/v1/mediconnect/current-claim": "baseline",
+	"POST /internal/v1/hospital-enrolments":       "baseline",
+	"POST /internal/v1/customer-workspaces":       "baseline"}
 var assignmentFamilyCapabilities = map[string]string{"leave": "workforce_scheduling",
 	"identity":           "staff_core",
 	"supplier_access":    "supplier_collaboration",

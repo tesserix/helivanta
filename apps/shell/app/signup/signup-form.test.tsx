@@ -326,3 +326,38 @@ it.each([
   expect(await screen.findByRole("heading", { name: heading })).toBeVisible();
   expect(fetcher.mock.calls).toHaveLength(1);
 });
+
+it("focuses a new signup after a delayed availability decision permits the form", async () => {
+  let fresh = false;
+  let allow!: (response: Response) => void;
+  const decision = new Promise<Response>((resolve) => {
+    allow = resolve;
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string, init?: RequestInit) => {
+      if (path.endsWith("/auth/release-capabilities")) return decision;
+      if (init?.method === "POST") fresh = true;
+      return Response.json(
+        fresh
+          ? { state: "not_started" }
+          : {
+              state: "ready",
+              name: "Existing hospital",
+              kind: "hospital",
+              tenantId: "11111111-1111-4111-8111-111111111111",
+              resourceId: "0199e000-0000-7000-8000-000000000010",
+            },
+      );
+    }),
+  );
+  renderWithProviders(<SignupForm />);
+  await userEvent
+    .setup()
+    .click(await screen.findByRole("button", { name: "Create another workspace" }));
+  expect(await screen.findByText("Checking registration availability…")).toBeVisible();
+  allow(publicRelease());
+  await waitFor(() =>
+    expect(screen.getByRole("heading", { name: "Create your workspace" })).toHaveFocus(),
+  );
+});

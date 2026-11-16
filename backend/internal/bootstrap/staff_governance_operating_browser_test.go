@@ -24,6 +24,7 @@ func exerciseNativeOperatingBrowser(t *testing.T, owner http.Handler, kind strin
 	if appURL == "" {
 		return
 	}
+	testutil.MountBrowserReleaseCapabilities(t, owner, testutil.StaticVerifier{"admin": testutil.TenantA, "owner2": testutil.TenantA, "auditor": testutil.TenantA})
 	backend := httptest.NewServer(owner)
 	defer backend.Close()
 	gateway, err := globalapi.New(globalapi.Config{Development: true, Timeout: 5 * time.Second, Upstreams: map[string]string{"platform": backend.URL, "workforce": backend.URL, "pharmacy": backend.URL, "supply": backend.URL}})

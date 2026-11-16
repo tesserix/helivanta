@@ -44,13 +44,23 @@ export function SignupForm() {
       mainBranch: { name: "Main branch", address: { ...emptyAddress } },
     },
   });
+  const parsed = CustomerSignupReceiptContract.safeParse(progress.data);
+  const release = usePublicReleaseCapabilities(
+    parsed.success && parsed.data.state === "not_started",
+  );
   useEffect(() => {
-    const parsed = CustomerSignupReceiptContract.safeParse(progress.data);
-    if (begin.isSuccess && parsed.success && parsed.data.state === "not_started") {
+    if (
+      begin.isSuccess &&
+      release.available &&
+      !release.isPending &&
+      !release.isError &&
+      parsed.success &&
+      parsed.data.state === "not_started"
+    ) {
       formHeading.current?.focus({ preventScroll: true });
       formHeading.current?.scrollIntoView({ block: "start", behavior: "instant" });
     }
-  }, [begin.isSuccess, progress.data]);
+  }, [begin.isSuccess, progress.data, release.available, release.isPending, release.isError]);
   function beginAnother() {
     begin.mutate(undefined, {
       onSuccess: () => {
@@ -61,10 +71,6 @@ export function SignupForm() {
       },
     });
   }
-  const parsed = CustomerSignupReceiptContract.safeParse(progress.data);
-  const release = usePublicReleaseCapabilities(
-    parsed.success && parsed.data.state === "not_started",
-  );
   if (progress.isPending) return <p role="status">Checking workspace setup…</p>;
   if (progress.isError || !parsed.success)
     return (

@@ -50,6 +50,7 @@ func TestReceivingTransportBrowser(t *testing.T) {
 		}
 		c.JSON(200, gin.H{"data": []gin.H{{"tenant_id": tenant, "current": true}}})
 	})
+	testutil.MountBrowserReleaseCapabilities(t, f.r, testutil.StaticVerifier{"admin": testutil.TenantA, "doctor": testutil.TenantA, "driver": testutil.TenantA, "medic": testutil.TenantA, "supervisor": testutil.TenantA, "breceiver": testutil.TenantB})
 	server := httptest.NewServer(f.r)
 	defer server.Close()
 	root, err := filepath.Abs("../../../..")

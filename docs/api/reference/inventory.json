@@ -411,6 +411,15 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/iam/member-presentations",
+          "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "DELETE",
           "path": "/v1/iam/members/:subject/:role",
           "permission": "iam.member.manage",

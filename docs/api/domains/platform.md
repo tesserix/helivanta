@@ -10,6 +10,39 @@ The current login boundary uses Zitadel and Helivanta session minting. Earlier R
 
 Tenant, hospital, pharmacy outlet, supply premise, emergency base and receiving facility have different scopes. A tenant can contain multiple hospitals; a standalone pharmacy is not a hospital. Forced RLS and handler object grants implement narrower boundaries in the existing domains, but the legacy visit/lab/dispense slice remains tenant-scoped. Do not claim universal hospital isolation until that slice is migrated and tested. Group-sharing architecture is proposed and does not make all same-tenant records mutually visible.
 
+### Named organization members for access administration
+
+`POST /v1/iam/member-presentations` is a read through the Global API platform
+destination. It accepts only `{"subjects":["account-id"]}` with 1–20 distinct
+current tenant member accounts and matching expected-tenant/account headers.
+IAM rechecks current native/session authority, its tenant-admin membership and
+credential watermark. It reads the target membership incarnations, releases
+all transactions, obtains identity-owner `assignment_candidate` presentations
+with at most four concurrent lookups, then rechecks the original membership
+rows and actor authority before an audited disclosure. The complete request
+has a five-second deadline and an 8 KiB input bound. Names/email remain owned
+by the identity service; role keys and labels remain owned by IAM. No identity
+master or access grant is created.
+
+The canonical `MemberPresentationRequest`, `MemberPresentationRole`,
+`MemberPresentation` and `MemberPresentations` models are in
+`contracts/staff-access.json`. Replies bind `tenant_id` and `actor_subject`.
+An active verified human has `available=true`, `name`, `email` and current role
+labels. A known ineligible identity is unnamed (`available=false`); an identity
+outage or failed audit produces 503 with no partial names. Non-members, including
+other-tenant targets, return 404 before identity I/O; a changed membership
+incarnation returns 409; revoked credentials return 401; missing current owner
+or route authority returns 403. Input errors return 400. All replies are no-store.
+
+The pharmacy outlet person selector uses names, role labels and email for
+disambiguation, retaining subjects only in command values. Its existing grant
+list uses the same presentations. Additional member pages are loaded explicitly.
+Names unavailable in the current authorized member page are withheld; the UI
+does not substitute raw account IDs, invent a role or permit a stale selection.
+A non-owner manager can use the existing self-profile read to name their own
+account; this does not widen third-party profile disclosure. Organization roles
+remain separate from the outlet's Reader/Editor level and clinical duties.
+
 ### Current identity on protected requests
 
 Current status and self-profile reads use onboarding-service's workload-only

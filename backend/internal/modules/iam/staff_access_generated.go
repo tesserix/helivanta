@@ -219,3 +219,26 @@ type OperatingGovernanceStaffChoice struct {
 	LinkID       uuid.UUID `json:"link_id"`
 	LinkVersion  int64     `json:"link_version"`
 }
+
+type MemberPresentationRole struct {
+	Key   string `json:"key"`
+	Label string `json:"label"`
+}
+
+type MemberPresentationRequest struct {
+	Subjects []string `json:"subjects"`
+}
+
+type MemberPresentation struct {
+	Subject   string                   `json:"subject"`
+	Available bool                     `json:"available"`
+	Name      *string                  `json:"name,omitempty"`
+	Email     *string                  `json:"email,omitempty"`
+	Roles     []MemberPresentationRole `json:"roles"`
+}
+
+type MemberPresentations struct {
+	TenantID     uuid.UUID            `json:"tenant_id"`
+	ActorSubject string               `json:"actor_subject"`
+	Data         []MemberPresentation `json:"data"`
+}

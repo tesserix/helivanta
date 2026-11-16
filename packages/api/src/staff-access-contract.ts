@@ -537,3 +537,64 @@ export const OperatingGovernanceStaffChoiceContract = z
   })
   .strict();
 export type OperatingGovernanceStaffChoice = z.infer<typeof OperatingGovernanceStaffChoiceContract>;
+
+export const MemberPresentationRoleContract = z
+  .object({
+    key: z
+      .string()
+      .min(1)
+      .max(100)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    label: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type MemberPresentationRole = z.infer<typeof MemberPresentationRoleContract>;
+
+export const MemberPresentationRequestContract = z
+  .object({
+    subjects: z.array(z.string()).min(1).max(20),
+  })
+  .strict();
+export type MemberPresentationRequest = z.infer<typeof MemberPresentationRequestContract>;
+
+export const MemberPresentationContract = z
+  .object({
+    subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    available: z.boolean(),
+    name: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    email: z
+      .string()
+      .min(1)
+      .max(320)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    roles: z.array(MemberPresentationRoleContract).min(1).max(64),
+  })
+  .strict();
+export type MemberPresentation = z.infer<typeof MemberPresentationContract>;
+
+export const MemberPresentationsContract = z
+  .object({
+    tenant_id: identifier,
+    actor_subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    data: z.array(MemberPresentationContract).min(1).max(20),
+  })
+  .strict();
+export type MemberPresentations = z.infer<typeof MemberPresentationsContract>;

@@ -82,21 +82,56 @@
       }
     ],
     "AssignmentGovernanceHospitalScope": [
-      { "name": "hospital_id", "type": "uuid" },
-      { "name": "name", "type": "string", "min": 1, "max": 200 },
-      { "name": "can_manage", "type": "bool" },
-      { "name": "can_review", "type": "bool" }
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "can_manage",
+        "type": "bool"
+      },
+      {
+        "name": "can_review",
+        "type": "bool"
+      }
     ],
     "GovernanceScopeRequest": [
-      { "name": "proposal_id", "type": "uuid" },
-      { "name": "request_id", "type": "uuid" },
-      { "name": "hospital_id", "type": "uuid" }
+      {
+        "name": "proposal_id",
+        "type": "uuid"
+      },
+      {
+        "name": "request_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      }
     ],
     "GovernanceScopeResult": [
-      { "name": "proposal_id", "type": "uuid" },
-      { "name": "request_id", "type": "uuid" },
-      { "name": "hospital_id", "type": "uuid" },
-      { "name": "eligible", "type": "bool" }
+      {
+        "name": "proposal_id",
+        "type": "uuid"
+      },
+      {
+        "name": "request_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "eligible",
+        "type": "bool"
+      }
     ],
     "DepartmentScopeRequest": [
       {
@@ -139,8 +174,14 @@
       }
     ],
     "AssignmentTargetChoice": [
-      { "name": "hospital_id", "type": "uuid" },
-      { "name": "staff_id", "type": "uuid" },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
       {
         "name": "subject",
         "type": "string",
@@ -755,6 +796,78 @@
         "min": 2,
         "max": 9007199254740991
       }
+    ],
+    "MemberPresentationRole": [
+      {
+        "name": "key",
+        "type": "string",
+        "min": 1,
+        "max": 100
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      }
+    ],
+    "MemberPresentationRequest": [
+      {
+        "name": "subjects",
+        "type": "[]string",
+        "min": 1,
+        "max": 20
+      }
+    ],
+    "MemberPresentation": [
+      {
+        "name": "subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "available",
+        "type": "bool"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "optional": true
+      },
+      {
+        "name": "email",
+        "type": "string",
+        "min": 1,
+        "max": 320,
+        "optional": true
+      },
+      {
+        "name": "roles",
+        "type": "[]MemberPresentationRole",
+        "min": 1,
+        "max": 64
+      }
+    ],
+    "MemberPresentations": [
+      {
+        "name": "tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "data",
+        "type": "[]MemberPresentation",
+        "min": 1,
+        "max": 20
+      }
     ]
   },
   "template_migrations": [
@@ -1174,7 +1287,7 @@
         {
           "key": "supply.department_goods_reader.v1",
           "name": "Department supplier goods reader",
-          "description": "Read or record this department’s verified supplier delivery, quarantine custody and independent receiving review; no stock sale, clinical prescribing or financial authority.",
+          "description": "Read or record this department\u2019s verified supplier delivery, quarantine custody and independent receiving review; no stock sale, clinical prescribing or financial authority.",
           "family": "supplier_receiving",
           "permissions": [
             "pharmacy.hospital_receiving.use",
@@ -1187,7 +1300,7 @@
         {
           "key": "supply.department_goods_receiver.v1",
           "name": "Department supplier goods receiver",
-          "description": "Read or record this department’s verified supplier delivery, quarantine custody and independent receiving review; no stock sale, clinical prescribing or financial authority.",
+          "description": "Read or record this department\u2019s verified supplier delivery, quarantine custody and independent receiving review; no stock sale, clinical prescribing or financial authority.",
           "family": "supplier_receiving",
           "permissions": [
             "pharmacy.hospital_receiving.use",
@@ -1201,7 +1314,7 @@
         {
           "key": "supply.department_goods_reviewer.v1",
           "name": "Department supplier receiving reviewer",
-          "description": "Read or record this department’s verified supplier delivery, quarantine custody and independent receiving review; no stock sale, clinical prescribing or financial authority.",
+          "description": "Read or record this department\u2019s verified supplier delivery, quarantine custody and independent receiving review; no stock sale, clinical prescribing or financial authority.",
           "family": "supplier_receiving",
           "permissions": [
             "pharmacy.hospital_receiving.review",
@@ -1215,7 +1328,7 @@
         {
           "key": "supply.department_goods_pharmacy_fulfiller.v1",
           "name": "Hospital-owned pharmacy fulfilment operator",
-          "description": "Commit only stock owned by this department’s governed pharmacy and exact outlet under current source licence/order fences; no independent partner administration, clinical prescribing or financial authority.",
+          "description": "Commit only stock owned by this department\u2019s governed pharmacy and exact outlet under current source licence/order fences; no independent partner administration, clinical prescribing or financial authority.",
           "family": "supplier_receiving",
           "permissions": [
             "pharmacy.hospital_fulfilment.use",
@@ -1236,7 +1349,7 @@
         {
           "key": "supply.department_goods_pharmacy_acceptor.v1",
           "name": "Hospital pharmacy supplier order reviewer",
-          "description": "Accept or reject supplier orders and reconcile hospital receiving evidence for this department’s governed pharmacy outlet; no physical stock, prescribing or financial authority.",
+          "description": "Accept or reject supplier orders and reconcile hospital receiving evidence for this department\u2019s governed pharmacy outlet; no physical stock, prescribing or financial authority.",
           "family": "supplier_receiving",
           "permissions": [
             "supply.receiving_response.record",

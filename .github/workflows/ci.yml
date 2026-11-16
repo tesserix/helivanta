@@ -92,6 +92,8 @@ jobs:
           go test -race ./internal/modules/pharmacy ./internal/modules/workforce -run '^(TestPharmacyBusinessProfileReadIsManagerAndTenantScoped|TestHospitalBusinessProfileReadIsManagerAndHospitalScoped|TestStorageAddressMigrationPreservesLegacyRowsAndReplay)$'
       - name: Tenant identity admission and MFA regression
         run: go test -race ./internal/modules/iam -run '^(TestNewLegacyGrantRequiresCurrentTenantOwnedIdentity|TestLegacyGrant.*|TestLegacyRepair.*|TestFirstEnrollment.*|TestEnrollmentFakeKeepsNativeUserPathBinding|TestTOTPEnrollmentLifecycleConfirmsReplaysCompletesAndProjectsAMR|TestTOTPEnrollmentExpiryAndDependencyFailuresDoNotAdvance|TestRecoveryRequiresEligibleIdentity)$'
+      - name: Named member presentation isolation and source changes
+        run: go test -race ./internal/modules/iam -run '^TestMemberPresentations'
       - name: Supplier architecture and tenant preconditions
         run: |
           go test -race ./internal/archtest

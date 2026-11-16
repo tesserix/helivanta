@@ -85,7 +85,7 @@ func (w saleWorld) licence(t *testing.T) {
 
 func (w saleWorld) gstin(t *testing.T) {
 	t.Helper()
-	res := do(w.r, "POST", registrationsPath(pharmaOutlet), "editor", registrationBody("27", "27PQRST5678K2Z1", "2026-11-01", ""))
+	res := do(w.r, "PUT", taxCommandPath(registrationsPath(pharmaOutlet)), "editor", registrationBody("27", "27PQRST5678K2Z1", "2026-11-01", ""))
 	require.Equal(t, http.StatusCreated, res.Code, res.Body.String())
 }
 
@@ -103,7 +103,7 @@ func (w saleWorld) product(t *testing.T, sku, class string) string {
 	body := strings.Replace(productBody(0, "TEST "+sku), `"TEST-AMOX-500"`, fmt.Sprintf("%q", sku), 1)
 	res := do(w.r, "PUT", productPath(id), "editor", body)
 	require.Equal(t, 200, res.Code, res.Body.String())
-	res = do(w.r, "POST", productPath(id)+"/tax-classifications", "editor", classificationBody("30049099", "taxable", "12", "", w.taxFrom, ""))
+	res = do(w.r, "PUT", taxCommandPath(productPath(id)+"/tax-classifications"), "editor", classificationBody("30049099", "taxable", "12", "", w.taxFrom, ""))
 	require.Equal(t, http.StatusCreated, res.Code, res.Body.String())
 	approveClass(t, w.r, id, class, false)
 	return id
@@ -439,7 +439,7 @@ func TestOnlyARetailLicenceInAStateSellsAtTheCounter(t *testing.T) {
 	releaseLicenceEvidenceForTest(t, w.r, w.db, w.files, id, "editor")
 	require.Equal(t, http.StatusOK, do(w.r, "POST", licencePath("/licences/"+id+"/review"), "pharmacist", `{"decision":"approved","reason":"checked"}`).Code)
 	w.profile(t, "TS")
-	res := do(w.r, "POST", registrationsPath(pharmaOutlet), "editor", registrationBody("04", "04ABCDE1234F1Z8", "2026-11-01", ""))
+	res := do(w.r, "PUT", taxCommandPath(registrationsPath(pharmaOutlet)), "editor", registrationBody("04", "04ABCDE1234F1Z8", "2026-11-01", ""))
 	require.Equal(t, http.StatusCreated, res.Code, res.Body.String())
 	code, _, out := w.sell(t, cashSale(product, 1, 1300, 1300))
 	require.Equal(t, http.StatusConflict, code)
@@ -486,7 +486,7 @@ func TestHeldBatchesAndUnsellableProductsAreNeverSold(t *testing.T) {
 
 	undeclared := uuid.Must(uuid.NewV7()).String()
 	require.Equal(t, 200, do(w.r, "PUT", productPath(undeclared), "editor", strings.Replace(productBody(0, "TEST undeclared"), `"TEST-AMOX-500"`, `"TEST-UNDECLARED"`, 1)).Code)
-	require.Equal(t, http.StatusCreated, do(w.r, "POST", productPath(undeclared)+"/tax-classifications", "editor", classificationBody("30049099", "taxable", "12", "", "2026-11-01", "")).Code)
+	require.Equal(t, http.StatusCreated, do(w.r, "PUT", taxCommandPath(productPath(undeclared)+"/tax-classifications"), "editor", classificationBody("30049099", "taxable", "12", "", "2026-11-01", "")).Code)
 	expect(undeclared, "has no approved schedule class")
 
 	stopped := w.product(t, "TEST-STOPPED", "none")

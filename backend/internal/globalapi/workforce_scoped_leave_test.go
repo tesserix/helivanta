@@ -44,7 +44,7 @@ func TestScopedLeaveThroughGlobalAPI(t *testing.T) {
 		require.NoError(t, fga.GrantRole(t.Context(), testutil.TenantA, subject, authz.RoleTenantAdmin))
 	}
 	signer, verifier := testutil.NewSessionSignerForTest(t)
-	owner, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+	owner, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{GovernanceSources: testutil.GovernanceReviewProtocol,
 		Writer: fga, Roles: fga, Membership: fga, Resolver: fga,
 		Verifier:         authn.NewSessionVerifier(verifier),
 		Modules:          modules,

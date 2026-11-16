@@ -2,15 +2,10 @@
 
 import { useEffect, useRef } from "react";
 import { Plus, Store } from "lucide-react";
-import { z } from "zod";
 import { Button } from "@tesserix/web";
 import {
   ApiError,
-  apiFetch,
   countryProfile,
-  pharmacyKey,
-  pharmacyRoot,
-  useApiMutation,
   useApiPagedQuery,
   useApiQuery,
   usePermissions,
@@ -19,18 +14,12 @@ import {
   type PharmacyOutlet,
   type PharmacyScope,
 } from "@helivanta/api";
-import {
-  DetailHeader,
-  ListDetail,
-  LoadMore,
-  Panel,
-  RequestFailure,
-  useZodForm,
-} from "@helivanta/ui";
-import { useListDetail, useReportState, type FormState } from "@/lib/use-list-detail";
+import { DetailHeader, ListDetail, LoadMore, Panel, RequestFailure } from "@helivanta/ui";
+import { useListDetail } from "@/lib/use-list-detail";
 import { OutletForm, PharmacyRegistrySetup } from "./pharmacy-registry-setup";
 import { TaxRegistrationPanel } from "./tax-registration-panel";
 import { LicencePanel } from "./licence-panel";
+import { OutletAccess } from "./outlet-access";
 
 type Outlets = ReturnType<typeof useApiPagedQuery<PharmacyOutlet>>;
 
@@ -45,11 +34,13 @@ export function OutletsSetup({
   pharmacy,
   subject,
   outlets,
+  onRegistered,
 }: {
   tenantId: string;
   pharmacy: PharmacyOrganization;
   subject: string;
   outlets: Outlets;
+  onRegistered?: (id: string) => void;
 }) {
   const { can } = usePermissions();
   const pane = useListDetail({
@@ -172,7 +163,13 @@ export function OutletsSetup({
         }
       />
       {/* The pharmacy's own setup, not an outlet's: below the list. */}
-      {manage && <PharmacyRegistrySetup tenantId={tenantId} pharmacy={pharmacy} />}
+      {manage && (
+        <PharmacyRegistrySetup
+          tenantId={tenantId}
+          pharmacy={pharmacy}
+          onRegistered={onRegistered}
+        />
+      )}
     </div>
   );
 }
@@ -262,7 +259,7 @@ function OpenOutlet({
         scope={scope}
         subject={subject}
         outletName={row.name}
-        canGrant={can("pharmacy.access.manage")}
+        canManage={can("pharmacy.access.manage")}
         onStateChange={pane.formState("access")}
       />
       {can("pharmacy.tax.manage") && (
@@ -283,97 +280,5 @@ function OpenOutlet({
         />
       )}
     </div>
-  );
-}
-
-const accessSchema = z.object({
-  confirmed: z.boolean().refine(Boolean, "Confirm the outlet before granting access."),
-});
-
-// This outlet's access for the signed-in subject, and the grant-my-access
-// form. 404 is the server's settled "no grant here" (#1285).
-function OutletAccess({
-  scope,
-  subject,
-  outletName,
-  canGrant,
-  onStateChange,
-}: {
-  scope: PharmacyScope;
-  subject: string;
-  outletName: string;
-  canGrant: boolean;
-  onStateChange?: FormState;
-}) {
-  const access = useApiQuery<{ level: "reader" | "editor" }>(
-    pharmacyKey(scope, "access"),
-    `${pharmacyRoot(scope)}/access`,
-    { gcTime: 0, refetchOnWindowFocus: true },
-  );
-  const form = useZodForm(accessSchema, { confirmed: false });
-  const grant = useApiMutation(
-    () =>
-      apiFetch(`${pharmacyRoot(scope)}/access/${encodeURIComponent(subject)}`, {
-        method: "PUT",
-        body: JSON.stringify({ level: "editor" }),
-      }),
-    {
-      successToast: "Pharmacy access granted",
-      invalidate: [pharmacyKey(scope, "access")],
-      onSuccess: () => form.reset({ confirmed: false }),
-      suppressErrorToast: true,
-    },
-  );
-  useReportState(onStateChange, form.formState.isDirty, grant.isPending);
-  const missing = access.error instanceof ApiError && access.error.status === 404;
-  return (
-    <Panel aria-labelledby="outlet-access-heading" className="space-y-4">
-      <h3 id="outlet-access-heading" className="font-semibold">
-        Outlet access
-      </h3>
-      {access.isPending ? (
-        <p role="status">Checking your access to this outlet…</p>
-      ) : missing ? (
-        <p className="text-sm text-muted-foreground">
-          You don&apos;t have access to this outlet yet.
-          {canGrant ? "" : " Ask your administrator to grant it."}
-        </p>
-      ) : access.isError ? (
-        <RequestFailure
-          message="Could not check your access to this outlet. Try again in a moment."
-          retry={access.refetch}
-          error={access.error}
-        />
-      ) : (
-        <p className="text-sm">
-          Your access here: <span className="font-medium capitalize">{access.data?.level}</span>
-        </p>
-      )}
-      {canGrant && (
-        <form noValidate className="space-y-4" onSubmit={form.handleSubmit(() => grant.mutate())}>
-          <p className="text-sm text-muted-foreground">
-            Grant your signed-in account catalogue and receiving access at {outletName}. This does
-            not approve medicines or confer hospital clinical access.
-          </p>
-          <label className="flex items-start gap-3 text-sm">
-            <input type="checkbox" className="mt-1" {...form.register("confirmed")} />
-            Grant my account pharmacy access to this outlet
-          </label>
-          {form.formState.errors.confirmed && (
-            <p role="alert" className="text-sm text-destructive">
-              {form.formState.errors.confirmed.message}
-            </p>
-          )}
-          {grant.isError && (
-            <p role="alert" className="text-sm text-destructive">
-              {grant.error.message}
-            </p>
-          )}
-          <Button type="submit" disabled={grant.isPending || !subject}>
-            Grant pharmacy access
-          </Button>
-        </form>
-      )}
-    </Panel>
   );
 }

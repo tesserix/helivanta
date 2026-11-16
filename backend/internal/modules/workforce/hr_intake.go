@@ -46,6 +46,15 @@ func intakeDocumentGate(gate documentGate) bool {
 }
 
 func (h *handlers) documentTransaction(c *gin.Context, gate documentGate, p authn.Principal, hospital uuid.UUID, writing bool, fn func(*gorm.DB) error) error {
+	if native, ok := gate.(*governanceBindingDocumentGate); ok {
+		if writing || p.TenantID != native.authority.principal.TenantID || p.Subject != native.authority.principal.Subject || hospital != native.authority.hospital {
+			return authz.ErrScopedAuthorizationUnavailable
+		}
+		return native.authority.transaction(c, fn)
+	}
+	if native, ok := gate.(*employmentPreparationDocuments); ok {
+		return native.transaction(c, p, hospital, fn)
+	}
 	if c.Query(hrIntakeQuery) != hrIntakeVersion || !intakeDocumentGate(gate) {
 		return h.transaction(c.Request.Context(), p, hospital, fn)
 	}

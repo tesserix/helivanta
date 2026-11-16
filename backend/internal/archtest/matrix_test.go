@@ -164,8 +164,9 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 			// staff data still requires an independent hospital grant (ADR 0009).
 			// MediCore hospital access (#80 E3) and pharmacy grant administration are likewise admin-only; pharmacists cannot self-grant outlet or financial access. Operational finance permissions are separately admin-only (ADR 0025).
 			// Pharmacy relationship roles are exact scoped IAM templates, never coarse outlet operating roles.
+			// Governance creation is owner-only; ledger reads/reviews also require a current exact auditor source.
 			// Organization structure is tenant-governance metadata; it grants no Staff or clinical authority (ADR-0051).
-			if n := holders[perm]; n <= 1 && perm != pharmacy.PermStaffBindingRead && perm != pharmacy.PermStaffBindingPrepare && perm != pharmacy.PermStaffBindingReview && perm != organization.PermPostingChoicesRead && perm != organization.PermStructureRead && perm != organization.PermStructureManage && perm != iam.PermMemberManage && perm != iam.PermCredentialRevoke && perm != emergency.PermReceivingManage && perm != emergency.PermClinicalManage && perm != emergency.PermBaseManage && perm != workforce.PermSupplierManage && perm != workforce.PermIndependentLoginManage && perm != workforce.PermIndependentLoginReview && perm != workforce.PermHospitalManage && perm != workforce.PermPostingRead && perm != workforce.PermPostingPrepare && perm != workforce.PermPostingCutoff && perm != workforce.PermPostingProposalRead && perm != workforce.PermPostingSubmit && perm != workforce.PermPostingReview && perm != workforce.PermEnrollmentManage && perm != workforce.PermDocumentManage && perm != workforce.PermCredentialReview && perm != workforce.PermBenefitsView && perm != workforce.PermBenefitsManage && perm != workforce.PermBenefitsApprove && perm != workforce.PermBenefitsExport && perm != workforce.PermMasterManage && perm != workforce.PermRosterManage && perm != workforce.PermRosterCorrect && perm != workforce.PermLeaveConfigure && perm != workforce.PermLeaveAllocate && perm != workforce.PermLeaveCorrect && perm != workforce.PermLeaveRequest && perm != workforce.PermLeaveApprove && perm != workforce.PermDutyRequest && perm != workforce.PermDutyApprove && perm != workforce.PermOvertimeConfigure && perm != workforce.PermOvertimeRequest && perm != workforce.PermOvertimeApprove && perm != workforce.PermAttendanceConfigure && perm != workforce.PermAttendanceRecord && perm != workforce.PermAttendanceCorrect && perm != workforce.PermAttendanceApprove && perm != workforce.PermAttendanceFinalise && perm != workforce.PermPayrollConfigure && perm != workforce.PermPayrollView && perm != workforce.PermPayrollApprove && perm != workforce.PermPayrollIdentifiersReveal && perm != workspace.PermBrandingManage && perm != workspace.PermCountryPolicyManage && perm != privacy.PermOfficerManage && perm != privacy.PermDeadlineManage && perm != mediconnect.PermNoticeManage && perm != patientmaster.PermPatientAccessManage && perm != patientmaster.PermRegistrationReplay && perm != medicore.PermAccessManage && perm != medicore.PermBedConfigure && perm != billing.PermAccessManage && perm != billing.PermRateManage && perm != billing.PermCounterManage && perm != billing.PermShiftAuthorise && perm != billing.PermCollectionRead && perm != billing.PermTaxManage && perm != billing.PermDiscountManage && perm != billing.PermDiscountApprove && perm != patientmaster.PermConsentAuthorityReview && perm != patientmaster.PermProxyAuthorityReview && perm != patientmaster.PermSharingNoticeReview && perm != patientmaster.PermSharingRecipientReview && perm != patientmaster.PermPharmacyAffiliationReview && perm != pharmacy.PermAccessManage && perm != payments.PermAccountManage && perm != pharmacy.PermTaxManage && perm != pharmacy.PermStockCorrect && perm != pharmacy.PermAccountsRead && perm != pharmacy.PermAccountsWrite && perm != pharmacy.PermAccountsPayment && perm != pharmacy.PermAccountsAdjust && perm != iam.PermAssignmentManage && perm != workforce.PermLoginLinkManage && perm != workforce.PermLoginLinkReview && perm != workforce.PermIdentityChecksManage && perm != workforce.PermIdentityChecksReview {
+			if n := holders[perm]; n <= 1 && perm != pharmacy.PermStaffBindingRead && perm != pharmacy.PermStaffBindingPrepare && perm != pharmacy.PermStaffBindingReview && perm != organization.PermPostingChoicesRead && perm != organization.PermStructureRead && perm != organization.PermStructureManage && perm != iam.PermGovernanceManage && perm != iam.PermMemberManage && perm != iam.PermCredentialRevoke && perm != emergency.PermReceivingManage && perm != emergency.PermClinicalManage && perm != emergency.PermBaseManage && perm != workforce.PermSupplierManage && perm != workforce.PermIndependentLoginManage && perm != workforce.PermIndependentLoginReview && perm != workforce.PermHospitalManage && perm != workforce.PermPostingRead && perm != workforce.PermPostingPrepare && perm != workforce.PermPostingCutoff && perm != workforce.PermPostingProposalRead && perm != workforce.PermPostingSubmit && perm != workforce.PermPostingReview && perm != workforce.PermEnrollmentManage && perm != workforce.PermDocumentManage && perm != workforce.PermCredentialReview && perm != workforce.PermBenefitsView && perm != workforce.PermBenefitsManage && perm != workforce.PermBenefitsApprove && perm != workforce.PermBenefitsExport && perm != workforce.PermMasterManage && perm != workforce.PermRosterManage && perm != workforce.PermRosterCorrect && perm != workforce.PermLeaveConfigure && perm != workforce.PermLeaveAllocate && perm != workforce.PermLeaveCorrect && perm != workforce.PermLeaveRequest && perm != workforce.PermLeaveApprove && perm != workforce.PermDutyRequest && perm != workforce.PermDutyApprove && perm != workforce.PermOvertimeConfigure && perm != workforce.PermOvertimeRequest && perm != workforce.PermOvertimeApprove && perm != workforce.PermAttendanceConfigure && perm != workforce.PermAttendanceRecord && perm != workforce.PermAttendanceCorrect && perm != workforce.PermAttendanceApprove && perm != workforce.PermAttendanceFinalise && perm != workforce.PermPayrollConfigure && perm != workforce.PermPayrollView && perm != workforce.PermPayrollApprove && perm != workforce.PermPayrollIdentifiersReveal && perm != workspace.PermBrandingManage && perm != workspace.PermCountryPolicyManage && perm != privacy.PermOfficerManage && perm != privacy.PermDeadlineManage && perm != mediconnect.PermNoticeManage && perm != patientmaster.PermPatientAccessManage && perm != patientmaster.PermRegistrationReplay && perm != medicore.PermAccessManage && perm != medicore.PermBedConfigure && perm != billing.PermAccessManage && perm != billing.PermRateManage && perm != billing.PermCounterManage && perm != billing.PermShiftAuthorise && perm != billing.PermCollectionRead && perm != billing.PermTaxManage && perm != billing.PermDiscountManage && perm != billing.PermDiscountApprove && perm != patientmaster.PermConsentAuthorityReview && perm != patientmaster.PermProxyAuthorityReview && perm != patientmaster.PermSharingNoticeReview && perm != patientmaster.PermSharingRecipientReview && perm != patientmaster.PermPharmacyAffiliationReview && perm != pharmacy.PermAccessManage && perm != payments.PermAccountManage && perm != pharmacy.PermTaxManage && perm != pharmacy.PermStockCorrect && perm != pharmacy.PermAccountsRead && perm != pharmacy.PermAccountsWrite && perm != pharmacy.PermAccountsPayment && perm != pharmacy.PermAccountsAdjust && perm != iam.PermAssignmentManage && perm != workforce.PermLoginLinkManage && perm != workforce.PermIdentityChecksManage && perm != workforce.PermIdentityChecksReview {
 
 				t.Errorf("module %q guards a route with %q, held by tenant_admin only; declare the role that needs it", m.Name(), perm)
 			}
@@ -190,6 +191,9 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 // bug class — a role mapping change must be a deliberate, reviewable edit
 // here.
 var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
+	iam.PermGovernanceManage:             {authz.RoleTenantAdmin},
+	iam.PermGovernanceRead:               {authz.RoleTenantAdmin, authz.RoleGovernanceDelegate},
+	iam.PermGovernanceReview:             {authz.RoleTenantAdmin, authz.RoleGovernanceDelegate},
 	supply.PermStockFulfil:               {authz.RoleTenantAdmin},
 	supply.PermReceivingResponse:         {authz.RoleTenantAdmin},
 	supply.PermGoodsReceiptRead:          {authz.RoleTenantAdmin},
@@ -287,7 +291,7 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 
 	workforce.PermHospitalManage:         {authz.RoleTenantAdmin},
 	workforce.PermIndependentLoginManage: {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RolePharmacyOwner},
-	workforce.PermIndependentLoginReview: {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyCompliance, authz.RolePharmacyOwner},
+	workforce.PermIndependentLoginReview: {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyCompliance, authz.RolePharmacyOwner, authz.RoleGovernanceDelegate},
 	iam.PermOperatingRead:                {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor, authz.RolePharmacyOwner},
 	iam.PermOperatingPrepare:             {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RolePharmacyOwner},
 	iam.PermOperatingReview:              {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyCompliance, authz.RolePharmacyOwner},
@@ -296,7 +300,7 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	workforce.PermEnrollmentManage:       {authz.RoleTenantAdmin},
 	// Reviewed account binding is administrative and grants no application access.
 	workforce.PermLoginLinkManage:      {authz.RoleTenantAdmin},
-	workforce.PermLoginLinkReview:      {authz.RoleTenantAdmin},
+	workforce.PermLoginLinkReview:      {authz.RoleTenantAdmin, authz.RoleGovernanceDelegate},
 	workforce.PermCredentialReview:     {authz.RoleTenantAdmin},
 	workforce.PermBenefitsView:         {authz.RoleTenantAdmin},
 	workforce.PermBenefitsManage:       {authz.RoleTenantAdmin},
@@ -310,8 +314,8 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	workforce.PermLeaveAllocate:        {authz.RoleTenantAdmin},
 	workforce.PermLeaveCorrect:         {authz.RoleTenantAdmin},
 	workforce.PermLeaveRequest:         {authz.RoleTenantAdmin},
-	workforce.PermIdentityChecksManage: {authz.RoleTenantAdmin},
-	workforce.PermIdentityChecksReview: {authz.RoleTenantAdmin},
+	workforce.PermIdentityChecksManage: {authz.RoleTenantAdmin, authz.RoleGovernanceDelegate},
+	workforce.PermIdentityChecksReview: {authz.RoleTenantAdmin, authz.RoleGovernanceDelegate},
 	// Posting review requires separately approved scoped assignments, never a legacy staff role.
 	workforce.PermPostingProposalRead:      {authz.RoleTenantAdmin},
 	workforce.PermPostingSubmit:            {authz.RoleTenantAdmin},
@@ -320,8 +324,9 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	workforce.PermPostingCutoff:            {authz.RoleTenantAdmin}, // ADR-0058: independently assigned cutoff authority, not a legacy business role.
 	workforce.PermPostingRead:              {authz.RoleTenantAdmin},
 	workforce.PermPostingPrepare:           {authz.RoleTenantAdmin}, // Draft preparation only; exact hospital reader/manager remains required.
-	workforce.PermEmploymentReview:         {authz.RoleTenantAdmin},
-	workforce.PermEmploymentActivate:       {authz.RoleTenantAdmin},
+	workforce.PermEmploymentPrepare:        {authz.RoleTenantAdmin, authz.RoleGovernanceDelegate},
+	workforce.PermEmploymentReview:         {authz.RoleTenantAdmin, authz.RoleGovernanceDelegate},
+	workforce.PermEmploymentActivate:       {authz.RoleTenantAdmin, authz.RoleGovernanceDelegate},
 	workforce.PermLeaveApprove:             {authz.RoleTenantAdmin},
 	workforce.PermDutyRequest:              {authz.RoleTenantAdmin},
 	workforce.PermDutyApprove:              {authz.RoleTenantAdmin},
@@ -341,6 +346,10 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	workspace.PermCountryPolicyManage:      {authz.RoleTenantAdmin},
 	workspace.PermCountryPolicyReview:      {authz.RoleSupplyCompliance, authz.RoleTenantAdmin},
 	workspace.PermCountryPolicyRead:        {authz.RoleSupplyCompliance, authz.RoleSupplyAuditor, authz.RoleTenantAdmin},
+	iam.PermGovernanceAssignmentManage:     {authz.RoleTenantAdmin, authz.RoleGovernanceDelegate},
+	iam.PermGovernanceAssignmentReview:     {authz.RoleTenantAdmin, authz.RoleGovernanceDelegate},
+	"iam.governance.operating.manage":      {authz.RoleTenantAdmin, authz.RoleGovernanceDelegate},
+	"iam.governance.operating.review":      {authz.RoleTenantAdmin, authz.RoleGovernanceDelegate},
 	iam.PermAssignmentReview:               {authz.RoleTenantAdmin},
 	iam.PermAssignmentManage:               {authz.RoleTenantAdmin},
 	iam.PermMemberManage:                   {authz.RoleTenantAdmin},

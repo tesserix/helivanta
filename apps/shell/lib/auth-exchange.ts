@@ -29,6 +29,8 @@
 // renewAtFor for the single place both endpoints compute it.
 // expires_at (#941) is when this session stops being honoured; optional for
 // the same reason as renew_at. See renew.ts's retryDelayMs.
+import { rememberWorkspace } from "./workspace-signin";
+
 export interface LoginResult {
   tenant_id: string;
   renew_at?: string;
@@ -74,5 +76,7 @@ export async function exchangeIdToken(idToken: string, tenantId?: string): Promi
     }
     throw new Error(message);
   }
-  return (await res.json()) as LoginResult;
+  const result = (await res.json()) as LoginResult;
+  rememberWorkspace(result.tenant_id);
+  return result;
 }

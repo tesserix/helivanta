@@ -89,7 +89,7 @@ func listRegistrations(t *testing.T, r *gin.Engine, token string) []registration
 
 func TestTaxRegistrationRecordsAndCorrects(t *testing.T) {
 	r := taxHarness(t)
-	w := do(r, "POST", registrationsPath(pharmaOutlet), "owner", registrationBody("07", " 07abcde1234f1z2 ", "2026-11-01", ""))
+	w := do(r, "PUT", taxCommandPath(registrationsPath(pharmaOutlet)), "owner", registrationBody("07", " 07abcde1234f1z2 ", "2026-11-01", ""))
 	require.Equal(t, 201, w.Code, w.Body.String())
 	var created registrationRow
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &created))
@@ -98,14 +98,14 @@ func TestTaxRegistrationRecordsAndCorrects(t *testing.T) {
 	require.True(t, created.InForce)
 
 	// A same-day correction needs a reason, then replaces the first row.
-	w = do(r, "POST", registrationsPath(pharmaOutlet), "owner", registrationBody("27", "27PQRST5678K2Z1", "2026-11-01", ""))
+	w = do(r, "PUT", taxCommandPath(registrationsPath(pharmaOutlet)), "owner", registrationBody("27", "27PQRST5678K2Z1", "2026-11-01", ""))
 	require.Equal(t, 400, w.Code, w.Body.String())
 	require.Contains(t, w.Body.String(), "reason")
-	w = do(r, "POST", registrationsPath(pharmaOutlet), "owner", registrationBody("27", "27PQRST5678K2Z1", "2026-11-01", "Registered in Maharashtra"))
+	w = do(r, "PUT", taxCommandPath(registrationsPath(pharmaOutlet)), "owner", registrationBody("27", "27PQRST5678K2Z1", "2026-11-01", "Registered in Maharashtra"))
 	require.Equal(t, 201, w.Code, w.Body.String())
 
 	// A future change is recorded but not yet in force.
-	w = do(r, "POST", registrationsPath(pharmaOutlet), "owner", registrationBody("04", "04LMNOP4321Q1ZC", "2026-12-01", ""))
+	w = do(r, "PUT", taxCommandPath(registrationsPath(pharmaOutlet)), "owner", registrationBody("04", "04LMNOP4321Q1ZC", "2026-12-01", ""))
 	require.Equal(t, 201, w.Code, w.Body.String())
 
 	rows := listRegistrations(t, r, "owner")
@@ -142,23 +142,23 @@ func TestTaxRegistrationRejects(t *testing.T) {
 		"jurisdiction not two digit": {registrationBody("7", "07ABCDE1234F1Z2", "2026-11-01", ""), ""},
 	} {
 		t.Run(name, func(t *testing.T) {
-			w := do(r, "POST", registrationsPath(pharmaOutlet), "owner", tc.body)
+			w := do(r, "PUT", taxCommandPath(registrationsPath(pharmaOutlet)), "owner", tc.body)
 			require.Equal(t, 400, w.Code, w.Body.String())
 			require.Contains(t, w.Body.String(), tc.message)
 		})
 	}
 	require.Empty(t, listRegistrations(t, r, "owner"))
 
-	w := do(r, "POST", registrationsPath(schemelessOutlet), "owner", registrationBody("07", "07ABCDE1234F1Z2", "2026-11-01", ""))
+	w := do(r, "PUT", taxCommandPath(registrationsPath(schemelessOutlet)), "owner", registrationBody("07", "07ABCDE1234F1Z2", "2026-11-01", ""))
 	require.Equal(t, 409, w.Code, w.Body.String())
 	require.Contains(t, w.Body.String(), "tax_scheme_unavailable")
 
 	body := registrationBody("07", "07ABCDE1234F1Z2", "2026-11-01", "")
-	require.Equal(t, 403, do(r, "POST", registrationsPath(pharmaOutlet), "pharmacist", body).Code)
+	require.Equal(t, 403, do(r, "PUT", taxCommandPath(registrationsPath(pharmaOutlet)), "pharmacist", body).Code)
 	require.Equal(t, 403, do(r, "GET", registrationsPath(pharmaOutlet), "pharmacist", "").Code)
-	require.Equal(t, 404, do(r, "POST", registrationsPath(pharmaOutlet), "foreign", body).Code)
+	require.Equal(t, 404, do(r, "PUT", taxCommandPath(registrationsPath(pharmaOutlet)), "foreign", body).Code)
 	require.Equal(t, 404, do(r, "GET", registrationsPath(pharmaOutlet), "foreign", "").Code)
-	require.Equal(t, 404, do(r, "POST", registrationsPath("0199e000-0000-7000-8000-000000000099"), "owner", body).Code)
+	require.Equal(t, 404, do(r, "PUT", taxCommandPath(registrationsPath("0199e000-0000-7000-8000-000000000099")), "owner", body).Code)
 }
 
 // At 00:30 in India it is still the previous day in UTC; "today" is the
@@ -166,9 +166,9 @@ func TestTaxRegistrationRejects(t *testing.T) {
 func TestTaxRegistrationUsesTheOutletsLocalDate(t *testing.T) {
 	r := taxHarness(t)
 	pharmacy.SetClock(t, func() time.Time { return time.Date(2026, 11, 1, 19, 0, 0, 0, time.UTC) })
-	w := do(r, "POST", registrationsPath(pharmaOutlet), "owner", registrationBody("07", "07ABCDE1234F1Z2", "2026-11-01", ""))
+	w := do(r, "PUT", taxCommandPath(registrationsPath(pharmaOutlet)), "owner", registrationBody("07", "07ABCDE1234F1Z2", "2026-11-01", ""))
 	require.Equal(t, 400, w.Code, w.Body.String())
-	w = do(r, "POST", registrationsPath(pharmaOutlet), "owner", registrationBody("07", "07ABCDE1234F1Z2", "2026-11-02", ""))
+	w = do(r, "PUT", taxCommandPath(registrationsPath(pharmaOutlet)), "owner", registrationBody("07", "07ABCDE1234F1Z2", "2026-11-02", ""))
 	require.Equal(t, 201, w.Code, w.Body.String())
 	rows := listRegistrations(t, r, "owner")
 	require.Len(t, rows, 1)
@@ -285,9 +285,9 @@ func TestTaxRegistrationInForceRoute(t *testing.T) {
 		return body.Registration
 	}
 	require.Nil(t, inForce())
-	require.Equal(t, 201, do(r, "POST", registrationsPath(pharmaOutlet), "owner", registrationBody("07", "07ABCDE1234F1Z2", "2026-11-01", "")).Code)
+	require.Equal(t, 201, do(r, "PUT", taxCommandPath(registrationsPath(pharmaOutlet)), "owner", registrationBody("07", "07ABCDE1234F1Z2", "2026-11-01", "")).Code)
 	for i := range 3 {
-		require.Equal(t, 201, do(r, "POST", registrationsPath(pharmaOutlet), "owner", registrationBody("04", "04LMNOP4321Q1ZC", fmt.Sprintf("2027-0%d-01", i+1), "")).Code)
+		require.Equal(t, 201, do(r, "PUT", taxCommandPath(registrationsPath(pharmaOutlet)), "owner", registrationBody("04", "04LMNOP4321Q1ZC", fmt.Sprintf("2027-0%d-01", i+1), "")).Code)
 	}
 	got := inForce()
 	require.Equal(t, "07ABCDE1234F1Z2", got["identifier"])

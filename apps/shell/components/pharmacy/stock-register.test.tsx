@@ -49,7 +49,6 @@ const row = {
   sale_units: "0",
   return_units: "0",
   supplier_dispatch_units: "0",
-  dispensable_units: 0,
 };
 const page = (data: unknown[], cursor: string | null = null) => ({
   data,
@@ -193,8 +192,8 @@ it("retains zero stock and opens a focused reconciliation using one frozen snaps
     "tabindex",
     "0",
   );
-  // Dispensable and the five zero movement totals.
-  expect(within(table).getAllByText("0")).toHaveLength(6);
+  // The five zero movement totals.
+  expect(within(table).getAllByText("0")).toHaveLength(5);
   await user.click(screen.getByRole("button", { name: "Inspect TEST-500 lot TEST-LOT at TEST-Q" }));
   expect(
     await screen.findByRole("heading", { name: "TEST-500 · TEST-LOT · TEST-Q" }),
@@ -358,6 +357,13 @@ function ScopeHarness({ field }: { field: keyof typeof scope }) {
     </>
   );
 }
+
+it("has no dispensable column: a snapshot cannot say what was sellable then (#1708)", async () => {
+  vi.stubGlobal("fetch", vi.fn(fixture()));
+  renderWithProviders(<StockRegister scope={scope} />);
+  expect(await screen.findByRole("columnheader", { name: "Supplied to hospitals" })).toBeVisible();
+  expect(screen.queryByRole("columnheader", { name: "Dispensable" })).not.toBeInTheDocument();
+});
 
 it("renders exact cumulative decimal totals without losing units beyond Number safety", async () => {
   const base = fixture();

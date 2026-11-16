@@ -45,7 +45,7 @@ const product = "0199e000-0000-7000-8000-000000000003";
 const batch = "0199e000-0000-7000-8000-000000000005";
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
 
-function mockReceiving() {
+function mockReceiving(dispensable = 0) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) => {
@@ -72,7 +72,11 @@ function mockReceiving() {
         );
       if (url.includes("/stock/balance"))
         return new Response(
-          JSON.stringify({ on_hand_units: 7, dispensable_units: 0, stock_status: "quarantine" }),
+          JSON.stringify({
+            on_hand_units: 7,
+            dispensable_units: dispensable,
+            stock_status: "quarantine",
+          }),
         );
       return new Response(JSON.stringify(page([])));
     }),
@@ -105,6 +109,16 @@ describe("Receiving shows the chosen lot beside the chooser (#1303 E4)", () => {
     expect(pane).toHaveTextContent("Selected lot balance");
     expect(await screen.findByText("7")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Next lot" })).toBeNull();
+  });
+
+  it("shows the units a sale could take, before outlet and product checks (#1708)", async () => {
+    nav.search = `location=${location}&product=${product}&open=${batch}`;
+    mockReceiving(5);
+    renderReceiving();
+    const figure = await screen.findByText("Available to dispense");
+    const entry = figure.closest("div");
+    expect(entry).toHaveTextContent("5");
+    expect(entry).toHaveTextContent("Before outlet and product checks.");
   });
 
   it("opens the lot in the pane once location, product and lot are chosen", async () => {

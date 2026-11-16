@@ -15,7 +15,8 @@ const pageContract = z
       .strict(),
   })
   .strict();
-export async function listEmploymentPersonFindings(
+async function listFindingOptions(
+  route: "employment-person-findings" | "employment-person-finding-options",
   scope: EmploymentReviewPreparationScope,
   basis: EmploymentPersonFindingSearchInput,
   cursor: string | null = null,
@@ -33,7 +34,7 @@ export async function listEmploymentPersonFindings(
   if (cursor !== null) query.set("cursor", z.string().min(1).max(2048).parse(cursor));
   const id = EmploymentPersonFindingOptionContract.shape.id;
   const response = await apiFetch<unknown>(
-    `/workforce/hospitals/${id.parse(scope.hospitalId)}/staff/${id.parse(scope.staffId)}/employment-person-findings?${query}`,
+    `/workforce/hospitals/${id.parse(scope.hospitalId)}/staff/${id.parse(scope.staffId)}/${route}?${query}`,
     { ...personReviewRequest(scope), signal },
   );
   signal?.throwIfAborted();
@@ -55,4 +56,22 @@ export async function listEmploymentPersonFindings(
       "The approved person findings could not be verified. Refresh before continuing.",
     );
   return parsed.data;
+}
+
+export function listEmploymentPersonFindings(
+  scope: EmploymentReviewPreparationScope,
+  basis: EmploymentPersonFindingSearchInput,
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  return listFindingOptions("employment-person-findings", scope, basis, cursor, signal);
+}
+
+export function listGovernanceEmploymentPersonFindings(
+  scope: EmploymentReviewPreparationScope,
+  basis: EmploymentPersonFindingSearchInput,
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  return listFindingOptions("employment-person-finding-options", scope, basis, cursor, signal);
 }

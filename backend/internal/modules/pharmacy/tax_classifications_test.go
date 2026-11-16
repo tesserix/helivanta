@@ -63,17 +63,17 @@ func TestTaxClassificationRecordsAndShowsOnTheProduct(t *testing.T) {
 	id := putTaxProduct(t, r, "TEST-AMOX", "active")
 	require.Nil(t, getProductTax(t, r, id))
 
-	w := do(r, "POST", classificationsPath(id), "owner", classificationBody("3004", "taxable", "5", "", "2026-11-01", ""))
+	w := do(r, "PUT", taxCommandPath(classificationsPath(id)), "owner", classificationBody("3004", "taxable", "5", "", "2026-11-01", ""))
 	require.Equal(t, 201, w.Code, w.Body.String())
 	require.Contains(t, w.Body.String(), `"rate_ppm":50000`)
 	require.Equal(t, &productTax{"3004", "taxable", 50000, "2026-11-01"}, getProductTax(t, r, id))
 
 	// A rate change entered ahead of its date does not apply yet.
-	require.Equal(t, 201, do(r, "POST", classificationsPath(id), "owner", classificationBody("30049099", "taxable", "0.25", "", "2026-12-01", "")).Code)
+	require.Equal(t, 201, do(r, "PUT", taxCommandPath(classificationsPath(id)), "owner", classificationBody("30049099", "taxable", "0.25", "", "2026-12-01", "")).Code)
 	require.Equal(t, int64(50000), getProductTax(t, r, id).RatePPM)
 	// A same-day correction replaces today's row.
-	require.Equal(t, 400, do(r, "POST", classificationsPath(id), "owner", classificationBody("3004", "taxable", "12", "", "2026-11-01", "")).Code)
-	require.Equal(t, 201, do(r, "POST", classificationsPath(id), "owner", classificationBody("3004", "taxable", "12", "", "2026-11-01", "Wrong slab")).Code)
+	require.Equal(t, 400, do(r, "PUT", taxCommandPath(classificationsPath(id)), "owner", classificationBody("3004", "taxable", "12", "", "2026-11-01", "")).Code)
+	require.Equal(t, 201, do(r, "PUT", taxCommandPath(classificationsPath(id)), "owner", classificationBody("3004", "taxable", "12", "", "2026-11-01", "Wrong slab")).Code)
 	require.Equal(t, int64(120000), getProductTax(t, r, id).RatePPM)
 
 	w = do(r, "GET", classificationsPath(id), "pharmacist", "")
@@ -97,7 +97,7 @@ func TestTaxClassificationRecordsAndShowsOnTheProduct(t *testing.T) {
 
 	// Exempt needs a basis; nil-rated carries no rate.
 	exempt := putTaxProduct(t, r, "TEST-EXEMPT", "active")
-	require.Equal(t, 201, do(r, "POST", classificationsPath(exempt), "owner", classificationBody("3006", "exempt", "0", "TEST notification entry", "2026-11-01", "")).Code)
+	require.Equal(t, 201, do(r, "PUT", taxCommandPath(classificationsPath(exempt)), "owner", classificationBody("3006", "exempt", "0", "TEST notification entry", "2026-11-01", "")).Code)
 	require.Equal(t, &productTax{"3006", "exempt", 0, "2026-11-01"}, getProductTax(t, r, exempt))
 }
 
@@ -119,22 +119,22 @@ func TestTaxClassificationRejects(t *testing.T) {
 		"unknown nature":          classificationBody("3004", "zero_rated", "0", "", "2026-11-01", ""),
 	} {
 		t.Run(name, func(t *testing.T) {
-			w := do(r, "POST", classificationsPath(id), "owner", body)
+			w := do(r, "PUT", taxCommandPath(classificationsPath(id)), "owner", body)
 			require.Equal(t, 400, w.Code, w.Body.String())
 		})
 	}
 	require.Nil(t, getProductTax(t, r, id))
 
 	body := classificationBody("3004", "taxable", "5", "", "2026-11-01", "")
-	require.Equal(t, 403, do(r, "POST", classificationsPath(id), "pharmacist", body).Code, "catalogue.write is not tax.manage")
-	require.Equal(t, 404, do(r, "POST", classificationsPath(id), "foreign", body).Code)
-	require.Equal(t, 404, do(r, "POST", classificationsPath(uuid.Must(uuid.NewV7()).String()), "owner", body).Code)
-	require.Equal(t, 404, do(r, "POST", classificationsPath(id), "ungranted", body).Code, "classification needs outlet access")
+	require.Equal(t, 403, do(r, "PUT", taxCommandPath(classificationsPath(id)), "pharmacist", body).Code, "catalogue.write is not tax.manage")
+	require.Equal(t, 404, do(r, "PUT", taxCommandPath(classificationsPath(id)), "foreign", body).Code)
+	require.Equal(t, 404, do(r, "PUT", taxCommandPath(classificationsPath(uuid.Must(uuid.NewV7()).String())), "owner", body).Code)
+	require.Equal(t, 404, do(r, "PUT", taxCommandPath(classificationsPath(id)), "ungranted", body).Code, "classification needs outlet access")
 
 	withdrawn := putTaxProduct(t, r, "TEST-GONE", "withdrawn")
-	require.Equal(t, 409, do(r, "POST", classificationsPath(withdrawn), "owner", body).Code)
+	require.Equal(t, 409, do(r, "PUT", taxCommandPath(classificationsPath(withdrawn)), "owner", body).Code)
 	discontinued := putTaxProduct(t, r, "TEST-OLD", "discontinued")
-	require.Equal(t, 201, do(r, "POST", classificationsPath(discontinued), "owner", body).Code)
+	require.Equal(t, 201, do(r, "PUT", taxCommandPath(classificationsPath(discontinued)), "owner", body).Code)
 }
 
 func TestTaxClassificationRefusesCountryWithoutScheme(t *testing.T) {
@@ -145,7 +145,7 @@ func TestTaxClassificationRefusesCountryWithoutScheme(t *testing.T) {
 	legacyProduct := strings.Replace(productPath(id), pharmaOutlet, schemelessOutlet, 1)
 	w = do(r, "PUT", legacyProduct, "owner", productBody(0, "TEST Amoxil"))
 	require.Equal(t, 200, w.Code, w.Body.String())
-	w = do(r, "POST", legacyProduct+"/tax-classifications", "owner", classificationBody("3004", "taxable", "5", "", "2026-11-01", ""))
+	w = do(r, "PUT", taxCommandPath(legacyProduct+"/tax-classifications"), "owner", classificationBody("3004", "taxable", "5", "", "2026-11-01", ""))
 	require.Equal(t, 409, w.Code, w.Body.String())
 	require.Contains(t, w.Body.String(), "tax_scheme_unavailable")
 }
@@ -158,8 +158,8 @@ func TestUnclassifiedFilterUsesTheOutletsDate(t *testing.T) {
 	tomorrow := putTaxProduct(t, r, "TEST-LATER", "active")
 	missing := putTaxProduct(t, r, "TEST-TODO", "discontinued")
 	putTaxProduct(t, r, "TEST-GONE", "withdrawn")
-	require.Equal(t, 201, do(r, "POST", classificationsPath(classified), "owner", classificationBody("3004", "taxable", "5", "", "2026-11-01", "")).Code)
-	require.Equal(t, 201, do(r, "POST", classificationsPath(tomorrow), "owner", classificationBody("3004", "taxable", "5", "", "2026-11-02", "")).Code)
+	require.Equal(t, 201, do(r, "PUT", taxCommandPath(classificationsPath(classified)), "owner", classificationBody("3004", "taxable", "5", "", "2026-11-01", "")).Code)
+	require.Equal(t, 201, do(r, "PUT", taxCommandPath(classificationsPath(tomorrow)), "owner", classificationBody("3004", "taxable", "5", "", "2026-11-02", "")).Code)
 
 	list := func() []string {
 		w := do(r, "GET", strings.TrimSuffix(productPath(""), "/")+"?tax=unclassified", "pharmacist", "")
@@ -184,7 +184,7 @@ func TestUnclassifiedFilterUsesTheOutletsDate(t *testing.T) {
 func TestProductSaveReportsTheTaxInForce(t *testing.T) {
 	r := taxHarness(t)
 	id := putTaxProduct(t, r, "TEST-AMOX", "active")
-	require.Equal(t, 201, do(r, "POST", classificationsPath(id), "owner", classificationBody("3004", "taxable", "5", "", "2026-11-01", "")).Code)
+	require.Equal(t, 201, do(r, "PUT", taxCommandPath(classificationsPath(id)), "owner", classificationBody("3004", "taxable", "5", "", "2026-11-01", "")).Code)
 	body := strings.Replace(strings.Replace(productBody(1, "TEST Renamed"), "TEST-AMOX-500", "TEST-AMOX", 1), `"status":"active"`, `"status":"active"`, 1)
 	w := do(r, "PUT", productPath(id), "owner", body)
 	require.Equal(t, 200, w.Code, w.Body.String())

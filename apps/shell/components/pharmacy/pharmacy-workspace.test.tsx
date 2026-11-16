@@ -587,6 +587,7 @@ it("retains the selected outlet across pharmacy pages without crossing tenants",
 it("registers an independent pharmacy without asking for a hospital", async () => {
   const base = mockPharmacy();
   let created: Record<string, unknown> | undefined;
+  let createdId = "";
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
     if (url.endsWith("permissions"))
       return new Response(
@@ -608,10 +609,15 @@ it("registers an independent pharmacy without asking for a hospital", async () =
       !url.includes("/outlets/")
     ) {
       created = JSON.parse(init.body as string);
+      createdId = url.split("/").at(-1)!;
       return new Response(
         JSON.stringify({ id: url.split("/").at(-1), ...created, onboarding_status: "draft" }),
       );
     }
+    if (created && url.endsWith("/pharmacy/pharmacies"))
+      return Response.json(page([{ id: createdId, ...created, onboarding_status: "draft" }]));
+    if (createdId && url.includes(`/pharmacy/pharmacies/${createdId}/`))
+      return Response.json(page([]));
     return base(url, init);
   });
   vi.stubGlobal("fetch", fetcher);
@@ -627,7 +633,59 @@ it("registers an independent pharmacy without asking for a hospital", async () =
     }),
   );
   expect(created).not.toHaveProperty("hospital_id");
-  expect(screen.getByText(/grants nothing until that hospital verifies it/)).toBeInTheDocument();
+  expect(
+    await screen.findByText(/grants nothing until that hospital verifies it/),
+  ).toBeInTheDocument();
+});
+
+it("opens the newly registered hospital pharmacy for outlet setup instead of leaving the previous pharmacy selected", async () => {
+  const base = mockPharmacy();
+  let created: Record<string, unknown> | null = null;
+  const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.endsWith("permissions"))
+      return Response.json({
+        tenant_id: "11111111-1111-1111-1111-111111111111",
+        subject: "TEST-admin",
+        data: ["pharmacy.catalogue.read", "pharmacy.access.manage"],
+      });
+    if (init?.method === "PUT" && /^\/api\/v1\/pharmacy\/pharmacies\/[^/]+$/.test(url)) {
+      created = {
+        id: url.split("/").at(-1),
+        ...JSON.parse(init.body as string),
+        onboarding_status: "draft",
+      };
+      return Response.json(created);
+    }
+    if (created && url.endsWith("/pharmacy/pharmacies"))
+      return Response.json(
+        page([
+          created,
+          {
+            id: pharmacy,
+            code: "TEST-PHARMACY",
+            name: "TEST Community Pharmacy",
+            ownership_type: "independent",
+            onboarding_status: "draft",
+          },
+        ]),
+      );
+    if (created && url.includes(`/pharmacy/pharmacies/${created.id}/`))
+      return Response.json(page([]));
+    return base(url, init);
+  });
+  vi.stubGlobal("fetch", fetcher);
+  nav.search = new URLSearchParams({ pharmacy, outlet }).toString();
+  const { user } = renderWorkspace("setup");
+  await user.type(await screen.findByLabelText("Pharmacy code"), "SYN-HOSP-PHARM");
+  await user.type(screen.getByLabelText("Pharmacy name"), "Synthetic hospital pharmacy");
+  await chooseOption(user, screen.getByLabelText("Ownership type"), "Hospital-owned pharmacy");
+  await user.click(screen.getByRole("button", { name: "Register pharmacy" }));
+  await waitFor(() =>
+    expect(screen.getByLabelText("Pharmacy")).toHaveTextContent("Synthetic hospital pharmacy"),
+  );
+  expect(address().get("pharmacy")).toBe(created!.id);
+  expect(address().has("outlet")).toBe(false);
+  expect(screen.getByRole("button", { name: "Register outlet" })).toBeInTheDocument();
 });
 
 it("defaults a new product to the outlet country's currency", async () => {
@@ -1179,9 +1237,7 @@ describe("Outlets & access", () => {
     nav.search = `pharmacy=${pharmacy}&outlet=${outlet}`;
     const { user } = renderWorkspace("setup");
     await user.click(await screen.findByRole("button", { name: "Open TEST-MAIN" }));
-    await user.click(
-      await screen.findByLabelText("Grant my account pharmacy access to this outlet"),
-    );
+    await user.click(await screen.findByLabelText("Confirm this is the outlet to grant access at"));
     await user.click(screen.getByRole("button", { name: "Next outlet" }));
     expect(await screen.findByRole("dialog")).toHaveTextContent(
       "Discard changes to TEST Main Outlet?",

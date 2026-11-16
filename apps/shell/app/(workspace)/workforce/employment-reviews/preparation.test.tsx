@@ -256,3 +256,30 @@ it.each([401, 403, 404, 409])(
     await waitFor(() => expect(onAccessLost).toHaveBeenCalledTimes(1));
   },
 );
+
+it("uses only native finding selection for governance submission", async () => {
+  const fetcher = vi.fn(async () =>
+    Response.json({ data: [], page: { has_more: false, next_cursor: null } }),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <EmploymentReviewPreparation
+        authority="governance"
+        scope={scope}
+        terms={terms}
+        evidence={[binding]}
+        onClose={() => {}}
+        onSubmitted={() => {}}
+        onAccessLost={() => {}}
+      />
+    </NavigationGuardProvider>,
+  );
+  await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+  const [url, init] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
+  expect(url).toContain(
+    "/employment-person-finding-options?hr_intake=v1&staff_version=1&employment_epoch=1",
+  );
+  expect(url).not.toContain("employment-person-findings?");
+  expect(new Headers(init.headers).get("X-Helivanta-Expected-Subject")).toBe(scope.subject);
+});

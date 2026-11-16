@@ -53,7 +53,8 @@ The proposed OpenAPI-first direction in #4 needs a migration decision. Preserve 
 | `workforce-employment-periods.json` | Private appointment/contract draft source, commands and immutable revisions; `generate-workforce-employment-periods.mjs` generates Go/Zod models                                                                       |
 | `workforce-employment-reviews.json` | Scoped immutable employment submissions, independent decisions/endings, current capabilities and source/evidence receipts; `generate-workforce-employment-reviews.mjs` generates Go/Zod models                         |
 | `workforce-establishments.json`     | Standalone pharmacy employer registration (ADR-0054); `generate-workforce-establishments.mjs` generates Go/Zod models and supports `--check`                                                                           |
-| `staff-access.json`                 | IAM assignment proposals, decisions/history, owner verification and projection-request events; `generate-staff-access.mjs` generates IAM-owned Go HTTP models, shared Zod and public owner event declarations          |
+| `staff-governance.json`             | Candidate IAM governance grant/review/owner-notice models and fixed nonclinical source templates; `generate-staff-governance.mjs` and `--check`. Runtime source admission is specified in `staff-governance.md`.       |
+| `staff-access.json`                 | IAM assignment proposals, decisions/history, owner verification/projection events and governed hospital/employer/Staff choices; `generate-staff-access.mjs` generates IAM/Workforce Go, shared Zod and owner events          |
 | `partner-groups.json`               | Hospital-published partner groups, direct Staff membership/candidate/decision models and identifier-only source/change events; `generate-partner-groups.mjs` generates IAM Go, shared Zod and owner event declarations |
 
 `organization-structure.json` owns the unreleased hospital-registration HTTP
@@ -157,7 +158,7 @@ or operating access. Pharmacy outlet-choice metadata belongs to the existing
 
 All commands support `--check`. These candidates do not complete or activate supplier collaboration; see [the current identity boundary](workforce-independent-identity.md) and [stock contract](supply-stock.md).
 
-- `contracts/operating-assignments.json` → `node scripts/generate-operating-assignments.mjs`: typed independent operating duties, immutable decisions and closed receiving templates. Generates Go/Zod and the matching SQL permission function; supports `--check`.
+- `contracts/operating-assignments.json` → `node scripts/generate-operating-assignments.mjs`: typed independent operating duties, immutable decisions, structural source choices and closed receiving templates. Generates Go/Zod and the matching SQL permission function; supports `--check`.
 
 - `contracts/supplier-trade.json` → `node scripts/generate-supplier-trade.mjs`: shared source/consent wire models, pharmacy scope input validation and the directed relationship contract. Categories derive from trading-policy; supports `--check`.
 

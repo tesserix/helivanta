@@ -15,7 +15,8 @@ const pageContract = z
   })
   .strict();
 
-export async function listPersonReviewScopes(
+async function listScopePage(
+  route: "person-review-scopes" | "person-review-authority-scopes",
   workspace: Pick<PersonReviewScope, "tenantId" | "subject">,
   cursor: string | null = null,
   signal?: AbortSignal,
@@ -23,7 +24,7 @@ export async function listPersonReviewScopes(
   signal?.throwIfAborted();
   const query = new URLSearchParams({ limit: "20" });
   if (cursor !== null) query.set("cursor", z.string().min(1).max(2048).parse(cursor));
-  const response = await apiFetch<unknown>(`/workforce/person-review-scopes?${query}`, {
+  const response = await apiFetch<unknown>(`/workforce/${route}?${query}`, {
     ...personReviewRequest(workspace),
     signal,
   });
@@ -32,10 +33,30 @@ export async function listPersonReviewScopes(
   if (
     !parsed.success ||
     parsed.data.page.has_more !== Boolean(parsed.data.page.next_cursor) ||
-    parsed.data.data.some((row) => !row.can_submit && !row.can_review)
+    parsed.data.data.some((row) => !row.can_submit && !row.can_review) ||
+    (route === "person-review-authority-scopes" &&
+      (new Set(parsed.data.data.map((row) => row.hospital_id.toLowerCase())).size !==
+        parsed.data.data.length ||
+        (cursor !== null && parsed.data.page.next_cursor === cursor)))
   )
     throw new Error(
       "The person-review hospital list could not be verified. Refresh before continuing.",
     );
   return parsed.data;
+}
+
+export function listPersonReviewScopes(
+  workspace: Pick<PersonReviewScope, "tenantId" | "subject">,
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  return listScopePage("person-review-scopes", workspace, cursor, signal);
+}
+
+export function listPersonReviewAuthorityScopes(
+  workspace: Pick<PersonReviewScope, "tenantId" | "subject">,
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  return listScopePage("person-review-authority-scopes", workspace, cursor, signal);
 }

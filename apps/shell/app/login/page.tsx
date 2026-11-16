@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
 import {
   AuthCardCentered,
@@ -13,7 +13,13 @@ import {
   type AuthMethodPolicy,
   type PasswordPolicy,
 } from "@tesserix/web";
-import { ApiError, useApiMutation, useApiQuery } from "@helivanta/api";
+import {
+  ApiError,
+  storeExpiresAt,
+  storeRenewAt,
+  useApiMutation,
+  useApiQuery,
+} from "@helivanta/api";
 import { IDLE_ENDED_MARK, SIGNED_OUT_MARK } from "@helivanta/ui";
 import { QRCodeSVG } from "qrcode.react";
 
@@ -26,6 +32,7 @@ import { getUserManager } from "@/lib/oidc";
 import { AccountDiscovery } from "@/components/account-discovery";
 import { MfaCodeForm } from "@/components/mfa-code-form";
 import { workspaceSigninScope } from "@/lib/workspace-signin";
+import { RenewalFailedError, renewSession, type RenewalResult } from "@/lib/renew";
 import {
   changePassword,
   checkFactor,
@@ -68,14 +75,83 @@ function LoginPageContent() {
   if (authRequestId) {
     return <ValidatedCredentialForm authRequestId={authRequestId} />;
   }
+  if (!params.has("workspace") && !params.has("authRequest")) {
+    return <SessionLanding />;
+  }
   return <RedirectLanding autoStart={params.get("start") === "1"} />;
 }
 
+function SessionLanding() {
+  const router = useRouter();
+  const [state, setState] = useState<"checking" | "signIn" | "unavailable">("checking");
+  const [attempt, setAttempt] = useState(0);
+  const request = useRef<Promise<RenewalResult> | null>(null);
+  useEffect(() => {
+    let active = true;
+    let ended = false;
+    try {
+      ended = Boolean(
+        window.sessionStorage.getItem(SIGNED_OUT_MARK) ||
+        window.sessionStorage.getItem(IDLE_ENDED_MARK),
+      );
+    } catch {
+      // The server remains authoritative when browser storage is unavailable.
+    }
+    if (ended) {
+      void Promise.resolve().then(() => {
+        if (active) setState("signIn");
+      });
+    } else {
+      request.current ??= renewSession();
+      const pending = request.current;
+      void pending.then(
+        (result) => {
+          if (request.current === pending) request.current = null;
+          if (!active) return;
+          storeRenewAt(result.renewAt);
+          storeExpiresAt(result.expiresAt);
+          router.replace("/dashboard");
+        },
+        (error) => {
+          if (request.current === pending) request.current = null;
+          if (active) setState(error instanceof RenewalFailedError ? "signIn" : "unavailable");
+        },
+      );
+    }
+    return () => {
+      active = false;
+    };
+  }, [router, attempt]);
+  if (state === "checking") return <AuthChromeLoading />;
+  if (state === "signIn") return <RedirectLanding />;
+  return (
+    <TenantLoginLayout>
+      <AuthCardCentered>
+        <TenantLoginHeading />
+        <p role="alert" className="text-sm text-muted-foreground">
+          Your session could not be checked. Try again to continue.
+        </p>
+        <Button
+          className="w-full"
+          onClick={() => {
+            request.current = null;
+            setState("checking");
+            setAttempt((value) => value + 1);
+          }}
+        >
+          Retry session check
+        </Button>
+        <Button className="w-full" variant="ghost" onClick={() => setState("signIn")}>
+          Sign in again
+        </Button>
+      </AuthCardCentered>
+    </TenantLoginLayout>
+  );
+}
+
 // The shared auth chrome with nothing but a neutral "Loading…" line —
-// used both as LoginPage's Suspense fallback and as
-// ValidatedCredentialForm's pending state, so a caller waiting on either
-// the search-param read or the auth-request GET sees the same page shell
-// rather than a blank one.
+// used while reading search parameters, checking the current session or
+// validating an auth request, so every pending state has the same shell.
 function AuthChromeLoading() {
   return (
     <TenantLoginLayout>
@@ -960,7 +1036,7 @@ function PasswordChangeStep({
 // this is the one case on this page where that is still correct, because
 // there is no auth request yet for a credential to check against.
 //
-// **The redirect is triggered by a button, not by mounting** (#847). This
+// **OIDC authorization is triggered by a button, not by mounting** (#847). This
 // page used to call signinRedirect() from a useEffect on arrival, which
 // caused two distinct defects:
 //

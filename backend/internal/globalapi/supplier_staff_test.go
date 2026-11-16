@@ -31,7 +31,7 @@ func (m *supplierIdentityMembership) IsMember(_ context.Context, subject, tenant
 func TestSupplierAccountBindingNeedsIndependentReviewAndRetainsCommandRecovery(t *testing.T) {
 	permissions := []authz.Permission{supply.PermPartyWrite, supply.PermOrganizationManage, "workforce.supplier.manage", "workforce.independent_login.manage", "workforce.independent_login.review"}
 	membership := &supplierIdentityMembership{}
-	owner, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{Membership: membership, Tokens: map[string]string{"owner": testutil.TenantA, "reviewer": testutil.TenantA, "operator": testutil.TenantA, "alias": testutil.TenantA, "outsider": testutil.TenantA, "foreign": testutil.TenantB}, Perms: map[string][]authz.Permission{"owner": permissions, "reviewer": permissions, "operator": permissions, "foreign": permissions}, Modules: []platform.Module{supply.New(), workforce.New()}})
+	owner, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{GovernanceSources: testutil.GovernanceReviewProtocol, Membership: membership, Tokens: map[string]string{"owner": testutil.TenantA, "reviewer": testutil.TenantA, "operator": testutil.TenantA, "alias": testutil.TenantA, "outsider": testutil.TenantA, "foreign": testutil.TenantB}, Perms: map[string][]authz.Permission{"owner": permissions, "reviewer": permissions, "operator": permissions, "foreign": permissions}, Modules: []platform.Module{supply.New(), workforce.New()}})
 	server := httptest.NewServer(owner)
 	t.Cleanup(server.Close)
 	gateway, err := New(Config{Development: true, Timeout: 5 * time.Second, Upstreams: map[string]string{"supply": server.URL, "workforce": server.URL}})
@@ -146,7 +146,7 @@ func TestSupplierAccountBindingNeedsIndependentReviewAndRetainsCommandRecovery(t
 
 func TestSupplierStaffUsesOwnedEmployerAndRefusesOtherFamilies(t *testing.T) {
 	manage := []authz.Permission{supply.PermPartyWrite, supply.PermOrganizationManage, workforce.PermHospitalManage, "workforce.supplier.manage"}
-	owner, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"owner": testutil.TenantA, "reader": testutil.TenantA, "outsider": testutil.TenantA, "foreign": testutil.TenantB}, Perms: map[string][]authz.Permission{"owner": manage, "foreign": manage, "reader": {}, "outsider": {}}, Modules: []platform.Module{supply.New(), workforce.New()}})
+	owner, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{GovernanceSources: testutil.GovernanceReviewProtocol, Tokens: map[string]string{"owner": testutil.TenantA, "reader": testutil.TenantA, "outsider": testutil.TenantA, "foreign": testutil.TenantB}, Perms: map[string][]authz.Permission{"owner": manage, "foreign": manage, "reader": {}, "outsider": {}}, Modules: []platform.Module{supply.New(), workforce.New()}})
 	server := httptest.NewServer(owner)
 	t.Cleanup(server.Close)
 	gateway, err := New(Config{Development: true, Timeout: 5 * time.Second, Upstreams: map[string]string{"supply": server.URL, "workforce": server.URL}})

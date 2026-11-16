@@ -708,6 +708,33 @@
       "type": "object"
     }
   },
+  "helivanta.in.iam.assignment_governance_scope_requested.v1": {
+    "source": "backend/internal/modules/iam/contract/assignment_governance_scope_generated.go:6",
+    "go_type": "AssignmentGovernanceScopeRequestedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "hospital_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "proposal_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "request_id": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "proposal_id",
+        "request_id",
+        "hospital_id"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.iam.assignment_projection_requested.v1": {
     "source": "backend/internal/modules/iam/contract/assignment_projection_generated.go:6",
     "go_type": "AssignmentProjectionRequestedData",
@@ -4677,6 +4704,37 @@
         "party_id",
         "territory_id",
         "version"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.workforce.assignment_governance_scope_verified.v1": {
+    "source": "backend/internal/modules/workforce/contract/assignment_governance_scope_generated.go:6",
+    "go_type": "AssignmentGovernanceScopeVerifiedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "eligible": {
+          "type": "boolean"
+        },
+        "hospital_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "proposal_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "request_id": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "proposal_id",
+        "request_id",
+        "hospital_id",
+        "eligible"
       ],
       "type": "object"
     }

@@ -1,0 +1,180 @@
+{
+  "recorded_at": "2026-11-15T07:09:11.482267+00:00",
+  "status": "deployed_authenticated_live_staff_acceptance_pending",
+  "scope": "Deployment consistency and unauthenticated HTTP smoke; authenticated business workflow acceptance remains pending.",
+  "pull_request": "https://github.com/tesserix/helivanta/pull/1669",
+  "tested_commit": "2212cb764ca3ca877d8f7e8c87a159146009fe06",
+  "merged_and_released_commit": "2a59d46ad2933c64401bd13f9e965516f96370f7",
+  "tested_and_merged_tree": "b27cb98d025e8535aaa1cf66170322faf9963626",
+  "ci": {
+    "run": 43682662614,
+    "conclusion": "success",
+    "full_go_race_coverage_job": 132716436048,
+    "module_coverage_percent": {
+      "iam": 74.4,
+      "organization": 83.5,
+      "pharmacy": 77.5,
+      "supply": 70.1,
+      "workforce": 83.0
+    },
+    "supplier_workflow_run": 43682662577,
+    "supplier_workflow_conclusion": "success",
+    "original_staff_lifecycle_seconds": 988.8,
+    "five_second_authority_budgets_unchanged": true,
+    "native_staff_browser_models": [
+      "hospital",
+      "independent_pharmacy",
+      "independent_supplier"
+    ],
+    "e2e": {
+      "main_stack_passed": 100,
+      "idle_timeout_passed": 1,
+      "degraded_dependency_passed": 1,
+      "preexisting_live_issuer_security_key_skipped": 1
+    },
+    "plan_comparison_job": 132716436665,
+    "plan_comparison": {
+      "custom_owner_warm_planning_ms": 130.005,
+      "custom_owner_warm_execution_ms": 145.22,
+      "generic_owner_warm_planning_ms": 134.172,
+      "generic_owner_warm_execution_ms": 10.209,
+      "owner_rows": 1,
+      "foreign_tenant_rows": 0,
+      "unchanged_write_rules_and_forced_rls": true,
+      "helper_tamper_and_exact_restoration_passed": true
+    },
+    "limitation": "The skipped security-key case and CI identity protocols do not establish live owner authentication or live Staff acceptance."
+  },
+  "release": {
+    "image_workflow_run": 43686704724,
+    "production_release_run": 43686794263,
+    "production_release_conclusion": "success",
+    "signatures_and_revision_verified_by_release_script": true,
+    "superseded_unexecuted_release_cancelled": 43576564024,
+    "freight": "3d8b622a006f6834c27fa2e1513c5cc50f08d19e",
+    "promotion": "prod.01m7ezwdgkwjztdd1nm4nwwat5.3d8b622",
+    "promotion_phase": "Succeeded",
+    "chart_commit": "1ca0a8a108ec3257231f293ece3317514bd2c662",
+    "api_digest": "sha256:7d5927f03bd0ed4b189ee1e15e7ac9309ecdc05e67299c75a4d808cf95b531b7",
+    "shell_digest": "sha256:b90a3f30e49921a875c9720892689c23b806a9d34fee07b3463edd0bf231b205",
+    "kargo_conditions": {
+      "Ready": true,
+      "Healthy": true,
+      "Verified": true
+    },
+    "argocd_applications": {
+      "helivanta-api": "Synced/Healthy",
+      "helivanta-global-api": "Synced/Healthy",
+      "helivanta-shell": "Synced/Healthy"
+    }
+  },
+  "migration": {
+    "job": "helivanta-api-migrate",
+    "created_at": "2026-11-15T06:57:54Z",
+    "job_complete": true,
+    "completion_log_marker": "migrations applied",
+    "registry_migrations_new_relative_to_previous_release": {
+      "iam": [
+        "0047_iam_governance",
+        "0048_iam_governance_employment_bases",
+        "0049_iam_assignment_governance",
+        "0050_iam_operating_governance",
+        "0051_iam_operating_employer_inbox",
+        "0052_iam_assignment_target_choices"
+      ],
+      "pharmacy": [
+        "0047_pharmacy_operating_location_choices",
+        "0048_pharmacy_tax_command_identity"
+      ],
+      "supply": ["0018_supply_operating_location_choices"],
+      "workforce": [
+        "0102_workforce_governance_topology",
+        "0103_workforce_login_review_authority",
+        "0104_workforce_person_review_authority",
+        "0105_workforce_employment_review_authority",
+        "0106_workforce_employment_activation_authority",
+        "0107_workforce_employment_authority_inbox",
+        "0108_workforce_employment_inbox_staff_index",
+        "0109_workforce_employment_governance_findings",
+        "0110_workforce_employment_preparation",
+        "0111_workforce_employment_preparation_receipt",
+        "0112_workforce_employment_preparation_targets",
+        "0113_workforce_employment_document_preparation",
+        "0114_workforce_employment_binding_preparation",
+        "0115_workforce_finding_file_isolation",
+        "0116_workforce_operating_staff_choices",
+        "0117_workforce_posting_approval_plans",
+        "0118_workforce_operating_selection_plans",
+        "0119_workforce_assignment_targets",
+        "0120_workforce_staff_policy_plans",
+        "0121_workforce_staff_generic_plans"
+      ],
+      "organization": ["0005_organization_assignment_choices"]
+    },
+    "new_registry_migration_count": 30,
+    "previous_release": "0a1fad14605ff2ca1a6faeaf101995fe716ff885",
+    "database_receipts_not_separately_queried": true
+  },
+  "runtime_workloads": {
+    "helivanta-api": {
+      "ready": 2,
+      "desired": 2,
+      "expected_release_digest": true
+    },
+    "helivanta-document-worker": {
+      "ready": 2,
+      "desired": 2,
+      "expected_release_digest": true
+    },
+    "helivanta-emergency-worker": {
+      "ready": 2,
+      "desired": 2,
+      "expected_release_digest": true
+    },
+    "helivanta-global-api": {
+      "ready": 2,
+      "desired": 2,
+      "expected_release_digest": true
+    },
+    "helivanta-pharmacy-evidence-worker": {
+      "ready": 2,
+      "desired": 2,
+      "expected_release_digest": true
+    },
+    "helivanta-shell": {
+      "ready": 2,
+      "desired": 2,
+      "expected_release_digest": true
+    },
+    "helivanta-supply-evidence-worker": {
+      "ready": 2,
+      "desired": 2,
+      "expected_release_digest": true
+    }
+  },
+  "public_http_smoke": {
+    "login_page": {
+      "path": "/login",
+      "status": 200
+    },
+    "anonymous_permissions_denied": {
+      "path": "/api/v1/iam/me/permissions",
+      "status": 401
+    }
+  },
+  "authenticated_live_acceptance": {
+    "complete": false,
+    "existing_tenant": "Yes Hospital",
+    "pending": [
+      "Owner login and named tenant selection",
+      "Four authorized Staff account invitations and recipient verification",
+      "Independent person/employment decisions and reviewed login links",
+      "Hospital department postings and scoped pharmacy operating access",
+      "Independent pharmacy Staff and operating duties",
+      "Both stock owners: supplier grants, dispatch, receiving, discrepancy review and release",
+      "Financial reconciliation, duplicate recovery and current-source cutoffs"
+    ],
+    "business_fixture_actions_performed_for_this_release": false,
+    "tenant_deletion_or_password_reset_performed": false
+  }
+}

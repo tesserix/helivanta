@@ -22,3 +22,14 @@ describe("workspace sign-in scope", () => {
     expect(() => workspaceSigninScope(value)).toThrow("Enter a valid workspace ID");
   });
 });
+
+it("remembers only a validated tenant routing hint for 48 hours", async () => {
+  const { rememberWorkspace, readRememberedWorkspace } = await import("./workspace-signin");
+  const tenant = "11111111-1111-4111-8111-111111111111";
+  const now = Date.now();
+  rememberWorkspace(tenant, now);
+  expect(readRememberedWorkspace(now + 48 * 60 * 60 * 1000 - 1)).toBe(tenant);
+  expect(readRememberedWorkspace(now + 48 * 60 * 60 * 1000)).toBeNull();
+  expect(() => rememberWorkspace("other-org", now)).not.toThrow();
+  expect(readRememberedWorkspace(now)).toBeNull();
+});

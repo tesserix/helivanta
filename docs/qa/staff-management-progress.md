@@ -387,6 +387,32 @@ Department leave review, clinical department reach, outlet scope (#418),
 standalone employers (#19) and real-account browser acceptance remain open. Counts
 stay **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
 
+## Deployed for user acceptance — 2026-11-05
+
+Release PR #1565 (main **62f3f7fd**) reached production through Kargo promotion
+`prod.01m6mwm1fjscfvx6162wtj6445.1afd48c`, which finished at
+2026-11-05T03:40:26Z. This supersedes the "Production remains 9f827a66" line in
+the release-assembly entry below.
+
+- **Migrations.** All 13 approved migrations were applied, taking the ledger from
+  227 to 240 receipts.
+- **Schema checks.** The 13 new tables have forced RLS, no new constraint is
+  unvalidated, and the 0083 concurrent index is valid.
+- **Function capture.** The private capture records 12 SQL files matching
+  canonical hashes, and the body hash and security mode of 18 installed
+  zero-argument functions.
+- **Replicas.** API, Global API, shell and the emergency worker each have 2/2
+  ready replicas.
+- **Workers.** The three document and evidence workers stayed unready because of
+  the antivirus definition age, and the freshness limits stayed enforced.
+
+The [release record](../deployment/releases/2026-11-05-staff-self-acceptance.md)
+holds the full evidence. It also corrects the preflight context to the India
+production cluster `tesseract-prod-in-gke` and the image tag to the bare SHA.
+
+Positive-role browser acceptance was left to the user and is not claimed here.
+Counts stay **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Staff release assembly for user testing — 2026-11-05
 
 The13 dependent PRs are merged into release PR1565; application source is

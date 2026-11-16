@@ -12,8 +12,12 @@ manufacturing login linkage. Canonical source is
 `contracts/workforce-person-reviews.json`; registered migrations are
 `0054_workforce_person_reviews` and concurrent-index
 `0055_workforce_person_provenance_index`. Scoped identity manager/reviewer authority
-and independently reviewed active **actor** links remain required even when the
-target joiner is inactive. Review-bound evidence bytes use the original scope,
+and independently reviewed active **actor** links remain the ordinary path when
+the target joiner is inactive. PR #1669 adds selected source/person-review
+commands through current owner or exact hospital person-governance proof, without
+a fabricated Staff actor. Candidate WF0104 retains that proof in review history.
+Scope/target/inbox discovery and employment activation still require their
+existing Staff authority. Review-bound evidence bytes use the original scope,
 actor/link/epoch, review/source and released-file/scan lineage before and after
 storage; replacement authority requires a fresh request. Bounded hospital
 discovery now returns independently validated submit/review capabilities from held

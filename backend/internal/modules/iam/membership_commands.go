@@ -258,7 +258,7 @@ func (h *membershipCommandHandlers) put(c *gin.Context) {
 		subject := iamcontract.SubjectMemberRevoked
 		eventType := "MemberRevoked"
 		if in.Operation == "remove" {
-			if in.RoleKey == string(authz.RoleTenantAdmin) {
+			if in.RoleKey == string(authz.RoleTenantAdmin) || in.RoleKey == string(authz.RoleGovernanceDelegate) {
 				return errGovernanceMembership
 			}
 			var row member

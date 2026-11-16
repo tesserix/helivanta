@@ -253,10 +253,16 @@ export function StaffAccountInitiation({
               </Button>
             )}
           {observe.isSuccess && !ready && (
-            <p role="status">
-              Recipient setup is incomplete or unavailable. The recipient must finish private
-              verification and password setup before enrollment.
-            </p>
+            <div role="status" className="space-y-2">
+              <p>Recipient setup is incomplete.</p>
+              <p>
+                {!observe.data.observation.email_verified
+                  ? "Email verification is still required. The recipient must use their private setup email."
+                  : observe.data.observation.state !== "active"
+                    ? "Email is verified, but the account is not active. The recipient must complete password setup or resolve their account status."
+                    : "Recipient identity is verified, but the retained account command still needs reconciliation."}
+              </p>
+            </div>
           )}
           {ready && !blocked && (
             <StaffMembershipForm

@@ -29,6 +29,7 @@ function stub(accounts: unknown[], verifyStatus = 200) {
 }
 beforeEach(() => {
   vi.unstubAllGlobals();
+  window.localStorage.clear();
   redirect.mockReset();
 });
 describe("Account discovery", () => {
@@ -81,4 +82,42 @@ it("explains an incomplete email code without exposing validation internals", as
     "Enter the eight-digit code from your email.",
   );
   expect(redirect).not.toHaveBeenCalled();
+});
+
+it("opens a recently authenticated tenant without sending another mailbox code", async () => {
+  window.localStorage.setItem(
+    "helivanta.login.workspace.v1",
+    JSON.stringify({ tenantId: tenant, expiresAt: Date.now() + 48 * 60 * 60 * 1000 }),
+  );
+  stub([]);
+  const { user } = renderWithProviders(<AccountDiscovery onSelect={redirect} />);
+  await user.click(await screen.findByRole("button", { name: "Sign in to your previous account" }));
+  expect(redirect).toHaveBeenCalledWith(tenant);
+  expect(fetch).not.toHaveBeenCalled();
+});
+
+it("lets a returning user forget their routing choice and discover another account", async () => {
+  window.localStorage.setItem(
+    "helivanta.login.workspace.v1",
+    JSON.stringify({ tenantId: tenant, expiresAt: Date.now() + 60000 }),
+  );
+  stub([]);
+  const { user } = renderWithProviders(<AccountDiscovery onSelect={redirect} />);
+  await user.click(await screen.findByRole("button", { name: "Use another account" }));
+  expect(screen.getByLabelText("Email")).toBeInTheDocument();
+  expect(window.localStorage.getItem("helivanta.login.workspace.v1")).toBeNull();
+  expect(fetch).not.toHaveBeenCalled();
+});
+
+it.each([
+  JSON.stringify({ tenantId: tenant, expiresAt: Date.now() - 1 }),
+  JSON.stringify({ tenantId: "foreign-scope openid", expiresAt: Date.now() + 60000 }),
+  "broken-json",
+])("ignores expired or invalid remembered routing data: %s", async (value) => {
+  window.localStorage.setItem("helivanta.login.workspace.v1", value);
+  stub([]);
+  renderWithProviders(<AccountDiscovery onSelect={redirect} />);
+  expect(await screen.findByLabelText("Email")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Sign in to your previous account" })).toBeNull();
+  expect(fetch).not.toHaveBeenCalled();
 });

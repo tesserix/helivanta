@@ -287,6 +287,7 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
             pharmacy={pharmacy}
             subject={identity.subject}
             outlets={outlets}
+            onRegistered={(pharmacyId) => select({ pharmacyId, outletId: "" })}
           />
         </>
       ) : outlets.isError ? (
@@ -324,7 +325,12 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
         !pharmacies.isPending &&
         !pharmacies.isError &&
         !pharmacy &&
-        can("pharmacy.access.manage") && <PharmacyRegistrySetup tenantId={identity.tenant_id} />}
+        can("pharmacy.access.manage") && (
+          <PharmacyRegistrySetup
+            tenantId={identity.tenant_id}
+            onRegistered={(pharmacyId) => select({ pharmacyId, outletId: "" })}
+          />
+        )}
     </>
   );
 }

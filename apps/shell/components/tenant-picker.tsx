@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { forgetWorkspace, rememberWorkspace } from "@/lib/workspace-signin";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   beginTenantTransition,
@@ -23,6 +24,10 @@ import {
 export function TenantPicker() {
   const profileQuery = useApiQuery(["iam", "me", "profile"], "/iam/me/profile");
   const profile = accountProfileSchema.safeParse(profileQuery.data);
+  const tenantId = !profileQuery.isError && profile.success ? profile.data.tenant_id : undefined;
+  useEffect(() => {
+    if (tenantId) rememberWorkspace(tenantId);
+  }, [tenantId]);
   const tenantName =
     !profileQuery.isError && profile.success ? profile.data.tenant_name : undefined;
   const [confirming, setConfirming] = useState(false);
@@ -44,6 +49,7 @@ export function TenantPicker() {
           "Account switching could not be confirmed. Your current account has not been replaced. Please try again.",
         );
       }
+      forgetWorkspace();
       clearPermissionsCache();
       clearRenewAt();
       cache.clear();

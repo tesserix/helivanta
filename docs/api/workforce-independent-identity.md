@@ -38,7 +38,11 @@ Staff updates require `expected_version` and `directory_context_version:v1`. Sup
 
 ## Reviewed account links
 
-The following paths are relative to `/v1/workforce/{suppliers|pharmacies}/{employer}/staff/{staff}/account-links`. Both families require a current private **manager** row and either `workforce.independent_login.manage` or `workforce.independent_login.review`. Manage defaults to supplier owner/admin and pharmacy owner; review also includes supplier compliance. TenantAdmin remains implicit. Every call still requires current private manager access to that exact employer. These administrative rights confer no physical operating or professional authority. A private manager row alone cannot approve links. Refreshed identity, current tenant membership and expected tenant/subject headers protect account/workspace boundaries.
+The following paths are relative to `/v1/workforce/{suppliers|pharmacies}/{employer}/staff/{staff}/account-links`. Proposal, withdrawal and revocation keep their separate manage permission and current private manager access. Manage defaults to supplier owner/admin and pharmacy owner; TenantAdmin remains implicit.
+
+Approval/rejection now requires current `GovernanceAccountLinkReview` authority from IAM: an actual current tenant owner membership or an effective independently governed account-link reviewer grant for that exact employer. Coarse review permissions and private manager rows cannot substitute for that source. The managed governance role receives coarse hospital/independent review admission only; the owner enforces the source again under locks. Existing supplier/pharmacy role defaults are coarse admission, so non-owner reviewers require a governance grant before rollout.
+
+A governance reviewer needs no fabricated employment or directory manager row. Review/read purpose exposes the selected Staff member's link records, plus private actor/maker alias relations needed by independence checks. It cannot edit Staff, create links or update another link. Retained reads still require current source or separately authorized private manage access. Missing source returns 403; unavailable source dependencies return 503. Refreshed identity, current tenant membership and expected tenant/subject headers remain required. These rights confer no physical operating, professional or clinical authority.
 
 | Method    | Path                         | Result                                                                             |
 | --------- | ---------------------------- | ---------------------------------------------------------------------------------- |
@@ -67,3 +71,29 @@ This reference is source evidence. The consumer must separately enforce current 
 [workforce-establishments.json](../../contracts/workforce-establishments.json) derives supplier directory models from the existing canonical pharmacy directory fields. [workforce-independent-identity.json](../../contracts/workforce-independent-identity.json) declares typed independent identity envelopes and derives common link fields/statuses from [workforce-login-links.json](../../contracts/workforce-login-links.json). Run `node scripts/generate-workforce-establishments.mjs` and `node scripts/generate-workforce-independent-identity.mjs`; each supports `--check`.
 
 Candidate Workforce migrations are `0093_workforce_supplier_staff` and `0094_workforce_independent_identity`. They are forward-only expansions, with hospital generation and lifecycle protections retained. Production release needs the exact reviewed migration/image set and Kargo promotion approval. This document does not activate a real organization, licence, recipient grant or trade policy.
+
+## Governed review provenance candidate
+
+Unreleased migration `0103_workforce_login_review_authority` applies selected-resource
+RLS purposes to hospital and independent links. Each new governed approval/rejection
+retains an immutable `workforce_login_link_authorities` row linked to the exact
+history version: employer kind/ID, target Staff version, actor, original session
+times, owner/grant source, source version, membership epoch and owner count.
+Owner source IDs are actual IAM owner-membership IDs; no Staff actor is invented.
+Workforce retains references to IAM authority without querying or owning IAM tables.
+History, source evidence, audit, independent command receipts and outbox changes
+commit or roll back together. Known historical actor/target/maker aliases remain
+excluded from independent review, including hospital links.
+
+Current review commands refuse a missing provenance table or inactive recording
+trigger with 503, so an old schema cannot report a governed approval without its
+retained source evidence. Historical migration fixtures are prepared explicitly
+under their old owner rules; they do not manufacture modern governance proof.
+
+Public wire models and event payloads remain unchanged. Canonical generators do
+not add private provenance to v1 responses. Focused Workforce/gateway fixtures use
+an explicit IAM protocol double; bootstrap acceptance uses the actual IAM grant
+and owner guards, FGA membership, PharmaConnect/SupplyConnect owner APIs and
+Workforce employer registration. New consumer database acceptance remains pending;
+this candidate does not prove first employment activation, operating-duty review,
+stock access or live recipient login.

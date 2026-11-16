@@ -24,6 +24,9 @@ func proposalDepartmentScopeConsumer(deps platform.Deps) events.Consumer {
 		if err != nil || tenant == uuid.Nil || tenant.String() != evt.TenantID || evt.Type != subject || evt.Version != 1 || evt.DestinationTenantID != "" || len(evt.Data) > 2048 {
 			return errors.New("invalid assignment department envelope")
 		}
+		if governanceRequiredBody(evt.Data, []string{"proposal_id", "request_id", "hospital_id", "department_id", "eligible"}) != nil {
+			return errors.New("ambiguous assignment department result")
+		}
 		var result organizationcontract.AssignmentDepartmentVerifiedData
 		d := json.NewDecoder(bytes.NewReader(evt.Data))
 		d.DisallowUnknownFields()
@@ -42,6 +45,8 @@ func proposalDepartmentScopeConsumer(deps platform.Deps) events.Consumer {
 			return err
 		}
 		return recordDepartmentAnswer(tx, deps, evt.TenantID, row, "organization", result.Eligible)
+	}, AfterCommit: func(ctx context.Context, evt events.Event) error {
+		return proposalDepartmentGovernanceAfterCommit(ctx, deps, evt)
 	}}
 }
 
@@ -53,6 +58,10 @@ func recordDepartmentAnswer(tx *gorm.DB, deps platform.Deps, tenant string, row 
 	inserted := tx.Exec(`INSERT INTO iam_assignment_department_verifications(tenant_id,proposal_id,request_id,owner,eligible) VALUES(?,?,?,?,?) ON CONFLICT DO NOTHING`, tenant, row.ID, row.RequestID, owner, eligible)
 	if inserted.Error != nil || inserted.RowsAffected == 0 {
 		return inserted.Error
+	}
+	native, err := assignmentHasGovernanceRequest(tx, tenant, row)
+	if err != nil || native {
+		return err
 	}
 	if !eligible {
 		return settleProposalScope(tx, deps, tenant, row, false)

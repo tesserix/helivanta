@@ -5690,6 +5690,11 @@
           "id": "0048_pharmacy_tax_command_identity",
           "sql_sha256": "88b6fd2092aba3eeb3d147df89b940b76b44461ab861a448a6613b01ffeb28ee",
           "creates_tables": []
+        },
+        {
+          "id": "0049_pharmacy_prescription_sale_evidence",
+          "sql_sha256": "8acc69f06789caf86c0af5e81bcdeb5ec518bf89af3e679f2eb73a137cde169b",
+          "creates_tables": []
         }
       ]
     },

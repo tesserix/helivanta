@@ -86,3 +86,46 @@ RETURNS TABLE (declaration_id uuid, regulatory_class text, ndps boolean) LANGUAG
  JOIN pharmacy_product_schedule_reviews r ON r.tenant_id=d.tenant_id AND r.outlet_id=d.outlet_id AND r.declaration_id=d.id
  WHERE r.decision='approved'
 $$;
+
+-- The pharmacy owner countersigns a lowering before Helivanta decides it:
+-- the owner answers for asking, but cannot decide (#1681).
+CREATE TABLE pharmacy_product_schedule_countersigns (
+ id uuid NOT NULL DEFAULT gen_random_uuid(),
+ tenant_id uuid NOT NULL,
+ outlet_id uuid NOT NULL,
+ declaration_id uuid NOT NULL,
+ reason text NOT NULL CHECK (length(btrim(reason)) BETWEEN 1 AND 500),
+ countersigned_by text NOT NULL CHECK (length(btrim(countersigned_by)) BETWEEN 1 AND 200),
+ created_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY (tenant_id,outlet_id,declaration_id),
+ UNIQUE (tenant_id,id),
+ FOREIGN KEY (tenant_id,outlet_id,declaration_id) REFERENCES pharmacy_product_schedule_declarations (tenant_id,outlet_id,id)
+);
+ALTER TABLE pharmacy_product_schedule_countersigns ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pharmacy_product_schedule_countersigns FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON pharmacy_product_schedule_countersigns
+ USING (hms_tenant_visible(tenant_id) AND pharmacy_outlet_allowed(tenant_id,outlet_id,false))
+ WITH CHECK (pharmacy_outlet_allowed(tenant_id,outlet_id,true) AND countersigned_by=NULLIF(current_setting('app.pharmacy_subject',true),''));
+CREATE TRIGGER pharmacy_schedule_countersign_audit AFTER INSERT ON pharmacy_product_schedule_countersigns
+ FOR EACH ROW EXECUTE FUNCTION audit_record_change();
+CREATE TRIGGER pharmacy_schedule_countersign_immutable BEFORE UPDATE OR DELETE OR TRUNCATE ON pharmacy_product_schedule_countersigns
+ FOR EACH STATEMENT EXECUTE FUNCTION pharmacy_catalogue_immutable();
+
+CREATE FUNCTION pharmacy_schedule_countersign_guard() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE d record;
+BEGIN
+ SELECT * INTO d FROM pharmacy_product_schedule_declarations
+  WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND id=NEW.declaration_id;
+ IF FOUND AND NOT d.lowers THEN
+  RAISE EXCEPTION 'only a lower schedule class is countersigned' USING ERRCODE='23514',CONSTRAINT='pharmacy_schedule_countersign_lowering_only';
+ END IF;
+ IF FOUND AND lower(btrim(d.declared_by))=lower(btrim(NEW.countersigned_by)) THEN
+  RAISE EXCEPTION 'a lower schedule class is countersigned by someone other than who declared it' USING ERRCODE='23514',CONSTRAINT='pharmacy_schedule_four_eyes';
+ END IF;
+ IF EXISTS (SELECT 1 FROM pharmacy_product_schedule_reviews r WHERE r.tenant_id=NEW.tenant_id AND r.outlet_id=NEW.outlet_id AND r.declaration_id=NEW.declaration_id) THEN
+  RAISE EXCEPTION 'this declaration has already been decided' USING ERRCODE='23514',CONSTRAINT='pharmacy_schedule_countersign_undecided';
+ END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER pharmacy_schedule_countersign_guard BEFORE INSERT ON pharmacy_product_schedule_countersigns
+ FOR EACH ROW EXECUTE FUNCTION pharmacy_schedule_countersign_guard();

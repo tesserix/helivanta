@@ -141,6 +141,9 @@ const (
 	// Declared schedule class (#1386 A2): declared by one person, reviewed by another.
 	PermScheduleDeclare authz.Permission = "pharmacy.schedule.declare"
 	PermScheduleReview  authz.Permission = "pharmacy.schedule.review"
+	// PermScheduleCountersign lets the pharmacy owner answer for a request to
+	// lower a schedule class; Helivanta decides it (#1681).
+	PermScheduleCountersign authz.Permission = "pharmacy.schedule.countersign"
 	// NPPA ceiling prices (#1371): declared by one person, reviewed by another.
 	PermPriceControlDeclare authz.Permission = "pharmacy.price_control.declare"
 	PermPriceControlReview  authz.Permission = "pharmacy.price_control.review"
@@ -223,6 +226,7 @@ func (m *Module) Permissions() []authz.Grant {
 		{Permission: PermLicenceEvidenceRead, Roles: []authz.Role{authz.RolePharmacyOwner}},
 		{Permission: PermScheduleDeclare, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner}},
 		{Permission: PermScheduleReview, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner}},
+		{Permission: PermScheduleCountersign, Roles: []authz.Role{authz.RolePharmacyOwner}},
 		{Permission: PermCategoryDeclare, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner}},
 		{Permission: PermCategoryReview, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner}},
 		{Permission: PermPriceControlDeclare, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner}},

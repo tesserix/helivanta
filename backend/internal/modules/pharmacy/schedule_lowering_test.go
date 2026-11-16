@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -14,7 +16,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/tesserix/helivanta/internal/modules/pharmacy" //nolint:depguard // external test importing its own module
+	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
@@ -213,4 +218,86 @@ func TestAFirstDeclarationIsNotALowering(t *testing.T) {
 	require.False(t, lowersOf(t, db, first))
 	require.Equal(t, http.StatusOK, review(r, product, first, "pharmacist", "approved"))
 	require.Equal(t, []string{"none"}, scheduleInForce(t, db, product))
+}
+
+var countersignPerms = append(append([]authz.Permission{}, schedulePerms...), "pharmacy.schedule.countersign")
+
+// loweringHarness is scheduleHarness plus an owner who may countersign.
+func loweringHarness(t *testing.T) (*gin.Engine, *tenantdb.DB, string) {
+	t.Helper()
+	pharmacy.SetClock(t, func() time.Time { return time.Date(2026, 11, 1, 6, 30, 0, 0, time.UTC) })
+	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens: map[string]string{"editor": testutil.TenantA, "pharmacist": testutil.TenantA, "owner": testutil.TenantA, "foreign": testutil.TenantB},
+		Perms: map[string][]authz.Permission{
+			"editor": schedulePerms, "pharmacist": schedulePerms, "owner": countersignPerms, "foreign": countersignPerms,
+		}, Modules: []platform.Module{pharmacy.New()},
+	})
+	seedPharmacyOutlet(t, r)
+	for _, s := range []string{"user-editor", "user-pharmacist", "user-owner"} {
+		grantCatalogue(t, r, s, "editor")
+	}
+	product := uuid.Must(uuid.NewV7()).String()
+	w := do(r, "PUT", productPath(product), "editor", productBody(0, "TEST Amoxil"))
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	return r, db, product
+}
+
+func countersign(r *gin.Engine, product, id, token, reason string) *httptest.ResponseRecorder {
+	return do(r, "POST", schedulePath(product, "/"+id+"/countersign"), token, `{"reason":"`+reason+`"}`)
+}
+
+func TestTheOwnerCountersignsALowering(t *testing.T) {
+	r, db, product := loweringHarness(t)
+	approved(t, r, product, "H1", false)
+	lower := declareWith(t, r, product, "none", false, "pharmacist")
+
+	w := countersign(r, product, lower, "owner", "label misread at intake")
+	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
+	require.Contains(t, w.Body.String(), `"countersigned_by":"user-owner"`)
+	require.Contains(t, w.Body.String(), `"countersign_reason":"label misread at intake"`)
+	require.Equal(t, http.StatusOK, countersign(r, product, lower, "owner", "label misread at intake").Code, "replay")
+	require.Equal(t, http.StatusConflict, countersign(r, product, lower, "owner", "another reason").Code)
+	require.Equal(t, []string{"H1"}, scheduleInForce(t, db, product), "a countersign alone changes nothing")
+
+	got := do(r, "GET", schedulePath(product, ""), "pharmacist", "")
+	require.Contains(t, got.Body.String(), `"countersigned_by":"user-owner"`)
+}
+
+func TestTheDeclarerCannotCountersign(t *testing.T) {
+	r, _, product := loweringHarness(t)
+	approved(t, r, product, "H1", false)
+	lower := declareWith(t, r, product, "none", false, "owner")
+	w := countersign(r, product, lower, "owner", "mine")
+	require.Equal(t, http.StatusConflict, w.Code, w.Body.String())
+	require.Contains(t, w.Body.String(), `"error":"four_eyes"`)
+}
+
+func TestARaiseCannotBeCountersigned(t *testing.T) {
+	r, _, product := loweringHarness(t)
+	approved(t, r, product, "H", false)
+	raise := declareWith(t, r, product, "H1", false, "pharmacist")
+	w := countersign(r, product, raise, "owner", "stricter")
+	require.Equal(t, http.StatusConflict, w.Code, w.Body.String())
+	require.Contains(t, w.Body.String(), `"error":"not_a_lowering"`)
+}
+
+func TestCountersignNeedsThePermissionAndTheTenant(t *testing.T) {
+	r, _, product := loweringHarness(t)
+	approved(t, r, product, "H1", false)
+	lower := declareWith(t, r, product, "none", false, "editor")
+	require.Equal(t, http.StatusForbidden, countersign(r, product, lower, "pharmacist", "x").Code)
+	require.Equal(t, http.StatusNotFound, countersign(r, product, lower, "foreign", "x").Code)
+	require.Equal(t, http.StatusNotFound, countersign(r, product, uuid.Must(uuid.NewV7()).String(), "owner", "x").Code)
+	require.Equal(t, http.StatusNotFound, countersign(r, uuid.Must(uuid.NewV7()).String(), lower, "owner", "x").Code, "a declaration under another product")
+	require.Equal(t, http.StatusBadRequest, countersign(r, product, lower, "owner", "  ").Code)
+}
+
+func TestOnlyOwnersHoldCountersign(t *testing.T) {
+	var roles []authz.Role
+	for _, g := range pharmacy.New().Permissions() {
+		if g.Permission == "pharmacy.schedule.countersign" {
+			roles = append(roles, g.Roles...)
+		}
+	}
+	require.Equal(t, []authz.Role{authz.RolePharmacyOwner}, roles)
 }

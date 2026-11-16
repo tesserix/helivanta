@@ -531,6 +531,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/price-control/:declaration` | `pharmacy.price_control.declare` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/price-control` | `pharmacy.catalogue.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/revisions` | `pharmacy.catalogue.read` | true | false |
+| POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration/countersign` | `pharmacy.schedule.countersign` | false | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration/review` | `pharmacy.schedule.review` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration` | `pharmacy.schedule.declare` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule` | `pharmacy.catalogue.read` | false | false |
@@ -728,6 +729,7 @@ Migration table declarations:
 - `0040_pharmacy_supplier_receiving_corrections`: `pharmacy_supplier_receiving_corrections`.
 - `0042_pharmacy_supplier_receiving_release`: `pharmacy_supplier_receiving_releases`.
 - `0045_pharmacy_hospital_names`: `pharmacy_hospital_names`.
+- `0050_pharmacy_schedule_lowering`: `pharmacy_product_schedule_countersigns`.
 
 ## payments
 

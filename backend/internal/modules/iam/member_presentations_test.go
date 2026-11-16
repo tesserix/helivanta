@@ -150,7 +150,7 @@ func TestMemberPresentationsWithholdIdentityOnFailureAndMembershipReplacement(t 
 				}
 				if mode == "revoked" {
 					err := db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-						return iam.NewRevocationChecker(db).RevokeTx(tx, "user-admin", time.Now(), "synthetic member presentation revocation", "user-admin")
+						return iam.NewRevocationChecker(db).RevokeTx(tx, "user-admin", time.Now(), "admin_revoke", "user-admin")
 					})
 					if err != nil {
 						t.Errorf("revoke test credential: %v", err)

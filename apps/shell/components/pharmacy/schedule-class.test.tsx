@@ -370,7 +370,8 @@ describe("reviewing a schedule class", () => {
   });
 
   it("shows the four-eyes refusal inline", async () => {
-    const message = "a schedule class is reviewed by someone other than who declared it";
+    const message =
+      "a schedule class is reviewed or countersigned by someone other than who declared it";
     const fetcher = serve(awaiting, [{ status: 409, body: { error: "four_eyes", message } }]);
     const { user } = renderSection({ canReview: true });
     await user.type(await screen.findByLabelText("What you checked"), "my own");

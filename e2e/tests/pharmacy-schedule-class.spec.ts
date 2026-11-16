@@ -39,7 +39,7 @@ test("a pharmacist declares a schedule class and a second person approves it in 
     await declarer.getByLabel("What you checked").fill("TEST my own declaration");
     await declarer.getByRole("button", { name: "Approve", exact: true }).click();
     await expect(declarer.getByRole("alert")).toHaveText(
-      "a schedule class is reviewed by someone other than who declared it",
+      "a schedule class is reviewed or countersigned by someone other than who declared it",
     );
 
     const reviewer = await openProduct(cashier, outlet, product);

@@ -23,6 +23,8 @@ import { useReportState, type FormState } from "@/lib/use-list-detail";
 
 // A product's schedule class (#1636): declared by one person from a source
 // such as the pack label, approved by another. Release and sale need it.
+// A lower class is countersigned by the owner and decided by Helivanta
+// (#1681); until then the stricter class stays in force.
 
 /** The API returns at most this many declarations (`historyLimit`). */
 const HISTORY_LIMIT = 50;
@@ -38,6 +40,7 @@ export function ProductScheduleSection({
   timeZone,
   canDeclare,
   canReview,
+  canCountersign = false,
   onStateChange,
   onReviewStateChange,
 }: {
@@ -46,6 +49,7 @@ export function ProductScheduleSection({
   timeZone: string;
   canDeclare: boolean;
   canReview: boolean;
+  canCountersign?: boolean;
   onStateChange?: FormState;
   onReviewStateChange?: FormState;
 }) {
@@ -65,6 +69,9 @@ export function ProductScheduleSection({
   // never offered for review: approving it would change nothing.
   const newest = current?.history[0];
   const pending = newest?.decision === null ? newest : undefined;
+  // A lowering is Helivanta's to decide: the outlet only countersigns it.
+  const reviewable = pending && !pending.lowers ? pending : undefined;
+  const signable = pending?.lowers && pending.countersigned_by === null ? pending : undefined;
   return (
     <section aria-labelledby="product-schedule-heading" className="mt-8 border-t pt-6">
       <h4 id="product-schedule-heading" className="mb-1 flex items-center gap-2 font-medium">
@@ -95,16 +102,29 @@ export function ProductScheduleSection({
               </p>
             </div>
           )}
+          {inForce && pending?.lowers && (
+            <p className="text-sm">{`${scheduleLabel(pending)} waits for Helivanta review.`}</p>
+          )}
           {inForce && (inForce.regulatory_class === "X" || inForce.ndps) && (
             <p className="text-sm text-muted-foreground">
               Schedule X and NDPS products cannot be released or sold until their controls exist.
             </p>
           )}
           {/* Both forms follow the newest declaration; prefixed keys keep them distinct siblings. */}
-          {canReview && pending && (
+          {canReview && reviewable && (
             <ScheduleReviewForm
-              key={`review:${pending.id}`}
-              declaration={pending}
+              key={`review:${reviewable.id}`}
+              declaration={reviewable}
+              path={path}
+              invalidate={invalidate}
+              onStateChange={onReviewStateChange}
+              onStale={() => void state.refetch()}
+            />
+          )}
+          {canCountersign && signable && (
+            <ScheduleCountersignForm
+              key={`countersign:${signable.id}`}
+              declaration={signable}
               path={path}
               invalidate={invalidate}
               onStateChange={onReviewStateChange}
@@ -128,13 +148,7 @@ export function ProductScheduleSection({
                     {d.source} · declared by {d.declared_by},{" "}
                     {formatZonedDateTime(d.created_at, timeZone)}
                   </p>
-                  <p className="mt-0.5 text-xs">
-                    {d.decision === null
-                      ? d.id === pending?.id
-                        ? "Awaiting review"
-                        : "Superseded by a newer declaration"
-                      : `${d.decision === "approved" ? "Approved" : "Rejected"} by ${d.reviewed_by}: ${d.decision_reason}`}
-                  </p>
+                  <p className="mt-0.5 text-xs">{declarationStatus(d, d.id === pending?.id)}</p>
                 </li>
               ))}
             </ol>
@@ -148,6 +162,21 @@ export function ProductScheduleSection({
       )}
     </section>
   );
+}
+
+function declarationStatus(d: PharmacyScheduleDeclaration, newest: boolean) {
+  const countersign = d.countersigned_by
+    ? `Countersigned by ${d.countersigned_by}: ${d.countersign_reason}`
+    : null;
+  if (d.decision !== null) {
+    const by = d.decided_by_platform ? `Helivanta (${d.reviewed_by})` : d.reviewed_by;
+    return `${d.decision === "approved" ? "Approved" : "Rejected"} by ${by}: ${d.decision_reason}`;
+  }
+  if (!newest) return "Superseded by a newer declaration";
+  if (!d.lowers) return "Awaiting review";
+  return countersign
+    ? `${countersign} · waiting for Helivanta`
+    : "Waiting for the owner's countersign";
 }
 
 const classes = ["none", "G", "H", "H1", "X"] as const;
@@ -320,6 +349,79 @@ function ScheduleReviewForm({
           Reject
         </Button>
       </div>
+    </form>
+  );
+}
+
+const countersignSchema = z.object({
+  reason: z.string().trim().min(1, "Say why the class should be lower.").max(500),
+});
+
+/** The owner answers for a request to lower the class; Helivanta decides it. */
+function ScheduleCountersignForm({
+  declaration,
+  path,
+  invalidate,
+  onStateChange,
+  onStale,
+}: {
+  declaration: PharmacyScheduleDeclaration;
+  path: string;
+  invalidate: unknown[][];
+  onStateChange?: FormState;
+  onStale: () => void;
+}) {
+  const form = useZodForm(countersignSchema, { reason: "" });
+  const countersign = useApiMutation(
+    (body: { reason: string }) =>
+      apiFetch<PharmacyScheduleDeclaration>(`${path}/${declaration.id}/countersign`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    {
+      successToast: "Countersigned",
+      invalidate,
+      suppressErrorToast: true,
+      onError: (error) => {
+        if (
+          error instanceof ApiError &&
+          (error.status === 404 || (error.status === 409 && error.code !== "four_eyes"))
+        )
+          onStale();
+      },
+    },
+  );
+  useReportState(onStateChange, form.formState.isDirty, countersign.isPending);
+  const error = form.formState.errors.reason;
+  return (
+    <form
+      noValidate
+      onSubmit={form.handleSubmit((v) => countersign.mutate(v))}
+      className="space-y-3 rounded-md border p-3"
+    >
+      <p className="text-sm">
+        {`${declaration.declared_by} asks to lower the class to ${scheduleLabel(declaration)}, from ${declaration.source}. Your countersign sends it to Helivanta, who decides it.`}
+      </p>
+      <Field
+        id="schedule-countersign-reason"
+        label="Why the class should be lower"
+        error={error?.message}
+      >
+        <Input
+          id="schedule-countersign-reason"
+          aria-invalid={!!error}
+          aria-describedby={error ? "schedule-countersign-reason-error" : undefined}
+          {...form.register("reason")}
+        />
+      </Field>
+      {countersign.isError && (
+        <p role="alert" className="text-sm text-destructive">
+          {countersign.error.message}
+        </p>
+      )}
+      <Button type="submit" disabled={countersign.isPending}>
+        Countersign
+      </Button>
     </form>
   );
 }

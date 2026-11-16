@@ -39,10 +39,6 @@ const laboratoryCategories: ChartCategory[] = [
   { key: "pending", label: "Pending", color: "var(--hms-amber)" },
   { key: "completed", label: "Completed", color: "var(--hms-violet)" },
 ];
-const pharmacyCategories: ChartCategory[] = [
-  { key: "pending", label: "Pending", color: "var(--hms-amber)" },
-  { key: "dispensed", label: "Dispensed", color: "var(--hms-accent)" },
-];
 const periods = [
   { key: "today", label: "Today" },
   { key: "week", label: "This week" },
@@ -65,15 +61,16 @@ export function OperationalDashboard({ now }: { now?: Date }) {
     setFilters(next);
   };
 
-  const hasAnalytics =
-    can("medicore.visit.read") || can("pharmacy.dispense.read") || can("lab.order.read");
+  // The retired dispense queue (#1680) is history, not current work, so it
+  // gives no analytics; pharmacy activity is reported from its own lists.
+  const hasAnalytics = can("medicore.visit.read") || can("lab.order.read");
   const views = [
     { key: "overview", label: "Overview", allowed: true },
     { key: "clinical", label: "Patient activity", allowed: can("medicore.visit.read") },
     {
       key: "services",
-      label: "Diagnostics & pharmacy",
-      allowed: can("lab.order.read") || can("pharmacy.dispense.read"),
+      label: "Diagnostics",
+      allowed: can("lab.order.read"),
     },
     { key: "team", label: "Care teams", allowed: true },
   ] as const;
@@ -258,18 +255,6 @@ export function OperationalDashboard({ now }: { now?: Date }) {
               onModeChange={setMode}
               description="Current status of orders created in this period. Completed does not mean resulted during this period."
               href="/lab"
-            />
-          )}
-          {can("pharmacy.dispense.read") && (
-            <AnalyticsPanel
-              title="Pharmacy"
-              module="pharmacy"
-              filters={filters}
-              categories={pharmacyCategories}
-              mode={mode}
-              onModeChange={setMode}
-              description="Current status of dispense tasks created in this period. Dispensed does not mean dispensed during this period."
-              href="/pharmacy/dispense"
             />
           )}
         </div>

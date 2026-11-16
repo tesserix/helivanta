@@ -1,6 +1,7 @@
 import "../../test/select";
 import { fireEvent, screen, within, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
+import { Can } from "@helivanta/api";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { chooseOption } from "../../test/select";
 import { OperationalDashboard } from "./operational-dashboard";
@@ -88,7 +89,7 @@ it("keeps clinical reporting coverage in the clinical view and out of service an
     "Deaths",
   ])
     expect(within(coverage).getByRole("heading", { name: title })).toBeInTheDocument();
-  await user.click(screen.getByRole("tab", { name: "Diagnostics & pharmacy" }));
+  await user.click(screen.getByRole("tab", { name: "Diagnostics" }));
   expect(
     screen.queryByRole("region", { name: "Clinical reporting coverage" }),
   ).not.toBeInTheDocument();
@@ -184,7 +185,8 @@ it("applies inclusive dates, timezone and yearly grouping to each permitted pane
       reads.filter(
         (url) => url.includes("interval=year") && url.includes("timezone=Asia%2FKolkata"),
       ),
-    ).toHaveLength(3),
+      // Patient activity and Laboratory; the retired dispense queue has no panel (#1680).
+    ).toHaveLength(2),
   );
 });
 
@@ -200,15 +202,32 @@ it("isolates a failed panel and never substitutes zero for an upstream error", a
   expect(await screen.findByRole("img", { name: "Patient activity trend" })).toBeInTheDocument();
 });
 
-it("does not resolve clinical or lab data for a pharmacy-only user", async () => {
-  const reads = mockApi({ perms: ["pharmacy.dispense.read"] });
+// #1680: the dispense queue is retired, so its counts are history, not work;
+// the dashboard no longer presents them as the current state of anything.
+it("renders no pharmacy dispense panel", async () => {
+  const reads = mockApi();
   renderWithProviders(<OperationalDashboard />);
-  await screen.findByRole("region", { name: "Pharmacy" });
+  await screen.findByRole("region", { name: "Laboratory" });
+  expect(screen.queryByRole("region", { name: "Pharmacy" })).not.toBeInTheDocument();
+  expect(reads.some((url) => url.includes("/pharmacy/insights"))).toBe(false);
+});
+
+it("gives a pharmacy-only reader no services view and no analytics", async () => {
+  const reads = mockApi({ perms: ["pharmacy.dispense.read"] });
+  renderWithProviders(
+    <>
+      {/* Proves permissions have loaded, so absent panels are not a race. */}
+      <Can permission="pharmacy.dispense.read">
+        <span>dispense read granted</span>
+      </Can>
+      <OperationalDashboard />
+    </>,
+  );
+  await screen.findByText("dispense read granted");
+  expect(screen.queryByRole("tab", { name: /Diagnostics/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole("region", { name: "Pharmacy" })).not.toBeInTheDocument();
   expect(screen.queryByRole("region", { name: "Patient activity" })).not.toBeInTheDocument();
-  expect(
-    screen.queryByRole("region", { name: "Clinical reporting coverage" }),
-  ).not.toBeInTheDocument();
-  expect(reads.some((url) => /\/(medicore|lab)\/insights/.test(url))).toBe(false);
+  expect(reads.some((url) => /\/(medicore|lab|pharmacy)\/insights/.test(url))).toBe(false);
 });
 
 it("shows visit mix and an inclusive daily average independent of chart grouping", async () => {

@@ -1,8 +1,6 @@
 package pharmacy
 
 import (
-	"encoding/json"
-	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -11,10 +9,8 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/respond"
-	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
@@ -35,13 +31,8 @@ func (dispense) TableName() string { return "pharmacy_dispenses" }
 // PageKey is the keyset position of this row, satisfying platform.Keyed.
 func (d dispense) PageKey() (time.Time, uuid.UUID) { return d.CreatedAt, d.ID }
 
-type dispenseRequest struct {
-	Medication string `json:"medication" binding:"required,max=200"`
-}
-
 type dispenseHandlers struct {
-	db  *tenantdb.DB
-	bus *events.Bus
+	db *tenantdb.DB
 }
 
 // list returns one page of this tenant's dispenses, newest first.
@@ -75,8 +66,8 @@ func (h *dispenseHandlers) list(c *gin.Context, p pagination.Params) ([]dispense
 }
 
 // dispensedRow pages by when the medicine was handed over (#1295 D8). Its
-// list is scoped to status 'dispensed', and fulfil sets dispensed_at in the
-// same UPDATE as the status, so DispensedAt is never nil here.
+// list is scoped to status 'dispensed', and the pharmacy_dispenses_dispensed_at
+// constraint requires dispensed_at with that status, so DispensedAt is never nil here.
 // A defined type rather than an embedding: GORM does not scan through an
 // embedded unexported struct.
 type dispensedRow dispense
@@ -118,72 +109,13 @@ func dispenseStatus(status string) platform.CountedListHandler {
 
 var likeLiteral = strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`)
 
-// fulfil marks a pending dispense dispensed. The guarded UPDATE is what
-// makes concurrent fulfilment safe: the loser matches zero rows and gets
-// a 409 rather than double-dispensing.
+// fulfil is the retired free-text dispense (#1680). It recorded a hand-over
+// with no product, stock, schedule, prescription or register check; the
+// counter sale against an OPD encounter is the only way to dispense now.
+// It refuses before reading the row: failing closed on every row state
+// means no pending, dispensed or foreign row can reach a write or reveal
+// that it exists.
 func (h *dispenseHandlers) fulfil(c *gin.Context) {
-	p, _, ok := pharmacyPrincipal(c)
-	if !ok {
-		return
-	}
-	id, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		respond.NotFound(c, "dispense")
-		return
-	}
-	var req dispenseRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		respond.BadRequest(c, err)
-		return
-	}
-	// Fail closed: a dispense records what was handed over, so a blank
-	// medication is refused rather than stored (#1272).
-	req.Medication = strings.TrimSpace(req.Medication)
-	if req.Medication == "" {
-		respond.BadRequest(c, errors.New("medication is required"))
-		return
-	}
-	var status int
-	err = h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		var row dispense
-		if err := tx.First(&row, "id = ?", id).Error; err != nil {
-			return err
-		}
-		if row.Status != "pending" {
-			status = http.StatusConflict
-			return nil
-		}
-		now := time.Now().UTC()
-		result := tx.Model(&dispense{}).Where("id = ? AND status = 'pending'", id).
-			Updates(map[string]any{"status": "dispensed", "medication": req.Medication, "dispensed_at": now})
-		if result.Error != nil {
-			return result.Error
-		}
-		if result.RowsAffected == 0 {
-			// Lost the race to a concurrent dispense between the
-			// pre-check above and this guarded UPDATE.
-			status = http.StatusConflict
-			return nil
-		}
-		data, err := json.Marshal(pharmacycontract.DispenseRecordedData{DispenseID: row.ID.String(), VisitID: row.VisitID.String()})
-		if err != nil {
-			return err
-		}
-		return h.bus.Publish(tx, pharmacycontract.SubjectDispenseRecorded, events.Event{
-			Type: "DispenseRecorded", Version: 1, TenantID: p.TenantID, Data: data,
-		})
-	})
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		respond.NotFound(c, "dispense")
-		return
-	}
-	if err != nil {
-		respond.InternalErr(c, err, "could not dispense")
-		return
-	}
-	if status == http.StatusConflict {
-		respond.Conflict(c, "already dispensed")
-		return
-	}
-	respond.OK(c, gin.H{"id": id.String(), "status": "dispensed"})
+	respond.Error(c, http.StatusGone, "dispense_retired",
+		"Free-text dispensing is retired. Record a counter sale against the patient's OPD encounter.")
 }

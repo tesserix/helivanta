@@ -314,7 +314,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	supplierReceivingRoutes(g, deps)
 	payableRoutes(g, deps)
 	meds := &medicationHandlers{db: deps.DB}
-	disp := &dispenseHandlers{db: deps.DB, bus: deps.Bus}
+	disp := &dispenseHandlers{db: deps.DB}
 
 	g.POST("/medications", PermMedicationWrite, meds.create)
 	platform.ListRoute(g, "/medications", PermMedicationRead, meds.list)

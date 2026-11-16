@@ -93,10 +93,14 @@ func ndps(b bool) string {
 
 func printLowerings(out io.Writer, waiting []pharmacy.ScheduleLowering) error {
 	w := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(w, "DECLARATION\tTENANT\tOUTLET\tPRODUCT\tFROM\tTO\tSOURCE\tDECLARED BY\tCOUNTERSIGNED BY\tCOUNTERSIGN REASON")
+	if _, err := fmt.Fprintln(w, "DECLARATION\tTENANT\tOUTLET\tPRODUCT\tFROM\tTO\tSOURCE\tDECLARED BY\tCOUNTERSIGNED BY\tCOUNTERSIGN REASON"); err != nil {
+		return err
+	}
 	for _, l := range waiting {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s%s\t%s%s\t%s\t%s\t%s\t%s\n", l.DeclarationID, l.TenantID, l.OutletID, l.ProductName,
-			l.CurrentClass, ndps(l.CurrentNDPS), l.RequestedClass, ndps(l.RequestedNDPS), l.Source, l.DeclaredBy, l.CountersignedBy, l.CountersignReason)
+		if _, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s%s\t%s%s\t%s\t%s\t%s\t%s\n", l.DeclarationID, l.TenantID, l.OutletID, l.ProductName,
+			l.CurrentClass, ndps(l.CurrentNDPS), l.RequestedClass, ndps(l.RequestedNDPS), l.Source, l.DeclaredBy, l.CountersignedBy, l.CountersignReason); err != nil {
+			return err
+		}
 	}
 	return w.Flush()
 }

@@ -45,3 +45,31 @@ func TestClinicalOpenAPIReferencesRegisteredOperationsAndPermissions(t *testing.
 		t.Fatal("clinical contract contains no operations")
 	}
 }
+
+// The free-text dispense route is retired (#1680): the descriptive contract
+// must not still promise a 200 completion or take a medication body.
+func TestClinicalOpenAPIDescribesTheRetiredDispense(t *testing.T) {
+	data, err := os.ReadFile("../../../contracts/api/clinical.openapi.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var spec struct {
+		Paths map[string]map[string]struct {
+			RequestBody json.RawMessage            `json:"requestBody"`
+			Responses   map[string]json.RawMessage `json:"responses"`
+		} `json:"paths"`
+	}
+	if err := json.Unmarshal(data, &spec); err != nil {
+		t.Fatal(err)
+	}
+	op := spec.Paths["/v1/pharmacy/dispenses/{id}/dispense"]["post"]
+	if _, ok := op.Responses["410"]; !ok {
+		t.Error("the retired dispense must document 410")
+	}
+	if _, ok := op.Responses["200"]; ok {
+		t.Error("the retired dispense must not document a 200 completion")
+	}
+	if op.RequestBody != nil {
+		t.Error("the retired dispense takes no request body")
+	}
+}

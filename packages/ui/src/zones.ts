@@ -214,7 +214,7 @@ export const ZONES: Zone[] = [
       },
       {
         section: "Dispensing",
-        label: "Dispense queue",
+        label: "Past dispenses",
         href: "/pharmacy/dispense",
         icon: ListChecks,
         permission: "pharmacy.dispense.read",

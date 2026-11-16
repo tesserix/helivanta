@@ -1002,8 +1002,6 @@ var eventPayloadReviewedNonPHI = map[string]string{
 	"patientmaster.PatientRegisteredData.PatientID":   "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
 	"lab.ResultReadyData.VisitID":                     "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
 	"lab.ResultReadyData.OrderID":                     "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
-	"pharmacy.DispenseRecordedData.VisitID":           "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
-	"pharmacy.DispenseRecordedData.DispenseID":        "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
 	"reference.PingedData.PingID":                     "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
 	"reference.PingForwardedData.PingID":              "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
 

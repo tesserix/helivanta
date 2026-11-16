@@ -5251,7 +5251,6 @@
         "helivanta.in.pharmacy.licence_evidence_scan_requested.v1",
         "helivanta.in.pharmacy.licence_evidence_changed.v1",
         "helivanta.in.pharmacy.unused_payment_refund_recorded.v1",
-        "helivanta.in.pharmacy.dispense_recorded.v1",
         "helivanta.in.pharmacy.catalogue_updated.v1",
         "helivanta.in.pharmacy.stock_movement_recorded.v1",
         "helivanta.in.pharmacy.payable_recorded.v1",
@@ -5273,11 +5272,6 @@
       "directed_subjects": [],
       "directed_write_tables": [],
       "consumers": [
-        {
-          "name": "pharmacy-visit-intake",
-          "subject": "helivanta.in.medicore.visit_created.v1",
-          "after_commit": false
-        },
         {
           "name": "pharmacy-prescription-image-scan",
           "subject": "helivanta.in.pharmacy.prescription_image_scan_requested.v1",

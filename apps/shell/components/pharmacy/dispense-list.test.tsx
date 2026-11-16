@@ -1,6 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { Can } from "@helivanta/api";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { DispenseList } from "./dispense-list";
 
@@ -266,77 +267,52 @@ describe("DispenseList", () => {
   });
 
   // The real way a page empties: its last row is dispensed.
-  it("falls back when the last row on a later page is dispensed", async () => {
-    nav.search = "tab=waiting&page=2&cursor=c1";
-    let dispensed = false;
-    const base = serve(() => ({ waiting: dispensed ? [] : [pendingRow] }));
-    vi.stubGlobal(
-      "fetch",
-      vi.fn((url: string, init?: RequestInit) => {
-        if (init?.method === "POST") dispensed = true;
-        return base(url, init);
-      }),
+  // #1680: the free-text queue is retired; history stays, the action goes.
+  it("shows past dispenses without a dispense action, even for a fulfil holder", async () => {
+    const fetchMock = serve(
+      () => ({ waiting: [pendingRow] }),
+      ["pharmacy.dispense.read", "pharmacy.dispense.fulfil"],
     );
-    const { user } = renderWithProviders(<DispenseList />);
-    await user.type(await screen.findByLabelText("Medication"), "Amoxicillin 250mg");
-    expect(nav.replace).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "Dispense" }));
-    await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/pharmacy?tab=waiting"));
-  });
-
-  it("removes a dispensed row from Waiting with the medication typed in that row", async () => {
-    let posted: unknown = null;
-    const base = serve(() => (posted ? {} : { waiting: [pendingRow] }));
-    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
-      if (init?.method === "POST") posted = JSON.parse(String(init.body));
-      return base(url, init);
-    });
     vi.stubGlobal("fetch", fetchMock);
-
-    const { user } = renderWithProviders(<DispenseList />);
-    await user.type(await screen.findByLabelText("Medication"), "Amoxicillin 250mg");
-    await user.click(screen.getByRole("button", { name: "Dispense" }));
-    await waitFor(() => expect(screen.queryByText("Asha Rao")).not.toBeInTheDocument());
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/v1/pharmacy/dispenses/d-1/dispense",
-      expect.objectContaining({ method: "POST" }),
+    renderWithProviders(
+      <>
+        {/* Proves permissions have loaded, so an absent action is not a race. */}
+        <Can permission="pharmacy.dispense.fulfil">
+          <span>fulfil granted</span>
+        </Can>
+        <DispenseList />
+      </>,
     );
-    expect(posted).toEqual({ medication: "Amoxicillin 250mg" });
-  });
-
-  it("refuses a blank medication without posting", async () => {
-    const fetchMock = serve(() => ({ waiting: [pendingRow] }));
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { user } = renderWithProviders(<DispenseList />);
-    await user.type(await screen.findByLabelText("Medication"), "   ");
-    await user.click(screen.getByRole("button", { name: "Dispense" }));
-    expect(await screen.findByText("Medication is required")).toBeInTheDocument();
+    await screen.findByText("fulfil granted");
+    await screen.findByText("Asha Rao");
+    expect(screen.queryByRole("button", { name: /dispense/i })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Medication")).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
   });
 
-  it("keeps each row's medication to that row", async () => {
-    const secondRow = { ...pendingRow, id: "d-2", visit_id: "v-2", patient_name: "Rohan Iyer" };
+  it("shows dispensed history as recorded", async () => {
+    nav.search = "tab=dispensed";
     vi.stubGlobal(
       "fetch",
-      serve(() => ({ waiting: [pendingRow, secondRow] })),
-    );
-
-    const { user } = renderWithProviders(<DispenseList />);
-    const [first, second] = await screen.findAllByLabelText("Medication");
-    expect(first).toHaveValue("");
-    await user.type(first, "Amoxicillin 250mg");
-    expect(second).toHaveValue("");
-  });
-
-  it("hides the dispense button without permission", async () => {
-    vi.stubGlobal(
-      "fetch",
-      serve(() => ({ waiting: [pendingRow] }), []),
+      serve(() => ({ dispensed: [dispensedRow] }), ["pharmacy.dispense.read"]),
     );
     renderWithProviders(<DispenseList />);
-    await screen.findByText("Asha Rao");
-    expect(screen.queryByRole("button", { name: "Dispense" })).not.toBeInTheDocument();
+    expect(await screen.findByText("Meera Nair")).toBeInTheDocument();
+    expect(screen.getByText("Paracetamol 500mg")).toBeInTheDocument();
+  });
+
+  it("tells the pharmacist the queue is retired and where to sell instead", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serve(() => ({ waiting: [pendingRow] }), ["pharmacy.dispense.read"]),
+    );
+    renderWithProviders(<DispenseList />);
+    expect(await screen.findByText(/dispense queue is retired/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /counter sale/i })).toHaveAttribute(
+      "href",
+      "/pharmacy/counter",
+    );
+    expect(screen.getByText(/never completed/i)).toBeInTheDocument();
   });
 
   it("says when nothing is waiting", async () => {

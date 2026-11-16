@@ -58,7 +58,7 @@ test("every department URL still lands on its own page", async ({ page }) => {
     {
       path: "/pharmacy/dispense",
       lands: /\/pharmacy\/dispense(?:\?|$)/,
-      current: "Dispense queue",
+      current: "Past dispenses",
     },
     {
       path: "/pharmacy/medications",

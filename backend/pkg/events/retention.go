@@ -25,9 +25,9 @@ const streamMaxAge = 24 * time.Hour
 // idempotency ledger: JetStream redelivers for up to streamMaxAge, so
 // pruning the ledger sooner makes a redelivered event indistinguishable
 // from a new one — the consumer's ON CONFLICT DO NOTHING claim in
-// runConsumerTx finds no row, runs the handler again, and inserts a SECOND
-// pharmacy_dispenses row: a duplicate clinical record produced by a cleanup
-// job. Derived from streamMaxAge, not written as an independent number, so
+// runConsumerTx finds no row, runs the handler again, and an insert
+// consumer such as lab-visit-intake writes a SECOND order row: a duplicate
+// clinical record produced by a cleanup job. Derived from streamMaxAge, not written as an independent number, so
 // a developer tidying retention config cannot silently invert the
 // relationship — TestProcessedRetentionOutlivesRedelivery makes the
 // invariant a CI failure rather than a comment.

@@ -1,5 +1,6 @@
 // Package journey holds the phase 2 cross-module integration test:
-// medicore visit_created fans out to pharmacy AND lab via JetStream.
+// medicore visit_created reaches lab via JetStream; pharmacy no longer
+// consumes it (#1680).
 package journey
 
 import (
@@ -23,7 +24,7 @@ var (
 	do = testutil.Do
 )
 
-func TestVisitFansOutToPharmacyAndLab(t *testing.T) {
+func TestVisitFansOutToLabOnly(t *testing.T) {
 	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"tokA": testutil.TenantA, "tokB": testutil.TenantB},
 		Perms: map[string][]authz.Permission{
@@ -44,15 +45,13 @@ func TestVisitFansOutToPharmacyAndLab(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &created))
 
-	// Both downstream modules open pending work for tenant A.
-	require.Eventually(t, func() bool {
-		return strings.Contains(do(r, "GET", "/v1/pharmacy/dispenses", "tokA", "").Body.String(), created.ID)
-	}, 30*time.Second, 200*time.Millisecond, "pharmacy should open a pending dispense")
+	// Lab opens pending work for tenant A. Pharmacy no longer does: its
+	// free-text dispense queue is retired (#1680).
 	require.Eventually(t, func() bool {
 		return strings.Contains(do(r, "GET", "/v1/lab/orders", "tokA", "").Body.String(), created.ID)
 	}, 30*time.Second, 200*time.Millisecond, "lab should open a pending order")
+	require.NotContains(t, do(r, "GET", "/v1/pharmacy/dispenses", "tokA", "").Body.String(), created.ID)
 
 	// Tenant B sees none of it.
-	require.NotContains(t, do(r, "GET", "/v1/pharmacy/dispenses", "tokB", "").Body.String(), created.ID)
 	require.NotContains(t, do(r, "GET", "/v1/lab/orders", "tokB", "").Body.String(), created.ID)
 }

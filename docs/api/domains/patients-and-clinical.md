@@ -34,7 +34,7 @@ See the [typed current OpenAPI](../../../contracts/api/clinical.openapi.json). T
 
 The current visit event includes `patient_name` and reaches lab/pharmacy pending-task consumers. This is a PHI-bearing legacy contract exception to newer metadata-only events. Document broker/outbox access and retention; do not copy this payload into general analytics or commercial CRM. A future metadata-only version requires consumer migration rather than removing the name from v1.
 
-The lab intake currently creates a pending default `CBC` order for every visit, and pharmacy creates a pending dispense task. These are scaffolded integration behavior, not clinician-authorized diagnostic orders or prescriptions. A real clinical ordering workflow must replace that automatic fanout with explicit authorized order intent before clinical reliance.
+The lab intake currently creates a pending default `CBC` order for every visit. Pharmacy's pending dispense task is retired (#1680): a visit no longer opens one, and a pharmacist dispenses to an OPD patient with a counter sale citing the encounter. The lab order is scaffolded integration behavior, not a clinician-authorized diagnostic order. A real clinical ordering workflow must replace that automatic order with explicit authorized order intent before clinical reliance.
 
 ### OPD encounters, allergies and weight
 

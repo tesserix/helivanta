@@ -32,7 +32,7 @@ it("connects Supply Connect to the permitted PharmaConnect screens", async () =>
     "href",
     "/pharmacy/stock",
   );
-  expect(screen.queryByRole("link", { name: "Dispense queue" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Past dispenses" })).not.toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "Supplier bills" })).not.toBeInTheDocument();
 });
 

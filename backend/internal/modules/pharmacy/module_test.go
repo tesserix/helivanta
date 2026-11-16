@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -35,13 +33,14 @@ var (
 
 func setup(t *testing.T) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
 	r, db, bus, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
-		Tokens: map[string]string{"tokA": testutil.TenantA, "tokB": testutil.TenantB},
+		Tokens: map[string]string{"tokA": testutil.TenantA, "tokB": testutil.TenantB, "tokRead": testutil.TenantA},
 		Perms: map[string][]authz.Permission{
 			"tokA": {
 				pharmacy.PermMedicationWrite, pharmacy.PermMedicationRead,
 				pharmacy.PermDispenseRead, pharmacy.PermDispenseFulfil,
 			},
-			"tokB": {pharmacy.PermDispenseRead, pharmacy.PermDispenseFulfil, pharmacy.PermMedicationRead},
+			"tokB":    {pharmacy.PermDispenseRead, pharmacy.PermDispenseFulfil, pharmacy.PermMedicationRead},
+			"tokRead": {pharmacy.PermDispenseRead},
 		},
 		Modules: []platform.Module{pharmacy.New()},
 	})
@@ -49,206 +48,116 @@ func setup(t *testing.T) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Contex
 	return r, db, bus, ctx
 }
 
-func TestVisitIntakeCreatesPendingDispense(t *testing.T) {
-	r, db, _, ctx := setup(t)
+// New visits no longer open a pharmacy dispense (#1680): the free-text queue
+// they fed is retired, so a row would be work nobody can complete. Lab keeps
+// its own visit intake; this only removes pharmacy's.
+func TestVisitCreatedNoLongerOpensADispense(t *testing.T) {
+	for _, c := range pharmacy.New().Consumers(platform.Deps{}) {
+		require.NotEqual(t, "helivanta.in.medicore.visit_created.v1", c.Subject, "consumer %s", c.Name)
+	}
 
-	// Simulate medicore publishing visit_created (module boundary: we
-	// publish the envelope, not import medicore).
+	r, db, bus, ctx := setup(t)
+	delivered := make(chan events.Event, 1)
+	require.NoError(t, bus.StartConsumers(ctx, db, []events.Consumer{{Name: "TEST-visit-observer", Subject: "helivanta.in.medicore.visit_created.v1",
+		Handle: func(_ context.Context, _ *gorm.DB, event events.Event) error { delivered <- event; return nil }}}))
+
 	visitID := uuid.NewString()
-	// Published from inside WithTenant(TenantA, ...), not WithSystem:
-	// since #835 Task 1, the outbox's WITH CHECK pins a non-NULL
-	// tenant_id to the GUC of the transaction that inserted it, and this
-	// event carries a real tenant — a WithSystem insert of it would now
-	// be rejected by the policy, same as it would be for the real
-	// publisher (medicore) below.
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-		data, _ := json.Marshal(map[string]string{
-			"visit_id": visitID, "patient_name": "Asha Rao", "department": "OPD",
-		})
+		data, _ := json.Marshal(map[string]string{"visit_id": visitID, "patient_name": "Asha Rao", "department": "OPD"})
 		return busRef.Publish(tx, "helivanta.in.medicore.visit_created.v1", events.Event{
 			Type: "VisitCreated", Version: 1, TenantID: testutil.TenantA, Data: data,
 		})
 	}))
-
-	// Pending dispense appears for tenant A…
-	require.Eventually(t, func() bool {
-		return strings.Contains(do(r, "GET", "/v1/pharmacy/dispenses", "tokA", "").Body.String(), visitID)
-	}, 20*time.Second, 200*time.Millisecond)
-	require.Contains(t, do(r, "GET", "/v1/pharmacy/dispenses", "tokA", "").Body.String(), `"pending"`)
-	// …and not for tenant B.
-	require.NotContains(t, do(r, "GET", "/v1/pharmacy/dispenses", "tokB", "").Body.String(), visitID)
+	select {
+	case <-delivered:
+	case <-time.After(20 * time.Second):
+		t.Fatal("visit_created.v1 was never delivered, so the absence below would prove nothing")
+	}
+	require.Never(t, func() bool {
+		var n int64
+		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			return tx.Raw(`SELECT count(*) FROM pharmacy_dispenses WHERE visit_id = ?`, visitID).Scan(&n).Error
+		}))
+		return n > 0
+	}, 3*time.Second, 200*time.Millisecond)
+	require.NotContains(t, do(r, "GET", "/v1/pharmacy/dispenses", "tokA", "").Body.String(), visitID)
 }
 
-func TestDispenseFlow(t *testing.T) {
+// The free-text dispense route is retired (#1680): it recorded a hand-over
+// with no product, stock, schedule, prescription or register check. Every
+// permitted call answers 410 without reading the row, so no row state —
+// pending, dispensed, missing or another tenant's — reaches a write or
+// reveals whether the row exists.
+func TestRetiredDispenseRouteRefusesWithoutWriting(t *testing.T) {
 	r, db, _, ctx := setup(t)
+	seed := tenantdb.WithActor(ctx, "test-seed")
 
-	visitID := uuid.NewString()
-	// Published from inside WithTenant(TenantA, ...), not WithSystem:
-	// since #835 Task 1, the outbox's WITH CHECK pins a non-NULL
-	// tenant_id to the GUC of the transaction that inserted it, and this
-	// event carries a real tenant — a WithSystem insert of it would now
-	// be rejected by the policy, same as it would be for the real
-	// publisher (medicore) below.
-	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-		data, _ := json.Marshal(map[string]string{
-			"visit_id": visitID, "patient_name": "Asha Rao", "department": "OPD",
-		})
-		return busRef.Publish(tx, "helivanta.in.medicore.visit_created.v1", events.Event{
-			Type: "VisitCreated", Version: 1, TenantID: testutil.TenantA, Data: data,
-		})
+	var pending, dispensed, foreign string
+	require.NoError(t, db.WithTenant(seed, testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Raw(`INSERT INTO pharmacy_dispenses (tenant_id, visit_id, patient_name)
+			VALUES (?, ?, 'Asha Rao') RETURNING id`, testutil.TenantA, uuid.New()).Scan(&pending).Error; err != nil {
+			return err
+		}
+		return tx.Raw(`INSERT INTO pharmacy_dispenses (tenant_id, visit_id, patient_name, medication, status, dispensed_at)
+			VALUES (?, ?, 'Ravi Kumar', 'Paracetamol 500mg', 'dispensed', now()) RETURNING id`, testutil.TenantA, uuid.New()).Scan(&dispensed).Error
+	}))
+	require.NoError(t, db.WithTenant(seed, testutil.TenantB, func(tx *gorm.DB) error {
+		return tx.Raw(`INSERT INTO pharmacy_dispenses (tenant_id, visit_id, patient_name)
+			VALUES (?, ?, 'Other Tenant') RETURNING id`, testutil.TenantB, uuid.New()).Scan(&foreign).Error
 	}))
 
-	var dispenseID string
-	require.Eventually(t, func() bool {
-		var resp struct {
-			Data []struct {
-				ID string `json:"id"`
-			} `json:"data"`
-		}
-		_ = json.Unmarshal(do(r, "GET", "/v1/pharmacy/dispenses", "tokA", "").Body.Bytes(), &resp)
-		if len(resp.Data) == 0 {
-			return false
-		}
-		dispenseID = resp.Data[0].ID
-		return true
-	}, 20*time.Second, 200*time.Millisecond)
+	type snapshot struct {
+		Rows    string
+		Outbox  int64
+		Updates int64
+	}
+	snap := func() snapshot {
+		var s snapshot
+		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			if err := tx.Raw(`SELECT string_agg(row_to_json(d)::text, '|' ORDER BY id) FROM pharmacy_dispenses d
+				WHERE id IN (?, ?)`, pending, dispensed).Scan(&s.Rows).Error; err != nil {
+				return err
+			}
+			if err := tx.Raw(`SELECT count(*) FROM outbox_events`).Scan(&s.Outbox).Error; err != nil {
+				return err
+			}
+			return tx.Raw(`SELECT count(*) FROM audit_events WHERE resource_type = 'pharmacy_dispenses'
+				AND action = 'update'`).Scan(&s.Updates).Error
+		}))
+		return s
+	}
+	before := snap()
+	require.Contains(t, before.Rows, `"status":"pending"`)
+	require.Contains(t, before.Rows, `"status":"dispensed"`)
 
-	// Cross-tenant dispense probe → 404.
-	require.Equal(t, http.StatusNotFound,
-		do(r, "POST", "/v1/pharmacy/dispenses/"+dispenseID+"/dispense", "tokB", `{"medication":"Paracetamol 500mg"}`).Code)
+	for name, id := range map[string]string{"pending": pending, "dispensed": dispensed, "unknown": uuid.NewString(), "other tenant": foreign} {
+		w := do(r, "POST", "/v1/pharmacy/dispenses/"+id+"/dispense", "tokA", `{"medication":"Paracetamol 500mg"}`)
+		require.Equal(t, http.StatusGone, w.Code, name)
+		require.Contains(t, w.Body.String(), `"dispense_retired"`, name)
+	}
+	// Without the permission it stays 403: retirement does not widen who may call.
+	require.Equal(t, http.StatusForbidden,
+		do(r, "POST", "/v1/pharmacy/dispenses/"+pending+"/dispense", "tokRead", `{"medication":"Paracetamol 500mg"}`).Code)
 
-	// A blank medication is refused and leaves the task pending (#1272 D3).
-	require.Equal(t, http.StatusBadRequest,
-		do(r, "POST", "/v1/pharmacy/dispenses/"+dispenseID+"/dispense", "tokA", `{"medication":"   "}`).Code)
-	require.NotContains(t, do(r, "GET", "/v1/pharmacy/dispenses", "tokA", "").Body.String(), `"dispensed"`)
+	require.Equal(t, before, snap(), "the retired route must not change a row, the outbox or the audit trail")
 
-	// Dispense succeeds once, storing the trimmed medication…
-	require.Equal(t, http.StatusOK,
-		do(r, "POST", "/v1/pharmacy/dispenses/"+dispenseID+"/dispense", "tokA", `{"medication":"  Paracetamol 500mg "}`).Code)
-	listed := do(r, "GET", "/v1/pharmacy/dispenses", "tokA", "").Body.String()
-	require.Contains(t, listed, `"dispensed"`)
-	require.Contains(t, listed, `"medication":"Paracetamol 500mg"`)
-
-	// The queue filters by status on the server (#1258 D4), so a pending
-	// row beyond the first page is never hidden behind dispensed ones.
-	statusIDs := func(query string) (int, string) {
+	// History stays readable and the server-side status split (#1258 D4)
+	// still holds, so a pending row is never hidden behind dispensed ones.
+	statusBody := func(query string) (int, string) {
 		w := do(r, "GET", "/v1/pharmacy/dispenses"+query, "tokA", "")
 		return w.Code, w.Body.String()
 	}
-	code, body := statusIDs("?status=dispensed")
+	code, body := statusBody("?status=dispensed")
 	require.Equal(t, http.StatusOK, code)
-	require.Contains(t, body, dispenseID)
-	require.NotContains(t, body, `"pending"`)
-	code, body = statusIDs("?status=pending")
+	require.Contains(t, body, dispensed)
+	require.Contains(t, body, `"medication":"Paracetamol 500mg"`)
+	require.NotContains(t, body, pending)
+	code, body = statusBody("?status=pending")
 	require.Equal(t, http.StatusOK, code)
-	require.NotContains(t, body, dispenseID)
-	require.NotContains(t, body, `"dispensed"`)
-	code, _ = statusIDs("?status=cancelled")
+	require.Contains(t, body, pending)
+	require.NotContains(t, body, dispensed)
+	code, _ = statusBody("?status=cancelled")
 	require.Equal(t, http.StatusBadRequest, code)
-
-	// …and 409s on repeat.
-	require.Equal(t, http.StatusConflict,
-		do(r, "POST", "/v1/pharmacy/dispenses/"+dispenseID+"/dispense", "tokA", `{"medication":"Paracetamol 500mg"}`).Code)
-
-	// The consumer's insert and the pharmacist's fulfilment are both in the audit trail.
-	type auditRow struct {
-		ActorSubject  string
-		Action        string
-		ChangedFields string
-	}
-	var trail []auditRow
-	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-		return tx.Raw(`SELECT actor_subject, action, array_to_string(changed_fields, ',') AS changed_fields
-			FROM audit_events WHERE resource_type = 'pharmacy_dispenses' AND resource_id = ?
-			ORDER BY occurred_at, action`, dispenseID).Scan(&trail).Error
-	}))
-	require.Equal(t, []auditRow{
-		{ActorSubject: "system:pharmacy-visit-intake", Action: "insert"},
-		{ActorSubject: "user-tokA", Action: "update", ChangedFields: "dispensed_at,medication,status"},
-	}, trail)
-
-	// dispense_recorded hit the outbox. Read under WithTenant(TenantA),
-	// not WithSystem: since #835 Task 1, outbox_events carries the
-	// publishing tenant and is RLS-forced, so a WithSystem read (no
-	// tenant GUC) now sees nothing here — that is the point of the
-	// change, not a regression.
-	require.Eventually(t, func() bool {
-		var n int64
-		_ = db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-			return tx.Raw(`SELECT count(*) FROM outbox_events
-				WHERE subject = 'helivanta.in.pharmacy.dispense_recorded.v1'`).Scan(&n).Error
-		})
-		return n == 1
-	}, 10*time.Second, 200*time.Millisecond)
-}
-
-// Exactly one of N concurrent fulfilments may win. The guarded UPDATE is
-// what enforces it — under READ COMMITTED the losers re-evaluate
-// "WHERE status = 'pending'" after the winner commits and match zero
-// rows. Delete that branch and this test fails; the sequential flow test
-// does not, because it never reaches the UPDATE.
-func TestConcurrentDispenseYieldsExactlyOneWinner(t *testing.T) {
-	r, db, _, ctx := setup(t)
-
-	visitID := uuid.NewString()
-	// Published from inside WithTenant(TenantA, ...), not WithSystem:
-	// since #835 Task 1, the outbox's WITH CHECK pins a non-NULL
-	// tenant_id to the GUC of the transaction that inserted it, and this
-	// event carries a real tenant — a WithSystem insert of it would now
-	// be rejected by the policy, same as it would be for the real
-	// publisher (medicore) below.
-	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-		data, _ := json.Marshal(map[string]string{
-			"visit_id": visitID, "patient_name": "Asha Rao", "department": "OPD",
-		})
-		return busRef.Publish(tx, "helivanta.in.medicore.visit_created.v1", events.Event{
-			Type: "VisitCreated", Version: 1, TenantID: testutil.TenantA, Data: data,
-		})
-	}))
-
-	var dispenseID string
-	require.Eventually(t, func() bool {
-		var resp struct {
-			Data []struct {
-				ID string `json:"id"`
-			} `json:"data"`
-		}
-		_ = json.Unmarshal(do(r, "GET", "/v1/pharmacy/dispenses", "tokA", "").Body.Bytes(), &resp)
-		if len(resp.Data) == 0 {
-			return false
-		}
-		dispenseID = resp.Data[0].ID
-		return true
-	}, 20*time.Second, 200*time.Millisecond)
-
-	const n = 8
-	codes := make(chan int, n)
-	var start sync.WaitGroup
-	start.Add(1)
-	for i := 0; i < n; i++ {
-		go func() {
-			start.Wait()
-			codes <- do(r, "POST", "/v1/pharmacy/dispenses/"+dispenseID+"/dispense", "tokA",
-				`{"medication":"Paracetamol 500mg"}`).Code
-		}()
-	}
-	start.Done()
-
-	ok, conflict, other := 0, 0, 0
-	for i := 0; i < n; i++ {
-		switch c := <-codes; c {
-		case http.StatusOK:
-			ok++
-		case http.StatusConflict:
-			conflict++
-		default:
-			other++
-			t.Logf("unexpected status %d", c)
-		}
-	}
-	require.Equal(t, 1, ok, "exactly one fulfilment must win")
-	require.Equal(t, n-1, conflict, "every loser must get 409")
-	require.Zero(t, other)
 }
 
 func TestMedicationsCrud(t *testing.T) {

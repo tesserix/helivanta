@@ -61,7 +61,7 @@ describe("visibleZones", () => {
       (z) => z.key === "pharmacy",
     );
 
-    expect(pharmacy?.pages.map((p) => p.label)).toEqual(["Dispense queue"]);
+    expect(pharmacy?.pages.map((p) => p.label)).toEqual(["Past dispenses"]);
     // A doctor, who only reads the queue, still opens at the queue.
     expect(pharmacy?.href).toBe("/pharmacy/dispense");
   });
@@ -265,7 +265,7 @@ describe("zone icons and sections", () => {
       ["Dispensing", "H1 register", "/pharmacy/h1-register"],
       ["Dispensing", "Prescription register", "/pharmacy/prescription-register"],
       ["Dispensing", "Prescriptions", "/pharmacy/prescriptions"],
-      ["Dispensing", "Dispense queue", "/pharmacy/dispense"],
+      ["Dispensing", "Past dispenses", "/pharmacy/dispense"],
       ["Dispensing", "Medication list", "/pharmacy/medications"],
       ["Inventory", "Stock across outlets", "/pharmacy/stock-overview"],
       ["Inventory", "Stock on hand", "/pharmacy/stock"],

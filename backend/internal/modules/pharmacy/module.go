@@ -314,7 +314,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	supplierReceivingRoutes(g, deps)
 	payableRoutes(g, deps)
 	meds := &medicationHandlers{db: deps.DB}
-	disp := &dispenseHandlers{db: deps.DB, bus: deps.Bus}
+	disp := &dispenseHandlers{db: deps.DB}
 
 	g.POST("/medications", PermMedicationWrite, meds.create)
 	platform.ListRoute(g, "/medications", PermMedicationRead, meds.list)
@@ -328,7 +328,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 
 // Publishes declares the module's clinical, catalogue, inventory and financial events.
 func (m *Module) Publishes() []string {
-	return []string{pharmacycontract.SubjectSupplierReceivingRecorded, pharmacycontract.SubjectSupplierDispatchRecorded, pharmacycontract.SubjectStaffDepartmentBindingChanged, pharmacycontract.SubjectLicenceEvidenceScanRequested, pharmacycontract.SubjectLicenceEvidenceChanged, pharmacycontract.SubjectUnusedPaymentRefundRecorded, pharmacycontract.SubjectDispenseRecorded, pharmacycontract.SubjectCatalogueUpdated, pharmacycontract.SubjectStockMovementRecorded, pharmacycontract.SubjectPayableRecorded, pharmacycontract.SubjectSettlementRecorded, pharmacycontract.SubjectBatchSafetyRecorded, pharmacycontract.SubjectSalePosted, pharmacycontract.SubjectPrescriptionImageScanRequested, pharmacycontract.SubjectPrescriptionImageChanged, pharmacycontract.SubjectCreditNoteIssued, pharmacycontract.SubjectPaymentRequested, pharmacycontract.SubjectPaymentCancelled, pharmacycontract.SubjectAffiliationVerificationRequested, pharmacycontract.SubjectAffiliationVerificationWithdrawn, pharmacycontract.SubjectAffiliationDecisionReceived, pharmacycontract.SubjectHospitalNameReceived, pharmacycontract.SubjectAdmissionChargePosted, pharmacycontract.SubjectAdmissionChargeReversed}
+	return []string{pharmacycontract.SubjectSupplierReceivingRecorded, pharmacycontract.SubjectSupplierDispatchRecorded, pharmacycontract.SubjectStaffDepartmentBindingChanged, pharmacycontract.SubjectLicenceEvidenceScanRequested, pharmacycontract.SubjectLicenceEvidenceChanged, pharmacycontract.SubjectUnusedPaymentRefundRecorded, pharmacycontract.SubjectCatalogueUpdated, pharmacycontract.SubjectStockMovementRecorded, pharmacycontract.SubjectPayableRecorded, pharmacycontract.SubjectSettlementRecorded, pharmacycontract.SubjectBatchSafetyRecorded, pharmacycontract.SubjectSalePosted, pharmacycontract.SubjectPrescriptionImageScanRequested, pharmacycontract.SubjectPrescriptionImageChanged, pharmacycontract.SubjectCreditNoteIssued, pharmacycontract.SubjectPaymentRequested, pharmacycontract.SubjectPaymentCancelled, pharmacycontract.SubjectAffiliationVerificationRequested, pharmacycontract.SubjectAffiliationVerificationWithdrawn, pharmacycontract.SubjectAffiliationDecisionReceived, pharmacycontract.SubjectHospitalNameReceived, pharmacycontract.SubjectAdmissionChargePosted, pharmacycontract.SubjectAdmissionChargeReversed}
 }
 
 // DirectedSubjects declares none: this module publishes nothing that

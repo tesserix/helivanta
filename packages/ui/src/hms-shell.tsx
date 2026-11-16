@@ -836,7 +836,8 @@ export function HmsShell({
                     data-width={zone.width === "full" ? "full" : "capped"}
                     className={`w-full ${zone.width === "full" ? "max-w-[1760px]" : "max-w-6xl"}`}
                   >
-                    {release.available(pageCapability) &&
+                    {!release.isTransitioning &&
+                    release.available(pageCapability) &&
                     (pageCapability === "baseline" || !release.isLoading) ? (
                       children
                     ) : (

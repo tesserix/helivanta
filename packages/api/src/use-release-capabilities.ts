@@ -37,6 +37,7 @@ export function useReleaseCapabilities() {
     data.subject === scope.subject &&
     current;
   return {
+    isTransitioning: transitioning,
     isLoading: transitioning || (!!scope && query.isPending),
     error: query.error,
     refresh: query.refetch,

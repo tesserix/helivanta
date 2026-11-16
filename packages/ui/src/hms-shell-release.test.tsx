@@ -77,3 +77,13 @@ it("keeps tenant security reachable when release evaluation is unavailable", asy
   await waitFor(() => expect(screen.getByText("Protected business content")).toBeVisible());
   expect(mounted).toHaveBeenCalledTimes(1);
 });
+
+it("closes baseline account settings during an account switch", async () => {
+  pathname.current = "/settings/security";
+  mount([], { unavailable: true });
+  await waitFor(() => expect(screen.getByText("Protected business content")).toBeVisible());
+  act(() => beginTenantTransition());
+  await waitFor(() =>
+    expect(screen.queryByText("Protected business content")).not.toBeInTheDocument(),
+  );
+});

@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "36a0622b026ff3ac69c33c65737df5180cf8f0f9695fdb6216b07b350aa8ccb2",
+  "registry_sha256": "afec950c95c030023cecd1455d632ff60b94119533caa4bf13ff87e3838450fe",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1139,
-    "unclassified": 1004
+    "total": 1141,
+    "unclassified": 1006
   },
   "entries": [
     {
@@ -5781,7 +5781,7 @@
         "registration_sha256": "d218fadaf844163347c2ff776fcbd21cd54097789a8ee0550b825179ff6d1cb7",
         "authority_kind": "hospital_operational",
         "resource_scope": "Verified tenant, hospital and owner-authorized patient/encounter.",
-        "rationale": "This concrete handler enters inHospital, which locks a medicore_hospital_access grant under the current tenant/subject. The declared route permission and grant do not establish reviewed employment or its effective cutoff. Classification records operational use; it grants no authority and does not establish runtime acceptance. Source rechecked for #429 department posting review (IAM 0030/0031, Workforce 0087), integrated into release #1565, on 2026-11-05: Router.handle, IAM Routes and the pinned posting-draft symbols are byte-identical to the release branch; workforce Routes keeps every release registration and only adds the department-scope dependency and moves the posting inbox, review source and decision receipt to handler-scoped admission; authorityCandidates also returns scope_kind/department_id while every caller binds scope_kind and a request without a department path still selects hospital grants only; DepartmentReferences keeps the same fail-closed owner binding. This route's registration and authority are unchanged; department-scoped surfaces remain unclassified and runtime obligations remain open. Source rechecked for #19 standalone pharmacy employers (Workforce 0088) on 2026-11-06: Router.handle and handleScoped keep the same membership, permission and scoped-admission chain for every route outside an Establishment router; the change only appends an establishment admission after authorization on Workforce Establishment routers and extracts the unchanged path-segment check into hasSegment. This route's registration and authority are unchanged. Source rechecked for #1596 department leave review (IAM 0032, Workforce 0089) on 2026-11-06: Router.handle is byte-identical; the router only adds a cursor sealer that Group propagates, WithCursorSealer and POSTHandlerScoped, the command form of GETHandlerScoped. This route's registration and authority are unchanged.",
+        "rationale": "This concrete handler enters inHospital, which locks a medicore_hospital_access grant under the current tenant/subject. The declared route permission and grant do not establish reviewed employment or its effective cutoff. Classification records operational use; it grants no authority and does not establish runtime acceptance. Source rechecked for #429 department posting review (IAM 0030/0031, Workforce 0087), integrated into release #1565, on 2026-11-05: Router.handle, IAM Routes and the pinned posting-draft symbols are byte-identical to the release branch; workforce Routes keeps every release registration and only adds the department-scope dependency and moves the posting inbox, review source and decision receipt to handler-scoped admission; authorityCandidates also returns scope_kind/department_id while every caller binds scope_kind and a request without a department path still selects hospital grants only; DepartmentReferences keeps the same fail-closed owner binding. This route's registration and authority are unchanged; department-scoped surfaces remain unclassified and runtime obligations remain open. Source rechecked for #19 standalone pharmacy employers (Workforce 0088) on 2026-11-06: Router.handle and handleScoped keep the same membership, permission and scoped-admission chain for every route outside an Establishment router; the change only appends an establishment admission after authorization on Workforce Establishment routers and extracts the unchanged path-segment check into hasSegment. This route's registration and authority are unchanged. Source rechecked for #1596 department leave review (IAM 0032, Workforce 0089) on 2026-11-06: Router.handle is byte-identical; the router only adds a cursor sealer that Group propagates, WithCursorSealer and POSTHandlerScoped, the command form of GETHandlerScoped. This route's registration and authority are unchanged. Source rechecked for #1728 release capabilities on 2026-11-16: Group propagates release admission; declare and handleScoped append it after their existing membership, permission/scoped and establishment checks. The additional gate grants no authority; these handlers and their tenant/hospital scope checks are unchanged. Router admission tests cover off and unavailable provider states; the recorded employment and runtime acceptance obligations remain open.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/medicore/module.go",
@@ -5800,7 +5800,7 @@
           },
           {
             "path": "backend/internal/platform/router.go",
-            "sha256": "25144c1a0d2d1e64fae1d737190881a0da63f599f14ac948290aa93dcf88f572",
+            "sha256": "cf4af430e8fc134d4a9914efcae7a1fb7bafd3d21689afcdde7cdb38996c3122",
             "symbol": "func (r *Router) handle("
           },
           {
@@ -5835,7 +5835,7 @@
         "registration_sha256": "b0df3bf528be8741f5a8048795ae9431c752d37d5e71070ae4fd6f4d28c2757d",
         "authority_kind": "hospital_operational",
         "resource_scope": "Verified tenant, hospital and owner-authorized patient/encounter.",
-        "rationale": "This concrete handler enters inHospital, which locks a medicore_hospital_access grant under the current tenant/subject. The declared route permission and grant do not establish reviewed employment or its effective cutoff. Classification records operational use; it grants no authority and does not establish runtime acceptance. Source rechecked for #429 department posting review (IAM 0030/0031, Workforce 0087), integrated into release #1565, on 2026-11-05: Router.handle, IAM Routes and the pinned posting-draft symbols are byte-identical to the release branch; workforce Routes keeps every release registration and only adds the department-scope dependency and moves the posting inbox, review source and decision receipt to handler-scoped admission; authorityCandidates also returns scope_kind/department_id while every caller binds scope_kind and a request without a department path still selects hospital grants only; DepartmentReferences keeps the same fail-closed owner binding. This route's registration and authority are unchanged; department-scoped surfaces remain unclassified and runtime obligations remain open. Source rechecked for #19 standalone pharmacy employers (Workforce 0088) on 2026-11-06: Router.handle and handleScoped keep the same membership, permission and scoped-admission chain for every route outside an Establishment router; the change only appends an establishment admission after authorization on Workforce Establishment routers and extracts the unchanged path-segment check into hasSegment. This route's registration and authority are unchanged. Source rechecked for #1596 department leave review (IAM 0032, Workforce 0089) on 2026-11-06: Router.handle is byte-identical; the router only adds a cursor sealer that Group propagates, WithCursorSealer and POSTHandlerScoped, the command form of GETHandlerScoped. This route's registration and authority are unchanged.",
+        "rationale": "This concrete handler enters inHospital, which locks a medicore_hospital_access grant under the current tenant/subject. The declared route permission and grant do not establish reviewed employment or its effective cutoff. Classification records operational use; it grants no authority and does not establish runtime acceptance. Source rechecked for #429 department posting review (IAM 0030/0031, Workforce 0087), integrated into release #1565, on 2026-11-05: Router.handle, IAM Routes and the pinned posting-draft symbols are byte-identical to the release branch; workforce Routes keeps every release registration and only adds the department-scope dependency and moves the posting inbox, review source and decision receipt to handler-scoped admission; authorityCandidates also returns scope_kind/department_id while every caller binds scope_kind and a request without a department path still selects hospital grants only; DepartmentReferences keeps the same fail-closed owner binding. This route's registration and authority are unchanged; department-scoped surfaces remain unclassified and runtime obligations remain open. Source rechecked for #19 standalone pharmacy employers (Workforce 0088) on 2026-11-06: Router.handle and handleScoped keep the same membership, permission and scoped-admission chain for every route outside an Establishment router; the change only appends an establishment admission after authorization on Workforce Establishment routers and extracts the unchanged path-segment check into hasSegment. This route's registration and authority are unchanged. Source rechecked for #1596 department leave review (IAM 0032, Workforce 0089) on 2026-11-06: Router.handle is byte-identical; the router only adds a cursor sealer that Group propagates, WithCursorSealer and POSTHandlerScoped, the command form of GETHandlerScoped. This route's registration and authority are unchanged. Source rechecked for #1728 release capabilities on 2026-11-16: Group propagates release admission; declare and handleScoped append it after their existing membership, permission/scoped and establishment checks. The additional gate grants no authority; these handlers and their tenant/hospital scope checks are unchanged. Router admission tests cover off and unavailable provider states; the recorded employment and runtime acceptance obligations remain open.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/medicore/module.go",
@@ -5854,7 +5854,7 @@
           },
           {
             "path": "backend/internal/platform/router.go",
-            "sha256": "25144c1a0d2d1e64fae1d737190881a0da63f599f14ac948290aa93dcf88f572",
+            "sha256": "cf4af430e8fc134d4a9914efcae7a1fb7bafd3d21689afcdde7cdb38996c3122",
             "symbol": "func (r *Router) handle("
           },
           {
@@ -6033,7 +6033,7 @@
         "registration_sha256": "e608041aa642bcda5d285c8fd0ff33edfe85582ee55b34e5e8dbcbbf52ee8be0",
         "authority_kind": "hospital_operational",
         "resource_scope": "Verified tenant, hospital and owner-authorized patient/encounter.",
-        "rationale": "This concrete handler enters inHospital, which locks a medicore_hospital_access grant under the current tenant/subject. The declared route permission and grant do not establish reviewed employment or its effective cutoff. Classification records operational use; it grants no authority and does not establish runtime acceptance. Source rechecked for #429 department posting review (IAM 0030/0031, Workforce 0087), integrated into release #1565, on 2026-11-05: Router.handle, IAM Routes and the pinned posting-draft symbols are byte-identical to the release branch; workforce Routes keeps every release registration and only adds the department-scope dependency and moves the posting inbox, review source and decision receipt to handler-scoped admission; authorityCandidates also returns scope_kind/department_id while every caller binds scope_kind and a request without a department path still selects hospital grants only; DepartmentReferences keeps the same fail-closed owner binding. This route's registration and authority are unchanged; department-scoped surfaces remain unclassified and runtime obligations remain open. Source rechecked for #19 standalone pharmacy employers (Workforce 0088) on 2026-11-06: Router.handle and handleScoped keep the same membership, permission and scoped-admission chain for every route outside an Establishment router; the change only appends an establishment admission after authorization on Workforce Establishment routers and extracts the unchanged path-segment check into hasSegment. This route's registration and authority are unchanged. Source rechecked for #1596 department leave review (IAM 0032, Workforce 0089) on 2026-11-06: Router.handle is byte-identical; the router only adds a cursor sealer that Group propagates, WithCursorSealer and POSTHandlerScoped, the command form of GETHandlerScoped. This route's registration and authority are unchanged.",
+        "rationale": "This concrete handler enters inHospital, which locks a medicore_hospital_access grant under the current tenant/subject. The declared route permission and grant do not establish reviewed employment or its effective cutoff. Classification records operational use; it grants no authority and does not establish runtime acceptance. Source rechecked for #429 department posting review (IAM 0030/0031, Workforce 0087), integrated into release #1565, on 2026-11-05: Router.handle, IAM Routes and the pinned posting-draft symbols are byte-identical to the release branch; workforce Routes keeps every release registration and only adds the department-scope dependency and moves the posting inbox, review source and decision receipt to handler-scoped admission; authorityCandidates also returns scope_kind/department_id while every caller binds scope_kind and a request without a department path still selects hospital grants only; DepartmentReferences keeps the same fail-closed owner binding. This route's registration and authority are unchanged; department-scoped surfaces remain unclassified and runtime obligations remain open. Source rechecked for #19 standalone pharmacy employers (Workforce 0088) on 2026-11-06: Router.handle and handleScoped keep the same membership, permission and scoped-admission chain for every route outside an Establishment router; the change only appends an establishment admission after authorization on Workforce Establishment routers and extracts the unchanged path-segment check into hasSegment. This route's registration and authority are unchanged. Source rechecked for #1596 department leave review (IAM 0032, Workforce 0089) on 2026-11-06: Router.handle is byte-identical; the router only adds a cursor sealer that Group propagates, WithCursorSealer and POSTHandlerScoped, the command form of GETHandlerScoped. This route's registration and authority are unchanged. Source rechecked for #1728 release capabilities on 2026-11-16: Group propagates release admission; declare and handleScoped append it after their existing membership, permission/scoped and establishment checks. The additional gate grants no authority; these handlers and their tenant/hospital scope checks are unchanged. Router admission tests cover off and unavailable provider states; the recorded employment and runtime acceptance obligations remain open.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/medicore/module.go",
@@ -6052,7 +6052,7 @@
           },
           {
             "path": "backend/internal/platform/router.go",
-            "sha256": "25144c1a0d2d1e64fae1d737190881a0da63f599f14ac948290aa93dcf88f572",
+            "sha256": "cf4af430e8fc134d4a9914efcae7a1fb7bafd3d21689afcdde7cdb38996c3122",
             "symbol": "func (r *Router) handle("
           },
           {
@@ -6263,7 +6263,7 @@
         "registration_sha256": "f14eb313e482e4403eb0ea3feafaf7d4cb41b75b56c4d8c5790f0efb59b2a492",
         "authority_kind": "hospital_operational",
         "resource_scope": "Verified tenant, hospital and owner-authorized patient/encounter.",
-        "rationale": "This concrete handler enters inHospital, which locks a medicore_hospital_access grant under the current tenant/subject. The declared route permission and grant do not establish reviewed employment or its effective cutoff. Classification records operational use; it grants no authority and does not establish runtime acceptance. Source rechecked for #429 department posting review (IAM 0030/0031, Workforce 0087), integrated into release #1565, on 2026-11-05: Router.handle, IAM Routes and the pinned posting-draft symbols are byte-identical to the release branch; workforce Routes keeps every release registration and only adds the department-scope dependency and moves the posting inbox, review source and decision receipt to handler-scoped admission; authorityCandidates also returns scope_kind/department_id while every caller binds scope_kind and a request without a department path still selects hospital grants only; DepartmentReferences keeps the same fail-closed owner binding. This route's registration and authority are unchanged; department-scoped surfaces remain unclassified and runtime obligations remain open. Source rechecked for #19 standalone pharmacy employers (Workforce 0088) on 2026-11-06: Router.handle and handleScoped keep the same membership, permission and scoped-admission chain for every route outside an Establishment router; the change only appends an establishment admission after authorization on Workforce Establishment routers and extracts the unchanged path-segment check into hasSegment. This route's registration and authority are unchanged. Source rechecked for #1596 department leave review (IAM 0032, Workforce 0089) on 2026-11-06: Router.handle is byte-identical; the router only adds a cursor sealer that Group propagates, WithCursorSealer and POSTHandlerScoped, the command form of GETHandlerScoped. This route's registration and authority are unchanged.",
+        "rationale": "This concrete handler enters inHospital, which locks a medicore_hospital_access grant under the current tenant/subject. The declared route permission and grant do not establish reviewed employment or its effective cutoff. Classification records operational use; it grants no authority and does not establish runtime acceptance. Source rechecked for #429 department posting review (IAM 0030/0031, Workforce 0087), integrated into release #1565, on 2026-11-05: Router.handle, IAM Routes and the pinned posting-draft symbols are byte-identical to the release branch; workforce Routes keeps every release registration and only adds the department-scope dependency and moves the posting inbox, review source and decision receipt to handler-scoped admission; authorityCandidates also returns scope_kind/department_id while every caller binds scope_kind and a request without a department path still selects hospital grants only; DepartmentReferences keeps the same fail-closed owner binding. This route's registration and authority are unchanged; department-scoped surfaces remain unclassified and runtime obligations remain open. Source rechecked for #19 standalone pharmacy employers (Workforce 0088) on 2026-11-06: Router.handle and handleScoped keep the same membership, permission and scoped-admission chain for every route outside an Establishment router; the change only appends an establishment admission after authorization on Workforce Establishment routers and extracts the unchanged path-segment check into hasSegment. This route's registration and authority are unchanged. Source rechecked for #1596 department leave review (IAM 0032, Workforce 0089) on 2026-11-06: Router.handle is byte-identical; the router only adds a cursor sealer that Group propagates, WithCursorSealer and POSTHandlerScoped, the command form of GETHandlerScoped. This route's registration and authority are unchanged. Source rechecked for #1728 release capabilities on 2026-11-16: Group propagates release admission; declare and handleScoped append it after their existing membership, permission/scoped and establishment checks. The additional gate grants no authority; these handlers and their tenant/hospital scope checks are unchanged. Router admission tests cover off and unavailable provider states; the recorded employment and runtime acceptance obligations remain open.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/medicore/module.go",
@@ -6282,7 +6282,7 @@
           },
           {
             "path": "backend/internal/platform/router.go",
-            "sha256": "25144c1a0d2d1e64fae1d737190881a0da63f599f14ac948290aa93dcf88f572",
+            "sha256": "cf4af430e8fc134d4a9914efcae7a1fb7bafd3d21689afcdde7cdb38996c3122",
             "symbol": "func (r *Router) handle("
           },
           {
@@ -23630,6 +23630,22 @@
       "review": null
     },
     {
+      "id": "http workspace GET /v1/workspace/release-capabilities",
+      "kind": "http",
+      "module": "workspace",
+      "registration": {
+        "source": "backend/internal/modules/workspace/module.go",
+        "method": "GET",
+        "path": "/v1/workspace/release-capabilities",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http workspace POST /v1/workspace/country-policies",
       "kind": "http",
       "module": "workspace",
@@ -23762,6 +23778,16 @@
       "registration": {
         "route": "GET /v1/auth/login/request/:id",
         "rationale": "renders the login form before any Helivanta session exists"
+      },
+      "review": null
+    },
+    {
+      "id": "unauthenticated_http platform GET /v1/auth/release-capabilities",
+      "kind": "unauthenticated_http",
+      "module": "platform",
+      "registration": {
+        "route": "GET /v1/auth/release-capabilities",
+        "rationale": "bounded global onboarding availability; no tenant, account or targeting rules"
       },
       "review": null
     },

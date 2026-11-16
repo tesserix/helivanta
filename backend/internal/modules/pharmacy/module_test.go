@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 	"testing"
 	"time"
 
@@ -49,34 +48,39 @@ func setup(t *testing.T) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Contex
 	return r, db, bus, ctx
 }
 
-func TestVisitIntakeCreatesPendingDispense(t *testing.T) {
-	r, db, _, ctx := setup(t)
+// New visits no longer open a pharmacy dispense (#1680): the free-text queue
+// they fed is retired, so a row would be work nobody can complete. Lab keeps
+// its own visit intake; this only removes pharmacy's.
+func TestVisitCreatedNoLongerOpensADispense(t *testing.T) {
+	for _, c := range pharmacy.New().Consumers(platform.Deps{}) {
+		require.NotEqual(t, "helivanta.in.medicore.visit_created.v1", c.Subject, "consumer %s", c.Name)
+	}
 
-	// Simulate medicore publishing visit_created (module boundary: we
-	// publish the envelope, not import medicore).
+	r, db, bus, ctx := setup(t)
+	delivered := make(chan events.Event, 1)
+	require.NoError(t, bus.StartConsumers(ctx, db, []events.Consumer{{Name: "TEST-visit-observer", Subject: "helivanta.in.medicore.visit_created.v1",
+		Handle: func(_ context.Context, _ *gorm.DB, event events.Event) error { delivered <- event; return nil }}}))
+
 	visitID := uuid.NewString()
-	// Published from inside WithTenant(TenantA, ...), not WithSystem:
-	// since #835 Task 1, the outbox's WITH CHECK pins a non-NULL
-	// tenant_id to the GUC of the transaction that inserted it, and this
-	// event carries a real tenant — a WithSystem insert of it would now
-	// be rejected by the policy, same as it would be for the real
-	// publisher (medicore) below.
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-		data, _ := json.Marshal(map[string]string{
-			"visit_id": visitID, "patient_name": "Asha Rao", "department": "OPD",
-		})
+		data, _ := json.Marshal(map[string]string{"visit_id": visitID, "patient_name": "Asha Rao", "department": "OPD"})
 		return busRef.Publish(tx, "helivanta.in.medicore.visit_created.v1", events.Event{
 			Type: "VisitCreated", Version: 1, TenantID: testutil.TenantA, Data: data,
 		})
 	}))
-
-	// Pending dispense appears for tenant A…
-	require.Eventually(t, func() bool {
-		return strings.Contains(do(r, "GET", "/v1/pharmacy/dispenses", "tokA", "").Body.String(), visitID)
-	}, 20*time.Second, 200*time.Millisecond)
-	require.Contains(t, do(r, "GET", "/v1/pharmacy/dispenses", "tokA", "").Body.String(), `"pending"`)
-	// …and not for tenant B.
-	require.NotContains(t, do(r, "GET", "/v1/pharmacy/dispenses", "tokB", "").Body.String(), visitID)
+	select {
+	case <-delivered:
+	case <-time.After(20 * time.Second):
+		t.Fatal("visit_created.v1 was never delivered, so the absence below would prove nothing")
+	}
+	require.Never(t, func() bool {
+		var n int64
+		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			return tx.Raw(`SELECT count(*) FROM pharmacy_dispenses WHERE visit_id = ?`, visitID).Scan(&n).Error
+		}))
+		return n > 0
+	}, 3*time.Second, 200*time.Millisecond)
+	require.NotContains(t, do(r, "GET", "/v1/pharmacy/dispenses", "tokA", "").Body.String(), visitID)
 }
 
 // The free-text dispense route is retired (#1680): it recorded a hand-over

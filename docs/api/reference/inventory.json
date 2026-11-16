@@ -5711,7 +5711,7 @@
         },
         {
           "id": "0050_pharmacy_schedule_lowering",
-          "sql_sha256": "51a381ecfebba3cc492778422934eae8b601139a7aec9d1b568d40191c67e983",
+          "sql_sha256": "61a6cde0878ab63a0ac137c49ab717379c66fee6477284231ab60fd2216a8625",
           "creates_tables": [
             "pharmacy_product_schedule_countersigns"
           ]

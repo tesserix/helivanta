@@ -301,3 +301,15 @@ func TestOnlyOwnersHoldCountersign(t *testing.T) {
 	}
 	require.Equal(t, []authz.Role{authz.RolePharmacyOwner}, roles)
 }
+
+// 0047 fingerprints every pharmacy table's operating_choice policies and
+// fails closed (503) when they drift. 0050 adds a table and widens three
+// policies, so it must leave that check holding.
+func TestOperatingChoiceSupportHoldsAfterScheduleLowering(t *testing.T) {
+	_, db, _ := scheduleHarness(t)
+	var ok []bool
+	require.NoError(t, db.WithSystem(t.Context(), func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT pharmacy_operating_choice_support()`).Scan(&ok).Error
+	}))
+	require.Equal(t, []bool{true}, ok)
+}

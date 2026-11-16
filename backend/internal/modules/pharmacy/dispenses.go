@@ -112,10 +112,13 @@ var likeLiteral = strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`)
 // fulfil is the retired free-text dispense (#1680). It recorded a hand-over
 // with no product, stock, schedule, prescription or register check; the
 // counter sale against an OPD encounter is the only way to dispense now.
-// It refuses before reading the row: failing closed on every row state
-// means no pending, dispensed or foreign row can reach a write or reveal
-// that it exists.
+// After the shared session and pharmacy-tenant checks, it refuses before
+// reading the row: failing closed on every row state means no pending,
+// dispensed or foreign row can reach a write or reveal that it exists.
 func (h *dispenseHandlers) fulfil(c *gin.Context) {
+	if _, _, ok := pharmacyPrincipal(c); !ok {
+		return
+	}
 	respond.Error(c, http.StatusGone, "dispense_retired",
 		"Free-text dispensing is retired. Record a counter sale against the patient's OPD encounter.")
 }

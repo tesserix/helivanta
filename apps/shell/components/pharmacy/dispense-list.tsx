@@ -3,8 +3,9 @@
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import { CheckCheck, Pill, Search, type LucideIcon } from "lucide-react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Can, PAGE_SIZE, apiFetch, useApiMutation, useApiPageQuery } from "@helivanta/api";
+import { PAGE_SIZE, useApiPageQuery } from "@helivanta/api";
 import { useUrlPage, useStepBackWhenEmpty } from "@/lib/use-url-page";
 import { Field, formatTime, PageTabs, Pager, Panel, QueryState, useZodForm } from "@helivanta/ui";
 
@@ -18,11 +19,6 @@ type Dispense = {
   created_at: string;
 };
 
-// No default: each dispense records what the pharmacist typed for that row (#1272).
-const dispenseSchema = z.object({
-  medication: z.string().trim().min(1, "Medication is required").max(200),
-});
-
 type Tab = "waiting" | "dispensed";
 
 const TABS: Record<
@@ -35,7 +31,7 @@ const TABS: Record<
     empty: {
       icon: Pill,
       title: "Nothing waiting",
-      hint: "Prescriptions from MediCore visits appear here.",
+      hint: "The queue is retired, so no new visits arrive here.",
     },
   },
   dispensed: {
@@ -45,6 +41,9 @@ const TABS: Record<
   },
 };
 
+// Past dispenses from the retired free-text queue (#1680), read-only: the
+// queue recorded hand-overs with no stock, schedule or register check, so
+// dispensing is now a counter sale against the patient's OPD encounter.
 // Waiting and Dispensed are tabs, each its own counted route (#1295 D8):
 // Waiting oldest first, so the longest wait is at the top of page 1, and
 // Dispensed newest first by hand-over time. The tab, page and cursor live
@@ -73,7 +72,7 @@ export function DispenseList() {
   return (
     <Panel flush>
       <PageTabs
-        label="Dispense queue"
+        label="Past dispenses"
         current={tab}
         tabs={(Object.keys(TABS) as Tab[]).map((key) => ({
           key,
@@ -81,6 +80,14 @@ export function DispenseList() {
           href: url.hrefFor({ tab: key, q: search }),
         }))}
       />
+      <p className="border-b px-5 py-3 text-sm text-muted-foreground">
+        The dispense queue is retired. Serve an OPD patient with a{" "}
+        <Link href="/pharmacy/counter" className="font-medium text-foreground underline">
+          counter sale
+        </Link>{" "}
+        against their encounter; rows below are kept as recorded.
+        {tab === "waiting" && " Waiting rows were never completed in the retired queue."}
+      </p>
       {tab === "waiting" && (
         <WaitingSearch
           key={q}
@@ -100,7 +107,6 @@ export function DispenseList() {
         {(items) => (
           <ul className="divide-y text-sm">
             {items.map((d) => (
-              // Below sm a waiting row stacks: the form needs the full width (#1293).
               <li
                 key={d.id}
                 className="flex flex-col gap-3 px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
@@ -115,11 +121,7 @@ export function DispenseList() {
                       : `Waiting since ${formatTime(d.created_at)}`}
                   </span>
                 </div>
-                {d.status === "pending" ? (
-                  <Can permission="pharmacy.dispense.fulfil">
-                    <DispenseForm id={d.id} />
-                  </Can>
-                ) : (
+                {d.status === "dispensed" && (
                   <time className="shrink-0 tabular-nums text-muted-foreground">
                     {formatTime(d.dispensed_at ?? "")}
                   </time>
@@ -173,39 +175,6 @@ function WaitingSearch({ initial, onSearch }: { initial: string; onSearch: (q: s
       </div>
       <Button type="submit" variant="outline">
         Search
-      </Button>
-    </form>
-  );
-}
-
-function DispenseForm({ id }: { id: string }) {
-  const form = useZodForm(dispenseSchema, { medication: "" });
-  const dispense = useApiMutation(
-    (values: z.infer<typeof dispenseSchema>) =>
-      apiFetch("/pharmacy/dispenses/" + id + "/dispense", {
-        method: "POST",
-        body: JSON.stringify(values),
-      }),
-    {
-      successToast: "Dispensed",
-      invalidate: [["dispenses"]],
-    },
-  );
-  const fieldId = `dispense-medication-${id}`;
-
-  return (
-    <form
-      noValidate
-      onSubmit={form.handleSubmit((values) => dispense.mutate(values))}
-      className="flex w-full items-start gap-2 sm:w-auto sm:shrink-0"
-    >
-      <div className="min-w-0 flex-1 sm:w-56 sm:flex-none">
-        <Field id={fieldId} label="Medication" error={form.formState.errors.medication?.message}>
-          <Input id={fieldId} {...form.register("medication")} />
-        </Field>
-      </div>
-      <Button type="submit" className="mt-6" disabled={dispense.isPending}>
-        {dispense.isPending ? "Dispensing…" : "Dispense"}
       </Button>
     </form>
   );

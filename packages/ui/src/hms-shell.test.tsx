@@ -1023,7 +1023,7 @@ describe("expandable navigation", () => {
     expect(text).toEqual([
       "Overview",
       "Dispensing",
-      "Dispense queue",
+      "Past dispenses",
       "Inventory",
       "Stock across outlets",
       "Stock on hand",
@@ -1277,7 +1277,7 @@ describe("phone menu", () => {
       "aria-current",
       "page",
     );
-    expect(within(menu).getByRole("link", { name: "Dispense queue" })).toHaveAttribute(
+    expect(within(menu).getByRole("link", { name: "Past dispenses" })).toHaveAttribute(
       "aria-current",
       "page",
     );

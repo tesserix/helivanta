@@ -40,7 +40,7 @@ export function VisitPanel({ department }: { department: "OPD" | "IPD" }) {
       <div className="border-b px-5 py-4">
         <h2 className="text-sm font-semibold text-foreground">Visits</h2>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          New visits open a pending dispense in Pharmacy and a pending order in Lab.
+          New visits open a pending order in Lab.
         </p>
       </div>
       <Can permission="medicore.visit.create">

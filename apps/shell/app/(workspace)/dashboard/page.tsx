@@ -13,7 +13,7 @@ const DESCRIPTIONS: Record<string, string> = {
   "/medicore/opd": "Outpatient visit registrations",
   "/medicore/ipd": "Inpatient visit registrations",
   "pharmacy:Overview": "What needs attention at your outlet today",
-  "pharmacy:Dispensing": "Dispense queue and medication list",
+  "pharmacy:Dispensing": "Past dispenses from the retired queue",
   "pharmacy:Inventory": "Stock on hand, receiving, expiry and the product catalogue",
   "pharmacy:Purchasing": "Supplier bills, payments and outstanding balances",
   "pharmacy:Setup": "Pharmacy outlets and who can access them",

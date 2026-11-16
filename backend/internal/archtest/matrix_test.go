@@ -395,6 +395,8 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	pharmacy.PermLicenceEvidenceRead:  {authz.RoleTenantAdmin, authz.RolePharmacyOwner},
 	pharmacy.PermScheduleDeclare:      {authz.RolePharmacist, authz.RolePharmacyOwner, authz.RoleTenantAdmin},
 	pharmacy.PermScheduleReview:       {authz.RolePharmacist, authz.RolePharmacyOwner, authz.RoleTenantAdmin},
+	// The owner answers for a request to lower a class; Helivanta decides it (#1681).
+	pharmacy.PermScheduleCountersign: {authz.RolePharmacyOwner, authz.RoleTenantAdmin},
 	// Item categories (#988): declared and reviewed as schedule classes are.
 	pharmacy.PermCategoryDeclare:      {authz.RolePharmacist, authz.RolePharmacyOwner, authz.RoleTenantAdmin},
 	pharmacy.PermCategoryReview:       {authz.RolePharmacist, authz.RolePharmacyOwner, authz.RoleTenantAdmin},

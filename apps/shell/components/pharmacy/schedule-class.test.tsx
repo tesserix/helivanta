@@ -1,7 +1,11 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
-import { formatZonedDateTime, type PharmacyProduct } from "@helivanta/api";
+import {
+  formatZonedDateTime,
+  type PharmacyProduct,
+  type PharmacyScheduleDeclaration,
+} from "@helivanta/api";
 import { chooseOption } from "../../test/select";
 import { ProductScheduleSection } from "./schedule-class";
 
@@ -366,7 +370,8 @@ describe("reviewing a schedule class", () => {
   });
 
   it("shows the four-eyes refusal inline", async () => {
-    const message = "a schedule class is reviewed by someone other than who declared it";
+    const message =
+      "a schedule class is reviewed or countersigned by someone other than who declared it";
     const fetcher = serve(awaiting, [{ status: 409, body: { error: "four_eyes", message } }]);
     const { user } = renderSection({ canReview: true });
     await user.type(await screen.findByLabelText("What you checked"), "my own");
@@ -425,5 +430,97 @@ describe("reviewing a schedule class", () => {
     serve(awaiting);
     renderSection({ canReview: true, product: { ...product, status: "withdrawn" } });
     expect(await screen.findByRole("button", { name: "Approve" })).toBeVisible();
+  });
+});
+
+// #1681: a lower class is countersigned by the owner and decided by Helivanta.
+describe("lowering a schedule class", () => {
+  const lower: PharmacyScheduleDeclaration = {
+    ...declaration,
+    id: "0199e000-0000-7000-8000-000000000702",
+    regulatory_class: "none",
+    source: "TEST CDSCO approval",
+    declared_by: "user-pharmacist",
+    lowers: true,
+    countersigned_by: null,
+    countersign_reason: null,
+    countersigned_at: null,
+    decided_by_platform: false,
+  };
+  const waiting = (row: PharmacyScheduleDeclaration) => ({
+    in_force: approved,
+    origin: "declared_by_outlet",
+    reason: "a lower class waits for Helivanta review",
+    history: [row, approved],
+  });
+  const countersigned = {
+    ...lower,
+    countersigned_by: "user-owner",
+    countersign_reason: "TEST label misread",
+    countersigned_at: "2026-11-09T06:00:00Z",
+  };
+
+  it("keeps the stricter class in force and offers no outlet review", async () => {
+    serve(waiting(lower));
+    renderSection({ canReview: true });
+    expect(await screen.findByText(/^Schedule H1 · not NDPS, approved/)).toBeVisible();
+    expect(screen.getByText("Not scheduled · not NDPS waits for Helivanta review.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+    const history = screen.getByRole("list", { name: "Schedule class history" });
+    expect(within(history).getByText("Waiting for the owner's countersign")).toBeVisible();
+  });
+
+  it("lets the owner countersign with a reason", async () => {
+    const fetcher = serve(waiting(lower), [{ status: 201, body: countersigned }]);
+    const { user } = renderSection({ canCountersign: true });
+    const button = await screen.findByRole("button", { name: "Countersign" });
+    await user.click(button);
+    expect(await screen.findByText("Say why the class should be lower.")).toBeVisible();
+    expect(writes(fetcher)).toHaveLength(0);
+
+    await user.type(screen.getByLabelText("Why the class should be lower"), " TEST label misread ");
+    await user.click(button);
+    await waitFor(() => expect(writes(fetcher)).toHaveLength(1));
+    const [url, init] = writes(fetcher)[0]!;
+    expect(url).toMatch(new RegExp(`/schedule/${lower.id}/countersign$`));
+    expect(JSON.parse(String(init?.body))).toEqual({ reason: "TEST label misread" });
+  });
+
+  it("offers no countersign without the grant, or once countersigned", async () => {
+    serve(waiting(lower));
+    const { unmount } = renderSection();
+    await screen.findByText(/waits for Helivanta review/);
+    expect(screen.queryByRole("button", { name: "Countersign" })).toBeNull();
+    unmount();
+
+    serve(waiting(countersigned));
+    renderSection({ canCountersign: true });
+    const history = await screen.findByRole("list", { name: "Schedule class history" });
+    expect(
+      within(history).getByText(
+        "Countersigned by user-owner: TEST label misread · waiting for Helivanta",
+      ),
+    ).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Countersign" })).toBeNull();
+  });
+
+  it("shows Helivanta's decision", async () => {
+    serve({
+      ...waiting({
+        ...countersigned,
+        decision: "rejected",
+        decision_reason: "TEST pack label is H1",
+        reviewed_by: "Sam",
+        reviewed_at: "2026-11-10T06:00:00Z",
+        decided_by_platform: true,
+      }),
+      reason: "the lower class was rejected",
+    });
+    renderSection();
+    const history = await screen.findByRole("list", { name: "Schedule class history" });
+    expect(
+      within(history).getByText("Rejected by Helivanta (Sam): TEST pack label is H1"),
+    ).toBeVisible();
+    expect(screen.getByText(/^Schedule H1 · not NDPS, approved/)).toBeVisible();
   });
 });

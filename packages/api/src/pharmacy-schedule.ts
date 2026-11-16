@@ -12,17 +12,29 @@ export type PharmacyScheduleDeclaration = {
   source: string;
   declared_by: string;
   created_at: string;
+  /** Set by the database: less strict than the approved class, so Helivanta decides it (#1681). */
+  lowers: boolean;
+  /** The pharmacy owner who answered for a lowering, once countersigned. */
+  countersigned_by: string | null;
+  countersign_reason: string | null;
+  countersigned_at: string | null;
   decision: "approved" | "rejected" | null;
   decision_reason: string | null;
   reviewed_by: string | null;
   reviewed_at: string | null;
+  /** The decision was Helivanta's, not the outlet's. */
+  decided_by_platform: boolean;
 };
 
 export type PharmacyScheduleState = {
-  /** The latest declaration, once approved; null while it awaits review or was rejected. */
+  /**
+   * The class products are handled under: the latest declaration once approved,
+   * skipping a lowering Helivanta has not approved. Null while a newer raise
+   * awaits review or was rejected.
+   */
   in_force: PharmacyScheduleDeclaration | null;
   origin: "declared_by_outlet";
-  /** Why nothing is in force; empty when a class is. */
+  /** Why the newest declaration is not in force; empty when it is. */
   reason: string;
   /** Newest first, at most the latest 50. */
   history: PharmacyScheduleDeclaration[];

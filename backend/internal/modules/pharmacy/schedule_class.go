@@ -20,26 +20,39 @@ import (
 // Outlet-declared schedule class (#1386 A2): the Drugs Rules class and NDPS
 // control a product is handled under until the drug master is loaded.
 
-var errDeclarationReviewed = errors.New("schedule declaration already reviewed")
+var (
+	errDeclarationReviewed = errors.New("schedule declaration already reviewed")
+	errCountersigned       = errors.New("schedule declaration already countersigned")
+)
 
 type scheduleDeclaration struct {
-	ID              uuid.UUID  `gorm:"column:id" json:"id"`
-	ProductID       uuid.UUID  `gorm:"column:product_id" json:"product_id"`
-	RegulatoryClass string     `gorm:"column:regulatory_class" json:"regulatory_class"`
-	NDPS            bool       `gorm:"column:ndps" json:"ndps"`
-	Source          string     `gorm:"column:source" json:"source"`
-	DeclaredBy      string     `gorm:"column:declared_by" json:"declared_by"`
-	CreatedAt       time.Time  `gorm:"column:created_at" json:"created_at"`
-	Decision        *string    `gorm:"column:decision" json:"decision"`
-	Reason          *string    `gorm:"column:reason" json:"decision_reason"`
-	ReviewedBy      *string    `gorm:"column:reviewed_by" json:"reviewed_by"`
-	ReviewedAt      *time.Time `gorm:"column:reviewed_at" json:"reviewed_at"`
+	ID              uuid.UUID `gorm:"column:id" json:"id"`
+	ProductID       uuid.UUID `gorm:"column:product_id" json:"product_id"`
+	RegulatoryClass string    `gorm:"column:regulatory_class" json:"regulatory_class"`
+	NDPS            bool      `gorm:"column:ndps" json:"ndps"`
+	Source          string    `gorm:"column:source" json:"source"`
+	// Lowers is set by the database: less strict than the approved class.
+	Lowers            bool       `gorm:"column:lowers" json:"lowers"`
+	DeclaredBy        string     `gorm:"column:declared_by" json:"declared_by"`
+	CreatedAt         time.Time  `gorm:"column:created_at" json:"created_at"`
+	CountersignedBy   *string    `gorm:"column:countersigned_by" json:"countersigned_by"`
+	CountersignReason *string    `gorm:"column:countersign_reason" json:"countersign_reason"`
+	CountersignedAt   *time.Time `gorm:"column:countersigned_at" json:"countersigned_at"`
+	Decision          *string    `gorm:"column:decision" json:"decision"`
+	Reason            *string    `gorm:"column:reason" json:"decision_reason"`
+	ReviewedBy        *string    `gorm:"column:reviewed_by" json:"reviewed_by"`
+	ReviewedAt        *time.Time `gorm:"column:reviewed_at" json:"reviewed_at"`
+	// DecidedByPlatform marks a decision Helivanta made, not the tenant.
+	DecidedByPlatform bool `gorm:"column:decided_by_platform" json:"decided_by_platform"`
 }
 
-const declarationQuery = `SELECT d.id, d.product_id, d.regulatory_class, d.ndps, d.source, d.declared_by, d.created_at,
-	r.decision, r.reason, r.reviewed_by, r.created_at AS reviewed_at
+const declarationQuery = `SELECT d.id, d.product_id, d.regulatory_class, d.ndps, d.source, d.lowers, d.declared_by, d.created_at,
+	c.countersigned_by, c.reason AS countersign_reason, c.created_at AS countersigned_at,
+	r.decision, r.reason, r.reviewed_by, r.created_at AS reviewed_at, COALESCE(r.by_platform, false) AS decided_by_platform
 	FROM pharmacy_product_schedule_declarations d LEFT JOIN pharmacy_product_schedule_reviews r
-	ON r.tenant_id = d.tenant_id AND r.outlet_id = d.outlet_id AND r.declaration_id = d.id`
+	ON r.tenant_id = d.tenant_id AND r.outlet_id = d.outlet_id AND r.declaration_id = d.id
+	LEFT JOIN pharmacy_product_schedule_countersigns c
+	ON c.tenant_id = d.tenant_id AND c.outlet_id = d.outlet_id AND c.declaration_id = d.id`
 
 type scheduleInput struct {
 	RegulatoryClass string `json:"regulatory_class" binding:"required,oneof=none G H H1 X"`
@@ -51,14 +64,24 @@ type scheduleInput struct {
 func scheduleRoutes(s *platform.Router, h *catalogueHandlers) {
 	s.PUT("/catalogue/products/:id/schedule/:declaration", PermScheduleDeclare, h.putScheduleDeclaration)
 	s.POST("/catalogue/products/:id/schedule/:declaration/review", PermScheduleReview, h.reviewScheduleDeclaration)
+	s.POST("/catalogue/products/:id/schedule/:declaration/countersign", PermScheduleCountersign, h.countersignScheduleDeclaration)
 	s.GET("/catalogue/products/:id/schedule", PermCatalogueRead, h.getSchedule)
 }
 
 func scheduleError(c *gin.Context, err error) {
 	var pg *pgconn.PgError
 	switch {
-	case errors.As(err, &pg) && strings.Contains(pg.Message, "reviewed by someone other than who declared it"):
-		respond.Error(c, http.StatusConflict, "four_eyes", "a schedule class is reviewed by someone other than who declared it")
+	case errors.As(err, &pg) && pg.ConstraintName == "pharmacy_schedule_platform_review":
+		respond.Error(c, http.StatusConflict, "platform_review_required",
+			"a lower schedule class is decided by Helivanta; file it as a new declaration for Helivanta review")
+	case errors.As(err, &pg) && pg.ConstraintName == "pharmacy_schedule_countersign_lowering_only":
+		respond.Error(c, http.StatusConflict, "not_a_lowering", "only a request to lower a schedule class is countersigned")
+	case errors.As(err, &pg) && pg.ConstraintName == "pharmacy_schedule_countersign_undecided":
+		respond.Conflict(c, "this declaration has already been reviewed")
+	case errors.As(err, &pg) && pg.ConstraintName == "pharmacy_schedule_four_eyes":
+		respond.Error(c, http.StatusConflict, "four_eyes", "a schedule class is reviewed or countersigned by someone other than who declared it")
+	case errors.Is(err, errCountersigned):
+		respond.Conflict(c, "this declaration was already countersigned with different details")
 	case errors.Is(err, errDeclarationReviewed):
 		respond.Conflict(c, "this declaration has already been reviewed")
 	case errors.Is(err, errStockIdentity):
@@ -205,6 +228,71 @@ func (h *catalogueHandlers) reviewScheduleDeclaration(c *gin.Context) {
 	respond.OK(c, result)
 }
 
+type countersignInput struct {
+	Reason string `json:"reason" binding:"required,max=500"`
+}
+
+// countersignScheduleDeclaration records the owner answering for a request
+// to lower a class. It decides nothing: only Helivanta approves a lowering.
+func (h *catalogueHandlers) countersignScheduleDeclaration(c *gin.Context) {
+	p, outlet, ok := catalogueScope(c)
+	if !ok {
+		return
+	}
+	product, ok := scheduleProduct(c)
+	if !ok {
+		return
+	}
+	id, ok := declarationID(c)
+	if !ok {
+		return
+	}
+	var in countersignInput
+	if !decodeCatalogue(c, &in) {
+		return
+	}
+	in.Reason = strings.TrimSpace(in.Reason)
+	if in.Reason == "" {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "a countersign needs a reason")
+		return
+	}
+	var result scheduleDeclaration
+	created := false
+	err := h.transaction(c.Request.Context(), p, outlet, true, func(tx *gorm.DB) error {
+		var found int64
+		if err := tx.Raw(`SELECT count(*) FROM pharmacy_product_schedule_declarations WHERE tenant_id=? AND outlet_id=? AND product_id=? AND id=?`,
+			p.TenantID, outlet, product, id).Scan(&found).Error; err != nil {
+			return err
+		}
+		if found == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		insert := tx.Exec(`INSERT INTO pharmacy_product_schedule_countersigns (tenant_id, outlet_id, declaration_id, reason, countersigned_by)
+			VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`, p.TenantID, outlet, id, in.Reason, p.Subject)
+		if insert.Error != nil {
+			return insert.Error
+		}
+		created = insert.RowsAffected == 1
+		if err := tx.Raw(declarationQuery+` WHERE d.tenant_id=? AND d.outlet_id=? AND d.id=?`, p.TenantID, outlet, id).Scan(&result).Error; err != nil {
+			return err
+		}
+		// A resend by the same person with the same reason replays it.
+		if !created && (result.CountersignedBy == nil || *result.CountersignedBy != p.Subject || result.CountersignReason == nil || *result.CountersignReason != in.Reason) {
+			return errCountersigned
+		}
+		return nil
+	})
+	if err != nil {
+		scheduleError(c, err)
+		return
+	}
+	if created {
+		respond.Created(c, result)
+		return
+	}
+	respond.OK(c, result)
+}
+
 type scheduleState struct {
 	// InForce is the class the product may be handled under, or nil: none
 	// approved, or a newer declaration awaits review or was rejected.
@@ -242,15 +330,25 @@ func (h *catalogueHandlers) getSchedule(c *gin.Context) {
 			p.TenantID, outlet, product, historyLimit).Scan(&out.History).Error; err != nil {
 			return err
 		}
-		switch {
-		case len(out.History) == 0:
+		var inForce []scheduleDeclaration
+		if err := tx.Raw(declarationQuery+` JOIN pharmacy_product_schedule_in_force(?, ?, ?) f ON f.declaration_id = d.id`,
+			p.TenantID, outlet, product).Scan(&inForce).Error; err != nil {
+			return err
+		}
+		if len(inForce) == 1 {
+			out.InForce = &inForce[0]
+		}
+		switch latest := firstOrNil(out.History); {
+		case latest == nil:
 			out.Reason = "no schedule class has been declared"
-		case out.History[0].Decision == nil:
+		case latest.Lowers && latest.Decision == nil:
+			out.Reason = "a lower class waits for Helivanta review"
+		case latest.Lowers && *latest.Decision == "rejected":
+			out.Reason = "the lower class was rejected"
+		case latest.Decision == nil:
 			out.Reason = "the latest declaration awaits review by a second person"
-		case *out.History[0].Decision == "rejected":
+		case *latest.Decision == "rejected":
 			out.Reason = "the latest declaration was rejected"
-		default:
-			out.InForce = &out.History[0]
 		}
 		return nil
 	})
@@ -259,4 +357,11 @@ func (h *catalogueHandlers) getSchedule(c *gin.Context) {
 		return
 	}
 	respond.OK(c, out)
+}
+
+func firstOrNil(h []scheduleDeclaration) *scheduleDeclaration {
+	if len(h) == 0 {
+		return nil
+	}
+	return &h[0]
 }

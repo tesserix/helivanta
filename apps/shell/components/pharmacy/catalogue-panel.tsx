@@ -125,6 +125,7 @@ export function CataloguePanel({
   canReviewCategory = false,
   canDeclareSchedule = false,
   canReviewSchedule = false,
+  canCountersignSchedule = false,
 }: {
   scope: PharmacyScope;
   writable: boolean;
@@ -142,6 +143,7 @@ export function CataloguePanel({
   /** pharmacy.schedule.declare and .review (#1636): one declares, another approves. */
   canDeclareSchedule?: boolean;
   canReviewSchedule?: boolean;
+  canCountersignSchedule?: boolean;
 }) {
   const scheme = taxScheme(countryCode);
   // The tab, search and filter are the URL (#576 slice 3 D3/D4). Without a
@@ -214,6 +216,7 @@ export function CataloguePanel({
         canReviewCategory={canReviewCategory}
         canDeclareSchedule={canDeclareSchedule}
         canReviewSchedule={canReviewSchedule}
+        canCountersignSchedule={canCountersignSchedule}
         defaultCurrency={defaultCurrency}
         timeZone={timeZone}
         today={today}
@@ -382,6 +385,7 @@ function OpenProduct({
   canReviewCategory,
   canDeclareSchedule,
   canReviewSchedule,
+  canCountersignSchedule,
   defaultCurrency,
   timeZone,
   today,
@@ -398,6 +402,7 @@ function OpenProduct({
   canReviewCategory: boolean;
   canDeclareSchedule: boolean;
   canReviewSchedule: boolean;
+  canCountersignSchedule: boolean;
   defaultCurrency: string;
   timeZone: string;
   today: string;
@@ -468,6 +473,7 @@ function OpenProduct({
         timeZone={timeZone}
         canDeclare={canDeclareSchedule}
         canReview={canReviewSchedule}
+        canCountersign={canCountersignSchedule}
         onStateChange={pane.formState("schedule")}
         onReviewStateChange={pane.formState("schedule-review")}
       />

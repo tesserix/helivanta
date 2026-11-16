@@ -3892,6 +3892,15 @@
         },
         {
           "method": "POST",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration/countersign",
+          "permission": "pharmacy.schedule.countersign",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration/review",
           "permission": "pharmacy.schedule.review",
           "authentication_required": true,
@@ -5132,6 +5141,12 @@
           ]
         },
         {
+          "permission": "pharmacy.schedule.countersign",
+          "roles": [
+            "pharmacy_owner"
+          ]
+        },
+        {
           "permission": "pharmacy.category.declare",
           "roles": [
             "pharmacist",
@@ -5693,6 +5708,13 @@
           "id": "0048_pharmacy_tax_command_identity",
           "sql_sha256": "88b6fd2092aba3eeb3d147df89b940b76b44461ab861a448a6613b01ffeb28ee",
           "creates_tables": []
+        },
+        {
+          "id": "0050_pharmacy_schedule_lowering",
+          "sql_sha256": "61a6cde0878ab63a0ac137c49ab717379c66fee6477284231ab60fd2216a8625",
+          "creates_tables": [
+            "pharmacy_product_schedule_countersigns"
+          ]
         }
       ]
     },

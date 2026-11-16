@@ -503,6 +503,9 @@ function OutletPharmacy({
           canReviewCategory={access.data?.level === "editor" && can("pharmacy.category.review")}
           canDeclareSchedule={access.data?.level === "editor" && can("pharmacy.schedule.declare")}
           canReviewSchedule={access.data?.level === "editor" && can("pharmacy.schedule.review")}
+          canCountersignSchedule={
+            access.data?.level === "editor" && can("pharmacy.schedule.countersign")
+          }
         />
       ) : view === "stock" ? (
         <StockRegister scope={scope} timeZone={outlet.timezone} />

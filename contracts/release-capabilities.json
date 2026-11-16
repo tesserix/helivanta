@@ -2405,6 +2405,11 @@
       "capability": "pharmacy_catalogue"
     },
     {
+      "method": "POST",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration/countersign",
+      "capability": "pharmacy_catalogue"
+    },
+    {
       "method": "GET",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/tax-classifications",
       "capability": "pharmacy_catalogue"

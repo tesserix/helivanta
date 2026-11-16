@@ -1,0 +1,5882 @@
+{
+  "version": 1,
+  "policy_version": "2026-11-16-r1",
+  "capabilities": [
+    {
+      "key": "onboarding",
+      "owner": "platform",
+      "dependencies": [],
+      "eligible": true,
+      "review_after": "2027-02-16"
+    },
+    {
+      "key": "team_accounts",
+      "owner": "platform",
+      "dependencies": [],
+      "eligible": true,
+      "review_after": "2027-02-16"
+    },
+    {
+      "key": "staff_core",
+      "owner": "workforce",
+      "dependencies": ["team_accounts"],
+      "eligible": true,
+      "review_after": "2027-02-16"
+    },
+    {
+      "key": "department_teams",
+      "owner": "workforce",
+      "dependencies": ["staff_core"],
+      "eligible": true,
+      "review_after": "2027-02-16"
+    },
+    {
+      "key": "pharmacy_setup",
+      "owner": "pharmacy",
+      "dependencies": ["team_accounts"],
+      "eligible": true,
+      "review_after": "2027-02-16"
+    },
+    {
+      "key": "pharmacy_staff",
+      "owner": "pharmacy",
+      "dependencies": ["staff_core", "pharmacy_setup"],
+      "eligible": true,
+      "review_after": "2027-02-16"
+    },
+    {
+      "key": "pharmacy_catalogue",
+      "owner": "pharmacy",
+      "dependencies": ["pharmacy_setup"],
+      "eligible": false,
+      "review_after": "2027-02-16"
+    },
+    {
+      "key": "pharmacy_stock",
+      "owner": "pharmacy",
+      "dependencies": ["pharmacy_catalogue"],
+      "eligible": false,
+      "review_after": "2027-02-16"
+    },
+    {
+      "key": "pharmacy_prescriptions",
+      "owner": "pharmacy",
+      "dependencies": ["pharmacy_staff"],
+      "eligible": false,
+      "review_after": "2027-02-16"
+    },
+    {
+      "key": "pharmacy_returns",
+      "owner": "pharmacy",
+      "dependencies": ["pharmacy_stock"],
+      "eligible": false,
+      "review_after": "2027-02-16"
+    },
+    {
+      "key": "pharmacy_reports",
+      "owner": "pharmacy",
+      "dependencies": ["pharmacy_stock"],
+      "eligible": false,
+      "review_after": "2027-02-16"
+    },
+    {
+      "key": "pharmacy_counter",
+      "owner": "pharmacy",
+      "dependencies": [
+        "pharmacy_staff",
+        "pharmacy_stock",
+        "pharmacy_prescriptions",
+        "pharmacy_returns",
+        "pharmacy_reports"
+      ],
+      "eligible": false,
+      "review_after": "2027-02-16"
+    },
+    {
+      "key": "pharmacy_payables",
+      "owner": "pharmacy",
+      "dependencies": ["pharmacy_setup"],
+      "eligible": false,
+      "review_after": "2027-02-16"
+    },
+    {
+      "key": "workforce_scheduling",
+      "owner": "workforce",
+      "dependencies": ["staff_core"],
+      "eligible": false,
+      "review_after": "2027-02-16"
+    },
+    {
+      "key": "workforce_payroll",
+      "owner": "workforce",
+      "dependencies": ["staff_core"],
+      "eligible": false,
+      "review_after": "2027-02-16"
+    },
+    {
+      "key": "workforce_advanced",
+      "owner": "workforce",
+      "dependencies": ["staff_core"],
+      "eligible": false,
+      "review_after": "2027-02-16"
+    },
+    {
+      "key": "supplier_collaboration",
+      "owner": "platform",
+      "dependencies": ["pharmacy_setup", "staff_core"],
+      "eligible": false,
+      "review_after": "2027-02-16"
+    },
+    {
+      "key": "clinical",
+      "owner": "platform",
+      "dependencies": [],
+      "eligible": false,
+      "review_after": "2027-02-16"
+    },
+    {
+      "key": "lab",
+      "owner": "platform",
+      "dependencies": [],
+      "eligible": false,
+      "review_after": "2027-02-16"
+    },
+    {
+      "key": "emergency",
+      "owner": "platform",
+      "dependencies": [],
+      "eligible": false,
+      "review_after": "2027-02-16"
+    },
+    {
+      "key": "billing_workspace",
+      "owner": "platform",
+      "dependencies": [],
+      "eligible": false,
+      "review_after": "2027-02-16"
+    },
+    {
+      "key": "unreleased",
+      "owner": "platform",
+      "dependencies": [],
+      "eligible": false,
+      "review_after": "2027-02-16"
+    }
+  ],
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/healthz",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/readyz",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/auth/accounts",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/accounts",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/accounts/verify",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/auth/branding/:tenant",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/login",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/login/enroll",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/login/factor",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/login/password",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/login/password-change",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/auth/login/request/:id",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/auth/release-capabilities",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/renew",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/session/activity",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/auth/signup",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/signup",
+      "capability": "onboarding"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/signup/email-link",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/signup/new",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/signup/password",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/signup/password-link",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/signup/sign-in",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/signup/verify-email",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/staff-setup/:action",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/access",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/billing/hospitals/:hospital/access/:subject",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/access/:subject",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/accounts",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/account",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/bills",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/bills/:number",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/bills/:number/lines",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/credit-notes",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/credit-notes/:note",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/credit-notes/:note/lines",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/deposit-applications",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/deposit-applications/:application",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/deposits/:receipt",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/discounts",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/discounts/:discount",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/entries",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/final-bills",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/interim-bills",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/interim-bills",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/interim-bills/:number",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/interim-bills/:number/lines",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/receipts",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/receipts/:receipt",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/refund-approvals",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/refund-approvals/:approval",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/refunds/:receipt",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/tax-invoices",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/tax-invoices/:invoice",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/tax-invoices/:invoice",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/tax-invoices/:invoice/credit-notes/:note",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/tax-invoices/:invoice/lines",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/upi-requests",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/admissions/:admission/upi-requests/:request",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/bed-charging",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/bed-charging",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/bed-rates",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/bed-rates/:class/:effective_from",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/cash-denominations",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/cash-handovers/:handover/acceptance",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/cash-handovers/:handover/settlement",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/cash-handovers/:handover/withdrawal",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/cash-handovers/disputed",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/cash-handovers/incoming",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/cash-pickups/:pickup/corrections/:correction",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/cash-shifts",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/cash-shifts/:shift/authorisation",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/cash-shifts/:shift/close",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/cash-shifts/:shift/handovers/:handover",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/cash-shifts/:shift/pickups",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/cash-shifts/:shift/pickups/:pickup",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/cash-shifts/mine",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/collections/:date",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/collections/:date/export.csv",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/counters",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/counters/:counter",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/counters/:counter/modes/:mode",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/counters/:counter/shifts/:shift",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/discount-reasons",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/discount-reasons/:reason",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/billing/hospitals/:hospital/discount-reasons/:reason/retire",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/discounts/:discount/decision",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/gst-registration",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/gst-registration",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/pending-discounts",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/receipts/:receipt/voids/:void",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/billing/hospitals/:hospital/refund-policies/:policy",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/refund-policy",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/billing/hospitals/:hospital/upi-requests/:request",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/billing/hospitals/:hospital/upi-requests/:request/cancel",
+      "capability": "billing_workspace"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/drugmaster/formulations/:id",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/drugmaster/products/:id",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/drugmaster/products/by-gtin/:gtin",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/drugmaster/products/by-gtin/:gtin/stock-reference",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/drugmaster/search",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/bases",
+      "capability": "emergency"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/emergency/bases/:base",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/bases/:base/access",
+      "capability": "emergency"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/emergency/bases/:base/access/:subject",
+      "capability": "emergency"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/emergency/bases/:base/access/:subject",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/bases/:base/cases",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/bases/:base/cases/:case",
+      "capability": "emergency"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/emergency/bases/:base/cases/:case",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/bases/:base/cases/:case/assessments",
+      "capability": "emergency"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/emergency/bases/:base/cases/:case/assessments/:assessment",
+      "capability": "emergency"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/emergency/bases/:base/cases/:case/close",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/bases/:base/cases/:case/dispatch-eligibility",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/bases/:base/cases/:case/dispatches",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/bases/:base/cases/:case/timeline",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/bases/:base/clinical-reviewer",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/bases/:base/clinical-reviewers/:subject",
+      "capability": "emergency"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/emergency/bases/:base/clinical-reviewers/:subject",
+      "capability": "emergency"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/emergency/bases/:base/constraints/:check/:code/clear",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/bases/:base/crew",
+      "capability": "emergency"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/emergency/bases/:base/crew/:crew",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/bases/:base/dispatches",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/bases/:base/dispatches/:dispatch",
+      "capability": "emergency"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/emergency/bases/:base/dispatches/:dispatch",
+      "capability": "emergency"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/emergency/bases/:base/dispatches/:dispatch/commands/:command",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/bases/:base/dispatches/:dispatch/receiving",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/bases/:base/dispatches/:dispatch/receiving/:request",
+      "capability": "emergency"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/emergency/bases/:base/dispatches/:dispatch/receiving/:request",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/bases/:base/duties",
+      "capability": "emergency"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/emergency/bases/:base/duties/:duty",
+      "capability": "emergency"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/emergency/bases/:base/duties/:duty/end",
+      "capability": "emergency"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/emergency/bases/:base/readiness/:check",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/bases/:base/receiving-links",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/bases/:base/receiving-links/:link",
+      "capability": "emergency"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/emergency/bases/:base/receiving-links/:link",
+      "capability": "emergency"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/emergency/bases/:base/receiving-links/:link/commands/:command",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/bases/:base/vehicles",
+      "capability": "emergency"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/emergency/bases/:base/vehicles/:vehicle",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/crew/assignments",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/crew/bases/:base/dispatches/:dispatch",
+      "capability": "emergency"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/emergency/crew/bases/:base/dispatches/:dispatch/commands/:command",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/crew/bases/:base/dispatches/:dispatch/incident",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/crew/bases/:base/dispatches/:dispatch/receiving",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/crew/bases/:base/dispatches/:dispatch/receiving/:request",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/receiving/facilities",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/receiving/facilities/:facility",
+      "capability": "emergency"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/emergency/receiving/facilities/:facility",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/receiving/facilities/:facility/access/:subject",
+      "capability": "emergency"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/emergency/receiving/facilities/:facility/access/:subject",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/receiving/facilities/:facility/links",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/receiving/facilities/:facility/links/:provider/:link",
+      "capability": "emergency"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/emergency/receiving/facilities/:facility/links/:provider/:link/commands/:command",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/receiving/facilities/:facility/requests",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/emergency/receiving/facilities/:facility/requests/:provider/:request",
+      "capability": "emergency"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/emergency/receiving/facilities/:facility/requests/:provider/:request/commands/:command",
+      "capability": "emergency"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/assignment-proposals",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/assignment-proposals/:id",
+      "capability": "department_teams"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/iam/assignment-proposals/:id",
+      "capability": "department_teams"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/iam/assignment-proposals/:id/decision",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/assignment-proposals/:id/decisions",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/assignment-proposals/:id/history",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/employment-activation-assignment-proposals",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/employment-assignment-proposals",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/governance-grants/:id",
+      "capability": "department_teams"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/iam/governance-grants/:id",
+      "capability": "department_teams"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/iam/governance-grants/:id/decisions/:command",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/governance-notices",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/hospitals/:hospital/assignment-proposals",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/hospitals/:hospital/assignment-proposals/:id",
+      "capability": "department_teams"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/iam/hospitals/:hospital/assignment-proposals/:id",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/hospitals/:hospital/assignment-proposals/:id/account",
+      "capability": "department_teams"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/iam/hospitals/:hospital/assignment-proposals/:id/decision",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/hospitals/:hospital/assignment-proposals/:id/decisions",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/hospitals/:hospital/assignment-proposals/:id/history",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/hospitals/:hospital/assignment-target-choices",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/hospitals/:hospital/assignment-templates",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/hospitals/:hospital/partner-groups",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/hospitals/:hospital/partner-member-candidates",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/hospitals/:hospital/partner-member-capabilities",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/hospitals/:hospital/supplier-grant-offers",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/hospitals/:hospital/supplier-grant-offers/:id",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/hospitals/:hospital/supplier-grant-offers/:id/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/iam/hospitals/:hospital/supplier-grant-offers/:id/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/hospitals/:hospital/supplier-grants/:id",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/identity-assignment-proposals",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/intake-assignment-proposals",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/me/permissions",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/me/profile",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/me/security",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/iam/me/security",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/iam/me/sign-out",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/iam/me/tenant",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/me/tenants",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/iam/member-presentations",
+      "capability": "team_accounts"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/members",
+      "capability": "team_accounts"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/iam/members",
+      "capability": "team_accounts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/iam/members/:subject/:role",
+      "capability": "team_accounts"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/membership-candidates",
+      "capability": "team_accounts"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/membership-commands",
+      "capability": "team_accounts"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/iam/membership-commands/:id",
+      "capability": "team_accounts"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/membership-enrollments",
+      "capability": "team_accounts"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/membership-enrollments/:id",
+      "capability": "team_accounts"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/iam/membership-enrollments/:id",
+      "capability": "team_accounts"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/operating-duties/:id",
+      "capability": "department_teams"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/iam/operating-duties/:id",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/operating-duties/:id/commands/:command",
+      "capability": "department_teams"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/iam/operating-duties/:id/commands/:command",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/operating-duties/:id/proposal-receipt",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/operating-employers/:kind/:employer/staff/:staff/duties",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/operating-governance-employers/:kind/:employer/duties/:id",
+      "capability": "department_teams"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/iam/operating-governance-employers/:kind/:employer/duties/:id",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/operating-governance-employers/:kind/:employer/duties/:id/commands/:command",
+      "capability": "department_teams"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/iam/operating-governance-employers/:kind/:employer/duties/:id/commands/:command",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/operating-governance-employers/:kind/:employer/duties/:id/proposal-receipt",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/operating-governance-employers/:kind/:employer/duty-inbox",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/operating-governance-employers/:kind/:employer/location-choices",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/operating-governance-employers/:kind/:employer/staff/:staff/duties",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/partner-grant-drafts",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/partner-grant-drafts/:id",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/iam/partner-grant-drafts/:id",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/partner-groups",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/partner-groups/:id",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/iam/partner-groups/:id",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/partner-groups/:id/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/iam/partner-groups/:id/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/partner-membership-assignment-proposals",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/pharmacy-binding-assignment-proposals",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/posting-assignment-proposals",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/purchase-order-assignment-proposals",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/roles",
+      "capability": "team_accounts"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/staff-access-templates",
+      "capability": "team_accounts"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/staff-account-commands/:id",
+      "capability": "team_accounts"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/iam/staff-account-commands/:id",
+      "capability": "team_accounts"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/iam/staff-account-commands/:id/invitations/:delivery",
+      "capability": "team_accounts"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/iam/staff-account-commands/:id/observations",
+      "capability": "team_accounts"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/iam/subjects/:subject/revoke",
+      "capability": "team_accounts"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/supplier-access-assignment-proposals",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/supplier-grants/:id",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/iam/supplier-grants/:id",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/supplier-grants/:id/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/iam/supplier-grants/:id/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/supplier-receiving-assignment-proposals",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/supplier-sources/:product/:organization/locations/:location/grants",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/lab/insights",
+      "capability": "lab"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/lab/orders",
+      "capability": "lab"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/lab/orders/:id/result",
+      "capability": "lab"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/mediconnect/account",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/mediconnect/account",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/mediconnect/account/consents",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/mediconnect/account/consents/:consent",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/mediconnect/account/consents/:consent",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/mediconnect/account/consents/:consent/withdraw",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/mediconnect/account/link-requests",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/mediconnect/account/link-requests/:request",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/mediconnect/account/link-requests/:request",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/mediconnect/account/link-requests/:request/review",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/mediconnect/account/link-requests/:request/review",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/mediconnect/account/link-requests/:request/withdraw",
+      "capability": "clinical"
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/mediconnect/account/preferences",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/mediconnect/notices",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/mediconnect/notices/:notice",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/mediconnect/notices/:notice",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/mediconnect/notices/:notice/retire",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/medicore/hospitals/:hospital/access",
+      "capability": "clinical"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/medicore/hospitals/:hospital/access/:subject",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/medicore/hospitals/:hospital/access/:subject",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/medicore/hospitals/:hospital/admissions/:admission",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/medicore/hospitals/:hospital/admissions/:admission",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/medicore/hospitals/:hospital/admissions/:admission/discharge-orders/:order",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/medicore/hospitals/:hospital/admissions/:admission/discharge-orders/:order/withdrawals/:withdrawal",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/medicore/hospitals/:hospital/admissions/:admission/release",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/medicore/hospitals/:hospital/admissions/:admission/transfers/:transfer",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/medicore/hospitals/:hospital/beds",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/medicore/hospitals/:hospital/beds/:bed/occupant",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/medicore/hospitals/:hospital/beds/:bed/transitions/:transition",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/medicore/hospitals/:hospital/encounters",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/medicore/hospitals/:hospital/encounters/:id",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/medicore/hospitals/:hospital/encounters/:id",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/medicore/hospitals/:hospital/encounters/:id/transitions",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/medicore/hospitals/:hospital/patients/:patient/allergies",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/medicore/hospitals/:hospital/patients/:patient/allergies/:id",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/medicore/hospitals/:hospital/patients/:patient/allergies/:id/corrections",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/medicore/hospitals/:hospital/patients/:patient/allergies/:id/history",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/medicore/hospitals/:hospital/patients/:patient/no-known-allergy/:id",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/medicore/hospitals/:hospital/patients/:patient/no-known-allergy/:id/withdrawal",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/medicore/hospitals/:hospital/patients/:patient/weights",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/medicore/hospitals/:hospital/patients/:patient/weights/:id",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/medicore/hospitals/:hospital/patients/:patient/weights/:id/entered-in-error",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/medicore/hospitals/:hospital/patients/:patient/weights/latest",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/medicore/hospitals/:hospital/rooms",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/medicore/hospitals/:hospital/rooms/:room/beds/:bed",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/medicore/hospitals/:hospital/rooms/:room/occupant",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/medicore/hospitals/:hospital/wards",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/medicore/hospitals/:hospital/wards/:ward",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/medicore/hospitals/:hospital/wards/:ward/rooms/:room",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/medicore/insights",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/medicore/visits",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/medicore/visits",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/organization/hospitals",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/organization/hospitals/:hospital/assignment-department-choices",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/organization/hospitals/:hospital/departments",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/organization/hospitals/:hospital/departments/:node/revisions",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/organization/hospitals/:hospital/departments/:node/revisions/:revision",
+      "capability": "department_teams"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/organization/hospitals/:hospital/departments/:node/revisions/:revision",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/organization/hospitals/:hospital/posting-department-choices",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/organization/hospitals/:hospital/registrations/:request",
+      "capability": "department_teams"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/organization/hospitals/:hospital/registrations/:request",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/patients",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/patients",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/patients/:id",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/patients/:id/registration-reference",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/patients/clinical-consents/:consent/decide",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/patients/consent-authorities/:authority",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/patients/consent-authorities/:authority",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/patients/consent-authorities/:authority/revoke",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/patients/hospitals/:hospital/access",
+      "capability": "clinical"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/patients/hospitals/:hospital/access/:subject",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/patients/hospitals/:hospital/access/:subject",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/patients/hospitals/:hospital/pharmacy-lookup-access",
+      "capability": "clinical"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/patients/hospitals/:hospital/pharmacy-lookup-access/:pharmacy/:subject",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/patients/hospitals/:hospital/pharmacy-lookup-access/:pharmacy/:subject",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/patients/hospitals/:hospital/registration-replays",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/patients/link-reviews",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/patients/link-reviews/:request",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/patients/link-reviews/:request/decision/:decision",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/patients/my/clinical-consents",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/patients/my/clinical-consents/:consent",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/patients/my/clinical-consents/:consent",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/patients/my/clinical-consents/:consent/withdraw",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/patients/my/consent-authorities",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/patients/my/consent-authorities/:authority",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/patients/my/consent-authorities/:authority/accept",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/patients/my/consent-authorities/:authority/revoke",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/patients/my/consent-authorities/:authority/sharing-notices",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/patients/my/consent-authorities/:authority/sharing-recipients",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/patients/my/proxy-authorities",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/patients/my/proxy-authorities/:authority",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/patients/my/proxy-authorities/:authority/accept",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/patients/my/proxy-authorities/:authority/revoke",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/patients/my/proxy-authorities/:authority/sharing-notices",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/patients/my/proxy-authorities/:authority/sharing-recipients",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/patients/my/proxy-clinical-consents/:consent",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/patients/pharmacy-affiliations",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/patients/pharmacy-affiliations/:request/decision/:decision",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/patients/pharmacy-lookup",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/patients/proxy-authorities/:authority",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/patients/proxy-authorities/:authority",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/patients/proxy-authorities/:authority/revoke",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/patients/search",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/patients/sharing-notices/:notice",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/patients/sharing-notices/:notice",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/patients/sharing-notices/:notice/approve",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/patients/sharing-notices/:notice/retire",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/patients/sharing-recipients/:recipient",
+      "capability": "clinical"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/patients/sharing-recipients/:recipient",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/patients/sharing-recipients/:recipient/approve",
+      "capability": "clinical"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/patients/sharing-recipients/:recipient/revoke",
+      "capability": "clinical"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/payments/razorpay-account",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/payments/razorpay-account",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/payments/webhooks/razorpay/:tenant/:account",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/configuration",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/dispenses",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/pharmacy/dispenses/:id/dispense",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/dispenses/dispensed",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/dispenses/waiting",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/closures/:closure",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/clearances",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/clearances/:clearance",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/corrections",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/corrections/:correction",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/corrections/:correction",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/creation-receipt",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/releases",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/releases/:release",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receipts/:receipt/releases/:release",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receiving",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receiving/product-choices",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receiving/product-choices/:product/batches",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receiving/quarantine-locations",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receiving/sellable-locations",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/creation-receipt",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/lines/:line/stock-choices",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/lines/:line/stock-choices/:stock/locations",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/staff-binding-outlet-choices",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/insights",
+      "capability": "pharmacy_reports"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/medications",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/pharmacy/medications",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/business-profile",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/hospital-affiliations",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/hospital-affiliations/:id",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/hospital-affiliations/:id/verification-requests/:request",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/hospital-affiliations/:id/verification-requests/:request/withdraw",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/hospital-affiliations/:id/verifications",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/batches",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/batches/:id",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/batches/:id",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/locations",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/products",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts/:id",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts/:id",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access-grants",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access/:subject",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access/:subject",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/acquisition-receipts",
+      "capability": "pharmacy_payables"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/inventory-audit",
+      "capability": "pharmacy_payables"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/inventory-audit/counted",
+      "capability": "pharmacy_payables"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables",
+      "capability": "pharmacy_payables"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id",
+      "capability": "pharmacy_payables"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id",
+      "capability": "pharmacy_payables"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/adjustments/:entry",
+      "capability": "pharmacy_payables"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/payments/:entry",
+      "capability": "pharmacy_payables"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/settlements",
+      "capability": "pharmacy_payables"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/counted",
+      "capability": "pharmacy_payables"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/admission-occupant",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories/:id",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories/:id/retire",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/category",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/category/:declaration",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/category/:declaration/review",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/price-control",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/price-control/:declaration",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/price-control/:declaration/review",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/revisions",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration/review",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/tax-classifications",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/tax-classifications/:classification",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/counted",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id/cancel",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id/refund",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id/refund",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes",
+      "capability": "pharmacy_returns"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes/:id",
+      "capability": "pharmacy_returns"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes/:id",
+      "capability": "pharmacy_returns"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/discount-ceiling",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/discount-ceiling/:id",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding/commands",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding/commands/:command",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding/history",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile/:id",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licence-status",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence/:file",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence/:file/content",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence/:file/download",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence/:file/retry/:attempt",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/review",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/revocations/:revocation",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/revocations/:revocation",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/renewals",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/opd-encounters",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/overview",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions",
+      "capability": "pharmacy_prescriptions"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id",
+      "capability": "pharmacy_prescriptions"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id",
+      "capability": "pharmacy_prescriptions"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images",
+      "capability": "pharmacy_prescriptions"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file",
+      "capability": "pharmacy_prescriptions"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/content",
+      "capability": "pharmacy_prescriptions"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/download",
+      "capability": "pharmacy_prescriptions"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/retry/:attempt",
+      "capability": "pharmacy_prescriptions"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/open-lines",
+      "capability": "pharmacy_prescriptions"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/registers/h1",
+      "capability": "pharmacy_reports"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/registers/h1/export",
+      "capability": "pharmacy_reports"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/registers/prescriptions",
+      "capability": "pharmacy_reports"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/registers/prescriptions/export",
+      "capability": "pharmacy_reports"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/daily",
+      "capability": "pharmacy_reports"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/daily.csv",
+      "capability": "pharmacy_reports"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/items",
+      "capability": "pharmacy_reports"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/items.csv",
+      "capability": "pharmacy_reports"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/patient-sales",
+      "capability": "pharmacy_reports"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/patient-sales.csv",
+      "capability": "pharmacy_reports"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/prescribers",
+      "capability": "pharmacy_reports"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/receipts",
+      "capability": "pharmacy_reports"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/receipts.csv",
+      "capability": "pharmacy_reports"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/stock-sales",
+      "capability": "pharmacy_reports"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/stock-sales.csv",
+      "capability": "pharmacy_reports"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id/summary",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/availability",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/quote",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/worklist",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/worklist.csv",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges/:charge",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges/:charge/versions/:version",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges/:charge/versions/:version/review",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/balance",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/batches",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/batches/:id",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/batches/:id",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/corrections/:id",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/locations",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/locations/:id",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/movements",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/movements/:id",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/positions",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/positions.csv",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/reconciliation",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/releases/:id",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents/:id",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents/recent",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/creation-receipt",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/lines/:line/stock-choices",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/lines/:line/stock-choices/:stock/locations",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations/:id",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations/in-force",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id/proposal-receipt",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/stock/positions",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/stock/positions.csv",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/privacy/deadline-policies/:policy",
+      "capability": "unreleased"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/privacy/deadline-policies/:policy/approve",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/privacy/officer",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/privacy/officers/:officer",
+      "capability": "unreleased"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/privacy/officers/:officer/accept",
+      "capability": "unreleased"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/privacy/officers/:officer/revoke",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/privacy/queue",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/privacy/requests",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/privacy/requests/:request",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/privacy/requests/:request",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/privacy/requests/:request/commands",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/privacy/requests/:request/commands/:command",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/privacy/requests/:request/deadline",
+      "capability": "unreleased"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/reference/ping",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/reference/pings",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/reference/pings/:id",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order/proposal-receipt",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/purchase-orders/:order/shipments/:shipment/receiving-responses",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/receiving-response-access",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/review-access",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/shipments",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/shipments/:shipment/receiving",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/shipments/:shipment/receiving/responses",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/shipments/:shipment/receiving/responses/:response",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/shipments/:shipment/receiving/responses/:response",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/parties/:party",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/access",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/access-limits",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/parties/:party/access-limits",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/access-limits/revisions",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/supply/parties/:party/access/:subject/:role",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/parties/:party/access/:subject/:role",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/access/grants",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/corporate-structure",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/parties/:party/corporate-structure",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/corporate-structure/revisions",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/grants",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/grants/:grant",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/parties/:party/grants/:grant",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/grants/:grant/revisions",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/licenses",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/licenses/:license",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/parties/:party/licenses/:license",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/licenses/:license/evidence",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/parties/:party/licenses/:license/evidence/:file",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/parties/:party/licenses/:license/evidence/:file/content",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/licenses/:license/evidence/:file/download",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/supply/parties/:party/licenses/:license/evidence/:file/retry/:attempt",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/supply/parties/:party/licenses/:license/evidence/:file/revoke",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/licenses/:license/review",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/licenses/:license/reviews",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/parties/:party/licenses/:license/reviews/:review",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/licenses/:license/revisions",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/operating-locations",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/operating-locations/:premise",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/operating-locations/:premise/bins",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/operating-locations/:premise/bins/:bin",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/parties/:party/operating-locations/:premise/bins/:bin",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/operating-locations/:premise/bins/:bin/revisions",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/operating-locations/:premise/stock/products/by-gtin/:gtin",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/operating-locations/:premise/stock/receipts",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/identity-checks/:check",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/identity-checks/:check",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/inspection",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/quality-decisions/:decision",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/parties/:party/operating-locations/:premise/stock/receipts/:receipt/quality-decisions/:decision",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/allocations/:allocation/creation-receipt",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/operating-locations/:premise/supplier-orders/:order/lines/:line/stock-choices",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/platform-identity",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/premises",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/premises/:premise",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/parties/:party/premises/:premise",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/premises/:premise/bins",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/premises/:premise/bins/:bin",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/parties/:party/premises/:premise/bins/:bin",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/premises/:premise/bins/:bin/revisions",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/premises/:premise/delivery-drivers",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/premises/:premise/delivery-tasks",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/premises/:premise/delivery-tasks/:delivery",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/parties/:party/premises/:premise/delivery-tasks/:delivery",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/premises/:premise/delivery-tasks/:delivery/revisions",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/premises/:premise/my-deliveries",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/premises/:premise/my-deliveries/:delivery",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/parties/:party/premises/:premise/my-deliveries/:delivery/actions/:action",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/premises/:premise/revisions",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/revisions",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/support",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/support/:support",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/parties/:party/support/:support",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/supply/parties/:party/support/:support/decision",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/support/:support/diagnostics",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/support/:support/revisions",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/supply/parties/:party/support/:support/revoke",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/territories",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/territories/:territory",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/parties/:party/territories/:territory",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/parties/:party/territories/:territory/revisions",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/relationships/:relationship",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/relationships/:relationship",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/relationships/:relationship/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/relationships/:relationship/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/relationships/:relationship/proposal-receipt",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/receiving-response-access",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/review-access",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/shipments",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/shipments/:shipment/receiving",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/shipments/:shipment/receiving/responses",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/shipments/:shipment/receiving/responses/:response",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders/:order/shipments/:shipment/receiving/responses/:response",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/supplier-orders/:order",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/supplier-orders/:order/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/supplier-orders/:order/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/supplier-orders/:order/shipments/:shipment/receiving",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/supply/supplier-orders/:order/shipments/:shipment/receiving/responses/:response",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/trading-sources/:product/:organization/locations/:location/relationships",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/assignment-authority-scopes",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/employment-review-authority-scopes",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/employment-review-scopes",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital",
+      "capability": "staff_core"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/workforce/hospitals/:hospital/access/:subject",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/access/:subject",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/business-profile",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/department-leave-review-requests",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/department-team",
+      "capability": "department_teams"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/employment-preparation-targets/search",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/employment-review-authority-inbox",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/employment-review-inbox",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance-settings",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance-settings",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance-settings/history",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance-totals",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance/corrections",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance/corrections/:correction",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance/corrections/:correction",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance/corrections/:correction/cancellation",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance/corrections/:correction/decision",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance/corrections/:correction/history",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance/periods",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance/periods/:period",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance/periods/:period",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance/periods/:period/finalisation",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance/periods/:period/history",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance/periods/:period/reopening",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance/periods/:period/timesheets",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance/periods/:period/timesheets/:timesheet/days",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance/periods/:period/timesheets/:timesheet/people",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance/punch-report",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance/punches",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance/punches/:punch",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance/punches/:punch",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/attendance/punches/:punch/void",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/benefits/coverage.csv",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/benefits/plans",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/benefits/plans/:plan",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/benefits/plans/:plan/history",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/credential-reminder-policy",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/credential-reminder-policy",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/credential-reminders",
+      "capability": "staff_core"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/credential-reminders/:reminder/acknowledgement",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/credentials",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/duty-exchanges",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/duty-exchanges/:exchange",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/duty-exchanges/:exchange",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/duty-exchanges/:exchange/cancellation",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/duty-exchanges/:exchange/decision",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/duty-exchanges/:exchange/history",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/duty-exchanges/:exchange/revocation",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/leave-assignments",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/leave-balances",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/leave-configs",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/leave-configs/:id",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/leave-configs/:id/history",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/leave-reports/monthly",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/leave-reports/status",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/leave-requests",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/leave-routing",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/leave-routing",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/leave-settings",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/leave-settings",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/leave-years",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/leave-years/:year",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/leave-years/:year/close",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/leave-years/:year/postings",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/leave-years/:year/runs",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/masters",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/masters/:id",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/masters/:id/department-links",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/masters/:id/department-links/:request",
+      "capability": "department_teams"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/masters/:id/department-links/:request",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/masters/:id/history",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/overtime",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/overtime-settings",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/overtime-settings",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/overtime-settings/history",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/overtime-summary",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/overtime/:request",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/overtime/:request",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/overtime/:request/cancellation",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/overtime/:request/decision",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/overtime/:request/history",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/overtime/:request/revocation",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/income-tax-preview",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/salary-assignments",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/salary-heads",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/salary-heads/:id",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/salary-heads/:id/history",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/salary-structures",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/salary-structures/:id",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/salary-structures/:id/history",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/salary-structures/:id/preview",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/identifiers",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/identifiers",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/identifiers/decision",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/identifiers/history",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/identifiers/reveal",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/identifiers/withdraw",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/salary-assignment",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/salary-assignment",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/salary-assignment/decision",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/salary-assignment/history",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/salary-assignment/withdraw",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/salary-preview",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/decision",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/evidence",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/evidence/:file",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/evidence/:file/content",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/evidence/:file/content",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/evidence/:file/retries/:attempt",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/history",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/reveal",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-declarations/:year/withdraw",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-regimes",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-regimes/:year",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/staff/:staff/tax-regimes/:year/history",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/statutory-preview",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/statutory-rules",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/statutory-rules/:id",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/statutory-rules/:id/decision",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/statutory-rules/:id/history",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/payroll/statutory-rules/:id/withdraw",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/roster-assignments",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/roster-configs",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/roster-configs/:id",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/roster-configs/:id/history",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/roster-settings",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/roster-settings",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/roster-settings/history",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/rosters",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/rosters/:id",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/rosters/:id",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/rosters/:id/allocations",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/rosters/:id/changes",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/rosters/:id/credential-clashes",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/rosters/:id/discard",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/rosters/:id/freeze",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/rosters/:id/populate",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/rosters/:id/revisions",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/hr/rosters/:id/unfreeze",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/shifts",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/hr/shifts/:id",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/hr/shifts/:id/history",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/identity-staff/:id",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/identity-staff/:id/checks",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/identity-staff/:id/checks/:check",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/identity-staff/:id/checks/:check",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/identity-staff/:id/checks/:check/history",
+      "capability": "staff_core"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/identity-staff/:id/person-review-evidence/search",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/insights",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/leave-review-requests",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/person-review-inbox",
+      "capability": "staff_core"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/person-review-targets/search",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/posting-proposal-inbox",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-draft-source",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting/commands/:command",
+      "capability": "department_teams"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting/commands/:command",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting/history",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/commands/:command",
+      "capability": "department_teams"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/commands/:command",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/context",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/cutoffs/commands/:command",
+      "capability": "workforce_advanced"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/cutoffs/commands/:command",
+      "capability": "workforce_advanced"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/cutoffs/context",
+      "capability": "workforce_advanced"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/cutoffs/history",
+      "capability": "workforce_advanced"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/decisions/:command",
+      "capability": "department_teams"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/decisions/:command",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/history",
+      "capability": "department_teams"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/transfers/:command",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-review-source",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/posting-supervisor-choices",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/posting-targets",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/attendance",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/history",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/decision",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/evidence",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/evidence/:file",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/evidence/:file/content",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/evidence/:file/content",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/evidence/:file/retries/:attempt",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/withdraw",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/credentials",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/credentials/:credential/reviews",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/credentials/:credential/reviews/:review",
+      "capability": "staff_core"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/credentials/:credential/reviews/:review/decision",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/credentials/:credential/reviews/:review/withdraw",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/department-leave-review-requests/:request",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/dependents",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/dependents/:dependent",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/dependents/:dependent/history",
+      "capability": "workforce_payroll"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/document-records",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents/:file",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/classification",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/classification",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/classification/history",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/content",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/content",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/retries/:attempt",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/revocation",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-activations/:activation",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/history",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/content",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/history",
+      "capability": "staff_core"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/withdraw",
+      "capability": "staff_core"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/withdraw",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-person-finding-options",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-person-findings",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file/content",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file/content",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file/retries/:attempt",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-documents/:file/revocation",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/history",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/revisions/:version/evidence",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/revisions/:version/evidence/:binding",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/revisions/:version/evidence/:binding",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/revisions/:version/evidence/:binding/content",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/revisions/:version/evidence/:binding/history",
+      "capability": "staff_core"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-periods/:period/revisions/:version/evidence/:binding/withdraw",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-preparation-source",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/activation-source",
+      "capability": "staff_core"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/decision",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/evidence/:file/content",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/history",
+      "capability": "staff_core"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/revocation",
+      "capability": "staff_core"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/withdrawal",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-source",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/enrollment",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/enrollment",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/leave-assignment",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/leave-assignment/history",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/leave-balances",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/leave-corrections/:entry",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/leave-ledger",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/cancellation",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/decision",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/department-decision",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/history",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/revocation",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/leave-review-requests/:request",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/login-links",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/login-links/:link",
+      "capability": "staff_core"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/login-links/:link/decision",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/login-links/:link/history",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review",
+      "capability": "staff_core"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review",
+      "capability": "staff_core"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review/decision",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review/evidence/:file/content",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review/history",
+      "capability": "staff_core"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review/revocation",
+      "capability": "staff_core"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review/withdrawal",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/posting-draft-source",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/posting-drafts",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/posting-drafts/:posting",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/posting-drafts/:posting/commands/:command",
+      "capability": "department_teams"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/posting-drafts/:posting/commands/:command",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/posting-drafts/:posting/history",
+      "capability": "department_teams"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/roster-assignment",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/roster-assignment/history",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hr-intake-scopes",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/leave-review-scopes",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/operating-authority-scopes",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/operating-governance-employers/:kind/:employer/staff-choices",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/person-review-authority-scopes",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/person-review-scopes",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/pharmacies/:pharmacy",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/workforce/pharmacies/:pharmacy/access/:subject",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/pharmacies/:pharmacy/access/:subject",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/hr/credential-reminder-policy",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/pharmacies/:pharmacy/hr/credential-reminder-policy",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/hr/credential-reminders",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/pharmacies/:pharmacy/hr/credential-reminders/:reminder/acknowledgement",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/hr/credentials",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/hr/time-zone",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/pharmacies/:pharmacy/hr/time-zone",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link/commands/:command",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link/commands/:command",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/account-links/:link/proposal-receipt",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/credentials",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/credentials/:credential/reviews",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/credentials/:credential/reviews/:review",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/credentials/:credential/reviews/:review/decision",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/credentials/:credential/reviews/:review/withdraw",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/document-records",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/documents",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file/content",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file/content",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file/retries/:attempt",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/documents/:file/revocation",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/history",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/content",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/history",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/withdraw",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-periods/:period/withdraw",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-source",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/enrollment",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/enrollment",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/posting-cutoff-scopes",
+      "capability": "workforce_advanced"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/posting-review-scopes",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/posting-scopes",
+      "capability": "department_teams"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/staff-actor-scopes",
+      "capability": "staff_core"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/suppliers",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/suppliers/:supplier",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/suppliers/:supplier",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/workforce/suppliers/:supplier/access/:subject",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/suppliers/:supplier/access/:subject",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/suppliers/:supplier/staff",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/suppliers/:supplier/staff/:id",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/suppliers/:supplier/staff/:id",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/suppliers/:supplier/staff/:id/account-links",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/suppliers/:supplier/staff/:id/account-links/:link",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/suppliers/:supplier/staff/:id/account-links/:link",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/suppliers/:supplier/staff/:id/account-links/:link/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/suppliers/:supplier/staff/:id/account-links/:link/commands/:command",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/suppliers/:supplier/staff/:id/account-links/:link/proposal-receipt",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workspace/branding",
+      "capability": "baseline"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workspace/branding",
+      "capability": "team_accounts"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workspace/country-policies",
+      "capability": "unreleased"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workspace/country-policies",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workspace/country-policies/:scope",
+      "capability": "unreleased"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workspace/country-policies/:scope/access",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workspace/country-policies/:scope/actions",
+      "capability": "unreleased"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workspace/country-policies/:scope/review",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workspace/country-policies/:scope/versions",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workspace/country-policies/:scope/versions/:version",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workspace/release-capabilities",
+      "capability": "baseline"
+    }
+  ],
+  "pages": [
+    {
+      "path": "/billing",
+      "capability": "billing_workspace"
+    },
+    {
+      "path": "/dashboard",
+      "capability": "baseline"
+    },
+    {
+      "path": "/emergency/bases/:base/cases/:case",
+      "capability": "emergency"
+    },
+    {
+      "path": "/emergency/crew",
+      "capability": "emergency"
+    },
+    {
+      "path": "/emergency",
+      "capability": "emergency"
+    },
+    {
+      "path": "/emergency/receiving",
+      "capability": "emergency"
+    },
+    {
+      "path": "/lab",
+      "capability": "lab"
+    },
+    {
+      "path": "/medicore/ipd",
+      "capability": "clinical"
+    },
+    {
+      "path": "/medicore/opd",
+      "capability": "clinical"
+    },
+    {
+      "path": "/medicore",
+      "capability": "clinical"
+    },
+    {
+      "path": "/patients",
+      "capability": "clinical"
+    },
+    {
+      "path": "/pharmacy/accounts",
+      "capability": "pharmacy_payables"
+    },
+    {
+      "path": "/pharmacy/catalogue",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "path": "/pharmacy/counter",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "path": "/pharmacy/daily-report",
+      "capability": "pharmacy_reports"
+    },
+    {
+      "path": "/pharmacy/dispense",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "path": "/pharmacy/h1-register",
+      "capability": "pharmacy_reports"
+    },
+    {
+      "path": "/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-operations",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "path": "/pharmacy/medications",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "path": "/pharmacy",
+      "capability": "pharmacy_reports"
+    },
+    {
+      "path": "/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/receiving",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "path": "/pharmacy/prescription-register",
+      "capability": "pharmacy_reports"
+    },
+    {
+      "path": "/pharmacy/prescriptions",
+      "capability": "pharmacy_prescriptions"
+    },
+    {
+      "path": "/pharmacy/receiving",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "path": "/pharmacy/returns",
+      "capability": "pharmacy_returns"
+    },
+    {
+      "path": "/pharmacy/safety",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "path": "/pharmacy/sales",
+      "capability": "pharmacy_counter"
+    },
+    {
+      "path": "/pharmacy/setup",
+      "capability": "pharmacy_setup"
+    },
+    {
+      "path": "/pharmacy/staff",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "path": "/pharmacy/stock",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "path": "/pharmacy/stock-overview",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "path": "/pharmacy/supplier-orders",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "path": "/settings/branding",
+      "capability": "team_accounts"
+    },
+    {
+      "path": "/settings/country-policies",
+      "capability": "unreleased"
+    },
+    {
+      "path": "/settings/organization",
+      "capability": "department_teams"
+    },
+    {
+      "path": "/settings/payments",
+      "capability": "pharmacy_payables"
+    },
+    {
+      "path": "/settings/security",
+      "capability": "baseline"
+    },
+    {
+      "path": "/suppliers/stock-owners/:product/organizations/:organization/locations/:location/supplier-orders",
+      "capability": "unreleased"
+    },
+    {
+      "path": "/supply/parties",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "path": "/supply/staff",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "path": "/workforce/access",
+      "capability": "team_accounts"
+    },
+    {
+      "path": "/workforce/attendance",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "path": "/workforce/benefits",
+      "capability": "workforce_payroll"
+    },
+    {
+      "path": "/workforce/credential-reminders",
+      "capability": "workforce_advanced"
+    },
+    {
+      "path": "/workforce/credentials",
+      "capability": "staff_core"
+    },
+    {
+      "path": "/workforce/department-teams",
+      "capability": "department_teams"
+    },
+    {
+      "path": "/workforce/duty-exchanges",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "path": "/workforce/employment-reviews",
+      "capability": "staff_core"
+    },
+    {
+      "path": "/workforce/leave-balances",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "path": "/workforce/leave-reports",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "path": "/workforce/leave-requests",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "path": "/workforce/leave-review",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "path": "/workforce/leave-setup",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "path": "/workforce/operating-access",
+      "capability": "department_teams"
+    },
+    {
+      "path": "/workforce/overtime",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "path": "/workforce",
+      "capability": "staff_core"
+    },
+    {
+      "path": "/workforce/partner-teams",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "path": "/workforce/payroll-setup",
+      "capability": "workforce_payroll"
+    },
+    {
+      "path": "/workforce/person-reviews",
+      "capability": "staff_core"
+    },
+    {
+      "path": "/workforce/pharmacy-relationships",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "path": "/workforce/pharmacy-staff",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "path": "/workforce/posting-cutoffs",
+      "capability": "workforce_advanced"
+    },
+    {
+      "path": "/workforce/posting-reviews",
+      "capability": "department_teams"
+    },
+    {
+      "path": "/workforce/postings",
+      "capability": "department_teams"
+    },
+    {
+      "path": "/workforce/roster-policy",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "path": "/workforce/roster-setup",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "path": "/workforce/rosters",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "path": "/workforce/setup",
+      "capability": "department_teams"
+    },
+    {
+      "path": "/workforce/shifts",
+      "capability": "workforce_scheduling"
+    },
+    {
+      "path": "/workforce/supplier-staff",
+      "capability": "supplier_collaboration"
+    }
+  ],
+  "panels": [
+    {
+      "key": "staff.posting_drafts",
+      "capability": "department_teams"
+    },
+    {
+      "key": "staff.setup_departments",
+      "capability": "department_teams"
+    },
+    {
+      "key": "staff.setup_advanced",
+      "capability": "workforce_advanced"
+    }
+  ],
+  "models": {
+    "ReleaseCapability": [
+      {
+        "name": "key",
+        "type": "string",
+        "enum": [
+          "onboarding",
+          "team_accounts",
+          "staff_core",
+          "department_teams",
+          "pharmacy_setup",
+          "pharmacy_staff",
+          "pharmacy_catalogue",
+          "pharmacy_stock",
+          "pharmacy_prescriptions",
+          "pharmacy_returns",
+          "pharmacy_reports",
+          "pharmacy_counter",
+          "pharmacy_payables",
+          "workforce_scheduling",
+          "workforce_payroll",
+          "workforce_advanced",
+          "supplier_collaboration",
+          "clinical",
+          "lab",
+          "emergency",
+          "billing_workspace",
+          "unreleased"
+        ]
+      },
+      {
+        "name": "available",
+        "type": "bool"
+      }
+    ],
+    "ReleaseSnapshot": [
+      {
+        "name": "tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "policy_version",
+        "type": "string",
+        "min": 1,
+        "max": 128
+      },
+      {
+        "name": "issued_at",
+        "type": "time"
+      },
+      {
+        "name": "expires_at",
+        "type": "time"
+      },
+      {
+        "name": "capabilities",
+        "type": "[]ReleaseCapability",
+        "min": 22,
+        "max": 22
+      }
+    ],
+    "PublicReleaseSnapshot": [
+      {
+        "name": "policy_version",
+        "type": "string",
+        "min": 1,
+        "max": 128
+      },
+      {
+        "name": "issued_at",
+        "type": "time"
+      },
+      {
+        "name": "expires_at",
+        "type": "time"
+      },
+      {
+        "name": "onboarding",
+        "type": "bool"
+      }
+    ]
+  }
+}

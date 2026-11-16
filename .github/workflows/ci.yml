@@ -243,7 +243,15 @@ jobs:
       # here would be worse than redundant — this repo is on the GitHub Free
       # plan with no org secrets, so `secrets.PKG_READ_TOKEN` resolves to an
       # empty string and an authenticated fetch against GHCR 401s.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
       - run: pnpm install --frozen-lockfile
+      - name: Verify release capability inventory and generated contracts
+        run: |
+          node --test scripts/release-capabilities.test.mjs
+          node scripts/generate-release-capabilities.mjs --check
       - name: Verify shared emergency dispatch contract
         run: node scripts/generate-emergency-dispatch.mjs --check
       - name: Verify Staff governance contracts
@@ -283,10 +291,6 @@ jobs:
           # cover it. Treat a green build as saying nothing about runtime env.
           NEXT_PUBLIC_ZITADEL_CLIENT_ID: ci-build-client-id
           NEXT_PUBLIC_ZITADEL_ISSUER_URL: http://auth.tesserix.localhost:20080
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version-file: backend/go.mod
-          cache-dependency-path: backend/go.sum
       - name: Verify runner dependency DNS
         timeout-minutes: 2
         run: bash scripts/ci/runner-dns.sh

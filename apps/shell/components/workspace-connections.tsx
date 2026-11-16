@@ -1,14 +1,16 @@
 "use client";
 
 import { ArrowUpRight, LockKeyhole } from "lucide-react";
-import { usePermissions } from "@helivanta/api";
+import { usePermissions, useReleaseCapabilities, capabilityForPage } from "@helivanta/api";
 import { Panel, PanelLink, visibleZones, ZONES } from "@helivanta/ui";
 
 export function WorkspaceConnections({ current }: { current: "supply" | "pharmacy" }) {
   const { can, isLoading } = usePermissions();
+  const release = useReleaseCapabilities();
   const key = current === "supply" ? "pharmacy" : "supply";
   const workspace = ZONES.find((zone) => zone.key === key)!;
-  const available = visibleZones(can).find((zone) => zone.key === key);
+  const available = visibleZones(can, release.available).find((zone) => zone.key === key);
+  if (!workspace.pages.some((page) => release.available(capabilityForPage(page.href)))) return null;
 
   return (
     <Panel aria-label="Connected workspace">

@@ -51,7 +51,8 @@ func TestEveryEngineRouteIsDeclaredOrAllowlisted(t *testing.T) {
 	// stop pinning them.
 	stub := func(c *gin.Context) { c.Status(http.StatusOK) }
 	bootstrap.MountUnauthenticated(srv.Engine, stub, stub, stub, stub, stub, stub, stub, stub)
-	bootstrap.MountCustomerSignup(srv.Engine, stub, stub, stub, stub, stub, stub, stub, stub)
+	bootstrap.MountCustomerSignup(srv.Engine, stub, stub, stub, stub, stub, stub, stub, stub, stub)
+	bootstrap.MountReleaseAvailability(srv.Engine, stub)
 	bootstrap.MountAccountDiscovery(srv.Engine, stub, stub, stub)
 	bootstrap.MountStaffSetup(srv.Engine, stub)
 
@@ -99,7 +100,8 @@ func TestUnauthenticatedAllowlistHasNoDeadEntries(t *testing.T) {
 	// stop pinning them.
 	stub := func(c *gin.Context) { c.Status(http.StatusOK) }
 	bootstrap.MountUnauthenticated(srv.Engine, stub, stub, stub, stub, stub, stub, stub, stub)
-	bootstrap.MountCustomerSignup(srv.Engine, stub, stub, stub, stub, stub, stub, stub, stub)
+	bootstrap.MountCustomerSignup(srv.Engine, stub, stub, stub, stub, stub, stub, stub, stub, stub)
+	bootstrap.MountReleaseAvailability(srv.Engine, stub)
 	bootstrap.MountAccountDiscovery(srv.Engine, stub, stub, stub)
 	bootstrap.MountStaffSetup(srv.Engine, stub)
 

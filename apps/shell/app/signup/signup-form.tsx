@@ -7,6 +7,7 @@ import {
   CustomerSignupInputContract,
   CustomerOrganizationProfileContract,
   CustomerSignupReceiptContract,
+  usePublicReleaseCapabilities,
   useCustomerSignup,
   type CustomerSignupReceipt,
 } from "@helivanta/api";
@@ -43,13 +44,23 @@ export function SignupForm() {
       mainBranch: { name: "Main branch", address: { ...emptyAddress } },
     },
   });
+  const parsed = CustomerSignupReceiptContract.safeParse(progress.data);
+  const release = usePublicReleaseCapabilities(
+    parsed.success && parsed.data.state === "not_started",
+  );
   useEffect(() => {
-    const parsed = CustomerSignupReceiptContract.safeParse(progress.data);
-    if (begin.isSuccess && parsed.success && parsed.data.state === "not_started") {
+    if (
+      begin.isSuccess &&
+      release.available &&
+      !release.isPending &&
+      !release.isError &&
+      parsed.success &&
+      parsed.data.state === "not_started"
+    ) {
       formHeading.current?.focus({ preventScroll: true });
       formHeading.current?.scrollIntoView({ block: "start", behavior: "instant" });
     }
-  }, [begin.isSuccess, progress.data]);
+  }, [begin.isSuccess, progress.data, release.available, release.isPending, release.isError]);
   function beginAnother() {
     begin.mutate(undefined, {
       onSuccess: () => {
@@ -60,7 +71,6 @@ export function SignupForm() {
       },
     });
   }
-  const parsed = CustomerSignupReceiptContract.safeParse(progress.data);
   if (progress.isPending) return <p role="status">Checking workspace setup…</p>;
   if (progress.isError || !parsed.success)
     return (
@@ -76,6 +86,22 @@ export function SignupForm() {
       <SignupStatus receipt={receipt} resend={resend} begin={begin} beginAnother={beginAnother} />
     );
   const errors = form.formState.errors;
+  if (release.isPending) return <p role="status">Checking registration availability…</p>;
+  if (release.isError)
+    return (
+      <RequestFailure
+        message="Registration availability could not be verified."
+        error={release.error}
+        retry={release.refetch}
+      />
+    );
+  if (!release.available) {
+    return (
+      <p role="status">
+        New workspace registration is not available. Existing accounts can still sign in.
+      </p>
+    );
+  }
   function submit(event: FormEvent<HTMLFormElement>) {
     form.setValue("stateCode", form.getValues("profile.headOffice.stateCode"));
     if (sameAddress)

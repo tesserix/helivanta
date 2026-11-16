@@ -57,6 +57,7 @@ import {
   type LucideIcon,
   BookText,
 } from "lucide-react";
+import { capabilityForPage, type ReleaseCapabilityKey } from "@helivanta/api";
 
 export type ZonePage = {
   label: string;
@@ -589,18 +590,29 @@ export const ZONES: Zone[] = [
 // visible without a dashboard-specific special case here. A zone whose
 // pages are all filtered out is dropped too, rather than showing as an
 // empty entry in the nav.
-export function visibleZones(can: (permission: string) => boolean, zones: Zone[] = ZONES): Zone[] {
+export function visibleZones(
+  can: (permission: string) => boolean,
+  released: (key: ReleaseCapabilityKey | "baseline" | undefined) => boolean,
+  zones: Zone[] = ZONES,
+): Zone[] {
   return zones
     .map((zone) => {
-      const pages = zone.pages.filter(
-        (page) => can(page.permission) || page.alternativePermissions?.some(can),
-      );
+      const pages = zone.pages.filter((page) => {
+        const capability = capabilityForPage(page.href);
+        return (
+          capability !== undefined &&
+          released(capability) &&
+          (can(page.permission) || page.alternativePermissions?.some(can))
+        );
+      });
       return {
         ...zone,
         pages,
         href: pages.some((page) => page.href === zone.href)
           ? zone.href
-          : (pages[0]?.href ?? zone.href),
+          : zone.key === "pharmacy" && pages.some((page) => page.href === "/pharmacy/setup")
+            ? "/pharmacy/setup"
+            : (pages[0]?.href ?? zone.href),
       };
     })
     .filter((zone) => can(zone.permission) && zone.pages.length > 0);

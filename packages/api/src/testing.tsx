@@ -1,3 +1,4 @@
+import { RELEASE_POLICY_VERSION, releaseDefinitions } from "./release-capabilities-contract";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -18,4 +19,19 @@ export function renderWithProviders(ui: ReactElement) {
     </QueryClientProvider>,
   );
   return { ...result, user };
+}
+
+export function releaseSnapshotForTest(
+  scope: { tenantId: string; subject: string },
+  keys: readonly string[] = releaseDefinitions.map(({ key }) => key),
+) {
+  const now = Date.now();
+  return {
+    tenant_id: scope.tenantId,
+    subject: scope.subject,
+    policy_version: RELEASE_POLICY_VERSION,
+    issued_at: new Date(now).toISOString(),
+    expires_at: new Date(now + 60_000).toISOString(),
+    capabilities: releaseDefinitions.map(({ key }) => ({ key, available: keys.includes(key) })),
+  };
 }

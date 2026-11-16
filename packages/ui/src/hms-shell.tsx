@@ -20,6 +20,8 @@ import {
   DEFAULT_BRANDING,
   apiFetch,
   usePermissions,
+  useReleaseCapabilities,
+  capabilityForPage,
   useApiMutation,
   clearPermissionsCache,
   clearRenewAt,
@@ -328,11 +330,14 @@ export function HmsShell({
   // Read here, not passed per page: one layout renders the shell for every
   // authenticated route (#1091), so the path is the only source of "where".
   const pathname = usePathname();
-  const { can, isLoading } = usePermissions();
+  const { can, isLoading: permissionsLoading } = usePermissions();
+  const release = useReleaseCapabilities();
+  const isLoading = permissionsLoading || release.isLoading;
+  const pageCapability = capabilityForPage(pathname);
   const brandQuery = useApiQuery(["workspace", "branding"], "/workspace/branding");
   const parsedBrand = brandingSchema.safeParse(brandQuery.data);
   const branding = parsedBrand.success ? parsedBrand.data : DEFAULT_BRANDING;
-  const zones = visibleZones(can);
+  const zones = visibleZones(can, release.available);
   // While permissions load, the zone comes from the route and the navigation
   // renders placeholders, never links: a partial list read as items appearing
   // at random, and showing a link before permissions are known fails open
@@ -831,7 +836,25 @@ export function HmsShell({
                     data-width={zone.width === "full" ? "full" : "capped"}
                     className={`w-full ${zone.width === "full" ? "max-w-[1760px]" : "max-w-6xl"}`}
                   >
-                    {children}
+                    {!release.isTransitioning &&
+                    release.available(pageCapability) &&
+                    (pageCapability === "baseline" || !release.isLoading) ? (
+                      children
+                    ) : (
+                      <section role="status" className="rounded-xl border bg-card p-6">
+                        <h1 className="text-lg font-semibold">
+                          {isLoading
+                            ? "Checking workspace access…"
+                            : "This feature is not available"}
+                        </h1>
+                        {!isLoading && (
+                          <p className="mt-2 text-sm text-muted-foreground">
+                            Your account remains signed in. Choose an available workspace from the
+                            navigation.
+                          </p>
+                        )}
+                      </section>
+                    )}
                   </div>
                 </main>
                 <TesserixFooter />

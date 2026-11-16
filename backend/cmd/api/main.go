@@ -37,6 +37,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/workspace"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
+	"github.com/tesserix/helivanta/internal/release"
 	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
@@ -540,11 +541,22 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	var releasePolicy *release.Service
+	if fixture := os.Getenv("HELIVANTA_IDENTITY_FIXTURE"); fixture != "" {
+		releasePolicy, err = release.DevelopmentFixture(cfg.Env, cfg.ZitadelIssuerURL, fixture)
+	} else {
+		releasePolicy, err = release.FromFile(os.Getenv("GROWTHBOOK_API_URL"), os.Getenv("GROWTHBOOK_SDK_KEY_FILE"))
+	}
+	if err != nil {
+		return err
+	}
+	deps.ReleasePolicy = releasePolicy
+	go releasePolicy.Run(ctx)
 	api := platform.NewRouter(
 		srv.Engine.Group("/v1", bootstrap.V1Chain(requestVerifier, revocationChecker, limiter, cfg, currentAuthorization,
 			iam.NewIdentityGuard(db, bus, revocationChecker, zitadelLoginClient))...),
 		currentAuthorization,
-	).WithScopedAuthorizer(scopedAuthorizer).WithCursorSealer(cursorSealer)
+	).WithScopedAuthorizer(scopedAuthorizer).WithCursorSealer(cursorSealer).WithReleaseAdmission(releasePolicy.Admission)
 
 	// POST /v1/auth/login is mounted directly on the raw engine — NOT
 	// through `api`/bootstrap.V1Chain above — because it is the endpoint
@@ -654,9 +666,10 @@ func run() error {
 		zitadelLoginClient.SetTenantUserResolver(resolver)
 		zitadelLoginClient.SetTenantIdentityResolver(resolver)
 	}
+	bootstrap.MountReleaseAvailability(srv.Engine, releasePolicy.PublicHandler(limiter))
 	bootstrap.MountAccountDiscovery(srv.Engine, signupHandlers.DiscoverAccounts, signupHandlers.VerifyAccounts, signupHandlers.AccountChoices)
 	bootstrap.MountStaffSetup(srv.Engine, signupHandlers.StaffSetup(customeronboarding.StaffSetupDeps{Limiter: limiter, Limit: ratelimit.Rule{Rate: 20, Burst: 10, Per: time.Minute}}))
-	bootstrap.MountCustomerSignup(srv.Engine, signupHandlers.Start, signupHandlers.Status, signupHandlers.VerifyEmail, signupHandlers.Password, signupHandlers.EmailLink, signupHandlers.PasswordLink, signupHandlers.Signin(customeronboarding.SigninDeps{Tokens: zitadelVerifier, Revocations: revocationChecker, Limiter: limiter, Limit: bootstrap.LoginRateLimitRule(cfg)}), signupHandlers.NewReceipt)
+	bootstrap.MountCustomerSignup(srv.Engine, releasePolicy.Admission("POST", "/v1/auth/signup"), signupHandlers.Start, signupHandlers.Status, signupHandlers.VerifyEmail, signupHandlers.Password, signupHandlers.EmailLink, signupHandlers.PasswordLink, signupHandlers.Signin(customeronboarding.SigninDeps{Tokens: zitadelVerifier, Revocations: revocationChecker, Limiter: limiter, Limit: bootstrap.LoginRateLimitRule(cfg)}), signupHandlers.NewReceipt)
 
 	for _, m := range registry.All() {
 		if owner, ok := m.(*iam.Module); ok {
@@ -669,6 +682,9 @@ func run() error {
 		if err := bus.StartBroadcasts(ctx, m.Broadcasts(deps)); err != nil {
 			return err
 		}
+	}
+	if err := releasePolicy.ValidateCompleteRoutes(srv.Engine.Routes()); err != nil {
+		return err
 	}
 	go bus.RunDispatcher(ctx, db)
 	// #1386 C-4a: converges payment intents whose webhook never arrived.

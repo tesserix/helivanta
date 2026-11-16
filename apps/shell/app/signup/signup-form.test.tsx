@@ -5,6 +5,29 @@ import { renderWithProviders } from "@helivanta/api/testing";
 import type { CustomerSignupInput } from "@helivanta/api";
 import { SignupForm } from "./signup-form";
 
+function publicRelease(onboarding = true) {
+  const now = Date.now();
+  return new Response(
+    JSON.stringify({
+      policy_version: "2026-11-16-r1",
+      issued_at: new Date(now).toISOString(),
+      expires_at: new Date(now + 60_000).toISOString(),
+      onboarding,
+    }),
+  );
+}
+
+function stubSignupApi(
+  name: "fetch",
+  handler: (path: string, init?: RequestInit) => Promise<Response>,
+) {
+  vi.stubGlobal(name, (path: string, init?: RequestInit) =>
+    path === "/api/v1/auth/release-capabilities"
+      ? Promise.resolve(publicRelease())
+      : handler(path, init),
+  );
+}
+
 const signinRedirect = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/oidc", () => ({ getUserManager: () => ({ signinRedirect }) }));
 
@@ -15,7 +38,7 @@ afterEach(() => {
 
 it("submits an independent pharmacy with its owner and waits for verified provisioning", async () => {
   const calls: Array<{ path: string; body: unknown }> = [];
-  vi.stubGlobal(
+  stubSignupApi(
     "fetch",
     vi.fn(async (path: string, init?: RequestInit) => {
       if (init?.method === "POST") calls.push({ path, body: JSON.parse(String(init.body)) });
@@ -85,7 +108,7 @@ it("submits an independent pharmacy with its owner and waits for verified provis
 });
 
 it("does not offer another signup or show readiness when progress is malformed", async () => {
-  vi.stubGlobal(
+  stubSignupApi(
     "fetch",
     vi.fn(async () => new Response(JSON.stringify({ state: "ready" }), { status: 200 })),
   );
@@ -99,7 +122,7 @@ it("does not offer another signup or show readiness when progress is malformed",
 
 it("offers password setup after email proof instead of resending verification", async () => {
   const calls: Array<{ path: string; body: unknown }> = [];
-  vi.stubGlobal(
+  stubSignupApi(
     "fetch",
     vi.fn(async (path: string, init?: RequestInit) => {
       if (init?.method === "POST") calls.push({ path, body: JSON.parse(String(init.body)) });
@@ -121,7 +144,7 @@ it("requires business contact and headquarters details before submitting", async
   const fetcher = vi
     .fn<(path: string, init?: RequestInit) => Promise<Response>>()
     .mockResolvedValue(new Response(JSON.stringify({ state: "not_started" }), { status: 200 }));
-  vi.stubGlobal("fetch", fetcher);
+  stubSignupApi("fetch", fetcher);
   renderWithProviders(<SignupForm />);
   const user = userEvent.setup();
   await user.type(await screen.findByLabelText("Organisation name"), "TEST Hospital");
@@ -137,7 +160,7 @@ it("requires business contact and headquarters details before submitting", async
 
 it("preserves a branch address in a different supported state", async () => {
   let submitted: CustomerSignupInput | undefined;
-  vi.stubGlobal(
+  stubSignupApi(
     "fetch",
     vi.fn(async (_path: string, init?: RequestInit) => {
       if (init?.method === "POST") submitted = JSON.parse(String(init.body));
@@ -181,7 +204,7 @@ it("preserves a branch address in a different supported state", async () => {
 });
 
 it("requires a fresh tenant account instead of offering cross-organisation account adoption", async () => {
-  vi.stubGlobal(
+  stubSignupApi(
     "fetch",
     vi
       .fn()
@@ -201,7 +224,7 @@ it("requires a fresh tenant account instead of offering cross-organisation accou
 
 it("opens the newly created workspace using its exact tenant", async () => {
   const tenantId = "11111111-1111-4111-8111-111111111111";
-  vi.stubGlobal(
+  stubSignupApi(
     "fetch",
     vi.fn().mockResolvedValue(
       new Response(
@@ -229,7 +252,7 @@ it("opens the newly created workspace using its exact tenant", async () => {
 it("starts a separate blank signup without deleting the existing workspace", async () => {
   let fresh = false;
   const posts: string[] = [];
-  vi.stubGlobal(
+  stubSignupApi(
     "fetch",
     vi.fn(async (path: string, init?: RequestInit) => {
       if (init?.method === "POST") {
@@ -261,4 +284,80 @@ it("starts a separate blank signup without deleting the existing workspace", asy
   expect(screen.getByLabelText("Owner email")).toHaveValue("");
   expect(screen.getByLabelText("Organisation name")).toHaveValue("");
   expect(posts).toEqual(["/api/v1/auth/signup/new"]);
+});
+
+it("a disabled signup flag prevents new registration", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string) =>
+      path === "/api/v1/auth/release-capabilities"
+        ? publicRelease(false)
+        : new Response(JSON.stringify({ state: "not_started" })),
+    ),
+  );
+  renderWithProviders(<SignupForm />);
+  expect(await screen.findByText(/New workspace registration is not available/)).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Create workspace" })).not.toBeInTheDocument();
+});
+
+it("unavailable signup decisions do not show a registration form", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string) =>
+      path === "/api/v1/auth/release-capabilities"
+        ? new Response("unavailable", { status: 503 })
+        : new Response(JSON.stringify({ state: "not_started" })),
+    ),
+  );
+  renderWithProviders(<SignupForm />);
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Registration availability could not be verified",
+  );
+  expect(screen.queryByLabelText("Owner email")).not.toBeInTheDocument();
+});
+
+it.each([
+  ["email_action_required", "Verify your account"],
+  ["password_action_required", "Set your password"],
+])("existing %s journeys continue without requesting a signup decision", async (state, heading) => {
+  const fetcher = vi.fn(async () => new Response(JSON.stringify({ state })));
+  vi.stubGlobal("fetch", fetcher);
+  renderWithProviders(<SignupForm />);
+  expect(await screen.findByRole("heading", { name: heading })).toBeVisible();
+  expect(fetcher.mock.calls).toHaveLength(1);
+});
+
+it("focuses a new signup after a delayed availability decision permits the form", async () => {
+  let fresh = false;
+  let allow!: (response: Response) => void;
+  const decision = new Promise<Response>((resolve) => {
+    allow = resolve;
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string, init?: RequestInit) => {
+      if (path.endsWith("/auth/release-capabilities")) return decision;
+      if (init?.method === "POST") fresh = true;
+      return Response.json(
+        fresh
+          ? { state: "not_started" }
+          : {
+              state: "ready",
+              name: "Existing hospital",
+              kind: "hospital",
+              tenantId: "11111111-1111-4111-8111-111111111111",
+              resourceId: "0199e000-0000-7000-8000-000000000010",
+            },
+      );
+    }),
+  );
+  renderWithProviders(<SignupForm />);
+  await userEvent
+    .setup()
+    .click(await screen.findByRole("button", { name: "Create another workspace" }));
+  expect(await screen.findByText("Checking registration availability…")).toBeVisible();
+  allow(publicRelease());
+  await waitFor(() =>
+    expect(screen.getByRole("heading", { name: "Create your workspace" })).toHaveFocus(),
+  );
 });

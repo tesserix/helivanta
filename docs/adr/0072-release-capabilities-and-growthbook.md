@@ -1,6 +1,6 @@
 # ADR-0072: Release availability is independent of staff authority
 
-Date: 2026-11-16. Status: proposed, not implemented.
+Date: 2026-11-16. Status: accepted for incremental implementation; application activation pending.
 
 ## Context
 
@@ -52,3 +52,20 @@ support, backup/restore and SDK compatibility remain verification gates.
 See the [design](../superpowers/specs/2026-11-16-first-release-capabilities-design.md)
 and [implementation plan](../superpowers/plans/2026-11-16-first-release-capabilities.md)
 for contracts, performance/freshness targets, failure behavior and acceptance.
+
+## Implementation evidence (2026-11-16)
+
+The dedicated GrowthBook infrastructure lane is merged in
+[tesserix-k8s #1678](https://github.com/tesserix/tesserix-k8s/pull/1678) and
+[kargo-manifests #74](https://github.com/tesserix/kargo-manifests/pull/74).
+Read-only inspection found GrowthBook Healthy/Synced on `5.2.0` at digest
+`sha256:74844e961f4fb65785ddb351bb2417a33a9cbcf0b1aa73774709aee986324afb`;
+`kargo-infra/growthbook-prod` reports Healthy/Ready, verified Freight
+`8006e0409c0b829cfebbad10e9366273a67b52d3`. The separate legacy bundled
+platform-tools stage still fails on a missing sealed-secrets path; this does
+not establish its repair.
+
+Backend admission and browser page/navigation/signup candidates are implemented.
+The [API contract](../api/release-capabilities.md) records remaining nested-panel,
+provider isolation, configuration and live acceptance gates. Infrastructure health
+does not mean Helivanta capabilities are configured, accepted or enabled.

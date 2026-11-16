@@ -1,6 +1,6 @@
 "use client";
 
-import { usePermissions } from "@helivanta/api";
+import { usePermissions, useReleaseCapabilities } from "@helivanta/api";
 import { PanelLink, visibleZones, type Zone, type ZoneHue } from "@helivanta/ui";
 import { OperationalDashboard } from "@/components/dashboard/operational-dashboard";
 
@@ -78,14 +78,15 @@ function cardsFor(zones: Zone[]) {
 
 export default function Dashboard() {
   const { can } = usePermissions();
-  const cards = cardsFor(visibleZones(can));
+  const release = useReleaseCapabilities();
+  const cards = cardsFor(visibleZones(can, release.available));
 
   return (
     <>
-      <OperationalDashboard />
+      {release.available("unreleased") && <OperationalDashboard />}
       <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
         <h2 className="text-sm font-semibold text-muted-foreground">Jump into a department</h2>
-        <p className="text-xs text-muted-foreground">Manage visits, dispensing and lab work.</p>
+        <p className="text-xs text-muted-foreground">Manage your team and available departments.</p>
       </div>
       <nav
         aria-label="Department shortcuts"

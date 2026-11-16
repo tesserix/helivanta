@@ -41,6 +41,7 @@ func TestEmergencyConsoleBrowser(t *testing.T) {
 		}
 		c.JSON(200, gin.H{"subject": "user-admin", "tenant_id": "11111111-1111-1111-1111-111111111111", "data": []string{"emergency.base.read", "emergency.base.manage", "emergency.case.read", "emergency.case.intake", "emergency.case.close", "emergency.fleet.read", "emergency.fleet.manage", "emergency.fleet.check", "emergency.clinical.manage"}})
 	})
+	testutil.MountBrowserReleaseCapabilities(t, f.r, testutil.StaticVerifier{"admin": testutil.TenantA, "doctor": testutil.TenantA, "driver": testutil.TenantA, "medic": testutil.TenantA, "supervisor": testutil.TenantA, "breceiver": testutil.TenantB})
 	server := httptest.NewServer(f.r)
 	defer server.Close()
 	root, err := filepath.Abs("../../../..")

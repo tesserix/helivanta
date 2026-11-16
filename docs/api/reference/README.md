@@ -1695,6 +1695,7 @@ Source: [backend/internal/modules/workspace/module.go](../../../backend/internal
 | GET | `/v1/workspace/country-policies/:scope` | `workspace.country_policy.read` | false | false |
 | GET | `/v1/workspace/country-policies` | `workspace.country_policy.read` | true | false |
 | POST | `/v1/workspace/country-policies` | `workspace.country_policy.manage` | false | false |
+| GET | `/v1/workspace/release-capabilities` | `public` | false | false |
 
 Published subjects:
 
@@ -1753,6 +1754,7 @@ Migration table declarations:
 | `GET /v1/auth/accounts` | bounded display-only choices after mailbox proof, no session required |
 | `GET /v1/auth/branding/:tenant` | published display-only branding must render before login; no identity or data access |
 | `GET /v1/auth/login/request/:id` | renders the login form before any Helivanta session exists |
+| `GET /v1/auth/release-capabilities` | bounded global onboarding availability; no tenant, account or targeting rules |
 | `GET /v1/auth/signup` | receipt-bound setup progress before a tenant session exists |
 | `POST /v1/auth/accounts` | same-origin mailbox proof before private separate-account discovery |
 | `POST /v1/auth/accounts/verify` | browser-bound one-use mailbox proof; no application access |

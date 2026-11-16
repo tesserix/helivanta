@@ -26,6 +26,7 @@ type Router struct {
 	scopedAuthorizer authz.ScopedAuthorizer
 	cursorSealer     *pagination.Sealer
 	establishment    *establishment
+	releaseAdmission func(string, string) gin.HandlerFunc
 }
 
 // ADR-0054: one route family admits one establishment kind.
@@ -73,7 +74,16 @@ func NewRouter(g *gin.RouterGroup, membership authz.MembershipChecker) *Router {
 // list and membership checker, so Declared() sees every route regardless
 // of nesting.
 func (r *Router) Group(prefix string) *Router {
-	return &Router{group: r.group.Group(prefix), declared: r.declared, membership: r.membership, scopedAuthorizer: r.scopedAuthorizer, cursorSealer: r.cursorSealer, establishment: r.establishment}
+	return &Router{group: r.group.Group(prefix), declared: r.declared, membership: r.membership, scopedAuthorizer: r.scopedAuthorizer, cursorSealer: r.cursorSealer, establishment: r.establishment, releaseAdmission: r.releaseAdmission}
+}
+
+// WithReleaseAdmission binds deployment availability without granting authority.
+func (r *Router) WithReleaseAdmission(admission func(string, string) gin.HandlerFunc) *Router {
+	if admission == nil {
+		panic("platform: release admission cannot be nil")
+	}
+	r.releaseAdmission = admission
+	return r
 }
 
 // Establishment returns a nested router whose routes run admission after authorization and before the handler.
@@ -178,6 +188,9 @@ func (r *Router) handleScoped(method, path string, permission authz.Permission, 
 	establishmentKind, establishmentChain := r.establishmentAdmission(fullPath, permission)
 	*r.declared = append(*r.declared, DeclaredRoute{Method: method, Paginated: paginated, Path: fullPath, Permission: permission, ScopeKind: kind, ScopeParameter: hospitalParam, EstablishmentKind: establishmentKind})
 	chain := append([]gin.HandlerFunc{authz.RequireMembership(r.membership), admission}, establishmentChain...)
+	if r.releaseAdmission != nil {
+		chain = append(chain, r.releaseAdmission(method, fullPath))
+	}
 	r.group.Handle(method, path, append(chain, handlers...)...)
 }
 
@@ -223,6 +236,9 @@ func (r *Router) declare(path string, d DeclaredRoute, h []gin.HandlerFunc) {
 	}
 	chain = append(chain, authz.Require(perm))
 	chain = append(chain, establishmentChain...)
+	if r.releaseAdmission != nil {
+		chain = append(chain, r.releaseAdmission(d.Method, d.Path))
+	}
 	chain = append(chain, h...)
 	r.group.Handle(method, path, chain...)
 }

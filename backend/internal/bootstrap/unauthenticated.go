@@ -22,6 +22,7 @@ import (
 // must be a route that *cannot* work any other way.
 // #nosec G101 -- These are public route paths and rationales, never credentials.
 var UnauthenticatedRoutes = map[string]string{
+	"GET /v1/auth/release-capabilities":  "bounded global onboarding availability; no tenant, account or targeting rules",
 	"POST /v1/auth/staff-setup/:action":  "same-origin, rate-limited opaque Staff invitation and native proof; grants no business access",
 	"POST /v1/auth/accounts":             "same-origin mailbox proof before private separate-account discovery",
 	"POST /v1/auth/accounts/verify":      "browser-bound one-use mailbox proof; no application access",
@@ -74,6 +75,12 @@ var UnauthenticatedRoutes = map[string]string{
 	// service, which is the failure mode these exist to prevent.
 	"GET /healthz": "liveness probe; an authenticated probe cannot report health before auth works",
 	"GET /readyz":  "readiness probe; same reason, and it must answer during a dependency outage",
+}
+
+// MountReleaseAvailability mounts the bounded public onboarding display hint.
+func MountReleaseAvailability(e *gin.Engine, handler gin.HandlerFunc) {
+	mustHandler("GET /v1/auth/release-capabilities", handler)
+	e.GET("/v1/auth/release-capabilities", handler)
 }
 
 // MountStaffSetup mounts only the recipient capability endpoint before sign-in.
@@ -149,7 +156,8 @@ func mustHandler(route string, h gin.HandlerFunc) {
 }
 
 // MountCustomerSignup mounts only receipt-bound signup and native-proof operations.
-func MountCustomerSignup(e *gin.Engine, start, status, verify, password, emailLink, passwordLink, signin, newReceipt gin.HandlerFunc) {
+func MountCustomerSignup(e *gin.Engine, admission, start, status, verify, password, emailLink, passwordLink, signin, newReceipt gin.HandlerFunc) {
+	mustHandler("POST /v1/auth/signup", admission)
 	routes := []struct {
 		method, path string
 		handler      gin.HandlerFunc
@@ -162,7 +170,11 @@ func MountCustomerSignup(e *gin.Engine, start, status, verify, password, emailLi
 	}
 	for _, route := range routes {
 		mustHandler(route.method+" "+route.path, route.handler)
-		e.Handle(route.method, route.path, route.handler)
+		if route.method == "POST" && route.path == "/v1/auth/signup" {
+			e.Handle(route.method, route.path, admission, route.handler)
+		} else {
+			e.Handle(route.method, route.path, route.handler)
+		}
 	}
 }
 

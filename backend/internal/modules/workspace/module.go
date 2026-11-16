@@ -58,6 +58,13 @@ func (*Module) Broadcasts(platform.Deps) []events.Broadcast { return nil }
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	h := handler{db: deps.DB}
 	g := r.Group("/workspace")
+	g.GET("/release-capabilities", authz.Public, func(c *gin.Context) {
+		if deps.ReleasePolicy == nil {
+			respond.Error(c, 503, "release_unavailable", "Feature availability could not be verified.")
+			return
+		}
+		deps.ReleasePolicy.Capabilities(c)
+	})
 	g.GET("/branding", authz.Public, h.get)
 	g.PUT("/branding", PermBrandingManage, h.put)
 	g.POST("/country-policies", PermCountryPolicyManage, h.submitCountryPolicy)

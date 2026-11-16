@@ -6,6 +6,8 @@ import (
 	"go.temporal.io/sdk/client"
 	"time"
 
+	"github.com/tesserix/helivanta/internal/release"
+
 	"github.com/tesserix/helivanta/internal/mediconnectclaims"
 	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authz"
@@ -49,6 +51,7 @@ type RoleLister interface {
 // Deps is everything a module may depend on. Modules must not reach
 // around it. Projections use events; authoritative decisions use published owner APIs (ADR-0041).
 type Deps struct {
+	ReleasePolicy             *release.Service
 	GovernanceSources         authz.CurrentGovernanceSourceGuard
 	GovernanceTopology        authz.CurrentGovernanceTopologyGuard
 	StaffAccounts             *staffclient.Client

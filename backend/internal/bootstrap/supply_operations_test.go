@@ -69,17 +69,15 @@ func TestManualSupplyDeliveryHasNoPharmacyStockFinanceOrDispenseEffects(t *testi
 	payablePath := outletRoot + "/accounts/payables/" + payable
 	request("PUT", payablePath, "owner", fmt.Sprintf(`{"payee_reference":"TEST-SUPPLIER","payee_name":"TEST Synthetic Supplier","document_reference":"TEST-SHARED-REFERENCE","issued_on":"2026-10-01","due_on":"2026-10-31","currency":"INR","lines":[{"receipt_id":%q,"category":"inventory","description":"TEST acquisition cost","net_minor":10000,"tax_minor":1800,"recoverable_tax_minor":1800,"landed_minor":0}]}`, receipt))
 	request("PUT", payablePath+"/payments/"+newID(), "owner", `{"kind":"payment","amount_minor":3000,"currency":"INR","paid_by":"TEST Finance operator","method":"bank","source_reference":"TEST-EXTERNAL-PAYMENT","occurred_on":"2026-10-15","reason":"TEST external settlement evidence","reversal_of":null}`)
+	// A historical dispense row (the visit intake that created them is retired,
+	// #1680) so the baseline proves delivery leaves dispense history untouched.
 	visit := newID()
-	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-		return bus.Publish(tx, "helivanta.in.medicore.visit_created.v1", events.Event{
-			Type: "VisitCreated", Version: 1, TenantID: testutil.TenantA,
-			Data: json.RawMessage(fmt.Sprintf(`{"visit_id":%q,"patient_name":"TEST Synthetic Patient","department":"TEST OPD"}`, visit)),
-		})
+	require.NoError(t, db.WithTenant(tenantdb.WithActor(ctx, "test-seed"), testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO pharmacy_dispenses (tenant_id, visit_id, patient_name) VALUES (?, ?, 'TEST Synthetic Patient')`,
+			testutil.TenantA, visit).Error
 	}))
-	require.Eventually(t, func() bool {
-		w := testutil.Do(r, "GET", "/v1/pharmacy/dispenses", "owner", "")
-		return w.Code == http.StatusOK && json.Valid(w.Body.Bytes()) && deliveryJourneyContainsVisit(w.Body.Bytes(), visit)
-	}, 20*time.Second, 100*time.Millisecond, "real NATS visit intake must populate the pharmacy dispense table before the baseline")
+	w := testutil.Do(r, "GET", "/v1/pharmacy/dispenses", "owner", "")
+	require.True(t, w.Code == http.StatusOK && deliveryJourneyContainsVisit(w.Body.Bytes(), visit), "the seeded dispense is visible before the baseline: %s", w.Body.String())
 
 	snapshot := func() map[string]string {
 		t.Helper()

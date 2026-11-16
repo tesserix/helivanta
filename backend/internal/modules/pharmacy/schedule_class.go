@@ -23,20 +23,22 @@ import (
 var errDeclarationReviewed = errors.New("schedule declaration already reviewed")
 
 type scheduleDeclaration struct {
-	ID              uuid.UUID  `gorm:"column:id" json:"id"`
-	ProductID       uuid.UUID  `gorm:"column:product_id" json:"product_id"`
-	RegulatoryClass string     `gorm:"column:regulatory_class" json:"regulatory_class"`
-	NDPS            bool       `gorm:"column:ndps" json:"ndps"`
-	Source          string     `gorm:"column:source" json:"source"`
-	DeclaredBy      string     `gorm:"column:declared_by" json:"declared_by"`
-	CreatedAt       time.Time  `gorm:"column:created_at" json:"created_at"`
-	Decision        *string    `gorm:"column:decision" json:"decision"`
-	Reason          *string    `gorm:"column:reason" json:"decision_reason"`
-	ReviewedBy      *string    `gorm:"column:reviewed_by" json:"reviewed_by"`
-	ReviewedAt      *time.Time `gorm:"column:reviewed_at" json:"reviewed_at"`
+	ID              uuid.UUID `gorm:"column:id" json:"id"`
+	ProductID       uuid.UUID `gorm:"column:product_id" json:"product_id"`
+	RegulatoryClass string    `gorm:"column:regulatory_class" json:"regulatory_class"`
+	NDPS            bool      `gorm:"column:ndps" json:"ndps"`
+	Source          string    `gorm:"column:source" json:"source"`
+	// Lowers is set by the database: less strict than the approved class.
+	Lowers     bool       `gorm:"column:lowers" json:"lowers"`
+	DeclaredBy string     `gorm:"column:declared_by" json:"declared_by"`
+	CreatedAt  time.Time  `gorm:"column:created_at" json:"created_at"`
+	Decision   *string    `gorm:"column:decision" json:"decision"`
+	Reason     *string    `gorm:"column:reason" json:"decision_reason"`
+	ReviewedBy *string    `gorm:"column:reviewed_by" json:"reviewed_by"`
+	ReviewedAt *time.Time `gorm:"column:reviewed_at" json:"reviewed_at"`
 }
 
-const declarationQuery = `SELECT d.id, d.product_id, d.regulatory_class, d.ndps, d.source, d.declared_by, d.created_at,
+const declarationQuery = `SELECT d.id, d.product_id, d.regulatory_class, d.ndps, d.source, d.lowers, d.declared_by, d.created_at,
 	r.decision, r.reason, r.reviewed_by, r.created_at AS reviewed_at
 	FROM pharmacy_product_schedule_declarations d LEFT JOIN pharmacy_product_schedule_reviews r
 	ON r.tenant_id = d.tenant_id AND r.outlet_id = d.outlet_id AND r.declaration_id = d.id`
@@ -57,6 +59,9 @@ func scheduleRoutes(s *platform.Router, h *catalogueHandlers) {
 func scheduleError(c *gin.Context, err error) {
 	var pg *pgconn.PgError
 	switch {
+	case errors.As(err, &pg) && pg.ConstraintName == "pharmacy_schedule_platform_review":
+		respond.Error(c, http.StatusConflict, "platform_review_required",
+			"a lower schedule class is decided by Helivanta; file it as a new declaration for Helivanta review")
 	case errors.As(err, &pg) && strings.Contains(pg.Message, "reviewed by someone other than who declared it"):
 		respond.Error(c, http.StatusConflict, "four_eyes", "a schedule class is reviewed by someone other than who declared it")
 	case errors.Is(err, errDeclarationReviewed):
@@ -242,15 +247,25 @@ func (h *catalogueHandlers) getSchedule(c *gin.Context) {
 			p.TenantID, outlet, product, historyLimit).Scan(&out.History).Error; err != nil {
 			return err
 		}
-		switch {
-		case len(out.History) == 0:
+		var inForce []scheduleDeclaration
+		if err := tx.Raw(declarationQuery+` JOIN pharmacy_product_schedule_in_force(?, ?, ?) f ON f.declaration_id = d.id`,
+			p.TenantID, outlet, product).Scan(&inForce).Error; err != nil {
+			return err
+		}
+		if len(inForce) == 1 {
+			out.InForce = &inForce[0]
+		}
+		switch latest := firstOrNil(out.History); {
+		case latest == nil:
 			out.Reason = "no schedule class has been declared"
-		case out.History[0].Decision == nil:
+		case latest.Lowers && latest.Decision == nil:
+			out.Reason = "a lower class waits for Helivanta review"
+		case latest.Lowers && *latest.Decision == "rejected":
+			out.Reason = "the lower class was rejected"
+		case latest.Decision == nil:
 			out.Reason = "the latest declaration awaits review by a second person"
-		case *out.History[0].Decision == "rejected":
+		case *latest.Decision == "rejected":
 			out.Reason = "the latest declaration was rejected"
-		default:
-			out.InForce = &out.History[0]
 		}
 		return nil
 	})
@@ -259,4 +274,11 @@ func (h *catalogueHandlers) getSchedule(c *gin.Context) {
 		return
 	}
 	respond.OK(c, out)
+}
+
+func firstOrNil(h []scheduleDeclaration) *scheduleDeclaration {
+	if len(h) == 0 {
+		return nil
+	}
+	return &h[0]
 }

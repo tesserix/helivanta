@@ -129,3 +129,84 @@ BEGIN
 END $$;
 CREATE TRIGGER pharmacy_schedule_countersign_guard BEFORE INSERT ON pharmacy_product_schedule_countersigns
  FOR EACH ROW EXECUTE FUNCTION pharmacy_schedule_countersign_guard();
+
+-- Helivanta decides a lowering as helivanta_drug_approver (#1681). The role
+-- holds no tenant session: it reads only the schedule rows and the product
+-- name it decides from, inserts only reviews, and its audit rows can only
+-- record those reviews. Every other tenant table stays closed to it.
+ALTER TABLE pharmacy_product_schedule_reviews ADD COLUMN by_platform boolean NOT NULL DEFAULT false;
+CREATE FUNCTION pharmacy_schedule_review_by_platform() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ -- Set from the connecting role, never from the client.
+ NEW.by_platform := current_user = 'helivanta_drug_approver';
+ RETURN NEW;
+END $$;
+CREATE TRIGGER pharmacy_schedule_review_by_platform BEFORE INSERT ON pharmacy_product_schedule_reviews
+ FOR EACH ROW EXECUTE FUNCTION pharmacy_schedule_review_by_platform();
+
+CREATE OR REPLACE FUNCTION pharmacy_schedule_review_guard() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE d record; prior record; cs record;
+BEGIN
+ -- Named columns: the platform role holds only column grants.
+ SELECT product_id, tenant_id, outlet_id, regulatory_class, ndps, lowers, declared_by INTO d FROM pharmacy_product_schedule_declarations
+  WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND id=NEW.declaration_id;
+ IF FOUND AND lower(btrim(d.declared_by))=lower(btrim(NEW.reviewed_by)) THEN
+  RAISE EXCEPTION 'a schedule class is reviewed by someone other than who declared it' USING ERRCODE='23514',CONSTRAINT='pharmacy_schedule_four_eyes';
+ END IF;
+ IF current_user = 'helivanta_drug_approver' THEN
+  IF NOT FOUND OR NOT d.lowers THEN
+   RAISE EXCEPTION 'Helivanta decides only a lower schedule class' USING ERRCODE='23514',CONSTRAINT='pharmacy_schedule_platform_lowering_only';
+  END IF;
+  SELECT countersigned_by INTO cs FROM pharmacy_product_schedule_countersigns
+   WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND declaration_id=NEW.declaration_id;
+  IF NOT FOUND THEN
+   RAISE EXCEPTION 'a lower schedule class is countersigned by the pharmacy owner first' USING ERRCODE='23514',CONSTRAINT='pharmacy_schedule_platform_countersign';
+  END IF;
+  IF lower(btrim(cs.countersigned_by))=lower(btrim(NEW.reviewed_by)) THEN
+   RAISE EXCEPTION 'a schedule class is reviewed by someone other than who countersigned it' USING ERRCODE='23514',CONSTRAINT='pharmacy_schedule_four_eyes';
+  END IF;
+ ELSIF FOUND AND NEW.decision='approved' THEN
+  PERFORM pharmacy_schedule_lock(d.product_id);
+  SELECT * INTO prior FROM pharmacy_schedule_last_approved(d.tenant_id, d.outlet_id, d.product_id);
+  IF d.lowers OR (FOUND AND pharmacy_schedule_is_lower(d.regulatory_class, d.ndps, prior.regulatory_class, prior.ndps)) THEN
+   RAISE EXCEPTION 'a lower schedule class is decided by Helivanta' USING ERRCODE='23514',CONSTRAINT='pharmacy_schedule_platform_review';
+  END IF;
+ END IF;
+ RETURN NEW;
+END $$;
+
+GRANT SELECT (tenant_id,outlet_id,id,product_id,seq,regulatory_class,ndps,source,lowers,declared_by,created_at)
+ ON pharmacy_product_schedule_declarations TO helivanta_drug_approver;
+GRANT SELECT (tenant_id,outlet_id,declaration_id,reason,countersigned_by,created_at)
+ ON pharmacy_product_schedule_countersigns TO helivanta_drug_approver;
+GRANT SELECT (tenant_id,outlet_id,declaration_id,decision,by_platform)
+ ON pharmacy_product_schedule_reviews TO helivanta_drug_approver;
+GRANT INSERT (tenant_id,outlet_id,declaration_id,decision,reason,reviewed_by)
+ ON pharmacy_product_schedule_reviews TO helivanta_drug_approver;
+GRANT SELECT (tenant_id,outlet_id,id,brand_name) ON pharmacy_catalogue_products TO helivanta_drug_approver;
+CREATE FUNCTION pharmacy_schedule_lowering_product(t uuid, o uuid, product uuid) RETURNS boolean LANGUAGE sql STABLE AS $$
+ SELECT EXISTS (SELECT 1 FROM pharmacy_product_schedule_declarations d WHERE d.tenant_id=t AND d.outlet_id=o AND d.product_id=product AND d.lowers)
+$$;
+-- The role reads through each table's one tenant_isolation policy, widened
+-- for it alone (CASE, so the tenant branch, which it cannot read, never runs); its column grants bound what it sees, and of the catalogue
+-- only the name of a product someone asked to lower.
+DO $$DECLARE t text; prior text;BEGIN
+ FOREACH t IN ARRAY ARRAY['pharmacy_product_schedule_declarations','pharmacy_product_schedule_countersigns','pharmacy_product_schedule_reviews'] LOOP
+  SELECT pg_get_expr(polqual,polrelid) INTO STRICT prior FROM pg_policy WHERE polrelid=t::regclass AND polname='tenant_isolation';
+  EXECUTE format('ALTER POLICY tenant_isolation ON %I USING(CASE WHEN current_user=''helivanta_drug_approver'' THEN true ELSE (%s) END)',t,prior);
+ END LOOP;
+ SELECT pg_get_expr(polwithcheck,polrelid) INTO STRICT prior FROM pg_policy WHERE polrelid='pharmacy_product_schedule_reviews'::regclass AND polname='tenant_isolation';
+ EXECUTE format('ALTER POLICY tenant_isolation ON pharmacy_product_schedule_reviews WITH CHECK(CASE WHEN current_user=''helivanta_drug_approver'' THEN by_platform AND tenant_id=NULLIF(current_setting(''app.tenant_id'',true),'''')::uuid ELSE (%s) END)',prior);
+ SELECT pg_get_expr(polqual,polrelid) INTO STRICT prior FROM pg_policy WHERE polrelid='pharmacy_catalogue_products'::regclass AND polname='tenant_isolation';
+ EXECUTE format('ALTER POLICY tenant_isolation ON pharmacy_catalogue_products USING(CASE WHEN current_user=''helivanta_drug_approver'' THEN pharmacy_schedule_lowering_product(tenant_id,outlet_id,id) ELSE (%s) END)',prior);
+ -- Every pharmacy table also carries the restrictive operating_choice_purpose
+ -- policy, which needs a tenant session; the listing reads across tenants.
+ FOREACH t IN ARRAY ARRAY['pharmacy_product_schedule_declarations','pharmacy_product_schedule_reviews','pharmacy_catalogue_products'] LOOP
+  SELECT pg_get_expr(polqual,polrelid) INTO STRICT prior FROM pg_policy WHERE polrelid=t::regclass AND polname='operating_choice_purpose';
+  EXECUTE format('ALTER POLICY operating_choice_purpose ON %I USING(CASE WHEN current_user=''helivanta_drug_approver'' THEN true ELSE (%s) END)',t,prior);
+ END LOOP;
+END $$;
+GRANT INSERT ON audit_events TO helivanta_drug_approver;
+CREATE POLICY pharmacy_schedule_platform_audit ON audit_events AS RESTRICTIVE FOR INSERT TO helivanta_drug_approver
+ WITH CHECK (tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid AND action='insert'
+  AND resource_type='pharmacy_product_schedule_reviews' AND actor_subject LIKE 'helivanta:%');

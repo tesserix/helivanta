@@ -42,11 +42,13 @@ type scheduleDeclaration struct {
 	Reason            *string    `gorm:"column:reason" json:"decision_reason"`
 	ReviewedBy        *string    `gorm:"column:reviewed_by" json:"reviewed_by"`
 	ReviewedAt        *time.Time `gorm:"column:reviewed_at" json:"reviewed_at"`
+	// DecidedByPlatform marks a decision Helivanta made, not the tenant.
+	DecidedByPlatform bool `gorm:"column:decided_by_platform" json:"decided_by_platform"`
 }
 
 const declarationQuery = `SELECT d.id, d.product_id, d.regulatory_class, d.ndps, d.source, d.lowers, d.declared_by, d.created_at,
 	c.countersigned_by, c.reason AS countersign_reason, c.created_at AS countersigned_at,
-	r.decision, r.reason, r.reviewed_by, r.created_at AS reviewed_at
+	r.decision, r.reason, r.reviewed_by, r.created_at AS reviewed_at, COALESCE(r.by_platform, false) AS decided_by_platform
 	FROM pharmacy_product_schedule_declarations d LEFT JOIN pharmacy_product_schedule_reviews r
 	ON r.tenant_id = d.tenant_id AND r.outlet_id = d.outlet_id AND r.declaration_id = d.id
 	LEFT JOIN pharmacy_product_schedule_countersigns c

@@ -112,6 +112,11 @@ generated code. Every business API, page and nested panel needs a classification
 Availability never replaces tenant, permission, employment, professional or
 object-scope authorization.
 
+Dashboard shortcuts must use the same canonical page classification, effective
+account-bound capabilities and permission filtering as navigation and destination
+pages. Keep the automated dashboard off/dependency/refresh/account-switch checks
+aligned with the reviewed MVP. Baseline account security remains available.
+
 Operators enable/disable reviewed features in Tesserix Console. New reviewed
 definitions are created disabled by the chart-owned five-minute catalogue job or
 Console's missing-definition command. Preserve existing desired values and audit

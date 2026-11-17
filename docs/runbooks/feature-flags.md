@@ -90,6 +90,38 @@ Hospital-owned pharmacy staff stay within their hospital tenant and employer.
 Independent pharmacy staff belong to their pharmacy tenant and employer. Shared
 email addresses and declared affiliations do not create cross-tenant authority.
 
+## Dashboard cards follow the same flags
+
+Dashboard shortcuts use the same canonical page classifications and effective
+capability snapshot as the sidebar and destination pages. They also require the
+account's existing page permissions. There is no separate dashboard flag list to
+maintain. A new page must be classified in the canonical contract before it ships.
+
+| Dashboard cards in this MVP                                                              | Required flag suffix                                                           |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Staff access; Branding                                                                   | `team_accounts`                                                                |
+| Staff directory; Employment reviews; Person reviews; Credential register                 | `staff_core`                                                                   |
+| Department teams; Posting preparation; Posting reviews; HR setup; Organization structure | `department_teams`                                                             |
+| Setup in PharmaConnect                                                                   | `pharmacy_setup`                                                               |
+| Staff in PharmaConnect; Pharmacy Staff; Pharmacy relationships                           | `pharmacy_staff`                                                               |
+| Workspace security                                                                       | Baseline authenticated account security; independent of optional release flags |
+
+`onboarding` controls public signup and has no dashboard shortcut. Flags control
+capability groups, so the six enabled flags can produce 16 cards for an owner
+with all required permissions. For example, disabling `pharmacy_staff` removes
+its three cards while leaving pharmacy setup and hospital Staff cards available.
+Disabling `team_accounts` also closes its dependent features, leaving baseline
+account security. Account switching immediately withholds the previous tenant's
+business cards until the new account has a valid snapshot.
+
+Automated dashboard acceptance lives in
+`apps/shell/app/(workspace)/dashboard/page.release.test.tsx`. It checks the exact
+accepted MVP card set against the canonical eligibility list, each enabled
+flag's disabled/dependency state, a refreshed off/on transition, unavailable and
+wrong-account snapshots, and tenant switching. New eligibility needs a reviewed
+update to this acceptance baseline, not an automatic opt-in of untested pages.
+The release generator and navigation tests additionally enforce page coverage.
+
 ## Troubleshooting and uncertain commands
 
 | Observation                           | Action                                                                                                                                                  |

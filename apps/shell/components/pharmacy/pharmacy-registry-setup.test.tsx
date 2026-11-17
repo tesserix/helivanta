@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
@@ -153,5 +153,87 @@ it.each([403, 503])(
       fireEvent.submit(form);
     });
     expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(0);
+  },
+);
+
+it("shows an accessible hospital name on its pending affiliation row", async () => {
+  const base = registry();
+  const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.includes("/hospital-affiliations") && (init?.method ?? "GET") === "GET")
+      return Response.json(
+        page([
+          {
+            id: "0199e000-0000-7000-8000-000000000030",
+            pharmacy_id: pharmacy.id,
+            hospital_id: hospital,
+            hospital_name: null,
+            relationship: "owner",
+            verification_status: "requested",
+            verification_request_id: "0199e000-0000-7000-8000-0000000000aa",
+            verified_at: null,
+            created_at: "2026-11-15T00:00:00Z",
+          },
+        ]),
+      );
+    return base(url, init);
+  });
+  vi.stubGlobal("fetch", fetcher);
+  renderWithProviders(<PharmacyRegistrySetup tenantId={tenant} pharmacy={pharmacy} />);
+  const row = (await screen.findByText(/Waiting for the hospital to verify/)).closest("li")!;
+  await waitFor(() => expect(within(row).getByText("Synthetic main hospital")).toBeInTheDocument());
+  expect(within(row).queryByText(hospital)).not.toBeInTheDocument();
+  expect(
+    fetcher.mock.calls.filter(([, init]) => init?.method && init.method !== "GET"),
+  ).toHaveLength(0);
+});
+
+it.each([403, 503])(
+  "withholds a pending affiliation's directory name after lookup refusal (%s)",
+  async (status) => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const base = registry();
+    let refused = false;
+    const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("/workforce/hospitals") && refused)
+        return Response.json({ error: "hospital_unavailable" }, { status });
+      if (url.includes("/hospital-affiliations") && (init?.method ?? "GET") === "GET")
+        return Response.json(
+          page([
+            {
+              id: "0199e000-0000-7000-8000-000000000030",
+              pharmacy_id: pharmacy.id,
+              hospital_id: hospital,
+              hospital_name: null,
+              relationship: "owner",
+              verification_status: "requested",
+              verification_request_id: "0199e000-0000-7000-8000-0000000000aa",
+              verified_at: null,
+              created_at: "2026-11-15T00:00:00Z",
+            },
+          ]),
+        );
+      return base(url, init);
+    });
+    vi.stubGlobal("fetch", fetcher);
+    renderWithProviders(
+      <QueryClientProvider client={client}>
+        <PharmacyRegistrySetup tenantId={tenant} pharmacy={pharmacy} />
+      </QueryClientProvider>,
+    );
+    const row = (await screen.findByText(/Waiting for the hospital to verify/)).closest("li")!;
+    await waitFor(() =>
+      expect(within(row).getByText("Synthetic main hospital")).toBeInTheDocument(),
+    );
+    refused = true;
+    await act(() =>
+      client.invalidateQueries({
+        queryKey: ["pharmacy", tenant, "synthetic-owner", pharmacy.id, "ownership-hospitals"],
+      }),
+    );
+    await waitFor(() =>
+      expect(within(row).getByText("Hospital name unavailable")).toBeInTheDocument(),
+    );
+    expect(within(row).queryByText("Synthetic main hospital")).not.toBeInTheDocument();
+    expect(within(row).queryByText(hospital)).not.toBeInTheDocument();
   },
 );

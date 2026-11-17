@@ -27,6 +27,7 @@ import {
   zonedDateTimeInput,
 } from "@helivanta/api";
 import {
+  AccountName,
   ConfirmDialog,
   DetailHeader,
   Field,
@@ -797,7 +798,7 @@ function ProductHistory({
                 <time dateTime={row.created_at} title={row.created_at}>
                   {formatZonedDateTime(row.created_at, timeZone)}
                 </time>{" "}
-                · {row.actor_subject} · {row.snapshot.status}
+                · <AccountName subject={row.actor_subject} /> · {row.snapshot.status}
               </p>
               <details className="mt-2">
                 <summary className="cursor-pointer">View recorded identity</summary>

@@ -1,7 +1,16 @@
 import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts } from "../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "TEST-manager": "QA Manager",
+    "TEST-dispatcher": "QA Dispatcher",
+    "TEST-maker": "QA Maker",
+    "TEST-reviewer": "QA Reviewer",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import { NavigationGuardProvider } from "@helivanta/ui";
 import { IndependentOperatingDuties } from "./independent-operating-duties";
 
@@ -101,7 +110,7 @@ it("prepares a pharmacy dispatch duty for the exact reviewed account and outlet"
     await screen.findByRole("option", { name: "Outlet reservation and physical dispatch" }),
   );
   await user.click(screen.getByLabelText("Reviewed account"));
-  await user.click(await screen.findByRole("option", { name: "TEST-dispatcher" }));
+  await user.click(await screen.findByRole("option", { name: "QA Dispatcher" }));
   await user.click(screen.getByLabelText("Pharmacy outlet"));
   await user.click(await screen.findByRole("option", { name: "TEST-PUNE — TEST Pune outlet" }));
   fireEvent.change(screen.getByLabelText("Valid from (UTC)"), {
@@ -286,7 +295,7 @@ async function fillPreparation(
   end = "2026-12-09T00:00",
 ) {
   await user.click(screen.getByLabelText("Reviewed account"));
-  await user.click(await screen.findByRole("option", { name: "TEST-dispatcher" }));
+  await user.click(await screen.findByRole("option", { name: "QA Dispatcher" }));
   await user.click(
     screen.getByLabelText(kind === "pharmacy" ? "Pharmacy outlet" : "Warehouse or depot"),
   );
@@ -308,7 +317,7 @@ it.each([{ staffVersion: 2 }, { linkStatus: "pending" }])(
     const { writes } = sourceFixture(options);
     const user = await openPreparation();
     await user.click(screen.getByLabelText("Reviewed account"));
-    expect(screen.queryByRole("option", { name: "TEST-dispatcher" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "QA Dispatcher" })).not.toBeInTheDocument();
     expect(writes).toHaveLength(0);
   },
 );

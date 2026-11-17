@@ -16,7 +16,14 @@ import {
   type AttendanceVoidInput,
   type Staff,
 } from "@helivanta/api";
-import { ConfirmDialog, Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
+import {
+  AccountName,
+  ConfirmDialog,
+  Field,
+  SelectControl,
+  useZodForm,
+  RequestFailure,
+} from "@helivanta/ui";
 import { inputClass, today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { CorrectionForm } from "./correction-form";
@@ -306,11 +313,17 @@ export function PunchLedger({
                   {p.voided ? " · Voided" : ""}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Recorded by {p.recorded_by_subject}
+                  Recorded by <AccountName subject={p.recorded_by_subject} />
                   {p.reason ? ` · ${p.reason}` : ""}
-                  {p.voided
-                    ? ` · voided by ${p.voided_by_subject ?? "unknown"}${p.void_reason ? `: ${p.void_reason}` : ""}`
-                    : ""}
+                  <AccountName subject={p.voided_by_subject}>
+                    {(presentedAccountName0) => (
+                      <>
+                        {p.voided
+                          ? ` · voided by ${presentedAccountName0 ?? "unknown"}${p.void_reason ? `: ${p.void_reason}` : ""}`
+                          : ""}
+                      </>
+                    )}
+                  </AccountName>
                 </p>
               </div>
               {!p.voided && (recorder || corrector) && (

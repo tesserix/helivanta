@@ -14,7 +14,7 @@ import {
   type LeaveYear,
   type StaffLeaveBalances,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
+import { AccountName, Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
 import { inputClass, today } from "../roster-policy/policy-ui";
 import { SaveError } from "./years-panel";
 
@@ -251,7 +251,7 @@ function StaffLedger({
                 {formatHalfDays(e.half_days)}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Effective {e.effective_on} · by {e.actor_subject}
+                Effective {e.effective_on} · by <AccountName subject={e.actor_subject} />
                 {e.reason ? ` · ${e.reason}` : ""}
               </p>
             </li>

@@ -25,6 +25,7 @@ import {
   type CountryPolicyVersionSummary,
 } from "@helivanta/api";
 import {
+  AccountName,
   Field,
   formatDateTime,
   FormSelectField,
@@ -289,7 +290,7 @@ function PolicyRecord({
                   {policyLabel(row.action)} · revision {row.result_revision}
                 </p>
                 <p className="mt-1 break-words text-xs text-muted-foreground">
-                  {row.actor_subject} · {formatDateTime(row.created_at)}
+                  <AccountName subject={row.actor_subject} /> · {formatDateTime(row.created_at)}
                 </p>
                 {row.reason && <p className="mt-2 whitespace-pre-wrap text-sm">{row.reason}</p>}
               </Panel>
@@ -340,7 +341,9 @@ function VersionRecord({ version, current }: { version: CountryPolicyVersion; cu
         {version.approved_by && (
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground">Independent reviewer</p>
-            <p className="mt-1 break-all text-sm">{version.approved_by}</p>
+            <p className="mt-1 break-all text-sm">
+              <AccountName subject={version.approved_by} />
+            </p>
           </div>
         )}
       </Panel>

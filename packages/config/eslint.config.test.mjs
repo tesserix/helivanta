@@ -1,4 +1,18 @@
 import { ESLint } from "eslint";
+
+it.each([
+  "<p>{person.subject}</p>",
+  "<p>{person.actor_subject}</p>",
+  "<p>{`Reviewed by ${person.reviewed_by}`}</p>",
+  "<span title={`Account ${person.subject}`}>Details</span>",
+  '<Fact label="Reviewed by" value={person.reviewed_by} />',
+])("rejects raw account identifiers in displayed content: %s", async (body) => {
+  const code = `export const A = ({ person }: { person: { subject: string; actor_subject: string; reviewed_by: string } }) => ${body};`;
+  const [result] = await linter().lintText(code, { filePath: "fixture.tsx" });
+  expect(
+    result.messages.filter((message) => message.ruleId === "helivanta/no-raw-account-display"),
+  ).toHaveLength(1);
+});
 import { describe, expect, it } from "vitest";
 import {
   READ_RETRY_RULE,
@@ -365,4 +379,13 @@ describe("read retries (#1595)", () => {
   it("leaves tests alone", async () => {
     expect(await lint("<Button onClick={q.refetch}>x</Button>", "fixture.test.tsx")).toEqual([]);
   });
+});
+
+it("permits backend account bindings and verified name components", async () => {
+  const code =
+    'export const A = ({ person }: { person: { subject: string } }) => <div key={person.subject}><input type="hidden" value={person.subject} /><AccountName subject={person.subject} /></div>;';
+  const [result] = await linter().lintText(code, { filePath: "fixture.tsx" });
+  expect(
+    result.messages.filter((message) => message.ruleId === "helivanta/no-raw-account-display"),
+  ).toHaveLength(0);
 });

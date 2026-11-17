@@ -15,6 +15,7 @@ import {
   type ReceivingResponseInput,
 } from "@helivanta/api";
 import {
+  AccountName,
   Field,
   Panel,
   RequestFailure,
@@ -232,7 +233,7 @@ function ShipmentReceiving({
                   {history.data.data.map((response) => (
                     <li key={response.id}>
                       Receiving version {response.summary_version} · {response.response} ·{" "}
-                      {response.reason} · {response.actor_subject}
+                      {response.reason} · <AccountName subject={response.actor_subject} />
                     </li>
                   ))}
                 </ul>

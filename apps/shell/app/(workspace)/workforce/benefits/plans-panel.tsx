@@ -12,7 +12,7 @@ import {
   type BenefitPlanRevision,
   type Hospital,
 } from "@helivanta/api";
-import { QueryState } from "@helivanta/ui";
+import { AccountName, QueryState } from "@helivanta/ui";
 import { RevisionHistory } from "../payroll-setup/payroll-workspace";
 import { Badge, PLAN_STATUSES, period, useRelationships } from "./benefits-ui";
 import { PlanEditor } from "./plan-editor";
@@ -149,7 +149,7 @@ export function PlansPanel({ hospital, writable }: { hospital: Hospital; writabl
               </p>
               <p className="mt-1 text-muted-foreground">
                 {r.name} · {BENEFIT_PLAN_KINDS[r.kind]} · {coverageText(r, names)} · changed by{" "}
-                {r.changed_by_subject}
+                <AccountName subject={r.changed_by_subject} />
               </p>
             </>
           )}

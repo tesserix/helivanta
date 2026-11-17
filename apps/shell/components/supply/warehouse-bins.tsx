@@ -20,6 +20,7 @@ import {
   type SupplyRegistryRevision,
 } from "@helivanta/api";
 import {
+  AccountName,
   Field,
   FormSelectField,
   LoadMore,
@@ -349,7 +350,7 @@ function BinHistory({
                       .join(" / ") || "Position not specified"}
                   </p>
                   <p className="break-words text-muted-foreground">
-                    {formatDateTime(row.created_at)} · {row.actor_subject}
+                    {formatDateTime(row.created_at)} · <AccountName subject={row.actor_subject} />
                   </p>
                 </li>
               ))}

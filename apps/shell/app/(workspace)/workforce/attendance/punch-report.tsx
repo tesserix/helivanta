@@ -8,7 +8,7 @@ import {
   JOB_LABELS,
   type AttendancePunchReportRow,
 } from "@helivanta/api";
-import { Field, SelectControl, RequestFailure } from "@helivanta/ui";
+import { AccountName, Field, SelectControl, RequestFailure } from "@helivanta/ui";
 import { inputClass, today } from "../roster-policy/policy-ui";
 import { useActiveStaff } from "./punch-panel";
 
@@ -141,12 +141,19 @@ export function PunchReport({ hospital, base }: { hospital: string; base: string
                     {p.correction_id ? "Correction" : p.source === "manual" ? "Manual" : p.source}
                   </td>
                   <td className="p-3">
-                    {p.recorded_by_subject} · {new Date(p.recorded_at).toLocaleString()}
+                    <AccountName subject={p.recorded_by_subject} /> ·{" "}
+                    {new Date(p.recorded_at).toLocaleString()}
                   </td>
                   <td className="p-3">
-                    {p.voided
-                      ? `Voided by ${p.voided_by_subject ?? "unknown"}${p.voided_at ? ` · ${new Date(p.voided_at).toLocaleString()}` : ""}${p.void_correction_id ? " · by correction" : ""}`
-                      : "Active"}
+                    <AccountName subject={p.voided_by_subject}>
+                      {(presentedAccountName0) => (
+                        <>
+                          {p.voided
+                            ? `Voided by ${presentedAccountName0 ?? "unknown"}${p.voided_at ? ` · ${new Date(p.voided_at).toLocaleString()}` : ""}${p.void_correction_id ? " · by correction" : ""}`
+                            : "Active"}
+                        </>
+                      )}
+                    </AccountName>
                   </td>
                 </tr>
               ))}

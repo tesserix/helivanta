@@ -16,12 +16,14 @@ import {
   type MemberPresentation,
   type StaffAssignmentScope,
 } from "@helivanta/api";
-import { SelectControl, FormSelectField, type SelectOption } from "./select";
-import type { Control, FieldPath, FieldValues } from "react-hook-form";
+import { SelectControl, type SelectOption } from "./select";
+import { Controller, type Control, type FieldPath, type FieldValues } from "react-hook-form";
+import { Field } from "./form";
 
 type Presentations = {
   register: (subject: string) => () => void;
   rows: ReadonlyMap<string, MemberPresentation>;
+  resolved: boolean;
 };
 const Context = createContext<Presentations | null>(null);
 
@@ -63,7 +65,11 @@ function Presentations({
       new Map(!scope || query.isError ? [] : (query.data?.map((row) => [row.subject, row]) ?? [])),
     [scope, query.isError, query.data],
   );
-  return <Context.Provider value={{ register, rows }}>{children}</Context.Provider>;
+  return (
+    <Context.Provider value={{ register, rows, resolved: query.isFetched }}>
+      {children}
+    </Context.Provider>
+  );
 }
 
 export function useAccountPresentation(subject: string | null | undefined) {
@@ -110,6 +116,12 @@ export function AccountSelectControl({
         ]
       : [];
   });
+  const context = useContext(Context);
+  const selectedIsAvailable = options.some((option) => option.value === props.value);
+  const { value, onValueChange, disabled } = props;
+  useEffect(() => {
+    if (context?.resolved && value && !disabled && !selectedIsAvailable) onValueChange("");
+  }, [context?.resolved, value, disabled, selectedIsAvailable, onValueChange]);
   return (
     <SelectControl
       {...props}
@@ -154,24 +166,6 @@ export function AccountRole({
   );
 }
 
-export function useNamedAccountOptions(options: readonly { value: string; label: string }[]) {
-  const people = useAccountPresentations(options.map((option) => option.value).filter(Boolean));
-  return options.flatMap((option) => {
-    if (!option.value) return [option];
-    const person = people.get(option.value);
-    return person?.available
-      ? [
-          {
-            ...option,
-            label: [person.name, person.roles.map((role) => role.label).join(", ")]
-              .filter(Boolean)
-              .join(" · "),
-          },
-        ]
-      : [];
-  });
-}
-
 export function FormAccountSelectField<T extends FieldValues>(props: {
   control: Control<T>;
   name: FieldPath<T>;
@@ -182,6 +176,30 @@ export function FormAccountSelectField<T extends FieldValues>(props: {
   emptyValue?: "" | null;
   onValueChange?: (value: string) => void;
 }) {
-  const options = useNamedAccountOptions(props.options);
-  return <FormSelectField {...props} options={options} />;
+  return (
+    <Controller
+      control={props.control}
+      name={props.name}
+      render={({ field, fieldState }) => (
+        <Field id={props.id} label={props.label} error={fieldState.error?.message}>
+          <AccountSelectControl
+            id={props.id}
+            name={field.name}
+            ref={field.ref}
+            onBlur={field.onBlur}
+            subjects={props.options.map((option) => option.value)}
+            emptyLabel={props.options.find((option) => option.value === "")?.label}
+            value={field.value ?? ""}
+            disabled={props.disabled}
+            aria-invalid={fieldState.invalid}
+            aria-describedby={fieldState.error ? `${props.id}-error` : undefined}
+            onValueChange={(value) => {
+              field.onChange(value === "" ? (props.emptyValue === null ? null : "") : value);
+              props.onValueChange?.(value);
+            }}
+          />
+        </Field>
+      )}
+    />
+  );
 }

@@ -1,6 +1,13 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts, accountText } from "../../../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "synthetic-reader": "QA Reader",
+    "synthetic-checker": "QA Checker",
+    "synthetic-maker": "QA Maker",
+    "synthetic-other": "QA Other",
+  });
 import { chooseOption } from "@/test/select";
 import {
   APPROVE,
@@ -91,8 +98,10 @@ it("shows approved coverage and a waiting proposal read-only to a reader", async
   ).toBeInTheDocument();
   expect(within(section).getByText("No approved coverage yet")).toBeInTheDocument();
   expect(
-    within(section).getByText(
-      "Waiting for approval · coverage 2026-04-01 with no end date · proposed by synthetic-maker",
+    await within(section).findByText(
+      accountText(
+        "Waiting for approval · coverage 2026-04-01 with no end date · proposed by QA Maker",
+      ),
     ),
   ).toBeInTheDocument();
   for (const name of [/^Add coverage/, /^Change coverage/, /^Review proposal/, /^Withdraw/])
@@ -339,7 +348,7 @@ it("lets a second manager approve after seeing the basis and what is in force", 
   expect(fact("Proposed coverage")).toBe("2026-02-01 to 2026-12-31");
   expect(fact("In force now")).toBe("2026-02-01 with no end date");
   expect(fact("Eligibility basis")).toBe("Synthetic resignation letter");
-  expect(fact("Proposed by")).toBe("synthetic-maker");
+  await waitFor(() => expect(fact("Proposed by")).toBe("QA Maker"));
   await user.click(within(form).getByRole("button", { name: "Approve coverage" }));
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0]!.method).toBe("POST");
@@ -445,8 +454,10 @@ it("lists an enrollment's proposals and decisions in its history", async () => {
     await within(history).findByText("Approved · v1 · coverage 2026-04-01 with no end date"),
   ).toBeInTheDocument();
   expect(
-    within(history).getByText(
-      "Synthetic declaration form · proposed by synthetic-maker · decided by synthetic-checker · “Synthetic certificate seen”",
+    await within(history).findByText(
+      accountText(
+        "Synthetic declaration form · proposed by QA Maker · decided by QA Checker · “Synthetic certificate seen”",
+      ),
     ),
   ).toBeInTheDocument();
 });

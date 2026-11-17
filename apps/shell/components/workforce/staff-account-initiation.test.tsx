@@ -1,6 +1,13 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts } from "../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "synthetic-owner": "QA Owner",
+    "synthetic-new-staff": "QA New Staff",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import { NavigationGuardProvider } from "@helivanta/ui";
 import { StaffLoginLinkPanel } from "../../app/(workspace)/workforce/login-link-panel";
 import { IndependentStaffLinks } from "./independent-staff-links";
@@ -94,8 +101,8 @@ it("retains uncertain creation and delivery commands and requires private setup 
   active = true;
   await user.click(screen.getByRole("button", { name: "Check recipient setup" }));
   expect(await screen.findByRole("button", { name: "Enroll staff member" })).toBeInTheDocument();
-  expect(screen.getByLabelText("Existing account ID")).toHaveValue("synthetic-new-staff");
-  expect(screen.getByLabelText("Existing account ID")).toBeDisabled();
+  expect(await screen.findByText("QA New Staff")).toBeInTheDocument();
+  expect(screen.queryByLabelText("Existing account ID")).not.toBeInTheDocument();
   await user.type(
     screen.getByLabelText("Enrollment reason"),
     "Verified recipient and first ordinary membership",
@@ -328,8 +335,8 @@ it.each(["hospital", "pharmacy"])(
     );
     await user.click(screen.getByLabelText("I understand this creates ordinary membership only."));
     await user.click(screen.getByRole("button", { name: "Enroll staff member" }));
-    expect(await screen.findByLabelText("Account ID")).toHaveValue("synthetic-new-staff");
-    expect(screen.getByLabelText("Account ID")).toBeDisabled();
+    expect(await screen.findByLabelText("Staff account")).toHaveTextContent("QA New Staff");
+    expect(screen.getByLabelText("Staff account")).toBeDisabled();
     expect(
       screen.getByRole("button", {
         name: kind === "hospital" ? "Submit proposal" : "Propose account link",

@@ -13,7 +13,7 @@ import {
   type LeaveRequestDetail,
   type LeaveRequestEvent,
 } from "@helivanta/api";
-import { ConfirmDialog, Field, useZodForm, RequestFailure } from "@helivanta/ui";
+import { AccountName, ConfirmDialog, Field, useZodForm, RequestFailure } from "@helivanta/ui";
 import { inputClass } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { describeLeave } from "./requests-workspace";
@@ -149,7 +149,8 @@ export function LeaveRequestReview({
                   {LEAVE_REQUEST_STATUSES[e.status]} · version {e.version}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {new Date(e.created_at).toLocaleString()} · by {e.actor_subject}
+                  {new Date(e.created_at).toLocaleString()} · by{" "}
+                  <AccountName subject={e.actor_subject} />
                   {e.note ? ` · ${e.note}` : ""}
                 </p>
               </li>

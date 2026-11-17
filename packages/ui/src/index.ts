@@ -8,7 +8,6 @@ export {
   useAccountPresentations,
   AccountSelectControl,
   FormAccountSelectField,
-  useNamedAccountOptions,
 } from "./account-identity";
 export {
   ZONES,

@@ -21,6 +21,7 @@ import {
   type SupplyReviewState,
 } from "@helivanta/api";
 import {
+  AccountName,
   Field,
   FormSelectField,
   LoadMore,
@@ -200,7 +201,8 @@ export function LicenceReview({ scope, licence, roles, onClose }: Props) {
                           {statusLabels[row.status]} · Decision {row.version}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {formatDateTime(row.created_at)} · {row.actor_subject} · Licence revision{" "}
+                          {formatDateTime(row.created_at)} ·{" "}
+                          <AccountName subject={row.actor_subject} /> · Licence revision{" "}
                           {row.license_version}
                         </p>
                         <p className="break-words text-sm">{row.reason}</p>

@@ -1,6 +1,14 @@
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts, accountText } from "../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "TEST-owner": "QA Owner",
+    "TEST OTHER DRIVER": "QA TEST OTHER DRIVER",
+    "TEST-driver": "QA Driver",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import { NavigationGuardProvider } from "@helivanta/ui";
 import { OrganisationOperations } from "./organisation-operations";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
@@ -122,7 +130,9 @@ it("uses assigned delivery projection and retries the exact versioned driver com
   await user.click(await screen.findByRole("button", { name: "My deliveries TEST-WAREHOUSE" }));
   await user.click(await screen.findByRole("button", { name: "start TEST-DELIVERY" }));
   expect(screen.queryByRole("button", { name: "deliver TEST-DELIVERY" })).not.toBeInTheDocument();
-  expect(screen.queryByText(/TEST PRIVATE SOURCE|TEST OTHER DRIVER/)).not.toBeInTheDocument();
+  expect(
+    screen.queryByText(accountText(/TEST PRIVATE SOURCE|QA TEST OTHER DRIVER/)),
+  ).not.toBeInTheDocument();
   await user.type(
     screen.getByLabelText("Handoff or exception note"),
     "TEST accepted sealed packages",
@@ -297,7 +307,7 @@ it.each(["administrator", "auditor"])(
     expect(await screen.findByText("Archived · Read-only")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "View deliveries TEST-WAREHOUSE" }));
     await user.click(await screen.findByRole("button", { name: "History delivery TEST-DELIVERY" }));
-    expect(await screen.findByText(/Actor TEST-driver/)).toBeInTheDocument();
+    expect(await screen.findByText(accountText(/Actor QA Driver/))).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Schedule delivery task" }),
     ).not.toBeInTheDocument();

@@ -14,7 +14,7 @@ import {
   type RosterSettings,
   type RosterSettingsInput,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
+import { AccountName, Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
 import { ReviewBox, inputClass, today, weekdayOptions } from "./policy-ui";
 
 export function SettingsPanel({ hospital, writable }: { hospital: Hospital; writable: boolean }) {
@@ -256,7 +256,8 @@ function SettingsHistory({
               </p>
               <p className="mt-1 text-muted-foreground">
                 {r.timezone} · week starts {WEEKDAYS[r.week_start]} ·{" "}
-                {ROSTER_AUTO_POPULATION[r.auto_population]} · reviewed by {r.reviewed_by_subject}
+                {ROSTER_AUTO_POPULATION[r.auto_population]} · reviewed by{" "}
+                <AccountName subject={r.reviewed_by_subject} />
               </p>
             </li>
           ))}

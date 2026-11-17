@@ -1,7 +1,15 @@
 import "@/test/select";
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts, accountText } from "../../../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "synthetic-manager": "QA Manager",
+    "synthetic-recorder": "QA Recorder",
+    "synthetic-lead": "QA Lead",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import { chooseOption } from "@/test/select";
 import Attendance from "./page";
 
@@ -271,7 +279,7 @@ it("lists every punch hospital-wide with void state and bounds the range", async
   const row = (await within(report).findByText("Synthetic Nurse · SYN-001")).closest("tr")!;
   expect(within(row).getByText("Nurse")).toBeInTheDocument();
   expect(within(row).getByText("08:05")).toBeInTheDocument();
-  expect(within(row).getByText(/^Voided by synthetic-lead/)).toBeInTheDocument();
+  expect(await within(row).findByText(accountText(/^Voided by QA Lead/))).toBeInTheDocument();
   await chooseOption(
     user,
     within(report).getByRole("combobox", { name: "Staff member" }),

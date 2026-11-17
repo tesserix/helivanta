@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@tesserix/web";
 import {
+  AccountName,
   Field,
   Panel,
   RequestFailure,
@@ -274,7 +275,7 @@ function HospitalAssignmentWorkspace({
                       (template) => template.key === item.input.template_key,
                     )?.name
                   }{" "}
-                  · {item.input.subject}
+                  · <AccountName subject={item.input.subject} />
                 </h3>
                 <p>
                   {item.status.replaceAll("_", " ")} · Version {item.version}
@@ -400,8 +401,12 @@ function AssignmentReview({
       ) : (
         <p>Current account identity is unavailable.</p>
       )}
-      <p className="text-sm text-muted-foreground">Account reference: {item.input.subject}</p>
-      <p>Proposed by: {item.proposed_by}</p>
+      <p className="text-sm text-muted-foreground">
+        Account reference: <AccountName subject={item.input.subject} />
+      </p>
+      <p>
+        Proposed by: <AccountName subject={item.proposed_by} />
+      </p>
       <p>{item.input.reason}</p>
       <p>
         {item.status.replaceAll("_", " ")} · Version {item.version}
@@ -522,7 +527,8 @@ function AssignmentHistory({
         .flatMap((page) => page.data)
         .map((row) => (
           <p key={row.id}>
-            {row.actor_subject} · {row.decision} · {row.reason} · Version {row.result_version}
+            <AccountName subject={row.actor_subject} /> · {row.decision} · {row.reason} · Version{" "}
+            {row.result_version}
           </p>
         ))}
       {decisions.hasNextPage && (

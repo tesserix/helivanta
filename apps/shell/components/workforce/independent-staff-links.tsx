@@ -1,4 +1,6 @@
 "use client";
+
+import { Controller } from "@helivanta/ui";
 import { useId, useState } from "react";
 import { Button, Input } from "@tesserix/web";
 import {
@@ -17,7 +19,14 @@ import {
   type IndependentLinkDecisionInput,
   type IndependentLinkView,
 } from "@helivanta/api";
-import { Field, Panel, RequestFailure, useZodForm } from "@helivanta/ui";
+import {
+  AccountName,
+  MemberAccountSelect,
+  Field,
+  Panel,
+  RequestFailure,
+  useZodForm,
+} from "@helivanta/ui";
 
 import { StaffAccountInitiation } from "./staff-account-initiation";
 
@@ -195,13 +204,21 @@ function Propose({
           <fieldset disabled={pending !== null || busy} className="grid gap-4 sm:grid-cols-2">
             <Field
               id={`${id}-account`}
-              label="Account ID"
+              label="Staff account"
               error={form.formState.errors.subject?.message}
             >
-              <Input
-                id={`${id}-account`}
-                disabled={!!initialSubject}
-                {...form.register("subject")}
+              <Controller
+                control={form.control}
+                name="subject"
+                render={({ field, fieldState }) => (
+                  <MemberAccountSelect
+                    id={`${id}-account`}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    aria-invalid={fieldState.invalid}
+                    disabled={pending !== null || busy || !!initialSubject}
+                  />
+                )}
               />
             </Field>
             <Field
@@ -293,7 +310,10 @@ function AccountLink({
   return (
     <Panel as="div" className="space-y-3">
       <p>
-        <span className="font-medium">{row.link.subject}</span> · {row.link.status}
+        <span className="font-medium">
+          <AccountName subject={row.link.subject} />
+        </span>{" "}
+        · {row.link.status}
       </p>
       {row.staff_version !== staffVersion && (
         <p>Staff details changed. A new identity review is required before assigning duties.</p>
@@ -301,7 +321,7 @@ function AccountLink({
       {notice && <p role="status">{notice}</p>}
       {decisions.length > 0 && (
         <fieldset disabled={pending !== null || busy} className="space-y-3">
-          <Field id={id} label={`Decision reason for ${row.link.subject}`}>
+          <Field id={id} label="Account link decision reason">
             <Input id={id} value={reason} onChange={(event) => setReason(event.target.value)} />
           </Field>
           <div className="flex flex-wrap gap-2">

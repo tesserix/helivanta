@@ -1,6 +1,9 @@
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts } from "../../test/account-names";
+import { chooseOption } from "../../test/select";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, { "user-doctor": "QA Doctor", "user-admin": "QA Administrator" });
 import { EmergencyTransportReviewPanel, EmergencyClinicalAdmin } from "./emergency-review";
 
 const base = "0199abc0-0000-7000-8000-000000000001";
@@ -123,9 +126,10 @@ it("loads current verification before submitting a versioned privilege change", 
     }),
   );
   const { user } = renderWithProviders(<EmergencyClinicalAdmin base={base} />);
-  await user.type(
-    await screen.findByLabelText("Clinical reviewer identity subject"),
-    "user-doctor",
+  await chooseOption(
+    user,
+    await screen.findByLabelText("Clinical reviewer"),
+    "QA Doctor · Staff member",
   );
   await user.click(screen.getByRole("button", { name: "Load clinical review access" }));
   await user.type(
@@ -163,9 +167,10 @@ it("can revoke its own access using the original expiry instant", async () => {
     }),
   );
   const { user } = renderWithProviders(<EmergencyClinicalAdmin base={base} />);
-  await user.type(
-    await screen.findByLabelText("Clinical reviewer identity subject"),
-    grant.subject,
+  await chooseOption(
+    user,
+    await screen.findByLabelText("Clinical reviewer"),
+    "QA Doctor · Staff member",
   );
   await user.click(screen.getByRole("button", { name: "Load clinical review access" }));
   await user.click(await screen.findByRole("button", { name: "Revoke clinical review access" }));
@@ -190,9 +195,10 @@ it("shows refused clinical review access as a refusal, without the server's text
     ),
   );
   const { user } = renderWithProviders(<EmergencyClinicalAdmin base={base} />);
-  await user.type(
-    await screen.findByLabelText("Clinical reviewer identity subject"),
-    "user-doctor",
+  await chooseOption(
+    user,
+    await screen.findByLabelText("Clinical reviewer"),
+    "QA Doctor · Staff member",
   );
   await user.click(screen.getByRole("button", { name: "Load clinical review access" }));
   expect(await screen.findByRole("alert")).toHaveTextContent(

@@ -27,6 +27,7 @@ import {
   type SupplyLicenseInput,
 } from "@helivanta/api";
 import {
+  AccountName,
   Field,
   FormSelectField,
   LoadMore,
@@ -828,7 +829,7 @@ function RegistryHistory({
                 </div>
               )}
               <p className="mt-1 break-words text-xs text-muted-foreground">
-                {formatDateTime(row.created_at)} · {row.actor_subject}
+                {formatDateTime(row.created_at)} · <AccountName subject={row.actor_subject} />
               </p>
             </li>
           ))}

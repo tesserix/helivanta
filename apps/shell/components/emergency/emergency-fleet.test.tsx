@@ -1,6 +1,19 @@
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts } from "../../test/account-names";
+import { chooseOption } from "../../test/select";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(
+    ui,
+    {
+      "user-driver": "QA Driver",
+      "user-medic": "QA Medic",
+      "SYN-CREW-SUBJECT": "QA Crew",
+      "SYN-DUTY-DRIVER": "Assigned QA Driver",
+      "SYN-DUTY-CLINICIAN": "Assigned QA Clinician",
+    },
+    ["user-driver", "user-medic"],
+  );
 import { EmergencyFleet } from "./emergency-fleet";
 
 const base = "0199abc0-0000-7000-8000-000000000001";
@@ -123,13 +136,13 @@ it("can verify a second person without overwriting the first credential", async 
   );
   const { user } = renderWithProviders(<EmergencyFleet base={base} level="supervisor" />);
   await user.click(await screen.findByText("Verify crew credentials"));
-  await user.type(screen.getByLabelText("Crew identity subject"), "user-driver");
+  await chooseOption(user, await screen.findByLabelText("Crew member"), "QA Driver · Staff member");
   await user.type(screen.getByLabelText("Credential valid until"), "2026-10-20T12:00");
   await user.type(screen.getByLabelText("Credential evidence reference"), "SYN-CRED-1");
   await user.click(screen.getByRole("button", { name: "Save credential" }));
   await waitFor(() => expect(paths).toHaveLength(1));
   await user.click(screen.getByRole("button", { name: "Verify another person" }));
-  await user.type(screen.getByLabelText("Crew identity subject"), "user-medic");
+  await chooseOption(user, await screen.findByLabelText("Crew member"), "QA Medic · Staff member");
   await user.type(screen.getByLabelText("Credential valid until"), "2026-10-20T12:00");
   await user.type(screen.getByLabelText("Credential evidence reference"), "SYN-CRED-2");
   await user.click(screen.getByRole("button", { name: "Save credential" }));
@@ -180,8 +193,8 @@ it("drops the refused fleet from every form once access is withdrawn", async () 
   const { user } = renderWithProviders(<EmergencyFleet base={base} level="supervisor" />);
   await user.click(await screen.findByRole("button", { name: "Configure SYN-ALS-1" }));
   expect(screen.getByDisplayValue("SYN-ALS-1")).toBeInTheDocument();
-  expect(screen.getAllByText(/SYN-CREW-SUBJECT/).length).toBeGreaterThan(0);
-  expect(screen.getAllByText(/SYN-DUTY-DRIVER/).length).toBeGreaterThan(0);
+  expect(screen.getAllByText(/QA Crew/).length).toBeGreaterThan(0);
+  expect(screen.getAllByText(/Assigned QA Driver/).length).toBeGreaterThan(0);
   refused = true;
   // A background re-read (window focus), not the Refresh button, brings the refusal.
   window.dispatchEvent(new Event("visibilitychange"));
@@ -190,7 +203,7 @@ it("drops the refused fleet from every form once access is withdrawn", async () 
   ).not.toHaveLength(0);
   expect(screen.queryByDisplayValue("SYN-ALS-1")).not.toBeInTheDocument();
   expect(screen.queryAllByText(/SYN-ALS-1/)).toHaveLength(0);
-  expect(screen.queryAllByText(/SYN-CREW-SUBJECT/)).toHaveLength(0);
-  expect(screen.queryAllByText(/SYN-DUTY-DRIVER/)).toHaveLength(0);
+  expect(screen.queryAllByText(/QA Crew/)).toHaveLength(0);
+  expect(screen.queryAllByText(/Assigned QA Driver/)).toHaveLength(0);
   expect(screen.queryByText(/secret detail/)).not.toBeInTheDocument();
 });

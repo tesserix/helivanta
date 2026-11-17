@@ -1,7 +1,15 @@
 import { useState } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts, accountText } from "../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "synthetic-owner": "QA Owner",
+    "synthetic-reviewer": "QA Reviewer",
+    "another-owner": "QA Another Owner",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import { GovernanceInbox } from "./governance-inbox";
 
 const tenant = "11111111-1111-4111-8111-111111111111";
@@ -55,7 +63,7 @@ it("opens the current grant separately from its historical owner notice", async 
   const { user } = renderWithProviders(<GovernanceInbox scope={scope} />);
   await user.click(await screen.findByRole("button", { name: "View current grant" }));
   expect(await screen.findByText("Revoked")).toBeInTheDocument();
-  expect(screen.getByText("synthetic-reviewer")).toBeInTheDocument();
+  expect(await screen.findByText(accountText("QA Reviewer"))).toBeInTheDocument();
   expect(screen.getByText(/Notice recorded for grant version 1/)).toBeInTheDocument();
   expect(screen.getByText(/Current version 3/)).toBeInTheDocument();
   expect(requests.some((url) => url.endsWith("/iam/governance-grants/" + grant))).toBe(true);

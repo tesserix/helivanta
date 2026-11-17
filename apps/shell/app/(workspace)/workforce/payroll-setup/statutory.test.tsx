@@ -1,7 +1,14 @@
 import "@/test/select";
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts, accountText } from "../../../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "user-maker": "QA Maker",
+    "user-approver": "QA Approver",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import { chooseOption } from "@/test/select";
 import PayrollSetup from "./page";
 
@@ -276,7 +283,7 @@ it("lets a second person approve and requires a note to reject", async () => {
   });
   const { user } = renderWithProviders(<PayrollSetup />);
   const section = await panel();
-  expect(await within(section).findByText(/proposed by user-maker/)).toBeInTheDocument();
+  expect(await within(section).findByText(accountText(/proposed by QA Maker/))).toBeInTheDocument();
   expect(within(section).queryByRole("button", { name: /Propose Provident Fund/ })).toBeNull();
   await user.click(within(section).getByRole("button", { name: "Review Provident Fund proposal" }));
   const form = within(section).getByRole("form", { name: "Decide proposal" });
@@ -340,7 +347,7 @@ it("lists every revision with its decision in history", async () => {
   expect(items).toHaveLength(2);
   expect(items[0]).toHaveTextContent("Awaiting approval · effective 2026-10-01");
   expect(items[1]).toHaveTextContent("Approved · v1 · effective 2026-04-01");
-  expect(items[1]).toHaveTextContent("decided by user-approver");
+  await waitFor(() => expect(items[1]).toHaveTextContent("decided by QA Approver"));
 });
 
 it("previews contributions for a structure without storing anything", async () => {

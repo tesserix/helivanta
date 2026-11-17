@@ -1,7 +1,14 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts } from "../../test/account-names";
+import { chooseOption } from "../../test/select";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "TEST-target": "QA Staff",
+    "TEST-owner": "QA Owner",
+    "TEST-reviewer": "QA Reviewer",
+  });
 import { IndependentStaffLinks } from "./independent-staff-links";
 const scope = {
   tenantId: "11111111-1111-4111-8111-111111111111",
@@ -69,14 +76,19 @@ it("recovers a lost proposal response with one write and frozen account details"
   );
   renderWithProviders(<IndependentStaffLinks scope={scope} staffVersion={1} canManage canReview />);
   const user = userEvent.setup();
-  await user.type(await screen.findByLabelText("Account ID"), "TEST-target");
+  await chooseOption(
+    user,
+    await screen.findByLabelText("Staff account"),
+    "QA Staff · Staff member",
+  );
   await user.type(screen.getByLabelText("Account link reason"), "TEST checked identity");
   await user.click(screen.getByRole("button", { name: "Propose account link" }));
   await screen.findByRole("button", { name: "Recover account proposal" });
-  expect(screen.getByLabelText("Account ID")).toBeDisabled();
-  await screen.findByText("TEST-target", {}, { timeout: 5000 });
+  expect(screen.getByLabelText("Staff account")).toBeDisabled();
+  window.dispatchEvent(new Event("visibilitychange"));
+  await screen.findByText("QA Staff", {}, { timeout: 5000 });
   expect(screen.getByRole("button", { name: "Recover account proposal" })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Revoke account link" })).toBeDisabled();
+  expect(await screen.findByRole("button", { name: "Revoke account link" })).toBeDisabled();
   await user.click(screen.getByRole("button", { name: "Recover account proposal" }));
   await screen.findByText("Account proposal recorded. Independent review is required.");
   await waitFor(() => expect(writes).toBe(1));
@@ -137,7 +149,7 @@ it("recovers an independently approved link without submitting a second decision
   renderWithProviders(<IndependentStaffLinks scope={scope} staffVersion={1} canManage canReview />);
   const user = userEvent.setup();
   await user.type(
-    await screen.findByLabelText("Decision reason for TEST-target"),
+    await screen.findByLabelText("Account link decision reason"),
     "TEST independent review",
   );
   await user.click(screen.getByRole("button", { name: "Approve account link" }));

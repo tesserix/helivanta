@@ -14,7 +14,7 @@ import {
   type TaxRegimeInput,
   type TaxRegimeRevision,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
+import { AccountName, Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
 import { inputClass, today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { RevisionHistory } from "./payroll-workspace";
@@ -149,7 +149,7 @@ export function TaxRegimes({
                 v{r.version} · {TAX_REGIMES[r.regime]} · intimated {r.intimated_on}
               </p>
               <p className="mt-1 text-muted-foreground">
-                Recorded by {r.recorded_by_subject}
+                Recorded by <AccountName subject={r.recorded_by_subject} />
                 {r.note && ` · “${r.note}”`}
               </p>
             </>

@@ -1,4 +1,6 @@
 "use client";
+
+import { Controller, MemberAccountSelect } from "@helivanta/ui";
 import { useMemo, useState } from "react";
 import { Badge, Button } from "@tesserix/web";
 import {
@@ -144,12 +146,18 @@ function HandOver({ hospital, shift }: { hospital: Hospital; shift: CashShift })
     );
   return (
     <div className="space-y-2">
-      <Field
-        id="handover-to"
-        label="Incoming cashier's user ID"
-        error={form.formState.errors.to?.message}
-      >
-        <input id="handover-to" className={`${inputClass} w-72`} {...form.register("to")} />
+      <Field id="handover-to" label="Incoming cashier" error={form.formState.errors.to?.message}>
+        <Controller
+          control={form.control}
+          name="to"
+          render={({ field }) => (
+            <MemberAccountSelect
+              id="handover-to"
+              value={field.value}
+              onValueChange={field.onChange}
+            />
+          )}
+        />
       </Field>
       <CountForm
         hospital={hospital}

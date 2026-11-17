@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import {
+  AccountName,
   Field,
   Panel,
   LoadMore,
@@ -73,8 +74,8 @@ export function StaffMembershipForm({
       {save.isSuccess ? (
         <>
           <p role="status">
-            Membership recorded for {submitted?.input.subject}. Membership ID:{" "}
-            {save.data.membership_id}. Receipt: {save.data.id}.
+            Membership recorded for <AccountName subject={submitted?.input.subject} />. Membership
+            ID: {save.data.membership_id}. Receipt: {save.data.id}.
           </p>
           <p>
             Access synchronization may still be pending. This does not activate hospital access or
@@ -93,6 +94,10 @@ export function StaffMembershipForm({
             </Button>
           )}
         </>
+      ) : !initialSubject ? (
+        <p role="status">
+          Start with verified Staff account setup to select the account for enrollment.
+        </p>
       ) : (
         <form
           aria-label="Staff membership enrollment"
@@ -108,22 +113,13 @@ export function StaffMembershipForm({
           })}
         >
           <div className="grid gap-4 md:grid-cols-2">
-            <Field
-              id={`${prefix}-membership-subject`}
-              label="Existing account ID"
-              error={form.formState.errors.subject?.message}
-            >
-              <Input
-                id={`${prefix}-membership-subject`}
-                autoComplete="off"
-                disabled={submitted !== null || !!initialSubject}
-                aria-invalid={!!form.formState.errors.subject}
-                aria-describedby={
-                  form.formState.errors.subject ? `${prefix}-membership-subject-error` : undefined
-                }
-                {...form.register("subject")}
-              />
-            </Field>
+            <div>
+              <p className="text-sm font-medium">Staff account</p>
+              <p>
+                <AccountName subject={initialSubject} />
+              </p>
+              <input type="hidden" {...form.register("subject")} />
+            </div>
             <Field
               id={`${prefix}-membership-enrollment-reason`}
               label="Enrollment reason"
@@ -142,10 +138,6 @@ export function StaffMembershipForm({
               />
             </Field>
           </div>
-          <p>
-            Use the identity provider’s user ID. An email address or staff record ID is not a
-            substitute.
-          </p>
           <Field
             id={`${prefix}-membership-acknowledged`}
             label="I understand this creates ordinary membership only."
@@ -212,10 +204,13 @@ function EnrollmentHistory({ scope }: { scope: StaffAssignmentScope }) {
               .flatMap((page) => page.data)
               .map((row) => (
                 <article key={row.id} className="space-y-2 rounded-md border p-4">
-                  <p className="break-words font-medium">{row.subject} · Ordinary membership</p>
+                  <p className="break-words font-medium">
+                    <AccountName subject={row.subject} /> · Ordinary membership
+                  </p>
                   <p className="whitespace-pre-wrap break-words">{row.reason}</p>
                   <p className="break-words text-sm">
-                    By {row.actor_subject} · {formatDateTime(row.created_at)}
+                    By <AccountName subject={row.actor_subject} /> ·{" "}
+                    {formatDateTime(row.created_at)}
                   </p>
                   <p className="break-words text-sm">
                     Receipt {row.id} · Membership {row.membership_id}

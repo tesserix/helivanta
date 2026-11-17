@@ -20,7 +20,15 @@ import {
   type TaxInvoice,
   type TaxInvoiceLine,
 } from "@helivanta/api";
-import { Field, LoadMore, Panel, RequestFailure, formatDateTime, useZodForm } from "@helivanta/ui";
+import {
+  AccountName,
+  Field,
+  LoadMore,
+  Panel,
+  RequestFailure,
+  formatDateTime,
+  useZodForm,
+} from "@helivanta/ui";
 import { formatPharmacyMoney } from "../pharmacy/currency-amount-field";
 
 const money = (minor: number) => formatPharmacyMoney(minor, "INR");
@@ -390,7 +398,8 @@ function DocumentDetail({
       </p>
       <p className="text-xs text-muted-foreground">
         {doc.supplier_name}, {doc.supplier_address} · GSTIN {doc.gstin} · Place of supply: state{" "}
-        {doc.state_code} · Issued {formatDateTime(doc.issued_at)} by {doc.issued_by}
+        {doc.state_code} · Issued {formatDateTime(doc.issued_at)} by{" "}
+        <AccountName subject={doc.issued_by} />
       </p>
       <p className="text-xs text-muted-foreground">
         To {doc.recipient_name}, {doc.recipient_address}

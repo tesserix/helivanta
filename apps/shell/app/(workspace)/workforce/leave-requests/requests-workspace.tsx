@@ -11,7 +11,7 @@ import {
   type Hospital,
   type LeaveRequest,
 } from "@helivanta/api";
-import { Field, PageHeading, SelectControl, RequestFailure } from "@helivanta/ui";
+import { AccountName, Field, PageHeading, SelectControl, RequestFailure } from "@helivanta/ui";
 
 import { LeaveRequestForm } from "./request-form";
 import { LeaveRequestReview } from "./request-review";
@@ -161,8 +161,13 @@ function RequestBoard({ hospital }: { hospital: Hospital }) {
                   {r.name} ({r.code}) · {describeLeave(r)}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {LEAVE_REQUEST_STATUSES[r.status]} · filed by {r.requested_by_subject}
-                  {r.decided_by_subject ? ` · decided by ${r.decided_by_subject}` : ""}
+                  {LEAVE_REQUEST_STATUSES[r.status]} · filed by{" "}
+                  <AccountName subject={r.requested_by_subject} />
+                  <AccountName subject={r.decided_by_subject}>
+                    {(presentedAccountName0) => (
+                      <>{r.decided_by_subject ? ` · decided by ${presentedAccountName0}` : ""}</>
+                    )}
+                  </AccountName>
                 </p>
               </div>
               <Button

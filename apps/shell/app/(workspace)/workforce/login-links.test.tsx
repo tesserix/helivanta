@@ -1,7 +1,17 @@
+import { chooseOption } from "../../../test/select";
 import { afterEach, expect, it, vi } from "vitest";
 import { useState } from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts, accountText } from "../../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    candidate: "QA Candidate",
+    proposer: "QA Proposer",
+    reviewer: "QA Reviewer",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+    "private-draft": "QA Draft",
+  });
 import type { Hospital, Staff } from "@helivanta/api";
 import { StaffLoginLinkPanel } from "./login-link-panel";
 
@@ -64,7 +74,11 @@ it("keeps the proposal ID and body after an ambiguous failure", async () => {
     <StaffLoginLinkPanel hospital={hospital} staff={staff} onClose={() => {}} />,
   );
   await user.click(await screen.findByRole("button", { name: "Propose account link" }));
-  await user.type(screen.getByLabelText("Account ID"), "candidate");
+  await chooseOption(
+    user,
+    await screen.findByLabelText("Staff account"),
+    "QA Candidate · Staff member",
+  );
   await user.type(screen.getByLabelText("Reason"), "Verified synthetic account");
   await user.click(screen.getByRole("button", { name: "Submit proposal" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("may have been saved");
@@ -72,7 +86,7 @@ it("keeps the proposal ID and body after an ambiguous failure", async () => {
   await waitFor(() => expect(writes).toHaveLength(2));
   expect(writes[0]).toEqual(writes[1]);
   expect(writes[0]?.tenant).toBe(tenant);
-  expect(screen.getByLabelText("Account ID")).toBeDisabled();
+  expect(screen.getByLabelText("Staff account")).toBeDisabled();
 });
 
 it.each(["proposer", "candidate"])("hides independent review from %s", async (subject) => {
@@ -85,7 +99,7 @@ it.each(["proposer", "candidate"])("hides independent review from %s", async (su
     ),
   );
   renderWithProviders(<StaffLoginLinkPanel hospital={hospital} staff={staff} onClose={() => {}} />);
-  expect(await screen.findByText("candidate")).toBeInTheDocument();
+  expect(await screen.findByText(accountText("QA Candidate"))).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
 });
@@ -147,9 +161,13 @@ it("clears a draft when the staff scope changes", async () => {
   }
   const { user } = renderWithProviders(<SwitchStaff />);
   await user.click(await screen.findByRole("button", { name: "Propose account link" }));
-  await user.type(screen.getByLabelText("Account ID"), "private-draft");
+  await chooseOption(
+    user,
+    await screen.findByLabelText("Staff account"),
+    "QA Draft · Staff member",
+  );
   await user.click(screen.getByRole("button", { name: "Change staff" }));
-  expect(screen.queryByDisplayValue("private-draft")).not.toBeInTheDocument();
+  expect(screen.queryByText("QA Draft · Staff member")).not.toBeInTheDocument();
 });
 
 it("shows an API failure instead of a false empty account state", async () => {
@@ -198,9 +216,13 @@ it("loads private history and follows its cursor", async () => {
     <StaffLoginLinkPanel hospital={hospital} staff={staff} onClose={() => {}} />,
   );
   await user.click(await screen.findByRole("button", { name: "History" }));
-  expect(await screen.findByText("reviewer: Independent check")).toBeInTheDocument();
+  expect(
+    await screen.findByText(accountText("QA Reviewer: Independent check")),
+  ).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Load more" }));
-  expect(await screen.findByText("proposer: Original verification")).toBeInTheDocument();
+  expect(
+    await screen.findByText(accountText("QA Proposer: Original verification")),
+  ).toBeInTheDocument();
   expect(calls.some((url) => url.endsWith("/history?limit=50&cursor=opaque%2B%2F%3D"))).toBe(true);
 });
 
@@ -219,12 +241,12 @@ it("withdraws loaded account links once a refreshed read is refused", async () =
   const { user } = renderWithProviders(
     <StaffLoginLinkPanel hospital={hospital} staff={staff} onClose={() => {}} />,
   );
-  expect(await screen.findByText(/candidate/)).toBeInTheDocument();
+  expect(await screen.findByText(accountText(/QA Candidate/))).toBeInTheDocument();
   refused = true;
   await user.click(screen.getByRole("button", { name: "Refresh links" }));
   expect(
     await screen.findByText("This wasn't found, or you don't have access to it."),
   ).toBeInTheDocument();
-  expect(screen.queryByText(/candidate/)).not.toBeInTheDocument();
+  expect(screen.queryByText(accountText(/QA Candidate/))).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /try again|refresh links/i })).toBeNull();
 });

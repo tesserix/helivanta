@@ -12,7 +12,14 @@ import {
   type StaffRosterAssignment,
   type StaffRosterAssignmentInput,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm, firstError, RequestFailure } from "@helivanta/ui";
+import {
+  AccountName,
+  Field,
+  SelectControl,
+  useZodForm,
+  firstError,
+  RequestFailure,
+} from "@helivanta/ui";
 import { ReviewBox, inputClass, today } from "./policy-ui";
 
 export function AssignmentsPanel({
@@ -394,7 +401,7 @@ function AssignmentHistory({
               </p>
               <p className="mt-1 text-muted-foreground">
                 {r.fixed ? "Fixed shift" : "Flexible"} · {r.active ? "Active" : "Ended"} · effective{" "}
-                {r.effective_on} · reviewed by {r.reviewed_by_subject}
+                {r.effective_on} · reviewed by <AccountName subject={r.reviewed_by_subject} />
               </p>
             </li>
           ))}

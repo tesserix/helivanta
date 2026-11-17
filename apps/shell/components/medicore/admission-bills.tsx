@@ -12,7 +12,7 @@ import {
   type InterimBill,
   type InterimBillLine,
 } from "@helivanta/api";
-import { LoadMore, RequestFailure, formatDateTime } from "@helivanta/ui";
+import { AccountName, LoadMore, RequestFailure, formatDateTime } from "@helivanta/ui";
 import { formatPharmacyMoney } from "../pharmacy/currency-amount-field";
 import { CashPayments } from "./cash-payments";
 import { TaxInvoices } from "./gst";
@@ -155,8 +155,9 @@ function BillDetail({ path, open }: { path: string; open: boolean }) {
         {kindLabel[b.kind]} {b.number} — not a tax invoice
       </p>
       <p className="text-xs text-muted-foreground">
-        Issued {formatDateTime(b.issued_at)} by {b.issued_by}. Medicine is billed on the pharmacy's
-        GST invoice; bed days are before tax, and GST on a room, where it applies, is its own line.
+        Issued {formatDateTime(b.issued_at)} by <AccountName subject={b.issued_by} />. Medicine is
+        billed on the pharmacy's GST invoice; bed days are before tax, and GST on a room, where it
+        applies, is its own line.
       </p>
       {b.kind === "final" && open && (
         // Before the patient leaves, a midnight still in the bed is a bed day this

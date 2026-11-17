@@ -1,7 +1,13 @@
 import "@/test/select";
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts, accountText } from "../../../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "synthetic-retirer": "QA Retirer",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import { chooseOption } from "@/test/select";
 import {
   childMaster,
@@ -208,7 +214,9 @@ it("lists a plan's revisions with who changed each one", async () => {
   expect(
     await within(history).findByText("v3 · Retired · effective 2026-01-01 to 2026-06-30"),
   ).toBeInTheDocument();
-  expect(within(history).getByText(/changed by synthetic-retirer/)).toBeInTheDocument();
+  expect(
+    await within(history).findByText(accountText(/changed by QA Retirer/)),
+  ).toBeInTheDocument();
   expect(
     within(history).getByText("v1 · Active · effective 2026-01-01 with no end date"),
   ).toBeInTheDocument();

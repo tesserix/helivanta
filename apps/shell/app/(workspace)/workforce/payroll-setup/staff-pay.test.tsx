@@ -1,7 +1,14 @@
 import "@/test/select";
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts, accountText } from "../../../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "user-maker": "QA Maker",
+    "user-approver": "QA Approver",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import { chooseOption } from "@/test/select";
 import PayrollSetup from "./page";
 
@@ -233,7 +240,7 @@ it("lets a second person approve and requires a note to reject", async () => {
   expect(
     await within(section).findByText("Synthetic Nurse Pay · Basic ₹25,000.00"),
   ).toBeInTheDocument();
-  expect(within(section).getByText(/proposed by user-maker/)).toBeInTheDocument();
+  expect(await within(section).findByText(accountText(/proposed by QA Maker/))).toBeInTheDocument();
   expect(within(section).queryByRole("button", { name: /Propose pay/ })).toBeNull();
   await user.click(within(section).getByRole("button", { name: "Review proposal" }));
   const form = within(section).getByRole("form", { name: "Decide pay proposal" });

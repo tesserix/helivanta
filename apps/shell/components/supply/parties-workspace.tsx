@@ -18,6 +18,7 @@ import {
   type SupplyPartyRevision,
 } from "@helivanta/api";
 import {
+  AccountName,
   Field,
   formatDateTime,
   LoadMore,
@@ -567,7 +568,8 @@ function PartyHistory({ scope, id }: { scope: SupplyScope; id: string }) {
               Version {revision.version} · {revision.snapshot.legal_name}
             </p>
             <p className="mt-1 break-words text-xs text-muted-foreground">
-              {formatDateTime(revision.created_at)} · {revision.actor_subject}
+              {formatDateTime(revision.created_at)} ·{" "}
+              <AccountName subject={revision.actor_subject} />
             </p>
           </li>
         ))}

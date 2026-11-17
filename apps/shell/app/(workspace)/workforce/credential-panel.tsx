@@ -32,7 +32,14 @@ import {
   type StaffCredential,
   type StaffCredentials,
 } from "@helivanta/api";
-import { Field, LoadMore, formatDateTime, useZodForm, RequestFailure } from "@helivanta/ui";
+import {
+  AccountName,
+  Field,
+  LoadMore,
+  formatDateTime,
+  useZodForm,
+  RequestFailure,
+} from "@helivanta/ui";
 import { inputClass } from "./roster-policy/policy-ui";
 
 type View = { kind: "propose" | "decide" | "withdraw" | "history"; credential: StaffCredential };
@@ -191,7 +198,12 @@ export function StaffCredentialPanel({
                         {pending && (
                           <p className="text-xs text-muted-foreground">
                             Proposed {pending.number} · {pending.valid_from} to{" "}
-                            {pending.valid_until} by {mine ? "you" : pending.proposed_by_subject}
+                            {pending.valid_until} by{" "}
+                            <AccountName subject={pending.proposed_by_subject}>
+                              {(presentedAccountName0) => (
+                                <>{mine ? "you" : presentedAccountName0}</>
+                              )}
+                            </AccountName>
                           </p>
                         )}
                         <div className="flex flex-wrap gap-2">
@@ -535,7 +547,7 @@ function Proposal({ review, current }: { review: CredentialReview; current: Staf
       <div>
         <dt className="text-xs text-muted-foreground">Proposed by</dt>
         <dd>
-          {review.proposed_by_subject} · {formatDateTime(review.created_at)}
+          <AccountName subject={review.proposed_by_subject} /> · {formatDateTime(review.created_at)}
         </dd>
       </div>
       <div>
@@ -715,9 +727,16 @@ function History({
                 {reviewStates[row.status]} · {row.number} · {row.valid_from} to {row.valid_until}
               </p>
               <p className="text-xs text-muted-foreground">
-                Proposed by {row.proposed_by_subject} · {formatDateTime(row.created_at)}
-                {row.decided_by_subject &&
-                  ` · ${row.status === "withdrawn" ? "Withdrawn" : "Decided"} by ${row.decided_by_subject}`}
+                Proposed by <AccountName subject={row.proposed_by_subject} /> ·{" "}
+                {formatDateTime(row.created_at)}
+                <AccountName subject={row.decided_by_subject}>
+                  {(presentedAccountName0) => (
+                    <>
+                      {row.decided_by_subject &&
+                        ` · ${row.status === "withdrawn" ? "Withdrawn" : "Decided"} by ${presentedAccountName0}`}
+                    </>
+                  )}
+                </AccountName>
                 {row.decided_at && ` · ${formatDateTime(row.decided_at)}`}
               </p>
               <p className="break-words">{row.reason}</p>

@@ -1,6 +1,13 @@
+import { chooseOption } from "../../test/select";
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts } from "../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+    "synthetic-dispatcher": "QA Dispatcher",
+  });
 import { EmergencyWorkspace } from "./emergency-workspace";
 import { EmergencyIntake } from "./emergency-intake";
 import { EmergencyCaseDetailPanel } from "./emergency-case-detail";
@@ -176,7 +183,11 @@ it("requires confirmation before revoking a grant and accepts an empty 204 respo
   );
   vi.stubGlobal("fetch", fetcher);
   const { user } = renderWithProviders(<EmergencyBaseAdmin base={base} />);
-  await user.type(screen.getByLabelText("Verified identity subject"), "synthetic-dispatcher");
+  await chooseOption(
+    user,
+    await screen.findByLabelText("Staff account"),
+    "QA Dispatcher · Staff member",
+  );
   await user.click(screen.getByRole("button", { name: "Revoke access" }));
   expect(fetcher.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
   await user.click(screen.getByRole("button", { name: "Confirm revoke" }));

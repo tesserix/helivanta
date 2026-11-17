@@ -1,7 +1,14 @@
 import "@/test/select";
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts, accountText } from "../../../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "synthetic-manager": "QA Manager",
+    "synthetic-filer": "QA Filer",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import { chooseOption } from "@/test/select";
 import Overtime from "./page";
 
@@ -189,7 +196,7 @@ it("shows policy, requests and payable minutes read-only to readers", async () =
   const region = await review(user);
   expect(await within(region).findByText(/2026-11-02 · 18:00–20:30/)).toBeInTheDocument();
   expect(within(region).queryByText(/Reason:/)).not.toBeInTheDocument();
-  expect(await within(region).findByText(/by synthetic-filer/)).toBeInTheDocument();
+  expect(await within(region).findByText(accountText(/by QA Filer/))).toBeInTheDocument();
   expect(within(region).queryByRole("form", { name: "Decide overtime" })).toBeNull();
 });
 

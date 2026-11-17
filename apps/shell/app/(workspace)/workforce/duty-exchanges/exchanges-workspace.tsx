@@ -11,7 +11,7 @@ import {
   type DutyExchange,
   type Hospital,
 } from "@helivanta/api";
-import { Field, PageHeading, SelectControl, RequestFailure } from "@helivanta/ui";
+import { AccountName, Field, PageHeading, SelectControl, RequestFailure } from "@helivanta/ui";
 
 import { DutyExchangeForm } from "./exchange-form";
 import { DutyExchangeReview } from "./exchange-review";
@@ -160,8 +160,13 @@ function ExchangeBoard({ hospital }: { hospital: Hospital }) {
                   {DUTY_EXCHANGE_KINDS[e.kind]} · {describeDates(e)}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {DUTY_EXCHANGE_STATUSES[e.status]} · filed by {e.requested_by_subject}
-                  {e.decided_by_subject ? ` · decided by ${e.decided_by_subject}` : ""}
+                  {DUTY_EXCHANGE_STATUSES[e.status]} · filed by{" "}
+                  <AccountName subject={e.requested_by_subject} />
+                  <AccountName subject={e.decided_by_subject}>
+                    {(presentedAccountName0) => (
+                      <>{e.decided_by_subject ? ` · decided by ${presentedAccountName0}` : ""}</>
+                    )}
+                  </AccountName>
                 </p>
               </div>
               <Button

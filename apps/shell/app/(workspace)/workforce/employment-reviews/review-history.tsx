@@ -1,6 +1,6 @@
 "use client";
 import { Button } from "@tesserix/web";
-import { Panel, RequestFailure } from "@helivanta/ui";
+import { AccountName, Panel, RequestFailure } from "@helivanta/ui";
 import type { useEmploymentReviewHistory } from "@helivanta/api";
 
 type Props = {
@@ -44,7 +44,17 @@ export function RecordedEmploymentReviewHistory({
                   <p className="font-medium">
                     Version {row.version} · Recorded {row.status}
                   </p>
-                  <p>{row.actor_subject === subject ? "You" : `Account ${row.actor_subject}`}</p>
+                  <p>
+                    <AccountName subject={row.actor_subject}>
+                      {(presentedAccountName0) => (
+                        <>
+                          {row.actor_subject === subject
+                            ? "You"
+                            : `Account ${presentedAccountName0}`}
+                        </>
+                      )}
+                    </AccountName>
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     {new Date(row.updated_at).toLocaleString()}
                   </p>

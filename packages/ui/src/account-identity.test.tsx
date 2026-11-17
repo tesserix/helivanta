@@ -232,3 +232,57 @@ it("keeps nullable actor copy and tooltip names readable without rendering ident
   expect(screen.getByText("No decision yet")).toBeInTheDocument();
   expect(screen.queryByText("synthetic-member")).not.toBeInTheDocument();
 });
+
+it("clears an editable selection when its verified account becomes unavailable", async () => {
+  let available = true;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      Response.json({
+        tenant_id: scope.tenantId,
+        actor_subject: scope.subject,
+        data: available
+          ? [
+              {
+                subject: "synthetic-member",
+                available: true,
+                name: "QA Staff",
+                email: "staff@example.test",
+                roles: [{ key: "staff_member", label: "Staff member" }],
+              },
+            ]
+          : [],
+      }),
+    ),
+  );
+  const selected = vi.fn();
+  function Recheck() {
+    const query = useDisplayedAccountPresentations(scope, ["synthetic-member"]);
+    return (
+      <button
+        onClick={() => {
+          void query.refetch();
+        }}
+      >
+        Recheck choices
+      </button>
+    );
+  }
+  const { user } = renderWithProviders(
+    <AccountPresentationsProvider scope={scope}>
+      <AccountSelectControl
+        subjects={["synthetic-member"]}
+        aria-label="Staff account"
+        value="synthetic-member"
+        onValueChange={selected}
+      />
+      <Recheck />
+    </AccountPresentationsProvider>,
+  );
+  await screen.findByText("QA Staff · Staff member");
+  expect(selected).not.toHaveBeenCalled();
+  available = false;
+  await user.click(screen.getByRole("button", { name: "Recheck choices" }));
+  await waitFor(() => expect(selected).toHaveBeenCalledWith(""));
+  expect(screen.queryByText("synthetic-member")).not.toBeInTheDocument();
+});

@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts } from "../../test/account-names";
+import { chooseOption } from "../../test/select";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, { "user-clerk": "QA Cashier", "user-clerk2": "Incoming QA Cashier" });
 import { useApiPagedQuery } from "@helivanta/api";
 import type { AdmissionAccount } from "@helivanta/api";
-import { chooseOption } from "../../test/select";
 import { CashDesk } from "./cash-desk";
 import { CashPayments } from "./cash-payments";
 
@@ -669,7 +671,11 @@ describe("CashPayments refunds", () => {
     await user.click(within(form).getByRole("button", { name: "Offer handover" }));
     expect(await screen.findByText("Enter the incoming cashier's user ID")).toBeInTheDocument();
     expect(puts(fetcher)).toHaveLength(0);
-    await user.type(screen.getByLabelText("Incoming cashier's user ID"), " user-clerk2 ");
+    await chooseOption(
+      user,
+      await screen.findByLabelText("Incoming cashier"),
+      "Incoming QA Cashier · Staff member",
+    );
     await user.click(within(form).getByRole("button", { name: "Offer handover" }));
     await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
     expect(puts(fetcher)[0][0]).toMatch(

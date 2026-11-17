@@ -3,6 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@tesserix/web";
 import {
+  AccountName,
   PageHeading,
   GuardedLink,
   Panel,
@@ -588,14 +589,11 @@ function AssignmentRecord({
   const expired = Date.parse(item.input.expires_at) <= now;
   const withdrawable = !["withdrawn", "rejected", "scope_rejected"].includes(item.status);
   return (
-    <section
-      aria-label={`Assignment for ${item.input.subject}`}
-      className="space-y-3 border-t border-border py-4"
-    >
+    <section aria-label="Staff assignment" className="space-y-3 border-t border-border py-4">
       <h2 className="text-lg font-semibold">
         {staffAccessTemplates.find((template) => template.key === item.input.template_key)?.name ??
           item.input.template_key}{" "}
-        · {item.input.subject}
+        · <AccountName subject={item.input.subject} />
       </h2>
       <p>
         {labels[item.status]} · Version {item.version}
@@ -610,7 +608,9 @@ function AssignmentRecord({
       <p>
         {formatDateTime(item.input.valid_from)} – {formatDateTime(item.input.expires_at)}
       </p>
-      <p>Proposed by {item.proposed_by}</p>
+      <p>
+        Proposed by <AccountName subject={item.proposed_by} />
+      </p>
       <p>{item.input.reason}</p>
       <div className="flex flex-wrap gap-2">
         {manage && item.status === "active" && (
@@ -762,8 +762,8 @@ function AssignmentHistory({
             .map((row) => (
               <div key={row.id}>
                 <p>
-                  {row.decision} · {row.actor_subject} · Version {row.result_version} ·{" "}
-                  {formatDateTime(row.created_at)}
+                  {row.decision} · <AccountName subject={row.actor_subject} /> · Version{" "}
+                  {row.result_version} · {formatDateTime(row.created_at)}
                 </p>
                 <p>{row.reason}</p>
               </div>

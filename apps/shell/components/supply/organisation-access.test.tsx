@@ -1,7 +1,16 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts } from "../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "TEST-owner": "QA Owner",
+    "TEST-sales": "QA Sales",
+    "TEST-auditor": "QA Auditor",
+    "TEST-regulator": "QA Regulator",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import { OrganisationAccess } from "./organisation-access";
 const scope = {
   tenantId: "11111111-1111-1111-1111-111111111111",
@@ -79,7 +88,7 @@ it("uses trusted members and keeps grant identity and payload stable when retryi
   const user = userEvent.setup();
   await user.click(await screen.findByRole("button", { name: "Add time-limited grant" }));
   await user.click(screen.getByLabelText("Tenant member"));
-  await user.click(await screen.findByRole("option", { name: "TEST-sales" }));
+  await user.click(await screen.findByRole("option", { name: "QA Sales · Staff member" }));
   const { fireEvent } = await import("@testing-library/react");
   fireEvent.change(screen.getByLabelText("Valid from"), { target: { value: "2026-10-17T12:00" } });
   fireEvent.change(screen.getByLabelText("Expires at"), { target: { value: "2026-10-18T12:00" } });
@@ -136,7 +145,7 @@ it("displays the server effective status and prevents expiry before the start", 
   renderWithProviders(<OrganisationAccess scope={scope} roles={["administrator"]} />);
   expect(await screen.findByText(/auditor · scheduled · Version 1/)).toBeInTheDocument();
   const user = userEvent.setup();
-  await user.click(screen.getByRole("button", { name: "Manage TEST-auditor auditor grant" }));
+  await user.click(screen.getByRole("button", { name: "Manage account grant" }));
   const { fireEvent } = await import("@testing-library/react");
   fireEvent.change(screen.getByLabelText("Expires at"), { target: { value: "2026-10-16T00:00" } });
   await user.click(screen.getByRole("button", { name: "Save access grant" }));
@@ -237,9 +246,7 @@ it("allows revoking a historical grant even when its immutable location is no lo
   );
   renderWithProviders(<OrganisationAccess scope={scope} roles={["administrator"]} />);
   const user = userEvent.setup();
-  await user.click(
-    await screen.findByRole("button", { name: "Manage TEST-regulator regulator grant" }),
-  );
+  await user.click(await screen.findByRole("button", { name: "Manage account grant" }));
   expect(await screen.findByText(/The selected location is unavailable/)).toBeInTheDocument();
   await user.click(screen.getByLabelText("Grant status"));
   await user.click(await screen.findByRole("option", { name: "Revoke access" }));

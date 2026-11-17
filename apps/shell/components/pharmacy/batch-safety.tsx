@@ -31,6 +31,7 @@ import {
   type PharmacyScope,
 } from "@helivanta/api";
 import {
+  AccountName,
   DetailHeader,
   Field,
   firstError,
@@ -208,7 +209,7 @@ function RecentConcerns({
                             </p>
                             <p className="mt-0.5 text-muted-foreground">
                               Recorded <time dateTime={incident.recorded_at}>{recorded}</time> by{" "}
-                              {incident.actor_subject}
+                              <AccountName subject={incident.actor_subject} />
                             </p>
                           </div>
                           <Button
@@ -651,7 +652,9 @@ function SelectedBatchSafety({
                     </div>
                     <div>
                       <dt className="text-muted-foreground">Recorded by</dt>
-                      <dd className="break-words">{incident.actor_subject}</dd>
+                      <dd className="break-words">
+                        <AccountName subject={incident.actor_subject} />
+                      </dd>
                     </div>
                   </dl>
                 </Panel>

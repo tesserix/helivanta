@@ -1,4 +1,6 @@
 "use client";
+
+import { MemberAccountSelect } from "@helivanta/ui";
 import { useEffect, useId, useRef, useState } from "react";
 import { Button, Badge, Input } from "@tesserix/web";
 import {
@@ -258,13 +260,12 @@ function ReceivingGrant({ facility }: { facility: EmergencyReceivingFacility }) 
       </p>
       <div className="my-4 flex flex-wrap items-end gap-3">
         <label htmlFor={`${prefix}-subject`} className="min-w-0 flex-1 space-y-2">
-          Verified member subject ID
-          <Input
+          Staff account
+          <MemberAccountSelect
             id={`${prefix}-subject`}
             value={subject}
             disabled={save.frozen}
-            onChange={(event) => setSubject(event.target.value)}
-            maxLength={200}
+            onValueChange={setSubject}
           />
         </label>
         <Button

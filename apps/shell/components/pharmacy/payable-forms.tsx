@@ -26,6 +26,7 @@ import {
   type PharmacySettlement,
 } from "@helivanta/api";
 import {
+  AccountName,
   DetailHeader,
   Field,
   FormSelectField,
@@ -562,7 +563,7 @@ export function PayableHistory({
       <div className="text-xs leading-6 text-muted-foreground">
         Document date {doc.issued_on} · Due {doc.due_on}
         <br />
-        Recorded by {doc.actor_subject} ·{" "}
+        Recorded by <AccountName subject={doc.actor_subject} /> ·{" "}
         <time dateTime={doc.created_at} title={doc.created_at}>
           {formatZonedDateTime(doc.created_at, timeZone)}
         </time>
@@ -615,7 +616,8 @@ export function PayableHistory({
                     {entry.paid_by} → {doc.payee_name} · {entry.method}
                   </p>
                   <p className="mt-1 break-all text-xs text-muted-foreground">
-                    {entry.source_reference} · Recorded by {entry.actor_subject} ·{" "}
+                    {entry.source_reference} · Recorded by{" "}
+                    <AccountName subject={entry.actor_subject} /> ·{" "}
                     <time dateTime={entry.created_at} title={entry.created_at}>
                       {formatZonedDateTime(entry.created_at, timeZone)}
                     </time>

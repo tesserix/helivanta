@@ -4,6 +4,14 @@ import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 import { noHandRolledRetry } from "./eslint-rules/no-hand-rolled-retry.mjs";
+import { noRawAccountDisplay } from "./eslint-rules/no-raw-account-display.mjs";
+
+const helivantaPlugin = {
+  rules: {
+    "no-hand-rolled-retry": noHandRolledRetry,
+    "no-raw-account-display": noRawAccountDisplay,
+  },
+};
 
 // Raw Tailwind palette colours and hex arbitrary values bypass the design
 // tokens (frontend.md §7, #1255 spec D2), so the one palette could drift again
@@ -159,7 +167,7 @@ export function hmsReadRetries(files, ignores = []) {
   return {
     files,
     ignores: ["**/*.test.{ts,tsx,mjs}", ...ignores],
-    plugins: { helivanta: { rules: { "no-hand-rolled-retry": noHandRolledRetry } } },
+    plugins: { helivanta: helivantaPlugin },
     rules: { [READ_RETRY_RULE]: "error" },
   };
 }
@@ -173,8 +181,9 @@ export function hmsEslint(rootDir, { design = false } = {}) {
     ...tseslint.configs.recommended,
     jsxA11y.flatConfigs.recommended,
     {
-      plugins: { "@next/next": nextPlugin, "react-hooks": reactHooks },
+      plugins: { "@next/next": nextPlugin, "react-hooks": reactHooks, helivanta: helivantaPlugin },
       rules: {
+        "helivanta/no-raw-account-display": "error",
         ...nextPlugin.configs.recommended.rules,
         ...reactHooks.configs.recommended.rules,
         // Helivanta UX vocabulary: browser dialogs are banned (spec D4).
@@ -196,6 +205,7 @@ export function hmsEslint(rootDir, { design = false } = {}) {
       },
       settings: { next: { rootDir } },
     },
+    { files: ["**/*.test.{ts,tsx,mjs}"], rules: { "helivanta/no-raw-account-display": "off" } },
     // Tests assert on colour values themselves (the contrast test) and render
     // fixtures, so the design rules cover shipped code only. Sanitize stays.
     ...(design

@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts, accountText } from "../../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "synthetic-hr": "QA Hr",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import type { Hospital } from "@helivanta/api";
 import { chooseOption } from "@/test/select";
 import CredentialReminders from "./credential-reminders/page";
@@ -146,7 +152,7 @@ it("lists open reminders, acknowledges one and filters by status", async () => {
     method: "POST",
   });
   await chooseOption(user, screen.getByRole("combobox", { name: "Status" }), "Acknowledged");
-  expect(await screen.findByText("Acknowledged by synthetic-hr")).toBeInTheDocument();
+  expect(await screen.findByText(accountText("Acknowledged by QA Hr"))).toBeInTheDocument();
   expect(reads).toContain(`${base}/credential-reminders?status=acknowledged`);
 });
 

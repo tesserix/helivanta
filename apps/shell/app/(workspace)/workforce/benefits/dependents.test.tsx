@@ -1,6 +1,8 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts, accountText } from "../../../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, { "synthetic-maker": "QA Maker", "synthetic-checker": "QA Checker" });
 import { chooseOption } from "@/test/select";
 import {
   child,
@@ -246,6 +248,6 @@ it("lists a dependent's revisions with their source and author", async () => {
     await within(history).findByText("v2 · Removed · Synthetic Partner (Synthetic Spouse)"),
   ).toBeInTheDocument();
   expect(
-    within(history).getByText("Synthetic divorce · changed by synthetic-maker"),
+    await within(history).findByText(accountText("Synthetic divorce · changed by QA Maker")),
   ).toBeInTheDocument();
 });

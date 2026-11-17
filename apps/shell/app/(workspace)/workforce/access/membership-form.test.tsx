@@ -17,10 +17,9 @@ it("requires an enrollment reason and ordinary-membership acknowledgement", asyn
   );
   const { user } = renderWithProviders(
     <NavigationGuardProvider>
-      <StaffMembershipForm scope={scope} />
+      <StaffMembershipForm scope={scope} initialSubject="synthetic-first-account" />
     </NavigationGuardProvider>,
   );
-  await user.type(screen.getByLabelText("Existing account ID"), "synthetic-first-account");
   await user.click(screen.getByRole("button", { name: "Enroll staff member" }));
   expect(await screen.findByLabelText("Enrollment reason")).toHaveAttribute("aria-invalid", "true");
   expect(requests).toHaveLength(0);
@@ -59,23 +58,20 @@ it("freezes and retries the same command after an uncertain result", async () =>
   );
   const { user } = renderWithProviders(
     <NavigationGuardProvider>
-      <StaffMembershipForm scope={scope} />
+      <StaffMembershipForm scope={scope} initialSubject="synthetic-first-account" />
     </NavigationGuardProvider>,
   );
-  await user.type(screen.getByLabelText("Existing account ID"), "synthetic-first-account");
   await user.type(screen.getByLabelText("Enrollment reason"), "Verified first enrollment");
   await user.click(screen.getByLabelText("I understand this creates ordinary membership only."));
   await user.click(screen.getByRole("button", { name: "Enroll staff member" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("may have been recorded");
-  expect(screen.getByLabelText("Existing account ID")).toBeDisabled();
+  expect(screen.queryByLabelText("Existing account ID")).not.toBeInTheDocument();
   expect(screen.getByLabelText("Enrollment reason")).toBeDisabled();
   await user.click(screen.getByRole("button", { name: "Retry same enrollment" }));
   await waitFor(() => expect(commands).toHaveLength(2));
   expect(commands[0]).toEqual(commands[1]);
   expect(commands[0]?.actor).toBe(scope.subject);
-  expect(
-    await screen.findByText(/Membership recorded for synthetic-first-account/),
-  ).toBeInTheDocument();
+  expect(await screen.findByText(/Membership recorded for/)).toBeInTheDocument();
 });
 
 // #1595: refused enrollment history is a refusal with no way to ask again.
@@ -95,4 +91,19 @@ it("shows refused enrollment history as a refusal, with no refresh", async () =>
     await screen.findByText("This wasn't found, or you don't have access to it."),
   ).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /refresh enrollment history/i })).toBeNull();
+});
+
+it("requires a verified Staff setup target instead of exposing a raw account identifier input", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ data: [], page: { has_more: false, next_cursor: null } })),
+  );
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <StaffMembershipForm scope={scope} />
+    </NavigationGuardProvider>,
+  );
+  expect(screen.queryByLabelText("Existing account ID")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Enroll staff member" })).not.toBeInTheDocument();
+  expect(screen.getByText(/Start with verified Staff account setup/)).toBeInTheDocument();
 });

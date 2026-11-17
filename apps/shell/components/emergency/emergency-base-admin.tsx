@@ -1,5 +1,7 @@
 "use client";
 
+import { Controller, MemberAccountSelect } from "@helivanta/ui";
+
 import { useRef, useState } from "react";
 import { Button, Input } from "@tesserix/web";
 import {
@@ -113,10 +115,20 @@ export function EmergencyBaseAdmin({ base }: { base?: EmergencyBase }) {
           </p>
           <Field
             id="grant-subject"
-            label="Verified identity subject"
+            label="Staff account"
             error={grant.formState.errors.subject?.message}
           >
-            <Input id="grant-subject" autoComplete="off" {...grant.register("subject")} />
+            <Controller
+              control={grant.control}
+              name="subject"
+              render={({ field }) => (
+                <MemberAccountSelect
+                  id="grant-subject"
+                  value={field.value}
+                  onValueChange={field.onChange}
+                />
+              )}
+            />
           </Field>
           <FormSelectField
             control={grant.control}

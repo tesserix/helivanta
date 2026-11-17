@@ -2,7 +2,13 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import { newSupplyPartyInput } from "@helivanta/api";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts } from "../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "TEST-owner": "QA Owner",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import { PartiesWorkspace } from "./parties-workspace";
 const id = "0199e000-0000-7000-8000-000000000020";
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
@@ -307,7 +313,7 @@ it("refreshes directory and drops the private profile after its own administrato
   await user.click(await screen.findByRole("button", { name: /TEST Private Supplier/ }));
   expect(await screen.findByText("TEST-REG-001")).toBeInTheDocument();
   await user.click(
-    await screen.findByRole("button", { name: "Review revocation TEST-owner administrator" }),
+    await screen.findByRole("button", { name: "Review revocation QA Owner administrator" }),
   );
   await user.click(screen.getByRole("button", { name: "Confirm revoke earlier grant" }));
   await waitFor(() =>

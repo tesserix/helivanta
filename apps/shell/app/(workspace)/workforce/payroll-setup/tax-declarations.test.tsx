@@ -2,7 +2,15 @@ import "@/test/select";
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { taxYearsAround } from "@helivanta/api";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts, accountText } from "../../../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "user-maker": "QA Maker",
+    "user-approver": "QA Approver",
+    "user-auditor": "QA Auditor",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import { chooseOption } from "@/test/select";
 import PayrollSetup from "./page";
 
@@ -386,7 +394,9 @@ it("lets a second person check proposed PANs, needs a note to reject, and approv
   });
   const { user } = renderWithProviders(<PayrollSetup />);
   const section = await choose(user);
-  expect(await within(section).findByText(/Change proposed by user-maker/)).toBeInTheDocument();
+  expect(
+    await within(section).findByText(accountText(/Change proposed by QA Maker/)),
+  ).toBeInTheDocument();
   await user.click(within(section).getByRole("button", { name: "Review declaration" }));
   const decision = within(section).getByRole("region", { name: "Declaration decision" });
   expect(within(decision).getByText("₹2,00,000.00")).toBeInTheDocument();

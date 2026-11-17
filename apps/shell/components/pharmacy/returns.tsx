@@ -18,7 +18,15 @@ import {
   type PharmacySale,
   type PharmacyScope,
 } from "@helivanta/api";
-import { Field, FormSelectField, LoadMore, Panel, RequestFailure, useZodForm } from "@helivanta/ui";
+import {
+  AccountName,
+  Field,
+  FormSelectField,
+  LoadMore,
+  Panel,
+  RequestFailure,
+  useZodForm,
+} from "@helivanta/ui";
 import { formatPharmacyMoney } from "./currency-amount-field";
 
 /**
@@ -510,7 +518,8 @@ function CreditNoteDocument({ note, onNext }: { note: PharmacyCreditNote; onNext
         <p className="mt-3 text-sm font-medium">Total credited {money(note.total_minor)}</p>
         <p className="text-sm">Reason: {note.reason}</p>
         <p className="mt-2 text-xs text-muted-foreground">
-          Issued by {note.actor_subject}. Returned medicine is in quarantine until released.
+          Issued by <AccountName subject={note.actor_subject} />. Returned medicine is in quarantine
+          until released.
         </p>
       </article>
       <div className="mt-4 flex gap-2 print:hidden">

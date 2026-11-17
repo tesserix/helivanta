@@ -1,7 +1,13 @@
 import "@/test/select";
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts, accountText } from "../../../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "synthetic-hr": "QA Hr",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import type { Hospital } from "@helivanta/api";
 import { LeaveRoutingPanel } from "./routing-panel";
 
@@ -59,7 +65,7 @@ it("shows the saved policy to readers without an editor", async () => {
     ),
   ).toBeInTheDocument();
   expect(
-    screen.getByText(/Synthetic HR circular 7 · reviewed by synthetic-hr/),
+    await screen.findByText(accountText(/Synthetic HR circular 7 · reviewed by QA Hr/)),
   ).toBeInTheDocument();
   expect(screen.queryByRole("form", { name: "Edit leave approval routing" })).toBeNull();
 });

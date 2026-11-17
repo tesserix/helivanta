@@ -1,7 +1,14 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts, accountText } from "../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "TEST-owner": "QA Owner",
+    "TEST-policy-reviewer": "QA Policy Reviewer",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import { OrganisationAccess } from "./organisation-access";
 
 const scope = {
@@ -220,7 +227,7 @@ it("renders recorded limit changes with actor and timestamp only when history is
   const show = await screen.findByRole("button", { name: "View access limit history" });
   expect(historyReads).toBe(0);
   await user.click(show);
-  expect(await screen.findByText(/Actor TEST-policy-reviewer/)).toBeInTheDocument();
+  expect(await screen.findByText(accountText(/Actor QA Policy Reviewer/))).toBeInTheDocument();
   expect(screen.getByText("48 grant hours · 2 support hours")).toBeInTheDocument();
   expect(screen.getByText("TEST shorter temporary access")).toBeInTheDocument();
   expect(historyReads).toBe(1);

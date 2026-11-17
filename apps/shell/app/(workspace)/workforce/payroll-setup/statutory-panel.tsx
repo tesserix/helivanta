@@ -31,7 +31,7 @@ import {
   type StatutoryRule,
   type StatutoryWithdrawInput,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
+import { AccountName, Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
 import { inputClass, today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { Check, Fact, RevisionHistory, structuresKey } from "./payroll-workspace";
@@ -158,7 +158,10 @@ export function StatutoryPanel({ hospital, writable }: { hospital: Hospital; wri
                         {STATUTORY_STATUSES.pending}
                       </span>{" "}
                       {describeStatutoryRevision(pending)} · effective {pending.effective_on} ·
-                      proposed by {mine ? "you" : pending.proposed_by_subject}
+                      proposed by{" "}
+                      <AccountName subject={pending.proposed_by_subject}>
+                        {(presentedAccountName0) => <>{mine ? "you" : presentedAccountName0}</>}
+                      </AccountName>
                     </p>
                   )}
                 </div>
@@ -233,8 +236,12 @@ export function StatutoryPanel({ hospital, writable }: { hospital: Hospital; wri
               </p>
               <p className="mt-1">{describeStatutoryRevision(r)}</p>
               <p className="mt-1 text-muted-foreground">
-                {r.citation} · proposed by {r.proposed_by_subject}
-                {r.decided_by_subject && ` · decided by ${r.decided_by_subject}`}
+                {r.citation} · proposed by <AccountName subject={r.proposed_by_subject} />
+                <AccountName subject={r.decided_by_subject}>
+                  {(presentedAccountName0) => (
+                    <>{r.decided_by_subject && ` · decided by ${presentedAccountName0}`}</>
+                  )}
+                </AccountName>
                 {r.decision_note && ` · “${r.decision_note}”`}
               </p>
             </>
@@ -322,7 +329,10 @@ function ProposalDecision({
           value={rule.current ? describeStatutoryRevision(rule.current) : "Nothing approved yet"}
         />
         {proposal.reference && <Fact label="Reference" value={proposal.reference} />}
-        <Fact label="Proposed by" value={mine ? "You" : proposal.proposed_by_subject} />
+        <Fact
+          label="Proposed by"
+          value={mine ? "You" : <AccountName subject={proposal.proposed_by_subject} />}
+        />
       </dl>
       <form
         noValidate

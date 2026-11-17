@@ -38,9 +38,9 @@ Commands run from the repository root unless otherwise stated:
 - `pnpm --filter @helivanta/ui test` — 330 tests passed, including stale editable
   selection withdrawal, lookup failure, batching and tenant/actor switching.
 - `pnpm --filter @helivanta/config test` — 91 tests passed.
-- Shell component suites exercise named choices while asserting internal command
-  identities, scopes, retained retry bodies and refusal behavior. Final full-run
-  evidence is recorded below after completion.
+- `pnpm --filter @helivanta/shell exec vitest run --maxWorkers=4` — all 2,102
+  tests passed across 350 suites. Named choices retain assertions for internal
+  command identities, scopes, retry bodies and refusal behavior.
 - API/UI/Shell type checks and canonical generators were run. Shell/E2E type
   checks passed; E2E scenarios are not executed on the local machine.
 - ESLint and package Prettier checks were run. The existing signup effect
@@ -51,8 +51,9 @@ Commands run from the repository root unless otherwise stated:
   vet, contractdocs generation and `go run ./cmd/contractdocs -check` were run.
   Real-database integration cases are reserved for hosted CI.
 - The production Shell build uses non-secret CI-shaped API/Zitadel configuration.
-  Generated `.next` and local TypeScript build-info artifacts are removed after
-  the final build succeeds, before merge.
+  The final build passed. Generated `.next` and task-created local TypeScript
+  build-info artifacts were removed before merge; dependencies and caches were
+  preserved.
 
 ## Hosted and live acceptance
 

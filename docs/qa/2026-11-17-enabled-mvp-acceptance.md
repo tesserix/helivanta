@@ -93,6 +93,51 @@ concurrent requests inside each suite. Existing coverage-gate tests and ShellChe
 passed locally. Hosted full coverage must pass before this is considered effective;
 this configuration change is not evidence of a production latency repair.
 
+### Hospital recipient setup follow-up
+
+The hospital QA invitation was found in Gmail Trash through a read-only search;
+a duplicate email delivery was avoided. Recipient email proof returned
+`already_verified`. The retained recipient flow then requested the password phase
+and successfully completed setup (`200 complete`). The real owner's recovered
+account command observed the verified native account and offered ordinary
+membership. Membership submission is pending action-time browser confirmation;
+no hospital business permissions or outlet access have been granted by this step.
+
+### Owner reviewer appointment form candidate
+
+Live testing identified the missing native appointment form even though its IAM
+API and independent-pharmacy consumer worked. The candidate consumes existing
+canonical contracts and named member/source projections. Automated coverage
+includes the original epoch/exact scope, uncertain retry identity, refusal,
+unreleased choices, Pharmacy Staff disablement and invalid validity. Current
+receipt status remains explicit. New UI deployment and real-browser appointment
+acceptance are still required; this is not a claim of full enabled-MVP acceptance.
+
+### Further real-browser observations
+
+The independent pharmacy Staff account completed email-based account discovery,
+password and its existing authenticator challenge in a separate private Chrome
+window. The header used the account and tenant names. Pharmacy Staff displayed
+only the one authorized employer record, with no edit/account-management actions.
+No browser-session cookie was copied or injected.
+
+Backgrounding both the owner and Staff tabs exposed capability expiry gaps. The
+owner page recovered automatically after returning to the foreground, but its
+form had been unmounted. A regression test reproduced a 25-second remaining
+provider-aged snapshot against the previous 30-second poll. The candidate uses
+15-second polling, focus/background refresh and a deduplicated expiry recheck;
+healthy, missed-poll recovery and continuing-outage refusal cases pass. Lifetime
+and server admission remain unchanged. Post-deploy background/focus testing is
+still required.
+
+The independent pharmacy HR reader also saw hospital-oriented dashboard shortcuts
+because those pages share coarse Staff permissions. Hospital discovery returned
+no roots and hospital data remained concealed in API testing, so this is not
+evidence of cross-tenant access. Product/source-specific shortcut discovery still
+needs a qualified source design and verification; global release flags alone do
+not prove that a user has a hospital posting or employer scope. It is recorded as
+an unresolved navigation finding, not silently treated as full MVP acceptance.
+
 ## Checks still required before claiming full live acceptance
 
 - Merge and deploy the hospital-name candidate after every required check passes,

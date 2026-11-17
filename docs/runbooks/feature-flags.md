@@ -122,6 +122,28 @@ wrong-account snapshots, and tenant switching. New eligibility needs a reviewed
 update to this acceptance baseline, not an automatic opt-in of untested pages.
 The release generator and navigation tests additionally enforce page coverage.
 
+### Reviewer choices follow the release catalogue
+
+In **Staff → Staff access → Reviewer appointments**, account-link, person and
+employment roles require Staff Core. Hospital scoped-access reviewer requires
+Department Teams. Governance auditor requires Team Accounts. Named pharmacy
+scopes additionally require Pharmacy Staff. The operating reviewer and supplier
+scope are not part of the released MVP. Turning off a dependency also withholds
+its choices; owners cannot use a reviewer appointment to enable a locked product.
+A successful appointment receipt may still be provisional or awaiting review.
+It does not grant clinical authority or pharmacy outlet operations.
+
+### Snapshot expiry and automatic refresh
+
+Capabilities remain bound to the current tenant/account and the provider's original
+60-second lifetime. The client refreshes every 15 seconds, including background
+polling, refreshes on focus and makes one deduplicated recheck when its snapshot
+expires. A missed poll must not strand the user until a full page reload. Expired
+or wrong-account data never permits a business action. Continuing provider/source
+failure still makes the feature unavailable; refresh is not a stale-data bypass.
+Browser scheduling can delay background work, so resolve an unavailable source
+before preparing a new command. Keep retained command references for recovery.
+
 ## Troubleshooting and uncertain commands
 
 | Observation                           | Action                                                                                                                                                  |

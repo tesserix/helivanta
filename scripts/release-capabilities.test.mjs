@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { validateReleaseManifest } from "./lib/release-capabilities.mjs";
 
@@ -12,6 +13,30 @@ const manifest = () => ({
   routes: [{ method: "GET", path: "/v1/iam/members", capability: "team_accounts" }],
   pages: [{ path: "/workforce", capability: "staff_core" }],
   panels: [{ key: "staff.postings", capability: "staff_core" }],
+});
+
+test("every governance template and scope has an explicit release binding", () => {
+  const release = JSON.parse(
+    readFileSync(new URL("../contracts/release-capabilities.json", import.meta.url), "utf8"),
+  );
+  const governance = JSON.parse(
+    readFileSync(new URL("../contracts/staff-governance.json", import.meta.url), "utf8"),
+  );
+  const panels = new Map(release.panels.map((panel) => [panel.key, panel.capability]));
+  const capabilities = new Set(release.capabilities.map((definition) => definition.key));
+  for (const template of governance.templates) {
+    assert.ok(
+      capabilities.has(panels.get(`staff.governance.template.${template.key}`)),
+      template.key,
+    );
+    for (const kind of template.scope_kinds)
+      assert.ok(capabilities.has(panels.get(`staff.governance.scope.${kind}`)), kind);
+  }
+  assert.equal(
+    panels.get("staff.governance.template.iam.operating_access_reviewer.v1"),
+    "supplier_collaboration",
+  );
+  assert.equal(panels.get("staff.governance.scope.pharmacy"), "pharmacy_staff");
 });
 
 test("a released feature never makes an unknown API route available", () => {

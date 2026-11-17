@@ -17,6 +17,45 @@ with `node scripts/generate-staff-governance.mjs` and check with `--check`.
 The [implementation design](../superpowers/specs/2026-11-13-staff-governance-bootstrap.md)
 records ORG-D7, all remaining lifecycle consumers and operational assumptions.
 
+## Owner appointment form (candidate)
+
+Staff Access adds a form over the existing IAM governance contract; it introduces
+no service, endpoint, schema, native administrator role or storage. It requires
+current `iam.governance.manage` and `iam.governance.read` page authority. IAM owns
+the grant and tenant membership; Workforce owns the hospital/pharmacy source;
+native identity owns verified account names. All calls retain the Global API
+boundary and expected tenant/subject checks.
+
+The owner selects a named ordinary member other than themselves, an existing
+nonclinical template, an authorized named hospital/pharmacy or this workspace,
+UTC start/expiry and a reason. The original membership epoch, command ID, payload
+and validity are frozen at submission. Uncertain retries reuse that exact intent;
+a saved command reference can be read after navigation or response loss. The
+server rechecks membership, current owner/source authority and exact scope.
+Provisional single-owner authority and pending independent review are explicitly
+distinguished from an active independently reviewed grant.
+
+Membership pages are explicitly loaded in groups of 50. Identity presentation is
+batched at 20 subjects by the existing SDK. Source hospital/pharmacy pages request
+50 rows with explicit continuation; private choices are withheld on refusal or
+source failure. No stale directory fallback grants authority. Existing server
+validation, five-second authority budget and retained decision/revocation rules
+remain unchanged. No capacity or production latency claim follows from this form.
+
+Canonical `staff.governance.template.*` and `staff.governance.scope.*` panel
+bindings gate each choice. Account-link/person/employment templates follow Staff
+Core; hospital assignment reviewer follows Department Teams; governance auditor
+follows Team Accounts; pharmacy scopes also require Pharmacy Staff. Supplier
+choices are not implemented in this form; the operating reviewer remains behind
+its unreleased supplier capability. Unknown definitions fail closed. Read/write
+API authority remains independent of these UI availability checks.
+
+This is a reversible application consumer change with no data migration. Remove
+the form to roll it back; retained grants still require their existing explicit
+revocation command. Automated component/SDK tests are recorded in the QA ledger;
+hosted CI, live owner appointment and independent-consumer acceptance remain
+separate gates. It does not complete every lifecycle consumer described below.
+
 ## Candidate hospital assignment administration
 
 ### Qualified Staff/account choices (candidate)

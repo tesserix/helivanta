@@ -1675,7 +1675,11 @@ it("keeps a department assignment's scope when its department read is refused", 
 
 it("opens the owner governance inbox without requiring assignment permissions", async () => {
   setup("synthetic-owner", [], ["iam.governance.manage", "iam.governance.read"]);
-  renderWithProviders(<AccessPage />);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
   expect(await screen.findByText("No governance notices.")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Propose assignment" })).not.toBeInTheDocument();
 });
@@ -1700,7 +1704,11 @@ it("offers qualified hospital preparation to owners alongside existing administr
         : prior(url, init),
     ),
   );
-  renderWithProviders(<AccessPage />);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
   expect(
     await screen.findByRole("button", { name: "Open Synthetic owner hospital" }),
   ).toBeVisible();
@@ -1735,7 +1743,11 @@ it("opens hospital assignment discovery for a native reviewer without legacy adm
       );
     }),
   );
-  renderWithProviders(<AccessPage />);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
   expect(
     await screen.findByRole("button", { name: "Open Synthetic named hospital" }),
   ).toBeInTheDocument();

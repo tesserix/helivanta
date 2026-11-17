@@ -8,6 +8,8 @@ import {
   recordOrganizationDepartment,
   registerOrganizationHospital,
   useApiQuery,
+  usePagedQuery,
+  listStaffHospitalsPage,
   useOrganizationDepartments,
   useOrganizationDepartmentRevisions,
   useOrganizationHospitals,
@@ -26,6 +28,7 @@ import {
   useLeaveGuard,
   useZodForm,
   RefreshButton,
+  LoadMore,
 } from "@helivanta/ui";
 import { useOrganizationCommand } from "./command";
 
@@ -96,6 +99,15 @@ function StructureHospitals({ scope, canManage }: Props) {
   const [hospital, setHospital] = useState<string | null>(null);
   const [registering, setRegistering] = useState(false);
   const query = useOrganizationHospitals(scope, cursor);
+  const hospitals = usePagedQuery(
+    ["organization", scope.tenantId, scope.subject, "hospital-names"],
+    (next, signal) => listStaffHospitalsPage(scope, next, signal),
+    { gcTime: 0, retry: false, poll: true },
+  );
+  const nameFor = (id: string) =>
+    (!hospitals.isError && !hospitals.isPending
+      ? hospitals.items.find((item) => item.id === id)?.name.trim()
+      : undefined) || "Hospital name unavailable";
   const confirm = useConfirmLeave();
   return (
     <div className="space-y-6">
@@ -105,7 +117,11 @@ function StructureHospitals({ scope, canManage }: Props) {
           <Button variant="outline" onClick={() => confirm(() => setHospital(null))}>
             Back to hospital references
           </Button>
-          <DepartmentDirectory key={hospital} {...{ scope, canManage, hospital }} />
+          <DepartmentDirectory
+            key={hospital}
+            {...{ scope, canManage, hospital }}
+            hospitalName={nameFor(hospital)}
+          />
         </>
       ) : (
         <>
@@ -113,7 +129,13 @@ function StructureHospitals({ scope, canManage }: Props) {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-xl font-semibold">Hospital department structure</h2>
               <div className="flex gap-2">
-                <RefreshButton refresh={query.refetch} error={query.error}>
+                <RefreshButton
+                  refresh={() => {
+                    hospitals.retry();
+                    return query.refetch();
+                  }}
+                  error={query.error}
+                >
                   Refresh hospital references
                 </RefreshButton>
                 {canManage && (
@@ -145,13 +167,13 @@ function StructureHospitals({ scope, canManage }: Props) {
                         className="flex flex-wrap items-center justify-between gap-3 py-4"
                       >
                         <div>
-                          <p className="font-medium">Hospital {root.hospital_id}</p>
+                          <p className="break-words font-medium">{nameFor(root.hospital_id)}</p>
                           <p className="text-sm text-muted-foreground">Reference {root.status}</p>
                         </div>
                         {root.status === "verified" && (
                           <Button
                             variant="outline"
-                            aria-label={`Open departments for ${root.hospital_id}`}
+                            aria-label={`Open departments for ${nameFor(root.hospital_id)}`}
                             onClick={() =>
                               confirm(() => {
                                 setRegistering(false);
@@ -171,6 +193,12 @@ function StructureHospitals({ scope, canManage }: Props) {
                   next={query.data?.page.next_cursor ?? null}
                   loading={query.isFetching}
                   onPage={setCursor}
+                />
+                <LoadMore
+                  hasMore={hospitals.hasMore}
+                  isLoading={hospitals.isFetchingMore}
+                  onClick={hospitals.loadMore}
+                  label="Load more hospital names"
                 />
               </>
             )}
@@ -256,7 +284,12 @@ function ReferenceForm({ scope, onClose }: { scope: OrganizationScope; onClose: 
     </Panel>
   );
 }
-function DepartmentDirectory({ scope, canManage, hospital }: Props & { hospital: string }) {
+function DepartmentDirectory({
+  scope,
+  canManage,
+  hospital,
+  hospitalName,
+}: Props & { hospital: string; hospitalName: string }) {
   const [cursor, setCursor] = useState<string | null>(null);
   const [editor, setEditor] = useState<OrganizationDepartment | "new" | null>(null);
   const [history, setHistory] = useState<OrganizationDepartment | null>(null);
@@ -269,7 +302,7 @@ function DepartmentDirectory({ scope, canManage, hospital }: Props & { hospital:
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-semibold">Departments and sub-units</h2>
-            <p className="mt-1 break-all text-sm text-muted-foreground">Hospital {hospital}</p>
+            <p className="mt-1 break-words text-sm text-muted-foreground">{hospitalName}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <RefreshButton refresh={query.refetch} error={query.error}>
@@ -304,7 +337,7 @@ function DepartmentDirectory({ scope, canManage, hospital }: Props & { hospital:
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
-                  <caption className="sr-only">Departments at hospital {hospital}</caption>
+                  <caption className="sr-only">Departments at {hospitalName}</caption>
                   <thead className="border-b text-muted-foreground">
                     <tr>
                       {["Name", "Code", "Type", "Parent", "Status", "Actions"].map((label) => (

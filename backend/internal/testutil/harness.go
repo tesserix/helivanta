@@ -510,7 +510,16 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 		require.NoError(t, bus.StartBroadcasts(workers, m.Broadcasts(deps)))
 	}
 	go bus.RunDispatcher(workers, db)
-	return r, db, bus, ctx
+	// Caller cleanups may still use the fixture after t.Context is canceled.
+	lifetime := context.WithoutCancel(t.Context())
+	var finish context.CancelFunc
+	if deadline, bounded := t.Context().Deadline(); bounded {
+		lifetime, finish = context.WithDeadline(lifetime, deadline)
+	} else {
+		lifetime, finish = context.WithCancel(lifetime)
+	}
+	t.Cleanup(finish)
+	return r, db, bus, lifetime
 }
 
 // Do issues an authenticated JSON request against the harness router.

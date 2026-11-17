@@ -128,4 +128,5 @@ func TestHarnessContextLivesUntilTestCleanup(t *testing.T) {
 		require.Equal(t, wantDeadline, deadline)
 	}
 	require.NoError(t, ctx.Err())
+	t.Cleanup(func() { require.NoError(t, ctx.Err(), "caller cleanups must retain a usable fixture context") })
 }

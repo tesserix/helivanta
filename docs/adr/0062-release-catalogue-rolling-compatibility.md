@@ -20,3 +20,13 @@ be prevented by release operations. No tenant grants, schemas or API routes chan
 
 Regression coverage exercises a released capability alongside an unknown disabled
 key, and rejects unknown true/rule-bearing/malformed/foreign definitions.
+
+
+The full coverage run exposed an existing integration-fixture lifetime bug: the
+harness returned its 90-second initialization context to test operations. A
+staff-governance integration test reached database assertions after that deadline.
+The harness now returns a test-lifetime context with its own cleanup cancellation;
+caller cleanups retain access after the workers stop. Setup stays bounded at 90 seconds and application request deadlines are
+unchanged. A hosted regression fails against the old deadline and is run early
+in CI, without sleeping or relaxing assertions. Local checks compile the fixture
+without starting a database; actual integration execution remains in hosted CI.

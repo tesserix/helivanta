@@ -33,6 +33,7 @@ import {
 import { AssignmentProposalForm, AssignmentDecisionForm } from "./assignment-forms";
 import { GovernanceAssignments } from "./governance-assignments";
 import { GovernanceInbox } from "@/components/workforce/governance-inbox";
+import { GovernanceAppointments } from "@/components/workforce/governance-appointments";
 import { StaffAccountInitiation } from "@/components/workforce/staff-account-initiation";
 import { StaffMembershipForm } from "./membership-form";
 import { MembershipManagement } from "./membership-management";
@@ -104,9 +105,14 @@ export default function StaffAccessPage() {
             )}
           {identity.data.data.includes("iam.governance.manage") &&
             identity.data.data.includes("iam.governance.read") && (
-              <GovernanceInbox
-                scope={{ tenantId: identity.data.tenant_id, subject: identity.data.subject }}
-              />
+              <>
+                <GovernanceAppointments
+                  scope={{ tenantId: identity.data.tenant_id, subject: identity.data.subject }}
+                />
+                <GovernanceInbox
+                  scope={{ tenantId: identity.data.tenant_id, subject: identity.data.subject }}
+                />
+              </>
             )}
           {identity.data.data.includes("iam.member.manage") && (
             <>

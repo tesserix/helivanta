@@ -93,6 +93,26 @@ concurrent requests inside each suite. Existing coverage-gate tests and ShellChe
 passed locally. Hosted full coverage must pass before this is considered effective;
 this configuration change is not evidence of a production latency repair.
 
+### Hospital recipient setup follow-up
+
+The hospital QA invitation was found in Gmail Trash through a read-only search;
+a duplicate email delivery was avoided. Recipient email proof returned
+`already_verified`. The retained recipient flow then requested the password phase
+and successfully completed setup (`200 complete`). The real owner's recovered
+account command observed the verified native account and offered ordinary
+membership. Membership submission is pending action-time browser confirmation;
+no hospital business permissions or outlet access have been granted by this step.
+
+### Owner reviewer appointment form candidate
+
+Live testing identified the missing native appointment form even though its IAM
+API and independent-pharmacy consumer worked. The candidate consumes existing
+canonical contracts and named member/source projections. Automated coverage
+includes the original epoch/exact scope, uncertain retry identity, refusal,
+unreleased choices, Pharmacy Staff disablement and invalid validity. Current
+receipt status remains explicit. New UI deployment and real-browser appointment
+acceptance are still required; this is not a claim of full enabled-MVP acceptance.
+
 ## Checks still required before claiming full live acceptance
 
 - Merge and deploy the hospital-name candidate after every required check passes,

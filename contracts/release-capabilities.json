@@ -5834,6 +5834,58 @@
     {
       "key": "staff.assignments.supplier_receiving",
       "capability": "supplier_collaboration"
+    },
+    {
+      "key": "staff.governance.template.workforce.account_link_reviewer.v1",
+      "capability": "staff_core"
+    },
+    {
+      "key": "staff.governance.template.workforce.person_preparer.v1",
+      "capability": "staff_core"
+    },
+    {
+      "key": "staff.governance.template.workforce.person_reviewer.v1",
+      "capability": "staff_core"
+    },
+    {
+      "key": "staff.governance.template.iam.governance_auditor.v1",
+      "capability": "team_accounts"
+    },
+    {
+      "key": "staff.governance.template.workforce.employment_preparer.v1",
+      "capability": "staff_core"
+    },
+    {
+      "key": "staff.governance.template.workforce.employment_reviewer.v1",
+      "capability": "staff_core"
+    },
+    {
+      "key": "staff.governance.template.workforce.employment_activator.v1",
+      "capability": "staff_core"
+    },
+    {
+      "key": "staff.governance.template.iam.scoped_access_reviewer.v1",
+      "capability": "department_teams"
+    },
+    {
+      "key": "staff.governance.template.iam.operating_access_reviewer.v1",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "key": "staff.governance.scope.tenant",
+      "capability": "team_accounts"
+    },
+    {
+      "key": "staff.governance.scope.hospital",
+      "capability": "staff_core"
+    },
+    {
+      "key": "staff.governance.scope.pharmacy",
+      "capability": "pharmacy_staff"
+    },
+    {
+      "key": "staff.governance.scope.supplier",
+      "capability": "supplier_collaboration"
     }
   ],
   "models": {

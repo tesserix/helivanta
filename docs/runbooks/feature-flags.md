@@ -122,6 +122,17 @@ wrong-account snapshots, and tenant switching. New eligibility needs a reviewed
 update to this acceptance baseline, not an automatic opt-in of untested pages.
 The release generator and navigation tests additionally enforce page coverage.
 
+### Reviewer choices follow the release catalogue
+
+In **Staff → Staff access → Reviewer appointments**, account-link, person and
+employment roles require Staff Core. Hospital scoped-access reviewer requires
+Department Teams. Governance auditor requires Team Accounts. Named pharmacy
+scopes additionally require Pharmacy Staff. The operating reviewer and supplier
+scope are not part of the released MVP. Turning off a dependency also withholds
+its choices; owners cannot use a reviewer appointment to enable a locked product.
+A successful appointment receipt may still be provisional or awaiting review.
+It does not grant clinical authority or pharmacy outlet operations.
+
 ## Troubleshooting and uncertain commands
 
 | Observation                           | Action                                                                                                                                                  |

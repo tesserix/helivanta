@@ -27,7 +27,9 @@ fabricated. No local application, database or container was started.
 | Public onboarding and anonymous boundaries | Public capability read returned 200 with onboarding available. Protected account, Staff, governance and pharmacy reads returned 401 without authentication.                                                                                                                                               |
 | Independent signup                         | Verification email delivered, native email proof accepted, password setup completed, receipt became `ready`. Normal first sign-in and MFA enrollment succeeded.                                                                                                                                           |
 | Independent ownership                      | Authenticated reads returned one independent pharmacy employer and zero hospitals. Initial outlet had the supplied branch name, `IN`, `Asia/Kolkata` and pending regulatory review.                                                                                                                       |
+| Native identity ownership                  | Read-only Zitadel checks confirmed the distinct tenant-owned Helivanta-QA-Independent-Pharmacy-20261117 organization. Its owner alone held ORG_OWNER; both verified QA Staff identities had no native organization-management roles.                                                                      |
 | Hospital-owned setup                       | The existing hospital owner registered a new hospital-owned QA pharmacy and its first outlet in the existing tenant. The outlet began with pending regulatory review and no outlet access, including for its creator.                                                                                     |
+| Hospital Staff directory                   | The signed-in owner saved a clearly labelled QA hospital Staff record with minimal required details. It appeared in the correct hospital directory, preserving the four existing records. Account linking, reviewed employment and narrower access remain separate.                                       |
 | Ordinary Staff identity                    | A QA Staff human was created without native administrator roles. Verification and password emails delivered; recipient proofs completed successfully. First application login before tenant membership was refused with 404.                                                                              |
 | Membership and sign-in                     | Explicit `staff_member` enrollment returned 202. Retrying the same command retained membership ID/epoch. Staff sign-in then succeeded, with zero business permissions. Employer discovery disclosed no roots, Staff read returned 404, and outlet/membership administration returned 403.                 |
 | Inactive Staff source                      | Account-link preparation against an inactive directory record returned 409. Owner activation used the current directory version; no business authority followed automatically.                                                                                                                            |
@@ -73,6 +75,13 @@ Nine Organization component tests and eleven dashboard release tests cover the
 changed display and existing flag behavior. The real owner browser fixture now
 also checks names after the Organization/Workforce reference handoff; hosted
 execution for that candidate is a separate required gate.
+
+The first candidate image build exposed a test import of a repository-root JSON
+file absent from the minimal container context. The test now consumes the same
+generated canonical definitions through the API package's test-fixture export.
+After this correction, all 1,457 API-package tests, all 2,094 Shell tests, package
+typechecks and the local production build passed. The hosted image rebuild
+remains required; the local build alone does not prove image packaging.
 
 The earlier documentation-only CI run `44076177242` failed the existing
 `TestPreEmploymentPersonReviewPreservesInactiveJoiner/activation_posting_chain_child`

@@ -7,9 +7,12 @@ import {
   usePermissions,
   useReleaseCapabilities,
 } from "@helivanta/api";
-import { renderWithProviders, releaseSnapshotForTest } from "@helivanta/api/testing";
+import {
+  renderWithProviders,
+  releaseSnapshotForTest,
+  releaseDefinitionsForTest,
+} from "@helivanta/api/testing";
 import { ZONES } from "@helivanta/ui";
-import contract from "../../../../../contracts/release-capabilities.json";
 import Dashboard from "./page";
 
 const scope = {
@@ -53,7 +56,7 @@ const permissions = [
 
 function effectiveWithout(key: string) {
   const enabled = new Set(mvp.filter((item) => item !== key));
-  for (const definition of contract.capabilities)
+  for (const definition of releaseDefinitionsForTest)
     if (definition.dependencies.some((dependency) => !enabled.has(dependency)))
       enabled.delete(definition.key);
   return [...enabled];
@@ -113,7 +116,7 @@ afterEach(() => {
 });
 
 it("shows exactly the accepted MVP cards even when the owner has every permission", async () => {
-  expect(contract.capabilities.filter((item) => item.eligible).map((item) => item.key)).toEqual(
+  expect(releaseDefinitionsForTest.filter((item) => item.eligible).map((item) => item.key)).toEqual(
     mvp,
   );
   mockOwner(() => Response.json(releaseSnapshotForTest(scope, mvp)));

@@ -36,9 +36,10 @@ type memberPresentationHandlers struct {
 func (m *Module) registerMemberPresentations(r *platform.Router, deps platform.Deps) {
 	h := &memberPresentationHandlers{db: deps.DB, identities: m.assignmentIdentity}
 	r.POST("/member-presentations", PermMemberManage, h.read)
+	r.POST("/account-presentations", PermMemberManage, h.readAccounts)
 }
 
-func (h *memberPresentationHandlers) snapshot(ctx context.Context, p authn.Principal, subjects []string, action string, expected []memberPresentationMembership) ([]memberPresentationMembership, error) {
+func (h *memberPresentationHandlers) snapshot(ctx context.Context, p authn.Principal, subjects []string, action string, expected []memberPresentationMembership, ownedAccounts bool) ([]memberPresentationMembership, error) {
 	var rows []memberPresentationMembership
 	allSubjects := slices.Clone(subjects)
 	if !slices.Contains(allSubjects, p.Subject) {
@@ -58,15 +59,22 @@ func (h *memberPresentationHandlers) snapshot(ctx context.Context, p authn.Princ
 		for _, row := range rows {
 			found[row.Subject] = true
 		}
-		if len(found) != len(allSubjects) {
+		if !ownedAccounts && len(found) != len(allSubjects) {
 			return gorm.ErrRecordNotFound
 		}
 		if expected != nil && !slices.Equal(expected, rows) {
 			return errMemberPresentationChanged
 		}
 		for _, subject := range subjects {
-			id := rows[slices.IndexFunc(rows, func(row memberPresentationMembership) bool { return row.Subject == subject })].ID
-			if err := tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id) VALUES(?,?,?,'iam_members',?)`, p.TenantID, p.Subject, action, id).Error; err != nil {
+			resourceType := "iam_members"
+			var id uuid.UUID
+			if ownedAccounts {
+				resourceType = "iam_accounts"
+				id = uuid.NewSHA1(uuid.MustParse(p.TenantID), []byte(subject))
+			} else {
+				id = rows[slices.IndexFunc(rows, func(row memberPresentationMembership) bool { return row.Subject == subject })].ID
+			}
+			if err := tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id) VALUES(?,?,?,?,?)`, p.TenantID, p.Subject, action, resourceType, id).Error; err != nil {
 				return err
 			}
 		}
@@ -90,7 +98,11 @@ func memberPresentationError(c *gin.Context, err error) {
 	}
 }
 
-func (h *memberPresentationHandlers) read(c *gin.Context) {
+func (h *memberPresentationHandlers) read(c *gin.Context) { h.readKind(c, false) }
+
+func (h *memberPresentationHandlers) readAccounts(c *gin.Context) { h.readKind(c, true) }
+
+func (h *memberPresentationHandlers) readKind(c *gin.Context, ownedAccounts bool) {
 	p, tenant, ok := membershipCommandPrincipal(c)
 	if !ok {
 		return
@@ -123,12 +135,16 @@ func (h *memberPresentationHandlers) read(c *gin.Context) {
 		memberPresentationError(c, errMembershipAuthority)
 		return
 	}
-	before, err := h.snapshot(ctx, p, in.Subjects, "iam.member_presentation.requested", nil)
+	action := "iam.member_presentation"
+	if ownedAccounts {
+		action = "iam.account_presentation"
+	}
+	before, err := h.snapshot(ctx, p, in.Subjects, action+".requested", nil, ownedAccounts)
 	if err != nil {
 		memberPresentationError(c, err)
 		return
 	}
-	out := MemberPresentations{TenantID: tenant, ActorSubject: p.Subject, Data: make([]MemberPresentation, len(in.Subjects))}
+	out := AccountPresentations{TenantID: tenant, ActorSubject: p.Subject, Data: make([]AccountPresentation, len(in.Subjects))}
 	group, lookupCtx := errgroup.WithContext(ctx)
 	group.SetLimit(4)
 	for index, subject := range in.Subjects {
@@ -143,7 +159,7 @@ func (h *memberPresentationHandlers) read(c *gin.Context) {
 					roles = append(roles, authz.RoleBinding{TenantID: p.TenantID, Role: authz.Role(row.RoleKey)})
 				}
 			}
-			view := MemberPresentation{Subject: subject, Roles: []MemberPresentationRole{}}
+			view := AccountPresentation{Subject: subject, Roles: []MemberPresentationRole{}}
 			for _, role := range rolesInTenant(roles, p.TenantID) {
 				view.Roles = append(view.Roles, MemberPresentationRole(role))
 			}
@@ -164,7 +180,7 @@ func (h *memberPresentationHandlers) read(c *gin.Context) {
 	if !authn.Refresh(c) || !authz.Refresh(c, PermMemberManage) {
 		return
 	}
-	_, err = h.snapshot(ctx, p, in.Subjects, "iam.member_presentation.read", before)
+	_, err = h.snapshot(ctx, p, in.Subjects, action+".read", before, ownedAccounts)
 	if err != nil {
 		memberPresentationError(c, err)
 		return
@@ -173,5 +189,18 @@ func (h *memberPresentationHandlers) read(c *gin.Context) {
 		memberPresentationError(c, ctx.Err())
 		return
 	}
-	respond.OK(c, out)
+	if ownedAccounts {
+		out.Data = slices.DeleteFunc(out.Data, func(row AccountPresentation) bool { return !row.Available && len(row.Roles) == 0 })
+		if len(out.Data) == 0 {
+			respond.NotFound(c, "organization account")
+			return
+		}
+		respond.OK(c, out)
+		return
+	}
+	members := MemberPresentations{TenantID: tenant, ActorSubject: p.Subject, Data: make([]MemberPresentation, len(out.Data))}
+	for i, row := range out.Data {
+		members.Data[i] = MemberPresentation(row)
+	}
+	respond.OK(c, members)
 }

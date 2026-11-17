@@ -598,3 +598,41 @@ export const MemberPresentationsContract = z
   })
   .strict();
 export type MemberPresentations = z.infer<typeof MemberPresentationsContract>;
+
+export const AccountPresentationContract = z
+  .object({
+    subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    available: z.boolean(),
+    name: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    email: z
+      .string()
+      .min(1)
+      .max(320)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    roles: z.array(MemberPresentationRoleContract).max(64),
+  })
+  .strict();
+export type AccountPresentation = z.infer<typeof AccountPresentationContract>;
+
+export const AccountPresentationsContract = z
+  .object({
+    tenant_id: identifier,
+    actor_subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    data: z.array(AccountPresentationContract).min(1).max(20),
+  })
+  .strict();
+export type AccountPresentations = z.infer<typeof AccountPresentationsContract>;

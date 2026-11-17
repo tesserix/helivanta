@@ -29,6 +29,7 @@ import {
 } from "@helivanta/api";
 import { GuardedLink, NavigationGuardProvider } from "./navigation-guard";
 import { ZONES, visibleZones, activeZone, activePage, railName, type Zone } from "./zones";
+import { AccountPresentationsProvider } from "./account-identity";
 import { BrandLogo, TesserixFooter } from "./branding";
 import { BrandThemeContext } from "./brand-theme";
 import {
@@ -330,7 +331,7 @@ export function HmsShell({
   // Read here, not passed per page: one layout renders the shell for every
   // authenticated route (#1091), so the path is the only source of "where".
   const pathname = usePathname();
-  const { can, isLoading: permissionsLoading } = usePermissions();
+  const { can, tenantId, subject, isLoading: permissionsLoading } = usePermissions();
   const release = useReleaseCapabilities();
   const isLoading = permissionsLoading || release.isLoading;
   const pageCapability = capabilityForPage(pathname);
@@ -839,7 +840,11 @@ export function HmsShell({
                     {!release.isTransitioning &&
                     release.available(pageCapability) &&
                     (pageCapability === "baseline" || !release.isLoading) ? (
-                      children
+                      <AccountPresentationsProvider
+                        scope={tenantId && subject ? { tenantId, subject } : null}
+                      >
+                        {children}
+                      </AccountPresentationsProvider>
                     ) : (
                       <section role="status" className="rounded-xl border bg-card p-6">
                         <h1 className="text-lg font-semibold">

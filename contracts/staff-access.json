@@ -868,6 +868,55 @@
         "min": 1,
         "max": 20
       }
+    ],
+    "AccountPresentation": [
+      {
+        "name": "subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "available",
+        "type": "bool"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "optional": true
+      },
+      {
+        "name": "email",
+        "type": "string",
+        "min": 1,
+        "max": 320,
+        "optional": true
+      },
+      {
+        "name": "roles",
+        "type": "[]MemberPresentationRole",
+        "max": 64
+      }
+    ],
+    "AccountPresentations": [
+      {
+        "name": "tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "data",
+        "type": "[]AccountPresentation",
+        "min": 1,
+        "max": 20
+      }
     ]
   },
   "template_migrations": [

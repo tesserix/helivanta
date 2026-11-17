@@ -103,110 +103,122 @@ func TestMemberPresentationsRefuseInvalidOrUnauthorizedDisclosureBeforeIdentityI
 }
 
 func TestMemberPresentationsRejectChangedSessionAndOversizedBatches(t *testing.T) {
-	var calls atomic.Int32
-	r, _, _ := presentationHarness(t, func(context.Context, string, string) (*customercontract.AssignmentCandidateIdentity, error) {
-		calls.Add(1)
-		return nil, nil
-	})
-	for _, header := range []string{"X-Helivanta-Expected-Tenant", "X-Helivanta-Expected-Subject"} {
-		request := httptest.NewRequest(http.MethodPost, "/v1/iam/member-presentations", strings.NewReader(`{"subjects":["candidate"]}`))
-		request.Header.Set("Content-Type", "application/json")
-		request.Header.Set("Authorization", "Bearer admin")
-		request.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantA)
-		request.Header.Set("X-Helivanta-Expected-Subject", "user-admin")
-		value := "different-account"
-		if header == "X-Helivanta-Expected-Tenant" {
-			value = testutil.TenantB
-		}
-		request.Header.Set(header, value)
-		response := httptest.NewRecorder()
-		r.ServeHTTP(response, request)
-		require.Equal(t, 409, response.Code, response.Body.String())
+	for _, endpoint := range []string{"/v1/iam/member-presentations", "/v1/iam/account-presentations"} {
+		t.Run(endpoint, func(t *testing.T) {
+
+			var calls atomic.Int32
+			r, _, _ := presentationHarness(t, func(context.Context, string, string) (*customercontract.AssignmentCandidateIdentity, error) {
+				calls.Add(1)
+				return nil, nil
+			})
+			for _, header := range []string{"X-Helivanta-Expected-Tenant", "X-Helivanta-Expected-Subject"} {
+				request := httptest.NewRequest(http.MethodPost, endpoint, strings.NewReader(`{"subjects":["candidate"]}`))
+				request.Header.Set("Content-Type", "application/json")
+				request.Header.Set("Authorization", "Bearer admin")
+				request.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantA)
+				request.Header.Set("X-Helivanta-Expected-Subject", "user-admin")
+				value := "different-account"
+				if header == "X-Helivanta-Expected-Tenant" {
+					value = testutil.TenantB
+				}
+				request.Header.Set(header, value)
+				response := httptest.NewRecorder()
+				r.ServeHTTP(response, request)
+				require.Equal(t, 409, response.Code, response.Body.String())
+			}
+			subjects := []string{}
+			for i := range 21 {
+				subjects = append(subjects, "account-"+strconv.Itoa(i))
+			}
+			body, err := json.Marshal(map[string]any{"subjects": subjects})
+			require.NoError(t, err)
+			response := membershipCommandRequest(r, http.MethodPost, endpoint, "admin", string(body))
+			require.Equal(t, 400, response.Code, response.Body.String())
+			require.Zero(t, calls.Load())
+
+		})
 	}
-	subjects := []string{}
-	for i := range 21 {
-		subjects = append(subjects, "account-"+strconv.Itoa(i))
-	}
-	body, err := json.Marshal(map[string]any{"subjects": subjects})
-	require.NoError(t, err)
-	response := membershipCommandRequest(r, http.MethodPost, "/v1/iam/member-presentations", "admin", string(body))
-	require.Equal(t, 400, response.Code, response.Body.String())
-	require.Zero(t, calls.Load())
 }
 
 func TestMemberPresentationsWithholdIdentityOnFailureAndMembershipReplacement(t *testing.T) {
-	for _, mode := range []string{"unavailable", "replaced", "inactive", "revoked"} {
-		t.Run(mode, func(t *testing.T) {
-			var db *tenantdb.DB
-			var ctx context.Context
-			var router *gin.Engine
-			var candidate iam.MembershipCandidate
-			identity := memberPresentationIdentity(func(context.Context, string, string) (*customercontract.AssignmentCandidateIdentity, error) {
-				if mode == "unavailable" {
-					return nil, errors.New("PRIVATE provider details")
-				}
-				if mode == "inactive" {
-					return nil, nil
-				}
-				if mode == "revoked" {
-					err := db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-						return iam.NewRevocationChecker(db).RevokeTx(tx, "user-admin", time.Now(), "admin_revoke", "user-admin")
-					})
-					if err != nil {
-						t.Errorf("revoke test credential: %v", err)
-						return nil, err
-					}
-				} else {
-					apply := func(input iam.MembershipCommandInput) (iam.MembershipCommand, error) {
-						var receipt iam.MembershipCommand
-						body, err := json.Marshal(input)
-						if err != nil {
-							return receipt, err
-						}
-						response := membershipCommandRequest(router, http.MethodPut, "/v1/iam/membership-commands/"+uuid.Must(uuid.NewV7()).String(), "admin", string(body))
-						if response.Code != http.StatusAccepted {
-							t.Errorf("concurrent membership command: %d %s", response.Code, response.Body.String())
-							return receipt, errors.New("membership command refused")
-						}
-						err = json.Unmarshal(response.Body.Bytes(), &receipt)
-						return receipt, err
-					}
-					removed, err := apply(iam.MembershipCommandInput{Operation: "remove", BasisID: candidate.ID, Subject: candidate.Subject, RoleKey: candidate.RoleKey, ExpectedMembershipEpoch: candidate.MembershipEpoch, Reason: "Synthetic concurrent membership removal"})
-					if err != nil {
-						return nil, err
-					}
-					_, err = apply(iam.MembershipCommandInput{Operation: "recover", BasisID: removed.ID, Subject: candidate.Subject, RoleKey: "staff_member", ExpectedMembershipEpoch: removed.ResultMembershipEpoch, Reason: "Synthetic concurrent ordinary membership recovery"})
-					if err != nil {
-						return nil, err
-					}
-				}
+	for _, endpoint := range []string{"/v1/iam/member-presentations", "/v1/iam/account-presentations"} {
+		t.Run(endpoint, func(t *testing.T) {
 
-				return &customercontract.AssignmentCandidateIdentity{DisplayName: "PRIVATE NAME", Email: "private@example.test"}, nil
-			})
-			r, database, harnessContext := presentationHarness(t, identity)
-			db, ctx = database, harnessContext
-			router = r
-			if mode == "replaced" {
-				response := membershipCommandRequest(r, http.MethodGet, "/v1/iam/membership-candidates?limit=50", "admin", "")
-				require.Equal(t, http.StatusOK, response.Code, response.Body.String())
-				var members struct{ Data []iam.MembershipCandidate }
-				require.NoError(t, json.Unmarshal(response.Body.Bytes(), &members))
-				for _, member := range members.Data {
-					if member.Subject == "candidate" {
-						candidate = member
+			for _, mode := range []string{"unavailable", "replaced", "inactive", "revoked"} {
+				t.Run(mode, func(t *testing.T) {
+					var db *tenantdb.DB
+					var ctx context.Context
+					var router *gin.Engine
+					var candidate iam.MembershipCandidate
+					identity := memberPresentationIdentity(func(context.Context, string, string) (*customercontract.AssignmentCandidateIdentity, error) {
+						if mode == "unavailable" {
+							return nil, errors.New("PRIVATE provider details")
+						}
+						if mode == "inactive" {
+							return nil, nil
+						}
+						if mode == "revoked" {
+							err := db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+								return iam.NewRevocationChecker(db).RevokeTx(tx, "user-admin", time.Now(), "admin_revoke", "user-admin")
+							})
+							if err != nil {
+								t.Errorf("revoke test credential: %v", err)
+								return nil, err
+							}
+						} else {
+							apply := func(input iam.MembershipCommandInput) (iam.MembershipCommand, error) {
+								var receipt iam.MembershipCommand
+								body, err := json.Marshal(input)
+								if err != nil {
+									return receipt, err
+								}
+								response := membershipCommandRequest(router, http.MethodPut, "/v1/iam/membership-commands/"+uuid.Must(uuid.NewV7()).String(), "admin", string(body))
+								if response.Code != http.StatusAccepted {
+									t.Errorf("concurrent membership command: %d %s", response.Code, response.Body.String())
+									return receipt, errors.New("membership command refused")
+								}
+								err = json.Unmarshal(response.Body.Bytes(), &receipt)
+								return receipt, err
+							}
+							removed, err := apply(iam.MembershipCommandInput{Operation: "remove", BasisID: candidate.ID, Subject: candidate.Subject, RoleKey: candidate.RoleKey, ExpectedMembershipEpoch: candidate.MembershipEpoch, Reason: "Synthetic concurrent membership removal"})
+							if err != nil {
+								return nil, err
+							}
+							_, err = apply(iam.MembershipCommandInput{Operation: "recover", BasisID: removed.ID, Subject: candidate.Subject, RoleKey: "staff_member", ExpectedMembershipEpoch: removed.ResultMembershipEpoch, Reason: "Synthetic concurrent ordinary membership recovery"})
+							if err != nil {
+								return nil, err
+							}
+						}
+
+						return &customercontract.AssignmentCandidateIdentity{DisplayName: "PRIVATE NAME", Email: "private@example.test"}, nil
+					})
+					r, database, harnessContext := presentationHarness(t, identity)
+					db, ctx = database, harnessContext
+					router = r
+					if mode == "replaced" {
+						response := membershipCommandRequest(r, http.MethodGet, "/v1/iam/membership-candidates?limit=50", "admin", "")
+						require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+						var members struct{ Data []iam.MembershipCandidate }
+						require.NoError(t, json.Unmarshal(response.Body.Bytes(), &members))
+						for _, member := range members.Data {
+							if member.Subject == "candidate" {
+								candidate = member
+							}
+						}
+						require.NotEqual(t, uuid.Nil, candidate.ID)
 					}
-				}
-				require.NotEqual(t, uuid.Nil, candidate.ID)
+					res := membershipCommandRequest(r, http.MethodPost, endpoint, "admin", `{"subjects":["candidate"]}`)
+					status := map[string]int{"unavailable": 503, "replaced": 409, "inactive": 200, "revoked": 401}[mode]
+					require.Equal(t, status, res.Code, res.Body.String())
+					require.NotContains(t, res.Body.String(), "PRIVATE")
+					require.NotContains(t, res.Body.String(), "private@example.test")
+					if mode == "inactive" {
+						require.Contains(t, res.Body.String(), `"available":false`)
+						require.NotContains(t, res.Body.String(), `"name"`)
+					}
+				})
 			}
-			res := membershipCommandRequest(r, http.MethodPost, "/v1/iam/member-presentations", "admin", `{"subjects":["candidate"]}`)
-			status := map[string]int{"unavailable": 503, "replaced": 409, "inactive": 200, "revoked": 401}[mode]
-			require.Equal(t, status, res.Code, res.Body.String())
-			require.NotContains(t, res.Body.String(), "PRIVATE")
-			require.NotContains(t, res.Body.String(), "private@example.test")
-			if mode == "inactive" {
-				require.Contains(t, res.Body.String(), `"available":false`)
-				require.NotContains(t, res.Body.String(), `"name"`)
-			}
+
 		})
 	}
 }

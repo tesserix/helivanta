@@ -10,6 +10,33 @@ The current login boundary uses Zitadel and Helivanta session minting. Earlier R
 
 Tenant, hospital, pharmacy outlet, supply premise, emergency base and receiving facility have different scopes. A tenant can contain multiple hospitals; a standalone pharmacy is not a hospital. Forced RLS and handler object grants implement narrower boundaries in the existing domains, but the legacy visit/lab/dispense slice remains tenant-scoped. Do not claim universal hospital isolation until that slice is migrated and tested. Group-sharing architecture is proposed and does not make all same-tenant records mutually visible.
 
+### Named accounts before ordinary membership
+
+`POST /v1/iam/account-presentations` uses the same authenticated Global API
+platform destination, `iam.member.manage` permission and current tenant-admin
+check as the member presentation read below. Its canonical request is
+`MemberPresentationRequest`; its response is `AccountPresentations` in
+`contracts/staff-access.json`. It uses the identity owner's existing
+`assignment_candidate` projection to resolve active verified humans owned by
+the selected tenant's native organization, including accounts not yet enrolled
+in IAM. It creates no membership, role, grant or identity master.
+
+Replies bind tenant and actor, preserve request order and omit unknown/foreign
+accounts. A verified name may have an empty role list before enrollment. Known
+members with unavailable identity details retain authorized role labels without
+a name. An entirely invisible batch returns 404; dependency or audit failures
+return 503 with no partial disclosure. The five-second budget, twenty-account
+limit, four concurrent lookups, 8 KiB request limit, before/after authority and
+membership checks, 409 on membership change, and no-store policy also apply.
+Audits use `iam.account_presentation.requested` / `.read` with tenant-scoped
+account references, without names or email in the event payload.
+
+The shared UI resolves names for rendered accounts in actor/tenant-bound batches,
+withdraws them on lookup refusal or tenant switching and never falls back to a
+raw account identifier. Named selectors retain internal subjects only in command
+values. Initial enrollment is bound to the verified staff-account setup result;
+users do not enter account IDs. Displayed names never establish authority.
+
 ### Named organization members for access administration
 
 `POST /v1/iam/member-presentations` is a read through the Global API platform

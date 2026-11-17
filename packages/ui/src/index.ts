@@ -1,4 +1,15 @@
 export { HmsShell } from "./hms-shell";
+export { MemberAccountSelect } from "./member-account-select";
+export {
+  AccountName,
+  AccountRole,
+  AccountPresentationsProvider,
+  useAccountPresentation,
+  useAccountPresentations,
+  AccountSelectControl,
+  FormAccountSelectField,
+  useNamedAccountOptions,
+} from "./account-identity";
 export {
   ZONES,
   activeZone,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { usePermissions } from "./permissions";
 import {
@@ -24,10 +24,16 @@ export function useReleaseCapabilities() {
     enabled: !!scope && !transitioning,
     staleTime: 15_000,
     gcTime: 60_000,
-    refetchInterval: 30_000,
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: "always",
     retry: false,
   });
-  const current = useCurrentSnapshot(query.data?.expires_at);
+  const { refetch } = query;
+  const recheck = useCallback(() => {
+    void refetch({ cancelRefetch: false });
+  }, [refetch]);
+  const current = useCurrentSnapshot(query.data?.expires_at, recheck);
   const data = query.data;
   const valid =
     !transitioning &&
@@ -47,16 +53,19 @@ export function useReleaseCapabilities() {
   };
 }
 
-function useCurrentSnapshot(expires?: string) {
+function useCurrentSnapshot(expires: string | undefined, recheck: () => void) {
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
     if (!expires) return;
     const timer = setTimeout(
-      () => setNow(Date.now()),
+      () => {
+        setNow(Date.now());
+        recheck();
+      },
       Math.max(0, Date.parse(expires) - Date.now()),
     );
     return () => clearTimeout(timer);
-  }, [expires]);
+  }, [expires, recheck]);
   return !!expires && Date.parse(expires) > now;
 }
 
@@ -66,9 +75,15 @@ export function usePublicReleaseCapabilities(enabled: boolean) {
     queryFn: ({ signal }) => readPublicReleaseCapabilities(signal),
     enabled,
     staleTime: 15_000,
-    refetchInterval: 30_000,
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: "always",
     retry: false,
   });
-  const current = useCurrentSnapshot(query.data?.expires_at);
+  const { refetch } = query;
+  const recheck = useCallback(() => {
+    void refetch({ cancelRefetch: false });
+  }, [refetch]);
+  const current = useCurrentSnapshot(query.data?.expires_at, recheck);
   return { ...query, available: current && !!query.data?.onboarding };
 }

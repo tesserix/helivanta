@@ -185,3 +185,24 @@ func TestAssignmentFamiliesRequireTheirReleasedDependencies(t *testing.T) {
 		})
 	}
 }
+
+func TestDisabledFutureDefinitionsDoNotBreakRollingDeployments(t *testing.T) {
+	now := time.Now().UTC()
+	payload := `{"features":{"helivanta.release.team_accounts":{"defaultValue":true},"helivanta.release.future_capability":{"defaultValue":false,"rules":[]}}}`
+	service := testService(t, &payload, &now)
+	require.NoError(t, service.Refresh(t.Context()))
+	snapshot, err := service.Snapshot(t.Context(), uuid.MustParse("018f8f5b-2222-7222-8222-222222222222"), "owner")
+	require.NoError(t, err)
+	require.True(t, available(t, snapshot, "team_accounts"))
+	require.Len(t, snapshot.Capabilities, len(definitions))
+	for _, unknown := range []string{
+		`"helivanta.release.future_capability":{"defaultValue":true}`,
+		`"helivanta.release.future_capability":{"defaultValue":false,"rules":[{"force":true}]}`,
+		`"helivanta.release.future_capability":{"defaultValue":false,"extra":true}`,
+		`"helivanta.release.bad-key":{"defaultValue":false}`,
+		`"foreign.release.future_capability":{"defaultValue":false}`,
+	} {
+		payload = `{"features":{` + unknown + `}}`
+		require.ErrorIs(t, service.Refresh(t.Context()), ErrUnavailable, unknown)
+	}
+}

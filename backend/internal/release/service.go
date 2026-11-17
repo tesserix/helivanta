@@ -25,6 +25,8 @@ const (
 	flagPrefix       = "helivanta.release."
 )
 
+var futureFlagKey = regexp.MustCompile(`^helivanta\.release\.[a-z][a-z_]{0,63}$`)
+
 var ErrUnavailable = errors.New("release capabilities unavailable")
 
 type Definition struct {
@@ -261,7 +263,7 @@ func validatePayload(body []byte) ([]byte, error) {
 		return nil, ErrUnavailable
 	}
 	var features map[string]map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &features); err != nil || features == nil || len(features) > len(definitions) {
+	if err := json.Unmarshal(raw, &features); err != nil || features == nil || len(features) > 100 {
 		return nil, ErrUnavailable
 	}
 	known := map[string]bool{}
@@ -269,7 +271,23 @@ func validatePayload(body []byte) ([]byte, error) {
 		known[flagPrefix+definition.Key] = true
 	}
 	for key, feature := range features {
-		if !known[key] || !jsonBoolean(feature["defaultValue"]) {
+		if !known[key] {
+			// Future definitions may coexist during rolling releases only while inert.
+			if !futureFlagKey.MatchString(key) || !bytes.Equal(bytes.TrimSpace(feature["defaultValue"]), []byte("false")) {
+				return nil, ErrUnavailable
+			}
+			for field := range feature {
+				if field != "defaultValue" && field != "rules" {
+					return nil, ErrUnavailable
+				}
+			}
+			if rules, exists := feature["rules"]; exists && !bytes.Equal(bytes.TrimSpace(rules), []byte("[]")) && !bytes.Equal(bytes.TrimSpace(rules), []byte("null")) {
+				return nil, ErrUnavailable
+			}
+			delete(features, key)
+			continue
+		}
+		if !jsonBoolean(feature["defaultValue"]) {
 			return nil, ErrUnavailable
 		}
 		for field := range feature {
@@ -300,7 +318,11 @@ func validatePayload(body []byte) ([]byte, error) {
 			}
 		}
 	}
-	return raw, nil
+	filtered, err := json.Marshal(features)
+	if err != nil {
+		return nil, ErrUnavailable
+	}
+	return filtered, nil
 }
 
 func unambiguousJSON(body []byte) bool {

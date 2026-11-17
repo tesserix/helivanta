@@ -67,3 +67,44 @@ actual SDK payload, live on/off/outage acceptance, database authorization
 acceptance and version-bound release approval remain deployment gates. Existing
 hospital, account and MFA authority are unchanged.
 See the [delivery plan](../superpowers/plans/2026-11-16-first-release-capabilities.md).
+
+## Staff release controls
+
+All keys below use the `helivanta.release.` prefix in the dedicated Helivanta
+GrowthBook project, production environment. The canonical capability definitions,
+dependencies, API classifications, pages and nested panels remain in
+`contracts/release-capabilities.json`; this table describes the current release.
+
+| Flag suffix              | Production | Staff scope                                                                        |
+| ------------------------ | ---------- | ---------------------------------------------------------------------------------- |
+| `team_accounts`          | On         | Tenant accounts, invitations and permission-assignment workflows                   |
+| `staff_core`             | On         | Staff records, person/employment reviews, reviewed login links and credentials     |
+| `department_teams`       | On         | Department structure, team membership and posting preparation/review               |
+| `pharmacy_staff`         | On         | Pharmacy employer staff, account links and required credential/employment evidence |
+| `workforce_scheduling`   | Off        | Attendance, shifts, rosters, leave, overtime and duty exchanges                    |
+| `workforce_payroll`      | Off        | Benefits and payroll setup                                                         |
+| `workforce_advanced`     | Off        | Advanced workforce tools, including credential reminders and reminder policy       |
+| `supplier_collaboration` | Off        | Supplier staff, partner teams and supplier operating-access workflows              |
+
+`onboarding` and `pharmacy_setup` also remain on as agreed release prerequisites;
+this Staff configuration does not expand the pharmacy stock or financial release.
+Core Staff depends on team accounts. Department teams depend on core Staff.
+Pharmacy Staff depends on both core Staff and pharmacy setup. Disabling a
+prerequisite closes its dependent UI and APIs after the bounded snapshot lifetime;
+it does not grant/revoke IAM assignments or delete Staff history.
+
+Credential reminders use `workforce_advanced` for both the Staff page and all eight
+hospital/pharmacy policy, list and acknowledgement API declarations. Core
+credential reads remain available under their existing Staff capability and
+authorization checks. The release middleware blocks the reminder handlers even
+if a provider rule mistakenly enables the advanced flag: its compiled eligibility
+is still false. Future activation requires a reviewed eligibility change, the
+applicable employer/department authorization, and UI/API acceptance evidence.
+
+The desired production values are provisioned through the owning infrastructure
+repository's `charts/thirdparty/growthbook/files/helivanta-release.json`. The
+provisioner refuses conflicting existing rules rather than silently overwriting
+an operator's configuration. Never use a flag as proof of tenant membership,
+employment, professional authority or access to another tenant's staff. Provider
+credentials stay on the server; browsers receive only account-bound capability
+snapshots with a maximum 60-second lifetime.

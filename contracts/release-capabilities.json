@@ -3847,22 +3847,22 @@
     {
       "method": "GET",
       "path": "/v1/workforce/hospitals/:hospital/hr/credential-reminder-policy",
-      "capability": "staff_core"
+      "capability": "workforce_advanced"
     },
     {
       "method": "PUT",
       "path": "/v1/workforce/hospitals/:hospital/hr/credential-reminder-policy",
-      "capability": "staff_core"
+      "capability": "workforce_advanced"
     },
     {
       "method": "GET",
       "path": "/v1/workforce/hospitals/:hospital/hr/credential-reminders",
-      "capability": "staff_core"
+      "capability": "workforce_advanced"
     },
     {
       "method": "POST",
       "path": "/v1/workforce/hospitals/:hospital/hr/credential-reminders/:reminder/acknowledgement",
-      "capability": "staff_core"
+      "capability": "workforce_advanced"
     },
     {
       "method": "GET",
@@ -5147,22 +5147,22 @@
     {
       "method": "GET",
       "path": "/v1/workforce/pharmacies/:pharmacy/hr/credential-reminder-policy",
-      "capability": "pharmacy_staff"
+      "capability": "workforce_advanced"
     },
     {
       "method": "PUT",
       "path": "/v1/workforce/pharmacies/:pharmacy/hr/credential-reminder-policy",
-      "capability": "pharmacy_staff"
+      "capability": "workforce_advanced"
     },
     {
       "method": "GET",
       "path": "/v1/workforce/pharmacies/:pharmacy/hr/credential-reminders",
-      "capability": "pharmacy_staff"
+      "capability": "workforce_advanced"
     },
     {
       "method": "POST",
       "path": "/v1/workforce/pharmacies/:pharmacy/hr/credential-reminders/:reminder/acknowledgement",
-      "capability": "pharmacy_staff"
+      "capability": "workforce_advanced"
     },
     {
       "method": "GET",

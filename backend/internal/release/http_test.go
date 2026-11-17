@@ -93,3 +93,49 @@ func TestCompleteRouteValidationPermitsOnlyExplicitConditionalOwnerCallbacks(t *
 	require.ErrorContains(t, policy.ValidateCompleteRoutes(routes), "unclassified release route")
 	require.ErrorContains(t, policy.ValidateCompleteRoutes(nil), "missing release route")
 }
+
+func TestUnreleasedStaffRemindersCannotUseCoreStaffAdmission(t *testing.T) {
+	now := time.Date(2026, 11, 17, 0, 0, 0, 0, time.UTC)
+	payload := `{"features":{
+		"helivanta.release.team_accounts":{"defaultValue":true},
+		"helivanta.release.staff_core":{"defaultValue":true},
+		"helivanta.release.pharmacy_setup":{"defaultValue":true},
+		"helivanta.release.pharmacy_staff":{"defaultValue":true},
+		"helivanta.release.workforce_advanced":{"defaultValue":true}
+	}}`
+	service := testService(t, &payload, &now)
+	require.NoError(t, service.Refresh(t.Context()))
+	for _, tc := range []struct {
+		method, path string
+		want         int
+	}{
+		{http.MethodGet, "/v1/workforce/hospitals/:hospital/hr/credential-reminder-policy", http.StatusNotFound},
+		{http.MethodPut, "/v1/workforce/hospitals/:hospital/hr/credential-reminder-policy", http.StatusNotFound},
+		{http.MethodGet, "/v1/workforce/hospitals/:hospital/hr/credential-reminders", http.StatusNotFound},
+		{http.MethodPost, "/v1/workforce/hospitals/:hospital/hr/credential-reminders/:reminder/acknowledgement", http.StatusNotFound},
+		{http.MethodGet, "/v1/workforce/hospitals/:hospital/hr/credentials", http.StatusNoContent},
+		{http.MethodGet, "/v1/workforce/pharmacies/:pharmacy/hr/credential-reminder-policy", http.StatusNotFound},
+		{http.MethodPut, "/v1/workforce/pharmacies/:pharmacy/hr/credential-reminder-policy", http.StatusNotFound},
+		{http.MethodGet, "/v1/workforce/pharmacies/:pharmacy/hr/credential-reminders", http.StatusNotFound},
+		{http.MethodPost, "/v1/workforce/pharmacies/:pharmacy/hr/credential-reminders/:reminder/acknowledgement", http.StatusNotFound},
+		{http.MethodGet, "/v1/workforce/pharmacies/:pharmacy/hr/credentials", http.StatusNoContent},
+	} {
+		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			engine := gin.New()
+			engine.Use(func(c *gin.Context) {
+				c.Set("authn.principal", authn.Principal{TenantID: "018f8f5b-1111-7111-8111-111111111111", Subject: "owner"})
+			})
+			called := false
+			engine.Handle(tc.method, tc.path, service.Admission(tc.method, tc.path), func(c *gin.Context) {
+				called = true
+				c.Status(http.StatusNoContent)
+			})
+			path := strings.NewReplacer(":pharmacy", "018f8f5b-4444-7444-8444-444444444444", ":hospital", "018f8f5b-2222-7222-8222-222222222222", ":reminder", "018f8f5b-3333-7333-8333-333333333333").Replace(tc.path)
+			response := httptest.NewRecorder()
+			engine.ServeHTTP(response, httptest.NewRequest(tc.method, path, nil))
+			require.Equal(t, tc.want, response.Code)
+			require.Equal(t, tc.want == http.StatusNoContent, called)
+		})
+	}
+}

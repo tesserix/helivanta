@@ -4,7 +4,8 @@ FLOOR="${COVERAGE_FLOOR:-70}"
 profile=$(mktemp)
 trap 'rm -f "$profile"' EXIT
 # Owner code is also exercised through gateway and cross-module integration tests.
-out=$(go test -race -count=1 -coverpkg=./... -coverprofile="$profile" -timeout=40m ./... 2>&1) || { echo "$out"; exit 1; }
+# Database-heavy package fixtures share the runner; retain concurrency inside each suite.
+out=$(go test -p=1 -race -count=1 -coverpkg=./... -coverprofile="$profile" -timeout=40m ./... 2>&1) || { echo "$out"; exit 1; }
 echo "$out"
 is_gated() {
   case "$1" in

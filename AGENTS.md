@@ -103,6 +103,34 @@ applicable local checks. Remove the generated build artifacts created by the
 validation after it passes. Preserve source files, dependencies, shared caches
 and unrelated work. A passing CI run does not replace this local build gate.
 
+## Feature flags and MVP acceptance
+
+Read [Manage Helivanta feature flags](docs/runbooks/feature-flags.md) before
+changing release availability or testing an enabled MVP. The canonical input is
+`contracts/release-capabilities.json`; regenerate its outputs instead of editing
+generated code. Every business API, page and nested panel needs a classification.
+Availability never replaces tenant, permission, employment, professional or
+object-scope authorization.
+
+Dashboard shortcuts must use the same canonical page classification, effective
+account-bound capabilities and permission filtering as navigation and destination
+pages. Keep the automated dashboard off/dependency/refresh/account-switch checks
+aligned with the reviewed MVP. Baseline account security remains available.
+
+Operators enable/disable reviewed features in Tesserix Console. New reviewed
+definitions are created disabled by the chart-owned five-minute catalogue job or
+Console's missing-definition command. Preserve existing desired values and audit
+history. Do not use provider edits, database fixtures or broad administrator grants
+to bypass release locks, independent review or recipient verification.
+
+For acceptance, record the running revision and test enabled capabilities through
+the UI and Global API, including cross-tenant denial and duplicate/uncertain
+commands where relevant. Hospital-owned and independent pharmacies need separate
+employer/tenant evidence. Keep credentials and real contacts private, label QA
+records, preserve audit history and restore authorized temporary flag changes.
+Report unexecuted checks explicitly; hosted fixtures do not prove live onboarding
+or staff sign-in.
+
 ## Repository visibility
 
 `tesserix/helivanta` must remain public. Never make it private, including as

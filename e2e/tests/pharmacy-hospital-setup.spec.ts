@@ -101,4 +101,32 @@ test("a hospital owner registers a pharmacy and outlet without acquiring operati
   await expect(page.getByRole("combobox", { name: "Pharmacy", exact: true })).toHaveText(
     pharmacyName,
   );
+
+  const registrationPath = `/api/v1/organization/hospitals/${hospitalId}/registrations/${uuidv7()}`;
+  const headers = {
+    "X-Helivanta-Expected-Tenant": String(me.tenant_id),
+    "X-Helivanta-Expected-Subject": String(me.subject),
+  };
+  const registration = await page.request.put(registrationPath, {
+    headers,
+    data: { reason: "Synthetic hospital name in department structure" },
+  });
+  expect(registration.status(), await registration.text()).toBe(200);
+  await expect
+    .poll(
+      async () => {
+        const response = await page.request.get(registrationPath, { headers });
+        expect(response.status()).toBe(200);
+        const receipt = (await response.json()) as { hospital_id: string; status: string };
+        expect(receipt.hospital_id).toBe(hospitalId);
+        return receipt.status;
+      },
+      { timeout: 15_000 },
+    )
+    .toBe("verified");
+  await page.goto("/settings/organization");
+  await page.getByRole("button", { name: `Open departments for ${hospitalName}` }).click();
+  await expect(page.getByRole("heading", { name: "Departments and sub-units" })).toBeVisible();
+  await expect(page.getByText(hospitalName, { exact: true })).toBeVisible();
+  await expect(page.getByText(hospitalId, { exact: true })).toHaveCount(0);
 });

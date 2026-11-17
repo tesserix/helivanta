@@ -10,6 +10,14 @@ and [local evidence](../qa/2026-11-02-organization-departments-local.md).
 
 ## Authority and owner boundary
 
+The structure UI labels hospital references and the selected department context
+with names from the current account's separately authorized Workforce hospital
+directory. That paginated lookup preserves expected tenant/subject assertions;
+it grants no Workforce access. Missing names or refused/unavailable directory
+reads show `Hospital name unavailable`, without displaying raw UUIDs or retaining
+a cached name after refusal. Organization commands retain their own unchanged
+authorization and canonical hospital identifiers.
+
 Business HTTP uses Global API's platform destination. Explicit tenant governance
 permissions are `organization.structure.read` and `organization.structure.manage`,
 with defaults only for tenant administrators. Verified principal and exact original

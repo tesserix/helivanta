@@ -1,5 +1,8 @@
 # Release capability admission
 
+For operator instructions, dependency order, command recovery and chart-driven
+provisioning, see [Manage Helivanta feature flags](../runbooks/feature-flags.md).
+
 Foundation implementation for #1728; production activation requires the deployment gates below.
 The platform owns release availability. IAM and each product retain membership,
 permission, professional and object-scope authority. A released flag grants none

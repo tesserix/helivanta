@@ -39,6 +39,110 @@ function mount() {
     </NavigationGuardProvider>,
   );
 }
+
+it("shows the authorized hospital name in the reference and department context", async () => {
+  const name = "Synthetic named hospital";
+  const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.endsWith("/permissions"))
+      return Response.json({
+        tenant_id: tenant,
+        subject: "synthetic-reader",
+        data: ["organization.structure.read"],
+      });
+    if (url.startsWith("/api/v1/workforce/hospitals?")) {
+      expect(new Headers(init?.headers).get("X-Helivanta-Expected-Tenant")).toBe(tenant);
+      expect(new Headers(init?.headers).get("X-Helivanta-Expected-Subject")).toBe(
+        "synthetic-reader",
+      );
+      return Response.json(page([{ id: hospital, name, access_level: "reader" }]));
+    }
+    return Response.json(url.includes("/departments?") ? page([node]) : page([root]));
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = mount();
+  await user.click(await screen.findByRole("button", { name: `Open departments for ${name}` }));
+  expect(await screen.findByRole("table", { name: `Departments at ${name}` })).toBeVisible();
+  expect(screen.getByText(name, { exact: true })).toBeVisible();
+  expect(screen.queryByText(new RegExp(hospital))).not.toBeInTheDocument();
+});
+
+it.each([403, 503])(
+  "withholds cached hospital names after directory refusal %s",
+  async (status) => {
+    let refused = false;
+    vi.stubGlobal("fetch", async (url: string) => {
+      if (url.endsWith("/permissions"))
+        return Response.json({
+          tenant_id: tenant,
+          subject: "synthetic-reader",
+          data: ["organization.structure.read"],
+        });
+      if (url.startsWith("/api/v1/workforce/hospitals?"))
+        return refused
+          ? Response.json(
+              { error: "unavailable", message: "Synthetic directory refusal" },
+              { status },
+            )
+          : Response.json(
+              page([
+                { id: hospital, name: "Previously permitted hospital", access_level: "reader" },
+              ]),
+            );
+      return Response.json(page([root]));
+    });
+    const { user } = mount();
+    expect(await screen.findByText("Previously permitted hospital")).toBeVisible();
+    refused = true;
+    await user.click(screen.getByRole("button", { name: "Refresh hospital references" }));
+    expect(await screen.findByText("Hospital name unavailable")).toBeVisible();
+    expect(screen.queryByText("Previously permitted hospital")).not.toBeInTheDocument();
+    expect(screen.queryByText(new RegExp(hospital))).not.toBeInTheDocument();
+  },
+);
+
+it("loads additional permitted hospital names only when requested", async () => {
+  const directoryCalls: string[] = [];
+  vi.stubGlobal("fetch", async (url: string) => {
+    if (url.endsWith("/permissions"))
+      return Response.json({
+        tenant_id: tenant,
+        subject: "synthetic-reader",
+        data: ["organization.structure.read"],
+      });
+    if (url.startsWith("/api/v1/workforce/hospitals?")) {
+      directoryCalls.push(url);
+      return Response.json(
+        url.includes("cursor=names-next")
+          ? page([{ id: hospital, name: "Later permitted hospital", access_level: "reader" }])
+          : {
+              ...page([]),
+              page: { has_more: true, next_cursor: "names-next" },
+            },
+      );
+    }
+    return Response.json(page([root]));
+  });
+  const { user } = mount();
+  await screen.findByText("Hospital name unavailable");
+  expect(directoryCalls).toHaveLength(1);
+  await user.click(await screen.findByRole("button", { name: /Load more hospital names/ }));
+  expect(await screen.findByText("Later permitted hospital")).toBeVisible();
+  expect(directoryCalls).toHaveLength(2);
+  expect(directoryCalls[1]).toContain("cursor=names-next");
+  expect(screen.queryByText(new RegExp(hospital))).not.toBeInTheDocument();
+});
+function stubHospitalFetch(fetcher: (url: string, init?: RequestInit) => Promise<Response>) {
+  vi.stubGlobal("fetch", (url: string, init?: RequestInit) =>
+    url.startsWith("/api/v1/workforce/hospitals?")
+      ? Promise.resolve(
+          Response.json(
+            page([{ id: hospital, name: "Synthetic source hospital", access_level: "reader" }]),
+          ),
+        )
+      : fetcher(url, init),
+  );
+}
+
 it("denies an unprivileged account before any structural metadata fetch", async () => {
   const fetcher = vi.fn().mockResolvedValue(
     Response.json({
@@ -47,14 +151,13 @@ it("denies an unprivileged account before any structural metadata fetch", async 
       data: ["workforce.staff.read"],
     }),
   );
-  vi.stubGlobal("fetch", fetcher);
+  stubHospitalFetch(fetcher);
   mount();
   expect(await screen.findByText(/organization structure access required/i)).toBeInTheDocument();
   expect(fetcher.mock.calls.every(([url]) => (url as string).endsWith("/permissions"))).toBe(true);
 });
 it("shows canonical departments read-only to a governance reader", async () => {
-  vi.stubGlobal(
-    "fetch",
+  stubHospitalFetch(
     vi.fn(async (url: string) =>
       Response.json(
         url.endsWith("/permissions")
@@ -70,7 +173,9 @@ it("shows canonical departments read-only to a governance reader", async () => {
     ),
   );
   const { user } = mount();
-  await user.click(await screen.findByRole("button", { name: `Open departments for ${hospital}` }));
+  await user.click(
+    await screen.findByRole("button", { name: "Open departments for Synthetic source hospital" }),
+  );
   expect(await screen.findByRole("cell", { name: node.name })).toBeInTheDocument();
   expect(
     screen.queryByRole("button", { name: "Add department or sub-unit" }),
@@ -101,9 +206,11 @@ it("requires basic fields and reason, then creates a canonical department once",
     }
     return Response.json(url.includes("/departments?") ? page(saved ? [saved] : []) : page([root]));
   });
-  vi.stubGlobal("fetch", fetcher);
+  stubHospitalFetch(fetcher);
   const { user } = mount();
-  await user.click(await screen.findByRole("button", { name: `Open departments for ${hospital}` }));
+  await user.click(
+    await screen.findByRole("button", { name: "Open departments for Synthetic source hospital" }),
+  );
   await user.click(await screen.findByRole("button", { name: "Add department or sub-unit" }));
   await user.click(screen.getByRole("button", { name: "Save department revision" }));
   expect(await screen.findByText(/enter a name/i)).toBeInTheDocument();
@@ -124,8 +231,7 @@ it("requires basic fields and reason, then creates a canonical department once",
 it("edits with the current version and retains the same command when an unchanged save is retried", async () => {
   let current = { ...node };
   const commands: string[] = [];
-  vi.stubGlobal(
-    "fetch",
+  stubHospitalFetch(
     vi.fn(async (url: string, init?: RequestInit) => {
       if (url.endsWith("/permissions"))
         return Response.json({
@@ -149,7 +255,9 @@ it("edits with the current version and retains the same command when an unchange
     }),
   );
   const { user } = mount();
-  await user.click(await screen.findByRole("button", { name: `Open departments for ${hospital}` }));
+  await user.click(
+    await screen.findByRole("button", { name: "Open departments for Synthetic source hospital" }),
+  );
   await user.click(await screen.findByRole("button", { name: `Edit ${node.name}` }));
   await user.clear(screen.getByLabelText("Name"));
   await user.type(screen.getByLabelText("Name"), "Updated synthetic Pharmacy");
@@ -168,8 +276,7 @@ it("edits with the current version and retains the same command when an unchange
 });
 it("hides old departments and editing after the owner refuses a refreshed read", async () => {
   let denied = false;
-  vi.stubGlobal(
-    "fetch",
+  stubHospitalFetch(
     vi.fn(async (url: string) => {
       if (url.endsWith("/permissions"))
         return Response.json({
@@ -188,7 +295,9 @@ it("hides old departments and editing after the owner refuses a refreshed read",
     }),
   );
   const { user } = mount();
-  await user.click(await screen.findByRole("button", { name: `Open departments for ${hospital}` }));
+  await user.click(
+    await screen.findByRole("button", { name: "Open departments for Synthetic source hospital" }),
+  );
   expect(await screen.findByRole("cell", { name: node.name })).toBeInTheDocument();
   denied = true;
   await user.click(screen.getByRole("button", { name: "Refresh departments" }));

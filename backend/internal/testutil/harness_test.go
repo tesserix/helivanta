@@ -118,3 +118,15 @@ func lastLine(s string) string {
 	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
 	return lines[len(lines)-1]
 }
+
+func TestHarnessContextLivesUntilTestCleanup(t *testing.T) {
+	_, _, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{})
+	wantDeadline, wantBound := t.Context().Deadline()
+	deadline, bounded := ctx.Deadline()
+	require.Equal(t, wantBound, bounded, "the fixture setup timeout must not become the lifetime of test operations")
+	if wantBound {
+		require.Equal(t, wantDeadline, deadline)
+	}
+	require.NoError(t, ctx.Err())
+	t.Cleanup(func() { require.NoError(t, ctx.Err(), "caller cleanups must retain a usable fixture context") })
+}

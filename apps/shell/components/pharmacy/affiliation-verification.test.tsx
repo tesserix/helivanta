@@ -31,6 +31,36 @@ function stub() {
 }
 
 describe("AffiliationVerification", () => {
+  it("names a pending link from the current authorized hospital directory", () => {
+    stub();
+    renderWithProviders(
+      <AffiliationVerification
+        link={link({ verification_status: "requested" })}
+        directoryHospitalName="Main branch"
+        path={path}
+        invalidate={["k"]}
+        canManage={false}
+      />,
+    );
+    expect(screen.getByText("Main branch")).toBeInTheDocument();
+    expect(screen.getByText(/Waiting for the hospital to verify/)).toBeInTheDocument();
+    expect(screen.queryByText("h1")).not.toBeInTheDocument();
+  });
+
+  it("shows the verified hospital name instead of its identifier", () => {
+    stub();
+    renderWithProviders(
+      <AffiliationVerification
+        link={link({ verification_status: "verified", hospital_name: "City General Hospital" })}
+        path={path}
+        invalidate={["k"]}
+        canManage={false}
+      />,
+    );
+    expect(screen.getByText("City General Hospital")).toBeInTheDocument();
+    expect(screen.queryByText("h1")).not.toBeInTheDocument();
+  });
+
   it("asks the hospital to verify an unverified link, and grants nothing until then", async () => {
     const fetcher = stub();
     const { user } = renderWithProviders(
@@ -90,4 +120,22 @@ describe("AffiliationVerification", () => {
     expect(screen.getByText(label)).toBeInTheDocument();
     expect(screen.queryByRole("button")).toBeNull();
   });
+});
+
+it("does not disclose an unverified hospital name or use its ID as a label", () => {
+  stub();
+  renderWithProviders(
+    <AffiliationVerification
+      link={link({
+        verification_status: "requested",
+        hospital_name: "Unverified private hospital",
+      })}
+      path={path}
+      invalidate={["k"]}
+      canManage={false}
+    />,
+  );
+  expect(screen.getByText("Hospital name unavailable")).toBeInTheDocument();
+  expect(screen.queryByText("Unverified private hospital")).not.toBeInTheDocument();
+  expect(screen.queryByText("h1")).not.toBeInTheDocument();
 });

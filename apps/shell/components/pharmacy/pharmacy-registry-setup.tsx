@@ -402,6 +402,11 @@ function AffiliationForm({
             <li key={link.id} className="py-3">
               <AffiliationVerification
                 link={link}
+                directoryHospitalName={
+                  !hospitals.isError && !hospitals.isPending
+                    ? hospitals.items.find((hospital) => hospital.id === link.hospital_id)?.name
+                    : undefined
+                }
                 path={`/pharmacy/pharmacies/${pharmacy.id}/hospital-affiliations/${link.id}`}
                 invalidate={key}
                 canManage={can("pharmacy.access.manage")}

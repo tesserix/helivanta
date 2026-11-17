@@ -47,8 +47,14 @@ test("a hospital owner registers a pharmacy and outlet without acquiring operati
   expect(await affiliation.json()).toMatchObject({
     hospital_id: hospitalId,
     relationship: "owner",
+    hospital_name: null,
     verification_status: "pending_validation",
   });
+  const affiliationRow = page
+    .getByRole("listitem")
+    .filter({ hasText: "Not verified · No access granted" });
+  await expect(affiliationRow.locator("p").first()).toHaveText(hospitalName);
+  await expect(affiliationRow.getByText(hospitalId, { exact: true })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Register outlet", exact: true }).click();
   await page.getByLabel("Outlet code", { exact: true }).fill("SYN-HOSP-MAIN");

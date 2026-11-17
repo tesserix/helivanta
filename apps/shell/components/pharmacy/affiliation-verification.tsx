@@ -23,11 +23,14 @@ const statusLabel: Record<AffiliationVerificationStatus, string> = {
 /** One declared hospital link and its verification controls (#1416). */
 export function AffiliationVerification({
   link,
+  directoryHospitalName,
   path,
   invalidate,
   canManage,
 }: {
   link: PharmacyHospitalAffiliation;
+  /** Name from the current account’s independently permitted hospital directory. */
+  directoryHospitalName?: string;
   /** The affiliation's own API path. */
   path: string;
   invalidate: unknown[];
@@ -64,11 +67,14 @@ export function AffiliationVerification({
       suppressErrorToast: true,
     },
   );
+  const hospitalName =
+    directoryHospitalName?.trim() ||
+    (link.verification_status === "verified" ? link.hospital_name?.trim() : undefined);
   const open = link.verification_status === "requested" || link.verification_status === "verified";
   const error = ask.error ?? withdraw.error;
   return (
     <div>
-      <p className="break-all font-medium">{link.hospital_id}</p>
+      <p className="break-words font-medium">{hospitalName || "Hospital name unavailable"}</p>
       <p className="mt-1 text-muted-foreground">
         {link.relationship} · {statusLabel[link.verification_status]}
       </p>

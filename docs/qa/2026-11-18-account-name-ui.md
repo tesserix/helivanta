@@ -97,3 +97,11 @@ instead of asking a supplier for a private hospital account identifier or queryi
 a foreign private directory. Retained-command reconciliation remains available.
 This advanced screen is behind the ineligible `supplier_collaboration` capability;
 it is not represented as part of the released owner/PharmaConnect MVP.
+
+The complete hosted Go run found a new assertion expecting `Staff member` rather
+than the existing canonical label `Staff member (membership only)`. The assertion
+was corrected without changing the role definition. The early presentation test
+step now includes account-presentation tests as well as member-presentation tests;
+the full race/coverage gate remains required. That run's browser failure was an
+identity-service timeout during pharmacy fixture setup; it is not counted as a
+passing browser run.

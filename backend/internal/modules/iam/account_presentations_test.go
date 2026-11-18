@@ -33,7 +33,7 @@ func TestAccountPresentationsReadOwnedHumansWithoutCreatingMemberships(t *testin
 	require.Equal(t, "user-admin", result.ActorSubject)
 	require.Len(t, result.Data, 2)
 	require.Equal(t, "Verified candidate", *result.Data[0].Name)
-	require.Equal(t, "Staff member", result.Data[0].Roles[0].Label)
+	require.Equal(t, "Staff member (membership only)", result.Data[0].Roles[0].Label)
 	require.Equal(t, "new-human", result.Data[1].Subject)
 	require.True(t, result.Data[1].Available)
 	require.Empty(t, result.Data[1].Roles)

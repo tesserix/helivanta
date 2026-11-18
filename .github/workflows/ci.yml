@@ -95,7 +95,7 @@ jobs:
       - name: Tenant identity admission and MFA regression
         run: go test -race ./internal/modules/iam -run '^(TestNewLegacyGrantRequiresCurrentTenantOwnedIdentity|TestLegacyGrant.*|TestLegacyRepair.*|TestFirstEnrollment.*|TestEnrollmentFakeKeepsNativeUserPathBinding|TestTOTPEnrollmentLifecycleConfirmsReplaysCompletesAndProjectsAMR|TestTOTPEnrollmentExpiryAndDependencyFailuresDoNotAdvance|TestRecoveryRequiresEligibleIdentity)$'
       - name: Named member presentation isolation and source changes
-        run: go test -race ./internal/modules/iam -run '^TestMemberPresentations'
+        run: go test -race ./internal/modules/iam -run '^Test(MemberPresentations|AccountPresentation)'
       - name: Supplier architecture and tenant preconditions
         run: |
           go test -race ./internal/archtest

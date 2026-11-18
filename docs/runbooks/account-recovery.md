@@ -81,3 +81,30 @@ reset, old-password denial and new-password/MFA sign-in. Retain minimized audit
 and revision evidence. Never put passwords, codes, workload credentials or private
 native responses in an issue, log or screenshot. See the
 [design and acceptance matrix](../superpowers/specs/2026-11-19-account-recovery.md).
+
+## Hosted native browser gate
+
+The main hosted E2E job explicitly enables
+`HELIVANTA_PASSWORD_RECOVERY_FIXTURE=true`. The normal identity fixture remains
+read-only without that opt-in. Recovery mode accepts only the fixed development
+issuer, loopback fixture database, local web origin and private mailbox beside
+the fixture's native manifest. It exposes only recovery commands in addition to
+its existing identity reads, and captures only the dedicated native-recovery spec
+recipients. Other destinations and mail purposes are refused; no external email
+provider is contacted by this fixture.
+
+`password-recovery-native.spec.ts` uses the dedicated account seeded for that
+spec in the isolated CI stack. It first proves ordinary old-password sign-in,
+then follows the actual sign-in recovery link, consumes its private captured
+mailbox proof, prepares and performs the real native reset through Global API,
+requires the previous session and old password to be refused, and signs in with
+the new password through the normal OIDC exchange. It uses no route interception
+or fabricated session. Native policy remains authoritative. Trace, video and
+screenshots are disabled for this credential-changing case. The captured test
+mailbox proof is deleted after consumption.
+
+The test requires a freshly seeded, disposable development stack and its explicit
+fixture mode. It refuses a deployed base URL. It is not production acceptance,
+recipient-inbox delivery evidence or Staff MFA-reset acceptance. The separate
+`password-recovery.spec.ts` cases remain browser consumer contracts with a stubbed
+owner. Record actual hosted results before calling either gate passed.

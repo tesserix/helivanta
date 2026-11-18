@@ -31,3 +31,16 @@ func (h *Handlers) identityCredential() ([]byte, error) {
 	}
 	return os.ReadFile(h.tokenFile)
 }
+
+// NewLocalPasswordRecoveryOwner requires the isolated recovery and identity fixtures together.
+func NewLocalPasswordRecoveryOwner(environment, issuer, enabled, identityEnabled string) (*Handlers, error) {
+	if enabled != "true" {
+		return nil, errors.New("local recovery requires explicit development configuration")
+	}
+	resolver, err := NewLocalIdentityResolver(environment, issuer, identityEnabled)
+	if err != nil {
+		return nil, err
+	}
+	resolver.broker.origin = "http://helivanta.localhost:4301"
+	return resolver.broker, nil
+}

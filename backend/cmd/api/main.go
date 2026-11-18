@@ -668,7 +668,15 @@ func run() error {
 		zitadelLoginClient.SetTenantIdentityResolver(resolver)
 	}
 	bootstrap.MountReleaseAvailability(srv.Engine, releasePolicy.PublicHandler(limiter))
-	recoveryHandlers, err := customeronboarding.NewPasswordRecoveryHandlers(signupHandlers, customeronboarding.PasswordRecoveryDeps{Requests: zitadelLoginClient, ClientID: cfg.ZitadelClientID, Limiter: limiter})
+	recoveryOwner := signupHandlers
+	if enabled := os.Getenv("HELIVANTA_PASSWORD_RECOVERY_FIXTURE"); enabled != "" {
+		fixtureOwner, fixtureErr := customeronboarding.NewLocalPasswordRecoveryOwner(cfg.Env, cfg.ZitadelIssuerURL, enabled, os.Getenv("HELIVANTA_IDENTITY_FIXTURE"))
+		if fixtureErr != nil {
+			return fixtureErr
+		}
+		recoveryOwner = fixtureOwner
+	}
+	recoveryHandlers, err := customeronboarding.NewPasswordRecoveryHandlers(recoveryOwner, customeronboarding.PasswordRecoveryDeps{Requests: zitadelLoginClient, ClientID: cfg.ZitadelClientID, Limiter: limiter})
 	if err != nil {
 		return err
 	}

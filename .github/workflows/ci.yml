@@ -276,7 +276,7 @@ jobs:
           node --test scripts/staff-operational-access-inventory.test.mjs
           node scripts/staff-operational-access-inventory.mjs --check
       # Ignores live in package.json pnpm.auditConfig; reasons in docs/runbooks/vulnerability-management.md.
-      - run: node --test scripts/zod-tooling.test.mjs scripts/lib/tenant-identity-fixture.test.mjs scripts/ci/ubuntu-archive-mirror.test.mjs scripts/ci/runner-dns.test.mjs
+      - run: node --test scripts/zod-tooling.test.mjs scripts/lib/tenant-identity-fixture.test.mjs scripts/ci/identity-owner-fixture.test.mjs scripts/ci/ubuntu-archive-mirror.test.mjs scripts/ci/runner-dns.test.mjs
       - run: |
           node --test scripts/temporary-advisories.test.mjs
           node scripts/temporary-advisories.mjs
@@ -471,6 +471,8 @@ jobs:
           fi
   e2e:
     runs-on: ubuntu-latest
+    env:
+      HELIVANTA_PASSWORD_RECOVERY_FIXTURE: "true"
     # 30 minutes, and the number is a fail-closed bound rather than a guess.
     #
     # The floor is MEASURED, not estimated. First green run — cold caches,

@@ -4,6 +4,12 @@ set -euo pipefail
   echo 'identity fixture requires explicit local development configuration' >&2
   exit 1
 }
+recovery_args=()
+case ${HELIVANTA_PASSWORD_RECOVERY_FIXTURE:-} in
+  "") ;;
+  true) recovery_args=(-password-recovery-outbox "$PWD/dev/zitadel/secrets/password-recovery-mailbox") ;;
+  *) echo 'recovery fixture requires an explicit true opt-in' >&2; exit 1 ;;
+esac
 port=${HELIVANTA_PG_PORT:-5432}
 [[ "$port" =~ ^[0-9]+$ ]] && (( port > 0 && port < 65536 )) || exit 1
 case ${1:-} in
@@ -11,9 +17,9 @@ case ${1:-} in
     schema=$(mktemp)
     trap 'rm -f "$schema"' EXIT
     curl --fail --silent --show-error --location \
-      https://raw.githubusercontent.com/tesserix/tesserix-k8s/95a2363928ef79d162e358332b79049aa51d1589/charts/apps/db-schema-bootstrap/schemas/global/global/onboarding_db.sql \
+      https://raw.githubusercontent.com/tesserix/tesserix-k8s/363dce21216c5e4830a33465d988f043b5ee960d/charts/apps/db-schema-bootstrap/schemas/global/global/onboarding_db.sql \
       --output "$schema"
-    printf '%s  %s\n' c598be7b089b5ba977614b8f40aec9038c5d8f1f7fe9932d87eed40b565379f7 "$schema" | shasum -a 256 -c >&2
+    printf '%s  %s\n' 413ac8a6fa38bf83f0fa50fd864d3f9bac30ecc2fd753f4071121b48b52ebeb9 "$schema" | shasum -a 256 -c >&2
     exists=$(docker compose -f docker-compose.dev.yml exec -T postgres psql -U helivanta -d postgres -Atc "SELECT 1 FROM pg_database WHERE datname='onboarding_fixture'")
     if [[ "$exists" != 1 ]]; then
       docker compose -f docker-compose.dev.yml exec -T postgres psql -U helivanta -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE onboarding_fixture' >&2
@@ -27,7 +33,7 @@ case ${1:-} in
     exec go -C "$owner_dir" run -mod=readonly -tags identityfixture ./cmd/helivanta-identity-fixture \
       -manifest "$PWD/dev/zitadel/secrets/identity-fixture.json" \
       -pat-file "$PWD/dev/zitadel/secrets/helivanta-seed.pat" \
-      -dsn "postgres://helivanta:helivanta@127.0.0.1:$port/onboarding_fixture?sslmode=disable"
+      -dsn "postgres://helivanta:helivanta@127.0.0.1:$port/onboarding_fixture?sslmode=disable" "${recovery_args[@]}"
     ;;
   *) echo 'expected setup or run' >&2; exit 1 ;;
 esac

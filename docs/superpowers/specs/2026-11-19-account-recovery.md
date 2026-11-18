@@ -318,3 +318,15 @@ and the separate Staff MFA-reset workflow remain outstanding. Passing current na
 and command tests does not prove this additional ordering requirement. No
 password fingerprint, password persistence, session bypass or timer-based fence
 release is an acceptable substitute.
+
+### Native acceptance implementation
+
+A dedicated hosted `password-recovery-native.spec.ts` now implements the actual
+owner/PostgreSQL/Zitadel/browser reset and new-password sign-in gate. The mail
+provider alone is captured in the explicitly enabled, build-tagged isolated
+identity fixture. It checks the original session and password are refused after
+reset; the normal OIDC exchange admits the new password. There are no route stubs
+or synthetic tokens in this browser case. Exact development destinations, private
+mailbox permissions, recipient/purpose allowlists and opt-in wiring have unit
+coverage. Test code is authored; hosted execution and production acceptance are
+still required. See the [runbook](../../runbooks/account-recovery.md).

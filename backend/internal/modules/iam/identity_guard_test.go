@@ -18,6 +18,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/session"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
+	"github.com/tesserix/onboarding-service/api/customercontract"
 	"gorm.io/gorm"
 )
 
@@ -232,8 +233,12 @@ func TestIdentityGuardChecksIdentityOwnerForSignedTenantAndSubject(t *testing.T)
 	client.SetTenantIdentityResolver(guardProjectionResolver(func(_ context.Context, tenant, subject string, purpose loginclient.IdentityReadPurpose) (loginclient.IdentitySnapshot, error) {
 		require.Equal(t, "11111111-1111-1111-1111-111111111111", tenant)
 		require.Equal(t, "staff-user", subject)
-		require.Equal(t, loginclient.IdentityReadStatus, purpose)
-		return loginclient.IdentitySnapshot{State: state}, nil
+		require.Equal(t, loginclient.IdentityReadCredentials, purpose)
+		snapshot := loginclient.IdentitySnapshot{State: state}
+		if state == loginclient.UserStateActive {
+			snapshot.Credentials = &customercontract.IdentityCredentialState{}
+		}
+		return snapshot, nil
 	}))
 	token := h.token(t, "staff-user", time.Now().Add(-time.Hour))
 	require.Equal(t, http.StatusOK, h.request(client, h.checker, token).Code)

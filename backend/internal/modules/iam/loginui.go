@@ -82,7 +82,7 @@ const MinFailedLoginDuration = 1500 * time.Millisecond
 // this message without also equalising timing (MinFailedLoginDuration)
 // would look fixed while leaving the oracle fully intact — see this
 // file's package-level tests.
-const passwordFailureMessage = "email or password is incorrect"
+const passwordFailureMessage = "email or password is incorrect. If your account is locked, contact your tenant administrator for recovery. Tenant owners should contact Helivanta support."
 
 // authRequestExpiredMessage answers ErrAuthRequestInvalid: the auth
 // request id Zitadel was given either never existed, already completed,

@@ -226,10 +226,17 @@ test("administrator first-enrolls a verified identity without business permissio
       data: { subject, reason: "Synthetic verified account first enrollment" },
     });
     expect(response.status()).toBe(202);
-    expect((await response.json()).subject).toBe(subject);
+    const enrollment = (await response.json()) as {
+      subject: string;
+      id: string;
+      membership_id: string;
+    };
+    expect(enrollment.subject).toBe(subject);
     await page.reload();
     const history = page.getByRole("region", { name: "Enrollment history", exact: true });
     await expect(history.getByText("Synthetic Enrollment", { exact: true })).toBeVisible();
+    await expect(history).not.toContainText(enrollment.id);
+    await expect(history).not.toContainText(enrollment.membership_id);
     await expect(page.getByText(subject, { exact: false })).toHaveCount(0);
     await expect(page.getByText(foreignIdentity.userId, { exact: false })).toHaveCount(0);
     const member = await context.newPage();

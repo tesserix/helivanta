@@ -62,10 +62,10 @@ export function MembershipManagement({ scope }: { scope: StaffAssignmentScope })
           scope={scope}
           action={action}
           onClose={() => setAction(null)}
-          onSaved={(id) => {
+          onSaved={() => {
             setAction(null);
             setNotice(
-              `Membership change recorded. Receipt: ${id}. Access synchronization may still be pending. Review hospital access, Staff account links and scoped assignments separately.`,
+              "Membership change recorded. Access synchronization may still be pending. Review hospital access, Staff account links and scoped assignments separately.",
             );
           }}
         />
@@ -169,8 +169,7 @@ export function MembershipManagement({ scope }: { scope: StaffAssignmentScope })
                 </p>
                 <p className="whitespace-pre-wrap break-words">{row.reason}</p>
                 <p className="break-words text-sm">
-                  By <AccountName subject={row.actor_subject} /> · {formatDateTime(row.created_at)}{" "}
-                  · Receipt {row.id}
+                  By <AccountName subject={row.actor_subject} /> · {formatDateTime(row.created_at)}
                 </p>
                 {row.recoverable && (
                   <Button
@@ -220,7 +219,7 @@ function MembershipCommandForm({
   scope: StaffAssignmentScope;
   action: Action;
   onClose: () => void;
-  onSaved: (id: string) => void;
+  onSaved: () => void;
 }) {
   const [id] = useState(() => newMembershipCommandId());
   const [submitted, setSubmitted] = useState<MembershipCommandInput | null>(null);
@@ -230,7 +229,7 @@ function MembershipCommandForm({
     {
       invalidate: [membershipsKey(scope)],
       suppressErrorToast: true,
-      onSuccess: (result) => onSaved(result.id),
+      onSuccess: () => onSaved(),
     },
   );
   const { confirm } = useLeaveGuard(
@@ -262,13 +261,12 @@ function MembershipCommandForm({
       </h3>
       <p className="break-words">
         Account: <AccountName subject={action.subject} /> · Role:{" "}
-        <AccountRole subject={action.subject} roleKey={action.role_key} /> · Membership generation:{" "}
-        {action.expected_membership_epoch}
+        <AccountRole subject={action.subject} roleKey={action.role_key} />
       </p>
       <p>
         {action.operation === "remove"
           ? "Only the selected membership is removed. If this is the account’s final organization role, its current scoped assignments lose membership continuity. Sign-out and other organizations remain separate."
-          : "The identity-provider account must currently be active. This creates a new staff_member membership and grants no hospital, payroll or clinical authority."}
+          : "The identity-provider account must currently be active. This creates a new ordinary staff membership and grants no hospital, payroll or clinical authority."}
       </p>
       <Field
         id="membership-command-reason"

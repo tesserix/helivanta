@@ -111,6 +111,9 @@ it("requires a reason and acknowledgement and freezes the exact removal after an
   );
   const { user } = renderMemberships();
   await user.click(await screen.findByRole("button", { name: "Remove membership" }));
+  expect(
+    screen.getByRole("form", { name: "Remove organization membership" }),
+  ).not.toHaveTextContent("Membership generation");
   await user.click(screen.getByRole("button", { name: "Record membership removal" }));
   expect(writes).toHaveLength(0);
   await user.type(screen.getByLabelText("Reason"), "Remove this specific membership after review");
@@ -127,7 +130,8 @@ it("requires a reason and acknowledgement and freezes the exact removal after an
     basis_id: candidate.id,
     expected_membership_epoch: 1,
   });
-  expect(await screen.findByText(/Membership change recorded/)).toBeInTheDocument();
+  const confirmation = await screen.findByText(/Membership change recorded/);
+  expect(confirmation).not.toHaveTextContent(writes[0]!.url.split("/").at(-1)!);
 });
 
 it("recovers ordinary membership from the retained removal and current epoch", async () => {
@@ -172,6 +176,12 @@ it("recovers ordinary membership from the retained removal and current epoch", a
     }),
   );
   const { user } = renderMemberships();
+  await screen.findByText("Previous reviewer");
+  const history = screen.getByText(prior.reason).closest("article");
+  expect(history).toHaveTextContent("QA Staff");
+  expect(history).toHaveTextContent("Removed");
+  expect(history).not.toHaveTextContent(prior.id);
+  expect(history).not.toHaveTextContent(prior.basis_id);
   await user.click(await screen.findByRole("button", { name: "Recover ordinary membership" }));
   await user.type(
     screen.getByLabelText("Reason"),

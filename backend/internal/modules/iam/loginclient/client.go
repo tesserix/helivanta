@@ -233,6 +233,9 @@ func (c *Client) createPasswordSession(ctx context.Context, user map[string]any,
 // by hand, which is a decorative-vs-real distinction this repo's
 // standards require stating plainly rather than glossing over).
 func (c *Client) finalize(ctx context.Context, authRequestID string, s Session, _ sufficient) (string, error) {
+	if _, err := c.passwordProof(ctx, s); err != nil {
+		return "", err
+	}
 	body := map[string]any{
 		"session": map[string]any{
 			"sessionId":    s.ID,

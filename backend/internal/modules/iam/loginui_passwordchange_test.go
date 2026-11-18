@@ -48,6 +48,9 @@ type pcFixture struct {
 	patchCalls       int
 	finalizeCalls    int
 	lastSetPassword  map[string]any
+	passwordChanged  time.Time
+	passwordProof    time.Time
+	totpVerified     bool
 }
 
 func (f *pcFixture) counts() (setPassword, patch, finalize int) {
@@ -59,6 +62,8 @@ func (f *pcFixture) counts() (setPassword, patch, finalize int) {
 func (f *pcFixture) client(t *testing.T) *loginclient.Client {
 	t.Helper()
 	f.changeRequired = true
+	f.passwordChanged = time.Now().Add(-24 * time.Hour)
+	f.passwordProof = time.Now().Add(-time.Minute)
 	methods := `["AUTHENTICATION_METHOD_TYPE_PASSWORD"]`
 	if f.totp {
 		methods = `["AUTHENTICATION_METHOD_TYPE_PASSWORD","AUTHENTICATION_METHOD_TYPE_TOTP"]`
@@ -68,8 +73,16 @@ func (f *pcFixture) client(t *testing.T) *loginclient.Client {
 		_, _ = w.Write([]byte(`{"sessionId":"sess-pc","sessionToken":"tok-pc"}`))
 	})
 	mux.HandleFunc("GET /v2/sessions/{id}", func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"session":{"id":"sess-pc","factors":{"user":{"id":"user-pc","organizationId":"org-pc"},` +
-			`"password":{"verifiedAt":"t"},"totp":{"verifiedAt":"t"}}}}`))
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		factors := `"user":{"id":"user-pc","organizationId":"org-pc"}`
+		if !f.passwordProof.IsZero() {
+			factors += `,"password":{"verifiedAt":"` + f.passwordProof.UTC().Format(time.RFC3339Nano) + `"}`
+		}
+		if f.totpVerified {
+			factors += `,"totp":{"verifiedAt":"` + time.Now().UTC().Format(time.RFC3339Nano) + `"}`
+		}
+		_, _ = w.Write([]byte(`{"session":{"id":"sess-pc","factors":{` + factors + `}}}`))
 	})
 	mux.HandleFunc("GET /v2/users/{id}/authentication_methods", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"authMethodTypes":` + methods + `}`))
@@ -77,8 +90,9 @@ func (f *pcFixture) client(t *testing.T) *loginclient.Client {
 	mux.HandleFunc("GET /v2/users/{id}", func(w http.ResponseWriter, _ *http.Request) {
 		f.mu.Lock()
 		required := f.changeRequired
+		changed := f.passwordChanged
 		f.mu.Unlock()
-		human := `"passwordChanged":"2026-01-01T00:00:00Z"`
+		human := `"passwordChanged":"` + changed.UTC().Format(time.RFC3339Nano) + `"`
 		if required {
 			human += `,"passwordChangeRequired":true`
 		}
@@ -92,9 +106,23 @@ func (f *pcFixture) client(t *testing.T) *loginclient.Client {
 			`"requiresNumber":true,"requiresSymbol":true}}`))
 	})
 	registerZitadelPolicyOK(mux)
-	mux.HandleFunc("PATCH /v2/sessions/{id}", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("PATCH /v2/sessions/{id}", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Checks map[string]json.RawMessage `json:"checks"`
+		}
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 		f.mu.Lock()
-		f.patchCalls++
+		if raw, present := body.Checks["password"]; present {
+			var password struct {
+				Password string `json:"password"`
+			}
+			require.NoError(t, json.Unmarshal(raw, &password))
+			require.Equal(t, pcReplacement, password.Password)
+			f.passwordProof = time.Now()
+		} else {
+			f.patchCalls++
+			f.totpVerified = true
+		}
 		f.mu.Unlock()
 		_, _ = w.Write([]byte(`{"sessionToken":"tok-pc-rotated"}`))
 	})
@@ -113,6 +141,8 @@ func (f *pcFixture) client(t *testing.T) *loginclient.Client {
 		if !f.stayDue {
 			f.changeRequired = false
 		}
+		f.passwordChanged = time.Now()
+		f.passwordProof = time.Time{}
 		_, _ = w.Write([]byte(`{"details":{}}`))
 	})
 	mux.HandleFunc("POST /v2/oidc/auth_requests/{id}", func(w http.ResponseWriter, _ *http.Request) {

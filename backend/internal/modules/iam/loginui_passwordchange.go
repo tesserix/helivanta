@@ -157,14 +157,24 @@ func (h *LoginUIHandlers) PasswordChange(c *gin.Context) {
 	// that invites the browser to resubmit the change (it would send the old
 	// password as current_password and be refused): every failure ends the
 	// attempt and says the change took effect.
-	result, err := h.client.CompleteAfterPasswordChange(c.Request.Context(), req.AuthRequestID, session)
+	proved, err := h.client.ReprovePasswordAfterChange(c.Request.Context(), session, req.NewPassword)
+	if errors.Is(err, loginclient.ErrPasswordChangeUnconfirmed) {
+		h.deleteAttempt(c, req.AuthRequestID)
+		h.respondRefusal(c, req.AuthRequestID, "password_change", loginclient.Result{Outcome: loginclient.OutcomeRefused, Reason: loginclient.RefusalPasswordChangeUnconfirmed})
+		return
+	}
+	var result loginclient.Result
+	if err == nil {
+		session = proved
+		result, err = h.client.CompleteAfterPasswordChange(c.Request.Context(), req.AuthRequestID, session)
+	}
 	if err != nil {
 		h.deleteAttempt(c, req.AuthRequestID)
 		status := http.StatusInternalServerError
 		switch {
 		case errors.Is(err, loginclient.ErrUnavailable):
 			status = http.StatusServiceUnavailable
-		case errors.Is(err, loginclient.ErrAuthRequestInvalid):
+		case errors.Is(err, loginclient.ErrAuthRequestInvalid), loginclient.IsCredentialRefusal(err):
 			status = http.StatusBadRequest
 		}
 		requestid.Logger(c).ErrorContext(c.Request.Context(), "login: password changed but the sign-in could not complete",

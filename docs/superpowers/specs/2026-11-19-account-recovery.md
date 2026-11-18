@@ -61,14 +61,28 @@ identity outage; it does not release business data or mint a session.
 OIDC `auth_time`
 may have only second precision while native change evidence has fractions: do
 not round the native cutoff down and admit an older same-second credential.
-The mandatory-password-change flow also needs a fresh password proof before
-completion; do not silently reject its successful completion or weaken the
-cutoff to preserve it. The pinned native session projection clears
+The mandatory-password-change flow now rechecks the new password after the
+native update, carries forward the rotated session token and, when necessary,
+waits for the next native whole-second boundary before one bounded recheck.
+This restores the cleared primary proof without weakening the cutoff or
+persisting the new password. Cancellation, missing evidence, a missing rotated
+token and a second proof that still predates the boundary fail closed. After an
+acknowledged update, a completion failure asks for a new sign-in instead of
+resubmitting the old current password.
+
+The pinned native session projection clears
 `password_checked_at` on `HumanPasswordChanged`, and its user projection retains
-the latest native password-change time. The protected finalizer must verify the
-remaining primary proof, and forced-password change must establish a new proof
-before completion. These fixes, native read freshness, crash ordering and the
-full recovery journey remain implementation/integration gates. This HMS change
+the latest native password-change time. Its v2 GetSession handler triggers the
+session projection before returning facts. Native `AuthenticationTime()` uses
+the latest time of all factor checks, so a later TOTP check alone could otherwise
+make an old password session appear newer than a reset. The protected finalizer
+now independently requires a valid current native password proof for these
+password-session producers; missing, mismatched, duplicate and recased proof
+objects cannot reach native finalisation. The approved native-origin security-key
+continuation remains a separate flow.
+
+Hosted database/UI integration, native runtime verification, crash ordering and
+the full recovery journey remain acceptance gates. This HMS change
 is not yet released; a status field or mocked observation alone is not proof of
 end-to-end credential revocation.
 

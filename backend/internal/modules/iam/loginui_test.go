@@ -134,7 +134,7 @@ func zitadelHappyPath(t *testing.T) *loginclient.Client {
 		// scopes its policy read to this field (loginclient/sufficiency.go),
 		// and an absent value refuses the policy read rather than completing —
 		// omitting it here would turn this "happy path" fixture into a 503.
-		_, _ = w.Write([]byte(`{"session":{"id":"sess-1","factors":{"user":{"id":"user-1","organizationId":"org-1"}}}}`))
+		_, _ = w.Write([]byte(`{"session":{"id":"sess-1","factors":{"user":{"id":"user-1","organizationId":"org-1"},"password":{"verifiedAt":"2026-01-02T00:00:00Z"}}}}`))
 	})
 	mux.HandleFunc("GET /v2/users/{id}/authentication_methods", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD"]}`))
@@ -745,7 +745,7 @@ func zitadelFactorRequired(t *testing.T, patchSessions, finalizeOutcome http.Han
 		// makes CompleteIfSufficient return before ever reading a policy, so
 		// it is not load-bearing here, but every fake session response in
 		// this package now matches what the real instance actually sends.
-		_, _ = w.Write([]byte(`{"session":{"id":"sess-mfa","factors":{"user":{"id":"user-mfa","organizationId":"org-1"},"totp":{"verifiedAt":"2026-01-01T00:00:00Z"}}}}`))
+		_, _ = w.Write([]byte(`{"session":{"id":"sess-mfa","factors":{"user":{"id":"user-mfa","organizationId":"org-1"},"password":{"verifiedAt":"2026-01-02T00:00:00Z"},"totp":{"verifiedAt":"2026-01-01T00:00:00Z"}}}}`))
 	})
 	mux.HandleFunc("GET /v2/users/{id}/authentication_methods", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD","AUTHENTICATION_METHOD_TYPE_TOTP"]}`))

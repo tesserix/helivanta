@@ -64,6 +64,12 @@ warranted.
 
 ### D3 — The browser is told exactly what it was told before
 
+Update in progress for [#1703](2026-11-19-account-recovery.md): the shared
+refusal adds conditional locked-account guidance for every credential-class
+failure. It still does not reveal whether the supplied account exists or is
+locked. Status/body equality, the timing floor and log-only cause classification
+remain required. This wording change does not implement password or MFA reset.
+
 All five credential-class sentinels (`ErrBadCredentials`, `ErrUserNotFound`,
 `ErrAccountLocked`, `ErrPasswordNotSet`, `ErrRejected`) get spec D5's single
 equalised refusal: same status, same body, same timing floor. Telling the caller

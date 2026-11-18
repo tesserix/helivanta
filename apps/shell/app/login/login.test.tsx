@@ -646,11 +646,13 @@ describe("LoginPage", () => {
     // specific field ("no account with that email" would rebuild the same
     // enumeration oracle the backend closed).
     it("shows one message for a refused credential and never says which field was wrong", async () => {
+      const message =
+        "email or password is incorrect. If your account is locked, contact your tenant administrator for recovery. Tenant owners should contact Helivanta support.";
       stubAuthFlow({
         password: () =>
           jsonResponse(401, {
             error: "invalid_credentials",
-            message: "email or password is incorrect",
+            message,
           }),
       });
 
@@ -660,7 +662,8 @@ describe("LoginPage", () => {
       await user.click(screen.getByRole("button", { name: "Sign in" }));
 
       const alert = await screen.findByRole("alert");
-      expect(alert).toHaveTextContent(/email or password is incorrect/i);
+      expect(alert).toHaveTextContent(message);
+      expect(screen.getAllByText(message)).toHaveLength(1);
       // Neither field individually reports the refusal — Field only
       // renders a role="alert" paragraph when react-hook-form has an
       // error for that specific field, and validation passed here.

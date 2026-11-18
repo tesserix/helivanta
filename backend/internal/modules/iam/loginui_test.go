@@ -1275,12 +1275,16 @@ func zitadelRefusesWith(t *testing.T, id string) *loginclient.Client {
 func TestEveryCredentialRefusalAnswersIdenticallyButLogsWhatHappened(t *testing.T) {
 	reference := postPassword(t, zitadelRefusesWith(t, "COMMAND-3M0fs"), "test@helivanta.dev", "wrong")
 	require.Equal(t, http.StatusUnauthorized, reference.Code)
+	require.Contains(t, reference.Body.String(), "If your account is locked, contact your tenant administrator")
+	require.Contains(t, reference.Body.String(), "Tenant owners should contact Helivanta support")
 
 	cases := []struct {
 		id, outcome string
 	}{
 		{"COMMAND-3M0fs", "bad_credentials"},
 		{"COMMAND-JLK35", "account_locked"},
+		{"COMMAND-SFA3t", "account_locked"},
+		{"COMMAND-SF3fg", "account_locked"},
 		{"COMMAND-3nJ4t", "password_not_set"},
 		{"COMMAND-3n77z", "user_not_found"},
 		{"COMMAND-UNSEEN", "rejected"},

@@ -81,13 +81,13 @@ func TestFinalizeReturnsCallbackURL(t *testing.T) {
 
 func TestAuthRequestParsesClientAndRedirect(t *testing.T) {
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`{"authRequest":{"id":"V2_386477922262777863","clientId":"386401161701228551","scope":["openid"],"redirectUri":"http://localhost:4301/api/auth/callback"}}`))
+		w.Write([]byte(`{"authRequest":{"id":"V2_386477922262777863","clientId":"386401161701228551","scope":["openid"],"redirectUri":"http://localhost:4301/api/auth/callback","loginHint":"dr.patel@example.test"}}`))
 	})
 	ar, err := c.AuthRequest(context.Background(), "V2_386477922262777863")
 	if err != nil {
 		t.Fatalf("AuthRequest() error = %v", err)
 	}
-	if ar.ClientID != "386401161701228551" || ar.ID != "V2_386477922262777863" {
+	if ar.ClientID != "386401161701228551" || ar.ID != "V2_386477922262777863" || ar.LoginHint != "dr.patel@example.test" {
 		t.Errorf("authRequest = %+v", ar)
 	}
 }

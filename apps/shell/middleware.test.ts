@@ -1,6 +1,19 @@
 import { expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { middleware } from "./middleware";
+it("allows only the exact diagnostic collector before login", () => {
+  expect(
+    middleware(new NextRequest("https://helivanta.app/api/client-errors", { method: "POST" }))
+      .status,
+  ).toBe(200);
+  for (const path of [
+    "/api/client-errors/private",
+    "/api/client-errors-backup",
+    "/api/v1/workforce/staff",
+  ]) {
+    expect(middleware(new NextRequest(`https://helivanta.app${path}`)).status).toBe(401);
+  }
+});
 it("allows only the exact staff recipient page and proof endpoints before login", () => {
   for (const path of [
     "/staff/accept",

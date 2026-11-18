@@ -802,3 +802,16 @@ Staff enrollment and membership history cards and confirmations must also keep
 receipt IDs, membership IDs and membership epochs internal. Present the verified
 person, readable role, action, reason and date. Preserve exact command references
 and concurrency versions in request and recovery bindings.
+
+## Safe error boundaries and runtime reports
+
+Root, workspace and global-layout error boundaries use `ErrorScreen`. Never
+render raw error messages, stacks, backend digests or resource identifiers.
+The shared reporter creates an opaque support reference, emits only allowlisted
+metadata and uses the [Shell collector contract](../api/frontend-errors.md).
+Keep diagnostics independent of application providers and recovery actions.
+Follow the [runbook](../runbooks/frontend-errors.md) to correlate live reports.
+
+Schemas imported by browser startup must import Zod from `lib/csp-zod.ts` so
+CSP-safe mode is set before schema construction, including caught eval probes.
+Setting it after importing schema consumers is too late.

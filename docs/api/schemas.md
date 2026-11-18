@@ -201,3 +201,9 @@ generator emits `backend/internal/release/manifest_generated.go` and
 `packages/api/src/release-capabilities-contract.ts`; use
 `node scripts/generate-release-capabilities.mjs --check` for drift and registry
 coverage. See [release capability admission](release-capabilities.md).
+
+## Shell operational diagnostics
+
+The [frontend error report](frontend-errors.md) uses the canonical Zod schema in
+`apps/shell/lib/frontend-errors-contract.ts`, shared by browser and collector.
+It is not a backend registry route or a duplicate product wire model.

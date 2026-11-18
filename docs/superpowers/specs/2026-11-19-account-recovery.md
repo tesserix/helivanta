@@ -36,6 +36,27 @@ standards and #947 require Helivanta-owned credential UI. ADR-0069's explicit
 native-origin security-key continuation is a separate, narrowly verified
 exception; it does not authorize a general redirect to hosted password recovery.
 
+### Native credential evidence follow-up
+
+The pinned native source at `29986e1b8b3e606d20871a2e73874b91f9b5b695`
+exposes `human.passwordChanged` in its v2 user contract and query projection.
+Identity-owner PR [#43](https://github.com/tesserix/onboarding-service/pull/43)
+adds a private, opt-in current-status projection of this timestamp, with a
+native-method inventory check before declaring an account passwordless. The HMS
+consumer is pinned to that exact canonical owner commit, rather than copying
+its model or widening the login client's native permissions.
+
+This provides a source of native credential-change evidence; it does not yet
+enforce a cutoff. The protected-request, renewal and callback/login admission
+paths still require implementation and tests. In particular, OIDC `auth_time`
+may have only second precision while native change evidence has fractions: do
+not round the native cutoff down and admit an older same-second credential.
+The mandatory-password-change flow also needs a fresh password proof before
+completion; do not silently reject its successful completion or weaken the
+cutoff to preserve it. Native projection freshness, crash ordering and any
+required local revocation barrier remain integration review items. A new owner
+status field alone is not proof of end-to-end credential revocation.
+
 ## Ownership and authority
 
 Zitadel owns passwords, native account lock state, factor registrations and

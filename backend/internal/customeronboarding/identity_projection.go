@@ -20,6 +20,9 @@ func (h *Handlers) TenantIdentitySnapshot(ctx context.Context, tenant, subject s
 	switch purpose {
 	case loginclient.IdentityReadStatus:
 		in.Purpose = "status"
+	case loginclient.IdentityReadCredentials:
+		in.Purpose = "status"
+		in.IncludeCredentialState = true
 	case loginclient.IdentityReadMembership:
 		in.Purpose = "membership"
 	case loginclient.IdentityReadAssignmentCandidate:
@@ -63,7 +66,10 @@ func (h *Handlers) TenantIdentitySnapshot(ctx context.Context, tenant, subject s
 	if err != nil || view.Purpose != in.Purpose || view.TenantID != tenant || view.Subject != subject || view.OrganizationID != "helivanta-"+tenant {
 		return empty, loginclient.ErrUnavailable
 	}
-	snapshot := loginclient.IdentitySnapshot{Candidate: view.Candidate}
+	if view.Credentials != nil && !in.IncludeCredentialState || in.IncludeCredentialState && view.State == "active" && view.Credentials == nil {
+		return empty, loginclient.ErrUnavailable
+	}
+	snapshot := loginclient.IdentitySnapshot{Candidate: view.Candidate, Credentials: view.Credentials}
 	switch view.State {
 	case "active":
 		snapshot.State = loginclient.UserStateActive

@@ -21,18 +21,27 @@ func TestIdentityProjectionUsesScopedPrivateWorkloadAndFailsClosed(t *testing.T)
 	const subject = "synthetic-staff"
 	const valid = `{"purpose":"membership","tenantId":"` + tenant + `","organizationId":"helivanta-` + tenant + `","subject":"` + subject + `","state":"active","admission":"eligible"}`
 	const profile = `{"purpose":"profile","tenantId":"` + tenant + `","organizationId":"helivanta-` + tenant + `","subject":"` + subject + `","state":"active","admission":"unassessed","profile":{"displayName":"Synthetic Staff","email":"synthetic@example.invalid"},"tenantName":"Yes Hospital"}`
+	const credential = `{"purpose":"status","tenantId":"` + tenant + `","organizationId":"helivanta-` + tenant + `","subject":"` + subject + `","state":"active","admission":"unassessed","credentials":{"passwordConfigured":true,"passwordChangedAt":"2026-11-18T10:11:12Z"}}`
 	for _, tc := range []struct {
-		name, body        string
-		purpose           loginclient.IdentityReadPurpose
-		status            int
-		state             loginclient.UserState
-		eligible, profile bool
+		name, body                     string
+		purpose                        loginclient.IdentityReadPurpose
+		status                         int
+		state                          loginclient.UserState
+		eligible, profile, credentials bool
 	}{
 		{name: "owned membership", body: valid, purpose: loginclient.IdentityReadMembership, state: loginclient.UserStateActive, eligible: true},
 		{name: "foreign membership", body: strings.Replace(valid, `"eligible"`, `"ineligible"`, 1), purpose: loginclient.IdentityReadMembership, state: loginclient.UserStateActive},
 		{name: "authoritative inactive", body: strings.ReplaceAll(strings.Replace(valid, `"eligible"`, `"ineligible"`, 1), `"active"`, `"inactive"`), purpose: loginclient.IdentityReadMembership, state: loginclient.UserStateInactive},
 		{name: "status", body: strings.ReplaceAll(strings.Replace(valid, `"eligible"`, `"unassessed"`, 1), `"membership"`, `"status"`), purpose: loginclient.IdentityReadStatus, state: loginclient.UserStateActive},
 		{name: "self profile", body: profile, purpose: loginclient.IdentityReadProfile, state: loginclient.UserStateActive, profile: true},
+		{name: "native credential evidence", body: credential, purpose: loginclient.IdentityReadCredentials, state: loginclient.UserStateActive, credentials: true},
+		{name: "native passwordless evidence", body: strings.Replace(credential, `"passwordConfigured":true,"passwordChangedAt":"2026-11-18T10:11:12Z"`, `"passwordConfigured":false`, 1), purpose: loginclient.IdentityReadCredentials, state: loginclient.UserStateActive, credentials: true},
+		{name: "unsolicited credential disclosure", body: credential, purpose: loginclient.IdentityReadStatus},
+		{name: "missing credential evidence", body: strings.Replace(credential, `,"credentials":{"passwordConfigured":true,"passwordChangedAt":"2026-11-18T10:11:12Z"}`, "", 1), purpose: loginclient.IdentityReadCredentials},
+		{name: "empty credential evidence", body: strings.Replace(credential, `"passwordConfigured":true,"passwordChangedAt":"2026-11-18T10:11:12Z"`, "", 1), purpose: loginclient.IdentityReadCredentials},
+		{name: "foreign credential organization", body: strings.Replace(credential, "helivanta-"+tenant, "foreign-org", 1), purpose: loginclient.IdentityReadCredentials},
+		{name: "another credential subject", body: strings.Replace(credential, subject, "another-staff", 1), purpose: loginclient.IdentityReadCredentials},
+		{name: "unavailable credential evidence", body: `{}`, purpose: loginclient.IdentityReadCredentials, status: 503},
 		{name: "missing tenant name", body: strings.Replace(profile, `,"tenantName":"Yes Hospital"`, "", 1), purpose: loginclient.IdentityReadProfile},
 		{name: "unicode tenant name", body: strings.Replace(profile, "Yes Hospital", strings.Repeat("ଔ", 200), 1), purpose: loginclient.IdentityReadProfile, state: loginclient.UserStateActive, profile: true},
 		{name: "oversized tenant name", body: strings.Replace(profile, "Yes Hospital", strings.Repeat("ଔ", 201), 1), purpose: loginclient.IdentityReadProfile},
@@ -61,7 +70,7 @@ func TestIdentityProjectionUsesScopedPrivateWorkloadAndFailsClosed(t *testing.T)
 				}
 				var input map[string]any
 				wantFields := 4
-				if tc.purpose == loginclient.IdentityReadProfile {
+				if tc.purpose == loginclient.IdentityReadProfile || tc.purpose == loginclient.IdentityReadCredentials {
 					wantFields = 5
 				}
 				if json.NewDecoder(r.Body).Decode(&input) != nil || len(input) != wantFields || input["tenantId"] != tenant || input["subject"] != subject || input["requestId"] == "" {
@@ -69,6 +78,9 @@ func TestIdentityProjectionUsesScopedPrivateWorkloadAndFailsClosed(t *testing.T)
 				}
 				if (input["includeTenantName"] == true) != (tc.purpose == loginclient.IdentityReadProfile) {
 					t.Error("tenant name must be requested only for an explicit profile read")
+				}
+				if (input["includeCredentialState"] == true) != (tc.purpose == loginclient.IdentityReadCredentials) {
+					t.Error("credential evidence requires its explicit private status opt-in")
 				}
 				if tc.status != 0 {
 					w.WriteHeader(tc.status)
@@ -83,13 +95,13 @@ func TestIdentityProjectionUsesScopedPrivateWorkloadAndFailsClosed(t *testing.T)
 			h := &Handlers{base: provider.URL, tokenFile: token, client: provider.Client()}
 			got, err := h.TenantIdentitySnapshot(t.Context(), tenant, subject, tc.purpose)
 			if tc.state == 0 {
-				if !errors.Is(err, loginclient.ErrUnavailable) || got.State != 0 || got.Profile != nil || got.MembershipEligible {
+				if !errors.Is(err, loginclient.ErrUnavailable) || got.State != 0 || got.Profile != nil || got.Credentials != nil || got.MembershipEligible {
 					t.Fatalf("unsafe response accepted: %#v %v", got, err)
 				}
 				if strings.Contains(err.Error(), "synthetic@example.invalid") {
 					t.Fatal("private data exposed in error")
 				}
-			} else if err != nil || got.State != tc.state || got.MembershipEligible != tc.eligible || (got.Profile != nil) != tc.profile {
+			} else if err != nil || got.State != tc.state || got.MembershipEligible != tc.eligible || (got.Profile != nil) != tc.profile || (got.Credentials != nil) != tc.credentials {
 				t.Fatalf("wrong projection: %#v %v", got, err)
 			}
 			if tc.profile && got.Profile != nil && got.Profile.TenantName == "" {

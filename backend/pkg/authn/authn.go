@@ -25,7 +25,8 @@ const principalKey = "authn.principal"
 var ErrNoAuthTime = errors.New("authn: token has no auth_time claim")
 
 type Principal struct {
-	Subject string `json:"subject"`
+	Subject         string `json:"subject"`
+	NativeSessionID string `json:"-"`
 	// TenantID is Helivanta's own fact, not the identity provider's (spec
 	// docs/superpowers/specs/2026-08-15-zitadel-auth-design.md, decision
 	// D1) — Zitadel carries no claim asserting which organization a

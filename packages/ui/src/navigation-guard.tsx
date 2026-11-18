@@ -24,6 +24,7 @@ type Guard = { dirty: boolean; saving: boolean; name: string };
 type GuardContext = {
   register: (id: string, guard: Guard | null) => void;
   confirm: (go: () => void) => void;
+  afterSave: (go: () => void) => void;
   dirty: () => boolean;
   navigationPending: boolean;
   isNavigationPending: () => boolean;
@@ -138,8 +139,15 @@ export function NavigationGuardProvider({ children }: { children: ReactNode }) {
   }, [held]);
 
   const value = useMemo(
-    () => ({ register, confirm, dirty: () => !!held(), navigationPending, isNavigationPending }),
-    [register, confirm, held, navigationPending, isNavigationPending],
+    () => ({
+      register,
+      confirm,
+      afterSave: transition,
+      dirty: () => !!held(),
+      navigationPending,
+      isNavigationPending,
+    }),
+    [register, confirm, transition, held, navigationPending, isNavigationPending],
   );
 
   return (
@@ -180,7 +188,7 @@ export function useLeaveGuard(dirty: boolean, name: string, saving = false) {
     context.register(id, { dirty, saving, name });
   }, [context, id, dirty, saving, name]);
   useLayoutEffect(() => () => context.register(id, null), [context, id]);
-  return { confirm: context.confirm };
+  return { confirm: context.confirm, afterSave: context.afterSave };
 }
 
 /**

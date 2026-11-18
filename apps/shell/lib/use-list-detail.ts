@@ -136,7 +136,7 @@ export function useListDetail<Row extends { id: string }>({
   function saved(id: string) {
     if (!mounted.current) return;
     lastOpened.current = id;
-    detail.open(id);
+    guard.afterSave(() => detail.open(id));
   }
 
   // Tabs, the pager and the back link are links: hold them while unsaved.

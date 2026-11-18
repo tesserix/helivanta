@@ -38,7 +38,7 @@ Commands run from the repository root unless otherwise stated:
 - `pnpm --filter @helivanta/ui test` — 330 tests passed, including stale editable
   selection withdrawal, lookup failure, batching and tenant/actor switching.
 - `pnpm --filter @helivanta/config test` — 91 tests passed.
-- `pnpm --filter @helivanta/shell exec vitest run --maxWorkers=4` — all 2,102
+- `pnpm --filter @helivanta/shell exec vitest run --maxWorkers=4` — all 2,103
   tests passed across 350 suites. Named choices retain assertions for internal
   command identities, scopes, retry bodies and refusal behavior.
 - API/UI/Shell type checks and canonical generators were run. Shell/E2E type
@@ -60,6 +60,22 @@ Commands run from the repository root unless otherwise stated:
 The E2E scenario checks pre-enrollment native names without invented roles,
 foreign-organization concealment and rejection, and named enrollment history.
 Hosted CI must pass before merge; source-ledger classification is not runtime
-acceptance. Production deployment and browser evidence are recorded below after
-release. No additional Staff permissions or memberships are created as part of
+acceptance. Production deployment and browser evidence are recorded on
+[PR #1740](https://github.com/tesserix/helivanta/pull/1740) after release. No additional Staff permissions or memberships are created as part of
 this display correction.
+
+## CI follow-up
+
+The first hosted browser run passed 99 scenarios, including the revised Staff
+account-name enrollment scenario. Hospital pharmacy setup created its outlet but
+exposed a save-navigation race: outlet URL normalization could run before the new
+detail address committed. Successful-save navigation now participates in the
+existing pending-navigation context. Its regression failed before the fix; the
+60 focused list/detail and pharmacy workspace tests and all 330 shared UI tests
+passed afterward. The production build, type checks and lint passed again.
+
+The repository owner approved a temporary exception for tooling advisory
+GHSA-fc5q-39xc-vjpf. See the vulnerability-management runbook for the finding
+paths and remaining risk. The audit passes with that exception; three deterministic
+boundary tests cover its expiry gate, which rejects the exception from
+26 November 2026 at 00:00 UTC onward.

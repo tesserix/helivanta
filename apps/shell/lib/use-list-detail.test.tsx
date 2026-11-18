@@ -2,7 +2,12 @@ import { act, fireEvent, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
-import { DetailHeader, ListDetail, NavigationGuardProvider } from "@helivanta/ui";
+import {
+  DetailHeader,
+  ListDetail,
+  NavigationGuardProvider,
+  useNavigationPending,
+} from "@helivanta/ui";
 import { useListDetail, useReportState, type FormState } from "./use-list-detail";
 
 // A live address: push and replace change what useSearchParams returns.
@@ -296,4 +301,28 @@ describe("useListDetail", () => {
     await user.click(screen.getByRole("button", { name: "Refresh" }));
     expect(screen.getByText("next on")).toBeInTheDocument();
   });
+});
+
+it("marks successful-save navigation before an outlet canonicalizer can rewrite a stale address", async () => {
+  const observed = vi.fn();
+  function SavedPage() {
+    const navigation = useNavigationPending();
+    return (
+      <Page
+        onSaved={(save) => {
+          save();
+          observed(navigation.isPending());
+        }}
+      />
+    );
+  }
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <SavedPage />
+    </NavigationGuardProvider>,
+  );
+  await user.click(screen.getByRole("button", { name: "Add record" }));
+  await user.click(screen.getByRole("button", { name: "Save new" }));
+  expect(observed).toHaveBeenCalledWith(true);
+  expect(nav.calls.at(-1)?.href).toContain(`open=${id(4)}`);
 });

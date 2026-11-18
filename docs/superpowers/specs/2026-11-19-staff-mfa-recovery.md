@@ -99,6 +99,38 @@ authentication. Never round native fractional cutoffs down to token seconds.
 Persist the admitted recovery generation and native enrollment evidence; future
 callbacks cannot regain access through an older session after another recovery.
 
+### Account-wide requirement and application generation
+
+Native subjects, unlike email addresses, identify physical credential owners.
+Legacy memberships can reference one native subject in several tenants. The
+owner therefore serializes open recoveries and completion's latest-generation
+check globally by subject, while command/source authorization remains tenant
+bound. Its private status projection supports explicit `includeMFARecovery`
+alongside `includeCredentialState`, returning only state and a command UUID as
+`generationId`. `none` has no generation; prepared/processing/uncertain commands
+are `blocked`; acknowledged removal is `enrollment_required`; retained completion
+is `completed`. Cancellation restores the preceding retained requirement.
+No originating tenant, employer, actor or reason crosses this projection. Old
+callers retain their existing response shape. Missing storage/audit/scope evidence
+is unavailable, never `none`. The owner's ADR-0008 records this decision.
+
+The remaining HMS implementation must persist that exact admitted generation in
+its signed application credential, adding a private recovery-generation claim
+to the session design's existing three custom claims. This is a deliberate
+extension of D2, not evidence already present in `auth_time`. Only the login
+admission boundary may set a new generation, after exact signed native-session
+proof and current-generation recheck. Renewal, activity and tenant switching
+must preserve it. Every protected admission requires `none` with no admitted
+generation, or `completed` with the same admitted generation. A pending command
+or generation mismatch denies access in every tenant context for that subject.
+This comparison does not supply membership, operating roles or fresh native proof.
+
+The current signer mints in `pkg/session/signer.go`; production consumers are
+`iam/login.go`, `iam/renew.go`, `iam/activity.go` and `iam/me.go`. Principal
+verification and `iam/identity_guard.go` must carry/enforce the new claim. These
+claim, caller and guard changes are still required; the private owner projection
+alone does not provide enforcement or a working enrollment journey.
+
 Supported reset operations must be explicit in the canonical command/UI. Do not
 delete passkeys, primary security keys, SMS/email factors or recovery codes as a
 side effect of an authenticator reset. Unsupported combinations require an
@@ -148,7 +180,7 @@ with native ordinary-target checks and durable acknowledgement/uncertainty.
 Its canonical `staffclient` methods validate exact command/tenant/actor scope,
 bound and strictly decode responses, refuse redirects/cookies and never
 automatically retry dispatch. Go and generated TypeScript dependencies pin the
-same owner revision, `68531c927081a31f2d12783372b7b8f06359c826`.
+same owner revision, `599565ee174141a0ca5fd9d7f23354a1b75cf269`.
 These private APIs trust the HMS workload assertion of committed revocation;
 the client supplies neither current administrator authority nor that revocation.
 The additive schema is in

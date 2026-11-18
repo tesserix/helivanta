@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CSP_REPORT_PATH, contentSecurityPolicy, createNonce } from "@/lib/csp";
+import { CLIENT_ERROR_PATH } from "@/lib/frontend-errors-contract";
 
 // Read directly rather than through lib/env.ts, whose @helivanta/api import
 // would pull React Query into the edge bundle. new URL() throws on a missing
@@ -76,7 +77,8 @@ export function middleware(req: NextRequest) {
     pathname === "/ambulance" ||
     pathname === "/api/emergency/access" ||
     // Violations happen on /login before any session exists (spec D6).
-    pathname === CSP_REPORT_PATH
+    pathname === CSP_REPORT_PATH ||
+    pathname === CLIENT_ERROR_PATH
   ) {
     return next();
   }

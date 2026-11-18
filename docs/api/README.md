@@ -17,6 +17,9 @@ All UI/app business APIs must enter the [Global API](global-connector.md). Produ
 APIs retain data ownership and authorization. New services must satisfy its
 onboarding and end-to-end acceptance rules before exposure.
 
+The Shell-owned [frontend error collector](frontend-errors.md) accepts only bounded,
+sanitised operational observations; it does not expose a product business API.
+
 ## Reference material
 
 | Artifact                                                                 | Purpose                                                                                           | Authority                                                                               |

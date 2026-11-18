@@ -3,6 +3,8 @@
 // each request is bounded (16 KiB read, one fixed-shape log line); throttling
 // is #861's.
 
+import { readBoundedBody } from "@/lib/bounded-body";
+
 const MAX_BODY_BYTES = 16 * 1024;
 const MAX_FIELD_CHARS = 512;
 
@@ -14,12 +16,12 @@ export async function POST(request: Request): Promise<Response> {
   if (request.headers.get("content-type")?.split(";")[0]?.trim() !== "application/csp-report") {
     return new Response(null, { status: 415 });
   }
-  const body = await readBounded(request);
-  if (body === undefined) return new Response(null, { status: 413 });
+  const body = await readBoundedBody(request, MAX_BODY_BYTES);
+  if (!body.ok) return new Response(null, { status: body.status });
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(body);
+    parsed = JSON.parse(body.text);
   } catch {
     return new Response(null, { status: 400 });
   }
@@ -41,25 +43,6 @@ export async function POST(request: Request): Promise<Response> {
   }
   console.warn(JSON.stringify(line));
   return new Response(null, { status: 204 });
-}
-
-// Reads at most MAX_BODY_BYTES, whatever Content-Length claims; undefined past it.
-async function readBounded(request: Request): Promise<string | undefined> {
-  if (!request.body) return "";
-  const reader = request.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > MAX_BODY_BYTES) {
-      await reader.cancel();
-      return undefined;
-    }
-    chunks.push(value);
-  }
-  return new TextDecoder().decode(Buffer.concat(chunks));
 }
 
 // Query strings and fragments carry search terms such as patient names, so only

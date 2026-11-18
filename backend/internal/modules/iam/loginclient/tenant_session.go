@@ -21,25 +21,9 @@ func (c *Client) SetTenantUserResolver(resolver TenantUserResolver) { c.tenantUs
 func (c *Client) CreatePasswordSessionForRequest(ctx context.Context, requestID, clientID, loginName, password string) (Session, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
 	defer cancel()
-	ar, err := c.AuthRequest(ctx, requestID)
+	org, err := c.AuthRequestOrganization(ctx, requestID, clientID)
 	if err != nil {
 		return Session{}, err
-	}
-	if clientID == "" || ar.ID != requestID || ar.ClientID != clientID {
-		return Session{}, ErrAuthRequestInvalid
-	}
-	org := ""
-	for _, scope := range ar.Scope {
-		if strings.HasPrefix(scope, "urn:zitadel:iam:org:domain:") {
-			return Session{}, ErrAuthRequestInvalid
-		}
-		if candidate, ok := strings.CutPrefix(scope, organizationScopePrefix); ok {
-			tenant, err := uuid.Parse(strings.TrimPrefix(candidate, "helivanta-"))
-			if err != nil || tenant == uuid.Nil || candidate != "helivanta-"+tenant.String() || org != "" {
-				return Session{}, ErrAuthRequestInvalid
-			}
-			org = candidate
-		}
 	}
 	if org == "" {
 		return c.CreatePasswordSession(ctx, loginName, password)
@@ -63,4 +47,31 @@ func (c *Client) CreatePasswordSessionForRequest(ctx context.Context, requestID,
 		return Session{}, ErrAuthRequestInvalid
 	}
 	return session, nil
+}
+
+// AuthRequestOrganization validates this deployment's native request before selecting its organization.
+func (c *Client) AuthRequestOrganization(ctx context.Context, requestID, clientID string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
+	defer cancel()
+	ar, err := c.AuthRequest(ctx, requestID)
+	if err != nil {
+		return "", err
+	}
+	if clientID == "" || ar.ID != requestID || ar.ClientID != clientID {
+		return "", ErrAuthRequestInvalid
+	}
+	org := ""
+	for _, scope := range ar.Scope {
+		if strings.HasPrefix(scope, "urn:zitadel:iam:org:domain:") {
+			return "", ErrAuthRequestInvalid
+		}
+		if candidate, ok := strings.CutPrefix(scope, organizationScopePrefix); ok {
+			tenant, err := uuid.Parse(strings.TrimPrefix(candidate, "helivanta-"))
+			if err != nil || tenant == uuid.Nil || candidate != "helivanta-"+tenant.String() || org != "" {
+				return "", ErrAuthRequestInvalid
+			}
+			org = candidate
+		}
+	}
+	return org, nil
 }

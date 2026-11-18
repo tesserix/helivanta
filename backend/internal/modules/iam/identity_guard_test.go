@@ -83,6 +83,11 @@ func (f guardUserStateFunc) UserState(ctx context.Context, _ string, subject str
 	return f(ctx, subject)
 }
 
+func (f guardUserStateFunc) UserCredentialState(ctx context.Context, tenant, subject string) (loginclient.CredentialStatus, error) {
+	state, err := f.UserState(ctx, tenant, subject)
+	return loginclient.CredentialStatus{State: state}, err
+}
+
 func TestIdentityGuardRejectsExistingCredentialAfterDisablement(t *testing.T) {
 	h := newIdentityGuardEnv(t, true)
 	token := h.token(t, "staff-user", time.Now().Add(-time.Hour))
@@ -95,6 +100,22 @@ func TestIdentityGuardRejectsExistingCredentialAfterDisablement(t *testing.T) {
 	provider.states["staff-user"] = loginclient.UserStateActive
 	require.Equal(t, http.StatusUnauthorized, request(), "reactivation must not restore the old credential")
 
+}
+
+func TestIdentityGuardRejectsOldAuthenticationAfterNativePasswordRecovery(t *testing.T) {
+	h := newIdentityGuardEnv(t, true)
+	authenticated := time.Now().UTC().Add(-2 * time.Minute).Truncate(time.Second)
+	changed := authenticated.Add(time.Minute + 200*time.Millisecond)
+	provider := &stubUserState{passwordChanged: map[string]time.Time{"staff-user": changed}}
+	old := h.token(t, "staff-user", authenticated)
+	response := h.request(provider, h.checker, old)
+	require.Equal(t, http.StatusUnauthorized, response.Code)
+	require.Contains(t, response.Body.String(), "sign in again")
+
+	sameSecond := h.token(t, "staff-user", changed.Truncate(time.Second))
+	require.Equal(t, http.StatusUnauthorized, h.request(provider, h.checker, sameSecond).Code)
+	fresh := h.token(t, "staff-user", changed.Truncate(time.Second).Add(time.Second))
+	require.Equal(t, http.StatusOK, h.request(provider, h.checker, fresh).Code)
 }
 
 func TestIdentityGuardRejectsRevocationCommittedDuringIdentityLookup(t *testing.T) {

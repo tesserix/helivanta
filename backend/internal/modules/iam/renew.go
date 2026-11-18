@@ -24,6 +24,7 @@ import (
 // a live Zitadel.
 type UserStateChecker interface {
 	UserState(ctx context.Context, tenant, id string) (loginclient.UserState, error)
+	UserCredentialState(ctx context.Context, tenant, id string) (loginclient.CredentialStatus, error)
 }
 
 // UserProfileReader reads the presentation identity Zitadel holds for a subject.
@@ -242,7 +243,14 @@ func (h *renewalHandlers) renew(c *gin.Context) {
 			"identity_unavailable", "could not verify account status")
 		return
 	}
-	state, err := h.userState.UserState(c.Request.Context(), p.TenantID, p.Subject)
+	credential, err := h.userState.UserCredentialState(c.Request.Context(), p.TenantID, p.Subject)
+	var current bool
+	if err == nil {
+		current, err = credentialIsCurrent(credential, p.AuthTime)
+	}
+	if err == nil {
+		err = c.Request.Context().Err()
+	}
 	if err != nil {
 		// Same N3 reasoning as above: no redundant "subject" field —
 		// requestid.Logger(c) already carries it.
@@ -252,9 +260,13 @@ func (h *renewalHandlers) renew(c *gin.Context) {
 			"identity_unavailable", "could not verify account status")
 		return
 	}
-	if !state.IsActive() {
+	if !credential.State.IsActive() {
 		logger.WarnContext(c.Request.Context(), "renew: subject no longer active upstream, refusing")
 		respond.Unauthenticated(c, "account is no longer active")
+		return
+	}
+	if !current {
+		respond.Unauthenticated(c, "password changed; sign in again")
 		return
 	}
 

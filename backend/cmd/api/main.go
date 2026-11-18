@@ -585,15 +585,16 @@ func run() error {
 	// a genuine login and re-open the idle window each time, which is
 	// exactly the #848 failure that looks like success.
 	loginHandlers := iam.NewLoginHandlers(iam.LoginDeps{
-		Zitadel:      zitadelVerifier,
-		Roles:        currentAuthorization,
-		Signer:       sessionSigner,
-		Sessions:     sessionVerifier,
-		TTL:          sessionTTL,
-		IdleTimeout:  idleTimeout,
-		SecureCookie: sessionSecureCookie,
-		Limiter:      limiter,
-		Limit:        bootstrap.LoginRateLimitRule(cfg),
+		Zitadel:         zitadelVerifier,
+		Roles:           currentAuthorization,
+		Signer:          sessionSigner,
+		Sessions:        sessionVerifier,
+		CurrentIdentity: zitadelLoginClient,
+		TTL:             sessionTTL,
+		IdleTimeout:     idleTimeout,
+		SecureCookie:    sessionSecureCookie,
+		Limiter:         limiter,
+		Limit:           bootstrap.LoginRateLimitRule(cfg),
 	})
 
 	// zitadelLoginClient is constructed once, well above (beside

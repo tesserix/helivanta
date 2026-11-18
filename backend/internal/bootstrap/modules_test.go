@@ -22,6 +22,10 @@ func (*fakeUserStateChecker) UserState(context.Context, string, string) (logincl
 	return loginclient.UserStateActive, nil
 }
 
+func (*fakeUserStateChecker) UserCredentialState(context.Context, string, string) (loginclient.CredentialStatus, error) {
+	return loginclient.CredentialStatus{State: loginclient.UserStateActive}, nil
+}
+
 func (*fakeUserStateChecker) UserProfile(context.Context, string, string) (loginclient.UserProfile, error) {
 	return loginclient.UserProfile{}, nil
 }

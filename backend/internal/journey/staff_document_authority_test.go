@@ -50,6 +50,11 @@ func (s *staffFileIdentityState) UserState(context.Context, string, string) (log
 	return loginclient.UserState(state), nil
 }
 
+func (s *staffFileIdentityState) UserCredentialState(ctx context.Context, tenant, subject string) (loginclient.CredentialStatus, error) {
+	state, err := s.UserState(ctx, tenant, subject)
+	return loginclient.CredentialStatus{State: state}, err
+}
+
 func TestStaffFileRechecksIAMAfterStorage(t *testing.T) {
 	for _, mode := range []string{"download", "upload", "employment_documents", "employment_enrollment", "graph_outage", "benefit_read_role", "benefit_read_permission", "benefit_upload_role", "benefit_upload_permission", "tax_read_role", "tax_read_permission", "tax_upload_role", "tax_upload_permission", "credential_revoked", "identity_disabled", "identity_unavailable", "credential_revoked_upload", "identity_disabled_upload", "identity_unavailable_upload"} {
 		t.Run(mode, func(t *testing.T) {

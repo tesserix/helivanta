@@ -46,16 +46,31 @@ native-method inventory check before declaring an account passwordless. The HMS
 consumer is pinned to that exact canonical owner commit, rather than copying
 its model or widening the login client's native permissions.
 
-This provides a source of native credential-change evidence; it does not yet
-enforce a cutoff. The protected-request, renewal and callback/login admission
-paths still require implementation and tests. In particular, OIDC `auth_time`
+The identity owner is deployed at merge `b5f15c9548afee95b2f286211b13dfd2ca36c244`,
+with Kargo Freight `c600d14ad23790feb59e80a3c387ada4eeb94d1d` verified and both
+replicas ready. This proves the rollout, not the complete recovery journey.
+
+The HMS work in progress now enforces the native cutoff on protected business
+requests, renewal and callback/login exchange. It requires an explicit current
+credential reader and denies unknown evidence rather than falling back to the
+old state-only observation. A login rechecks membership after native I/O, and
+renewal retains the original authentication time. The existing self-sign-out
+exception keeps local cookie-authenticated revocation available during a native
+identity outage; it does not release business data or mint a session.
+
+OIDC `auth_time`
 may have only second precision while native change evidence has fractions: do
 not round the native cutoff down and admit an older same-second credential.
 The mandatory-password-change flow also needs a fresh password proof before
 completion; do not silently reject its successful completion or weaken the
-cutoff to preserve it. Native projection freshness, crash ordering and any
-required local revocation barrier remain integration review items. A new owner
-status field alone is not proof of end-to-end credential revocation.
+cutoff to preserve it. The pinned native session projection clears
+`password_checked_at` on `HumanPasswordChanged`, and its user projection retains
+the latest native password-change time. The protected finalizer must verify the
+remaining primary proof, and forced-password change must establish a new proof
+before completion. These fixes, native read freshness, crash ordering and the
+full recovery journey remain implementation/integration gates. This HMS change
+is not yet released; a status field or mocked observation alone is not proof of
+end-to-end credential revocation.
 
 ## Ownership and authority
 

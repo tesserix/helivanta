@@ -75,8 +75,13 @@ func TestAHandoverMovesTheDrawer(t *testing.T) {
 	status, body = w.offer("clerk", shiftID, id, "user-clerk2", `{"note:2000":2}`)
 	require.Equal(t, http.StatusCreated, status, body)
 	require.Contains(t, body, `"status":"offered"`)
-	require.NotContains(t, body, "note:", "the offer carries no count")
-	require.NotContains(t, body, "4000", "and nothing of the expected cash")
+	var offered map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal([]byte(body), &offered))
+	for _, private := range []string{"outgoing_counts", "incoming_counts", "expected_minor", "counts"} {
+		require.NotContains(t, offered, private, "the offer must keep both counts and expected cash private")
+	}
+	require.JSONEq(t, "null", string(offered["agreed_counts"]))
+	require.JSONEq(t, "null", string(offered["agreed_minor"]))
 	status, _ = w.offer("clerk", shiftID, id, "user-clerk2", `{"note:2000":2,"coin:50":0}`)
 	require.Equal(t, http.StatusOK, status, "a retried offer replays")
 	status, _ = w.offer("clerk", shiftID, id, "user-clerk2", `{"note:2000":1}`)

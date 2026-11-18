@@ -12,6 +12,7 @@ export function renderWithNamedAccounts(
   ui: ReactElement,
   names: Readonly<Record<string, string>>,
   candidates: readonly string[] = Object.keys(names),
+  completePermissionScope = false,
 ) {
   const original = globalThis.fetch;
   vi.stubGlobal(
@@ -47,7 +48,7 @@ export function renderWithNamedAccounts(
           page: { has_more: false, next_cursor: null },
         });
       const response = await original(input, init);
-      if (url.endsWith("/iam/me/permissions") && response.ok) {
+      if (completePermissionScope && url.endsWith("/iam/me/permissions") && response.ok) {
         const data = await response.clone().json();
         return Response.json({ tenant_id: scope.tenantId, subject: scope.subject, ...data });
       }

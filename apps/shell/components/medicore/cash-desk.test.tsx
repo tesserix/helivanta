@@ -4,7 +4,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithNamedAccounts } from "../../test/account-names";
 import { chooseOption } from "../../test/select";
 const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
-  renderWithNamedAccounts(ui, { "user-clerk": "QA Cashier", "user-clerk2": "Incoming QA Cashier" });
+  renderWithNamedAccounts(
+    ui,
+    { "user-clerk": "QA Cashier", "user-clerk2": "Incoming QA Cashier" },
+    undefined,
+    true,
+  );
 import { useApiPagedQuery } from "@helivanta/api";
 import type { AdmissionAccount } from "@helivanta/api";
 import { CashDesk } from "./cash-desk";

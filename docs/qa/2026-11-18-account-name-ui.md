@@ -37,8 +37,8 @@ Commands run from the repository root unless otherwise stated:
 - `pnpm --filter @helivanta/api test` — 1,471 tests passed.
 - `pnpm --filter @helivanta/ui test` — 330 tests passed, including stale editable
   selection withdrawal, lookup failure, batching and tenant/actor switching.
-- `pnpm --filter @helivanta/config test` — 91 tests passed.
-- `pnpm --filter @helivanta/shell exec vitest run --maxWorkers=4` — all 2,103
+- `pnpm --filter @helivanta/config test` — 95 tests passed.
+- `pnpm --filter @helivanta/shell exec vitest run --maxWorkers=4` — all 2,104
   tests passed across 350 suites. Named choices retain assertions for internal
   command identities, scopes, retry bodies and refusal behavior.
 - API/UI/Shell type checks and canonical generators were run. Shell/E2E type
@@ -79,3 +79,21 @@ GHSA-fc5q-39xc-vjpf. See the vulnerability-management runbook for the finding
 paths and remaining risk. The audit passes with that exception; three deterministic
 boundary tests cover its expiry gate, which rejects the exception from
 26 November 2026 at 00:00 UTC onward.
+
+## Exhaustive display and fixture follow-up
+
+The browser fixtures now select verified synthetic staff by name instead of typing
+subject identifiers. Their IAM display metadata is isolated from Emergency domain
+commands; those commands still run through the real Go service fixture. The
+extended lint regression rejects visible raw identity-entry inputs and actor
+fields named `recorded_by`, `authorised_by` and `requested_by`. Hidden command
+bindings remain allowed. The full Shell suite passed 2,104 tests and configuration
+suite passed 95 tests after this sweep; type checks, lint and production build
+passed again.
+
+The independent-provider grant-draft screen has no published named hospital
+recipient projection. It now explicitly blocks fresh named-account proposals
+instead of asking a supplier for a private hospital account identifier or querying
+a foreign private directory. Retained-command reconciliation remains available.
+This advanced screen is behind the ineligible `supplier_collaboration` capability;
+it is not represented as part of the released owner/PharmaConnect MVP.

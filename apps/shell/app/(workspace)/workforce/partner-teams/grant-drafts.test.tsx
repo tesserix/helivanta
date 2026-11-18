@@ -86,3 +86,25 @@ it("recovers a lost committed proposal without a second write or operating succe
   expect(writes).toBe(1);
   expect(screen.queryByText("Access active")).not.toBeInTheDocument();
 });
+
+it("does not ask a supplier to enter a private hospital account identifier without published recipient choices", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ data: [], page: { has_more: false, next_cursor: null } })),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <PartnerGrantDraftWorkspace scope={scope} onChanged={vi.fn()} />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Prepare supplier access" }));
+  await user.click(await screen.findByRole("combobox", { name: "Recipient" }));
+  await user.click(screen.getByRole("option", { name: "Named hospital account" }));
+  expect(
+    screen.queryByRole("textbox", { name: "Named hospital account reference" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByText(/Published named hospital recipient choices are not available/),
+  ).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Save supplier access proposal" })).toBeDisabled();
+});

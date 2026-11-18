@@ -13,6 +13,7 @@ const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) 
       "SYN-DUTY-CLINICIAN": "Assigned QA Clinician",
     },
     ["user-driver", "user-medic"],
+    true,
   );
 import { EmergencyFleet } from "./emergency-fleet";
 

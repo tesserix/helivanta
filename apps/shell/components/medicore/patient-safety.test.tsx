@@ -1,7 +1,9 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts, accountText } from "../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, { "user-doc": "QA Doctor", "user-nurse": "QA Nurse" });
 import { PatientSafety } from "./patient-safety";
 
 const hospital = {
@@ -134,7 +136,7 @@ describe("PatientSafety", () => {
     expect(calls.some((c) => c.url.includes("/no-known-allergy/"))).toBe(false);
     await userEvent.click(screen.getByRole("button", { name: "Confirm no known allergies" }));
     expect(
-      await screen.findByText(/No known allergies, recorded by user-nurse/),
+      await screen.findByText(accountText(/No known allergies, recorded by QA Nurse/)),
     ).toBeInTheDocument();
     const put = calls.find((c) => c.url.includes("/no-known-allergy/"));
     expect(JSON.parse(String(put?.init?.body))).toEqual({ encounter_id: encounterId });

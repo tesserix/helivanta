@@ -18,7 +18,14 @@ import {
   type PharmacyTaxClassification,
   type TaxScheme,
 } from "@helivanta/api";
-import { Field, FormSelectField, LoadMore, QueryState, useZodForm } from "@helivanta/ui";
+import {
+  AccountName,
+  Field,
+  FormSelectField,
+  LoadMore,
+  QueryState,
+  useZodForm,
+} from "@helivanta/ui";
 import { useReportState, type FormState } from "@/lib/use-list-detail";
 import { useCommandId } from "./command-id";
 
@@ -177,7 +184,7 @@ export function ProductTaxSection({
                 <div className="min-w-0">
                   <p className="font-medium">{taxLabel(row, name)}</p>
                   <p className="mt-0.5 text-muted-foreground">
-                    from {row.effective_from} · {row.recorded_by}
+                    from {row.effective_from} · <AccountName subject={row.recorded_by} />
                     {row.exemption_basis ? ` · ${row.exemption_basis}` : ""}
                     {row.reason ? ` · ${row.reason}` : ""}
                   </p>

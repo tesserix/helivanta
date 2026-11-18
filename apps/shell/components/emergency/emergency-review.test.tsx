@@ -3,7 +3,12 @@ import { afterEach, expect, it, vi } from "vitest";
 import { renderWithNamedAccounts } from "../../test/account-names";
 import { chooseOption } from "../../test/select";
 const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
-  renderWithNamedAccounts(ui, { "user-doctor": "QA Doctor", "user-admin": "QA Administrator" });
+  renderWithNamedAccounts(
+    ui,
+    { "user-doctor": "QA Doctor", "user-admin": "QA Administrator" },
+    undefined,
+    true,
+  );
 import { EmergencyTransportReviewPanel, EmergencyClinicalAdmin } from "./emergency-review";
 
 const base = "0199abc0-0000-7000-8000-000000000001";

@@ -1,6 +1,6 @@
 "use client";
 
-import { Controller, MemberAccountSelect } from "@helivanta/ui";
+import { AccountName, Controller, MemberAccountSelect } from "@helivanta/ui";
 import { useMemo, useState } from "react";
 import { Badge, Button } from "@tesserix/web";
 import {
@@ -837,10 +837,11 @@ function Pickup({
   const id = `correction-${pickup.id}`;
   return (
     <li>
-      {money(pickup.amount_minor)} by {pickup.recorded_by}, {formatDateTime(pickup.recorded_at)}
+      {money(pickup.amount_minor)} by <AccountName subject={pickup.recorded_by} />,{" "}
+      {formatDateTime(pickup.recorded_at)}
       {corrections.map((c) => (
         <span key={c.id} className="block pl-4 text-muted-foreground">
-          Corrected by {money(c.amount_minor)} ({c.reason}), {c.recorded_by}
+          Corrected by {money(c.amount_minor)} ({c.reason}), <AccountName subject={c.recorded_by} />
         </span>
       ))}
       {open ? (

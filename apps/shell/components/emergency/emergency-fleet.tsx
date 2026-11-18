@@ -480,17 +480,41 @@ function DutyForm({ base, vehicles }: { base: string; vehicles: EmergencyVehicle
           />
           <Field
             id="duty-driver"
-            label="Duty driver subject"
+            label="Duty driver"
             error={form.formState.errors.driver_subject?.message}
           >
-            <Input id="duty-driver" {...form.register("driver_subject")} />
+            <Controller
+              control={form.control}
+              name="driver_subject"
+              render={({ field, fieldState }) => (
+                <MemberAccountSelect
+                  id="duty-driver"
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  aria-invalid={fieldState.invalid}
+                  disabled={save.frozen}
+                />
+              )}
+            />
           </Field>
           <Field
             id="duty-clinician"
-            label="Duty clinician subject"
+            label="Duty clinician"
             error={form.formState.errors.clinician_subject?.message}
           >
-            <Input id="duty-clinician" {...form.register("clinician_subject")} />
+            <Controller
+              control={form.control}
+              name="clinician_subject"
+              render={({ field, fieldState }) => (
+                <MemberAccountSelect
+                  id="duty-clinician"
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  aria-invalid={fieldState.invalid}
+                  disabled={save.frozen}
+                />
+              )}
+            />
           </Field>
           <Field id="duty-end" label="Duty ends at" error={form.formState.errors.ends_at?.message}>
             <Input

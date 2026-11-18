@@ -1,6 +1,8 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts } from "../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, { "user-admin": "QA Administrator" });
 import { DailyCollectionReport } from "./daily-collection";
 
 const hospital = {
@@ -157,7 +159,11 @@ describe("DailyCollectionReport", () => {
     expect(counted).toHaveTextContent("INR 5,000.00");
     expect(counted).toHaveTextContent("2 · INR 50.00 (refunds INR 500.00)");
     expect(counted).toHaveTextContent("Short INR 1.00");
-    expect(counted).toHaveTextContent("Authorised by user-admin: Counted short by one note");
+    await waitFor(() =>
+      expect(counted).toHaveTextContent(
+        "Authorised by QA Administrator: Counted short by one note",
+      ),
+    );
     expect(open).toHaveTextContent("Open, not counted");
     expect(open).not.toHaveTextContent("INR");
     expect(screen.getByRole("status", { name: "Day status" })).toHaveTextContent(

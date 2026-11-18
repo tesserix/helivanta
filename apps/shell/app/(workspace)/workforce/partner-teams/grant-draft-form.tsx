@@ -151,7 +151,7 @@ export function PartnerGrantDraftForm({
         noValidate
         className="space-y-4"
         onSubmit={form.handleSubmit((values) => {
-          if (!retained && !sourceCurrent) return;
+          if (!retained && (!sourceCurrent || kind === "subject")) return;
           const input = retained ?? PartnerGrantDraftInputContract.parse(values);
           setRetained(input);
           save.mutate(input);
@@ -270,13 +270,10 @@ export function PartnerGrantDraftForm({
               <Input id="grant-group" {...form.register("recipient_group_id")} />
             </Field>
           ) : (
-            <Field
-              id="grant-subject"
-              label="Named hospital account reference"
-              error={form.formState.errors.recipient_subject?.message}
-            >
-              <Input id="grant-subject" {...form.register("recipient_subject")} />
-            </Field>
+            <p role="status">
+              Published named hospital recipient choices are not available. Ask the hospital to
+              publish an eligible team before preparing this access proposal.
+            </p>
           )}
           <FormSelectField
             control={form.control}
@@ -337,7 +334,7 @@ export function PartnerGrantDraftForm({
         <div className="flex flex-wrap gap-3">
           <Button
             type={retained ? "button" : "submit"}
-            disabled={busy || (!retained && !sourceCurrent)}
+            disabled={busy || (!retained && (!sourceCurrent || kind === "subject"))}
             onClick={retained ? () => save.mutate(retained) : undefined}
           >
             {retained ? "Retry same proposal" : "Save supplier access proposal"}

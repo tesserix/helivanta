@@ -3,11 +3,16 @@ import { screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderWithNamedAccounts } from "../../test/account-names";
 const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
-  renderWithNamedAccounts(ui, {
-    "synthetic-maker": "QA Maker",
-    "synthetic-checker": "QA Checker",
-    "synthetic-dispatcher": "QA Dispatcher",
-  });
+  renderWithNamedAccounts(
+    ui,
+    {
+      "synthetic-maker": "QA Maker",
+      "synthetic-checker": "QA Checker",
+      "synthetic-dispatcher": "QA Dispatcher",
+    },
+    undefined,
+    true,
+  );
 import { EmergencyWorkspace } from "./emergency-workspace";
 import { EmergencyIntake } from "./emergency-intake";
 import { EmergencyCaseDetailPanel } from "./emergency-case-detail";

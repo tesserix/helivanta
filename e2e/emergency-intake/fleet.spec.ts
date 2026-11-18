@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { chooseFixtureAccount, fixtureIdentityRead, fixtureNames } from "./identity";
 
 const api = process.env.EMERGENCY_BROWSER_API;
 if (!api || new URL(api).hostname !== "127.0.0.1")
@@ -18,6 +19,7 @@ test("supervisor verifies fleet and duty, records failure and clears it against 
     { name: "helivanta_session", value: "synthetic-fleet-session", url: baseURL },
   ]);
   await context.route("**/api/v1/**", async (route) => {
+    if (await fixtureIdentityRead(route, "user-admin")) return;
     const url = new URL(route.request().url());
     const response = await route.fetch({
       url: `${api}${url.pathname.slice(4)}${url.search}`,
@@ -29,7 +31,7 @@ test("supervisor verifies fleet and duty, records failure and clears it against 
   await page.getByLabel("Operating base name", { exact: true }).fill("Synthetic Fleet Base");
   await page.getByLabel("Reviewed policy reference", { exact: true }).fill("SYN-FLEET-TEST-ONLY");
   await page.getByRole("button", { name: "Save base", exact: true }).click();
-  await page.getByLabel("Verified identity subject", { exact: true }).fill("user-admin");
+  await chooseFixtureAccount(page, "Staff account", "user-admin");
   await page.getByRole("combobox", { name: "Base access level", exact: true }).click();
   await page.getByRole("option", { name: "Supervisor", exact: true }).click();
   await page.getByRole("button", { name: "Grant access", exact: true }).click();
@@ -57,7 +59,7 @@ test("supervisor verifies fleet and duty, records failure and clears it against 
   ] as const) {
     if (index)
       await page.getByRole("button", { name: "Verify another person", exact: true }).click();
-    await page.getByLabel("Crew identity subject", { exact: true }).fill(subject);
+    await chooseFixtureAccount(page, "Crew member", subject);
     await page.getByRole("combobox", { name: "Verified qualification", exact: true }).click();
     await page.getByRole("option", { name: qualification, exact: true }).click();
     await page.getByLabel("Credential valid until", { exact: true }).fill(localTime(24));
@@ -66,14 +68,14 @@ test("supervisor verifies fleet and duty, records failure and clears it against 
       .fill("SYN-VERIFIED-ONLY-FOR-SOFTWARE-TEST");
     await page.getByRole("button", { name: "Save credential", exact: true }).click();
     await expect(
-      page.getByRole("button", { name: `Review ${subject}`, exact: true }),
+      page.getByRole("button", { name: `Review ${fixtureNames[subject]}`, exact: true }),
     ).toBeVisible();
   }
   await page.getByText("Manage duty", { exact: true }).click();
   await page.getByRole("combobox", { name: "Duty vehicle", exact: true }).click();
   await page.getByRole("option", { name: "SYN-ALS-BROWSER", exact: true }).click();
-  await page.getByLabel("Duty driver subject", { exact: true }).fill("synthetic-browser-driver");
-  await page.getByLabel("Duty clinician subject", { exact: true }).fill("synthetic-browser-medic");
+  await chooseFixtureAccount(page, "Duty driver", "synthetic-browser-driver");
+  await chooseFixtureAccount(page, "Duty clinician", "synthetic-browser-medic");
   await page.getByLabel("Duty ends at", { exact: true }).fill(localTime(8));
   await page.getByRole("button", { name: "Start duty", exact: true }).click();
   await page

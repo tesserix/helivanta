@@ -410,7 +410,8 @@ function DiscountRow({
               <PatientName hospital={hospital} id={d.patient_id} /> ·{" "}
             </>
           )}
-          Discount · {d.reason_name} · {formatDateTime(d.requested_at)} · {d.requested_by}
+          Discount · {d.reason_name} · {formatDateTime(d.requested_at)} ·{" "}
+          <AccountName subject={d.requested_by} />
           <Badge variant="outline" className="ml-2">
             {statusLabel[d.status]}
           </Badge>

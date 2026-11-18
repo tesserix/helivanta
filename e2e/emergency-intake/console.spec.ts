@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { chooseFixtureAccount, fixtureIdentityRead } from "./identity";
 
 const api = process.env.EMERGENCY_BROWSER_API;
 if (!api || new URL(api).hostname !== "127.0.0.1")
@@ -17,9 +18,10 @@ test("staff configure a base, receive and close a report, then revoke case acces
   await context.addCookies([
     { name: "helivanta_session", value: "synthetic-browser-session", url: baseURL },
   ]);
-  // Only authentication and transport are substituted. Every domain response comes
+  // Only authentication, IAM display metadata and transport are substituted. Every domain response comes
   // from the real Go handlers backed by disposable Postgres, OpenBao and NATS.
   await context.route("**/api/v1/**", async (route) => {
+    if (await fixtureIdentityRead(route, "user-admin")) return;
     const url = new URL(route.request().url());
     const response = await route.fetch({
       url: `${api}${url.pathname.slice(4)}${url.search}`,
@@ -37,7 +39,7 @@ test("staff configure a base, receive and close a report, then revoke case acces
       .filter({ has: page.getByRole("heading", { name: "Synthetic Pilot Base", exact: true }) })
       .getByText("No case access", { exact: false }),
   ).toBeVisible();
-  await page.getByLabel("Verified identity subject", { exact: true }).fill("user-admin");
+  await chooseFixtureAccount(page, "Staff account", "user-admin");
   await page.getByRole("combobox", { name: "Base access level", exact: true }).click();
   await page.getByRole("option", { name: "Supervisor", exact: true }).click();
   await page.getByRole("button", { name: "Grant access", exact: true }).click();
@@ -70,7 +72,7 @@ test("staff configure a base, receive and close a report, then revoke case acces
   });
   await page.getByRole("link", { name: "Back to operating bases", exact: true }).click();
   await page.getByRole("button", { name: "Configure Synthetic Pilot Base", exact: true }).click();
-  await page.getByLabel("Verified identity subject", { exact: true }).fill("user-admin");
+  await chooseFixtureAccount(page, "Staff account", "user-admin");
   await page.getByRole("button", { name: "Revoke access", exact: true }).click();
   await page.getByRole("button", { name: "Confirm revoke", exact: true }).click();
   await expect(page.getByText("Access revoked", { exact: true })).toBeVisible();

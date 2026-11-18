@@ -2,6 +2,9 @@ import { ESLint } from "eslint";
 
 it.each([
   "<p>{person.subject}</p>",
+  "<p>{person.recorded_by}</p>",
+  "<p>{person.authorised_by}</p>",
+  "<p>{person.requested_by}</p>",
   "<p>{person.actor_subject}</p>",
   "<p>{`Reviewed by ${person.reviewed_by}`}</p>",
   "<span title={`Account ${person.subject}`}>Details</span>",
@@ -387,5 +390,19 @@ it("permits backend account bindings and verified name components", async () => 
   const [result] = await linter().lintText(code, { filePath: "fixture.tsx" });
   expect(
     result.messages.filter((message) => message.ruleId === "helivanta/no-raw-account-display"),
+  ).toHaveLength(0);
+});
+
+it("rejects raw account-entry controls while allowing hidden command bindings", async () => {
+  const bad = 'export const A = ({ form }) => <Input {...form.register("driver_subject")} />;';
+  const [result] = await linter().lintText(bad, { filePath: "fixture.tsx" });
+  expect(
+    result.messages.filter((message) => message.ruleId === "helivanta/no-raw-account-display"),
+  ).toHaveLength(1);
+  const safe =
+    'export const A = ({ form }) => <input type="hidden" {...form.register("subject")} />;';
+  const [allowed] = await linter().lintText(safe, { filePath: "fixture.tsx" });
+  expect(
+    allowed.messages.filter((message) => message.ruleId === "helivanta/no-raw-account-display"),
   ).toHaveLength(0);
 });

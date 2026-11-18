@@ -2,12 +2,17 @@ import { afterEach, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithNamedAccounts } from "../../test/account-names";
 const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
-  renderWithNamedAccounts(ui, {
-    "user-receiver": "QA Receiver",
-    "synthetic-maker": "QA Maker",
-    "synthetic-checker": "QA Checker",
-    "user-member": "QA Member",
-  });
+  renderWithNamedAccounts(
+    ui,
+    {
+      "user-receiver": "QA Receiver",
+      "synthetic-maker": "QA Maker",
+      "synthetic-checker": "QA Checker",
+      "user-member": "QA Member",
+    },
+    undefined,
+    true,
+  );
 import { chooseOption } from "../../test/select";
 import { EmergencyReceivingWorkspace } from "./emergency-receiving";
 const facility = "019a1234-5678-7000-8000-000000000001";

@@ -791,7 +791,8 @@ permission per zone and per page.
 Use `AccountName`, `AccountRole` and named account selectors from `@helivanta/ui`
 for account displays. Keep subjects in command values, keys and equality checks;
 do not interpolate them into text, table cells, tooltips, accessible labels or
-option labels. The shell supplies the current actor/tenant presentation context.
+option labels. Use named controls for visible identity-entry fields; retain subjects
+only in hidden command bindings. The shell supplies the current actor/tenant presentation context.
 If the authorized identity owner cannot return a name, show an explicit unavailable
 state. Never fabricate a name from an ID, email or staff draft. Do not widen an
 identity read permission to make a label convenient. The ESLint raw-account-display

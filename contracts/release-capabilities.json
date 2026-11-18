@@ -5815,6 +5815,10 @@
     {
       "path": "/workforce/supplier-staff",
       "capability": "supplier_collaboration"
+    },
+    {
+      "path": "/recover-password",
+      "capability": "baseline"
     }
   ],
   "panels": [

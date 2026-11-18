@@ -458,6 +458,15 @@ describe("LoginPage", () => {
   });
 
   describe("with an auth request (credential form)", () => {
+    it("links recovery to the validated native sign-in request", async () => {
+      stubAuthFlow({});
+      renderWithProviders(<LoginPage />);
+      expect(await screen.findByRole("link", { name: "Forgot password?" })).toHaveAttribute(
+        "href",
+        `/recover-password?authRequest=${encodeURIComponent(AUTH_REQUEST_ID)}`,
+      );
+    });
+
     beforeEach(() => {
       window.history.pushState({}, "", `/login?authRequest=${AUTH_REQUEST_ID}`);
     });

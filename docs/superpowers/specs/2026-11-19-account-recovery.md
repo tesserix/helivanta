@@ -290,7 +290,7 @@ The owner candidate now separates preparation and cancellation from
 Private status selects an exact command and unknown selectors never fall back to
 ready or older receipts. Hosted PostgreSQL CI at onboarding commit `c195f54`
 passed its complete race/coverage suite against schema `363dce21`. The final
-cancellation projection follows in `0526034`; its CI is still required.
+cancellation projection follows in `0526034`; its hosted checks also passed.
 The HMS broker requires a separate HttpOnly active-command cookie, installs it
 before preparation I/O, retains it on uncertain outcomes, and strips private
 command selectors from public receipts. A reload can cancel the retained prepared
@@ -298,7 +298,23 @@ command with an empty canonical cancellation input; the browser cookie supplies
 the exact selector. Start/resend cannot discard an unresolved command marker.
 Normal sign-in and sign-out clear both recovery capabilities.
 
-Public UI and native browser acceptance remain outstanding. Passing current native adapter
+The candidate `/recover-password` page and validated sign-in link are now
+implemented. The recipient prepares before password entry; only that fresh
+in-memory preparation permits the form. Restored prepared/unknown attempts require
+read-only status or guarded cancellation, and a password is never automatically
+retried. Password and mailbox code handoffs use void mutation variables and
+transient references, cleared before remote dispatch. Public status uses private
+HttpOnly selection; a missing selected command returns
+`409 password_recovery_command_unknown`, retaining the marker and offering guarded
+cancellation rather than a fresh-password form. Email verification suppresses
+further delivery controls; lost verification responses can be recovered by status.
+
+Eight component tests cover the core flow, password-cache/storage absence,
+delivery intent retries, lost verification and missing preparation after reload.
+Sign-in link and exact middleware exemptions have separate tests. Two Playwright
+consumer-contract cases are authored with a stubbed identity owner; they do not
+prove native password reset or new-password sign-in. Native/browser acceptance
+and the separate Staff MFA-reset workflow remain outstanding. Passing current native adapter
 and command tests does not prove this additional ordering requirement. No
 password fingerprint, password persistence, session bypass or timer-based fence
 release is an acceptable substitute.

@@ -388,7 +388,14 @@ func (h *PasswordRecoveryHandlers) request(c *gin.Context, action string, input 
 	}
 	defer func() { _ = res.Body.Close() }()
 	switch res.StatusCode {
-	case 400, 404:
+	case 404:
+		if read, selected := input.(customercontract.PasswordRecoveryRead); action == "status" && selected && read.CommandID != "" {
+			respond.Error(c, 409, "password_recovery_command_unknown", "The retained attempt could not be confirmed. Check its status or cancel the prepared attempt before continuing.")
+			return nil, false
+		}
+		recoveryExpired(c)
+		return nil, false
+	case 400:
 		recoveryExpired(c)
 		return nil, false
 	case 409:

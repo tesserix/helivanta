@@ -377,3 +377,16 @@ func TestRecoveryExactStatusCannotDiscloseAnOlderReceiptOrReady(t *testing.T) {
 		}
 	}
 }
+
+func TestRecoveryMissingSpecificCommandRemainsRecoverableAfterReload(t *testing.T) {
+	cap, err := newCapability()
+	if err != nil {
+		t.Fatal(err)
+	}
+	command := uuid.Must(uuid.NewV7()).String()
+	r, _ := recoveryBroker(t, "web", []string{"openid"}, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(404) })
+	rec := recoveryCall(r, "GET", "/v1/auth/password-recovery", "", &http.Cookie{Name: recoveryCookieName, Value: cap.id.String() + "." + cap.token}, &http.Cookie{Name: recoveryCommandCookieName, Value: command + "." + cap.token})
+	if rec.Code != 409 || !strings.Contains(rec.Body.String(), "password_recovery_command_unknown") || len(rec.Result().Cookies()) != 0 {
+		t.Fatal("lost preparation was misrepresented as fresh recovery", rec.Code)
+	}
+}

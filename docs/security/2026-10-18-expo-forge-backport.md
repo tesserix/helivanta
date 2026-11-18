@@ -1,5 +1,11 @@
 # Expo CLI: Forge DigestAlgorithm verification backport
 
+## Upgraded to upstream 1.4.3 — 2026-11-18
+
+The pin moves to `node-forge@1.4.3` for GHSA-6889-vf6x-f3g5, GHSA-w4xr-hqv8-ch44,
+GHSA-6cv4-p8m7-4r25 and GHSA-j8rw-jp99-435v. The actual-consumer RSA regressions
+below still pass against the resolved Expo CLI copy.
+
 ## Superseded by upstream 1.4.1 — 2026-10-31
 
 Expo CLI and its code-signing certificate helper now resolve pinned upstream

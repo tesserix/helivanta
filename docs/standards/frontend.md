@@ -811,3 +811,7 @@ The shared reporter creates an opaque support reference, emits only allowlisted
 metadata and uses the [Shell collector contract](../api/frontend-errors.md).
 Keep diagnostics independent of application providers and recovery actions.
 Follow the [runbook](../runbooks/frontend-errors.md) to correlate live reports.
+
+Schemas imported by browser startup must import Zod from `lib/csp-zod.ts` so
+CSP-safe mode is set before schema construction, including caught eval probes.
+Setting it after importing schema consumers is too late.

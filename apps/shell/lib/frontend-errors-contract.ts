@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "./csp-zod";
 
 export const CLIENT_ERROR_PATH = "/api/client-errors";
 export const CLIENT_ERROR_EVENT = "frontend_error";

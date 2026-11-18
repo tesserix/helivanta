@@ -446,6 +446,7 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
       {content}
       {!status.data &&
         !status.isPending &&
+        !unknownCommand &&
         (delivered && status.error instanceof ApiError && status.error.status === 404 ? (
           <RequestFailure
             error={status.error}

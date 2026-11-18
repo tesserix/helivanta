@@ -153,7 +153,9 @@ it("retains a missing prepared intent after reload until safe cancellation", asy
     }),
   );
   const { user } = renderWithProviders(<PasswordRecovery authRequestId="V2_test" />);
-  await user.click(await screen.findByRole("button", { name: "Cancel prepared attempt" }));
+  await screen.findByRole("button", { name: "Cancel prepared attempt" });
+  expect(screen.getAllByRole("button", { name: "Check recovery status" })).toHaveLength(1);
+  await user.click(screen.getByRole("button", { name: "Cancel prepared attempt" }));
   await waitFor(() => expect(cancel).toHaveBeenCalledWith({}));
   await screen.findByRole("button", { name: "Choose a new password" });
   expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();

@@ -142,13 +142,22 @@ infrastructure cost is introduced; these are assumptions, not measured results.
 
 The current drafts preserve private signed `sid`, canonical reviewed-link intents,
 the owner command ledger and internal native adapters for exact session proof,
-one removal dispatch and latest enrollment evidence. The additive schema is in
+one removal dispatch and latest enrollment evidence. The owner implements private
+Helivanta workload prepare, dispatch, cancel and exact-initiator snapshot APIs,
+with native ordinary-target checks and durable acknowledgement/uncertainty.
+Its canonical `staffclient` methods validate exact command/tenant/actor scope,
+bound and strictly decode responses, refuse redirects/cookies and never
+automatically retry dispatch. Go and generated TypeScript dependencies pin the
+same owner revision, `68531c927081a31f2d12783372b7b8f06359c826`.
+These private APIs trust the HMS workload assertion of committed revocation;
+the client supplies neither current administrator authority nor that revocation.
+The additive schema is in
 [infrastructure #1713](https://github.com/tesserix/tesserix-k8s/pull/1713).
 Hosted owner PostgreSQL race/coverage checks passed for the ledger, including
 concurrency, immutable replay, cancellation tombstones, audit rollback, exact
 timestamp preservation, generation fencing and application-role restrictions.
 
-Workforce/IAM authorization, command-service and revocation/admission wiring,
+Workforce/IAM authorization, HMS command orchestration and revocation/admission wiring,
 mandatory enrollment UI and the Staff native-browser journey remain unfinished.
 No Staff reset endpoint is registered, no live schema has been applied and no live
 factor has been removed. See Helivanta PR #1749, onboarding-service PR #45 and

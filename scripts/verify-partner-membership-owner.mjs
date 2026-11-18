@@ -4,8 +4,9 @@ let material = "";
 for await (const chunk of process.stdin) material += chunk;
 const fixture = JSON.parse(material);
 const browser = await chromium.launch({ headless: true });
+let context;
 try {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
+  context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
   await context.addCookies([
     { name: "helivanta_session", value: fixture.token, url: fixture.app_url },
   ]);
@@ -79,5 +80,6 @@ try {
     "PASS: browser → Global API → actual IAM/OpenFGA and Workforce/Postgres; scoped membership suspension commits once and GET recovers a deliberately lost response.",
   );
 } finally {
+  await context?.unrouteAll({ behavior: "wait" });
   await browser.close();
 }

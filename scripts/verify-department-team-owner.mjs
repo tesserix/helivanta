@@ -7,8 +7,9 @@ const browser = await chromium.launch({
   headless: true,
   ...(process.env.CHROME_EXECUTABLE ? { executablePath: process.env.CHROME_EXECUTABLE } : {}),
 });
+let context;
 try {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
+  context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
   await context.addCookies([
     { name: "helivanta_session", value: fixture.token, url: fixture.app_url },
   ]);
@@ -95,5 +96,6 @@ try {
     "PASS: browser → Global API → real IAM/OpenFGA, Organization and Workforce/Postgres; paired transfer commits and exact replay recovers a deliberately lost response.",
   );
 } finally {
+  await context?.unrouteAll({ behavior: "wait" });
   await browser.close();
 }

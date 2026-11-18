@@ -13,7 +13,7 @@ import {
   type OvertimeSettings,
   type OvertimeSettingsInput,
 } from "@helivanta/api";
-import { Field, useZodForm, RequestFailure } from "@helivanta/ui";
+import { AccountName, Field, useZodForm, RequestFailure } from "@helivanta/ui";
 import { inputClass, today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 
@@ -264,7 +264,7 @@ function PolicyHistory({
                 {formatMinutes(r.daily_limit_minutes)} a day ·{" "}
                 {formatMinutes(r.weekly_limit_minutes)} a week ·{" "}
                 {formatMinutes(r.monthly_limit_minutes)} a month · {r.filing_window_days} days to
-                file · reviewed by {r.reviewed_by_subject}
+                file · reviewed by <AccountName subject={r.reviewed_by_subject} />
               </p>
             </li>
           ))}

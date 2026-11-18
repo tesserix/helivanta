@@ -1,5 +1,7 @@
 "use client";
 
+import { Controller, MemberAccountSelect } from "@helivanta/ui";
+
 import { useRef, useState } from "react";
 import { Button, Input, Badge } from "@tesserix/web";
 import {
@@ -24,6 +26,7 @@ import {
   type EmergencyConstraint,
 } from "@helivanta/api";
 import {
+  AccountName,
   Field,
   FormSelectField,
   useZodForm,
@@ -307,7 +310,7 @@ function CrewForm({ base }: { base: string }) {
     <details className="space-y-4 rounded-lg border p-4">
       <summary className="cursor-pointer font-medium">Verify crew credentials</summary>
       <p className="my-3 text-sm text-muted-foreground">
-        Record the verified identity subject and evidence reference. This is an attributed
+        Choose the verified staff account and record the evidence reference. This is an attributed
         supervisor verification; it does not claim a workforce or licensing-authority integration.
       </p>
       {crew.isError && (
@@ -321,7 +324,7 @@ function CrewForm({ base }: { base: string }) {
         {(isRefusal(crew.error) ? [] : crew.items).map((person) => (
           <li className="flex flex-wrap items-center justify-between gap-2" key={person.id}>
             <span className="break-all text-sm">
-              {person.subject} · {person.qualification} ·{" "}
+              <AccountName subject={person.subject} /> · {person.qualification} ·{" "}
               {person.suspended ? "Suspended" : `valid until ${formatTime(person.certified_until)}`}
             </span>
             <Button
@@ -329,7 +332,7 @@ function CrewForm({ base }: { base: string }) {
               variant="outline"
               onClick={() => setSelected(person)}
             >
-              Review {person.subject}
+              Review <AccountName subject={person.subject} />
             </Button>
           </li>
         ))}
@@ -381,15 +384,18 @@ function CrewEditor({ base, person }: { base: string; person?: EmergencyCrew }) 
       className="space-y-4"
     >
       <fieldset disabled={save.frozen} className="grid gap-4 sm:grid-cols-2">
-        <Field
-          id="crew-subject"
-          label="Crew identity subject"
-          error={form.formState.errors.subject?.message}
-        >
-          <Input
-            id="crew-subject"
-            readOnly={!!person || !!save.data}
-            {...form.register("subject")}
+        <Field id="crew-subject" label="Crew member" error={form.formState.errors.subject?.message}>
+          <Controller
+            control={form.control}
+            name="subject"
+            render={({ field }) => (
+              <MemberAccountSelect
+                id="crew-subject"
+                value={field.value}
+                onValueChange={field.onChange}
+                disabled={!!person || !!save.data}
+              />
+            )}
           />
         </Field>
         <FormSelectField
@@ -474,17 +480,41 @@ function DutyForm({ base, vehicles }: { base: string; vehicles: EmergencyVehicle
           />
           <Field
             id="duty-driver"
-            label="Duty driver subject"
+            label="Duty driver"
             error={form.formState.errors.driver_subject?.message}
           >
-            <Input id="duty-driver" {...form.register("driver_subject")} />
+            <Controller
+              control={form.control}
+              name="driver_subject"
+              render={({ field, fieldState }) => (
+                <MemberAccountSelect
+                  id="duty-driver"
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  aria-invalid={fieldState.invalid}
+                  disabled={save.frozen}
+                />
+              )}
+            />
           </Field>
           <Field
             id="duty-clinician"
-            label="Duty clinician subject"
+            label="Duty clinician"
             error={form.formState.errors.clinician_subject?.message}
           >
-            <Input id="duty-clinician" {...form.register("clinician_subject")} />
+            <Controller
+              control={form.control}
+              name="clinician_subject"
+              render={({ field, fieldState }) => (
+                <MemberAccountSelect
+                  id="duty-clinician"
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  aria-invalid={fieldState.invalid}
+                  disabled={save.frozen}
+                />
+              )}
+            />
           </Field>
           <Field id="duty-end" label="Duty ends at" error={form.formState.errors.ends_at?.message}>
             <Input
@@ -511,7 +541,8 @@ function DutyForm({ base, vehicles }: { base: string; vehicles: EmergencyVehicle
           <li key={d.id} className="my-3 rounded-lg border p-3">
             <p className="break-all text-sm">
               {vehicles.find((v) => v.id === d.vehicle_id)?.code ?? d.vehicle_id} ·{" "}
-              {d.driver_subject} / {d.clinician_subject}
+              <AccountName subject={d.driver_subject} /> /{" "}
+              <AccountName subject={d.clinician_subject} />
             </p>
             <p className="text-sm text-muted-foreground">
               Ends {formatTime(d.ends_at)} · {d.ended_at ? "Ended" : "Open"}

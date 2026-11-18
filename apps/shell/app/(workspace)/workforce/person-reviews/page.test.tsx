@@ -3,7 +3,14 @@ import { createHash } from "node:crypto";
 import { NavigationGuardProvider } from "@helivanta/ui";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts, accountText } from "../../../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "synthetic-manager": "QA Manager",
+    "synthetic-reviewer": "QA Reviewer",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import { beginTenantTransition, cancelTenantTransition } from "@helivanta/api";
 import PersonReviews from "./page";
 
@@ -785,7 +792,7 @@ it("shows protected recorded receipts separately from present effectiveness", as
   const detail = await screen.findByRole("region", { name: "Person review details" });
   await user.click(within(detail).getByRole("button", { name: "View history" }));
   const history = await screen.findByRole("region", { name: "Recorded person review history" });
-  expect(await within(history).findByText("Account synthetic-manager")).toBeInTheDocument();
+  expect(await within(history).findByText(accountText("Account QA Manager"))).toBeInTheDocument();
   expect(
     within(history).getByText(/Historical receipts do not establish present effectiveness/),
   ).toBeInTheDocument();
@@ -805,7 +812,7 @@ it("requires reopening after a newer historical receipt and retains that guard a
   expect(await within(detail).findByText("Synthetic newer receipt")).toBeInTheDocument();
   expect(within(detail).getByRole("button", { name: "Approve finding" })).toBeDisabled();
   await user.click(within(detail).getByRole("button", { name: "Next history receipts" }));
-  expect(await within(detail).findByText("Account synthetic-manager")).toBeInTheDocument();
+  expect(await within(detail).findByText(accountText("Account QA Manager"))).toBeInTheDocument();
   expect(within(detail).getByRole("button", { name: "Approve finding" })).toBeDisabled();
   expect(within(detail).getByText(/A newer receipt was recorded/)).toBeInTheDocument();
 });

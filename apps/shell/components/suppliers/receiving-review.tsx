@@ -17,6 +17,7 @@ import {
   type ReceivingSummary,
 } from "@helivanta/api";
 import {
+  AccountName,
   Field,
   Panel,
   RequestFailure,
@@ -127,7 +128,7 @@ export function ReceivingReceiptInspection({
         accepted · {receipt.input.rejected_units} rejected.
       </p>
       <p>
-        {receipt.input.reason} · {receipt.actor_subject} ·{" "}
+        {receipt.input.reason} · <AccountName subject={receipt.actor_subject} /> ·{" "}
         {new Date(receipt.created_at).toLocaleString("en-IN")}
       </p>
       <p>Original evidence is retained alongside corrections and physical release history.</p>
@@ -147,7 +148,7 @@ export function ReceivingReceiptInspection({
                 <li key={correction.id}>
                   Correction {correction.version}: {correction.input.accepted_units} accepted,{" "}
                   {correction.input.rejected_units} rejected · {correction.input.reason} ·{" "}
-                  {correction.actor_subject}
+                  <AccountName subject={correction.actor_subject} />
                 </li>
               ))}
             </ul>
@@ -215,7 +216,7 @@ export function ReceivingReceiptInspection({
             {clearances.data.data.map((clearance) => (
               <li key={clearance.id}>
                 Review at receiving version {clearance.summary_version}: {clearance.reason} ·{" "}
-                {clearance.actor_subject}.{" "}
+                <AccountName subject={clearance.actor_subject} />.{" "}
                 {clearance.summary_version === summary?.version
                   ? "Current version."
                   : "Earlier version; cannot authorize current release."}
@@ -250,7 +251,8 @@ export function ReceivingReceiptInspection({
               {releases.data.data.map((release) => (
                 <li key={release.id}>
                   {release.input.quantity_units} units physically released · {release.input.reason}{" "}
-                  · {release.actor_subject} · {new Date(release.created_at).toLocaleString("en-IN")}
+                  · <AccountName subject={release.actor_subject} /> ·{" "}
+                  {new Date(release.created_at).toLocaleString("en-IN")}
                 </li>
               ))}
             </ul>

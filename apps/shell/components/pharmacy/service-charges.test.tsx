@@ -1,6 +1,8 @@
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts, accountText } from "../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, { "user-owner": "QA Owner", "user-manager": "QA Manager" });
 import type { PharmacyServiceCharge, PharmacyServiceChargeVersion } from "@helivanta/api";
 import { chooseOption } from "../../test/select";
 import { ServiceChargesSetup } from "./service-charges";
@@ -158,7 +160,9 @@ describe("ServiceChargesSetup", () => {
     ]);
     const { user } = renderWithProviders(setup(false, true));
     expect(await screen.findByText("Not billed today")).toBeVisible();
-    expect(screen.getByText(/awaiting review, declared by user-owner/)).toBeVisible();
+    expect(
+      await screen.findByText(accountText(/awaiting review, declared by QA Owner/)),
+    ).toBeVisible();
     expect(screen.queryByRole("button", { name: "New service charge" })).toBeNull();
     expect(screen.queryByRole("button", { name: /Change DELIVERY/ })).toBeNull();
     await user.click(screen.getByRole("button", { name: "Approve" }));

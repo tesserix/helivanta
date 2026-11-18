@@ -18,7 +18,7 @@ import {
   type RosterStatusInput,
   type StaffRosterAssignment,
 } from "@helivanta/api";
-import { ConfirmDialog, Field, useZodForm, RequestFailure } from "@helivanta/ui";
+import { AccountName, ConfirmDialog, Field, useZodForm, RequestFailure } from "@helivanta/ui";
 import { inputClass } from "../roster-policy/policy-ui";
 import { ChangeEditor } from "./roster-change";
 import { ClashPanel, ClashTable, outstandingClashes, useRosterClashes } from "./roster-clashes";
@@ -675,7 +675,7 @@ function HistoryPanel({
                   +{r.added} / −{r.removed}
                   {r.skipped_existing + r.skipped_unassigned + r.skipped_conflicts > 0 &&
                     ` · skipped ${r.skipped_existing} existing, ${r.skipped_unassigned} unassigned, ${r.skipped_conflicts} conflicting`}{" "}
-                  · {r.reviewed_by_subject} · {r.created_at}
+                  · <AccountName subject={r.reviewed_by_subject} /> · {r.created_at}
                   {r.reason && ` · “${r.reason}”`}
                 </p>
               </div>

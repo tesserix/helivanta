@@ -11,8 +11,9 @@ import {
   type PharmacyLookupGrant,
 } from "@helivanta/api";
 import {
+  AccountName,
   ConfirmDialog,
-  FormSelectField,
+  FormAccountSelectField,
   LoadMore,
   RequestFailure,
   useZodForm,
@@ -95,7 +96,9 @@ export function PharmacyLookupAccess({
         <ul className="mt-2 divide-y text-sm">
           {grants.items.map((g) => (
             <li key={g.subject} className="flex items-center justify-between gap-3 py-2">
-              <span className="break-all">{g.subject}</span>
+              <span className="break-all">
+                <AccountName subject={g.subject} />
+              </span>
               <Button variant="outline" size="sm" onClick={() => setRemoving(g.subject)}>
                 Revoke
               </Button>
@@ -115,7 +118,7 @@ export function PharmacyLookupAccess({
           className="mt-3 flex flex-wrap items-end gap-3"
           onSubmit={form.handleSubmit((values) => grant.mutate(values))}
         >
-          <FormSelectField
+          <FormAccountSelectField
             control={form.control}
             name="subject"
             id={`lookup-subject-${pharmacyId}`}

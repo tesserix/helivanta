@@ -11,7 +11,7 @@ import {
   type LeaveReportFilter,
   type LeaveStatusReportRow,
 } from "@helivanta/api";
-import { RequestFailure } from "@helivanta/ui";
+import { AccountName, RequestFailure } from "@helivanta/ui";
 
 const cell = "px-4 py-3 align-top";
 const head = "px-4 py-3 text-left text-xs font-semibold uppercase";
@@ -208,8 +208,14 @@ function StatusTable({ rows, profiles }: { rows: LeaveStatusReportRow[]; profile
               <td className={cell}>{r.start_on}</td>
               <td className={cell}>{r.end_on}</td>
               <td className={cell}>{describeTaken(r.half_days, 0)}</td>
-              <td className={cell}>{r.requested_by_subject}</td>
-              <td className={cell}>{r.decided_by_subject ?? "—"}</td>
+              <td className={cell}>
+                <AccountName subject={r.requested_by_subject} />
+              </td>
+              <td className={cell}>
+                <AccountName subject={r.decided_by_subject}>
+                  {(presentedAccountName0) => <>{presentedAccountName0 ?? "—"}</>}
+                </AccountName>
+              </td>
               <td className={cell}>{LEAVE_REQUEST_STATUSES[r.status]}</td>
             </tr>
           ))}

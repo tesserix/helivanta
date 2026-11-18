@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { readMemberPresentations } from "./member-presentations";
+import { readAccountPresentations, readMemberPresentations } from "./member-presentations";
 
 const scope = { tenantId: "11111111-1111-4111-8111-111111111111", subject: "owner" };
 const view = (subject: string) => ({
@@ -80,4 +80,64 @@ it("keeps a known unavailable account unnamed", async () => {
     ),
   );
   expect(await readMemberPresentations(scope, ["target"])).toEqual([unavailable]);
+});
+
+it("resolves verified native accounts before membership without inventing roles or unknown names", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      expect(url).toBe("/api/v1/iam/account-presentations");
+      return Response.json({
+        tenant_id: scope.tenantId,
+        actor_subject: scope.subject,
+        data: [{ ...view("native"), roles: [] }],
+      });
+    }),
+  );
+  expect(await readAccountPresentations(scope, ["unknown", "native"])).toEqual([
+    { ...view("native"), roles: [] },
+  ]);
+});
+
+it.each([
+  { data: [view("extra")] },
+  { data: [view("a"), view("a")] },
+  { data: [view("b"), view("a")] },
+  { tenant_id: "22222222-2222-4222-8222-222222222222" },
+  { actor_subject: "other-owner" },
+])(
+  "rejects foreign, duplicate, unordered or incorrectly bound account names: %j",
+  async (patch) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          tenant_id: scope.tenantId,
+          actor_subject: scope.subject,
+          data: [view("a")],
+          ...patch,
+        }),
+      ),
+    );
+    await expect(readAccountPresentations(scope, ["a", "b"])).rejects.toThrow();
+  },
+);
+
+it.each([401, 403, 409, 503])(
+  "does not disguise account source failure %s as an empty lookup",
+  async (status) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({}, { status })),
+    );
+    await expect(readAccountPresentations(scope, ["a"])).rejects.toThrow();
+  },
+);
+
+it("conceals unknown accounts on a not-found response", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({}, { status: 404 })),
+  );
+  expect(await readAccountPresentations(scope, ["unknown"])).toEqual([]);
 });

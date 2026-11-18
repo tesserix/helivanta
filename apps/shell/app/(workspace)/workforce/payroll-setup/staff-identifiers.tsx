@@ -26,7 +26,7 @@ import {
   type StatutoryDecisionInput,
   type StatutoryWithdrawInput,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
+import { AccountName, Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
 import { inputClass } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { Fact, RevisionHistory } from "./payroll-workspace";
@@ -134,7 +134,11 @@ export function StaffIdentifiers({
               <span className="rounded-full bg-(--hms-amber-tint) px-2 py-0.5 font-medium text-(--hms-amber)">
                 {STATUTORY_STATUSES.pending}
               </span>{" "}
-              Change proposed by {mine ? "you" : pending.proposed_by_subject} · {pending.reason}
+              Change proposed by{" "}
+              <AccountName subject={pending.proposed_by_subject}>
+                {(presentedAccountName0) => <>{mine ? "you" : presentedAccountName0}</>}
+              </AccountName>{" "}
+              · {pending.reason}
             </p>
           )}
         </>
@@ -171,8 +175,12 @@ export function StaffIdentifiers({
                 {r.uan_masked ?? "not recorded"}
               </p>
               <p className="mt-1 text-muted-foreground">
-                {r.reason} · proposed by {r.proposed_by_subject}
-                {r.decided_by_subject && ` · decided by ${r.decided_by_subject}`}
+                {r.reason} · proposed by <AccountName subject={r.proposed_by_subject} />
+                <AccountName subject={r.decided_by_subject}>
+                  {(presentedAccountName0) => (
+                    <>{r.decided_by_subject && ` · decided by ${presentedAccountName0}`}</>
+                  )}
+                </AccountName>
                 {r.decision_note && ` · “${r.decision_note}”`}
               </p>
             </>
@@ -588,7 +596,10 @@ function IdentifiersDecision({
               : "Nothing approved yet"
           }
         />
-        <Fact label="Proposed by" value={mine ? "You" : proposal.proposed_by_subject} />
+        <Fact
+          label="Proposed by"
+          value={mine ? "You" : <AccountName subject={proposal.proposed_by_subject} />}
+        />
       </dl>
       <form
         noValidate

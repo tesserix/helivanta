@@ -1,7 +1,14 @@
 import "@/test/select";
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts, accountText } from "../../../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "synthetic-filer": "QA Filer",
+    "synthetic-owner": "QA Owner",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import { chooseOption } from "@/test/select";
 import LeaveRequests from "./page";
 
@@ -209,7 +216,7 @@ it("shows a request read-only, with clashes and history, to readers", async () =
   expect(await within(region).findByText("2026-11-03 · holiday, not counted")).toBeInTheDocument();
   expect(within(region).getByText(/Synthetic Ward Roster · 2026-11-02/)).toBeInTheDocument();
   expect(within(region).queryByText(/Reason:/)).not.toBeInTheDocument();
-  expect(await within(region).findByText(/by synthetic-filer/)).toBeInTheDocument();
+  expect(await within(region).findByText(accountText(/by QA Filer/))).toBeInTheDocument();
   expect(within(region).queryByRole("form", { name: "Decide leave request" })).toBeNull();
 });
 

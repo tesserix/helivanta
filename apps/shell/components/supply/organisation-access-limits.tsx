@@ -18,6 +18,7 @@ import {
   type SupplyRegistryScope,
 } from "@helivanta/api";
 import {
+  AccountName,
   Controller,
   Field,
   LoadMore,
@@ -272,7 +273,7 @@ function LimitsHistory({ scope }: { scope: SupplyRegistryScope }) {
         <article key={revision.id} className="space-y-1 text-sm">
           <p>
             Version {revision.version} · {formatAbsoluteTime(revision.created_at)} · Actor{" "}
-            {revision.actor_subject}
+            <AccountName subject={revision.actor_subject} />
           </p>
           <p>
             {revision.snapshot.max_grant_hours} grant hours · {revision.snapshot.max_support_hours}{" "}

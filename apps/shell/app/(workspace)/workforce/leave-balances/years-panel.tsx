@@ -18,7 +18,14 @@ import {
   type LeaveYearOpenInput,
   type UseApiPagedQueryResult,
 } from "@helivanta/api";
-import { ConfirmDialog, Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
+import {
+  AccountName,
+  ConfirmDialog,
+  Field,
+  SelectControl,
+  useZodForm,
+  RequestFailure,
+} from "@helivanta/ui";
 import { inputClass, today } from "../roster-policy/policy-ui";
 
 const monthOptions = Array.from({ length: 12 }, (_, i) => ({
@@ -329,7 +336,7 @@ function RunHistory({
           {runs.items.map((r) => (
             <li key={r.id} className="rounded-xl border p-3">
               {r.step === 13 ? "Year-end close" : leaveMonthName(monthOf(year, r.step))} ·{" "}
-              {r.entries} ledger entries · by {r.actor_subject} ·{" "}
+              {r.entries} ledger entries · by <AccountName subject={r.actor_subject} /> ·{" "}
               {new Date(r.created_at).toLocaleString()}
             </li>
           ))}

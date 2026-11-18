@@ -23,8 +23,10 @@ import {
   type SupplyRegistryScope,
 } from "@helivanta/api";
 import {
+  AccountName,
   Field,
   FormSelectField,
+  FormAccountSelectField,
   LoadMore,
   useZodForm,
   firstError,
@@ -137,7 +139,9 @@ function AccessPanel({ scope }: { scope: SupplyRegistryScope }) {
               className="flex flex-wrap justify-between gap-3 rounded-lg border p-4"
             >
               <div className="min-w-0">
-                <p className="break-words font-medium">{row.subject}</p>
+                <p className="break-words font-medium">
+                  <AccountName subject={row.subject} />
+                </p>
                 <p className="text-sm capitalize">
                   {label(row.role)} · {row.effective_status} · Version {row.version}
                 </p>
@@ -152,7 +156,7 @@ function AccessPanel({ scope }: { scope: SupplyRegistryScope }) {
                   <Button
                     variant="outline"
                     onClick={() => edit(row)}
-                    aria-label={`Manage ${row.subject} ${row.role} grant`}
+                    aria-label="Manage account grant"
                   >
                     Manage grant
                   </Button>
@@ -160,7 +164,7 @@ function AccessPanel({ scope }: { scope: SupplyRegistryScope }) {
                 <Button
                   variant="ghost"
                   onClick={() => setHistory(history === row.id ? null : row.id)}
-                  aria-label={`History ${row.subject} ${row.role} grant`}
+                  aria-label="Account grant history"
                 >
                   History
                 </Button>
@@ -251,16 +255,17 @@ function LegacyRow({ scope, row }: { scope: SupplyRegistryScope; row: LegacyGran
     <div className="space-y-2 rounded-lg border p-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="break-words text-sm">
-          {row.subject} · {label(row.role)} · No expiry
+          <AccountName subject={row.subject} /> · {label(row.role)} · No expiry
         </p>
         <Button variant="outline" disabled={revoke.isPending} onClick={() => setConfirm(true)}>
-          Review revocation {row.subject} {label(row.role)}
+          Review revocation <AccountName subject={row.subject} /> {label(row.role)}
         </Button>
       </div>
       {confirm && (
         <div className="space-y-2">
           <p className="text-sm">
-            Revoke this organisation-wide {label(row.role)} grant for {row.subject}?
+            Revoke this organisation-wide {label(row.role)} grant for{" "}
+            <AccountName subject={row.subject} />?
           </p>
           <div className="flex gap-2">
             <Button disabled={revoke.isPending} onClick={() => revoke.mutate(undefined)}>
@@ -432,7 +437,7 @@ function GrantEditor({
         />
       )}
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormSelectField
+        <FormAccountSelectField
           control={form.control}
           name="subject"
           id="grant-subject"

@@ -1,8 +1,9 @@
 "use client";
+import { Controller, MemberAccountSelect } from "@helivanta/ui";
 
 import { useEffect, useRef, useState } from "react";
 import { useNow } from "@/lib/use-now";
-import { Button, Input } from "@tesserix/web";
+import { Button } from "@tesserix/web";
 import {
   changeCountryPolicyAccess,
   countryPolicyAccessSchema,
@@ -25,6 +26,7 @@ import {
   type CountryPolicyVersionSummary,
 } from "@helivanta/api";
 import {
+  AccountName,
   Field,
   formatDateTime,
   FormSelectField,
@@ -289,7 +291,7 @@ function PolicyRecord({
                   {policyLabel(row.action)} · revision {row.result_revision}
                 </p>
                 <p className="mt-1 break-words text-xs text-muted-foreground">
-                  {row.actor_subject} · {formatDateTime(row.created_at)}
+                  <AccountName subject={row.actor_subject} /> · {formatDateTime(row.created_at)}
                 </p>
                 {row.reason && <p className="mt-2 whitespace-pre-wrap text-sm">{row.reason}</p>}
               </Panel>
@@ -340,7 +342,9 @@ function VersionRecord({ version, current }: { version: CountryPolicyVersion; cu
         {version.approved_by && (
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground">Independent reviewer</p>
-            <p className="mt-1 break-all text-sm">{version.approved_by}</p>
+            <p className="mt-1 break-all text-sm">
+              <AccountName subject={version.approved_by} />
+            </p>
           </div>
         )}
       </Panel>
@@ -495,15 +499,27 @@ function PolicyAccessForm({
           Policy scope access
         </h4>
         <p className="text-sm text-muted-foreground">
-          Use the tenant member's sign-in subject. A scope grant does not grant platform
-          permissions; the member needs both.
+          Choose the verified tenant member. A scope grant does not grant platform permissions; the
+          member needs both.
         </p>
         <Field
           id="policy-access-subject"
-          label="Team member subject"
+          label="Staff account"
           error={form.formState.errors.subject?.message}
         >
-          <Input id="policy-access-subject" {...form.register("subject")} />
+          <Controller
+            control={form.control}
+            name="subject"
+            render={({ field, fieldState }) => (
+              <MemberAccountSelect
+                id="policy-access-subject"
+                value={field.value}
+                onValueChange={field.onChange}
+                aria-invalid={fieldState.invalid}
+                disabled={save.isPending}
+              />
+            )}
+          />
         </Field>
         <FormSelectField
           control={form.control}

@@ -1,9 +1,9 @@
 {
   "format_version": 1,
-  "registry_sha256": "4f9247a1db1de109a310473ef4d94c9f9e665c0d2665d8f7d707d947ef40677e",
+  "registry_sha256": "3ef1892f92f26346149e57f7981d36c36d13ce93c7dffead9c5076290b9af5cf",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1142,
+    "total": 1143,
     "unclassified": 1007
   },
   "entries": [
@@ -4604,6 +4604,49 @@
       }
     },
     {
+      "id": "http iam POST /v1/iam/account-presentations",
+      "kind": "http",
+      "module": "iam",
+      "registration": {
+        "source": "backend/internal/modules/iam/module.go",
+        "method": "POST",
+        "path": "/v1/iam/account-presentations",
+        "permission": "iam.member.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http iam POST /v1/iam/account-presentations",
+        "registration_sha256": "0ed1cd45670c23a7448128ef0e1d6629316fea34aa5244cf849e8b52b18aabaa",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified tenant and current tenant administrator; up to twenty tenant-native human accounts, including verified accounts before ordinary membership.",
+        "rationale": "IAM refreshes native/session authority and iam.member.manage, requires current tenant-admin membership, binds expected tenant and actor, and audits a bounded read. The identity-owner assignment-candidate projection proves exact tenant, subject and native organization. Identity absence reveals no foreign account. Before/after membership snapshots and actor checks reject revocation or source replacement. Names/email remain identity-owned; roles remain IAM-owned and can be empty before enrollment. Unknown accounts are omitted; dependency/audit failures disclose no partial names. This read creates no identity, membership, Staff link or operational authority.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/iam/member_presentations.go",
+            "symbol": "func (h *memberPresentationHandlers) readKind(",
+            "sha256": "f5cd67a5afd6bcf98b8fe47be13057937b6de384e905b7d21e34f8abdd7126a5"
+          },
+          {
+            "path": "backend/internal/modules/iam/membership_commands.go",
+            "symbol": "func membershipActor(",
+            "sha256": "0b0f1ef759d42b67363f454a1d771842a3baba1f274c4c370072297650778a08"
+          },
+          {
+            "path": "backend/internal/customeronboarding/identity_projection.go",
+            "symbol": "case loginclient.IdentityReadAssignmentCandidate:",
+            "sha256": "a17e4e6d8769946db6d8856a3bed0ceaf73aa1844ad545799b663578b28fe2f7"
+          }
+        ],
+        "remaining": [
+          "Run current-owner, cross-tenant, roleless native-account, source-replacement, revocation and audit-failure integration cases in hosted CI.",
+          "Verify deployed Staff memberships, enrollment names and named choices with normal authenticated actors. Source classification is not runtime acceptance."
+        ]
+      }
+    },
+    {
       "id": "http iam POST /v1/iam/assignment-proposals/:id/decision",
       "kind": "http",
       "module": "iam",
@@ -4739,8 +4782,8 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/member_presentations.go",
-            "symbol": "func (h *memberPresentationHandlers) read(",
-            "sha256": "a01f0b6d47573f1eb18413b0ff5e741c94914ade74123992af331e88e974c524"
+            "symbol": "func (h *memberPresentationHandlers) readKind(",
+            "sha256": "f5cd67a5afd6bcf98b8fe47be13057937b6de384e905b7d21e34f8abdd7126a5"
           },
           {
             "path": "backend/internal/modules/iam/membership_commands.go",

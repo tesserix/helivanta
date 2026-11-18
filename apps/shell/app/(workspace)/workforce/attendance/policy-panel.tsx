@@ -13,7 +13,7 @@ import {
   type AttendanceSettingsInput,
   type Hospital,
 } from "@helivanta/api";
-import { Field, useZodForm, RequestFailure } from "@helivanta/ui";
+import { AccountName, Field, useZodForm, RequestFailure } from "@helivanta/ui";
 import { inputClass, today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 
@@ -279,7 +279,7 @@ function PolicyHistory({
                 {formatMinutes(r.early_departure_grace_minutes)} grace ·{" "}
                 {formatMinutes(r.short_duty_minutes)} short duty ·{" "}
                 {formatMinutes(r.duplicate_window_minutes)} duplicate window · {r.backdate_days}{" "}
-                days back · reviewed by {r.reviewed_by_subject}
+                days back · reviewed by <AccountName subject={r.reviewed_by_subject} />
               </p>
             </li>
           ))}

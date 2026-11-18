@@ -1,9 +1,19 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { releaseSnapshotForTest, renderWithProviders } from "@helivanta/api/testing";
+import { releaseSnapshotForTest } from "@helivanta/api/testing";
+import { renderWithNamedAccounts } from "../../../../test/account-names";
+import { chooseOption } from "../../../../test/select";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    candidate: "QA Candidate",
+    proposer: "QA Proposer",
+    reviewer: "QA Reviewer",
+    "synthetic-reviewer": "QA Reviewer",
+  });
 import { staffAccessTemplates, staffAccessTemplateCatalogs } from "@helivanta/api";
 import { NavigationGuardProvider } from "@helivanta/ui";
 import AccessPage from "./page";
+import { StaffMembershipForm } from "./membership-form";
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   usePathname: () => "/workforce/access",
@@ -88,10 +98,12 @@ it("lets a membership administrator enroll staff without assignment permissions"
   );
   const { user } = renderWithProviders(
     <NavigationGuardProvider>
-      <AccessPage />
+      <StaffMembershipForm
+        scope={{ tenantId: tenant, subject: "membership-admin" }}
+        initialSubject="synthetic-reviewer"
+      />
     </NavigationGuardProvider>,
   );
-  await user.type(await screen.findByLabelText("Existing account ID"), "synthetic-reviewer");
   await user.type(screen.getByLabelText("Enrollment reason"), "Verified first enrollment");
   await user.click(screen.getByLabelText("I understand this creates ordinary membership only."));
   await user.click(screen.getByRole("button", { name: "Enroll staff member" }));
@@ -100,7 +112,7 @@ it("lets a membership administrator enroll staff without assignment permissions"
     subject: "synthetic-reviewer",
     reason: "Verified first enrollment",
   });
-  expect(await screen.findByText(/Membership recorded for synthetic-reviewer/)).toBeInTheDocument();
+  expect(await screen.findByText(/Membership recorded for/)).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Propose assignment" })).not.toBeInTheDocument();
 });
 
@@ -144,20 +156,22 @@ it("retains the exact tenant and subject when enrollment has an uncertain outcom
   );
   const { user } = renderWithProviders(
     <NavigationGuardProvider>
-      <AccessPage />
+      <StaffMembershipForm
+        scope={{ tenantId: tenant, subject: "membership-admin" }}
+        initialSubject="synthetic-reviewer"
+      />
     </NavigationGuardProvider>,
   );
-  await user.type(await screen.findByLabelText("Existing account ID"), "synthetic-reviewer");
   await user.type(screen.getByLabelText("Enrollment reason"), "Verified first enrollment");
   await user.click(screen.getByLabelText("I understand this creates ordinary membership only."));
   await user.click(screen.getByRole("button", { name: "Enroll staff member" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("may have been recorded");
-  expect(screen.getByLabelText("Existing account ID")).toBeDisabled();
+  expect(screen.queryByLabelText("Existing account ID")).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Retry same enrollment" }));
   await waitFor(() => expect(commands).toHaveLength(2));
   expect(commands[0]).toEqual(commands[1]);
   expect(commands[0]?.tenant).toBe(tenant);
-  expect(await screen.findByText(/Membership recorded for synthetic-reviewer/)).toBeInTheDocument();
+  expect(await screen.findByText(/Membership recorded for/)).toBeInTheDocument();
 });
 
 it("validates enrollment before submitting and stops after a workspace conflict", async () => {
@@ -179,13 +193,15 @@ it("validates enrollment before submitting and stops after a workspace conflict"
   );
   const { user } = renderWithProviders(
     <NavigationGuardProvider>
-      <AccessPage />
+      <StaffMembershipForm
+        scope={{ tenantId: tenant, subject: "membership-admin" }}
+        initialSubject="synthetic-reviewer"
+      />
     </NavigationGuardProvider>,
   );
   await user.click(await screen.findByRole("button", { name: "Enroll staff member" }));
-  expect(screen.getByLabelText("Existing account ID")).toHaveAttribute("aria-invalid", "true");
+  expect(screen.getByLabelText("Enrollment reason")).toHaveAttribute("aria-invalid", "true");
   expect(commands).toHaveLength(0);
-  await user.type(screen.getByLabelText("Existing account ID"), "synthetic-reviewer");
   await user.type(screen.getByLabelText("Enrollment reason"), "Verified first enrollment");
   await user.click(screen.getByLabelText("I understand this creates ordinary membership only."));
   await user.click(screen.getByRole("button", { name: "Enroll staff member" }));
@@ -346,7 +362,7 @@ it("marks invalid proposal fields for assistive technology", async () => {
   await user.click(await screen.findByRole("button", { name: "Propose assignment" }));
   await user.click(await screen.findByRole("button", { name: "Submit proposal" }));
   await waitFor(() =>
-    expect(screen.getByLabelText("Account ID", { exact: true })).toHaveAttribute(
+    expect(screen.getByLabelText("Staff account", { exact: true })).toHaveAttribute(
       "aria-invalid",
       "true",
     ),
@@ -386,7 +402,7 @@ it("identifies HR assignment records using the canonical template name", async (
     </NavigationGuardProvider>,
   );
   expect(
-    await screen.findByRole("heading", { name: "Staff identity checks manager · candidate" }),
+    await screen.findByRole("heading", { name: "Staff identity checks manager · QA Candidate" }),
   ).toBeInTheDocument();
 });
 
@@ -421,8 +437,8 @@ it("prepares renewal as a new independently reviewed proposal without changing t
   await user.click(await screen.findByRole("button", { name: "Renew access" }));
   const form = within(screen.getByRole("form", { name: "Renew assignment" }));
   expect(form.getByText(/new proposal.*independent review/i)).toBeInTheDocument();
-  expect(form.getByLabelText("Account ID")).toHaveValue("candidate");
-  expect(form.getByLabelText("Account ID")).toHaveAttribute("readonly");
+  expect(await form.findByLabelText("Staff account")).toHaveTextContent("QA Candidate");
+  expect(form.getByLabelText("Staff account")).toBeDisabled();
   expect(form.getByLabelText("Starts at")).toHaveValue("");
   expect(form.getByLabelText("Expires at")).toHaveValue("");
   await user.click(form.getByRole("button", { name: "Propose renewal" }));
@@ -911,7 +927,11 @@ async function fillProposal(
 ) {
   await user.click(form.getByLabelText("Hospital"));
   await user.click(await screen.findByRole("option", { name: "Synthetic Hospital" }));
-  await user.type(form.getByLabelText("Account ID"), "candidate");
+  await chooseOption(
+    user,
+    await form.findByLabelText("Staff account"),
+    "QA Candidate · Staff member",
+  );
   await user.type(form.getByLabelText("Reason"), "Pharmacy posting review duty");
 }
 

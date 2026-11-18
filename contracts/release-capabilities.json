@@ -1146,6 +1146,11 @@
     },
     {
       "method": "POST",
+      "path": "/v1/iam/account-presentations",
+      "capability": "team_accounts"
+    },
+    {
+      "method": "POST",
       "path": "/v1/iam/member-presentations",
       "capability": "team_accounts"
     },

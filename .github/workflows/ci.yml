@@ -95,7 +95,7 @@ jobs:
       - name: Tenant identity admission and MFA regression
         run: go test -race ./internal/modules/iam -run '^(TestNewLegacyGrantRequiresCurrentTenantOwnedIdentity|TestLegacyGrant.*|TestLegacyRepair.*|TestFirstEnrollment.*|TestEnrollmentFakeKeepsNativeUserPathBinding|TestTOTPEnrollmentLifecycleConfirmsReplaysCompletesAndProjectsAMR|TestTOTPEnrollmentExpiryAndDependencyFailuresDoNotAdvance|TestRecoveryRequiresEligibleIdentity)$'
       - name: Named member presentation isolation and source changes
-        run: go test -race ./internal/modules/iam -run '^TestMemberPresentations'
+        run: go test -race ./internal/modules/iam -run '^Test(MemberPresentations|AccountPresentation)'
       - name: Supplier architecture and tenant preconditions
         run: |
           go test -race ./internal/archtest
@@ -277,7 +277,10 @@ jobs:
           node scripts/staff-operational-access-inventory.mjs --check
       # Ignores live in package.json pnpm.auditConfig; reasons in docs/runbooks/vulnerability-management.md.
       - run: node --test scripts/zod-tooling.test.mjs scripts/lib/tenant-identity-fixture.test.mjs scripts/ci/ubuntu-archive-mirror.test.mjs scripts/ci/runner-dns.test.mjs
-      - run: pnpm audit --prod --audit-level=high
+      - run: |
+          node --test scripts/temporary-advisories.test.mjs
+          node scripts/temporary-advisories.mjs
+          pnpm audit --prod --audit-level=high
       - run: pnpm turbo lint format:check type-check && pnpm turbo test && pnpm turbo build
         env:
           API_URL: http://127.0.0.1:8081

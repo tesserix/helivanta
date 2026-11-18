@@ -242,3 +242,17 @@ type MemberPresentations struct {
 	ActorSubject string               `json:"actor_subject"`
 	Data         []MemberPresentation `json:"data"`
 }
+
+type AccountPresentation struct {
+	Subject   string                   `json:"subject"`
+	Available bool                     `json:"available"`
+	Name      *string                  `json:"name,omitempty"`
+	Email     *string                  `json:"email,omitempty"`
+	Roles     []MemberPresentationRole `json:"roles"`
+}
+
+type AccountPresentations struct {
+	TenantID     uuid.UUID             `json:"tenant_id"`
+	ActorSubject string                `json:"actor_subject"`
+	Data         []AccountPresentation `json:"data"`
+}

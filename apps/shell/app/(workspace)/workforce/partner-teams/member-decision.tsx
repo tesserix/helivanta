@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import {
+  AccountName,
   Panel,
   Field,
   FormSelectField,
@@ -122,7 +123,9 @@ export function MemberDecision({
         })}
       >
         <p className="font-medium">Review {member.member_display_name}</p>
-        <p>Selected account: {member.input.subject}</p>
+        <p>
+          Selected account: <AccountName subject={member.input.subject} />
+        </p>
         <p>Nomination reason: {member.input.reason}</p>
         <p>
           Source observed {formatDateTime(member.source_checked_at)}; recorded source validity until{" "}

@@ -94,7 +94,7 @@ function HospitalPayroll({ hospital }: { hospital: Hospital }) {
 export const headsKey = (hospital: string) => ["workforce", "salary-heads", hospital];
 export const structuresKey = (hospital: string) => ["workforce", "salary-structures", hospital];
 
-export function Fact({ label, value }: { label: string; value: string }) {
+export function Fact({ label, value }: { label: string; value: import("react").ReactNode }) {
   return (
     <div>
       <dt className="text-xs text-muted-foreground">{label}</dt>

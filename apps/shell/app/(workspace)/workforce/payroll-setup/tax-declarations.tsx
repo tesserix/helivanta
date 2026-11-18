@@ -36,6 +36,7 @@ import {
   type TaxDeclarationRevision,
 } from "@helivanta/api";
 import {
+  AccountName,
   Field,
   SelectControl,
   useFieldArray,
@@ -180,7 +181,11 @@ export function TaxDeclarations({
               <span className="rounded-full bg-(--hms-amber-tint) px-2 py-0.5 font-medium text-(--hms-amber)">
                 {STATUTORY_STATUSES.pending}
               </span>{" "}
-              Change proposed by {mine ? "you" : pending.proposed_by_subject} · {pending.reason}
+              Change proposed by{" "}
+              <AccountName subject={pending.proposed_by_subject}>
+                {(presentedAccountName0) => <>{mine ? "you" : presentedAccountName0}</>}
+              </AccountName>{" "}
+              · {pending.reason}
             </p>
           )}
           {pending && view !== "decide" && (
@@ -229,8 +234,12 @@ export function TaxDeclarations({
                 </p>
               ))}
               <p className="mt-1 text-muted-foreground">
-                {r.reason} · proposed by {r.proposed_by_subject}
-                {r.decided_by_subject && ` · decided by ${r.decided_by_subject}`}
+                {r.reason} · proposed by <AccountName subject={r.proposed_by_subject} />
+                <AccountName subject={r.decided_by_subject}>
+                  {(presentedAccountName0) => (
+                    <>{r.decided_by_subject && ` · decided by ${presentedAccountName0}`}</>
+                  )}
+                </AccountName>
                 {r.decision_note && ` · “${r.decision_note}”`}
               </p>
             </>
@@ -692,7 +701,10 @@ function DeclarationDecision({
               : "Nothing approved yet"
           }
         />
-        <Fact label="Proposed by" value={mine ? "You" : proposal.proposed_by_subject} />
+        <Fact
+          label="Proposed by"
+          value={mine ? "You" : <AccountName subject={proposal.proposed_by_subject} />}
+        />
       </dl>
       <form
         noValidate

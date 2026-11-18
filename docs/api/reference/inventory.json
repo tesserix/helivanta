@@ -25,6 +25,15 @@
         },
         {
           "method": "POST",
+          "path": "/v1/iam/account-presentations",
+          "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
           "path": "/v1/iam/assignment-proposals/:id/decision",
           "permission": "public",
           "authentication_required": true,

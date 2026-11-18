@@ -1,4 +1,6 @@
 "use client";
+
+import { AccountName } from "@helivanta/ui";
 import { useEffect, useRef } from "react";
 import { Button } from "@tesserix/web";
 import {
@@ -68,7 +70,10 @@ function Facts({
           }
         />
         <Fact label="Eligibility basis" value={proposal.eligibility_basis} />
-        <Fact label="Proposed by" value={mine ? "You" : proposal.proposed_by_subject} />
+        <Fact
+          label="Proposed by"
+          value={mine ? "You" : <AccountName subject={proposal.proposed_by_subject} />}
+        />
       </dl>
       <EvidencePanel
         source={evidenceSource}

@@ -2,6 +2,7 @@
 import { useId, useState } from "react";
 import { Button, Input } from "@tesserix/web";
 import {
+  AccountName,
   Field,
   Panel,
   RequestFailure,
@@ -256,7 +257,9 @@ export function OperatingDutyReview({
       <p>Status: {row.status.replaceAll("_", " ")}</p>
       <dl className="text-sm">
         <dt>Account</dt>
-        <dd>{row.input.subject}</dd>
+        <dd>
+          <AccountName subject={row.input.subject} />
+        </dd>
         <dt>Source location</dt>
         <dd>{row.input.scope.location_id}</dd>
         <dt>Validity (UTC)</dt>

@@ -1,4 +1,6 @@
 "use client";
+
+import { AccountName, Controller, MemberAccountSelect } from "@helivanta/ui";
 import { useMemo, useState } from "react";
 import { Badge, Button } from "@tesserix/web";
 import {
@@ -144,12 +146,18 @@ function HandOver({ hospital, shift }: { hospital: Hospital; shift: CashShift })
     );
   return (
     <div className="space-y-2">
-      <Field
-        id="handover-to"
-        label="Incoming cashier's user ID"
-        error={form.formState.errors.to?.message}
-      >
-        <input id="handover-to" className={`${inputClass} w-72`} {...form.register("to")} />
+      <Field id="handover-to" label="Incoming cashier" error={form.formState.errors.to?.message}>
+        <Controller
+          control={form.control}
+          name="to"
+          render={({ field }) => (
+            <MemberAccountSelect
+              id="handover-to"
+              value={field.value}
+              onValueChange={field.onChange}
+            />
+          )}
+        />
       </Field>
       <CountForm
         hospital={hospital}
@@ -829,10 +837,11 @@ function Pickup({
   const id = `correction-${pickup.id}`;
   return (
     <li>
-      {money(pickup.amount_minor)} by {pickup.recorded_by}, {formatDateTime(pickup.recorded_at)}
+      {money(pickup.amount_minor)} by <AccountName subject={pickup.recorded_by} />,{" "}
+      {formatDateTime(pickup.recorded_at)}
       {corrections.map((c) => (
         <span key={c.id} className="block pl-4 text-muted-foreground">
-          Corrected by {money(c.amount_minor)} ({c.reason}), {c.recorded_by}
+          Corrected by {money(c.amount_minor)} ({c.reason}), <AccountName subject={c.recorded_by} />
         </span>
       ))}
       {open ? (

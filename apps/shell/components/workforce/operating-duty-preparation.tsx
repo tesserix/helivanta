@@ -1,4 +1,6 @@
 "use client";
+
+import { useAccountPresentations } from "@helivanta/ui";
 import { useId, useState } from "react";
 import { Button, Input } from "@tesserix/web";
 import {
@@ -190,6 +192,7 @@ function PharmacySource(props: Props) {
 function LegacyAccounts(props: Props & { source: Source }) {
   const [cursor, setCursor] = useState<string | null>(null);
   const links = useIndependentStaffLinksPage(props.scope, cursor);
+  const people = useAccountPresentations(links.data?.data.map((row) => row.link.subject) ?? []);
   return (
     <DutyForm
       {...props}
@@ -201,7 +204,7 @@ function LegacyAccounts(props: Props & { source: Source }) {
             subject: row.link.subject,
             version: row.link.version,
             staffVersion: row.staff_version,
-            label: row.link.subject,
+            label: people.get(row.link.subject)?.name ?? "Account details unavailable",
           })),
         isPending: links.isPending,
         isError: links.isError,

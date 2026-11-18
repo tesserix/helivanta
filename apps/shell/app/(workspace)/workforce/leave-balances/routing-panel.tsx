@@ -10,7 +10,14 @@ import {
   type LeaveRoutingPolicy,
   type LeaveRoutingPolicyInput,
 } from "@helivanta/api";
-import { Field, Panel, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
+import {
+  AccountName,
+  Field,
+  Panel,
+  SelectControl,
+  useZodForm,
+  RequestFailure,
+} from "@helivanta/ui";
 import { inputClass } from "../roster-policy/policy-ui";
 import { LeaveReview, SaveError } from "./years-panel";
 
@@ -77,7 +84,11 @@ function PolicySummary({ policy }: { policy: LeaveRoutingPolicy }) {
       </p>
       <p className="text-muted-foreground">
         Source: {policy.source_reference}
-        {policy.reviewed_by_subject && ` · reviewed by ${policy.reviewed_by_subject}`}
+        <AccountName subject={policy.reviewed_by_subject}>
+          {(presentedAccountName0) => (
+            <>{policy.reviewed_by_subject && ` · reviewed by ${presentedAccountName0}`}</>
+          )}
+        </AccountName>
         {policy.created_at && ` · ${new Date(policy.created_at).toLocaleString()}`}
       </p>
       <p className="text-muted-foreground">

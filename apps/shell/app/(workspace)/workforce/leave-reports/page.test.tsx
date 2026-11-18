@@ -1,7 +1,13 @@
 import "@/test/select";
 import { screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts, accountText } from "../../../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "synthetic-filer": "QA Filer",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import { chooseOption } from "@/test/select";
 import LeaveReports from "./page";
 
@@ -152,7 +158,7 @@ it("runs the status report with its own filters", async () => {
   );
   const row = within(table).getAllByRole("row")[1];
   expect(within(row).getByText("2 days")).toBeInTheDocument();
-  expect(within(row).getByText("synthetic-filer")).toBeInTheDocument();
+  expect(await within(row).findByText(accountText("QA Filer"))).toBeInTheDocument();
   expect(within(row).getByText("—")).toBeInTheDocument();
   expect(within(row).getByText("Pending")).toBeInTheDocument();
   expect(within(table).queryByRole("columnheader", { name: "Department" })).toBeNull();

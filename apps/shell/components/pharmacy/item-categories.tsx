@@ -20,6 +20,7 @@ import {
   type PharmacyScope,
 } from "@helivanta/api";
 import {
+  AccountName,
   ConfirmDialog,
   Field,
   FormSelectField,
@@ -317,16 +318,23 @@ export function ProductCategorySection({
                 <li key={d.id} className="rounded-md bg-muted p-3 text-sm">
                   <p className="font-medium">{label(d)}</p>
                   <p className="mt-0.5 text-muted-foreground">
-                    from {d.effective_from} · {d.reason} · declared by {d.declared_by}
+                    from {d.effective_from} · {d.reason} · declared by{" "}
+                    <AccountName subject={d.declared_by} />
                   </p>
                   <p className="mt-0.5 text-xs">
-                    {d.decision === null
-                      ? d.id === pending?.id
-                        ? "Awaiting review"
-                        : "Superseded by a newer declaration; it can only be rejected"
-                      : d.decision === "approved"
-                        ? `Approved by ${d.reviewed_by}, in force from ${d.in_force_from}: ${d.decision_reason}`
-                        : `Rejected by ${d.reviewed_by}: ${d.decision_reason}`}
+                    <AccountName subject={d.reviewed_by}>
+                      {(presentedAccountName0) => (
+                        <>
+                          {d.decision === null
+                            ? d.id === pending?.id
+                              ? "Awaiting review"
+                              : "Superseded by a newer declaration; it can only be rejected"
+                            : d.decision === "approved"
+                              ? `Approved by ${presentedAccountName0}, in force from ${d.in_force_from}: ${d.decision_reason}`
+                              : `Rejected by ${presentedAccountName0}: ${d.decision_reason}`}
+                        </>
+                      )}
+                    </AccountName>
                   </p>
                 </li>
               ))}
@@ -472,7 +480,7 @@ function CategoryReviewForm({
     <form noValidate onSubmit={decide("approved")} className="space-y-3 rounded-md border p-3">
       <p className="text-sm">
         Awaiting review: {label}, from {declaration.effective_from}, declared by{" "}
-        {declaration.declared_by}.
+        <AccountName subject={declaration.declared_by} />.
       </p>
       <Field
         id="category-review-reason"

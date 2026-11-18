@@ -1,5 +1,7 @@
 "use client";
 
+import { AccountName } from "@helivanta/ui";
+
 import { useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
@@ -145,7 +147,7 @@ export function ProductScheduleSection({
                 <li key={d.id} className="rounded-md bg-muted p-3 text-sm">
                   <p className="font-medium">{scheduleLabel(d)}</p>
                   <p className="mt-0.5 text-muted-foreground">
-                    {d.source} · declared by {d.declared_by},{" "}
+                    {d.source} · declared by <AccountName subject={d.declared_by} />,{" "}
                     {formatZonedDateTime(d.created_at, timeZone)}
                   </p>
                   <p className="mt-0.5 text-xs">{declarationStatus(d, d.id === pending?.id)}</p>
@@ -165,18 +167,25 @@ export function ProductScheduleSection({
 }
 
 function declarationStatus(d: PharmacyScheduleDeclaration, newest: boolean) {
-  const countersign = d.countersigned_by
-    ? `Countersigned by ${d.countersigned_by}: ${d.countersign_reason}`
-    : null;
   if (d.decision !== null) {
-    const by = d.decided_by_platform ? `Helivanta (${d.reviewed_by})` : d.reviewed_by;
-    return `${d.decision === "approved" ? "Approved" : "Rejected"} by ${by}: ${d.decision_reason}`;
+    return (
+      <>
+        {d.decision === "approved" ? "Approved" : "Rejected"} by{" "}
+        {d.decided_by_platform ? "Helivanta review team" : <AccountName subject={d.reviewed_by} />}:{" "}
+        {d.decision_reason}
+      </>
+    );
   }
   if (!newest) return "Superseded by a newer declaration";
   if (!d.lowers) return "Awaiting review";
-  return countersign
-    ? `${countersign} · waiting for Helivanta`
-    : "Waiting for the owner's countersign";
+  return d.countersigned_by ? (
+    <>
+      Countersigned by <AccountName subject={d.countersigned_by} />: {d.countersign_reason} ·
+      waiting for Helivanta
+    </>
+  ) : (
+    "Waiting for the owner's countersign"
+  );
 }
 
 const classes = ["none", "G", "H", "H1", "X"] as const;
@@ -315,7 +324,7 @@ function ScheduleReviewForm({
     <form noValidate onSubmit={decide("approved")} className="space-y-3 rounded-md border p-3">
       <p className="text-sm">
         Awaiting review: {scheduleLabel(declaration)}, from {declaration.source}, declared by{" "}
-        {declaration.declared_by}.
+        <AccountName subject={declaration.declared_by} />.
       </p>
       <Field
         id="schedule-review-reason"
@@ -400,7 +409,11 @@ function ScheduleCountersignForm({
       className="space-y-3 rounded-md border p-3"
     >
       <p className="text-sm">
-        {`${declaration.declared_by} asks to lower the class to ${scheduleLabel(declaration)}, from ${declaration.source}. Your countersign sends it to Helivanta, who decides it.`}
+        <AccountName subject={declaration.declared_by}>
+          {(resolvedActorName0) => (
+            <>{`${resolvedActorName0} asks to lower the class to ${scheduleLabel(declaration)}, from ${declaration.source}. Your countersign sends it to Helivanta, who decides it.`}</>
+          )}
+        </AccountName>
       </p>
       <Field
         id="schedule-countersign-reason"

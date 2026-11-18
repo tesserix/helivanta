@@ -1,6 +1,16 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts, accountText } from "../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "user-declarer": "QA Declarer",
+    "user-reviewer": "QA Reviewer",
+    "user-pharmacist": "QA Pharmacist",
+    "user-owner": "QA Owner",
+    Sam: "QA Sam",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import {
   formatZonedDateTime,
   type PharmacyProduct,
@@ -111,8 +121,10 @@ describe("ProductScheduleSection", () => {
     ).toBeVisible();
     const history = screen.getByRole("list", { name: "Schedule class history" });
     expect(history).toHaveTextContent("TEST pack label");
-    expect(history).toHaveTextContent("user-declarer");
-    expect(history).toHaveTextContent("Approved by user-reviewer: TEST pack checked");
+    await waitFor(() => expect(history).toHaveTextContent("QA Declarer"));
+    await waitFor(() =>
+      expect(history).toHaveTextContent("Approved by QA Reviewer: TEST pack checked"),
+    );
   });
 
   it("reads class none as not scheduled", async () => {
@@ -497,8 +509,8 @@ describe("lowering a schedule class", () => {
     renderSection({ canCountersign: true });
     const history = await screen.findByRole("list", { name: "Schedule class history" });
     expect(
-      within(history).getByText(
-        "Countersigned by user-owner: TEST label misread · waiting for Helivanta",
+      await within(history).findByText(
+        accountText("Countersigned by QA Owner: TEST label misread · waiting for Helivanta"),
       ),
     ).toBeVisible();
     expect(screen.queryByRole("button", { name: "Countersign" })).toBeNull();
@@ -519,7 +531,9 @@ describe("lowering a schedule class", () => {
     renderSection();
     const history = await screen.findByRole("list", { name: "Schedule class history" });
     expect(
-      within(history).getByText("Rejected by Helivanta (Sam): TEST pack label is H1"),
+      await within(history).findByText(
+        accountText("Rejected by Helivanta review team: TEST pack label is H1"),
+      ),
     ).toBeVisible();
     expect(screen.getByText(/^Schedule H1 · not NDPS, approved/)).toBeVisible();
   });

@@ -25,6 +25,7 @@ import {
   type PharmacyMovement,
 } from "@helivanta/api";
 import {
+  AccountName,
   GuardedLink as Link,
   ConfirmDialog,
   DetailHeader,
@@ -665,7 +666,7 @@ function StockBucket({
                     <time dateTime={row.created_at} title={row.created_at}>
                       {formatZonedDateTime(row.created_at, timeZone)}
                     </time>{" "}
-                    · {row.actor_subject}
+                    · <AccountName subject={row.actor_subject} />
                   </p>
                 </div>
                 <p className="font-semibold tabular-nums">

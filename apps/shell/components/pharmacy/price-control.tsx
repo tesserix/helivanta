@@ -17,7 +17,7 @@ import {
   type PharmacyProduct,
   type PharmacyScope,
 } from "@helivanta/api";
-import { Field, FormSelectField, RequestFailure, useZodForm } from "@helivanta/ui";
+import { AccountName, Field, FormSelectField, RequestFailure, useZodForm } from "@helivanta/ui";
 import { useReportState, type FormState } from "@/lib/use-list-detail";
 import { CurrencyAmountField, formatPharmacyMoney } from "./currency-amount-field";
 
@@ -146,12 +146,22 @@ function PriceControlBody({
               <p className="mt-0.5 text-muted-foreground">
                 from {row.effective_from}
                 {row.order_reference ? ` · ${row.order_reference} of ${row.order_date}` : ""}
-                {` · ${row.source} · declared by ${row.declared_by}`}
+                <AccountName subject={row.declared_by}>
+                  {(resolvedActorName0) => (
+                    <>{` · ${row.source} · declared by ${resolvedActorName0}`}</>
+                  )}
+                </AccountName>
               </p>
               <p className="mt-0.5 text-xs">
-                {row.decision === null
-                  ? "Awaiting review"
-                  : `${row.decision === "approved" ? "Approved" : "Rejected"} by ${row.reviewed_by}: ${row.decision_reason}`}
+                <AccountName subject={row.reviewed_by}>
+                  {(presentedAccountName0) => (
+                    <>
+                      {row.decision === null
+                        ? "Awaiting review"
+                        : `${row.decision === "approved" ? "Approved" : "Rejected"} by ${presentedAccountName0}: ${row.decision_reason}`}
+                    </>
+                  )}
+                </AccountName>
               </p>
             </li>
           ))}
@@ -332,7 +342,7 @@ function ReviewForm({
     <form noValidate onSubmit={decide("approved")} className="space-y-3 rounded-md border p-3">
       <p className="text-sm">
         Awaiting review: {declarationLabel(declaration, currency)}, from{" "}
-        {declaration.effective_from}, declared by {declaration.declared_by}.
+        {declaration.effective_from}, declared by <AccountName subject={declaration.declared_by} />.
       </p>
       <Field
         id="price-review-reason"

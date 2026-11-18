@@ -19,6 +19,7 @@ import {
   type Shipment,
 } from "@helivanta/api";
 import {
+  AccountName,
   useZodForm,
   Field,
   Panel,
@@ -275,7 +276,7 @@ function ReceivingShipment({
               {responses.data.data.map((response) => (
                 <li key={response.id}>
                   Version {response.summary_version} · {response.response} · {response.reason} ·{" "}
-                  {response.actor_subject}
+                  <AccountName subject={response.actor_subject} />
                 </li>
               ))}
             </ul>

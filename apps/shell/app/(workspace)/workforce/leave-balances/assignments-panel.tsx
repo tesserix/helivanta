@@ -12,7 +12,14 @@ import {
   type StaffLeaveAssignment,
   type StaffLeaveAssignmentInput,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm, firstError, RequestFailure } from "@helivanta/ui";
+import {
+  AccountName,
+  Field,
+  SelectControl,
+  useZodForm,
+  firstError,
+  RequestFailure,
+} from "@helivanta/ui";
 import { inputClass, today } from "../roster-policy/policy-ui";
 import { LeaveReview, SaveError } from "./years-panel";
 
@@ -396,7 +403,7 @@ function AssignmentHistory({
               </p>
               <p className="mt-1 text-muted-foreground">
                 {r.active ? "Active" : "Ended"} · effective {r.effective_on} · reviewed by{" "}
-                {r.reviewed_by_subject}
+                <AccountName subject={r.reviewed_by_subject} />
               </p>
             </li>
           ))}

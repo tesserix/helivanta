@@ -1,6 +1,15 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts, accountText } from "../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "user-admin": "QA Admin",
+    "user-pharmacist": "QA Pharmacist",
+    "user-granted": "QA Granted",
+    "user-receptionist": "QA Receptionist",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import { PharmacyLookupAccess } from "./pharmacy-lookup-access";
 
 const hospitalId = "22222222-2222-4222-8222-222222222222";
@@ -58,14 +67,14 @@ describe("PharmacyLookupAccess", () => {
   it("grants a member who does not have access yet", async () => {
     const fetcher = stub(["iam.member.manage"], [{ subject: "user-granted" }]);
     const { user } = render();
-    expect(await screen.findByText("user-granted")).toBeInTheDocument();
+    expect(await screen.findByText(accountText("QA Granted"))).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Grant lookup access" }));
     expect(await screen.findByText("Choose a member")).toBeInTheDocument();
     expect(writes(fetcher)).toHaveLength(0);
     await user.click(screen.getByRole("combobox", { name: "Pharmacist" }));
-    expect(screen.queryByRole("option", { name: "user-granted" })).toBeNull();
-    expect(screen.queryByRole("option", { name: "user-receptionist" })).toBeNull();
-    await user.click(screen.getByRole("option", { name: "user-pharmacist" }));
+    expect(screen.queryByRole("option", { name: "QA Granted · Staff member" })).toBeNull();
+    expect(screen.queryByRole("option", { name: "QA Receptionist · Staff member" })).toBeNull();
+    await user.click(screen.getByRole("option", { name: "QA Pharmacist · Staff member" }));
     await user.click(screen.getByRole("button", { name: "Grant lookup access" }));
     await waitFor(() => expect(writes(fetcher)).toHaveLength(1));
     const [url, init] = writes(fetcher)[0];

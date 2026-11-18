@@ -17,7 +17,14 @@ import {
   type AttendanceCorrectionDecisionForm,
   type AttendanceCorrectionEvent,
 } from "@helivanta/api";
-import { ConfirmDialog, Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
+import {
+  AccountName,
+  ConfirmDialog,
+  Field,
+  SelectControl,
+  useZodForm,
+  RequestFailure,
+} from "@helivanta/ui";
 import { inputClass, today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { CorrectionForm, correctionInvalidations } from "./correction-form";
@@ -137,8 +144,13 @@ export function CorrectionsBoard({
                 </p>
                 <p className="mt-1 text-sm">{describeCorrection(c)}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {ATTENDANCE_CORRECTION_STATUSES[c.status]} · filed by {c.requested_by_subject}
-                  {c.decided_by_subject ? ` · decided by ${c.decided_by_subject}` : ""}
+                  {ATTENDANCE_CORRECTION_STATUSES[c.status]} · filed by{" "}
+                  <AccountName subject={c.requested_by_subject} />
+                  <AccountName subject={c.decided_by_subject}>
+                    {(presentedAccountName0) => (
+                      <>{c.decided_by_subject ? ` · decided by ${presentedAccountName0}` : ""}</>
+                    )}
+                  </AccountName>
                 </p>
               </div>
               <Button
@@ -262,7 +274,8 @@ function CorrectionReview({
                   {ATTENDANCE_CORRECTION_STATUSES[e.status]} · version {e.version}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {new Date(e.created_at).toLocaleString()} · by {e.actor_subject}
+                  {new Date(e.created_at).toLocaleString()} · by{" "}
+                  <AccountName subject={e.actor_subject} />
                   {e.note ? ` · ${e.note}` : ""}
                 </p>
               </li>

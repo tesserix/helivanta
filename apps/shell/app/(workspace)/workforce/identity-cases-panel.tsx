@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@tesserix/web";
-import { LoadMore, Panel, isRefusal, RequestFailure } from "@helivanta/ui";
+import { AccountName, LoadMore, Panel, isRefusal, RequestFailure } from "@helivanta/ui";
 import {
   IdentityCaseContract,
   identityCaseRequest,
@@ -205,7 +205,7 @@ function CaseHistory({
               <p className="mt-2 text-xs text-muted-foreground">
                 Recorded{" "}
                 {new Date(item.updated_at).toLocaleString(undefined, { timeZoneName: "short" })} ·
-                Account {item.actor_subject}
+                Account <AccountName subject={item.actor_subject} />
               </p>
             </Panel>
           ))}

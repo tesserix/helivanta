@@ -1,7 +1,16 @@
 import "@/test/select";
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts, accountText } from "../../../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "synthetic-manager": "QA Manager",
+    "synthetic-recorder": "QA Recorder",
+    "synthetic-lead": "QA Lead",
+    "synthetic-filer": "QA Filer",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import { chooseOption } from "@/test/select";
 import Attendance from "./page";
 
@@ -395,7 +404,9 @@ it("lists a person's punches within a bounded range", async () => {
   await user.clear(from);
   await user.type(from, "2026-10-01");
   expect(await within(ledger).findByText("2026-10-12 · 08:05 · In · Voided")).toBeInTheDocument();
-  expect(within(ledger).getByText(/voided by synthetic-lead: Wrong person/)).toBeInTheDocument();
+  expect(
+    await within(ledger).findByText(accountText(/voided by QA Lead: Wrong person/)),
+  ).toBeInTheDocument();
   expect(within(ledger).queryByRole("button", { name: /^Void in punch/ })).toBeNull();
   expect(reads.at(-1)).toContain(`staff_id=${nurse}&from=2026-10-01&to=2026-10-12`);
 });
@@ -415,7 +426,9 @@ it("hides reasons and void actions from readers", async () => {
   const to = within(ledger).getByLabelText("To");
   await user.clear(to);
   await user.type(to, "2026-10-12");
-  expect(await within(ledger).findByText("Recorded by synthetic-recorder")).toBeInTheDocument();
+  expect(
+    await within(ledger).findByText(accountText("Recorded by QA Recorder")),
+  ).toBeInTheDocument();
   expect(within(ledger).queryByRole("button", { name: /^Void/ })).toBeNull();
 });
 

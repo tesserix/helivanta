@@ -22,6 +22,7 @@ import {
   type SupplyRegistryScope,
 } from "@helivanta/api";
 import {
+  AccountName,
   Field,
   FormSelectField,
   LoadMore,
@@ -717,7 +718,7 @@ function TerritoryEditor({
                       )
                     }
                   />
-                  {subject}
+                  <AccountName subject={subject} />
                   {!subjects.includes(subject) && " · Current grant unavailable"}
                 </label>
               ))}

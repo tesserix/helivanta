@@ -22,8 +22,10 @@ import {
   type SupplyRegistryRevision,
 } from "@helivanta/api";
 import {
+  AccountName,
   Field,
   FormSelectField,
+  FormAccountSelectField,
   LoadMore,
   useZodForm,
   RequestFailure,
@@ -409,7 +411,12 @@ function DeliveryPanel({
                     )}
                     {!assigned && "driver_subject" in row && (
                       <p className="mt-1 break-words text-sm text-muted-foreground">
-                        Driver: {row.driver_subject || "Not assigned"}
+                        Driver:{" "}
+                        <AccountName subject={row.driver_subject}>
+                          {(presentedAccountName0) => (
+                            <>{presentedAccountName0 || "Not assigned"}</>
+                          )}
+                        </AccountName>
                       </p>
                     )}
                     {row.assignment_expires_at && (
@@ -690,7 +697,7 @@ function DeliveryEditor({
           </Field>
         ))}
       </div>
-      <FormSelectField
+      <FormAccountSelectField
         control={form.control}
         name="driver_subject"
         id="delivery-driver"
@@ -873,8 +880,11 @@ function DeliveryHistory({
     <section aria-label="Delivery task history" className="space-y-2 border-t pt-3">
       {rows.items.map((row) => (
         <p className="break-words text-sm" key={row.id}>
-          Version {row.version} · {formatAbsoluteTime(row.created_at)} · Actor {row.actor_subject} ·{" "}
-          {row.snapshot.status} · Driver {row.snapshot.driver_subject || "Not assigned"}
+          Version {row.version} · {formatAbsoluteTime(row.created_at)} · Actor{" "}
+          <AccountName subject={row.actor_subject} /> · {row.snapshot.status} · Driver{" "}
+          <AccountName subject={row.snapshot.driver_subject}>
+            {(presentedAccountName0) => <>{presentedAccountName0 || "Not assigned"}</>}
+          </AccountName>
         </p>
       ))}
       <LoadMore hasMore={rows.hasMore} isLoading={rows.isFetchingMore} onClick={rows.loadMore} />

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import {
+  AccountName,
   Panel,
   Field,
   LoadMore,
@@ -218,7 +219,9 @@ function NominationForm(props: Props & { candidate: PartnerMemberCandidate }) {
         })}
       >
         <h4 className="font-medium">Nominate {props.candidate.display_name}</h4>
-        <p>Selected account: {props.candidate.subject}</p>
+        <p>
+          Selected account: <AccountName subject={props.candidate.subject} />
+        </p>
         <p>
           Team purpose: {props.group.purpose}. Posting starts{" "}
           {formatDateTime(props.candidate.starts_at)}; nominal expiry{" "}

@@ -1,6 +1,13 @@
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts, accountText } from "../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "user-owner": "QA Owner",
+    "user-pharmacist": "QA Pharmacist",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import type {
   PharmacyPriceControl,
   PharmacyPriceDeclaration,
@@ -284,7 +291,7 @@ describe("ProductPriceControlSection", () => {
     expect(
       await screen.findByText("In force: NPPA ceiling INR 10.00 per unit + GST"),
     ).toBeVisible();
-    expect(screen.getByText(/Approved by user-pharmacist/)).toBeVisible();
+    expect(await screen.findByText(accountText(/Approved by QA Pharmacist/))).toBeVisible();
     expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Record declaration" })).toBeNull();
   });

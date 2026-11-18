@@ -30,7 +30,7 @@ import {
   type AttendanceTimesheetDay,
   type AttendanceTimesheetPerson,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
+import { AccountName, Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
 import { inputClass } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 
@@ -350,7 +350,7 @@ function PeriodDetail({
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {totals(t)} · {new Date(t.created_at).toLocaleString()} · by{" "}
-                        {t.finalised_by_subject}
+                        <AccountName subject={t.finalised_by_subject} />
                         {t.note ? ` · ${t.note}` : ""}
                       </p>
                     </div>
@@ -406,7 +406,8 @@ function PeriodDetail({
                   {ATTENDANCE_PERIOD_STATUSES[e.status]} · version {e.version}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {new Date(e.created_at).toLocaleString()} · by {e.actor_subject}
+                  {new Date(e.created_at).toLocaleString()} · by{" "}
+                  <AccountName subject={e.actor_subject} />
                   {e.note ? ` · ${e.note}` : ""}
                 </p>
               </li>

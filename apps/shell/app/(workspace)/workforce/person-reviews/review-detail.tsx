@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button, Input } from "@tesserix/web";
-import { Field, useLeaveGuard, useZodForm, RequestFailure } from "@helivanta/ui";
+import { AccountName, Field, useLeaveGuard, useZodForm, RequestFailure } from "@helivanta/ui";
 import {
   ApiError,
   PersonReviewDecisionInputContract,
@@ -326,9 +326,15 @@ function ReviewFinding({
         <div>
           <dt className="text-xs text-muted-foreground">Account intent</dt>
           <dd>
-            {row.access_intent === "non_digital"
-              ? "No digital access requested"
-              : `Digital access requested for ${row.declared_subject}`}
+            <AccountName subject={row.declared_subject}>
+              {(presentedAccountName0) => (
+                <>
+                  {row.access_intent === "non_digital"
+                    ? "No digital access requested"
+                    : `Digital access requested for ${presentedAccountName0}`}
+                </>
+              )}
+            </AccountName>
           </dd>
         </div>
         {row.decision_reason && (

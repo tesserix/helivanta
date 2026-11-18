@@ -14,6 +14,8 @@ import {
   RefreshButton,
   RequestFailure,
   isRefusal,
+  AccountName,
+  AccountRole,
 } from "@helivanta/ui";
 import {
   ApiError,
@@ -83,7 +85,7 @@ export function MembershipManagement({ scope }: { scope: StaffAssignmentScope })
               <caption className="sr-only">Current organization memberships</caption>
               <thead>
                 <tr>
-                  <th className="p-2">Account ID</th>
+                  <th className="p-2">Account</th>
                   <th className="p-2">Role</th>
                   <th className="p-2">Membership since</th>
                   <th className="p-2">Action</th>
@@ -94,8 +96,12 @@ export function MembershipManagement({ scope }: { scope: StaffAssignmentScope })
                   .flatMap((page) => page.data)
                   .map((row) => (
                     <tr key={row.id} className="border-t">
-                      <td className="max-w-64 break-words p-2">{row.subject}</td>
-                      <td className="p-2">{row.role_key}</td>
+                      <td className="max-w-64 break-words p-2">
+                        <AccountName subject={row.subject} />
+                      </td>
+                      <td className="p-2">
+                        <AccountRole subject={row.subject} roleKey={row.role_key} />
+                      </td>
                       <td className="p-2">{formatDateTime(row.created_at)}</td>
                       <td className="p-2">
                         {row.role_key === "tenant_admin" ? (
@@ -158,11 +164,13 @@ export function MembershipManagement({ scope }: { scope: StaffAssignmentScope })
               <article key={row.id} className="space-y-2 rounded-md border p-4">
                 <p className="break-words">
                   <strong>{row.operation === "remove" ? "Removed" : "Recovered"}</strong>:{" "}
-                  {row.subject} · {row.role_key}
+                  <AccountName subject={row.subject} /> ·{" "}
+                  <AccountRole subject={row.subject} roleKey={row.role_key} />
                 </p>
                 <p className="whitespace-pre-wrap break-words">{row.reason}</p>
                 <p className="break-words text-sm">
-                  By {row.actor_subject} · {formatDateTime(row.created_at)} · Receipt {row.id}
+                  By <AccountName subject={row.actor_subject} /> · {formatDateTime(row.created_at)}{" "}
+                  · Receipt {row.id}
                 </p>
                 {row.recoverable && (
                   <Button
@@ -253,7 +261,8 @@ function MembershipCommandForm({
           : "Review ordinary membership recovery"}
       </h3>
       <p className="break-words">
-        Account: {action.subject} · Role: {action.role_key} · Membership generation:{" "}
+        Account: <AccountName subject={action.subject} /> · Role:{" "}
+        <AccountRole subject={action.subject} roleKey={action.role_key} /> · Membership generation:{" "}
         {action.expected_membership_epoch}
       </p>
       <p>

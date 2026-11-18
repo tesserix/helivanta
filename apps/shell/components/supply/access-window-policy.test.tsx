@@ -1,7 +1,15 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts } from "../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "TEST-owner": "QA Owner",
+    "TEST-staff": "QA Staff",
+    "TEST-requester": "QA Requester",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import { OrganisationAccess } from "./organisation-access";
 import { OrganisationSupport } from "./organisation-support";
 import { useAccessWindowPolicy } from "./access-window-policy";
@@ -91,7 +99,7 @@ it("validates a new grant against the loaded one-hour policy before writing", as
   await user.click(await screen.findByRole("button", { name: "Add time-limited grant" }));
   expect(screen.getByLabelText("Expires at")).toHaveValue("");
   await user.click(screen.getByLabelText("Tenant member"));
-  await user.click(await screen.findByRole("option", { name: "TEST-staff" }));
+  await user.click(await screen.findByRole("option", { name: "QA Staff · Staff member" }));
   fireEvent.change(screen.getByLabelText("Valid from"), { target: { value: "2026-10-17T12:00" } });
   fireEvent.change(screen.getByLabelText("Expires at"), { target: { value: "2026-10-17T14:00" } });
   await user.type(screen.getByLabelText("Reason for access"), "TEST limited audit access");
@@ -134,9 +142,7 @@ it.each(["unchanged", "shortened", "revoked", "administrator", "extended"])(
     });
     renderWithProviders(<OrganisationAccess scope={scope} roles={["administrator"]} />);
     const user = userEvent.setup();
-    await user.click(
-      await screen.findByRole("button", { name: `Manage TEST-staff ${role} grant` }),
-    );
+    await user.click(await screen.findByRole("button", { name: "Manage account grant" }));
     if (["shortened", "administrator", "extended"].includes(change))
       fireEvent.change(screen.getByLabelText("Expires at"), {
         target: {
@@ -250,7 +256,7 @@ it("uses the loaded support window in copy and rejects longer requests inline", 
   expect(await screen.findByText(/Choose a window of no more than 1 hour\./)).toBeInTheDocument();
   expect(screen.queryByText(/Choose a window of no more than 24 hours/)).not.toBeInTheDocument();
   await user.click(screen.getByLabelText("Support beneficiary"));
-  await user.click(await screen.findByRole("option", { name: "TEST-staff" }));
+  await user.click(await screen.findByRole("option", { name: "QA Staff · Staff member" }));
   await user.click(screen.getByLabelText("Location to investigate"));
   await user.click(await screen.findByRole("option", { name: "TEST-WH · TEST Warehouse" }));
   await user.type(screen.getByLabelText("Support ticket reference"), "TEST-POLICY");
@@ -300,7 +306,7 @@ it.each([
     await user.type(reason, "TEST preserve unsaved reason");
     if (grant) {
       await user.click(screen.getByLabelText("Tenant member"));
-      await user.click(await screen.findByRole("option", { name: "TEST-staff" }));
+      await user.click(await screen.findByRole("option", { name: "QA Staff · Staff member" }));
     }
     expect(
       await screen.findAllByText(/Current access duration limits are unavailable/),

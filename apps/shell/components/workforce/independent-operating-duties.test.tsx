@@ -1,7 +1,15 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts } from "../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "TEST-reviewer": "QA Reviewer",
+    "TEST-receiver": "QA Receiver",
+    "TEST-maker": "QA Maker",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import { NavigationGuardProvider } from "@helivanta/ui";
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -205,7 +213,7 @@ it("prepares the exact current warehouse and reviewed account and recovers a los
   const user = userEvent.setup();
   await user.click(await screen.findByRole("button", { name: "Assign operating duty" }));
   await user.click(await screen.findByLabelText("Reviewed account"));
-  await user.click(await screen.findByRole("option", { name: "TEST-receiver" }));
+  await user.click(await screen.findByRole("option", { name: "QA Receiver" }));
   await user.click(screen.getByLabelText("Warehouse or depot"));
   await user.click(await screen.findByRole("option", { name: "TEST-PUNE — TEST Pune warehouse" }));
   const { fireEvent } = await import("@testing-library/react");

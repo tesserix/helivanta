@@ -1,5 +1,7 @@
 "use client";
 
+import { Controller, MemberAccountSelect } from "@helivanta/ui";
+
 import { useRef, useState } from "react";
 import { Button, Input } from "@tesserix/web";
 import {
@@ -20,6 +22,7 @@ import {
   type EmergencyTransportReviewInput,
 } from "@helivanta/api";
 import {
+  AccountName,
   Field,
   FormSelectField,
   LoadMore,
@@ -51,10 +54,20 @@ export function EmergencyClinicalAdmin({ base }: { base: string }) {
       >
         <Field
           id="clinical-subject"
-          label="Clinical reviewer identity subject"
+          label="Clinical reviewer"
           error={form.formState.errors.subject?.message}
         >
-          <Input id="clinical-subject" autoComplete="off" {...form.register("subject")} />
+          <Controller
+            control={form.control}
+            name="subject"
+            render={({ field }) => (
+              <MemberAccountSelect
+                id="clinical-subject"
+                value={field.value}
+                onValueChange={field.onChange}
+              />
+            )}
+          />
         </Field>
         <Button type="submit" variant="outline">
           Load clinical review access
@@ -127,11 +140,11 @@ function ClinicalAccessEditor({
       onSubmit={form.handleSubmit((values) => save.mutate(values))}
     >
       <p className="break-all text-sm">
-        Reviewing {subject} · version {current?.version ?? 0}
+        Reviewing <AccountName subject={subject} /> · version {current?.version ?? 0}
       </p>
       {current && (
         <p className="text-sm text-muted-foreground">
-          Verified by {current.verified_by} ·{" "}
+          Verified by <AccountName subject={current.verified_by} /> ·{" "}
           {current.currently_active ? "Active" : "Inactive or expired"}
         </p>
       )}

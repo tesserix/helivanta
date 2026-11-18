@@ -10,7 +10,7 @@ import {
   type DependentRevision,
   type UseApiPagedQueryResult,
 } from "@helivanta/api";
-import { QueryState } from "@helivanta/ui";
+import { AccountName, QueryState } from "@helivanta/ui";
 import { RevisionHistory } from "../payroll-setup/payroll-workspace";
 import { Badge, DEPENDENT_STATUSES, useRelationships } from "./benefits-ui";
 import { DependentEditor } from "./dependent-editor";
@@ -136,7 +136,7 @@ export function DependentsSection({
                 {`v${r.version} · ${DEPENDENT_STATUSES[r.status]} · ${r.full_name} (${r.relationship_name})`}
               </p>
               <p className="mt-1 text-muted-foreground">
-                {r.reason} · changed by {r.changed_by_subject}
+                {r.reason} · changed by <AccountName subject={r.changed_by_subject} />
               </p>
             </>
           )}

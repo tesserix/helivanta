@@ -22,6 +22,7 @@ import {
   type PharmacyMovement,
 } from "@helivanta/api";
 import {
+  AccountName,
   DetailHeader,
   Field,
   ListDetail,
@@ -664,7 +665,7 @@ function PositionDetail({
                     <time dateTime={movement.created_at} title={movement.created_at}>
                       {formatZonedDateTime(movement.created_at, timeZone)}
                     </time>{" "}
-                    · {movement.actor_subject}
+                    · <AccountName subject={movement.actor_subject} />
                   </p>
                 </li>
               ))}

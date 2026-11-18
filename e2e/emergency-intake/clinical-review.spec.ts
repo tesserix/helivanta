@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { chooseFixtureAccount, fixtureIdentityRead } from "./identity";
 
 const api = process.env.EMERGENCY_BROWSER_API;
 if (!api || new URL(api).hostname !== "127.0.0.1")
@@ -20,6 +21,7 @@ test("an independently verified doctor records a requirement; revocation blocks 
     { name: "helivanta_session", value: "synthetic-clinical-session", url: baseURL },
   ]);
   await context.route("**/api/v1/**", async (route) => {
+    if (await fixtureIdentityRead(route, `user-${token}`)) return;
     const url = new URL(route.request().url());
     const response = await route.fetch({
       url: `${api}${url.pathname.slice(4)}${url.search}`,
@@ -35,16 +37,16 @@ test("an independently verified doctor records a requirement; revocation blocks 
     .getByLabel("Reviewed policy reference", { exact: true })
     .fill("SYN-REVIEW-SOFTWARE-TEST");
   await page.getByRole("button", { name: "Save base", exact: true }).click();
-  await page.getByLabel("Verified identity subject", { exact: true }).fill("user-admin");
+  await chooseFixtureAccount(page, "Staff account", "user-admin");
   await page.getByRole("combobox", { name: "Base access level", exact: true }).click();
   await page.getByRole("option", { name: "Supervisor", exact: true }).click();
   await page.getByRole("button", { name: "Grant access", exact: true }).click();
   await expect(page.getByText("Access granted", { exact: true })).toBeVisible();
-  await page.getByLabel("Verified identity subject", { exact: true }).fill("user-doctor");
+  await chooseFixtureAccount(page, "Staff account", "user-doctor");
   await page.getByRole("combobox", { name: "Base access level", exact: true }).click();
   await page.getByRole("option", { name: "Case reader", exact: true }).click();
   await page.getByRole("button", { name: "Grant access", exact: true }).click();
-  await page.getByLabel("Clinical reviewer identity subject", { exact: true }).fill("user-doctor");
+  await chooseFixtureAccount(page, "Clinical reviewer", "user-doctor");
   await page.getByRole("button", { name: "Load clinical review access", exact: true }).click();
   await page
     .getByLabel("Clinical privilege approval reference", { exact: true })

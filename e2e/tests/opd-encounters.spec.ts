@@ -81,9 +81,8 @@ test("clinician opens an OPD encounter and records patient safety through the re
     ).toBe(true);
     await row.getByRole("button", { name: "No known allergies", exact: true }).click();
     await row.getByRole("button", { name: "Confirm no known allergies", exact: true }).click();
-    await expect(
-      row.getByText(`No known allergies, recorded by ${identity.subject}`, { exact: false }),
-    ).toBeVisible();
+    await expect(row.getByText("No known allergies, recorded by", { exact: false })).toBeVisible();
+    await expect(row.getByText(identity.subject, { exact: true })).toHaveCount(0);
     const noKnown = await ownerAPI<AllergyState>(clinician, "GET", `${patientBase}/allergies`);
     expect(noKnown.status).toBe("no_known_allergy");
     expect(noKnown.no_known_allergy?.recorded_by).toBe(identity.subject);

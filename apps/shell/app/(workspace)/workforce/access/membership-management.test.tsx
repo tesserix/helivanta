@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@helivanta/api/testing";
-import { NavigationGuardProvider } from "@helivanta/ui";
+import { NavigationGuardProvider, AccountPresentationsProvider } from "@helivanta/ui";
 import { MembershipManagement } from "./membership-management";
 
 const scope = { tenantId: "11111111-1111-4111-8111-111111111111", subject: "synthetic-admin" };
@@ -14,6 +14,71 @@ const candidate = {
 };
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
 afterEach(() => vi.unstubAllGlobals());
+
+function renderMemberships() {
+  const original = fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("account-presentations")) {
+        const { subjects } = JSON.parse(init?.body as string);
+        return Response.json({
+          tenant_id: scope.tenantId,
+          actor_subject: scope.subject,
+          data: subjects.map((subject: string) => ({
+            subject,
+            available: true,
+            name: subject === "previous-admin" ? "Previous reviewer" : "QA Staff",
+            email: "staff@example.test",
+            roles: [{ key: "staff_member", label: "Staff member" }],
+          })),
+        });
+      }
+      return original(url, init);
+    }),
+  );
+  return renderWithProviders(
+    <NavigationGuardProvider>
+      <AccountPresentationsProvider scope={scope}>
+        <MembershipManagement scope={scope} />
+      </AccountPresentationsProvider>
+    </NavigationGuardProvider>,
+  );
+}
+
+it("shows named members and human role labels instead of backend account identifiers", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("account-presentations")) {
+        const { subjects } = JSON.parse(init?.body as string);
+        return Response.json({
+          tenant_id: scope.tenantId,
+          actor_subject: scope.subject,
+          data: subjects.map((subject: string) => ({
+            subject,
+            available: true,
+            name: "QA Staff",
+            email: "staff@example.test",
+            roles: [{ key: "staff_member", label: "Staff member" }],
+          })),
+        });
+      }
+      return Response.json(page(url.includes("membership-candidates") ? [candidate] : []));
+    }),
+  );
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <AccountPresentationsProvider scope={scope}>
+        <MembershipManagement scope={scope} />
+      </AccountPresentationsProvider>
+    </NavigationGuardProvider>,
+  );
+  expect(await screen.findByRole("cell", { name: "QA Staff" })).toBeInTheDocument();
+  expect(screen.getByRole("cell", { name: "Staff member" })).toBeInTheDocument();
+  expect(screen.queryByText(candidate.subject)).not.toBeInTheDocument();
+  expect(screen.queryByRole("columnheader", { name: "Account ID" })).not.toBeInTheDocument();
+});
 
 it("requires a reason and acknowledgement and freezes the exact removal after an uncertain response", async () => {
   const writes: Array<{ url: string; body: Record<string, unknown>; tenant: string | null }> = [];
@@ -44,11 +109,7 @@ it("requires a reason and acknowledgement and freezes the exact removal after an
       return Response.json(page(url.includes("membership-candidates") ? [candidate] : []));
     }),
   );
-  const { user } = renderWithProviders(
-    <NavigationGuardProvider>
-      <MembershipManagement scope={scope} />
-    </NavigationGuardProvider>,
-  );
+  const { user } = renderMemberships();
   await user.click(await screen.findByRole("button", { name: "Remove membership" }));
   await user.click(screen.getByRole("button", { name: "Record membership removal" }));
   expect(writes).toHaveLength(0);
@@ -110,11 +171,7 @@ it("recovers ordinary membership from the retained removal and current epoch", a
       );
     }),
   );
-  const { user } = renderWithProviders(
-    <NavigationGuardProvider>
-      <MembershipManagement scope={scope} />
-    </NavigationGuardProvider>,
-  );
+  const { user } = renderMemberships();
   await user.click(await screen.findByRole("button", { name: "Recover ordinary membership" }));
   await user.type(
     screen.getByLabelText("Reason"),
@@ -145,12 +202,8 @@ it("withdraws loaded memberships once a refreshed read is refused", async () => 
         : Response.json(page(url.includes("history") ? [] : [candidate])),
     ),
   );
-  const { user } = renderWithProviders(
-    <NavigationGuardProvider>
-      <MembershipManagement scope={scope} />
-    </NavigationGuardProvider>,
-  );
-  expect(await screen.findByText(candidate.subject)).toBeInTheDocument();
+  const { user } = renderMemberships();
+  expect(await screen.findByText("QA Staff")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Remove membership" }));
   expect(screen.getByRole("form", { name: "Remove organization membership" })).toBeVisible();
   refused = true;
@@ -158,7 +211,7 @@ it("withdraws loaded memberships once a refreshed read is refused", async () => 
   expect(
     await screen.findAllByText("This wasn't found, or you don't have access to it."),
   ).not.toHaveLength(0);
-  expect(screen.queryByText(candidate.subject)).not.toBeInTheDocument();
+  expect(screen.queryByText("QA Staff")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /refresh memberships|try again/i })).toBeNull();
   expect(screen.queryByRole("form", { name: "Remove organization membership" })).toBeNull();
 });

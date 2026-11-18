@@ -14,6 +14,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | --- | --- | --- | --- | --- |
 | POST | `/v1/auth/renew` | `no_tenant_membership` | false | false |
 | POST | `/v1/auth/session/activity` | `no_tenant_membership` | false | false |
+| POST | `/v1/iam/account-presentations` | `iam.member.manage` | false | false |
 | POST | `/v1/iam/assignment-proposals/:id/decision` | `public` | false | false |
 | GET | `/v1/iam/assignment-proposals/:id/decisions` | `public` | true | false |
 | GET | `/v1/iam/assignment-proposals/:id/history` | `public` | true | false |

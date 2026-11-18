@@ -1,8 +1,12 @@
 "use client";
+
+import { Controller } from "@helivanta/ui";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import {
+  AccountName,
+  MemberAccountSelect,
   Field,
   LoadMore,
   Panel,
@@ -131,12 +135,15 @@ function LinkPanel({ hospital, staff, onClose, identity }: Props & { identity: I
           {!links.length && <p>No account has been linked.</p>}
           {links.map((link) => (
             <Panel as="article" key={link.id} className="my-4 space-y-2">
-              <p className="break-all font-medium">{link.subject}</p>
+              <p className="break-all font-medium">
+                <AccountName subject={link.subject} />
+              </p>
               <p>
                 {LOGIN_LINK_STATUSES[link.status]} · Version {link.version}
               </p>
               <p className="text-sm">
-                Proposed by {link.proposed_by_subject}: {link.proposal_reason}
+                Proposed by <AccountName subject={link.proposed_by_subject} />:{" "}
+                {link.proposal_reason}
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" onClick={() => setView({ kind: "history", link })}>
@@ -281,12 +288,23 @@ function ProposalForm({
           save.mutate(command);
         })}
       >
-        <Field id="link-subject" label="Account ID" error={form.formState.errors.subject?.message}>
-          <Input
-            id="link-subject"
-            autoComplete="off"
-            disabled={!!submitted || !!initialSubject}
-            {...form.register("subject")}
+        <Field
+          id="link-subject"
+          label="Staff account"
+          error={form.formState.errors.subject?.message}
+        >
+          <Controller
+            control={form.control}
+            name="subject"
+            render={({ field, fieldState }) => (
+              <MemberAccountSelect
+                id="link-subject"
+                value={field.value}
+                onValueChange={field.onChange}
+                aria-invalid={fieldState.invalid}
+                disabled={!!submitted || !!initialSubject}
+              />
+            )}
           />
         </Field>
         <Field id="link-reason" label="Reason" error={form.formState.errors.reason?.message}>
@@ -337,7 +355,7 @@ function DecisionForm({
         })}
       >
         <p>
-          {decision} account {link.subject} · Version {link.version}
+          {decision} account <AccountName subject={link.subject} /> · Version {link.version}
         </p>
         <Field id="decision-reason" label="Reason" error={form.formState.errors.reason?.message}>
           <Input id="decision-reason" disabled={!!submitted} {...form.register("reason")} />
@@ -374,7 +392,9 @@ function History({
   const history = useLoginLinkHistory(scope, link.id, subject);
   return (
     <Panel aria-label="Account link history" className="mt-5">
-      <h4 className="font-semibold">History for {link.subject}</h4>
+      <h4 className="font-semibold">
+        History for <AccountName subject={link.subject} />
+      </h4>
       {history.isPending ? (
         <p role="status">Loading history…</p>
       ) : history.isError ? (
@@ -395,7 +415,7 @@ function History({
                     {formatDateTime(entry.created_at)}
                   </p>
                   <p>
-                    {entry.actor_subject}: {entry.reason}
+                    <AccountName subject={entry.actor_subject} />: {entry.reason}
                   </p>
                 </li>
               ))}

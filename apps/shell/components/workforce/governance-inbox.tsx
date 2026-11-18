@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@tesserix/web";
-import { Panel, RequestFailure, RefreshButton, formatDateTime } from "@helivanta/ui";
+import { AccountName, Panel, RequestFailure, RefreshButton, formatDateTime } from "@helivanta/ui";
 import {
   useGovernanceNotices,
   governanceTemplates,
@@ -119,7 +119,9 @@ function CurrentGrant({ scope, id }: { scope: GovernanceRequestScope; id: string
           {governanceTemplates.find((template) => template.key === grant.input.template_key)?.name}
         </dd>
         <dt>Account</dt>
-        <dd>{grant.input.subject}</dd>
+        <dd>
+          <AccountName subject={grant.input.subject} />
+        </dd>
         <dt>Scope</dt>
         <dd>{grant.input.scope_kind}</dd>
         {grant.input.scope_id && (

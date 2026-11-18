@@ -21,7 +21,14 @@ import {
   type Hospital,
   type WeightObservation,
 } from "@helivanta/api";
-import { Field, FormSelectField, formatTime, RequestFailure, useZodForm } from "@helivanta/ui";
+import {
+  AccountName,
+  Field,
+  FormSelectField,
+  formatTime,
+  RequestFailure,
+  useZodForm,
+} from "@helivanta/ui";
 
 const inputClass =
   "w-full rounded-md border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
@@ -242,8 +249,8 @@ function AllergyBody({
       {s.status === "no_known_allergy" && s.no_known_allergy && (
         <div className="space-y-2">
           <p className="text-sm">
-            No known allergies, recorded by {s.no_known_allergy.recorded_by} on{" "}
-            {formatTime(s.no_known_allergy.recorded_at)}
+            No known allergies, recorded by <AccountName subject={s.no_known_allergy.recorded_by} />{" "}
+            on {formatTime(s.no_known_allergy.recorded_at)}
           </p>
           {canRecord && (
             <Button

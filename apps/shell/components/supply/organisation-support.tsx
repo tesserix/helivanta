@@ -23,8 +23,10 @@ import {
   type SupplyRegistryRevision,
 } from "@helivanta/api";
 import {
+  AccountName,
   Field,
   FormSelectField,
+  FormAccountSelectField,
   LoadMore,
   useZodForm,
   RequestFailure,
@@ -131,12 +133,13 @@ function SupportPanel({ scope, admin }: { scope: SupplyRegistryScope; admin: boo
                       {formatAbsoluteTime(row.valid_from)} to {formatAbsoluteTime(row.expires_at)}
                     </p>
                     <p className="mt-1 break-words text-sm">
-                      Requested by {row.requester_subject} · Beneficiary {row.beneficiary_subject}
+                      Requested by <AccountName subject={row.requester_subject} /> · Beneficiary{" "}
+                      <AccountName subject={row.beneficiary_subject} />
                     </p>
                     <p className="mt-1 break-words text-sm text-muted-foreground">{row.reason}</p>
                     {row.approver_subject && (
                       <p className="mt-1 break-words text-sm text-muted-foreground">
-                        Independent approver: {row.approver_subject}
+                        Independent approver: <AccountName subject={row.approver_subject} />
                       </p>
                     )}
                   </div>
@@ -284,7 +287,7 @@ function SupportEditor({
       <h5 className="font-medium">New support access request</h5>
       <AccessWindowPolicyStatus policy={policy} />
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormSelectField
+        <FormAccountSelectField
           control={form.control}
           name="beneficiary_subject"
           id="support-beneficiary"
@@ -624,7 +627,8 @@ function SupportHistory({ scope, id }: { scope: SupplyRegistryScope; id: string 
       {rows.items.map((row) => (
         <div className="text-sm" key={row.id}>
           <p>
-            Version {row.version} · {formatAbsoluteTime(row.created_at)} · Actor {row.actor_subject}
+            Version {row.version} · {formatAbsoluteTime(row.created_at)} · Actor{" "}
+            <AccountName subject={row.actor_subject} />
           </p>
           <p className="break-words text-muted-foreground">
             {row.snapshot.status} · {row.snapshot.decision_reason || row.snapshot.reason}

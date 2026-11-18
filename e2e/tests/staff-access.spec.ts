@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { randomBytes, randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { uuidv7 } from "./support/pharmacy";
 import { ZITADEL_ORIGIN } from "./support/hosts";
 import { login, specPharmacist } from "./support/login";
 
@@ -19,7 +20,7 @@ test("tenant administrator can open the reviewed assignment workspace", async ({
   await page.getByRole("button", { name: "Propose assignment", exact: true }).click();
   await expect(page.getByRole("form", { name: "Propose assignment" })).toBeVisible();
   await page.getByRole("button", { name: "Submit proposal" }).click();
-  await expect(page.getByLabel("Account ID", { exact: true })).toHaveAttribute(
+  await expect(page.getByLabel("Staff account", { exact: true })).toHaveAttribute(
     "aria-invalid",
     "true",
   );
@@ -182,18 +183,31 @@ test("administrator first-enrolls a verified identity without business permissio
   try {
     await login(page);
     await page.goto("/workforce/access");
-    await page.getByLabel("Existing account ID", { exact: true }).fill(foreignIdentity.userId);
-    await page
-      .getByLabel("Enrollment reason", { exact: true })
-      .fill("Reject a same-email foreign organisation account");
-    await page.getByLabel("I understand this creates ordinary membership only.").check();
-    const rejected = page.waitForResponse(
-      (r) =>
-        new URL(r.url()).pathname.startsWith("/api/v1/iam/membership-enrollments/") &&
-        r.request().method() === "PUT",
-    );
-    await page.getByRole("button", { name: "Enroll staff member", exact: true }).click();
-    expect((await rejected).status()).toBe(409);
+    await expect(page.getByLabel("Existing account ID", { exact: true })).toHaveCount(0);
+    await expect(page.getByText(/Start with verified Staff account setup/)).toBeVisible();
+    const actorResponse = await page.request.get("/api/v1/iam/me/permissions");
+    expect(actorResponse.status()).toBe(200);
+    const actor = (await actorResponse.json()) as { tenant_id: string; subject: string };
+    const headers = {
+      "X-Helivanta-Expected-Tenant": actor.tenant_id,
+      "X-Helivanta-Expected-Subject": actor.subject,
+    };
+    const presentation = await page.request.post("/api/v1/iam/account-presentations", {
+      headers,
+      data: { subjects: [subject, foreignIdentity.userId] },
+    });
+    expect(presentation.status()).toBe(200);
+    expect((await presentation.json()).data).toEqual([
+      { subject, available: true, name: "Synthetic Enrollment", email, roles: [] },
+    ]);
+    const rejected = await page.request.put(`/api/v1/iam/membership-enrollments/${uuidv7()}`, {
+      headers,
+      data: {
+        subject: foreignIdentity.userId,
+        reason: "Reject a same-email foreign organisation account",
+      },
+    });
+    expect(rejected.status()).toBe(409);
     const legacyStatus = await page.evaluate(
       async ({ subject, tenantId }) => {
         const response = await fetch("/api/v1/iam/members", {
@@ -207,32 +221,17 @@ test("administrator first-enrolls a verified identity without business permissio
       { subject: foreignIdentity.userId, tenantId: tenant },
     );
     expect(legacyStatus).toBe(409);
-    await page.reload();
-    await page.getByLabel("Existing account ID", { exact: true }).fill(subject);
-    await page
-      .getByLabel("Enrollment reason", { exact: true })
-      .fill("Synthetic verified account first enrollment");
-    await page.getByLabel("I understand this creates ordinary membership only.").check();
-    const accepted = page.waitForResponse(
-      (r) =>
-        new URL(r.url()).pathname.startsWith("/api/v1/iam/membership-enrollments/") &&
-        r.request().method() === "PUT",
-    );
-    await page.getByRole("button", { name: "Enroll staff member", exact: true }).click();
-    const response = await accepted;
-    expect(response.status()).toBe(202);
-    expect(response.request().postDataJSON()).toEqual({
-      subject,
-      reason: "Synthetic verified account first enrollment",
+    const response = await page.request.put(`/api/v1/iam/membership-enrollments/${uuidv7()}`, {
+      headers,
+      data: { subject, reason: "Synthetic verified account first enrollment" },
     });
-    expect(response.request().headers()["x-helivanta-expected-tenant"]).toBe(tenant);
-    expect(response.request().headers()["x-helivanta-expected-subject"]).toBeTruthy();
-    await expect(
-      page.getByRole("status").filter({ hasText: "Membership recorded for" }),
-    ).toContainText(subject);
-    await expect(
-      page.getByText("Access synchronization may still be pending.", { exact: false }),
-    ).toBeVisible();
+    expect(response.status()).toBe(202);
+    expect((await response.json()).subject).toBe(subject);
+    await page.reload();
+    const history = page.getByRole("region", { name: "Enrollment history", exact: true });
+    await expect(history.getByText("Synthetic Enrollment", { exact: true })).toBeVisible();
+    await expect(page.getByText(subject, { exact: false })).toHaveCount(0);
+    await expect(page.getByText(foreignIdentity.userId, { exact: false })).toHaveCount(0);
     const member = await context.newPage();
     await expect(async () => {
       await login(member, { email, password });

@@ -1,6 +1,18 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts } from "../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(
+    ui,
+    {
+      "user-receiver": "QA Receiver",
+      "synthetic-maker": "QA Maker",
+      "synthetic-checker": "QA Checker",
+      "user-member": "QA Member",
+    },
+    undefined,
+    true,
+  );
 import { chooseOption } from "../../test/select";
 import { EmergencyReceivingWorkspace } from "./emergency-receiving";
 const facility = "019a1234-5678-7000-8000-000000000001";
@@ -99,7 +111,11 @@ it("records the authority level chosen from the campus authority menu", async ()
   const { user } = renderWithProviders(<EmergencyReceivingWorkspace />);
   await user.click(await screen.findByRole("button", { name: "Open Synthetic Campus" }));
   await user.click(await screen.findByText("Delegate receiving authority"));
-  await user.type(screen.getByLabelText("Verified member subject ID"), "user-member");
+  await chooseOption(
+    user,
+    await screen.findByLabelText("Staff account"),
+    "QA Member · Staff member",
+  );
   await user.click(screen.getByRole("button", { name: "Load current delegation" }));
   await chooseOption(
     user,

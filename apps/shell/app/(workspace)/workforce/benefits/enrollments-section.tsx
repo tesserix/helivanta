@@ -18,7 +18,7 @@ import {
   type Staff,
   type UseApiPagedQueryResult,
 } from "@helivanta/api";
-import { QueryState } from "@helivanta/ui";
+import { AccountName, QueryState } from "@helivanta/ui";
 import { RevisionHistory } from "../payroll-setup/payroll-workspace";
 import { PROPOSAL_STATUSES, period, personLabel } from "./benefits-ui";
 import { CoverageProposal } from "./coverage-proposal";
@@ -168,7 +168,11 @@ export function EnrollmentsSection({
                     </p>
                     {pending && (
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {`${PROPOSAL_STATUSES.pending} · coverage ${period(pending.coverage_from, pending.coverage_until)} · proposed by ${mine ? "you" : pending.proposed_by_subject}`}
+                        <AccountName subject={pending.proposed_by_subject}>
+                          {(presentedAccountName0) => (
+                            <>{`${PROPOSAL_STATUSES.pending} · coverage ${period(pending.coverage_from, pending.coverage_until)} · proposed by ${mine ? "you" : presentedAccountName0}`}</>
+                          )}
+                        </AccountName>
                       </p>
                     )}
                   </div>
@@ -210,7 +214,17 @@ export function EnrollmentsSection({
                 {`${PROPOSAL_STATUSES[r.status]}${r.approved_version ? ` · v${r.approved_version}` : ""} · coverage ${period(r.coverage_from, r.coverage_until)}`}
               </p>
               <p className="mt-1 text-muted-foreground">
-                {`${r.eligibility_basis} · proposed by ${r.proposed_by_subject}${r.decided_by_subject ? ` · decided by ${r.decided_by_subject}` : ""}${r.decision_note ? ` · “${r.decision_note}”` : ""}`}
+                <AccountName subject={r.proposed_by_subject}>
+                  {(presentedAccountName0) => (
+                    <>
+                      <AccountName subject={r.decided_by_subject}>
+                        {(presentedAccountName1) => (
+                          <>{`${r.eligibility_basis} · proposed by ${presentedAccountName0}${r.decided_by_subject ? ` · decided by ${presentedAccountName1}` : ""}${r.decision_note ? ` · “${r.decision_note}”` : ""}`}</>
+                        )}
+                      </AccountName>
+                    </>
+                  )}
+                </AccountName>
               </p>
             </>
           )}

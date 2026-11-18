@@ -1,5 +1,7 @@
 "use client";
 
+import { MemberAccountSelect } from "@helivanta/ui";
+
 import { useEffect, useRef, useState } from "react";
 import { Button, Input } from "@tesserix/web";
 import {
@@ -347,7 +349,7 @@ function PreparationForm({
             }
             if (values.access_intent === "digital" && !values.declared_subject.trim()) {
               form.setError("declared_subject", {
-                message: "Enter the existing account ID supplied by access administration.",
+                message: "Select the existing staff account supplied by access administration.",
               });
               return;
             }
@@ -471,17 +473,22 @@ function PreparationForm({
           {form.watch("access_intent") === "digital" && (
             <Field
               id="person-declared-account"
-              label="Existing account ID"
+              label="Staff account"
               error={form.formState.errors.declared_subject?.message}
             >
-              <Input
-                id="person-declared-account"
-                required
-                maxLength={200}
-                {...form.register("declared_subject")}
+              <Controller
+                control={form.control}
+                name="declared_subject"
+                render={({ field }) => (
+                  <MemberAccountSelect
+                    id="person-declared-account"
+                    value={field.value}
+                    onValueChange={field.onChange}
+                  />
+                )}
               />
               <p className="text-xs text-muted-foreground">
-                Use the account ID supplied by access administration. This declaration does not
+                Select the account supplied by access administration. This declaration does not
                 verify or link it.
               </p>
             </Field>

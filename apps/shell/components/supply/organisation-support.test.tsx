@@ -1,6 +1,15 @@
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { renderWithNamedAccounts } from "../../test/account-names";
+const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) =>
+  renderWithNamedAccounts(ui, {
+    "TEST-owner": "QA Owner",
+    "TEST-requester": "QA Requester",
+    "TEST-approver": "QA Approver",
+    "TEST-beneficiary": "QA Beneficiary",
+    "synthetic-maker": "QA Maker",
+    "synthetic-checker": "QA Checker",
+  });
 import { OrganisationSupport } from "./organisation-support";
 const scope = {
   tenantId: "11111111-1111-1111-1111-111111111111",
@@ -274,7 +283,7 @@ it("creates a scoped request from trusted options with one stable identity acros
   const user = (await import("@testing-library/user-event")).default.setup();
   await user.click(await screen.findByRole("button", { name: "Request support access" }));
   await user.click(screen.getByLabelText("Support beneficiary"));
-  await user.click(await screen.findByRole("option", { name: "TEST-beneficiary" }));
+  await user.click(await screen.findByRole("option", { name: "QA Beneficiary · Staff member" }));
   await user.click(screen.getByLabelText("Location to investigate"));
   await user.click(await screen.findByRole("option", { name: "TEST-WAREHOUSE · TEST Warehouse" }));
   await user.type(screen.getByLabelText("Support ticket reference"), "TEST-CASE-02");

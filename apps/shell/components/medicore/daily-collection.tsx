@@ -14,7 +14,7 @@ import {
   type DailyCollection,
   type Hospital,
 } from "@helivanta/api";
-import { Field, Panel, RequestFailure, useZodForm } from "@helivanta/ui";
+import { AccountName, Field, Panel, RequestFailure, useZodForm } from "@helivanta/ui";
 import { formatPharmacyMoney } from "../pharmacy/currency-amount-field";
 
 const money = (minor: number) => formatPharmacyMoney(minor, "INR");
@@ -214,7 +214,8 @@ function ShiftRow({ shift }: { shift: CollectionShift }) {
         {statusLabel[shift.status]}
         {shift.authorisation_reason && (
           <span className="block text-muted-foreground">
-            Authorised by {shift.authorised_by}: {shift.authorisation_reason}
+            Authorised by <AccountName subject={shift.authorised_by} />:{" "}
+            {shift.authorisation_reason}
           </span>
         )}
       </td>

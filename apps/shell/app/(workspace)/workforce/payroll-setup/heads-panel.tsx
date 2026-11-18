@@ -13,7 +13,7 @@ import {
   type Hospital,
   type SalaryHead,
 } from "@helivanta/api";
-import { Field, SelectControl, RequestFailure } from "@helivanta/ui";
+import { AccountName, Field, SelectControl, RequestFailure } from "@helivanta/ui";
 
 import { HeadEditor } from "./head-editor";
 import { headsKey, RevisionHistory } from "./payroll-workspace";
@@ -190,7 +190,7 @@ export function HeadsPanel({ hospital, writable }: { hospital: Hospital; writabl
               </p>
               <p className="mt-1 text-muted-foreground">
                 {describeSalaryHead(r, names)} · {SALARY_TAXABILITY[r.taxability]} · reviewed by{" "}
-                {r.reviewed_by_subject}
+                <AccountName subject={r.reviewed_by_subject} />
               </p>
             </>
           )}

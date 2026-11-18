@@ -19,7 +19,15 @@ import {
   type PharmacyTaxRegistration,
   type TaxScheme,
 } from "@helivanta/api";
-import { Field, FormSelectField, LoadMore, Panel, QueryState, useZodForm } from "@helivanta/ui";
+import {
+  AccountName,
+  Field,
+  FormSelectField,
+  LoadMore,
+  Panel,
+  QueryState,
+  useZodForm,
+} from "@helivanta/ui";
 import { useReportState, type FormState } from "@/lib/use-list-detail";
 import { useCommandId } from "./command-id";
 
@@ -140,7 +148,7 @@ export function TaxRegistrationPanel({
                   <p className="font-medium tabular-nums">{row.identifier}</p>
                   <p className="mt-0.5 text-muted-foreground">
                     {jurisdictions.get(row.jurisdiction_code) ?? row.jurisdiction_code} · from{" "}
-                    {row.effective_from} · {row.recorded_by}
+                    {row.effective_from} · <AccountName subject={row.recorded_by} />
                     {row.reason ? ` · ${row.reason}` : ""}
                   </p>
                 </div>

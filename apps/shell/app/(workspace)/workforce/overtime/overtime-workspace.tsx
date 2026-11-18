@@ -10,7 +10,7 @@ import {
   type Hospital,
   type OvertimeRequest,
 } from "@helivanta/api";
-import { Field, PageHeading, SelectControl, RequestFailure } from "@helivanta/ui";
+import { AccountName, Field, PageHeading, SelectControl, RequestFailure } from "@helivanta/ui";
 
 import { OvertimePolicyPanel } from "./policy-panel";
 import { OvertimeForm } from "./overtime-form";
@@ -183,8 +183,12 @@ function RequestBoard({
                   {r.approved_minutes !== undefined
                     ? ` · ${formatMinutes(r.approved_minutes)} approved`
                     : ""}{" "}
-                  · filed by {r.requested_by_subject}
-                  {r.decided_by_subject ? ` · decided by ${r.decided_by_subject}` : ""}
+                  · filed by <AccountName subject={r.requested_by_subject} />
+                  <AccountName subject={r.decided_by_subject}>
+                    {(presentedAccountName0) => (
+                      <>{r.decided_by_subject ? ` · decided by ${presentedAccountName0}` : ""}</>
+                    )}
+                  </AccountName>
                 </p>
               </div>
               <Button

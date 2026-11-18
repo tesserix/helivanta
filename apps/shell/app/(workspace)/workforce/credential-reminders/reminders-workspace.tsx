@@ -23,6 +23,7 @@ import {
   type Hospital,
 } from "@helivanta/api";
 import {
+  AccountName,
   Field,
   LoadMore,
   PageHeading,
@@ -288,9 +289,15 @@ function Inbox({ owner, ownerName, onContextChanged }: Owned & { ownerName: stri
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    {row.status === "acknowledged"
-                      ? `Acknowledged by ${row.acknowledged_by_subject ?? "unknown"}`
-                      : statuses.find((s) => s.value === row.status)?.label}
+                    <AccountName subject={row.acknowledged_by_subject}>
+                      {(presentedAccountName0) => (
+                        <>
+                          {row.status === "acknowledged"
+                            ? `Acknowledged by ${presentedAccountName0 ?? "unknown"}`
+                            : statuses.find((s) => s.value === row.status)?.label}
+                        </>
+                      )}
+                    </AccountName>
                   </td>
                   <td className="px-4 py-3 text-right">
                     {row.status === "open" && (

@@ -15,7 +15,14 @@ import {
   type PharmacyServiceCharge,
   type PharmacyServiceChargeVersion,
 } from "@helivanta/api";
-import { Field, FormSelectField, Panel, RequestFailure, useZodForm } from "@helivanta/ui";
+import {
+  AccountName,
+  Field,
+  FormSelectField,
+  Panel,
+  RequestFailure,
+  useZodForm,
+} from "@helivanta/ui";
 import { CurrencyAmountField, formatPharmacyMoney } from "./currency-amount-field";
 
 // Service charges (#1388): each version declared by one person and approved
@@ -132,9 +139,21 @@ function ChargeRow({
       {latest && latest.decision !== "approved" && (
         <p className="mt-0.5 text-muted-foreground">
           Latest: {versionLabel(latest, currency)}, from {latest.effective_from} ·{" "}
-          {latest.decision === null
-            ? `awaiting review, declared by ${latest.declared_by}`
-            : `rejected by ${latest.reviewed_by}: ${latest.decision_reason}`}
+          <AccountName subject={latest.reviewed_by}>
+            {(presentedAccountName0) => (
+              <>
+                <AccountName subject={latest.declared_by}>
+                  {(resolvedActorName0) => (
+                    <>
+                      {latest.decision === null
+                        ? `awaiting review, declared by ${resolvedActorName0}`
+                        : `rejected by ${presentedAccountName0}: ${latest.decision_reason}`}
+                    </>
+                  )}
+                </AccountName>
+              </>
+            )}
+          </AccountName>
         </p>
       )}
       {canReview && latest && latest.decision === null && (

@@ -1,9 +1,12 @@
 "use client";
 
+import { Controller } from "@helivanta/ui";
+
 import { useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import {
+  MemberAccountSelect,
   Field,
   FormSelectField,
   useZodForm,
@@ -59,7 +62,7 @@ const proposalForm = z
     subject: z
       .string()
       .trim()
-      .min(1, "Enter an account ID.")
+      .min(1, "Choose a staff account.")
       .pipe(staffAssignmentInputContract.shape.subject),
     reason: z
       .string()
@@ -311,17 +314,21 @@ export function AssignmentProposalForm({
       )}
       <Field
         id="assignment-subject"
-        label="Account ID"
+        label="Staff account"
         error={form.formState.errors.subject?.message}
       >
-        <Input
-          id="assignment-subject"
-          aria-invalid={!!form.formState.errors.subject}
-          aria-describedby={form.formState.errors.subject ? "assignment-subject-error" : undefined}
-          autoComplete="off"
-          readOnly={!!renewal}
-          disabled={!!submitted}
-          {...form.register("subject")}
+        <Controller
+          control={form.control}
+          name="subject"
+          render={({ field, fieldState }) => (
+            <MemberAccountSelect
+              id="assignment-subject"
+              value={field.value}
+              onValueChange={field.onChange}
+              aria-invalid={fieldState.invalid}
+              disabled={!!submitted || !!renewal}
+            />
+          )}
         />
       </Field>
       <p>

@@ -15,7 +15,7 @@ import {
 import { headsKey, RevisionHistory, structuresKey } from "./payroll-workspace";
 import { StructureEditor } from "./structure-editor";
 import { StructurePreview } from "./structure-preview";
-import { RequestFailure } from "@helivanta/ui";
+import { AccountName, RequestFailure } from "@helivanta/ui";
 
 export const describeLines = (s: SalaryStructure) =>
   s.lines
@@ -209,7 +209,7 @@ export function StructuresPanel({ hospital, writable }: { hospital: Hospital; wr
                 {!r.active && " · inactive"}
               </p>
               <p className="mt-1 text-muted-foreground">
-                {describeLines(r)} · reviewed by {r.reviewed_by_subject}
+                {describeLines(r)} · reviewed by <AccountName subject={r.reviewed_by_subject} />
               </p>
             </>
           )}

@@ -155,6 +155,11 @@ try {
     "PASS: qualified hospital Staff preparation, exact lost-response proposal/decision replay, distinct owner approval, canonical activation and audited native history through Global API.",
   );
 } finally {
-  for (const context of contexts) await context.close();
+  await Promise.all(
+    contexts.map(async (context) => {
+      await context.unrouteAll({ behavior: "wait" });
+      await context.close();
+    }),
+  );
   await browser.close();
 }

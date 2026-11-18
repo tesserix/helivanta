@@ -140,12 +140,19 @@ infrastructure cost is introduced; these are assumptions, not measured results.
   code and evidence, then normal CI/merge, owner-before-consumer Kargo release
   and deployed Chrome acceptance. Keep #1703 open until all its criteria pass.
 
-The current draft increments preserve private signed `sid` and supply internal
-owner adapters for exact session proof, one native removal dispatch and latest
-enrollment evidence. The canonical command/ledger, Workforce/IAM authorization,
-durable admission fence, enrollment UI and native browser acceptance remain
-unfinished. No Staff reset endpoint is registered by these adapters, and no live
-factor has been removed. See Helivanta PR #1749 and onboarding-service PR #45.
+The current drafts preserve private signed `sid`, canonical reviewed-link intents,
+the owner command ledger and internal native adapters for exact session proof,
+one removal dispatch and latest enrollment evidence. The additive schema is in
+[infrastructure #1713](https://github.com/tesserix/tesserix-k8s/pull/1713).
+Hosted owner PostgreSQL race/coverage checks passed for the ledger, including
+concurrency, immutable replay, cancellation tombstones, audit rollback, exact
+timestamp preservation, generation fencing and application-role restrictions.
+
+Workforce/IAM authorization, command-service and revocation/admission wiring,
+mandatory enrollment UI and the Staff native-browser journey remain unfinished.
+No Staff reset endpoint is registered, no live schema has been applied and no live
+factor has been removed. See Helivanta PR #1749, onboarding-service PR #45 and
+the owner's `docs/staff-mfa-recovery.md` for lifecycle and validation details.
 
 Rejected: native deletion alone; temporarily disabling/reactivating a user;
 factor-presence or `auth_time` as fresh-enrollment proof; trusting an unsigned

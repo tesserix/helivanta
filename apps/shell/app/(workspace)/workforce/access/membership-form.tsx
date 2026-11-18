@@ -74,8 +74,7 @@ export function StaffMembershipForm({
       {save.isSuccess ? (
         <>
           <p role="status">
-            Membership recorded for <AccountName subject={submitted?.input.subject} />. Membership
-            ID: {save.data.membership_id}. Receipt: {save.data.id}.
+            Membership recorded for <AccountName subject={submitted?.input.subject} />.
           </p>
           <p>
             Access synchronization may still be pending. This does not activate hospital access or
@@ -211,9 +210,6 @@ function EnrollmentHistory({ scope }: { scope: StaffAssignmentScope }) {
                   <p className="break-words text-sm">
                     By <AccountName subject={row.actor_subject} /> ·{" "}
                     {formatDateTime(row.created_at)}
-                  </p>
-                  <p className="break-words text-sm">
-                    Receipt {row.id} · Membership {row.membership_id}
                   </p>
                   <p className="text-sm">
                     Historical enrollment evidence; current access may have changed.

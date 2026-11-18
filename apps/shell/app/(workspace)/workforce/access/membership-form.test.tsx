@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@helivanta/api/testing";
-import { NavigationGuardProvider } from "@helivanta/ui";
+import { AccountPresentationsProvider, NavigationGuardProvider } from "@helivanta/ui";
 import { StaffMembershipForm } from "./membership-form";
 
 const scope = { tenantId: "11111111-1111-4111-8111-111111111111", subject: "synthetic-admin" };
@@ -71,7 +71,60 @@ it("freezes and retries the same command after an uncertain result", async () =>
   await waitFor(() => expect(commands).toHaveLength(2));
   expect(commands[0]).toEqual(commands[1]);
   expect(commands[0]?.actor).toBe(scope.subject);
-  expect(await screen.findByText(/Membership recorded for/)).toBeInTheDocument();
+  const confirmation = await screen.findByText(/Membership recorded for/);
+  expect(confirmation).not.toHaveTextContent("019bbbbb-bbbb-7bbb-8bbb-bbbbbbbbbbbb");
+  expect(confirmation).not.toHaveTextContent(commands[0]!.url.split("/").at(-1)!);
+});
+
+it("shows named enrollment evidence without receipt or membership identifiers", async () => {
+  const receipt = {
+    id: "019aaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa",
+    membership_id: "019bbbbb-bbbb-7bbb-8bbb-bbbbbbbbbbbb",
+    subject: "synthetic-first-account",
+    role_key: "staff_member",
+    membership_epoch: 1,
+    reason: "Verified first enrollment",
+    actor_subject: scope.subject,
+    created_at: "2026-10-30T00:00:00Z",
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("account-presentations")) {
+        const { subjects } = JSON.parse(String(init?.body));
+        return Response.json({
+          tenant_id: scope.tenantId,
+          actor_subject: scope.subject,
+          data: subjects.map((subject: string) => ({
+            subject,
+            available: true,
+            name: subject === scope.subject ? "Hospital owner" : "QA Staff",
+            email: "staff@example.test",
+            roles: [],
+          })),
+        });
+      }
+      return Response.json({
+        data: [receipt],
+        page: { has_more: false, next_cursor: null },
+      });
+    }),
+  );
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <AccountPresentationsProvider scope={scope}>
+        <StaffMembershipForm scope={scope} />
+      </AccountPresentationsProvider>
+    </NavigationGuardProvider>,
+  );
+  const history = screen.getByRole("region", { name: "Enrollment history" });
+  expect(await within(history).findByText("QA Staff")).toBeInTheDocument();
+  expect(await within(history).findByText("Hospital owner")).toBeInTheDocument();
+  expect(history).toHaveTextContent("Ordinary membership");
+  expect(history).toHaveTextContent(receipt.reason);
+  expect(history).toHaveTextContent(/Oct.*30.*2026|30.*Oct.*2026/);
+  expect(history).not.toHaveTextContent(receipt.id);
+  expect(history).not.toHaveTextContent(receipt.membership_id);
 });
 
 // #1595: refused enrollment history is a refusal with no way to ask again.

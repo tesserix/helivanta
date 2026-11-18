@@ -797,3 +797,8 @@ If the authorized identity owner cannot return a name, show an explicit unavaila
 state. Never fabricate a name from an ID, email or staff draft. Do not widen an
 identity read permission to make a label convenient. The ESLint raw-account-display
 rule guards direct renderings; review indirect aliases and option mappings too.
+
+Staff enrollment and membership history cards and confirmations must also keep
+receipt IDs, membership IDs and membership epochs internal. Present the verified
+person, readable role, action, reason and date. Preserve exact command references
+and concurrency versions in request and recovery bindings.

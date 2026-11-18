@@ -105,3 +105,26 @@ step now includes account-presentation tests as well as member-presentation test
 the full race/coverage gate remains required. That run's browser failure was an
 identity-service timeout during pharmacy fixture setup; it is not counted as a
 passing browser run.
+
+## Staff membership reference follow-up
+
+The authenticated owner check confirmed named membership rows, enrollment actors
+and reviewer choices. It also exposed technical receipt and membership references
+in the enrollment cards. Those references are now omitted from enrollment and
+membership-change history and confirmations. Membership generation is omitted from
+the confirmation summary, and recovery describes ordinary staff membership using
+readable wording.
+
+The API models, receipt validation, command IDs, recovery basis and membership
+epochs remain intact. Regression tests assert that names, roles, reasons and dates
+remain visible while identifiers stay out of rendered text. Existing tests still
+verify exact retry bodies, tenant binding and recovery concurrency values. The
+hosted enrollment browser scenario now compares returned receipt and membership
+IDs with the history region to ensure neither is displayed.
+
+Both regression cycles failed against the previous rendering, then the 100 affected
+enrollment, membership, access-page and account-initiation tests passed. Shell and
+E2E type checks and the production Shell build passed on Node 24. Formatting and
+the operational-access inventory check passed; lint retains only the existing
+signup effect dependency warning. The full Shell suite passed 2,105 tests on Node 24. Generated build and TypeScript build-info files were removed after validation.
+No local application, database or container was started.

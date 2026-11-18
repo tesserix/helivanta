@@ -231,3 +231,74 @@ claiming completion from mocks or a passing registry check.
 - Local affected builds, tests, lint and generator checks before merge; remove
   generated build artifacts. Required CI, normal merge, signed release/Kargo and
   deployed browser verification precede issue closure.
+
+## Browser/Global API integration contract
+
+The candidate recovery broker uses same-origin `/v1/auth/password-recovery`
+(start and status), `/verify` and `/password`, routed only to the platform owner
+through Global API. Start accepts native `auth_request_id`, email and a stable delivery
+`request_id`; an explicit resend allocates a new delivery ID. The broker validates the actual native request ID, this deployment's
+configured web client, and exactly one canonical organization scope. An unscoped
+request must return through existing private account selection; browser tenant
+IDs, domain selectors and email alone never authorize tenant selection.
+
+A dedicated Secure/HttpOnly/host-only/SameSite=Strict cookie binds the challenge.
+Set the initial capability before private I/O so a lost response reuses the same
+ID. Explicit resend rotates only the ID while retaining the browser secret; the
+private owner's actual retained challenge ID restores an already verified receipt
+without another email. Never return that internal ID in the public body or extend
+the original owner's proof lifetime. Verification and password completion use this
+cookie, not URL proofs, signup receipts or discovery cookies. Clear recovery
+capabilities on normal sign-in/sign-out to protect shared terminals.
+
+Bodies, private receipts, codes and passwords have bounded strict decoding and
+no-store/no-referrer responses. Origin, media type, source/request quotas, unknown
+or duplicate fields, duplicate cookies, foreign-client auth requests, upstream
+redirects/timeouts, stale proof and malformed/ambiguous private responses must be
+tested. Dependency failures deny instead of manufacturing a successful delivery,
+verification or password result. New public routes and page classifications are
+baseline account-security surfaces, with registry/allowlist/generator coverage.
+
+The recovery UI offers mailbox code verification, explicit expiry/resend guidance,
+new-password entry, native policy refusal and retained processing/applied/unknown
+outcomes. Completion returns to ordinary password/MFA login and does not establish
+a session. A retry retains the same command ID and does not resubmit a password
+automatically; reload reads the retained receipt. Account selection remains a
+separate mailbox purpose. Browser tests must exercise the actual deployed/native
+reset and new-password sign-in before this contract is marked accepted.
+
+### Pre-dispatch uncertainty refinement (required before browser release)
+
+A status read returning no command does not prove an earlier password request
+cannot arrive later. Likewise, a historical refusal from an older attempt must
+not be mistaken for the outcome of a newer in-flight command. The browser must
+therefore prepare an owner-retained command before sending any password, and
+recover the specific command after reload. Preparation contains no password or
+native reset code and performs no credential write.
+
+The password handler may atomically move only its existing `prepared` command
+to `processing`; a missing, cancelled or superseded intent cannot dispatch. A
+restored prepared intent is not automatically resubmitted with a possibly
+different password. The recipient may cancel only `prepared` through a guarded
+transition, then create a new intent and reenter the password. If the earlier
+submission wins the race, cancellation fails closed; if cancellation wins, the
+late earlier submission cannot execute. Processing/applied/unconfirmed commands
+remain fenced. Native policy refusal permits a distinct new prepared attempt.
+
+The owner candidate now separates preparation and cancellation from
+`CompletePasswordRecovery`, with a prepared-only atomic dispatch transition.
+Private status selects an exact command and unknown selectors never fall back to
+ready or older receipts. Hosted PostgreSQL CI at onboarding commit `c195f54`
+passed its complete race/coverage suite against schema `363dce21`. The final
+cancellation projection follows in `0526034`; its CI is still required.
+The HMS broker requires a separate HttpOnly active-command cookie, installs it
+before preparation I/O, retains it on uncertain outcomes, and strips private
+command selectors from public receipts. A reload can cancel the retained prepared
+command with an empty canonical cancellation input; the browser cookie supplies
+the exact selector. Start/resend cannot discard an unresolved command marker.
+Normal sign-in and sign-out clear both recovery capabilities.
+
+Public UI and native browser acceptance remain outstanding. Passing current native adapter
+and command tests does not prove this additional ordering requirement. No
+password fingerprint, password persistence, session bypass or timer-based fence
+release is an acceptable substitute.

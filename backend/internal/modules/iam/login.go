@@ -370,6 +370,7 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 	// same place.
 	c.SetSameSite(http.SameSiteLaxMode)
 	authn.ClearAccountDiscovery(c)
+	authn.ClearPasswordRecovery(c)
 	c.SetCookie(authn.SessionCookie, token, int(h.ttl.Seconds()), "/", "", h.secureCookie, true)
 	audit.Log(c.Request.Context(), requestid.Logger(c), slog.LevelInfo, "auth.session.issued", "session issued",
 		"subject", principal.Subject, "tenant_id", tenantID)

@@ -251,6 +251,17 @@ func TestSignOutWritesTheWatermark(t *testing.T) {
 
 	w := doRequest(r, http.MethodPost, "/v1/iam/me/sign-out", "tok-nurse", "")
 	require.Equal(t, http.StatusOK, w.Code)
+	recoveryCleared, commandCleared := false, false
+	for _, cookie := range w.Result().Cookies() {
+		if cookie.Name == authn.PasswordRecoveryCookie {
+			recoveryCleared = cookie.Value == "" && cookie.MaxAge < 0 && cookie.Secure && cookie.HttpOnly
+		}
+		if cookie.Name == authn.PasswordRecoveryCommandCookie {
+			commandCleared = cookie.Value == "" && cookie.MaxAge < 0 && cookie.Secure && cookie.HttpOnly
+		}
+	}
+	require.True(t, recoveryCleared, "sign-out must clear password recovery on shared terminals")
+	require.True(t, commandCleared, "sign-out must clear recovery command selectors on shared terminals")
 
 	require.False(t, watermarkFor(t, db, "uid-nurse").IsZero(),
 		"sign-out must write the watermark, not merely clear a cookie")

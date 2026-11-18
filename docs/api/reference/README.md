@@ -1757,6 +1757,7 @@ Migration table declarations:
 | `GET /v1/auth/accounts` | bounded display-only choices after mailbox proof, no session required |
 | `GET /v1/auth/branding/:tenant` | published display-only branding must render before login; no identity or data access |
 | `GET /v1/auth/login/request/:id` | renders the login form before any Helivanta session exists |
+| `GET /v1/auth/password-recovery` | browser-bound retained recovery status; no session or native write |
 | `GET /v1/auth/release-capabilities` | bounded global onboarding availability; no tenant, account or targeting rules |
 | `GET /v1/auth/signup` | receipt-bound setup progress before a tenant session exists |
 | `POST /v1/auth/accounts` | same-origin mailbox proof before private separate-account discovery |
@@ -1766,6 +1767,11 @@ Migration table declarations:
 | `POST /v1/auth/login/factor` | checks the second factor that creates the session, so it cannot require one |
 | `POST /v1/auth/login/password` | checks the credential that creates the session, so it cannot require one |
 | `POST /v1/auth/login/password-change` | completes a sign-in whose password must change first, so it cannot require a session |
+| `POST /v1/auth/password-recovery` | same-origin rate-limited mailbox delivery bound to a validated native tenant request; no account lookup |
+| `POST /v1/auth/password-recovery/cancel` | verified browser-bound cancellation of prepared intent only; processing commands remain fenced |
+| `POST /v1/auth/password-recovery/password` | verified browser-bound retained native reset command; ordinary password/MFA sign-in remains required |
+| `POST /v1/auth/password-recovery/prepare` | verified browser-bound no-password preparation and retained receipt; no session or credential change |
+| `POST /v1/auth/password-recovery/verify` | one-use dedicated mailbox proof before credential recovery; no session |
 | `POST /v1/auth/signup` | new owner intent before a tenant exists; same-origin receipt and private workload handoff |
 | `POST /v1/auth/signup/email-link` | bounded native verification delivery without identity disclosure |
 | `POST /v1/auth/signup/new` | same-origin browser receipt rotation only; no tenant, user or pending intent changes |

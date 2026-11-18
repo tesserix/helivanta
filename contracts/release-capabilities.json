@@ -5503,6 +5503,36 @@
       "method": "GET",
       "path": "/v1/workspace/release-capabilities",
       "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/password-recovery",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/auth/password-recovery",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/password-recovery/verify",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/password-recovery/password",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/password-recovery/prepare",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/password-recovery/cancel",
+      "capability": "baseline"
     }
   ],
   "pages": [

@@ -54,6 +54,14 @@ All links below pin `tesserix/zitadel` at
 - [`HumanRemoveTOTP`](https://github.com/tesserix/zitadel/blob/29986e1b8b3e606d20871a2e73874b91f9b5b695/internal/command/user_human_otp.go)
   is a native write with no command-id deduplication. A later retry could remove
   a newly enrolled factor. An uncertain write must never be automatically retried.
+- The [native TOTP event definitions](https://github.com/tesserix/zitadel/blob/29986e1b8b3e606d20871a2e73874b91f9b5b695/internal/repository/user/human_mfa_otp.go)
+  distinguish `added`, `verified`, `removed` and ordinary `check.succeeded` events.
+  Read the latest lifecycle event for the exact user/organization, bounded to one
+  result. A `verified` sequence after the acknowledged removal proves fresh
+  enrollment; a later `added` or `removed` invalidates that observation. A normal
+  factor check is never enrollment. Missing/stale/foreign/ambiguous event evidence
+  is unavailable, not a completed enrollment. Preserve native sequence ordering
+  even when two events share the same timestamp.
 
 These source findings do not demonstrate a native-provider vulnerability or a
 passing runtime recovery journey. The deployed revision/permissions and native
@@ -131,6 +139,13 @@ infrastructure cost is introduced; these are assumptions, not measured results.
 - Obtain specific live migration/QA reset authorization after preparing reviewable
   code and evidence, then normal CI/merge, owner-before-consumer Kargo release
   and deployed Chrome acceptance. Keep #1703 open until all its criteria pass.
+
+The current draft increments preserve private signed `sid` and supply internal
+owner adapters for exact session proof, one native removal dispatch and latest
+enrollment evidence. The canonical command/ledger, Workforce/IAM authorization,
+durable admission fence, enrollment UI and native browser acceptance remain
+unfinished. No Staff reset endpoint is registered by these adapters, and no live
+factor has been removed. See Helivanta PR #1749 and onboarding-service PR #45.
 
 Rejected: native deletion alone; temporarily disabling/reactivating a user;
 factor-presence or `auth_time` as fresh-enrollment proof; trusting an unsigned

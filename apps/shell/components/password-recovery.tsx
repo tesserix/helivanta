@@ -63,7 +63,7 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
     resolver: zodResolver(emailSchema),
     defaultValues: { email: "" },
   });
-  const passwordForm = useForm<z.infer<typeof passwordSchema>>({
+  const replacementForm = useForm<z.infer<typeof passwordSchema>>({
     resolver: zodResolver(passwordSchema),
     defaultValues: { password: "", confirm: "" },
   });
@@ -247,10 +247,10 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
       <form
         className="space-y-4"
         onSubmit={(event) =>
-          void passwordForm.handleSubmit((values) => {
+          void replacementForm.handleSubmit((values) => {
             if (!begin()) return;
             password.current = values.password;
-            passwordForm.reset();
+            replacementForm.reset();
             setFreshCommand(undefined);
             setUncertain(true);
             submit.mutate();
@@ -264,10 +264,10 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
             type="password"
             autoComplete="new-password"
             maxLength={400}
-            {...passwordForm.register("password")}
+            {...replacementForm.register("password")}
           />
         </label>
-        {passwordForm.formState.errors.password && (
+        {replacementForm.formState.errors.password && (
           <p role="alert">Enter a new password using up to 200 characters.</p>
         )}
         <label className="block space-y-2">
@@ -277,10 +277,10 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
             type="password"
             autoComplete="new-password"
             maxLength={400}
-            {...passwordForm.register("confirm")}
+            {...replacementForm.register("confirm")}
           />
         </label>
-        {passwordForm.formState.errors.confirm && <p role="alert">The passwords must match.</p>}
+        {replacementForm.formState.errors.confirm && <p role="alert">The passwords must match.</p>}
         <p className="text-sm text-muted-foreground">
           Your organization’s password policy applies.
         </p>

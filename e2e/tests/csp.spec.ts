@@ -63,10 +63,17 @@ test("every shell page renders without a policy violation", async ({ page }) => 
     expect(hydration, `hydration errors on ${where}`).toEqual([]);
   };
 
-  for (const path of ["/", "/ambulance", "/login"]) {
+  for (const path of ["/", "/ambulance"]) {
     await page.goto(path);
     await clean(path);
   }
+  // A bare /login starts sign-in by itself (#1751 D1) and comes back as the
+  // credential card. Wait for that landing, so the card is what gets judged
+  // and no redirect is still in flight when login() navigates next.
+  await page.goto("/login");
+  await page.waitForURL(/\/login\?authRequest=/, { timeout: 30_000 });
+  await expect(page.getByLabel("Email or username", { exact: true })).toBeVisible();
+  await clean("/login");
 
   // Through /login, the IdP and /api/auth/callback.
   await login(page, specAdmin());

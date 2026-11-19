@@ -21,9 +21,9 @@ export async function ensureLocalIdentityMachine({
     pat.length > 8192
   )
     throw new Error("identity machine fixture requires its isolated native issuer and owner");
-  async function request(path, body) {
+  async function request(path, body, method = "POST") {
     const response = await fetcher(issuer + path, {
-      method: "POST",
+      method,
       redirect: "error",
       signal: AbortSignal.timeout(10000),
       headers: {
@@ -33,7 +33,8 @@ export async function ensureLocalIdentityMachine({
       },
       body: JSON.stringify(body),
     });
-    if (!response.ok) throw new Error("native identity machine setup unavailable");
+    if (!response.ok)
+      throw new Error(`native identity machine setup unavailable (${method} ${response.status})`);
     const text = await response.text();
     if (text.length > 8192) throw new Error("oversized native identity machine proof");
     try {
@@ -73,7 +74,7 @@ export async function ensureLocalIdentityMachine({
     accessTokenType: "ACCESS_TOKEN_TYPE_JWT",
   });
   if (!validID(machine.userId)) throw new Error("native identity machine unavailable");
-  const credential = await request(`/management/v1/users/${machine.userId}/secret`, {});
+  const credential = await request(`/management/v1/users/${machine.userId}/secret`, {}, "PUT");
   if (
     credential.clientId !== machine.userId ||
     typeof credential.clientSecret !== "string" ||

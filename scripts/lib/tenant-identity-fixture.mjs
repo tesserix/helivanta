@@ -85,3 +85,37 @@ export async function ensureTenantIdentityFixtures({ issuer, pat, fetcher = fetc
   }
   return { projectId, adminOrgId };
 }
+
+export async function verifyLocalIdentityUser({ issuer, pat, subject, tenantId, fetcher = fetch }) {
+  if (
+    issuer !== localIssuer ||
+    !tenants.includes(tenantId) ||
+    typeof subject !== "string" ||
+    !/^[A-Za-z0-9_-]{1,200}$/.test(subject)
+  )
+    throw new Error("native Staff fixture requires its isolated owner");
+  const response = await fetcher(`${issuer}/v2/users/${subject}`, {
+    method: "GET",
+    redirect: "error",
+    signal: AbortSignal.timeout(10000),
+    headers: { Authorization: `Bearer ${pat}` },
+  });
+  if (!response.ok) throw new Error("native Staff fixture account unavailable");
+  const body = await response.text();
+  if (body.length > 8192) throw new Error("native Staff fixture account proof oversized");
+  let user;
+  try {
+    user = JSON.parse(body)?.user;
+  } catch {
+    throw new Error("native Staff fixture account proof malformed");
+  }
+  if (
+    !user ||
+    user.userId !== subject ||
+    user.state !== "USER_STATE_ACTIVE" ||
+    user.details?.resourceOwner !== `helivanta-${tenantId}` ||
+    !user.human ||
+    user.machine
+  )
+    throw new Error("native Staff fixture account ownership mismatch");
+}

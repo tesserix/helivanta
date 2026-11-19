@@ -65,7 +65,10 @@ import {
   ensureLocalIdentityMachine,
   readPrivateFixtureSecret,
 } from "./lib/identity-machine-fixture.mjs";
-import { ensureTenantIdentityFixtures } from "./lib/tenant-identity-fixture.mjs";
+import {
+  ensureTenantIdentityFixtures,
+  verifyLocalIdentityUser,
+} from "./lib/tenant-identity-fixture.mjs";
 
 const ISSUER = process.env.ZITADEL_ISSUER_URL ?? "http://auth.tesserix.localhost:20080";
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
@@ -157,10 +160,38 @@ const USERS = [
         },
       ]
     : []),
-  ...specSlugs().flatMap((slug) => [
-    { email: specEmail(slug, "admin"), memberships: ADMIN_MEMBERSHIPS },
-    { email: specEmail(slug, "pharmacist"), memberships: PHARMACIST_MEMBERSHIPS },
-  ]),
+  ...(process.env.HELIVANTA_STAFF_MFA_RECOVERY_FIXTURE === "true"
+    ? [
+        {
+          email: "e2e-staff-mfa-pharmacy-native-reviewer@helivanta.dev",
+          homeTenant: SECOND_TENANT_ID,
+          memberships: [{ tenantId: SECOND_TENANT_ID, role: "tenant_admin" }],
+        },
+        {
+          email: "e2e-staff-mfa-pharmacy-native-foreign@helivanta.dev",
+          memberships: [{ tenantId: TENANT_ID, role: "tenant_admin" }],
+        },
+      ]
+    : []),
+  ...specSlugs().flatMap((slug) =>
+    slug === "staff-mfa-pharmacy-native"
+      ? [
+          {
+            email: specEmail(slug, "admin"),
+            homeTenant: SECOND_TENANT_ID,
+            memberships: [{ tenantId: SECOND_TENANT_ID, role: "tenant_admin" }],
+          },
+          {
+            email: specEmail(slug, "pharmacist"),
+            homeTenant: SECOND_TENANT_ID,
+            memberships: [{ tenantId: SECOND_TENANT_ID, role: "pharmacist" }],
+          },
+        ]
+      : [
+          { email: specEmail(slug, "admin"), memberships: ADMIN_MEMBERSHIPS },
+          { email: specEmail(slug, "pharmacist"), memberships: PHARMACIST_MEMBERSHIPS },
+        ],
+  ),
 ];
 
 function profileFor(email) {
@@ -181,11 +212,11 @@ async function findUserId(pat, email) {
 // resolves its existing userId if it already exists. Returns the userId —
 // which becomes authn.Principal.Subject and must match the `subject`
 // written into iam_members below, or the seeded user has no permissions.
-async function ensureUser(pat, email) {
+async function ensureUser(pat, email, homeTenant = TENANT_ID) {
   try {
     const created = await managementAPI(ISSUER, pat, "/v2/users/human", {
       username: email,
-      organization: { orgId: `helivanta-${TENANT_ID}` },
+      organization: { orgId: `helivanta-${homeTenant}` },
       profile: profileFor(email),
       email: { email, isVerified: true },
       password: { password: PASSWORD, changeRequired: false },
@@ -320,8 +351,9 @@ async function main() {
   await pg.connect();
 
   try {
-    for (const { email, memberships } of USERS) {
-      const userId = await ensureUser(pat, email);
+    for (const { email, memberships, homeTenant = TENANT_ID } of USERS) {
+      const userId = await ensureUser(pat, email, homeTenant);
+      await verifyLocalIdentityUser({ issuer: ISSUER, pat, subject: userId, tenantId: homeTenant });
       console.log(`Seeded ${email} / ${PASSWORD} (userId=${userId})`);
 
       // Bootstrap: the first tenant_admin cannot be granted through a

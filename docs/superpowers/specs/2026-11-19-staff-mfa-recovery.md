@@ -387,3 +387,30 @@ before starting the guarded owner and HMS services. Local validation passed:
 scoped Go race/vet/lint, the Go build and the shell production build. Generated
 shell build output was removed. Independent-employer native acceptance, hosted
 SQL/browser results, normal merge and deployed verification remain outstanding.
+
+
+## Independent native pharmacy journey and fixture protocol correction
+
+The authored hospital journey now shares its credential/factor assertions with
+`e2e/tests/staff-mfa-pharmacy-native.spec.ts`. That separate spec owns distinct
+native Tenant B administrator, reviewer and ordinary Staff accounts. Its pharmacy
+and employing establishment are created through the published PharmaConnect and
+Workforce registration APIs. Staff and independently reviewed account links also
+use actual API commands. A separate native Tenant A administrator is refused with
+404 before the original factor is removed; the hospital route also refuses the
+pharmacy establishment. Tenant B then drives the pharmacy Staff UI reset and the
+same old-access, replacement-enrollment and fresh-renewal assertions. Neither
+journey uses a fabricated native session or source projection. The seed verifies
+each real human account's active native owner before writing its IAM membership.
+
+Hosted run `44455733168` exposed two preparation failures: scripts lint required
+retaining the wrapped private-file error's cause, and native seeding returned
+405 for a `POST` machine-secret command. The pinned upstream
+[Zitadel v4.15.3 management protobuf](https://github.com/zitadel/zitadel/blob/v4.15.3/proto/zitadel/management.proto)
+defines `GenerateMachineSecret` as `PUT /users/{user_id}/secret`. The fixture now
+uses that method; its protocol regression failed with `POST` and passes with
+`PUT`. Failure diagnostics expose method/status only, never a provider payload or
+credential. Native human fixture proofs reject foreign owners, machines, inactive
+or mismatched subjects, production issuers and malformed provider payloads.
+These corrections still require a fresh hosted run. No browser success, merge,
+live migration or deployment is claimed by adding these test cases.

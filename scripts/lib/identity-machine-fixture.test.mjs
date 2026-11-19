@@ -25,8 +25,10 @@ test("creates one real native machine and retains its dedicated credential witho
       calls.push([url, options]);
       if (url.endsWith("/_search")) return response({ result: [] });
       if (url.endsWith("/users/machine")) return response({ userId: "native-machine" });
-      if (url.endsWith("/native-machine/secret"))
+      if (url.endsWith("/native-machine/secret")) {
+        assert.equal(options.method, "PUT", "pinned native GenerateMachineSecret uses PUT");
         return response({ clientId: "native-machine", clientSecret: "synthetic-client-secret" });
+      }
       throw new Error("unbounded native fixture request");
     },
   });

@@ -48,6 +48,22 @@ No live schema, identity, factor, feature flag, deployment or Kargo promotion wa
 changed during this discovery. Readiness of the existing workloads is a baseline,
 not candidate acceptance.
 
+### Read-only refresh, 20 November 2026 AEDT
+
+The operator account, project and context above remain active. API and shell each
+have two Ready replicas at `65899b98365063acf6828d8b697ad58a914f993a`; the
+`onboarding-api` Deployment has two Ready replicas at
+`f47d44dae55e7e8ab62b657f21ff8aadb139e8a5`. These are the current sign-in releases,
+not the recovery candidate. The five Argo applications listed above remain
+Healthy/Synced, and both Kargo production stages report Ready, Healthy and
+Verified. The global schema CronJob remains unsuspended at `*/30 * * * *`.
+
+Schema PR #1713 at `7bd817e6fdfec553ee95499faf6076f155a4907d` contains all of
+password-schema PR #1712 at `363dce21216c5e4830a33465d988f043b5ee960d` and adds the
+MFA schema and its tests. The GitHub comparison reports two commits ahead and
+zero behind. The approval request must identify this combined schema release;
+do not schedule two independent applications of its shared SQL.
+
 ## Gates before the approval request
 
 1. Keep the owner and application branches current through normal review. Pin

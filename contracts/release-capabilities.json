@@ -5503,6 +5503,16 @@
       "method": "GET",
       "path": "/v1/workspace/release-capabilities",
       "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/drugmaster",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/from-drugmaster",
+      "capability": "pharmacy_catalogue"
     }
   ],
   "pages": [

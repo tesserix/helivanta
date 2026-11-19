@@ -525,9 +525,11 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories/:id/retire` | `pharmacy.category.declare` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories/:id` | `pharmacy.category.declare` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories` | `pharmacy.catalogue.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/drugmaster` | `pharmacy.catalogue.read` | false | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/category/:declaration/review` | `pharmacy.category.review` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/category/:declaration` | `pharmacy.category.declare` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/category` | `pharmacy.catalogue.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/from-drugmaster` | `pharmacy.catalogue.write` | false | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/price-control/:declaration/review` | `pharmacy.price_control.review` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/price-control/:declaration` | `pharmacy.price_control.declare` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/price-control` | `pharmacy.catalogue.read` | false | false |

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { CatalogueProduct } from "./stock-product-contract";
 import {
   pharmacyStorageAddressSchema,
   pharmacyLocationInputSchema,
@@ -59,6 +60,7 @@ export type PharmacyProduct = z.infer<typeof pharmacyProductFieldsSchema> & {
   created_at: string;
   updated_at: string;
   tax?: PharmacyProductTax | null;
+  drug_master?: CatalogueProduct | null;
 };
 /** Effective-dated, append-only tax rows report whether they apply today. */
 type TaxHistoryRow = {

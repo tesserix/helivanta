@@ -225,3 +225,10 @@ export * from "./assignment-target-choices";
 export * from "./member-presentations";
 export * from "./release-capabilities";
 export * from "./use-release-capabilities";
+
+export {
+  CatalogueProductContract,
+  CatalogueImportContract,
+  type CatalogueProduct,
+  type CatalogueImport,
+} from "./stock-product-contract";

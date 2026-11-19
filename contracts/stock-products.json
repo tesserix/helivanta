@@ -57,6 +57,181 @@
         "name": "ndps",
         "type": "bool"
       }
+    ],
+    "CatalogueIngredient": [
+      {
+        "name": "molecule_id",
+        "type": "uuid"
+      },
+      {
+        "name": "inn_name",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "strength_value",
+        "type": "string",
+        "min": 1,
+        "max": 30
+      },
+      {
+        "name": "strength_unit",
+        "type": "string",
+        "min": 1,
+        "max": 40
+      },
+      {
+        "name": "per_value",
+        "type": "string",
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "per_unit",
+        "type": "string",
+        "pointer": true,
+        "nullable": true
+      }
+    ],
+    "CatalogueProduct": [
+      {
+        "name": "product_id",
+        "type": "uuid"
+      },
+      {
+        "name": "version_id",
+        "type": "uuid"
+      },
+      {
+        "name": "formulation_id",
+        "type": "uuid"
+      },
+      {
+        "name": "formulation_version_id",
+        "type": "uuid"
+      },
+      {
+        "name": "release_id",
+        "type": "uuid"
+      },
+      {
+        "name": "source_name",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "source_version",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "licence_ref",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "brand_name",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "manufacturer",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "formulation_label",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "dose_form",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "route",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "regulatory_class",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "valid_from",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "pack_size",
+        "type": "int",
+        "min": 1,
+        "max": 1000000
+      },
+      {
+        "name": "unit_of_issue",
+        "type": "string",
+        "min": 1,
+        "max": 40
+      },
+      {
+        "name": "gtin",
+        "type": "string",
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "hsn_code",
+        "type": "string",
+        "min": 4,
+        "max": 8
+      },
+      {
+        "name": "ndps",
+        "type": "bool"
+      },
+      {
+        "name": "ingredients",
+        "type": "[]CatalogueIngredient",
+        "min": 1,
+        "max": 20,
+        "orm_ignore": true
+      }
+    ],
+    "CatalogueImport": [
+      {
+        "name": "version_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "currency",
+        "type": "string",
+        "enum": [
+          "INR"
+        ],
+        "binding": "required,oneof=INR"
+      },
+      {
+        "name": "mrp_minor",
+        "type": "int64",
+        "min": 0,
+        "max": 1000000000000,
+        "pointer": true,
+        "binding": "required,min=0,max=1000000000000"
+      }
     ]
   }
 }

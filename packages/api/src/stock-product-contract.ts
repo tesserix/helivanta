@@ -40,3 +40,120 @@ export const ReferenceContract = z
   })
   .strict();
 export type Reference = z.infer<typeof ReferenceContract>;
+
+export const CatalogueIngredientContract = z
+  .object({
+    molecule_id: identifier,
+    inn_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    strength_value: z
+      .string()
+      .min(1)
+      .max(30)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    strength_unit: z
+      .string()
+      .min(1)
+      .max(40)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    per_value: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .nullable(),
+    per_unit: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .nullable(),
+  })
+  .strict();
+export type CatalogueIngredient = z.infer<typeof CatalogueIngredientContract>;
+
+export const CatalogueProductContract = z
+  .object({
+    product_id: identifier,
+    version_id: identifier,
+    formulation_id: identifier,
+    formulation_version_id: identifier,
+    release_id: identifier,
+    source_name: z
+      .string()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    source_version: z
+      .string()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    licence_ref: z
+      .string()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    brand_name: z
+      .string()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    manufacturer: z
+      .string()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    formulation_label: z
+      .string()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    dose_form: z
+      .string()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    route: z
+      .string()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    regulatory_class: z
+      .string()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    valid_from: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    pack_size: z.number().int().min(1).max(1000000),
+    unit_of_issue: z
+      .string()
+      .min(1)
+      .max(40)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    gtin: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .nullable(),
+    hsn_code: z
+      .string()
+      .min(4)
+      .max(8)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    ndps: z.boolean(),
+    ingredients: z.array(CatalogueIngredientContract).min(1).max(20),
+  })
+  .strict();
+export type CatalogueProduct = z.infer<typeof CatalogueProductContract>;
+
+export const CatalogueImportContract = z
+  .object({
+    version_id: identifier,
+    currency: z.enum(["INR"]),
+    mrp_minor: z.number().int().min(0).max(1000000000000),
+  })
+  .strict();
+export type CatalogueImport = z.infer<typeof CatalogueImportContract>;

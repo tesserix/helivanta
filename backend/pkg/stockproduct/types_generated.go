@@ -18,3 +18,42 @@ type Reference struct {
 	RegulatoryClass      string    `json:"regulatory_class"`
 	Ndps                 bool      `json:"ndps"`
 }
+
+type CatalogueIngredient struct {
+	MoleculeID    uuid.UUID `json:"molecule_id"`
+	InnName       string    `json:"inn_name"`
+	StrengthValue string    `json:"strength_value"`
+	StrengthUnit  string    `json:"strength_unit"`
+	PerValue      *string   `json:"per_value"`
+	PerUnit       *string   `json:"per_unit"`
+}
+
+type CatalogueProduct struct {
+	ProductID            uuid.UUID             `json:"product_id"`
+	VersionID            uuid.UUID             `json:"version_id"`
+	FormulationID        uuid.UUID             `json:"formulation_id"`
+	FormulationVersionID uuid.UUID             `json:"formulation_version_id"`
+	ReleaseID            uuid.UUID             `json:"release_id"`
+	SourceName           string                `json:"source_name"`
+	SourceVersion        string                `json:"source_version"`
+	LicenceRef           string                `json:"licence_ref"`
+	BrandName            string                `json:"brand_name"`
+	Manufacturer         string                `json:"manufacturer"`
+	FormulationLabel     string                `json:"formulation_label"`
+	DoseForm             string                `json:"dose_form"`
+	Route                string                `json:"route"`
+	RegulatoryClass      string                `json:"regulatory_class"`
+	ValidFrom            string                `json:"valid_from"`
+	PackSize             int                   `json:"pack_size"`
+	UnitOfIssue          string                `json:"unit_of_issue"`
+	Gtin                 *string               `json:"gtin"`
+	HsnCode              string                `json:"hsn_code"`
+	Ndps                 bool                  `json:"ndps"`
+	Ingredients          []CatalogueIngredient `json:"ingredients" gorm:"-"`
+}
+
+type CatalogueImport struct {
+	VersionID uuid.UUID `json:"version_id" binding:"required"`
+	Currency  string    `json:"currency" binding:"required,oneof=INR"`
+	MrpMinor  *int64    `json:"mrp_minor" binding:"required,min=0,max=1000000000000"`
+}

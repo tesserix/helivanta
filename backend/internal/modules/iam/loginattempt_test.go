@@ -47,9 +47,10 @@ func newTestLoginAttemptStore(t *testing.T) (*loginAttemptStore, context.Context
 
 // loginAttemptMigrationIDs is every migration that shapes login_attempt:
 // the table (0004_iam), its enrolling column (0006_iam, #948) and its stage
-// column (0007_iam, #856). Tests apply exactly these, in order — the store
+// column (0007_iam, #856), plus login_account_choice (0053, #1751), which the
+// same store and sweep own. Tests apply exactly these, in order — the store
 // depends on nothing else in the module.
-var loginAttemptMigrationIDs = []string{"0004_iam", "0006_iam", "0007_iam"}
+var loginAttemptMigrationIDs = []string{"0004_iam", "0006_iam", "0007_iam", "0053_iam_login_account_choice"}
 
 // migrateLoginAttempt applies loginAttemptMigrationIDs to db, failing the
 // test if any of them is missing from the module.

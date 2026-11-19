@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
 import {
@@ -32,13 +33,19 @@ import {
 import { getUserManager } from "@/lib/oidc";
 import { AccountDiscovery } from "@/components/account-discovery";
 import { MfaCodeForm } from "@/components/mfa-code-form";
-import { rememberWorkspace, workspaceSigninScope } from "@/lib/workspace-signin";
+import {
+  readRememberedWorkspace,
+  rememberWorkspace,
+  workspaceSigninScope,
+} from "@/lib/workspace-signin";
 import { RenewalFailedError, renewSession, type RenewalResult } from "@/lib/renew";
 import {
   changePassword,
   checkFactor,
   checkPassword,
+  chooseAccount,
   verifyEnrollment,
+  type AccountChoice,
   type AuthPoliciesInfo,
   type AuthRequestInfo,
   type FactorCheckResult,
@@ -181,6 +188,13 @@ function AuthChromeLoading() {
 //    calls the exact same signinRedirect() a fresh visit to /login does,
 //    which is genuinely what starting again means here.
 //  - success → CredentialForm, unchanged.
+// The scope prefix that pins an auth request to one Zitadel organisation.
+const ORGANIZATION_SCOPE_PREFIX = "urn:zitadel:iam:org:id:";
+
+// The emailed-code account finder, kept as the fallback to the single card
+// (#1751 spec D7): no remembered account, no password to hand, or recovery.
+const FIND_ACCOUNTS_HREF = "/login?find=accounts";
+
 function ValidatedCredentialForm({ authRequestId }: { authRequestId: string }) {
   const authRequest = useApiQuery<AuthRequestInfo>(
     ["auth-login-request", authRequestId],
@@ -208,6 +222,7 @@ function ValidatedCredentialForm({ authRequestId }: { authRequestId: string }) {
       authRequestId={authRequestId}
       policies={authRequest.data.policies}
       loginHint={authRequest.data.login_hint}
+      scoped={authRequest.data.scope.some((scope) => scope.startsWith(ORGANIZATION_SCOPE_PREFIX))}
     />
   );
 }
@@ -245,6 +260,7 @@ function toMethodPolicy(policies: AuthPoliciesInfo): AuthMethodPolicy {
 // the same way, in the step itself.
 type LoginStep =
   | { kind: "credential" }
+  | { kind: "accountChoice"; currentPassword: string; choices: AccountChoice[] }
   | { kind: "securityKey"; url: string }
   | { kind: "otp"; currentPassword: string }
   | { kind: "enroll"; currentPassword: string; totp: TotpEnrollment }
@@ -269,10 +285,12 @@ function LoginFlow({
   authRequestId,
   policies,
   loginHint,
+  scoped,
 }: {
   authRequestId: string;
   policies: AuthPoliciesInfo;
   loginHint?: string;
+  scoped: boolean;
 }) {
   const [step, setStep] = useState<LoginStep>({ kind: "credential" });
   // Set by either step when the sign-in cannot continue: the attempt
@@ -289,8 +307,52 @@ function LoginFlow({
     setEndedMessage(message);
   }
 
+  // Every outcome of a verified password, whether it came from the
+  // credential card or from picking an account, leads to the same next step.
+  // `complete` is the ONLY outcome that navigates — window.location.assign
+  // (not router.push), because /api/auth/callback is a full-page OIDC
+  // callback. No outcome sends the browser to Zitadel's hosted login.
+  function advance(result: PasswordCheckResult, currentPassword: string) {
+    switch (result.outcome) {
+      case "complete":
+        window.location.assign(result.callbackUrl);
+        break;
+      case "accountChoice":
+        setStep({ kind: "accountChoice", currentPassword, choices: result.choices });
+        break;
+      case "securityKeyRequired":
+        setStep({ kind: "securityKey", url: result.url });
+        break;
+      case "factorRequired":
+        setStep({ kind: "otp", currentPassword });
+        break;
+      case "enrollmentRequired":
+        // Neither success nor failure, like factorRequired: the password
+        // was right and the next step is to set up the authenticator the
+        // org requires (#948).
+        setStep({ kind: "enroll", currentPassword, totp: result.totp });
+        break;
+      case "passwordChangeRequired":
+        setStep({ kind: "passwordChange", currentPassword, change: result });
+        break;
+      case "blocked":
+        end(result.message);
+        break;
+    }
+  }
+
   if (endedMessage) {
     return <RedirectLanding message={endedMessage} />;
+  }
+
+  if (step.kind === "accountChoice") {
+    return (
+      <AccountChoiceStep
+        authRequestId={authRequestId}
+        choices={step.choices}
+        onResult={(result) => advance(result, step.currentPassword)}
+      />
+    );
   }
 
   if (step.kind === "securityKey") {
@@ -359,15 +421,8 @@ function LoginFlow({
       authRequestId={authRequestId}
       policies={policies}
       loginHint={loginHint}
-      onSecurityKeyRequired={(url) => setStep({ kind: "securityKey", url })}
-      onFactorRequired={(currentPassword) => setStep({ kind: "otp", currentPassword })}
-      onEnrollmentRequired={(currentPassword, totp) =>
-        setStep({ kind: "enroll", currentPassword, totp })
-      }
-      onPasswordChangeRequired={(currentPassword, change) =>
-        setStep({ kind: "passwordChange", currentPassword, change })
-      }
-      onBlocked={end}
+      scoped={scoped}
+      onResult={advance}
     />
   );
 }
@@ -446,20 +501,17 @@ function CredentialForm({
   authRequestId,
   policies,
   loginHint,
-  onSecurityKeyRequired,
-  onFactorRequired,
-  onEnrollmentRequired,
-  onPasswordChangeRequired,
-  onBlocked,
+  scoped,
+  onResult,
 }: {
   authRequestId: string;
   policies: AuthPoliciesInfo;
   loginHint?: string;
-  onSecurityKeyRequired: (url: string) => void;
-  onFactorRequired: (currentPassword: string) => void;
-  onEnrollmentRequired: (currentPassword: string, totp: TotpEnrollment) => void;
-  onPasswordChangeRequired: (currentPassword: string, change: PasswordChangeRequired) => void;
-  onBlocked: (message: string) => void;
+  // Whether the auth request names one organisation (a workspace link or a
+  // remembered account). Unscoped, the API resolves the account from the
+  // email after the password (#1751 spec D1).
+  scoped: boolean;
+  onResult: (result: PasswordCheckResult, currentPassword: string) => void;
 }) {
   // Lazy reads are hydration-safe: this form only mounts after a client-side request check.
   const [remembered] = useState(readRememberedUsername);
@@ -492,38 +544,11 @@ function CredentialForm({
         loginName: submitted.loginName,
       })),
     {
-      // `complete` is the ONLY outcome that navigates —
-      // window.location.assign (not router.push), because /api/auth/
-      // callback is a full-page OIDC callback. `factorRequired` (#867)
-      // hands control to LoginFlow's OTP step; `passwordChangeRequired`
-      // (#856) to its password-change step; `blocked` (#947) ends on
-      // LoginFlow's start-again landing with the API's own message. No
-      // outcome sends the browser to Zitadel's hosted login.
+      // LoginFlow's advance decides the next step; this form only records
+      // the name it was given.
       onSuccess: ({ result, password, loginName }) => {
         if (result.outcome !== "blocked") saveRememberedUsername(rememberUsername, loginName);
-        switch (result.outcome) {
-          case "complete":
-            window.location.assign(result.callbackUrl);
-            break;
-          case "securityKeyRequired":
-            onSecurityKeyRequired(result.url);
-            break;
-          case "factorRequired":
-            onFactorRequired(password);
-            break;
-          case "enrollmentRequired":
-            // Neither success nor failure, like factorRequired: the
-            // password was right and the next step is to set up the
-            // authenticator the org requires (#948).
-            onEnrollmentRequired(password, result.totp);
-            break;
-          case "passwordChangeRequired":
-            onPasswordChangeRequired(password, result);
-            break;
-          case "blocked":
-            onBlocked(result.message);
-            break;
-        }
+        onResult(result, password);
       },
       // AuthCredentialForm's own `error` prop is this mutation's error
       // surface (spec D5/D6) — it sits next to the fields and is what a
@@ -563,7 +588,9 @@ function CredentialForm({
       <AuthCardCentered>
         <div className="space-y-2 text-center">
           <TenantLoginHeading />
-          <p className="text-sm text-muted-foreground">Enter your password to continue.</p>
+          <p className="text-sm text-muted-foreground">
+            {scoped ? "Enter your password to continue." : "Sign in with your email and password."}
+          </p>
         </div>
 
         <AuthCredentialForm
@@ -623,11 +650,72 @@ function CredentialForm({
           Remember my username
         </label>
 
+        {scoped ? null : (
+          <Link
+            href={FIND_ACCOUNTS_HREF}
+            className="mt-2 block text-sm text-muted-foreground underline underline-offset-4"
+          >
+            Find my accounts by email
+          </Link>
+        )}
+
         <AuthCardFooter>
           <p className="text-xs text-muted-foreground">
             Your credential is checked directly by Helivanta.
           </p>
         </AuthCardFooter>
+      </AuthCardCentered>
+    </TenantLoginLayout>
+  );
+}
+
+// The account chooser (#1751 spec D3). Reachable only after a password matched
+// two or more accounts behind one email, so it discloses names only to
+// someone who just proved that password. Picking an account continues that
+// account exactly as a single match would.
+function AccountChoiceStep({
+  authRequestId,
+  choices,
+  onResult,
+}: {
+  authRequestId: string;
+  choices: AccountChoice[];
+  onResult: (result: PasswordCheckResult) => void;
+}) {
+  const choose = useApiMutation((tenantId: string) => chooseAccount({ authRequestId, tenantId }), {
+    onSuccess: onResult,
+    // The error renders beside the list, like the credential card's.
+    suppressErrorToast: true,
+  });
+  return (
+    <TenantLoginLayout>
+      <AuthCardCentered>
+        <div className="space-y-2 text-center">
+          <TenantLoginHeading />
+          <p className="text-sm text-muted-foreground">Choose the account to sign in to.</p>
+        </div>
+        <ul className="space-y-2" aria-label="Your accounts">
+          {choices.map((choice) => (
+            <li key={choice.tenant_id}>
+              <Button
+                variant="outline"
+                className="h-auto w-full flex-col items-start py-3 text-left"
+                disabled={choose.isPending}
+                onClick={() => choose.mutate(choice.tenant_id)}
+              >
+                <span className="font-medium">{choice.name}</span>
+                <span className="text-xs text-muted-foreground">{choice.account}</span>
+              </Button>
+            </li>
+          ))}
+        </ul>
+        {choose.error ? (
+          <p role="alert" className="text-sm text-destructive">
+            {choose.error instanceof ApiError
+              ? choose.error.message
+              : "Sign-in failed. Please try again."}
+          </p>
+        ) : null}
       </AuthCardCentered>
     </TenantLoginLayout>
   );
@@ -1091,8 +1179,15 @@ function RedirectLanding({
 }) {
   const params = useSearchParams();
   const workspace = params.get("workspace") ?? "";
+  // The emailed-code finder, asked for explicitly (FIND_ACCOUNTS_HREF).
+  const findAccounts = !workspace && params.get("find") === "accounts";
+  // A workspace link starts only when it says so (?start=1, #1431). With no
+  // workspace, sign-in starts on its own (#1751 spec D1): prompt=login means
+  // nothing is granted until a password is typed. The effect below still
+  // shows the button after a sign-out or idle end, #847's race.
+  const shouldStart = workspace ? autoStart : !findAccounts && !message;
   const [error, setError] = useState<string | null>(null);
-  const [starting, setStarting] = useState(autoStart);
+  const [starting, setStarting] = useState(shouldStart);
   // React's development double-mount must not start two redirects.
   const autoStarted = useRef(false);
   // Whether the user actually signed out, as opposed to landing here
@@ -1128,17 +1223,22 @@ function RedirectLanding({
       // Here it is cheap and worth it: this is an explicit, deliberate
       // sign-in, and forcing re-authentication means a live Zitadel session
       // cannot silently answer for whoever is now at the keyboard.
+      // A workspace link names its organisation; otherwise the account this
+      // browser last used. With neither, the request is unscoped and the API
+      // finds the account from the email after the password (#1751 spec D1).
+      const tenant = workspace.trim() || readRememberedWorkspace() || "";
       // Remembered before the round trip so a start-again landing offers this
       // workspace again instead of email discovery.
-      if (workspace) rememberWorkspace(workspace.trim());
+      if (tenant) rememberWorkspace(tenant);
+      if (tenant && !workspace) retainLoginBrandingTenant(tenant);
       await getUserManager().signinRedirect({
         prompt: "login",
-        ...(workspace
+        ...(tenant
           ? {
-              scope: workspaceSigninScope(workspace.trim()),
-              state: { purpose: "workspace-login", tenantId: workspace.trim() },
+              scope: workspaceSigninScope(tenant),
+              state: { purpose: "workspace-login", tenantId: tenant },
             }
-          : {}),
+          : { state: { purpose: "email-login" } }),
       });
     } catch (err: unknown) {
       setStarting(false);
@@ -1182,7 +1282,7 @@ function RedirectLanding({
       showLanding();
       return;
     }
-    if (!workspace || !autoStart || autoStarted.current) {
+    if (!shouldStart || autoStarted.current) {
       showLanding();
       return;
     }
@@ -1192,7 +1292,7 @@ function RedirectLanding({
     url.searchParams.delete("start");
     window.history.replaceState(window.history.state, "", url);
     void signIn();
-  }, [message, autoStart, signIn, workspace]);
+  }, [message, shouldStart, signIn]);
 
   return (
     <TenantLoginLayout>
@@ -1210,10 +1310,20 @@ function RedirectLanding({
           </p>
         </div>
 
-        {workspace ? (
-          <Button size="lg" className="w-full" onClick={signIn} disabled={starting}>
-            {starting ? "Redirecting…" : "Sign in"}
-          </Button>
+        {!findAccounts ? (
+          <>
+            <Button size="lg" className="w-full" onClick={signIn} disabled={starting}>
+              {starting ? "Redirecting…" : "Sign in"}
+            </Button>
+            {workspace ? null : (
+              <Link
+                href={FIND_ACCOUNTS_HREF}
+                className="block text-center text-sm text-muted-foreground underline underline-offset-4"
+              >
+                Find my accounts by email
+              </Link>
+            )}
+          </>
         ) : (
           <AccountDiscovery
             onSelect={async (tenantId, email) => {

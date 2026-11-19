@@ -60,7 +60,11 @@ func TestTenantPasswordSessionUsesTheBrokerAndRechecksTheNativeSessionOrg(t *tes
 				}
 				return "tenant-owner", nil
 			}))
-			session, err := c.CreatePasswordSessionForRequest(t.Context(), "V2_test", "web", "same@example.test", "test-password")
+			got, err := c.CreatePasswordSessionForRequest(t.Context(), "V2_test", "web", "same@example.test", "test-password")
+			session := Session{}
+			if len(got) == 1 {
+				session = got[0].Session
+			}
 			if lookups != 1 {
 				t.Fatal("broker not used")
 			}
@@ -101,7 +105,7 @@ func TestTenantPasswordSessionRejectsUnsafeNativeRequestBeforePassword(t *testin
 			}))
 			defer server.Close()
 			s, err := New(server.URL, "synthetic", server.Client()).CreatePasswordSessionForRequest(t.Context(), "V2_test", "web", "same@example.test", "test-password")
-			if !errors.Is(err, ErrAuthRequestInvalid) || s.ID != "" {
+			if !errors.Is(err, ErrAuthRequestInvalid) || len(s) != 0 {
 				t.Fatalf("unsafe native request accepted: %v", err)
 			}
 		})

@@ -30,7 +30,7 @@ func TestPasswordOffersExplicitNativeSecurityKeyContinuationWithoutFinalizing(t 
 	mux.HandleFunc("POST /v2/oidc/auth_requests/"+loginUITestAuthRequestID, func(w http.ResponseWriter, _ *http.Request) { finalized = true; w.WriteHeader(500) })
 	native := httptest.NewTLSServer(mux)
 	t.Cleanup(native.Close)
-	res := postPassword(t, loginclient.New(native.URL, "synthetic", native.Client()), "owner@example.test", "synthetic-password")
+	res := postPassword(t, withNoEmailAccounts(loginclient.New(native.URL, "synthetic", native.Client())), "owner@example.test", "synthetic-password")
 	require.Equal(t, 200, res.Code, res.Body.String())
 	var body struct {
 		SecurityKey struct {
@@ -72,7 +72,7 @@ func TestPasswordKeepsUnsupportedAndMixedFactorsClosed(t *testing.T) {
 				}
 			}))
 			t.Cleanup(native.Close)
-			res := postPassword(t, loginclient.New(native.URL, "synthetic", native.Client()), "owner@example.test", "synthetic")
+			res := postPassword(t, withNoEmailAccounts(loginclient.New(native.URL, "synthetic", native.Client())), "owner@example.test", "synthetic")
 			require.Equal(t, http.StatusForbidden, res.Code, res.Body.String())
 			require.NotContains(t, res.Body.String(), "security_key_required")
 			require.NotContains(t, res.Body.String(), "callback_url")

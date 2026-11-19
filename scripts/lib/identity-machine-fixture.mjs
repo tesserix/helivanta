@@ -102,6 +102,6 @@ export function readPrivateFixtureSecret(file) {
     return value;
   } catch (error) {
     if (error.code === "ENOENT") return null;
-    throw new Error("isolated product credential unavailable");
+    throw new Error("isolated product credential unavailable", { cause: error });
   }
 }

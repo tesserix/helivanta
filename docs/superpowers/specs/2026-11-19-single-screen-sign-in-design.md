@@ -154,7 +154,8 @@ request's scope differs.
 
 ### D9 — More than five accounts behind one email
 
-The identity owner returns at most five candidates and a `truncated` flag. When
+The identity owner returns at most five candidates; past five it returns none
+and sets `truncated`, so no binding the handler must not use reaches it. When
 the flag is set the handler does not check any password: it answers the
 distinct, non-enumerating `400 too_many_accounts` with "Use your workspace link
 or find your accounts by email", the same way an expired auth request gets its
@@ -165,8 +166,11 @@ protecting against.
 
 ### D10 — A tenant that signs in through its own identity provider
 
-Each candidate carries `password_allowed`, read by the identity owner from the
-organisation's login policy (the same read #950 made per org). Candidates with
+Helivanta reads `allowUsernamePassword` for each candidate's organisation itself,
+through the existing `loginclient.LoginPolicyForOrg` (the per-org read #950
+added), so the identity owner's contract stays identity-only. A failed policy
+read is `ErrUnavailable` (503), never a skip: skipping would turn an outage into
+a silent refusal. Candidates with
 `password_allowed: false` are skipped, never checked. If every candidate is
 skipped and the login name had an `@`, the handler answers `202
 { "idp_required": [ { "tenant_id", "name" } ] }` only when the submitted
@@ -183,7 +187,8 @@ every federated user on the new card. Record this in the threat table of
 
 Clarified by the product owner on 2026-11-19: the emailed code is a new-device
 check, not discovery proof, and the authenticator app remains the second
-factor. Order after a verified password, for the resolved account:
+factor. Confirmed the same day: the code is asked only on a new device **and**
+when the account has no enrolled authenticator, never on every new device. Order after a verified password, for the resolved account:
 
 1. The organisation's own policy runs first, unchanged: `factorRequired`
    (authenticator code), `enrollmentRequired`, `passwordChangeRequired`,
@@ -226,9 +231,10 @@ return to the requested page after sign-in, and the remaining findings of the
 - `POST /v1/auth/login/email-code`: new, same shape and budget as
   `/factor`; `login_device` table and the `stageEmailCode` attempt stage,
   migration `NNNN_iam`.
-- Onboarding `customercontract`: `LoginTargetsInput`, `LoginTargets` with
-  `truncated` and per-candidate `password_allowed` (onboarding-service#46). Helivanta consumes the generated type; no copied
-  wire model.
+- Onboarding `customercontract`: `LoginTargetsInput`, `LoginCandidate` and
+  `LoginTargets` with `truncated` (onboarding-service#46, PR #47). Helivanta
+  consumes the generated type; no copied wire model. `password_allowed` is
+  not in it: see D10.
 - `release-capabilities.json`: the new route is classified with the other
   login routes.
 - `docs/api/domains/platform.md` and `go run ./cmd/contractdocs` outputs.
@@ -272,6 +278,6 @@ Gates: `pnpm turbo lint type-check test build format:check`, `make lint-go`,
 
 ## Open before implementation
 
-1. onboarding-service#46 merged and its `customercontract` version bumped here.
+1. onboarding-service#46 merged (PR #47) and its `customercontract` version bumped here.
 2. ~~Production Zitadel lockout policy value recorded (D6).~~ Done: ten, see D6.
 3. Floor re-measured with concurrent checks (D5).

@@ -100,3 +100,59 @@ test("conditional owner callbacks are explicit baseline routes, never public cap
   value.internal_routes[0].path = "/internal/:any";
   assert.throws(() => validateReleaseManifest(value, value.routes), /invalid internal owner route/);
 });
+
+test("snapshot wire keys and bounds follow the canonical capability catalogue", async () => {
+  const { releaseWireModels } = await import("./lib/release-capabilities.mjs");
+  const value = manifest();
+  value.models = {
+    ReleaseCapability: [{ name: "key", type: "string", enum_from: "capabilities.key" }],
+    ReleaseSnapshot: [
+      { name: "capabilities", type: "[]ReleaseCapability", count_from: "capabilities" },
+    ],
+  };
+  const models = releaseWireModels(value);
+  assert.deepEqual(models.ReleaseCapability[0].enum, ["team_accounts", "staff_core"]);
+  assert.equal(models.ReleaseSnapshot[0].min, 2);
+  assert.equal(models.ReleaseSnapshot[0].max, 2);
+  value.capabilities.push({
+    key: "staff_mfa_recovery",
+    dependencies: ["staff_core"],
+    eligible: false,
+    owner: "workforce",
+  });
+  const added = releaseWireModels(value);
+  assert.deepEqual(added.ReleaseCapability[0].enum, [
+    "team_accounts",
+    "staff_core",
+    "staff_mfa_recovery",
+  ]);
+  assert.equal(added.ReleaseSnapshot[0].min, 3);
+  assert.equal(added.ReleaseSnapshot[0].max, 3);
+  assert.equal(
+    value.models.ReleaseSnapshot[0].min,
+    undefined,
+    "generation must preserve canonical directives",
+  );
+});
+
+test("manually copied or unknown snapshot bindings cannot bypass catalogue derivation", async () => {
+  const { releaseWireModels } = await import("./lib/release-capabilities.mjs");
+  const value = manifest();
+  for (const [key, count] of [
+    [
+      { name: "key", type: "string", enum: ["old_key"] },
+      { name: "capabilities", type: "[]ReleaseCapability", min: 1, max: 1 },
+    ],
+    [
+      { name: "key", type: "string", enum_from: "unknown" },
+      { name: "capabilities", type: "[]ReleaseCapability", count_from: "capabilities" },
+    ],
+    [
+      { name: "key", type: "string", enum_from: "capabilities.key", enum: ["old_key"] },
+      { name: "capabilities", type: "[]ReleaseCapability", count_from: "capabilities" },
+    ],
+  ]) {
+    value.models = { ReleaseCapability: [key], ReleaseSnapshot: [count] };
+    assert.throws(() => releaseWireModels(value), /catalogue/);
+  }
+});

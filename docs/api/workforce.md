@@ -2308,7 +2308,13 @@ duplicate or recased fields, and accepts no query parameters. Success is 202 wit
 only the canonical `StaffMFARecoveryReceipt` (`commandId`, `state`). `GET` has no
 body and returns 200 with the same minimized receipt after current source checks.
 
-The owner first prepares one frozen command. IAM then commits an append-only
+IAM first retains the exact canonical orchestration request in a private,
+append-only `iam_staff_mfa_commands` row. This is delivery/reconciliation evidence,
+not a separate identity or native recovery master. The row binds the original
+actor, employer, Staff scope, versions and reason before contacting the identity
+owner. The browser can retain only an opaque command marker; the reason and
+original request never need to be persisted in browser storage. The identity
+owner then prepares its native command. IAM commits an append-only
 `iam_staff_mfa_fences` row, credential watermark, audit and invalidation outbox
 before native dispatch. Its immutable fingerprint binds the exact actor, tenant,
 reviewed target/version, command and reason. Retry reads the first cutoff instead
@@ -2319,6 +2325,18 @@ retries factor removal. Source and IAM authority are rechecked around external I
 no database transaction or guarded callback holds a lock across that I/O.
 
 Cancellation requires `{}` and the same original command, verified tenant, actor
+and employer/Staff path. IAM records the immutable cancellation intent under the
+same per-command lock. If preparation has not arrived, a scope-bound empty-intent
+tombstone prevents any late request from preparing or dispatching. If the original
+intent is already retained, IAM calls the native owner's atomic cancellation
+with that stored request, even when the preparation response was lost. The browser
+does not need to resend the reason or reconstruct a historical link version.
+A local request without an owner acknowledgement is not reported as natively
+prepared; a status lookup remains unavailable until reconciled. An empty-intent
+cancellation can be acknowledged locally because the protocol and fence foreign
+key prevent any native action for that tombstoned command.
+
+Cancellation requires `{}` and the same original command, verified tenant, actor
 and employer/Staff path. A currently fresh tenant administrator may cancel their
 own undispatched command even if its target was subsequently promoted, transferred
 or its reviewed version changed. This cancellation creates no employment or
@@ -2326,8 +2344,9 @@ operating authority, performs no native factor write and does not restore a
 revoked application credential. Owner-side prepared-only cancellation is atomic
 with dispatch; processing, completed and uncertain commands cannot be cancelled.
 This permits safe recovery of a prepared command without reauthorizing a reset
-against a stale or privileged target. Status disclosure and dispatch retain their
-current-target checks.
+against a stale or privileged target. Dispatch and non-cancelled status disclosure retain their current-target
+checks. A confirmed cancellation discloses only the initiating actor's minimized
+receipt under the original employer/Staff route.
 
 Errors: 400 invalid intent, 401 fresh/current authentication required, 403 missing
 current administration or protected/self target, 404 invisible/wrong employer or
@@ -2336,9 +2355,11 @@ command, and 503 unavailable authorization, audit, ledger or native evidence.
 Every response is no-store; private owner snapshots and Staff/native identifiers
 are not browser receipts.
 
-IAM migration `0053_iam_staff_mfa_fences` is additive, tenant-isolated and append-only;
-its guards reject changes/deletion and require attributed ordinary-account
-revocation. After accepted writes its history cannot be rolled back by deleting
+IAM migration `0053_iam_staff_mfa_fences` includes the command, cancellation and
+fence tables. It is additive, tenant-isolated and append-only;
+its guards reject changes/deletion, bind native dispatch fences to an uncancelled
+retained request, require attributed ordinary-account revocation, and require an
+empty request to acquire its cancellation marker atomically before commit. After accepted writes its history cannot be rolled back by deleting
 the table; recovery is forward-only. No live migration is authorized by this
 candidate. Local transport/fresh-authority tests and compilation are evidence only
 for those paths. Authored real-PostgreSQL integration cases cover hospital replay,

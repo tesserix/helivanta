@@ -121,11 +121,9 @@ func (h *handlers) staffMFA(c *gin.Context, operation string) {
 	if reset {
 		receipt, err = h.staffMFARecovery.Reset(c.Request.Context(), p, input, source)
 	} else if operation == "cancel" {
-		receipt, err = h.staffMFARecovery.Cancel(c.Request.Context(), p, command.String(), func(target customercontract.StaffMFARecoveryTarget) bool {
-			return target.TenantID == p.TenantID && target.EmployerKind == root.kind && target.EmployerID == root.id.String() && target.StaffID == staff.String()
-		})
+		receipt, err = h.staffMFARecovery.Cancel(c.Request.Context(), p, command.String(), platform.StaffMFARecoveryScope{EmployerKind: root.kind, EmployerID: root.id, StaffID: staff})
 	} else {
-		receipt, err = h.staffMFARecovery.Read(c.Request.Context(), p, command.String(), source)
+		receipt, err = h.staffMFARecovery.Read(c.Request.Context(), p, command.String(), platform.StaffMFARecoveryScope{EmployerKind: root.kind, EmployerID: root.id, StaffID: staff}, source)
 	}
 	if err != nil {
 		staffMFAError(c, err)

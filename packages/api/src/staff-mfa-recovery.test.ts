@@ -1,0 +1,99 @@
+import { afterEach, expect, it, vi } from "vitest";
+import { resetStaffMFA, readStaffMFARecovery, cancelStaffMFARecovery } from "./staff-mfa-recovery";
+
+const scope = {
+  tenantId: "11111111-1111-4111-8111-111111111111",
+  subject: "acting-admin",
+  employerKind: "hospital" as const,
+  employerId: "11111111-1111-4111-8111-111111111112",
+  staffId: "11111111-1111-4111-8111-111111111113",
+};
+const id = "019f39c2-1738-7998-b5de-6d4214f614e0";
+const input = {
+  commandId: id,
+  expectedLinkId: "019f39c2-1738-7998-b5de-6d4214f614e1",
+  expectedLinkVersion: 2,
+  expectedStaffVersion: 1,
+  reason: "Verified lost authenticator",
+};
+const receipt = { commandId: id, state: "awaiting_enrollment" };
+afterEach(() => vi.unstubAllGlobals());
+
+it.each([
+  ["hospital", "hospitals"],
+  ["pharmacy", "pharmacies"],
+  ["supplier", "suppliers"],
+] as const)(
+  "binds %s reset to its verified account, employer and original command",
+  async (employerKind, family) => {
+    const fetcher = vi.fn(async () => Response.json(receipt));
+    vi.stubGlobal("fetch", fetcher);
+    expect(await resetStaffMFA({ ...scope, employerKind }, input)).toEqual(receipt);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    const [path, request] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
+    expect(path).toBe(
+      `/api/v1/workforce/${family}/${scope.employerId}/staff/${scope.staffId}/mfa-recoveries/${id}`,
+    );
+    expect(request.method).toBe("PUT");
+    expect(request.cache).toBe("no-store");
+    expect(JSON.parse(String(request.body))).toEqual(input);
+    expect(new Headers(request.headers).get("X-Helivanta-Expected-Tenant")).toBe(scope.tenantId);
+    expect(new Headers(request.headers).get("X-Helivanta-Expected-Subject")).toBe(scope.subject);
+  },
+);
+
+it("reconciles or cancels the existing command without sending the reason or a replacement command", async () => {
+  const fetcher = vi.fn(async () => Response.json({ commandId: id, state: "cancelled" }));
+  vi.stubGlobal("fetch", fetcher);
+  await readStaffMFARecovery(scope, id);
+  await cancelStaffMFARecovery(scope, id);
+  expect(fetcher).toHaveBeenCalledTimes(2);
+  const [readPath, readRequest] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
+  const [cancelPath, cancelRequest] = fetcher.mock.calls[1] as unknown as [string, RequestInit];
+  expect(readPath).toContain(`/mfa-recoveries/${id}`);
+  expect(readRequest.body).toBeUndefined();
+  expect(cancelPath).toBe(readPath + "/cancel");
+  expect(cancelRequest.method).toBe("POST");
+  expect(cancelRequest.body).toBe("{}");
+});
+
+it.each([
+  { commandId: "019f39c2-1738-7998-b5de-6d4214f614e2", state: "completed" },
+  { ...receipt, state: "assumed_success" },
+  { ...receipt, subject: "private-staff" },
+])("refuses a mismatched or private receipt", async (body) => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json(body)),
+  );
+  await expect(readStaffMFARecovery(scope, id)).rejects.toThrow();
+});
+
+it("does not retry an ambiguous reset response", async () => {
+  const fetcher = vi.fn(async () => Response.json({ error: "unavailable" }, { status: 503 }));
+  vi.stubGlobal("fetch", fetcher);
+  await expect(resetStaffMFA(scope, input)).rejects.toThrow();
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});
+
+it.each([
+  { ...scope, employerKind: "hospital/other" },
+  { ...scope, employerId: "../other" },
+  { ...scope, staffId: "00000000-0000-0000-0000-000000000000" },
+  { ...scope, subject: "" },
+])("rejects an invalid selection before the network", async (selection) => {
+  const fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
+  await expect(readStaffMFARecovery(selection as typeof scope, id)).rejects.toThrow();
+  expect(fetcher).not.toHaveBeenCalled();
+});
+
+it("refuses browser-supplied target identity and recased intent fields", async () => {
+  const fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
+  await expect(
+    resetStaffMFA(scope, { ...input, subject: "other-staff" } as typeof input),
+  ).rejects.toThrow();
+  await expect(resetStaffMFA(scope, { ...input, CommandId: id } as typeof input)).rejects.toThrow();
+  expect(fetcher).not.toHaveBeenCalled();
+});

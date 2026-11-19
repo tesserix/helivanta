@@ -186,7 +186,6 @@
       "path": "/v1/workforce/suppliers/:supplier/staff/:id/mfa-recoveries/:command/cancel",
       "capability": "staff_mfa_recovery"
     },
-
     {
       "method": "GET",
       "path": "/v1/workforce/hospitals/:hospital/staff/:id/mfa-recoveries/:command",
@@ -217,7 +216,6 @@
       "path": "/v1/workforce/suppliers/:supplier/staff/:id/mfa-recoveries/:command",
       "capability": "staff_mfa_recovery"
     },
-
     {
       "method": "GET",
       "path": "/healthz",
@@ -5986,30 +5984,7 @@
       {
         "name": "key",
         "type": "string",
-        "enum": [
-          "onboarding",
-          "team_accounts",
-          "staff_core",
-          "department_teams",
-          "pharmacy_setup",
-          "pharmacy_staff",
-          "pharmacy_catalogue",
-          "pharmacy_stock",
-          "pharmacy_prescriptions",
-          "pharmacy_returns",
-          "pharmacy_reports",
-          "pharmacy_counter",
-          "pharmacy_payables",
-          "workforce_scheduling",
-          "workforce_payroll",
-          "workforce_advanced",
-          "supplier_collaboration",
-          "clinical",
-          "lab",
-          "emergency",
-          "billing_workspace",
-          "unreleased"
-        ]
+        "enum_from": "capabilities.key"
       },
       {
         "name": "available",
@@ -6044,8 +6019,7 @@
       {
         "name": "capabilities",
         "type": "[]ReleaseCapability",
-        "min": 22,
-        "max": 22
+        "count_from": "capabilities"
       }
     ],
     "PublicReleaseSnapshot": [

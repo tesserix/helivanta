@@ -69,6 +69,8 @@ func mfaAuthorityError(err error) error {
 		return authz.ErrScopedCommandDenied
 	case errors.Is(err, gorm.ErrRecordNotFound), errors.Is(err, staffclient.ErrNotFound):
 		return staffclient.ErrNotFound
+	case errors.Is(err, errStaffMFACancelRequested):
+		return errStaffMFACancelRequested
 	case errors.Is(err, staffclient.ErrConflict):
 		return staffclient.ErrConflict
 	default:
@@ -190,6 +192,13 @@ func (h *staffMFAResetService) Reset(ctx context.Context, p authn.Principal, int
 	if err = h.authorize(ctx, p, target.Subject, id); err != nil {
 		return empty, err
 	}
+	cancelled, err := h.remember(ctx, p, in)
+	if err != nil {
+		return empty, err
+	}
+	if cancelled {
+		return h.Cancel(ctx, p, intent.CommandID, staffMFAScope(in))
+	}
 	scope := staffclient.Scope{TenantID: uuid.MustParse(p.TenantID), CommandID: id, ActorSubject: p.Subject}
 	receipt, err := h.owner.PrepareMFA(ctx, scope, in)
 	if err != nil {
@@ -200,6 +209,9 @@ func (h *staffMFAResetService) Reset(ctx context.Context, p authn.Principal, int
 	}
 	if receipt.State == "prepared" {
 		if err = h.fence(ctx, p, in); err != nil {
+			if errors.Is(err, errStaffMFACancelRequested) {
+				return h.Cancel(ctx, p, intent.CommandID, staffMFAScope(in))
+			}
 			return empty, err
 		}
 		if err = h.recheck(ctx, p, in, source); err != nil {
@@ -216,37 +228,60 @@ func (h *staffMFAResetService) Reset(ctx context.Context, p authn.Principal, int
 	return receipt, nil
 }
 
-func (h *staffMFAResetService) Read(ctx context.Context, p authn.Principal, command string, source platform.StaffMFATargetReader) (customercontract.StaffMFARecoveryReceipt, error) {
+func (h *staffMFAResetService) Read(ctx context.Context, p authn.Principal, command string, scope platform.StaffMFARecoveryScope, source platform.StaffMFATargetReader) (customercontract.StaffMFARecoveryReceipt, error) {
 	var empty customercontract.StaffMFARecoveryReceipt
 	if err := h.validate(p); err != nil {
 		return empty, err
 	}
-	ctx, cancel := staffMFAResetContext(ctx, p)
-	defer cancel()
 	id, ok := staffAccountID(command)
-	if !ok {
+	if !ok || !validStaffMFAScope(scope) {
 		return empty, staffclient.ErrInvalid
 	}
+	ctx, cancel := staffMFAResetContext(ctx, p)
+	defer cancel()
 	if err := h.authorize(ctx, p, "", id); err != nil {
 		return empty, err
 	}
-	snapshot, err := h.owner.GetMFA(ctx, staffclient.Scope{TenantID: uuid.MustParse(p.TenantID), CommandID: id, ActorSubject: p.Subject})
+	held, err := h.loadIntent(ctx, p, command, scope)
 	if err != nil {
 		return empty, err
 	}
-	if err = h.recheck(ctx, p, snapshot.Request, source); err != nil {
+	if len(held.Request) == 0 {
+		if err = h.authorize(ctx, p, "", id); err != nil {
+			return empty, err
+		}
+		return customercontract.StaffMFARecoveryReceipt{CommandID: command, State: "cancelled"}, nil
+	}
+	original, err := held.decode()
+	if err != nil {
+		return empty, err
+	}
+	snapshot, err := h.owner.GetMFA(ctx, staffclient.Scope{TenantID: uuid.MustParse(p.TenantID), CommandID: id, ActorSubject: p.Subject})
+	if errors.Is(err, staffclient.ErrNotFound) {
+		return empty, staffclient.ErrUnavailable
+	}
+	if err != nil {
+		return empty, err
+	}
+	if snapshot.Request != original {
+		return empty, staffclient.ErrUnavailable
+	}
+	if snapshot.Receipt.State == "cancelled" {
+		err = h.authorize(ctx, p, "", id)
+	} else {
+		err = h.recheck(ctx, p, original, source)
+	}
+	if err != nil {
 		return empty, err
 	}
 	return snapshot.Receipt, nil
 }
 
 func (h *staffMFAResetService) fence(ctx context.Context, p authn.Principal, in customercontract.StaffMFARecoveryRequest) error {
-	raw, err := json.Marshal(in)
+	_, fingerprint, err := staffMFAFingerprint(in)
 	if err != nil {
-		return staffclient.ErrInvalid
+		return err
 	}
-	hash := sha256.Sum256(raw)
-	fingerprint := hex.EncodeToString(hash[:])
 	err = h.db.WithTenant(ctx, p.TenantID, func(tx *gorm.DB) error {
 		if err := membershipActor(tx, p, in.Target.Subject); err != nil {
 			return err
@@ -256,6 +291,13 @@ func (h *staffMFAResetService) fence(ctx context.Context, p authn.Principal, in 
 		}
 		if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended(?,0))`, "iam.staff-mfa-fence:"+p.TenantID+":"+in.Intent.CommandID).Error; err != nil {
 			return err
+		}
+		cancelled, err := staffMFACancellation(tx, p, in.Intent.CommandID)
+		if err != nil {
+			return err
+		}
+		if cancelled {
+			return errStaffMFACancelRequested
 		}
 		var held struct{ Fingerprint string }
 		found := tx.Table("iam_staff_mfa_fences").Select("fingerprint").Where("tenant_id=? AND command_id=?", p.TenantID, in.Intent.CommandID).Take(&held).Error
@@ -298,13 +340,13 @@ func staffMFAResetContext(ctx context.Context, p authn.Principal) (context.Conte
 }
 
 // Cancel never removes a native factor or restores a revoked application credential.
-func (h *staffMFAResetService) Cancel(ctx context.Context, p authn.Principal, command string, matches func(customercontract.StaffMFARecoveryTarget) bool) (customercontract.StaffMFARecoveryReceipt, error) {
+func (h *staffMFAResetService) Cancel(ctx context.Context, p authn.Principal, command string, scope platform.StaffMFARecoveryScope) (customercontract.StaffMFARecoveryReceipt, error) {
 	var empty customercontract.StaffMFARecoveryReceipt
 	if err := h.validate(p); err != nil {
 		return empty, err
 	}
 	id, ok := staffAccountID(command)
-	if !ok {
+	if !ok || !validStaffMFAScope(scope) {
 		return empty, staffclient.ErrInvalid
 	}
 	ctx, cancel := staffMFAResetContext(ctx, p)
@@ -312,18 +354,24 @@ func (h *staffMFAResetService) Cancel(ctx context.Context, p authn.Principal, co
 	if err := h.authorize(ctx, p, "", id); err != nil {
 		return empty, err
 	}
-	scope := staffclient.Scope{TenantID: uuid.MustParse(p.TenantID), CommandID: id, ActorSubject: p.Subject}
-	snapshot, err := h.owner.GetMFA(ctx, scope)
+	held, err := h.requestCancellation(ctx, p, command, scope)
 	if err != nil {
 		return empty, err
 	}
-	if matches == nil || !matches(snapshot.Request.Target) {
-		return empty, staffclient.ErrNotFound
+	if len(held.Request) == 0 {
+		if err = h.authorize(ctx, p, "", id); err != nil {
+			return empty, err
+		}
+		return customercontract.StaffMFARecoveryReceipt{CommandID: command, State: "cancelled"}, nil
+	}
+	original, err := held.decode()
+	if err != nil {
+		return empty, err
 	}
 	if err = h.authorize(ctx, p, "", id); err != nil {
 		return empty, err
 	}
-	receipt, err := h.owner.CancelMFA(ctx, scope, snapshot.Request)
+	receipt, err := h.owner.CancelMFA(ctx, staffclient.Scope{TenantID: uuid.MustParse(p.TenantID), CommandID: id, ActorSubject: p.Subject}, original)
 	if err != nil {
 		return empty, err
 	}
@@ -331,4 +379,16 @@ func (h *staffMFAResetService) Cancel(ctx context.Context, p authn.Principal, co
 		return empty, err
 	}
 	return receipt, nil
+}
+
+func staffMFAFingerprint(in customercontract.StaffMFARecoveryRequest) ([]byte, string, error) {
+	if in.Validate() != nil {
+		return nil, "", staffclient.ErrInvalid
+	}
+	raw, err := json.Marshal(in)
+	if err != nil {
+		return nil, "", staffclient.ErrInvalid
+	}
+	hash := sha256.Sum256(raw)
+	return raw, hex.EncodeToString(hash[:]), nil
 }

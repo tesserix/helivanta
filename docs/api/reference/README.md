@@ -165,7 +165,7 @@ Migration table declarations:
 - `0049_iam_assignment_governance`: `iam_assignment_governance_requests`, `iam_assignment_governance_verifications`.
 - `0050_iam_operating_governance`: `iam_operating_governance_origins`, `iam_operating_governance_commands`.
 - `0051_iam_operating_employer_inbox`: concurrent index `iam_operating_employer_inbox` on `iam_operating_duties (tenant_id, employer_kind, employer_id, native_administration, created_at DESC, id DESC)`.
-- `0053_iam_staff_mfa_fences`: `iam_staff_mfa_fences`.
+- `0053_iam_staff_mfa_fences`: `iam_staff_mfa_commands`, `iam_staff_mfa_cancellations`, `iam_staff_mfa_fences`.
 
 ## reference
 

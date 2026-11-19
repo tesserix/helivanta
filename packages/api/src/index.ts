@@ -227,3 +227,5 @@ export * from "./release-capabilities";
 export * from "./use-release-capabilities";
 
 export * from "./account-recovery";
+
+export * from "./staff-mfa-recovery";

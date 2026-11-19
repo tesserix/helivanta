@@ -290,6 +290,7 @@ export const ReleaseCapabilityContract = z
       "onboarding",
       "team_accounts",
       "staff_core",
+      "staff_mfa_recovery",
       "department_teams",
       "pharmacy_setup",
       "pharmacy_staff",
@@ -330,7 +331,7 @@ export const ReleaseSnapshotContract = z
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     issued_at: z.string().datetime({ offset: true }),
     expires_at: z.string().datetime({ offset: true }),
-    capabilities: z.array(ReleaseCapabilityContract).min(22).max(22),
+    capabilities: z.array(ReleaseCapabilityContract).min(23).max(23),
   })
   .strict();
 export type ReleaseSnapshot = z.infer<typeof ReleaseSnapshotContract>;

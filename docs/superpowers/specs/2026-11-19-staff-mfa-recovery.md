@@ -274,3 +274,30 @@ administrative UI and actual native hospital/independent recovery journeys are
 still incomplete. The new real-database integration cases are authored and
 compiled locally but have not yet executed in hosted CI. Earlier native admission
 E2E success at `38daae06` does not validate these later reset changes.
+
+## Interrupted administrator requests
+
+IAM now retains the canonical intent before remote preparation, and a separate
+immutable cancellation marker serializes against the native-dispatch fence.
+Cancellation can tombstone a not-yet-arrived request or submit the exact retained
+request after an unconfirmed preparation response. This closes the reload gap
+without putting the reason or private native evidence into browser storage. The
+private identity owner remains authoritative for accepted/uncertain native writes;
+local delivery evidence never fabricates a prepared or completed native outcome.
+
+Pure canonical storage tests reproduced and then rejected oversized payloads and
+row/payload scope mismatch, while accepting JSONB field reordering. Authored hosted
+cases additionally cover cancellation before preparation and cancellation after a
+lost preparation response. They still require actual PostgreSQL execution.
+
+The typed API consumer uses the existing verified account/tenant transition
+transport and owner's canonical input/receipt contracts for all employer families.
+Its 13 focused tests pass; the complete API package passes 1,487 tests. The
+administrative React controls and native browser journeys are not implemented by
+these client functions.
+
+Adding the MFA flag exposed a copied 22-key enum/count in the release wire model.
+The canonical manifest now explicitly derives its wire enum and snapshot bounds
+from its capability catalogue through `enum_from`/`count_from` directives. Generator
+tests reject copied or unknown bindings; generated Go/TypeScript remain aligned.
+The feature is still ineligible and disabled. No migration or rollout occurred.

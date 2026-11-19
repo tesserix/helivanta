@@ -70,6 +70,7 @@ type mfaOwnerFixture struct {
 	held               *customercontract.StaffMFARecoveryRequest
 	state              string
 	failDispatch       bool
+	failPrepare        bool
 	dispatches, writes int
 	afterPrepare       func()
 	native             *mfaNativeIdentity
@@ -86,6 +87,11 @@ func (o *mfaOwnerFixture) roundTrip(r *http.Request) (*http.Response, error) {
 	case r.Method == http.MethodPut:
 		var in customercontract.StaffMFARecoveryRequest
 		require.NoError(o.t, json.NewDecoder(r.Body).Decode(&in))
+		if o.failPrepare {
+			status = 503
+			output = map[string]string{"error": "unavailable"}
+			break
+		}
 		if o.held == nil {
 			o.held = &in
 			o.state = "prepared"
@@ -97,7 +103,11 @@ func (o *mfaOwnerFixture) roundTrip(r *http.Request) (*http.Response, error) {
 			o.afterPrepare()
 		}
 	case r.Method == http.MethodGet:
-		require.NotNil(o.t, o.held)
+		if o.held == nil {
+			status = 404
+			output = map[string]string{"error": "not_found"}
+			break
+		}
 		require.Equal(o.t, o.held.ActorSubject, r.URL.Query().Get("actor_subject"))
 		output = customercontract.StaffMFARecoverySnapshot{Request: *o.held, Receipt: customercontract.StaffMFARecoveryReceipt{CommandID: o.held.Intent.CommandID, State: o.state}}
 	case strings.HasSuffix(r.URL.Path, "/dispatch"):
@@ -123,6 +133,15 @@ func (o *mfaOwnerFixture) roundTrip(r *http.Request) (*http.Response, error) {
 			output = customercontract.StaffMFARecoveryReceipt{CommandID: in.Request.Intent.CommandID, State: o.state}
 		}
 	case strings.HasSuffix(r.URL.Path, "/cancel"):
+		var in customercontract.StaffMFARecoveryRequest
+		require.NoError(o.t, json.NewDecoder(r.Body).Decode(&in))
+		require.NoError(o.t, in.Validate())
+		if o.held == nil {
+			o.held = &in
+			o.state = "cancelled"
+		} else {
+			require.Equal(o.t, *o.held, in)
+		}
 		if o.state != "prepared" && o.state != "cancelled" {
 			status = 409
 			output = map[string]string{"error": "conflict"}
@@ -371,4 +390,38 @@ func TestStaffMFAResetRechecksNativeAdministratorEligibilityBeforeDispatch(t *te
 	require.Equal(t, 401, response.Code, response.Body.String())
 	require.Zero(t, owner.dispatches)
 	require.Zero(t, owner.writes)
+}
+
+func TestStaffMFACancellationBeforePreparationBlocksALateReset(t *testing.T) {
+	f, owner, input, path := newMFAResetFixture(t)
+	response := mfaRequest(t, f.r, "POST", path+"/cancel", "manager", map[string]any{})
+	require.Equal(t, 200, response.Code, response.Body.String())
+	require.JSONEq(t, `{"commandId":"`+input.CommandID+`","state":"cancelled"}`, response.Body.String())
+	require.Nil(t, owner.held, "cancellation before preparation must not invent a native target")
+	response = mfaRequest(t, f.r, "PUT", path, "manager", input)
+	require.Equal(t, 202, response.Code, response.Body.String())
+	require.JSONEq(t, `{"commandId":"`+input.CommandID+`","state":"cancelled"}`, response.Body.String())
+	require.Nil(t, owner.held)
+	require.Zero(t, owner.dispatches)
+	response = mfaRequest(t, f.r, "GET", path, "manager", nil)
+	require.Equal(t, 200, response.Code, response.Body.String())
+	require.JSONEq(t, `{"commandId":"`+input.CommandID+`","state":"cancelled"}`, response.Body.String())
+}
+
+func TestStaffMFACancelUnconfirmedPreparationUsesFrozenServerIntent(t *testing.T) {
+	f, owner, input, path := newMFAResetFixture(t)
+	owner.failPrepare = true
+	response := mfaRequest(t, f.r, "PUT", path, "manager", input)
+	require.Equal(t, 503, response.Code, response.Body.String())
+	require.Nil(t, owner.held)
+	response = mfaRequest(t, f.r, "POST", path+"/cancel", "manager", map[string]any{})
+	require.Equal(t, 200, response.Code, response.Body.String())
+	require.JSONEq(t, `{"commandId":"`+input.CommandID+`","state":"cancelled"}`, response.Body.String())
+	require.Equal(t, input, owner.held.Intent, "browser cancellation contains no original reason or link versions")
+	require.Zero(t, owner.writes)
+	require.Zero(t, owner.dispatches)
+	owner.failPrepare = false
+	response = mfaRequest(t, f.r, "PUT", path, "manager", input)
+	require.Equal(t, 202, response.Code, response.Body.String())
+	require.Zero(t, owner.dispatches)
 }

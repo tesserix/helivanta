@@ -172,6 +172,20 @@ job failed during Ubuntu browser-dependency installation before application
 startup. No native recovery case executed in that job. Its Go coverage job is
 still running; this partial result is not full acceptance.
 
+Parent run `44528471426`, E2E job `135575206691`, passed at `e7b9c1d4`:
+106 main-stack cases passed, one live security-key case skipped, and both the
+idle-timeout and renewal phases passed. The actual `specs`/`bulk` selection
+includes `password-recovery-native.spec.ts` and the new unscoped account-finder
+case. Native password recovery has no skip path: missing fixture opt-in fails
+the test. The only conditional skip in this selection is
+`login-security-key-live.spec.ts`.
+
+That hosted native case verifies mailbox delivery/verification, prepared password
+replacement, no resend after verification, old-access 401, old-password 401 and
+new-password sign-in followed by authorized access 200. This proves the isolated
+password journey at the parent revision, not Staff MFA recovery, a passing full
+Go gate or any live deployment.
+
 GitGuardian incident `40266894` was classified in the provider as **Not a secret
 (false positive)** after source review. Its normal PR check passed at `5cad384c`.
 This resolves the reviewed finding without disabling repository scanning; fresh

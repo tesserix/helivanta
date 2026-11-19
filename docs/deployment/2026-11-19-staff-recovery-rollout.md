@@ -23,7 +23,7 @@ to obtain that JWT.
 
 ## Read-only baseline, 19 November 2026
 
-Discovery used account `unidevidp@gmail.com`, project `tesseracthub-480811`, and
+Discovery verified the active operator account privately, project `tesseracthub-480811`, and
 context `gke_tesseracthub-480811_asia-south1_tesseract-prod-in-gke`. The default
 namespace was unset; every following observation used explicit namespaces.
 Refresh this boundary and Kubernetes RBAC before any approved mutation.

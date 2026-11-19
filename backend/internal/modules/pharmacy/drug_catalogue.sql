@@ -6,7 +6,7 @@ ALTER TABLE pharmacy_catalogue_products ADD CONSTRAINT pharmacy_drug_master_refe
  AND (drug_master->>'version_id')::uuid <> '00000000-0000-0000-0000-000000000000')
 );
 CREATE UNIQUE INDEX pharmacy_catalogue_master_product ON pharmacy_catalogue_products
- (tenant_id,outlet_id,(drug_master->>'product_id')) WHERE drug_master IS NOT NULL;
+ (tenant_id,outlet_id,(drug_master->>'version_id'),(drug_master->>'formulation_version_id')) WHERE drug_master IS NOT NULL;
 
 CREATE FUNCTION pharmacy_drug_master_identity_guard() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN

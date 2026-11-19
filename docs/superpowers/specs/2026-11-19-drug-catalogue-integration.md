@@ -51,7 +51,7 @@ Add reauthorizes and holds the owner's publication lock until the outlet transac
 commits. Recalled, discontinued, future, unpublished or stale versions are refused.
 The client cannot submit composition or legal classifications for this command.
 An identical command replays the saved result; another product ID for the same
-source product conflicts. Replacing linked identity is forbidden. Commercial fields
+source versions/formulation versions conflicts. Replacing linked identity is forbidden. Commercial fields
 remain editable through the existing product command; manual creation is retained.
 
 Source schedule and HSN are displayed as provenance. Existing local schedule,
@@ -82,3 +82,7 @@ Production deployment follows the existing approved GitOps release flow after va
 Acceptance needing external input: licensed Indian data, independent steward
 custody/review and an approved production release. Keep #1683 open until these
 are evidenced. Do not claim a configured adapter/schedule is a live vendor feed.
+
+A newer approved source product or formulation version can be added as a new
+outlet record with a new generated local SKU. Existing source links and physical
+stock bases remain unchanged; importing a version never transfers stock.

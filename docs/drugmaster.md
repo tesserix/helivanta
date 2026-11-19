@@ -196,7 +196,7 @@ It requires `pharmacy.catalogue.read` and current outlet access. The correspondi
 `{version_id,currency:"INR",mrp_minor}`. The selected version is revalidated under
 the publication lock until the outlet transaction commits. The same product ID
 and payload replay the saved result; a second outlet product ID for the same
-master identity conflicts. Unknown client identity fields are rejected.
+master product/formulation versions conflicts. Unknown client identity fields are rejected.
 
 Outlet products retain `drug_master` with exact source product/formulation
 versions, release, provenance, ingredients, pack, schedule and HSN. These are
@@ -206,3 +206,7 @@ product entry remain available. Local schedule/tax/category/price-control review
 are still required; import never approves stock, tax, prescribing or dispensing.
 Live recall propagation and automatic migration of existing outlet identity to a
 new vendor version are not implemented by this catalogue-add command.
+
+A newer approved source product or formulation version can be added as a new
+outlet record with a new generated local SKU. Existing source links and physical
+stock bases remain unchanged; importing a version never transfers stock.

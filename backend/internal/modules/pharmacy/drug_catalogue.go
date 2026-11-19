@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -99,6 +98,7 @@ func (h *catalogueHandlers) importDrugProduct(c *gin.Context) {
 	var result catalogueProduct
 	err = h.drugCatalogue.WithCatalogueProduct(c.Request.Context(), in.VersionID, func(ctx context.Context, source stockproduct.CatalogueProduct) error {
 		fields := importedProductFields(source, in)
+		fields.SKU = "DM-" + id.String()
 		if !fields.normalize() || binding.Validator.ValidateStruct(&fields) != nil {
 			return stockproduct.ErrIneligible
 		}
@@ -117,7 +117,7 @@ func (h *catalogueHandlers) importDrugProduct(c *gin.Context) {
 }
 
 func importedProductFields(source stockproduct.CatalogueProduct, in stockproduct.CatalogueImport) ProductFields {
-	fields := ProductFields{SKU: "DM-" + source.ProductID.String(), BrandName: source.BrandName,
+	fields := ProductFields{BrandName: source.BrandName,
 		GenericName: source.FormulationLabel, DosageForm: source.DoseForm, Route: source.Route,
 		Manufacturer: source.Manufacturer, Ingredients: []ingredient{}, PackSize: source.PackSize,
 		UnitOfIssue: source.UnitOfIssue, Currency: in.Currency, MRPMinor: *in.MrpMinor, Status: "active"}
@@ -128,7 +128,6 @@ func importedProductFields(source stockproduct.CatalogueProduct, in stockproduct
 		}
 		fields.Ingredients = append(fields.Ingredients, ingredient{Name: x.InnName, Strength: x.StrengthValue, Unit: unit})
 	}
-	fields.SKU = strings.ToUpper(fields.SKU)
 	return fields
 }
 

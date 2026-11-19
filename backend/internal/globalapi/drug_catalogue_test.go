@@ -13,9 +13,12 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/drugmaster"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
 	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/stockproduct"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
+	"gorm.io/gorm"
 )
 
 func TestOutletMedicineImportThroughGlobalAPIPinsIdentityAndRejectsStaleOrUnauthorizedCommands(t *testing.T) {
@@ -88,6 +91,29 @@ func TestOutletMedicineImportThroughGlobalAPIPinsIdentityAndRejectsStaleOrUnauth
 	require.NoError(t, err)
 	call("PUT", path, "editor", string(body), 409)
 	call("PUT", path+"/from-drugmaster", "editor", strings.TrimSuffix(command, "}")+`,"brand_name":"injected"}`, 400)
+	// A newly published pack version can be added without rewriting the old
+	// product's composition/pack evidence or reusing its local SKU.
+	var database string
+	require.NoError(t, db.WithSystem(t.Context(), func(tx *gorm.DB) error { return tx.Raw(`SELECT current_database()`).Scan(&database).Error }))
+	stager, err := tenantdb.OpenRuntime(t.Context(), testinfra.DrugStagerDSN(t, database))
+	require.NoError(t, err)
+	defer func() { require.NoError(t, stager.Close()) }()
+	approver, err := tenantdb.OpenRuntime(t.Context(), testinfra.DrugApproverDSN(t, database))
+	require.NoError(t, err)
+	defer func() { require.NoError(t, approver.Close()) }()
+	location, err := time.LoadLocation("Asia/Kolkata")
+	require.NoError(t, err)
+	update := []byte(fmt.Sprintf(`{"country":"IN","source":{"name":"TEST-source","licence_ref":"TEST-LICENCE","version":"TEST-pack-v2"},"products":[{"code":"TEST-PACK","formulation":"TEST-CAPSULE","valid_from":%q,"brand_name":"TEST Stock","manufacturer":"TEST Manufacturer","pack_size":20,"unit_of_issue":"capsule","gtin":"8901234567890","hsn_code":"30041010","status":"active"}]}`, time.Now().In(location).Format(time.DateOnly)))
+	release, err := drugmaster.Stage(t.Context(), stager, update, "TEST-catalogue-author")
+	require.NoError(t, err)
+	require.NoError(t, drugmaster.Decide(t.Context(), approver, release, update, "TEST-catalogue-reviewer", true, "TEST revised pack independently reviewed"))
+	require.NoError(t, json.Unmarshal([]byte(call("GET", search, "editor", "", 200)), &found))
+	require.Len(t, found.Data, 1)
+	require.NotEqual(t, source.VersionID, found.Data[0].VersionID)
+	nextCommand := fmt.Sprintf(`{"version_id":%q,"currency":"INR","mrp_minor":25000}`, found.Data[0].VersionID)
+	revised := call("PUT", root+"/catalogue/products/"+uuid.Must(uuid.NewV7()).String()+"/from-drugmaster", "editor", nextCommand, 200)
+	require.Contains(t, revised, `"pack_size":20`)
+	require.Contains(t, call("GET", path, "editor", "", 200), `"pack_size":10`)
 	publishStockProduct(t, db, "recalled")
 	require.JSONEq(t, first, call("PUT", path+"/from-drugmaster", "editor", command, 200), "uncertain import replays original receipt even after commercial edits and recall")
 	call("PUT", root+"/catalogue/products/"+uuid.Must(uuid.NewV7()).String()+"/from-drugmaster", "editor", command, 409)

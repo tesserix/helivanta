@@ -2,8 +2,9 @@ import { randomUUID } from "node:crypto";
 import { lstatSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import { login, specPharmacist, type Credentials } from "./support/login";
+import { specPharmacist, type Credentials } from "./support/login";
 import { ZITADEL_ORIGIN } from "./support/hosts";
+import { signInNativeStaff } from "./support/staff-mfa-native";
 import nativeStaffTenants from "../../scripts/lib/native-staff-fixture-tenants.json" with { type: "json" };
 
 test.use({ trace: "off", video: "off", screenshot: "off" });
@@ -11,16 +12,12 @@ const tenant = nativeStaffTenants.hospital;
 const permissionPath = "/api/v1/iam/me/permissions";
 
 async function refusedSignIn(page: Page, account: Credentials) {
-  await page.goto(`/login?workspace=${tenant}`);
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await page.getByLabel("Email or username", { exact: true }).fill(account.email);
-  await page.getByLabel("Password", { exact: true }).fill(account.password);
   const refusal = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
       new URL(response.url()).pathname === "/api/v1/auth/login/password",
   );
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await signInNativeStaff(page, account, tenant);
   const response = await refusal;
   expect(response.status()).toBe(401);
   await expect(page.getByRole("alert")).toContainText(
@@ -56,7 +53,8 @@ test("a genuinely locked native account gets actionable recovery guidance withou
   )
     throw new Error("private local native setup credential unavailable");
   const pat = readFileSync(file, "utf8").trim();
-  await login(page, account);
+  await signInNativeStaff(page, account, tenant);
+  await page.waitForURL((url) => url.pathname === "/dashboard");
   const allowed = await page.request.get(permissionPath);
   expect(allowed.status()).toBe(200);
   const principal = (await allowed.json()) as { tenant_id: string; subject: string };

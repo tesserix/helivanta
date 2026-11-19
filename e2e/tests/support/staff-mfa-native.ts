@@ -23,7 +23,7 @@ async function identity(request: APIRequestContext, tenant: string) {
     },
   };
 }
-async function password(page: Page, account: Credentials, tenant: string) {
+export async function signInNativeStaff(page: Page, account: Credentials, tenant: string) {
   await page.goto(`/login?workspace=${tenant}`);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByLabel("Email or username", { exact: true }).fill(account.email);
@@ -84,7 +84,7 @@ export async function exerciseNativeStaffMFARecovery(
   try {
     const targetPage = await targetContext.newPage();
     const reviewerPage = await reviewerContext.newPage();
-    await password(targetPage, target, tenant);
+    await signInNativeStaff(targetPage, target, tenant);
     await targetPage.waitForURL((url) => url.pathname === "/dashboard");
     const colleague = await identity(targetPage.request, tenant);
     const nativeUser = await native(`/v2/users/${colleague.subject}`);
@@ -98,7 +98,7 @@ export async function exerciseNativeStaffMFARecovery(
       code: generateTOTP(originalSecret),
     });
     await targetContext.clearCookies();
-    await password(targetPage, target, tenant);
+    await signInNativeStaff(targetPage, target, tenant);
     await code(targetPage, "Verification code", originalSecret);
     await targetPage.waitForURL((url) => url.pathname === "/dashboard");
     await identity(targetPage.request, tenant);
@@ -107,10 +107,10 @@ export async function exerciseNativeStaffMFARecovery(
     );
     if (!old?.value) throw new Error("normal native sign-in did not establish a session");
     const oldCookie = `helivanta_session=${old.value}`;
-    await password(page, specAdmin(), tenant);
+    await signInNativeStaff(page, specAdmin(), tenant);
     await page.waitForURL((url) => url.pathname === "/dashboard");
     const actor = await identity(page.request, tenant);
-    await password(
+    await signInNativeStaff(
       reviewerPage,
       { email: `e2e-${slug}-reviewer@helivanta.dev`, password: target.password },
       tenant,
@@ -138,33 +138,34 @@ export async function exerciseNativeStaffMFARecovery(
         })
       ).status(),
     ).toBe(200);
-    expect(
-      (
-        await page.request.put(`${root}/access/${reviewer.subject}`, {
+    const putStaff = () =>
+      page.request.put(
+        `${root}/staff/${staff}${kind === "pharmacy" ? "?directory_context=v1" : ""}`,
+        {
           headers: actor.headers,
-          data: { level: "manager" },
-        })
-      ).status(),
-    ).toBe(200);
-    expect(
-      (
-        await page.request.put(
-          `${root}/staff/${staff}${kind === "pharmacy" ? "?directory_context=v1" : ""}`,
-          {
-            headers: actor.headers,
-            data: {
-              ...(kind === "pharmacy"
-                ? { expected_version: 0, directory_context_version: "v1" }
-                : {}),
-              employee_code: "NATIVE-MFA-01",
-              display_name: staffName,
-              job_category: "pharmacist",
-              employment_status: "active",
-            },
+          data: {
+            ...(kind === "pharmacy"
+              ? { expected_version: 0, directory_context_version: "v1" }
+              : {}),
+            employee_code: "NATIVE-MFA-01",
+            display_name: staffName,
+            job_category: "pharmacist",
+            employment_status: "active",
           },
-        )
-      ).status(),
-    ).toBe(200);
+        },
+      );
+    expect((await putStaff()).status()).toBe(404);
+    for (const subject of [actor.subject, reviewer.subject]) {
+      expect(
+        (
+          await page.request.put(`${root}/access/${subject}`, {
+            headers: actor.headers,
+            data: { level: "manager" },
+          })
+        ).status(),
+      ).toBe(200);
+    }
+    expect((await putStaff()).status()).toBe(200);
     const links = `${root}/staff/${staff}/${kind === "hospital" ? "login-links" : "account-links"}`;
     expect(
       (
@@ -212,7 +213,7 @@ export async function exerciseNativeStaffMFARecovery(
     if (foreignContext) {
       const foreignPage = await foreignContext.newPage();
       const foreignTenant = nativeStaffTenants.hospital;
-      await password(
+      await signInNativeStaff(
         foreignPage,
         { email: "e2e-staff-mfa-pharmacy-native-foreign@helivanta.dev", password: target.password },
         foreignTenant,
@@ -295,7 +296,7 @@ export async function exerciseNativeStaffMFARecovery(
     // Native auth_time has whole-second precision; cross the committed revocation cutoff.
     await targetPage.waitForTimeout(1100);
     await targetContext.clearCookies();
-    await password(targetPage, target, tenant);
+    await signInNativeStaff(targetPage, target, tenant);
     await expect(
       targetPage.getByRole("heading", { name: "Set up two-step verification", exact: true }),
     ).toBeVisible();

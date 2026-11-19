@@ -526,3 +526,14 @@ related CI fixture tests, canonical generation/check, E2E typecheck/lint/discove
 focused Go race/vet/lint/build checks and the shell production build with CI's
 Global API origin. Generated shell output was removed. Full hosted native and
 Go acceptance still remains required for the pushed candidate.
+
+Hosted `879e3da6` passed canonical tenant provisioning, native-owner startup and
+the private setup-file guard. The native password recovery case passed again.
+Both MFA cases reached Staff creation but correctly received 404 because the
+fixture had granted manager access to the reviewer only. The fixture now asserts
+that denial before explicitly granting the acting administrator and reviewer
+their manager rows, then requires Staff creation to succeed. Tenant administration
+alone is not treated as employer access. The lockout case's original shared login
+helper selected the legacy sample workspace; it now shares the native cases'
+explicit-workspace sign-in helper. No server admission or credential assertion was
+weakened. The corrected journeys remain authored pending fresh hosted execution.

@@ -364,3 +364,26 @@ exports public metadata and the credential path, never its value. The owner
 fixture remains read-only without its explicit MFA opt-in. These focused fixture
 unit tests do not prove the native administrator-to-Staff recovery journey, and
 `staff_mfa_recovery` remains ineligible and disabled in released environments.
+
+
+## First native hospital browser journey
+
+`e2e/tests/staff-mfa-recovery-native.spec.ts` now drives real hospital owner and
+ordinary Staff sign-in, initial native TOTP enrollment, API-created active Staff,
+independent reviewed account linking, a stale-link refusal, and the Workforce
+reason/confirmation UI. It checks acknowledged native factor removal, denial of
+the old session and renewal, forced replacement enrollment, accepted fresh access
+and renewal, and the initiating administrator's completed receipt. No identity,
+Global API, owner command or native factor/session API is mocked. Only disposable
+local native identities are allowed; trace, video and screenshots are disabled.
+This is authored acceptance code, not yet successful hosted execution.
+
+The separate reviewer is seeded only with the MFA fixture opt-in. Both Go and
+TypeScript consumers now pin owner revision `c25ceddd225018b4a2403153e012f41097089c00`,
+whose contract, Go quality, secret and container checks passed in hosted run
+`44454586010`. The CI job explicitly configures the real workload credential path
+before starting the guarded owner and HMS services. Local validation passed:
+1,492 API tests, 85 focused login/recovery component tests, E2E typecheck/lint,
+scoped Go race/vet/lint, the Go build and the shell production build. Generated
+shell build output was removed. Independent-employer native acceptance, hosted
+SQL/browser results, normal merge and deployed verification remain outstanding.

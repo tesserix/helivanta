@@ -473,6 +473,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HELIVANTA_PASSWORD_RECOVERY_FIXTURE: "true"
+      HELIVANTA_STAFF_MFA_RECOVERY_FIXTURE: "true"
     # Run 44425880230 reached 105 passing main tests in 14m, then passed
     # idle-timeout (39s) and renewal (3.5m), before the old 20m step bound
     # interrupted cleanup. The original ~10m job baseline predates this suite.
@@ -565,6 +566,12 @@ jobs:
         run: make dev-infra
       - name: Migrate and seed
         run: make seed
+      - name: Configure isolated native Staff identity client
+        env:
+          HELIVANTA_ENV: dev
+          HELIVANTA_IDENTITY_FIXTURE: "true"
+          ZITADEL_ISSUER_URL: http://auth.tesserix.localhost:20080
+        run: node scripts/ci/native-mfa-identity-env.mjs
       - name: Start real local identity owner
         run: |
           make dev-identity-owner-setup

@@ -149,6 +149,14 @@ const USERS = [
   { email: "test@helivanta.dev", memberships: ADMIN_MEMBERSHIPS },
   { email: "pharmacist@helivanta.dev", memberships: PHARMACIST_MEMBERSHIPS },
   { email: MFA_EMAIL, memberships: PHARMACIST_MEMBERSHIPS },
+  ...(process.env.HELIVANTA_STAFF_MFA_RECOVERY_FIXTURE === "true"
+    ? [
+        {
+          email: "e2e-staff-mfa-recovery-native-reviewer@helivanta.dev",
+          memberships: ADMIN_MEMBERSHIPS,
+        },
+      ]
+    : []),
   ...specSlugs().flatMap((slug) => [
     { email: specEmail(slug, "admin"), memberships: ADMIN_MEMBERSHIPS },
     { email: specEmail(slug, "pharmacist"), memberships: PHARMACIST_MEMBERSHIPS },

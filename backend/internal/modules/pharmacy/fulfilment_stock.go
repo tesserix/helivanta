@@ -85,7 +85,10 @@ func (h *outletFulfilment) Snapshot(tx *gorm.DB, p f.AllocationPlan) (f.StockEvi
 	if p.Product.Owner != "pharmacy" || p.Product.Version == nil || product.Version != *p.Product.Version || product.Status != "active" || product.UnitOfIssue != p.UnitCode || batch.BatchFields.ProductID != product.ID {
 		return f.StockEvidence{}, f.ErrConflict
 	}
-	today := time.Now().In(time.FixedZone("Asia/Kolkata", 19800)).Format(time.DateOnly)
+	today, err := outletStockDay(tx, p.OwnerTenantID, p.SourceLocationID)
+	if err != nil {
+		return f.StockEvidence{}, err
+	}
 	var available int64
 	if err := tx.Raw(`SELECT COALESCE(SUM(on_hand),0) FROM pharmacy_sellable_buckets(?,?,?,?::date) WHERE location_id=? AND batch_id=?`, p.OwnerTenantID, p.SourceLocationID, p.Product.ProductID, today, *p.Input.StockLocationID, p.Input.StockID).Scan(&available).Error; err != nil {
 		return f.StockEvidence{}, err

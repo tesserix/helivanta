@@ -91,5 +91,24 @@ organization-identity race suites, affected-package vet, contractdocs generation
 and checking, and Staff source-inventory generation and checking. The parent
 fixture/inventory selection passed 18 Node tests; the combined diagnostics,
 fixture and inventory selection passed 25. These integrations need fresh hosted
-checks before release. The earlier jobs are allowed to finish before the PR
-branches advance, preserving their full Go results instead of cancelling them.
+checks before release. Necessary main and catalogue integration updates advance
+the PR branches through normal CI concurrency. Any older Go run superseded by
+those updates remains unproven; only the final accepted revision can satisfy the
+full Go release gate.
+
+## Catalogue and live QA readiness
+
+The owning infrastructure candidate now projects this release contract through
+the onboarding-service Helm chart, including `staff_mfa_recovery` with eligibility
+false. Its ConfigMap regression reproduced the missing definition before
+regeneration. The render/schema selection passed 11 Python tests, five native
+reconciler tests passed, and Helm lint/render and Ruff checks passed. The rendered
+validation artifact was removed. Catalogue parity prevents writes until the
+deployed application contract matches; provisioning creates missing flags disabled.
+The supported Console activation is product-wide, not a tenant-targeted override.
+
+Read-only Chrome inspection on 19 November 2026 UTC found the existing owner
+signed in to Yes Hospital with a display name and the Staff directory available.
+QA Staff was active but its account link still awaited independent review by
+someone other than its proposer. No access, account link, credential or factor
+was changed. This is baseline readiness evidence, not deployed recovery acceptance.

@@ -7,6 +7,44 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { recoveryDiagnostics } from "./recovery-owner-diagnostics.mjs";
 
+test("account scope failures retain bounded timing and cancellation without identity data", () => {
+  const record = {
+    msg: "account lookup unavailable",
+    phase: "scope_current_identity",
+    elapsed_ms: 751,
+    parent_deadline: false,
+    parent_cancelled: false,
+    subject: "private-user",
+    email: "private-email",
+    error: "private-provider-payload",
+  };
+  assert.deepEqual(recoveryDiagnostics(JSON.stringify(record)), [
+    {
+      component: "account_lookup",
+      phase: "scope_current_identity",
+      elapsed_ms: 751,
+      parent_deadline: false,
+      parent_cancelled: false,
+    },
+  ]);
+  for (const changes of [
+    { phase: "private-phase" },
+    { elapsed_ms: -1 },
+    { elapsed_ms: 60_001 },
+    { elapsed_ms: "751" },
+    { elapsed_ms: 0.5 },
+    { parent_deadline: "false" },
+    { parent_cancelled: null },
+  ]) {
+    assert.deepEqual(recoveryDiagnostics(JSON.stringify({ ...record, ...changes })), []);
+  }
+  for (const elapsed_ms of [0, 60_000]) {
+    const result = recoveryDiagnostics(JSON.stringify({ ...record, elapsed_ms }));
+    assert.equal(result.length, 1);
+    assert.equal(result[0].elapsed_ms, elapsed_ms);
+  }
+});
+
 test("recovery diagnostics retain bounded stages and status without private fields", () => {
   const privateFields = {
     actor: "private-account",

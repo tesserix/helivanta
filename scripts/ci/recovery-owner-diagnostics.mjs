@@ -3,6 +3,12 @@ import { pathToFileURL } from "node:url";
 
 const maxBytes = 8 << 20;
 const maxLineBytes = 16 << 10;
+const accountPhases = new Set([
+  "scope_organization_record",
+  "scope_product_record",
+  "scope_enrolments",
+  "scope_current_identity",
+]);
 const stages = new Map([
   [
     "Staff MFA recovery admission unavailable",
@@ -76,6 +82,22 @@ export function recoveryDiagnostics(log) {
     const rule = stages.get(record.msg);
     if (rule?.allowed.has(record.stage)) {
       results.push({ component: rule.component, stage: record.stage });
+    } else if (
+      record.msg === "account lookup unavailable" &&
+      accountPhases.has(record.phase) &&
+      Number.isInteger(record.elapsed_ms) &&
+      record.elapsed_ms >= 0 &&
+      record.elapsed_ms <= 60_000 &&
+      typeof record.parent_deadline === "boolean" &&
+      typeof record.parent_cancelled === "boolean"
+    ) {
+      results.push({
+        component: "account_lookup",
+        phase: record.phase,
+        elapsed_ms: record.elapsed_ms,
+        parent_deadline: record.parent_deadline,
+        parent_cancelled: record.parent_cancelled,
+      });
     } else if (
       record.msg === "request" &&
       record.method === "PUT" &&

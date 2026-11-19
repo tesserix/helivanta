@@ -324,3 +324,11 @@ source ledger does not claim runtime acceptance. Revocation uses the existing
 `admin_revoke` database category, with the MFA-specific audit and retained original
 reason. These corrections await a fresh hosted run; no conformance gate was
 skipped or relaxed.
+
+
+Hosted follow-up `44450567737` confirmed the exact RLS write-policy distinction:
+`USING` calls `hms_tenant_visible` and retains exact-tenant equality, while
+`WITH CHECK` uses exact-tenant equality without that helper. The three write
+policies are corrected to the existing `tenantdb.LintRLS` contract; its checks
+remain unchanged. This failure happened during schema bootstrap before any new
+native/browser or Staff recovery database acceptance could run.

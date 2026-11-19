@@ -33,12 +33,12 @@ ALTER TABLE iam_staff_mfa_commands ENABLE ROW LEVEL SECURITY;
 ALTER TABLE iam_staff_mfa_commands FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON iam_staff_mfa_commands
  USING(hms_tenant_visible(tenant_id) AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid)
- WITH CHECK(hms_tenant_visible(tenant_id) AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);
+ WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);
 ALTER TABLE iam_staff_mfa_cancellations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE iam_staff_mfa_cancellations FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON iam_staff_mfa_cancellations
  USING(hms_tenant_visible(tenant_id) AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid)
- WITH CHECK(hms_tenant_visible(tenant_id) AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);
+ WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);
 CREATE FUNCTION iam_staff_mfa_intent_guard() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
  PERFORM pg_advisory_xact_lock(hashtextextended('iam.staff-mfa-fence:'||NEW.tenant_id::text||':'||NEW.command_id::text,0));
@@ -82,7 +82,7 @@ ALTER TABLE iam_staff_mfa_fences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE iam_staff_mfa_fences FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON iam_staff_mfa_fences
  USING(hms_tenant_visible(tenant_id) AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid)
- WITH CHECK(hms_tenant_visible(tenant_id) AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);
+ WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);
 CREATE FUNCTION iam_staff_mfa_fence_guard() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
  PERFORM pg_advisory_xact_lock(hashtextextended('iam.staff-mfa-fence:'||NEW.tenant_id::text||':'||NEW.command_id::text,0));

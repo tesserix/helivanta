@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "registry_sha256": "3c7e46acd198cbffb09e5a8708a7f3c37443f48c0c688150c1f77544c555caef",
+  "registry_sha256": "9219119f6353f6a7484386a931b6524ea1854e067d2a0d50a78eb5f5056b61f5",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
     "total": 1158,
@@ -18288,7 +18288,7 @@
           },
           {
             "path": "backend/internal/modules/iam/staff_mfa_fences.sql",
-            "sha256": "d11512e5af55c229e5f7ac8eae029c561e433c1385c0f161e7f71fc709975c22",
+            "sha256": "5830f2abda8dc5a54bc8bbb452c1a59f253f404e1324ab042d8b6f3192e3a276",
             "symbol": "CREATE TABLE iam_staff_mfa_commands"
           },
           {
@@ -19621,7 +19621,7 @@
           },
           {
             "path": "backend/internal/modules/iam/staff_mfa_fences.sql",
-            "sha256": "d11512e5af55c229e5f7ac8eae029c561e433c1385c0f161e7f71fc709975c22",
+            "sha256": "5830f2abda8dc5a54bc8bbb452c1a59f253f404e1324ab042d8b6f3192e3a276",
             "symbol": "CREATE TABLE iam_staff_mfa_commands"
           },
           {
@@ -20167,7 +20167,7 @@
           },
           {
             "path": "backend/internal/modules/iam/staff_mfa_fences.sql",
-            "sha256": "d11512e5af55c229e5f7ac8eae029c561e433c1385c0f161e7f71fc709975c22",
+            "sha256": "5830f2abda8dc5a54bc8bbb452c1a59f253f404e1324ab042d8b6f3192e3a276",
             "symbol": "CREATE TABLE iam_staff_mfa_commands"
           },
           {
@@ -21402,7 +21402,7 @@
           },
           {
             "path": "backend/internal/modules/iam/staff_mfa_fences.sql",
-            "sha256": "d11512e5af55c229e5f7ac8eae029c561e433c1385c0f161e7f71fc709975c22",
+            "sha256": "5830f2abda8dc5a54bc8bbb452c1a59f253f404e1324ab042d8b6f3192e3a276",
             "symbol": "CREATE TABLE iam_staff_mfa_commands"
           },
           {
@@ -21584,7 +21584,7 @@
           },
           {
             "path": "backend/internal/modules/iam/staff_mfa_fences.sql",
-            "sha256": "d11512e5af55c229e5f7ac8eae029c561e433c1385c0f161e7f71fc709975c22",
+            "sha256": "5830f2abda8dc5a54bc8bbb452c1a59f253f404e1324ab042d8b6f3192e3a276",
             "symbol": "CREATE TABLE iam_staff_mfa_commands"
           },
           {
@@ -21638,7 +21638,7 @@
           },
           {
             "path": "backend/internal/modules/iam/staff_mfa_fences.sql",
-            "sha256": "d11512e5af55c229e5f7ac8eae029c561e433c1385c0f161e7f71fc709975c22",
+            "sha256": "5830f2abda8dc5a54bc8bbb452c1a59f253f404e1324ab042d8b6f3192e3a276",
             "symbol": "CREATE TABLE iam_staff_mfa_commands"
           },
           {
@@ -23247,7 +23247,7 @@
           },
           {
             "path": "backend/internal/modules/iam/staff_mfa_fences.sql",
-            "sha256": "d11512e5af55c229e5f7ac8eae029c561e433c1385c0f161e7f71fc709975c22",
+            "sha256": "5830f2abda8dc5a54bc8bbb452c1a59f253f404e1324ab042d8b6f3192e3a276",
             "symbol": "CREATE TABLE iam_staff_mfa_commands"
           },
           {
@@ -23758,7 +23758,7 @@
           },
           {
             "path": "backend/internal/modules/iam/staff_mfa_fences.sql",
-            "sha256": "d11512e5af55c229e5f7ac8eae029c561e433c1385c0f161e7f71fc709975c22",
+            "sha256": "5830f2abda8dc5a54bc8bbb452c1a59f253f404e1324ab042d8b6f3192e3a276",
             "symbol": "CREATE TABLE iam_staff_mfa_commands"
           },
           {
@@ -24069,7 +24069,7 @@
           },
           {
             "path": "backend/internal/modules/iam/staff_mfa_fences.sql",
-            "sha256": "d11512e5af55c229e5f7ac8eae029c561e433c1385c0f161e7f71fc709975c22",
+            "sha256": "5830f2abda8dc5a54bc8bbb452c1a59f253f404e1324ab042d8b6f3192e3a276",
             "symbol": "CREATE TABLE iam_staff_mfa_commands"
           },
           {

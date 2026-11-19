@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -158,7 +159,13 @@ func (h *staffMFAResetService) recheck(ctx context.Context, p authn.Principal, i
 	return h.authorize(ctx, p, target.Subject, uuid.MustParse(in.Intent.CommandID))
 }
 
-func (h *staffMFAResetService) Reset(ctx context.Context, p authn.Principal, intent customercontract.StaffMFAResetInput, source platform.StaffMFATargetReader) (customercontract.StaffMFARecoveryReceipt, error) {
+func (h *staffMFAResetService) Reset(ctx context.Context, p authn.Principal, intent customercontract.StaffMFAResetInput, source platform.StaffMFATargetReader) (result customercontract.StaffMFARecoveryReceipt, resultErr error) {
+	stage := "validate"
+	defer func() {
+		if errors.Is(resultErr, staffclient.ErrUnavailable) {
+			slog.WarnContext(ctx, "Staff authenticator recovery dependency unavailable", "stage", stage)
+		}
+	}()
 	var empty customercontract.StaffMFARecoveryReceipt
 	if err := h.validate(p); err != nil {
 		return empty, err
@@ -169,12 +176,14 @@ func (h *staffMFAResetService) Reset(ctx context.Context, p authn.Principal, int
 	ctx, cancel := staffMFAResetContext(ctx, p)
 	defer cancel()
 	id := uuid.MustParse(intent.CommandID)
+	stage = "authorize_actor"
 	if err := h.authorize(ctx, p, "", id); err != nil {
 		return empty, err
 	}
 	if source == nil {
 		return empty, staffclient.ErrUnavailable
 	}
+	stage = "read_staff"
 	target, err := source(ctx, intent)
 	if err != nil {
 		return empty, mfaAuthorityError(err)
@@ -189,9 +198,11 @@ func (h *staffMFAResetService) Reset(ctx context.Context, p authn.Principal, int
 	if in.Validate() != nil {
 		return empty, staffclient.ErrUnavailable
 	}
+	stage = "authorize_target"
 	if err = h.authorize(ctx, p, target.Subject, id); err != nil {
 		return empty, err
 	}
+	stage = "retain_intent"
 	cancelled, err := h.remember(ctx, p, in)
 	if err != nil {
 		return empty, err
@@ -200,28 +211,34 @@ func (h *staffMFAResetService) Reset(ctx context.Context, p authn.Principal, int
 		return h.Cancel(ctx, p, intent.CommandID, staffMFAScope(in))
 	}
 	scope := staffclient.Scope{TenantID: uuid.MustParse(p.TenantID), CommandID: id, ActorSubject: p.Subject}
+	stage = "prepare_owner"
 	receipt, err := h.owner.PrepareMFA(ctx, scope, in)
 	if err != nil {
 		return empty, err
 	}
+	stage = "recheck_before_fence"
 	if err = h.recheck(ctx, p, in, source); err != nil {
 		return empty, err
 	}
 	if receipt.State == "prepared" {
+		stage = "commit_fence"
 		if err = h.fence(ctx, p, in); err != nil {
 			if errors.Is(err, errStaffMFACancelRequested) {
 				return h.Cancel(ctx, p, intent.CommandID, staffMFAScope(in))
 			}
 			return empty, err
 		}
+		stage = "recheck_before_dispatch"
 		if err = h.recheck(ctx, p, in, source); err != nil {
 			return empty, err
 		}
+		stage = "dispatch_owner"
 		receipt, err = h.owner.DispatchMFA(ctx, scope, customercontract.StaffMFADispatchRequest{Request: in, ApplicationFenceID: intent.CommandID})
 		if err != nil {
 			return empty, err
 		}
 	}
+	stage = "recheck_after_dispatch"
 	if err = h.recheck(ctx, p, in, source); err != nil {
 		return empty, err
 	}

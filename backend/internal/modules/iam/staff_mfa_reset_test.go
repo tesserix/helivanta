@@ -1,7 +1,9 @@
 package iam
 
 import (
+	"bytes"
 	"context"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -43,4 +45,22 @@ func TestStaffMFAResetRejectsInvalidAuthorityBeforeSourceOrNativeIO(t *testing.T
 			require.Empty(t, out.State)
 		})
 	}
+}
+
+func TestStaffMFAResetLogsOnlyTheFailedStage(t *testing.T) {
+	var output bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&output, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+	now := time.Now().UTC()
+	principal := authn.Principal{TenantID: "11111111-1111-4111-8111-111111111111", Subject: "private-admin", AuthTime: now, IdleDeadline: now.Add(time.Hour)}
+	input := customercontract.StaffMFAResetInput{Reason: "Private verification evidence"}
+	service := New(nil).StaffMFARecovery(platform.Deps{})
+	_, err := service.Reset(t.Context(), principal, input, nil)
+	require.ErrorIs(t, err, staffclient.ErrUnavailable)
+	require.Contains(t, output.String(), "stage=validate")
+	require.NotContains(t, output.String(), principal.TenantID)
+	require.NotContains(t, output.String(), principal.Subject)
+	require.NotContains(t, output.String(), input.Reason)
+	require.NotContains(t, output.String(), err.Error())
 }

@@ -2,6 +2,7 @@ package drugmaster_test
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/google/uuid"
@@ -57,4 +58,29 @@ func TestScheduledReleaseReplayDoesNotCreateOrReopenReleases(t *testing.T) {
 		return tx.Raw(`SELECT status FROM drugmaster_releases WHERE id=?`, first).Scan(&status).Error
 	}))
 	require.Equal(t, "rejected", status)
+}
+
+func TestOutletCatalogueKeepsConcentrationForEveryPackOfOneFormulation(t *testing.T) {
+	s := newStack(t)
+	file := amoxicillin("concentration-packs", "2020-01-01", "H", "active")
+	five := json.Number("5")
+	unit := "mL"
+	file.Formulations[0].Ingredients[0].PerValue = &five
+	file.Formulations[0].Ingredients[0].PerUnit = &unit
+	second := file.Products[0]
+	second.Code = "TEST-SECOND-PACK"
+	second.GTIN = nil
+	second.PackSize = 20
+	file.Products = append(file.Products, second)
+	s.publish(t, file)
+	source := drugmaster.New().StockProducts(s.db).(stockproduct.CatalogueSource)
+	rows, err := source.SearchCatalogue(t.Context(), "Testmox")
+	require.NoError(t, err)
+	require.Len(t, rows, 2)
+	for _, row := range rows {
+		require.Len(t, row.Ingredients, 1)
+		require.Equal(t, "500", row.Ingredients[0].StrengthValue)
+		require.Equal(t, "5", *row.Ingredients[0].PerValue)
+		require.Equal(t, "mL", *row.Ingredients[0].PerUnit)
+	}
 }

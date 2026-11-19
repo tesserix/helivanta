@@ -48,7 +48,7 @@ func (g outletShipmentSafety) WithSafeShipment(ctx context.Context, s f.Shipment
 					return f.ErrConflict
 				}
 				var unsafe bool
-				if e = tx.Raw(`SELECT EXISTS(SELECT 1 FROM pharmacy_batch_safety_incidents WHERE tenant_id=? AND outlet_id=? AND batch_id=?)OR EXISTS(SELECT 1 FROM pharmacy_stock_batches WHERE tenant_id=? AND outlet_id=? AND id=? AND expires_on<=(clock_timestamp()AT TIME ZONE 'Asia/Kolkata')::date)`, s.SourceTenantID, s.SourceLocationID, a.Plan.Input.StockID, s.SourceTenantID, s.SourceLocationID, a.Plan.Input.StockID).Scan(&unsafe).Error; e != nil {
+				if e = tx.Raw(`SELECT pharmacy_lot_block_reason(?,?,?,pharmacy_outlet_today(?,?))IS NOT NULL`, s.SourceTenantID, s.SourceLocationID, a.Plan.Input.StockID, s.SourceTenantID, s.SourceLocationID).Scan(&unsafe).Error; e != nil {
 					return e
 				}
 				if unsafe {

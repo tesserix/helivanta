@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
 import {
@@ -157,16 +158,22 @@ function SessionLanding() {
   );
 }
 
-// The shared auth chrome with nothing but a neutral "Loading…" line —
-// used while reading search parameters, checking the current session or
-// validating an auth request, so every pending state has the same shell.
+// The one card every pending step of sign-in shows: reading search
+// parameters, checking the current session, starting the Zitadel redirect
+// and validating the auth request it returns with. Same heading and line as
+// the landing, and a spinner instead of step-by-step wording, so the steps
+// read as one card filling in rather than three pages.
 function AuthChromeLoading() {
   return (
     <TenantLoginLayout>
       <AuthCardCentered>
         <div className="space-y-2 text-center">
           <TenantLoginHeading />
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <p className="text-sm text-muted-foreground">Sign in to continue.</p>
+        </div>
+        <div role="status" className="flex justify-center py-2">
+          <Loader2 aria-hidden className="size-5 animate-spin text-muted-foreground" />
+          <span className="sr-only">Loading</span>
         </div>
       </AuthCardCentered>
     </TenantLoginLayout>
@@ -1251,8 +1258,14 @@ function RedirectLanding({
     // this function's doc comment on why the states must never be mixed.
     if (message) return;
     // Every branch below that finds a just-ended session, or cannot read
-    // storage, shows the button instead.
-    const showLanding = () => setStarting(false);
+    // storage, shows the button instead — and for good: the marks are
+    // consumed here, so a re-run of this effect (Strict Mode, a re-render)
+    // must not read their absence as "nothing ended" and start a redirect
+    // over the sign-out wording (#847).
+    const showLanding = () => {
+      autoStarted.current = true;
+      setStarting(false);
+    };
     try {
       if (window.sessionStorage.getItem(IDLE_ENDED_MARK)) {
         showLanding();
@@ -1294,6 +1307,11 @@ function RedirectLanding({
     void signIn();
   }, [message, shouldStart, signIn]);
 
+  // While the redirect is starting, stay on the pending card rather than
+  // swapping the button's wording. A failed start clears `starting` and
+  // shows the landing with its error.
+  if (starting && !error) return <AuthChromeLoading />;
+
   return (
     <TenantLoginLayout>
       <AuthCardCentered>
@@ -1313,7 +1331,7 @@ function RedirectLanding({
         {!findAccounts ? (
           <>
             <Button size="lg" className="w-full" onClick={signIn} disabled={starting}>
-              {starting ? "Redirecting…" : "Sign in"}
+              Sign in
             </Button>
             {workspace ? null : (
               <Link

@@ -138,24 +138,66 @@ only with a valid non-future positive timestamp and no member records. Explicit
 nulls, malformed/recased metadata, contradictory counts and privileged member
 records remain refused. Its new regression cases failed before the parser fix;
 the full native adapter race suite, vet, lint and owner Go build passed locally.
-Owner CI run `44519826627` passed all checks. Both Go and TypeScript consumers
-now pin `4b2a96a0aef2d9d1926dbe7d416b95f7f6671855`; full consumer checks and native
-acceptance remain required.
+Owner CI run `44519826627` passed all checks. Candidate `37e6f801` pinned both
+consumers to `4b2a96a0aef2d9d1926dbe7d416b95f7f6671855`; native acceptance
+remained required.
 
 The browser assertion now checks this same native response shape. It verifies
 empty result type/count and valid timestamp evidence when counters are omitted or
 zero; it does not invent a positive projection sequence. The owner's authenticated
 query and guarded recovery command still authorize preparation and dispatch.
 
+## Current-main integration
+
+The owner branches now retain main's multi-account email lookup: prerequisite
+`eab2adb` and Staff recovery `c67ff09` passed all hosted owner checks, including
+PostgreSQL Go quality, contracts, images and security. Both HMS consumers pin
+`c67ff0981bfab93e275bca591d1ce45e8de568c7`.
+
+The parent HMS resolution `e7b9c1d4` preserves the validated native organization
+lookup and multi-account email dispatch. The inherited multiple-account test
+failed when that dispatch was absent, then passed after restoration. Unscoped
+**Forgot password?** opens the existing mailbox account finder before scoped
+recovery; its new regression failed before the change and passed after it. A
+browser case covers the same transition and awaits hosted execution.
+
+Main already allocated `0053_iam_login_account_choice`. The unshipped MFA fence
+migration therefore becomes `0054_iam_staff_mfa_fences`; the published migration
+remains unchanged. The registration regression failed with only 53 phases and
+passed after retaining both phases in order. This is source-level evidence, not
+an applied live migration.
+
+Run `44521873765` at `37e6f801` passed web, scripts and secret scanning. Its E2E
+job failed during Ubuntu browser-dependency installation before application
+startup. No native recovery case executed in that job. Its Go coverage job is
+still running; this partial result is not full acceptance.
+
+GitGuardian incident `40266894` was classified in the provider as **Not a secret
+(false positive)** after source review. Its normal PR check passed at `5cad384c`.
+This resolves the reviewed finding without disabling repository scanning; fresh
+required checks remain necessary for each subsequent application revision.
+
+Local validation of the combined candidate used Node 24.11.1: 133 API files /
+1,498 tests and 240 shell files / 2,165 tests passed. API/shell/E2E typechecks and
+lint passed; lint retains the existing signup effect-dependency warning. The
+Node 24 shell production build passed with `API_URL=http://127.0.0.1:8081`, and
+its generated `.next` directory was removed afterward. No local application,
+database or container was started.
+
+Backend validation passed `go build -p=2 ./...`, the loginclient, session, authn
+and organizationidentity race suites, focused customer-onboarding recovery and
+IAM MFA/registration race tests, and affected-package vet. Contractdocs
+regeneration/check, release-capability generation/check, source-inventory
+generation/check, E2E typecheck/lint, formatting and all 16 browser-registration /
+inventory tests passed. The full database and native browser suites remain hosted
+CI obligations; these local results do not establish deployed acceptance.
+
 ## Remaining release gates
 
 Require full hosted database and native-browser acceptance for both employer
 models, password-reset-to-login, lockout guidance and forced replacement MFA
-before enabling recovery. Resolve the password-recovery prerequisite's GitGuardian
-incident 40266894 through the security dashboard. Its reported source at commit
-`068c9bfa`, `apps/shell/components/password-recovery.tsx:66`, initializes empty form
-values; it contains no credential. This source review is not a provider dismissal
-or a passing security check.
+before enabling recovery. Require normal passing security checks at the accepted
+release revision as well as the resolved provider finding recorded above.
 
 Follow [the schema-first rollout and acceptance plan](../deployment/2026-11-19-staff-recovery-rollout.md)
 for approved live migrations, owner/application Kargo releases, named QA factor

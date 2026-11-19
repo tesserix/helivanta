@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "a49a27fe4d7b4a27aa5488cfff59e02d6fde4335f44946f73c16b6260dda29e5",
+  "registry_sha256": "f43ec63c718a564b983af255d4e1019543019cac745f603e7d3e8afa34668283",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1158,
-    "unclassified": 1013
+    "total": 1159,
+    "unclassified": 1014
   },
   "entries": [
     {
@@ -3170,7 +3170,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "3f59cd16e1679cd750df13e2fc651a693dcc6194c30b173daf530fcda36df5d3",
+            "sha256": "0dcf1d380c2c756226a20f276a6b15cfd358b619ec1c35fdfd4f5975daafa7c6",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -3219,7 +3219,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "3f59cd16e1679cd750df13e2fc651a693dcc6194c30b173daf530fcda36df5d3",
+            "sha256": "0dcf1d380c2c756226a20f276a6b15cfd358b619ec1c35fdfd4f5975daafa7c6",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -4204,7 +4204,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "3f59cd16e1679cd750df13e2fc651a693dcc6194c30b173daf530fcda36df5d3",
+            "sha256": "0dcf1d380c2c756226a20f276a6b15cfd358b619ec1c35fdfd4f5975daafa7c6",
             "symbol": "m.registerPartnerGrantDrafts(g, deps)"
           },
           {
@@ -4251,7 +4251,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "3f59cd16e1679cd750df13e2fc651a693dcc6194c30b173daf530fcda36df5d3",
+            "sha256": "0dcf1d380c2c756226a20f276a6b15cfd358b619ec1c35fdfd4f5975daafa7c6",
             "symbol": "m.registerPartnerGrantDrafts(g, deps)"
           },
           {
@@ -4538,7 +4538,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "3f59cd16e1679cd750df13e2fc651a693dcc6194c30b173daf530fcda36df5d3",
+            "sha256": "0dcf1d380c2c756226a20f276a6b15cfd358b619ec1c35fdfd4f5975daafa7c6",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -4583,7 +4583,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "3f59cd16e1679cd750df13e2fc651a693dcc6194c30b173daf530fcda36df5d3",
+            "sha256": "0dcf1d380c2c756226a20f276a6b15cfd358b619ec1c35fdfd4f5975daafa7c6",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -4718,7 +4718,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "3f59cd16e1679cd750df13e2fc651a693dcc6194c30b173daf530fcda36df5d3",
+            "sha256": "0dcf1d380c2c756226a20f276a6b15cfd358b619ec1c35fdfd4f5975daafa7c6",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -4896,7 +4896,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "3f59cd16e1679cd750df13e2fc651a693dcc6194c30b173daf530fcda36df5d3",
+            "sha256": "0dcf1d380c2c756226a20f276a6b15cfd358b619ec1c35fdfd4f5975daafa7c6",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -4940,7 +4940,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "3f59cd16e1679cd750df13e2fc651a693dcc6194c30b173daf530fcda36df5d3",
+            "sha256": "0dcf1d380c2c756226a20f276a6b15cfd358b619ec1c35fdfd4f5975daafa7c6",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -5292,7 +5292,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "3f59cd16e1679cd750df13e2fc651a693dcc6194c30b173daf530fcda36df5d3",
+            "sha256": "0dcf1d380c2c756226a20f276a6b15cfd358b619ec1c35fdfd4f5975daafa7c6",
             "symbol": "m.registerPartnerGrantDrafts(g, deps)"
           },
           {
@@ -18293,7 +18293,7 @@
           },
           {
             "path": "backend/go.mod",
-            "sha256": "8bee091c41c45c7b1dfecb3cf280840e625ffccd6f41403550b0de48a610cb3e",
+            "sha256": "f025fd735b510fc88e2bc938da47b6b2763ba702feabfd75e580730c527e960a",
             "symbol": "github.com/tesserix/onboarding-service/api"
           }
         ],
@@ -19626,7 +19626,7 @@
           },
           {
             "path": "backend/go.mod",
-            "sha256": "8bee091c41c45c7b1dfecb3cf280840e625ffccd6f41403550b0de48a610cb3e",
+            "sha256": "f025fd735b510fc88e2bc938da47b6b2763ba702feabfd75e580730c527e960a",
             "symbol": "github.com/tesserix/onboarding-service/api"
           }
         ],
@@ -20172,7 +20172,7 @@
           },
           {
             "path": "backend/go.mod",
-            "sha256": "8bee091c41c45c7b1dfecb3cf280840e625ffccd6f41403550b0de48a610cb3e",
+            "sha256": "f025fd735b510fc88e2bc938da47b6b2763ba702feabfd75e580730c527e960a",
             "symbol": "github.com/tesserix/onboarding-service/api"
           }
         ],
@@ -21407,7 +21407,7 @@
           },
           {
             "path": "backend/go.mod",
-            "sha256": "8bee091c41c45c7b1dfecb3cf280840e625ffccd6f41403550b0de48a610cb3e",
+            "sha256": "f025fd735b510fc88e2bc938da47b6b2763ba702feabfd75e580730c527e960a",
             "symbol": "github.com/tesserix/onboarding-service/api"
           }
         ],
@@ -21589,7 +21589,7 @@
           },
           {
             "path": "backend/go.mod",
-            "sha256": "8bee091c41c45c7b1dfecb3cf280840e625ffccd6f41403550b0de48a610cb3e",
+            "sha256": "f025fd735b510fc88e2bc938da47b6b2763ba702feabfd75e580730c527e960a",
             "symbol": "github.com/tesserix/onboarding-service/api"
           }
         ],
@@ -21643,7 +21643,7 @@
           },
           {
             "path": "backend/go.mod",
-            "sha256": "8bee091c41c45c7b1dfecb3cf280840e625ffccd6f41403550b0de48a610cb3e",
+            "sha256": "f025fd735b510fc88e2bc938da47b6b2763ba702feabfd75e580730c527e960a",
             "symbol": "github.com/tesserix/onboarding-service/api"
           }
         ],
@@ -23252,7 +23252,7 @@
           },
           {
             "path": "backend/go.mod",
-            "sha256": "8bee091c41c45c7b1dfecb3cf280840e625ffccd6f41403550b0de48a610cb3e",
+            "sha256": "f025fd735b510fc88e2bc938da47b6b2763ba702feabfd75e580730c527e960a",
             "symbol": "github.com/tesserix/onboarding-service/api"
           }
         ],
@@ -23763,7 +23763,7 @@
           },
           {
             "path": "backend/go.mod",
-            "sha256": "8bee091c41c45c7b1dfecb3cf280840e625ffccd6f41403550b0de48a610cb3e",
+            "sha256": "f025fd735b510fc88e2bc938da47b6b2763ba702feabfd75e580730c527e960a",
             "symbol": "github.com/tesserix/onboarding-service/api"
           }
         ],
@@ -24074,7 +24074,7 @@
           },
           {
             "path": "backend/go.mod",
-            "sha256": "8bee091c41c45c7b1dfecb3cf280840e625ffccd6f41403550b0de48a610cb3e",
+            "sha256": "f025fd735b510fc88e2bc938da47b6b2763ba702feabfd75e580730c527e960a",
             "symbol": "github.com/tesserix/onboarding-service/api"
           }
         ],
@@ -24434,6 +24434,16 @@
       "registration": {
         "route": "POST /v1/auth/login",
         "rationale": "creates the Helivanta session and therefore cannot require one"
+      },
+      "review": null
+    },
+    {
+      "id": "unauthenticated_http platform POST /v1/auth/login/account",
+      "kind": "unauthenticated_http",
+      "module": "platform",
+      "registration": {
+        "route": "POST /v1/auth/login/account",
+        "rationale": "continues a password already verified for several accounts with the one the person picked"
       },
       "review": null
     },

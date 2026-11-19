@@ -41,6 +41,23 @@ func TestValkeyLimiterSharesAtomicBudgetAcrossReplicas(t *testing.T) {
 	require.True(t, second.Allow("same-principal", rule, now.Add(time.Second)).Allowed)
 	require.False(t, first.Allow("same-principal", rule, now.Add(time.Second)).Allowed)
 	require.True(t, first.Allow("another-tenant", rule, now).Allowed)
+	// A refund on either replica returns one shared token, capped at the burst.
+	second.Refund("same-principal", rule, now.Add(time.Second))
+	require.True(t, first.Allow("same-principal", rule, now.Add(time.Second)).Allowed)
+	require.False(t, second.Allow("same-principal", rule, now.Add(time.Second)).Allowed)
+	for range 5 {
+		first.Refund("refunded", rule, now)
+	}
+	require.True(t, first.Allow("refunded", rule, now).Allowed)
+	require.True(t, first.Allow("refunded", rule, now).Allowed)
+	require.False(t, first.Allow("refunded", rule, now).Allowed, "refunds must not exceed the burst or create a bucket")
+	require.True(t, first.Allow("capped", rule, now).Allowed)
+	for range 5 {
+		second.Refund("capped", rule, now)
+	}
+	require.True(t, first.Allow("capped", rule, now).Allowed)
+	require.True(t, first.Allow("capped", rule, now).Allowed)
+	require.False(t, first.Allow("capped", rule, now).Allowed, "refunds into a spent bucket must stop at the burst")
 	var allowed atomic.Int32
 	var group sync.WaitGroup
 	for i := range 20 {

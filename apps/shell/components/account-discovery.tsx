@@ -14,10 +14,11 @@ import { Button, Field, useZodForm } from "@helivanta/ui";
 import {
   forgetWorkspace,
   readRememberedWorkspace,
+  rememberWorkspace,
   subscribeWorkspace,
 } from "@/lib/workspace-signin";
 
-type Props = { onSelect: (tenantId: string) => Promise<void> };
+type Props = { onSelect: (tenantId: string, email?: string) => Promise<void> };
 
 export function AccountDiscovery({ onSelect }: Props) {
   const remembered = useSyncExternalStore(subscribeWorkspace, readRememberedWorkspace, () => null);
@@ -32,11 +33,17 @@ export function AccountDiscovery({ onSelect }: Props) {
       setPhase("code");
     },
   });
+  // Remembered at selection, not only after sign-in, so a start-again landing
+  // offers this account again instead of another mailbox code.
+  async function choose(tenantId: string) {
+    rememberWorkspace(tenantId);
+    return onSelect(tenantId, emailForm.getValues("email") || undefined);
+  }
   async function loadChoices() {
     const result = await getAccountChoices();
     setChoices(result.accounts);
     setPhase("choices");
-    if (result.accounts.length === 1) await onSelect(result.accounts[0].tenantId);
+    if (result.accounts.length === 1) await choose(result.accounts[0].tenantId);
     return result;
   }
   const verify = useApiMutation(
@@ -47,9 +54,7 @@ export function AccountDiscovery({ onSelect }: Props) {
     { suppressErrorToast: true },
   );
   const recover = useApiMutation(loadChoices, { suppressErrorToast: true });
-  const select = useApiMutation((tenantId: string) => onSelect(tenantId), {
-    suppressErrorToast: true,
-  });
+  const select = useApiMutation(choose, { suppressErrorToast: true });
   const pending = send.isPending || verify.isPending || recover.isPending || select.isPending;
   const error = send.error ?? verify.error ?? recover.error ?? select.error;
 

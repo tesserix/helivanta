@@ -56,6 +56,13 @@ type Decision struct {
 // constructor swap rather than a rewrite. Per ADR-0005, build the
 // boundary now and pay for the distributed version when a trigger
 // justifies it.
+//
+// Refund returns one token Allow took, capped at the burst, for a caller that
+// must reserve before acting but only wants some outcomes to count: the
+// password bucket keyed on an email reserves before the check, so parallel
+// attempts cannot all pass, and refunds when the password was right. A
+// refund for a key with no bucket does nothing.
 type Limiter interface {
 	Allow(key string, r Rule, now time.Time) Decision
+	Refund(key string, r Rule, now time.Time)
 }

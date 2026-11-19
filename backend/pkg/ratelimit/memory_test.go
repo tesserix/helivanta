@@ -182,3 +182,26 @@ func TestMemoryIsRaceFree(t *testing.T) {
 	wg.Wait()
 	require.LessOrEqual(t, l.Len(), 50)
 }
+
+func TestRefundReturnsOneTokenCappedAtBurstAndCreatesNoBucket(t *testing.T) {
+	m := ratelimit.NewMemory(10)
+	now := time.Now()
+	r := ratelimit.Rule{Rate: 1, Burst: 2, Per: time.Hour}
+	allowed := func(n int) []bool {
+		got := make([]bool, n)
+		for i := range got {
+			got[i] = m.Allow("k", r, now).Allowed
+		}
+		return got
+	}
+
+	m.Refund("absent", r, now)
+	require.Zero(t, m.Len(), "refund created a bucket")
+	require.Equal(t, []bool{true, true, false}, allowed(3), "burst not spent")
+	m.Refund("k", r, now)
+	require.Equal(t, []bool{true, false}, allowed(2), "refund must return exactly one token")
+	for range 5 {
+		m.Refund("k", r, now)
+	}
+	require.Equal(t, []bool{true, true, false}, allowed(3), "refunds must stop at the burst")
+}

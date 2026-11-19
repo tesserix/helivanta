@@ -22,6 +22,9 @@ func NewLocalIdentityResolver(environment, issuer, enabled string) (*localIdenti
 func (r *localIdentityResolver) TenantLoginSubject(ctx context.Context, org, email string) (string, error) {
 	return r.broker.TenantLoginSubject(ctx, org, email)
 }
+func (r *localIdentityResolver) TenantLoginTargets(ctx context.Context, email string) ([]loginclient.LoginTarget, bool, error) {
+	return r.broker.TenantLoginTargets(ctx, email)
+}
 func (r *localIdentityResolver) TenantIdentitySnapshot(ctx context.Context, tenant, subject string, purpose loginclient.IdentityReadPurpose) (loginclient.IdentitySnapshot, error) {
 	return r.broker.TenantIdentitySnapshot(ctx, tenant, subject, purpose)
 }

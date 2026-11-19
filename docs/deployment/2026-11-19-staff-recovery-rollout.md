@@ -95,7 +95,8 @@ not candidate acceptance.
    owner/schema combination.
 3. Approve the normal Helivanta stack merge and Kargo `prod` rollout in
    `kargo-helivanta`, including the API PreSync migration. Its new IAM phase is
-   `0053_iam_staff_mfa_fences`; retain commands, cancellations and fences under
+   `0054_iam_staff_mfa_fences`, after the published `0053_iam_login_account_choice`;
+   retain commands, cancellations and fences under
    exact tenant RLS and deny their use by Staff selectors. Capture the previous
    hook Job metadata and required recovery evidence privately before the
    controller removes it. Record the archive location before that deletion.
@@ -131,5 +132,5 @@ credentials to make a deployment appear successful. A rollout rollback is a
 separately approved live action and does not reverse completed native actions.
 
 Close #1703 only when its password, MFA, lockout and deployed acceptance criteria
-are proven. Continue #1705, #1704 and #1707, then the remaining R0 milestone scope;
+are proven. Continue #1705, #1704 and #1707, then milestone 12;
 this rollout does not mark those issues complete.

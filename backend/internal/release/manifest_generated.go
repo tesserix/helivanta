@@ -48,6 +48,7 @@ var routeCapabilities = map[string]string{"POST /v1/workforce/hospitals/:hospita
 	"GET /v1/auth/branding/:tenant":                                           "baseline",
 	"POST /v1/auth/login":                                                     "baseline",
 	"POST /v1/auth/login/enroll":                                              "baseline",
+	"POST /v1/auth/login/account":                                             "baseline",
 	"POST /v1/auth/login/factor":                                              "baseline",
 	"POST /v1/auth/login/password":                                            "baseline",
 	"POST /v1/auth/login/password-change":                                     "baseline",

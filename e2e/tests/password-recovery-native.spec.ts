@@ -103,7 +103,7 @@ test("native reset revokes old access, refuses the old password and signs in wit
   );
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   expect((await refused).status()).toBe(401);
-  await expect(page.getByRole("alert")).toContainText(/password is incorrect/i);
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(/password is incorrect/i);
   await login(page, { email: account.email, password: newPassword });
   const fresh = await page.request.get("/api/v1/iam/me/permissions");
   expect(fresh.status()).toBe(200);

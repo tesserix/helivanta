@@ -258,6 +258,11 @@
     },
     {
       "method": "POST",
+      "path": "/v1/auth/login/account",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
       "path": "/v1/auth/login/factor",
       "capability": "baseline"
     },

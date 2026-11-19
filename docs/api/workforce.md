@@ -2357,7 +2357,7 @@ are not browser receipts. Only creation (`PUT`) is gated by `staff_mfa_recovery`
 Authenticated `GET` and `/cancel` remain baseline reconciliation routes when new
 resets are disabled; they retain every current-actor and scope check above.
 
-IAM migration `0053_iam_staff_mfa_fences` includes the command, cancellation and
+IAM migration `0054_iam_staff_mfa_fences` includes the command, cancellation and
 fence tables. It is additive, tenant-isolated and append-only;
 its guards reject changes/deletion, bind native dispatch fences to an uncancelled
 retained request, require attributed ordinary-account revocation, and require an

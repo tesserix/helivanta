@@ -303,6 +303,8 @@ func newLoginAttemptDB(t *testing.T) *tenantdb.DB {
 func newIntegrationRouter(t *testing.T, env integrationEnv) *gin.Engine {
 	t.Helper()
 	client := loginclient.New(env.issuer, env.token, http.DefaultClient)
+	// The seeded user is found by login name; no identity owner runs here.
+	client.SetTenantTargetResolver(noEmailAccounts{})
 	// nil limiter: this test makes a handful of calls total, nowhere near
 	// any real budget, and a nil limiter fails OPEN per allowedByLimiter's
 	// doc comment — exercising that same fail-open path other unit tests
@@ -321,7 +323,7 @@ func newIntegrationRouter(t *testing.T, env integrationEnv) *gin.Engine {
 		c.Status(http.StatusInternalServerError)
 	}
 	bootstrap.MountUnauthenticated(r, notExercised,
-		handlers.AuthRequest, handlers.Password, handlers.Factor, handlers.Enroll, handlers.PasswordChange, notExercised, notExercised)
+		handlers.AuthRequest, handlers.Password, handlers.Account, handlers.Factor, handlers.Enroll, handlers.PasswordChange, notExercised, notExercised)
 	return r
 }
 
@@ -420,7 +422,7 @@ func TestIntegration_PasswordFailures_WrongPasswordAndUnknownUserAreByteIdentica
 	// THEN compare them to each other — that is what actually proves
 	// spec D5's identical-refusal property, not just "these two calls
 	// happened to fail the same way".
-	wantBody := `{"error":"invalid_credentials","message":"email or password is incorrect"}`
+	wantBody := `{"error":"invalid_credentials","message":"email or password is incorrect. If your account is locked, contact your tenant administrator for recovery. Tenant owners should contact Helivanta support."}`
 	require.Equalf(t, http.StatusUnauthorized, wrong.Code, "wrong-password body: %s", wrong.Body.String())
 	require.JSONEq(t, wantBody, wrong.Body.String())
 	require.Equalf(t, http.StatusUnauthorized, unknown.Code, "unknown-user body: %s", unknown.Body.String())
@@ -1326,4 +1328,10 @@ func TestIntegration_ForceMFAWithNothingEnrolled_EnrolsTOTPNatively(t *testing.T
 	require.Len(t, users.Result, 1, "could not find the throwaway user to read its methods: %v", found)
 	methods := managementAPICall(t, env, seedToken, orgID, http.MethodGet, "/v2/users/"+users.Result[0].UserID+"/authentication_methods", nil)
 	require.Contains(t, fmt.Sprint(methods["authMethodTypes"]), "AUTHENTICATION_METHOD_TYPE_TOTP", "enrolment did not take on Zitadel: %v", methods)
+}
+
+type noEmailAccounts struct{}
+
+func (noEmailAccounts) TenantLoginTargets(context.Context, string) ([]loginclient.LoginTarget, bool, error) {
+	return []loginclient.LoginTarget{}, false, nil
 }

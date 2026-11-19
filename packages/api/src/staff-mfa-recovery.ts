@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { staffDirectoryViewSchema } from "./staff-directory";
+import { pharmacyStaffRecordSchema } from "./pharmacy-staff";
+import { supplierStaffRecordSchema } from "./supplier-staff";
 import {
   StaffMFAResetInputContract,
   StaffMFARecoveryReceiptContract,
@@ -71,10 +73,20 @@ export async function readStaffMFAReviewContext(
   signal?: AbortSignal,
 ) {
   const path = staffPath(scope);
-  const row = staffDirectoryViewSchema.parse(
-    await accountScopedRequest(scope, path + "?directory_context=v1", signal),
-  );
-  if (row.id !== scope.staffId || row.hospital_id !== scope.employerId)
+  const value = await accountScopedRequest(scope, path + "?directory_context=v1", signal);
+  const row =
+    scope.employerKind === "hospital"
+      ? staffDirectoryViewSchema.parse(value)
+      : scope.employerKind === "pharmacy"
+        ? pharmacyStaffRecordSchema.parse(value)
+        : supplierStaffRecordSchema.parse(value);
+  const owner =
+    "hospital_id" in row
+      ? row.hospital_id
+      : "pharmacy_id" in row
+        ? row.pharmacy_id
+        : row.supplier_id;
+  if (row.id !== scope.staffId || owner !== scope.employerId)
     throw new Error("The current Staff record could not be verified. Refresh the Staff panel.");
   return { staffVersion: row.version, active: row.employment_status === "active" };
 }

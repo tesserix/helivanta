@@ -20,10 +20,10 @@ async function refusedSignIn(page: Page, account: Credentials) {
   await signInNativeStaff(page, account, tenant);
   const response = await refusal;
   expect(response.status()).toBe(401);
-  await expect(page.getByRole("alert")).toContainText(
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
     /account is locked, contact your tenant administrator for recovery/i,
   );
-  await expect(page.getByRole("alert")).toContainText(
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
     /Tenant owners should contact Helivanta support/i,
   );
   return (await response.json()) as unknown;

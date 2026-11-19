@@ -135,3 +135,55 @@ it.each([
   );
   await expect(readStaffMFAReviewContext(scope)).rejects.toThrow();
 });
+
+it.each([
+  ["pharmacy", "pharmacies", "pharmacy_id"],
+  ["supplier", "suppliers", "supplier_id"],
+] as const)(
+  "reads %s recovery context using its canonical employer field",
+  async (employerKind, family, ownerField) => {
+    const { hospital_id, ...record } = directoryRecord;
+    const fetcher = vi.fn(async () => Response.json({ ...record, [ownerField]: hospital_id }));
+    vi.stubGlobal("fetch", fetcher);
+    expect(await readStaffMFAReviewContext({ ...scope, employerKind })).toEqual({
+      staffVersion: 7,
+      active: true,
+    });
+    expect((fetcher.mock.calls[0] as unknown as [string])[0]).toBe(
+      `/api/v1/workforce/${family}/${scope.employerId}/staff/${scope.staffId}?directory_context=v1`,
+    );
+  },
+);
+
+it.each(["pharmacy", "supplier"] as const)(
+  "refuses a hospital-shaped %s recovery context",
+  async (employerKind) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(directoryRecord)),
+    );
+    await expect(readStaffMFAReviewContext({ ...scope, employerKind })).rejects.toThrow();
+  },
+);
+
+it.each([
+  ["pharmacy", "pharmacy_id"],
+  ["supplier", "supplier_id"],
+] as const)(
+  "binds %s context to its selected employer and Staff record",
+  async (employerKind, ownerField) => {
+    const { hospital_id, ...record } = directoryRecord;
+    for (const changed of [
+      { [ownerField]: scope.staffId },
+      { id: scope.employerId },
+      { version: 0 },
+      { directory_context_version: undefined },
+    ]) {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json({ ...record, [ownerField]: hospital_id, ...changed })),
+      );
+      await expect(readStaffMFAReviewContext({ ...scope, employerKind })).rejects.toThrow();
+    }
+  },
+);

@@ -173,7 +173,8 @@ func TestOnlyTheBlockRuleReadsSafetyIncidents(t *testing.T) {
 	w := newReleaseWorld(t)
 	var readers, fixedZone []string
 	require.NoError(t, catalogueTx(t, w.db, func(tx *gorm.DB) error {
-		if err := tx.Raw(`SELECT proname FROM pg_proc WHERE pronamespace=current_schema()::regnamespace AND proname LIKE 'pharmacy\_%' AND prosrc LIKE '%pharmacy_batch_safety_incidents%' ORDER BY proname`).Scan(&readers).Error; err != nil {
+		// Rows are read FROM/JOIN the table; the operating-choice fingerprint only names its policy.
+		if err := tx.Raw(`SELECT proname FROM pg_proc WHERE pronamespace=current_schema()::regnamespace AND proname LIKE 'pharmacy\_%' AND prosrc ~* '\m(from|join)\s+(\w+\.)?pharmacy_batch_safety_incidents\M' ORDER BY proname`).Scan(&readers).Error; err != nil {
 			return err
 		}
 		return tx.Raw(`SELECT proname FROM pg_proc WHERE pronamespace=current_schema()::regnamespace AND proname LIKE 'pharmacy\_%' AND prosrc LIKE '%Asia/Kolkata%' ORDER BY proname`).Scan(&fixedZone).Error

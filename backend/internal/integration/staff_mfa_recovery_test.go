@@ -167,7 +167,7 @@ func newMFAResetFixture(t *testing.T) (*mfaResetFixture, *mfaOwnerFixture, custo
 	f := newMFAWorkforceFixture(t, client, owner.native)
 	owner.db = f.db
 	require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
-		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'user-manager','tenant_admin'),(?,'user-reviewer','governance_delegate'),(?,'user-candidate','staff_member')`, testutil.TenantA, testutil.TenantA, testutil.TenantA).Error
+		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'user-manager','tenant_admin'),(?,'user-reviewer','staff_member'),(?,'user-candidate','staff_member')`, testutil.TenantA, testutil.TenantA, testutil.TenantA).Error
 	}))
 	link := uuid.Must(uuid.NewV7()).String()
 	f.call("PUT", f.path+"/"+link, "manager", `{"subject":"user-candidate","reason":"Verified synthetic target"}`, 200)

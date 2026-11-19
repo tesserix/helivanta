@@ -65,7 +65,7 @@ func (z *multiAccountZitadel) client(t *testing.T) *loginclient.Client {
 	mux.HandleFunc("GET /v2/sessions/{id}", func(w http.ResponseWriter, r *http.Request) {
 		user := strings.TrimPrefix(r.PathValue("id"), "sess-")
 		org := "helivanta-" + map[string]string{"user-a": tenantA, "user-b": tenantB}[user]
-		_, _ = w.Write([]byte(`{"session":{"id":"sess-` + user + `","factors":{"user":{"id":"` + user + `","organizationId":"` + org + `"}}}}`))
+		_, _ = w.Write([]byte(`{"session":{"id":"sess-` + user + `","factors":{"user":{"id":"` + user + `","organizationId":"` + org + `"},"password":{"verifiedAt":"2026-01-02T00:00:00Z"}}}}`))
 	})
 	mux.HandleFunc("DELETE /v2/sessions/{id}", func(w http.ResponseWriter, r *http.Request) {
 		z.mu.Lock()

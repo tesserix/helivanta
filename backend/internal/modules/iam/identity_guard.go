@@ -64,7 +64,11 @@ func newIdentityGuard(db *tenantdb.DB, bus *events.Bus, checker *RevocationCheck
 			return false
 		}
 		observedAt := now().UTC()
-		state, err := provider.UserState(ctx, p.TenantID, p.Subject)
+		credential, err := provider.UserCredentialState(ctx, p.TenantID, p.Subject)
+		var current bool
+		if err == nil {
+			current, err = credentialIsCurrent(credential, p.AuthTime)
+		}
 		if err == nil {
 			err = ctx.Err()
 		}
@@ -72,8 +76,12 @@ func newIdentityGuard(db *tenantdb.DB, bus *events.Bus, checker *RevocationCheck
 			unavailable(err)
 			return false
 		}
-		switch state {
+		switch credential.State {
 		case loginclient.UserStateActive:
+			if !current {
+				respond.Unauthenticated(c, "password changed; sign in again")
+				return false
+			}
 			return admit()
 		case loginclient.UserStateInactive:
 			if err := revocations.revoke(ctx, p.Subject, observedAt, "identity_inactive", "system:identity-state"); err != nil {

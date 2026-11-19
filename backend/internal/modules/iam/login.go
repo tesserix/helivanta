@@ -69,9 +69,10 @@ const noAccessibleTenantMessage = "no accessible hospital for this account"
 // bootstrap.V1Chain, with a comment explaining why that placement is
 // load-bearing rather than an oversight.
 type LoginHandlers struct {
-	verifier authn.TokenVerifier
-	roles    platform.RoleLister
-	signer   *session.Signer
+	verifier        authn.TokenVerifier
+	roles           platform.RoleLister
+	signer          *session.Signer
+	currentIdentity UserStateChecker
 	// sessions verifies the caller's EXISTING Helivanta session cookie, if it
 	// sent one. It is not an authentication gate — this endpoint has no
 	// session to authenticate — it is how Login tells a silent renewal
@@ -144,6 +145,8 @@ type LoginDeps struct {
 	// everything as a genuine login", which would reset the idle deadline
 	// on every renewal and disable the timeout entirely.
 	Sessions *session.Verifier
+	// CurrentIdentity supplies native credential-change evidence for the chosen tenant.
+	CurrentIdentity UserStateChecker
 	// TTL is this token's own lifetime (cfg.SessionTTL).
 	TTL time.Duration
 	// IdleTimeout is the window a genuinely new login opens
@@ -171,16 +174,17 @@ func NewLoginHandlers(d LoginDeps) *LoginHandlers {
 		now = time.Now
 	}
 	return &LoginHandlers{
-		now:          now,
-		verifier:     d.Zitadel,
-		roles:        d.Roles,
-		signer:       d.Signer,
-		sessions:     d.Sessions,
-		ttl:          d.TTL,
-		idleTimeout:  d.IdleTimeout,
-		secureCookie: d.SecureCookie,
-		limiter:      d.Limiter,
-		limit:        d.Limit,
+		now:             now,
+		verifier:        d.Zitadel,
+		roles:           d.Roles,
+		signer:          d.Signer,
+		sessions:        d.Sessions,
+		currentIdentity: d.CurrentIdentity,
+		ttl:             d.TTL,
+		idleTimeout:     d.IdleTimeout,
+		secureCookie:    d.SecureCookie,
+		limiter:         d.Limiter,
+		limit:           d.Limit,
 	}
 }
 
@@ -294,6 +298,40 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 			"login: no session verifier configured; refusing to mint")
 		respond.Error(c, http.StatusServiceUnavailable,
 			"session_unavailable", "could not issue a session")
+		return
+	}
+	if h.currentIdentity == nil {
+		respond.Error(c, http.StatusServiceUnavailable, "identity_unavailable", "could not verify account status")
+		return
+	}
+	credential, err := h.currentIdentity.UserCredentialState(c.Request.Context(), tenantID, principal.Subject)
+	var current bool
+	if err == nil {
+		current, err = credentialIsCurrent(credential, principal.AuthTime)
+	}
+	if err == nil {
+		err = c.Request.Context().Err()
+	}
+	if err != nil {
+		requestid.Logger(c).ErrorContext(c.Request.Context(), "login: current credential evidence unavailable", "err", err)
+		respond.Error(c, http.StatusServiceUnavailable, "identity_unavailable", "could not verify account status")
+		return
+	}
+	if !current {
+		respond.Unauthenticated(c, "credential is no longer current; sign in again")
+		return
+	}
+	// Native I/O must not allow a membership revoked during that read to mint.
+	bindings, err = h.roles.ListRoles(c.Request.Context(), principal.Subject)
+	if err == nil {
+		err = c.Request.Context().Err()
+	}
+	if err != nil {
+		respond.Error(c, http.StatusServiceUnavailable, "authz_unavailable", "authorization is temporarily unavailable")
+		return
+	}
+	if !hasBindingForTenant(bindings, tenantID) {
+		respondNoAccessibleTenant(c)
 		return
 	}
 

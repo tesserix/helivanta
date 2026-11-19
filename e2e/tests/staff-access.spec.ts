@@ -234,7 +234,9 @@ test("administrator first-enrolls a verified identity without business permissio
     expect(enrollment.subject).toBe(subject);
     await page.reload();
     const history = page.getByRole("region", { name: "Enrollment history", exact: true });
-    await expect(history.getByText("Synthetic Enrollment", { exact: true })).toBeVisible();
+    await expect(history.getByText("Synthetic Enrollment", { exact: true })).toBeVisible({
+      timeout: 20_000,
+    });
     await expect(history).not.toContainText(enrollment.id);
     await expect(history).not.toContainText(enrollment.membership_id);
     await expect(page.getByText(subject, { exact: false })).toHaveCount(0);

@@ -50,9 +50,46 @@ func (renewNeverRevoked) RevokedAfter(context.Context, string) (time.Time, error
 // stand-in for Task 1's *loginclient.Client hitting a transport error or
 // a 5xx.
 type stubUserState struct {
-	states map[string]loginclient.UserState
-	err    error
-	calls  int
+	states          map[string]loginclient.UserState
+	passwordChanged map[string]time.Time
+	err             error
+	calls           int
+}
+
+func (s *stubUserState) UserCredentialState(ctx context.Context, tenant, id string) (loginclient.CredentialStatus, error) {
+	state, err := s.UserState(ctx, tenant, id)
+	return loginclient.CredentialStatus{State: state, PasswordChangedAt: s.passwordChanged[id]}, err
+}
+
+func TestRenewRefusesCredentialsAtOrBeforeNativePasswordRecovery(t *testing.T) {
+	authenticated := time.Now().UTC().Add(-2 * time.Minute).Truncate(time.Second)
+	for _, tc := range []struct {
+		name    string
+		changed time.Time
+		status  int
+	}{
+		{"older_authentication", authenticated.Add(time.Minute), http.StatusUnauthorized},
+		{"exact_native_boundary", authenticated, http.StatusUnauthorized},
+		{"same_second_old_authentication", authenticated.Add(200 * time.Millisecond), http.StatusUnauthorized},
+		{"newer_authentication", authenticated.Add(-time.Nanosecond), http.StatusOK},
+		{"native_passwordless", time.Time{}, http.StatusOK},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			roles := stubRoleLister{"user-1": {{TenantID: renewTestTenantA, Role: authz.RoleNurse}}}
+			provider := &stubUserState{passwordChanged: map[string]time.Time{"user-1": tc.changed}}
+			env := newRenewEnv(t, roles, provider, renewTestTTL)
+			cookie := env.mint(t, "user-1", renewTestTenantA, authenticated, time.Now().Add(10*time.Minute))
+			response := doRenew(env.r, cookie)
+			require.Equal(t, tc.status, response.Code, response.Body.String())
+			renewed, issued := renewSessionCookie(response)
+			require.Equal(t, tc.status == http.StatusOK, issued)
+			if issued {
+				claims, err := env.verifier.Verify(renewed)
+				require.NoError(t, err)
+				require.Equal(t, authenticated, claims.AuthTime)
+			}
+		})
+	}
 }
 
 func (s *stubUserState) UserState(_ context.Context, _ string, id string) (loginclient.UserState, error) {
@@ -666,14 +703,15 @@ func TestLoginAndRenewAgreeOnRenewAt(t *testing.T) {
 	require.NoError(t, err)
 
 	loginHandlers := NewLoginHandlers(LoginDeps{
-		Zitadel:      fixedClockVerifier{subject: subject, authTime: authTime},
-		Roles:        roles,
-		Signer:       loginSigner,
-		Sessions:     loginVerifier,
-		TTL:          ttl,
-		IdleTimeout:  time.Hour,
-		SecureCookie: true,
-		Now:          clock,
+		Zitadel:         fixedClockVerifier{subject: subject, authTime: authTime},
+		CurrentIdentity: &stubUserState{},
+		Roles:           roles,
+		Signer:          loginSigner,
+		Sessions:        loginVerifier,
+		TTL:             ttl,
+		IdleTimeout:     time.Hour,
+		SecureCookie:    true,
+		Now:             clock,
 	})
 	gin.SetMode(gin.TestMode)
 	lr := gin.New()

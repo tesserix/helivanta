@@ -102,7 +102,7 @@ func (z *pcZitadel) client(t *testing.T, now time.Time) *Client {
 		z.mu.Unlock()
 		switch {
 		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
-			factors := `"user":{"id":"` + pcUserID + `","organizationId":"` + z.orgID + `"},"password":{"verifiedAt":"t"}`
+			factors := `"user":{"id":"` + pcUserID + `","organizationId":"` + z.orgID + `"},"password":{"verifiedAt":"` + now.Format(time.RFC3339Nano) + `"}`
 			if z.totpVerified {
 				factors += `,"totp":{"verifiedAt":"t"}`
 			}

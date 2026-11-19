@@ -36,6 +36,59 @@ standards and #947 require Helivanta-owned credential UI. ADR-0069's explicit
 native-origin security-key continuation is a separate, narrowly verified
 exception; it does not authorize a general redirect to hosted password recovery.
 
+### Native credential evidence follow-up
+
+The pinned native source at `29986e1b8b3e606d20871a2e73874b91f9b5b695`
+exposes `human.passwordChanged` in its v2 user contract and query projection.
+Identity-owner PR [#43](https://github.com/tesserix/onboarding-service/pull/43)
+adds a private, opt-in current-status projection of this timestamp, with a
+native-method inventory check before declaring an account passwordless. The HMS
+consumer uses the canonical owner model rather than copying it or widening the
+login client's native permissions. Integration with current `main` retains its
+newer owner pin `f47d44dae55e`, which includes this credential projection and the
+single-screen sign-in contract. Both onboarding replicas were observed ready on
+that revision during the PR #1747 release review.
+
+The identity owner is deployed at merge `b5f15c9548afee95b2f286211b13dfd2ca36c244`,
+with Kargo Freight `c600d14ad23790feb59e80a3c387ada4eeb94d1d` verified and both
+replicas ready. This proves the rollout, not the complete recovery journey.
+
+The HMS work in progress now enforces the native cutoff on protected business
+requests, renewal and callback/login exchange. It requires an explicit current
+credential reader and denies unknown evidence rather than falling back to the
+old state-only observation. A login rechecks membership after native I/O, and
+renewal retains the original authentication time. The existing self-sign-out
+exception keeps local cookie-authenticated revocation available during a native
+identity outage; it does not release business data or mint a session.
+
+OIDC `auth_time`
+may have only second precision while native change evidence has fractions: do
+not round the native cutoff down and admit an older same-second credential.
+The mandatory-password-change flow now rechecks the new password after the
+native update, carries forward the rotated session token and, when necessary,
+waits for the next native whole-second boundary before one bounded recheck.
+This restores the cleared primary proof without weakening the cutoff or
+persisting the new password. Cancellation, missing evidence, a missing rotated
+token and a second proof that still predates the boundary fail closed. After an
+acknowledged update, a completion failure asks for a new sign-in instead of
+resubmitting the old current password.
+
+The pinned native session projection clears
+`password_checked_at` on `HumanPasswordChanged`, and its user projection retains
+the latest native password-change time. Its v2 GetSession handler triggers the
+session projection before returning facts. Native `AuthenticationTime()` uses
+the latest time of all factor checks, so a later TOTP check alone could otherwise
+make an old password session appear newer than a reset. The protected finalizer
+now independently requires a valid current native password proof for these
+password-session producers; missing, mismatched, duplicate and recased proof
+objects cannot reach native finalisation. The approved native-origin security-key
+continuation remains a separate flow.
+
+Hosted database/UI integration, native runtime verification, crash ordering and
+the full recovery journey remain acceptance gates. This HMS change
+is not yet released; a status field or mocked observation alone is not proof of
+end-to-end credential revocation.
+
 ## Ownership and authority
 
 Zitadel owns passwords, native account lock state, factor registrations and

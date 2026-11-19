@@ -68,6 +68,10 @@ func TestCreatePasswordSessionMapsUnknownUserToErrUserNotFound(t *testing.T) {
 
 func TestFinalizeReturnsCallbackURL(t *testing.T) {
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/v2/sessions/1" {
+			w.Write([]byte(`{"session":{"id":"1","factors":{"password":{"verifiedAt":"2026-01-02T00:00:00Z"}}}}`))
+			return
+		}
 		w.Write([]byte(`{"callbackUrl":"http://localhost:4301/api/auth/callback?code=abc&state=s"}`))
 	})
 	got, err := c.finalize(context.Background(), "V2_1", Session{ID: "1", Token: "t"}, sufficient{})
@@ -544,6 +548,10 @@ func TestFinalizeEscapesAdversarialAuthRequestID(t *testing.T) {
 	const adversarial = "../../v2/users?x=1"
 	var gotRequestURI string
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/v2/sessions/1" {
+			w.Write([]byte(`{"session":{"id":"1","factors":{"password":{"verifiedAt":"2026-01-02T00:00:00Z"}}}}`))
+			return
+		}
 		gotRequestURI = r.RequestURI
 		w.Write([]byte(`{"callbackUrl":"http://localhost:4301/api/auth/callback?code=abc&state=s"}`))
 	})

@@ -71,7 +71,7 @@ func countingZitadelWithFactors(t *testing.T, policyJSON, authMethodTypesJSON st
 		case r.URL.Path == "/management/v1/policies/login":
 			w.Write([]byte(policyJSON))
 		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
-			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1","organizationId":"o1"}}}}`))
+			w.Write([]byte(`{"session":{"id":"` + strings.TrimPrefix(r.URL.Path, "/v2/sessions/") + `","factors":{"user":{"id":"u1","organizationId":"o1"},"password":{"verifiedAt":"2026-01-02T00:00:00Z"}}}}`))
 		case strings.HasPrefix(r.URL.Path, "/v2/users/") && strings.HasSuffix(r.URL.Path, "/authentication_methods"):
 			w.Write([]byte(`{"authMethodTypes":` + authMethodTypesJSON + `}`))
 		case r.Method == http.MethodPost && len(r.URL.Path) > len("/v2/oidc/auth_requests/"):
@@ -225,7 +225,7 @@ func TestCompleteAfterFactor_FinalizesOnlyWhenSessionFactorsReportTOTP(t *testin
 			// satisfy BOTH callers that hit it: sessionUserID (needs only
 			// factors.user.id) and SessionFactors (needs
 			// factors.password/totp). One fixture body does both.
-			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1","organizationId":"o1"},"password":{"verifiedAt":"t"},"totp":{"verifiedAt":"t"}}}}`))
+			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1","organizationId":"o1"},"password":{"verifiedAt":"2026-01-02T00:00:00Z"},"totp":{"verifiedAt":"t"}}}}`))
 		case strings.HasPrefix(r.URL.Path, "/v2/users/") && strings.HasSuffix(r.URL.Path, "/authentication_methods"):
 			w.Write([]byte(`{"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD","AUTHENTICATION_METHOD_TYPE_TOTP"]}`))
 		case r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/v2/oidc/auth_requests/"):
@@ -719,7 +719,7 @@ func TestCompleteIfSufficientScopesThePolicyReadToTheSessionsOrg(t *testing.T) {
 			gotOrgHeader = r.Header.Get("x-zitadel-orgid")
 			w.Write([]byte(`{"policy":{"passwordCheckLifetime":"864000s"}}`))
 		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
-			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1","organizationId":"` + orgIDFromSession + `"}}}}`))
+			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1","organizationId":"` + orgIDFromSession + `"},"password":{"verifiedAt":"2026-01-02T00:00:00Z"}}}}`))
 		case strings.HasPrefix(r.URL.Path, "/v2/users/") && strings.HasSuffix(r.URL.Path, "/authentication_methods"):
 			w.Write([]byte(`{"authMethodTypes":["AUTHENTICATION_METHOD_TYPE_PASSWORD"]}`))
 		default:
@@ -794,7 +794,7 @@ func afterFactorZitadel(t *testing.T, authMethodTypesJSON string) (*Client, *ato
 		}
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/v2/sessions/"):
-			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1","organizationId":"o1"},"password":{"verifiedAt":"t"},"totp":{"verifiedAt":"t"}}}}`))
+			w.Write([]byte(`{"session":{"id":"1","factors":{"user":{"id":"u1","organizationId":"o1"},"password":{"verifiedAt":"2026-01-02T00:00:00Z"},"totp":{"verifiedAt":"t"}}}}`))
 		case strings.HasPrefix(r.URL.Path, "/v2/users/") && strings.HasSuffix(r.URL.Path, "/authentication_methods"):
 			w.Write([]byte(`{"authMethodTypes":` + authMethodTypesJSON + `}`))
 		case r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/v2/oidc/auth_requests/"):

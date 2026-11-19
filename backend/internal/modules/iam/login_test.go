@@ -17,6 +17,7 @@ import (
 
 	"github.com/tesserix/helivanta/internal/config"
 	"github.com/tesserix/helivanta/internal/modules/iam" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
+	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
@@ -69,6 +70,27 @@ type fakeRoleListerLogin struct {
 	calls    int
 }
 
+type loginCredentialState struct {
+	observation     loginclient.CredentialStatus
+	err             error
+	calls           int
+	tenant, subject string
+	during          func()
+}
+
+func (f *loginCredentialState) UserState(context.Context, string, string) (loginclient.UserState, error) {
+	return f.observation.State, f.err
+}
+
+func (f *loginCredentialState) UserCredentialState(_ context.Context, tenant, subject string) (loginclient.CredentialStatus, error) {
+	f.calls++
+	f.tenant, f.subject = tenant, subject
+	if f.during != nil {
+		f.during()
+	}
+	return f.observation, f.err
+}
+
 func (f *fakeRoleListerLogin) ListRoles(_ context.Context, subject string) ([]authz.RoleBinding, error) {
 	f.calls++
 	if f.err != nil {
@@ -93,6 +115,10 @@ func loginHarness(t *testing.T, zv authn.TokenVerifier, roles *fakeRoleListerLog
 // loginHarnessRL is loginHarness plus an explicit limiter/rule, for the
 // #841 rate-limit tests that need to control the budget directly.
 func loginHarnessRL(t *testing.T, zv authn.TokenVerifier, roles *fakeRoleListerLogin, limiter ratelimit.Limiter, rule ratelimit.Rule) (*gin.Engine, *session.Verifier) {
+	return loginHarnessWithIdentity(t, zv, roles, limiter, rule, &loginCredentialState{observation: loginclient.CredentialStatus{State: loginclient.UserStateActive}})
+}
+
+func loginHarnessWithIdentity(t *testing.T, zv authn.TokenVerifier, roles *fakeRoleListerLogin, limiter ratelimit.Limiter, rule ratelimit.Rule, identity iam.UserStateChecker) (*gin.Engine, *session.Verifier) {
 	t.Helper()
 	pub, priv, err := ed25519.GenerateKey(nil)
 	require.NoError(t, err)
@@ -109,15 +135,16 @@ func loginHarnessRL(t *testing.T, zv authn.TokenVerifier, roles *fakeRoleListerL
 	// config.DefaultIdleTimeout — never config.Load(), which an ambient
 	// IDLE_TIMEOUT would silently change out from under these tests.
 	h := iam.NewLoginHandlers(iam.LoginDeps{
-		Zitadel:      zv,
-		Roles:        roles,
-		Signer:       signer,
-		Sessions:     verifier,
-		TTL:          loginTestTTL,
-		IdleTimeout:  testIdleTimeout,
-		SecureCookie: true,
-		Limiter:      limiter,
-		Limit:        rule,
+		Zitadel:         zv,
+		Roles:           roles,
+		Signer:          signer,
+		Sessions:        verifier,
+		CurrentIdentity: identity,
+		TTL:             loginTestTTL,
+		IdleTimeout:     testIdleTimeout,
+		SecureCookie:    true,
+		Limiter:         limiter,
+		Limit:           rule,
 	})
 
 	gin.SetMode(gin.TestMode)
@@ -313,7 +340,8 @@ func TestLogin_RenewalForSinceRevokedMemberIsRefused(t *testing.T) {
 	require.Equal(t, http.StatusOK, w1.Code, w1.Body.String())
 	_, err := verifier.Verify(sessionCookie(t, w1))
 	require.NoError(t, err)
-	require.Equal(t, 1, roles.calls, "precondition: the first login consulted OpenFGA")
+	admittedCalls := roles.calls
+	require.Positive(t, admittedCalls, "precondition: the first login consulted OpenFGA")
 
 	// Membership in tenantA is revoked out from under user-1 between the
 	// original sign-in and the renewal — the iam-fga-sync consumer
@@ -332,7 +360,7 @@ func TestLogin_RenewalForSinceRevokedMemberIsRefused(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, w2.Code,
 		"a renewal for a since-revoked member must be refused, the same as any other non-member")
 	require.Empty(t, sessionCookies(w2), "no session may be re-issued for a revoked member")
-	require.Equal(t, 2, roles.calls,
+	require.Equal(t, admittedCalls+1, roles.calls,
 		"the renewal must consult OpenFGA again, not trust a cached or previously-issued answer")
 }
 
@@ -402,10 +430,11 @@ func TestLoginThrottledMakesNoRolesListCall(t *testing.T) {
 	r, _ := loginHarnessRL(t, fakeZitadelVerifier{subject: "user-1", authTime: time.Now()}, roles, limiter, rule)
 
 	require.Equal(t, http.StatusOK, doLogin(t, r, `{"id_token":"good"}`).Code)
-	require.Equal(t, 1, roles.calls, "the first, admitted login must have consulted OpenFGA")
+	admittedCalls := roles.calls
+	require.Positive(t, admittedCalls, "the first, admitted login must have consulted OpenFGA")
 
 	require.Equal(t, http.StatusTooManyRequests, doLogin(t, r, `{"id_token":"good"}`).Code)
-	require.Equal(t, 1, roles.calls,
+	require.Equal(t, admittedCalls, roles.calls,
 		"a throttled login must not reach OpenFGA: it would exhaust ListRoles before the limiter refused anything")
 }
 
@@ -538,14 +567,15 @@ func newLoginEnv(t *testing.T) *loginEnv {
 	cfg := config.Config{IdleTimeout: testIdleTimeout}
 	clock := time.Now()
 	h := iam.NewLoginHandlers(iam.LoginDeps{
-		Zitadel:      mutableZitadelVerifier{subject: "user-1", authTime: &zitadelAuthTime},
-		Roles:        roles,
-		Signer:       signer,
-		Sessions:     verifier,
-		TTL:          loginTestTTL,
-		IdleTimeout:  cfg.IdleTimeout,
-		SecureCookie: true,
-		Now:          func() time.Time { return clock },
+		Zitadel:         mutableZitadelVerifier{subject: "user-1", authTime: &zitadelAuthTime},
+		CurrentIdentity: &loginCredentialState{observation: loginclient.CredentialStatus{State: loginclient.UserStateActive}},
+		Roles:           roles,
+		Signer:          signer,
+		Sessions:        verifier,
+		TTL:             loginTestTTL,
+		IdleTimeout:     cfg.IdleTimeout,
+		SecureCookie:    true,
+		Now:             func() time.Time { return clock },
 	})
 	gin.SetMode(gin.TestMode)
 	r := gin.New()

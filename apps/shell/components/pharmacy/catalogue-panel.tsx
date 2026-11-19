@@ -49,6 +49,7 @@ import { CurrencyAmountField, supportedCurrencies } from "./currency-amount-fiel
 import { ProductTaxSection, TaxBadge } from "./tax-classification";
 import { ProductPriceControlSection } from "./price-control";
 import { ItemCategories, ProductCategorySection } from "./item-categories";
+import { DrugCataloguePicker } from "./drug-catalogue-picker";
 import { ProductScheduleSection } from "./schedule-class";
 
 const searchSchema = z.object({ query: z.string().trim().max(200) });
@@ -193,9 +194,8 @@ export function CataloguePanel({
         onClose={pane.close}
       />
       <div className="mt-6">
-        <ProductForm
+        <ProductEntry
           scope={scope}
-          product={null}
           defaultCurrency={defaultCurrency}
           onSaved={(row) => pane.saved(row.id)}
           onStateChange={pane.formState("product")}
@@ -509,6 +509,44 @@ function OpenProduct({
   );
 }
 
+function ProductEntry({
+  scope,
+  defaultCurrency,
+  onSaved,
+  onStateChange,
+}: {
+  scope: PharmacyScope;
+  defaultCurrency: string;
+  onSaved: (product: PharmacyProduct) => void;
+  onStateChange?: FormState;
+}) {
+  const [fromMaster, setFromMaster] = useState(false);
+  const leave = useConfirmLeave();
+  return (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        className="mb-5"
+        onClick={() => leave(() => setFromMaster(!fromMaster))}
+      >
+        {fromMaster ? "Add a product by hand" : "Search the medicine master instead"}
+      </Button>
+      {fromMaster ? (
+        <DrugCataloguePicker scope={scope} onSaved={onSaved} onStateChange={onStateChange} />
+      ) : (
+        <ProductForm
+          scope={scope}
+          product={null}
+          defaultCurrency={defaultCurrency}
+          onSaved={onSaved}
+          onStateChange={onStateChange}
+        />
+      )}
+    </>
+  );
+}
+
 function ProductForm({
   scope,
   product,
@@ -575,7 +613,15 @@ function ProductForm({
           This records product identity. Its schedule class, tax and price controls are declared and
           reviewed in their own sections below before it can be released or sold.
         </p>
-        <fieldset>
+        {product?.drug_master && (
+          <p role="status">
+            Linked medicine: {product.drug_master.source_name} ·{" "}
+            {product.drug_master.source_version} · source schedule{" "}
+            {product.drug_master.regulatory_class} · HSN {product.drug_master.hsn_code}. Composition
+            and pack identity are retained from this version.
+          </p>
+        )}
+        <fieldset disabled={!!product?.drug_master}>
           <legend className="mb-4 font-medium">Product identity</legend>
           <div className="grid gap-4 sm:grid-cols-2">
             {identityFields.map(([name, label]) => (
@@ -595,7 +641,7 @@ function ProductForm({
             ))}
           </div>
         </fieldset>
-        <fieldset>
+        <fieldset disabled={!!product?.drug_master}>
           <legend className="mb-4 font-medium">Active ingredients</legend>
           <div className="space-y-4">
             {ingredients.fields.map((ingredient, index) => (
@@ -668,6 +714,7 @@ function ProductForm({
               <Input
                 id="product-pack"
                 type="number"
+                readOnly={!!product?.drug_master}
                 {...form.register("pack_size", { valueAsNumber: true })}
               />
             </Field>
@@ -676,7 +723,11 @@ function ProductForm({
               label="Unit of issue"
               error={fieldErrors.unit_of_issue?.message}
             >
-              <Input id="product-unit" {...form.register("unit_of_issue")} />
+              <Input
+                id="product-unit"
+                readOnly={!!product?.drug_master}
+                {...form.register("unit_of_issue")}
+              />
             </Field>
             <Field
               id="product-currency"

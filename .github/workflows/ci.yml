@@ -278,7 +278,7 @@ jobs:
           node --test scripts/staff-operational-access-inventory.test.mjs
           node scripts/staff-operational-access-inventory.mjs --check
       # Ignores live in package.json pnpm.auditConfig; reasons in docs/runbooks/vulnerability-management.md.
-      - run: node --test scripts/zod-tooling.test.mjs scripts/lib/tenant-identity-fixture.test.mjs scripts/ci/identity-owner-fixture.test.mjs scripts/ci/ubuntu-archive-mirror.test.mjs scripts/ci/runner-dns.test.mjs
+      - run: node --test scripts/zod-tooling.test.mjs scripts/lib/tenant-identity-fixture.test.mjs scripts/ci/identity-owner-fixture.test.mjs scripts/ci/ubuntu-archive-mirror.test.mjs scripts/ci/runner-dns.test.mjs scripts/ci/recovery-owner-diagnostics.test.mjs
       - run: |
           node --test scripts/temporary-advisories.test.mjs
           node scripts/temporary-advisories.mjs
@@ -786,6 +786,10 @@ jobs:
       # started leaves no log, and that is information, not an error to
       # swallow. Suppressing the exit code would also suppress a genuine
       # read failure on a log that DOES exist.
+      - name: Show bounded recovery owner diagnostics on failure
+        if: ${{ !success() || cancelled() }}
+        run: node scripts/ci/recovery-owner-diagnostics.mjs /tmp/hms-identity-owner.log
+
       - name: Dump API and web logs on failure
         if: ${{ !success() || cancelled() }}
         run: |

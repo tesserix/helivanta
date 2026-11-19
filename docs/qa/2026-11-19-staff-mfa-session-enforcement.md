@@ -219,3 +219,45 @@ Follow [the schema-first rollout and acceptance plan](../deployment/2026-11-19-s
 for approved live migrations, owner/application Kargo releases, named QA factor
 actions and deployed Chrome/API verification. Keep #1703 open until every issue
 acceptance criterion and live release gate is evidenced.
+
+## Native token-lifetime diagnosis
+
+Staff run `44533809734` at `d6a8430a` passed web, scripts, image and secret
+checks, but native E2E reported one pass, two failures and 107 cases not run.
+Both reset requests returned 503 at `prepare_owner`; this contradicts native
+recovery acceptance despite the earlier empty-member parser correction.
+
+The pinned Zitadel v4.15.3 `cmd/defaults.yaml` sets both
+`OIDC.DefaultAccessTokenLifetime` and
+`DefaultInstance.OIDCSettings.AccessTokenLifetime` to 12h. The disposable Compose
+fixture previously overrode neither. The product credential client accepts at
+most one hour. A public-client regression using the Compose settings and pinned
+defaults failed for both 12h configuration paths with
+`organisation identity unavailable`. Setting both fixture lifetimes to 1h makes
+the full organizationidentity race suite pass. This reproduces a configuration
+incompatibility; the hosted native test must still prove it caused the 503.
+The client lifetime guard remains unchanged. Existing persistent dev instances
+retain their initialized policy; these settings apply to the clean CI instance.
+
+Read-only discovery found the active operator/project/context unchanged and
+`zitadel/zitadel` at three Ready replicas. Its `zitadel-config-yaml` ConfigMap
+already sets `DefaultInstance.OIDCSettings.AccessTokenLifetime` to 1h. No live
+Zitadel policy was changed or inferred from the disposable fixture.
+
+Owner `a4be89b8d97aedcbe4ff4c2cbd441f6ec4c4ea88` adds fixed-stage unavailable
+warnings and a JSON fixture logger; both consumers now pin this revision. The
+consumer failure diagnostic accepts only known stage enums and the exact
+normalized prepare-route HTTP status. It rejects raw identity paths, unknown or
+malformed records, private fields and oversized input, and bounds output to 100
+records. No owner log body is dumped. Four sanitizer/CLI tests and the existing
+fixture/registration suites pass. These diagnostics change no authorization,
+contract or native operation.
+
+Local validation for this dependency/configuration update passed the full
+organizationidentity, loginclient, session and authn race suites, focused
+customeronboarding recovery/credential races, affected vet and organizationidentity
+lint (zero issues). `go build -p=2 ./...` and `contractdocs -check` passed.
+The API typecheck/lint and all 1,498 tests passed. The Node 24 shell production
+build passed with `API_URL=http://127.0.0.1:8081`; its generated `.next` was
+removed. The 19 source-inventory/diagnostic tests and nine owner-fixture/native
+registration/diagnostic tests passed. No local app, database or container ran.

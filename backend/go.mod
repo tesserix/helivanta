@@ -24,6 +24,7 @@ require (
 	github.com/xrash/smetrics v0.0.0-20250705151800-55b8f293f342
 	go.temporal.io/api v1.64.3
 	go.temporal.io/sdk v1.50.0
+	go.yaml.in/yaml/v3 v3.0.5
 	golang.org/x/sync v0.25.0
 	golang.org/x/sys v0.50.0
 	golang.org/x/text v0.44.0
@@ -172,7 +173,6 @@ require (
 	go.opentelemetry.io/otel/trace v1.47.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
-	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/arch v0.22.0 // indirect
 	golang.org/x/crypto v0.58.0 // indirect
 	golang.org/x/mod v0.42.0 // indirect
@@ -198,4 +198,4 @@ require (
 
 replace github.com/tesserix/devai-sandbox-operator => github.com/tesserix/tesserix-operators v0.0.0-20261111042344-fe1127b299d6
 
-replace github.com/tesserix/onboarding-service/api => github.com/tesserix/onboarding-service/apps/api v0.0.0-20261119124606-c67ff0981bfa
+replace github.com/tesserix/onboarding-service/api => github.com/tesserix/onboarding-service/apps/api v0.0.0-20261119140940-a4be89b8d97a

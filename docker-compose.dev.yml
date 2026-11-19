@@ -102,6 +102,9 @@ services:
       --masterkey "${HELIVANTA_DEV_ZITADEL_MASTERKEY}"
       --tlsMode disabled
     environment:
+      # Keep disposable native credentials within the product client's one-hour bound.
+      ZITADEL_OIDC_DEFAULTACCESSTOKENLIFETIME: 1h
+      ZITADEL_DEFAULTINSTANCE_OIDCSETTINGS_ACCESSTOKENLIFETIME: 1h
       ZITADEL_DATABASE_POSTGRES_HOST: zitadel-db
       ZITADEL_DATABASE_POSTGRES_PORT: "5432"
       ZITADEL_DATABASE_POSTGRES_DATABASE: zitadel

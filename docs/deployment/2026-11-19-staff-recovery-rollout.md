@@ -64,6 +64,20 @@ MFA schema and its tests. The GitHub comparison reports two commits ahead and
 zero behind. The approval request must identify this combined schema release;
 do not schedule two independent applications of its shared SQL.
 
+## Candidate fixture compatibility
+
+The isolated Zitadel v4.15.3 fixture explicitly sets runtime-default and
+first-instance access-token lifetimes to 1h, matching the product credential
+client's existing bound. Its upstream default is 12h. A public-consumer
+regression reproduces rejection of the old configuration and acceptance of the
+corrected settings; hosted native acceptance remains required. This does not
+change deployed Zitadel policy. Read-only `zitadel/zitadel` ConfigMap inspection
+found its first-instance lifetime already configured to 1h.
+
+CI prints only fixed owner proof/preparation stages and normalized prepare HTTP
+status on failure, with private fields removed and input/output bounded. Never
+replace this diagnostic with a raw identity-owner log dump.
+
 ## Gates before the approval request
 
 1. Keep the owner and application branches current through normal review. Pin

@@ -177,8 +177,13 @@ export async function exerciseNativeStaffMFARecovery(
         headers: actor.headers,
         data: proposalInput,
       });
-    expect((await propose()).status()).toBe(kind === "hospital" ? 200 : 201);
-    if (kind === "pharmacy") expect((await propose()).status()).toBe(200);
+    const proposal = await propose();
+    expect(proposal.status()).toBe(kind === "hospital" ? 200 : 201);
+    if (kind === "pharmacy") {
+      const replay = await propose();
+      expect(replay.status()).toBe(200);
+      expect(await replay.json()).toEqual(await proposal.json());
+    }
     const decisionPath = `${links}/${link}/${kind === "hospital" ? "decision" : `commands/${uuidv7()}`}`;
     const decisionInput = {
       expected_version: 1,
@@ -191,8 +196,13 @@ export async function exerciseNativeStaffMFARecovery(
         headers: reviewer.headers,
         data: decisionInput,
       });
-    expect((await approve()).status()).toBe(kind === "hospital" ? 200 : 201);
-    if (kind === "pharmacy") expect((await approve()).status()).toBe(200);
+    const decision = await approve();
+    expect(decision.status()).toBe(kind === "hospital" ? 200 : 201);
+    if (kind === "pharmacy") {
+      const replay = await approve();
+      expect(replay.status()).toBe(200);
+      expect(await replay.json()).toEqual(await decision.json());
+    }
     const stale = uuidv7();
     expect(
       (

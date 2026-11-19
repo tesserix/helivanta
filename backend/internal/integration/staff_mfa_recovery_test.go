@@ -446,12 +446,14 @@ func TestIndependentPharmacyStaffMFARecoveryKeepsTheEmployerScope(t *testing.T) 
 	link := uuid.Must(uuid.NewV7()).String()
 	proposalPath := root + "/staff/" + staff + "/account-links/" + link
 	proposalInput := `{"expected_staff_version":1,"subject":"user-candidate","reason":"Verified independent pharmacy account"}`
-	f.call("PUT", proposalPath, "manager", proposalInput, http.StatusCreated)
-	f.call("PUT", proposalPath, "manager", proposalInput, http.StatusOK)
+	proposal := f.call("PUT", proposalPath, "manager", proposalInput, http.StatusCreated)
+	proposalReplay := f.call("PUT", proposalPath, "manager", proposalInput, http.StatusOK)
+	require.JSONEq(t, proposal.Body.String(), proposalReplay.Body.String())
 	decisionPath := proposalPath + "/commands/" + uuid.Must(uuid.NewV7()).String()
 	decisionInput := `{"expected_version":1,"decision":"approve","reason":"Independent employer identity review"}`
-	f.call("PUT", decisionPath, "reviewer", decisionInput, http.StatusCreated)
-	f.call("PUT", decisionPath, "reviewer", decisionInput, http.StatusOK)
+	decision := f.call("PUT", decisionPath, "reviewer", decisionInput, http.StatusCreated)
+	decisionReplay := f.call("PUT", decisionPath, "reviewer", decisionInput, http.StatusOK)
+	require.JSONEq(t, decision.Body.String(), decisionReplay.Body.String())
 	input := customercontract.StaffMFAResetInput{CommandID: uuid.Must(uuid.NewV7()).String(), ExpectedLinkID: link, ExpectedLinkVersion: 2, ExpectedStaffVersion: 1, Reason: "Independent pharmacist lost authenticator"}
 	path := root + "/staff/" + staff + "/mfa-recoveries/" + input.CommandID
 	response := mfaRequest(t, f.r, "PUT", path, "manager", input)

@@ -5728,7 +5728,7 @@
         },
         {
           "id": "0047_pharmacy_drug_catalogue",
-          "sql_sha256": "eee748ebbd8b86063b7ea6c88f6633eb91e0ce61ee4f201abe9299a849557a6d",
+          "sql_sha256": "4978dcbe598d706ff1c318494871dcc5d18dca06f90043663b1cc30f0d0b4ada",
           "creates_tables": []
         },
         {

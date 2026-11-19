@@ -46,7 +46,11 @@ test("marketing sign-in resumes the same authenticated tenant without credential
   expect(challenges).toEqual([]);
 });
 
-test("a missing app session requires deliberate sign-in despite remembered routing", async ({
+// #1751 spec D1: with no session and no sign-out, sign-in starts on its own
+// for the remembered account. prompt=login keeps it deliberate: it reaches
+// the password card and nothing is granted, no email code is sent and no
+// credential is checked, until a password is typed.
+test("a missing app session reopens the remembered account's password card without any challenge", async ({
   page,
 }) => {
   await login(page);
@@ -59,9 +63,12 @@ test("a missing app session requires deliberate sign-in despite remembered routi
   );
   await page.goto("/login?start=1");
   expect((await refused).status()).toBe(401);
-  await expect(
-    page.getByRole("button", { name: /^Sign in(?: to your previous account)?$/ }),
-  ).toBeVisible();
-  await expect(page).toHaveURL(/\/login\?start=1$/);
-  expect(challenges).toEqual([]);
+  await expect(page.getByLabel("Email or username", { exact: true })).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(page.getByText("Enter your password to continue.")).toBeVisible();
+  await expect(page).toHaveURL(/\/login\?authRequest=/);
+  expect(challenges.filter((path) => path !== "/oauth/v2/authorize")).toEqual([]);
+  const probe = await page.request.get("/api/v1/iam/me/permissions");
+  expect(probe.status()).toBe(401);
 });

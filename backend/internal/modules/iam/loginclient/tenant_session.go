@@ -17,36 +17,49 @@ type TenantUserResolver interface {
 // SetTenantUserResolver wires the broker without expanding the native login PAT.
 func (c *Client) SetTenantUserResolver(resolver TenantUserResolver) { c.tenantUsers = resolver }
 
-// CreatePasswordSessionForRequest resolves email within the native request's org.
-func (c *Client) CreatePasswordSessionForRequest(ctx context.Context, requestID, clientID, loginName, password string) (Session, error) {
+// CreatePasswordSessionForRequest resolves loginName within the native
+// request's org. On an unscoped request an email is resolved through the
+// identity owner and may yield one accepted session per account (#1751 spec
+// D2); a scoped request yields at most one.
+func (c *Client) CreatePasswordSessionForRequest(ctx context.Context, requestID, clientID, loginName, password string) ([]TenantSession, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
 	defer cancel()
 	org, err := c.AuthRequestOrganization(ctx, requestID, clientID)
 	if err != nil {
-		return Session{}, err
+		return nil, err
+	}
+	if org == "" && strings.Contains(loginName, "@") {
+		return c.emailSessions(ctx, loginName, password)
 	}
 	if org == "" {
-		return c.CreatePasswordSession(ctx, loginName, password)
+		return oneSession(c.CreatePasswordSession(ctx, loginName, password))
 	}
 	if c.tenantUsers == nil {
-		return Session{}, ErrUnavailable
+		return nil, ErrUnavailable
 	}
 	userID, err := c.tenantUsers.TenantLoginSubject(ctx, org, loginName)
 	if err != nil {
-		return Session{}, err
+		return nil, err
 	}
 	session, err := c.createPasswordSession(ctx, map[string]any{"userId": userID}, password)
 	if err != nil {
-		return Session{}, err
+		return nil, err
 	}
 	subject, err := c.sessionSubject(ctx, session.ID)
 	if err != nil {
-		return Session{}, err
+		return nil, err
 	}
 	if subject.OrgID != org || subject.UserID != userID {
-		return Session{}, ErrAuthRequestInvalid
+		return nil, ErrAuthRequestInvalid
 	}
-	return session, nil
+	return []TenantSession{{Session: session}}, nil
+}
+
+func oneSession(session Session, err error) ([]TenantSession, error) {
+	if err != nil {
+		return nil, err
+	}
+	return []TenantSession{{Session: session}}, nil
 }
 
 // AuthRequestOrganization validates this deployment's native request before selecting its organization.

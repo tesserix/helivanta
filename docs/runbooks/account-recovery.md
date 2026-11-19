@@ -8,6 +8,9 @@ and the actual native reset/new-password sign-in journey remain release gates.
 
 1. Start sign-in and choose your organization. Separate hospital and independent
    pharmacy accounts remain separate, even when they share an email address.
+   From the initial email-and-password screen, **Forgot password?** opens the
+   email account finder first. Verify the mailbox code and choose the relevant
+   organization, then use **Forgot password?** on that account's password screen.
 2. On the password screen, choose **Forgot password?** Enter that account's email.
    Helivanta verifies your mailbox before checking whether its selected account
    can recover. A delivery receipt does not guarantee inbox delivery.

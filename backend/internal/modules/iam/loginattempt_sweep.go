@@ -38,6 +38,12 @@ func (s *loginAttemptStore) SweepExpired(ctx context.Context) (int64, error) {
 			return res.Error
 		}
 		deleted = res.RowsAffected
+		// Parked account choices hold live session tokens too (#1751 spec D3).
+		res = tx.Exec(`DELETE FROM login_account_choice WHERE expires_at < now()`)
+		if res.Error != nil {
+			return res.Error
+		}
+		deleted += res.RowsAffected
 		return nil
 	})
 	if err != nil {

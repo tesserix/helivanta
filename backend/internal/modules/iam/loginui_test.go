@@ -63,6 +63,16 @@ func registerPasswordCurrent(mux *http.ServeMux) {
 // real loginclient.Client at it, and registers the server's teardown —
 // the same shape every zitadel*(t) helper below builds around a
 // different mux.
+// withNoEmailAccounts wires an identity owner that finds no account behind
+// any email, so an email login name takes the plain login-name check these
+// fixtures were written for. Tests of the email lookup set their own.
+func withNoEmailAccounts(c *loginclient.Client) *loginclient.Client {
+	c.SetTenantTargetResolver(targetResolverFunc(func(context.Context, string) ([]loginclient.LoginTarget, bool, error) {
+		return []loginclient.LoginTarget{}, false, nil
+	}))
+	return c
+}
+
 func newZitadelTestClient(t *testing.T, mux *http.ServeMux) *loginclient.Client {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -74,7 +84,7 @@ func newZitadelTestClient(t *testing.T, mux *http.ServeMux) *loginclient.Client 
 		mux.ServeHTTP(w, r)
 	}))
 	t.Cleanup(server.Close)
-	return loginclient.New(server.URL, "test-login-client-pat", server.Client())
+	return withNoEmailAccounts(loginclient.New(server.URL, "test-login-client-pat", server.Client()))
 }
 
 // zitadelWrongPassword answers POST /v2/sessions with the spike's exact
@@ -578,7 +588,7 @@ func TestPasswordAdmitsWhenLimiterUnavailable(t *testing.T) {
 func TestAuthRequest_ReturnsAuthRequestFields(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v2/oidc/auth_requests/{id}", func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"authRequest":{"id":"V2_abc","clientId":"cid-1","redirectUri":"https://hms.test/cb","scope":["openid","profile"]}}`))
+		_, _ = w.Write([]byte(`{"authRequest":{"id":"V2_abc","clientId":"cid-1","redirectUri":"https://hms.test/cb","scope":["openid","profile"],"loginHint":"dr.patel@example.test"}}`))
 	})
 	client := newZitadelTestClient(t, mux)
 	h := NewLoginUIHandlers(client, nil, nil, ratelimit.Rule{}, ratelimit.Rule{})
@@ -593,6 +603,7 @@ func TestAuthRequest_ReturnsAuthRequestFields(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
 	require.Contains(t, w.Body.String(), `"client_id":"cid-1"`)
 	require.Contains(t, w.Body.String(), `"redirect_uri":"https://hms.test/cb"`)
+	require.Contains(t, w.Body.String(), `"login_hint":"dr.patel@example.test"`)
 }
 
 // TestAuthRequest_InvalidIDReturns400 proves an unrecognized/expired auth

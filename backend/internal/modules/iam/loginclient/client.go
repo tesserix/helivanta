@@ -81,6 +81,7 @@ const maxSuccessBodyBytes = 64 * 1024
 // established.
 type Client struct {
 	tenantUsers    TenantUserResolver
+	tenantTargets  TenantTargetResolver
 	tenantIdentity TenantIdentityResolver
 	baseURL        string
 	token          string
@@ -114,6 +115,10 @@ type AuthRequest struct {
 	ClientID    string
 	RedirectURI string
 	Scope       []string
+	// LoginHint is the OIDC login_hint the browser sent to /authorize: the
+	// email account discovery already proved. Display-only prefill; it
+	// never selects or authenticates a user.
+	LoginHint string
 }
 
 // Session is the sessionId/sessionToken pair Zitadel returns from POST
@@ -148,6 +153,7 @@ func (c *Client) AuthRequest(ctx context.Context, id string) (AuthRequest, error
 			ClientID    string   `json:"clientId"`
 			RedirectURI string   `json:"redirectUri"`
 			Scope       []string `json:"scope"`
+			LoginHint   string   `json:"loginHint"`
 		} `json:"authRequest"`
 	}
 	if err := c.do(ctx, http.MethodGet, "/v2/oidc/auth_requests/"+url.PathEscape(id), nil, &wire, ErrAuthRequestInvalid); err != nil {
@@ -158,6 +164,7 @@ func (c *Client) AuthRequest(ctx context.Context, id string) (AuthRequest, error
 		ClientID:    wire.AuthRequest.ClientID,
 		RedirectURI: wire.AuthRequest.RedirectURI,
 		Scope:       wire.AuthRequest.Scope,
+		LoginHint:   wire.AuthRequest.LoginHint,
 	}, nil
 }
 

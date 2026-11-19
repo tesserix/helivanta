@@ -50,9 +50,11 @@ revocation tests, remembered-name reload and opt-out, storage failures, and
 autofill without React change events. Short-duration idle/renewal E2E fixtures
 retain explicit overrides to exercise timeout handling quickly.
 
-A returning browser keeps a tenant UUID routing hint for up to 48 hours under
-`helivanta.login.workspace.v1`, written after successful session exchange or an
-authenticated current-account profile response. “Sign in to your previous
+A returning browser keeps a tenant UUID routing hint for up to 30 days under
+`helivanta.login.workspace.v1`, written when an account is chosen at sign-in
+(discovery choice or workspace-link button), after successful session exchange,
+and on an authenticated current-account profile response (#1750; 48 hours
+before it). “Sign in to your previous
 account” starts the existing native password and configured MFA flow without
 repeating mailbox discovery. It stores no password, token, email or account list
 and grants no access. “Use another account” clears the hint and restores

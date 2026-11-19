@@ -26,6 +26,16 @@ redis.call('PEXPIRE', KEYS[1], math.ceil(math.max(period, burst * period / rate)
 return {allowed, math.floor(tokens), retry, math.ceil((burst - tokens) * period / rate)}
 `
 
+// refundScript returns one token, capped at the burst, without creating a
+// bucket that does not exist (an absent bucket is already full).
+const refundScript = `
+if redis.call('EXISTS', KEYS[1]) == 0 then return 0 end
+local burst = tonumber(ARGV[1])
+local tokens = tonumber(redis.call('HGET', KEYS[1], 'tokens')) or burst
+redis.call('HSET', KEYS[1], 'tokens', math.min(burst, tokens + 1))
+return 1
+`
+
 // Valkey shares capacity budgets between replicas. During an outage it preserves
 // local protection, reports degradation, and never changes authorization behavior.
 type Valkey struct {
@@ -90,14 +100,33 @@ func (v *Valkey) degraded(key string, rule Rule, now time.Time) Decision {
 	return v.fallback.Allow(key, rule, now)
 }
 
+// bucketKey hashes all scope components: neither subjects nor source IPs enter cache keys.
+func bucketKey(key string, rule Rule) string {
+	digest := sha256.Sum256(fmt.Appendf(nil, "%s:%d:%d:%d", key, rule.Rate, rule.Burst, rule.Per))
+	return fmt.Sprintf("helivanta:ratelimit:v1:%x", digest)
+}
+
+// Refund returns one token to the shared bucket. During an outage it refunds
+// the local fallback, which is where Allow took the token from.
+func (v *Valkey) Refund(key string, rule Rule, now time.Time) {
+	client := v.connection()
+	if client == nil {
+		v.fallback.Refund(key, rule, now)
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), v.options.Dialer.Timeout)
+	defer cancel()
+	if err := client.Do(ctx, client.B().Eval().Script(refundScript).Numkeys(1).Key(bucketKey(key, rule)).Arg(strconv.Itoa(rule.Burst)).Build()).Error(); err != nil {
+		v.fallback.Refund(key, rule, now)
+	}
+}
+
 func (v *Valkey) Allow(key string, rule Rule, now time.Time) Decision {
 	client := v.connection()
 	if client == nil {
 		return v.degraded(key, rule, now)
 	}
-	// Hash all scope components: neither subjects nor source IPs enter cache keys.
-	digest := sha256.Sum256(fmt.Appendf(nil, "%s:%d:%d:%d", key, rule.Rate, rule.Burst, rule.Per))
-	bucket := fmt.Sprintf("helivanta:ratelimit:v1:%x", digest)
+	bucket := bucketKey(key, rule)
 	ctx, cancel := context.WithTimeout(context.Background(), v.options.Dialer.Timeout)
 	defer cancel()
 	values, err := client.Do(ctx, client.B().Eval().Script(bucketScript).Numkeys(1).Key(bucket).Arg(strconv.Itoa(rule.Rate), strconv.Itoa(rule.Burst), strconv.FormatInt(max(1, rule.Per.Milliseconds()), 10), strconv.FormatInt(now.UnixMilli(), 10)).Build()).AsIntSlice()

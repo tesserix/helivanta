@@ -17,27 +17,28 @@ func stubHandler(c *gin.Context) { c.Status(http.StatusOK) }
 // 4 proof for Finding 3, extended by #867 Task 4 to the factor
 // position: a route named in bootstrap.UnauthenticatedRoutes must
 // actually be servable, never silently un-registered because a caller
-// passed nil. Each of the six positions (#948 added enroll, #856 passwordChange) is exercised separately — a
+// passed nil. Each of the seven positions (#948 added enroll, #856 passwordChange, #1751 account) is exercised separately — a
 // single passing case would not prove EVERY argument is checked, only
 // that at least one is.
 func TestMountUnauthenticatedPanicsOnNilHandler(t *testing.T) {
 	cases := []struct {
-		name                                                         string
-		login, authRequest, password, factor, enroll, passwordChange gin.HandlerFunc
+		name                                                                  string
+		login, authRequest, password, account, factor, enroll, passwordChange gin.HandlerFunc
 	}{
-		{"login", nil, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler},
-		{"authRequest", stubHandler, nil, stubHandler, stubHandler, stubHandler, stubHandler},
-		{"password", stubHandler, stubHandler, nil, stubHandler, stubHandler, stubHandler},
-		{"factor", stubHandler, stubHandler, stubHandler, nil, stubHandler, stubHandler},
-		{"enroll", stubHandler, stubHandler, stubHandler, stubHandler, nil, stubHandler},
-		{"passwordChange", stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, nil},
+		{"login", nil, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler},
+		{"authRequest", stubHandler, nil, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler},
+		{"password", stubHandler, stubHandler, nil, stubHandler, stubHandler, stubHandler, stubHandler},
+		{"account", stubHandler, stubHandler, stubHandler, nil, stubHandler, stubHandler, stubHandler},
+		{"factor", stubHandler, stubHandler, stubHandler, stubHandler, nil, stubHandler, stubHandler},
+		{"enroll", stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, nil, stubHandler},
+		{"passwordChange", stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, nil},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			e := gin.New()
 			require.Panics(t, func() {
-				bootstrap.MountUnauthenticated(e, tc.login, tc.authRequest, tc.password, tc.factor, tc.enroll, tc.passwordChange, stubHandler, stubHandler)
+				bootstrap.MountUnauthenticated(e, tc.login, tc.authRequest, tc.password, tc.account, tc.factor, tc.enroll, tc.passwordChange, stubHandler, stubHandler)
 			}, "a nil %s handler must panic at boot, not silently leave the route unregistered", tc.name)
 		})
 	}
@@ -54,7 +55,7 @@ func TestMountUnauthenticatedRegistersAllFiveRoutesWhenGivenRealHandlers(t *test
 	gin.SetMode(gin.TestMode)
 	e := gin.New()
 	require.NotPanics(t, func() {
-		bootstrap.MountUnauthenticated(e, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler)
+		bootstrap.MountUnauthenticated(e, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler)
 	})
 
 	for _, tc := range []struct {
@@ -81,7 +82,7 @@ func TestMountUnauthenticatedRegistersAllFiveRoutesWhenGivenRealHandlers(t *test
 func TestHostedLoginHandoffRouteIsGone(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	e := gin.New()
-	bootstrap.MountUnauthenticated(e, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler)
+	bootstrap.MountUnauthenticated(e, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler)
 
 	w := httptest.NewRecorder()
 	e.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/v1/auth/login/handoff/abc", nil))

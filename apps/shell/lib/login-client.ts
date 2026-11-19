@@ -42,6 +42,8 @@ export interface AuthRequestInfo {
   client_id: string;
   redirect_uri: string;
   scope: string[];
+  // The OIDC login_hint the browser sent: the email discovery proved. Prefill only.
+  login_hint?: string;
   policies: AuthPoliciesInfo;
 }
 
@@ -78,11 +80,21 @@ export interface AuthRequestInfo {
 // on the original relying-party origin; it never completes this session.
 export type PasswordCheckResult =
   | { outcome: "complete"; callbackUrl: string }
+  | { outcome: "accountChoice"; choices: AccountChoice[] }
   | { outcome: "factorRequired"; factors: string[] }
   | { outcome: "securityKeyRequired"; url: string }
   | { outcome: "enrollmentRequired"; factors: string[]; totp: TotpEnrollment }
   | PasswordChangeRequired
   | SignInBlocked;
+
+// One account whose password matched an email-and-password submission
+// (#1751 spec D3). Display data only: the API holds the session and the name
+// comes from the identity owner, never from this page.
+export interface AccountChoice {
+  tenant_id: string;
+  name: string;
+  account: string;
+}
 
 // The wire shape of the password policy a new password must meet (#856) —
 // `passwordPolicyResponse` in backend/internal/modules/iam/
@@ -174,6 +186,7 @@ interface PasswordCheckParams {
 // Reused by checkFactor below, whose success shape is the same
 // `passwordSuccessResponse`.
 interface PasswordCheckResponse {
+  account_choice_required?: AccountChoice[];
   security_key_required?: { url: string };
   callback_url?: string;
   factor_required?: string[];
@@ -235,21 +248,63 @@ function asPasswordChangeRequired(
 // `AuthMfaSelector` for the component that would then consume it — but
 // nothing reads it yet, and this comment must not claim otherwise.
 export async function checkPassword(params: PasswordCheckParams): Promise<PasswordCheckResult> {
-  let body: PasswordCheckResponse;
+  return toPasswordCheckResult(
+    params.authRequestId,
+    postLoginStep("/auth/login/password", {
+      auth_request_id: params.authRequestId,
+      login_name: params.loginName,
+      password: params.password,
+    }),
+  );
+}
+
+// chooseAccount picks one of checkPassword's `accountChoice` accounts (#1751
+// spec D3): POST /v1/auth/login/account. The chosen account continues
+// exactly as a single match would, so it answers every outcome checkPassword
+// does except another choice, which the API cannot send and this page
+// refuses. An unknown or already-used pick is an ApiError with the API's
+// attempt-expired wording.
+export async function chooseAccount(params: {
+  authRequestId: string;
+  tenantId: string;
+}): Promise<Exclude<PasswordCheckResult, { outcome: "accountChoice" }>> {
+  const result = await toPasswordCheckResult(
+    params.authRequestId,
+    postLoginStep("/auth/login/account", {
+      auth_request_id: params.authRequestId,
+      tenant_id: params.tenantId,
+    }),
+  );
+  if (result.outcome === "accountChoice") {
+    throw new Error("Sign-in could not be completed: the server sent an unexpected response.");
+  }
+  return result;
+}
+
+async function postLoginStep(
+  path: string,
+  payload: object,
+): Promise<PasswordCheckResponse | SignInBlocked> {
   try {
-    body = await apiFetch<PasswordCheckResponse>("/auth/login/password", {
+    return await apiFetch<PasswordCheckResponse>(path, {
       method: "POST",
-      body: JSON.stringify({
-        auth_request_id: params.authRequestId,
-        login_name: params.loginName,
-        password: params.password,
-      }),
+      body: JSON.stringify(payload),
     });
   } catch (err) {
     const blocked = asSignInBlocked(err);
     if (blocked) return blocked;
     throw err;
   }
+}
+
+async function toPasswordCheckResult(
+  authRequestId: string,
+  pending: Promise<PasswordCheckResponse | SignInBlocked>,
+): Promise<PasswordCheckResult> {
+  const answer = await pending;
+  if ("outcome" in answer) return answer;
+  const body = answer;
+  const params = { authRequestId };
 
   if (body.security_key_required) {
     let target: URL;
@@ -269,6 +324,7 @@ export async function checkPassword(params: PasswordCheckParams): Promise<Passwo
         !loginName ||
         loginName.length > 200 ||
         body.callback_url ||
+        body.account_choice_required ||
         body.factor_required ||
         body.enrollment_required ||
         body.password_change_required
@@ -278,6 +334,18 @@ export async function checkPassword(params: PasswordCheckParams): Promise<Passwo
       throw new Error("Sign-in could not be completed: the security-key continuation is invalid.");
     }
     return { outcome: "securityKeyRequired", url: target.href };
+  }
+  if (body.account_choice_required) {
+    // A choice is only ever between two or more accounts, and comes alone.
+    const choices = body.account_choice_required;
+    if (
+      choices.length < 2 ||
+      body.callback_url ||
+      choices.some((c) => !c.tenant_id || !c.name || !c.account)
+    ) {
+      throw new Error("Sign-in could not be completed: the server sent an unexpected response.");
+    }
+    return { outcome: "accountChoice", choices };
   }
   if (body.callback_url) {
     return { outcome: "complete", callbackUrl: body.callback_url };

@@ -1,12 +1,15 @@
 package iam
 
 import (
+	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
 	"github.com/tesserix/helivanta/internal/platform/respond"
@@ -14,6 +17,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/ratelimit"
 	"github.com/tesserix/helivanta/pkg/session"
+	"github.com/tesserix/onboarding-service/api/customercontract"
 )
 
 // loginRequest is the body POST /v1/auth/login accepts: a Zitadel ID
@@ -53,6 +57,11 @@ type loginRequest struct {
 // signal cannot.
 const noAccessibleTenantMessage = "no accessible hospital for this account"
 
+// MFARecoveryAdmitter verifies a signed native session with the credential owner.
+type MFARecoveryAdmitter interface {
+	AdmitStaffMFASession(context.Context, customercontract.StaffMFAAdmissionInput) (customercontract.StaffMFAAdmissionReceipt, error)
+}
+
 // LoginHandlers backs POST /v1/auth/login, spec D1
 // (docs/superpowers/specs/2026-08-15-zitadel-auth-design.md): verify a
 // Zitadel ID token once, resolve tenant membership from OpenFGA, mint an
@@ -69,10 +78,11 @@ const noAccessibleTenantMessage = "no accessible hospital for this account"
 // bootstrap.V1Chain, with a comment explaining why that placement is
 // load-bearing rather than an oversight.
 type LoginHandlers struct {
-	verifier        authn.TokenVerifier
-	roles           platform.RoleLister
-	signer          *session.Signer
-	currentIdentity UserStateChecker
+	verifier          authn.TokenVerifier
+	roles             platform.RoleLister
+	signer            *session.Signer
+	currentIdentity   UserStateChecker
+	recoveryAdmission MFARecoveryAdmitter
 	// sessions verifies the caller's EXISTING Helivanta session cookie, if it
 	// sent one. It is not an authentication gate — this endpoint has no
 	// session to authenticate — it is how Login tells a silent renewal
@@ -146,7 +156,8 @@ type LoginDeps struct {
 	// on every renewal and disable the timeout entirely.
 	Sessions *session.Verifier
 	// CurrentIdentity supplies native credential-change evidence for the chosen tenant.
-	CurrentIdentity UserStateChecker
+	CurrentIdentity   UserStateChecker
+	RecoveryAdmission MFARecoveryAdmitter
 	// TTL is this token's own lifetime (cfg.SessionTTL).
 	TTL time.Duration
 	// IdleTimeout is the window a genuinely new login opens
@@ -174,17 +185,18 @@ func NewLoginHandlers(d LoginDeps) *LoginHandlers {
 		now = time.Now
 	}
 	return &LoginHandlers{
-		now:             now,
-		verifier:        d.Zitadel,
-		roles:           d.Roles,
-		signer:          d.Signer,
-		sessions:        d.Sessions,
-		currentIdentity: d.CurrentIdentity,
-		ttl:             d.TTL,
-		idleTimeout:     d.IdleTimeout,
-		secureCookie:    d.SecureCookie,
-		limiter:         d.Limiter,
-		limit:           d.Limit,
+		now:               now,
+		verifier:          d.Zitadel,
+		roles:             d.Roles,
+		signer:            d.Signer,
+		sessions:          d.Sessions,
+		currentIdentity:   d.CurrentIdentity,
+		recoveryAdmission: d.RecoveryAdmission,
+		ttl:               d.TTL,
+		idleTimeout:       d.IdleTimeout,
+		secureCookie:      d.SecureCookie,
+		limiter:           d.Limiter,
+		limit:             d.Limit,
 	}
 }
 
@@ -304,15 +316,19 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 		respond.Error(c, http.StatusServiceUnavailable, "identity_unavailable", "could not verify account status")
 		return
 	}
-	credential, err := h.currentIdentity.UserCredentialState(c.Request.Context(), tenantID, principal.Subject)
+	generation, credential, err := h.loginCredential(c.Request.Context(), principal, tenantID)
 	var current bool
 	if err == nil {
-		current, err = credentialIsCurrent(credential, principal.AuthTime, principal.RecoveryGeneration)
+		current, err = credentialIsCurrent(credential, principal.AuthTime, generation)
 	}
 	if err == nil {
 		err = c.Request.Context().Err()
 	}
 	if err != nil {
+		if errors.Is(err, loginclient.ErrBadCredentials) {
+			respond.Unauthenticated(c, "credential is no longer current; sign in again")
+			return
+		}
 		requestid.Logger(c).ErrorContext(c.Request.Context(), "login: current credential evidence unavailable", "err", err)
 		respond.Error(c, http.StatusServiceUnavailable, "identity_unavailable", "could not verify account status")
 		return
@@ -321,6 +337,8 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 		respond.Unauthenticated(c, "credential is no longer current; sign in again")
 		return
 	}
+	principal.RecoveryGeneration = generation
+
 	// Native I/O must not allow a membership revoked during that read to mint.
 	bindings, err = h.roles.ListRoles(c.Request.Context(), principal.Subject)
 	if err == nil {
@@ -530,7 +548,7 @@ func (h *LoginHandlers) idleDeadlineFor(c *gin.Context, principal authn.Principa
 		// request is about to succeed or fail on its own merits anyway.
 		return fresh
 	}
-	if claims.Subject != principal.Subject {
+	if claims.Subject != principal.Subject || claims.RecoveryGeneration != principal.RecoveryGeneration {
 		return fresh
 	}
 	if principal.AuthTime.After(claims.AuthTime) {

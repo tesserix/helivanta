@@ -584,17 +584,22 @@ func run() error {
 	// a different key or kid would silently make every renewal look like
 	// a genuine login and re-open the idle window each time, which is
 	// exactly the #848 failure that looks like success.
+	signupHandlers, err := customeronboarding.New("http://onboarding-api.onboarding.svc.cluster.local:8080", "/var/run/customer-onboarding/token", "https://helivanta.app")
+	if err != nil {
+		return err
+	}
 	loginHandlers := iam.NewLoginHandlers(iam.LoginDeps{
-		Zitadel:         zitadelVerifier,
-		Roles:           currentAuthorization,
-		Signer:          sessionSigner,
-		Sessions:        sessionVerifier,
-		CurrentIdentity: zitadelLoginClient,
-		TTL:             sessionTTL,
-		IdleTimeout:     idleTimeout,
-		SecureCookie:    sessionSecureCookie,
-		Limiter:         limiter,
-		Limit:           bootstrap.LoginRateLimitRule(cfg),
+		Zitadel:           zitadelVerifier,
+		Roles:             currentAuthorization,
+		Signer:            sessionSigner,
+		Sessions:          sessionVerifier,
+		CurrentIdentity:   zitadelLoginClient,
+		RecoveryAdmission: signupHandlers,
+		TTL:               sessionTTL,
+		IdleTimeout:       idleTimeout,
+		SecureCookie:      sessionSecureCookie,
+		Limiter:           limiter,
+		Limit:             bootstrap.LoginRateLimitRule(cfg),
 	})
 
 	// zitadelLoginClient is constructed once, well above (beside
@@ -653,10 +658,6 @@ func run() error {
 		loginUIHandlers.AuthRequest, loginUIHandlers.Password, loginUIHandlers.Factor,
 		loginUIHandlers.Enroll, loginUIHandlers.PasswordChange, workspace.PublicHandler(db, limiter), payments.Webhook(deps, limiter))
 
-	signupHandlers, err := customeronboarding.New("http://onboarding-api.onboarding.svc.cluster.local:8080", "/var/run/customer-onboarding/token", "https://helivanta.app")
-	if err != nil {
-		return err
-	}
 	zitadelLoginClient.SetTenantUserResolver(signupHandlers)
 	zitadelLoginClient.SetTenantIdentityResolver(signupHandlers)
 	if enabled := os.Getenv("HELIVANTA_IDENTITY_FIXTURE"); enabled != "" {

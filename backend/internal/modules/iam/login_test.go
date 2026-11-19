@@ -49,15 +49,16 @@ const (
 // job; this test's job is what Login does ONCE it holds a verified
 // Principal — resolving membership and minting, or refusing to.
 type fakeZitadelVerifier struct {
-	subject  string
-	authTime time.Time
+	nativeSessionID string
+	subject         string
+	authTime        time.Time
 }
 
 func (f fakeZitadelVerifier) Verify(_ context.Context, raw string) (authn.Principal, error) {
 	if raw != "good" {
 		return authn.Principal{}, errors.New("invalid zitadel token")
 	}
-	return authn.Principal{Subject: f.subject, AuthTime: f.authTime}, nil
+	return authn.Principal{Subject: f.subject, AuthTime: f.authTime, NativeSessionID: f.nativeSessionID}, nil
 }
 
 // fakeRoleListerLogin mirrors fakeRoleLister in me_test.go (kept
@@ -119,7 +120,7 @@ func loginHarnessRL(t *testing.T, zv authn.TokenVerifier, roles *fakeRoleListerL
 	return loginHarnessWithIdentity(t, zv, roles, limiter, rule, &loginCredentialState{observation: loginclient.CredentialStatus{MFARecovery: &customercontract.StaffMFARecoveryRequirement{State: "none"}, State: loginclient.UserStateActive}})
 }
 
-func loginHarnessWithIdentity(t *testing.T, zv authn.TokenVerifier, roles *fakeRoleListerLogin, limiter ratelimit.Limiter, rule ratelimit.Rule, identity iam.UserStateChecker) (*gin.Engine, *session.Verifier) {
+func loginHarnessWithIdentity(t *testing.T, zv authn.TokenVerifier, roles *fakeRoleListerLogin, limiter ratelimit.Limiter, rule ratelimit.Rule, identity iam.UserStateChecker, admission ...iam.MFARecoveryAdmitter) (*gin.Engine, *session.Verifier) {
 	t.Helper()
 	pub, priv, err := ed25519.GenerateKey(nil)
 	require.NoError(t, err)
@@ -135,17 +136,22 @@ func loginHarnessWithIdentity(t *testing.T, zv authn.TokenVerifier, roles *fakeR
 	// IdleTimeout is testIdleTimeout, a stated constant pinned against
 	// config.DefaultIdleTimeout — never config.Load(), which an ambient
 	// IDLE_TIMEOUT would silently change out from under these tests.
+	var recovery iam.MFARecoveryAdmitter
+	if len(admission) > 0 {
+		recovery = admission[0]
+	}
 	h := iam.NewLoginHandlers(iam.LoginDeps{
-		Zitadel:         zv,
-		Roles:           roles,
-		Signer:          signer,
-		Sessions:        verifier,
-		CurrentIdentity: identity,
-		TTL:             loginTestTTL,
-		IdleTimeout:     testIdleTimeout,
-		SecureCookie:    true,
-		Limiter:         limiter,
-		Limit:           rule,
+		RecoveryAdmission: recovery,
+		Zitadel:           zv,
+		Roles:             roles,
+		Signer:            signer,
+		Sessions:          verifier,
+		CurrentIdentity:   identity,
+		TTL:               loginTestTTL,
+		IdleTimeout:       testIdleTimeout,
+		SecureCookie:      true,
+		Limiter:           limiter,
+		Limit:             rule,
 	})
 
 	gin.SetMode(gin.TestMode)

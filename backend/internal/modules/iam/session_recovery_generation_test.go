@@ -87,3 +87,35 @@ func TestActivityPreservesRecoveryGeneration(t *testing.T) {
 	require.Equal(t, admittedTestRecovery, claims.RecoveryGeneration)
 	require.Equal(t, authenticated, claims.AuthTime)
 }
+
+func TestLoginIdleWindowSeparatesRecoveryGenerationsWithinTheSameSecond(t *testing.T) {
+	env := newRenewEnv(t, nil, nil, renewTestTTL)
+	now := time.Now().UTC().Truncate(time.Second)
+	authenticated := now.Add(-time.Minute)
+	lapsed := now.Add(-time.Second)
+	for _, tc := range []struct {
+		name, prior, current string
+		fresh                bool
+	}{
+		{"first_recovery", "", admittedTestRecovery, true},
+		{"later_recovery", "019f39c2-1738-7998-b5de-6d4214f614e1", admittedTestRecovery, true},
+		{"same_recovery", admittedTestRecovery, admittedTestRecovery, false},
+		{"ordinary_renewal", "", "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			raw, err := env.signer.Mint("user-1", renewTestTenantA, authenticated, lapsed, tc.prior)
+			require.NoError(t, err)
+			request := httptest.NewRequest(http.MethodPost, "/v1/auth/login", nil)
+			request.AddCookie(&http.Cookie{Name: authn.SessionCookie, Value: raw})
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = request
+			h := NewLoginHandlers(LoginDeps{Sessions: env.verifier, IdleTimeout: time.Hour})
+			deadline := h.idleDeadlineFor(c, authn.Principal{Subject: "user-1", AuthTime: authenticated, RecoveryGeneration: tc.current}, now)
+			want := lapsed
+			if tc.fresh {
+				want = now.Add(time.Hour)
+			}
+			require.Equal(t, want, deadline)
+		})
+	}
+}

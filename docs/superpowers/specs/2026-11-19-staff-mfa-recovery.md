@@ -135,12 +135,25 @@ Pending recovery and mismatched generations deny; a matching completed generatio
 still requires current native password evidence and ordinary revocation/membership
 checks. Renewal, activity and tenant switching preserve the signed generation.
 
-Native fresh-session admission remains unwired. Login therefore refuses retained
-recovery requirements rather than infer a new generation from password time or
-command completion. It must eventually obtain owner-verified native proof before
-setting that generation. The forced-enrollment UI, Workforce/IAM reset command
-authority and durable idempotent revocation also remain required. This is not a
-released recovery journey.
+HMS login now calls the private owner admission route after current tenant
+membership and credential-state reads, using only the normal verified native ID
+token's private `sid`, subject and latest owner generation. The canonical request
+contains no historical Staff target. The owner verifies independent fresh native
+password/TOTP proof and current active verified human ownership. Reset-time
+reviewed Staff versions and ordinary-account protection do not prohibit future
+authentication after a legitimate transfer or promotion. Admission grants no
+employment, department, role or operating authority.
+
+After the owner receipt, HMS re-reads credential state/generation and current
+tenant membership before signing. An outage, mismatched receipt, concurrent reset,
+password change or removed membership fails closed without a cookie. A genuinely
+new admitted generation opens a fresh idle window even if `auth_time` shares the
+old cookie's whole second; silent renewals within one generation retain their
+existing deadline. Browser-supplied session/generation fields supply no evidence.
+
+The forced-enrollment UI, Workforce/IAM reset command authority and durable
+idempotent revocation remain required. Hosted native/browser acceptance and live
+deployment also remain unverified. This is not a released recovery journey.
 
 Supported reset operations must be explicit in the canonical command/UI. Do not
 delete passkeys, primary security keys, SMS/email factors or recovery codes as a
@@ -191,7 +204,7 @@ with native ordinary-target checks and durable acknowledgement/uncertainty.
 Its canonical `staffclient` methods validate exact command/tenant/actor scope,
 bound and strictly decode responses, refuse redirects/cookies and never
 automatically retry dispatch. Go and generated TypeScript dependencies pin the
-same owner revision, `599565ee174141a0ca5fd9d7f23354a1b75cf269`.
+same owner revision, `0608f1837d060656595e47d6f27480ee229d8887`.
 These private APIs trust the HMS workload assertion of committed revocation;
 the client supplies neither current administrator authority nor that revocation.
 The additive schema is in
@@ -200,11 +213,33 @@ Hosted owner PostgreSQL race/coverage checks passed for the ledger, including
 concurrency, immutable replay, cancellation tombstones, audit rollback, exact
 timestamp preservation, generation fencing and application-role restrictions.
 
-Workforce/IAM authorization, HMS command orchestration and revocation/admission wiring,
+Workforce/IAM authorization, HMS reset command orchestration and durable idempotent revocation,
 mandatory enrollment UI and the Staff native-browser journey remain unfinished.
 No Staff reset endpoint is registered, no live schema has been applied and no live
 factor has been removed. See Helivanta PR #1749, onboarding-service PR #45 and
 the owner's `docs/staff-mfa-recovery.md` for lifecycle and validation details.
+
+## Native admission validation — 2026-11-19
+
+Owner commit `0608f1837d060656595e47d6f27480ee229d8887` passed hosted
+[run 44431703893](https://github.com/tesserix/onboarding-service/actions/runs/44431703893),
+including the real PostgreSQL race/coverage suite, strict canonical contracts,
+container checks and secret scanning. It remains an unmerged candidate.
+
+Local HMS evidence for this consumer change: the new login/native-admission and
+same-second idle regressions failed before implementation, then passed with race
+detection; the existing database-free login/credential regressions and private
+owner transport tests passed. Authn, session and loginclient race suites, scoped
+vet/lint, `go build ./...`, contractdocs drift check, 1,474 API-package tests,
+API-package typecheck/generator checks and the shell production build passed.
+The shell build used Node 24 and `API_URL=http://127.0.0.1:8081`; no server ran.
+Generated shell build output was removed afterward.
+
+Local database-dependent tests were not validated: full-package invocations
+encountered the intentionally absent container provider. Their hosted PostgreSQL
+execution, the complete E2E workflow after its measured budget correction, native
+Staff reset/enrollment acceptance and deployment remain required. Do not infer
+full #1703 completion from these consumer tests.
 
 Rejected: native deletion alone; temporarily disabling/reactivating a user;
 factor-presence or `auth_time` as fresh-enrollment proof; trusting an unsigned

@@ -4,6 +4,9 @@ Status: candidate implementation for [#1703](https://github.com/tesserix/helivan
 The returning-account screen is not yet deployed or accepted. Staff MFA reset
 and the actual native reset/new-password sign-in journey remain release gates.
 
+See the [native runtime baseline](../qa/2026-11-20-native-identity-runtime.md)
+for the current fixture pin and deployed-provider acceptance limits.
+
 ## Password recovery
 
 1. Start sign-in and choose your organization. Separate hospital and independent

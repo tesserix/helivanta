@@ -21,7 +21,11 @@ services:
     image: nats:2.10-alpine
     restart: unless-stopped
     command: ["-js", "-sd", "/data"]
-    ports: ["${HELIVANTA_NATS_PORT:-4222}:4222", "${HELIVANTA_NATS_MONITOR_PORT:-8222}:8222"]
+    ports:
+      [
+        "${HELIVANTA_NATS_PORT:-4222}:4222",
+        "${HELIVANTA_NATS_MONITOR_PORT:-8222}:8222",
+      ]
     volumes: [natsdata:/data]
     healthcheck:
       test: ["CMD-SHELL", "echo 'PING' | nc localhost 4222 | grep -q PONG"]

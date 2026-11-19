@@ -161,8 +161,9 @@ original-actor, tenant, employer/Staff scope and fresh administration checks sti
 apply. Disabling a feature grants no authorization and cannot undo an accepted
 native action.
 
-Current evidence is component/consumer testing and local builds only for these
-controls. The earlier successful E2E revision predates them. New PostgreSQL cases,
-hospital and independent-employer native/browser reset → enrollment → login,
-unsupported-factor refusal, named migration/QA-reset approval, Kargo rollout and
-deployed Chrome verification remain mandatory before calling #1703 complete.
+Hosted native E2E at `d296b05b` passes these controls for hospital and
+independent-pharmacy Staff against upstream Zitadel v4.15.3. This is older-provider
+regression evidence; the deployed core is v4.19.5. Current-runtime native acceptance,
+full PostgreSQL/Go gates, unsupported-factor refusal, named migration/QA-reset
+approval, Kargo rollout and deployed Chrome verification remain mandatory before
+calling #1703 complete.

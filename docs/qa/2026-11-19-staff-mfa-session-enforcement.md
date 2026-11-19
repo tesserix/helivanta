@@ -335,3 +335,33 @@ catalogue reviews through a field-wise three-way merge; no field had ambiguous
 changes. Its Go build/IAM race/vet/lint, API typecheck/lint and 1,498 tests, shell
 production build, canonical checks and 20 inventory/diagnostic tests pass. Its
 generated `.next` was removed. These are validation results, not live acceptance.
+
+## Native recovery regression passes at d296b05b
+
+Hosted run `44548702318`, E2E job `135646473704`, passed at
+`d296b05bb9ee5f2127016b046d1d8cb14b0e20af`: main selection 109 passed and one
+configured security-key skip; idle and renewal phases each passed one case. The
+hospital and independent-pharmacy recovery cases have no skip path and are
+required dependencies of the main selection. They now complete real factor reset,
+old-access/renewal rejection, mandatory different-factor enrollment, native
+callback, new application access/renewal and completed recovery status, while
+old credentials remain refused. Native lockout and password recovery cases also
+ran in that selected suite. This establishes the callback owner-wiring correction
+against that fixture. Web/scripts/security checks pass; full Go coverage was
+still running when the next runtime-alignment candidate was prepared.
+
+Parent `42db242d` run `44547359358`, E2E job `135641400229`, also passed: main
+selection 106 passed, with idle/renewal one each. Both runs used upstream
+Zitadel v4.15.3. Read-only production inspection then established the core actually
+runs `v4.19.5+tesserix.29986e1`. The fixture is aligned to upstream v4.19.5;
+the [runtime baseline](2026-11-20-native-identity-runtime.md) records source,
+lifetimes and patchset limitations. These older-provider passes do not replace
+current-runtime CI or deployed acceptance. No live rollout or factor action has
+been performed, the recovery capability stays ineligible, and #1703 stays open.
+
+The alignment passed the public organizationidentity credential race suite, Go
+build, preflight syntax, all 25 Staff fixture/inventory/diagnostic tests, release
+generator and contract/inventory checks. Parent alignment passed the same Go
+fixture/build/contract checks and all 18 applicable fixture/inventory tests. Only
+fixture configuration/docs and the already bounded credential regression changed;
+no local application, database or container was started.

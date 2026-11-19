@@ -303,3 +303,35 @@ source-inventory generation/check and all 25 inventory/diagnostic/fixture tests
 passed. API canonical-generator checks and TypeScript typecheck passed. The owner
 contracts directory is unchanged between `a4be89b` and `f76433d`; this pin adds
 diagnostics rather than a wire-contract change. Native acceptance is still pending.
+
+## Callback owner wiring regression
+
+Diagnostic run `44545310274` at `c9286200` again reports one pass, two callback
+failures and 107 cases not run. Owner preparation succeeds; no owner admission
+warning is emitted. Source verification found `LoginDeps.RecoveryAdmission`
+pointing directly at the production `signupHandlers`, while the explicit isolated
+password-recovery owner was selected later in `main`. Thus the native callback
+tries the Kubernetes token-file client absent from that fixture before any local
+owner admission request. Previous diagnostics did not establish a native proof
+failure; the consumer had not reached that boundary.
+
+The recovery owner is now configured once before login construction and reused
+for both native MFA admission and password recovery. In production it remains
+the same signup-owner instance. The existing isolated development issuer and
+fixture opt-ins still gate the local owner; no native proof or auth rule is bypassed.
+The entrypoint wiring regression failed with `signupHandlers` versus
+`recoveryOwner`, then passed together with both existing login/recovery identity
+wiring race tests and all selected local/native-admission/recovery consumer races.
+Full hosted reset-to-enrollment-to-login acceptance is still required.
+
+The parent now includes main `c61b9e29` without losing catalogue routes/exports.
+All five parent conflicts were resolved and canonical outputs regenerated.
+Validation passed the Go build, three account-choice race regressions, API
+typecheck/lint and 1,474 tests, shell typecheck/lint and 2,160 tests, shell production
+build, E2E typecheck/lint, generator/inventory checks and 15 inventory tests.
+Generated `.next` was removed. Its `42db242d` merge is pushed and mergeable.
+Staff's subsequent merge retains all nine Staff source reviews and both new
+catalogue reviews through a field-wise three-way merge; no field had ambiguous
+changes. Its Go build/IAM race/vet/lint, API typecheck/lint and 1,498 tests, shell
+production build, canonical checks and 20 inventory/diagnostic tests pass. Its
+generated `.next` was removed. These are validation results, not live acceptance.

@@ -589,13 +589,21 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	recoveryOwner := signupHandlers
+	if enabled := os.Getenv("HELIVANTA_PASSWORD_RECOVERY_FIXTURE"); enabled != "" {
+		fixtureOwner, fixtureErr := customeronboarding.NewLocalPasswordRecoveryOwner(cfg.Env, cfg.ZitadelIssuerURL, enabled, os.Getenv("HELIVANTA_IDENTITY_FIXTURE"))
+		if fixtureErr != nil {
+			return fixtureErr
+		}
+		recoveryOwner = fixtureOwner
+	}
 	loginHandlers := iam.NewLoginHandlers(iam.LoginDeps{
 		Zitadel:           zitadelVerifier,
 		Roles:             currentAuthorization,
 		Signer:            sessionSigner,
 		Sessions:          sessionVerifier,
 		CurrentIdentity:   zitadelLoginClient,
-		RecoveryAdmission: signupHandlers,
+		RecoveryAdmission: recoveryOwner,
 		TTL:               sessionTTL,
 		IdleTimeout:       idleTimeout,
 		SecureCookie:      sessionSecureCookie,
@@ -672,14 +680,6 @@ func run() error {
 		zitadelLoginClient.SetTenantIdentityResolver(resolver)
 	}
 	bootstrap.MountReleaseAvailability(srv.Engine, releasePolicy.PublicHandler(limiter))
-	recoveryOwner := signupHandlers
-	if enabled := os.Getenv("HELIVANTA_PASSWORD_RECOVERY_FIXTURE"); enabled != "" {
-		fixtureOwner, fixtureErr := customeronboarding.NewLocalPasswordRecoveryOwner(cfg.Env, cfg.ZitadelIssuerURL, enabled, os.Getenv("HELIVANTA_IDENTITY_FIXTURE"))
-		if fixtureErr != nil {
-			return fixtureErr
-		}
-		recoveryOwner = fixtureOwner
-	}
 	recoveryHandlers, err := customeronboarding.NewPasswordRecoveryHandlers(recoveryOwner, customeronboarding.PasswordRecoveryDeps{Requests: zitadelLoginClient, ClientID: cfg.ZitadelClientID, Limiter: limiter})
 	if err != nil {
 		return err

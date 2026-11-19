@@ -102,3 +102,13 @@ END $$;
 CREATE TRIGGER iam_staff_mfa_fence_guard BEFORE INSERT ON iam_staff_mfa_fences FOR EACH ROW EXECUTE FUNCTION iam_staff_mfa_fence_guard();
 CREATE TRIGGER iam_staff_mfa_fence_no_change BEFORE UPDATE OR DELETE ON iam_staff_mfa_fences FOR EACH ROW EXECUTE FUNCTION iam_membership_preserve();
 CREATE TRIGGER iam_staff_mfa_fence_no_truncate BEFORE TRUNCATE ON iam_staff_mfa_fences FOR EACH STATEMENT EXECUTE FUNCTION iam_membership_preserve();
+
+DO $selection$
+DECLARE relation text;
+BEGIN
+ FOREACH relation IN ARRAY ARRAY['iam_staff_mfa_fences','iam_staff_mfa_commands','iam_staff_mfa_cancellations'] LOOP
+  EXECUTE format('CREATE POLICY assignment_target_purpose ON %I AS RESTRICTIVE FOR ALL USING(NULLIF(current_setting(''app.iam_staff_selection'',true),'''') IS NULL) WITH CHECK(NULLIF(current_setting(''app.iam_staff_selection'',true),'''') IS NULL)',relation);
+  EXECUTE format('CREATE POLICY assignment_target_delete ON %I AS RESTRICTIVE FOR DELETE USING(NULLIF(current_setting(''app.iam_staff_selection'',true),'''') IS NULL)',relation);
+ END LOOP;
+END $selection$;
+SELECT iam_staff_selection_capture_integrity();

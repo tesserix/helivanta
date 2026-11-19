@@ -10,6 +10,12 @@ case ${HELIVANTA_PASSWORD_RECOVERY_FIXTURE:-} in
   true) recovery_args=(-password-recovery-outbox "$PWD/dev/zitadel/secrets/password-recovery-mailbox") ;;
   *) echo 'recovery fixture requires an explicit true opt-in' >&2; exit 1 ;;
 esac
+mfa_args=()
+case ${HELIVANTA_STAFF_MFA_RECOVERY_FIXTURE:-} in
+  "") ;;
+  true) mfa_args=(-staff-mfa-recovery) ;;
+  *) echo 'Staff MFA fixture requires explicit true opt-in' >&2; exit 1 ;;
+esac
 port=${HELIVANTA_PG_PORT:-5432}
 [[ "$port" =~ ^[0-9]+$ ]] && (( port > 0 && port < 65536 )) || exit 1
 case ${1:-} in
@@ -33,7 +39,7 @@ case ${1:-} in
     exec go -C "$owner_dir" run -mod=readonly -tags identityfixture ./cmd/helivanta-identity-fixture \
       -manifest "$PWD/dev/zitadel/secrets/identity-fixture.json" \
       -pat-file "$PWD/dev/zitadel/secrets/helivanta-seed.pat" \
-      -dsn "postgres://helivanta:helivanta@127.0.0.1:$port/onboarding_fixture?sslmode=disable" "${recovery_args[@]}"
+      -dsn "postgres://helivanta:helivanta@127.0.0.1:$port/onboarding_fixture?sslmode=disable" "${recovery_args[@]}" "${mfa_args[@]}"
     ;;
   *) echo 'expected setup or run' >&2; exit 1 ;;
 esac

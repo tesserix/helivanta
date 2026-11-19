@@ -215,6 +215,7 @@ func TestStaffMFAResetFencesBeforeDispatchAndReplaysWithoutNewRevocation(t *test
 		require.Equal(t, "admin_revoke", reason)
 		return nil
 	}))
+	f.assertSelectionPrivate("iam_staff_mfa_commands", "iam_staff_mfa_fences")
 	cutoff := mfaWatermark(t, f.db)
 	require.False(t, cutoff.IsZero())
 	require.Equal(t, 1, owner.dispatches)
@@ -406,6 +407,7 @@ func TestStaffMFACancellationBeforePreparationBlocksALateReset(t *testing.T) {
 	require.Equal(t, 200, response.Code, response.Body.String())
 	require.JSONEq(t, `{"commandId":"`+input.CommandID+`","state":"cancelled"}`, response.Body.String())
 	require.Nil(t, owner.held, "cancellation before preparation must not invent a native target")
+	f.assertSelectionPrivate("iam_staff_mfa_commands", "iam_staff_mfa_cancellations")
 	response = mfaRequest(t, f.r, "PUT", path, "manager", input)
 	require.Equal(t, 202, response.Code, response.Body.String())
 	require.JSONEq(t, `{"commandId":"`+input.CommandID+`","state":"cancelled"}`, response.Body.String())
@@ -432,4 +434,28 @@ func TestStaffMFACancelUnconfirmedPreparationUsesFrozenServerIntent(t *testing.T
 	response = mfaRequest(t, f.r, "PUT", path, "manager", input)
 	require.Equal(t, 202, response.Code, response.Body.String())
 	require.Zero(t, owner.dispatches)
+}
+
+func (f *mfaResetFixture) assertSelectionPrivate(tables ...string) {
+	f.t.Helper()
+	for _, table := range tables {
+		var before int64
+		require.NoError(f.t, f.db.WithTenant(f.t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+			return tx.Table(table).Count(&before).Error
+		}))
+		require.Positive(f.t, before, "ordinary reset must have retained private evidence")
+		require.NoError(f.t, f.db.WithTenant(f.t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+			require.NoError(f.t, tx.Exec(`SELECT set_config('app.iam_staff_selection','{"scope":"invalid"}',true)`).Error)
+			var count int64
+			require.NoError(f.t, tx.Table(table).Count(&count).Error)
+			require.Zero(f.t, count, "Staff selectors must not disclose MFA recovery evidence")
+			updated := tx.Exec("UPDATE " + table + " SET tenant_id=tenant_id")
+			require.NoError(f.t, updated.Error)
+			require.Zero(f.t, updated.RowsAffected)
+			deleted := tx.Exec("DELETE FROM " + table)
+			require.NoError(f.t, deleted.Error)
+			require.Zero(f.t, deleted.RowsAffected)
+			return nil
+		}))
+	}
 }

@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-function invoke(enabled) {
+function invoke(enabled, mfa = "") {
   const temporary = mkdtempSync(path.join(tmpdir(), "helivanta-fixture-contract-"));
   try {
     const bin = path.join(temporary, "bin");
@@ -28,6 +28,7 @@ function invoke(enabled) {
       HELIVANTA_IDENTITY_FIXTURE: "true",
       ZITADEL_ISSUER_URL: "http://auth.tesserix.localhost:20080",
       HELIVANTA_PASSWORD_RECOVERY_FIXTURE: enabled,
+      HELIVANTA_STAFF_MFA_RECOVERY_FIXTURE: mfa,
       FIXTURE_MODULE: ownerModule,
       FIXTURE_CAPTURE: capture,
     };
@@ -43,7 +44,9 @@ function invoke(enabled) {
 }
 
 test("ordinary identity owner fixture remains read-only without recovery opt-in", () => {
-  assert.ok(!invoke("").includes("-password-recovery-outbox"));
+  const args = invoke("");
+  assert.ok(!args.includes("-password-recovery-outbox"));
+  assert.ok(!args.includes("-staff-mfa-recovery"));
 });
 test("explicit recovery fixture confines its mailbox to private native test state", () => {
   const args = invoke("true");
@@ -53,4 +56,13 @@ test("explicit recovery fixture confines its mailbox to private native test stat
 });
 test("unrecognized recovery fixture values are refused before starting a process", () => {
   assert.throws(() => invoke("false"));
+});
+
+test("native MFA recovery requires its own explicit opt-in independently of password mail", () => {
+  for (const password of ["", "true"]) {
+    const args = invoke(password, "true");
+    assert.ok(args.includes("-staff-mfa-recovery"));
+    assert.equal(args.includes("-password-recovery-outbox"), password === "true");
+  }
+  assert.throws(() => invoke("", "false"));
 });

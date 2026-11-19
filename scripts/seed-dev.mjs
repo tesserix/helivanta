@@ -61,6 +61,10 @@ import {
   verifyPasswordLogin,
 } from "./lib/zitadel.mjs";
 import { generateTOTP } from "./lib/totp.mjs";
+import {
+  ensureLocalIdentityMachine,
+  readPrivateFixtureSecret,
+} from "./lib/identity-machine-fixture.mjs";
 import { ensureTenantIdentityFixtures } from "./lib/tenant-identity-fixture.mjs";
 
 const ISSUER = process.env.ZITADEL_ISSUER_URL ?? "http://auth.tesserix.localhost:20080";
@@ -280,6 +284,20 @@ async function main() {
   const pat = readMachinePAT();
   const loginClientPAT = readLoginClientPAT();
   const identityManifest = await ensureTenantIdentityFixtures({ issuer: ISSUER, pat });
+  const mfaFixture = process.env.HELIVANTA_STAFF_MFA_RECOVERY_FIXTURE;
+  if (mfaFixture && mfaFixture !== "true")
+    throw new Error("Staff MFA fixture requires explicit true opt-in");
+  if (mfaFixture === "true") {
+    const file = new URL("../dev/zitadel/secrets/identity-product.secret", import.meta.url);
+    identityManifest.machineUserId = await ensureLocalIdentityMachine({
+      issuer: ISSUER,
+      pat,
+      org: identityManifest.adminOrgId,
+      readSecret: () => readPrivateFixtureSecret(file),
+      writeSecret: (secret) => writeFileSync(file, secret, { mode: 0o600, flag: "wx" }),
+    });
+  }
+
   writeFileSync(
     new URL("../dev/zitadel/secrets/identity-fixture.json", import.meta.url),
     JSON.stringify(identityManifest),

@@ -332,3 +332,35 @@ Hosted follow-up `44450567737` confirmed the exact RLS write-policy distinction:
 policies are corrected to the existing `tenantdb.LintRLS` contract; its checks
 remain unchanged. This failure happened during schema bootstrap before any new
 native/browser or Staff recovery database acceptance could run.
+
+
+## Selector isolation and guarded native fixture preparation
+
+Hosted revision `dce1f82e` passed schema RLS lint but failed the existing Staff
+selection support gate. The three new private IAM MFA tables now carry the same
+restrictive selector-purpose/delete policies required of other private IAM tables.
+A nonempty selector scope cannot disclose, update or delete recovery commands,
+cancellations or fences. The schema-owner migration refreshes the selector
+integrity fingerprint; the application role cannot perform that refresh. The
+integration regression checks retained rows created through the normal recovery
+and cancellation commands, rather than constructing invalid command records.
+These SQL corrections still require hosted PostgreSQL execution.
+
+Native acceptance preparation has a separate
+`HELIVANTA_STAFF_MFA_RECOVERY_FIXTURE=true` opt-in, guarded by development mode,
+the existing identity fixture and the exact local native issuer. The seeder
+creates a dedicated real native machine with JWT access tokens, retains a bounded
+private regular credential file and refuses to rotate missing credentials on
+retry. Owner startup verifies that machine's native type, ownership and active
+state, authenticates actual workload tokens through native JWKS and wires the real
+MFA recovery adapter. Other test identities cannot stand in for that machine.
+
+HMS keeps the identity client's production HTTPS requirement. In this isolated
+mode only, the exact synthetic HTTPS proof origin and the SDK's fixed internal
+owner origin are redirected to the loopback owner fixture. All other origins,
+userinfo, fragments and alternate encodings are rejected; OAuth token acquisition
+and user/session proof continue against the real local native issuer. CI setup
+exports public metadata and the credential path, never its value. The owner
+fixture remains read-only without its explicit MFA opt-in. These focused fixture
+unit tests do not prove the native administrator-to-Staff recovery journey, and
+`staff_mfa_recovery` remains ineligible and disabled in released environments.

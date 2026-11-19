@@ -99,8 +99,8 @@ full Go release gate.
 ## Catalogue and live QA readiness
 
 The owning infrastructure candidate now projects this release contract through
-the onboarding-service Helm chart, including `staff_mfa_recovery` with eligibility
-false. Its ConfigMap regression reproduced the missing definition before
+the onboarding-service Helm chart, including `staff_mfa_recovery`. Its ConfigMap
+regression reproduced the missing definition before
 regeneration. The render/schema selection passed 11 Python tests, five native
 reconciler tests passed, and Helm lint/render and Ruff checks passed. The rendered
 validation artifact was removed. Catalogue parity prevents writes until the
@@ -112,3 +112,12 @@ signed in to Yes Hospital with a display name and the Staff directory available.
 QA Staff was active but its account link still awaited independent review by
 someone other than its proposer. No access, account link, credential or factor
 was changed. This is baseline readiness evidence, not deployed recovery acceptance.
+
+After the isolated v4.19.5 native acceptance above, the candidate now makes
+`staff_mfa_recovery` compiled-eligible while preserving its disabled provider
+default. The new public-service regression first failed because provider approval
+could never make recovery available. After canonical regeneration, the full
+release-service race suite passed: provider off still denies, provider approval
+permits only with both prerequisites, and either disabled prerequisite denies.
+This prepares the real Console-controlled release path; it is not live activation.
+Final hosted checks and rollout approval remain mandatory.

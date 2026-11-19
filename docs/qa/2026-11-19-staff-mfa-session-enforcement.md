@@ -357,7 +357,9 @@ runs `v4.19.5+tesserix.29986e1`. The fixture is aligned to upstream v4.19.5;
 the [runtime baseline](2026-11-20-native-identity-runtime.md) records source,
 lifetimes and patchset limitations. These older-provider passes do not replace
 current-runtime CI or deployed acceptance. No live rollout or factor action has
-been performed, the recovery capability stays ineligible, and #1703 stays open.
+been performed and #1703 stays open. The later
+[runtime baseline](2026-11-20-native-identity-runtime.md) records current-provider
+acceptance and candidate eligibility; provider activation remains disabled.
 
 The alignment passed the public organizationidentity credential race suite, Go
 build, preflight syntax, all 25 Staff fixture/inventory/diagnostic tests, release

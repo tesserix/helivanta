@@ -27,7 +27,7 @@
       "key": "staff_mfa_recovery",
       "owner": "workforce",
       "dependencies": ["staff_core", "team_accounts"],
-      "eligible": false,
+      "eligible": true,
       "review_after": "2027-02-16"
     },
     {

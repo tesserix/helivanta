@@ -11,7 +11,7 @@ const PolicyVersion = "2026-11-19-r1"
 var definitions = []Definition{{Key: "onboarding", Eligible: true, Dependencies: []string{}},
 	{Key: "team_accounts", Eligible: true, Dependencies: []string{}},
 	{Key: "staff_core", Eligible: true, Dependencies: []string{"team_accounts"}},
-	{Key: "staff_mfa_recovery", Eligible: false, Dependencies: []string{"staff_core", "team_accounts"}},
+	{Key: "staff_mfa_recovery", Eligible: true, Dependencies: []string{"staff_core", "team_accounts"}},
 	{Key: "department_teams", Eligible: true, Dependencies: []string{"staff_core"}},
 	{Key: "pharmacy_setup", Eligible: true, Dependencies: []string{"team_accounts"}},
 	{Key: "pharmacy_staff", Eligible: true, Dependencies: []string{"staff_core", "pharmacy_setup"}},

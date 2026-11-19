@@ -117,9 +117,11 @@ owner. Record actual hosted results before calling either gate passed.
 
 ## Staff authenticator recovery controls — candidate
 
-These controls are implemented but are not deployed or accepted. The
-`staff_mfa_recovery` capability remains ineligible. Do not enable it from the
-console until the hosted database/native acceptance and rollout gates are met.
+These controls are implemented but are not deployed or accepted. The candidate
+release makes `staff_mfa_recovery` eligible after isolated v4.19.5 native acceptance;
+its provider definition starts disabled. Do not enable it from Console until the
+final hosted database/native checks and approved rollout gates are met. Console
+activation affects the product's production environment across all tenants.
 
 1. Sign in as the current tenant administrator and open the Staff member's
    reviewed account links in the hospital or independent-employer Staff screen.

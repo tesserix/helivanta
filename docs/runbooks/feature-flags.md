@@ -90,8 +90,9 @@ receiving, financial or advanced Staff workflows as a shortcut to MVP testing.
 
 Policy `2026-11-19-r1` adds `staff_mfa_recovery`, dependent on `staff_core` and
 `team_accounts`, for the Staff account panel and reset commands. Its Console
-panel key is `staff.accounts.mfa_recovery`. It remains release locked until the
-account-recovery release gates pass. The Helm-managed catalogue creates its
+flag is `helivanta.release.staff_mfa_recovery`. The recovery candidate makes it
+eligible after isolated native acceptance, with the final release gates pending.
+Its provider value stays disabled until approved activation. The Helm-managed catalogue creates its
 missing provider definition disabled after the deployed application contract
 matches; neither catalogue synchronization nor provider configuration can bypass
 compiled eligibility. A future activation uses the normal product-wide Console

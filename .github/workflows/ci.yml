@@ -157,6 +157,8 @@ jobs:
       - run: bash ./scripts/coverage-gate.test.sh
       - name: Document scan worker and finding isolation
         run: go test -race -count=1 ./internal/modules/workforce -run '^(TestStaffDocumentUploadPinsBytesAndPublishesOneScanIntent|TestGovernanceFindingFileIsolationSurvivesGuardRollback)$'
+      - name: Staff authenticator recovery integration tests
+        run: go test -race -count=1 -timeout=10m -run '^Test(StaffMFA|IndependentPharmacyStaffMFA)' ./internal/integration
       - run: ./scripts/coverage-gate.sh
       # The drug master's latency target (#476 spec D8), measured alone: the
       # gate above runs every package in parallel under -race, where a
@@ -280,7 +282,7 @@ jobs:
           node --test scripts/staff-operational-access-inventory.test.mjs
           node scripts/staff-operational-access-inventory.mjs --check
       # Ignores live in package.json pnpm.auditConfig; reasons in docs/runbooks/vulnerability-management.md.
-      - run: node --test scripts/zod-tooling.test.mjs scripts/lib/tenant-identity-fixture.test.mjs scripts/ci/ubuntu-archive-mirror.test.mjs scripts/ci/runner-dns.test.mjs
+      - run: node --test scripts/zod-tooling.test.mjs scripts/lib/tenant-identity-fixture.test.mjs scripts/ci/identity-owner-fixture.test.mjs scripts/ci/ubuntu-archive-mirror.test.mjs scripts/ci/runner-dns.test.mjs scripts/ci/recovery-owner-diagnostics.test.mjs
       - run: |
           node --test scripts/temporary-advisories.test.mjs
           node scripts/temporary-advisories.mjs
@@ -475,29 +477,15 @@ jobs:
           fi
   e2e:
     runs-on: ubuntu-latest
-    # 30 minutes, and the number is a fail-closed bound rather than a guess.
-    #
-    # The floor is MEASURED, not estimated. First green run — cold caches,
-    # every image pulled — 9m54s (run 32360454402). Stable runs since:
-    # 7m59s, 8m16s, 8m35s, 8m19s. Call it ~8.5 minutes warm, ~10 cold. Of
-    # that, session-renewal.spec.ts spends ~3.5 minutes deliberately waiting
-    # out a short SESSION_TTL — wall clock the job can never optimise away.
-    #
-    # docs/superpowers/specs/2026-08-20-e2e-in-ci-design.md D1 carries the
-    # same numbers, updated in the same change; this comment and that spec
-    # must not drift into two authorities on one measurement.
-    #
-    # The ceiling: `make e2e` has a documented UNBOUNDED hang (#923 —
-    # zitadel-login latches a stale PAT and waits forever). With no timeout,
-    # that hang burns GitHub's own 6-hour job limit. 30m is a 3x margin over
-    # the measured run — room for a cold Docker pull, a slower runner, or a
-    # suite that grows — and far below the 66 minutes the design spec set as
-    # the outer acceptable bound, so a hang dies in half an hour instead of
-    # at hour six.
-    #
-    # If this ever starts timing out on legitimately slower runs, the fix is
-    # to find out WHY the suite got slower — not to raise this number.
-    timeout-minutes: 30
+    env:
+      HELIVANTA_PASSWORD_RECOVERY_FIXTURE: "true"
+      HELIVANTA_STAFF_MFA_RECOVERY_FIXTURE: "true"
+    # Run 44425880230 reached 105 passing main tests in 14m, then passed
+    # idle-timeout (39s) and renewal (3.5m), before the old 20m step bound
+    # interrupted cleanup. The original ~10m job baseline predates this suite.
+    # Allow 30m for make e2e and 10m for setup/diagnostics; retain a hard bound
+    # and no retries. See the measured update in the E2E CI design, D1/D2.
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -532,6 +520,10 @@ jobs:
           cache-dependency-path: backend/go.sum
 
       - run: pnpm install --frozen-lockfile
+      - name: Validate Playwright test registration
+        run: |
+          pnpm --filter @helivanta/e2e exec playwright test --list
+          node --test scripts/ci/native-recovery-registration.test.mjs
 
       # scripts/lib/repo-owns.sh resolves port holders with `ss` on Linux —
       # NOT lsof, which cannot see a `next dev` server at all (see port_tool
@@ -584,6 +576,12 @@ jobs:
         run: make dev-infra
       - name: Migrate and seed
         run: make seed
+      - name: Configure isolated native Staff identity client
+        env:
+          HELIVANTA_ENV: dev
+          HELIVANTA_IDENTITY_FIXTURE: "true"
+          ZITADEL_ISSUER_URL: http://auth.tesserix.localhost:20080
+        run: node scripts/ci/native-mfa-identity-env.mjs
       - name: Start real local identity owner
         run: |
           make dev-identity-owner-setup
@@ -696,18 +694,11 @@ jobs:
           wait_for http://localhost:8080/healthz "API"
 
       - name: make e2e
-        # STEP-level, so a #923 hang is attributed to THIS step rather than
-        # to the job. A job-level timeout cancels the job, and while the dumps
-        # below survive that (see their own comment), the run then reads as a
-        # bare "exceeded the maximum execution time" with no step named. A
-        # step timeout fails the step instead: the job stays alive, finishes
-        # normally, and the failure points at `make e2e`. The job-level 30
-        # stays as the backstop for a hang anywhere outside this step.
-        #
-        # 20 minutes against a measured 4m30s for this step inside a 9m54s
-        # job — a 4x margin, and still inside the job budget with room for
-        # the dumps to finish.
-        timeout-minutes: 20
+        # Attribute a bounded hang to this step. Run 44425880230 consumed
+        # the old 20m bound after all assertions passed but before cleanup.
+        # The 30m allowance covers the measured 14m main suite, 39s idle,
+        # 3.5m renewal, builds and cleanup; the 40m job bounds setup as well.
+        timeout-minutes: 30
         run: |
           set -a
           source .e2e-web/payments.env
@@ -761,7 +752,7 @@ jobs:
       #     A job-level `timeout-minutes` cancels the job, so this is the
       #     clause that covers a hang in a step with no timeout of its own.
       #   - `!success()` covers the ordinary case, and it is the common one:
-      #     the step-level `timeout-minutes: 20` on `make e2e` turns a hang
+      #     the step-level `timeout-minutes: 30` on `make e2e` turns a hang
       #     there into a step FAILURE, not a cancellation.
       #   - Neither fires on a green run, so a passing build does not dump
       #     Zitadel's logs at anyone.
@@ -799,6 +790,10 @@ jobs:
       # started leaves no log, and that is information, not an error to
       # swallow. Suppressing the exit code would also suppress a genuine
       # read failure on a log that DOES exist.
+      - name: Show bounded recovery owner diagnostics on failure
+        if: ${{ !success() || cancelled() }}
+        run: node scripts/ci/recovery-owner-diagnostics.mjs /tmp/hms-identity-owner.log
+
       - name: Dump API and web logs on failure
         if: ${{ !success() || cancelled() }}
         run: |

@@ -115,10 +115,10 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
-it("shows exactly the accepted MVP cards even when the owner has every permission", async () => {
-  expect(releaseDefinitionsForTest.filter((item) => item.eligible).map((item) => item.key)).toEqual(
-    mvp,
-  );
+it("shows only enabled MVP cards when recovery is eligible and the owner has every permission", async () => {
+  expect(
+    releaseDefinitionsForTest.find((item) => item.key === "staff_mfa_recovery")?.eligible,
+  ).toBe(true);
   mockOwner(() => Response.json(releaseSnapshotForTest(scope, mvp)));
   mountReleaseDashboard();
   await screen.findByText("Test availability settled");

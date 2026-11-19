@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
+	"github.com/tesserix/onboarding-service/api/customercontract"
 
 	"github.com/tesserix/helivanta/internal/config"
 	"github.com/tesserix/helivanta/internal/modules/iam" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
@@ -48,15 +49,16 @@ const (
 // job; this test's job is what Login does ONCE it holds a verified
 // Principal — resolving membership and minting, or refusing to.
 type fakeZitadelVerifier struct {
-	subject  string
-	authTime time.Time
+	nativeSessionID string
+	subject         string
+	authTime        time.Time
 }
 
 func (f fakeZitadelVerifier) Verify(_ context.Context, raw string) (authn.Principal, error) {
 	if raw != "good" {
 		return authn.Principal{}, errors.New("invalid zitadel token")
 	}
-	return authn.Principal{Subject: f.subject, AuthTime: f.authTime}, nil
+	return authn.Principal{Subject: f.subject, AuthTime: f.authTime, NativeSessionID: f.nativeSessionID}, nil
 }
 
 // fakeRoleListerLogin mirrors fakeRoleLister in me_test.go (kept
@@ -115,10 +117,10 @@ func loginHarness(t *testing.T, zv authn.TokenVerifier, roles *fakeRoleListerLog
 // loginHarnessRL is loginHarness plus an explicit limiter/rule, for the
 // #841 rate-limit tests that need to control the budget directly.
 func loginHarnessRL(t *testing.T, zv authn.TokenVerifier, roles *fakeRoleListerLogin, limiter ratelimit.Limiter, rule ratelimit.Rule) (*gin.Engine, *session.Verifier) {
-	return loginHarnessWithIdentity(t, zv, roles, limiter, rule, &loginCredentialState{observation: loginclient.CredentialStatus{State: loginclient.UserStateActive}})
+	return loginHarnessWithIdentity(t, zv, roles, limiter, rule, &loginCredentialState{observation: loginclient.CredentialStatus{MFARecovery: &customercontract.StaffMFARecoveryRequirement{State: "none"}, State: loginclient.UserStateActive}})
 }
 
-func loginHarnessWithIdentity(t *testing.T, zv authn.TokenVerifier, roles *fakeRoleListerLogin, limiter ratelimit.Limiter, rule ratelimit.Rule, identity iam.UserStateChecker) (*gin.Engine, *session.Verifier) {
+func loginHarnessWithIdentity(t *testing.T, zv authn.TokenVerifier, roles *fakeRoleListerLogin, limiter ratelimit.Limiter, rule ratelimit.Rule, identity iam.UserStateChecker, admission ...iam.MFARecoveryAdmitter) (*gin.Engine, *session.Verifier) {
 	t.Helper()
 	pub, priv, err := ed25519.GenerateKey(nil)
 	require.NoError(t, err)
@@ -134,17 +136,22 @@ func loginHarnessWithIdentity(t *testing.T, zv authn.TokenVerifier, roles *fakeR
 	// IdleTimeout is testIdleTimeout, a stated constant pinned against
 	// config.DefaultIdleTimeout — never config.Load(), which an ambient
 	// IDLE_TIMEOUT would silently change out from under these tests.
+	var recovery iam.MFARecoveryAdmitter
+	if len(admission) > 0 {
+		recovery = admission[0]
+	}
 	h := iam.NewLoginHandlers(iam.LoginDeps{
-		Zitadel:         zv,
-		Roles:           roles,
-		Signer:          signer,
-		Sessions:        verifier,
-		CurrentIdentity: identity,
-		TTL:             loginTestTTL,
-		IdleTimeout:     testIdleTimeout,
-		SecureCookie:    true,
-		Limiter:         limiter,
-		Limit:           rule,
+		RecoveryAdmission: recovery,
+		Zitadel:           zv,
+		Roles:             roles,
+		Signer:            signer,
+		Sessions:          verifier,
+		CurrentIdentity:   identity,
+		TTL:               loginTestTTL,
+		IdleTimeout:       testIdleTimeout,
+		SecureCookie:      true,
+		Limiter:           limiter,
+		Limit:             rule,
 	})
 
 	gin.SetMode(gin.TestMode)
@@ -191,13 +198,21 @@ func TestLogin_MintsSessionWithRightSubjectTenantAndAuthTime(t *testing.T) {
 
 	w := doLogin(t, r, `{"id_token":"good"}`)
 	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
-	var discoveryCleared bool
+	var discoveryCleared, recoveryCleared, commandCleared bool
 	for _, cookie := range w.Result().Cookies() {
 		if cookie.Name == authn.AccountDiscoveryCookie {
 			discoveryCleared = cookie.Value == "" && cookie.MaxAge < 0 && cookie.Secure && cookie.HttpOnly
 		}
+		if cookie.Name == authn.PasswordRecoveryCookie {
+			recoveryCleared = cookie.Value == "" && cookie.MaxAge < 0 && cookie.Secure && cookie.HttpOnly
+		}
+		if cookie.Name == authn.PasswordRecoveryCommandCookie {
+			commandCleared = cookie.Value == "" && cookie.MaxAge < 0 && cookie.Secure && cookie.HttpOnly
+		}
 	}
 	require.True(t, discoveryCleared, "successful sign-in must clear mailbox discovery from shared terminals")
+	require.True(t, recoveryCleared, "successful sign-in must clear password recovery on shared terminals")
+	require.True(t, commandCleared, "successful sign-in must clear recovery command selectors on shared terminals")
 
 	var body struct {
 		TenantID string `json:"tenant_id"`
@@ -568,7 +583,7 @@ func newLoginEnv(t *testing.T) *loginEnv {
 	clock := time.Now()
 	h := iam.NewLoginHandlers(iam.LoginDeps{
 		Zitadel:         mutableZitadelVerifier{subject: "user-1", authTime: &zitadelAuthTime},
-		CurrentIdentity: &loginCredentialState{observation: loginclient.CredentialStatus{State: loginclient.UserStateActive}},
+		CurrentIdentity: &loginCredentialState{observation: loginclient.CredentialStatus{MFARecovery: &customercontract.StaffMFARecoveryRequirement{State: "none"}, State: loginclient.UserStateActive}},
 		Roles:           roles,
 		Signer:          signer,
 		Sessions:        verifier,
@@ -681,7 +696,7 @@ func TestGenuineLoginSetsAFreshIdleDeadline(t *testing.T) {
 func TestRenewalDoesNotResurrectAnAlreadyLapsedSession(t *testing.T) {
 	env := newLoginEnv(t)
 	lapsed := time.Now().Add(-2 * time.Minute).UTC().Truncate(time.Second)
-	stale, err := env.signer.Mint("user-1", tenantA, env.authTime, lapsed)
+	stale, err := env.signer.Mint("user-1", tenantA, env.authTime, lapsed, "")
 	require.NoError(t, err)
 
 	renewed := env.renewWith(t, stale)
@@ -703,7 +718,7 @@ func TestRenewalDoesNotResurrectAnAlreadyLapsedSession(t *testing.T) {
 func TestGenuineReAuthenticationAfterALapsedSessionGetsAFreshWindow(t *testing.T) {
 	env := newLoginEnv(t)
 	lapsed := time.Now().Add(-2 * time.Minute).UTC().Truncate(time.Second)
-	stale, err := env.signer.Mint("user-1", tenantA, env.authTime, lapsed)
+	stale, err := env.signer.Mint("user-1", tenantA, env.authTime, lapsed, "")
 	require.NoError(t, err)
 
 	// A NEW authentication: auth_time strictly after the one the stale
@@ -732,7 +747,7 @@ func TestGenuineLoginByADifferentSubjectDoesNotInheritTheOtherSessionsDeadline(t
 	// terminal. user-1 is the subject this env's Zitadel verifier
 	// authenticates.
 	nearlyOut := time.Now().Add(20 * time.Second).UTC().Truncate(time.Second)
-	othersCookie, err := env.signer.Mint("user-2", tenantA, env.authTime, nearlyOut)
+	othersCookie, err := env.signer.Mint("user-2", tenantA, env.authTime, nearlyOut, "")
 	require.NoError(t, err)
 
 	tok := env.renewWith(t, othersCookie) // same request shape; different subject's cookie

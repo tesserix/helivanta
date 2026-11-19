@@ -228,6 +228,10 @@ func TestClientSecretCredentialIsPrivateScopedAndCachesOnlyShortLivedTokens(t *t
 func TestClientSecretCredentialRejectsUnsafeConfiguration(t *testing.T) {
 	for _, test := range []struct{ name, client, secret, issuer, project string }{
 		{"empty client", "", "PRIVATE-secret", "https://auth.test", "TEST-project"},
+		{"client whitespace", "machine @platform.test", "PRIVATE-secret", "https://auth.test", "TEST-project"},
+		{"client control", "machine\n@platform.test", "PRIVATE-secret", "https://auth.test", "TEST-project"},
+		{"client URL", "https://platform.test/machine", "PRIVATE-secret", "https://auth.test", "TEST-project"},
+		{"oversize client", strings.Repeat("m", 321), "PRIVATE-secret", "https://auth.test", "TEST-project"},
 		{"empty secret", "TEST-machine", "", "https://auth.test", "TEST-project"},
 		{"secret newline", "TEST-machine", "PRIVATE\nsecret", "https://auth.test", "TEST-project"},
 		{"oversize secret", "TEST-machine", strings.Repeat("x", 8193), "https://auth.test", "TEST-project"},
@@ -241,5 +245,33 @@ func TestClientSecretCredentialRejectsUnsafeConfiguration(t *testing.T) {
 				t.Fatal("unsafe configuration accepted or disclosed")
 			}
 		})
+	}
+}
+
+func TestClientSecretCredentialAcceptsNativePreferredLoginName(t *testing.T) {
+	const login = "helivanta-machine@platform.example"
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		encoded, _, ok := r.BasicAuth()
+		decoded, err := url.QueryUnescape(encoded)
+		if !ok || err != nil || decoded != login {
+			t.Error("native OAuth login name was not preserved")
+		}
+		_, _ = w.Write([]byte(`{"access_token":"TEST-access","token_type":"Bearer","expires_in":120}`))
+	}))
+	defer server.Close()
+	tokens, err := organizationidentity.NewClientTokens(login, []byte("PRIVATE-test"), server.URL, "TEST-project", server.Client())
+	if err != nil {
+		t.Fatal("native preferred login name rejected")
+	}
+	if _, err = tokens.Token(t.Context()); err != nil {
+		t.Fatal("native preferred login exchange failed")
+	}
+}
+
+func TestClientSecretCredentialPreservesExistingOpaqueClientNames(t *testing.T) {
+	for _, client := range []string{"_legacy-machine", "-legacy-machine"} {
+		if _, err := organizationidentity.NewClientTokens(client, []byte("PRIVATE-test"), "https://auth.test", "TEST-project", http.DefaultClient); err != nil {
+			t.Fatal("previously supported operator client name rejected")
+		}
 	}
 }

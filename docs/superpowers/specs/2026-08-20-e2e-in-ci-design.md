@@ -53,6 +53,26 @@ figures and is updated in step with this paragraph — one measurement, not two
 authorities on it. Runner cost is also why the workflow now cancels
 superseded runs per ref (see that file's `concurrency` block).
 
+### Measured suite growth — 2026-11-19
+
+Run [44425880230](https://github.com/tesserix/helivanta/actions/runs/44425880230)
+shows the earlier timing budget no longer fits the expanded suite. The main phase
+ran 106 tests: 105 passed and one was skipped by its existing policy in 14 minutes.
+The isolated idle test passed in 39 seconds; native session renewal passed in
+3.5 minutes. Web builds/startup plus these phases consumed the 20-minute step
+budget, which interrupted final cleanup. This is a timeout failure, not a passing
+E2E gate. The HTML artifact contains only the final renewal report, so the
+phase timings above come from the retained workflow log.
+
+After investigating that measured suite growth, the step budget is 30 minutes
+and the job budget is 40 minutes, including setup and failure diagnostics. The
+hard timeout, all three phases and zero retries remain. Run [44433274075](https://github.com/tesserix/helivanta/actions/runs/44433274075)
+subsequently passed the complete E2E job in 24m10s, including cleanup, at
+`38daae06`. This validates the revised budget for that revision; it does not
+validate later Staff administrative reset changes.
+The original 8.5/10-minute figures above are historical measurements, not current
+runtime promises.
+
 It is affordable because Actions minutes are free while the repo is public.
 
 **State the dependency plainly:** the repo is public _because billing is

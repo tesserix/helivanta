@@ -74,7 +74,8 @@ func newTestOIDCProvider(t *testing.T) *testOIDCProvider {
 }
 
 type testClaims struct {
-	AuthTime int64 `json:"auth_time,omitempty"`
+	AuthTime  int64  `json:"auth_time,omitempty"`
+	SessionID string `json:"sid,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -105,6 +106,27 @@ func validClaims(issuer, clientID, subject string) testClaims {
 }
 
 const testClientID = "test-client-id"
+
+func TestZitadelVerifierRetainsSignedNativeSessionWithoutDisclosure(t *testing.T) {
+	p := newTestOIDCProvider(t)
+	verifier, err := NewZitadelVerifier(t.Context(), p.issuer, testClientID)
+	require.NoError(t, err)
+	claims := validClaims(p.issuer, testClientID, "386320787679739907")
+	claims.SessionID = "native_session-1703"
+	principal, err := verifier.Verify(t.Context(), p.sign(t, claims))
+	require.NoError(t, err)
+	require.Equal(t, claims.SessionID, principal.NativeSessionID)
+	require.Empty(t, principal.TenantID)
+	wire, err := json.Marshal(principal)
+	require.NoError(t, err)
+	require.NotContains(t, string(wire), claims.SessionID)
+	require.NotContains(t, string(wire), "sid")
+
+	legacy := validClaims(p.issuer, testClientID, "386320787679739907")
+	principal, err = verifier.Verify(t.Context(), p.sign(t, legacy))
+	require.NoError(t, err)
+	require.Empty(t, principal.NativeSessionID)
+}
 
 func TestZitadelVerifier_ValidTokenVerifies(t *testing.T) {
 	p := newTestOIDCProvider(t)

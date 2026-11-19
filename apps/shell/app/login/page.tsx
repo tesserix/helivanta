@@ -635,6 +635,16 @@ function CredentialForm({
           passwordLabel="Password"
           submitLabel="Sign in"
         />
+        <a
+          className="mt-4 block text-sm font-medium text-primary underline"
+          href={
+            scoped
+              ? `/recover-password?authRequest=${encodeURIComponent(authRequestId)}`
+              : FIND_ACCOUNTS_HREF
+          }
+        >
+          Forgot password?
+        </a>
         <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
           <input
             type="checkbox"

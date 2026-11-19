@@ -553,6 +553,21 @@ func TestTenantSwitchCarriesTheIdleDeadlineForward(t *testing.T) {
 	}
 }
 
+func TestTenantSwitchPreservesAdmittedRecoveryGeneration(t *testing.T) {
+	env := newMeEnv(t)
+	const generation = "019f39c2-1738-7998-b5de-6d4214f614e0"
+	env.principal.RecoveryGeneration = generation
+	env.sessionWithDeadline(t, time.Now().Add(4*time.Minute))
+	res := testutil.Do(env.r, http.MethodPost, "/v1/iam/me/tenant", "jane", `{"tenant_id":"`+testutil.TenantB+`"}`)
+	require.Equal(t, http.StatusOK, res.Code, res.Body.String())
+	claims, err := env.verifier.Verify(sessionCookie(t, res))
+	require.NoError(t, err)
+	require.Equal(t, testutil.TenantB, claims.TenantID)
+	require.Equal(t, generation, claims.RecoveryGeneration)
+	require.Equal(t, env.principal.AuthTime, claims.AuthTime)
+	require.Equal(t, env.principal.IdleDeadline, claims.IdleDeadline)
+}
+
 // denyAllMembership refuses every subject in every tenant — the shape of
 // a caller whose membership in the tenant their token names has just
 // been revoked.

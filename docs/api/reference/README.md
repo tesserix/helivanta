@@ -166,6 +166,7 @@ Migration table declarations:
 - `0050_iam_operating_governance`: `iam_operating_governance_origins`, `iam_operating_governance_commands`.
 - `0051_iam_operating_employer_inbox`: concurrent index `iam_operating_employer_inbox` on `iam_operating_duties (tenant_id, employer_kind, employer_id, native_administration, created_at DESC, id DESC)`.
 - `0053_iam_login_account_choice`: `login_account_choice`.
+- `0054_iam_staff_mfa_fences`: `iam_staff_mfa_commands`, `iam_staff_mfa_cancellations`, `iam_staff_mfa_fences`.
 
 ## reference
 
@@ -1459,6 +1460,9 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/login-links/:link/history` | `public` | true | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/login-links/:link` | `workforce.login_links.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/login-links` | `public` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/staff/:id/mfa-recoveries/:command/cancel` | `workforce.login_links.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/mfa-recoveries/:command` | `workforce.login_links.manage` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/mfa-recoveries/:command` | `workforce.login_links.manage` | false | false |
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review/decision` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review/evidence/:file/content` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review/history` | `public` | true | false |
@@ -1526,6 +1530,9 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-source` | `workforce.enrollment.manage` | false | false |
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/enrollment` | `workforce.enrollment.manage` | false | false |
 | PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/enrollment` | `workforce.enrollment.manage` | false | false |
+| POST | `/v1/workforce/pharmacies/:pharmacy/staff/:id/mfa-recoveries/:command/cancel` | `workforce.independent_login.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/mfa-recoveries/:command` | `workforce.independent_login.manage` | false | false |
+| PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/mfa-recoveries/:command` | `workforce.independent_login.manage` | false | false |
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id` | `public` | false | false |
 | PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id` | `public` | false | false |
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff` | `public` | true | false |
@@ -1544,6 +1551,9 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/suppliers/:supplier/staff/:id/account-links/:link` | `public` | false | false |
 | PUT | `/v1/workforce/suppliers/:supplier/staff/:id/account-links/:link` | `workforce.independent_login.manage` | false | false |
 | GET | `/v1/workforce/suppliers/:supplier/staff/:id/account-links` | `public` | true | false |
+| POST | `/v1/workforce/suppliers/:supplier/staff/:id/mfa-recoveries/:command/cancel` | `workforce.independent_login.manage` | false | false |
+| GET | `/v1/workforce/suppliers/:supplier/staff/:id/mfa-recoveries/:command` | `workforce.independent_login.manage` | false | false |
+| PUT | `/v1/workforce/suppliers/:supplier/staff/:id/mfa-recoveries/:command` | `workforce.independent_login.manage` | false | false |
 | GET | `/v1/workforce/suppliers/:supplier/staff/:id` | `public` | false | false |
 | PUT | `/v1/workforce/suppliers/:supplier/staff/:id` | `public` | false | false |
 | GET | `/v1/workforce/suppliers/:supplier/staff` | `public` | true | false |
@@ -1760,6 +1770,7 @@ Migration table declarations:
 | `GET /v1/auth/accounts` | bounded display-only choices after mailbox proof, no session required |
 | `GET /v1/auth/branding/:tenant` | published display-only branding must render before login; no identity or data access |
 | `GET /v1/auth/login/request/:id` | renders the login form before any Helivanta session exists |
+| `GET /v1/auth/password-recovery` | browser-bound retained recovery status; no session or native write |
 | `GET /v1/auth/release-capabilities` | bounded global onboarding availability; no tenant, account or targeting rules |
 | `GET /v1/auth/signup` | receipt-bound setup progress before a tenant session exists |
 | `POST /v1/auth/accounts` | same-origin mailbox proof before private separate-account discovery |
@@ -1770,6 +1781,11 @@ Migration table declarations:
 | `POST /v1/auth/login/factor` | checks the second factor that creates the session, so it cannot require one |
 | `POST /v1/auth/login/password` | checks the credential that creates the session, so it cannot require one |
 | `POST /v1/auth/login/password-change` | completes a sign-in whose password must change first, so it cannot require a session |
+| `POST /v1/auth/password-recovery` | same-origin rate-limited mailbox delivery bound to a validated native tenant request; no account lookup |
+| `POST /v1/auth/password-recovery/cancel` | verified browser-bound cancellation of prepared intent only; processing commands remain fenced |
+| `POST /v1/auth/password-recovery/password` | verified browser-bound retained native reset command; ordinary password/MFA sign-in remains required |
+| `POST /v1/auth/password-recovery/prepare` | verified browser-bound no-password preparation and retained receipt; no session or credential change |
+| `POST /v1/auth/password-recovery/verify` | one-use dedicated mailbox proof before credential recovery; no session |
 | `POST /v1/auth/signup` | new owner intent before a tenant exists; same-origin receipt and private workload handoff |
 | `POST /v1/auth/signup/email-link` | bounded native verification delivery without identity disclosure |
 | `POST /v1/auth/signup/new` | same-origin browser receipt rotation only; no tenant, user or pending intent changes |

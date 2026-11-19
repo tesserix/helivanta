@@ -55,6 +55,7 @@ type Deps struct {
 	GovernanceSources         authz.CurrentGovernanceSourceGuard
 	GovernanceTopology        authz.CurrentGovernanceTopologyGuard
 	StaffAccounts             *staffclient.Client
+	StaffMFARecovery          StaffMFARecoveryService
 	TradingEndpoints          suppliertrade.CurrentEndpointGuard
 	SourceChecks              suppliertrade.SourceChecker
 	TradingRelationships      suppliertrade.CurrentRelationshipGuard

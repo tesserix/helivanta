@@ -2,6 +2,7 @@ package release
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -41,6 +42,33 @@ func available(t *testing.T, snapshot ReleaseSnapshot, key string) bool {
 	}
 	t.Fatalf("capability missing: %s", key)
 	return false
+}
+
+func TestStaffMFARecoveryReleaseRequiresProviderApprovalAndBothPrerequisites(t *testing.T) {
+	for _, tc := range []struct {
+		name                      string
+		recovery, staff, accounts bool
+		want                      bool
+	}{
+		{name: "provider disabled", staff: true, accounts: true},
+		{name: "provider approved", recovery: true, staff: true, accounts: true, want: true},
+		{name: "staff prerequisite disabled", recovery: true, accounts: true},
+		{name: "accounts prerequisite disabled", recovery: true, staff: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			now := time.Date(2026, 11, 19, 0, 0, 0, 0, time.UTC)
+			payload := fmt.Sprintf(`{"features":{
+				"helivanta.release.team_accounts":{"defaultValue":%t},
+				"helivanta.release.staff_core":{"defaultValue":%t},
+				"helivanta.release.staff_mfa_recovery":{"defaultValue":%t}
+			}}`, tc.accounts, tc.staff, tc.recovery)
+			service := testService(t, &payload, &now)
+			require.NoError(t, service.Refresh(t.Context()))
+			snapshot, err := service.Snapshot(t.Context(), uuid.MustParse("018f8f5b-1111-7111-8111-111111111111"), "owner")
+			require.NoError(t, err)
+			require.Equal(t, tc.want, available(t, snapshot, "staff_mfa_recovery"))
+		})
+	}
 }
 
 func TestTenantTargetingAndDependencyClosureUseTheActualGrowthBookEvaluator(t *testing.T) {

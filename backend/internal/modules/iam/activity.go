@@ -134,7 +134,7 @@ func (h *activityHandlers) activity(c *gin.Context) {
 	// TestActivityBodyDeadlineMatchesTheMintedCookie for the assertion
 	// that keeps this true.
 	deadline := h.now().Add(h.idleTimeout).UTC().Truncate(time.Second)
-	token, err := h.signer.Mint(p.Subject, p.TenantID, p.AuthTime, deadline)
+	token, err := h.signer.Mint(p.Subject, p.TenantID, p.AuthTime, deadline, p.RecoveryGeneration)
 	if err != nil {
 		requestid.Logger(c).ErrorContext(c.Request.Context(), "session activity: mint session failed", "err", err)
 		respond.Error(c, http.StatusServiceUnavailable,

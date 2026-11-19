@@ -393,7 +393,7 @@ func (*Module) Consumers(deps platform.Deps) []events.Consumer {
 func (*Module) Broadcasts(platform.Deps) []events.Broadcast { return nil }
 
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {
-	h := &handlers{governanceSources: deps.GovernanceSources, membership: deps.Membership, staffActors: deps.StaffActors, departmentReferences: deps.DepartmentReferences, departmentScopes: deps.DepartmentScopes, pharmacyEmployers: deps.PharmacyEmployers, supplierEmployers: deps.SupplierEmployers, employmentActivationEnabled: deps.EmploymentActivationEnabled, scopeAuthority: deps.ScopedAuthorizer, db: deps.DB, bus: deps.Bus, documents: deps.Documents, transit: deps.Transit, roles: deps.Roles, employmentEvidenceSlots: make(chan struct{}, maxEmploymentEvidenceDownloads)}
+	h := &handlers{staffMFARecovery: deps.StaffMFARecovery, governanceSources: deps.GovernanceSources, membership: deps.Membership, staffActors: deps.StaffActors, departmentReferences: deps.DepartmentReferences, departmentScopes: deps.DepartmentScopes, pharmacyEmployers: deps.PharmacyEmployers, supplierEmployers: deps.SupplierEmployers, employmentActivationEnabled: deps.EmploymentActivationEnabled, scopeAuthority: deps.ScopedAuthorizer, db: deps.DB, bus: deps.Bus, documents: deps.Documents, transit: deps.Transit, roles: deps.Roles, employmentEvidenceSlots: make(chan struct{}, maxEmploymentEvidenceDownloads)}
 	platform.FilteredListRoute(r.Group("/workforce"), "/staff-actor-scopes", authz.Public, 20, h.staffActorScopeCandidates, h.authorizedStaffActorScopes)
 	platform.FilteredListRoute(r.Group("/workforce"), "/leave-review-scopes", authz.Public, 20, h.leaveReviewScopeCandidates, h.authorizedLeaveReviewScopes)
 	platform.FilteredListRoute(r.Group("/workforce"), "/hr-intake-scopes", authz.Public, 20, h.hrIntakeScopeCandidates, h.authorizedHRIntakeScopes)
@@ -411,6 +411,7 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.FilteredListRoute(r.Group("/workforce"), "/posting-cutoff-scopes", authz.Public, 20, h.postingCutoffScopeCandidates, h.authorizedPostingCutoffScopes)
 	registerSupplierStaffRoutes(r, h)
 	registerIndependentIdentityRoutes(r, h)
+	registerStaffMFARecovery(r, h)
 	hospitals := r.Group("/workforce/hospitals")
 	g := hospitals.Establishment(hospitalEstablishmentKind, hospitalEstablishmentKind, h.establishmentAdmission(hospitalEstablishmentKind))
 	pharmacyFamily := r.Group("/workforce/pharmacies")

@@ -17,6 +17,11 @@ type organizationIdentityClients struct {
 }
 
 func newOrganizationIdentity(cfg config.Config) (organizationIdentityClients, error) {
+	ownerHTTP, err := organizationIdentityHTTP(cfg, os.Getenv("HELIVANTA_IDENTITY_FIXTURE"), os.Getenv("HELIVANTA_STAFF_MFA_RECOVERY_FIXTURE"))
+	if err != nil {
+		return organizationIdentityClients{}, err
+	}
+
 	values := []string{cfg.OrganizationIdentityURL, cfg.OrganizationIdentityProductKey, cfg.OrganizationIdentityTokenProjectID}
 	configured := 0
 	for _, value := range values {
@@ -28,6 +33,9 @@ func newOrganizationIdentity(cfg config.Config) (organizationIdentityClients, er
 	secretConfigured := cfg.OrganizationIdentityClientID != "" && cfg.OrganizationIdentityClientSecretFile != ""
 	secretPartial := cfg.OrganizationIdentityClientID != "" || cfg.OrganizationIdentityClientSecretFile != ""
 	if configured == 0 && !keyConfigured && !secretPartial {
+		if os.Getenv("HELIVANTA_STAFF_MFA_RECOVERY_FIXTURE") == "true" {
+			return organizationIdentityClients{}, errors.New("native Staff MFA fixture requires dedicated product credentials")
+		}
 		return organizationIdentityClients{}, nil
 	}
 	if configured != len(values) || keyConfigured && secretPartial || !keyConfigured && !secretConfigured {
@@ -47,20 +55,27 @@ func newOrganizationIdentity(cfg config.Config) (organizationIdentityClients, er
 	if readErr != nil || closeErr != nil || len(raw) > limit {
 		return organizationIdentityClients{}, errors.New("organisation identity credential unavailable")
 	}
+	issuer, tokenHTTP := cfg.ZitadelIssuerURL, http.DefaultClient
+	if os.Getenv("HELIVANTA_STAFF_MFA_RECOVERY_FIXTURE") == "true" {
+		if !secretConfigured {
+			return organizationIdentityClients{}, errors.New("native Staff MFA fixture requires client credentials")
+		}
+		issuer, tokenHTTP = nativeFixtureOAuthIssuer, ownerHTTP
+	}
 	var tokens organizationidentity.TokenSource
 	if secretConfigured {
-		tokens, err = organizationidentity.NewClientTokens(cfg.OrganizationIdentityClientID, raw, cfg.ZitadelIssuerURL, cfg.OrganizationIdentityTokenProjectID, http.DefaultClient)
+		tokens, err = organizationidentity.NewClientTokens(cfg.OrganizationIdentityClientID, raw, issuer, cfg.OrganizationIdentityTokenProjectID, tokenHTTP)
 	} else {
-		tokens, err = organizationidentity.NewKeyTokens(raw, cfg.ZitadelIssuerURL, cfg.OrganizationIdentityTokenProjectID, http.DefaultClient)
+		tokens, err = organizationidentity.NewKeyTokens(raw, issuer, cfg.OrganizationIdentityTokenProjectID, tokenHTTP)
 	}
 	if err != nil {
 		return organizationIdentityClients{}, errors.New("organisation identity credential configuration invalid")
 	}
-	proof, err := organizationidentity.New(cfg.OrganizationIdentityURL, cfg.OrganizationIdentityProductKey, http.DefaultClient, tokens)
+	proof, err := organizationidentity.New(cfg.OrganizationIdentityURL, cfg.OrganizationIdentityProductKey, ownerHTTP, tokens)
 	if err != nil {
 		return organizationIdentityClients{}, err
 	}
-	staff, err := staffclient.New(staffclient.Config{Endpoint: "http://onboarding-api.onboarding.svc.cluster.local:8080", ProductKey: cfg.OrganizationIdentityProductKey, Tokens: tokens, HTTP: http.DefaultClient})
+	staff, err := staffclient.New(staffclient.Config{Endpoint: "http://onboarding-api.onboarding.svc.cluster.local:8080", ProductKey: cfg.OrganizationIdentityProductKey, Tokens: tokens, HTTP: ownerHTTP})
 	if err != nil {
 		return organizationIdentityClients{}, errors.New("staff identity client configuration invalid")
 	}

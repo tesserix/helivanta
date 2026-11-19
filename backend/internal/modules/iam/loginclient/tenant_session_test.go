@@ -111,3 +111,37 @@ func TestTenantPasswordSessionRejectsUnsafeNativeRequestBeforePassword(t *testin
 		})
 	}
 }
+
+func TestAuthRequestOrganizationBindsTheNativeRequestAndDeploymentClient(t *testing.T) {
+	const org = "helivanta-11111111-1111-4111-8111-111111111111"
+	for _, tc := range []struct {
+		name, client string
+		scopes       []string
+		want         string
+		invalid      bool
+	}{
+		{"one selected organization", "web", []string{"openid", organizationScopePrefix + org}, org, false},
+		{"unscoped login has no recovery tenant", "web", []string{"openid"}, "", false},
+		{"another native client", "foreign", []string{organizationScopePrefix + org}, "", true},
+		{"duplicate organizations", "web", []string{organizationScopePrefix + org, organizationScopePrefix + org}, "", true},
+		{"domain selector", "web", []string{"urn:zitadel:iam:org:domain:primary:foreign.example"}, "", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			native := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != "GET" || r.URL.Path != "/v2/oidc/auth_requests/V2_test" {
+					t.Error("request validation performed an unrelated operation")
+				}
+				_ = json.NewEncoder(w).Encode(map[string]any{"authRequest": map[string]any{"id": "V2_test", "clientId": tc.client, "scope": tc.scopes}})
+			}))
+			defer native.Close()
+			current, err := New(native.URL, "synthetic", native.Client()).AuthRequestOrganization(t.Context(), "V2_test", "web")
+			if tc.invalid {
+				if !errors.Is(err, ErrAuthRequestInvalid) || current != "" {
+					t.Fatal("foreign or ambiguous request selected a recovery organization", err)
+				}
+			} else if err != nil || current != tc.want {
+				t.Fatal("wrong native request organization", err)
+			}
+		})
+	}
+}

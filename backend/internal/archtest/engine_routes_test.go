@@ -54,6 +54,7 @@ func TestEveryEngineRouteIsDeclaredOrAllowlisted(t *testing.T) {
 	bootstrap.MountCustomerSignup(srv.Engine, stub, stub, stub, stub, stub, stub, stub, stub, stub)
 	bootstrap.MountReleaseAvailability(srv.Engine, stub)
 	bootstrap.MountAccountDiscovery(srv.Engine, stub, stub, stub)
+	bootstrap.MountPasswordRecovery(srv.Engine, stub, stub, stub, stub, stub, stub)
 	bootstrap.MountStaffSetup(srv.Engine, stub)
 
 	declared := map[string]bool{}
@@ -103,6 +104,7 @@ func TestUnauthenticatedAllowlistHasNoDeadEntries(t *testing.T) {
 	bootstrap.MountCustomerSignup(srv.Engine, stub, stub, stub, stub, stub, stub, stub, stub, stub)
 	bootstrap.MountReleaseAvailability(srv.Engine, stub)
 	bootstrap.MountAccountDiscovery(srv.Engine, stub, stub, stub)
+	bootstrap.MountPasswordRecovery(srv.Engine, stub, stub, stub, stub, stub, stub)
 	bootstrap.MountStaffSetup(srv.Engine, stub)
 
 	onEngine := map[string]bool{}

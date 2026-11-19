@@ -246,7 +246,7 @@ func (h *renewalHandlers) renew(c *gin.Context) {
 	credential, err := h.userState.UserCredentialState(c.Request.Context(), p.TenantID, p.Subject)
 	var current bool
 	if err == nil {
-		current, err = credentialIsCurrent(credential, p.AuthTime)
+		current, err = credentialIsCurrent(credential, p.AuthTime, p.RecoveryGeneration)
 	}
 	if err == nil {
 		err = c.Request.Context().Err()
@@ -266,7 +266,7 @@ func (h *renewalHandlers) renew(c *gin.Context) {
 		return
 	}
 	if !current {
-		respond.Unauthenticated(c, "password changed; sign in again")
+		respond.Unauthenticated(c, "account security changed; sign in again")
 		return
 	}
 
@@ -323,7 +323,7 @@ func (h *renewalHandlers) renew(c *gin.Context) {
 			"session_unavailable", "could not renew the session")
 		return
 	}
-	token, err := h.signer.Mint(p.Subject, tenantID, p.AuthTime, p.IdleDeadline)
+	token, err := h.signer.Mint(p.Subject, tenantID, p.AuthTime, p.IdleDeadline, p.RecoveryGeneration)
 	if err != nil {
 		logger.ErrorContext(c.Request.Context(), "renew: mint session failed", "err", err)
 		respond.Error(c, http.StatusServiceUnavailable,

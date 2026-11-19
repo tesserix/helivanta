@@ -131,7 +131,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	tokens := map[string]string{}
 	var sessionInputs sync.Map
 	mintSession := func(subject string, authTime, idleDeadline time.Time) string {
-		token, mintErr := signer.Mint(subject, testutil.TenantA, authTime, idleDeadline)
+		token, mintErr := signer.Mint(subject, testutil.TenantA, authTime, idleDeadline, "")
 		require.NoError(t, mintErr)
 		claims, verifyErr := verifier.Verify(token)
 		require.NoError(t, verifyErr)
@@ -145,7 +145,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		original, ok := sessionInputs.Load(tokens[subject])
 		require.True(t, ok, "the test must retain its original signed authentication and idle bounds")
 		claims := original.(session.Claims)
-		renewed, mintErr := signer.Mint(claims.Subject, claims.TenantID, claims.AuthTime, claims.IdleDeadline)
+		renewed, mintErr := signer.Mint(claims.Subject, claims.TenantID, claims.AuthTime, claims.IdleDeadline, claims.RecoveryGeneration)
 		require.NoError(t, mintErr)
 		return renewed
 	}
@@ -344,7 +344,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		require.NoError(t, platform.ReconcileTenant(ctx, registry, graph, testutil.TenantB))
 		require.NoError(t, graph.GrantTenantRole(ctx, testutil.TenantB, authz.RoleStaffMember))
 		require.NoError(t, graph.GrantRole(ctx, testutil.TenantB, reviewer, authz.RoleStaffMember))
-		foreignToken, e := signer.Mint(reviewer, testutil.TenantB, time.Now(), time.Now().Add(time.Hour))
+		foreignToken, e := signer.Mint(reviewer, testutil.TenantB, time.Now(), time.Now().Add(time.Hour), "")
 		require.NoError(t, e)
 		r := httptest.NewRequest("GET", "/v1/workforce/person-review-scopes", nil)
 		r.Header.Set("Authorization", "Bearer "+foreignToken)

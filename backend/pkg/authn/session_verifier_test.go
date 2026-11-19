@@ -53,7 +53,7 @@ func TestNewSessionVerifier_MapsClaimsToPrincipal(t *testing.T) {
 	authTime := time.Date(2026, 3, 4, 9, 30, 12, 0, time.UTC)
 	idleDeadline := time.Date(2026, 3, 4, 9, 45, 12, 0, time.UTC)
 
-	token, err := signer.Mint("user-123", "22222222-2222-2222-2222-222222222222", authTime, idleDeadline)
+	token, err := signer.Mint("user-123", "22222222-2222-2222-2222-222222222222", authTime, idleDeadline, "")
 	require.NoError(t, err)
 
 	tv := authn.NewSessionVerifier(verifier)
@@ -66,6 +66,20 @@ func TestNewSessionVerifier_MapsClaimsToPrincipal(t *testing.T) {
 		"auth_time must survive the adapter unmodified: got %v, want %v", p.AuthTime, authTime)
 	require.True(t, idleDeadline.Equal(p.IdleDeadline),
 		"idle_deadline must survive the adapter unmodified: got %v, want %v", p.IdleDeadline, idleDeadline)
+}
+
+func TestSessionVerifierCarriesPrivateRecoveryGeneration(t *testing.T) {
+	signer, verifier := newSessionSignerVerifier(t)
+	const generation = "019f39c2-1738-7998-b5de-6d4214f614e0"
+	raw, err := signer.Mint("recovered-staff", "tenant-a", time.Now(), time.Now().Add(time.Hour), generation)
+	require.NoError(t, err)
+	p, err := authn.NewSessionVerifier(verifier).Verify(t.Context(), raw)
+	require.NoError(t, err)
+	require.Equal(t, generation, p.RecoveryGeneration)
+	require.Empty(t, p.NativeSessionID, "application claims cannot become signed native-session evidence")
+	wire, err := json.Marshal(p)
+	require.NoError(t, err)
+	require.NotContains(t, string(wire), generation)
 }
 
 // TestMiddleware_RefusesARealIdleExpiredSession is the end-to-end
@@ -94,7 +108,7 @@ func TestMiddleware_RefusesARealIdleExpiredSession(t *testing.T) {
 		c.JSON(http.StatusOK, gin.H{})
 	})
 
-	token, err := signer.Mint("user-123", "tenant-abc", time.Now(), time.Now().Add(-1*time.Second))
+	token, err := signer.Mint("user-123", "tenant-abc", time.Now(), time.Now().Add(-1*time.Second), "")
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
@@ -126,7 +140,7 @@ func TestMiddleware_AdmitsARealSessionInsideItsIdleDeadline(t *testing.T) {
 		c.JSON(http.StatusOK, gin.H{})
 	})
 
-	token, err := signer.Mint("user-123", "tenant-abc", time.Now(), time.Now().Add(5*time.Minute))
+	token, err := signer.Mint("user-123", "tenant-abc", time.Now(), time.Now().Add(5*time.Minute), "")
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
@@ -201,7 +215,7 @@ func TestMiddleware_RefusesExpiredAndTamperedSession(t *testing.T) {
 	// A comfortably-future idle deadline: this test is about token
 	// expiry (exp) and tampering, not idle expiry, so the deadline plays
 	// no part in the outcome either way.
-	expired, err := shortSigner.Mint("user-123", "tenant-abc", time.Now(), time.Now().Add(time.Hour))
+	expired, err := shortSigner.Mint("user-123", "tenant-abc", time.Now(), time.Now().Add(time.Hour), "")
 	require.NoError(t, err)
 	time.Sleep(10 * time.Millisecond)
 
@@ -214,7 +228,7 @@ func TestMiddleware_RefusesExpiredAndTamperedSession(t *testing.T) {
 	// A genuine, non-expired token, tampered after minting.
 	longSigner, err := session.NewSigner(priv, sessionTestKID, sessionTestIssuer, sessionTestTTL)
 	require.NoError(t, err)
-	good, err := longSigner.Mint("user-123", "tenant-abc", time.Now(), time.Now().Add(time.Hour))
+	good, err := longSigner.Mint("user-123", "tenant-abc", time.Now(), time.Now().Add(time.Hour), "")
 	require.NoError(t, err)
 	tampered := good[:len(good)-4] + "AAAA"
 

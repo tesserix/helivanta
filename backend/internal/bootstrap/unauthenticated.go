@@ -22,6 +22,14 @@ import (
 // must be a route that *cannot* work any other way.
 // #nosec G101 -- These are public route paths and rationales, never credentials.
 var UnauthenticatedRoutes = map[string]string{
+	"POST /v1/auth/password-recovery":          "same-origin rate-limited mailbox delivery bound to a validated native tenant request; no account lookup",
+	"GET /v1/auth/password-recovery":           "browser-bound retained recovery status; no session or native write",
+	"POST /v1/auth/password-recovery/verify":   "one-use dedicated mailbox proof before credential recovery; no session",
+	"POST /v1/auth/password-recovery/password": "verified browser-bound retained native reset command; ordinary password/MFA sign-in remains required",
+
+	"POST /v1/auth/password-recovery/prepare": "verified browser-bound no-password preparation and retained receipt; no session or credential change",
+	"POST /v1/auth/password-recovery/cancel":  "verified browser-bound cancellation of prepared intent only; processing commands remain fenced",
+
 	"GET /v1/auth/release-capabilities":  "bounded global onboarding availability; no tenant, account or targeting rules",
 	"POST /v1/auth/staff-setup/:action":  "same-origin, rate-limited opaque Staff invitation and native proof; grants no business access",
 	"POST /v1/auth/accounts":             "same-origin mailbox proof before private separate-account discovery",
@@ -191,4 +199,20 @@ func MountAccountDiscovery(e *gin.Engine, start, verify, choices gin.HandlerFunc
 	e.POST("/v1/auth/accounts", start)
 	e.POST("/v1/auth/accounts/verify", verify)
 	e.GET("/v1/auth/accounts", choices)
+}
+
+// MountPasswordRecovery exposes only dedicated browser-capability recovery through Global API.
+func MountPasswordRecovery(e *gin.Engine, start, status, verify, prepare, cancel, password gin.HandlerFunc) {
+	mustHandler("POST /v1/auth/password-recovery", start)
+	mustHandler("GET /v1/auth/password-recovery", status)
+	mustHandler("POST /v1/auth/password-recovery/verify", verify)
+	mustHandler("POST /v1/auth/password-recovery/password", password)
+	mustHandler("POST /v1/auth/password-recovery/prepare", prepare)
+	mustHandler("POST /v1/auth/password-recovery/cancel", cancel)
+	e.POST("/v1/auth/password-recovery", start)
+	e.GET("/v1/auth/password-recovery", status)
+	e.POST("/v1/auth/password-recovery/verify", verify)
+	e.POST("/v1/auth/password-recovery/password", password)
+	e.POST("/v1/auth/password-recovery/prepare", prepare)
+	e.POST("/v1/auth/password-recovery/cancel", cancel)
 }

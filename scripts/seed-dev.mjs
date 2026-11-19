@@ -53,6 +53,7 @@
 // which this script depends on for the client_id and machine PAT.)
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import nativeStaffTenants from "./lib/native-staff-fixture-tenants.json" with { type: "json" };
 
 import {
   managementAPI,
@@ -61,7 +62,15 @@ import {
   verifyPasswordLogin,
 } from "./lib/zitadel.mjs";
 import { generateTOTP } from "./lib/totp.mjs";
-import { ensureTenantIdentityFixtures } from "./lib/tenant-identity-fixture.mjs";
+import {
+  ensureLocalIdentityMachine,
+  readPrivateFixtureSecret,
+  retainPrivateFixtureSecret,
+} from "./lib/identity-machine-fixture.mjs";
+import {
+  ensureTenantIdentityFixtures,
+  verifyLocalIdentityUser,
+} from "./lib/tenant-identity-fixture.mjs";
 
 const ISSUER = process.env.ZITADEL_ISSUER_URL ?? "http://auth.tesserix.localhost:20080";
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
@@ -145,10 +154,55 @@ const USERS = [
   { email: "test@helivanta.dev", memberships: ADMIN_MEMBERSHIPS },
   { email: "pharmacist@helivanta.dev", memberships: PHARMACIST_MEMBERSHIPS },
   { email: MFA_EMAIL, memberships: PHARMACIST_MEMBERSHIPS },
-  ...specSlugs().flatMap((slug) => [
-    { email: specEmail(slug, "admin"), memberships: ADMIN_MEMBERSHIPS },
-    { email: specEmail(slug, "pharmacist"), memberships: PHARMACIST_MEMBERSHIPS },
-  ]),
+  ...(process.env.HELIVANTA_STAFF_MFA_RECOVERY_FIXTURE === "true"
+    ? [
+        {
+          email: "e2e-staff-mfa-recovery-native-reviewer@helivanta.dev",
+          homeTenant: nativeStaffTenants.hospital,
+          memberships: [{ tenantId: nativeStaffTenants.hospital, role: "tenant_admin" }],
+        },
+      ]
+    : []),
+  ...(process.env.HELIVANTA_STAFF_MFA_RECOVERY_FIXTURE === "true"
+    ? [
+        {
+          email: "e2e-staff-mfa-pharmacy-native-reviewer@helivanta.dev",
+          homeTenant: nativeStaffTenants.pharmacy,
+          memberships: [{ tenantId: nativeStaffTenants.pharmacy, role: "tenant_admin" }],
+        },
+        {
+          email: "e2e-staff-mfa-pharmacy-native-foreign@helivanta.dev",
+          homeTenant: nativeStaffTenants.hospital,
+          memberships: [{ tenantId: nativeStaffTenants.hospital, role: "tenant_admin" }],
+        },
+      ]
+    : []),
+  ...specSlugs().flatMap((slug) => {
+    const nativeTenant =
+      process.env.HELIVANTA_STAFF_MFA_RECOVERY_FIXTURE === "true" &&
+      ["staff-mfa-pharmacy-native", "staff-mfa-recovery-native", "account-lockout-native"].includes(
+        slug,
+      )
+        ? nativeStaffTenants[slug === "staff-mfa-pharmacy-native" ? "pharmacy" : "hospital"]
+        : null;
+    return nativeTenant
+      ? [
+          {
+            email: specEmail(slug, "admin"),
+            homeTenant: nativeTenant,
+            memberships: [{ tenantId: nativeTenant, role: "tenant_admin" }],
+          },
+          {
+            email: specEmail(slug, "pharmacist"),
+            homeTenant: nativeTenant,
+            memberships: [{ tenantId: nativeTenant, role: "pharmacist" }],
+          },
+        ]
+      : [
+          { email: specEmail(slug, "admin"), memberships: ADMIN_MEMBERSHIPS },
+          { email: specEmail(slug, "pharmacist"), memberships: PHARMACIST_MEMBERSHIPS },
+        ];
+  }),
 ];
 
 function profileFor(email) {
@@ -169,11 +223,11 @@ async function findUserId(pat, email) {
 // resolves its existing userId if it already exists. Returns the userId —
 // which becomes authn.Principal.Subject and must match the `subject`
 // written into iam_members below, or the seeded user has no permissions.
-async function ensureUser(pat, email) {
+async function ensureUser(pat, email, homeTenant = TENANT_ID) {
   try {
     const created = await managementAPI(ISSUER, pat, "/v2/users/human", {
       username: email,
-      organization: { orgId: `helivanta-${TENANT_ID}` },
+      organization: { orgId: `helivanta-${homeTenant}` },
       profile: profileFor(email),
       email: { email, isVerified: true },
       password: { password: PASSWORD, changeRequired: false },
@@ -279,7 +333,31 @@ async function ensureTOTPEnrolled(pat, userId, email) {
 async function main() {
   const pat = readMachinePAT();
   const loginClientPAT = readLoginClientPAT();
-  const identityManifest = await ensureTenantIdentityFixtures({ issuer: ISSUER, pat });
+  const mfaFixture = process.env.HELIVANTA_STAFF_MFA_RECOVERY_FIXTURE;
+  if (mfaFixture && mfaFixture !== "true")
+    throw new Error("Staff MFA fixture requires explicit true opt-in");
+  const identityManifest = await ensureTenantIdentityFixtures({
+    issuer: ISSUER,
+    pat,
+    staffMFARecovery: mfaFixture === "true",
+  });
+  if (mfaFixture === "true") {
+    retainPrivateFixtureSecret(
+      new URL("../dev/zitadel/secrets/native-staff-setup.pat", import.meta.url),
+      pat,
+    );
+    const file = new URL("../dev/zitadel/secrets/identity-product.secret", import.meta.url);
+    const machine = await ensureLocalIdentityMachine({
+      issuer: ISSUER,
+      pat,
+      org: identityManifest.adminOrgId,
+      readSecret: () => readPrivateFixtureSecret(file),
+      writeSecret: (secret) => writeFileSync(file, secret, { mode: 0o600, flag: "wx" }),
+    });
+    identityManifest.machineUserId = machine.userId;
+    identityManifest.machineClientId = machine.clientId;
+  }
+
   writeFileSync(
     new URL("../dev/zitadel/secrets/identity-fixture.json", import.meta.url),
     JSON.stringify(identityManifest),
@@ -294,8 +372,15 @@ async function main() {
   await pg.connect();
 
   try {
-    for (const { email, memberships } of USERS) {
-      const userId = await ensureUser(pat, email);
+    for (const { email, memberships, homeTenant = TENANT_ID } of USERS) {
+      const userId = await ensureUser(pat, email, homeTenant);
+      await verifyLocalIdentityUser({
+        issuer: ISSUER,
+        pat,
+        subject: userId,
+        tenantId: homeTenant,
+        staffMFARecovery: mfaFixture === "true",
+      });
       console.log(`Seeded ${email} / ${PASSWORD} (userId=${userId})`);
 
       // Bootstrap: the first tenant_admin cannot be granted through a

@@ -81,3 +81,28 @@ export function validateReleaseManifest(value, declaredRoutes) {
   }
   return value;
 }
+
+// Snapshot vocabulary and bounds have one source: the capability catalogue.
+export function releaseWireModels(value) {
+  const models = structuredClone(value.models);
+  const key = models?.ReleaseCapability?.find((field) => field.name === "key");
+  const count = models?.ReleaseSnapshot?.find((field) => field.name === "capabilities");
+  if (
+    !Array.isArray(value.capabilities) ||
+    value.capabilities.length < 1 ||
+    key?.type !== "string" ||
+    key.enum_from !== "capabilities.key" ||
+    "enum" in key ||
+    count?.type !== "[]ReleaseCapability" ||
+    count.count_from !== "capabilities" ||
+    "min" in count ||
+    "max" in count
+  )
+    throw new Error("Release snapshot models must derive their catalogue vocabulary and bounds.");
+  delete key.enum_from;
+  key.enum = value.capabilities.map((capability) => capability.key);
+  delete count.count_from;
+  count.min = value.capabilities.length;
+  count.max = value.capabilities.length;
+  return models;
+}

@@ -283,7 +283,7 @@ func (h *meHandlers) switchTenant(c *gin.Context) {
 	// it here would also hand any client a way to extend indefinitely
 	// without a single keystroke: switch to the tenant you are already
 	// working in, every fourteen minutes, forever.
-	token, err := h.signer.Mint(p.Subject, target, p.AuthTime, p.IdleDeadline)
+	token, err := h.signer.Mint(p.Subject, target, p.AuthTime, p.IdleDeadline, p.RecoveryGeneration)
 	if err != nil {
 		respondMintUnavailable(c, err)
 		return

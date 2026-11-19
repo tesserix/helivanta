@@ -16,7 +16,8 @@ import (
 // and not one of go-oidc's built-in fields, so it is read back out of the
 // token's raw claims via oidc.IDToken.Claims.
 type zitadelClaims struct {
-	AuthTime int64 `json:"auth_time"`
+	AuthTime  int64  `json:"auth_time"`
+	SessionID string `json:"sid"`
 }
 
 type zitadelVerifier struct {
@@ -83,7 +84,8 @@ func (z *zitadelVerifier) Verify(ctx context.Context, raw string) (Principal, er
 		return Principal{}, ErrNoAuthTime
 	}
 	return Principal{
-		Subject:  idToken.Subject,
-		AuthTime: time.Unix(claims.AuthTime, 0).UTC(),
+		Subject:         idToken.Subject,
+		NativeSessionID: claims.SessionID,
+		AuthTime:        time.Unix(claims.AuthTime, 0).UTC(),
 	}, nil
 }

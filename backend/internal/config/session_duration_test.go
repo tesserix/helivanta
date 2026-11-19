@@ -20,7 +20,7 @@ func TestDefaultSessionStaysValidUntilFortyEightHours(t *testing.T) {
 		verifier, err := session.NewVerifier(pub, "test", "https://hms.test")
 		require.NoError(t, err)
 		now := time.Now().UTC()
-		token, err := signer.Mint("synthetic-owner", "synthetic-tenant", now, now.Add(config.DefaultIdleTimeout))
+		token, err := signer.Mint("synthetic-owner", "synthetic-tenant", now, now.Add(config.DefaultIdleTimeout), "")
 		require.NoError(t, err)
 		time.Sleep(48*time.Hour - time.Second)
 		claims, err := verifier.Verify(token)

@@ -77,3 +77,29 @@ describe("MfaCodeForm", () => {
     expect(onSubmit).toHaveBeenCalledTimes(2);
   });
 });
+
+it("accepts an eight-digit recovery code without submitting its first six digits", async () => {
+  const submit = vi.fn();
+  function RecoveryCode() {
+    const [value, setValue] = useState("");
+    return (
+      <MfaCodeForm
+        length={8}
+        value={value}
+        onValueChange={setValue}
+        onSubmit={submit}
+        label="Recovery email code"
+      />
+    );
+  }
+  render(<RecoveryCode />);
+  const user = userEvent.setup();
+  const digits = within(screen.getByRole("group", { name: "Recovery email code" })).getAllByRole(
+    "textbox",
+  );
+  expect(digits).toHaveLength(8);
+  await user.keyboard("012345");
+  expect(submit).not.toHaveBeenCalled();
+  await user.keyboard("67");
+  expect(submit).toHaveBeenCalledExactlyOnceWith("01234567");
+});

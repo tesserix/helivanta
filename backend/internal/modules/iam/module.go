@@ -161,6 +161,9 @@ var supplierReceivingTemplatesSchema string
 //go:embed operating_templates_generated.sql
 var operatingTemplatesFulfilmentSchema string
 
+//go:embed staff_mfa_fences.sql
+var staffMFAFencesSchema string
+
 func (m *Module) Migrations() []tenantdb.Migration {
 	return []tenantdb.Migration{{
 		ID: "0001_iam",
@@ -343,7 +346,7 @@ CREATE TABLE IF NOT EXISTS login_account_choice (
 );
 CREATE INDEX IF NOT EXISTS login_account_choice_expires_at_idx ON login_account_choice (expires_at);
 `,
-	}}
+	}, {ID: "0054_iam_staff_mfa_fences", SQL: staffMFAFencesSchema}}
 }
 
 type role struct {

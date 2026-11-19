@@ -1,8 +1,22 @@
+import nativeStaffTenants from "./native-staff-fixture-tenants.json" with { type: "json" };
+
 const localIssuer = "http://auth.tesserix.localhost:20080";
 const tenants = ["11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222"];
 
-export async function ensureTenantIdentityFixtures({ issuer, pat, fetcher = fetch }) {
+function fixtureTenants(staffMFARecovery) {
+  if (typeof staffMFARecovery !== "boolean")
+    throw new Error("native Staff fixture requires explicit boolean opt-in");
+  return staffMFARecovery ? [...tenants, ...Object.values(nativeStaffTenants)] : tenants;
+}
+
+export async function ensureTenantIdentityFixtures({
+  issuer,
+  pat,
+  staffMFARecovery = false,
+  fetcher = fetch,
+}) {
   if (issuer !== localIssuer) throw new Error("identity fixtures require the local native issuer");
+  const scopes = fixtureTenants(staffMFARecovery);
   async function request(method, path, body, scope, allowMissing = false) {
     const response = await fetcher(`${issuer}${path}`, {
       method,
@@ -34,7 +48,7 @@ export async function ensureTenantIdentityFixtures({ issuer, pat, fetcher = fetc
     throw new Error("local native project not bootstrapped");
   const projectId = matching[0].id;
   const adminOrgId = platform.org.id;
-  for (const tenant of tenants) {
+  for (const tenant of scopes) {
     const org = `helivanta-${tenant}`;
     const existing = await request("GET", `/admin/v1/orgs/${org}`, null, null, true);
     if (!existing) {
@@ -84,4 +98,45 @@ export async function ensureTenantIdentityFixtures({ issuer, pat, fetcher = fetc
     }
   }
   return { projectId, adminOrgId };
+}
+
+export async function verifyLocalIdentityUser({
+  issuer,
+  pat,
+  subject,
+  tenantId,
+  staffMFARecovery = false,
+  fetcher = fetch,
+}) {
+  if (
+    issuer !== localIssuer ||
+    !fixtureTenants(staffMFARecovery).includes(tenantId) ||
+    typeof subject !== "string" ||
+    !/^[A-Za-z0-9_-]{1,200}$/.test(subject)
+  )
+    throw new Error("native Staff fixture requires its isolated owner");
+  const response = await fetcher(`${issuer}/v2/users/${subject}`, {
+    method: "GET",
+    redirect: "error",
+    signal: AbortSignal.timeout(10000),
+    headers: { Authorization: `Bearer ${pat}` },
+  });
+  if (!response.ok) throw new Error("native Staff fixture account unavailable");
+  const body = await response.text();
+  if (body.length > 8192) throw new Error("native Staff fixture account proof oversized");
+  let user;
+  try {
+    user = JSON.parse(body)?.user;
+  } catch {
+    throw new Error("native Staff fixture account proof malformed");
+  }
+  if (
+    !user ||
+    user.userId !== subject ||
+    user.state !== "USER_STATE_ACTIVE" ||
+    user.details?.resourceOwner !== `helivanta-${tenantId}` ||
+    !user.human ||
+    user.machine
+  )
+    throw new Error("native Staff fixture account ownership mismatch");
 }

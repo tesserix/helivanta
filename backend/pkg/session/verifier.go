@@ -91,19 +91,20 @@ func (v *Verifier) Verify(raw string) (Claims, error) {
 	}
 
 	return Claims{
-		Subject:      claims.Subject,
-		TenantID:     claims.TenantID,
-		AuthTime:     time.Unix(claims.AuthTime, 0).UTC(),
-		IdleDeadline: time.Unix(claims.IdleDeadline, 0).UTC(),
-		IssuedAt:     issuedAt,
-		ExpiresAt:    expiresAt,
-		Issuer:       claims.Issuer,
+		Subject:            claims.Subject,
+		TenantID:           claims.TenantID,
+		AuthTime:           time.Unix(claims.AuthTime, 0).UTC(),
+		IdleDeadline:       time.Unix(claims.IdleDeadline, 0).UTC(),
+		RecoveryGeneration: string(claims.RecoveryGeneration),
+		IssuedAt:           issuedAt,
+		ExpiresAt:          expiresAt,
+		Issuer:             claims.Issuer,
 	}, nil
 }
 
 // RenewalEvidence is what an EXPIRED session cookie may still tell the
 // login exchange (#859): who it belonged to, when they last authenticated,
-// and the idle deadline that browser was running against. Nothing else.
+// the idle deadline and recovery generation that browser was running against.
 //
 // It is deliberately NOT Claims and carries no tenant: authn.Principal
 // cannot be built without one, so evidence read past exp cannot be turned
@@ -111,9 +112,10 @@ func (v *Verifier) Verify(raw string) (Claims, error) {
 // pins every caller of Verifier.RenewalEvidence to an allowlist that holds
 // only the login exchange (TestRenewalEvidenceIsOnlyReadByTheLoginExchange).
 type RenewalEvidence struct {
-	Subject      string
-	AuthTime     time.Time
-	IdleDeadline time.Time
+	Subject            string
+	AuthTime           time.Time
+	IdleDeadline       time.Time
+	RecoveryGeneration string
 }
 
 // RenewalEvidence reads raw for the login exchange's idle-deadline decision
@@ -142,9 +144,10 @@ func (v *Verifier) RenewalEvidence(raw string) (RenewalEvidence, error) {
 		return RenewalEvidence{}, err
 	}
 	return RenewalEvidence{
-		Subject:      claims.Subject,
-		AuthTime:     time.Unix(claims.AuthTime, 0).UTC(),
-		IdleDeadline: time.Unix(claims.IdleDeadline, 0).UTC(),
+		Subject:            claims.Subject,
+		AuthTime:           time.Unix(claims.AuthTime, 0).UTC(),
+		IdleDeadline:       time.Unix(claims.IdleDeadline, 0).UTC(),
+		RecoveryGeneration: string(claims.RecoveryGeneration),
 	}, nil
 }
 
@@ -198,6 +201,9 @@ func (v *Verifier) parse(raw string, checkExpiry bool) (tokenClaims, error) {
 	}
 	if claims.Subject == "" || claims.TenantID == "" {
 		return tokenClaims{}, fmt.Errorf("%w: missing subject or tenant_id", ErrInvalidToken)
+	}
+	if !validRecoveryGeneration(string(claims.RecoveryGeneration)) {
+		return tokenClaims{}, fmt.Errorf("%w: invalid recovery generation", ErrInvalidToken)
 	}
 	// Fail closed on a missing idle_deadline (spec D2/D3, #848): a
 	// token minted before this claim existed must be refused, not

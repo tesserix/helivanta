@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
+	"github.com/tesserix/onboarding-service/api/customercontract"
 
 	"github.com/tesserix/helivanta/internal/config"
 	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
@@ -52,13 +53,21 @@ func (renewNeverRevoked) RevokedAfter(context.Context, string) (time.Time, error
 type stubUserState struct {
 	states          map[string]loginclient.UserState
 	passwordChanged map[string]time.Time
+	recovery        map[string]*customercontract.StaffMFARecoveryRequirement
 	err             error
 	calls           int
 }
 
 func (s *stubUserState) UserCredentialState(ctx context.Context, tenant, id string) (loginclient.CredentialStatus, error) {
 	state, err := s.UserState(ctx, tenant, id)
-	return loginclient.CredentialStatus{State: state, PasswordChangedAt: s.passwordChanged[id]}, err
+	var requirement *customercontract.StaffMFARecoveryRequirement
+	if state == loginclient.UserStateActive {
+		requirement = &customercontract.StaffMFARecoveryRequirement{State: "none"}
+	}
+	if configured, ok := s.recovery[id]; ok {
+		requirement = configured
+	}
+	return loginclient.CredentialStatus{State: state, PasswordChangedAt: s.passwordChanged[id], MFARecovery: requirement}, err
 }
 
 func TestRenewRefusesCredentialsAtOrBeforeNativePasswordRecovery(t *testing.T) {
@@ -162,7 +171,7 @@ func newRenewEnv(t *testing.T, roles stubRoleLister, userState *stubUserState, t
 // needing to drive POST /v1/auth/login to produce one.
 func (e *renewEnv) mint(t *testing.T, subject, tenantID string, authTime, idleDeadline time.Time) string {
 	t.Helper()
-	tok, err := e.signer.Mint(subject, tenantID, authTime, idleDeadline)
+	tok, err := e.signer.Mint(subject, tenantID, authTime, idleDeadline, "")
 	require.NoError(t, err)
 	return tok
 }

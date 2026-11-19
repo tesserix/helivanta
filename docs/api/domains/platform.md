@@ -673,6 +673,49 @@ Existing state/PKCE, token verification, fresh-auth signup binding, revocation,
 verified membership and resource scope remain required. See
 [ADR-0069](../../adr/0069-explicit-native-security-key-continuation.md).
 
+## Staff MFA recovery admission candidate — not deployed
+
+The [Staff authenticator recovery design](../../superpowers/specs/2026-11-19-staff-mfa-recovery.md)
+adds a signed `recovery_generation` application-session claim. It is an opaque
+owner command UUID, never a role or native session identifier. Missing claims
+remain acceptable only when the identity owner explicitly reports no recovery
+requirement for the account. Renewal, activity and tenant switching preserve the
+admitted generation together with the existing authentication bounds.
+
+Private credential status now opts into the owner's account-wide recovery
+projection. Prepared/processing/uncertain recovery, required enrollment and a
+generation mismatch deny protected access and renewal with 401. Missing or invalid
+recovery evidence fails closed with 503. A completed requirement admits only an
+already owner-admitted matching generation; ordinary identity, password freshness,
+global revocation, tenant membership and narrower resource checks still apply.
+The same native subject cannot bypass this requirement through a legacy membership
+in another tenant. Separate accounts sharing email remain distinct.
+
+The projection exposes no originating employer, actor, reason or native evidence.
+HMS login obtains a generation only from the private credential owner's native
+admission API, with a `sid` retained from a normally verified ID token. It re-reads
+current credentials and membership after admission. Historical Staff versions or
+later promotions do not prevent authentication; reset authority and current
+operating authorization remain separate. A new admitted generation opens a fresh
+idle window; same-generation renewal preserves the existing deadline.
+
+The managed native organization's current private recovery requirement also gates
+all three login-client completion entries (password, factor and password change).
+Pending recovery or unavailable evidence denies completion. A retained enrollment
+or completed requirement forces TOTP even under a permissive organization policy,
+using the existing native enrollment/factor UI. Factor presence at this stage does
+not prove fresh enrollment; final application admission still requires the owner's
+exact native lifecycle and session proof. Non-managed native organizations retain
+their native policy behavior; they cannot mint an HMS session without the normal
+owned identity, membership and recovery checks at application admission.
+
+These private controls do not register a public reset route. Workforce/IAM reset
+authority, command orchestration, idempotent revocation and hospital/independent
+native-browser acceptance remain unfinished. Deploy the reviewed owner schema
+and owner implementation before opting HMS in; live migration and QA factor
+resets require their named approvals. Do not enable or close #1703 based only on
+this candidate.
+
 ## Email-first separate-account discovery
 
 `POST /v1/auth/accounts` accepts `{email}` under exact same-origin checks and

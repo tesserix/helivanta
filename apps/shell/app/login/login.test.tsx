@@ -505,6 +505,40 @@ describe("LoginPage", () => {
   });
 
   describe("with an auth request (credential form)", () => {
+    it("links recovery to the validated native sign-in request", async () => {
+      stubAuthFlow({
+        authRequest: () =>
+          jsonResponse(200, {
+            id: AUTH_REQUEST_ID,
+            client_id: "helivanta-web",
+            redirect_uri: "http://localhost:4301/api/auth/callback",
+            scope: [
+              "openid",
+              "urn:zitadel:iam:org:id:helivanta-11111111-1111-4111-8111-111111111111",
+            ],
+            policies: {
+              allow_password: true,
+              second_factors: ["totp"],
+              ignore_unknown_usernames: false,
+            },
+          }),
+      });
+      renderWithProviders(<LoginPage />);
+      expect(await screen.findByRole("link", { name: "Forgot password?" })).toHaveAttribute(
+        "href",
+        `/recover-password?authRequest=${encodeURIComponent(AUTH_REQUEST_ID)}`,
+      );
+    });
+
+    it("finds the account before password recovery on an unscoped sign-in", async () => {
+      stubAuthFlow({});
+      renderWithProviders(<LoginPage />);
+      expect(await screen.findByRole("link", { name: "Forgot password?" })).toHaveAttribute(
+        "href",
+        "/login?find=accounts",
+      );
+    });
+
     beforeEach(() => {
       window.history.pushState({}, "", `/login?authRequest=${AUTH_REQUEST_ID}`);
     });

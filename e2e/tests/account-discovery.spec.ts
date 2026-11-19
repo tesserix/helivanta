@@ -1,5 +1,14 @@
 import { expect, test } from "@playwright/test";
 
+test("forgotten password starts account selection from unscoped sign-in", async ({ page }) => {
+  await page.goto("/login");
+  await expect(page.getByLabel("Email or username", { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Forgot password?" }).click();
+  await expect(page).toHaveURL(/\/login\?find=accounts$/);
+  await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Password", { exact: true })).toHaveCount(0);
+});
+
 // Browser consumer-contract tests: the mailbox/identity owner is stubbed here.
 // Owner proof, eligibility and rate-limit behavior is tested with PostgreSQL in its CI.
 test("email discovery keeps choices private until proof and shows named accounts", async ({

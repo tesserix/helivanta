@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "policy_version": "2026-11-16-r1",
+  "policy_version": "2026-11-19-r1",
   "capabilities": [
     {
       "key": "onboarding",
@@ -20,6 +20,13 @@
       "key": "staff_core",
       "owner": "workforce",
       "dependencies": ["team_accounts"],
+      "eligible": true,
+      "review_after": "2027-02-16"
+    },
+    {
+      "key": "staff_mfa_recovery",
+      "owner": "workforce",
+      "dependencies": ["staff_core", "team_accounts"],
       "eligible": true,
       "review_after": "2027-02-16"
     },
@@ -164,6 +171,51 @@
     }
   ],
   "routes": [
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/mfa-recoveries/:command/cancel",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/mfa-recoveries/:command/cancel",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/suppliers/:supplier/staff/:id/mfa-recoveries/:command/cancel",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/mfa-recoveries/:command",
+      "capability": "baseline"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/mfa-recoveries/:command",
+      "capability": "staff_mfa_recovery"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/mfa-recoveries/:command",
+      "capability": "baseline"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/mfa-recoveries/:command",
+      "capability": "staff_mfa_recovery"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/suppliers/:supplier/staff/:id/mfa-recoveries/:command",
+      "capability": "baseline"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/suppliers/:supplier/staff/:id/mfa-recoveries/:command",
+      "capability": "staff_mfa_recovery"
+    },
     {
       "method": "GET",
       "path": "/healthz",
@@ -5510,6 +5562,36 @@
       "capability": "baseline"
     },
     {
+      "method": "POST",
+      "path": "/v1/auth/password-recovery",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/auth/password-recovery",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/password-recovery/verify",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/password-recovery/password",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/password-recovery/prepare",
+      "capability": "baseline"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auth/password-recovery/cancel",
+      "capability": "baseline"
+    },
+    {
       "method": "GET",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/drugmaster",
       "capability": "pharmacy_catalogue"
@@ -5800,6 +5882,10 @@
     {
       "path": "/workforce/supplier-staff",
       "capability": "supplier_collaboration"
+    },
+    {
+      "path": "/recover-password",
+      "capability": "baseline"
     }
   ],
   "panels": [
@@ -5906,6 +5992,10 @@
     {
       "key": "staff.governance.scope.supplier",
       "capability": "supplier_collaboration"
+    },
+    {
+      "key": "staff.accounts.mfa_recovery",
+      "capability": "staff_mfa_recovery"
     }
   ],
   "models": {
@@ -5913,30 +6003,7 @@
       {
         "name": "key",
         "type": "string",
-        "enum": [
-          "onboarding",
-          "team_accounts",
-          "staff_core",
-          "department_teams",
-          "pharmacy_setup",
-          "pharmacy_staff",
-          "pharmacy_catalogue",
-          "pharmacy_stock",
-          "pharmacy_prescriptions",
-          "pharmacy_returns",
-          "pharmacy_reports",
-          "pharmacy_counter",
-          "pharmacy_payables",
-          "workforce_scheduling",
-          "workforce_payroll",
-          "workforce_advanced",
-          "supplier_collaboration",
-          "clinical",
-          "lab",
-          "emergency",
-          "billing_workspace",
-          "unreleased"
-        ]
+        "enum_from": "capabilities.key"
       },
       {
         "name": "available",
@@ -5971,8 +6038,7 @@
       {
         "name": "capabilities",
         "type": "[]ReleaseCapability",
-        "min": 22,
-        "max": 22
+        "count_from": "capabilities"
       }
     ],
     "PublicReleaseSnapshot": [

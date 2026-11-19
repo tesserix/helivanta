@@ -472,6 +472,7 @@ func run() error {
 	deps.HospitalSourceAuthority = platform.HospitalSourceAuthority(registry.All(), deps)
 	deps.SupplierStockCancellation = platform.SupplierStockCancellation(registry.All(), deps)
 	deps.PartnerScopes = iam.NewPartnerScopeAuthorizer(deps)
+	deps.StaffMFARecovery = platform.StaffMFARecovery(registry.All(), deps)
 
 	if sourceCaller != nil {
 		srv.Engine.POST(suppliertrade.SourceCheckPath, supply.NewTradingSourceCheckHandler(deps, sourceCaller))
@@ -584,17 +585,30 @@ func run() error {
 	// a different key or kid would silently make every renewal look like
 	// a genuine login and re-open the idle window each time, which is
 	// exactly the #848 failure that looks like success.
+	signupHandlers, err := customeronboarding.New("http://onboarding-api.onboarding.svc.cluster.local:8080", "/var/run/customer-onboarding/token", "https://helivanta.app")
+	if err != nil {
+		return err
+	}
+	recoveryOwner := signupHandlers
+	if enabled := os.Getenv("HELIVANTA_PASSWORD_RECOVERY_FIXTURE"); enabled != "" {
+		fixtureOwner, fixtureErr := customeronboarding.NewLocalPasswordRecoveryOwner(cfg.Env, cfg.ZitadelIssuerURL, enabled, os.Getenv("HELIVANTA_IDENTITY_FIXTURE"))
+		if fixtureErr != nil {
+			return fixtureErr
+		}
+		recoveryOwner = fixtureOwner
+	}
 	loginHandlers := iam.NewLoginHandlers(iam.LoginDeps{
-		Zitadel:         zitadelVerifier,
-		Roles:           currentAuthorization,
-		Signer:          sessionSigner,
-		Sessions:        sessionVerifier,
-		CurrentIdentity: zitadelLoginClient,
-		TTL:             sessionTTL,
-		IdleTimeout:     idleTimeout,
-		SecureCookie:    sessionSecureCookie,
-		Limiter:         limiter,
-		Limit:           bootstrap.LoginRateLimitRule(cfg),
+		Zitadel:           zitadelVerifier,
+		Roles:             currentAuthorization,
+		Signer:            sessionSigner,
+		Sessions:          sessionVerifier,
+		CurrentIdentity:   zitadelLoginClient,
+		RecoveryAdmission: recoveryOwner,
+		TTL:               sessionTTL,
+		IdleTimeout:       idleTimeout,
+		SecureCookie:      sessionSecureCookie,
+		Limiter:           limiter,
+		Limit:             bootstrap.LoginRateLimitRule(cfg),
 	})
 
 	// zitadelLoginClient is constructed once, well above (beside
@@ -653,10 +667,6 @@ func run() error {
 		loginUIHandlers.AuthRequest, loginUIHandlers.Password, loginUIHandlers.Account, loginUIHandlers.Factor,
 		loginUIHandlers.Enroll, loginUIHandlers.PasswordChange, workspace.PublicHandler(db, limiter), payments.Webhook(deps, limiter))
 
-	signupHandlers, err := customeronboarding.New("http://onboarding-api.onboarding.svc.cluster.local:8080", "/var/run/customer-onboarding/token", "https://helivanta.app")
-	if err != nil {
-		return err
-	}
 	zitadelLoginClient.SetTenantUserResolver(signupHandlers)
 	zitadelLoginClient.SetTenantTargetResolver(signupHandlers)
 	zitadelLoginClient.SetTenantIdentityResolver(signupHandlers)
@@ -670,6 +680,11 @@ func run() error {
 		zitadelLoginClient.SetTenantIdentityResolver(resolver)
 	}
 	bootstrap.MountReleaseAvailability(srv.Engine, releasePolicy.PublicHandler(limiter))
+	recoveryHandlers, err := customeronboarding.NewPasswordRecoveryHandlers(recoveryOwner, customeronboarding.PasswordRecoveryDeps{Requests: zitadelLoginClient, ClientID: cfg.ZitadelClientID, Limiter: limiter})
+	if err != nil {
+		return err
+	}
+	bootstrap.MountPasswordRecovery(srv.Engine, recoveryHandlers.Start, recoveryHandlers.Status, recoveryHandlers.Verify, recoveryHandlers.Prepare, recoveryHandlers.Cancel, recoveryHandlers.Password)
 	bootstrap.MountAccountDiscovery(srv.Engine, signupHandlers.DiscoverAccounts, signupHandlers.VerifyAccounts, signupHandlers.AccountChoices)
 	bootstrap.MountStaffSetup(srv.Engine, signupHandlers.StaffSetup(customeronboarding.StaffSetupDeps{Limiter: limiter, Limit: ratelimit.Rule{Rate: 20, Burst: 10, Per: time.Minute}}))
 	bootstrap.MountCustomerSignup(srv.Engine, releasePolicy.Admission("POST", "/v1/auth/signup"), signupHandlers.Start, signupHandlers.Status, signupHandlers.VerifyEmail, signupHandlers.Password, signupHandlers.EmailLink, signupHandlers.PasswordLink, signupHandlers.Signin(customeronboarding.SigninDeps{Tokens: zitadelVerifier, Revocations: revocationChecker, Limiter: limiter, Limit: bootstrap.LoginRateLimitRule(cfg)}), signupHandlers.NewReceipt)

@@ -23,7 +23,7 @@ func (*fakeUserStateChecker) UserState(context.Context, string, string) (logincl
 }
 
 func (*fakeUserStateChecker) UserCredentialState(context.Context, string, string) (loginclient.CredentialStatus, error) {
-	return loginclient.CredentialStatus{State: loginclient.UserStateActive}, nil
+	return loginclient.CredentialStatus{MFARecovery: &customercontract.StaffMFARecoveryRequirement{State: "none"}, State: loginclient.UserStateActive}, nil
 }
 
 func (*fakeUserStateChecker) UserProfile(context.Context, string, string) (loginclient.UserProfile, error) {

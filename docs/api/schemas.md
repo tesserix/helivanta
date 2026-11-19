@@ -200,7 +200,12 @@ API/page/panel classification and public/account-bound snapshot models. Its
 generator emits `backend/internal/release/manifest_generated.go` and
 `packages/api/src/release-capabilities-contract.ts`; use
 `node scripts/generate-release-capabilities.mjs --check` for drift and registry
-coverage. See [release capability admission](release-capabilities.md).
+coverage. The release wire model uses explicit `enum_from: capabilities.key` and
+`count_from: capabilities` directives. The generator resolves those from the
+canonical catalogue, so adding a flag updates the exact Go/TypeScript vocabulary
+and snapshot bounds without copying a second key list or item count. Keep those
+directives rather than writing static enum/bound values. See
+[release capability admission](release-capabilities.md).
 
 ## Shell operational diagnostics
 

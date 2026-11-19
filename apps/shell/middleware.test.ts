@@ -152,3 +152,24 @@ it("allows only the exact public signup and native verification paths without a 
   );
   expect(refused.status).toBe(401);
 });
+
+it("allows only exact password recovery pages and browser endpoints before login", () => {
+  for (const path of [
+    "/recover-password",
+    "/api/v1/auth/password-recovery",
+    ...["verify", "prepare", "cancel", "password"].map(
+      (action) => `/api/v1/auth/password-recovery/${action}`,
+    ),
+  ]) {
+    expect(middleware(new NextRequest(`https://helivanta.app${path}`)).status).toBe(200);
+  }
+  for (const path of [
+    "/recover-password/admin",
+    "/api/v1/auth/password-recovery/reset-all",
+    "/api/v1/auth/password-recovery/password/extra",
+  ]) {
+    expect(middleware(new NextRequest(`https://helivanta.app${path}`)).status).toBe(
+      path.startsWith("/api/") ? 401 : 307,
+    );
+  }
+});

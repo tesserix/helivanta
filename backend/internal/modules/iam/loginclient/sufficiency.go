@@ -40,7 +40,7 @@ const (
 	// factor(s) to collect (today, always exactly ["totp"]).
 	OutcomeFactorRequired
 	// OutcomeEnrollmentRequired means the session is password-only, the
-	// user's org forces MFA, and the user has NOTHING enrolled — not TOTP,
+	// user's org or retained account recovery requires MFA, and the user has NOTHING enrolled — not TOTP,
 	// not anything uncollectible. Helivanta should enrol a TOTP factor
 	// natively and then collect its first code (#948, spec D1). Factors
 	// names which factor(s) can be enrolled (today, always exactly
@@ -341,6 +341,11 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 		// spending a policy round trip on.
 		return Result{Outcome: OutcomeRefused, Reason: RefusalFactorUnsupported, EnrolledMethods: methodTypes}, nil
 	}
+	recoveryFactor, err := c.recoveryRequiresFactor(ctx, subject)
+	if err != nil {
+		return Result{}, err
+	}
+
 	if totpEnrolled {
 		// Ask for the factor natively — the
 		// headline case this whole spec exists for, and the one Finding 1
@@ -352,7 +357,7 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 	}
 
 	// Nothing beyond a password is enrolled. Whether that is sufficient
-	// now depends entirely on the AUTHENTICATING USER'S OWN ORG's policy —
+	// now depends on the account recovery requirement and the authenticating org policy —
 	// subject.OrgID came off the same GET /v2/sessions/{id} response
 	// classifyEnrolledMethods already read above, so scoping this call
 	// costs no additional round trip (design spec D1,
@@ -373,7 +378,7 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 		// Zitadel's raw error body into one (see readZitadelErrorID).
 		return Result{}, unreadable("login policy", err)
 	}
-	if policy.ForceMFA {
+	if policy.ForceMFA || recoveryFactor {
 		// The session this package can build is password-only
 		// (CreatePasswordSession is its only session constructor), and
 		// nothing was enrolled that Helivanta could ask for natively (the
@@ -460,6 +465,10 @@ func (c *Client) CompleteAfterFactor(ctx context.Context, authRequestID string, 
 		// doc comment, Finding 2.
 		return Result{Outcome: OutcomeRefused, Reason: RefusalFactorUnsupported, EnrolledMethods: methodTypes}, nil
 	}
+	if _, err = c.recoveryRequiresFactor(ctx, subject); err != nil {
+		return Result{}, err
+	}
+
 	if !totpEnrolled {
 		// The enrolment this call sees no longer matches what
 		// CompleteIfSufficient saw (TOTP was removed, or this path was
@@ -506,8 +515,8 @@ func (c *Client) CompleteAfterFactor(ctx context.Context, authRequestID string, 
 //  1. Enrolled methods: an uncollectible factor refuses.
 //  2. The second factor: when TOTP is enrolled, the session must carry a
 //     VERIFIED TOTP (SessionFactors), exactly as CompleteAfterFactor
-//     requires; otherwise the user's org must not force MFA (if it does,
-//     the factor it requires is unproven: RefusalFactorNotVerified).
+//     requires; otherwise neither native org policy nor retained recovery may
+//     require MFA (an unproven requirement is RefusalFactorNotVerified).
 //  3. The password gate: after a change Zitadel accepted it must say "not
 //     due". If it still says due, that is RefusalPasswordChangeUnconfirmed —
 //     never a second change prompt, which could loop forever.
@@ -523,6 +532,11 @@ func (c *Client) CompleteAfterPasswordChange(ctx context.Context, authRequestID 
 	if uncollectible {
 		return Result{Outcome: OutcomeRefused, Reason: RefusalFactorUnsupported, EnrolledMethods: methodTypes}, nil
 	}
+	recoveryFactor, err := c.recoveryRequiresFactor(ctx, subject)
+	if err != nil {
+		return Result{}, err
+	}
+
 	if totpEnrolled {
 		factors, err := c.SessionFactors(ctx, s.ID)
 		if err != nil {
@@ -536,7 +550,7 @@ func (c *Client) CompleteAfterPasswordChange(ctx context.Context, authRequestID 
 		if err != nil {
 			return Result{}, unreadable("login policy", err)
 		}
-		if policy.ForceMFA {
+		if policy.ForceMFA || recoveryFactor {
 			// The org requires a second factor and this session proves none:
 			// nothing enrolled now, though a row at the password-change stage
 			// is only written after every factor was proven — the enrolment

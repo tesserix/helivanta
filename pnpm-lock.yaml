@@ -158,6 +158,9 @@ importers:
       '@helivanta/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@hookform/resolvers':
+        specifier: 7.0.5
+        version: 7.0.5(@standard-schema/spec@1.1.0)(react-hook-form@7.91.0(@types/react@19.3.0)(react@19.3.1))(zod@4.6.7)
       '@tanstack/react-query':
         specifier: ^5.107.1
         version: 5.107.1(@types/react@19.3.0)(react@19.3.1)
@@ -188,6 +191,9 @@ importers:
       react-dom:
         specifier: ^19.3.1
         version: 19.3.1(react@19.3.1)
+      react-hook-form:
+        specifier: 7.91.0
+        version: 7.91.0(@types/react@19.3.0)(react@19.3.1)
       zod:
         specifier: ^4.6.7
         version: 4.6.7
@@ -268,8 +274,8 @@ importers:
         specifier: ^5.107.1
         version: 5.107.1(@types/react@19.3.0)(react@19.3.1)
       '@tesserix/onboarding-contracts':
-        specifier: https://codeload.github.com/tesserix/onboarding-service/tar.gz/f47d44dae55e7e8ab62b657f21ff8aadb139e8a5
-        version: https://codeload.github.com/tesserix/onboarding-service/tar.gz/f47d44dae55e7e8ab62b657f21ff8aadb139e8a5(zod@4.6.7)
+        specifier: https://codeload.github.com/tesserix/onboarding-service/tar.gz/f76433d6bcfb521e4d0e361794476cc0e2afd57c
+        version: https://codeload.github.com/tesserix/onboarding-service/tar.gz/f76433d6bcfb521e4d0e361794476cc0e2afd57c(zod@4.6.7)
       sonner:
         specifier: ^2.0.8
         version: 2.0.8(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -2895,8 +2901,8 @@ packages:
       react-native-svg:
         optional: true
 
-  '@tesserix/onboarding-contracts@https://codeload.github.com/tesserix/onboarding-service/tar.gz/f47d44dae55e7e8ab62b657f21ff8aadb139e8a5':
-    resolution: {tarball: https://codeload.github.com/tesserix/onboarding-service/tar.gz/f47d44dae55e7e8ab62b657f21ff8aadb139e8a5}
+  '@tesserix/onboarding-contracts@https://codeload.github.com/tesserix/onboarding-service/tar.gz/f76433d6bcfb521e4d0e361794476cc0e2afd57c':
+    resolution: {tarball: https://codeload.github.com/tesserix/onboarding-service/tar.gz/f76433d6bcfb521e4d0e361794476cc0e2afd57c}
     version: 0.0.0
     peerDependencies:
       zod: ^4.0.0
@@ -10053,7 +10059,7 @@ snapshots:
       lucide-react: 1.71.0(@types/react@19.3.0)(react@19.3.1)
       react-native: 0.88.1(@babel/core@7.29.7)(@react-native/metro-config@0.88.1(@babel/core@7.29.7))(@types/react@19.3.0)(react@19.3.1)
 
-  '@tesserix/onboarding-contracts@https://codeload.github.com/tesserix/onboarding-service/tar.gz/f47d44dae55e7e8ab62b657f21ff8aadb139e8a5(zod@4.6.7)':
+  '@tesserix/onboarding-contracts@https://codeload.github.com/tesserix/onboarding-service/tar.gz/f76433d6bcfb521e4d0e361794476cc0e2afd57c(zod@4.6.7)':
     dependencies:
       zod: 4.6.7
 

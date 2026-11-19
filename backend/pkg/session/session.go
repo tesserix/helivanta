@@ -61,6 +61,9 @@ type Claims struct {
 	// lives in the caller. Do not read "Verify succeeded" as "the
 	// session is not idle-expired".
 	IdleDeadline time.Time
+	// RecoveryGeneration is the exact owner generation admitted at verified login.
+	// It stays empty only when no account recovery requirement exists.
+	RecoveryGeneration string
 	// IssuedAt and ExpiresAt are this token's own mint/expiry times,
 	// distinct from AuthTime.
 	IssuedAt  time.Time
@@ -71,14 +74,15 @@ type Claims struct {
 }
 
 // tokenClaims is the wire shape signed into the JWT. It embeds
-// jwt.RegisteredClaims for sub/iss/iat/exp and adds exactly the three
-// custom claims spec D2 allows: tenant_id, auth_time and idle_deadline.
+// jwt.RegisteredClaims for sub/iss/iat/exp and adds tenant_id, auth_time,
+// idle_deadline and the admitted recovery generation (#1703's D2 extension).
 // AuthTime and IdleDeadline are carried as Unix-seconds integers rather
 // than jwt.NumericDate so their precision is explicit and symmetric
 // between Mint and Verify.
 type tokenClaims struct {
-	TenantID     string `json:"tenant_id"`
-	AuthTime     int64  `json:"auth_time"`
-	IdleDeadline int64  `json:"idle_deadline"`
+	TenantID           string          `json:"tenant_id"`
+	AuthTime           int64           `json:"auth_time"`
+	IdleDeadline       int64           `json:"idle_deadline"`
+	RecoveryGeneration generationClaim `json:"recovery_generation,omitempty"`
 	jwt.RegisteredClaims
 }

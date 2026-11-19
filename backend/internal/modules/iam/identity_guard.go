@@ -67,7 +67,7 @@ func newIdentityGuard(db *tenantdb.DB, bus *events.Bus, checker *RevocationCheck
 		credential, err := provider.UserCredentialState(ctx, p.TenantID, p.Subject)
 		var current bool
 		if err == nil {
-			current, err = credentialIsCurrent(credential, p.AuthTime)
+			current, err = credentialIsCurrent(credential, p.AuthTime, p.RecoveryGeneration)
 		}
 		if err == nil {
 			err = ctx.Err()
@@ -79,7 +79,7 @@ func newIdentityGuard(db *tenantdb.DB, bus *events.Bus, checker *RevocationCheck
 		switch credential.State {
 		case loginclient.UserStateActive:
 			if !current {
-				respond.Unauthenticated(c, "password changed; sign in again")
+				respond.Unauthenticated(c, "account security changed; sign in again")
 				return false
 			}
 			return admit()

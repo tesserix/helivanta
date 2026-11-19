@@ -2,7 +2,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { emitModels, writeGenerated } from "./lib/contract-codegen.mjs";
-import { validateReleaseManifest } from "./lib/release-capabilities.mjs";
+import { validateReleaseManifest, releaseWireModels } from "./lib/release-capabilities.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const manifest = JSON.parse(
@@ -35,7 +35,7 @@ if (process.argv.includes("--check")) {
   }
 }
 
-const models = emitModels(manifest.models);
+const models = emitModels(releaseWireModels(manifest));
 const definitions = manifest.capabilities
   .map(
     (capability) =>

@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { releaseDefinitions } from "./release-capabilities-contract";
+import { releaseDefinitions, RELEASE_POLICY_VERSION } from "./release-capabilities-contract";
 import { capabilityForPage, readReleaseCapabilities } from "./release-capabilities";
 
 const scope = { tenantId: "11111111-1111-4111-8111-111111111111", subject: "owner" };
@@ -7,7 +7,7 @@ const now = new Date("2026-11-16T00:00:00Z");
 const snapshot = () => ({
   tenant_id: scope.tenantId,
   subject: scope.subject,
-  policy_version: "2026-11-16-r1",
+  policy_version: RELEASE_POLICY_VERSION,
   issued_at: now.toISOString(),
   expires_at: new Date(now.getTime() + 60_000).toISOString(),
   capabilities: releaseDefinitions.map((definition) => ({ key: definition.key, available: false })),

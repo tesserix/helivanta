@@ -61,7 +61,13 @@ export function middleware(req: NextRequest) {
     pathname === "/signup" ||
     pathname === "/signup/verify" ||
     pathname === "/staff/accept" ||
+    pathname === "/recover-password" ||
     [
+      "/api/v1/auth/password-recovery",
+      "/api/v1/auth/password-recovery/verify",
+      "/api/v1/auth/password-recovery/prepare",
+      "/api/v1/auth/password-recovery/cancel",
+      "/api/v1/auth/password-recovery/password",
       "/api/v1/auth/signup",
       "/api/v1/auth/signup/verify-email",
       "/api/v1/auth/signup/password",

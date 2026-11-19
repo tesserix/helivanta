@@ -92,7 +92,7 @@ func TestV1ChainAcceptsAnHMSSession(t *testing.T) {
 	// comfortably beyond any plausible run of this test and the
 	// authn.Middleware idle check (#848) never fires here. The idle check
 	// itself is pinned by pkg/authn's own tests.
-	token, err := signer.Mint("user-1", "11111111-1111-1111-1111-111111111111", time.Now(), time.Now().Add(time.Hour))
+	token, err := signer.Mint("user-1", "11111111-1111-1111-1111-111111111111", time.Now(), time.Now().Add(time.Hour), "")
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
@@ -115,7 +115,7 @@ func TestV1ChainRequiresCurrentIdentityBeforeBusinessHandler(t *testing.T) {
 				c.AbortWithStatus(status)
 			}
 			e, signer := newChainHarness(t, guard)
-			token, err := signer.Mint("staff-user", "11111111-1111-1111-1111-111111111111", time.Now(), time.Now().Add(time.Hour))
+			token, err := signer.Mint("staff-user", "11111111-1111-1111-1111-111111111111", time.Now(), time.Now().Add(time.Hour), "")
 			require.NoError(t, err)
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodGet, "/v1/whoami", nil)
@@ -129,7 +129,7 @@ func TestV1ChainRequiresCurrentIdentityBeforeBusinessHandler(t *testing.T) {
 
 func TestV1ChainMissingIdentityGuardFailsClosed(t *testing.T) {
 	e, signer := newChainHarness(t, nil)
-	token, err := signer.Mint("staff-user", "11111111-1111-1111-1111-111111111111", time.Now(), time.Now().Add(time.Hour))
+	token, err := signer.Mint("staff-user", "11111111-1111-1111-1111-111111111111", time.Now(), time.Now().Add(time.Hour), "")
 	require.NoError(t, err)
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/v1/whoami", nil)

@@ -4,6 +4,7 @@ import { useEffect, useId, useRef } from "react";
 import { AuthError, AuthSubmitButton, OTPInput } from "@tesserix/web";
 
 type Props = {
+  length?: 6 | 8;
   value: string;
   onValueChange: (value: string) => void;
   onSubmit: (code: string) => void;
@@ -14,6 +15,7 @@ type Props = {
 };
 
 export function MfaCodeForm({
+  length = 6,
   value,
   onValueChange,
   onSubmit,
@@ -25,7 +27,7 @@ export function MfaCodeForm({
   const id = useId();
   const group = useRef<HTMLDivElement>(null);
   const submitted = useRef<string | null>(null);
-  const complete = /^\d{6}$/.test(value);
+  const complete = new RegExp(`^\\d{${length}}$`).test(value);
 
   useEffect(() => {
     group.current?.querySelector("input")?.focus();
@@ -61,7 +63,7 @@ export function MfaCodeForm({
         </p>
         <OTPInput
           ref={group}
-          length={6}
+          length={length}
           value={value}
           onValueChange={onValueChange}
           disabled={loading}
@@ -72,7 +74,7 @@ export function MfaCodeForm({
           className="justify-center"
         />
         <p id={`${id}-help`} className="text-xs text-muted-foreground">
-          Enter each digit, or paste the full six-digit code.
+          Enter each digit, or paste the full {length === 8 ? "eight" : "six"}-digit code.
         </p>
       </div>
       <AuthSubmitButton loading={loading} disabled={!complete}>

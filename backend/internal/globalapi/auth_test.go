@@ -29,7 +29,7 @@ func TestProxyPreservesRealSessionVerification(t *testing.T) {
 	verifier, err := session.NewVerifier(public, "test", "synthetic")
 	require.NoError(t, err)
 	now := time.Now().Truncate(time.Second)
-	token, err := signer.Mint("synthetic-user", "00000000-0000-4000-8000-000000000001", now, now.Add(time.Hour))
+	token, err := signer.Mint("synthetic-user", "00000000-0000-4000-8000-000000000001", now, now.Add(time.Hour), "")
 	require.NoError(t, err)
 	for _, revoked := range []bool{false, true} {
 		rev := revocationState{}

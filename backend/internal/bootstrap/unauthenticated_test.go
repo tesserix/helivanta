@@ -102,3 +102,22 @@ func TestCustomerSignupRoutesAreExplicitlyMounted(t *testing.T) {
 		require.Equal(t, 200, response.Code, "missing signup route %s %s", route.method, route.path)
 	}
 }
+
+func TestPasswordRecoveryRoutesRequireAllHandlersAndExplicitRegistration(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for missing := range 6 {
+		handlers := []gin.HandlerFunc{stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler}
+		handlers[missing] = nil
+		require.Panics(t, func() {
+			bootstrap.MountPasswordRecovery(gin.New(), handlers[0], handlers[1], handlers[2], handlers[3], handlers[4], handlers[5])
+		})
+	}
+	engine := gin.New()
+	bootstrap.MountPasswordRecovery(engine, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler)
+	for _, route := range []struct{ method, path string }{{"POST", "/v1/auth/password-recovery"}, {"GET", "/v1/auth/password-recovery"}, {"POST", "/v1/auth/password-recovery/verify"}, {"POST", "/v1/auth/password-recovery/password"}, {"POST", "/v1/auth/password-recovery/prepare"}, {"POST", "/v1/auth/password-recovery/cancel"}} {
+		response := httptest.NewRecorder()
+		engine.ServeHTTP(response, httptest.NewRequest(route.method, route.path, nil))
+		require.Equal(t, 200, response.Code)
+		require.NotEmpty(t, bootstrap.UnauthenticatedRoutes[route.method+" "+route.path])
+	}
+}

@@ -66,7 +66,7 @@ do not schedule two independent applications of its shared SQL.
 
 ## Candidate fixture compatibility
 
-The isolated Zitadel v4.15.3 fixture explicitly sets runtime-default and
+The isolated Zitadel v4.19.5 fixture explicitly sets runtime-default and
 first-instance access-token lifetimes to 1h, matching the product credential
 client's existing bound. Its upstream default is 12h. A public-consumer
 regression reproduces rejection of the old configuration and acceptance of the
@@ -74,8 +74,9 @@ corrected settings; hosted native acceptance remains required. This does not
 change deployed Zitadel policy. Read-only `zitadel/zitadel` ConfigMap inspection
 found its first-instance lifetime already configured to 1h.
 
-CI prints only fixed owner proof/preparation stages and normalized prepare HTTP
-status on failure, with private fields removed and input/output bounded. Never
+CI prints only fixed owner proof/preparation stages, bounded account-scope timing
+and cancellation fields, and normalized prepare HTTP status on failure, with
+private fields removed and input/output bounded. Never
 replace this diagnostic with a raw identity-owner log dump.
 
 ## Gates before the approval request
@@ -136,11 +137,15 @@ replace this diagnostic with a raw identity-owner log dump.
    prerequisite applications remain healthy. A successful image build is not a
    deployment; a successful promotion is not application or browser acceptance.
 5. After hosted native acceptance, use the canonical release catalogue and
-   existing console integration to make recovery eligible for an explicitly
-   approved QA tenant cohort while retaining a disabled global default. An
-   ineligible capability cannot be enabled by a provider override. Do not reuse
-   the development fixture's all-capabilities mode in the shared live
-   environment. Review and approve any eligibility or tenant targeting change.
+   existing console integration to release recovery while retaining a disabled
+   provider default until activation is approved. An ineligible capability cannot
+   be enabled by a provider override. Console's supported switches control the
+   product's production environment across all tenants; its provider validation
+   does not support tenant-cohort rules. The activation request must name that
+   product-wide visibility change. Select ordinary QA accounts for the actual
+   recovery actions, without describing those accounts as an availability cohort.
+   Do not reuse the development fixture's all-capabilities mode or inject targeted
+   rules outside the supported Console/reconciler contract.
 6. Execute only the approved QA identity/factor actions, then test the deployed
    owner and Staff flows in Chrome and through authorized API checks. Keep
    passwords, codes, factor keys, tokens and private identity payloads out of

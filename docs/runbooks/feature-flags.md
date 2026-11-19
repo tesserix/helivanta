@@ -86,6 +86,17 @@ The other 16 definitions are release locked: `pharmacy_catalogue`, `pharmacy_sto
 `billing_workspace` and `unreleased`. Do not turn on stock, supplier fulfilment,
 receiving, financial or advanced Staff workflows as a shortcut to MVP testing.
 
+### Pending Staff authenticator recovery control
+
+Policy `2026-11-19-r1` adds `staff_mfa_recovery`, dependent on `staff_core` and
+`team_accounts`, for the Staff account panel and reset commands. Its Console
+panel key is `staff.accounts.mfa_recovery`. It remains release locked until the
+account-recovery release gates pass. The Helm-managed catalogue creates its
+missing provider definition disabled after the deployed application contract
+matches; neither catalogue synchronization nor provider configuration can bypass
+compiled eligibility. A future activation uses the normal product-wide Console
+procedure above and does not grant Staff account authority.
+
 Hospital-owned pharmacy staff stay within their hospital tenant and employer.
 Independent pharmacy staff belong to their pharmacy tenant and employer. Shared
 email addresses and declared affiliations do not create cross-tenant authority.

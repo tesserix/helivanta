@@ -5,6 +5,39 @@ const maxBytes = 8 << 20;
 const maxLineBytes = 16 << 10;
 const stages = new Map([
   [
+    "Staff MFA recovery admission unavailable",
+    {
+      component: "owner_admission",
+      allowed: new Set([
+        "record",
+        "account",
+        "removal",
+        "enrollment",
+        "session",
+        "enrollment_recheck",
+        "account_recheck",
+        "credentials",
+        "record_recheck",
+        "store",
+        "commit_recheck",
+      ]),
+    },
+  ],
+  [
+    "Staff MFA enrollment proof unavailable",
+    {
+      component: "native_enrollment",
+      allowed: new Set(["configuration", "token", "read", "decode", "proof"]),
+    },
+  ],
+  [
+    "Staff MFA session proof unavailable",
+    {
+      component: "native_session",
+      allowed: new Set(["configuration", "token", "read", "decode", "proof"]),
+    },
+  ],
+  [
     "Staff MFA target proof unavailable",
     {
       component: "native_target",

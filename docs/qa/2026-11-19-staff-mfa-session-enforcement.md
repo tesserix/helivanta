@@ -261,3 +261,45 @@ The API typecheck/lint and all 1,498 tests passed. The Node 24 shell production
 build passed with `API_URL=http://127.0.0.1:8081`; its generated `.next` was
 removed. The 19 source-inventory/diagnostic tests and nine owner-fixture/native
 registration/diagnostic tests passed. No local app, database or container ran.
+
+## Native reset succeeds; admission remains unverified
+
+Run `44541450632` at `960ca294` records owner preparation HTTP 200 for both
+real employer models. Both browser cases then assert native reset acknowledgment,
+absence of the original TOTP, old access and renewal 401, forced replacement
+enrollment with a different secret and no application access before confirmation.
+They fail at line 355 waiting for dashboard navigation after confirmation: the
+callback returns unavailable current-credential evidence. The run still reports
+one pass, two failures and 107 cases not run. The token-lifetime configuration
+fix resolves the earlier prepare failure; it does not establish full recovery.
+
+Both consumers now pin owner `f76433d6bcfb521e4d0e361794476cc0e2afd57c`. It
+adds fixed unavailable stages to admission and native enrollment/session proof
+reads, retaining all existing authentication/cutoff decisions. Regression tests
+for logging and the consumer allowlist failed before implementation, then passed.
+No native session, account, generation, timing value, factor or provider payload
+is exposed by these diagnostics.
+
+Parent Go run `44528471426` at `e7b9c1d4` failed four inherited account-choice
+tests: their successful native-session fixture lacked the primary password proof
+required at finalization. The three database-free cases reproduced the 400 locally
+and passed after adding the synthetic proof. Parent `75dcc5c8` contains this
+fixture-only fix; the database-backed two-account selection case remains a hosted
+obligation. The Staff candidate additionally requires explicit current owner
+credential/recovery evidence for managed native organizations. Its same three
+cases reproduced 503, then passed with a scope-checked synthetic owner projection
+that declares the actual fixture password and no pending recovery. Production
+proof checks are unchanged.
+
+The parent fixture update passed affected Go build, vet and IAM lint; the Staff
+fixture update passed the same local checks. No local application, database or
+container was started for these validations. An initial command including the
+database-backed case was interrupted when its startup requirement was identified;
+it provides no passing evidence. That case remains a hosted CI obligation.
+
+For the new owner diagnostic pin, local `go build -p=2 ./...`, complete
+organizationidentity/loginclient/authn/session race suites, `contractdocs -check`,
+source-inventory generation/check and all 25 inventory/diagnostic/fixture tests
+passed. API canonical-generator checks and TypeScript typecheck passed. The owner
+contracts directory is unchanged between `a4be89b` and `f76433d`; this pin adds
+diagnostics rather than a wire-contract change. Native acceptance is still pending.

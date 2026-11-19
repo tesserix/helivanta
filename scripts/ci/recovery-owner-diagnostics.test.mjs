@@ -104,3 +104,28 @@ test("CLI emits only allowlisted diagnostics and fixed unreadable-input output",
   writeFileSync(path, "private".repeat(1_200_000));
   assert.equal(run(path), "Recovery owner diagnostics unavailable\n");
 });
+
+test("recovery admission diagnostics expose only known native proof stages", () => {
+  const records = [
+    {
+      msg: "Staff MFA recovery admission unavailable",
+      stage: "session",
+      subject: "private-user",
+      nativeSessionId: "private-session",
+    },
+    {
+      msg: "Staff MFA enrollment proof unavailable",
+      stage: "decode",
+      body: "private-provider-body",
+    },
+    { msg: "Staff MFA session proof unavailable", stage: "read", token: "private-token" },
+    { msg: "Staff MFA recovery admission unavailable", stage: "private-stage" },
+    { msg: "Staff MFA enrollment proof unavailable", stage: "private-stage" },
+    { msg: "Staff MFA session proof unavailable", stage: "private-stage" },
+  ];
+  assert.deepEqual(recoveryDiagnostics(records.map(JSON.stringify).join("\n")), [
+    { component: "owner_admission", stage: "session" },
+    { component: "native_enrollment", stage: "decode" },
+    { component: "native_session", stage: "read" },
+  ]);
+});

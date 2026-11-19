@@ -21,7 +21,11 @@ services:
     image: nats:2.10-alpine
     restart: unless-stopped
     command: ["-js", "-sd", "/data"]
-    ports: ["${HELIVANTA_NATS_PORT:-4222}:4222", "${HELIVANTA_NATS_MONITOR_PORT:-8222}:8222"]
+    ports:
+      [
+        "${HELIVANTA_NATS_PORT:-4222}:4222",
+        "${HELIVANTA_NATS_MONITOR_PORT:-8222}:8222",
+      ]
     volumes: [natsdata:/data]
     healthcheck:
       test: ["CMD-SHELL", "echo 'PING' | nc localhost 4222 | grep -q PONG"]
@@ -94,14 +98,19 @@ services:
   # the v4.15.3 spike re-verification). scripts/preflight.sh checks the
   # length before Docker is ever touched so this is caught in one place,
   # not rediscovered per developer.
+  # Match the deployed core's upstream version. The deployed Tesserix patchset
+  # still requires live acceptance; this fixture uses the upstream release.
   zitadel:
-    image: ghcr.io/zitadel/zitadel:v4.15.3
+    image: ghcr.io/zitadel/zitadel:v4.19.5
     restart: unless-stopped
     command: >
       start-from-init
       --masterkey "${HELIVANTA_DEV_ZITADEL_MASTERKEY}"
       --tlsMode disabled
     environment:
+      # Keep disposable native credentials within the product client's one-hour bound.
+      ZITADEL_OIDC_DEFAULTACCESSTOKENLIFETIME: 1h
+      ZITADEL_DEFAULTINSTANCE_OIDCSETTINGS_ACCESSTOKENLIFETIME: 1h
       ZITADEL_DATABASE_POSTGRES_HOST: zitadel-db
       ZITADEL_DATABASE_POSTGRES_PORT: "5432"
       ZITADEL_DATABASE_POSTGRES_DATABASE: zitadel
@@ -272,7 +281,7 @@ services:
         condition: service_started
 
   zitadel-login:
-    image: ghcr.io/zitadel/zitadel-login:v4.15.3
+    image: ghcr.io/zitadel/zitadel-login:v4.19.5
     restart: unless-stopped
     environment:
       ZITADEL_API_URL: http://zitadel:8080

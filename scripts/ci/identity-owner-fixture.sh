@@ -17,9 +17,9 @@ case ${1:-} in
     schema=$(mktemp)
     trap 'rm -f "$schema"' EXIT
     curl --fail --silent --show-error --location \
-      https://raw.githubusercontent.com/tesserix/tesserix-k8s/363dce21216c5e4830a33465d988f043b5ee960d/charts/apps/db-schema-bootstrap/schemas/global/global/onboarding_db.sql \
+      https://raw.githubusercontent.com/tesserix/tesserix-k8s/7bd817e6fdfec553ee95499faf6076f155a4907d/charts/apps/db-schema-bootstrap/schemas/global/global/onboarding_db.sql \
       --output "$schema"
-    printf '%s  %s\n' 413ac8a6fa38bf83f0fa50fd864d3f9bac30ecc2fd753f4071121b48b52ebeb9 "$schema" | shasum -a 256 -c >&2
+    printf '%s  %s\n' 844877964546ef1c936298837123c6f528543d8ca609effb4aa7fe566ab6b0a2 "$schema" | shasum -a 256 -c >&2
     exists=$(docker compose -f docker-compose.dev.yml exec -T postgres psql -U helivanta -d postgres -Atc "SELECT 1 FROM pg_database WHERE datname='onboarding_fixture'")
     if [[ "$exists" != 1 ]]; then
       docker compose -f docker-compose.dev.yml exec -T postgres psql -U helivanta -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE onboarding_fixture' >&2

@@ -643,6 +643,32 @@ Existing state/PKCE, token verification, fresh-auth signup binding, revocation,
 verified membership and resource scope remain required. See
 [ADR-0069](../../adr/0069-explicit-native-security-key-continuation.md).
 
+## Staff MFA recovery admission candidate — not deployed
+
+The [Staff authenticator recovery design](../../superpowers/specs/2026-11-19-staff-mfa-recovery.md)
+adds a signed `recovery_generation` application-session claim. It is an opaque
+owner command UUID, never a role or native session identifier. Missing claims
+remain acceptable only when the identity owner explicitly reports no recovery
+requirement for the account. Renewal, activity and tenant switching preserve the
+admitted generation together with the existing authentication bounds.
+
+Private credential status now opts into the owner's account-wide recovery
+projection. Prepared/processing/uncertain recovery, required enrollment and a
+generation mismatch deny protected access and renewal with 401. Missing or invalid
+recovery evidence fails closed with 503. A completed requirement admits only an
+already owner-admitted matching generation; ordinary identity, password freshness,
+global revocation, tenant membership and narrower resource checks still apply.
+The same native subject cannot bypass this requirement through a legacy membership
+in another tenant. Separate accounts sharing email remain distinct.
+
+The projection exposes no originating employer, actor, reason or native evidence.
+These private controls do not register a public reset route or complete a new
+recovered login. Workforce/IAM reset authority, idempotent revocation, exact native
+session/enrollment admission and the forced-enrollment UI are still unfinished.
+Deploy the reviewed owner schema and owner implementation before opting HMS in;
+live migration and QA factor resets require their named approvals. Do not enable
+or close #1703 based only on this enforcement candidate.
+
 ## Email-first separate-account discovery
 
 `POST /v1/auth/accounts` accepts `{email}` under exact same-origin checks and

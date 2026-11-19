@@ -79,6 +79,9 @@ func NewSigner(key ed25519.PrivateKey, kid, issuer string, ttl time.Duration) (*
 // tab renew itself forever and the idle timeout would never fire, all
 // while looking implemented.
 //
+// recoveryGeneration is copied from owner admission or the verified application
+// principal. UUID validation here is not authority to admit that generation.
+//
 // Mint deliberately does NOT refuse an idleDeadline already in the
 // past. That is not an oversight: renewal must be able to re-mint a
 // session whose deadline just lapsed a moment ago, so that
@@ -88,7 +91,7 @@ func NewSigner(key ed25519.PrivateKey, kid, issuer string, ttl time.Duration) (*
 // recomputing the deadline just to dodge the error — which is exactly
 // the D3 failure (renewal silently extending an untouched session)
 // this design exists to prevent.
-func (s *Signer) Mint(subject, tenantID string, authTime, idleDeadline time.Time) (string, error) {
+func (s *Signer) Mint(subject, tenantID string, authTime, idleDeadline time.Time, recoveryGeneration string) (string, error) {
 	if len(s.key) != ed25519.PrivateKeySize {
 		return "", ErrNoSigningKey
 	}
@@ -100,6 +103,9 @@ func (s *Signer) Mint(subject, tenantID string, authTime, idleDeadline time.Time
 	}
 	if authTime.IsZero() {
 		return "", errors.New("session: auth_time is required to mint")
+	}
+	if !validRecoveryGeneration(recoveryGeneration) {
+		return "", errors.New("session: invalid recovery generation")
 	}
 	// idleDeadline.Unix() <= 0 catches the Unix-epoch sentinel
 	// (1970-01-01T00:00:00Z and earlier) in addition to IsZero()'s
@@ -115,9 +121,10 @@ func (s *Signer) Mint(subject, tenantID string, authTime, idleDeadline time.Time
 
 	now := time.Now().UTC()
 	claims := tokenClaims{
-		TenantID:     tenantID,
-		AuthTime:     authTime.Unix(),
-		IdleDeadline: idleDeadline.Unix(),
+		TenantID:           tenantID,
+		AuthTime:           authTime.Unix(),
+		IdleDeadline:       idleDeadline.Unix(),
+		RecoveryGeneration: generationClaim(recoveryGeneration),
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   subject,
 			Issuer:    s.issuer,

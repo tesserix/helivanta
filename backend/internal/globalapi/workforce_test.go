@@ -50,7 +50,7 @@ func TestWorkforceGlobalAPIAuthority(t *testing.T) {
 	require.NoError(t, err)
 	tokens := map[string]string{}
 	for subject, tenant := range map[string]string{"admin": testutil.TenantA, "reviewer": testutil.TenantA, "reader": testutil.TenantA, "foreign": testutil.TenantB} {
-		tokens[subject], err = signer.Mint(subject, tenant, time.Now(), time.Now().Add(time.Minute))
+		tokens[subject], err = signer.Mint(subject, tenant, time.Now(), time.Now().Add(time.Minute), "")
 		require.NoError(t, err)
 	}
 	call := func(method, path, subject, body string, status int) *httptest.ResponseRecorder {

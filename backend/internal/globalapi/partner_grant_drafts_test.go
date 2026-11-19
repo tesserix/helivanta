@@ -58,9 +58,9 @@ func TestSupplierGrantDraftThroughActualOwnerAndGraph(t *testing.T) {
 	t.Cleanup(server.Close)
 	gateway, err := New(Config{Development: true, Timeout: 5 * time.Second, Upstreams: map[string]string{"platform": server.URL, "pharmacy": server.URL}})
 	require.NoError(t, err)
-	token, err := signer.Mint("supplier-admin", testutil.TenantA, time.Now(), time.Now().Add(time.Hour))
+	token, err := signer.Mint("supplier-admin", testutil.TenantA, time.Now(), time.Now().Add(time.Hour), "")
 	require.NoError(t, err)
-	other, err := signer.Mint("other-admin", testutil.TenantB, time.Now(), time.Now().Add(time.Hour))
+	other, err := signer.Mint("other-admin", testutil.TenantB, time.Now(), time.Now().Add(time.Hour), "")
 	require.NoError(t, err)
 	call := func(method, path, credential, tenant, subject, body string, status int) *httptest.ResponseRecorder {
 		request := httptest.NewRequest(method, path, strings.NewReader(body))

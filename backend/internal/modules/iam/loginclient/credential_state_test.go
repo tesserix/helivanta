@@ -17,12 +17,15 @@ func TestCredentialStatusRequiresExplicitNativeEvidenceWithoutUsingTheLoginToken
 		snapshot    IdentitySnapshot
 		unavailable bool
 	}{
-		{name: "password", snapshot: IdentitySnapshot{State: UserStateActive, Credentials: &customercontract.IdentityCredentialState{PasswordConfigured: true, PasswordChangedAt: changed}}},
-		{name: "passwordless", snapshot: IdentitySnapshot{State: UserStateActive, Credentials: &customercontract.IdentityCredentialState{}}},
+		{name: "password", snapshot: IdentitySnapshot{State: UserStateActive, Credentials: &customercontract.IdentityCredentialState{PasswordConfigured: true, PasswordChangedAt: changed}, MFARecovery: &customercontract.StaffMFARecoveryRequirement{State: "none"}}},
+		{name: "passwordless", snapshot: IdentitySnapshot{State: UserStateActive, Credentials: &customercontract.IdentityCredentialState{}, MFARecovery: &customercontract.StaffMFARecoveryRequirement{State: "none"}}},
 		{name: "inactive", snapshot: IdentitySnapshot{State: UserStateInactive}},
-		{name: "missing_credential_evidence", snapshot: IdentitySnapshot{State: UserStateActive}, unavailable: true},
-		{name: "password_without_date", snapshot: IdentitySnapshot{State: UserStateActive, Credentials: &customercontract.IdentityCredentialState{PasswordConfigured: true}}, unavailable: true},
-		{name: "date_without_password", snapshot: IdentitySnapshot{State: UserStateActive, Credentials: &customercontract.IdentityCredentialState{PasswordChangedAt: changed}}, unavailable: true},
+		{name: "missing_credential_evidence", snapshot: IdentitySnapshot{State: UserStateActive, MFARecovery: &customercontract.StaffMFARecoveryRequirement{State: "none"}}, unavailable: true},
+		{name: "password_without_date", snapshot: IdentitySnapshot{State: UserStateActive, Credentials: &customercontract.IdentityCredentialState{PasswordConfigured: true}, MFARecovery: &customercontract.StaffMFARecoveryRequirement{State: "none"}}, unavailable: true},
+		{name: "date_without_password", snapshot: IdentitySnapshot{State: UserStateActive, Credentials: &customercontract.IdentityCredentialState{PasswordChangedAt: changed}, MFARecovery: &customercontract.StaffMFARecoveryRequirement{State: "none"}}, unavailable: true},
+		{name: "missing_recovery_evidence", snapshot: IdentitySnapshot{State: UserStateActive, Credentials: &customercontract.IdentityCredentialState{}}, unavailable: true},
+		{name: "malformed_recovery_evidence", snapshot: IdentitySnapshot{State: UserStateActive, Credentials: &customercontract.IdentityCredentialState{}, MFARecovery: &customercontract.StaffMFARecoveryRequirement{State: "completed"}}, unavailable: true},
+		{name: "pending_recovery", snapshot: IdentitySnapshot{State: UserStateActive, Credentials: &customercontract.IdentityCredentialState{}, MFARecovery: &customercontract.StaffMFARecoveryRequirement{State: "blocked", GenerationID: "019f39c2-1738-7998-b5de-6d4214f614e0"}}},
 		{name: "inactive_credential_disclosure", snapshot: IdentitySnapshot{State: UserStateInactive, Credentials: &customercontract.IdentityCredentialState{}}, unavailable: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -40,6 +43,7 @@ func TestCredentialStatusRequiresExplicitNativeEvidenceWithoutUsingTheLoginToken
 			}
 			require.NoError(t, err)
 			require.Equal(t, tc.snapshot.State, out.State)
+			require.Equal(t, tc.snapshot.MFARecovery, out.MFARecovery)
 			if tc.name == "password" {
 				date, err := time.Parse(time.RFC3339Nano, changed)
 				require.NoError(t, err)

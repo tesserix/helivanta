@@ -74,7 +74,7 @@ func TestHTTPWithSignedSessionsAndLiveOpenFGAMembership(t *testing.T) {
 	})
 	server := httptest.NewServer(r)
 	t.Cleanup(server.Close)
-	token, err := signer.Mint("user-admin", testutil.TenantA, time.Now(), time.Now().Add(time.Minute))
+	token, err := signer.Mint("user-admin", testutil.TenantA, time.Now(), time.Now().Add(time.Minute), "")
 	require.NoError(t, err)
 	call := func(method, path, credential, body string) (int, string) {
 		t.Helper()

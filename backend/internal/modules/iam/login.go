@@ -307,7 +307,7 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 	credential, err := h.currentIdentity.UserCredentialState(c.Request.Context(), tenantID, principal.Subject)
 	var current bool
 	if err == nil {
-		current, err = credentialIsCurrent(credential, principal.AuthTime)
+		current, err = credentialIsCurrent(credential, principal.AuthTime, principal.RecoveryGeneration)
 	}
 	if err == nil {
 		err = c.Request.Context().Err()
@@ -350,7 +350,7 @@ func (h *LoginHandlers) Login(c *gin.Context) {
 	// in the same response.
 	now := h.now()
 	token, err := h.signer.Mint(principal.Subject, tenantID, principal.AuthTime,
-		h.idleDeadlineFor(c, principal, now))
+		h.idleDeadlineFor(c, principal, now), principal.RecoveryGeneration)
 	if err != nil {
 		requestid.Logger(c).ErrorContext(c.Request.Context(), "login: mint session failed", "err", err)
 		respond.Error(c, http.StatusServiceUnavailable,

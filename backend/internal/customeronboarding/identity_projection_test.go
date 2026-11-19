@@ -21,7 +21,7 @@ func TestIdentityProjectionUsesScopedPrivateWorkloadAndFailsClosed(t *testing.T)
 	const subject = "synthetic-staff"
 	const valid = `{"purpose":"membership","tenantId":"` + tenant + `","organizationId":"helivanta-` + tenant + `","subject":"` + subject + `","state":"active","admission":"eligible"}`
 	const profile = `{"purpose":"profile","tenantId":"` + tenant + `","organizationId":"helivanta-` + tenant + `","subject":"` + subject + `","state":"active","admission":"unassessed","profile":{"displayName":"Synthetic Staff","email":"synthetic@example.invalid"},"tenantName":"Yes Hospital"}`
-	const credential = `{"purpose":"status","tenantId":"` + tenant + `","organizationId":"helivanta-` + tenant + `","subject":"` + subject + `","state":"active","admission":"unassessed","credentials":{"passwordConfigured":true,"passwordChangedAt":"2026-11-18T10:11:12Z"}}`
+	const credential = `{"purpose":"status","tenantId":"` + tenant + `","organizationId":"helivanta-` + tenant + `","subject":"` + subject + `","state":"active","admission":"unassessed","credentials":{"passwordConfigured":true,"passwordChangedAt":"2026-11-18T10:11:12Z"},"mfaRecovery":{"state":"none"}}`
 	for _, tc := range []struct {
 		name, body                     string
 		purpose                        loginclient.IdentityReadPurpose
@@ -73,6 +73,9 @@ func TestIdentityProjectionUsesScopedPrivateWorkloadAndFailsClosed(t *testing.T)
 				if tc.purpose == loginclient.IdentityReadProfile || tc.purpose == loginclient.IdentityReadCredentials {
 					wantFields = 5
 				}
+				if tc.purpose == loginclient.IdentityReadCredentials {
+					wantFields = 6
+				}
 				if json.NewDecoder(r.Body).Decode(&input) != nil || len(input) != wantFields || input["tenantId"] != tenant || input["subject"] != subject || input["requestId"] == "" {
 					t.Error("incorrect private identity scope")
 				}
@@ -81,6 +84,9 @@ func TestIdentityProjectionUsesScopedPrivateWorkloadAndFailsClosed(t *testing.T)
 				}
 				if (input["includeCredentialState"] == true) != (tc.purpose == loginclient.IdentityReadCredentials) {
 					t.Error("credential evidence requires its explicit private status opt-in")
+				}
+				if (input["includeMFARecovery"] == true) != (tc.purpose == loginclient.IdentityReadCredentials) {
+					t.Error("recovery admission requires its explicit private credential-status opt-in")
 				}
 				if tc.status != 0 {
 					w.WriteHeader(tc.status)

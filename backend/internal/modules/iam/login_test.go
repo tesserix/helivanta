@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
+	"github.com/tesserix/onboarding-service/api/customercontract"
 
 	"github.com/tesserix/helivanta/internal/config"
 	"github.com/tesserix/helivanta/internal/modules/iam" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
@@ -115,7 +116,7 @@ func loginHarness(t *testing.T, zv authn.TokenVerifier, roles *fakeRoleListerLog
 // loginHarnessRL is loginHarness plus an explicit limiter/rule, for the
 // #841 rate-limit tests that need to control the budget directly.
 func loginHarnessRL(t *testing.T, zv authn.TokenVerifier, roles *fakeRoleListerLogin, limiter ratelimit.Limiter, rule ratelimit.Rule) (*gin.Engine, *session.Verifier) {
-	return loginHarnessWithIdentity(t, zv, roles, limiter, rule, &loginCredentialState{observation: loginclient.CredentialStatus{State: loginclient.UserStateActive}})
+	return loginHarnessWithIdentity(t, zv, roles, limiter, rule, &loginCredentialState{observation: loginclient.CredentialStatus{MFARecovery: &customercontract.StaffMFARecoveryRequirement{State: "none"}, State: loginclient.UserStateActive}})
 }
 
 func loginHarnessWithIdentity(t *testing.T, zv authn.TokenVerifier, roles *fakeRoleListerLogin, limiter ratelimit.Limiter, rule ratelimit.Rule, identity iam.UserStateChecker) (*gin.Engine, *session.Verifier) {
@@ -576,7 +577,7 @@ func newLoginEnv(t *testing.T) *loginEnv {
 	clock := time.Now()
 	h := iam.NewLoginHandlers(iam.LoginDeps{
 		Zitadel:         mutableZitadelVerifier{subject: "user-1", authTime: &zitadelAuthTime},
-		CurrentIdentity: &loginCredentialState{observation: loginclient.CredentialStatus{State: loginclient.UserStateActive}},
+		CurrentIdentity: &loginCredentialState{observation: loginclient.CredentialStatus{MFARecovery: &customercontract.StaffMFARecoveryRequirement{State: "none"}, State: loginclient.UserStateActive}},
 		Roles:           roles,
 		Signer:          signer,
 		Sessions:        verifier,
@@ -689,7 +690,7 @@ func TestGenuineLoginSetsAFreshIdleDeadline(t *testing.T) {
 func TestRenewalDoesNotResurrectAnAlreadyLapsedSession(t *testing.T) {
 	env := newLoginEnv(t)
 	lapsed := time.Now().Add(-2 * time.Minute).UTC().Truncate(time.Second)
-	stale, err := env.signer.Mint("user-1", tenantA, env.authTime, lapsed)
+	stale, err := env.signer.Mint("user-1", tenantA, env.authTime, lapsed, "")
 	require.NoError(t, err)
 
 	renewed := env.renewWith(t, stale)
@@ -711,7 +712,7 @@ func TestRenewalDoesNotResurrectAnAlreadyLapsedSession(t *testing.T) {
 func TestGenuineReAuthenticationAfterALapsedSessionGetsAFreshWindow(t *testing.T) {
 	env := newLoginEnv(t)
 	lapsed := time.Now().Add(-2 * time.Minute).UTC().Truncate(time.Second)
-	stale, err := env.signer.Mint("user-1", tenantA, env.authTime, lapsed)
+	stale, err := env.signer.Mint("user-1", tenantA, env.authTime, lapsed, "")
 	require.NoError(t, err)
 
 	// A NEW authentication: auth_time strictly after the one the stale
@@ -740,7 +741,7 @@ func TestGenuineLoginByADifferentSubjectDoesNotInheritTheOtherSessionsDeadline(t
 	// terminal. user-1 is the subject this env's Zitadel verifier
 	// authenticates.
 	nearlyOut := time.Now().Add(20 * time.Second).UTC().Truncate(time.Second)
-	othersCookie, err := env.signer.Mint("user-2", tenantA, env.authTime, nearlyOut)
+	othersCookie, err := env.signer.Mint("user-2", tenantA, env.authTime, nearlyOut, "")
 	require.NoError(t, err)
 
 	tok := env.renewWith(t, othersCookie) // same request shape; different subject's cookie

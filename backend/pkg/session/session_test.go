@@ -109,7 +109,7 @@ func TestMintVerify_RoundTrip(t *testing.T) {
 	signer, verifier, _, _ := newSignerVerifier(t)
 	authTime := fixedAuthTime()
 
-	token, err := signer.Mint("user-123", "tenant-abc", authTime, fixedIdleDeadline())
+	token, err := signer.Mint("user-123", "tenant-abc", authTime, fixedIdleDeadline(), "")
 	require.NoError(t, err)
 	require.NotEmpty(t, token)
 
@@ -132,7 +132,7 @@ func TestMintVerify_AuthTimeByteIdentical(t *testing.T) {
 	signer, verifier, _, _ := newSignerVerifier(t)
 	authTime := fixedAuthTime()
 
-	token, err := signer.Mint("user-123", "tenant-abc", authTime, fixedIdleDeadline())
+	token, err := signer.Mint("user-123", "tenant-abc", authTime, fixedIdleDeadline(), "")
 	require.NoError(t, err)
 
 	claims, err := verifier.Verify(token)
@@ -150,7 +150,7 @@ func TestMintVerify_AuthTimeByteIdentical(t *testing.T) {
 
 func TestVerify_RefusesTokenSignedByDifferentKey(t *testing.T) {
 	signer, _, _, _ := newSignerVerifier(t)
-	token, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime(), fixedIdleDeadline())
+	token, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime(), fixedIdleDeadline(), "")
 	require.NoError(t, err)
 
 	otherPub, _, err := ed25519.GenerateKey(nil)
@@ -175,7 +175,7 @@ func TestVerify_RefusesExpiredToken(t *testing.T) {
 	verifier, err := session.NewVerifier(pub, testKID, testIssuer)
 	require.NoError(t, err)
 
-	token, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime(), fixedIdleDeadline())
+	token, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime(), fixedIdleDeadline(), "")
 	require.NoError(t, err)
 	time.Sleep(10 * time.Millisecond)
 
@@ -237,7 +237,7 @@ func TestVerify_RefusesAlgorithmConfusionAttack(t *testing.T) {
 
 func TestVerify_RefusesTamperedClaim(t *testing.T) {
 	signer, verifier, _, _ := newSignerVerifier(t)
-	token, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime(), fixedIdleDeadline())
+	token, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime(), fixedIdleDeadline(), "")
 	require.NoError(t, err)
 
 	parts := strings.Split(token, ".")
@@ -305,7 +305,7 @@ func TestVerify_RefusesWrongIssuer(t *testing.T) {
 	verifier, err := session.NewVerifier(pub, testKID, "https://issuer-b.test")
 	require.NoError(t, err)
 
-	token, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime(), fixedIdleDeadline())
+	token, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime(), fixedIdleDeadline(), "")
 	require.NoError(t, err)
 
 	_, err = verifier.Verify(token)
@@ -320,7 +320,7 @@ func TestVerify_RefusesUnknownKID(t *testing.T) {
 	verifier, err := session.NewVerifier(pub, "kid-b", testIssuer)
 	require.NoError(t, err)
 
-	token, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime(), fixedIdleDeadline())
+	token, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime(), fixedIdleDeadline(), "")
 	require.NoError(t, err)
 
 	_, err = verifier.Verify(token)
@@ -329,10 +329,10 @@ func TestVerify_RefusesUnknownKID(t *testing.T) {
 
 func TestVerify_RefusesMissingSubjectOrTenant(t *testing.T) {
 	signer, verifier, _, _ := newSignerVerifier(t)
-	_, err := signer.Mint("", "tenant-abc", fixedAuthTime(), fixedIdleDeadline())
+	_, err := signer.Mint("", "tenant-abc", fixedAuthTime(), fixedIdleDeadline(), "")
 	require.Error(t, err, "Mint itself must refuse an empty subject")
 
-	_, err = signer.Mint("user-123", "", fixedAuthTime(), fixedIdleDeadline())
+	_, err = signer.Mint("user-123", "", fixedAuthTime(), fixedIdleDeadline(), "")
 	require.Error(t, err, "Mint itself must refuse an empty tenant_id")
 
 	_ = verifier // used above only for symmetry with other tests
@@ -359,7 +359,7 @@ func TestMintCarriesIdleDeadlineThroughVerify(t *testing.T) {
 			signer, verifier, _, _ := newSignerVerifier(t)
 			authTime := fixedAuthTime()
 
-			raw, err := signer.Mint("sub-1", "11111111-1111-1111-1111-111111111111", authTime, tt.deadline)
+			raw, err := signer.Mint("sub-1", "11111111-1111-1111-1111-111111111111", authTime, tt.deadline, "")
 			require.NoError(t, err)
 
 			got, err := verifier.Verify(raw)
@@ -379,7 +379,7 @@ func TestMintVerify_IdleDeadlineByteIdentical(t *testing.T) {
 	signer, verifier, _, _ := newSignerVerifier(t)
 	deadline := fixedIdleDeadline()
 
-	token, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime(), deadline)
+	token, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime(), deadline, "")
 	require.NoError(t, err)
 
 	claims, err := verifier.Verify(token)
@@ -390,7 +390,7 @@ func TestMintVerify_IdleDeadlineByteIdentical(t *testing.T) {
 
 func TestMintRefusesAZeroIdleDeadline(t *testing.T) {
 	signer, _, _, _ := newSignerVerifier(t)
-	_, err := signer.Mint("sub-1", "11111111-1111-1111-1111-111111111111", time.Now(), time.Time{})
+	_, err := signer.Mint("sub-1", "11111111-1111-1111-1111-111111111111", time.Now(), time.Time{}, "")
 	require.Error(t, err, "Mint() must refuse a zero idle_deadline: a mint with no idle deadline would be exempt from the timeout")
 }
 
@@ -406,7 +406,7 @@ func TestMintRefusesAZeroIdleDeadline(t *testing.T) {
 func TestMintRefusesAnIdleDeadlineAtOrBeforeTheUnixEpoch(t *testing.T) {
 	signer, _, _, _ := newSignerVerifier(t)
 	_, err := signer.Mint("sub-1", "11111111-1111-1111-1111-111111111111",
-		fixedAuthTime(), time.Unix(0, 0).UTC())
+		fixedAuthTime(), time.Unix(0, 0).UTC(), "")
 	require.Error(t, err, "Mint() must refuse an idle_deadline at the Unix epoch: Verify would refuse the resulting token anyway")
 }
 
@@ -487,7 +487,7 @@ func expiredClaims(deadline time.Time) jwt.MapClaims {
 func TestRenewalEvidenceOfALiveTokenMatchesVerify(t *testing.T) {
 	signer, verifier, _, _ := newSignerVerifier(t)
 	deadline := time.Now().Add(10 * time.Minute).UTC().Truncate(time.Second)
-	tok, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime(), deadline)
+	tok, err := signer.Mint("user-123", "tenant-abc", fixedAuthTime(), deadline, "")
 	require.NoError(t, err)
 
 	claims, err := verifier.Verify(tok)

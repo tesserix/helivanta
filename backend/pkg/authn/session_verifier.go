@@ -42,9 +42,10 @@ func (s *sessionTokenVerifier) Verify(_ context.Context, raw string) (Principal,
 		return Principal{}, fmt.Errorf("authn: verify hms session: %w", err)
 	}
 	return Principal{
-		Subject:      claims.Subject,
-		TenantID:     claims.TenantID,
-		AuthTime:     claims.AuthTime,
-		IdleDeadline: claims.IdleDeadline,
+		Subject:            claims.Subject,
+		TenantID:           claims.TenantID,
+		AuthTime:           claims.AuthTime,
+		IdleDeadline:       claims.IdleDeadline,
+		RecoveryGeneration: claims.RecoveryGeneration,
 	}, nil
 }

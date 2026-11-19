@@ -56,7 +56,7 @@ func TestScopedLeaveThroughGlobalAPI(t *testing.T) {
 	require.NoError(t, err)
 	tokens := map[string]string{}
 	for _, subject := range []string{"synthetic-admin", "synthetic-access-reviewer", "synthetic-leave-reviewer"} {
-		tokens[subject], err = signer.Mint(subject, testutil.TenantA, time.Now(), time.Now().Add(time.Minute))
+		tokens[subject], err = signer.Mint(subject, testutil.TenantA, time.Now(), time.Now().Add(time.Minute), "")
 		require.NoError(t, err)
 	}
 	call := func(method, path, subject string, body any, status int) map[string]any {
@@ -229,7 +229,7 @@ func TestScopedLeaveThroughGlobalAPI(t *testing.T) {
 		freshAuthentication = time.Now().UTC().Truncate(time.Second)
 		return freshAuthentication.After(watermark)
 	}, 3*time.Second, 10*time.Millisecond, "the signed authentication second must be strictly newer than the actual watermark")
-	tokens[reviewer], err = signer.Mint(reviewer, testutil.TenantA, freshAuthentication, time.Now().Add(time.Minute))
+	tokens[reviewer], err = signer.Mint(reviewer, testutil.TenantA, freshAuthentication, time.Now().Add(time.Minute), "")
 	require.NoError(t, err)
 	freshClaims, err := verifier.Verify(tokens[reviewer])
 	require.NoError(t, err)

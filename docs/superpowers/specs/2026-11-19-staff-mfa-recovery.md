@@ -114,7 +114,7 @@ No originating tenant, employer, actor or reason crosses this projection. Old
 callers retain their existing response shape. Missing storage/audit/scope evidence
 is unavailable, never `none`. The owner's ADR-0008 records this decision.
 
-The remaining HMS implementation must persist that exact admitted generation in
+HMS persists that exact admitted generation in
 its signed application credential, adding a private recovery-generation claim
 to the session design's existing three custom claims. This is a deliberate
 extension of D2, not evidence already present in `auth_time`. Only the login
@@ -125,11 +125,22 @@ generation, or `completed` with the same admitted generation. A pending command
 or generation mismatch denies access in every tenant context for that subject.
 This comparison does not supply membership, operating roles or fresh native proof.
 
-The current signer mints in `pkg/session/signer.go`; production consumers are
+The signer requires an explicit generation argument in `pkg/session/signer.go`; production consumers are
 `iam/login.go`, `iam/renew.go`, `iam/activity.go` and `iam/me.go`. Principal
-verification and `iam/identity_guard.go` must carry/enforce the new claim. These
-claim, caller and guard changes are still required; the private owner projection
-alone does not provide enforcement or a working enrollment journey.
+verification carries the private claim; `iam/identity_guard.go`, login and renewal
+now check the explicit owner requirement. Active credential projections must
+include valid recovery evidence; missing evidence is unavailable. An existing
+token without the claim remains usable only with explicit `none` evidence.
+Pending recovery and mismatched generations deny; a matching completed generation
+still requires current native password evidence and ordinary revocation/membership
+checks. Renewal, activity and tenant switching preserve the signed generation.
+
+Native fresh-session admission remains unwired. Login therefore refuses retained
+recovery requirements rather than infer a new generation from password time or
+command completion. It must eventually obtain owner-verified native proof before
+setting that generation. The forced-enrollment UI, Workforce/IAM reset command
+authority and durable idempotent revocation also remain required. This is not a
+released recovery journey.
 
 Supported reset operations must be explicit in the canonical command/UI. Do not
 delete passkeys, primary security keys, SMS/email factors or recovery codes as a

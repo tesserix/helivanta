@@ -37,6 +37,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
+	"github.com/tesserix/onboarding-service/api/customercontract"
 	"gorm.io/gorm"
 )
 
@@ -52,7 +53,11 @@ func (s *staffFileIdentityState) UserState(context.Context, string, string) (log
 
 func (s *staffFileIdentityState) UserCredentialState(ctx context.Context, tenant, subject string) (loginclient.CredentialStatus, error) {
 	state, err := s.UserState(ctx, tenant, subject)
-	return loginclient.CredentialStatus{State: state}, err
+	out := loginclient.CredentialStatus{State: state}
+	if state == loginclient.UserStateActive {
+		out.MFARecovery = &customercontract.StaffMFARecoveryRequirement{State: "none"}
+	}
+	return out, err
 }
 
 func TestStaffFileRechecksIAMAfterStorage(t *testing.T) {
@@ -220,7 +225,7 @@ func TestStaffFileRechecksIAMAfterStorage(t *testing.T) {
 			gateway, err := globalapi.New(globalapi.Config{Development: true, Timeout: 10 * time.Second, Upstreams: map[string]string{"platform": upstreamServer.URL, "workforce": upstreamServer.URL}})
 			require.NoError(t, err)
 
-			token, err := signer.Mint("user-manager", testutil.TenantA, time.Now(), time.Now().Add(time.Hour))
+			token, err := signer.Mint("user-manager", testutil.TenantA, time.Now(), time.Now().Add(time.Hour), "")
 			require.NoError(t, err)
 			call := func(method, path, body string) *httptest.ResponseRecorder {
 				request := httptest.NewRequest(method, path, strings.NewReader(body))

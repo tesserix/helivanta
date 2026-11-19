@@ -42,7 +42,7 @@ func TestStaffMembershipThroughGlobalAPI(t *testing.T) {
 	require.NoError(t, err)
 	tokens := map[string]string{}
 	for _, subject := range []string{"synthetic-admin", "synthetic-staff", "synthetic-first-member"} {
-		tokens[subject], err = signer.Mint(subject, testutil.TenantA, time.Now(), time.Now().Add(time.Minute))
+		tokens[subject], err = signer.Mint(subject, testutil.TenantA, time.Now(), time.Now().Add(time.Minute), "")
 		require.NoError(t, err)
 	}
 	call := func(method, path, subject, body string, status int) *httptest.ResponseRecorder {

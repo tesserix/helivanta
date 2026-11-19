@@ -61,7 +61,7 @@ func TestHRIntakeDelegationPreparesInactiveStaffWithoutManagerGrant(t *testing.T
 	require.NoError(t, err)
 	tokens := map[string]string{}
 	for _, subject := range []string{maker, checker, intake} {
-		tokens[subject], err = signer.Mint(subject, testutil.TenantA, time.Now(), time.Now().Add(time.Hour))
+		tokens[subject], err = signer.Mint(subject, testutil.TenantA, time.Now(), time.Now().Add(time.Hour), "")
 		require.NoError(t, err)
 	}
 	request := func(method, path, subject string, body []byte, contentType string) *httptest.ResponseRecorder {

@@ -57,7 +57,7 @@ func newIdentityGuardEnv(t *testing.T, withOutbox bool) *identityGuardEnv {
 
 func (h *identityGuardEnv) token(t *testing.T, subject string, at time.Time) string {
 	t.Helper()
-	token, err := h.signer.Mint(subject, "11111111-1111-1111-1111-111111111111", at, time.Now().Add(time.Hour))
+	token, err := h.signer.Mint(subject, "11111111-1111-1111-1111-111111111111", at, time.Now().Add(time.Hour), "")
 	require.NoError(t, err)
 	return token
 }
@@ -86,7 +86,11 @@ func (f guardUserStateFunc) UserState(ctx context.Context, _ string, subject str
 
 func (f guardUserStateFunc) UserCredentialState(ctx context.Context, tenant, subject string) (loginclient.CredentialStatus, error) {
 	state, err := f.UserState(ctx, tenant, subject)
-	return loginclient.CredentialStatus{State: state}, err
+	out := loginclient.CredentialStatus{State: state}
+	if state == loginclient.UserStateActive {
+		out.MFARecovery = &customercontract.StaffMFARecoveryRequirement{State: "none"}
+	}
+	return out, err
 }
 
 func TestIdentityGuardRejectsExistingCredentialAfterDisablement(t *testing.T) {
@@ -237,6 +241,7 @@ func TestIdentityGuardChecksIdentityOwnerForSignedTenantAndSubject(t *testing.T)
 		snapshot := loginclient.IdentitySnapshot{State: state}
 		if state == loginclient.UserStateActive {
 			snapshot.Credentials = &customercontract.IdentityCredentialState{}
+			snapshot.MFARecovery = &customercontract.StaffMFARecoveryRequirement{State: "none"}
 		}
 		return snapshot, nil
 	}))
@@ -246,6 +251,32 @@ func TestIdentityGuardChecksIdentityOwnerForSignedTenantAndSubject(t *testing.T)
 	require.Equal(t, http.StatusUnauthorized, h.request(client, h.checker, token).Code)
 	state = loginclient.UserStateActive
 	require.Equal(t, http.StatusUnauthorized, h.request(client, NewRevocationChecker(h.db), token).Code)
+}
+
+func TestIdentityGuardEnforcesRecoveryForLegacyTenantContexts(t *testing.T) {
+	h := newIdentityGuardEnv(t, true)
+	const generation = "019f39c2-1738-7998-b5de-6d4214f614e0"
+	for _, tenant := range []string{renewTestTenantA, renewTestTenantB} {
+		for _, tc := range []struct {
+			state, tokenGeneration string
+			status                 int
+		}{
+			{"none", "", 200}, {"blocked", "", 401}, {"blocked", generation, 401},
+			{"enrollment_required", generation, 401}, {"completed", "", 401}, {"completed", generation, 200},
+		} {
+			t.Run(tenant+"/"+tc.state+"/"+tc.tokenGeneration, func(t *testing.T) {
+				requirement := &customercontract.StaffMFARecoveryRequirement{State: tc.state}
+				if tc.state != "none" {
+					requirement.GenerationID = generation
+				}
+				provider := &stubUserState{recovery: map[string]*customercontract.StaffMFARecoveryRequirement{"staff-user": requirement}}
+				token, err := h.signer.Mint("staff-user", tenant, time.Now().Add(-time.Minute), time.Now().Add(time.Hour), tc.tokenGeneration)
+				require.NoError(t, err)
+				response := h.request(provider, h.checker, token)
+				require.Equal(t, tc.status, response.Code, response.Body.String())
+			})
+		}
+	}
 }
 
 func TestIdentityGuardMissingAuthorityFailsClosed(t *testing.T) {

@@ -26,6 +26,7 @@ type IdentitySnapshot struct {
 	Profile            *UserProfile
 	Candidate          *customercontract.AssignmentCandidateIdentity
 	Credentials        *customercontract.IdentityCredentialState
+	MFARecovery        *customercontract.StaffMFARecoveryRequirement
 }
 
 type TenantIdentityResolver interface {
@@ -69,6 +70,12 @@ func (c *Client) identitySnapshot(ctx context.Context, tenant, subject string, p
 	if purpose == IdentityReadCredentials && snapshot.State == UserStateActive && snapshot.Credentials == nil {
 		return empty, ErrUnavailable
 	}
+	if snapshot.MFARecovery != nil && (purpose != IdentityReadCredentials || snapshot.State != UserStateActive || snapshot.MFARecovery.Validate() != nil) {
+		return empty, ErrUnavailable
+	}
+	if purpose == IdentityReadCredentials && snapshot.State == UserStateActive && snapshot.MFARecovery == nil {
+		return empty, ErrUnavailable
+	}
 	return snapshot, nil
 }
 
@@ -76,6 +83,7 @@ func (c *Client) identitySnapshot(ctx context.Context, tenant, subject string, p
 type CredentialStatus struct {
 	State             UserState
 	PasswordChangedAt time.Time
+	MFARecovery       *customercontract.StaffMFARecoveryRequirement
 }
 
 func (c *Client) UserCredentialState(ctx context.Context, tenant, subject string) (CredentialStatus, error) {
@@ -83,7 +91,7 @@ func (c *Client) UserCredentialState(ctx context.Context, tenant, subject string
 	if err != nil {
 		return CredentialStatus{}, err
 	}
-	out := CredentialStatus{State: snapshot.State}
+	out := CredentialStatus{State: snapshot.State, MFARecovery: snapshot.MFARecovery}
 	if snapshot.Credentials != nil && snapshot.Credentials.PasswordConfigured {
 		out.PasswordChangedAt, err = time.Parse(time.RFC3339Nano, snapshot.Credentials.PasswordChangedAt)
 		if err != nil {

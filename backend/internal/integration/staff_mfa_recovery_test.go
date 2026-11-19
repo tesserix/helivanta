@@ -116,6 +116,7 @@ func (o *mfaOwnerFixture) roundTrip(r *http.Request) (*http.Response, error) {
 		require.NoError(o.t, json.NewDecoder(r.Body).Decode(&in))
 		require.NoError(o.t, in.Validate())
 		require.Equal(o.t, *o.held, in.Request)
+		assertMFAResetAudit(o.t, o.db, in.Request)
 		require.NoError(o.t, o.db.WithTenant(r.Context(), in.Request.Target.TenantID, func(tx *gorm.DB) error {
 			var rows int64
 			require.NoError(o.t, tx.Table("iam_staff_mfa_fences").Where("command_id=?", in.ApplicationFenceID).Count(&rows).Error)
@@ -202,6 +203,33 @@ func mfaWatermark(t *testing.T, db *tenantdb.DB) time.Time {
 	return at
 }
 
+func assertMFAResetAudit(t *testing.T, db *tenantdb.DB, request customercontract.StaffMFARecoveryRequest) {
+	t.Helper()
+	require.NoError(t, db.WithTenant(t.Context(), request.Target.TenantID, func(tx *gorm.DB) error {
+		var retained string
+		if err := tx.Raw(`SELECT request::text FROM iam_staff_mfa_commands WHERE tenant_id=? AND command_id=? AND actor_subject=?`, request.Target.TenantID, request.Intent.CommandID, request.ActorSubject).Scan(&retained).Error; err != nil {
+			return err
+		}
+		var intent customercontract.StaffMFARecoveryRequest
+		require.NoError(t, json.Unmarshal([]byte(retained), &intent))
+		require.Equal(t, request, intent, "the retained reason and scope must match the dispatched command")
+		type auditRecord struct {
+			Action, ActorSubject, ResourceType, ResourceID string
+		}
+		var records []auditRecord
+		if err := tx.Table("audit_events").Select("action,actor_subject,resource_type,resource_id").
+			Where("tenant_id=? AND resource_id=? AND action IN ?", request.Target.TenantID, request.Intent.CommandID, []string{"staff_mfa_intent_retained", "staff_mfa_reset_fenced"}).
+			Order("action").Find(&records).Error; err != nil {
+			return err
+		}
+		require.Equal(t, []auditRecord{
+			{Action: "staff_mfa_intent_retained", ActorSubject: request.ActorSubject, ResourceType: "iam_staff_mfa_commands", ResourceID: request.Intent.CommandID},
+			{Action: "staff_mfa_reset_fenced", ActorSubject: request.ActorSubject, ResourceType: "iam_staff_mfa_fences", ResourceID: request.Intent.CommandID},
+		}, records, "each command retains one attributed intent and fence audit before native dispatch")
+		return nil
+	}))
+}
+
 func TestStaffMFAResetFencesBeforeDispatchAndReplaysWithoutNewRevocation(t *testing.T) {
 	f, owner, input, path := newMFAResetFixture(t)
 	owner.failDispatch = true
@@ -231,6 +259,7 @@ func TestStaffMFAResetFencesBeforeDispatchAndReplaysWithoutNewRevocation(t *test
 	require.Equal(t, 202, response.Code, response.Body.String())
 	require.Equal(t, 2, owner.dispatches)
 	require.Equal(t, cutoff, mfaWatermark(t, f.db))
+	assertMFAResetAudit(t, f.db, *owner.held)
 	response = mfaRequest(t, f.r, "GET", path, "manager", nil)
 	require.Equal(t, 200, response.Code, response.Body.String())
 	require.NotContains(t, response.Body.String(), "user-candidate")
@@ -250,6 +279,10 @@ func TestStaffMFAResetFencesBeforeDispatchAndReplaysWithoutNewRevocation(t *test
 			return err
 		}
 		require.Zero(t, count, "fence rows must not cross verified tenants")
+		if err := tx.Table("audit_events").Where("resource_id=?", input.CommandID).Count(&count).Error; err != nil {
+			return err
+		}
+		require.Zero(t, count, "recovery audit must not cross verified tenants")
 		return nil
 	}))
 	response = mfaRequest(t, f.r, "POST", path+"/cancel", "manager", map[string]any{})

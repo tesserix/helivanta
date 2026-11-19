@@ -468,3 +468,36 @@ build and the shell production build. Generated shell output was removed. The
 previous HMS web/native Staff and complete supplier checks passed; its MFA E2E
 seed and migration-count failures are corrected in this candidate and still need
 a fresh hosted run. No deployment or native MFA browser success is claimed.
+
+
+## Browser registration and actual locked-account acceptance
+
+Hosted `fff427f3` passed migration, native seeding and service startup, then
+Playwright rejected the two MFA wrapper callbacks before executing any test. The
+runner requires destructured fixture arguments; both wrappers now declare
+`{ page, browser }` explicitly. The same failure was reproduced with local
+`playwright test --list`, which starts no app or browser. After the correction,
+registration discovers 109 tests across 40 files, including both MFA journeys.
+CI now runs discovery immediately after dependency installation and before
+service/browser setup. A type-check alone does not prove runner registration.
+
+`account-lockout-native.spec.ts` adds a separate disposable ordinary user and
+proves the native account is active and owned by the expected organization/email
+before invoking the pinned native v2 `LockUser` API. It observes the actual locked
+state, checks that previously valid application access is refused, and submits
+the real password through the actual login UI. Wrong-password, locked and absent
+accounts must receive identical actionable administrator/support guidance; no
+account-existence distinction is introduced. This exercises an actual native
+locked state, not the configured ten-failure threshold. The latter is a separate
+provider-policy setting and is not claimed by this case. No production identity
+or factor is changed. The case is authored, type-checked, linted and registered;
+its hosted runtime result is still required.
+
+Both MFA journeys now verify the native target email as well as organization and
+subject before factor setup. They also assert the retained old cookie is still
+accepted immediately before the reset, so a later refusal cannot be explained by
+an already invalid session. Screenshots, tracing and video remain disabled.
+
+The parent PR's GitGuardian dashboard requires a separate sign-in. Its finding
+has not been dismissed, its check remains required, and no GitGuardian access or
+security exception has been granted during this review.

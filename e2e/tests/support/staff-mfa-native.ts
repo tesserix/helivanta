@@ -91,6 +91,7 @@ export async function exerciseNativeStaffMFARecovery(
     const colleague = await identity(targetPage.request, tenant);
     const nativeUser = await native(`/v2/users/${colleague.subject}`);
     expect(nativeUser.user.details.resourceOwner).toBe(`helivanta-${tenant}`);
+    expect(nativeUser.user.human.email.email).toBe(target.email);
     const initial = await native(`/v2/users/${colleague.subject}/totp`, {});
     if (typeof initial.secret !== "string" || !/^[A-Z2-7]+$/.test(initial.secret))
       throw new Error("native initial factor unavailable");
@@ -245,6 +246,9 @@ export async function exerciseNativeStaffMFARecovery(
     }
     const before = await native(`/v2/users/${colleague.subject}/authentication_methods`);
     expect(before.authMethodTypes.includes("AUTHENTICATION_METHOD_TYPE_TOTP")).toBe(true);
+    expect(
+      (await targetPage.request.get(permissions, { headers: { Cookie: oldCookie } })).status(),
+    ).toBe(200);
 
     await page.goto(kind === "hospital" ? "/workforce" : "/pharmacy/staff");
     await page

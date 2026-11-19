@@ -1463,6 +1463,13 @@
           "id": "0052_iam_assignment_target_choices",
           "sql_sha256": "1df2f2dc350e765a731b251a2113441120a4379ccc7b5de84af44603101c6355",
           "creates_tables": []
+        },
+        {
+          "id": "0053_iam_login_account_choice",
+          "sql_sha256": "a54f0e4a9e991965e57afe00b5c4a22f30bb28ccf95c780545bd1a21b6b34502",
+          "creates_tables": [
+            "login_account_choice"
+          ]
         }
       ]
     },
@@ -14396,6 +14403,7 @@
     "POST /v1/auth/accounts": "same-origin mailbox proof before private separate-account discovery",
     "POST /v1/auth/accounts/verify": "browser-bound one-use mailbox proof; no application access",
     "POST /v1/auth/login": "creates the Helivanta session and therefore cannot require one",
+    "POST /v1/auth/login/account": "continues a password already verified for several accounts with the one the person picked",
     "POST /v1/auth/login/enroll": "confirms the newly enrolled second factor that creates the session, so it cannot require one",
     "POST /v1/auth/login/factor": "checks the second factor that creates the session, so it cannot require one",
     "POST /v1/auth/login/password": "checks the credential that creates the session, so it cannot require one",

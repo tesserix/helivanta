@@ -246,6 +246,30 @@ describe("AuthCallbackPage", () => {
     },
   );
 
+  // #1751 spec D4: the single card names no tenant; the API takes the
+  // subject's only binding, and the browser remembers it for next time.
+  it("opens the account an email login resolved without naming a tenant", async () => {
+    const tenantId = "11111111-1111-4111-8111-111111111111";
+    signinRedirectCallback.mockResolvedValue({
+      id_token: "native-email-proof",
+      state: { purpose: "email-login" },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(new Response(JSON.stringify({ tenant_id: tenantId }), { status: 200 })),
+    );
+    render(<AuthCallbackPage />);
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/dashboard"));
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/v1/auth/login",
+      expect.objectContaining({ body: JSON.stringify({ id_token: "native-email-proof" }) }),
+    );
+    expect(window.localStorage.getItem("helivanta.login.workspace.v1")).toContain(tenantId);
+    vi.unstubAllGlobals();
+  });
+
   it("keeps a refused signup on the error screen without minting a tenant session", async () => {
     signinRedirectCallback.mockResolvedValue({
       id_token: "native-signup-proof",

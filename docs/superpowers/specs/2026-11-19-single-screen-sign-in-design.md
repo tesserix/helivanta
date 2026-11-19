@@ -83,21 +83,32 @@ guesses.
 ### D3 — Chooser after proof, with parked sessions
 
 When more than one candidate accepted the same password, the handler answers
-`202` with `{ "account_choice_required": [ { "tenant_id", "name", "account" } ] }`
-and stores one `login_attempt` row per matched account at a new stage
-`stageAccountChoice`, keyed by `(auth_request_id, tenant_id)`. A new
-`POST /v1/auth/login/account` with `{ auth_request_id, tenant_id }` loads that
-row, terminates the sibling sessions through Zitadel's `DELETE /v2/sessions/{id}`
-(a new client method; failures are logged and the rows still expire), then
-proceeds through `CompleteIfSufficient` with the chosen session as if the
-password step had produced one match. The attempt table gets a `tenant_id`
-column, nullable for existing stages; migration `NNNN_iam`, append-only. The
-sweeper already deletes expired rows, so unchosen sessions are bounded by
-`loginAttemptTTL`.
+`200` with `{ "account_choice_required": [ { "tenant_id", "name", "account" } ] }`,
+the same "200 whose only key names the next step" shape as `factor_required`,
+and parks one row per matched session in a new table `login_account_choice`,
+primary key `(auth_request_id, tenant_id)` (migration
+`0053_iam_login_account_choice`). A separate table rather than a `tenant_id`
+column on `login_attempt`: every existing attempt query is keyed on
+`auth_request_id` alone, and changing that key would touch each of them for a
+row shape only this step uses. Same pre-tenant, no-RLS allowlisting as
+`login_attempt`. Writing the choices deletes any attempt or earlier choices for
+the auth request in one transaction, as a fresh password step already
+supersedes a pending attempt.
 
-The chooser shows the names from the lookup, not from the browser. It is the
-existing "Choose an account" step rendered inside `LoginFlow` as a sibling of
-`otp`, `enroll` and `passwordChange`.
+A new `POST /v1/auth/login/account` with `{ auth_request_id, tenant_id }`
+deletes every choice for the auth request and returns them in ONE statement,
+guarded so that it deletes nothing unless `tenant_id` is a live choice: two
+concurrent picks cannot both resume a session, and a wrong pick does not
+destroy the chooser. It terminates the sibling sessions through Zitadel's
+`DELETE /v2/sessions/{id}` (failures are logged; the tokens never left
+Helivanta), then continues the chosen session exactly as a single match does.
+An unknown, expired or used pick is `auth_request_invalid` at the failure
+floor. The sweeper deletes expired choices with expired attempts.
+
+The chooser shows the names from the lookup, not from the browser. It is an
+`accountChoice` step inside `LoginFlow`, a sibling of `otp`, `enroll` and
+`passwordChange`; every outcome of the pick goes through the same `advance`
+the credential card uses.
 
 ### D4 — Tenant at session exchange
 
@@ -124,9 +135,14 @@ A failed email-plus-password attempt now counts against every account behind
 that email in Zitadel's lockout policy (at most five, all the same person).
 Controls:
 
-- A second rate bucket keyed on `sha256(lowercase email)` with the same rule as
-  the IP bucket, so a spray on one email is throttled even across IPs. The hash
-  is never logged.
+- A second rate bucket keyed on `sha256(lowercase email)`, so a spray on one
+  email is throttled even across IPs: five at once, then one every three
+  minutes. Each attempt reserves a token before the check, so parallel
+  attempts cannot all pass it, and a right password refunds its token
+  (`ratelimit.Limiter.Refund`), so only wrong passwords spend the budget and a
+  clinician signing in again after an idle timeout never meets it. The hash is never logged. Zitadel's lockout counts consecutive
+  failures with no window, so the bucket slows a sprayer and keeps any burst
+  below the lockout; it cannot make the lockout unreachable.
 - The five-candidate bound in the identity owner and again in the handler.
 - Production's lockout, read 2026-11-19 from
   `tesserix-k8s/charts/apps/zitadel-bootstrap/values.yaml`: instance-wide
@@ -165,6 +181,10 @@ that genuinely has more than five accounts, which is not an oracle worth
 protecting against.
 
 ### D10 — A tenant that signs in through its own identity provider
+
+**Not in slice 1.** Slice 1 checks every candidate's password; an account whose
+organisation disallows passwords refuses it like a wrong one, which is what the
+scoped card does for it today. The rest of this section is the follow-up.
 
 Helivanta reads `allowUsernamePassword` for each candidate's organisation itself,
 through the existing `loginclient.LoginPolicyForOrg` (the per-org read #950
@@ -226,7 +246,7 @@ return to the requested page after sign-in, and the remaining findings of the
 
 ## Contracts changed
 
-- `POST /v1/auth/login/password`: new `202` outcome `account_choice_required`.
+- `POST /v1/auth/login/password`: new `200` outcome `account_choice_required`, `400 too_many_accounts`.
 - `POST /v1/auth/login/account`: new, public like its siblings, rate-limited.
 - `POST /v1/auth/login/email-code`: new, same shape and budget as
   `/factor`; `login_device` table and the `stageEmailCode` attempt stage,
@@ -241,11 +261,12 @@ return to the requested page after sign-in, and the remaining findings of the
 
 ## Verification
 
-Go:
+Go (the `password_allowed` and `email_code_required` rows belong to the D10 and
+D11 slices):
 
 - Unscoped request, email with one candidate, correct password: completes;
   wrong password: equalised refusal body and floor.
-- Two candidates, same password: `202` chooser; `POST /v1/auth/login/account`
+- Two candidates, same password: `200` chooser; `POST /v1/auth/login/account`
   completes the chosen one and deletes the other session.
 - Two candidates, password matches one: completes that one, no chooser.
 - Lookup answers `truncated`: `400 too_many_accounts`, no password check made.
@@ -276,8 +297,22 @@ Gates: `pnpm turbo lint type-check test build format:check`, `make lint-go`,
 `go test -race ./...`, `./scripts/coverage-gate.sh`, `go run ./cmd/contractdocs
 -check`, release-capabilities regeneration.
 
+## Slices
+
+Slice 1 (D1–D9) ships the single card, the lookup, the chooser and the
+per-email bucket. D10's federated hand-off and D11's new-device code are later
+slices; neither weakens slice 1, which adds no path that skips a step the
+scoped card takes. Slice 1 needs onboarding-service #47 deployed before
+Helivanta: until then the lookup answers 404, which is unavailable, so an
+unscoped email sign-in would answer 503 rather than guess.
+
 ## Open before implementation
 
-1. onboarding-service#46 merged (PR #47) and its `customercontract` version bumped here.
+1. ~~onboarding-service#46 merged and its `customercontract` version bumped here.~~
+   Done: PR #47, pinned at `f47d44da`.
 2. ~~Production Zitadel lockout policy value recorded (D6).~~ Done: ten, see D6.
-3. Floor re-measured with concurrent checks (D5).
+3. Floor re-measured with concurrent checks (D5). Slice 1 proves concurrency
+   with a stub (`TestEmailSessionsChecksEveryCandidateConcurrently`: five
+   300 ms checks finish under 600 ms), so the floor still bounds one real check
+   (about 0.7 s measured in #854) rather than five. A measurement against live
+   Zitadel with five accounts is still owed before production acceptance.

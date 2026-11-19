@@ -165,6 +165,7 @@ Migration table declarations:
 - `0049_iam_assignment_governance`: `iam_assignment_governance_requests`, `iam_assignment_governance_verifications`.
 - `0050_iam_operating_governance`: `iam_operating_governance_origins`, `iam_operating_governance_commands`.
 - `0051_iam_operating_employer_inbox`: concurrent index `iam_operating_employer_inbox` on `iam_operating_duties (tenant_id, employer_kind, employer_id, native_administration, created_at DESC, id DESC)`.
+- `0053_iam_login_account_choice`: `login_account_choice`.
 
 ## reference
 
@@ -1764,6 +1765,7 @@ Migration table declarations:
 | `POST /v1/auth/accounts` | same-origin mailbox proof before private separate-account discovery |
 | `POST /v1/auth/accounts/verify` | browser-bound one-use mailbox proof; no application access |
 | `POST /v1/auth/login` | creates the Helivanta session and therefore cannot require one |
+| `POST /v1/auth/login/account` | continues a password already verified for several accounts with the one the person picked |
 | `POST /v1/auth/login/enroll` | confirms the newly enrolled second factor that creates the session, so it cannot require one |
 | `POST /v1/auth/login/factor` | checks the second factor that creates the session, so it cannot require one |
 | `POST /v1/auth/login/password` | checks the credential that creates the session, so it cannot require one |

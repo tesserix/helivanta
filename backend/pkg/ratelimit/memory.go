@@ -76,6 +76,16 @@ func (m *Memory) Allow(key string, r Rule, now time.Time) Decision {
 	}
 }
 
+// Refund returns one token to key's bucket, capped at the burst. It never
+// creates a bucket: a key with none is already at full burst.
+func (m *Memory) Refund(key string, r Rule, _ time.Time) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if b, ok := m.buckets[key]; ok {
+		b.tokens = min(float64(r.Burst), b.tokens+1)
+	}
+}
+
 // Len reports how many keys are held. Exported for the bound test, which
 // cannot otherwise observe eviction.
 func (m *Memory) Len() int {

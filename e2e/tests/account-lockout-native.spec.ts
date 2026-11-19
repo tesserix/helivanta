@@ -4,9 +4,10 @@ import { resolve } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { login, specPharmacist, type Credentials } from "./support/login";
 import { ZITADEL_ORIGIN } from "./support/hosts";
+import nativeStaffTenants from "../../scripts/lib/native-staff-fixture-tenants.json" with { type: "json" };
 
 test.use({ trace: "off", video: "off", screenshot: "off" });
-const tenant = "11111111-1111-1111-1111-111111111111";
+const tenant = nativeStaffTenants.hospital;
 const permissionPath = "/api/v1/iam/me/permissions";
 
 async function refusedSignIn(page: Page, account: Credentials) {

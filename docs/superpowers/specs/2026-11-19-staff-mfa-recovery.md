@@ -325,14 +325,12 @@ source ledger does not claim runtime acceptance. Revocation uses the existing
 reason. These corrections await a fresh hosted run; no conformance gate was
 skipped or relaxed.
 
-
 Hosted follow-up `44450567737` confirmed the exact RLS write-policy distinction:
 `USING` calls `hms_tenant_visible` and retains exact-tenant equality, while
 `WITH CHECK` uses exact-tenant equality without that helper. The three write
 policies are corrected to the existing `tenantdb.LintRLS` contract; its checks
 remain unchanged. This failure happened during schema bootstrap before any new
 native/browser or Staff recovery database acceptance could run.
-
 
 ## Selector isolation and guarded native fixture preparation
 
@@ -365,7 +363,6 @@ fixture remains read-only without its explicit MFA opt-in. These focused fixture
 unit tests do not prove the native administrator-to-Staff recovery journey, and
 `staff_mfa_recovery` remains ineligible and disabled in released environments.
 
-
 ## First native hospital browser journey
 
 `e2e/tests/staff-mfa-recovery-native.spec.ts` now drives real hospital owner and
@@ -387,7 +384,6 @@ before starting the guarded owner and HMS services. Local validation passed:
 scoped Go race/vet/lint, the Go build and the shell production build. Generated
 shell build output was removed. Independent-employer native acceptance, hosted
 SQL/browser results, normal merge and deployed verification remain outstanding.
-
 
 ## Independent native pharmacy journey and fixture protocol correction
 
@@ -415,7 +411,6 @@ or mismatched subjects, production issuers and malformed provider payloads.
 These corrections still require a fresh hosted run. No browser success, merge,
 live migration or deployment is claimed by adding these test cases.
 
-
 The same hosted Go run passed the earlier Staff selector gates, then rejected the
 three recovery status routes in `TestEveryCollectionGETIsPaginated`. That gate
 requires every non-paginated GET, including scalar reads, to be explicitly
@@ -425,7 +420,6 @@ pagination requirement changed. The existing regression was reproduced locally
 before the classification and passed with race instrumentation afterward. Full
 PostgreSQL/OpenFGA architecture execution remains hosted to respect the local
 service restriction.
-
 
 ## Native machine subject and OAuth identity
 
@@ -458,7 +452,6 @@ records read-only live discovery and the required approval/order of schema,
 owner, Kargo and QA actions. It is not rollout authorization or proof of native
 browser acceptance. No live action occurred.
 
-
 The owner manifest compatibility change passed all checks in hosted run
 `44459441660` at `d075ee7c80800dfaddde5216b29ab8516f52bddb`; both consumers now
 pin that revision. Local validation on those pins passed 1,492 API tests, 200
@@ -468,7 +461,6 @@ build and the shell production build. Generated shell output was removed. The
 previous HMS web/native Staff and complete supplier checks passed; its MFA E2E
 seed and migration-count failures are corrected in this candidate and still need
 a fresh hosted run. No deployment or native MFA browser success is claimed.
-
 
 ## Browser registration and actual locked-account acceptance
 
@@ -501,3 +493,27 @@ an already invalid session. Screenshots, tracing and video remain disabled.
 The parent PR's GitGuardian dashboard requires a separate sign-in. Its finding
 has not been dismissed, its check remains required, and no GitGuardian access or
 security exception has been granted during this review.
+
+## Canonical native recovery fixtures
+
+Hosted `dc647ef8` passed the native password-reset journey: old access was revoked,
+the old password was refused, and the new password signed in. Its Staff MFA and
+lockout cases stopped before exercise at the private bootstrap credential guard.
+The explicit fixture seed now retains a separate exclusive `0600` setup copy;
+browser file guards remain strict and the original native-generated PAT is unchanged.
+
+The same revision's Go integration run reached the canonical workload client and
+exposed invalid legacy sample tenant UUID variants. A transport-level regression
+reproduces rejection without a local database, then passes using canonical scopes.
+The isolated native seed, owner fixture and browser cases now agree on the two
+UUIDv7/RFC 4122 tenant IDs in `scripts/lib/native-staff-fixture-tenants.json`.
+Each is a distinct real native organization, provisioned only under the Staff MFA
+fixture opt-in; baseline fixture tenants are preserved. The owner fixture admits
+MFA commands only in these canonical scopes. Production UUID checks are unchanged.
+Independent Staff fixture calls now carry the required expected account/workspace
+headers rather than bypassing the server's session-change control.
+
+These corrections still need fresh hosted Go and native-browser acceptance. The
+native password result does not establish MFA reset, re-enrollment or lockout
+acceptance. Owner prerequisite PR #44, recovery PR #45, schema reconciliation,
+normal HMS merges, approved Kargo rollout and deployed verification remain open.

@@ -1,9 +1,71 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import nativeStaffTenants from "./native-staff-fixture-tenants.json" with { type: "json" };
 import {
   ensureTenantIdentityFixtures,
   verifyLocalIdentityUser,
 } from "./tenant-identity-fixture.mjs";
+
+test("native MFA opt-in provisions separate canonical organizations and binds their account owners", async () => {
+  const creates = [];
+  const issuer = "http://auth.tesserix.localhost:20080";
+  await ensureTenantIdentityFixtures({
+    issuer,
+    pat: "synthetic",
+    staffMFARecovery: true,
+    fetcher: async (url, options) => {
+      const route = new URL(url).pathname;
+      const body = options.body ? JSON.parse(options.body) : null;
+      if (route === "/management/v1/orgs/me") return Response.json({ org: { id: "platform-org" } });
+      if (route === "/management/v1/projects/_search")
+        return Response.json({ result: [{ id: "native-project", name: "Helivanta" }] });
+      if (route.startsWith("/admin/v1/orgs/")) return new Response("{}", { status: 404 });
+      if (route === "/v2/organizations") {
+        creates.push(body.organizationId);
+        return Response.json({ organizationId: body.organizationId });
+      }
+      if (route === "/management/v1/projectgrants/_search")
+        return Response.json({ details: {}, result: [] });
+      return Response.json({ grantId: "native-grant" });
+    },
+  });
+  assert.equal(creates.length, 4);
+  for (const tenantId of Object.values(nativeStaffTenants)) {
+    assert.match(tenantId, /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    assert.ok(creates.includes(`helivanta-${tenantId}`));
+    let calls = 0;
+    const fetcher = async () => {
+      calls++;
+      return Response.json({
+        user: {
+          userId: "native-staff",
+          state: "USER_STATE_ACTIVE",
+          details: { resourceOwner: `helivanta-${tenantId}` },
+          human: {},
+        },
+      });
+    };
+    await assert.rejects(
+      verifyLocalIdentityUser({
+        issuer,
+        pat: "synthetic",
+        subject: "native-staff",
+        tenantId,
+        fetcher,
+      }),
+    );
+    assert.equal(calls, 0, "additional native scopes need the explicit opt-in");
+    await verifyLocalIdentityUser({
+      issuer,
+      pat: "synthetic",
+      subject: "native-staff",
+      tenantId,
+      staffMFARecovery: true,
+      fetcher,
+    });
+    assert.equal(calls, 1);
+  }
+});
 
 test("identity fixture refuses a production issuer before requesting credentials", async () => {
   let calls = 0;

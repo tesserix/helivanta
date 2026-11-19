@@ -6,6 +6,7 @@ import { specAdmin, specPharmacist, type Credentials } from "./login";
 import { uuidv7 } from "./pharmacy";
 import { generateTOTP } from "./totp";
 import { ZITADEL_ORIGIN } from "./hosts";
+import nativeStaffTenants from "../../../scripts/lib/native-staff-fixture-tenants.json" with { type: "json" };
 
 const permissions = "/api/v1/iam/me/permissions";
 
@@ -41,10 +42,7 @@ export async function exerciseNativeStaffMFARecovery(
   { page, browser }: { page: Page; browser: Browser },
   kind: "hospital" | "pharmacy",
 ) {
-  const tenant =
-    kind === "hospital"
-      ? "11111111-1111-1111-1111-111111111111"
-      : "22222222-2222-2222-2222-222222222222";
+  const tenant = nativeStaffTenants[kind];
   const slug = kind === "hospital" ? "staff-mfa-recovery-native" : "staff-mfa-pharmacy-native";
   if (
     process.env.HELIVANTA_STAFF_MFA_RECOVERY_FIXTURE !== "true" ||
@@ -213,7 +211,7 @@ export async function exerciseNativeStaffMFARecovery(
     ).toBe(409);
     if (foreignContext) {
       const foreignPage = await foreignContext.newPage();
-      const foreignTenant = "11111111-1111-1111-1111-111111111111";
+      const foreignTenant = nativeStaffTenants.hospital;
       await password(
         foreignPage,
         { email: "e2e-staff-mfa-pharmacy-native-foreign@helivanta.dev", password: target.password },

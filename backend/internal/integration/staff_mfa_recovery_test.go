@@ -32,6 +32,36 @@ import (
 	"gorm.io/gorm"
 )
 
+const (
+	staffMFATenantA = "11111111-1111-7111-8111-111111111111"
+	staffMFATenantB = "22222222-2222-7222-8222-222222222222"
+)
+
+func TestStaffMFAFixtureTenantsReachTheCanonicalOwnerClient(t *testing.T) {
+	for _, tenant := range []string{staffMFATenantA, staffMFATenantB} {
+		t.Run(tenant, func(t *testing.T) {
+			command, link := uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
+			in := customercontract.StaffMFARecoveryRequest{
+				ActorSubject: "synthetic-admin",
+				Target:       customercontract.StaffMFARecoveryTarget{TenantID: tenant, EmployerKind: "hospital", EmployerID: uuid.NewString(), StaffID: uuid.NewString(), StaffVersion: 1, LinkID: link, LinkVersion: 2, Subject: "synthetic-staff"},
+				Intent:       customercontract.StaffMFAResetInput{CommandID: command, ExpectedLinkID: link, ExpectedLinkVersion: 2, ExpectedStaffVersion: 1, Reason: "Synthetic fixture contract verification"},
+			}
+			calls := 0
+			client, err := staffclient.New(staffclient.Config{Endpoint: "http://onboarding-api.onboarding.svc.cluster.local:8080", ProductKey: "helivanta", Tokens: mfaOwnerToken{}, HTTP: &http.Client{Transport: mfaOwnerTransport(func(r *http.Request) (*http.Response, error) {
+				calls++
+				require.Equal(t, "/v1/orgs/"+tenant+"/staff-mfa-recoveries/"+command, r.URL.Path)
+				return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"commandId":"` + command + `","state":"prepared"}`))}, nil
+			})}})
+			require.NoError(t, err)
+			receipt, err := client.PrepareMFA(t.Context(), staffclient.Scope{TenantID: uuid.MustParse(tenant), CommandID: uuid.MustParse(command), ActorSubject: in.ActorSubject}, in)
+			require.NoError(t, err)
+			require.Equal(t, "prepared", receipt.State)
+			require.Equal(t, command, receipt.CommandID)
+			require.Equal(t, 1, calls)
+		})
+	}
+}
+
 type mfaNativeIdentity struct{ ineligible atomic.Bool }
 
 func (*mfaNativeIdentity) UserState(context.Context, string, string) (loginclient.UserState, error) {
@@ -166,8 +196,8 @@ func newMFAResetFixture(t *testing.T) (*mfaResetFixture, *mfaOwnerFixture, custo
 	require.NoError(t, err)
 	f := newMFAWorkforceFixture(t, client, owner.native)
 	owner.db = f.db
-	require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
-		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'user-manager','tenant_admin'),(?,'user-reviewer','staff_member'),(?,'user-candidate','staff_member')`, testutil.TenantA, testutil.TenantA, testutil.TenantA).Error
+	require.NoError(t, f.db.WithTenant(t.Context(), staffMFATenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'user-manager','tenant_admin'),(?,'user-reviewer','staff_member'),(?,'user-candidate','staff_member')`, staffMFATenantA, staffMFATenantA, staffMFATenantA).Error
 	}))
 	link := uuid.Must(uuid.NewV7()).String()
 	f.call("PUT", f.path+"/"+link, "manager", `{"subject":"user-candidate","reason":"Verified synthetic target"}`, 200)
@@ -187,7 +217,7 @@ func mfaRequest(t *testing.T, r *gin.Engine, method, path, actor string, input a
 	request := httptest.NewRequest(method, path, body)
 	request.Header.Set("Authorization", "Bearer "+actor)
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantA)
+	request.Header.Set("X-Helivanta-Expected-Tenant", staffMFATenantA)
 	request.Header.Set("X-Helivanta-Expected-Subject", "user-"+actor)
 	response := httptest.NewRecorder()
 	r.ServeHTTP(response, request)
@@ -197,7 +227,7 @@ func mfaRequest(t *testing.T, r *gin.Engine, method, path, actor string, input a
 func mfaWatermark(t *testing.T, db *tenantdb.DB) time.Time {
 	t.Helper()
 	var at time.Time
-	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+	require.NoError(t, db.WithTenant(t.Context(), staffMFATenantA, func(tx *gorm.DB) error {
 		return tx.Table("iam_credential_revocations").Select("revoked_at").Where("subject='user-candidate'").Scan(&at).Error
 	}))
 	return at
@@ -235,7 +265,7 @@ func TestStaffMFAResetFencesBeforeDispatchAndReplaysWithoutNewRevocation(t *test
 	owner.failDispatch = true
 	response := mfaRequest(t, f.r, "PUT", path, "manager", input)
 	require.Equal(t, 503, response.Code, response.Body.String())
-	require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+	require.NoError(t, f.db.WithTenant(t.Context(), staffMFATenantA, func(tx *gorm.DB) error {
 		var reason string
 		if err := tx.Table("iam_credential_revocations").Select("reason").Where("subject='user-candidate'").Scan(&reason).Error; err != nil {
 			return err
@@ -267,13 +297,13 @@ func TestStaffMFAResetFencesBeforeDispatchAndReplaysWithoutNewRevocation(t *test
 		`UPDATE iam_staff_mfa_fences SET fingerprint=repeat('0',64) WHERE command_id=?`,
 		`DELETE FROM iam_staff_mfa_fences WHERE command_id=?`,
 	} {
-		err := f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error { return tx.Exec(statement, input.CommandID).Error })
+		err := f.db.WithTenant(t.Context(), staffMFATenantA, func(tx *gorm.DB) error { return tx.Exec(statement, input.CommandID).Error })
 		require.Error(t, err, "a committed fence is immutable")
 		var pg *pgconn.PgError
 		require.True(t, errors.As(err, &pg))
 		require.Equal(t, "23514", pg.Code)
 	}
-	require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantB, func(tx *gorm.DB) error {
+	require.NoError(t, f.db.WithTenant(t.Context(), staffMFATenantB, func(tx *gorm.DB) error {
 		var count int64
 		if err := tx.Table("iam_staff_mfa_fences").Where("command_id=?", input.CommandID).Count(&count).Error; err != nil {
 			return err
@@ -293,8 +323,8 @@ func TestStaffMFAResetFencesBeforeDispatchAndReplaysWithoutNewRevocation(t *test
 func TestStaffMFAPreparedCancellationSurvivesTargetPromotionWithoutDispatch(t *testing.T) {
 	f, owner, input, path := newMFAResetFixture(t)
 	owner.afterPrepare = func() {
-		require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
-			return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'user-candidate','tenant_admin')`, testutil.TenantA).Error
+		require.NoError(t, f.db.WithTenant(t.Context(), staffMFATenantA, func(tx *gorm.DB) error {
+			return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'user-candidate','tenant_admin')`, staffMFATenantA).Error
 		}))
 	}
 	response := mfaRequest(t, f.r, "PUT", path, "manager", input)
@@ -321,10 +351,10 @@ func newMFAWorkforceFixture(t *testing.T, owner *staffclient.Client, native *mfa
 	t.Cleanup(proxy.Close)
 	fga, err := authz.NewClient(t.Context(), proxy.URL, "recovery-"+uuid.NewString())
 	require.NoError(t, err)
-	require.NoError(t, fga.GrantTenantRole(t.Context(), testutil.TenantA, authz.RoleStaffMember))
-	require.NoError(t, fga.GrantRole(t.Context(), testutil.TenantA, "user-candidate", authz.RoleStaffMember))
+	require.NoError(t, fga.GrantTenantRole(t.Context(), staffMFATenantA, authz.RoleStaffMember))
+	require.NoError(t, fga.GrantRole(t.Context(), staffMFATenantA, "user-candidate", authz.RoleStaffMember))
 	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{StaffAccounts: owner, GovernanceSources: testutil.GovernanceReviewProtocol,
-		Tokens: map[string]string{"manager": testutil.TenantA, "reviewer": testutil.TenantA, "candidate": testutil.TenantA, "foreign": testutil.TenantB},
+		Tokens: map[string]string{"manager": staffMFATenantA, "reviewer": staffMFATenantA, "candidate": staffMFATenantA, "foreign": staffMFATenantB},
 		Perms: map[string][]authz.Permission{
 			"manager":  {workforce.PermHospitalManage, workforce.PermEnrollmentManage, workforce.PermLoginLinkManage, workforce.PermLoginLinkReview, workforce.PermIndependentLoginManage, workforce.PermIndependentLoginReview},
 			"reviewer": {workforce.PermLoginLinkReview, workforce.PermIndependentLoginReview}, "candidate": {workforce.PermLoginLinkManage}, "foreign": {workforce.PermLoginLinkManage},
@@ -341,7 +371,11 @@ func newMFAWorkforceFixture(t *testing.T, owner *staffclient.Client, native *mfa
 }
 func (f *mfaResetFixture) call(method, path, actor, body string, status int) *httptest.ResponseRecorder {
 	f.t.Helper()
-	response := testutil.Do(f.r, method, path, actor, body)
+	var input any
+	if body != "" {
+		input = json.RawMessage(body)
+	}
+	response := mfaRequest(f.t, f.r, method, path, actor, input)
 	require.Equal(f.t, status, response.Code, response.Body.String())
 	return response
 }
@@ -369,22 +403,22 @@ func TestStaffMFAResetRejectsStaleUnreviewedForeignAndSelfTargetsBeforeOwnerIO(t
 			require.Zero(t, owner.dispatches)
 		})
 	}
-	require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantB, func(tx *gorm.DB) error {
-		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'user-foreign','tenant_admin')`, testutil.TenantB).Error
+	require.NoError(t, f.db.WithTenant(t.Context(), staffMFATenantB, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'user-foreign','tenant_admin')`, staffMFATenantB).Error
 	}))
 	raw, err := json.Marshal(input)
 	require.NoError(t, err)
 	foreignRequest := httptest.NewRequest("PUT", path, strings.NewReader(string(raw)))
 	foreignRequest.Header.Set("Authorization", "Bearer foreign")
 	foreignRequest.Header.Set("Content-Type", "application/json")
-	foreignRequest.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantB)
+	foreignRequest.Header.Set("X-Helivanta-Expected-Tenant", staffMFATenantB)
 	foreignRequest.Header.Set("X-Helivanta-Expected-Subject", "user-foreign")
 	foreignResponse := httptest.NewRecorder()
 	f.r.ServeHTTP(foreignResponse, foreignRequest)
 	require.Equal(t, 404, foreignResponse.Code, foreignResponse.Body.String())
 	require.Nil(t, owner.held)
-	require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
-		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'user-candidate','tenant_admin')`, testutil.TenantA).Error
+	require.NoError(t, f.db.WithTenant(t.Context(), staffMFATenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'user-candidate','tenant_admin')`, staffMFATenantA).Error
 	}))
 	response := mfaRequest(t, f.r, "PUT", path, "candidate", input)
 	require.Equal(t, 403, response.Code, response.Body.String())
@@ -397,14 +431,14 @@ func TestStaffMFAResetRejectsStaleUnreviewedForeignAndSelfTargetsBeforeOwnerIO(t
 func TestIndependentPharmacyStaffMFARecoveryKeepsTheEmployerScope(t *testing.T) {
 	f, owner, _, _ := newMFAResetFixture(t)
 	employer := uuid.Must(uuid.NewV7()).String()
-	require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+	require.NoError(t, f.db.WithTenant(t.Context(), staffMFATenantA, func(tx *gorm.DB) error {
 		if err := tx.Exec(`SELECT set_config('app.workforce_subject','user-manager',true),set_config('app.workforce_hospital',?,true)`, employer).Error; err != nil {
 			return err
 		}
-		if err := tx.Exec(`INSERT INTO workforce_hospitals(tenant_id,id,name,establishment_kind,pharmacy_ownership_type) VALUES(?,?,'Synthetic Independent Recovery Pharmacy','pharmacy','independent')`, testutil.TenantA, employer).Error; err != nil {
+		if err := tx.Exec(`INSERT INTO workforce_hospitals(tenant_id,id,name,establishment_kind,pharmacy_ownership_type) VALUES(?,?,'Synthetic Independent Recovery Pharmacy','pharmacy','independent')`, staffMFATenantA, employer).Error; err != nil {
 			return err
 		}
-		return tx.Exec(`INSERT INTO workforce_hospital_access(tenant_id,hospital_id,subject,level) VALUES(?,?,'user-manager','manager'),(?,?,'user-reviewer','manager')`, testutil.TenantA, employer, testutil.TenantA, employer).Error
+		return tx.Exec(`INSERT INTO workforce_hospital_access(tenant_id,hospital_id,subject,level) VALUES(?,?,'user-manager','manager'),(?,?,'user-reviewer','manager')`, staffMFATenantA, employer, staffMFATenantA, employer).Error
 	}))
 	root := "/v1/workforce/pharmacies/" + employer
 	staff := uuid.NewString()
@@ -473,11 +507,11 @@ func (f *mfaResetFixture) assertSelectionPrivate(tables ...string) {
 	f.t.Helper()
 	for _, table := range tables {
 		var before int64
-		require.NoError(f.t, f.db.WithTenant(f.t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		require.NoError(f.t, f.db.WithTenant(f.t.Context(), staffMFATenantA, func(tx *gorm.DB) error {
 			return tx.Table(table).Count(&before).Error
 		}))
 		require.Positive(f.t, before, "ordinary reset must have retained private evidence")
-		require.NoError(f.t, f.db.WithTenant(f.t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		require.NoError(f.t, f.db.WithTenant(f.t.Context(), staffMFATenantA, func(tx *gorm.DB) error {
 			require.NoError(f.t, tx.Exec(`SELECT set_config('app.iam_staff_selection','{"scope":"invalid"}',true)`).Error)
 			var count int64
 			require.NoError(f.t, tx.Table(table).Count(&count).Error)

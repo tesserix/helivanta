@@ -7,12 +7,12 @@ shared production/QA environment. Issue #1703 remains open.
 
 ## Ownership and release units
 
-| Owner                      | Change                                                                                             | Required evidence                                                                                                 |
-| -------------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Onboarding service, PR #45 | Native recovery ledger, factor operations and session proof; workload authentication               | Current owner contracts, Go quality, secret scan and image checks; matching Go/TypeScript consumer pins           |
-| Infrastructure, PR #1713   | Additive owner schema in `charts/apps/db-schema-bootstrap/schemas/global/global/onboarding_db.sql` | Schema tests, reviewed runtime grants, successful approved global schema reconciliation                           |
-| Helivanta, PR #1748        | Tenant-scoped password recovery and lockout guidance                                               | Password-reset-to-login acceptance and a resolved GitGuardian finding; normal required checks                     |
-| Helivanta, PR #1749        | Reviewed Staff MFA reset, retained application intent, credential fencing and UI                   | Full Go/web/native browser checks, both employer models, denial cases, local builds and generated contract checks |
+| Owner                               | Change                                                                                                          | Required evidence                                                                                                 |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Onboarding service, PRs #44 and #45 | Password-recovery prerequisite, native MFA ledger, factor operations and session proof; workload authentication | Current owner contracts, Go quality, secret scan and image checks; matching Go/TypeScript consumer pins           |
+| Infrastructure, PR #1713            | Additive owner schema in `charts/apps/db-schema-bootstrap/schemas/global/global/onboarding_db.sql`              | Schema tests, reviewed runtime grants, successful approved global schema reconciliation                           |
+| Helivanta, PR #1748                 | Tenant-scoped password recovery and lockout guidance                                                            | Password-reset-to-login acceptance and a resolved GitGuardian finding; normal required checks                     |
+| Helivanta, PR #1749                 | Reviewed Staff MFA reset, retained application intent, credential fencing and UI                                | Full Go/web/native browser checks, both employer models, denial cases, local builds and generated contract checks |
 
 Native identities, factors and password/session evidence remain owned by Zitadel
 through the onboarding service. Workforce owns current Staff and reviewed account
@@ -65,6 +65,10 @@ not candidate acceptance.
    the disposable bootstrap credential. Retries reuse only the same value;
    symlinks, broader permissions and conflicts fail closed. CI validates this
    private file before owner/browser startup and never exports its value.
+   The native Staff cases use the two fixed UUIDv7/RFC 4122 tenants in
+   `scripts/lib/native-staff-fixture-tenants.json`, each with its own actual
+   native organization. The legacy sample tenant IDs remain for baseline tests;
+   they cannot satisfy the canonical Staff workload client's UUID requirements.
 3. Verify password recovery, single-use verification, password-reset-to-login and
    clear locked-account guidance against the actual changed behavior. Resolve
    the parent PR's security finding through the legitimate security workflow;
@@ -85,7 +89,7 @@ not candidate acceptance.
    `global/global-db-schema-bootstrap`. Verify the actual run's success and
    retained schema/grants before advancing owner code. Use the owning GitOps
    repository; do not execute ad hoc SQL through a pod.
-2. Approve the onboarding-service release from PR #45 and its Kargo `prod` stage
+2. Approve the onboarding-service prerequisite PR #44 and recovery PR #45 releases and their Kargo `prod` stage
    in `kargo-onboarding`. Observe the released image, promotion and
    `onboarding-service` Argo health. Do not advance HMS against an unverified
    owner/schema combination.

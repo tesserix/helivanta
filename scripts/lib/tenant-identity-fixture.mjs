@@ -1,8 +1,22 @@
+import nativeStaffTenants from "./native-staff-fixture-tenants.json" with { type: "json" };
+
 const localIssuer = "http://auth.tesserix.localhost:20080";
 const tenants = ["11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222"];
 
-export async function ensureTenantIdentityFixtures({ issuer, pat, fetcher = fetch }) {
+function fixtureTenants(staffMFARecovery) {
+  if (typeof staffMFARecovery !== "boolean")
+    throw new Error("native Staff fixture requires explicit boolean opt-in");
+  return staffMFARecovery ? [...tenants, ...Object.values(nativeStaffTenants)] : tenants;
+}
+
+export async function ensureTenantIdentityFixtures({
+  issuer,
+  pat,
+  staffMFARecovery = false,
+  fetcher = fetch,
+}) {
   if (issuer !== localIssuer) throw new Error("identity fixtures require the local native issuer");
+  const scopes = fixtureTenants(staffMFARecovery);
   async function request(method, path, body, scope, allowMissing = false) {
     const response = await fetcher(`${issuer}${path}`, {
       method,
@@ -34,7 +48,7 @@ export async function ensureTenantIdentityFixtures({ issuer, pat, fetcher = fetc
     throw new Error("local native project not bootstrapped");
   const projectId = matching[0].id;
   const adminOrgId = platform.org.id;
-  for (const tenant of tenants) {
+  for (const tenant of scopes) {
     const org = `helivanta-${tenant}`;
     const existing = await request("GET", `/admin/v1/orgs/${org}`, null, null, true);
     if (!existing) {
@@ -86,10 +100,17 @@ export async function ensureTenantIdentityFixtures({ issuer, pat, fetcher = fetc
   return { projectId, adminOrgId };
 }
 
-export async function verifyLocalIdentityUser({ issuer, pat, subject, tenantId, fetcher = fetch }) {
+export async function verifyLocalIdentityUser({
+  issuer,
+  pat,
+  subject,
+  tenantId,
+  staffMFARecovery = false,
+  fetcher = fetch,
+}) {
   if (
     issuer !== localIssuer ||
-    !tenants.includes(tenantId) ||
+    !fixtureTenants(staffMFARecovery).includes(tenantId) ||
     typeof subject !== "string" ||
     !/^[A-Za-z0-9_-]{1,200}$/.test(subject)
   )

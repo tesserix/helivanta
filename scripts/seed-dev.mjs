@@ -53,6 +53,7 @@
 // which this script depends on for the client_id and machine PAT.)
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import nativeStaffTenants from "./lib/native-staff-fixture-tenants.json" with { type: "json" };
 
 import {
   managementAPI,
@@ -157,7 +158,8 @@ const USERS = [
     ? [
         {
           email: "e2e-staff-mfa-recovery-native-reviewer@helivanta.dev",
-          memberships: ADMIN_MEMBERSHIPS,
+          homeTenant: nativeStaffTenants.hospital,
+          memberships: [{ tenantId: nativeStaffTenants.hospital, role: "tenant_admin" }],
         },
       ]
     : []),
@@ -165,34 +167,42 @@ const USERS = [
     ? [
         {
           email: "e2e-staff-mfa-pharmacy-native-reviewer@helivanta.dev",
-          homeTenant: SECOND_TENANT_ID,
-          memberships: [{ tenantId: SECOND_TENANT_ID, role: "tenant_admin" }],
+          homeTenant: nativeStaffTenants.pharmacy,
+          memberships: [{ tenantId: nativeStaffTenants.pharmacy, role: "tenant_admin" }],
         },
         {
           email: "e2e-staff-mfa-pharmacy-native-foreign@helivanta.dev",
-          memberships: [{ tenantId: TENANT_ID, role: "tenant_admin" }],
+          homeTenant: nativeStaffTenants.hospital,
+          memberships: [{ tenantId: nativeStaffTenants.hospital, role: "tenant_admin" }],
         },
       ]
     : []),
-  ...specSlugs().flatMap((slug) =>
-    slug === "staff-mfa-pharmacy-native"
+  ...specSlugs().flatMap((slug) => {
+    const nativeTenant =
+      process.env.HELIVANTA_STAFF_MFA_RECOVERY_FIXTURE === "true" &&
+      ["staff-mfa-pharmacy-native", "staff-mfa-recovery-native", "account-lockout-native"].includes(
+        slug,
+      )
+        ? nativeStaffTenants[slug === "staff-mfa-pharmacy-native" ? "pharmacy" : "hospital"]
+        : null;
+    return nativeTenant
       ? [
           {
             email: specEmail(slug, "admin"),
-            homeTenant: SECOND_TENANT_ID,
-            memberships: [{ tenantId: SECOND_TENANT_ID, role: "tenant_admin" }],
+            homeTenant: nativeTenant,
+            memberships: [{ tenantId: nativeTenant, role: "tenant_admin" }],
           },
           {
             email: specEmail(slug, "pharmacist"),
-            homeTenant: SECOND_TENANT_ID,
-            memberships: [{ tenantId: SECOND_TENANT_ID, role: "pharmacist" }],
+            homeTenant: nativeTenant,
+            memberships: [{ tenantId: nativeTenant, role: "pharmacist" }],
           },
         ]
       : [
           { email: specEmail(slug, "admin"), memberships: ADMIN_MEMBERSHIPS },
           { email: specEmail(slug, "pharmacist"), memberships: PHARMACIST_MEMBERSHIPS },
-        ],
-  ),
+        ];
+  }),
 ];
 
 function profileFor(email) {
@@ -323,10 +333,14 @@ async function ensureTOTPEnrolled(pat, userId, email) {
 async function main() {
   const pat = readMachinePAT();
   const loginClientPAT = readLoginClientPAT();
-  const identityManifest = await ensureTenantIdentityFixtures({ issuer: ISSUER, pat });
   const mfaFixture = process.env.HELIVANTA_STAFF_MFA_RECOVERY_FIXTURE;
   if (mfaFixture && mfaFixture !== "true")
     throw new Error("Staff MFA fixture requires explicit true opt-in");
+  const identityManifest = await ensureTenantIdentityFixtures({
+    issuer: ISSUER,
+    pat,
+    staffMFARecovery: mfaFixture === "true",
+  });
   if (mfaFixture === "true") {
     retainPrivateFixtureSecret(
       new URL("../dev/zitadel/secrets/native-staff-setup.pat", import.meta.url),
@@ -360,7 +374,13 @@ async function main() {
   try {
     for (const { email, memberships, homeTenant = TENANT_ID } of USERS) {
       const userId = await ensureUser(pat, email, homeTenant);
-      await verifyLocalIdentityUser({ issuer: ISSUER, pat, subject: userId, tenantId: homeTenant });
+      await verifyLocalIdentityUser({
+        issuer: ISSUER,
+        pat,
+        subject: userId,
+        tenantId: homeTenant,
+        staffMFARecovery: mfaFixture === "true",
+      });
       console.log(`Seeded ${email} / ${PASSWORD} (userId=${userId})`);
 
       // Bootstrap: the first tenant_admin cannot be granted through a

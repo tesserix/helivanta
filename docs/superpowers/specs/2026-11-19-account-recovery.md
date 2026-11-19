@@ -43,8 +43,11 @@ exposes `human.passwordChanged` in its v2 user contract and query projection.
 Identity-owner PR [#43](https://github.com/tesserix/onboarding-service/pull/43)
 adds a private, opt-in current-status projection of this timestamp, with a
 native-method inventory check before declaring an account passwordless. The HMS
-consumer is pinned to that exact canonical owner commit, rather than copying
-its model or widening the login client's native permissions.
+consumer uses the canonical owner model rather than copying it or widening the
+login client's native permissions. Integration with current `main` retains its
+newer owner pin `f47d44dae55e`, which includes this credential projection and the
+single-screen sign-in contract. Both onboarding replicas were observed ready on
+that revision during the PR #1747 release review.
 
 The identity owner is deployed at merge `b5f15c9548afee95b2f286211b13dfd2ca36c244`,
 with Kargo Freight `c600d14ad23790feb59e80a3c387ada4eeb94d1d` verified and both

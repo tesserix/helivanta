@@ -75,3 +75,21 @@ No timeout, retry, cache or authorization behavior changed.
 Full hosted Go gates, a passing final accepted revision, approved schema/owner/HMS
 rollout and deployed browser/API verification remain required. No recovery PR
 has been merged or deployed on the strength of this evidence.
+
+## Main integration after hosted acceptance
+
+Main advanced to `b30a8bb83dba053e0d279ae9d8d16632d86d17c1`, including the
+credential-freshness prerequisite and pharmacy lot-block rule. The password
+parent integration `2d9ae9ec` retains its owner SDK revision and includes those
+main changes. The combined Staff branch retains its newer owner SDK and both
+recovery implementations. Registry and Staff source inventories were regenerated
+from the merged canonical module registrations. The additional pharmacy migration
+does not replace the existing IAM migration identifiers.
+
+Local integration validation passed backend builds, identity-client and
+organization-identity race suites, affected-package vet, contractdocs generation
+and checking, and Staff source-inventory generation and checking. The parent
+fixture/inventory selection passed 18 Node tests; the combined diagnostics,
+fixture and inventory selection passed 25. These integrations need fresh hosted
+checks before release. The earlier jobs are allowed to finish before the PR
+branches advance, preserving their full Go results instead of cancelling them.

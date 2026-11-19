@@ -16,6 +16,7 @@ import (
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 // #1386 A3: stock becomes sellable only by a checked release from
@@ -27,6 +28,7 @@ var releasePerms = []authz.Permission{"pharmacy.catalogue.read", "pharmacy.catal
 
 type releaseWorld struct {
 	r                             *gin.Engine
+	db                            *tenantdb.DB
 	product, quarantine, sellable string
 	batch                         string
 }
@@ -37,7 +39,7 @@ type releaseWorld struct {
 func newReleaseWorld(t *testing.T) releaseWorld {
 	t.Helper()
 	pharmacy.SetClock(t, func() time.Time { return time.Date(2026, 11, 1, 6, 30, 0, 0, time.UTC) })
-	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"editor": testutil.TenantA, "pharmacist": testutil.TenantA, "clerk": testutil.TenantA},
 		Perms: map[string][]authz.Permission{
 			"editor":     releasePerms,
@@ -49,7 +51,7 @@ func newReleaseWorld(t *testing.T) releaseWorld {
 	for _, s := range []string{"user-editor", "user-pharmacist", "user-clerk"} {
 		grantCatalogue(t, r, s, "editor")
 	}
-	w := releaseWorld{r: r, product: uuid.Must(uuid.NewV7()).String(), quarantine: uuid.Must(uuid.NewV7()).String(), sellable: uuid.Must(uuid.NewV7()).String()}
+	w := releaseWorld{r: r, db: db, product: uuid.Must(uuid.NewV7()).String(), quarantine: uuid.Must(uuid.NewV7()).String(), sellable: uuid.Must(uuid.NewV7()).String()}
 	require.Equal(t, 200, do(r, "PUT", productPath(w.product), "editor", productBody(0, "TEST Amoxil")).Code)
 	classify(t, r, w.product)
 	approveClass(t, r, w.product, "H", false)
@@ -150,6 +152,13 @@ func TestUnsafeBatchesAreNotReleased(t *testing.T) {
 	code, msg = w.release(incident, 1)
 	require.Equal(t, http.StatusConflict, code)
 	require.Contains(t, msg, "safety incident")
+
+	unpriced := receive(t, w.r, w.product, w.quarantine, "2030-10-31", `,"mrp_minor":12500`)
+	w.rewriteBatch(t, unpriced, "mrp_minor=NULL")
+	code, msg = w.release(unpriced, 1)
+	require.Equal(t, http.StatusConflict, code)
+	require.Contains(t, msg, "no MRP recorded")
+	require.EqualValues(t, 100, w.balance(t, w.quarantine, unpriced), "a refused release moves nothing")
 
 	untaxed := uuid.Must(uuid.NewV7()).String()
 	require.Equal(t, 200, do(w.r, "PUT", productPath(untaxed), "editor", strings.Replace(productBody(0, "TEST Untaxed"), "TEST-AMOX-500", "TEST-UNTAXED", 1)).Code)

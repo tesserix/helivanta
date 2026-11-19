@@ -5763,6 +5763,11 @@
           "creates_tables": [
             "pharmacy_product_schedule_countersigns"
           ]
+        },
+        {
+          "id": "0051_pharmacy_lot_block_rule",
+          "sql_sha256": "70145912db34002e9e0a2617d624ce2479be24a81dfaf821f84211065df521b6",
+          "creates_tables": []
         }
       ]
     },

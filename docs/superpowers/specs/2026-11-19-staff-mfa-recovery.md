@@ -537,3 +537,9 @@ alone is not treated as employer access. The lockout case's original shared logi
 helper selected the legacy sample workspace; it now shares the native cases'
 explicit-workspace sign-in helper. No server admission or credential assertion was
 weakened. The corrected journeys remain authored pending fresh hosted execution.
+
+CI now invokes the eight existing Staff MFA integration tests with race
+instrumentation before the full buffered coverage suite. This surfaces fixture
+or recovery integration failures earlier while retaining full coverage and the
+separate native browser gate. Workflow lint and test-selector discovery pass;
+discovery does not execute the database cases locally.

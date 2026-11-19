@@ -153,6 +153,8 @@ jobs:
       - run: bash ./scripts/coverage-gate.test.sh
       - name: Document scan worker and finding isolation
         run: go test -race -count=1 ./internal/modules/workforce -run '^(TestStaffDocumentUploadPinsBytesAndPublishesOneScanIntent|TestGovernanceFindingFileIsolationSurvivesGuardRollback)$'
+      - name: Staff authenticator recovery integration tests
+        run: go test -race -count=1 -timeout=10m -run '^Test(StaffMFA|IndependentPharmacyStaffMFA)' ./internal/integration
       - run: ./scripts/coverage-gate.sh
       # The drug master's latency target (#476 spec D8), measured alone: the
       # gate above runs every package in parallel under -race, where a

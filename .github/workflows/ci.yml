@@ -517,7 +517,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - name: Validate Playwright test registration
-        run: pnpm --filter @helivanta/e2e exec playwright test --list
+        run: |
+          pnpm --filter @helivanta/e2e exec playwright test --list
+          node --test scripts/ci/native-recovery-registration.test.mjs
 
       # scripts/lib/repo-owns.sh resolves port holders with `ss` on Linux —
       # NOT lsof, which cannot see a `next dev` server at all (see port_tool

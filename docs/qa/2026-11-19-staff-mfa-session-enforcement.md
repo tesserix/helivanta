@@ -101,6 +101,29 @@ both proposals and decisions. Hosted run `44508111060` tests the pushed correcti
 its results must be recorded after completion. Earlier employer-setup and lockout
 failures are not considered resolved without those runtime results.
 
+## Native acceptance follow-up
+
+Hosted run `44512746850` at `1992a0c0` passed the Staff MFA integration step,
+including exact proposal/decision replay receipts. Its browser suite reported
+104 passed, two failed, one skipped and two not run. Lockout guidance passed.
+Both hospital and independent-pharmacy reset submissions returned 503; their
+bounded warnings identify `prepare_owner`. The independent form now accepts its
+canonical pharmacy Staff context. Native reset completion and recovered sign-in
+are still unproven.
+
+The next candidate checks native password presence and the selected target's
+provider organization-member proof before factor setup. Diagnostic assertion
+messages contain only result counts, sequence/count metadata and a timestamp
+presence flag. They do not serialize accounts, credentials, factors or tokens.
+
+Playwright now schedules these three native cases as dependencies of `specs`;
+`bulk` still depends on `specs`. The main invocation and report retain all cases.
+The executable registration test checks every main-stack spec file is present,
+every case is unique and the three native cases are selected through dependency
+resolution. Its assertion failed before the scheduling change and passed after.
+A native dependency failure prevents dependent cases from running; it never
+establishes a passing full-suite result.
+
 ## Remaining release gates
 
 Require full hosted database and native-browser acceptance for both employer

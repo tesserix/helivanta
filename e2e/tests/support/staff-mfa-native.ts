@@ -64,12 +64,16 @@ export async function exerciseNativeStaffMFARecovery(
   )
     throw new Error("private local native setup credential unavailable");
   const pat = readFileSync(file, "utf8").trim();
-  async function native(path: string, data?: unknown) {
+  async function native(path: string, data?: unknown, org?: string) {
     const response = await fetch(ZITADEL_ORIGIN + path, {
       method: data === undefined ? "GET" : "POST",
       redirect: "error",
       signal: AbortSignal.timeout(10_000),
-      headers: { Authorization: `Bearer ${pat}`, "Content-Type": "application/json" },
+      headers: {
+        Authorization: `Bearer ${pat}`,
+        "Content-Type": "application/json",
+        ...(org ? { "x-zitadel-orgid": org } : {}),
+      },
       ...(data === undefined ? {} : { body: JSON.stringify(data) }),
     });
     expect(response.status).toBe(200);
@@ -90,6 +94,22 @@ export async function exerciseNativeStaffMFARecovery(
     const nativeUser = await native(`/v2/users/${colleague.subject}`);
     expect(nativeUser.user.details.resourceOwner).toBe(`helivanta-${tenant}`);
     expect(nativeUser.user.human.email.email).toBe(target.email);
+    expect(typeof nativeUser.user.human.passwordChanged).toBe("string");
+    const members = await native(
+      "/management/v1/orgs/me/members/_search",
+      { query: { limit: 1 }, queries: [{ userIdQuery: { userId: colleague.subject } }] },
+      `helivanta-${tenant}`,
+    );
+    const membershipProof = {
+      memberCount: Array.isArray(members.result) ? members.result.length : 0,
+      total: members.details?.totalResult ?? "omitted",
+      sequence: members.details?.processedSequence ?? "omitted",
+      hasTimestamp: typeof members.details?.viewTimestamp === "string",
+    };
+    expect(membershipProof.memberCount).toBe(0);
+    expect(membershipProof.sequence, JSON.stringify(membershipProof)).toMatch(/^[1-9][0-9]*$/);
+    if (membershipProof.total === "omitted") expect(membershipProof.hasTimestamp).toBe(true);
+    else expect(membershipProof.total).toBe("0");
     const initial = await native(`/v2/users/${colleague.subject}/totp`, {});
     if (typeof initial.secret !== "string" || !/^[A-Z2-7]+$/.test(initial.secret))
       throw new Error("native initial factor unavailable");

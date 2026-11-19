@@ -41,6 +41,8 @@ import {
 // in BOTH projects — twice, once of them concurrently with everything else,
 // which is precisely the arrangement both comments above exist to prevent.
 const BULK_SPECS = /(pagination|ratelimit)\.spec\.ts/;
+const NATIVE_RECOVERY_SPECS =
+  /(?:account-lockout-native|staff-mfa-recovery-native|staff-mfa-pharmacy-native)\.spec\.ts/;
 
 // idle-timeout.spec.ts (#848 Task 8) needs a SHORT IDLE_TIMEOUT to prove a
 // session actually goes idle without sitting for the real 15-minute
@@ -143,8 +145,13 @@ export default defineConfig({
     : new RegExp(`${IDLE_TIMEOUT_SPEC.source}|${RENEWAL_SPEC.source}`),
   projects: [
     {
+      name: "native-recovery",
+      testMatch: NATIVE_RECOVERY_SPECS,
+    },
+    {
       name: "specs",
-      testIgnore: [BULK_SPECS, IDLE_TIMEOUT_SPEC, RENEWAL_SPEC],
+      testIgnore: [BULK_SPECS, IDLE_TIMEOUT_SPEC, RENEWAL_SPEC, NATIVE_RECOVERY_SPECS],
+      dependencies: ["native-recovery"],
     },
     {
       name: "bulk",

@@ -94,7 +94,7 @@ API-level exchange (a Zitadel token through the hosted login UI →
 
 Stop everything with `make down`.
 
-`make up` provisions and seeds a local Zitadel v4.15.3 (spec
+`make up` provisions and seeds a local Zitadel v4.19.5 (spec
 `docs/superpowers/specs/2026-08-15-zitadel-auth-design.md`, topology
 `docs/superpowers/specs/2026-08-15-zitadel-tenancy-topology-design.md`):
 its own Postgres, a Helivanta org/project/OIDC app (`scripts/zitadel-bootstrap.mjs`,

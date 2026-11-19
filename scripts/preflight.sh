@@ -243,7 +243,7 @@ check_zitadel_instance_domain() {
 # docker at all — all three printed `ok ... not running yet` about
 # something that was, in two of the three cases, actually up. The entire
 # mechanism this check relies on is a HEALTHCHECK baked into a pinned
-# upstream image (ghcr.io/zitadel/zitadel-login:v4.15.3) that this repo does
+# upstream image (ghcr.io/zitadel/zitadel-login:v4.19.5) that this repo does
 # not control and docker-compose.dev.yml does not itself declare — if that
 # pin moves and the probe is dropped, renamed, or restructured upstream,
 # swallowing the template error would make this check permanently green,
@@ -284,7 +284,7 @@ check_zitadel_login_health() {
       # not a fresh stack — fail loudly rather than silently trusting a
       # container this check can no longer see into.
       fail "zitadel-login health" \
-        "${ZITADEL_LOGIN_CONTAINER} is running but reports no Docker HEALTHCHECK at all. This check depends entirely on the HEALTHCHECK baked into ghcr.io/zitadel/zitadel-login:v4.15.3 (node /app/healthcheck.mjs /ui/v2/login/ready) — if the image pin moved or upstream dropped/restructured that probe, this check is now blind to a wedged login the same way #923 found the rest of the stack to be. Confirm with 'docker inspect --format {{.Config.Healthcheck}} ${ZITADEL_LOGIN_CONTAINER}' and update this check (or docker-compose.dev.yml) to match whatever the image publishes now."
+        "${ZITADEL_LOGIN_CONTAINER} is running but reports no Docker HEALTHCHECK at all. This check depends entirely on the HEALTHCHECK baked into ghcr.io/zitadel/zitadel-login:v4.19.5 (node /app/healthcheck.mjs /ui/v2/login/ready) — if the image pin moved or upstream dropped/restructured that probe, this check is now blind to a wedged login the same way #923 found the rest of the stack to be. Confirm with 'docker inspect --format {{.Config.Healthcheck}} ${ZITADEL_LOGIN_CONTAINER}' and update this check (or docker-compose.dev.yml) to match whatever the image publishes now."
       ;;
     *)
       # Empty covers both "container does not exist yet" (a fresh clone, or

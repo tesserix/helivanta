@@ -35,7 +35,7 @@ func TestNativeFixtureIssuerLifetimesAllowBoundedProductCredentials(t *testing.T
 		"ZITADEL_DEFAULTINSTANCE_OIDCSETTINGS_ACCESSTOKENLIFETIME",
 	} {
 		t.Run(setting, func(t *testing.T) {
-			// Zitadel v4.15.3 cmd/defaults.yaml supplies 12h at both configuration layers.
+			// Zitadel v4.19.5 cmd/defaults.yaml supplies 12h at both configuration layers.
 			lifetime := 12 * time.Hour
 			if configured := compose.Services["zitadel"].Environment[setting]; configured != "" {
 				lifetime, err = time.ParseDuration(configured)

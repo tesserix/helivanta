@@ -94,8 +94,10 @@ services:
   # the v4.15.3 spike re-verification). scripts/preflight.sh checks the
   # length before Docker is ever touched so this is caught in one place,
   # not rediscovered per developer.
+  # Match the deployed core's upstream version. The deployed Tesserix patchset
+  # still requires live acceptance; this fixture uses the upstream release.
   zitadel:
-    image: ghcr.io/zitadel/zitadel:v4.15.3
+    image: ghcr.io/zitadel/zitadel:v4.19.5
     restart: unless-stopped
     command: >
       start-from-init
@@ -275,7 +277,7 @@ services:
         condition: service_started
 
   zitadel-login:
-    image: ghcr.io/zitadel/zitadel-login:v4.15.3
+    image: ghcr.io/zitadel/zitadel-login:v4.19.5
     restart: unless-stopped
     environment:
       ZITADEL_API_URL: http://zitadel:8080

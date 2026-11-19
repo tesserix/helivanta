@@ -444,8 +444,14 @@ func TestIndependentPharmacyStaffMFARecoveryKeepsTheEmployerScope(t *testing.T) 
 	staff := uuid.NewString()
 	f.call("PUT", root+"/staff/"+staff+"?directory_context=v1", "manager", `{"employee_code":"MFA-INDEP-01","display_name":"Synthetic Independent Pharmacist","job_category":"pharmacist","employment_status":"active","expected_version":0,"directory_context_version":"v1"}`, 200)
 	link := uuid.Must(uuid.NewV7()).String()
-	f.call("PUT", root+"/staff/"+staff+"/account-links/"+link, "manager", `{"expected_staff_version":1,"subject":"user-candidate","reason":"Verified independent pharmacy account"}`, 200)
-	f.call("PUT", root+"/staff/"+staff+"/account-links/"+link+"/commands/"+uuid.Must(uuid.NewV7()).String(), "reviewer", `{"expected_version":1,"decision":"approve","reason":"Independent employer identity review"}`, 200)
+	proposalPath := root + "/staff/" + staff + "/account-links/" + link
+	proposalInput := `{"expected_staff_version":1,"subject":"user-candidate","reason":"Verified independent pharmacy account"}`
+	f.call("PUT", proposalPath, "manager", proposalInput, http.StatusCreated)
+	f.call("PUT", proposalPath, "manager", proposalInput, http.StatusOK)
+	decisionPath := proposalPath + "/commands/" + uuid.Must(uuid.NewV7()).String()
+	decisionInput := `{"expected_version":1,"decision":"approve","reason":"Independent employer identity review"}`
+	f.call("PUT", decisionPath, "reviewer", decisionInput, http.StatusCreated)
+	f.call("PUT", decisionPath, "reviewer", decisionInput, http.StatusOK)
 	input := customercontract.StaffMFAResetInput{CommandID: uuid.Must(uuid.NewV7()).String(), ExpectedLinkID: link, ExpectedLinkVersion: 2, ExpectedStaffVersion: 1, Reason: "Independent pharmacist lost authenticator"}
 	path := root + "/staff/" + staff + "/mfa-recoveries/" + input.CommandID
 	response := mfaRequest(t, f.r, "PUT", path, "manager", input)

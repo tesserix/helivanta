@@ -167,34 +167,32 @@ export async function exerciseNativeStaffMFARecovery(
     }
     expect((await putStaff()).status()).toBe(200);
     const links = `${root}/staff/${staff}/${kind === "hospital" ? "login-links" : "account-links"}`;
-    expect(
-      (
-        await page.request.put(`${links}/${link}`, {
-          headers: actor.headers,
-          data: {
-            ...(kind === "pharmacy" ? { expected_staff_version: 1 } : {}),
-            subject: colleague.subject,
-            reason: "Verified isolated native Staff account",
-          },
-        })
-      ).status(),
-    ).toBe(200);
-    expect(
-      (
-        await reviewerPage.request.fetch(
-          `${links}/${link}/${kind === "hospital" ? "decision" : `commands/${uuidv7()}`}`,
-          {
-            method: kind === "hospital" ? "POST" : "PUT",
-            headers: reviewer.headers,
-            data: {
-              expected_version: 1,
-              decision: "approve",
-              reason: "Independent synthetic identity review",
-            },
-          },
-        )
-      ).status(),
-    ).toBe(200);
+    const proposalInput = {
+      ...(kind === "pharmacy" ? { expected_staff_version: 1 } : {}),
+      subject: colleague.subject,
+      reason: "Verified isolated native Staff account",
+    };
+    const propose = () =>
+      page.request.put(`${links}/${link}`, {
+        headers: actor.headers,
+        data: proposalInput,
+      });
+    expect((await propose()).status()).toBe(kind === "hospital" ? 200 : 201);
+    if (kind === "pharmacy") expect((await propose()).status()).toBe(200);
+    const decisionPath = `${links}/${link}/${kind === "hospital" ? "decision" : `commands/${uuidv7()}`}`;
+    const decisionInput = {
+      expected_version: 1,
+      decision: "approve",
+      reason: "Independent synthetic identity review",
+    };
+    const approve = () =>
+      reviewerPage.request.fetch(decisionPath, {
+        method: kind === "hospital" ? "POST" : "PUT",
+        headers: reviewer.headers,
+        data: decisionInput,
+      });
+    expect((await approve()).status()).toBe(kind === "hospital" ? 200 : 201);
+    if (kind === "pharmacy") expect((await approve()).status()).toBe(200);
     const stale = uuidv7();
     expect(
       (

@@ -193,7 +193,7 @@ returns up to 20 current active packs by brand/ingredient prefix or exact GTIN.
 It requires `pharmacy.catalogue.read` and current outlet access. The corresponding
 `PUT …/catalogue/products/{uuidv7}/from-drugmaster` requires
 `pharmacy.catalogue.write` and editor access and accepts only
-`{version_id,currency:"INR",mrp_minor}`. The selected version is revalidated under
+`{version_id,formulation_version_id,currency:"INR",mrp_minor}`. The selected version is revalidated under
 the publication lock until the outlet transaction commits. The same product ID
 and payload replay the saved result; a second outlet product ID for the same
 master product/formulation versions conflicts. Unknown client identity fields are rejected.
@@ -210,3 +210,8 @@ new vendor version are not implemented by this catalogue-add command.
 A newer approved source product or formulation version can be added as a new
 outlet record with a new generated local SKU. Existing source links and physical
 stock bases remain unchanged; importing a version never transfers stock.
+
+The import command pins both the product and formulation version chosen in the
+picker. A formulation-only publication invalidates a new add command made from
+an older selection, even when the product version is unchanged. A retained
+receipt replays only when both originally submitted versions and price match.

@@ -6247,7 +6247,7 @@
         },
         {
           "path": "backend/internal/modules/pharmacy/drug_catalogue.go",
-          "sha256": "07e31e043d846dae2b05e0ec291599159eadb5b16643a8824e387530bf6d2b70",
+          "sha256": "7c5f8e33bd85918ae650119c66910fbdeaa7b78d5ad9fe47baa24cf98259dc69",
           "symbol": "func (h *catalogueHandlers) searchDrugCatalogue("
         },
         {
@@ -6281,7 +6281,7 @@
         },
         {
           "path": "backend/internal/modules/pharmacy/drug_catalogue.go",
-          "sha256": "07e31e043d846dae2b05e0ec291599159eadb5b16643a8824e387530bf6d2b70",
+          "sha256": "7c5f8e33bd85918ae650119c66910fbdeaa7b78d5ad9fe47baa24cf98259dc69",
           "symbol": "func (h *catalogueHandlers) importDrugProduct("
         },
         {

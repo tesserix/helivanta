@@ -217,11 +217,14 @@
         "binding": "required"
       },
       {
+        "name": "formulation_version_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
         "name": "currency",
         "type": "string",
-        "enum": [
-          "INR"
-        ],
+        "enum": ["INR"],
         "binding": "required,oneof=INR"
       },
       {

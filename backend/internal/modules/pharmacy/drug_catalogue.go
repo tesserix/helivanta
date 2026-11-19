@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
+	"github.com/google/uuid"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/stockproduct"
 	"gorm.io/gorm"
@@ -56,6 +57,10 @@ func (h *catalogueHandlers) importDrugProduct(c *gin.Context) {
 	if !decodeCatalogue(c, &in) {
 		return
 	}
+	if in.VersionID == uuid.Nil || in.FormulationVersionID == uuid.Nil {
+		respond.BadRequest(c, errors.New("product and formulation versions are required"))
+		return
+	}
 	if in.Currency != "INR" || in.MrpMinor == nil || *in.MrpMinor < 0 || *in.MrpMinor > 1_000_000_000_000 {
 		respond.BadRequest(c, errors.New("enter a valid INR pack MRP"))
 		return
@@ -77,7 +82,7 @@ func (h *catalogueHandlers) importDrugProduct(c *gin.Context) {
 		if err := json.Unmarshal(revision.Snapshot, &original); err != nil {
 			return err
 		}
-		if original.DrugMaster == nil || original.DrugMaster.VersionID != in.VersionID || original.Currency != in.Currency || original.MRPMinor != *in.MrpMinor {
+		if original.DrugMaster == nil || original.DrugMaster.VersionID != in.VersionID || original.DrugMaster.FormulationVersionID != in.FormulationVersionID || original.Currency != in.Currency || original.MRPMinor != *in.MrpMinor {
 			return errCatalogueVersion
 		}
 		replay = &original
@@ -97,6 +102,9 @@ func (h *catalogueHandlers) importDrugProduct(c *gin.Context) {
 	}
 	var result catalogueProduct
 	err = h.drugCatalogue.WithCatalogueProduct(c.Request.Context(), in.VersionID, func(ctx context.Context, source stockproduct.CatalogueProduct) error {
+		if source.FormulationVersionID != in.FormulationVersionID {
+			return stockproduct.ErrIneligible
+		}
 		fields := importedProductFields(source, in)
 		fields.SKU = "DM-" + id.String()
 		if !fields.normalize() || binding.Validator.ValidateStruct(&fields) != nil {

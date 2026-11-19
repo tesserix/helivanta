@@ -53,7 +53,8 @@ type CatalogueProduct struct {
 }
 
 type CatalogueImport struct {
-	VersionID uuid.UUID `json:"version_id" binding:"required"`
-	Currency  string    `json:"currency" binding:"required,oneof=INR"`
-	MrpMinor  *int64    `json:"mrp_minor" binding:"required,min=0,max=1000000000000"`
+	VersionID            uuid.UUID `json:"version_id" binding:"required"`
+	FormulationVersionID uuid.UUID `json:"formulation_version_id" binding:"required"`
+	Currency             string    `json:"currency" binding:"required,oneof=INR"`
+	MrpMinor             *int64    `json:"mrp_minor" binding:"required,min=0,max=1000000000000"`
 }

@@ -52,6 +52,7 @@ export function DrugCataloguePicker({
           method: "PUT",
           body: JSON.stringify({
             version_id: selection.version_id,
+            formulation_version_id: selection.formulation_version_id,
             currency: "INR",
             mrp_minor: price,
           }),
@@ -103,7 +104,7 @@ export function DrugCataloguePicker({
               <Button
                 type="button"
                 variant="outline"
-                disabled={add.isPending}
+                disabled={add.isPending || search.isPending}
                 onClick={() => {
                   setSelection(row);
                   add.reset();

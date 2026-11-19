@@ -44,7 +44,7 @@ const medicine = {
 };
 afterEach(() => vi.unstubAllGlobals());
 
-it("imports a deliberately selected pack using only its version and local MRP", async () => {
+it("imports a deliberately selected pack using its exact product/formulation versions and local MRP", async () => {
   const saved = vi.fn();
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
     if (url.includes("/catalogue/drugmaster?q="))
@@ -53,6 +53,7 @@ it("imports a deliberately selected pack using only its version and local MRP", 
     expect(init?.method).toBe("PUT");
     expect(JSON.parse(init?.body as string)).toEqual({
       version_id: id,
+      formulation_version_id: id,
       currency: "INR",
       mrp_minor: 0,
     });

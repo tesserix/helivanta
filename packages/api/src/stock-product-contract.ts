@@ -152,6 +152,7 @@ export type CatalogueProduct = z.infer<typeof CatalogueProductContract>;
 export const CatalogueImportContract = z
   .object({
     version_id: identifier,
+    formulation_version_id: identifier,
     currency: z.enum(["INR"]),
     mrp_minor: z.number().int().min(0).max(1000000000000),
   })

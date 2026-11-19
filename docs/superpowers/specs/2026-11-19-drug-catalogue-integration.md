@@ -86,3 +86,8 @@ are evidenced. Do not claim a configured adapter/schedule is a live vendor feed.
 A newer approved source product or formulation version can be added as a new
 outlet record with a new generated local SKU. Existing source links and physical
 stock bases remain unchanged; importing a version never transfers stock.
+
+The import command pins both the product and formulation version chosen in the
+picker. A formulation-only publication invalidates a new add command made from
+an older selection, even when the product version is unchanged. A retained
+receipt replays only when both originally submitted versions and price match.

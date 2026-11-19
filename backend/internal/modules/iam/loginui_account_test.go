@@ -15,6 +15,7 @@ import (
 
 	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
 	"github.com/tesserix/helivanta/pkg/ratelimit"
+	"github.com/tesserix/onboarding-service/api/customercontract"
 )
 
 const (
@@ -90,7 +91,18 @@ func (z *multiAccountZitadel) client(t *testing.T) *loginclient.Client {
 		z.mu.Unlock()
 		_, _ = w.Write([]byte(`{"callbackUrl":"https://hms.test/api/auth/callback?code=abc&state=xyz"}`))
 	})
-	return newZitadelTestClient(t, mux)
+	client := newZitadelTestClient(t, mux)
+	client.SetTenantIdentityResolver(guardProjectionResolver(func(ctx context.Context, tenant, subject string, purpose loginclient.IdentityReadPurpose) (loginclient.IdentitySnapshot, error) {
+		require.NoError(t, ctx.Err())
+		require.Equal(t, map[string]string{"user-a": tenantA, "user-b": tenantB}[subject], tenant)
+		require.Equal(t, loginclient.IdentityReadCredentials, purpose)
+		return loginclient.IdentitySnapshot{
+			State:       loginclient.UserStateActive,
+			Credentials: &customercontract.IdentityCredentialState{PasswordConfigured: true, PasswordChangedAt: "2026-01-01T00:00:00Z"},
+			MFARecovery: &customercontract.StaffMFARecoveryRequirement{State: "none"},
+		}, nil
+	}))
+	return client
 }
 
 func bothTargets(context.Context, string) ([]loginclient.LoginTarget, bool, error) {

@@ -44,7 +44,7 @@ test("a genuinely locked native account gets actionable recovery guidance withou
   const account = specPharmacist();
   if (account.email !== "e2e-account-lockout-native-pharmacist@helivanta.dev")
     throw new Error("native lockout account is not isolated");
-  const file = resolve(__dirname, "../../dev/zitadel/secrets/helivanta-seed.pat");
+  const file = resolve(__dirname, "../../dev/zitadel/secrets/native-staff-setup.pat");
   const info = lstatSync(file);
   if (
     !info.isFile() ||

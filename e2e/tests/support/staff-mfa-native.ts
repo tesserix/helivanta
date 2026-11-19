@@ -55,7 +55,7 @@ export async function exerciseNativeStaffMFARecovery(
   const target = specPharmacist();
   if (target.email !== `e2e-${slug}-pharmacist@helivanta.dev`)
     throw new Error("native Staff MFA account is not isolated");
-  const file = resolve(__dirname, "../../../dev/zitadel/secrets/helivanta-seed.pat");
+  const file = resolve(__dirname, "../../../dev/zitadel/secrets/native-staff-setup.pat");
   const info = lstatSync(file);
   if (
     !info.isFile() ||

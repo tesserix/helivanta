@@ -60,6 +60,11 @@ not candidate acceptance.
    scope, old-access/renewal denial, forced replacement enrollment, fresh accepted
    access/renewal and the retained completed receipt. A typed route, mock, unit
    test or compiled integration package cannot substitute for this evidence.
+   The explicit Staff MFA fixture opt-in makes the seed retain
+   `dev/zitadel/secrets/native-staff-setup.pat` as an exclusive `0600` copy of
+   the disposable bootstrap credential. Retries reuse only the same value;
+   symlinks, broader permissions and conflicts fail closed. CI validates this
+   private file before owner/browser startup and never exports its value.
 3. Verify password recovery, single-use verification, password-reset-to-login and
    clear locked-account guidance against the actual changed behavior. Resolve
    the parent PR's security finding through the legitimate security workflow;

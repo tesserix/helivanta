@@ -64,6 +64,7 @@ import { generateTOTP } from "./lib/totp.mjs";
 import {
   ensureLocalIdentityMachine,
   readPrivateFixtureSecret,
+  retainPrivateFixtureSecret,
 } from "./lib/identity-machine-fixture.mjs";
 import {
   ensureTenantIdentityFixtures,
@@ -327,6 +328,10 @@ async function main() {
   if (mfaFixture && mfaFixture !== "true")
     throw new Error("Staff MFA fixture requires explicit true opt-in");
   if (mfaFixture === "true") {
+    retainPrivateFixtureSecret(
+      new URL("../dev/zitadel/secrets/native-staff-setup.pat", import.meta.url),
+      pat,
+    );
     const file = new URL("../dev/zitadel/secrets/identity-product.secret", import.meta.url);
     const machine = await ensureLocalIdentityMachine({
       issuer: ISSUER,

@@ -15,7 +15,8 @@ export function nativeMFAIdentityEnvironment(root, env) {
   const directory = path.resolve(root, "dev/zitadel/secrets");
   const manifest = path.join(directory, "identity-fixture.json");
   const credential = path.join(directory, "identity-product.secret");
-  for (const file of [manifest, credential]) {
+  const setupCredential = path.join(directory, "native-staff-setup.pat");
+  for (const file of [manifest, credential, setupCredential]) {
     const info = lstatSync(file);
     if (
       !info.isFile() ||

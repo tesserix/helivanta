@@ -1,15 +1,55 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtempSync, writeFileSync, chmodSync, symlinkSync, rmSync } from "node:fs";
+import {
+  mkdtempSync,
+  writeFileSync,
+  readFileSync,
+  lstatSync,
+  chmodSync,
+  symlinkSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
   ensureLocalIdentityMachine,
   readPrivateFixtureSecret,
+  retainPrivateFixtureSecret,
 } from "./identity-machine-fixture.mjs";
 
 const issuer = "http://auth.tesserix.localhost:20080";
 const response = (body, status = 200) => new Response(JSON.stringify(body), { status });
+test("retains a private setup copy without changing the native-generated credential", (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "private-native-setup-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "native-generated.pat");
+  const destination = path.join(root, "private-setup.pat");
+  writeFileSync(source, "synthetic-disposable-native-token", { mode: 0o644 });
+  const value = readFileSync(source, "utf8");
+  retainPrivateFixtureSecret(destination, value);
+  const first = lstatSync(destination);
+  assert.equal(first.mode & 0o777, 0o600);
+  assert.equal(readPrivateFixtureSecret(destination), value);
+  retainPrivateFixtureSecret(destination, value);
+  assert.equal(lstatSync(destination).ino, first.ino, "retry must reuse the retained copy");
+  assert.equal(lstatSync(source).mode & 0o777, 0o644);
+  assert.throws(() => retainPrivateFixtureSecret(destination, "synthetic-different-token"));
+  assert.equal(readPrivateFixtureSecret(destination), value, "conflict must never overwrite");
+});
+test("setup retention refuses unsafe destinations and invalid credentials", (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "private-native-refusal-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const target = path.join(root, "target");
+  writeFileSync(target, "synthetic-existing-token", { mode: 0o600 });
+  const link = path.join(root, "link");
+  symlinkSync(target, link);
+  assert.throws(() => retainPrivateFixtureSecret(link, "synthetic-existing-token"));
+  chmodSync(target, 0o644);
+  assert.throws(() => retainPrivateFixtureSecret(target, "synthetic-existing-token"));
+  assert.equal(lstatSync(target).mode & 0o777, 0o644, "unsafe state must not be repaired silently");
+  for (const value of ["", "  ", "x".repeat(8193), null])
+    assert.throws(() => retainPrivateFixtureSecret(path.join(root, "invalid"), value));
+});
 test("creates one real native machine and retains its dedicated credential without printing or rotating it", async () => {
   const calls = [];
   let retained = null;

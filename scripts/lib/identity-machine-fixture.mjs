@@ -1,4 +1,4 @@
-import { lstatSync, readFileSync } from "node:fs";
+import { lstatSync, readFileSync, writeFileSync } from "node:fs";
 
 const nativeIssuer = "http://auth.tesserix.localhost:20080";
 const username = "helivanta-local-identity-product";
@@ -114,4 +114,21 @@ export function readPrivateFixtureSecret(file) {
     if (error.code === "ENOENT") return null;
     throw new Error("isolated product credential unavailable", { cause: error });
   }
+}
+
+export function retainPrivateFixtureSecret(file, value) {
+  if (
+    typeof value !== "string" ||
+    !value ||
+    value.trim() !== value ||
+    Buffer.byteLength(value) > 8192
+  )
+    throw new Error("isolated setup credential unavailable");
+  const retained = readPrivateFixtureSecret(file);
+  if (retained !== null) {
+    if (retained !== value)
+      throw new Error("isolated setup credential conflicts with native state");
+    return;
+  }
+  writeFileSync(file, value, { mode: 0o600, flag: "wx" });
 }

@@ -83,9 +83,8 @@ func releasable(tx *gorm.DB, tenant string, outlet uuid.UUID, in releaseInput) (
 	var batch struct {
 		ProductID uuid.UUID
 		ExpiresOn string
-		MRPMinor  *int64 `gorm:"column:mrp_minor"`
 	}
-	if err := tx.Raw(`SELECT product_id, expires_on::text AS expires_on, mrp_minor FROM pharmacy_stock_batches WHERE tenant_id=? AND outlet_id=? AND id=?`,
+	if err := tx.Raw(`SELECT product_id, expires_on::text AS expires_on FROM pharmacy_stock_batches WHERE tenant_id=? AND outlet_id=? AND id=?`,
 		tenant, outlet, in.BatchID).Scan(&batch).Error; err != nil {
 		return "", uuid.Nil, err
 	}
@@ -96,20 +95,12 @@ func releasable(tx *gorm.DB, tenant string, outlet uuid.UUID, in releaseInput) (
 	if err != nil {
 		return "", uuid.Nil, err
 	}
-	if batch.ExpiresOn <= today {
-		return "", uuid.Nil, errNotReleasable{"the batch expires on " + batch.ExpiresOn + ", which is not after today"}
-	}
-	if batch.MRPMinor == nil {
-		return "", uuid.Nil, errNotReleasable{"the batch has no MRP recorded; receive it again with its printed MRP"}
-	}
-	var incidents int64
-	if err := tx.Raw(`SELECT count(*) FROM pharmacy_batch_safety_incidents WHERE tenant_id=? AND outlet_id=? AND batch_id=?`,
-		tenant, outlet, in.BatchID).Scan(&incidents).Error; err != nil {
+	blocked, err := lotBlockReason(tx, tenant, outlet, in.BatchID, today)
+	if err != nil {
 		return "", uuid.Nil, err
 	}
-	// An incident has no resolution yet, so any incident holds the batch.
-	if incidents > 0 {
-		return "", uuid.Nil, errNotReleasable{"the batch has a recorded safety incident"}
+	if blocked != "" {
+		return "", uuid.Nil, releaseRefusal(blocked, batch.ExpiresOn)
 	}
 	product := catalogueProduct{}
 	if err := tx.Raw(`SELECT id, status FROM pharmacy_catalogue_products WHERE tenant_id=? AND outlet_id=? AND id=? FOR SHARE`,
@@ -145,6 +136,19 @@ func releasable(tx *gorm.DB, tenant string, outlet uuid.UUID, in releaseInput) (
 		return "", uuid.Nil, errNotReleasable{"Schedule X and NDPS medicines cannot be released until their controls exist"}
 	}
 	return class[0].RegulatoryClass, class[0].DeclarationID, nil
+}
+
+// releaseRefusal keeps each block reason's wording; a reason without wording yet still refuses.
+func releaseRefusal(reason, expiresOn string) errNotReleasable {
+	switch reason {
+	case "expired":
+		return errNotReleasable{"the batch expires on " + expiresOn + ", which is not after today"}
+	case "mrp_missing":
+		return errNotReleasable{"the batch has no MRP recorded; receive it again with its printed MRP"}
+	case "safety_incident":
+		return errNotReleasable{"the batch has a recorded safety incident"}
+	}
+	return errNotReleasable{"the batch is blocked from sale: " + reason}
 }
 
 func (h *catalogueHandlers) putRelease(c *gin.Context) {

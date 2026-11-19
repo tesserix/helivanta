@@ -31,7 +31,10 @@ func (h *outletFulfilment) Choices(tx *gorm.DB, s f.SourceScope, line supplieror
 	if err != nil {
 		return nil, err
 	}
-	today := at.In(time.FixedZone("Asia/Kolkata", 19800)).Format(time.DateOnly)
+	today, err := outletStockDay(tx, s.TenantID, s.LocationID)
+	if err != nil {
+		return nil, err
+	}
 	var rows []struct {
 		ID                   uuid.UUID
 		CreatedAt            time.Time
@@ -64,7 +67,10 @@ func (h *outletFulfilment) Locations(tx *gorm.DB, s f.SourceScope, line supplier
 	if err != nil {
 		return nil, err
 	}
-	today := at.In(time.FixedZone("Asia/Kolkata", 19800)).Format(time.DateOnly)
+	today, err := outletStockDay(tx, s.TenantID, s.LocationID)
+	if err != nil {
+		return nil, err
+	}
 	var rows []struct {
 		ID             uuid.UUID
 		CreatedAt      time.Time

@@ -50,6 +50,9 @@ var UnauthenticatedRoutes = map[string]string{
 	// exists — the same reason POST /v1/auth/login above is here.
 	"GET /v1/auth/login/request/:id": "renders the login form before any Helivanta session exists",
 	"POST /v1/auth/login/password":   "checks the credential that creates the session, so it cannot require one",
+	// #1751 spec D3: picks one of the accounts whose password Password just
+	// verified. Still no Helivanta session; the parked choice is the proof.
+	"POST /v1/auth/login/account": "continues a password already verified for several accounts with the one the person picked",
 
 	// #867 Task 4: the native-MFA factor check. Reached only after
 	// Password answers factor_required — there is still no Helivanta
@@ -123,12 +126,13 @@ func MountStaffSetup(e *gin.Engine, handler gin.HandlerFunc) {
 // instead, which per this repo's enforcement ladder (compile error >
 // boot failure > CI failure > documented convention) is the correct
 // rung: loud and at start-up, not silent and per-request.
-func MountUnauthenticated(e *gin.Engine, login, authRequest, password, factor, enroll, passwordChange, branding, paymentsWebhook gin.HandlerFunc) {
+func MountUnauthenticated(e *gin.Engine, login, authRequest, password, account, factor, enroll, passwordChange, branding, paymentsWebhook gin.HandlerFunc) {
 	mustHandler("GET /v1/auth/branding/:tenant", branding)
 	mustHandler("POST /v1/payments/webhooks/razorpay/:tenant/:account", paymentsWebhook)
 	mustHandler("POST /v1/auth/login", login)
 	mustHandler("GET /v1/auth/login/request/:id", authRequest)
 	mustHandler("POST /v1/auth/login/password", password)
+	mustHandler("POST /v1/auth/login/account", account)
 	mustHandler("POST /v1/auth/login/factor", factor)
 	mustHandler("POST /v1/auth/login/enroll", enroll)
 	mustHandler("POST /v1/auth/login/password-change", passwordChange)
@@ -138,6 +142,7 @@ func MountUnauthenticated(e *gin.Engine, login, authRequest, password, factor, e
 	e.POST("/v1/auth/login", login)
 	e.GET("/v1/auth/login/request/:id", authRequest)
 	e.POST("/v1/auth/login/password", password)
+	e.POST("/v1/auth/login/account", account)
 	e.POST("/v1/auth/login/factor", factor)
 	e.POST("/v1/auth/login/enroll", enroll)
 	e.POST("/v1/auth/login/password-change", passwordChange)

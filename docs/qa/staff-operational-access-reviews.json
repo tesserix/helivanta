@@ -1225,7 +1225,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/module.go",
-          "sha256": "e84805b02ed616544d080bc8431689a401d07321d4c9bd2f48837ef9f5dd40a5",
+          "sha256": "ceb7eee935bc9631dd3592b1742f9cb5e3d284f38c09d09871b9e6f62f99195d",
           "symbol": "func (m *Module) Routes("
         },
         {
@@ -1255,7 +1255,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/module.go",
-          "sha256": "e84805b02ed616544d080bc8431689a401d07321d4c9bd2f48837ef9f5dd40a5",
+          "sha256": "ceb7eee935bc9631dd3592b1742f9cb5e3d284f38c09d09871b9e6f62f99195d",
           "symbol": "func (m *Module) Routes("
         },
         {
@@ -1284,7 +1284,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/module.go",
-          "sha256": "e84805b02ed616544d080bc8431689a401d07321d4c9bd2f48837ef9f5dd40a5",
+          "sha256": "ceb7eee935bc9631dd3592b1742f9cb5e3d284f38c09d09871b9e6f62f99195d",
           "symbol": "func (m *Module) Routes("
         },
         {
@@ -1833,7 +1833,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/module.go",
-          "sha256": "e84805b02ed616544d080bc8431689a401d07321d4c9bd2f48837ef9f5dd40a5",
+          "sha256": "ceb7eee935bc9631dd3592b1742f9cb5e3d284f38c09d09871b9e6f62f99195d",
           "symbol": "m.registerPartnerGrantDrafts(g, deps)"
         },
         {
@@ -1865,7 +1865,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/module.go",
-          "sha256": "e84805b02ed616544d080bc8431689a401d07321d4c9bd2f48837ef9f5dd40a5",
+          "sha256": "ceb7eee935bc9631dd3592b1742f9cb5e3d284f38c09d09871b9e6f62f99195d",
           "symbol": "m.registerPartnerGrantDrafts(g, deps)"
         },
         {
@@ -1897,7 +1897,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/module.go",
-          "sha256": "e84805b02ed616544d080bc8431689a401d07321d4c9bd2f48837ef9f5dd40a5",
+          "sha256": "ceb7eee935bc9631dd3592b1742f9cb5e3d284f38c09d09871b9e6f62f99195d",
           "symbol": "m.registerPartnerGrantDrafts(g, deps)"
         },
         {
@@ -4572,7 +4572,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/module.go",
-          "sha256": "e84805b02ed616544d080bc8431689a401d07321d4c9bd2f48837ef9f5dd40a5",
+          "sha256": "ceb7eee935bc9631dd3592b1742f9cb5e3d284f38c09d09871b9e6f62f99195d",
           "symbol": "func (m *Module) Routes("
         },
         {
@@ -4606,7 +4606,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/module.go",
-          "sha256": "e84805b02ed616544d080bc8431689a401d07321d4c9bd2f48837ef9f5dd40a5",
+          "sha256": "ceb7eee935bc9631dd3592b1742f9cb5e3d284f38c09d09871b9e6f62f99195d",
           "symbol": "func (m *Module) Routes("
         },
         {
@@ -4635,7 +4635,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/module.go",
-          "sha256": "e84805b02ed616544d080bc8431689a401d07321d4c9bd2f48837ef9f5dd40a5",
+          "sha256": "ceb7eee935bc9631dd3592b1742f9cb5e3d284f38c09d09871b9e6f62f99195d",
           "symbol": "func (m *Module) Routes("
         },
         {
@@ -4664,7 +4664,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/module.go",
-          "sha256": "e84805b02ed616544d080bc8431689a401d07321d4c9bd2f48837ef9f5dd40a5",
+          "sha256": "ceb7eee935bc9631dd3592b1742f9cb5e3d284f38c09d09871b9e6f62f99195d",
           "symbol": "func (m *Module) Routes("
         },
         {

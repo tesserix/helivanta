@@ -198,4 +198,4 @@ require (
 
 replace github.com/tesserix/devai-sandbox-operator => github.com/tesserix/tesserix-operators v0.0.0-20261111042344-fe1127b299d6
 
-replace github.com/tesserix/onboarding-service/api => github.com/tesserix/onboarding-service/apps/api v0.0.0-20261118154650-e552ac496f56
+replace github.com/tesserix/onboarding-service/api => github.com/tesserix/onboarding-service/apps/api v0.0.0-20261119032922-f47d44dae55e

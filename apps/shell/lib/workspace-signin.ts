@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 const rememberedWorkspaceKey = "helivanta.login.workspace.v1";
-const rememberedWorkspaceDuration = 48 * 60 * 60 * 1000;
+// Routing hint only (no proof, no access), so a month costs nothing but saves a mailbox code.
+const rememberedWorkspaceDuration = 30 * 24 * 60 * 60 * 1000;
 const workspaceChanged = "helivanta-workspace-preference-changed";
 
 export function subscribeWorkspace(listener: () => void): () => void {

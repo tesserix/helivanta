@@ -85,9 +85,20 @@ function stubAuthFlow(
     factor?: () => Response;
     enroll?: () => Response;
     passwordChange?: () => Response;
+    account?: () => Response;
   } = {},
 ) {
   const fetchMock = vi.fn((url: string) => {
+    // (#1751) POST .../auth/login/account, called only after an
+    // `account_choice_required` outcome from the password call.
+    if (url.includes("/auth/login/account")) {
+      return Promise.resolve(
+        (
+          opts.account ??
+          (() => jsonResponse(200, { callback_url: "https://hms.example/api/auth/callback" }))
+        )(),
+      );
+    }
     if (url.includes("/auth/login/request/")) {
       return Promise.resolve((opts.authRequest ?? authRequestOkResponse)());
     }
@@ -218,17 +229,27 @@ describe("LoginPage", () => {
     expect(router.replace).not.toHaveBeenCalled();
   });
 
+  // #1751 spec D1: with no session and no workspace, the single email and
+  // password card starts on its own, unscoped; the API finds the account.
   it.each([401, 404])(
-    "requires sign-in when the server refuses the session: %s",
+    "starts the single sign-in card when the server refuses the session: %s",
     async (status) => {
       vi.stubGlobal(
         "fetch",
         vi.fn().mockResolvedValue(jsonResponse(status, { error: "unauthenticated" })),
       );
-      renderWithProviders(<LoginPage />);
-      expect(await screen.findByLabelText("Email")).toBeInTheDocument();
+      signinRedirect.mockResolvedValue(undefined);
+      renderWithProviders(
+        <StrictMode>
+          <LoginPage />
+        </StrictMode>,
+      );
+      await waitFor(() => expect(signinRedirect).toHaveBeenCalledTimes(1));
+      expect(signinRedirect).toHaveBeenCalledWith({
+        prompt: "login",
+        state: { purpose: "email-login" },
+      });
       expect(router.replace).not.toHaveBeenCalled();
-      expect(signinRedirect).not.toHaveBeenCalled();
     },
   );
 
@@ -261,6 +282,26 @@ describe("LoginPage", () => {
         scope: `openid profile email urn:zitadel:iam:org:id:helivanta-${tenant}`,
       }),
     );
+    // Remembered before the round trip, so a start-again landing offers one click.
+    expect(window.localStorage.getItem("helivanta.login.workspace.v1")).toContain(tenant);
+  });
+
+  it("reopens a remembered account with its branding and no mailbox code", async () => {
+    const tenant = "11111111-1111-4111-8111-111111111111";
+    window.localStorage.setItem(
+      "helivanta.login.workspace.v1",
+      JSON.stringify({ tenantId: tenant, expiresAt: Date.now() + 60_000 }),
+    );
+    signinRedirect.mockResolvedValue(undefined);
+    renderWithProviders(<LoginPage />);
+    await waitFor(() => expect(signinRedirect).toHaveBeenCalledTimes(1));
+    expect(signinRedirect).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scope: `openid profile email urn:zitadel:iam:org:id:helivanta-${tenant}`,
+      }),
+    );
+    expect(signinRedirect.mock.calls[0][0]).not.toHaveProperty("login_hint");
+    expect(window.sessionStorage.getItem("helivanta.login.branding-tenant")).toBe(tenant);
   });
 
   describe("with no auth request (landing page)", () => {
@@ -341,29 +382,35 @@ describe("LoginPage", () => {
       expect(await screen.findByText(/sign in to continue/i)).toBeInTheDocument();
     });
 
-    // #847: the redirect must NOT fire on mount. Sign-out lands on this page
-    // (it is the registered post_logout_redirect_uri), and an authorization
-    // request started on arrival raced Zitadel's session teardown — after
-    // which signing in as a different user failed with "User not found in
-    // the system". This is the assertion that fails if anyone reinstates the
-    // useEffect, and its failure mode is a ward terminal the next clinician
-    // cannot sign in to.
-    it("does not start an authorization request on mount", async () => {
+    // #847: the redirect must NOT fire on the arrival a sign-out causes.
+    // Sign-out lands on this page (it is the registered
+    // post_logout_redirect_uri), and an authorization request started then
+    // raced Zitadel's session teardown — after which signing in as a
+    // different user failed with "User not found in the system". #1751 D1
+    // starts on its own only when no sign-out or idle mark is present.
+    it("shows the button instead of starting after a sign-out", async () => {
+      window.sessionStorage.setItem(SIGNED_OUT_MARK, "1");
       renderWithProviders(<LoginPage />);
       // Give any stray effect a chance to run before asserting absence.
       await waitFor(() =>
         expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument(),
       );
       expect(signinRedirect).not.toHaveBeenCalled();
+      expect(screen.getByRole("link", { name: "Find my accounts by email" })).toHaveAttribute(
+        "href",
+        "/login?find=accounts",
+      );
     });
 
-    // Design spec D6 (formerly D5a): with no auth request yet, there is
-    // nothing for a credential form to check against, so this state still
-    // renders none.
-    it("renders no credential form", async () => {
+    // Design spec D6 (formerly D5a): no auth request yet, so the emailed-code
+    // finder (#1751 D7: now the fallback) renders no credential form and
+    // starts nothing.
+    it("renders the email finder without a credential form when asked for it", async () => {
+      window.history.pushState({}, "", "/login?find=accounts");
       renderWithProviders(<LoginPage />);
       expect(await screen.findByLabelText("Email")).toBeInTheDocument();
       expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
+      expect(signinRedirect).not.toHaveBeenCalled();
     });
 
     it("starts a scoped-link redirect when the user asks for it", async () => {
@@ -465,6 +512,93 @@ describe("LoginPage", () => {
     afterEach(() => {
       vi.unstubAllGlobals();
       vi.unstubAllEnvs();
+    });
+
+    // #1751 spec D1/D7: an unscoped request is the single card. It says so,
+    // and keeps the emailed-code finder one link away.
+    it("presents an unscoped request as the single email and password card", async () => {
+      stubAuthFlow();
+      renderWithProviders(<LoginPage />);
+      expect(await screen.findByText("Sign in with your email and password.")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Find my accounts by email" })).toHaveAttribute(
+        "href",
+        "/login?find=accounts",
+      );
+    });
+
+    // #1751 spec D3: one password matching two accounts asks which one, and
+    // picking continues that account to its callback.
+    it("asks which account when one password matches several, then continues the chosen one", async () => {
+      const choices = [
+        {
+          tenant_id: "11111111-1111-4111-8111-111111111111",
+          name: "City Hospital",
+          account: "same@example.test",
+        },
+        {
+          tenant_id: "22222222-2222-4222-8222-222222222222",
+          name: "Corner Pharmacy",
+          account: "same@example.test",
+        },
+      ];
+      const fetchMock = stubAuthFlow({
+        password: () => jsonResponse(200, { account_choice_required: choices }),
+      });
+      vi.stubGlobal("location", { ...window.location, assign: vi.fn() });
+      const { user } = renderWithProviders(<LoginPage />);
+      await user.type(await screen.findByLabelText("Email or username"), "same@example.test");
+      await user.type(screen.getByLabelText("Password"), "synthetic-password");
+      await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+      expect(await screen.findByText("Choose the account to sign in to.")).toBeInTheDocument();
+      expect(window.location.assign).not.toHaveBeenCalled();
+      await user.click(screen.getByRole("button", { name: /Corner Pharmacy/ }));
+
+      await waitFor(() =>
+        expect(window.location.assign).toHaveBeenCalledWith(
+          "https://hms.example/api/auth/callback",
+        ),
+      );
+      const accountCall = fetchMock.mock.calls.find(([url]) => url.includes("/auth/login/account"));
+      // The stub is typed on its first argument only; the second carries the body.
+      const [, init] = accountCall as unknown as [string, RequestInit];
+      expect(JSON.parse(String(init.body))).toEqual({
+        auth_request_id: AUTH_REQUEST_ID,
+        tenant_id: "22222222-2222-4222-8222-222222222222",
+      });
+    });
+
+    it("keeps the chooser on screen with the API's words when a pick has expired", async () => {
+      stubAuthFlow({
+        password: () =>
+          jsonResponse(200, {
+            account_choice_required: [
+              {
+                tenant_id: "11111111-1111-4111-8111-111111111111",
+                name: "City Hospital",
+                account: "a@example.test",
+              },
+              {
+                tenant_id: "22222222-2222-4222-8222-222222222222",
+                name: "Corner Pharmacy",
+                account: "a@example.test",
+              },
+            ],
+          }),
+        account: () =>
+          jsonResponse(400, {
+            error: "auth_request_invalid",
+            message: "this sign-in attempt has expired; start again",
+          }),
+      });
+      const { user } = renderWithProviders(<LoginPage />);
+      await user.type(await screen.findByLabelText("Email or username"), "a@example.test");
+      await user.type(screen.getByLabelText("Password"), "synthetic-password");
+      await user.click(screen.getByRole("button", { name: "Sign in" }));
+      await user.click(await screen.findByRole("button", { name: /City Hospital/ }));
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "this sign-in attempt has expired; start again",
+      );
     });
 
     it("remembers the accepted username on this browser without storing the password", async () => {
@@ -579,6 +713,40 @@ describe("LoginPage", () => {
       expect(await screen.findByLabelText("Email or username")).toBeInTheDocument();
       expect(screen.getByLabelText("Password")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+    });
+
+    // The card after discovery is the password step of the same sign-in, not a
+    // second login: it carries the email discovery proved and says so.
+    it("prefills the email account discovery proved over a remembered username", async () => {
+      window.localStorage.setItem(
+        "helivanta.login.remembered-username",
+        JSON.stringify({ enabled: true, username: "someone.else" }),
+      );
+      stubAuthFlow({
+        authRequest: () =>
+          jsonResponse(200, {
+            id: AUTH_REQUEST_ID,
+            client_id: "helivanta-web",
+            redirect_uri: "http://localhost:4301/api/auth/callback",
+            scope: [
+              "openid",
+              "profile",
+              "email",
+              "urn:zitadel:iam:org:id:helivanta-11111111-1111-4111-8111-111111111111",
+            ],
+            login_hint: "dr.patel@example.test",
+            policies: {
+              allow_password: true,
+              second_factors: ["totp"],
+              ignore_unknown_usernames: false,
+            },
+          }),
+      });
+      renderWithProviders(<LoginPage />);
+      expect(await screen.findByLabelText("Email or username")).toHaveValue(
+        "dr.patel@example.test",
+      );
+      expect(screen.getByText("Enter your password to continue.")).toBeInTheDocument();
     });
 
     // Repo-wide: native browser validation is banned (docs/standards/
@@ -891,7 +1059,7 @@ describe("LoginPage", () => {
       // The offer must be a REAL control, not just wording — reusing
       // RedirectLanding's Sign in button, which starts a fresh
       // authorization request exactly as a direct /login visit would.
-      it("offers email discovery when an expired attempt has lost its routing context", async () => {
+      it("restarts the single sign-in card when an expired attempt has lost its routing context", async () => {
         stubAuthFlow({
           authRequest: () =>
             jsonResponse(400, {
@@ -903,10 +1071,16 @@ describe("LoginPage", () => {
 
         const { user } = renderWithProviders(<LoginPage />);
         const button = await screen.findByRole("button", { name: "Sign in" });
+        expect(signinRedirect).not.toHaveBeenCalled();
         await user.click(button);
 
-        expect(await screen.findByLabelText("Email")).toBeInTheDocument();
-        expect(signinRedirect).not.toHaveBeenCalled();
+        await waitFor(() =>
+          expect(signinRedirect).toHaveBeenCalledWith({
+            prompt: "login",
+            state: { purpose: "email-login" },
+          }),
+        );
+        expect(screen.getByRole("link", { name: "Find my accounts by email" })).toBeInTheDocument();
       });
 
       // The expired-request wording and the sign-out wording must never

@@ -650,7 +650,7 @@ func run() error {
 	// `go run ./cmd/api` refuse to boot if any of them is ever
 	// missing, per its own doc comment.
 	bootstrap.MountUnauthenticated(srv.Engine, loginHandlers.Login,
-		loginUIHandlers.AuthRequest, loginUIHandlers.Password, loginUIHandlers.Factor,
+		loginUIHandlers.AuthRequest, loginUIHandlers.Password, loginUIHandlers.Account, loginUIHandlers.Factor,
 		loginUIHandlers.Enroll, loginUIHandlers.PasswordChange, workspace.PublicHandler(db, limiter), payments.Webhook(deps, limiter))
 
 	signupHandlers, err := customeronboarding.New("http://onboarding-api.onboarding.svc.cluster.local:8080", "/var/run/customer-onboarding/token", "https://helivanta.app")
@@ -658,6 +658,7 @@ func run() error {
 		return err
 	}
 	zitadelLoginClient.SetTenantUserResolver(signupHandlers)
+	zitadelLoginClient.SetTenantTargetResolver(signupHandlers)
 	zitadelLoginClient.SetTenantIdentityResolver(signupHandlers)
 	if enabled := os.Getenv("HELIVANTA_IDENTITY_FIXTURE"); enabled != "" {
 		resolver, fixtureErr := customeronboarding.NewLocalIdentityResolver(cfg.Env, cfg.ZitadelIssuerURL, enabled)
@@ -665,6 +666,7 @@ func run() error {
 			return fixtureErr
 		}
 		zitadelLoginClient.SetTenantUserResolver(resolver)
+		zitadelLoginClient.SetTenantTargetResolver(resolver)
 		zitadelLoginClient.SetTenantIdentityResolver(resolver)
 	}
 	bootstrap.MountReleaseAvailability(srv.Engine, releasePolicy.PublicHandler(limiter))

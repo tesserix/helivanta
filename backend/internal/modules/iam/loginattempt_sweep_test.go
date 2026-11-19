@@ -179,3 +179,39 @@ func (l *lockedWriter) String() string {
 	defer l.mu.Unlock()
 	return l.w.String()
 }
+
+// Parked account choices hold live session tokens (#1751 spec D3), so the
+// sweep deletes expired ones and keeps live ones, like attempt rows.
+func TestSweepDeletesExpiredAccountChoices(t *testing.T) {
+	store, ctx := newTestLoginAttemptStore(t)
+	choice := func(request, tenant string, ttl time.Duration) accountChoice {
+		return accountChoice{AuthRequestID: request, TenantID: tenant, SessionID: "s", SessionToken: "t", Subject: "u", Name: "Org", Account: "a@example.test", ExpiresAt: time.Now().Add(ttl)}
+	}
+	require.NoError(t, store.PutChoices(ctx, "V2_old", []accountChoice{
+		choice("V2_old", "11111111-1111-4111-8111-111111111111", -time.Second),
+		choice("V2_old", "22222222-2222-4222-8222-222222222222", -time.Second),
+	}))
+	require.NoError(t, store.PutChoices(ctx, "V2_live", []accountChoice{
+		choice("V2_live", "11111111-1111-4111-8111-111111111111", time.Minute),
+	}))
+
+	deleted, err := store.SweepExpired(ctx)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), deleted)
+	var left []accountChoice
+	require.NoError(t, store.db.WithSystem(ctx, func(tx *gorm.DB) error { return tx.Find(&left).Error }))
+	require.Len(t, left, 1)
+	require.Equal(t, "V2_live", left[0].AuthRequestID)
+
+	// An expired choice is never resumable, swept or not.
+	require.NoError(t, store.PutChoices(ctx, "V2_stale", []accountChoice{
+		choice("V2_stale", "11111111-1111-4111-8111-111111111111", -time.Second),
+		choice("V2_stale", "22222222-2222-4222-8222-222222222222", time.Minute),
+	}))
+	_, _, err = store.TakeChoice(ctx, "V2_stale", "11111111-1111-4111-8111-111111111111")
+	require.ErrorIs(t, err, errAttemptNotFound)
+	// ...and picking it must not destroy the live choice beside it.
+	chosen, _, err := store.TakeChoice(ctx, "V2_stale", "22222222-2222-4222-8222-222222222222")
+	require.NoError(t, err)
+	require.Equal(t, "22222222-2222-4222-8222-222222222222", chosen.TenantID)
+}

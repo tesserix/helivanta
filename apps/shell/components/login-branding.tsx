@@ -16,15 +16,12 @@ function readRetained() {
 }
 export function LoginBrandingProvider({ children }: { children: ReactNode }) {
   const params = useSearchParams();
-  const requested = params.get("tenant");
+  // Workspace links name the organisation the same way the branding preview does.
+  const requested = params.get("tenant") ?? params.get("workspace");
   // Only read when the URL names no tenant, so the write below never needs a re-read.
   const retained = useSyncExternalStore(subscribeNever, readRetained, () => null);
   useEffect(() => {
-    try {
-      if (requested && uuid.test(requested)) window.sessionStorage.setItem(key, requested);
-    } catch {
-      /* Cosmetic hint only; storage restrictions never block sign-in. */
-    }
+    if (requested) retainLoginBrandingTenant(requested);
   }, [requested]);
   const tenant = requested ?? retained;
   const valid = !!tenant && uuid.test(tenant);
@@ -37,6 +34,14 @@ export function LoginBrandingProvider({ children }: { children: ReactNode }) {
       {children}
     </Context.Provider>
   );
+}
+// Keeps the chosen organisation's branding across the identity-provider round trip.
+export function retainLoginBrandingTenant(tenantId: string) {
+  try {
+    if (uuid.test(tenantId)) window.sessionStorage.setItem(key, tenantId);
+  } catch {
+    /* Cosmetic hint only; storage restrictions never block sign-in. */
+  }
 }
 export function TenantLoginLayout({ children }: { children: ReactNode }) {
   const branding = useContext(Context);

@@ -194,15 +194,8 @@ export function CataloguePanel({
         onClose={pane.close}
       />
       <div className="mt-6">
-        <DrugCataloguePicker
+        <ProductEntry
           scope={scope}
-          onSaved={(row) => pane.saved(row.id)}
-          onStateChange={pane.formState("master-import")}
-        />
-        <p className="mb-4 font-medium">Or add a product by hand</p>
-        <ProductForm
-          scope={scope}
-          product={null}
           defaultCurrency={defaultCurrency}
           onSaved={(row) => pane.saved(row.id)}
           onStateChange={pane.formState("product")}
@@ -513,6 +506,44 @@ function OpenProduct({
       />
       <ProductHistory scope={scope} product={row} timeZone={timeZone} />
     </div>
+  );
+}
+
+function ProductEntry({
+  scope,
+  defaultCurrency,
+  onSaved,
+  onStateChange,
+}: {
+  scope: PharmacyScope;
+  defaultCurrency: string;
+  onSaved: (product: PharmacyProduct) => void;
+  onStateChange?: FormState;
+}) {
+  const [fromMaster, setFromMaster] = useState(false);
+  const leave = useConfirmLeave();
+  return (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        className="mb-5"
+        onClick={() => leave(() => setFromMaster(!fromMaster))}
+      >
+        {fromMaster ? "Add a product by hand" : "Search the medicine master instead"}
+      </Button>
+      {fromMaster ? (
+        <DrugCataloguePicker scope={scope} onSaved={onSaved} onStateChange={onStateChange} />
+      ) : (
+        <ProductForm
+          scope={scope}
+          product={null}
+          defaultCurrency={defaultCurrency}
+          onSaved={onSaved}
+          onStateChange={onStateChange}
+        />
+      )}
+    </>
   );
 }
 

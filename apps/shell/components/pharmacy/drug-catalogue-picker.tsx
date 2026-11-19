@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, Input } from "@tesserix/web";
 import {
   apiFetch,
@@ -27,6 +27,10 @@ export function DrugCataloguePicker({
   onStateChange?: FormState;
 }) {
   const [query, setQuery] = useState("");
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    input.current?.focus();
+  }, []);
   const [selection, setSelection] = useState<CatalogueProduct | null>(null);
   const [price, setPrice] = useState(0);
   const [id] = useState(() => newPharmacyId());
@@ -73,6 +77,7 @@ export function DrugCataloguePicker({
         <Field id="master-query" label="Medicine name, composition or barcode">
           <Input
             id="master-query"
+            ref={input}
             value={query}
             maxLength={200}
             onChange={(event) => setQuery(event.target.value)}

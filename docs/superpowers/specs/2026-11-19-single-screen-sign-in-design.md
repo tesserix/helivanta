@@ -128,9 +128,16 @@ Controls:
   the IP bucket, so a spray on one email is throttled even across IPs. The hash
   is never logged.
 - The five-candidate bound in the identity owner and again in the handler.
-- `dev/` bootstrap sets no lockout policy; production's value must be read and
-  recorded in the PR before merge. If it is enabled and below ten, the owner of
-  the identity-security epic must accept this decision explicitly in the PR.
+- Production's lockout, read 2026-11-19 from
+  `tesserix-k8s/charts/apps/zitadel-bootstrap/values.yaml`: instance-wide
+  `maxPasswordAttempts: "10"` and `maxOtpAttempts: "10"`, declared in git and
+  reconciled by the bootstrap's drift check. Helivanta's per-tenant
+  organisations set no own lockout policy, so they inherit it. Worst case for
+  this design: ten wrong passwords for one email lock up to five accounts of
+  the same person, instead of one. The per-email bucket is sized below ten per
+  lockout window so a single sprayer reaches its rate limit before the lockout.
+  An organisation that later sets its own lower policy must re-open this
+  decision.
 
 ### D7 — Discovery becomes the fallback
 
@@ -266,5 +273,5 @@ Gates: `pnpm turbo lint type-check test build format:check`, `make lint-go`,
 ## Open before implementation
 
 1. onboarding-service#46 merged and its `customercontract` version bumped here.
-2. Production Zitadel lockout policy value recorded (D6).
+2. ~~Production Zitadel lockout policy value recorded (D6).~~ Done: ten, see D6.
 3. Floor re-measured with concurrent checks (D5).

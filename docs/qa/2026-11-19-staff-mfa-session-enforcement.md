@@ -138,7 +138,9 @@ only with a valid non-future positive timestamp and no member records. Explicit
 nulls, malformed/recased metadata, contradictory counts and privileged member
 records remain refused. Its new regression cases failed before the parser fix;
 the full native adapter race suite, vet, lint and owner Go build passed locally.
-Owner CI and consumer pin updates remain required before native acceptance.
+Owner CI run `44519826627` passed all checks. Both Go and TypeScript consumers
+now pin `4b2a96a0aef2d9d1926dbe7d416b95f7f6671855`; full consumer checks and native
+acceptance remain required.
 
 The browser assertion now checks this same native response shape. It verifies
 empty result type/count and valid timestamp evidence when counters are omitted or

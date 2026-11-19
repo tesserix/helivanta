@@ -274,8 +274,8 @@ importers:
         specifier: ^5.107.1
         version: 5.107.1(@types/react@19.3.0)(react@19.3.1)
       '@tesserix/onboarding-contracts':
-        specifier: https://codeload.github.com/tesserix/onboarding-service/tar.gz/55ad8854837280fdd87a72cd636f8bfb57eb611a
-        version: https://codeload.github.com/tesserix/onboarding-service/tar.gz/55ad8854837280fdd87a72cd636f8bfb57eb611a(zod@4.6.7)
+        specifier: https://codeload.github.com/tesserix/onboarding-service/tar.gz/4b2a96a0aef2d9d1926dbe7d416b95f7f6671855
+        version: https://codeload.github.com/tesserix/onboarding-service/tar.gz/4b2a96a0aef2d9d1926dbe7d416b95f7f6671855(zod@4.6.7)
       sonner:
         specifier: ^2.0.8
         version: 2.0.8(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -2901,8 +2901,8 @@ packages:
       react-native-svg:
         optional: true
 
-  '@tesserix/onboarding-contracts@https://codeload.github.com/tesserix/onboarding-service/tar.gz/55ad8854837280fdd87a72cd636f8bfb57eb611a':
-    resolution: {tarball: https://codeload.github.com/tesserix/onboarding-service/tar.gz/55ad8854837280fdd87a72cd636f8bfb57eb611a}
+  '@tesserix/onboarding-contracts@https://codeload.github.com/tesserix/onboarding-service/tar.gz/4b2a96a0aef2d9d1926dbe7d416b95f7f6671855':
+    resolution: {tarball: https://codeload.github.com/tesserix/onboarding-service/tar.gz/4b2a96a0aef2d9d1926dbe7d416b95f7f6671855}
     version: 0.0.0
     peerDependencies:
       zod: ^4.0.0
@@ -10059,7 +10059,7 @@ snapshots:
       lucide-react: 1.71.0(@types/react@19.3.0)(react@19.3.1)
       react-native: 0.88.1(@babel/core@7.29.7)(@react-native/metro-config@0.88.1(@babel/core@7.29.7))(@types/react@19.3.0)(react@19.3.1)
 
-  '@tesserix/onboarding-contracts@https://codeload.github.com/tesserix/onboarding-service/tar.gz/55ad8854837280fdd87a72cd636f8bfb57eb611a(zod@4.6.7)':
+  '@tesserix/onboarding-contracts@https://codeload.github.com/tesserix/onboarding-service/tar.gz/4b2a96a0aef2d9d1926dbe7d416b95f7f6671855(zod@4.6.7)':
     dependencies:
       zod: 4.6.7
 

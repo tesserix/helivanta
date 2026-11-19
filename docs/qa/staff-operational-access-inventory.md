@@ -6,6 +6,21 @@
 This is source-review tooling. No employment guard, grant classification in a live
 database, migration, account change or runtime activation is performed by it.
 
+## Medicine catalogue source review — 19 November 2026
+
+The two outlet medicine search/import routes are classified as `mixed` and use
+the existing verified-tenant/private-outlet grant boundary. Reader access permits
+bounded global reference search; editor access permits an immutable version-linked
+outlet import. These grants do not establish reviewed Staff employment or clinical
+or dispensing authority. Source publication remains independently governed.
+
+The existing acquisition-receipt review pins `catalogue.go`. Its `transaction`
+and `outletAccess` function bodies were compared byte-for-byte with the preceding
+`main` and are unchanged. That review retains its classifications and remaining
+runtime obligations with refreshed file pins. The two new reviews pin source
+resolution, command reauthorization and the retained-receipt replay. Database and
+deployed acceptance remain separate from this source review.
+
 ## Member presentation source review — 16 November 2026
 
 The new IAM member-presentation read is classified as `governance_recovery`:

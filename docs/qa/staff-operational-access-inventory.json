@@ -1,9 +1,9 @@
 {
   "format_version": 1,
-  "registry_sha256": "3ef1892f92f26346149e57f7981d36c36d13ce93c7dffead9c5076290b9af5cf",
+  "registry_sha256": "cbb58de91336edb0bae59df29c8ac19f97c3d01a5a896dd617ffa047367540d5",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1143,
+    "total": 1145,
     "unclassified": 1007
   },
   "entries": [
@@ -8364,12 +8364,12 @@
           },
           {
             "path": "backend/internal/modules/pharmacy/catalogue.go",
-            "sha256": "88480fcd369a65c3458a8e0287c941ea2a334b94407f7de11de80190a72f1d8d",
+            "sha256": "f3da6905ce2b9f019d1f20e5eb8195abc0532cb00dfcb4129f06fe5822583b36",
             "symbol": "func (h *catalogueHandlers) transaction("
           },
           {
             "path": "backend/internal/modules/pharmacy/catalogue.go",
-            "sha256": "88480fcd369a65c3458a8e0287c941ea2a334b94407f7de11de80190a72f1d8d",
+            "sha256": "f3da6905ce2b9f019d1f20e5eb8195abc0532cb00dfcb4129f06fe5822583b36",
             "symbol": "func outletAccess("
           }
         ],
@@ -8507,6 +8507,55 @@
         "counted": false
       },
       "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/drugmaster",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/drugmaster",
+        "permission": "pharmacy.catalogue.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/drugmaster",
+        "registration_sha256": "ae122b8e4ead6096d05eac115859be4e2da28bd18b0fc1b9287d41660710aa50",
+        "authority_kind": "mixed",
+        "resource_scope": "Verified tenant, exact pharmacy and outlet; catalogue-read with reader access for search, catalogue-write with current editor access for import.",
+        "rationale": "Uses the existing private outlet grant and reauthorizes import under the global medicine source publication lock until the outlet commit. Client data cannot define medicine identity or legal classifications. Replay reads the immutable first receipt under current outlet access. This legacy outlet grant is not proof of reviewed Staff employment, clinical or dispensing authority.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/pharmacy/catalogue.go",
+            "sha256": "f3da6905ce2b9f019d1f20e5eb8195abc0532cb00dfcb4129f06fe5822583b36",
+            "symbol": "func catalogueRoutes("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/catalogue.go",
+            "sha256": "f3da6905ce2b9f019d1f20e5eb8195abc0532cb00dfcb4129f06fe5822583b36",
+            "symbol": "func outletAccess("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/drug_catalogue.go",
+            "sha256": "3b47a6937b48a47f39d13778ee8d1667805ee684f17c11f15ce661195ab271e8",
+            "symbol": "func (h *catalogueHandlers) searchDrugCatalogue("
+          },
+          {
+            "path": "backend/internal/modules/drugmaster/catalogue.go",
+            "sha256": "295aa4fc22d9867f196ea13ff098425f0f8a8499c86aa5b1647fd7de340c4ad6",
+            "symbol": "func (g stockProductGuard) WithCatalogueProduct("
+          }
+        ],
+        "remaining": [
+          "Verify database-backed isolation, immutable identity and replay behavior in required CI and the deployed application.",
+          "Legacy outlet grants are not reviewed Staff employment authority; no employment-enforcement or professional-authority claim is made.",
+          "Licensed source procurement, independent publication and production data acceptance remain open under #1683."
+        ]
+      }
     },
     {
       "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products",
@@ -10575,6 +10624,55 @@
         "counted": false
       },
       "review": null
+    },
+    {
+      "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/from-drugmaster",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "PUT",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/from-drugmaster",
+        "permission": "pharmacy.catalogue.write",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/from-drugmaster",
+        "registration_sha256": "819eda146222c7887e5eed9b4572ea396349914faf6aeba8971fec030859e6bf",
+        "authority_kind": "mixed",
+        "resource_scope": "Verified tenant, exact pharmacy and outlet; catalogue-read with reader access for search, catalogue-write with current editor access for import.",
+        "rationale": "Uses the existing private outlet grant and reauthorizes import under the global medicine source publication lock until the outlet commit. Client data cannot define medicine identity or legal classifications. Replay reads the immutable first receipt under current outlet access. This legacy outlet grant is not proof of reviewed Staff employment, clinical or dispensing authority.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/pharmacy/catalogue.go",
+            "sha256": "f3da6905ce2b9f019d1f20e5eb8195abc0532cb00dfcb4129f06fe5822583b36",
+            "symbol": "func catalogueRoutes("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/catalogue.go",
+            "sha256": "f3da6905ce2b9f019d1f20e5eb8195abc0532cb00dfcb4129f06fe5822583b36",
+            "symbol": "func outletAccess("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/drug_catalogue.go",
+            "sha256": "3b47a6937b48a47f39d13778ee8d1667805ee684f17c11f15ce661195ab271e8",
+            "symbol": "func (h *catalogueHandlers) importDrugProduct("
+          },
+          {
+            "path": "backend/internal/modules/drugmaster/catalogue.go",
+            "sha256": "295aa4fc22d9867f196ea13ff098425f0f8a8499c86aa5b1647fd7de340c4ad6",
+            "symbol": "func (g stockProductGuard) WithCatalogueProduct("
+          }
+        ],
+        "remaining": [
+          "Verify database-backed isolation, immutable identity and replay behavior in required CI and the deployed application.",
+          "Legacy outlet grants are not reviewed Staff employment authority; no employment-enforcement or professional-authority claim is made.",
+          "Licensed source procurement, independent publication and production data acceptance remain open under #1683."
+        ]
+      }
     },
     {
       "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/price-control/:declaration",

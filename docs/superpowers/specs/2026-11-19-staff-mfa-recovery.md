@@ -245,12 +245,32 @@ The shell build used Node 24 and `API_URL=http://127.0.0.1:8081`; no server ran.
 Generated shell build output was removed afterward.
 
 Local database-dependent tests were not validated: full-package invocations
-encountered the intentionally absent container provider. Their hosted PostgreSQL
-execution, the complete E2E workflow after its measured budget correction, native
-Staff reset/enrollment acceptance and deployment remain required. Do not infer
+encountered the intentionally absent container provider. At `38daae06`, the complete E2E job in hosted run `44433274075` passed in
+24m10s and web checks passed in 27m26s; its Go job is still pending. These results
+do not execute the newer administrative reset integration cases. Hosted
+PostgreSQL validation of those cases, native Staff reset/enrollment acceptance
+and deployment remain required. Do not infer
 full #1703 completion from these consumer tests.
 
 Rejected: native deletion alone; temporarily disabling/reactivating a user;
 factor-presence or `auth_time` as fresh-enrollment proof; trusting an unsigned
 browser `sid`; silently weakening tenant policy; retrying an unknown native write;
 and clearing a recovery fence just because a UI says enrollment succeeded.
+
+## Administrator orchestration candidate
+
+The Workforce command paths and authority/recovery semantics are specified in
+[the Workforce API](../../api/workforce.md#staff-authenticator-recovery-candidate-1703).
+The source now resolves the exact active reviewed link, Staff version and employer
+inside Workforce transactions. IAM supplies recent current administrator and
+ordinary-target checks and immutable, command-idempotent application revocation
+before dispatch. No external I/O occurs inside those source/fence transactions.
+Safe prepared cancellation deliberately checks the initiating administrator and
+original scope without requiring an unchanged historical Staff version or ordinary
+target; it cannot cancel an accepted/uncertain native write or restore old access.
+
+These routes are behind the new ineligible `staff_mfa_recovery` capability. The
+administrative UI and actual native hospital/independent recovery journeys are
+still incomplete. The new real-database integration cases are authored and
+compiled locally but have not yet executed in hosted CI. Earlier native admission
+E2E success at `38daae06` does not validate these later reset changes.

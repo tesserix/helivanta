@@ -1463,6 +1463,13 @@
           "id": "0052_iam_assignment_target_choices",
           "sql_sha256": "1df2f2dc350e765a731b251a2113441120a4379ccc7b5de84af44603101c6355",
           "creates_tables": []
+        },
+        {
+          "id": "0053_iam_staff_mfa_fences",
+          "sql_sha256": "2a10f11fde8b21af6942b448f7bfa84bf0ebfbd8384ee3b77f4206b6e51b6365",
+          "creates_tables": [
+            "iam_staff_mfa_fences"
+          ]
         }
       ]
     },
@@ -11696,6 +11703,33 @@
         },
         {
           "method": "POST",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/mfa-recoveries/:command/cancel",
+          "permission": "workforce.login_links.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/mfa-recoveries/:command",
+          "permission": "workforce.login_links.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/mfa-recoveries/:command",
+          "permission": "workforce.login_links.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review/decision",
           "permission": "public",
           "authentication_required": true,
@@ -12298,6 +12332,33 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/mfa-recoveries/:command/cancel",
+          "permission": "workforce.independent_login.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/mfa-recoveries/:command",
+          "permission": "workforce.independent_login.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/mfa-recoveries/:command",
+          "permission": "workforce.independent_login.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id",
           "permission": "public",
@@ -12457,6 +12518,33 @@
           "authentication_required": true,
           "membership_required": true,
           "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/workforce/suppliers/:supplier/staff/:id/mfa-recoveries/:command/cancel",
+          "permission": "workforce.independent_login.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/suppliers/:supplier/staff/:id/mfa-recoveries/:command",
+          "permission": "workforce.independent_login.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/suppliers/:supplier/staff/:id/mfa-recoveries/:command",
+          "permission": "workforce.independent_login.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
           "counted": false
         },
         {

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "policy_version": "2026-11-16-r1",
+  "policy_version": "2026-11-19-r1",
   "capabilities": [
     {
       "key": "onboarding",
@@ -21,6 +21,13 @@
       "owner": "workforce",
       "dependencies": ["team_accounts"],
       "eligible": true,
+      "review_after": "2027-02-16"
+    },
+    {
+      "key": "staff_mfa_recovery",
+      "owner": "workforce",
+      "dependencies": ["staff_core", "team_accounts"],
+      "eligible": false,
       "review_after": "2027-02-16"
     },
     {
@@ -164,6 +171,53 @@
     }
   ],
   "routes": [
+    {
+      "method": "POST",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/mfa-recoveries/:command/cancel",
+      "capability": "staff_mfa_recovery"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/mfa-recoveries/:command/cancel",
+      "capability": "staff_mfa_recovery"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/workforce/suppliers/:supplier/staff/:id/mfa-recoveries/:command/cancel",
+      "capability": "staff_mfa_recovery"
+    },
+
+    {
+      "method": "GET",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/mfa-recoveries/:command",
+      "capability": "staff_mfa_recovery"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/hospitals/:hospital/staff/:id/mfa-recoveries/:command",
+      "capability": "staff_mfa_recovery"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/mfa-recoveries/:command",
+      "capability": "staff_mfa_recovery"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/mfa-recoveries/:command",
+      "capability": "staff_mfa_recovery"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/workforce/suppliers/:supplier/staff/:id/mfa-recoveries/:command",
+      "capability": "staff_mfa_recovery"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/workforce/suppliers/:supplier/staff/:id/mfa-recoveries/:command",
+      "capability": "staff_mfa_recovery"
+    },
+
     {
       "method": "GET",
       "path": "/healthz",

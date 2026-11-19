@@ -28,6 +28,7 @@ import (
 )
 
 type handlers struct {
+	staffMFARecovery            platform.StaffMFARecoveryService
 	governanceSources           authz.CurrentGovernanceSourceGuard
 	membership                  authz.MembershipChecker
 	staffActors                 authz.CurrentStaffActorGuard

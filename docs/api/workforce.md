@@ -2271,3 +2271,78 @@ active I/O. Independent submission uses the existing canonical submission contra
 and explicitly selects native finding discovery. It does not activate employment
 or assign access. These are candidate implementation facts, not deployed browser
 acceptance or completion of the full Staff/pharmacy workflow.
+
+## Staff authenticator recovery candidate (#1703)
+
+This candidate is gated by the ineligible `staff_mfa_recovery` capability and is
+not deployed or accepted. Workforce owns current Staff and reviewed-account-link
+selection; IAM owns fresh tenant-administrator authority, ordinary-target checks,
+revocation and the application audit; onboarding-service owns the immutable native
+command, factor removal and native session/enrollment evidence. Browser calls use
+Global API. No module reads another owner's private tables.
+
+For each employer family below, the candidate registers `PUT` and `GET` on the
+command path and `POST` on its `/cancel` suffix:
+
+- `/v1/workforce/hospitals/:hospital/staff/:id/mfa-recoveries/:command`
+- `/v1/workforce/pharmacies/:pharmacy/staff/:id/mfa-recoveries/:command`
+- `/v1/workforce/suppliers/:supplier/staff/:id/mfa-recoveries/:command`
+
+The hospital family requires `workforce.login_links.manage`; independent families
+require `workforce.independent_login.manage`. Both also require a current
+establishment-manager access row and a current IAM tenant administrator. Existing
+narrower permissions or a Staff title cannot authorize reset. Both expected-tenant
+and expected-subject headers must exactly match the verified acting session.
+Authentication must be within five minutes and the session must remain unexpired,
+unrevoked and current at the identity owner. Self, governance/owner/admin and
+unknown-role targets are refused. Protected owners use the separate recovery path.
+
+`PUT` takes only onboarding-service's canonical `StaffMFAResetInput` JSON:
+`commandId`, `expectedLinkId`, `expectedLinkVersion`, `expectedStaffVersion` and
+`reason`. The command UUIDv7 must match the path; reason is required, clean text of
+up to 500 characters. The server resolves the subject from the exact current active
+reviewed link and active Staff record, under the verified tenant and employer.
+There are no browser-supplied actor, subject, native organization or revocation
+assertions. The request is bounded to 4 KiB, requires JSON, rejects unknown,
+duplicate or recased fields, and accepts no query parameters. Success is 202 with
+only the canonical `StaffMFARecoveryReceipt` (`commandId`, `state`). `GET` has no
+body and returns 200 with the same minimized receipt after current source checks.
+
+The owner first prepares one frozen command. IAM then commits an append-only
+`iam_staff_mfa_fences` row, credential watermark, audit and invalidation outbox
+before native dispatch. Its immutable fingerprint binds the exact actor, tenant,
+reviewed target/version, command and reason. Retry reads the first cutoff instead
+of advancing it; a changed fingerprint conflicts. A lost native response must be
+reconciled with the same command. The native owner claims at most one dispatch,
+retaining processing or unconfirmed state on ambiguity. No layer automatically
+retries factor removal. Source and IAM authority are rechecked around external I/O;
+no database transaction or guarded callback holds a lock across that I/O.
+
+Cancellation requires `{}` and the same original command, verified tenant, actor
+and employer/Staff path. A currently fresh tenant administrator may cancel their
+own undispatched command even if its target was subsequently promoted, transferred
+or its reviewed version changed. This cancellation creates no employment or
+operating authority, performs no native factor write and does not restore a
+revoked application credential. Owner-side prepared-only cancellation is atomic
+with dispatch; processing, completed and uncertain commands cannot be cancelled.
+This permits safe recovery of a prepared command without reauthorizing a reset
+against a stale or privileged target. Status disclosure and dispatch retain their
+current-target checks.
+
+Errors: 400 invalid intent, 401 fresh/current authentication required, 403 missing
+current administration or protected/self target, 404 invisible/wrong employer or
+Staff scope, 409 changed Staff/link/command or uncancellable state, 415 non-JSON
+command, and 503 unavailable authorization, audit, ledger or native evidence.
+Every response is no-store; private owner snapshots and Staff/native identifiers
+are not browser receipts.
+
+IAM migration `0053_iam_staff_mfa_fences` is additive, tenant-isolated and append-only;
+its guards reject changes/deletion and require attributed ordinary-account
+revocation. After accepted writes its history cannot be rolled back by deleting
+the table; recovery is forward-only. No live migration is authorized by this
+candidate. Local transport/fresh-authority tests and compilation are evidence only
+for those paths. Authored real-PostgreSQL integration cases cover hospital replay,
+fence-before-dispatch, source/privilege denial, prepared cancellation after target
+promotion and independent-pharmacy employer isolation. Hosted execution, the
+administrative UI, native Staff reset/enrollment/browser acceptance, reviewed
+migration, Kargo deployment and deployed verification remain required.

@@ -1,0 +1,334 @@
+package iam
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
+	"github.com/tesserix/onboarding-service/api/customercontract"
+	"github.com/tesserix/onboarding-service/api/staffclient"
+	"gorm.io/gorm"
+)
+
+type staffMFAResetService struct {
+	db          *tenantdb.DB
+	owner       *staffclient.Client
+	identity    UserStateChecker
+	revocations *revocationHandlers
+	membership  MembershipIdentityReader
+}
+
+// StaffMFARecovery exposes current reset authority through the published owner boundary.
+func (m *Module) StaffMFARecovery(deps platform.Deps) platform.StaffMFARecoveryService {
+	return &staffMFAResetService{db: deps.DB, owner: deps.StaffAccounts, identity: m.userState, membership: m.membershipIdentity, revocations: &revocationHandlers{db: deps.DB, bus: deps.Bus, checker: m.checker}}
+}
+
+func (h *staffMFAResetService) validate(p authn.Principal) error {
+	tenant, err := uuid.Parse(p.TenantID)
+	if err != nil || tenant == uuid.Nil || tenant.String() != p.TenantID || !identitySubjectValid(p.Subject) {
+		return staffclient.ErrInvalid
+	}
+	now := time.Now()
+	if p.AuthTime.IsZero() || !p.AuthTime.After(now.Add(-5*time.Minute)) || p.AuthTime.After(now.Add(30*time.Second)) || !now.Before(p.IdleDeadline) {
+		return authz.ErrScopedCredentialRevoked
+	}
+	if h == nil || h.db == nil || h.owner == nil || h.identity == nil || h.membership == nil || h.revocations == nil || h.revocations.bus == nil || h.revocations.checker == nil {
+		return staffclient.ErrUnavailable
+	}
+	return nil
+}
+
+func identitySubjectValid(subject string) bool {
+	if len(subject) < 1 || len(subject) > 200 {
+		return false
+	}
+	for _, r := range subject {
+		if r >= 'A' && r <= 'Z' || r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '_' || r == '-' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func mfaAuthorityError(err error) error {
+	switch {
+	case err == nil:
+		return nil
+	case errors.Is(err, authz.ErrScopedCredentialRevoked):
+		return authz.ErrScopedCredentialRevoked
+	case errors.Is(err, errRevocationActorNotAdmin), errors.Is(err, authz.ErrScopedCommandDenied):
+		return authz.ErrScopedCommandDenied
+	case errors.Is(err, gorm.ErrRecordNotFound), errors.Is(err, staffclient.ErrNotFound):
+		return staffclient.ErrNotFound
+	case errors.Is(err, staffclient.ErrConflict):
+		return staffclient.ErrConflict
+	default:
+		return staffclient.ErrUnavailable
+	}
+}
+
+func (h *staffMFAResetService) authorize(ctx context.Context, p authn.Principal, target string, id uuid.UUID) error {
+	if err := h.validate(p); err != nil {
+		return err
+	}
+	status, err := h.identity.UserCredentialState(ctx, p.TenantID, p.Subject)
+	if err != nil {
+		return staffclient.ErrUnavailable
+	}
+	current, err := credentialIsCurrent(status, p.AuthTime, p.RecoveryGeneration)
+	if err != nil {
+		return staffclient.ErrUnavailable
+	}
+	if !current {
+		return authz.ErrScopedCredentialRevoked
+	}
+	eligible, err := h.membership.MembershipEligible(ctx, p.TenantID, p.Subject)
+	if err != nil {
+		return staffclient.ErrUnavailable
+	}
+	if !eligible {
+		return authz.ErrScopedCredentialRevoked
+	}
+	return mfaAuthorityError(h.db.WithTenant(ctx, p.TenantID, func(tx *gorm.DB) error {
+		if err := membershipActor(tx, p, target); err != nil {
+			return err
+		}
+		if target != "" {
+			if err := ordinaryMFATarget(tx, p, target); err != nil {
+				return err
+			}
+		}
+		return tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id) VALUES(?,?,'staff_mfa_reset_authorized','iam_staff_mfa_fences',?)`, p.TenantID, p.Subject, id).Error
+	}))
+}
+
+func ordinaryMFATarget(tx *gorm.DB, p authn.Principal, target string) error {
+	if target == p.Subject {
+		return authz.ErrScopedCommandDenied
+	}
+	// Lock the subject epoch that every membership transition must update.
+	var count int64
+	if err := tx.Raw(`SELECT member_count FROM iam_subject_membership_epochs WHERE tenant_id=? AND subject=? FOR UPDATE`, p.TenantID, target).Scan(&count).Error; err != nil {
+		return err
+	}
+	if count < 1 {
+		return gorm.ErrRecordNotFound
+	}
+	var roles []string
+	if err := tx.Table("iam_members").Select("role_key").Where("tenant_id=? AND subject=?", p.TenantID, target).Order("role_key").Limit(len(authz.SystemRoles()) + 1).Scan(&roles).Error; err != nil {
+		return err
+	}
+	if len(roles) < 1 || len(roles) > len(authz.SystemRoles()) {
+		return authz.ErrScopedCommandDenied
+	}
+	for _, role := range roles {
+		if !authz.KnownRole(authz.Role(role)) {
+			return authz.ErrScopedCommandDenied
+		}
+		switch authz.Role(role) {
+		case authz.RoleTenantAdmin, authz.RoleGovernanceDelegate, authz.RolePharmacyOwner, authz.RoleSupplyOwner, authz.RoleSupplyAdmin:
+			return authz.ErrScopedCommandDenied
+		}
+	}
+	return nil
+}
+
+func (h *staffMFAResetService) recheck(ctx context.Context, p authn.Principal, in customercontract.StaffMFARecoveryRequest, source platform.StaffMFATargetReader) error {
+	if source == nil {
+		return staffclient.ErrUnavailable
+	}
+	target, err := source(ctx, in.Intent)
+	if err != nil {
+		return mfaAuthorityError(err)
+	}
+	if target != in.Target {
+		return staffclient.ErrConflict
+	}
+	return h.authorize(ctx, p, target.Subject, uuid.MustParse(in.Intent.CommandID))
+}
+
+func (h *staffMFAResetService) Reset(ctx context.Context, p authn.Principal, intent customercontract.StaffMFAResetInput, source platform.StaffMFATargetReader) (customercontract.StaffMFARecoveryReceipt, error) {
+	var empty customercontract.StaffMFARecoveryReceipt
+	if err := h.validate(p); err != nil {
+		return empty, err
+	}
+	if intent.Validate() != nil {
+		return empty, staffclient.ErrInvalid
+	}
+	ctx, cancel := staffMFAResetContext(ctx, p)
+	defer cancel()
+	id := uuid.MustParse(intent.CommandID)
+	if err := h.authorize(ctx, p, "", id); err != nil {
+		return empty, err
+	}
+	if source == nil {
+		return empty, staffclient.ErrUnavailable
+	}
+	target, err := source(ctx, intent)
+	if err != nil {
+		return empty, mfaAuthorityError(err)
+	}
+	in := customercontract.StaffMFARecoveryRequest{ActorSubject: p.Subject, Target: target, Intent: intent}
+	if target.Subject == p.Subject {
+		return empty, authz.ErrScopedCommandDenied
+	}
+	if target.TenantID != p.TenantID {
+		return empty, staffclient.ErrNotFound
+	}
+	if in.Validate() != nil {
+		return empty, staffclient.ErrUnavailable
+	}
+	if err = h.authorize(ctx, p, target.Subject, id); err != nil {
+		return empty, err
+	}
+	scope := staffclient.Scope{TenantID: uuid.MustParse(p.TenantID), CommandID: id, ActorSubject: p.Subject}
+	receipt, err := h.owner.PrepareMFA(ctx, scope, in)
+	if err != nil {
+		return empty, err
+	}
+	if err = h.recheck(ctx, p, in, source); err != nil {
+		return empty, err
+	}
+	if receipt.State == "prepared" {
+		if err = h.fence(ctx, p, in); err != nil {
+			return empty, err
+		}
+		if err = h.recheck(ctx, p, in, source); err != nil {
+			return empty, err
+		}
+		receipt, err = h.owner.DispatchMFA(ctx, scope, customercontract.StaffMFADispatchRequest{Request: in, ApplicationFenceID: intent.CommandID})
+		if err != nil {
+			return empty, err
+		}
+	}
+	if err = h.recheck(ctx, p, in, source); err != nil {
+		return empty, err
+	}
+	return receipt, nil
+}
+
+func (h *staffMFAResetService) Read(ctx context.Context, p authn.Principal, command string, source platform.StaffMFATargetReader) (customercontract.StaffMFARecoveryReceipt, error) {
+	var empty customercontract.StaffMFARecoveryReceipt
+	if err := h.validate(p); err != nil {
+		return empty, err
+	}
+	ctx, cancel := staffMFAResetContext(ctx, p)
+	defer cancel()
+	id, ok := staffAccountID(command)
+	if !ok {
+		return empty, staffclient.ErrInvalid
+	}
+	if err := h.authorize(ctx, p, "", id); err != nil {
+		return empty, err
+	}
+	snapshot, err := h.owner.GetMFA(ctx, staffclient.Scope{TenantID: uuid.MustParse(p.TenantID), CommandID: id, ActorSubject: p.Subject})
+	if err != nil {
+		return empty, err
+	}
+	if err = h.recheck(ctx, p, snapshot.Request, source); err != nil {
+		return empty, err
+	}
+	return snapshot.Receipt, nil
+}
+
+func (h *staffMFAResetService) fence(ctx context.Context, p authn.Principal, in customercontract.StaffMFARecoveryRequest) error {
+	raw, err := json.Marshal(in)
+	if err != nil {
+		return staffclient.ErrInvalid
+	}
+	hash := sha256.Sum256(raw)
+	fingerprint := hex.EncodeToString(hash[:])
+	err = h.db.WithTenant(ctx, p.TenantID, func(tx *gorm.DB) error {
+		if err := membershipActor(tx, p, in.Target.Subject); err != nil {
+			return err
+		}
+		if err := ordinaryMFATarget(tx, p, in.Target.Subject); err != nil {
+			return err
+		}
+		if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended(?,0))`, "iam.staff-mfa-fence:"+p.TenantID+":"+in.Intent.CommandID).Error; err != nil {
+			return err
+		}
+		var held struct{ Fingerprint string }
+		found := tx.Table("iam_staff_mfa_fences").Select("fingerprint").Where("tenant_id=? AND command_id=?", p.TenantID, in.Intent.CommandID).Take(&held).Error
+		if found == nil {
+			if held.Fingerprint != fingerprint {
+				return staffclient.ErrConflict
+			}
+			return nil
+		}
+		if !errors.Is(found, gorm.ErrRecordNotFound) {
+			return found
+		}
+		var cutoff time.Time
+		if err := tx.Raw(`SELECT clock_timestamp()`).Scan(&cutoff).Error; err != nil {
+			return err
+		}
+		if err := h.revocations.writeRevocation(tx, in.Target.Subject, cutoff, "staff_mfa_recovery", p.Subject); err != nil {
+			return err
+		}
+		if err := tx.Exec(`SELECT set_config('app.actor_subject',?,true)`, p.Subject).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec(`INSERT INTO iam_staff_mfa_fences(tenant_id,command_id,target_subject,actor_subject,fingerprint,revoked_at) VALUES(?,?,?,?,?,?)`, p.TenantID, in.Intent.CommandID, in.Target.Subject, p.Subject, fingerprint, cutoff).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id) VALUES(?,?,'staff_mfa_reset_fenced','iam_staff_mfa_fences',?)`, p.TenantID, p.Subject, in.Intent.CommandID).Error
+	})
+	if err == nil {
+		h.revocations.checker.Invalidate(in.Target.Subject)
+	}
+	return mfaAuthorityError(err)
+}
+
+func staffMFAResetContext(ctx context.Context, p authn.Principal) (context.Context, context.CancelFunc) {
+	until := time.Now().Add(30 * time.Second)
+	if p.IdleDeadline.Before(until) {
+		until = p.IdleDeadline
+	}
+	return context.WithDeadline(ctx, until)
+}
+
+// Cancel never removes a native factor or restores a revoked application credential.
+func (h *staffMFAResetService) Cancel(ctx context.Context, p authn.Principal, command string, matches func(customercontract.StaffMFARecoveryTarget) bool) (customercontract.StaffMFARecoveryReceipt, error) {
+	var empty customercontract.StaffMFARecoveryReceipt
+	if err := h.validate(p); err != nil {
+		return empty, err
+	}
+	id, ok := staffAccountID(command)
+	if !ok {
+		return empty, staffclient.ErrInvalid
+	}
+	ctx, cancel := staffMFAResetContext(ctx, p)
+	defer cancel()
+	if err := h.authorize(ctx, p, "", id); err != nil {
+		return empty, err
+	}
+	scope := staffclient.Scope{TenantID: uuid.MustParse(p.TenantID), CommandID: id, ActorSubject: p.Subject}
+	snapshot, err := h.owner.GetMFA(ctx, scope)
+	if err != nil {
+		return empty, err
+	}
+	if matches == nil || !matches(snapshot.Request.Target) {
+		return empty, staffclient.ErrNotFound
+	}
+	if err = h.authorize(ctx, p, "", id); err != nil {
+		return empty, err
+	}
+	receipt, err := h.owner.CancelMFA(ctx, scope, snapshot.Request)
+	if err != nil {
+		return empty, err
+	}
+	if err = h.authorize(ctx, p, "", id); err != nil {
+		return empty, err
+	}
+	return receipt, nil
+}

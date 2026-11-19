@@ -472,6 +472,7 @@ func run() error {
 	deps.HospitalSourceAuthority = platform.HospitalSourceAuthority(registry.All(), deps)
 	deps.SupplierStockCancellation = platform.SupplierStockCancellation(registry.All(), deps)
 	deps.PartnerScopes = iam.NewPartnerScopeAuthorizer(deps)
+	deps.StaffMFARecovery = platform.StaffMFARecovery(registry.All(), deps)
 
 	if sourceCaller != nil {
 		srv.Engine.POST(suppliertrade.SourceCheckPath, supply.NewTradingSourceCheckHandler(deps, sourceCaller))

@@ -1,0 +1,374 @@
+package integration_test
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/http/httputil"
+	"net/url"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/stretchr/testify/require"
+	"github.com/tesserix/helivanta/internal/modules/iam"
+	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
+	"github.com/tesserix/helivanta/internal/modules/workforce"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testinfra"
+	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
+	"github.com/tesserix/onboarding-service/api/customercontract"
+	"github.com/tesserix/onboarding-service/api/staffclient"
+	"gorm.io/gorm"
+)
+
+type mfaNativeIdentity struct{ ineligible atomic.Bool }
+
+func (*mfaNativeIdentity) UserState(context.Context, string, string) (loginclient.UserState, error) {
+	return loginclient.UserStateActive, nil
+}
+func (*mfaNativeIdentity) UserCredentialState(context.Context, string, string) (loginclient.CredentialStatus, error) {
+	return loginclient.CredentialStatus{State: loginclient.UserStateActive, MFARecovery: &customercontract.StaffMFARecoveryRequirement{State: "none"}}, nil
+}
+
+func (n *mfaNativeIdentity) MembershipEligible(context.Context, string, string) (bool, error) {
+	return !n.ineligible.Load(), nil
+}
+
+type mfaIAMModule struct {
+	*iam.Module
+	native *mfaNativeIdentity
+}
+
+func (m *mfaIAMModule) StaffMFARecovery(deps platform.Deps) platform.StaffMFARecoveryService {
+	m.Module = iam.New(iam.NewRevocationChecker(deps.DB)).SetUserStateChecker(m.native).SetMembershipIdentityReader(m.native)
+	return m.Module.StaffMFARecovery(deps)
+}
+
+type mfaOwnerToken struct{}
+
+func (mfaOwnerToken) Token(context.Context) (string, error) { return "synthetic-workload", nil }
+
+type mfaOwnerTransport func(*http.Request) (*http.Response, error)
+
+func (f mfaOwnerTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+type mfaOwnerFixture struct {
+	t                  *testing.T
+	mu                 sync.Mutex
+	db                 *tenantdb.DB
+	held               *customercontract.StaffMFARecoveryRequest
+	state              string
+	failDispatch       bool
+	dispatches, writes int
+	afterPrepare       func()
+	native             *mfaNativeIdentity
+}
+
+func (o *mfaOwnerFixture) roundTrip(r *http.Request) (*http.Response, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	require.Equal(o.t, "Bearer synthetic-workload", r.Header.Get("Authorization"))
+	require.Equal(o.t, "helivanta", r.Header.Get("X-Expected-Product-Key"))
+	var output any
+	status := 200
+	switch {
+	case r.Method == http.MethodPut:
+		var in customercontract.StaffMFARecoveryRequest
+		require.NoError(o.t, json.NewDecoder(r.Body).Decode(&in))
+		if o.held == nil {
+			o.held = &in
+			o.state = "prepared"
+		} else {
+			require.Equal(o.t, *o.held, in)
+		}
+		output = customercontract.StaffMFARecoveryReceipt{CommandID: in.Intent.CommandID, State: o.state}
+		if o.afterPrepare != nil {
+			o.afterPrepare()
+		}
+	case r.Method == http.MethodGet:
+		require.NotNil(o.t, o.held)
+		require.Equal(o.t, o.held.ActorSubject, r.URL.Query().Get("actor_subject"))
+		output = customercontract.StaffMFARecoverySnapshot{Request: *o.held, Receipt: customercontract.StaffMFARecoveryReceipt{CommandID: o.held.Intent.CommandID, State: o.state}}
+	case strings.HasSuffix(r.URL.Path, "/dispatch"):
+		o.dispatches++
+		var in customercontract.StaffMFADispatchRequest
+		require.NoError(o.t, json.NewDecoder(r.Body).Decode(&in))
+		require.NoError(o.t, in.Validate())
+		require.Equal(o.t, *o.held, in.Request)
+		require.NoError(o.t, o.db.WithTenant(r.Context(), in.Request.Target.TenantID, func(tx *gorm.DB) error {
+			var rows int64
+			require.NoError(o.t, tx.Table("iam_staff_mfa_fences").Where("command_id=?", in.ApplicationFenceID).Count(&rows).Error)
+			require.EqualValues(o.t, 1, rows, "the application fence must commit before native dispatch")
+			return nil
+		}))
+		if o.failDispatch {
+			status = 503
+			output = map[string]string{"error": "unavailable"}
+		} else {
+			if o.state == "prepared" {
+				o.writes++
+				o.state = "awaiting_enrollment"
+			}
+			output = customercontract.StaffMFARecoveryReceipt{CommandID: in.Request.Intent.CommandID, State: o.state}
+		}
+	case strings.HasSuffix(r.URL.Path, "/cancel"):
+		if o.state != "prepared" && o.state != "cancelled" {
+			status = 409
+			output = map[string]string{"error": "conflict"}
+		} else {
+			o.state = "cancelled"
+			output = customercontract.StaffMFARecoveryReceipt{CommandID: o.held.Intent.CommandID, State: o.state}
+		}
+	default:
+		o.t.Errorf("unexpected owner request %s %s", r.Method, r.URL.Path)
+		status = 500
+	}
+	raw, err := json.Marshal(output)
+	require.NoError(o.t, err)
+	return &http.Response{StatusCode: status, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(string(raw)))}, nil
+}
+
+func newMFAResetFixture(t *testing.T) (*mfaResetFixture, *mfaOwnerFixture, customercontract.StaffMFAResetInput, string) {
+	t.Helper()
+	owner := &mfaOwnerFixture{t: t, native: &mfaNativeIdentity{}}
+	client, err := staffclient.New(staffclient.Config{Endpoint: "http://onboarding-api.onboarding.svc.cluster.local:8080", ProductKey: "helivanta", Tokens: mfaOwnerToken{}, HTTP: &http.Client{Transport: mfaOwnerTransport(owner.roundTrip)}})
+	require.NoError(t, err)
+	f := newMFAWorkforceFixture(t, client, owner.native)
+	owner.db = f.db
+	require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'user-manager','tenant_admin'),(?,'user-reviewer','governance_delegate'),(?,'user-candidate','staff_member')`, testutil.TenantA, testutil.TenantA, testutil.TenantA).Error
+	}))
+	link := uuid.Must(uuid.NewV7()).String()
+	f.call("PUT", f.path+"/"+link, "manager", `{"subject":"user-candidate","reason":"Verified synthetic target"}`, 200)
+	f.call("POST", f.path+"/"+link+"/decision", "reviewer", `{"expected_version":1,"decision":"approve","reason":"Independent identity review"}`, 200)
+	intent := customercontract.StaffMFAResetInput{CommandID: uuid.Must(uuid.NewV7()).String(), ExpectedLinkID: link, ExpectedLinkVersion: 2, ExpectedStaffVersion: 1, Reason: "Synthetic lost authenticator review"}
+	return f, owner, intent, f.base + "/staff/" + f.staff + "/mfa-recoveries/" + intent.CommandID
+}
+
+func mfaRequest(t *testing.T, r *gin.Engine, method, path, actor string, input any) *httptest.ResponseRecorder {
+	t.Helper()
+	var body io.Reader
+	if input != nil {
+		raw, err := json.Marshal(input)
+		require.NoError(t, err)
+		body = strings.NewReader(string(raw))
+	}
+	request := httptest.NewRequest(method, path, body)
+	request.Header.Set("Authorization", "Bearer "+actor)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantA)
+	request.Header.Set("X-Helivanta-Expected-Subject", "user-"+actor)
+	response := httptest.NewRecorder()
+	r.ServeHTTP(response, request)
+	return response
+}
+
+func mfaWatermark(t *testing.T, db *tenantdb.DB) time.Time {
+	t.Helper()
+	var at time.Time
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Table("iam_credential_revocations").Select("revoked_at").Where("subject='user-candidate'").Scan(&at).Error
+	}))
+	return at
+}
+
+func TestStaffMFAResetFencesBeforeDispatchAndReplaysWithoutNewRevocation(t *testing.T) {
+	f, owner, input, path := newMFAResetFixture(t)
+	owner.failDispatch = true
+	response := mfaRequest(t, f.r, "PUT", path, "manager", input)
+	require.Equal(t, 503, response.Code, response.Body.String())
+	cutoff := mfaWatermark(t, f.db)
+	require.False(t, cutoff.IsZero())
+	require.Equal(t, 1, owner.dispatches)
+	require.Zero(t, owner.writes)
+	owner.failDispatch = false
+	response = mfaRequest(t, f.r, "PUT", path, "manager", input)
+	require.Equal(t, 202, response.Code, response.Body.String())
+	require.JSONEq(t, `{"commandId":"`+input.CommandID+`","state":"awaiting_enrollment"}`, response.Body.String())
+	require.Equal(t, cutoff, mfaWatermark(t, f.db))
+	require.Equal(t, 2, owner.dispatches)
+	require.Equal(t, 1, owner.writes)
+	response = mfaRequest(t, f.r, "PUT", path, "manager", input)
+	require.Equal(t, 202, response.Code, response.Body.String())
+	require.Equal(t, 2, owner.dispatches)
+	require.Equal(t, cutoff, mfaWatermark(t, f.db))
+	response = mfaRequest(t, f.r, "GET", path, "manager", nil)
+	require.Equal(t, 200, response.Code, response.Body.String())
+	require.NotContains(t, response.Body.String(), "user-candidate")
+	for _, statement := range []string{
+		`UPDATE iam_staff_mfa_fences SET fingerprint=repeat('0',64) WHERE command_id=?`,
+		`DELETE FROM iam_staff_mfa_fences WHERE command_id=?`,
+	} {
+		err := f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error { return tx.Exec(statement, input.CommandID).Error })
+		require.Error(t, err, "a committed fence is immutable")
+		var pg *pgconn.PgError
+		require.True(t, errors.As(err, &pg))
+		require.Equal(t, "23514", pg.Code)
+	}
+	require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantB, func(tx *gorm.DB) error {
+		var count int64
+		if err := tx.Table("iam_staff_mfa_fences").Where("command_id=?", input.CommandID).Count(&count).Error; err != nil {
+			return err
+		}
+		require.Zero(t, count, "fence rows must not cross verified tenants")
+		return nil
+	}))
+	response = mfaRequest(t, f.r, "POST", path+"/cancel", "manager", map[string]any{})
+	require.Equal(t, 409, response.Code, response.Body.String())
+	require.Equal(t, 1, owner.writes)
+}
+
+func TestStaffMFAPreparedCancellationSurvivesTargetPromotionWithoutDispatch(t *testing.T) {
+	f, owner, input, path := newMFAResetFixture(t)
+	owner.afterPrepare = func() {
+		require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+			return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'user-candidate','tenant_admin')`, testutil.TenantA).Error
+		}))
+	}
+	response := mfaRequest(t, f.r, "PUT", path, "manager", input)
+	require.Equal(t, 403, response.Code, response.Body.String())
+	require.Zero(t, owner.dispatches)
+	response = mfaRequest(t, f.r, "POST", path+"/cancel", "manager", map[string]any{})
+	require.Equal(t, 200, response.Code, response.Body.String())
+	require.JSONEq(t, `{"commandId":"`+input.CommandID+`","state":"cancelled"}`, response.Body.String())
+	require.Zero(t, owner.writes)
+}
+
+type mfaResetFixture struct {
+	t                 *testing.T
+	r                 *gin.Engine
+	db                *tenantdb.DB
+	base, staff, path string
+}
+
+func newMFAWorkforceFixture(t *testing.T, owner *staffclient.Client, native *mfaNativeIdentity) *mfaResetFixture {
+	t.Helper()
+	endpoint, err := url.Parse(testinfra.StartOpenFGA(t))
+	require.NoError(t, err)
+	proxy := httptest.NewServer(httputil.NewSingleHostReverseProxy(endpoint))
+	t.Cleanup(proxy.Close)
+	fga, err := authz.NewClient(t.Context(), proxy.URL, "recovery-"+uuid.NewString())
+	require.NoError(t, err)
+	require.NoError(t, fga.GrantTenantRole(t.Context(), testutil.TenantA, authz.RoleStaffMember))
+	require.NoError(t, fga.GrantRole(t.Context(), testutil.TenantA, "user-candidate", authz.RoleStaffMember))
+	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{StaffAccounts: owner, GovernanceSources: testutil.GovernanceReviewProtocol,
+		Tokens: map[string]string{"manager": testutil.TenantA, "reviewer": testutil.TenantA, "candidate": testutil.TenantA, "foreign": testutil.TenantB},
+		Perms: map[string][]authz.Permission{
+			"manager":  {workforce.PermHospitalManage, workforce.PermEnrollmentManage, workforce.PermLoginLinkManage, workforce.PermLoginLinkReview, workforce.PermIndependentLoginManage, workforce.PermIndependentLoginReview},
+			"reviewer": {workforce.PermLoginLinkReview, workforce.PermIndependentLoginReview}, "candidate": {workforce.PermLoginLinkManage}, "foreign": {workforce.PermLoginLinkManage},
+		}, Roles: fga, Modules: []platform.Module{&mfaIAMModule{Module: iam.New(nil), native: native}, workforce.New()},
+	})
+	f := &mfaResetFixture{t: t, r: r, db: db, base: "/v1/workforce/hospitals/" + uuid.NewString(), staff: uuid.NewString()}
+	f.call("PUT", f.base, "manager", `{"name":"Synthetic Recovery Hospital"}`, 200)
+	for _, actor := range []string{"manager", "reviewer", "candidate"} {
+		f.call("PUT", f.base+"/access/user-"+actor, "manager", `{"level":"manager"}`, 200)
+	}
+	f.call("PUT", f.base+"/staff/"+f.staff, "manager", `{"employee_code":"MFA-01","display_name":"Synthetic Recovery Staff","job_category":"nurse","employment_status":"active"}`, 200)
+	f.path = f.base + "/staff/" + f.staff + "/login-links"
+	return f
+}
+func (f *mfaResetFixture) call(method, path, actor, body string, status int) *httptest.ResponseRecorder {
+	f.t.Helper()
+	response := testutil.Do(f.r, method, path, actor, body)
+	require.Equal(f.t, status, response.Code, response.Body.String())
+	return response
+}
+
+func TestStaffMFAResetRejectsStaleUnreviewedForeignAndSelfTargetsBeforeOwnerIO(t *testing.T) {
+	f, owner, input, path := newMFAResetFixture(t)
+	for _, tc := range []struct {
+		name, actor, path string
+		mutate            func(*customercontract.StaffMFAResetInput)
+		status            int
+	}{
+		{"stale_link", "manager", path, func(v *customercontract.StaffMFAResetInput) { v.ExpectedLinkVersion++ }, 409},
+		{"stale_staff", "manager", path, func(v *customercontract.StaffMFAResetInput) { v.ExpectedStaffVersion++ }, 409},
+		{"unknown_link", "manager", path, func(v *customercontract.StaffMFAResetInput) { v.ExpectedLinkID = uuid.Must(uuid.NewV7()).String() }, 404},
+		{"foreign_staff", "manager", strings.Replace(path, f.staff, uuid.NewString(), 1), func(*customercontract.StaffMFAResetInput) {}, 404},
+		{"wrong_employer_kind", "manager", strings.Replace(path, "/hospitals/", "/pharmacies/", 1), func(*customercontract.StaffMFAResetInput) {}, 404},
+		{"manager_without_administration", "candidate", path, func(*customercontract.StaffMFAResetInput) {}, 403},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			in := input
+			tc.mutate(&in)
+			response := mfaRequest(t, f.r, "PUT", tc.path, tc.actor, in)
+			require.Equal(t, tc.status, response.Code, response.Body.String())
+			require.Nil(t, owner.held)
+			require.Zero(t, owner.dispatches)
+		})
+	}
+	require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantB, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'user-foreign','tenant_admin')`, testutil.TenantB).Error
+	}))
+	raw, err := json.Marshal(input)
+	require.NoError(t, err)
+	foreignRequest := httptest.NewRequest("PUT", path, strings.NewReader(string(raw)))
+	foreignRequest.Header.Set("Authorization", "Bearer foreign")
+	foreignRequest.Header.Set("Content-Type", "application/json")
+	foreignRequest.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantB)
+	foreignRequest.Header.Set("X-Helivanta-Expected-Subject", "user-foreign")
+	foreignResponse := httptest.NewRecorder()
+	f.r.ServeHTTP(foreignResponse, foreignRequest)
+	require.Equal(t, 404, foreignResponse.Code, foreignResponse.Body.String())
+	require.Nil(t, owner.held)
+	require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'user-candidate','tenant_admin')`, testutil.TenantA).Error
+	}))
+	response := mfaRequest(t, f.r, "PUT", path, "candidate", input)
+	require.Equal(t, 403, response.Code, response.Body.String())
+	require.Nil(t, owner.held)
+	response = mfaRequest(t, f.r, "PUT", path, "manager", input)
+	require.Equal(t, 403, response.Code, response.Body.String())
+	require.Nil(t, owner.held)
+}
+
+func TestIndependentPharmacyStaffMFARecoveryKeepsTheEmployerScope(t *testing.T) {
+	f, owner, _, _ := newMFAResetFixture(t)
+	employer := uuid.Must(uuid.NewV7()).String()
+	require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.workforce_subject','user-manager',true),set_config('app.workforce_hospital',?,true)`, employer).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec(`INSERT INTO workforce_hospitals(tenant_id,id,name,establishment_kind,pharmacy_ownership_type) VALUES(?,?,'Synthetic Independent Recovery Pharmacy','pharmacy','independent')`, testutil.TenantA, employer).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`INSERT INTO workforce_hospital_access(tenant_id,hospital_id,subject,level) VALUES(?,?,'user-manager','manager'),(?,?,'user-reviewer','manager')`, testutil.TenantA, employer, testutil.TenantA, employer).Error
+	}))
+	root := "/v1/workforce/pharmacies/" + employer
+	staff := uuid.NewString()
+	f.call("PUT", root+"/staff/"+staff+"?directory_context=v1", "manager", `{"employee_code":"MFA-INDEP-01","display_name":"Synthetic Independent Pharmacist","job_category":"pharmacist","employment_status":"active","expected_version":0,"directory_context_version":"v1"}`, 200)
+	link := uuid.Must(uuid.NewV7()).String()
+	f.call("PUT", root+"/staff/"+staff+"/account-links/"+link, "manager", `{"expected_staff_version":1,"subject":"user-candidate","reason":"Verified independent pharmacy account"}`, 200)
+	f.call("PUT", root+"/staff/"+staff+"/account-links/"+link+"/commands/"+uuid.Must(uuid.NewV7()).String(), "reviewer", `{"expected_version":1,"decision":"approve","reason":"Independent employer identity review"}`, 200)
+	input := customercontract.StaffMFAResetInput{CommandID: uuid.Must(uuid.NewV7()).String(), ExpectedLinkID: link, ExpectedLinkVersion: 2, ExpectedStaffVersion: 1, Reason: "Independent pharmacist lost authenticator"}
+	path := root + "/staff/" + staff + "/mfa-recoveries/" + input.CommandID
+	response := mfaRequest(t, f.r, "PUT", path, "manager", input)
+	require.Equal(t, 202, response.Code, response.Body.String())
+	require.Equal(t, "pharmacy", owner.held.Target.EmployerKind)
+	require.Equal(t, employer, owner.held.Target.EmployerID)
+	require.Equal(t, staff, owner.held.Target.StaffID)
+	require.Equal(t, 1, owner.writes)
+	response = mfaRequest(t, f.r, "GET", f.base+"/staff/"+f.staff+"/mfa-recoveries/"+input.CommandID, "manager", nil)
+	require.Equal(t, 404, response.Code, response.Body.String())
+	require.NotContains(t, response.Body.String(), "user-candidate")
+}
+
+func TestStaffMFAResetRechecksNativeAdministratorEligibilityBeforeDispatch(t *testing.T) {
+	f, owner, input, path := newMFAResetFixture(t)
+	owner.afterPrepare = func() { owner.native.ineligible.Store(true) }
+	response := mfaRequest(t, f.r, "PUT", path, "manager", input)
+	require.Equal(t, 401, response.Code, response.Body.String())
+	require.Zero(t, owner.dispatches)
+	require.Zero(t, owner.writes)
+}

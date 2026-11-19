@@ -165,6 +165,7 @@ Migration table declarations:
 - `0049_iam_assignment_governance`: `iam_assignment_governance_requests`, `iam_assignment_governance_verifications`.
 - `0050_iam_operating_governance`: `iam_operating_governance_origins`, `iam_operating_governance_commands`.
 - `0051_iam_operating_employer_inbox`: concurrent index `iam_operating_employer_inbox` on `iam_operating_duties (tenant_id, employer_kind, employer_id, native_administration, created_at DESC, id DESC)`.
+- `0053_iam_staff_mfa_fences`: `iam_staff_mfa_fences`.
 
 ## reference
 
@@ -1456,6 +1457,9 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/login-links/:link/history` | `public` | true | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/login-links/:link` | `workforce.login_links.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/login-links` | `public` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/staff/:id/mfa-recoveries/:command/cancel` | `workforce.login_links.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/mfa-recoveries/:command` | `workforce.login_links.manage` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/mfa-recoveries/:command` | `workforce.login_links.manage` | false | false |
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review/decision` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review/evidence/:file/content` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review/history` | `public` | true | false |
@@ -1523,6 +1527,9 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/employment-source` | `workforce.enrollment.manage` | false | false |
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/enrollment` | `workforce.enrollment.manage` | false | false |
 | PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/enrollment` | `workforce.enrollment.manage` | false | false |
+| POST | `/v1/workforce/pharmacies/:pharmacy/staff/:id/mfa-recoveries/:command/cancel` | `workforce.independent_login.manage` | false | false |
+| GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id/mfa-recoveries/:command` | `workforce.independent_login.manage` | false | false |
+| PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id/mfa-recoveries/:command` | `workforce.independent_login.manage` | false | false |
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff/:id` | `public` | false | false |
 | PUT | `/v1/workforce/pharmacies/:pharmacy/staff/:id` | `public` | false | false |
 | GET | `/v1/workforce/pharmacies/:pharmacy/staff` | `public` | true | false |
@@ -1541,6 +1548,9 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/suppliers/:supplier/staff/:id/account-links/:link` | `public` | false | false |
 | PUT | `/v1/workforce/suppliers/:supplier/staff/:id/account-links/:link` | `workforce.independent_login.manage` | false | false |
 | GET | `/v1/workforce/suppliers/:supplier/staff/:id/account-links` | `public` | true | false |
+| POST | `/v1/workforce/suppliers/:supplier/staff/:id/mfa-recoveries/:command/cancel` | `workforce.independent_login.manage` | false | false |
+| GET | `/v1/workforce/suppliers/:supplier/staff/:id/mfa-recoveries/:command` | `workforce.independent_login.manage` | false | false |
+| PUT | `/v1/workforce/suppliers/:supplier/staff/:id/mfa-recoveries/:command` | `workforce.independent_login.manage` | false | false |
 | GET | `/v1/workforce/suppliers/:supplier/staff/:id` | `public` | false | false |
 | PUT | `/v1/workforce/suppliers/:supplier/staff/:id` | `public` | false | false |
 | GET | `/v1/workforce/suppliers/:supplier/staff` | `public` | true | false |

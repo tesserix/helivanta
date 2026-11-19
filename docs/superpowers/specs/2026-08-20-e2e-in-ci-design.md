@@ -66,8 +66,10 @@ phase timings above come from the retained workflow log.
 
 After investigating that measured suite growth, the step budget is 30 minutes
 and the job budget is 40 minutes, including setup and failure diagnostics. The
-hard timeout, all three phases and zero retries remain. A fresh complete hosted
-run must validate cleanup and the new budget before this change is accepted.
+hard timeout, all three phases and zero retries remain. Run [44433274075](https://github.com/tesserix/helivanta/actions/runs/44433274075)
+subsequently passed the complete E2E job in 24m10s, including cleanup, at
+`38daae06`. This validates the revised budget for that revision; it does not
+validate later Staff administrative reset changes.
 The original 8.5/10-minute figures above are historical measurements, not current
 runtime promises.
 

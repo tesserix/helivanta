@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -71,4 +73,47 @@ func TestNativeOwnerFixtureTransportPinsDestinationAndPreservesTheRealMachineTok
 	_, err := transport.RoundTrip(nil)
 	require.Error(t, err)
 	require.Equal(t, 2, called)
+}
+
+func TestNativeOwnerFixtureTransportOnlyForwardsTheExactRealOAuthExchange(t *testing.T) {
+	called := 0
+	transport := nativeOwnerFixtureTransport{next: ownerFixtureTransport(func(r *http.Request) (*http.Response, error) {
+		called++
+		require.Equal(t, "http://auth.tesserix.localhost:20080/oauth/v2/token", r.URL.String())
+		client, secret, ok := r.BasicAuth()
+		require.True(t, ok)
+		require.Equal(t, "synthetic-client", client)
+		require.Equal(t, "synthetic-secret", secret)
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader("{}"))}, nil
+	})}
+	for _, tc := range []struct {
+		method, path string
+		allowed      bool
+	}{
+		{"POST", "/oauth/v2/token", true}, {"GET", "/oauth/v2/token", false},
+		{"POST", "/oauth/v2/token?destination=foreign", false}, {"POST", "/v2/users", false},
+	} {
+		request, err := http.NewRequestWithContext(context.Background(), tc.method, "https://auth.identity-fixture.invalid"+tc.path, nil)
+		require.NoError(t, err)
+		request.SetBasicAuth("synthetic-client", "synthetic-secret")
+		_, err = transport.RoundTrip(request)
+		require.Equal(t, tc.allowed, err == nil)
+	}
+	require.Equal(t, 1, called)
+}
+
+func TestOrganisationIdentityNativeFixtureInitializesWithPreferredOAuthLogin(t *testing.T) {
+	t.Setenv("HELIVANTA_IDENTITY_FIXTURE", "true")
+	t.Setenv("HELIVANTA_STAFF_MFA_RECOVERY_FIXTURE", "true")
+	file := filepath.Join(t.TempDir(), "product-credential")
+	require.NoError(t, os.WriteFile(file, []byte("synthetic-client-secret"), 0600))
+	clients, err := newOrganizationIdentity(config.Config{
+		Env: "dev", ZitadelIssuerURL: "http://auth.tesserix.localhost:20080",
+		OrganizationIdentityURL:        "https://onboarding.identity-fixture.invalid",
+		OrganizationIdentityProductKey: "helivanta", OrganizationIdentityTokenProjectID: "native-project",
+		OrganizationIdentityClientID: "native-machine@platform.localhost", OrganizationIdentityClientSecretFile: file,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, clients.proof)
+	require.NotNil(t, clients.staff)
 }

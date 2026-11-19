@@ -25,6 +25,16 @@ test("creates one real native machine and retains its dedicated credential witho
       calls.push([url, options]);
       if (url.endsWith("/_search")) return response({ result: [] });
       if (url.endsWith("/users/machine")) return response({ userId: "native-machine" });
+      if (url.endsWith("/users/native-machine"))
+        return response({
+          user: {
+            id: "native-machine",
+            state: "USER_STATE_ACTIVE",
+            details: { resourceOwner: "platform-org" },
+            preferredLoginName: "native-machine",
+            machine: {},
+          },
+        });
       if (url.endsWith("/native-machine/secret")) {
         assert.equal(options.method, "PUT", "pinned native GenerateMachineSecret uses PUT");
         return response({ clientId: "native-machine", clientSecret: "synthetic-client-secret" });
@@ -32,9 +42,9 @@ test("creates one real native machine and retains its dedicated credential witho
       throw new Error("unbounded native fixture request");
     },
   });
-  assert.equal(machine, "native-machine");
+  assert.deepEqual(machine, { userId: "native-machine", clientId: "native-machine" });
   assert.equal(retained, "synthetic-client-secret");
-  assert.equal(calls.length, 3);
+  assert.equal(calls.length, 4);
   assert.equal(JSON.parse(calls[1][1].body).accessTokenType, "ACCESS_TOKEN_TYPE_JWT");
 });
 test("reuses the existing native machine only with its retained secret and expected owner", async () => {
@@ -45,8 +55,18 @@ test("reuses the existing native machine only with its retained secret and expec
     org: "platform-org",
     readSecret: () => "synthetic-client-secret",
     writeSecret: () => assert.fail("must not rotate"),
-    fetcher: async () => {
+    fetcher: async (url) => {
       calls++;
+      if (url.endsWith("/users/native-machine"))
+        return response({
+          user: {
+            id: "native-machine",
+            state: "USER_STATE_ACTIVE",
+            details: { resourceOwner: "platform-org" },
+            preferredLoginName: "native-machine",
+            machine: {},
+          },
+        });
       return response({
         result: [
           {
@@ -59,8 +79,8 @@ test("reuses the existing native machine only with its retained secret and expec
       });
     },
   });
-  assert.equal(machine, "native-machine");
-  assert.equal(calls, 1);
+  assert.deepEqual(machine, { userId: "native-machine", clientId: "native-machine" });
+  assert.equal(calls, 2);
 });
 test("refuses production identity, missing retained secret, human identity and foreign machine", async () => {
   for (const [origin, user, secret] of [
@@ -103,7 +123,10 @@ test("refuses production identity, missing retained secret, human identity and f
         pat: "synthetic-seed-token",
         readSecret: () => secret,
         writeSecret: () => assert.fail("no rotation"),
-        fetcher: async () => response({ result: user ? [user] : [] }),
+        fetcher: async (url) =>
+          url.endsWith("/_search")
+            ? response({ result: user ? [user] : [] })
+            : response({ user: { preferredLoginName: "native-machine", ...user } }),
       }),
     );
   }
@@ -129,4 +152,74 @@ test("retained machine credentials require bounded regular private files", () =>
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("native preferred OAuth login name remains distinct from the verified machine subject", async () => {
+  const login = "helivanta-local-identity-product@platform.localhost";
+  const calls = [];
+  const machine = await ensureLocalIdentityMachine({
+    issuer,
+    pat: "synthetic-seed-token",
+    org: "platform-org",
+    readSecret: () => null,
+    writeSecret: () => {},
+    fetcher: async (url, options) => {
+      calls.push([url, options.method]);
+      if (url.endsWith("/_search")) return response({ result: [] });
+      if (url.endsWith("/users/machine")) return response({ userId: "native-machine" });
+      if (url.endsWith("/users/native-machine"))
+        return response({
+          user: {
+            id: "native-machine",
+            state: "USER_STATE_ACTIVE",
+            details: { resourceOwner: "platform-org" },
+            preferredLoginName: login,
+            machine: {},
+          },
+        });
+      if (url.endsWith("/secret"))
+        return response({ clientId: login, clientSecret: "synthetic-client-secret" });
+      throw new Error("unexpected fixture request");
+    },
+  });
+  assert.deepEqual(machine, { userId: "native-machine", clientId: login });
+  assert.ok(
+    calls.some(([url, method]) => url.endsWith("/users/native-machine") && method === "GET"),
+  );
+});
+
+test("a credential returned for a different native client is never retained", async () => {
+  let saved = false;
+  await assert.rejects(
+    ensureLocalIdentityMachine({
+      issuer,
+      pat: "synthetic",
+      org: "platform-org",
+      readSecret: () => null,
+      writeSecret: () => {
+        saved = true;
+      },
+      fetcher: async (url) => {
+        if (url.endsWith("/_search")) return response({ result: [] });
+        if (url.endsWith("/users/machine")) return response({ userId: "native-machine" });
+        if (url.endsWith("/users/native-machine"))
+          return response({
+            user: {
+              id: "native-machine",
+              state: "USER_STATE_ACTIVE",
+              details: { resourceOwner: "platform-org" },
+              preferredLoginName: "native-machine@platform.localhost",
+              machine: {},
+            },
+          });
+        if (url.endsWith("/secret"))
+          return response({
+            clientId: "foreign@platform.localhost",
+            clientSecret: "synthetic-client-secret",
+          });
+        throw new Error("unexpected fixture request");
+      },
+    }),
+  );
+  assert.equal(saved, false);
 });

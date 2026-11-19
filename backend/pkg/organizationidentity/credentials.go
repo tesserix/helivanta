@@ -8,11 +8,14 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
+
+var oauthClientID = regexp.MustCompile(`^[A-Za-z0-9._@-]{1,320}$`)
 
 // KeyTokens exchanges a dedicated product machine credential for short-lived OAuth tokens.
 type KeyTokens struct {
@@ -63,7 +66,7 @@ func NewKeyTokens(raw []byte, issuer, project string, httpClient *http.Client) (
 func NewClientTokens(clientID string, raw []byte, issuer, project string, httpClient *http.Client) (*KeyTokens, error) {
 	u, err := url.Parse(issuer)
 	secret := strings.TrimSuffix(strings.TrimSuffix(string(raw), "\n"), "\r")
-	if err != nil || u.Scheme != "https" || u.Hostname() == "" || (u.Path != "" && u.Path != "/") || u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.Opaque != "" || httpClient == nil || !sourceID.MatchString(project) || !sourceID.MatchString(clientID) || len(raw) > 8192 || secret == "" || strings.TrimSpace(secret) != secret || strings.ContainsAny(secret, "\r\n\x00") {
+	if err != nil || u.Scheme != "https" || u.Hostname() == "" || (u.Path != "" && u.Path != "/") || u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.Opaque != "" || httpClient == nil || !sourceID.MatchString(project) || !oauthClientID.MatchString(clientID) || len(raw) > 8192 || secret == "" || strings.TrimSpace(secret) != secret || strings.ContainsAny(secret, "\r\n\x00") {
 		return nil, ErrUnavailable
 	}
 	client := *httpClient

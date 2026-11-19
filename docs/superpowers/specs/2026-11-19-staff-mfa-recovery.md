@@ -425,3 +425,46 @@ pagination requirement changed. The existing regression was reproduced locally
 before the classification and passed with race instrumentation afterward. Full
 PostgreSQL/OpenFGA architecture execution remains hosted to respect the local
 service restriction.
+
+
+## Native machine subject and OAuth identity
+
+Hosted revision `299a808c` progressed past the machine-secret method but failed
+because the fixture compared returned `clientId` with the machine user ID. Pinned
+Zitadel v4.15.3 `management/user.go` returns `PreferredLoginName`; its OIDC
+`client_credentials.go` resolves that login name and separately binds the token
+to the native user ID. The fixture now verifies the active owned machine through
+its current native record, preserves both public identifiers in the manifest,
+and accepts a generated secret only for that exact preferred login name.
+Missing retained secrets still fail without rotation. Protocol tests reproduce
+the distinct-name failure and reject a substituted client's secret.
+
+The operator token constructor now accepts bounded native OAuth login names as
+well as existing machine-name client IDs. Tenant/project/subject validators do
+not change. HTTPS issuer validation remains mandatory. In the isolated fixture,
+only the exact synthetic HTTPS token origin's POST `/oauth/v2/token` redirects to
+the real pinned local native issuer. No other native API, method, query or
+production destination is accepted. The real native-issued JWT and its real
+issuer/subject are independently checked by the owner; no token is invented or
+rewritten. Startup tests cover this combined guarded configuration.
+
+The same hosted Go run exposed the existing migration-count assertion still
+expecting 52 phases. It now expects 53 and checks the new phase's exact ID and
+nonempty SQL, preserving prior phase/hash assertions. The focused regression
+passes locally with race instrumentation.
+
+The [rollout and acceptance runbook](../../deployment/2026-11-19-staff-recovery-rollout.md)
+records read-only live discovery and the required approval/order of schema,
+owner, Kargo and QA actions. It is not rollout authorization or proof of native
+browser acceptance. No live action occurred.
+
+
+The owner manifest compatibility change passed all checks in hosted run
+`44459441660` at `d075ee7c80800dfaddde5216b29ab8516f52bddb`; both consumers now
+pin that revision. Local validation on those pins passed 1,492 API tests, 200
+script package tests, 17 explicit fixture tests, credential/startup and migration
+phase race tests, scoped Go vet/lint, E2E typecheck, all canonical checks, the Go
+build and the shell production build. Generated shell output was removed. The
+previous HMS web/native Staff and complete supplier checks passed; its MFA E2E
+seed and migration-count failures are corrected in this candidate and still need
+a fresh hosted run. No deployment or native MFA browser success is claimed.

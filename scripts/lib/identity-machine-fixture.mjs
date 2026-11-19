@@ -49,42 +49,51 @@ export async function ensureLocalIdentityMachine({
   });
   if (!Array.isArray(found.result ?? []) || (found.result ?? []).length > 1)
     throw new Error("ambiguous native identity machine");
-  if (found.result?.length === 1) {
-    const user = found.result[0];
+  const existing = found.result?.[0];
+  let userId;
+  if (existing) {
     const secret = readSecret();
-    if (
-      !validID(user.id) ||
-      user.state !== "USER_STATE_ACTIVE" ||
-      user.details?.resourceOwner !== org ||
-      !user.machine ||
-      user.human ||
-      typeof secret !== "string" ||
-      !secret ||
-      secret.length > 8192
-    )
+    if (!validID(existing.id) || typeof secret !== "string" || !secret || secret.length > 8192)
       throw new Error(
         "native machine or retained credential unavailable; reset only the isolated fixture",
       );
-    return user.id;
+    userId = existing.id;
+  } else {
+    if (readSecret() !== null) throw new Error("retained credential has no native owner");
+    const created = await request("/management/v1/users/machine", {
+      userName: username,
+      name: "Helivanta isolated identity product",
+      accessTokenType: "ACCESS_TOKEN_TYPE_JWT",
+    });
+    userId = created.userId;
   }
-  if (readSecret() !== null) throw new Error("retained credential has no native owner");
-  const machine = await request("/management/v1/users/machine", {
-    userName: username,
-    name: "Helivanta isolated identity product",
-    accessTokenType: "ACCESS_TOKEN_TYPE_JWT",
-  });
-  if (!validID(machine.userId)) throw new Error("native identity machine unavailable");
-  const credential = await request(`/management/v1/users/${machine.userId}/secret`, {}, "PUT");
+  if (!validID(userId)) throw new Error("native identity machine unavailable");
+  const { user } = await request(`/management/v1/users/${userId}`, undefined, "GET");
   if (
-    credential.clientId !== machine.userId ||
-    typeof credential.clientSecret !== "string" ||
-    !credential.clientSecret ||
-    credential.clientSecret.length > 8192 ||
-    /[\r\n]/.test(credential.clientSecret)
+    !user ||
+    user.id !== userId ||
+    user.state !== "USER_STATE_ACTIVE" ||
+    user.details?.resourceOwner !== org ||
+    !user.machine ||
+    user.human ||
+    typeof user.preferredLoginName !== "string" ||
+    !/^[A-Za-z0-9][A-Za-z0-9._@-]{0,319}$/.test(user.preferredLoginName)
   )
-    throw new Error("native identity machine credential unavailable");
-  writeSecret(credential.clientSecret);
-  return machine.userId;
+    throw new Error("native identity machine ownership unavailable");
+  const clientId = user.preferredLoginName;
+  if (!existing) {
+    const credential = await request(`/management/v1/users/${userId}/secret`, {}, "PUT");
+    if (
+      credential.clientId !== clientId ||
+      typeof credential.clientSecret !== "string" ||
+      !credential.clientSecret ||
+      credential.clientSecret.length > 8192 ||
+      /[\r\n]/.test(credential.clientSecret)
+    )
+      throw new Error("native identity machine credential unavailable");
+    writeSecret(credential.clientSecret);
+  }
+  return { userId, clientId };
 }
 
 export function readPrivateFixtureSecret(file) {

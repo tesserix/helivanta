@@ -328,13 +328,15 @@ async function main() {
     throw new Error("Staff MFA fixture requires explicit true opt-in");
   if (mfaFixture === "true") {
     const file = new URL("../dev/zitadel/secrets/identity-product.secret", import.meta.url);
-    identityManifest.machineUserId = await ensureLocalIdentityMachine({
+    const machine = await ensureLocalIdentityMachine({
       issuer: ISSUER,
       pat,
       org: identityManifest.adminOrgId,
       readSecret: () => readPrivateFixtureSecret(file),
       writeSecret: (secret) => writeFileSync(file, secret, { mode: 0o600, flag: "wx" }),
     });
+    identityManifest.machineUserId = machine.userId;
+    identityManifest.machineClientId = machine.clientId;
   }
 
   writeFileSync(

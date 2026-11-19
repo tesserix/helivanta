@@ -16,6 +16,7 @@ test("isolated native MFA setup passes only public metadata and a credential fil
         projectId: "native-project",
         adminOrgId: "platform-org",
         machineUserId: "native-machine",
+        machineClientId: "native-machine@platform.localhost",
       }),
       { mode: 0o600 },
     );
@@ -29,7 +30,7 @@ test("isolated native MFA setup passes only public metadata and a credential fil
       ZITADEL_ISSUER_URL: "http://auth.tesserix.localhost:20080",
     });
     assert.equal(values.ORGANIZATION_IDENTITY_URL, "https://onboarding.identity-fixture.invalid");
-    assert.equal(values.ORGANIZATION_IDENTITY_CLIENT_ID, "native-machine");
+    assert.equal(values.ORGANIZATION_IDENTITY_CLIENT_ID, "native-machine@platform.localhost");
     assert.equal(values.ORGANIZATION_IDENTITY_TOKEN_PROJECT_ID, "native-project");
     assert.equal(
       values.ORGANIZATION_IDENTITY_CLIENT_SECRET_FILE,

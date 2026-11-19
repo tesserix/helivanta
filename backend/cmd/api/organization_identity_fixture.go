@@ -17,7 +17,9 @@ func organizationIdentityHTTP(cfg config.Config, identityFixture, mfaFixture str
 	return &http.Client{Transport: nativeOwnerFixtureTransport{next: http.DefaultTransport}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, nil
 }
 
-// Only the fixed owner origins is redirected; native OAuth and user proofs remain real.
+const nativeFixtureOAuthIssuer = "https://auth.identity-fixture.invalid"
+
+// Only exact fixture destinations are redirected; native tokens and user proofs remain real.
 type nativeOwnerFixtureTransport struct{ next http.RoundTripper }
 
 func (t nativeOwnerFixtureTransport) RoundTrip(request *http.Request) (*http.Response, error) {
@@ -26,13 +28,24 @@ func (t nativeOwnerFixtureTransport) RoundTrip(request *http.Request) (*http.Res
 		return nil, errors.New("native fixture owner destination refused")
 	}
 	origin := request.URL.Scheme + "://" + request.URL.Host
-	if origin != "http://onboarding-api.onboarding.svc.cluster.local:8080" && origin != "https://onboarding.identity-fixture.invalid" || request.URL.User != nil || request.URL.Fragment != "" || request.URL.RawPath != "" {
+	if request.URL.User != nil || request.URL.Fragment != "" || request.URL.RawPath != "" {
 		return nil, errors.New("native fixture owner destination refused")
 	}
 	clone := request.Clone(request.Context())
 	value := *request.URL
-	value.Scheme = "http"
-	value.Host = "127.0.0.1:18787"
+	switch origin {
+	case "http://onboarding-api.onboarding.svc.cluster.local:8080", "https://onboarding.identity-fixture.invalid":
+		value.Scheme = "http"
+		value.Host = "127.0.0.1:18787"
+	case nativeFixtureOAuthIssuer:
+		if request.Method != http.MethodPost || value.Path != "/oauth/v2/token" || value.RawQuery != "" || value.ForceQuery {
+			return nil, errors.New("native fixture OAuth exchange refused")
+		}
+		value.Scheme = "http"
+		value.Host = "auth.tesserix.localhost:20080"
+	default:
+		return nil, errors.New("native fixture owner destination refused")
+	}
 	clone.URL = &value
 	clone.Host = value.Host
 	return t.next.RoundTrip(clone)

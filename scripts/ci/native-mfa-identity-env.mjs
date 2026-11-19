@@ -31,11 +31,16 @@ export function nativeMFAIdentityEnvironment(root, env) {
     if (typeof data[key] !== "string" || !/^[A-Za-z0-9_-]{1,200}$/.test(data[key]))
       throw new Error("native identity fixture metadata unavailable");
   }
+  if (
+    typeof data.machineClientId !== "string" ||
+    !/^[A-Za-z0-9][A-Za-z0-9._@-]{0,319}$/.test(data.machineClientId)
+  )
+    throw new Error("native identity OAuth client metadata unavailable");
   return {
     ORGANIZATION_IDENTITY_URL: "https://onboarding.identity-fixture.invalid",
     ORGANIZATION_IDENTITY_PRODUCT_KEY: "helivanta",
     ORGANIZATION_IDENTITY_TOKEN_PROJECT_ID: data.projectId,
-    ORGANIZATION_IDENTITY_CLIENT_ID: data.machineUserId,
+    ORGANIZATION_IDENTITY_CLIENT_ID: data.machineClientId,
     ORGANIZATION_IDENTITY_CLIENT_SECRET_FILE: credential,
   };
 }

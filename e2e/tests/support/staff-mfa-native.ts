@@ -100,16 +100,33 @@ export async function exerciseNativeStaffMFARecovery(
       { query: { limit: 1 }, queries: [{ userIdQuery: { userId: colleague.subject } }] },
       `helivanta-${tenant}`,
     );
+    const details = members.details ?? {};
     const membershipProof = {
       memberCount: Array.isArray(members.result) ? members.result.length : 0,
-      total: members.details?.totalResult ?? "omitted",
-      sequence: members.details?.processedSequence ?? "omitted",
-      hasTimestamp: typeof members.details?.viewTimestamp === "string",
+      total: "totalResult" in details ? details.totalResult : "omitted",
+      sequence: "processedSequence" in details ? details.processedSequence : "omitted",
+      hasTimestamp: typeof details.viewTimestamp === "string",
     };
+    expect(members.result === undefined || Array.isArray(members.result)).toBe(true);
     expect(membershipProof.memberCount).toBe(0);
-    expect(membershipProof.sequence, JSON.stringify(membershipProof)).toMatch(/^[1-9][0-9]*$/);
-    if (membershipProof.total === "omitted") expect(membershipProof.hasTimestamp).toBe(true);
-    else expect(membershipProof.total).toBe("0");
+    expect(membershipProof.sequence, JSON.stringify(membershipProof)).toMatch(
+      /^(?:omitted|0|[1-9][0-9]*)$/,
+    );
+    if (membershipProof.total !== "omitted") expect(membershipProof.total).toBe("0");
+    if (
+      membershipProof.total === "omitted" ||
+      membershipProof.sequence === "omitted" ||
+      membershipProof.sequence === "0"
+    ) {
+      const timestamp = Date.parse(details.viewTimestamp);
+      expect(
+        membershipProof.hasTimestamp &&
+          Number.isFinite(timestamp) &&
+          timestamp > 0 &&
+          timestamp <= Date.now(),
+        JSON.stringify(membershipProof),
+      ).toBe(true);
+    }
     const initial = await native(`/v2/users/${colleague.subject}/totp`, {});
     if (typeof initial.secret !== "string" || !/^[A-Z2-7]+$/.test(initial.secret))
       throw new Error("native initial factor unavailable");

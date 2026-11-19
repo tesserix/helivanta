@@ -124,6 +124,27 @@ resolution. Its assertion failed before the scheduling change and passed after.
 A native dependency failure prevents dependent cases from running; it never
 establishes a passing full-suite result.
 
+## Empty native member-proof correction
+
+The recovery-first run `44517575218` at `714c8e8f` isolated the owner-preparation
+failure before factor setup: both native member searches returned no records,
+omitted count/sequence fields, and a view timestamp. Its three recovery cases
+reported one passed and two failed; the other 106 cases did not run because their
+project dependency failed. This is not full-suite acceptance.
+
+Zitadel v4.15.3 represents these counters as protobuf `uint64` fields, so ProtoJSON
+can omit their zero defaults. Owner candidate `4b2a96a` accepts the empty default
+only with a valid non-future positive timestamp and no member records. Explicit
+nulls, malformed/recased metadata, contradictory counts and privileged member
+records remain refused. Its new regression cases failed before the parser fix;
+the full native adapter race suite, vet, lint and owner Go build passed locally.
+Owner CI and consumer pin updates remain required before native acceptance.
+
+The browser assertion now checks this same native response shape. It verifies
+empty result type/count and valid timestamp evidence when counters are omitted or
+zero; it does not invent a positive projection sequence. The owner's authenticated
+query and guarded recovery command still authorize preparation and dispatch.
+
 ## Remaining release gates
 
 Require full hosted database and native-browser acceptance for both employer

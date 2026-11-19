@@ -15,12 +15,15 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/google/uuid"
@@ -38,7 +41,7 @@ func main() {
 	}
 }
 
-var errUsage = errors.New("usage: drugmaster-release stage -file F -by NAME | decide -release ID -by NAME (-publish -file F | -reject) -reason TEXT | replay-molecules")
+var errUsage = errors.New("usage: drugmaster-release stage -file F -by NAME | decide -release ID -by NAME (-publish -file F | -reject) -reason TEXT | sync -source NAME -licence REF -archive DIR -by NAME | replay-molecules")
 
 func run(ctx context.Context, args []string, dsn string, out io.Writer) error {
 	if len(args) == 0 {
@@ -52,6 +55,9 @@ func run(ctx context.Context, args []string, dsn string, out io.Writer) error {
 	publish := fs.Bool("publish", false, "publish the release")
 	reject := fs.Bool("reject", false, "reject the release")
 	reason := fs.String("reason", "", "why")
+	source := fs.String("source", "", "licensed source name")
+	licence := fs.String("licence", "", "approved licence reference")
+	archive := fs.String("archive", "", "private durable release archive directory")
 	if err := fs.Parse(args[1:]); err != nil || fs.NArg() != 0 {
 		return errUsage
 	}
@@ -59,6 +65,29 @@ func run(ctx context.Context, args []string, dsn string, out io.Writer) error {
 		return errors.New("DRUGMASTER_DATABASE_URL is required")
 	}
 	switch args[0] {
+	case "sync":
+		if *by == "" || *source == "" || *licence == "" || *archive == "" {
+			return errUsage
+		}
+		raw, err := drugmaster.FetchRelease(ctx, os.Getenv("DRUGMASTER_FEED_URL"), *source, *licence, os.Getenv("DRUGMASTER_FEED_TOKEN"))
+		if err != nil {
+			return err
+		}
+		file, err := archiveRelease(*archive, raw)
+		if err != nil {
+			return err
+		}
+		db, err := tenantdb.OpenRuntime(ctx, dsn)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = db.Close() }()
+		id, err := drugmaster.StageOnce(ctx, db, raw, *by)
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintf(out, "staged release %s; approval file %s\n", id, file)
+		return err
 	case "stage":
 		if *file == "" || *by == "" {
 			return errUsage
@@ -110,4 +139,47 @@ func run(ctx context.Context, args []string, dsn string, out io.Writer) error {
 		return err
 	}
 	return errUsage
+}
+
+func archiveRelease(dir string, raw []byte) (string, error) {
+	sum := sha256.Sum256(raw)
+	target := filepath.Join(dir, hex.EncodeToString(sum[:])+".json")
+	// The directory is an operator-controlled private durable volume.
+	temp, err := os.CreateTemp(dir, ".release-*")
+	if err != nil {
+		return "", errors.New("release archive unavailable")
+	}
+	defer func() {
+		_ = os.Remove(temp.Name()) //nolint:gosec // only the private temporary file created above is removed
+	}()
+	if _, err := temp.Write(raw); err != nil {
+		_ = temp.Close()
+		return "", errors.New("archive write failed")
+	}
+	if err := temp.Sync(); err != nil {
+		_ = temp.Close()
+		return "", errors.New("archive sync failed")
+	}
+	if err := temp.Close(); err != nil {
+		return "", errors.New("archive close failed")
+	}
+	if err := os.Link(temp.Name(), target); err != nil {
+		if !errors.Is(err, os.ErrExist) {
+			return "", errors.New("archive retain failed")
+		}
+		saved, err := os.ReadFile(target) //nolint:gosec // operator-controlled archive path, content hash verified below
+		if err != nil || sha256.Sum256(saved) != sum {
+			return "", errors.New("archive content does not match release")
+		}
+	}
+	directory, err := os.Open(dir) //nolint:gosec // operator-controlled archive directory
+	if err != nil {
+		return "", errors.New("archive directory unavailable")
+	}
+	syncErr := directory.Sync()
+	closeErr := directory.Close()
+	if syncErr != nil || closeErr != nil {
+		return "", errors.New("archive directory sync failed")
+	}
+	return target, nil
 }

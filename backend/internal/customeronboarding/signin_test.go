@@ -160,6 +160,8 @@ func TestExistingSigninRequiresFreshNativeProofAndRotatesOnlyAfterPrivateAccepta
 
 type signinLimited struct{}
 
+func (signinLimited) Refund(string, ratelimit.Rule, time.Time) {}
+
 func (signinLimited) Allow(string, ratelimit.Rule, time.Time) ratelimit.Decision {
 	return ratelimit.Decision{Allowed: false, RetryAfter: time.Minute, Limit: 1}
 }

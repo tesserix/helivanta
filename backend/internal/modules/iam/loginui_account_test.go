@@ -254,3 +254,27 @@ func TestPerEmailBucketThrottlesASprayAcrossIPs(t *testing.T) {
 	w = post(r, "/v1/auth/login/password", passwordBody("other@example.test", "wrong"), "198.51.100.200")
 	require.Equal(t, http.StatusUnauthorized, w.Code, "another email keeps its own budget")
 }
+
+// Only wrong passwords spend the per-email budget: a clinician signing in
+// again and again (idle timeouts, shift handovers) never meets it.
+func TestPerEmailBucketRefundsARightPassword(t *testing.T) {
+	z := &multiAccountZitadel{accepts: map[string]bool{"user-a": true}}
+	client := z.client(t)
+	client.SetTenantTargetResolver(targetResolverFunc(func(context.Context, string) ([]loginclient.LoginTarget, bool, error) {
+		targets, _, _ := bothTargets(context.Background(), "")
+		return targets[:1], false, nil
+	}))
+	h := NewLoginUIHandlers(client, nil, ratelimit.NewMemory(100), ratelimit.Rule{Rate: 1000, Burst: 1000, Per: time.Minute}, ratelimit.Rule{})
+	h.SetNativeWebClientID("helivanta-web")
+	r := newAccountRouter(h)
+	for i := range 3 * emailPasswordRule.Burst {
+		w := post(r, "/v1/auth/login/password", passwordBody("same@example.test", "right"), "198.51.100.7")
+		require.Equal(t, http.StatusOK, w.Code, "sign-in %d: %s", i, w.Body.String())
+	}
+	for i := range emailPasswordRule.Burst {
+		w := post(r, "/v1/auth/login/password", passwordBody("same@example.test", "wrong"), "198.51.100.7")
+		require.Equal(t, http.StatusUnauthorized, w.Code, "wrong password %d", i)
+	}
+	w := post(r, "/v1/auth/login/password", passwordBody("same@example.test", "right"), "198.51.100.7")
+	require.Equal(t, http.StatusTooManyRequests, w.Code, "five wrong passwords still close the bucket")
+}

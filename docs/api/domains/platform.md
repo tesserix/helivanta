@@ -643,9 +643,10 @@ Every session is rechecked to sit in its own candidate's organisation. Outcomes:
 `POST /v1/auth/login/account` `{auth_request_id, tenant_id}` continues the
 picked account through the same steps a single match takes and terminates the
 others. An unknown, expired or already-used pick is `auth_request_invalid`. A
-second password bucket keyed on the email's hash (five per fifteen minutes)
-keeps a spray on one email below production's ten-attempt lockout, whatever
-the number of client IPs. Login names without `@` and scoped requests are
+second password bucket keyed on the email's hash keeps a spray on one email
+below production's ten-attempt lockout, whatever the number of client IPs: five
+wrong passwords at once, then one every three minutes. A right password does
+not spend it. Login names without `@` and scoped requests are
 unchanged.
 
 ### Explicit security-key continuation

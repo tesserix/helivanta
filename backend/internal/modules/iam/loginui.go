@@ -234,8 +234,9 @@ const (
 )
 
 // emailPasswordRule sizes emailPasswordRateBucket below production's
-// ten-attempt lockout (zitadel-bootstrap maxPasswordAttempts): five at once,
-// then one every three minutes. Zitadel's lockout counts consecutive failures
+// ten-attempt lockout (zitadel-bootstrap maxPasswordAttempts): five wrong
+// passwords at once, then one every three minutes. A right password refunds
+// its token, so only failures spend the budget. Zitadel's lockout counts consecutive failures
 // with no window, so this slows a sprayer rather than making the lockout
 // unreachable; it does guarantee no burst from any number of IPs reaches it.
 var emailPasswordRule = ratelimit.Rule{Rate: 5, Burst: 5, Per: 15 * time.Minute}
@@ -526,8 +527,12 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 	if !h.allowedByLimiter(c, passwordRateBucket, h.limit) {
 		return
 	}
-	if strings.Contains(req.LoginName, "@") && !h.allowedByKey(c, emailPasswordRateBucket, emailRateKey(req.LoginName), emailPasswordRule) {
-		return
+	emailKey := ""
+	if strings.Contains(req.LoginName, "@") {
+		emailKey = emailRateKey(req.LoginName)
+		if !h.allowedByKey(c, emailPasswordRateBucket, emailKey, emailPasswordRule) {
+			return
+		}
 	}
 
 	var sessions []loginclient.TenantSession
@@ -558,6 +563,14 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 		}
 		h.respondLoginClientError(c, err, "password")
 		return
+	}
+	// The password was right: give back the reserved email token, so the
+	// bucket counts only wrong passwords and a clinician signing in again
+	// after an idle timeout never meets it. Reserving first, rather than
+	// counting failures afterwards, is what stops parallel attempts all
+	// passing the check before any of them is counted.
+	if emailKey != "" && h.limiter != nil {
+		h.limiter.Refund(emailPasswordRateBucket+emailKey, emailPasswordRule, time.Now())
 	}
 	if len(sessions) > 1 {
 		h.offerAccountChoice(c, req, sessions)

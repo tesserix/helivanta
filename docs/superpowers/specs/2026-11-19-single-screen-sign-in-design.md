@@ -137,7 +137,10 @@ Controls:
 
 - A second rate bucket keyed on `sha256(lowercase email)`, so a spray on one
   email is throttled even across IPs: five at once, then one every three
-  minutes. The hash is never logged. Zitadel's lockout counts consecutive
+  minutes. Each attempt reserves a token before the check, so parallel
+  attempts cannot all pass it, and a right password refunds its token
+  (`ratelimit.Limiter.Refund`), so only wrong passwords spend the budget and a
+  clinician signing in again after an idle timeout never meets it. The hash is never logged. Zitadel's lockout counts consecutive
   failures with no window, so the bucket slows a sprayer and keeps any burst
   below the lockout; it cannot make the lockout unreachable.
 - The five-candidate bound in the identity owner and again in the handler.

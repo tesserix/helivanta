@@ -20,8 +20,6 @@ with no emailed code, and slice 1 adds the same card for an unscoped request.
    `TenantLoginSubject`. Maps 400 to `ErrUserNotFound`, any non-200 to
    `ErrUnavailable`; `truncated` is returned to the caller, never guessed at.
 3. `loginclient`:
-   - `LoginPolicy.AllowUsernamePassword`, parsed by the existing
-     `loginPolicy` read (D10). Missing field fails closed as unavailable.
    - `DeleteSession(ctx, id, token)` for `DELETE /v2/sessions/{id}` (D3).
    - `CreatePasswordSessionForRequest`: the unscoped branch, when the login
      name contains `@`, resolves targets, refuses `truncated` with a new
@@ -35,17 +33,17 @@ with no emailed code, and slice 1 adds the same card for an unscoped request.
    - Per-email rate bucket `sha256(lower(email))`, below ten per lockout
      window (D6); hash never logged.
    - Zero sessions: `respondEqualisedFailure`. One: today's path unchanged.
-     Several: `202 account_choice_required` and one `loginAttempt` per session
-     at `stageAccountChoice` with `TenantID`.
-   - `ErrTooManyAccounts`: `400 too_many_accounts`. All candidates
-     federated: `202 idp_required` (D10).
+     Several: `200 account_choice_required`, sessions parked in
+     `login_account_choice`.
+   - `ErrTooManyAccounts`: `400 too_many_accounts`. D10's `idp_required`
+     moves to its own slice (spec "Slices").
 5. `POST /v1/auth/login/account` `{auth_request_id, tenant_id}`: loads the
    chosen row, deletes sibling rows and their sessions (logged on failure,
    rows still expire), then continues through `CompleteIfSufficient` exactly
    as `Password` does after one match. Public, same rate bucket as password.
-6. Migration `NNNN_iam` (next free id at merge time): `login_attempt.tenant_id`
-   nullable uuid, primary key becomes `(auth_request_id, coalesce(tenant_id))`
-   via a unique index, stage check gains `account_choice`. Append-only.
+6. Migration `0053_iam_login_account_choice`: a separate `login_account_choice`
+   table keyed `(auth_request_id, tenant_id)` (spec D3 explains why not a
+   column on `login_attempt`), swept with it. Append-only.
 7. `respondLoginClientError` maps `ErrTooManyAccounts`.
 8. Contracts: `platform.md`, `go run ./cmd/contractdocs`,
    `release-capabilities.json` classification for the new route, regenerate.

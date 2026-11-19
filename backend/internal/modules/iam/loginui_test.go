@@ -63,6 +63,16 @@ func registerPasswordCurrent(mux *http.ServeMux) {
 // real loginclient.Client at it, and registers the server's teardown —
 // the same shape every zitadel*(t) helper below builds around a
 // different mux.
+// withNoEmailAccounts wires an identity owner that finds no account behind
+// any email, so an email login name takes the plain login-name check these
+// fixtures were written for. Tests of the email lookup set their own.
+func withNoEmailAccounts(c *loginclient.Client) *loginclient.Client {
+	c.SetTenantTargetResolver(targetResolverFunc(func(context.Context, string) ([]loginclient.LoginTarget, bool, error) {
+		return []loginclient.LoginTarget{}, false, nil
+	}))
+	return c
+}
+
 func newZitadelTestClient(t *testing.T, mux *http.ServeMux) *loginclient.Client {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -74,7 +84,7 @@ func newZitadelTestClient(t *testing.T, mux *http.ServeMux) *loginclient.Client 
 		mux.ServeHTTP(w, r)
 	}))
 	t.Cleanup(server.Close)
-	return loginclient.New(server.URL, "test-login-client-pat", server.Client())
+	return withNoEmailAccounts(loginclient.New(server.URL, "test-login-client-pat", server.Client()))
 }
 
 // zitadelWrongPassword answers POST /v2/sessions with the spike's exact

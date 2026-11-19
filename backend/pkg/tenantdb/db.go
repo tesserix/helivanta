@@ -327,6 +327,11 @@ var lintAllowlist = map[string]bool{
 	// iam_credential_revocations makes above. See
 	// backend/internal/modules/iam/loginattempt.go.
 	"login_attempt": true,
+	// login_account_choice parks the sessions of every account whose password
+	// matched, until the person picks one (#1751 spec D3). Same pre-tenant
+	// reasoning as login_attempt: its tenant_id is a candidate the person has
+	// not chosen yet, not a scope. See backend/internal/modules/iam/loginchoice.go.
+	"login_account_choice": true,
 	// The drug master (#476 spec D1) is one catalogue every tenant reads,
 	// not tenant data: no PHI, no tenant to scope on. Each table is still
 	// FORCE ROW LEVEL SECURITY, hms_app holds SELECT only and sees only

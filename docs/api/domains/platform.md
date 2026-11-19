@@ -619,6 +619,35 @@ identity/audit failures return unavailable. Preserved legacy policies cannot be
 cut over through this panel. No disabling control, secret, recovery code or
 second native-policy configuration owner is introduced.
 
+### One email-and-password card (#1751)
+
+On an auth request that names no organisation, `POST /v1/auth/login/password`
+with a login name containing `@` asks the identity owner's private
+`login-targets` lookup (onboarding-service ADR 0005) for every eligible account
+behind that email, at most five, and checks the password against each at once.
+Every session is rechecked to sit in its own candidate's organisation. Outcomes:
+
+- No account accepted the password, or the email has no account: the shared
+  `invalid_credentials` refusal at the usual floor. An email with no account
+  costs one ordinary login-name check.
+- One accepted: exactly the scoped card's next step.
+- Several accepted: HTTP 200
+  `{"account_choice_required":[{"tenant_id","name","account"}]}`. Names come
+  from the identity owner and appear only after the password matched. The
+  sessions are parked server-side for the attempt TTL.
+- More than five eligible accounts: HTTP 400 `too_many_accounts`, with no
+  password checked.
+- Lookup or any candidate check unavailable: HTTP 503 `zitadel_unavailable`;
+  sessions already created are terminated.
+
+`POST /v1/auth/login/account` `{auth_request_id, tenant_id}` continues the
+picked account through the same steps a single match takes and terminates the
+others. An unknown, expired or already-used pick is `auth_request_invalid`. A
+second password bucket keyed on the email's hash (five per fifteen minutes)
+keeps a spray on one email below production's ten-attempt lockout, whatever
+the number of client IPs. Login names without `@` and scoped requests are
+unchanged.
+
 ### Explicit security-key continuation
 
 `POST /v1/auth/login/password` may return HTTP 200

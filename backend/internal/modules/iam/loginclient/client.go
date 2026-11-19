@@ -81,6 +81,7 @@ const maxSuccessBodyBytes = 64 * 1024
 // established.
 type Client struct {
 	tenantUsers    TenantUserResolver
+	tenantTargets  TenantTargetResolver
 	tenantIdentity TenantIdentityResolver
 	baseURL        string
 	token          string

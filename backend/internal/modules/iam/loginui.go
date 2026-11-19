@@ -1,10 +1,13 @@
 package iam
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -221,7 +224,28 @@ const (
 	// minute) but NOT Factor's bucket: sharing one would let a guessing
 	// flood on either route exhaust the other's budget.
 	enrollRateBucket = "login_enroll:"
+	// emailPasswordRateBucket is POST /v1/auth/login/password's second
+	// bucket, keyed on the submitted email's hash rather than the client IP
+	// (#1751 spec D6): one wrong password now counts against every account
+	// behind the email in Zitadel's lockout, so a spray on one email across
+	// many IPs must be slowed here too. POST /v1/auth/login/account draws on
+	// the IP bucket only: it checks no password.
+	emailPasswordRateBucket = "login_password_email:"
 )
+
+// emailPasswordRule sizes emailPasswordRateBucket below production's
+// ten-attempt lockout (zitadel-bootstrap maxPasswordAttempts): five at once,
+// then one every three minutes. Zitadel's lockout counts consecutive failures
+// with no window, so this slows a sprayer rather than making the lockout
+// unreachable; it does guarantee no burst from any number of IPs reaches it.
+var emailPasswordRule = ratelimit.Rule{Rate: 5, Burst: 5, Per: 15 * time.Minute}
+
+// emailRateKey keys emailPasswordRateBucket. Hashed so the limiter's memory
+// never holds an address; case-folded so case variants share one budget.
+func emailRateKey(loginName string) string {
+	sum := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(loginName))))
+	return hex.EncodeToString(sum[:])
+}
 
 // allowedByLimiter is spec D2's "all three sit behind the existing
 // unauthenticated limiter", applied identically by every route on this
@@ -262,12 +286,19 @@ const (
 // admit/refuse/log/fail-open logic in exactly one place regardless of
 // which budget a route draws from.
 func (h *LoginUIHandlers) allowedByLimiter(c *gin.Context, bucket string, rule ratelimit.Rule) bool {
+	return h.allowedByKey(c, bucket, c.ClientIP(), rule)
+}
+
+// allowedByKey is allowedByLimiter with the caller choosing the key, for the
+// one bucket not keyed on client IP (emailPasswordRateBucket). key is never
+// logged: for that bucket it is derived from the submitted email.
+func (h *LoginUIHandlers) allowedByKey(c *gin.Context, bucket, key string, rule ratelimit.Rule) bool {
 	if h.limiter == nil {
 		requestid.Logger(c).WarnContext(c.Request.Context(), "login: rate limiter unavailable, admitting (fail open)",
 			"bucket", bucket)
 		return true
 	}
-	d := h.limiter.Allow(bucket+c.ClientIP(), rule, time.Now())
+	d := h.limiter.Allow(bucket+key, rule, time.Now())
 	if d.Allowed {
 		return true
 	}
@@ -495,13 +526,18 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 	if !h.allowedByLimiter(c, passwordRateBucket, h.limit) {
 		return
 	}
+	if strings.Contains(req.LoginName, "@") && !h.allowedByKey(c, emailPasswordRateBucket, emailRateKey(req.LoginName), emailPasswordRule) {
+		return
+	}
 
-	var session loginclient.Session
+	var sessions []loginclient.TenantSession
 	var err error
 	if h.nativeWebClientID != "" {
-		session, err = h.client.CreatePasswordSessionForRequest(c.Request.Context(), req.AuthRequestID, h.nativeWebClientID, req.LoginName, req.Password)
+		sessions, err = h.client.CreatePasswordSessionForRequest(c.Request.Context(), req.AuthRequestID, h.nativeWebClientID, req.LoginName, req.Password)
 	} else {
+		var session loginclient.Session
 		session, err = h.client.CreatePasswordSession(c.Request.Context(), req.LoginName, req.Password)
+		sessions = []loginclient.TenantSession{{Session: session}}
 	}
 	if err != nil {
 		if loginclient.IsCredentialRefusal(err) {
@@ -514,39 +550,57 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 			h.respondEqualisedFailure(c, start)
 			return
 		}
+		if errors.Is(err, loginclient.ErrTooManyAccounts) {
+			requestid.Logger(c).WarnContext(c.Request.Context(), "login: too many accounts behind email",
+				"auth_request_id", req.AuthRequestID)
+			respondTooManyAccounts(c)
+			return
+		}
 		h.respondLoginClientError(c, err, "password")
 		return
 	}
+	if len(sessions) > 1 {
+		h.offerAccountChoice(c, req, sessions)
+		return
+	}
+	h.continueWithSession(c, req.AuthRequestID, req.LoginName, sessions[0].Session)
+}
 
-	result, err := h.client.CompleteIfSufficient(c.Request.Context(), req.AuthRequestID, session)
+// continueWithSession takes one password-verified session through the rest
+// of the sign-in: Helivanta's sufficiency decision, then completion or the
+// next step. Password calls it for a single match and Account for the chosen
+// one, so a chosen account gets exactly the steps a single match gets.
+// subject is stored on attempt rows for audit and correlation only.
+func (h *LoginUIHandlers) continueWithSession(c *gin.Context, authRequestID, subject string, session loginclient.Session) {
+	result, err := h.client.CompleteIfSufficient(c.Request.Context(), authRequestID, session)
 	if err != nil {
 		h.respondLoginClientError(c, err, "complete")
 		return
 	}
 
-	if h.securityKeyContinuation(c, req.AuthRequestID, session, result) {
+	if h.securityKeyContinuation(c, authRequestID, session, result) {
 		return
 	}
 
 	switch result.Outcome {
 	case loginclient.OutcomeComplete:
 		audit.Log(c.Request.Context(), requestid.Logger(c), slog.LevelInfo, "auth.login.succeeded", "login password succeeded",
-			"auth_request_id", req.AuthRequestID, "outcome", "complete")
+			"auth_request_id", authRequestID, "outcome", "complete")
 		respond.OK(c, passwordSuccessResponse{CallbackURL: result.CallbackURL})
 
 	case loginclient.OutcomeFactorRequired:
 		// The Zitadel session (id + CURRENT token) must be stashed
 		// server-side (spec D2 — the browser never sees a Zitadel
 		// token) so Factor can resume it after collecting a TOTP code.
-		// Subject is req.LoginName: the login name this password check
+		// Subject is subject: the login name this password check
 		// was FOR, the only per-caller identity this handler has —
 		// stored for audit/correlation only, never returned to the
 		// browser and never itself a credential.
 		err := h.store.Put(c.Request.Context(), loginAttempt{
-			AuthRequestID: req.AuthRequestID,
+			AuthRequestID: authRequestID,
 			SessionID:     session.ID,
 			SessionToken:  session.Token,
-			Subject:       req.LoginName,
+			Subject:       subject,
 			ExpiresAt:     time.Now().Add(loginAttemptTTL),
 			Stage:         stageFactor,
 		})
@@ -555,7 +609,7 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 			return
 		}
 		requestid.Logger(c).InfoContext(c.Request.Context(), "login password succeeded, factor required",
-			"auth_request_id", req.AuthRequestID, "outcome", "factor_required")
+			"auth_request_id", authRequestID, "outcome", "factor_required")
 		respond.OK(c, factorRequiredResponse{Factors: nonNilFactors(result.Factors)})
 
 	case loginclient.OutcomeEnrollmentRequired:
@@ -575,10 +629,10 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 			return
 		}
 		err = h.store.Put(c.Request.Context(), loginAttempt{
-			AuthRequestID: req.AuthRequestID,
+			AuthRequestID: authRequestID,
 			SessionID:     session.ID,
 			SessionToken:  session.Token,
-			Subject:       req.LoginName,
+			Subject:       subject,
 			ExpiresAt:     time.Now().Add(loginAttemptTTL),
 			Enrolling:     true,
 			Stage:         stageFactor,
@@ -591,7 +645,7 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 		// and nothing from `enrollment` goes into this line. Mutation
 		// "secret logged" is pinned by TestPasswordEnrollmentRequiredNeverLogsTheSecret.
 		requestid.Logger(c).InfoContext(c.Request.Context(), "login password succeeded, enrollment required",
-			"auth_request_id", req.AuthRequestID, "outcome", "enrollment_required")
+			"auth_request_id", authRequestID, "outcome", "enrollment_required")
 		respond.OK(c, enrollmentRequiredResponse{
 			Factors: nonNilFactors(result.Factors),
 			TOTP:    totpEnrollmentWire{URI: enrollment.URI, Secret: enrollment.Secret},
@@ -602,10 +656,10 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 		// session is held exactly as for the factor step, at
 		// stagePasswordChange, so only PasswordChange can resume it.
 		err := h.store.Put(c.Request.Context(), loginAttempt{
-			AuthRequestID: req.AuthRequestID,
+			AuthRequestID: authRequestID,
 			SessionID:     session.ID,
 			SessionToken:  session.Token,
-			Subject:       req.LoginName,
+			Subject:       subject,
 			ExpiresAt:     time.Now().Add(loginAttemptTTL),
 			Stage:         stagePasswordChange,
 		})
@@ -613,14 +667,14 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 			respond.InternalErr(c, err, "sign-in could not be completed")
 			return
 		}
-		h.respondPasswordChangeRequired(c, req.AuthRequestID, "password", result.PasswordChange)
+		h.respondPasswordChangeRequired(c, authRequestID, "password", result.PasswordChange)
 
 	default:
 		// OutcomeRefused (and anything unrecognised, which fails closed the
 		// same way): the password was right, but Helivanta cannot complete
 		// this sign-in. Refused in Helivanta's own words (#947) — no timing
 		// floor and no equalised message, because the credential was correct.
-		h.respondRefusal(c, req.AuthRequestID, "password", result)
+		h.respondRefusal(c, authRequestID, "password", result)
 	}
 }
 

@@ -174,22 +174,22 @@
     {
       "method": "POST",
       "path": "/v1/workforce/hospitals/:hospital/staff/:id/mfa-recoveries/:command/cancel",
-      "capability": "staff_mfa_recovery"
+      "capability": "baseline"
     },
     {
       "method": "POST",
       "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/mfa-recoveries/:command/cancel",
-      "capability": "staff_mfa_recovery"
+      "capability": "baseline"
     },
     {
       "method": "POST",
       "path": "/v1/workforce/suppliers/:supplier/staff/:id/mfa-recoveries/:command/cancel",
-      "capability": "staff_mfa_recovery"
+      "capability": "baseline"
     },
     {
       "method": "GET",
       "path": "/v1/workforce/hospitals/:hospital/staff/:id/mfa-recoveries/:command",
-      "capability": "staff_mfa_recovery"
+      "capability": "baseline"
     },
     {
       "method": "PUT",
@@ -199,7 +199,7 @@
     {
       "method": "GET",
       "path": "/v1/workforce/pharmacies/:pharmacy/staff/:id/mfa-recoveries/:command",
-      "capability": "staff_mfa_recovery"
+      "capability": "baseline"
     },
     {
       "method": "PUT",
@@ -209,7 +209,7 @@
     {
       "method": "GET",
       "path": "/v1/workforce/suppliers/:supplier/staff/:id/mfa-recoveries/:command",
-      "capability": "staff_mfa_recovery"
+      "capability": "baseline"
     },
     {
       "method": "PUT",
@@ -5977,6 +5977,10 @@
     {
       "key": "staff.governance.scope.supplier",
       "capability": "supplier_collaboration"
+    },
+    {
+      "key": "staff.accounts.mfa_recovery",
+      "capability": "staff_mfa_recovery"
     }
   ],
   "models": {

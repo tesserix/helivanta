@@ -1,5 +1,10 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { resetStaffMFA, readStaffMFARecovery, cancelStaffMFARecovery } from "./staff-mfa-recovery";
+import {
+  readStaffMFAReviewContext,
+  resetStaffMFA,
+  readStaffMFARecovery,
+  cancelStaffMFARecovery,
+} from "./staff-mfa-recovery";
 
 const scope = {
   tenantId: "11111111-1111-4111-8111-111111111111",
@@ -96,4 +101,37 @@ it("refuses browser-supplied target identity and recased intent fields", async (
   ).rejects.toThrow();
   await expect(resetStaffMFA(scope, { ...input, CommandId: id } as typeof input)).rejects.toThrow();
   expect(fetcher).not.toHaveBeenCalled();
+});
+
+const directoryRecord = {
+  id: scope.staffId,
+  hospital_id: scope.employerId,
+  employee_code: "SYN-MFA",
+  display_name: "Synthetic Staff",
+  job_category: "other",
+  employment_status: "active",
+  created_at: "2026-11-19T00:00:00Z",
+  updated_at: "2026-11-19T00:00:00Z",
+  version: 7,
+  directory_context_version: "v1",
+};
+it("reads the current canonical Staff version without inventing one from a legacy row", async () => {
+  const fetcher = vi.fn(async () => Response.json(directoryRecord));
+  vi.stubGlobal("fetch", fetcher);
+  expect(await readStaffMFAReviewContext(scope)).toEqual({ staffVersion: 7, active: true });
+  expect((fetcher.mock.calls[0] as unknown as [string])[0]).toBe(
+    `/api/v1/workforce/hospitals/${scope.employerId}/staff/${scope.staffId}?directory_context=v1`,
+  );
+});
+it.each([
+  { ...directoryRecord, id: scope.employerId },
+  { ...directoryRecord, hospital_id: scope.staffId },
+  { ...directoryRecord, version: 0 },
+  { ...directoryRecord, directory_context_version: undefined },
+])("refuses an unbound or legacy Staff review context", async (record) => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json(record)),
+  );
+  await expect(readStaffMFAReviewContext(scope)).rejects.toThrow();
 });

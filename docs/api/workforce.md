@@ -2353,7 +2353,9 @@ current administration or protected/self target, 404 invisible/wrong employer or
 Staff scope, 409 changed Staff/link/command or uncancellable state, 415 non-JSON
 command, and 503 unavailable authorization, audit, ledger or native evidence.
 Every response is no-store; private owner snapshots and Staff/native identifiers
-are not browser receipts.
+are not browser receipts. Only creation (`PUT`) is gated by `staff_mfa_recovery`.
+Authenticated `GET` and `/cancel` remain baseline reconciliation routes when new
+resets are disabled; they retain every current-actor and scope check above.
 
 IAM migration `0053_iam_staff_mfa_fences` includes the command, cancellation and
 fence tables. It is additive, tenant-isolated and append-only;
@@ -2365,5 +2367,5 @@ candidate. Local transport/fresh-authority tests and compilation are evidence on
 for those paths. Authored real-PostgreSQL integration cases cover hospital replay,
 fence-before-dispatch, source/privilege denial, prepared cancellation after target
 promotion and independent-pharmacy employer isolation. Hosted execution, the
-administrative UI, native Staff reset/enrollment/browser acceptance, reviewed
+administrative UI/native Staff reset/enrollment/browser acceptance, reviewed
 migration, Kargo deployment and deployed verification remain required.

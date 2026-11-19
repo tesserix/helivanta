@@ -28,6 +28,8 @@ import {
   useZodForm,
 } from "@helivanta/ui";
 
+import { StaffMFARecoveryPanel } from "./staff-mfa-recovery";
+
 import { StaffAccountInitiation } from "./staff-account-initiation";
 
 type Props = {
@@ -49,20 +51,28 @@ export function IndependentStaffLinks(props: Props) {
 function Links({ scope, staffVersion, canManage, canReview, canInitiate }: Props) {
   const [cursor, setCursor] = useState<string | null>(null);
   const query = useIndependentStaffLinksPage(scope, cursor);
-  if (query.isPending) return <p role="status">Loading reviewed accounts…</p>;
-  if (query.isError)
-    return (
-      <RequestFailure
-        message="Could not verify current Staff account-link access."
-        retry={query.refetch}
-        error={query.error}
-      />
-    );
+  const active = query.data?.data.filter((row) => row.link.status === "active") ?? [];
   return (
-    <LinkPage
-      {...{ scope, staffVersion, canManage, canReview, canInitiate, cursor, setCursor }}
-      result={query.data}
-    />
+    <>
+      <StaffMFARecoveryPanel
+        scope={scope}
+        link={active.length === 1 ? active[0].link : undefined}
+      />
+      {query.isPending ? (
+        <p role="status">Loading reviewed accounts…</p>
+      ) : query.isError ? (
+        <RequestFailure
+          message="Could not verify current Staff account-link access."
+          retry={query.refetch}
+          error={query.error}
+        />
+      ) : (
+        <LinkPage
+          {...{ scope, staffVersion, canManage, canReview, canInitiate, cursor, setCursor }}
+          result={query.data}
+        />
+      )}
+    </>
   );
 }
 function LinkPage({

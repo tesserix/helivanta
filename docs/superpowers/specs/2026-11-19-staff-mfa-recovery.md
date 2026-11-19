@@ -301,3 +301,26 @@ The canonical manifest now explicitly derives its wire enum and snapshot bounds
 from its capability catalogue through `enum_from`/`count_from` directives. Generator
 tests reject copied or unknown bindings; generated Go/TypeScript remain aligned.
 The feature is still ineligible and disabled. No migration or rollout occurred.
+
+## React controls and first hosted corrections
+
+The shared `StaffMFARecoveryPanel` is now connected to hospital reviewed-account
+links and independent-employer account links. It is owner-permission gated, reads
+current versioned Staff metadata, requires a reason and explicit confirmation, and
+never displays a database account/command identifier or administrator enrollment
+secret. Only the command marker is retained in tab storage under the verified
+account/tenant/employer/Staff selection; mutation variables contain no reason.
+Unknown outcomes cannot silently create a replacement command or replay a write.
+Status/cancellation survive disabling new resets, and terminal acknowledgement
+remains visible until dismissed. Unit coverage includes remount, storage failure,
+non-administrator refusal and different-account isolation. These controls still
+need actual native browser acceptance.
+
+Hosted run `44444693265` failed before the new real-database cases could run:
+bootstrap correctly rejected three forced-RLS policies that did not use the
+required `hms_tenant_visible` helper, and source inventory pins needed review.
+The policies now combine that helper with exact-tenant equality; the rechecked
+source ledger does not claim runtime acceptance. Revocation uses the existing
+`admin_revoke` database category, with the MFA-specific audit and retained original
+reason. These corrections await a fresh hosted run; no conformance gate was
+skipped or relaxed.

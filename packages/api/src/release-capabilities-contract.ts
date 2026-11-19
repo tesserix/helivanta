@@ -279,6 +279,7 @@ export const releasePanels = [
   { key: "staff.governance.scope.hospital", capability: "staff_core" },
   { key: "staff.governance.scope.pharmacy", capability: "pharmacy_staff" },
   { key: "staff.governance.scope.supplier", capability: "supplier_collaboration" },
+  { key: "staff.accounts.mfa_recovery", capability: "staff_mfa_recovery" },
 ] as const;
 const identifier = z
   .string()

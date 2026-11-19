@@ -156,3 +156,22 @@ test("manually copied or unknown snapshot bindings cannot bypass catalogue deriv
     assert.throws(() => releaseWireModels(value), /catalogue/);
   }
 });
+
+test("disabling new Staff MFA resets preserves authenticated status and cancellation", () => {
+  const value = JSON.parse(
+    readFileSync(new URL("../contracts/release-capabilities.json", import.meta.url), "utf8"),
+  );
+  const routes = new Map(
+    value.routes.map((route) => [`${route.method} ${route.path}`, route.capability]),
+  );
+  for (const [family, kind] of [
+    ["hospitals", "hospital"],
+    ["pharmacies", "pharmacy"],
+    ["suppliers", "supplier"],
+  ]) {
+    const path = `/v1/workforce/${family}/:${kind}/staff/:id/mfa-recoveries/:command`;
+    assert.equal(routes.get(`PUT ${path}`), "staff_mfa_recovery");
+    assert.equal(routes.get(`GET ${path}`), "baseline");
+    assert.equal(routes.get(`POST ${path}/cancel`), "baseline");
+  }
+});

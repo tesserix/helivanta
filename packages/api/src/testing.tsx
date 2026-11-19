@@ -1,6 +1,9 @@
 import { RELEASE_POLICY_VERSION, releaseDefinitions } from "./release-capabilities-contract";
 
-export { releaseDefinitions as releaseDefinitionsForTest } from "./release-capabilities-contract";
+export {
+  RELEASE_POLICY_VERSION as releasePolicyVersionForTest,
+  releaseDefinitions as releaseDefinitionsForTest,
+} from "./release-capabilities-contract";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";

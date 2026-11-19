@@ -207,6 +207,14 @@ func TestStaffMFAResetFencesBeforeDispatchAndReplaysWithoutNewRevocation(t *test
 	owner.failDispatch = true
 	response := mfaRequest(t, f.r, "PUT", path, "manager", input)
 	require.Equal(t, 503, response.Code, response.Body.String())
+	require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		var reason string
+		if err := tx.Table("iam_credential_revocations").Select("reason").Where("subject='user-candidate'").Scan(&reason).Error; err != nil {
+			return err
+		}
+		require.Equal(t, "admin_revoke", reason)
+		return nil
+	}))
 	cutoff := mfaWatermark(t, f.db)
 	require.False(t, cutoff.IsZero())
 	require.Equal(t, 1, owner.dispatches)

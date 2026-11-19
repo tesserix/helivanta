@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { staffDirectoryViewSchema } from "./staff-directory";
 import {
   StaffMFAResetInputContract,
   StaffMFARecoveryReceiptContract,
@@ -21,10 +22,13 @@ const resourceId = z
   .string()
   .guid()
   .refine((id) => id !== "00000000-0000-0000-0000-000000000000" && id === id.toLowerCase());
-function commandPath(scope: StaffMFARecoveryScope, command: string) {
+function staffPath(scope: StaffMFARecoveryScope) {
   const kind = employerKind.parse(scope.employerKind);
   const family = { hospital: "hospitals", pharmacy: "pharmacies", supplier: "suppliers" }[kind];
-  return `/workforce/${family}/${resourceId.parse(scope.employerId)}/staff/${resourceId.parse(scope.staffId)}/mfa-recoveries/${StaffMFAResetInputContract.shape.commandId.parse(command)}`;
+  return `/workforce/${family}/${resourceId.parse(scope.employerId)}/staff/${resourceId.parse(scope.staffId)}`;
+}
+function commandPath(scope: StaffMFARecoveryScope, command: string) {
+  return `${staffPath(scope)}/mfa-recoveries/${StaffMFAResetInputContract.shape.commandId.parse(command)}`;
 }
 function receiptFor(value: unknown, command: string) {
   const receipt = StaffMFARecoveryReceiptContract.parse(value);
@@ -60,4 +64,17 @@ export async function cancelStaffMFARecovery(scope: StaffMFARecoveryScope, comma
     }),
     command,
   );
+}
+
+export async function readStaffMFAReviewContext(
+  scope: StaffMFARecoveryScope,
+  signal?: AbortSignal,
+) {
+  const path = staffPath(scope);
+  const row = staffDirectoryViewSchema.parse(
+    await accountScopedRequest(scope, path + "?directory_context=v1", signal),
+  );
+  if (row.id !== scope.staffId || row.hospital_id !== scope.employerId)
+    throw new Error("The current Staff record could not be verified. Refresh the Staff panel.");
+  return { staffVersion: row.version, active: row.employment_status === "active" };
 }

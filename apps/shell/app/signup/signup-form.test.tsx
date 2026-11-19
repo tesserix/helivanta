@@ -1,3 +1,4 @@
+import { releasePolicyVersionForTest } from "@helivanta/api/testing";
 import { afterEach, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -9,7 +10,7 @@ function publicRelease(onboarding = true) {
   const now = Date.now();
   return new Response(
     JSON.stringify({
-      policy_version: "2026-11-16-r1",
+      policy_version: releasePolicyVersionForTest,
       issued_at: new Date(now).toISOString(),
       expires_at: new Date(now + 60_000).toISOString(),
       onboarding,

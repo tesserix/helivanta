@@ -314,7 +314,7 @@ func (h *staffMFAResetService) fence(ctx context.Context, p authn.Principal, in 
 		if err := tx.Raw(`SELECT clock_timestamp()`).Scan(&cutoff).Error; err != nil {
 			return err
 		}
-		if err := h.revocations.writeRevocation(tx, in.Target.Subject, cutoff, "staff_mfa_recovery", p.Subject); err != nil {
+		if err := h.revocations.writeRevocation(tx, in.Target.Subject, cutoff, "admin_revoke", p.Subject); err != nil {
 			return err
 		}
 		if err := tx.Exec(`SELECT set_config('app.actor_subject',?,true)`, p.Subject).Error; err != nil {

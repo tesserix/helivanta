@@ -1466,7 +1466,7 @@
         },
         {
           "id": "0053_iam_staff_mfa_fences",
-          "sql_sha256": "5460b4ab11d59c5e561d0d752d1e4dbf9824f0325c8b4c7ff113bda2ad3fcf92",
+          "sql_sha256": "d11512e5af55c229e5f7ac8eae029c561e433c1385c0f161e7f71fc709975c22",
           "creates_tables": [
             "iam_staff_mfa_commands",
             "iam_staff_mfa_cancellations",

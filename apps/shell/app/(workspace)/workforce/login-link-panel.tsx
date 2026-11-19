@@ -36,6 +36,8 @@ import {
   type LoginLinkScope,
 } from "@helivanta/api";
 
+import { StaffMFARecoveryPanel } from "@/components/workforce/staff-mfa-recovery";
+
 import { StaffAccountInitiation } from "@/components/workforce/staff-account-initiation";
 
 type Props = { hospital: Hospital; staff: Staff; onClose: () => void };
@@ -122,6 +124,20 @@ function LinkPanel({ hospital, staff, onClose, identity }: Props & { identity: I
         Link a verified login to this staff record. A second person must review it. Linking does not
         grant application access or clinical authority.
       </p>
+      <StaffMFARecoveryPanel
+        scope={{
+          tenantId: identity.tenant_id,
+          subject: identity.subject,
+          employerKind: "hospital",
+          employerId: hospital.id,
+          staffId: staff.id,
+        }}
+        link={
+          links.filter((link) => link.status === "active").length === 1
+            ? links.find((link) => link.status === "active")
+            : undefined
+        }
+      />
       {records.isPending ? (
         <p role="status">Loading account links…</p>
       ) : records.isError ? (

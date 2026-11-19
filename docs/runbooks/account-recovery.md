@@ -108,3 +108,55 @@ fixture mode. It refuses a deployed base URL. It is not production acceptance,
 recipient-inbox delivery evidence or Staff MFA-reset acceptance. The separate
 `password-recovery.spec.ts` cases remain browser consumer contracts with a stubbed
 owner. Record actual hosted results before calling either gate passed.
+
+## Staff authenticator recovery controls — candidate
+
+These controls are implemented but are not deployed or accepted. The
+`staff_mfa_recovery` capability remains ineligible. Do not enable it from the
+console until the hosted database/native acceptance and rollout gates are met.
+
+1. Sign in as the current tenant administrator and open the Staff member's
+   reviewed account links in the hospital or independent-employer Staff screen.
+   Reset also requires current establishment-manager access, recent
+   authentication, an active Staff record and an ordinary owned account.
+   Self, privileged and externally managed credentials use their authorized
+   identity-administrator process.
+2. Choose **Reset authenticator**. The panel reads the current versioned Staff
+   record; it does not assume a version from an old directory list. Enter a reason
+   and explicitly confirm the identity check and reset.
+3. Submit once. Only an acknowledged `awaiting_enrollment` result means the native
+   authenticator removal was confirmed. Ask the Staff member to sign in and enroll
+   the replacement authenticator on their own device. The administrator does not
+   receive the enrollment secret or an authenticated Staff session.
+4. If the response is lost, leave the selected request in place. Reopening the
+   same Staff screen under the same account retains only its opaque command marker
+   in tab storage. **Check recovery status** reads that exact request.
+   **Cancel if still prepared** asks the server to cancel that exact intent; it can
+   also block a not-yet-arrived preparation. The browser never has to retain or
+   resend the reason after reload. No request is automatically redispatched.
+5. An accepted, processing or unconfirmed native write cannot be cancelled.
+   Keep its marker, check the same request and escalate to the identity
+   administrator if it cannot be reconciled. Do not create a replacement request
+   to bypass an unresolved outcome. A confirmed cancellation/completion clears
+   only the matching marker. A different tenant/account cannot load it.
+6. If the browser cannot retain the marker, no reset is submitted. If recent
+   authentication is required, use **Sign in again**, then reopen the same Staff
+   screen. Ordinary session renewal does not manufacture that fresh authority.
+
+The panel uses linked names and the existing presentation components; account and
+command identifiers are not rendered. A pending historical request is not labelled
+with a potentially replaced current account link. Mutation cache variables contain
+no reason, password, token or authenticator secret.
+
+Switching off new resets hides the creation controls and denies `PUT` at the
+Global API/product gate. Authenticated status and safe cancellation remain baseline
+routes so a kill switch does not strand an already selected request. Their
+original-actor, tenant, employer/Staff scope and fresh administration checks still
+apply. Disabling a feature grants no authorization and cannot undo an accepted
+native action.
+
+Current evidence is component/consumer testing and local builds only for these
+controls. The earlier successful E2E revision predates them. New PostgreSQL cases,
+hospital and independent-employer native/browser reset → enrollment → login,
+unsupported-factor refusal, named migration/QA-reset approval, Kargo rollout and
+deployed Chrome verification remain mandatory before calling #1703 complete.

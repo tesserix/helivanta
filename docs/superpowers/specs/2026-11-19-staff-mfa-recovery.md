@@ -414,3 +414,14 @@ credential. Native human fixture proofs reject foreign owners, machines, inactiv
 or mismatched subjects, production issuers and malformed provider payloads.
 These corrections still require a fresh hosted run. No browser success, merge,
 live migration or deployment is claimed by adding these test cases.
+
+
+The same hosted Go run passed the earlier Staff selector gates, then rejected the
+three recovery status routes in `TestEveryCollectionGETIsPaginated`. That gate
+requires every non-paginated GET, including scalar reads, to be explicitly
+classified. The three exact routes now join the existing scalar allowlist with
+reasons identifying their single scoped receipt. No collection registration or
+pagination requirement changed. The existing regression was reproduced locally
+before the classification and passed with race instrumentation afterward. Full
+PostgreSQL/OpenFGA architecture execution remains hosted to respect the local
+service restriction.

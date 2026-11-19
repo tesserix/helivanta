@@ -169,8 +169,10 @@ an applied live migration.
 
 Run `44521873765` at `37e6f801` passed web, scripts and secret scanning. Its E2E
 job failed during Ubuntu browser-dependency installation before application
-startup. No native recovery case executed in that job. Its Go coverage job is
-still running; this partial result is not full acceptance.
+startup. No native recovery case executed in that job. Its Go coverage job was
+still running when the tested current-main integration was prepared. Advancing
+the necessary integration through normal PR concurrency supersedes this older
+run; no passing Go gate or full acceptance is claimed for it.
 
 Parent run `44528471426`, E2E job `135575206691`, passed at `e7b9c1d4`:
 106 main-stack cases passed, one live security-key case skipped, and both the

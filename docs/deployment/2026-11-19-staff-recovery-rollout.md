@@ -68,8 +68,10 @@ do not schedule two independent applications of its shared SQL.
 
 1. Keep the owner and application branches current through normal review. Pin
    both consumers to the same tested owner revision. Do not merge a branch with
-   failed or pending required checks and do not cancel healthy runs to replace
-   them with another revision.
+   failed or pending required checks. Necessary head updates use the repository's
+   configured CI concurrency policy; a superseded or cancelled run is never a
+   passing gate. Do not manually cancel running jobs merely to retry a failure.
+   Require the full checks again at the accepted release revision.
 2. Run the real disposable native hospital and independent-pharmacy tests. They
    must use separate actual organizations/accounts, the Global API, real reviewed
    Staff links, native factors and workload JWTs. Test rejected stale and foreign

@@ -572,7 +572,8 @@ func (h *catalogueHandlers) persistProduct(ctx context.Context, tx *gorm.DB, p a
 		return result, errCatalogueVersion
 	}
 	if exists && reflect.DeepEqual(result.ProductFields, in.ProductFields) {
-		return result, attachProductTax(tx, p.TenantID, outlet, &result)
+		err := attachProductTax(tx, p.TenantID, outlet, &result)
+		return result, err
 	}
 	if source != nil && exists {
 		return result, errCatalogueVersion
@@ -623,5 +624,6 @@ func (h *catalogueHandlers) persistProduct(ctx context.Context, tx *gorm.DB, p a
 	if err := h.bus.Publish(tx, pharmacycontract.SubjectCatalogueUpdated, events.Event{Type: "MedicineCatalogueUpdated", Version: 1, TenantID: p.TenantID, Data: data}); err != nil {
 		return result, err
 	}
-	return result, attachProductTax(tx, p.TenantID, outlet, &result)
+	err = attachProductTax(tx, p.TenantID, outlet, &result)
+	return result, err
 }

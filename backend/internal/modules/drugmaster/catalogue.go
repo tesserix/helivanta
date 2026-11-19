@@ -56,14 +56,16 @@ func (g stockProductGuard) SearchCatalogue(ctx context.Context, query string) ([
 	}
 	var rows []stockproduct.CatalogueProduct
 	err := g.db.WithSystem(ctx, func(tx *gorm.DB) error {
-		predicate := `WHERE pv.status='active' AND (pv.search_key ~>=~ ? AND pv.search_key ~<~ ? OR p.formulation_id IN (
+		predicate := `WHERE pv.status='active' AND p.product_id IN (
+ SELECT product_id FROM drugmaster_product_versions WHERE search_key ~>=~ ? AND search_key ~<~ ?
+ UNION SELECT dp.id FROM drugmaster_products dp WHERE dp.formulation_id IN (
  SELECT v.formulation_id FROM drugmaster_molecules m JOIN drugmaster_formulation_ingredients i ON i.molecule_id=m.id
  JOIN drugmaster_formulation_versions v ON v.id=i.version_id
  WHERE m.search_key ~>=~ ? AND m.search_key ~<~ ?))`
 		args := []any{key, upperBound(key), key, upperBound(key)}
 		if validGTIN(strings.TrimSpace(query)) {
-			predicate = `WHERE pv.status='active' AND p.gtin=?`
-			args = []any{gtin14(strings.TrimSpace(query))}
+			predicate = `WHERE pv.status='active' AND p.product_id IN (SELECT product_id FROM drugmaster_product_versions WHERE gtin=?) AND p.gtin=?`
+			args = []any{gtin14(strings.TrimSpace(query)), gtin14(strings.TrimSpace(query))}
 		}
 		var err error
 		rows, err = catalogueProducts(tx, predicate, args...)

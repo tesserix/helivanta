@@ -453,8 +453,7 @@ owner, Kargo and QA actions. It is not rollout authorization or proof of native
 browser acceptance. No live action occurred.
 
 The owner manifest compatibility change passed all checks in hosted run
-`44459441660` at `d075ee7c80800dfaddde5216b29ab8516f52bddb`; both consumers now
-pin that revision. Local validation on those pins passed 1,492 API tests, 200
+`44459441660` at `d075ee7c80800dfaddde5216b29ab8516f52bddb`; that candidate pinned both consumers to that revision. Local validation on those pins passed 1,492 API tests, 200
 script package tests, 17 explicit fixture tests, credential/startup and migration
 phase race tests, scoped Go vet/lint, E2E typecheck, all canonical checks, the Go
 build and the shell production build. Generated shell output was removed. The
@@ -517,3 +516,13 @@ These corrections still need fresh hosted Go and native-browser acceptance. The
 native password result does not establish MFA reset, re-enrollment or lockout
 acceptance. Owner prerequisite PR #44, recovery PR #45, schema reconciliation,
 normal HMS merges, approved Kargo rollout and deployed verification remain open.
+
+The canonical fixture owner correction passed all checks in run `44486627321`
+at `55ad8854837280fdd87a72cd636f8bfb57eb611a`. Both current HMS consumers pin
+that revision; their fresh local and hosted acceptance still governs delivery.
+
+Local validation on these pins passed 1,492 API tests, 203 script tests, six
+related CI fixture tests, canonical generation/check, E2E typecheck/lint/discovery,
+focused Go race/vet/lint/build checks and the shell production build with CI's
+Global API origin. Generated shell output was removed. Full hosted native and
+Go acceptance still remains required for the pushed candidate.

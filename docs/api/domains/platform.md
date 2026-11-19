@@ -662,12 +662,29 @@ The same native subject cannot bypass this requirement through a legacy membersh
 in another tenant. Separate accounts sharing email remain distinct.
 
 The projection exposes no originating employer, actor, reason or native evidence.
-These private controls do not register a public reset route or complete a new
-recovered login. Workforce/IAM reset authority, idempotent revocation, exact native
-session/enrollment admission and the forced-enrollment UI are still unfinished.
-Deploy the reviewed owner schema and owner implementation before opting HMS in;
-live migration and QA factor resets require their named approvals. Do not enable
-or close #1703 based only on this enforcement candidate.
+HMS login obtains a generation only from the private credential owner's native
+admission API, with a `sid` retained from a normally verified ID token. It re-reads
+current credentials and membership after admission. Historical Staff versions or
+later promotions do not prevent authentication; reset authority and current
+operating authorization remain separate. A new admitted generation opens a fresh
+idle window; same-generation renewal preserves the existing deadline.
+
+The managed native organization's current private recovery requirement also gates
+all three login-client completion entries (password, factor and password change).
+Pending recovery or unavailable evidence denies completion. A retained enrollment
+or completed requirement forces TOTP even under a permissive organization policy,
+using the existing native enrollment/factor UI. Factor presence at this stage does
+not prove fresh enrollment; final application admission still requires the owner's
+exact native lifecycle and session proof. Non-managed native organizations retain
+their native policy behavior; they cannot mint an HMS session without the normal
+owned identity, membership and recovery checks at application admission.
+
+These private controls do not register a public reset route. Workforce/IAM reset
+authority, command orchestration, idempotent revocation and hospital/independent
+native-browser acceptance remain unfinished. Deploy the reviewed owner schema
+and owner implementation before opting HMS in; live migration and QA factor
+resets require their named approvals. Do not enable or close #1703 based only on
+this candidate.
 
 ## Email-first separate-account discovery
 

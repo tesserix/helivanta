@@ -151,9 +151,18 @@ new admitted generation opens a fresh idle window even if `auth_time` shares the
 old cookie's whole second; silent renewals within one generation retain their
 existing deadline. Browser-supplied session/generation fields supply no evidence.
 
-The forced-enrollment UI, Workforce/IAM reset command authority and durable
-idempotent revocation remain required. Hosted native/browser acceptance and live
-deployment also remain unverified. This is not a released recovery journey.
+All three loginclient completion entries now read current recovery requirements
+for the native session's managed organization/account. Pending requirements deny;
+missing owner evidence fails closed. Retained recovery forces the existing native
+TOTP enrollment/factor UI even when native policy permits password-only login.
+A password-change continuation cannot finalize after factor removal. The existing
+unsupported-factor refusal still applies; no passkey, security-key or other factor
+is removed or silently replaced. This gate cannot itself admit a recovery
+generation: final owner-native lifecycle/session proof remains mandatory.
+
+Workforce/IAM reset command authority and durable idempotent revocation remain
+required. Hosted native/browser acceptance and live deployment remain unverified.
+This is not a released recovery journey.
 
 Supported reset operations must be explicit in the canonical command/UI. Do not
 delete passkeys, primary security keys, SMS/email factors or recovery codes as a
@@ -214,7 +223,7 @@ concurrency, immutable replay, cancellation tombstones, audit rollback, exact
 timestamp preservation, generation fencing and application-role restrictions.
 
 Workforce/IAM authorization, HMS reset command orchestration and durable idempotent revocation,
-mandatory enrollment UI and the Staff native-browser journey remain unfinished.
+administrative reset UI and the Staff native-browser journey remain unfinished.
 No Staff reset endpoint is registered, no live schema has been applied and no live
 factor has been removed. See Helivanta PR #1749, onboarding-service PR #45 and
 the owner's `docs/staff-mfa-recovery.md` for lifecycle and validation details.

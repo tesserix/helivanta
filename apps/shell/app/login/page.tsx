@@ -27,11 +27,12 @@ import {
   LoginBrandingProvider,
   TenantLoginLayout,
   TenantLoginHeading,
+  retainLoginBrandingTenant,
 } from "@/components/login-branding";
 import { getUserManager } from "@/lib/oidc";
 import { AccountDiscovery } from "@/components/account-discovery";
 import { MfaCodeForm } from "@/components/mfa-code-form";
-import { workspaceSigninScope } from "@/lib/workspace-signin";
+import { rememberWorkspace, workspaceSigninScope } from "@/lib/workspace-signin";
 import { RenewalFailedError, renewSession, type RenewalResult } from "@/lib/renew";
 import {
   changePassword,
@@ -202,7 +203,13 @@ function ValidatedCredentialForm({ authRequestId }: { authRequestId: string }) {
     );
   }
 
-  return <LoginFlow authRequestId={authRequestId} policies={authRequest.data.policies} />;
+  return (
+    <LoginFlow
+      authRequestId={authRequestId}
+      policies={authRequest.data.policies}
+      loginHint={authRequest.data.login_hint}
+    />
+  );
 }
 
 // Maps login-client.ts's wire-shaped `AuthPoliciesInfo` (snake_case,
@@ -261,9 +268,11 @@ type LoginStep =
 function LoginFlow({
   authRequestId,
   policies,
+  loginHint,
 }: {
   authRequestId: string;
   policies: AuthPoliciesInfo;
+  loginHint?: string;
 }) {
   const [step, setStep] = useState<LoginStep>({ kind: "credential" });
   // Set by either step when the sign-in cannot continue: the attempt
@@ -349,6 +358,7 @@ function LoginFlow({
     <CredentialForm
       authRequestId={authRequestId}
       policies={policies}
+      loginHint={loginHint}
       onSecurityKeyRequired={(url) => setStep({ kind: "securityKey", url })}
       onFactorRequired={(currentPassword) => setStep({ kind: "otp", currentPassword })}
       onEnrollmentRequired={(currentPassword, totp) =>
@@ -435,6 +445,7 @@ function saveRememberedUsername(enabled: boolean, username: string) {
 function CredentialForm({
   authRequestId,
   policies,
+  loginHint,
   onSecurityKeyRequired,
   onFactorRequired,
   onEnrollmentRequired,
@@ -443,6 +454,7 @@ function CredentialForm({
 }: {
   authRequestId: string;
   policies: AuthPoliciesInfo;
+  loginHint?: string;
   onSecurityKeyRequired: (url: string) => void;
   onFactorRequired: (currentPassword: string) => void;
   onEnrollmentRequired: (currentPassword: string, totp: TotpEnrollment) => void;
@@ -451,8 +463,10 @@ function CredentialForm({
 }) {
   // Lazy reads are hydration-safe: this form only mounts after a client-side request check.
   const [remembered] = useState(readRememberedUsername);
+  // The email discovery just proved beats a name remembered from an earlier visit.
+  // Bounded like the remembered name: the hint is whatever the authorize URL carried.
   const [values, setValues] = useState<AuthCredentialValues>(() => ({
-    loginName: remembered.enabled ? remembered.username : "",
+    loginName: loginHint?.slice(0, 320) || (remembered.enabled ? remembered.username : ""),
     password: "",
   }));
   const [loginNameError, setLoginNameError] = useState<string | undefined>();
@@ -549,7 +563,7 @@ function CredentialForm({
       <AuthCardCentered>
         <div className="space-y-2 text-center">
           <TenantLoginHeading />
-          <p className="text-sm text-muted-foreground">Sign in to continue.</p>
+          <p className="text-sm text-muted-foreground">Enter your password to continue.</p>
         </div>
 
         <AuthCredentialForm
@@ -1114,6 +1128,9 @@ function RedirectLanding({
       // Here it is cheap and worth it: this is an explicit, deliberate
       // sign-in, and forcing re-authentication means a live Zitadel session
       // cannot silently answer for whoever is now at the keyboard.
+      // Remembered before the round trip so a start-again landing offers this
+      // workspace again instead of email discovery.
+      if (workspace) rememberWorkspace(workspace.trim());
       await getUserManager().signinRedirect({
         prompt: "login",
         ...(workspace
@@ -1199,11 +1216,14 @@ function RedirectLanding({
           </Button>
         ) : (
           <AccountDiscovery
-            onSelect={async (tenantId) => {
+            onSelect={async (tenantId, email) => {
+              retainLoginBrandingTenant(tenantId);
               await getUserManager().signinRedirect({
                 prompt: "login",
                 scope: workspaceSigninScope(tenantId),
                 state: { purpose: "workspace-login", tenantId },
+                // The credential card prefills the email discovery proved.
+                ...(email ? { login_hint: email } : {}),
               });
             }}
           />

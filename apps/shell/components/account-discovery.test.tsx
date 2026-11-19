@@ -42,7 +42,9 @@ describe("Account discovery", () => {
     await user.click(screen.getByRole("button", { name: "Sign in" }));
     await user.type(await screen.findByLabelText("Email verification code"), "12345678");
     await user.click(screen.getByRole("button", { name: "Verify email" }));
-    await waitFor(() => expect(redirect).toHaveBeenCalledWith(tenant));
+    await waitFor(() => expect(redirect).toHaveBeenCalledWith(tenant, "owner@example.test"));
+    // Remembered at selection, so a start-again landing offers it without another code.
+    expect(window.localStorage.getItem("helivanta.login.workspace.v1")).toContain(tenant);
   });
   it("shows business names for separate hospital and pharmacy accounts", async () => {
     stub([
@@ -55,8 +57,9 @@ describe("Account discovery", () => {
     await user.type(await screen.findByLabelText("Email verification code"), "12345678");
     await user.click(screen.getByRole("button", { name: "Verify email" }));
     await user.click(await screen.findByRole("button", { name: /Independent pharmacy/ }));
-    expect(redirect).toHaveBeenCalledWith(other);
-    expect(redirect).not.toHaveBeenCalledWith(tenant);
+    expect(redirect).toHaveBeenCalledWith(other, "owner@example.test");
+    expect(redirect).not.toHaveBeenCalledWith(tenant, expect.anything());
+    expect(window.localStorage.getItem("helivanta.login.workspace.v1")).toContain(other);
   });
   it("offers resend after expiry without starting a native login", async () => {
     stub([], 404);
@@ -92,7 +95,7 @@ it("opens a recently authenticated tenant without sending another mailbox code",
   stub([]);
   const { user } = renderWithProviders(<AccountDiscovery onSelect={redirect} />);
   await user.click(await screen.findByRole("button", { name: "Sign in to your previous account" }));
-  expect(redirect).toHaveBeenCalledWith(tenant);
+  expect(redirect).toHaveBeenCalledWith(tenant, undefined);
   expect(fetch).not.toHaveBeenCalled();
 });
 

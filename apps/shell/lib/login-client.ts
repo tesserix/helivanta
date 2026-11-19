@@ -42,6 +42,8 @@ export interface AuthRequestInfo {
   client_id: string;
   redirect_uri: string;
   scope: string[];
+  // The OIDC login_hint the browser sent: the email discovery proved. Prefill only.
+  login_hint?: string;
   policies: AuthPoliciesInfo;
 }
 

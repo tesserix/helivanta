@@ -261,6 +261,27 @@ describe("LoginPage", () => {
         scope: `openid profile email urn:zitadel:iam:org:id:helivanta-${tenant}`,
       }),
     );
+    // Remembered before the round trip, so a start-again landing offers one click.
+    expect(window.localStorage.getItem("helivanta.login.workspace.v1")).toContain(tenant);
+  });
+
+  it("reopens a remembered account with its branding and no mailbox code", async () => {
+    const tenant = "11111111-1111-4111-8111-111111111111";
+    window.localStorage.setItem(
+      "helivanta.login.workspace.v1",
+      JSON.stringify({ tenantId: tenant, expiresAt: Date.now() + 60_000 }),
+    );
+    renderWithProviders(<LoginPage />);
+    await userEvent
+      .setup()
+      .click(await screen.findByRole("button", { name: "Sign in to your previous account" }));
+    expect(signinRedirect).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scope: `openid profile email urn:zitadel:iam:org:id:helivanta-${tenant}`,
+      }),
+    );
+    expect(signinRedirect.mock.calls[0][0]).not.toHaveProperty("login_hint");
+    expect(window.sessionStorage.getItem("helivanta.login.branding-tenant")).toBe(tenant);
   });
 
   describe("with no auth request (landing page)", () => {
@@ -579,6 +600,35 @@ describe("LoginPage", () => {
       expect(await screen.findByLabelText("Email or username")).toBeInTheDocument();
       expect(screen.getByLabelText("Password")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+    });
+
+    // The card after discovery is the password step of the same sign-in, not a
+    // second login: it carries the email discovery proved and says so.
+    it("prefills the email account discovery proved over a remembered username", async () => {
+      window.localStorage.setItem(
+        "helivanta.login.remembered-username",
+        JSON.stringify({ enabled: true, username: "someone.else" }),
+      );
+      stubAuthFlow({
+        authRequest: () =>
+          jsonResponse(200, {
+            id: AUTH_REQUEST_ID,
+            client_id: "helivanta-web",
+            redirect_uri: "http://localhost:4301/api/auth/callback",
+            scope: ["openid", "profile", "email"],
+            login_hint: "dr.patel@example.test",
+            policies: {
+              allow_password: true,
+              second_factors: ["totp"],
+              ignore_unknown_usernames: false,
+            },
+          }),
+      });
+      renderWithProviders(<LoginPage />);
+      expect(await screen.findByLabelText("Email or username")).toHaveValue(
+        "dr.patel@example.test",
+      );
+      expect(screen.getByText("Enter your password to continue.")).toBeInTheDocument();
     });
 
     // Repo-wide: native browser validation is banned (docs/standards/

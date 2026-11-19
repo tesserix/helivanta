@@ -331,6 +331,7 @@ type authRequestResponse struct {
 	ClientID    string               `json:"client_id"`
 	RedirectURI string               `json:"redirect_uri"`
 	Scope       []string             `json:"scope"`
+	LoginHint   string               `json:"login_hint,omitempty"`
 	Policies    authPoliciesResponse `json:"policies"`
 }
 
@@ -373,6 +374,7 @@ func (h *LoginUIHandlers) AuthRequest(c *gin.Context) {
 		ClientID:    ar.ClientID,
 		RedirectURI: ar.RedirectURI,
 		Scope:       ar.Scope,
+		LoginHint:   ar.LoginHint,
 		Policies: authPoliciesResponse{
 			AllowPassword:          true,
 			SecondFactors:          []string{"totp"},

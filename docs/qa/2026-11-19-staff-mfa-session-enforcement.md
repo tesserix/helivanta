@@ -64,18 +64,54 @@ admission in two legacy tenant contexts run in hosted CI, not locally. No local
 application, PostgreSQL or container was started. No live identity or factor was
 changed. The new JWT claim and source checks are not proof of a deployed feature.
 
+## Current candidate verification
+
+At application revision `3d00c4a8`, native recovered-login admission is wired in
+`backend/internal/modules/iam/login_recovery.go` through the onboarding owner's
+`AdmitStaffMFASession` contract. It requires a native session ID, validates the
+returned generation, then reads current credential state again so a concurrent
+reset or password change wins. This supersedes the earlier missing-admission
+status; it does not establish native runtime or deployed acceptance.
+
+Workforce exposes reviewed Staff reset, read and cancellation operations through
+`backend/internal/modules/workforce/staff_mfa_recovery.go`. The candidate includes
+the IAM retained intent/fence and the shared Staff recovery UI. The hospital and
+independent-pharmacy native cases are authored but require a successful hosted run.
+
+Additional local commands passed on 19 November:
+
+- `pnpm --filter @helivanta/api test`: 133 files, 1,492 tests.
+- `pnpm --filter @helivanta/e2e type-check` and
+  `pnpm --filter @helivanta/e2e lint`.
+- `pnpm exec prettier --check e2e/tests/support/staff-mfa-native.ts`.
+- From `backend/`, `go build ./...`, `go vet ./internal/integration`, and
+  `go test ./internal/integration -run '^TestStaffMFAFixtureTenantsReachTheCanonicalOwnerClient$' -count=1`.
+- From `backend/`, `go test -race ./internal/customeronboarding ./internal/modules/iam/loginclient ./pkg/session ./pkg/organizationidentity ./pkg/authn -run 'MFA|Recovery|Credential' -count=1`.
+
+The focused integration-package command tests the owner HTTP client fixture only;
+it does not run PostgreSQL or native recovery. Node reported version 26.13.1 against
+the repository's required Node 24 range; hosted Node 24 results remain required.
+No local application, database or container was started. `go build ./...` emitted
+no application binaries into the worktree.
+
+The earlier hosted run `44488449145` failed an independent Staff setup assertion:
+creation returned the documented 201 while the test expected 200. The correction
+preserves the API and now checks 201 creation followed by 200 identical replay for
+both proposals and decisions. Hosted run `44508111060` tests the pushed correction;
+its results must be recorded after completion. Earlier employer-setup and lockout
+failures are not considered resolved without those runtime results.
+
 ## Remaining release gates
 
-Native recovered-login admission is still missing: the login boundary must verify
-the exact signed native session, independent fresh primary/factor timestamps and
-new enrollment against the latest generation before setting one. Current login
-refuses retained recovery rather than inferring admission from password time or
-completion status. Recovery generation also needs to participate in the existing
-expired-cookie idle-window decision once that admission is wired, so an older
-generation cannot constrain a genuinely fresh recovered login.
+Require full hosted database and native-browser acceptance for both employer
+models, password-reset-to-login, lockout guidance and forced replacement MFA
+before enabling recovery. Resolve the password-recovery prerequisite's GitGuardian
+incident 40266894 through the security dashboard. Its reported source at commit
+`068c9bfa`, `apps/shell/components/password-recovery.tsx:66`, initializes empty form
+values; it contains no credential. This source review is not a provider dismissal
+or a passing security check.
 
-Workforce reviewed reset-target authority, IAM fresh administrator/ordinary-target
-checks, durable command-idempotent pre-native revocation, forced enrollment UI and
-the full hospital/independent-employer native-browser journey remain unfinished.
-Obtain named migration/QA reset approval after those reviewable gates, then normal
-merge/Kargo release and deployed browser verification. Keep #1703 open.
+Follow [the schema-first rollout and acceptance plan](../deployment/2026-11-19-staff-recovery-rollout.md)
+for approved live migrations, owner/application Kargo releases, named QA factor
+actions and deployed Chrome/API verification. Keep #1703 open until every issue
+acceptance criterion and live release gate is evidenced.

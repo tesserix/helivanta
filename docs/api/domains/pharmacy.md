@@ -919,3 +919,15 @@ returns `{profile: object | null}`, enforces the optional expected-tenant
 precondition, disables caching and audits the read. Historical records can return
 null. The read schema is generated from the onboarding-service owner contract.
 [Automated onboarding](../../design/automated-customer-onboarding.md)
+
+## Add an outlet product from the medicine master (#1683)
+
+See [drug master operations](../../drugmaster.md#outlet-catalogue-consumer) for the
+scoped search/import contract and release provenance. Drugmaster remains the
+identity owner; Pharmacy stores immutable, version-linked identity evidence and
+outlet commercial fields. Manual products remain supported. Import requires current
+editor access, rejects stale/inactive source versions and does not replace local
+schedule, tax, category, price-control or stock release reviews. Source transport
+can fetch/stage licensed releases; live vendor activation remains dependent on
+procurement and independent stewardship. #1683 is not complete until an approved
+Indian branded release is evidenced in production.

@@ -26,6 +26,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
+	"github.com/tesserix/helivanta/pkg/stockproduct"
 	f "github.com/tesserix/helivanta/pkg/supplierfulfilment"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
@@ -35,6 +36,7 @@ type catalogueHandlers struct {
 	bus            *events.Bus
 	operating      authz.OperatingScopeAuthorizer
 	supplierSafety f.ShipmentSafety
+	drugCatalogue  stockproduct.CatalogueSource
 }
 
 type catalogueProduct struct {
@@ -47,7 +49,8 @@ type catalogueProduct struct {
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
 	// Tax is the classification in force on the outlet's date (#1283).
-	Tax *productTax `json:"tax" gorm:"-"`
+	Tax        *productTax                    `json:"tax" gorm:"-"`
+	DrugMaster *stockproduct.CatalogueProduct `json:"drug_master,omitempty" gorm:"serializer:json;type:jsonb"`
 }
 
 func (catalogueProduct) TableName() string                 { return "pharmacy_catalogue_products" }
@@ -67,7 +70,7 @@ type catalogueRevision struct {
 func (catalogueRevision) TableName() string                 { return "pharmacy_catalogue_revisions" }
 func (r catalogueRevision) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
 
-const productColumns = "id,tenant_id,outlet_id,sku,brand_name,generic_name,dosage_form,route,manufacturer,marketing_company,ingredients,pack_size,unit_of_issue,currency,mrp_minor,status,regulatory_status,version,created_at,updated_at"
+const productColumns = "id,tenant_id,outlet_id,sku,brand_name,generic_name,dosage_form,route,manufacturer,marketing_company,ingredients,pack_size,unit_of_issue,currency,mrp_minor,status,regulatory_status,version,created_at,updated_at,drug_master"
 
 var skuPattern = regexp.MustCompile(`^[A-Z0-9][A-Z0-9._-]{0,39}$`)
 var strengthPattern = regexp.MustCompile(`^(0|[1-9][0-9]{0,11})(\.[0-9]{1,6})?$`)
@@ -77,7 +80,10 @@ var errCatalogueWithdrawn = errors.New("withdrawn product is immutable")
 
 func catalogueRoutes(g *platform.Router, deps platform.Deps) {
 	h := &catalogueHandlers{db: deps.DB, bus: deps.Bus, supplierSafety: deps.SupplierShipmentSafety}
+	h.drugCatalogue, _ = deps.StockProducts.(stockproduct.CatalogueSource)
 	s := g.Group("/pharmacies/:pharmacy/outlets/:outlet")
+	s.GET("/catalogue/drugmaster", PermCatalogueRead, h.searchDrugCatalogue)
+	s.PUT("/catalogue/products/:id/from-drugmaster", PermCatalogueWrite, h.importDrugProduct)
 	s.GET("/access", PermCatalogueRead, h.getAccess)
 	s.GET("/overview", PermCatalogueRead, h.getOverview)
 	s.PUT("/access/:subject", PermAccessManage, h.putAccess)
@@ -234,6 +240,14 @@ func catalogueError(c *gin.Context, err error) {
 	}
 	var pg *pgconn.PgError
 	if errors.As(err, &pg) {
+		if pg.ConstraintName == "pharmacy_drug_master_identity" {
+			respond.Conflict(c, "linked medicine identity cannot be changed; create a new product")
+			return
+		}
+		if pg.ConstraintName == "pharmacy_catalogue_master_product" {
+			respond.Conflict(c, "this medicine is already in the outlet catalogue")
+			return
+		}
 		if pg.ConstraintName == "pharmacy_stock_product_identity" {
 			respond.Conflict(c, "stocked product identity requires a new product")
 			return
@@ -344,64 +358,9 @@ func (h *catalogueHandlers) putProduct(c *gin.Context) {
 	}
 	var result catalogueProduct
 	err := h.transaction(c.Request.Context(), p, outlet, true, func(tx *gorm.DB) error {
-		if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended(?,0))`, p.TenantID+":"+outlet.String()+":"+id.String()).Error; err != nil {
-			return err
-		}
-		err := tx.Select(productColumns).Where("tenant_id=? AND outlet_id=? AND id=?", p.TenantID, outlet, id).First(&result).Error
-		exists := err == nil
-		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-			return err
-		}
-		if exists && reflect.DeepEqual(result.ProductFields, in.ProductFields) {
-			return attachProductTax(tx, p.TenantID, outlet, &result)
-		}
-		if (!exists && *in.ExpectedVersion != 0) || (exists && *in.ExpectedVersion != result.Version) {
-			return errCatalogueVersion
-		}
-		if exists && result.Status == "withdrawn" {
-			return errCatalogueWithdrawn
-		}
-		if !exists {
-			result = catalogueProduct{ID: id, TenantID: uuid.MustParse(p.TenantID), OutletID: outlet, RegulatoryStatus: "pending_review"}
-		}
-		result.ProductFields = in.ProductFields
-		result.Version++
-		if exists {
-			if err := tx.Model(&catalogueProduct{}).Where("tenant_id=? AND outlet_id=? AND id=?", p.TenantID, outlet, id).
-				Select("sku", "brand_name", "generic_name", "dosage_form", "route", "manufacturer", "marketing_company", "ingredients", "pack_size", "unit_of_issue", "currency", "mrp_minor", "status", "version", "updated_at").
-				Updates(&result).Error; err != nil {
-				return err
-			}
-		} else if err := tx.Create(&result).Error; err != nil {
-			return err
-		}
-		if err := tx.Select(productColumns).Where("tenant_id=? AND outlet_id=? AND id=?", p.TenantID, outlet, id).First(&result).Error; err != nil {
-			return err
-		}
-		// A revision records identity only; tax has its own effective-dated
-		// history. The outer nil Tax shadows the embedded one and is omitted.
-		snapshot, err := json.Marshal(struct {
-			catalogueProduct
-			Tax *productTax `json:"tax,omitempty"`
-		}{catalogueProduct: result})
-		if err != nil {
-			return err
-		}
-		revisionID, err := uuid.NewV7()
-		if err != nil {
-			return err
-		}
-		if err := tx.Create(&catalogueRevision{ID: revisionID, TenantID: result.TenantID, OutletID: outlet, ProductID: id, Version: result.Version, Snapshot: snapshot, ActorSubject: p.Subject}).Error; err != nil {
-			return err
-		}
-		data, err := json.Marshal(pharmacycontract.CatalogueUpdatedData{PharmacyID: currentPharmacy(c.Request.Context()).String(), OutletID: outlet.String(), ProductID: id.String(), Version: result.Version, Status: result.Status})
-		if err != nil {
-			return err
-		}
-		if err := h.bus.Publish(tx, pharmacycontract.SubjectCatalogueUpdated, events.Event{Type: "MedicineCatalogueUpdated", Version: 1, TenantID: p.TenantID, Data: data}); err != nil {
-			return err
-		}
-		return attachProductTax(tx, p.TenantID, outlet, &result)
+		var err error
+		result, err = h.persistProduct(c.Request.Context(), tx, p, outlet, id, in, nil)
+		return err
 	})
 	if err != nil {
 		catalogueError(c, err)
@@ -597,4 +556,74 @@ func unclassifiedScope(today string) func(*gorm.DB) *gorm.DB {
  WHERE t.tenant_id=pharmacy_catalogue_products.tenant_id AND t.outlet_id=pharmacy_catalogue_products.outlet_id
  AND t.product_id=pharmacy_catalogue_products.id AND t.effective_from <= ?::date)`, today)
 	}
+}
+
+func (h *catalogueHandlers) persistProduct(ctx context.Context, tx *gorm.DB, p authn.Principal, outlet, id uuid.UUID, in productInput, source *stockproduct.CatalogueProduct) (catalogueProduct, error) {
+	var result catalogueProduct
+	if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended(?,0))`, p.TenantID+":"+outlet.String()+":"+id.String()).Error; err != nil {
+		return result, err
+	}
+	err := tx.Select(productColumns).Where("tenant_id=? AND outlet_id=? AND id=?", p.TenantID, outlet, id).First(&result).Error
+	exists := err == nil
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return result, err
+	}
+	if source != nil && exists && !reflect.DeepEqual(result.DrugMaster, source) {
+		return result, errCatalogueVersion
+	}
+	if exists && reflect.DeepEqual(result.ProductFields, in.ProductFields) {
+		err := attachProductTax(tx, p.TenantID, outlet, &result)
+		return result, err
+	}
+	if source != nil && exists {
+		return result, errCatalogueVersion
+	}
+	if (!exists && *in.ExpectedVersion != 0) || (exists && *in.ExpectedVersion != result.Version) {
+		return result, errCatalogueVersion
+	}
+	if exists && result.Status == "withdrawn" {
+		return result, errCatalogueWithdrawn
+	}
+	if !exists {
+		result = catalogueProduct{ID: id, TenantID: uuid.MustParse(p.TenantID), OutletID: outlet, RegulatoryStatus: "pending_review", DrugMaster: source}
+	}
+	result.ProductFields = in.ProductFields
+	result.Version++
+	if exists {
+		if err := tx.Model(&catalogueProduct{}).Where("tenant_id=? AND outlet_id=? AND id=?", p.TenantID, outlet, id).
+			Select("sku", "brand_name", "generic_name", "dosage_form", "route", "manufacturer", "marketing_company", "ingredients", "pack_size", "unit_of_issue", "currency", "mrp_minor", "status", "version", "updated_at").
+			Updates(&result).Error; err != nil {
+			return result, err
+		}
+	} else if err := tx.Create(&result).Error; err != nil {
+		return result, err
+	}
+	if err := tx.Select(productColumns).Where("tenant_id=? AND outlet_id=? AND id=?", p.TenantID, outlet, id).First(&result).Error; err != nil {
+		return result, err
+	}
+	// A revision records identity only; tax has its own effective-dated
+	// history. The outer nil Tax shadows the embedded one and is omitted.
+	snapshot, err := json.Marshal(struct {
+		catalogueProduct
+		Tax *productTax `json:"tax,omitempty"`
+	}{catalogueProduct: result})
+	if err != nil {
+		return result, err
+	}
+	revisionID, err := uuid.NewV7()
+	if err != nil {
+		return result, err
+	}
+	if err := tx.Create(&catalogueRevision{ID: revisionID, TenantID: result.TenantID, OutletID: outlet, ProductID: id, Version: result.Version, Snapshot: snapshot, ActorSubject: p.Subject}).Error; err != nil {
+		return result, err
+	}
+	data, err := json.Marshal(pharmacycontract.CatalogueUpdatedData{PharmacyID: currentPharmacy(ctx).String(), OutletID: outlet.String(), ProductID: id.String(), Version: result.Version, Status: result.Status})
+	if err != nil {
+		return result, err
+	}
+	if err := h.bus.Publish(tx, pharmacycontract.SubjectCatalogueUpdated, events.Event{Type: "MedicineCatalogueUpdated", Version: 1, TenantID: p.TenantID, Data: data}); err != nil {
+		return result, err
+	}
+	err = attachProductTax(tx, p.TenantID, outlet, &result)
+	return result, err
 }

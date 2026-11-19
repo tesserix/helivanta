@@ -614,6 +614,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/patient-sales.csv":               "a report's CSV, at most 5000 rows and 8 MiB; larger is refused, never cut off",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/daily.csv":                       "a report's CSV, at most 5000 rows and 8 MiB; larger is refused, never cut off",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/worklist.csv":                      "a report's CSV, at most 5000 rows and 8 MiB; larger is refused, never cut off",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/drugmaster":                    "current published medicine pick list capped at 20; exact outlet access required",
 	"GET /drugmaster/search":                                                       "typeahead pick list capped at 20 best matches of shared reference data; no tenant or patient rows",
 	"GET /drugmaster/formulations/:id":                                             "one formulation version in force on one date",
 	"GET /drugmaster/products/:id":                                                 "one product version in force today",

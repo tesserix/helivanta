@@ -128,3 +128,90 @@ Rules the command or the database enforces:
 
 There is no rollback that removes published content. A wrong release is
 corrected by a later release.
+
+## Licensed feed synchronization (#1683)
+
+`drugmaster-release sync` retrieves an operator-configured **canonical release JSON**
+over HTTPS, validates it with the same strict release parser, checks the configured
+source/licence, retains the exact bytes in a private durable archive, and stages
+it. This is a working canonical feed transport, not a claim that a vendor API has
+been selected or mapped. Proprietary vendor responses require a reviewed conversion
+into `ReleaseFile`; arbitrary metadata is refused rather than guessed or dropped.
+
+```sh
+# Supply environment values through the approved secret reader; never paste them
+# into shell history. DATABASE_URL must use only helivanta_drug_stager authority.
+# DRUGMASTER_DATABASE_URL, DRUGMASTER_FEED_URL, DRUGMASTER_FEED_TOKEN
+/app/drugmaster-release sync -source "$DRUGMASTER_SOURCE_NAME" \
+  -licence "$DRUGMASTER_LICENCE_REF" -by scheduled-licensed-feed \
+  -archive /releases
+```
+
+The command refuses private/link-local destinations, credential-bearing URLs,
+query/fragment URLs, redirects, non-200 responses, files over 256 MiB, invalid or
+partial releases, and mismatched provenance. Requests have a two-minute deadline.
+The token is sent only in an Authorization header. A failed fetch stages nothing;
+an archive failure stages nothing. A staging failure retains the review file for
+investigation/retry. The private archive is content-addressed and mode 0600. It
+must be backed up and retained under the vendor's approved retention policy.
+A checksum replay returns the existing release, including a rejected release;
+it never republishes or reopens it. Changed source bytes are a new review.
+
+The [six-hour CronJob template](deployment/examples/drugmaster-sync.yaml.tmpl)
+is **suspended**. Place it in the owning tesserix-k8s chart before activation;
+this repository does not own live Kubernetes desired state. Activation needs:
+
+- a licensed Indian source with explicit automated access, local retention and
+  consumer/redistribution rights, stable identifiers and update semantics;
+- a reviewed adapter supplying all required canonical fields without inferred
+  schedule, NDPS, teleconsult, HSN or composition values;
+- the exact approved API image digest, private archive PVC/backups, DB/network
+  policy and restricted OpenBao/ESO secret named `helivanta-drugmaster-sync`;
+- secret keys `DRUGMASTER_DATABASE_URL`, `DRUGMASTER_FEED_URL`, optional
+  `DRUGMASTER_FEED_TOKEN`, `DRUGMASTER_SOURCE_NAME`, `DRUGMASTER_LICENCE_REF`;
+- independent custody of the stager and approver logins; the scheduled job never
+  receives the approver credentials;
+- an operator alert for a failed Job or no successful fetch in 12 hours, a vendor
+  freshness SLA and archive/storage budget. Polling every six hours does not
+  make a monthly vendor dataset current every six hours.
+
+After each new staged release, the independent reviewer uses the archived file
+with the existing `decide -publish` command. No cron publishes medicine changes.
+External outages preserve the last approved catalogue; existing prescriptions
+and outlet links keep their recorded source versions. To stop fetching, suspend
+the job through GitOps; preserve releases and review history.
+
+No licensed Indian dataset, API credentials or approved production release were
+supplied with #1683. RxNorm and openFDA are useful terminology/listing sources,
+not complete Indian branded pack/safety catalogues. See the
+[source assessment and design](superpowers/specs/2026-11-19-drug-catalogue-integration.md).
+
+## Outlet catalogue consumer
+
+Outlet-scoped `GET /v1/pharmacy/pharmacies/{pharmacy}/outlets/{outlet}/catalogue/drugmaster?q=…`
+returns up to 20 current active packs by brand/ingredient prefix or exact GTIN.
+It requires `pharmacy.catalogue.read` and current outlet access. The corresponding
+`PUT …/catalogue/products/{uuidv7}/from-drugmaster` requires
+`pharmacy.catalogue.write` and editor access and accepts only
+`{version_id,formulation_version_id,currency:"INR",mrp_minor}`. The selected version is revalidated under
+the publication lock until the outlet transaction commits. The same product ID
+and payload replay the saved result; a second outlet product ID for the same
+master product/formulation versions conflicts. Unknown client identity fields are rejected.
+
+Outlet products retain `drug_master` with exact source product/formulation
+versions, release, provenance, ingredients, pack, schedule and HSN. These are
+retained identity evidence, not an independently editable master. Linked identity
+cannot be edited or detached. Existing local commercial/status edits and manual
+product entry remain available. Local schedule/tax/category/price-control reviews
+are still required; import never approves stock, tax, prescribing or dispensing.
+Live recall propagation and automatic migration of existing outlet identity to a
+new vendor version are not implemented by this catalogue-add command.
+
+A newer approved source product or formulation version can be added as a new
+outlet record with a new generated local SKU. Existing source links and physical
+stock bases remain unchanged; importing a version never transfers stock.
+
+The import command pins both the product and formulation version chosen in the
+picker. A formulation-only publication invalidates a new add command made from
+an older selection, even when the product version is unchanged. A retained
+receipt replays only when both originally submitted versions and price match.

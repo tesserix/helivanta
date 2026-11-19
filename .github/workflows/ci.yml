@@ -88,6 +88,10 @@ jobs:
           go test -race ./internal/bootstrap -run '^TestGovernance'
       - name: Qualified hospital assignment department selection
         run: go test -race ./internal/bootstrap -run '^TestGovernedAssignmentDepartmentChoicesUseCurrentOwnerScopeAndDenyMasterWrites$'
+      - name: Medicine master and outlet import boundaries
+        run: |
+          go test -race ./internal/modules/drugmaster -run '^(TestOutletCatalogue.*|TestScheduledReleaseReplay.*)$'
+          go test -race ./internal/globalapi -run '^TestOutletMedicineImportThroughGlobalAPI'
       - name: Customer onboarding authority and replay
         run: |
           go test -race ./internal/customeronboarding

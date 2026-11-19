@@ -229,3 +229,9 @@ export * from "./use-release-capabilities";
 export * from "./account-recovery";
 
 export * from "./staff-mfa-recovery";
+export {
+  CatalogueProductContract,
+  CatalogueImportContract,
+  type CatalogueProduct,
+  type CatalogueImport,
+} from "./stock-product-contract";

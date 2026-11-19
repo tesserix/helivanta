@@ -1,0 +1,65 @@
+# Install through the helivanta-api owning GitOps chart after licence/custody review.
+# Substitute RELEASE_API_IMAGE with the exact approved API image and digest.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: helivanta-drugmaster-sync
+  namespace: helivanta
+spec:
+  schedule: "0 */6 * * *"
+  timeZone: Etc/UTC
+  suspend: true
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 900
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 600
+      template:
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            fsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: sync
+              image: ${RELEASE_API_IMAGE}
+              command: ["/app/drugmaster-release"]
+              args:
+                - sync
+                - -source
+                - $(DRUGMASTER_SOURCE_NAME)
+                - -licence
+                - $(DRUGMASTER_LICENCE_REF)
+                - -by
+                - scheduled-licensed-feed
+                - -archive
+                - /releases
+              envFrom:
+                - secretRef:
+                    name: helivanta-drugmaster-sync
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 512Mi
+                limits:
+                  memory: 2Gi
+              securityContext:
+                readOnlyRootFilesystem: true
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              volumeMounts:
+                - name: approval-files
+                  mountPath: /releases
+          volumes:
+            - name: approval-files
+              persistentVolumeClaim:
+                claimName: helivanta-drugmaster-release-archive

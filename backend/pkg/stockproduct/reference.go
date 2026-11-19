@@ -26,3 +26,12 @@ type BarcodeLookup interface {
 }
 
 var ErrInvalidBarcode = errors.New("invalid stock product barcode")
+
+// CatalogueSource supplies governed pack identity to an authorized outlet.
+// The source holds its publication boundary until the consumer callback commits.
+type CatalogueSource interface {
+	SearchCatalogue(context.Context, string) ([]CatalogueProduct, error)
+	WithCatalogueProduct(context.Context, uuid.UUID, func(context.Context, CatalogueProduct) error) error
+}
+
+var ErrInvalidSearch = errors.New("enter 2 to 200 letters or digits, or a valid GTIN")

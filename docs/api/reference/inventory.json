@@ -3853,6 +3853,15 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/drugmaster",
+          "permission": "pharmacy.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "POST",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/category/:declaration/review",
           "permission": "pharmacy.category.review",
@@ -3874,6 +3883,15 @@
           "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/category",
           "permission": "pharmacy.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/from-drugmaster",
+          "permission": "pharmacy.catalogue.write",
           "authentication_required": true,
           "membership_required": true,
           "paginated": false,
@@ -5722,6 +5740,11 @@
         {
           "id": "0046_pharmacy_licence_evidence_review",
           "sql_sha256": "966dfb31b53e170c41f56d78e4f815a3500e851428e73e8460305c7a678ff916",
+          "creates_tables": []
+        },
+        {
+          "id": "0047_pharmacy_drug_catalogue",
+          "sql_sha256": "4978dcbe598d706ff1c318494871dcc5d18dca06f90043663b1cc30f0d0b4ada",
           "creates_tables": []
         },
         {

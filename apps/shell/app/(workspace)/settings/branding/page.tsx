@@ -157,7 +157,7 @@ function BrandingEditor({ initial }: { initial: Branding }) {
           <span className="text-xs text-muted-foreground">Draft · publish to apply</span>
         </div>
         <div className="branding-preview pointer-events-none">
-          <LoginSurface branding={preview.success ? preview.data : initial}>
+          <LoginSurface entry branding={preview.success ? preview.data : initial}>
             <Panel as="div">
               <h4 className="mb-5 text-xl font-semibold">Welcome back</h4>
               <div className="mb-4 space-y-2">

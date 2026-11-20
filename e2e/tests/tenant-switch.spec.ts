@@ -8,7 +8,7 @@ test("switch account ends the source session and returns to a fresh sign-in", as
   await login(page, specAdmin());
   await page.getByRole("button", { name: "Switch account", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Switch account?" })).toBeVisible();
-  await page.getByRole("button", { name: "Sign out and choose account" }).click();
+  await page.getByRole("button", { name: "Sign out and switch" }).click();
   await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible({
     timeout: 30_000,
   });

@@ -16,9 +16,10 @@ it("falls back to the medical mark when the tenant logo is unavailable", () => {
   expect(screen.queryByRole("img")).not.toBeInTheDocument();
   expect(screen.getByText("YES HOSPITAL")).toBeInTheDocument();
 });
-it("keeps Tesserix attribution in a centered tenant login", () => {
+it("keeps Tesserix attribution on an entry page", () => {
   render(
     <LoginSurface
+      entry
       branding={{ ...DEFAULT_BRANDING, display_name: "YES HOSPITAL", login_layout: "centered" }}
     >
       Sign in
@@ -39,6 +40,7 @@ it("preserves tenant welcome content in the split layout", () => {
         welcome_text: "Welcome to our care team.",
         login_layout: "split",
       }}
+      entry
     >
       <h1>Sign in</h1>
     </LoginSurface>,
@@ -46,6 +48,28 @@ it("preserves tenant welcome content in the split layout", () => {
   expect(screen.getByText("Welcome to our care team.")).toBeInTheDocument();
   expect(screen.getByText("YES HOSPITAL")).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+});
+
+// #1767 D1/D2: every screen after the entry page is one card. A split
+// tenant's story, the attribution footer and the access line all stay off.
+it("renders a task screen as the card alone", () => {
+  render(
+    <LoginSurface
+      branding={{
+        ...DEFAULT_BRANDING,
+        display_name: "YES HOSPITAL",
+        welcome_text: "Welcome to our care team.",
+        login_layout: "split",
+      }}
+    >
+      <h1>Set up two-step verification</h1>
+    </LoginSurface>,
+  );
+  expect(screen.getByRole("heading", { name: "Set up two-step verification" })).toBeInTheDocument();
+  expect(screen.queryByText("Welcome to our care team.")).not.toBeInTheDocument();
+  expect(screen.queryByText(/A little less complexity/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/All rights reserved/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Need access/)).not.toBeInTheDocument();
 });
 
 // #1431 D2: the brand mark is the way home on the platform's own login; a

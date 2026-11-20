@@ -43,11 +43,22 @@ export function retainLoginBrandingTenant(tenantId: string) {
     /* Cosmetic hint only; storage restrictions never block sign-in. */
   }
 }
-export function TenantLoginLayout({ children }: { children: ReactNode }) {
+export function TenantLoginLayout({
+  children,
+  entry = false,
+}: {
+  children: ReactNode;
+  // Only the sign-in landing is an entry page; every step after it is a task.
+  entry?: boolean;
+}) {
   const branding = useContext(Context);
   // The provider hands out DEFAULT_BRANDING itself whenever no tenant branding resolved.
   return (
-    <LoginSurface branding={branding} homeHref={branding === DEFAULT_BRANDING ? "/" : undefined}>
+    <LoginSurface
+      branding={branding}
+      homeHref={branding === DEFAULT_BRANDING ? "/" : undefined}
+      entry={entry}
+    >
       {children}
     </LoginSurface>
   );

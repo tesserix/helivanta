@@ -62,14 +62,20 @@ export function BrandMark({ branding }: { branding: Branding }) {
 export function LoginSurface({
   branding,
   homeHref,
+  entry = false,
   children,
 }: {
   branding: Branding;
   // Only the platform's own login links its mark home; a hospital's logo
   // never leads to Helivanta's marketing page (#1431 D2).
   homeHref?: string;
+  // Entry pages (the sign-in landing, the first signup step) may show the
+  // branding story beside the card. Every task screen is one centred card
+  // with nothing beside or below it (#1767 D1, D2).
+  entry?: boolean;
   children: ReactNode;
 }) {
+  const story = entry && branding.login_layout === "split";
   return (
     <div
       data-theme="default"
@@ -90,7 +96,7 @@ export function LoginSurface({
           )}
         </header>
         <div className="mx-auto grid w-full max-w-[1440px] flex-1 gap-8 px-6 pb-8 sm:px-10 lg:grid-cols-2 lg:gap-12">
-          {branding.login_layout === "split" && (
+          {story && (
             <aside className="login-story relative hidden flex-col justify-center overflow-hidden rounded-xl p-10 lg:flex">
               <h2 className="max-w-lg text-[clamp(2rem,3.4vw,3rem)] leading-[1.1] font-semibold tracking-tight">
                 A little less complexity.
@@ -134,18 +140,13 @@ export function LoginSurface({
             </aside>
           )}
           <main
-            className={`flex min-w-0 flex-col items-center justify-center py-10 sm:py-14 ${branding.login_layout === "centered" ? "lg:col-span-2" : ""}`}
+            className={`flex min-w-0 flex-col items-center justify-center py-10 sm:py-14 ${story ? "" : "lg:col-span-2"}`}
           >
-            <div className="login-content w-full max-w-[400px]">
-              {children}
-              <p className="mt-8 text-center text-xs leading-relaxed text-muted-foreground">
-                Need access? Contact your organisation's administrator.
-              </p>
-            </div>
+            <div className="login-content w-full max-w-[400px]">{children}</div>
           </main>
         </div>
       </div>
-      <TesserixFooter />
+      {entry && <TesserixFooter />}
     </div>
   );
 }

@@ -132,9 +132,12 @@ function LevelChooser({ scope }: { scope: PharmacyScope }) {
     pharmacyKey(scope, "reorder-products"),
     `${pharmacyRoot(scope)}/catalogue/products`,
   );
-  const [selected, setSelected] = useState("");
+  const [selection, setSelection] = useState<PharmacyProduct | null>(null);
+  const selected = selection?.id ?? "";
   const leave = useConfirmLeave();
-  const product = products.items.find((item) => item.id === selected && item.status === "active");
+  const product = products.items.find((item) => item.id === selected) ?? selection;
+  const choices = products.items.filter((row) => row.status === "active");
+  if (product && !choices.some((row) => row.id === product.id)) choices.unshift(product);
   return (
     <Panel aria-label="Configure reorder level">
       <h2 className="font-semibold">Configure reorder level</h2>
@@ -154,11 +157,17 @@ function LevelChooser({ scope }: { scope: PharmacyScope }) {
             <SelectControl
               id="reorder-product"
               value={selected}
-              onValueChange={(value) => leave(() => setSelected(value))}
+              onValueChange={(value) => {
+                const next = products.items.find(
+                  (row) => row.id === value && row.status === "active",
+                );
+                if (next) leave(() => setSelection(next));
+              }}
               placeholder="Select an active product"
-              options={products.items
-                .filter((row) => row.status === "active")
-                .map((row) => ({ value: row.id, label: `${row.brand_name} · ${row.sku}` }))}
+              options={choices.map((row) => ({
+                value: row.id,
+                label: `${row.brand_name} · ${row.sku}${row.status === "active" ? "" : " (inactive)"}`,
+              }))}
               disabled={products.isPending}
             />
           </Field>
@@ -353,7 +362,7 @@ function LevelForm({
       noValidate
       className="mt-5 flex max-w-xl flex-col gap-4"
       onSubmit={form.handleSubmit((values) => {
-        if (attempt || busy || changed) return;
+        if (attempt || busy || changed || basis.product.status !== "active") return;
         const next = {
           command: newPharmacyId(),
           input: {
@@ -368,6 +377,12 @@ function LevelForm({
         save.mutate(next);
       })}
     >
+      {basis.product.status !== "active" && (
+        <p role="status">
+          This product is inactive. Previous commands can be checked, but a new minimum cannot be
+          saved.
+        </p>
+      )}
       {baseline && !valid && (
         <p role="status">
           The product unit changed. The previous minimum is inactive; save a new minimum in{" "}
@@ -462,7 +477,13 @@ function LevelForm({
       {saved && <p role="status">Reorder level saved.</p>}
       <Button
         type="submit"
-        disabled={busy || changed || attempt !== null || !form.formState.isDirty}
+        disabled={
+          busy ||
+          changed ||
+          basis.product.status !== "active" ||
+          attempt !== null ||
+          !form.formState.isDirty
+        }
       >
         {busy ? "Checking…" : "Save reorder level"}
       </Button>

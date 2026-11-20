@@ -51,6 +51,7 @@ it("recovers an uncertain committed save by the original command, without a seco
   let receipt: Record<string, unknown> | null = null;
   let latest: Record<string, unknown> | null = null;
   let levelReads = 0;
+  let productOnPage = true;
   const writes: string[] = [];
   vi.stubGlobal(
     "fetch",
@@ -75,7 +76,7 @@ it("recovers an uncertain committed save by the original command, without a seco
         return json({ level: latest });
       }
       if (url.endsWith(`/catalogue/products/${product.id}`)) return json(product);
-      if (url.includes("/catalogue/products")) return json(page([product]));
+      if (url.includes("/catalogue/products")) return json(page(productOnPage ? [product] : []));
       if (url.includes("/stock/low-products"))
         return json(
           page(
@@ -115,6 +116,7 @@ it("recovers an uncertain committed save by the original command, without a seco
     expected_version: 1,
     version: 2,
   });
+  productOnPage = false;
   await act(async () => {
     focusManager.setFocused(false);
     focusManager.setFocused(true);

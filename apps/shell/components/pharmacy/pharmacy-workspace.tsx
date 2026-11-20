@@ -34,7 +34,7 @@ import { StockPanel } from "./stock-panel";
 import { BusinessProfilePanel } from "../organization/business-profile";
 import { PharmacyRegistrySetup } from "./pharmacy-registry-setup";
 import { StockOverview } from "./stock-overview";
-import { StockRegister } from "./stock-register";
+import { StockWorkspace } from "./stock-workspace";
 import { BatchSafety } from "./batch-safety";
 import { OutletsSetup } from "./outlets-setup";
 import { CounterSale } from "./counter-sale";
@@ -494,7 +494,11 @@ function OutletPharmacy({
           scope={scope}
           timeZone={outlet.timezone}
           defaultCurrency={countryProfile(outlet.country_code)?.currency ?? ""}
-          writable={access.data?.level === "editor" && can("pharmacy.catalogue.write")}
+          writable={
+            access.data?.level === "editor" &&
+            can("pharmacy.catalogue.read") &&
+            can("pharmacy.catalogue.write")
+          }
           countryCode={outlet.country_code}
           canManageTax={access.data?.level === "editor" && can("pharmacy.tax.manage")}
           canDeclarePrice={access.data?.level === "editor" && can("pharmacy.price_control.declare")}
@@ -508,7 +512,15 @@ function OutletPharmacy({
           }
         />
       ) : view === "stock" ? (
-        <StockRegister scope={scope} timeZone={outlet.timezone} />
+        <StockWorkspace
+          scope={scope}
+          timeZone={outlet.timezone}
+          canConfigure={
+            access.data?.level === "editor" &&
+            can("pharmacy.catalogue.read") &&
+            can("pharmacy.catalogue.write")
+          }
+        />
       ) : view === "safety" ? (
         <BatchSafety scope={scope} timeZone={outlet.timezone} />
       ) : (

@@ -6,6 +6,7 @@ import {
   useApiPageQuery,
   useApiQuery,
   type PharmacyOutlet,
+  type PharmacyOverviewStock,
   type PharmacyScope,
 } from "@helivanta/api";
 import {
@@ -19,7 +20,7 @@ import {
 type OutletOverview = {
   as_of: string;
   time_zone: string;
-  stock?: { expired: number; due_30: number; due_90: number };
+  stock?: PharmacyOverviewStock;
   safety?: { recent: number };
   bills?: { overdue: number; week: number };
   /** Absent where the outlet's country has no tax scheme: no gap is real there. */
@@ -109,7 +110,18 @@ export function OverviewTiles({ scope, outlet }: { scope: PharmacyScope; outlet:
           data && (
             <>
               {data.stock && (
-                <Tile title="Stock expiring" note="Stock lines with stock on hand">
+                <Tile title="Stock alerts" note="Low-stock products and stock lines nearing expiry">
+                  {Number.isSafeInteger(data.stock.low_stock) && data.stock.low_stock >= 0 ? (
+                    <Count
+                      value={data.stock.low_stock}
+                      label="Low-stock products"
+                      href={`/pharmacy/stock?view=low&pharmacy=${encodeURIComponent(scope.pharmacyId)}&outlet=${encodeURIComponent(scope.outletId)}`}
+                    />
+                  ) : (
+                    <p role="status" className="px-2 py-1.5 text-sm text-muted-foreground">
+                      Low-stock count unavailable.
+                    </p>
+                  )}
                   <Count
                     value={data.stock.expired}
                     label="Expired"

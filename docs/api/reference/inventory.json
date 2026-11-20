@@ -3926,6 +3926,33 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-level",
+          "permission": "pharmacy.stock.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-levels/:command",
+          "permission": "pharmacy.stock.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-levels/:command",
+          "permission": "pharmacy.catalogue.write",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/revisions",
           "permission": "pharmacy.catalogue.read",
           "authentication_required": true,
@@ -4713,6 +4740,15 @@
         {
           "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/locations",
+          "permission": "pharmacy.stock.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/low-products",
           "permission": "pharmacy.stock.read",
           "authentication_required": true,
           "membership_required": true,
@@ -5768,6 +5804,13 @@
           "id": "0051_pharmacy_lot_block_rule",
           "sql_sha256": "70145912db34002e9e0a2617d624ce2479be24a81dfaf821f84211065df521b6",
           "creates_tables": []
+        },
+        {
+          "id": "0052_pharmacy_reorder_levels",
+          "sql_sha256": "d8fe63ee7699048c47f6265f37a16d5e98c5ba44edb52a082d807553ae5a2819",
+          "creates_tables": [
+            "pharmacy_reorder_levels"
+          ]
         }
       ]
     },

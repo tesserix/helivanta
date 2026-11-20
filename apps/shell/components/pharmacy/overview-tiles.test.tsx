@@ -25,7 +25,7 @@ const outlet: PharmacyOutlet = {
 const full = {
   as_of: "2026-11-01T12:00:00+05:30",
   time_zone: "Asia/Kolkata",
-  stock: { expired: 1, due_30: 2, due_90: 4 },
+  stock: { low_stock: 3, expired: 1, due_30: 2, due_90: 4 },
   safety: { recent: 3 },
   bills: { overdue: 1, week: 2 },
   setup: { unclassified: 5, registration_in_force: false },
@@ -82,7 +82,7 @@ describe("OverviewTiles", () => {
     const order = within(screen.getByTestId("overview-tiles"))
       .getAllByRole("region")
       .map((r) => r.getAttribute("aria-label"));
-    expect(order).toEqual(["Stock expiring", "Safety concerns", "Supplier bills", "Setup gaps"]);
+    expect(order).toEqual(["Stock alerts", "Safety concerns", "Supplier bills", "Setup gaps"]);
   });
 
   it("counts patients waiting hospital-wide, linking to the queue", async () => {
@@ -103,13 +103,11 @@ describe("OverviewTiles", () => {
     await screen.findByRole("region", { name: "Setup gaps" });
     const href = (region: string, name: RegExp) =>
       within(tile(region)).getByRole("link", { name }).getAttribute("href");
-    expect(href("Stock expiring", /Expired/)).toBe(
-      "/pharmacy/stock?balance=on_hand&expiry=expired",
-    );
-    expect(href("Stock expiring", /Within 30 days/)).toBe(
+    expect(href("Stock alerts", /Expired/)).toBe("/pharmacy/stock?balance=on_hand&expiry=expired");
+    expect(href("Stock alerts", /Within 30 days/)).toBe(
       "/pharmacy/stock?balance=on_hand&expiry=due_30",
     );
-    expect(href("Stock expiring", /Within 90 days/)).toBe(
+    expect(href("Stock alerts", /Within 90 days/)).toBe(
       "/pharmacy/stock?balance=on_hand&expiry=due_90",
     );
     expect(href("Safety concerns", /last 30 days/)).toBe("/pharmacy/safety?tab=recent");
@@ -126,7 +124,7 @@ describe("OverviewTiles", () => {
       granted: ["pharmacy.catalogue.read", "pharmacy.stock.read"],
     });
     renderWithProviders(<OverviewTiles scope={scope} outlet={outlet} />);
-    expect(await screen.findByRole("region", { name: "Stock expiring" })).toBeVisible();
+    expect(await screen.findByRole("region", { name: "Stock alerts" })).toBeVisible();
     expect(screen.queryByRole("region", { name: "Supplier bills" })).toBeNull();
     expect(within(tile("Setup gaps")).queryByText(/GSTIN/)).toBeNull();
     expect(within(tile("Setup gaps")).getByText(/Every product has a tax rate/)).toBeVisible();
@@ -165,7 +163,15 @@ describe("OverviewTiles", () => {
   it("shows no Setup tile where the outlet has no tax scheme", async () => {
     serve({ overview: { ...full, setup: undefined } });
     renderWithProviders(<OverviewTiles scope={scope} outlet={outlet} />);
-    expect(await screen.findByRole("region", { name: "Stock expiring" })).toBeVisible();
+    expect(await screen.findByRole("region", { name: "Stock alerts" })).toBeVisible();
     expect(screen.queryByRole("region", { name: "Setup gaps" })).toBeNull();
   });
+});
+
+it("does not present a missing low-stock projection as a count or link", async () => {
+  serve({ overview: { ...full, stock: { expired: 1, due_30: 2, due_90: 4 } } });
+  renderWithProviders(<OverviewTiles scope={scope} outlet={outlet} />);
+  expect(await screen.findByText("Low-stock count unavailable.")).toBeVisible();
+  expect(screen.queryByRole("link", { name: /Low-stock products/ })).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: /Within 30 days/ })).toContainHTML("2");
 });

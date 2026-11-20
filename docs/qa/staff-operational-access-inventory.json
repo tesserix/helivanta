@@ -1,9 +1,9 @@
 {
   "format_version": 1,
-  "registry_sha256": "abc2f14b666ba4eabd07ad949ccc7c9e4edb5db874c2c6b545e4f2489a4bb500",
+  "registry_sha256": "27ffc80a966e6133a370ac8e86db7d2cf78b9c5ce78193873039d63d566c1cb1",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1161,
+    "total": 1165,
     "unclassified": 1014
   },
   "entries": [
@@ -8347,7 +8347,7 @@
         "registration_sha256": "cf4b6c94081a3135942c86e7d6dc59c663f5584dac3b705d4b2eb255604b9efd",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant, exact pharmacy and outlet, accounts-read permission and current private outlet reader grant.",
-        "rationale": "The financial owner exposes bounded acquisition/invoice lineage for direct receipts and both supplier stock owners. It pins expected account/workspace, locks the current outlet grant, enters a SELECT-only acquisition purpose, verifies retained owner evidence and audits disclosure. This is a source classification, not approved employment enforcement or live supplier acceptance. No physical, financial-write, clinical or external partner authority is created by this read.",
+        "rationale": "The financial owner exposes bounded acquisition/invoice lineage for direct receipts and both supplier stock owners. It pins expected account/workspace, locks the current outlet grant, enters a SELECT-only acquisition purpose, verifies retained owner evidence and audits disclosure. This is a source classification, not approved employment enforcement or live supplier acceptance. No physical, financial-write, clinical or external partner authority is created by this read. Source rechecked for #1685 on 2026-11-20: catalogue.go only registers the additional reorder routes. Existing catalogue handlers, transaction, outletAccess and grants are unchanged; this registration and its recorded authority remain unchanged.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/payables.go",
@@ -8371,12 +8371,12 @@
           },
           {
             "path": "backend/internal/modules/pharmacy/catalogue.go",
-            "sha256": "f3da6905ce2b9f019d1f20e5eb8195abc0532cb00dfcb4129f06fe5822583b36",
+            "sha256": "c70d5bdbe8fdb9637bc7994e69f012ec23c5f20b03502815eccd4f6697107303",
             "symbol": "func (h *catalogueHandlers) transaction("
           },
           {
             "path": "backend/internal/modules/pharmacy/catalogue.go",
-            "sha256": "f3da6905ce2b9f019d1f20e5eb8195abc0532cb00dfcb4129f06fe5822583b36",
+            "sha256": "c70d5bdbe8fdb9637bc7994e69f012ec23c5f20b03502815eccd4f6697107303",
             "symbol": "func outletAccess("
           }
         ],
@@ -8534,16 +8534,16 @@
         "registration_sha256": "ae122b8e4ead6096d05eac115859be4e2da28bd18b0fc1b9287d41660710aa50",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant, exact pharmacy and outlet; catalogue-read with reader access for search, catalogue-write with current editor access for import.",
-        "rationale": "Uses the existing private outlet grant and reauthorizes import under the global medicine source publication lock until the outlet commit. Client data cannot define medicine identity or legal classifications. Replay reads the immutable first receipt under current outlet access. This legacy outlet grant is not proof of reviewed Staff employment, clinical or dispensing authority.",
+        "rationale": "Uses the existing private outlet grant and reauthorizes import under the global medicine source publication lock until the outlet commit. Client data cannot define medicine identity or legal classifications. Replay reads the immutable first receipt under current outlet access. This legacy outlet grant is not proof of reviewed Staff employment, clinical or dispensing authority. Source rechecked for #1685 on 2026-11-20: catalogue.go only registers the additional reorder routes. Existing catalogue handlers, transaction, outletAccess and grants are unchanged; this registration and its recorded authority remain unchanged.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/catalogue.go",
-            "sha256": "f3da6905ce2b9f019d1f20e5eb8195abc0532cb00dfcb4129f06fe5822583b36",
+            "sha256": "c70d5bdbe8fdb9637bc7994e69f012ec23c5f20b03502815eccd4f6697107303",
             "symbol": "func catalogueRoutes("
           },
           {
             "path": "backend/internal/modules/pharmacy/catalogue.go",
-            "sha256": "f3da6905ce2b9f019d1f20e5eb8195abc0532cb00dfcb4129f06fe5822583b36",
+            "sha256": "c70d5bdbe8fdb9637bc7994e69f012ec23c5f20b03502815eccd4f6697107303",
             "symbol": "func outletAccess("
           },
           {
@@ -8627,6 +8627,94 @@
         "counted": false
       },
       "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-level",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-level",
+        "permission": "pharmacy.stock.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-level",
+        "registration_sha256": "551e4dedf268abcab1d2c323eeae6f57d5db548e2dd821b631df03e5f454b152",
+        "authority_kind": "hospital_operational",
+        "resource_scope": "Verified tenant, pharmacy, outlet and scoped catalogue product; explicit current outlet grant.",
+        "rationale": "Source review for #1685: the registered stock-read or catalogue-write permission is followed by catalogueScope and transaction/outletAccess. Every read locks the current outlet grant; writes additionally require stock-read permission, an editor grant and the scoped product row. Receipts reauthorize and compare the original product, payload and actor; history, actor, version and product/unit constraints are enforced by the database. The list/count uses current available outlet stock only and creates no order. This classification records source behavior, not employment cutoff or deployment acceptance.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/pharmacy/reorder_levels.go",
+            "sha256": "7d7e70c7ed6958f198133d970a9042631f6573c63b089a5382c78481aa3be019",
+            "symbol": "func reorderRoutes("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/catalogue.go",
+            "sha256": "c70d5bdbe8fdb9637bc7994e69f012ec23c5f20b03502815eccd4f6697107303",
+            "symbol": "func outletAccess("
+          },
+          {
+            "path": "backend/internal/platform/router.go",
+            "sha256": "cf4af430e8fc134d4a9914efcae7a1fb7bafd3d21689afcdde7cdb38996c3122",
+            "symbol": "func (r *Router) handle("
+          }
+        ],
+        "remaining": [
+          "Run hosted owner and actual Global API/browser acceptance, including foreign tenant/outlet, stale and concurrent writes, retries, missing/revoked grants and dependency failure.",
+          "Release remains locked behind pharmacy_stock and pharmacy_catalogue until prerequisite acceptance and approved rollout.",
+          "Legacy outlet grants do not by themselves prove reviewed employment lifecycle enforcement; preserve that separate Staff governance obligation."
+        ]
+      }
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-levels/:command",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-levels/:command",
+        "permission": "pharmacy.stock.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-levels/:command",
+        "registration_sha256": "71104fd93ef47150ae8e200e3f67b5dfa070618abeb48a86f0facd047d494c87",
+        "authority_kind": "hospital_operational",
+        "resource_scope": "Verified tenant, pharmacy, outlet and scoped catalogue product; explicit current outlet grant.",
+        "rationale": "Source review for #1685: the registered stock-read or catalogue-write permission is followed by catalogueScope and transaction/outletAccess. Every read locks the current outlet grant; writes additionally require stock-read permission, an editor grant and the scoped product row. Receipts reauthorize and compare the original product, payload and actor; history, actor, version and product/unit constraints are enforced by the database. The list/count uses current available outlet stock only and creates no order. This classification records source behavior, not employment cutoff or deployment acceptance.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/pharmacy/reorder_levels.go",
+            "sha256": "7d7e70c7ed6958f198133d970a9042631f6573c63b089a5382c78481aa3be019",
+            "symbol": "func reorderRoutes("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/catalogue.go",
+            "sha256": "c70d5bdbe8fdb9637bc7994e69f012ec23c5f20b03502815eccd4f6697107303",
+            "symbol": "func outletAccess("
+          },
+          {
+            "path": "backend/internal/platform/router.go",
+            "sha256": "cf4af430e8fc134d4a9914efcae7a1fb7bafd3d21689afcdde7cdb38996c3122",
+            "symbol": "func (r *Router) handle("
+          }
+        ],
+        "remaining": [
+          "Run hosted owner and actual Global API/browser acceptance, including foreign tenant/outlet, stale and concurrent writes, retries, missing/revoked grants and dependency failure.",
+          "Release remains locked behind pharmacy_stock and pharmacy_catalogue until prerequisite acceptance and approved rollout.",
+          "Legacy outlet grants do not by themselves prove reviewed employment lifecycle enforcement; preserve that separate Staff governance obligation."
+        ]
+      }
     },
     {
       "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/revisions",
@@ -9547,6 +9635,50 @@
         "counted": false
       },
       "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/low-products",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/low-products",
+        "permission": "pharmacy.stock.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/low-products",
+        "registration_sha256": "36ed3383169fbbd2db2fba80cf068f623dd045d38b82835ccf7a8d275c1e2c44",
+        "authority_kind": "hospital_operational",
+        "resource_scope": "Verified tenant, pharmacy, outlet and scoped catalogue product; explicit current outlet grant.",
+        "rationale": "Source review for #1685: the registered stock-read or catalogue-write permission is followed by catalogueScope and transaction/outletAccess. Every read locks the current outlet grant; writes additionally require stock-read permission, an editor grant and the scoped product row. Receipts reauthorize and compare the original product, payload and actor; history, actor, version and product/unit constraints are enforced by the database. The list/count uses current available outlet stock only and creates no order. This classification records source behavior, not employment cutoff or deployment acceptance.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/pharmacy/reorder_levels.go",
+            "sha256": "7d7e70c7ed6958f198133d970a9042631f6573c63b089a5382c78481aa3be019",
+            "symbol": "func reorderRoutes("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/catalogue.go",
+            "sha256": "c70d5bdbe8fdb9637bc7994e69f012ec23c5f20b03502815eccd4f6697107303",
+            "symbol": "func outletAccess("
+          },
+          {
+            "path": "backend/internal/platform/router.go",
+            "sha256": "cf4af430e8fc134d4a9914efcae7a1fb7bafd3d21689afcdde7cdb38996c3122",
+            "symbol": "func (r *Router) handle("
+          }
+        ],
+        "remaining": [
+          "Run hosted owner and actual Global API/browser acceptance, including foreign tenant/outlet, stale and concurrent writes, retries, missing/revoked grants and dependency failure.",
+          "Release remains locked behind pharmacy_stock and pharmacy_catalogue until prerequisite acceptance and approved rollout.",
+          "Legacy outlet grants do not by themselves prove reviewed employment lifecycle enforcement; preserve that separate Staff governance obligation."
+        ]
+      }
     },
     {
       "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/movements",
@@ -10651,16 +10783,16 @@
         "registration_sha256": "819eda146222c7887e5eed9b4572ea396349914faf6aeba8971fec030859e6bf",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant, exact pharmacy and outlet; catalogue-read with reader access for search, catalogue-write with current editor access for import.",
-        "rationale": "Uses the existing private outlet grant and reauthorizes import under the global medicine source publication lock until the outlet commit. Client data cannot define medicine identity or legal classifications. Replay reads the immutable first receipt under current outlet access. This legacy outlet grant is not proof of reviewed Staff employment, clinical or dispensing authority.",
+        "rationale": "Uses the existing private outlet grant and reauthorizes import under the global medicine source publication lock until the outlet commit. Client data cannot define medicine identity or legal classifications. Replay reads the immutable first receipt under current outlet access. This legacy outlet grant is not proof of reviewed Staff employment, clinical or dispensing authority. Source rechecked for #1685 on 2026-11-20: catalogue.go only registers the additional reorder routes. Existing catalogue handlers, transaction, outletAccess and grants are unchanged; this registration and its recorded authority remain unchanged.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/catalogue.go",
-            "sha256": "f3da6905ce2b9f019d1f20e5eb8195abc0532cb00dfcb4129f06fe5822583b36",
+            "sha256": "c70d5bdbe8fdb9637bc7994e69f012ec23c5f20b03502815eccd4f6697107303",
             "symbol": "func catalogueRoutes("
           },
           {
             "path": "backend/internal/modules/pharmacy/catalogue.go",
-            "sha256": "f3da6905ce2b9f019d1f20e5eb8195abc0532cb00dfcb4129f06fe5822583b36",
+            "sha256": "c70d5bdbe8fdb9637bc7994e69f012ec23c5f20b03502815eccd4f6697107303",
             "symbol": "func outletAccess("
           },
           {
@@ -10696,6 +10828,50 @@
         "counted": false
       },
       "review": null
+    },
+    {
+      "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-levels/:command",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "PUT",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-levels/:command",
+        "permission": "pharmacy.catalogue.write",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-levels/:command",
+        "registration_sha256": "62daa7e77c2ea3d9f10746e6671936cb2d5386b9391a88f8a59da76be9bd8514",
+        "authority_kind": "hospital_operational",
+        "resource_scope": "Verified tenant, pharmacy, outlet and scoped catalogue product; explicit current outlet grant.",
+        "rationale": "Source review for #1685: the registered stock-read or catalogue-write permission is followed by catalogueScope and transaction/outletAccess. Every read locks the current outlet grant; writes additionally require stock-read permission, an editor grant and the scoped product row. Receipts reauthorize and compare the original product, payload and actor; history, actor, version and product/unit constraints are enforced by the database. The list/count uses current available outlet stock only and creates no order. This classification records source behavior, not employment cutoff or deployment acceptance.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/pharmacy/reorder_levels.go",
+            "sha256": "7d7e70c7ed6958f198133d970a9042631f6573c63b089a5382c78481aa3be019",
+            "symbol": "func reorderRoutes("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/catalogue.go",
+            "sha256": "c70d5bdbe8fdb9637bc7994e69f012ec23c5f20b03502815eccd4f6697107303",
+            "symbol": "func outletAccess("
+          },
+          {
+            "path": "backend/internal/platform/router.go",
+            "sha256": "cf4af430e8fc134d4a9914efcae7a1fb7bafd3d21689afcdde7cdb38996c3122",
+            "symbol": "func (r *Router) handle("
+          }
+        ],
+        "remaining": [
+          "Run hosted owner and actual Global API/browser acceptance, including foreign tenant/outlet, stale and concurrent writes, retries, missing/revoked grants and dependency failure.",
+          "Release remains locked behind pharmacy_stock and pharmacy_catalogue until prerequisite acceptance and approved rollout.",
+          "Legacy outlet grants do not by themselves prove reviewed employment lifecycle enforcement; preserve that separate Staff governance obligation."
+        ]
+      }
     },
     {
       "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration",

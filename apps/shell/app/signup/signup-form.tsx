@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 
 import {
+  ApiError,
   CustomerSignupInputContract,
   CustomerOrganizationProfileContract,
   CustomerSignupReceiptContract,
@@ -274,25 +275,25 @@ function SignupStatus({
           className="text-2xl font-medium tracking-tight outline-none"
         >
           {receipt.state === "ready"
-            ? "Your workspace is ready"
+            ? `${receipt.name} is ready`
             : receipt.state === "needs_support"
-              ? "Setup needs support"
+              ? "Setup needs a hand"
               : receipt.state === "password_action_required"
-                ? "Set your password"
+                ? "Your email is verified"
                 : receipt.state === "email_action_required"
-                  ? "Verify your account"
+                  ? "Check your email"
                   : "Setting up your workspace"}
         </h2>
         <p className="text-sm leading-relaxed text-muted-foreground">
           {receipt.state === "ready"
-            ? `${receipt.name} is ready. Sign in to set up your team and security.`
+            ? "Sign in to finish setting up security and your team."
             : receipt.state === "needs_support"
-              ? "Contact support to review this setup. Your request has been preserved."
+              ? "Contact support. We've saved everything you entered."
               : receipt.state === "password_action_required"
-                ? "Your email is verified. Request a password setup email to finish creating your login."
+                ? "Next, set your password. We'll email you a link."
                 : receipt.state === "email_action_required"
-                  ? "We create a separate login for this workspace, even if you use this email elsewhere. Verify your email, set this account's password, then enrol its own second factor. Check your inbox and spam folder."
-                  : "Your organisation details have been saved. We are preparing the next step."}
+                  ? "We sent a verification link to your email. Open it to continue."
+                  : "This usually takes a few seconds."}
         </p>
       </div>
       {receipt.state === "ready" && (
@@ -318,25 +319,20 @@ function SignupStatus({
             onClick={() => resend.mutate()}
           >
             {resend.isPending
-              ? "Requesting email…"
+              ? "Sending…"
               : receipt.state === "password_action_required"
-                ? "Send password setup email"
-                : "Resend verification email"}
+                ? "Send password link"
+                : "Resend email"}
           </Button>
-          <p className="text-sm text-muted-foreground">
-            Links expire after 1 hour. Each workspace allows up to 3 emails per hour and 10 per 24
-            hours, including the first email and password setup. Across workspaces, the same
-            recipient can receive up to 10 emails per hour and 30 per 24 hours. Verification emails
-            stop once your email is verified.
-          </p>
+          <p className="text-sm text-muted-foreground">Check spam if it hasn&apos;t arrived.</p>
           {resend.isSuccess && (
             <p role="status" className="text-sm text-muted-foreground">
-              If this request can receive an email, a link has been requested.
+              If this address can receive email, a new link is on its way.
             </p>
           )}
           {resend.error && (
             <p role="alert" className="text-sm text-destructive">
-              We could not request another link. Please try again later.
+              {emailRequestRefusal(resend.error)}
             </p>
           )}
         </div>
@@ -356,9 +352,6 @@ function SignupStatus({
         >
           {begin.isPending ? "Opening blank signup…" : "Create another workspace"}
         </Button>
-        <p className="text-sm text-muted-foreground">
-          This opens a blank signup. Existing workspaces and pending requests are kept.
-        </p>
         {begin.isError && (
           <p role="alert">Could not confirm a new signup. Refresh to check your current setup.</p>
         )}
@@ -423,4 +416,12 @@ function AddressFields({
       <p className="text-sm text-muted-foreground">Country: India</p>
     </fieldset>
   );
+}
+
+// The email limits are told only when a request is refused (#1762): up front
+// they are noise on every screen. Any other failure is a plain retry.
+export function emailRequestRefusal(error: unknown): string {
+  return error instanceof ApiError && error.status === 429
+    ? "You've requested several emails. Try again in about an hour."
+    : "We couldn't send the email. Try again.";
 }

@@ -11,6 +11,7 @@ import {
   CustomerSignupReceiptContract,
 } from "@helivanta/api";
 import { Button, Field, RequestFailure, useZodForm } from "@helivanta/ui";
+import { emailRequestRefusal } from "../signup-form";
 
 type Link = { phase: "email" | "password"; userId: string; code: string };
 const passwordForm = z
@@ -99,7 +100,7 @@ export function SignupVerification() {
     return (
       <div className="space-y-5">
         <h1 className="text-2xl font-medium">Open your latest email link</h1>
-        <p>This link is incomplete. Open the latest verification or password setup email.</p>
+        <p>This link is incomplete. Open the most recent email from Helivanta.</p>
         <a className="underline underline-offset-4" href="/signup">
           Return to workspace setup
         </a>
@@ -158,17 +159,14 @@ export function SignupVerification() {
           <SignupLoginCountdown tenantId={ready.tenantId} />
         ) : (
           <>
-            <p>Request a password setup email to finish creating your login.</p>
-            <EmailDeliveryPolicy />
+            <p>Next, set your password. We&apos;ll email you a link.</p>
             <Button type="button" disabled={delivery.isPending} onClick={() => delivery.mutate()}>
-              Send password setup email
+              Send password link
             </Button>
             {delivery.isSuccess && (
-              <p role="status">
-                If this request can receive an email, a password setup link has been requested.
-              </p>
+              <p role="status">If this address can receive email, a new link is on its way.</p>
             )}
-            {delivery.error && <p role="alert">We could not request the email. Try again later.</p>}
+            {delivery.error && <p role="alert">{emailRequestRefusal(delivery.error)}</p>}
             <a className="block underline underline-offset-4" href="/signup">
               Return to workspace setup
             </a>
@@ -190,18 +188,12 @@ export function SignupVerification() {
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-medium">
-        {link.phase === "email" ? "Verify your email address" : "Set your password"}
+        {link.phase === "email" ? "Verify your email" : "Set your password"}
       </h1>
-      <EmailDeliveryPolicy />
-      {problem && (
-        <p role="alert">
-          This link may have expired or already been used. Check your password or request a fresh
-          email link.
-        </p>
-      )}
+      {problem && <p role="alert">This link has expired or was already used. Send a new link.</p>}
       {link.phase === "email" ? (
         <Button type="button" disabled={pending} onClick={() => void prove()}>
-          Verify email address
+          Verify email
         </Button>
       ) : (
         <form
@@ -246,12 +238,12 @@ export function SignupVerification() {
         disabled={pending || delivery.isPending}
         onClick={() => delivery.mutate()}
       >
-        Request a fresh email link
+        Send a new link
       </Button>
       {delivery.isSuccess && (
-        <p role="status">If this request can receive an email, a fresh link has been requested.</p>
+        <p role="status">If this address can receive email, a new link is on its way.</p>
       )}
-      {delivery.error && <p role="alert">We could not request the email. Try again later.</p>}
+      {delivery.error && <p role="alert">{emailRequestRefusal(delivery.error)}</p>}
     </div>
   );
 }
@@ -318,18 +310,4 @@ function signupLinkStore() {
       for (const listener of listeners) listener();
     },
   };
-}
-
-function EmailDeliveryPolicy() {
-  return (
-    <>
-      <p className="text-sm text-muted-foreground">
-        Links expire after 1 hour. If yours has expired, request a fresh email link below.
-      </p>
-      <p className="text-sm text-muted-foreground">
-        Up to 3 emails per hour and 10 per 24 hours, shared across verification and password setup.
-        Verified email addresses do not receive another verification email.
-      </p>
-    </>
-  );
 }

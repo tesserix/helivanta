@@ -3,6 +3,15 @@ package pharmacy
 
 import "github.com/google/uuid"
 
+type StockHoldInput struct {
+	BatchID              uuid.UUID `json:"batch_id" binding:"required"`
+	FromLocationID       uuid.UUID `json:"from_location_id" binding:"required"`
+	QuarantineLocationID uuid.UUID `json:"quarantine_location_id" binding:"required"`
+	QuantityUnits        *int64    `json:"quantity_units" binding:"required,min=1,max=1000000000"`
+	Reason               string    `json:"reason" binding:"required,min=1,max=500"`
+	PhysicalDisposition  string    `json:"physical_disposition" binding:"required,oneof=moved_to_quarantine"`
+}
+
 type StocktakeDecisionInput struct {
 	Decision              string  `json:"decision" binding:"required,oneof=submit approve reject cancel"`
 	ExpectedVersion       *int64  `json:"expected_version" binding:"required,min=0,max=9007199254740990"`

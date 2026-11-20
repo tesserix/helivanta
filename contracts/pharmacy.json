@@ -1,6 +1,45 @@
 {
   "models": [
     {
+      "name": "StockHoldInput",
+      "schema": "pharmacyStockHoldInputSchema",
+      "fields": [
+        {
+          "name": "batch_id",
+          "type": "uuid"
+        },
+        {
+          "name": "from_location_id",
+          "type": "uuid"
+        },
+        {
+          "name": "quarantine_location_id",
+          "type": "uuid"
+        },
+        {
+          "name": "quantity_units",
+          "type": "int64",
+          "pointer": true,
+          "min": 1,
+          "max": 1000000000
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 1,
+          "max": 500,
+          "trim": true
+        },
+        {
+          "name": "physical_disposition",
+          "type": "string",
+          "enum": [
+            "moved_to_quarantine"
+          ]
+        }
+      ]
+    },
+    {
       "name": "StocktakeDecisionInput",
       "schema": "pharmacyStocktakeDecisionInputSchema",
       "fields": [

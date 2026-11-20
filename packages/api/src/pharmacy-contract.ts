@@ -8,6 +8,17 @@ const identifier = z
     /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     "Choose a valid record.",
   );
+export const pharmacyStockHoldInputSchema = z
+  .object({
+    batch_id: identifier,
+    from_location_id: identifier,
+    quarantine_location_id: identifier,
+    quantity_units: z.number().int().min(1).max(1000000000),
+    reason: z.string().trim().min(1).max(500),
+    physical_disposition: z.enum(["moved_to_quarantine"]),
+  })
+  .strict();
+
 export const pharmacyStocktakeDecisionInputSchema = z
   .object({
     decision: z.enum(["submit", "approve", "reject", "cancel"]),

@@ -270,8 +270,26 @@ func TestStocktakeIndependentApprovalPreservesLaterMovements(t *testing.T) {
 	nextPath := outletPath("/stock/stocktakes/") + uuid.Must(uuid.NewV7()).String()
 	next := do(r, "PUT", nextPath, "editor", start)
 	require.Equal(t, 200, next.Code, next.Body.String())
-	cancelled := do(r, "PUT", nextPath+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "editor", `{"decision":"cancel","expected_version":0,"reason":"TEST retain abandoned count"}`)
+	for _, decision := range []string{"submit", "approve", "reject"} {
+		refused := do(r, "PUT", nextPath+"/cancellations/"+uuid.Must(uuid.NewV7()).String(), "editor", fmt.Sprintf(`{"decision":%q,"expected_version":0,"reason":"TEST continuation cannot operate"}`, decision))
+		require.Equal(t, 400, refused.Code, refused.Body.String())
+	}
+	cancelID := uuid.Must(uuid.NewV7()).String()
+	cancelPath := nextPath + "/cancellations/" + cancelID
+	cancelInput := `{"decision":"cancel","expected_version":0,"reason":"TEST retain abandoned count"}`
+	cancelled := do(r, "PUT", cancelPath, "editor", cancelInput)
 	require.Equal(t, 200, cancelled.Code, cancelled.Body.String())
+	replayCancel := do(r, "PUT", cancelPath, "editor", cancelInput)
+	require.Equal(t, 200, replayCancel.Code, replayCancel.Body.String())
+	require.JSONEq(t, cancelled.Body.String(), replayCancel.Body.String())
+	recoveredCancel := do(r, "GET", nextPath+"/decisions/"+cancelID, "reader", "")
+	require.Equal(t, 200, recoveredCancel.Code, recoveredCancel.Body.String())
+	require.JSONEq(t, cancelled.Body.String(), recoveredCancel.Body.String())
+	require.Equal(t, 409, do(r, "PUT", cancelPath, "reviewer", cancelInput).Code)
+	for _, actor := range []string{"sibling", "foreign"} {
+		require.Equal(t, 404, do(r, "PUT", cancelPath, actor, cancelInput).Code)
+	}
+	require.Equal(t, 403, do(r, "PUT", cancelPath, "reader", cancelInput).Code)
 	require.Equal(t, 200, do(r, "PUT", outletPath("/stock/stocktakes/")+uuid.Must(uuid.NewV7()).String(), "editor", start).Code)
 }
 

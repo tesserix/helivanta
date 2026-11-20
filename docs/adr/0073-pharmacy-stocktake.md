@@ -75,6 +75,17 @@ classified baseline continuations before operational activation. They must verif
 an already sealed count and current authority; they cannot start a count, record
 new counted quantities or approve stock adjustments while Stock is disabled.
 
+Use the existing sealed-count list/header and original count/decision receipt
+reads as baseline continuations. They expose retained evidence only and retain
+`pharmacy.stock.read`, current outlet authority and read audit. Snapshot-line and
+register-file reads remain Stock-gated. Add a separate cancellation-only command
+path using the existing decision input/receipt and `pharmacy.stock.correct`;
+reject every decision other than cancel before dispatch. Do not classify the
+general decision endpoint as baseline. A cancelled/terminal count can return an
+original exact receipt but cannot accept a new operational command. The same
+UUID/actor/input identity and sealed-parent checks apply. This adds no permission,
+policy exception, stock movement or new data owner.
+
 ## Failure, consistency and recovery
 
 The count, count revisions, approval, adjustments, audit and outbox are local to

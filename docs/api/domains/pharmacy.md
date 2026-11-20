@@ -995,14 +995,16 @@ Different requests can differ when stock, reservations or configuration changes.
 
 ## Reviewed outlet stocktakes (#1686, implementation candidate)
 
-The draft implementation adds a frozen physical-book snapshot and versioned
-counted observations, not a completed stocktake workflow. It is unreleased and
+The draft implementation adds a frozen physical-book snapshot, versioned
+counted observations, reviewed correction posting and a Stock workspace. It is unreleased and
 protected by `pharmacy_stock`; capability eligibility and provider values are
 unchanged. Reviewed decisions and atomic corrections have passed the native core
-journey, including audit/outbox failure rollback and exact retry. Recovery
-continuations, register-export acceptance,
-the UI and failure/recovery coverage remain
-required before operational activation. See [ADR-0073](../../adr/0073-pharmacy-stocktake.md).
+journey, including audit/outbox failure rollback, exact retry, register integrity
+and sellable/quarantine adjustment cases. The SDK and UI cover start, count,
+review, status, exact-command recovery and verified register downloads.
+Baseline continuations, broader both-owner/Global API safety coverage, final CI,
+deployment and live UI acceptance remain required before operational activation.
+See [ADR-0073](../../adr/0073-pharmacy-stocktake.md).
 
 Paths below use the same pharmacy/outlet prefix as reorder levels. Every request
 requires verified tenant, pharmacy and current outlet scope through Global API.
@@ -1115,3 +1117,36 @@ SHA-256 of the actual CSV bytes). Download clients bind these to the displayed
 record, enforce the byte bound while reading, and verify the digest before
 offering a file. A concurrent revision requires refresh rather than exporting a
 different revision under the displayed one.
+
+### Stock workspace operation (unreleased source)
+
+1. In the selected pharmacy/outlet's Stock workspace, choose **Stocktakes**.
+   Starting and counting require `pharmacy.stock.correct` and the current outlet
+   editor grant. Catalogue-edit permission alone does not show these actions.
+2. Start for all products or select up to 100 products. Choose the named
+   quarantine destination and supply the count reason. The start freezes the
+   book; it does not freeze normal stock operations or count later new batches.
+3. Open each bucket's count entry. Quantity starts blank even when a previous
+   observation exists. Enter an actual whole physical quantity and reason; zero
+   must be explicit. Existing observations are shown separately. Save and refresh
+   the current version before continuing. A conflicting intervening movement
+   requires examining/cancelling the count, not silently rebasing its frozen book.
+4. After all buckets are counted, submit for independent review. The original
+   starter and every historical counter are ineligible to approve or reject.
+   The reviewer checks the full count, including positive differences beyond the
+   currently loaded page, and explicitly attests physical quarantine placement
+   for all extra units before approval. Cancellation and rejection retain history.
+5. A lost save response retains the original command and input and locks edits.
+   Check the saved result before retrying. A not-found recovery permits only an
+   identical retry. Start recovery reads the current sealed record and verifies
+   its original starter and immutable start fields, even after later revisions;
+   it neither starts a replacement nor adopts another person's count. A changed
+   version never resets a dirty form silently.
+6. Download the register from the current detail. The client verifies the actual
+   bytes and displayed revision before offering a file. The detail separates
+   loaded H1, X, NDPS, other declared and unknown differences; it explicitly labels
+   the loaded subset, while the file includes the complete bounded snapshot.
+
+All UI actors use authorized named-account presentation. Internal subjects,
+command identifiers and tenant IDs remain request/recovery bindings. Unavailable
+identity or count data is explicit; new commands pause on unavailable status.

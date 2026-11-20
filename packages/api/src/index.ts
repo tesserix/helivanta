@@ -247,6 +247,7 @@ export {
 } from "./pharmacy-reorder";
 export {
   startStocktake,
+  recoverStocktakeStart,
   readStocktake,
   recordStocktakeCount,
   readStocktakeCount,

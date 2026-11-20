@@ -183,6 +183,30 @@ export async function readStocktake(scope: PharmacyScope, take: string, signal?:
   return result;
 }
 
+function matchesStart(receipt: PharmacyStocktake, intent: PharmacyStocktakeStartInput) {
+  return (
+    receipt.review_relationship === "starter" &&
+    receipt.selection === intent.selection &&
+    receipt.quarantine_location_id === intent.quarantine_location_id &&
+    receipt.reason === intent.reason &&
+    JSON.stringify([...receipt.product_ids].sort()) ===
+      JSON.stringify([...intent.product_ids].sort())
+  );
+}
+
+export async function recoverStocktakeStart(
+  scope: PharmacyScope,
+  take: string,
+  input: PharmacyStocktakeStartInput,
+  signal?: AbortSignal,
+) {
+  const intent = pharmacyStocktakeStartInputSchema.parse(input);
+  const current = await readStocktake(scope, take, signal);
+  if (!matchesStart(current, intent))
+    throw new Error("The recovered stocktake does not match this start and its original actor.");
+  return current;
+}
+
 export async function startStocktake(
   scope: PharmacyScope,
   take: string,
@@ -204,12 +228,7 @@ export async function startStocktake(
     receipt.counted_rows !== 0 ||
     receipt.difference_rows !== 0 ||
     receipt.positive_difference_rows !== 0 ||
-    receipt.review_relationship !== "starter" ||
-    receipt.selection !== intent.selection ||
-    receipt.quarantine_location_id !== intent.quarantine_location_id ||
-    receipt.reason !== intent.reason ||
-    JSON.stringify([...receipt.product_ids].sort()) !==
-      JSON.stringify([...intent.product_ids].sort())
+    !matchesStart(receipt, intent)
   )
     throw new Error("The stocktake creation receipt does not match this outlet and command.");
   return receipt;

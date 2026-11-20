@@ -8,6 +8,7 @@ import {
   readStocktakeDecision,
   fetchStocktakes,
   startStocktake,
+  recoverStocktakeStart,
 } from "./index";
 
 const scope = {
@@ -40,6 +41,20 @@ const receipt = {
 };
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
 afterEach(() => vi.unstubAllGlobals());
+
+it("recovers a matching original start from current status without writing or adopting another actor", async () => {
+  const current = { ...receipt, state: "submitted", version: 2, counted_rows: 1 };
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(json(current))
+    .mockResolvedValueOnce(json({ ...current, review_relationship: "independent" }))
+    .mockResolvedValueOnce(json({ ...current, reason: "TEST other start" }));
+  vi.stubGlobal("fetch", fetch);
+  expect(await recoverStocktakeStart(scope, take, input)).toEqual(current);
+  expect(fetch.mock.calls[0]?.[1]?.method).toBeUndefined();
+  await expect(recoverStocktakeStart(scope, take, input)).rejects.toThrow(/start/i);
+  await expect(recoverStocktakeStart(scope, take, input)).rejects.toThrow(/start/i);
+});
 
 it("recovers the immutable count receipt and refuses another command or version", async () => {
   const saved = {

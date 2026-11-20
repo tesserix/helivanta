@@ -515,6 +515,7 @@ function OutletPharmacy({
         <StockWorkspace
           scope={scope}
           timeZone={outlet.timezone}
+          canCount={access.data?.level === "editor" && can("pharmacy.stock.correct")}
           canConfigure={
             access.data?.level === "editor" &&
             can("pharmacy.catalogue.read") &&

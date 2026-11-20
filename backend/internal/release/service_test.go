@@ -247,6 +247,8 @@ func TestStocktakeRoutesUseStockReleaseBoundary(t *testing.T) {
 		{"GET", "/stocktakes/:stocktake"},
 		{"GET", "/stocktakes"},
 		{"GET", "/stocktakes/:stocktake/lines"},
+		{"PUT", "/stocktakes/:stocktake/counts/:command"},
+		{"GET", "/stocktakes/:stocktake/counts/:command"},
 	} {
 		path := "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock" + route.suffix
 		capability, known := RouteCapability(route.method, path)

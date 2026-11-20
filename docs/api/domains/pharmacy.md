@@ -995,10 +995,11 @@ Different requests can differ when stock, reservations or configuration changes.
 
 ## Reviewed outlet stocktakes (#1686, implementation candidate)
 
-The draft implementation adds a frozen physical-book snapshot, not a completed
-stocktake workflow. It is unreleased and protected by `pharmacy_stock`; capability
-eligibility and provider values are unchanged. Counting, independent review,
-atomic corrections, recovery continuations, register export and the UI remain
+The draft implementation adds a frozen physical-book snapshot and versioned
+counted observations, not a completed stocktake workflow. It is unreleased and
+protected by `pharmacy_stock`; capability eligibility and provider values are
+unchanged. Independent review, atomic corrections, recovery continuations,
+register export and the UI remain
 required before operational activation. See [ADR-0073](../../adr/0073-pharmacy-stocktake.md).
 
 Paths below use the same pharmacy/outlet prefix as reorder levels. Every request
@@ -1012,6 +1013,8 @@ and a current editor grant. Ownership or affiliation alone is insufficient.
 | GET `/stock/stocktakes/{stocktake}` | Current sealed snapshot and progress; no query or request body. |
 | GET `/stock/stocktakes` | Standard keyset list; only one nonempty `limit` and `cursor` allowed, default 50 / maximum 200. |
 | GET `/stock/stocktakes/{stocktake}/lines` | Same pagination; immutable batch/location book quantities, issue units, product version, snapshot time and retained schedule declaration. Missing physical counts are null. |
+| PUT `/stock/stocktakes/{stocktake}/counts/{command}` | UUIDv7 command; strict `{expected_version, counts: [{line_id, counted_units}], reason}`. Version zero and physical zero are explicit values. At most 100 unique lines per command, quantities 0–1,000,000,000,000 issue units, required reason at most 500 characters and body at most 64 KiB. Returns the immutable original receipt. |
+| GET `/stock/stocktakes/{stocktake}/counts/{command}` | Original count receipt under current read authority; no query or body. This does not return a later edit's quantities. |
 
 Start captures quantities and movement counts in one SQL statement, including
 expired and non-sellable physical buckets. At most 10,000 buckets are permitted;
@@ -1029,3 +1032,16 @@ and restrictive operating-choice purpose policies, extending the policy
 fingerprint only after validating the existing fingerprint. Canonical models
 are generated from `contracts/pharmacy.json`; registry parity does not prove
 native database or deployed acceptance.
+
+Count observations are append-only. A command serializes on its sealed parent,
+requires the exact current version and locks submitted ledger buckets in a
+consistent order before recording. A database guard rejects a changed movement
+count, even when its net quantity is unchanged. It verifies that all entries
+belong to the same parent and original command transaction; a deferred guard
+rejects a command with missing entries. Failure rolls back the whole command.
+Exact actor/input replay returns its original version and quantities after later
+edits; changed reuse is 409. Current progress and line observations use one
+statement snapshot per request and preserve zero separately from missing. Starting
+again with the original identity still returns the original creation receipt.
+No observation changes stock or publishes a stock-movement event. Hosted native
+count acceptance is required before claiming this candidate works end to end.

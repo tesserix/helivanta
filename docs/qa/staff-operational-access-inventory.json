@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "728725344253dff5ecc70bfd1201f8a8d943d7db6afba0de097ca9983b20b32c",
+  "registry_sha256": "1e1cfd4949613886942c07a4e2fefbe82bc1d50a834e1d6d98dcb75b928cdd25",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1169,
-    "unclassified": 1018
+    "total": 1171,
+    "unclassified": 1020
   },
   "entries": [
     {
@@ -9809,6 +9809,22 @@
       "review": null
     },
     {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/counts/:command",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/counts/:command",
+        "permission": "pharmacy.stock.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/lines",
       "kind": "http",
       "module": "pharmacy",
@@ -11331,6 +11347,22 @@
         "source": "backend/internal/modules/pharmacy/module.go",
         "method": "PUT",
         "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake",
+        "permission": "pharmacy.stock.correct",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/counts/:command",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "PUT",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/counts/:command",
         "permission": "pharmacy.stock.correct",
         "authentication_required": true,
         "membership_required": true,

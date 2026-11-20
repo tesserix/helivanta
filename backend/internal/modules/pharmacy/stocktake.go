@@ -33,9 +33,11 @@ var (
 
 type stocktakeHeaderRow struct {
 	StocktakeSummary
-	IntentSHA256 string    `json:"-"`
-	ProductsJSON string    `json:"-"`
-	CreatedAt    time.Time `json:"-"`
+	IntentSHA256   string    `json:"-"`
+	ProductsJSON   string    `json:"-"`
+	CreatedAt      time.Time `json:"-"`
+	CountedRows    int64     `json:"-"`
+	DifferenceRows int64     `json:"-"`
 }
 
 func (stocktakeHeaderRow) TableName() string                 { return "pharmacy_stocktakes" }
@@ -51,8 +53,30 @@ type stocktakeLineRow struct {
 func (stocktakeLineRow) TableName() string                 { return "pharmacy_stocktake_lines" }
 func (r stocktakeLineRow) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
 
-const stocktakeHeaderColumns = `id,outlet_id,number,selection,array_to_json(product_ids)::text products_json,
- quarantine_location_id,reason,actor_subject started_by,created_at,intent_sha256,snapshot_rows,'counting'::text state,0::bigint version`
+const stocktakeHeaderBaseColumns = `id,outlet_id,number,selection,array_to_json(product_ids)::text products_json,
+ quarantine_location_id,reason,actor_subject started_by,created_at,intent_sha256,snapshot_rows`
+
+const stocktakeHeaderColumns = stocktakeHeaderBaseColumns + `,'counting'::text state,0::bigint version`
+
+const stocktakeCurrentHeaderColumns = stocktakeHeaderBaseColumns + `,
+ COALESCE((SELECT state FROM pharmacy_stocktake_commands c WHERE c.tenant_id=pharmacy_stocktakes.tenant_id AND c.outlet_id=pharmacy_stocktakes.outlet_id AND c.stocktake_id=pharmacy_stocktakes.id ORDER BY version DESC LIMIT 1),'counting') state,
+ COALESCE((SELECT MAX(version) FROM pharmacy_stocktake_commands c WHERE c.tenant_id=pharmacy_stocktakes.tenant_id AND c.outlet_id=pharmacy_stocktakes.outlet_id AND c.stocktake_id=pharmacy_stocktakes.id),0) version`
+
+const stocktakeProgressJoin = `LEFT JOIN LATERAL(
+ SELECT COUNT(*) counted_rows,COUNT(*)FILTER(WHERE observed.counted_units<>l.book_units) difference_rows
+ FROM pharmacy_stocktake_lines l JOIN LATERAL(
+  SELECT counted_units FROM pharmacy_stocktake_counts e WHERE e.tenant_id=l.tenant_id AND e.outlet_id=l.outlet_id AND e.stocktake_id=l.stocktake_id AND e.line_id=l.id ORDER BY command_version DESC LIMIT 1
+ )observed ON true
+ WHERE l.tenant_id=pharmacy_stocktakes.tenant_id AND l.outlet_id=pharmacy_stocktakes.outlet_id AND l.stocktake_id=pharmacy_stocktakes.id
+)progress ON true`
+
+const stocktakeObservedJoin = `LEFT JOIN LATERAL(
+ SELECT e.counted_units,c.actor_subject counted_by,c.reason count_reason,
+ to_char(c.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') counted_at
+ FROM pharmacy_stocktake_counts e JOIN pharmacy_stocktake_commands c ON c.tenant_id=e.tenant_id AND c.outlet_id=e.outlet_id AND c.id=e.command_id
+ WHERE e.tenant_id=pharmacy_stocktake_lines.tenant_id AND e.outlet_id=pharmacy_stocktake_lines.outlet_id AND e.stocktake_id=pharmacy_stocktake_lines.stocktake_id AND e.line_id=pharmacy_stocktake_lines.id
+ ORDER BY e.command_version DESC LIMIT 1
+)observed ON true`
 
 const stocktakeLineColumns = `id,stocktake_id,product_id,product_version,sku,brand_name,unit_of_issue,batch_id,lot_number,
  expires_on::text,location_id,location_code,location_name,stock_status,book_units,movement_count,regulatory_class,
@@ -84,6 +108,8 @@ func stocktakeRoutes(s *platform.Router, h *catalogueHandlers) {
 	s.GET("/stocktakes/:stocktake", PermStockRead, h.getStocktake)
 	platform.ListRoute(s, "/stocktakes", PermStockRead, h.listStocktakes)
 	platform.ListRoute(s, "/stocktakes/:stocktake/lines", PermStockRead, h.listStocktakeLines)
+	s.PUT("/stocktakes/:stocktake/counts/:command", PermStockCorrect, h.putStocktakeCount)
+	s.GET("/stocktakes/:stocktake/counts/:command", PermStockRead, h.getStocktakeCount)
 }
 
 func stocktakeID(c *gin.Context) (uuid.UUID, bool) {
@@ -300,9 +326,10 @@ func (h *catalogueHandlers) getStocktake(c *gin.Context) {
 	}
 	var result stocktakeHeaderRow
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
-		var err error
-		result, err = readStocktakeHeader(tx, p.TenantID, outlet, id)
-		if err != nil {
+		if err := tx.Select(stocktakeCurrentHeaderColumns+",progress.counted_rows,progress.difference_rows").Joins(stocktakeProgressJoin).Where("tenant_id=? AND outlet_id=? AND id=? AND sealed", p.TenantID, outlet, id).Take(&result).Error; err != nil {
+			return err
+		}
+		if err := finishStocktakeHeader(&result); err != nil {
 			return err
 		}
 		return stocktakeReadAudit(c, tx, p, "stocktake", id, "record_read")
@@ -311,7 +338,7 @@ func (h *catalogueHandlers) getStocktake(c *gin.Context) {
 		stocktakeError(c, err)
 		return
 	}
-	respond.OK(c, Stocktake{StocktakeSummary: result.StocktakeSummary})
+	respond.OK(c, Stocktake{StocktakeSummary: result.StocktakeSummary, CountedRows: result.CountedRows, DifferenceRows: result.DifferenceRows})
 }
 
 func (h *catalogueHandlers) listStocktakes(c *gin.Context, params pagination.Params) ([]stocktakeHeaderRow, error) {
@@ -321,7 +348,7 @@ func (h *catalogueHandlers) listStocktakes(c *gin.Context, params pagination.Par
 	}
 	rows := []stocktakeHeaderRow{}
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
-		if err := tenantdb.ApplyKeyset(tx, params).Select(stocktakeHeaderColumns).Where("tenant_id=? AND outlet_id=? AND sealed", p.TenantID, outlet).Find(&rows).Error; err != nil {
+		if err := tenantdb.ApplyKeyset(tx, params).Select(stocktakeCurrentHeaderColumns).Where("tenant_id=? AND outlet_id=? AND sealed", p.TenantID, outlet).Find(&rows).Error; err != nil {
 			return err
 		}
 		for i := range rows {
@@ -352,7 +379,7 @@ func (h *catalogueHandlers) listStocktakeLines(c *gin.Context, params pagination
 		if _, err := readStocktakeHeader(tx, p.TenantID, outlet, id); err != nil {
 			return err
 		}
-		if err := tenantdb.ApplyKeyset(tx, params).Select(stocktakeLineColumns).Where("tenant_id=? AND outlet_id=? AND stocktake_id=?", p.TenantID, outlet, id).Find(&rows).Error; err != nil {
+		if err := tenantdb.ApplyKeyset(tx, params).Select(stocktakeLineColumns+",observed.counted_units,observed.counted_by,observed.count_reason,observed.counted_at,observed.counted_units-book_units difference_units").Joins(stocktakeObservedJoin).Where("tenant_id=? AND outlet_id=? AND stocktake_id=?", p.TenantID, outlet, id).Find(&rows).Error; err != nil {
 			return err
 		}
 		return stocktakeReadAudit(c, tx, p, "stocktake_lines", id, "list_read")

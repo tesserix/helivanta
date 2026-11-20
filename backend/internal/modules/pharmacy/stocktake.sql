@@ -53,8 +53,36 @@ CREATE INDEX pharmacy_stocktake_line_batch ON pharmacy_stocktake_lines(tenant_id
 CREATE INDEX pharmacy_stocktake_line_location ON pharmacy_stocktake_lines(tenant_id,outlet_id,location_id);
 CREATE INDEX pharmacy_stocktake_line_schedule ON pharmacy_stocktake_lines(tenant_id,outlet_id,schedule_declaration_id);
 
+CREATE TABLE pharmacy_stocktake_commands (
+ tenant_id uuid NOT NULL,outlet_id uuid NOT NULL,id uuid NOT NULL CHECK(substring(id::text,15,1)='7'),
+ stocktake_id uuid NOT NULL,kind text NOT NULL CHECK(kind='count'),
+ expected_version bigint NOT NULL CHECK(expected_version BETWEEN 0 AND 9007199254740990),
+ version bigint NOT NULL CHECK(version=expected_version+1),
+ state text NOT NULL CHECK(state='counting'),
+ item_count integer NOT NULL CHECK(item_count BETWEEN 1 AND 100),
+ reason text NOT NULL CHECK(length(btrim(reason))BETWEEN 1 AND 500),
+ actor_subject text NOT NULL CHECK(length(btrim(actor_subject))BETWEEN 1 AND 200),
+ intent_sha256 text NOT NULL CHECK(intent_sha256~'^[0-9a-f]{64}$'),
+ posted_xact xid8 NOT NULL DEFAULT pg_current_xact_id(),created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ PRIMARY KEY(tenant_id,outlet_id,id),UNIQUE(tenant_id,outlet_id,stocktake_id,id),
+ UNIQUE(tenant_id,outlet_id,stocktake_id,version),
+ FOREIGN KEY(tenant_id,outlet_id,stocktake_id)REFERENCES pharmacy_stocktakes(tenant_id,outlet_id,id)ON DELETE RESTRICT
+);
+CREATE TABLE pharmacy_stocktake_counts (
+ tenant_id uuid NOT NULL,outlet_id uuid NOT NULL,id uuid NOT NULL CHECK(substring(id::text,15,1)='7'),
+ stocktake_id uuid NOT NULL,command_id uuid NOT NULL,line_id uuid NOT NULL,
+ command_version bigint NOT NULL CHECK(command_version BETWEEN 1 AND 9007199254740991),
+ counted_units bigint NOT NULL CHECK(counted_units BETWEEN 0 AND 1000000000000),
+ created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ PRIMARY KEY(tenant_id,outlet_id,id),UNIQUE(tenant_id,outlet_id,command_id,line_id),
+ FOREIGN KEY(tenant_id,outlet_id,stocktake_id,command_id)REFERENCES pharmacy_stocktake_commands(tenant_id,outlet_id,stocktake_id,id)ON DELETE RESTRICT,
+ FOREIGN KEY(tenant_id,outlet_id,line_id)REFERENCES pharmacy_stocktake_lines(tenant_id,outlet_id,id)ON DELETE RESTRICT
+);
+CREATE INDEX pharmacy_stocktake_count_latest ON pharmacy_stocktake_counts(tenant_id,outlet_id,stocktake_id,line_id,command_version DESC);
+CREATE INDEX pharmacy_stocktake_count_line ON pharmacy_stocktake_counts(tenant_id,outlet_id,line_id);
+
 DO $scope$DECLARE target text;BEGIN
- FOREACH target IN ARRAY ARRAY['pharmacy_stocktakes','pharmacy_stocktake_lines'] LOOP
+ FOREACH target IN ARRAY ARRAY['pharmacy_stocktakes','pharmacy_stocktake_lines','pharmacy_stocktake_commands','pharmacy_stocktake_counts'] LOOP
   EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY',target);
   EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY',target);
   EXECUTE format($policy$CREATE POLICY tenant_isolation ON %I USING(hms_tenant_visible(tenant_id)AND pharmacy_outlet_allowed(tenant_id,outlet_id,false))WITH CHECK(pharmacy_outlet_allowed(tenant_id,outlet_id,true))$policy$,target);
@@ -116,6 +144,47 @@ BEGIN
  RETURN NULL;
 END $$;
 CREATE CONSTRAINT TRIGGER pharmacy_stocktake_commit_guard AFTER INSERT ON pharmacy_stocktakes DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION pharmacy_stocktake_commit_guard();
+
+CREATE FUNCTION pharmacy_stocktake_command_guard()RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE parent pharmacy_stocktakes;prior_version bigint;
+BEGIN
+ SELECT *INTO parent FROM pharmacy_stocktakes WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND id=NEW.stocktake_id AND sealed FOR UPDATE;
+ SELECT COALESCE(MAX(version),0)INTO prior_version FROM pharmacy_stocktake_commands WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND stocktake_id=NEW.stocktake_id;
+ IF parent.id IS NULL OR NEW.actor_subject IS DISTINCT FROM NULLIF(current_setting('app.pharmacy_subject',true),'')OR NEW.expected_version<>prior_version OR NEW.posted_xact<>pg_current_xact_id()THEN
+  RAISE EXCEPTION 'stocktake command or version changed' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_command';
+ END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER pharmacy_stocktake_command_guard BEFORE INSERT ON pharmacy_stocktake_commands FOR EACH ROW EXECUTE FUNCTION pharmacy_stocktake_command_guard();
+CREATE TRIGGER pharmacy_stocktake_command_immutable BEFORE UPDATE OR DELETE OR TRUNCATE ON pharmacy_stocktake_commands FOR EACH STATEMENT EXECUTE FUNCTION pharmacy_catalogue_immutable();
+CREATE TRIGGER pharmacy_stocktake_count_immutable BEFORE UPDATE OR DELETE OR TRUNCATE ON pharmacy_stocktake_counts FOR EACH STATEMENT EXECUTE FUNCTION pharmacy_catalogue_immutable();
+
+CREATE FUNCTION pharmacy_stocktake_count_guard()RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE command pharmacy_stocktake_commands;line pharmacy_stocktake_lines;observed bigint;
+BEGIN
+ SELECT *INTO command FROM pharmacy_stocktake_commands WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND id=NEW.command_id AND stocktake_id=NEW.stocktake_id;
+ SELECT *INTO line FROM pharmacy_stocktake_lines WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND id=NEW.line_id AND stocktake_id=NEW.stocktake_id;
+ IF command.id IS NULL OR line.id IS NULL OR command.kind<>'count'OR command.posted_xact<>pg_current_xact_id()OR NEW.command_version<>command.version OR command.actor_subject IS DISTINCT FROM NULLIF(current_setting('app.pharmacy_subject',true),'')THEN
+  RAISE EXCEPTION 'count is not part of its original command' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_count';
+ END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(NEW.tenant_id::text||':'||NEW.outlet_id::text||':'||line.location_id::text||':'||line.batch_id::text,0));
+ SELECT COUNT(*)INTO observed FROM pharmacy_stock_movements WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND location_id=line.location_id AND batch_id=line.batch_id;
+ IF observed<>line.movement_count THEN
+  RAISE EXCEPTION 'stock moved since the book snapshot' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_count_stale';
+ END IF;
+ NEW.created_at:=command.created_at;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER pharmacy_stocktake_count_guard BEFORE INSERT ON pharmacy_stocktake_counts FOR EACH ROW EXECUTE FUNCTION pharmacy_stocktake_count_guard();
+
+CREATE FUNCTION pharmacy_stocktake_command_commit_guard()RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE actual bigint;
+BEGIN
+ SELECT COUNT(*)INTO actual FROM pharmacy_stocktake_counts WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND command_id=NEW.id;
+ IF actual<>NEW.item_count THEN RAISE EXCEPTION 'count command is incomplete' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_count_incomplete';END IF;
+ RETURN NULL;
+END $$;
+CREATE CONSTRAINT TRIGGER pharmacy_stocktake_command_commit_guard AFTER INSERT ON pharmacy_stocktake_commands DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION pharmacy_stocktake_command_commit_guard();
 
 -- Extend the checked purpose inventory only after validating its existing fingerprint.
 DO $integrity$

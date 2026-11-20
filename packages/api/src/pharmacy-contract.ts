@@ -23,6 +23,20 @@ export const pharmacyStocktakeCountInputSchema = z
   })
   .strict();
 
+export const pharmacyStocktakeCountReceiptSchema = pharmacyStocktakeCountInputSchema
+  .extend({
+    id: identifier,
+    stocktake_id: identifier,
+    outlet_id: identifier,
+    version: z.number().int().min(1).max(9007199254740991),
+    state: z.enum(["counting"]),
+    recorded_by: z.string().min(1).max(200),
+    recorded_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+  })
+  .strict();
+
 export const pharmacyStocktakeStartInputSchema = z
   .object({
     selection: z.enum(["all", "selected"]),

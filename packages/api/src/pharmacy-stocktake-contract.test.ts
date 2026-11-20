@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   pharmacyStocktakeCountInputSchema,
+  pharmacyStocktakeCountReceiptSchema,
   pharmacyStocktakeStartInputSchema,
 } from "./pharmacy-contract";
 
@@ -8,6 +9,27 @@ const location = "0199e000-0000-7000-8000-000000000001";
 const line = "0199e000-0000-7000-8000-000000000002";
 
 describe("stocktake input contracts", () => {
+  it("retains the original counted observation in its versioned command receipt", () => {
+    const receipt = {
+      id: line,
+      outlet_id: location,
+      stocktake_id: "0199e000-0000-7000-8000-000000000003",
+      expected_version: 0,
+      version: 1,
+      state: "counting",
+      recorded_by: "TEST-counter",
+      recorded_at: "2026-11-20T08:00:00Z",
+      counts: [{ line_id: line, counted_units: 0 }],
+      reason: "Shelf observation",
+    };
+    expect(pharmacyStocktakeCountReceiptSchema.parse(receipt)).toEqual(receipt);
+    expect(pharmacyStocktakeCountReceiptSchema.safeParse({ ...receipt, version: 0 }).success).toBe(
+      false,
+    );
+    expect(
+      pharmacyStocktakeCountReceiptSchema.safeParse({ ...receipt, state: "posted" }).success,
+    ).toBe(false);
+  });
   it("retains an explicit empty all-products scope and trims the recorded reason", () => {
     expect(
       pharmacyStocktakeStartInputSchema.parse({

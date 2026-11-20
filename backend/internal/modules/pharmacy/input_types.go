@@ -14,6 +14,17 @@ type StocktakeCountInput struct {
 	Reason          string                `json:"reason" binding:"required,min=1,max=500"`
 }
 
+type StocktakeCountReceipt struct {
+	ID          uuid.UUID `json:"id" binding:"required"`
+	StocktakeID uuid.UUID `json:"stocktake_id" binding:"required"`
+	OutletID    uuid.UUID `json:"outlet_id" binding:"required"`
+	Version     int64     `json:"version" binding:"min=1,max=9007199254740991"`
+	State       string    `json:"state" binding:"required,oneof=counting"`
+	RecordedBy  string    `json:"recorded_by" binding:"required,min=1,max=200"`
+	RecordedAt  string    `json:"recorded_at"`
+	StocktakeCountInput
+}
+
 type StocktakeStartInput struct {
 	Selection            string      `json:"selection" binding:"required,oneof=all selected"`
 	ProductIds           []uuid.UUID `json:"product_ids" binding:"required,min=0,max=100,dive"`

@@ -1002,7 +1002,7 @@ unchanged. Reviewed decisions and atomic corrections have passed the native core
 journey, including audit/outbox failure rollback, exact retry, register integrity
 and sellable/quarantine adjustment cases. The SDK and UI cover start, count,
 review, status, exact-command recovery and verified register downloads.
-Baseline continuations, broader both-owner/Global API safety coverage, final CI,
+Baseline continuation acceptance, broader both-owner/Global API safety coverage, final CI,
 deployment and live UI acceptance remain required before operational activation.
 See [ADR-0073](../../adr/0073-pharmacy-stocktake.md).
 
@@ -1011,17 +1011,18 @@ requires verified tenant, pharmacy and current outlet scope through Global API.
 Reads require `pharmacy.stock.read`; starting requires `pharmacy.stock.correct`
 and a current editor grant. Ownership or affiliation alone is insufficient.
 
-| Method/path | Contract |
-| --- | --- |
-| PUT `/stock/stocktakes/{stocktake}` | UUIDv7 identity; strict `{selection, product_ids, quarantine_location_id, reason}`. `all` requires an empty product list; `selected` requires 1–100 unique UUIDv7 product IDs. Required reason is at most 500 characters; body at most 64 KiB. Returns the immutable creation receipt. |
-| GET `/stock/stocktakes/{stocktake}` | Current sealed snapshot and progress; no query or request body. |
-| GET `/stock/stocktakes` | Standard keyset list; only one nonempty `limit` and `cursor` allowed, default 50 / maximum 200. |
-| GET `/stock/stocktakes/{stocktake}/lines` | Same pagination; immutable batch/location book quantities, issue units, product version, snapshot time and retained schedule declaration. Missing physical counts are null. |
-| PUT `/stock/stocktakes/{stocktake}/counts/{command}` | UUIDv7 command; strict `{expected_version, counts: [{line_id, counted_units}], reason}`. Version zero and physical zero are explicit values. At most 100 unique lines per command, quantities 0–1,000,000,000,000 issue units, required reason at most 500 characters and body at most 64 KiB. Returns the immutable original receipt. |
-| GET `/stock/stocktakes/{stocktake}/counts/{command}` | Original count receipt under current read authority; no query or body. This does not return a later edit's quantities. |
-| PUT `/stock/stocktakes/{stocktake}/decisions/{command}` | Strict `{decision, expected_version, reason, extra_units_disposition?}`. Decision is submit, approve, reject or cancel. Only approval requires a disposition: `moved_to_quarantine` if any difference is positive, otherwise `no_extra_units`. Required reason at most 500 characters; body at most 64 KiB. Returns an original immutable decision receipt, including adjustment count. |
-| GET `/stock/stocktakes/{stocktake}/decisions/{command}` | Original immutable decision receipt under current read authority; no query or body. |
-| GET `/stock/stocktakes/{stocktake}/register.csv` | Audited physical-count register, bounded to 10,000 buckets / 8 MiB with no partial file. No query or body. Current read authority is required, as for the existing stock register CSV. |
+| Method/path                                                 | Contract                                                                                                                                                                                                                                                                                                                                                                                |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PUT `/stock/stocktakes/{stocktake}`                         | UUIDv7 identity; strict `{selection, product_ids, quarantine_location_id, reason}`. `all` requires an empty product list; `selected` requires 1–100 unique UUIDv7 product IDs. Required reason is at most 500 characters; body at most 64 KiB. Returns the immutable creation receipt.                                                                                                  |
+| GET `/stock/stocktakes/{stocktake}`                         | Current sealed snapshot and progress; no query or request body.                                                                                                                                                                                                                                                                                                                         |
+| GET `/stock/stocktakes`                                     | Standard keyset list; only one nonempty `limit` and `cursor` allowed, default 50 / maximum 200.                                                                                                                                                                                                                                                                                         |
+| GET `/stock/stocktakes/{stocktake}/lines`                   | Same pagination; immutable batch/location book quantities, issue units, product version, snapshot time and retained schedule declaration. Missing physical counts are null.                                                                                                                                                                                                             |
+| PUT `/stock/stocktakes/{stocktake}/counts/{command}`        | UUIDv7 command; strict `{expected_version, counts: [{line_id, counted_units}], reason}`. Version zero and physical zero are explicit values. At most 100 unique lines per command, quantities 0–1,000,000,000,000 issue units, required reason at most 500 characters and body at most 64 KiB. Returns the immutable original receipt.                                                  |
+| GET `/stock/stocktakes/{stocktake}/counts/{command}`        | Original count receipt under current read authority; no query or body. This does not return a later edit's quantities.                                                                                                                                                                                                                                                                  |
+| PUT `/stock/stocktakes/{stocktake}/decisions/{command}`     | Strict `{decision, expected_version, reason, extra_units_disposition?}`. Decision is submit, approve, reject or cancel. Only approval requires a disposition: `moved_to_quarantine` if any difference is positive, otherwise `no_extra_units`. Required reason at most 500 characters; body at most 64 KiB. Returns an original immutable decision receipt, including adjustment count. |
+| GET `/stock/stocktakes/{stocktake}/decisions/{command}`     | Original immutable decision receipt under current read authority; no query or body.                                                                                                                                                                                                                                                                                                     |
+| PUT `/stock/stocktakes/{stocktake}/cancellations/{command}` | Cancellation-only retained-work continuation; same decision schema but only `decision: cancel` is accepted. Requires current correction permission and outlet editor authority, an existing sealed count, current version and original actor/input binding for replay. No observation or movement can be posted through this path.                                                      |
+| GET `/stock/stocktakes/{stocktake}/register.csv`            | Audited physical-count register, bounded to 10,000 buckets / 8 MiB with no partial file. No query or body. Current read authority is required, as for the existing stock register CSV.                                                                                                                                                                                                  |
 
 Start captures quantities and movement counts in one SQL statement, including
 expired and non-sellable physical buckets. At most 10,000 buckets are permitted;
@@ -1150,3 +1151,12 @@ different revision under the displayed one.
 All UI actors use authorized named-account presentation. Internal subjects,
 command identifiers and tenant IDs remain request/recovery bindings. Unavailable
 identity or count data is explicit; new commands pause on unavailable status.
+
+The sealed-count list/header and original count/decision receipt reads are
+baseline continuations. Their product authorization and read audit remain in
+force even when Stock is off. The cancellation-only path is also baseline; the
+general decision path, start, count entry, snapshot-line reads and CSV export
+remain Stock-gated. The outlet overview's **Retained stocktakes** panel reads
+status and offers cancellation only. A displayed cancellation action still needs
+the server's current outlet editor check; a route permission is not a scope grant.
+The panel never fetches live stock, snapshot lines or an operational catalogue.

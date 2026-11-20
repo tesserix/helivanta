@@ -30,17 +30,25 @@ const take: PharmacyStocktake = {
 };
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
 afterEach(() => vi.unstubAllGlobals());
-function panel(current = take) {
+function panel(current = take, cancelOnly = false) {
   const saved = vi.fn();
   return {
     ...renderWithProviders(
       <NavigationGuardProvider>
-        <StocktakeDecision scope={scope} take={current} onSaved={saved} />
+        <StocktakeDecision scope={scope} take={current} onSaved={saved} cancelOnly={cancelOnly} />
       </NavigationGuardProvider>,
     ),
     saved,
   };
 }
+
+it("offers only cancellation in a retained-work continuation, including to an independent reviewer", async () => {
+  const { user } = panel(take, true);
+  await user.click(screen.getByRole("combobox", { name: "Decision" }));
+  expect(screen.queryByRole("option", { name: /Approve/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole("option", { name: /Reject/ })).not.toBeInTheDocument();
+  expect(screen.getByRole("option", { name: "Cancel stocktake" })).toBeInTheDocument();
+});
 
 it("requires explicit physical quarantine attestation for positive differences before approval", async () => {
   const fetch = vi.fn(async (url: string, init?: RequestInit) =>

@@ -31,10 +31,12 @@ export function StocktakeList({
   scope,
   timeZone,
   onStart,
+  onOpen,
 }: {
   scope: PharmacyScope;
   timeZone: string;
   onStart?: () => void;
+  onOpen?: (count: PharmacyStocktakeSummary) => void;
 }) {
   const counts = usePagedQuery(pharmacyKey(scope, "stocktakes"), (cursor, signal) =>
     fetchStocktakes(scope, cursor, signal),
@@ -48,10 +50,11 @@ export function StocktakeList({
     <Panel aria-label="Stocktakes">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-semibold">Stocktakes</h2>
+          <h2 className="font-semibold">{onOpen ? "Retained stocktakes" : "Stocktakes"}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Freeze the book, record physical counts, then have an independent reviewer post the
-            differences.
+            {onOpen
+              ? "Inspect retained count status or cancel abandoned work. Starting, counting and approval require the Stock workspace."
+              : "Freeze the book, record physical counts, then have an independent reviewer post the differences."}
           </p>
         </div>
         <div className="flex gap-2">
@@ -79,7 +82,11 @@ export function StocktakeList({
           Loading stocktakes…
         </p>
       ) : counts.items.length === 0 ? (
-        <p className="mt-4 text-sm">No stocktakes yet. Start a count when this outlet is ready.</p>
+        <p className="mt-4 text-sm">
+          {onOpen
+            ? "No retained stocktakes for this outlet."
+            : "No stocktakes yet. Start a count when this outlet is ready."}
+        </p>
       ) : (
         <>
           {open && (
@@ -121,12 +128,18 @@ export function StocktakeList({
                     <td className="p-2">{formatZonedDateTime(count.started_at, timeZone)}</td>
                     <td className="p-2 tabular-nums">{count.snapshot_rows}</td>
                     <td className="p-2">
-                      <GuardedLink
-                        href={`${root}&count=${encodeURIComponent(count.id)}`}
-                        className="underline underline-offset-4"
-                      >
-                        Open stocktake {count.number}
-                      </GuardedLink>
+                      {onOpen ? (
+                        <Button variant="outline" onClick={() => onOpen(count)}>
+                          Inspect stocktake {count.number}
+                        </Button>
+                      ) : (
+                        <GuardedLink
+                          href={`${root}&count=${encodeURIComponent(count.id)}`}
+                          className="underline underline-offset-4"
+                        >
+                          Open stocktake {count.number}
+                        </GuardedLink>
+                      )}
                     </td>
                   </tr>
                 ))}

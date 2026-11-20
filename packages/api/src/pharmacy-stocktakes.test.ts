@@ -42,6 +42,33 @@ const receipt = {
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
 afterEach(() => vi.unstubAllGlobals());
 
+it("sends cancellation through the cancellation-only continuation", async () => {
+  const input = {
+    decision: "cancel" as const,
+    expected_version: 0,
+    reason: "TEST abandoned count",
+  };
+  const fetch = vi
+    .fn()
+    .mockResolvedValue(
+      json({
+        ...input,
+        extra_units_disposition: null,
+        id: command,
+        stocktake_id: take,
+        outlet_id: scope.outletId,
+        version: 1,
+        state: "cancelled",
+        adjustment_count: 0,
+        recorded_by: "TEST starter",
+        recorded_at: receipt.started_at,
+      }),
+    );
+  vi.stubGlobal("fetch", fetch);
+  await recordStocktakeDecision(scope, take, command, input);
+  expect(fetch.mock.calls[0]?.[0]).toContain(`/stocktakes/${take}/cancellations/${command}`);
+});
+
 it("recovers a matching original start from current status without writing or adopting another actor", async () => {
   const current = { ...receipt, state: "submitted", version: 2, counted_rows: 1 };
   const fetch = vi

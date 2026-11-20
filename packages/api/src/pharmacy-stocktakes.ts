@@ -139,11 +139,12 @@ export async function recordStocktakeDecision(
   input: PharmacyStocktakeDecisionInput,
 ) {
   const intent = pharmacyStocktakeDecisionInputSchema.parse(input);
+  const collection = intent.decision === "cancel" ? "cancellations" : "decisions";
   const result = checkedDecision(
     scope,
     take,
     command,
-    await apiFetch(`${root(scope, take)}/decisions/${id.parse(command)}`, {
+    await apiFetch(`${root(scope, take)}/${collection}/${id.parse(command)}`, {
       ...request(scope),
       method: "PUT",
       body: JSON.stringify(intent),

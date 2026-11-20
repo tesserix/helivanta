@@ -53,6 +53,14 @@ func readStocktakeDecision(tx *gorm.DB, tenant string, outlet, take, command uui
 }
 
 func (h *catalogueHandlers) putStocktakeDecision(c *gin.Context) {
+	h.writeStocktakeDecision(c, false)
+}
+
+func (h *catalogueHandlers) putStocktakeCancellation(c *gin.Context) {
+	h.writeStocktakeDecision(c, true)
+}
+
+func (h *catalogueHandlers) writeStocktakeDecision(c *gin.Context, cancelOnly bool) {
 	p, outlet, ok := catalogueScope(c)
 	if !ok {
 		return
@@ -71,6 +79,10 @@ func (h *catalogueHandlers) putStocktakeDecision(c *gin.Context) {
 	}
 	if !normalizeStocktakeDecision(&in) {
 		respond.Error(c, 400, "invalid_request", "Provide the current version, a reason and the appropriate quarantine evidence.")
+		return
+	}
+	if cancelOnly && in.Decision != "cancel" {
+		respond.Error(c, 400, "invalid_request", "This continuation only cancels an existing stocktake.")
 		return
 	}
 	hash, err := stocktakeHash(p.Subject, in)

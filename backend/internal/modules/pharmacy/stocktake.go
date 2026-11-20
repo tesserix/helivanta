@@ -119,6 +119,7 @@ func stocktakeRoutes(s *platform.Router, h *catalogueHandlers) {
 	s.PUT("/stocktakes/:stocktake/counts/:command", PermStockCorrect, h.putStocktakeCount)
 	s.GET("/stocktakes/:stocktake/counts/:command", PermStockRead, h.getStocktakeCount)
 	s.PUT("/stocktakes/:stocktake/decisions/:command", PermStockCorrect, h.putStocktakeDecision)
+	s.PUT("/stocktakes/:stocktake/cancellations/:command", PermStockCorrect, h.putStocktakeCancellation)
 	s.GET("/stocktakes/:stocktake/decisions/:command", PermStockRead, h.getStocktakeDecision)
 	s.GET("/stocktakes/:stocktake/register.csv", PermStockRead, h.exportStocktakeRegister)
 }

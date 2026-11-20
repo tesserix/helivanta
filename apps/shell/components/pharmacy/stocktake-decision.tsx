@@ -37,17 +37,19 @@ export function StocktakeDecision({
   take,
   onSaved,
   paused = false,
+  cancelOnly = false,
 }: {
   scope: PharmacyScope;
   take: PharmacyStocktake;
   onSaved: () => void;
   paused?: boolean;
+  cancelOnly?: boolean;
 }) {
   const [basis] = useState(take);
   const allowed: PharmacyStocktakeDecisionInput["decision"][] = [];
-  if (basis.state === "counting" && basis.counted_rows === basis.snapshot_rows)
+  if (!cancelOnly && basis.state === "counting" && basis.counted_rows === basis.snapshot_rows)
     allowed.push("submit");
-  if (basis.state === "submitted" && basis.review_relationship === "independent")
+  if (!cancelOnly && basis.state === "submitted" && basis.review_relationship === "independent")
     allowed.push("approve", "reject");
   if (basis.state === "counting" || basis.state === "submitted") allowed.push("cancel");
   const schema = pharmacyStocktakeDecisionInputSchema
@@ -145,8 +147,14 @@ export function StocktakeDecision({
     >
       <h3 className="font-semibold">Stocktake decision</h3>
       <p className="text-sm">
-        Approval posts all differences atomically. It requires an independent person who neither
-        started nor counted this stocktake. Rejection and cancellation retain the evidence.
+        {cancelOnly ? (
+          "This retained-work continuation can only cancel an existing count. It preserves all observations and cannot post stock differences."
+        ) : (
+          <>
+            Approval posts all differences atomically. It requires an independent person who neither
+            started nor counted this stocktake. Rejection and cancellation retain the evidence.
+          </>
+        )}
       </p>
       <Field
         id="stocktake-decision"

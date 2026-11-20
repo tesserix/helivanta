@@ -3,6 +3,24 @@ package pharmacy
 
 import "github.com/google/uuid"
 
+type StocktakeCountEntry struct {
+	LineID       uuid.UUID `json:"line_id" binding:"required"`
+	CountedUnits *int64    `json:"counted_units" binding:"required,min=0,max=1000000000000"`
+}
+
+type StocktakeCountInput struct {
+	ExpectedVersion *int64                `json:"expected_version" binding:"required,min=0,max=9007199254740990"`
+	Counts          []StocktakeCountEntry `json:"counts" binding:"required,min=1,max=100,dive"`
+	Reason          string                `json:"reason" binding:"required,min=1,max=500"`
+}
+
+type StocktakeStartInput struct {
+	Selection            string      `json:"selection" binding:"required,oneof=all selected"`
+	ProductIds           []uuid.UUID `json:"product_ids" binding:"required,min=0,max=100,dive"`
+	QuarantineLocationID uuid.UUID   `json:"quarantine_location_id" binding:"required"`
+	Reason               string      `json:"reason" binding:"required,min=1,max=500"`
+}
+
 type overviewStock struct {
 	LowStock int64 `json:"low_stock" binding:"min=0,max=9007199254740991"`
 	Expired  int64 `json:"expired" binding:"min=0,max=9007199254740991"`

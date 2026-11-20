@@ -12,8 +12,9 @@ pharmacies use the same outlet-scoped contract through Global API. Existing
 outlet grant are required; hospital ownership alone grants no stock authority.
 
 Planning assumptions, not measured deployment claims: one active count per
-outlet, up to 10,000 batch/location buckets, 100 count entries per command and
-100 rows per requested page. A 3,000-product outlet averaging two buckets uses
+outlet, up to 10,000 batch/location buckets, 100 count entries per command,
+500 nonzero adjustments per approval and 100 rows per requested page. Commands
+are also bounded to 64 KiB. A 3,000-product outlet averaging two buckets uses
 6,000 snapshot rows. At 10 concurrent large counts, bounded application working
 data should remain below 100 MB. Plan for 10 count commands/s across tenants,
 read:write 10:1, roughly 4 KB commands and 50 KB pages. At 200 outlets and monthly
@@ -36,15 +37,19 @@ legal retention period, professional designation or tax rule.
    snapshot, including the original product unit/version and reviewed schedule
    declaration. Later queries never recompute the book quantity.
 2. Record counted quantities as immutable, versioned commands. Missing differs
-   from zero. Differences require a reason. Every command binds its UUIDv7,
+   from zero. Each command requires a reason. Lock the submitted buckets and
+   reject any whose movement count changed since the book snapshot, including
+   edits to an earlier count. Every command binds its UUIDv7,
    original actor, expected version and normalized input; changed reuse conflicts.
 3. Submit only when every captured bucket has a count. Submission freezes the
    reviewed revision. Reject/cancel preserves the count and evidence. A new count
    is needed after cancellation; there is no destructive restart.
 4. Approval requires a current authorized person other than the starter and every
    person who recorded counts. No UI control substitutes for the server and DB
-   checks. A stale expected version or changed movement count for a captured
-   bucket refuses posting and requires a fresh count.
+   checks. A stale expected version refuses the command. A count is a sealed
+   physical observation: subsequent movements remain valid and the approved
+   difference is applied to the then-current balance, under its existing guards.
+   A shortage that would consume reserved or unavailable stock is refused.
 5. Post all nonzero differences atomically as linked `correction` movements,
    with their audit and durable outbox records. Existing correction totals retain
    their meaning. No new balance master and no financial posting are introduced.
@@ -69,8 +74,8 @@ components for actors. Backend command and subject identifiers stay internal.
 
 The count, count revisions, approval, adjustments, audit and outbox are local to
 the pharmacy database. A single transaction decides posting. Unavailable current
-authority, failed audit/outbox writes, stale stock and failed reservation checks
-leave no adjustment committed. Unavailable messaging delays outbox delivery and
+authority, failed audit/outbox writes, stale count input and failed reservation
+checks leave no adjustment committed. Unavailable messaging delays outbox delivery and
 does not repeat stock. Transport failure after commit is recovered by the same
 actor and command; another actor cannot adopt it. Reads reauthorize the exact
 tenant/outlet. Out-of-scope is 404, missing route permission 403, unavailable
@@ -78,8 +83,11 @@ authority 503, and stale/changed intent 409. No human wait holds a transaction.
 
 New stock outside the frozen buckets is not silently added to the count. The
 register identifies its snapshot time and scope; a later count covers later
-stock. Any changed captured bucket prevents approval, even if net movement is
-zero. Reservations cannot be consumed by a shortage adjustment.
+stock. Movement before a count is accepted invalidates that count input even if
+net movement is zero. Movement after an accepted count is retained: for example,
+book 100, counted 90, then sale 20 and adjustment -10 yields 70, preserving the
+sale. More than 500 differences requires smaller product selections, never a
+partial post. Reservations cannot be consumed by a shortage adjustment.
 
 ## Delivery and alternatives
 

@@ -1,6 +1,77 @@
 {
   "models": [
     {
+      "name": "StocktakeCountEntry",
+      "schema": "pharmacyStocktakeCountEntrySchema",
+      "fields": [
+        {
+          "name": "line_id",
+          "type": "uuid"
+        },
+        {
+          "name": "counted_units",
+          "type": "int64",
+          "pointer": true,
+          "min": 0,
+          "max": 1000000000000
+        }
+      ]
+    },
+    {
+      "name": "StocktakeCountInput",
+      "schema": "pharmacyStocktakeCountInputSchema",
+      "fields": [
+        {
+          "name": "expected_version",
+          "type": "int64",
+          "pointer": true,
+          "min": 0,
+          "max": 9007199254740990
+        },
+        {
+          "name": "counts",
+          "type": "[]StocktakeCountEntry",
+          "min": 1,
+          "max": 100
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 1,
+          "max": 500,
+          "trim": true
+        }
+      ]
+    },
+    {
+      "name": "StocktakeStartInput",
+      "schema": "pharmacyStocktakeStartInputSchema",
+      "fields": [
+        {
+          "name": "selection",
+          "type": "string",
+          "enum": ["all", "selected"]
+        },
+        {
+          "name": "product_ids",
+          "type": "[]uuid",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "quarantine_location_id",
+          "type": "uuid"
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 1,
+          "max": 500,
+          "trim": true
+        }
+      ]
+    },
+    {
       "name": "overviewStock",
       "schema": "pharmacyOverviewStockSchema",
       "fields": [

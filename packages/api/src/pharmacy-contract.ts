@@ -8,6 +8,30 @@ const identifier = z
     /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     "Choose a valid record.",
   );
+export const pharmacyStocktakeCountEntrySchema = z
+  .object({
+    line_id: identifier,
+    counted_units: z.number().int().min(0).max(1000000000000),
+  })
+  .strict();
+
+export const pharmacyStocktakeCountInputSchema = z
+  .object({
+    expected_version: z.number().int().min(0).max(9007199254740990),
+    counts: z.array(pharmacyStocktakeCountEntrySchema).min(1).max(100),
+    reason: z.string().trim().min(1).max(500),
+  })
+  .strict();
+
+export const pharmacyStocktakeStartInputSchema = z
+  .object({
+    selection: z.enum(["all", "selected"]),
+    product_ids: z.array(identifier).min(0).max(100),
+    quarantine_location_id: identifier,
+    reason: z.string().trim().min(1).max(500),
+  })
+  .strict();
+
 export const pharmacyOverviewStockSchema = z
   .object({
     low_stock: z.number().int().min(0).max(9007199254740991),

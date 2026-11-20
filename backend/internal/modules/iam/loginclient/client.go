@@ -339,7 +339,11 @@ type TOTPEnrollment struct {
 // The returned secret is a credential-in-waiting. This function does not
 // log it, and neither may any caller: the login handler logs the outcome
 // and the auth request id, nothing from this struct.
-func (c *Client) RegisterTOTP(ctx context.Context, sessionID string) (TOTPEnrollment, error) {
+//
+// account is the email the person signed in with, shown as the entry's
+// account name in their authenticator app; empty when only a username is
+// known. See brandTOTPURI for what is rewritten and what is not (#1765).
+func (c *Client) RegisterTOTP(ctx context.Context, sessionID, account string) (TOTPEnrollment, error) {
 	subject, err := c.sessionSubject(ctx, sessionID)
 	if err != nil {
 		return TOTPEnrollment{}, err
@@ -356,7 +360,41 @@ func (c *Client) RegisterTOTP(ctx context.Context, sessionID string) (TOTPEnroll
 		// screen; fail closed as retryable rather than show a blank QR.
 		return TOTPEnrollment{}, fmt.Errorf("POST /v2/users/%s/totp: response missing uri or secret: %w", subject.UserID, ErrUnavailable)
 	}
-	return TOTPEnrollment{URI: wire.URI, Secret: wire.Secret}, nil
+	uri, err := brandTOTPURI(wire.URI, account)
+	if err != nil {
+		return TOTPEnrollment{}, fmt.Errorf("POST /v2/users/%s/totp: %w", subject.UserID, err)
+	}
+	return TOTPEnrollment{URI: uri, Secret: wire.Secret}, nil
+}
+
+// totpIssuer is what an authenticator app shows above the code. Zitadel sends
+// its instance default ("ZITADEL") and the generated tenant-unique username,
+// which a person with a hospital and a pharmacy account cannot tell apart.
+const totpIssuer = "Helivanta"
+
+// brandTOTPURI rewrites only the display parts of Zitadel's otpauth URI: the
+// issuer (label prefix and `issuer=`) becomes Helivanta and the account label
+// becomes account, or "Helivanta account" when no email is known. Every other
+// query parameter (secret, algorithm, digits, period) is copied unchanged, so
+// the codes stay valid. Anything that is not a TOTP URI with a secret fails
+// closed as unavailable: a half-rewritten QR must never be rendered.
+func brandTOTPURI(raw, account string) (string, error) {
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme != "otpauth" || u.Host != "totp" {
+		return "", fmt.Errorf("otpauth uri is not a totp uri: %w", ErrUnavailable)
+	}
+	q := u.Query()
+	if q.Get("secret") == "" {
+		return "", fmt.Errorf("otpauth uri carries no secret: %w", ErrUnavailable)
+	}
+	if account == "" {
+		account = "Helivanta account"
+	}
+	q.Set("issuer", totpIssuer)
+	u.RawQuery = q.Encode()
+	u.Path = "/" + totpIssuer + ":" + account
+	u.RawPath = ""
+	return u.String(), nil
 }
 
 // VerifyTOTPEnrollment confirms a registered-but-unverified TOTP with its

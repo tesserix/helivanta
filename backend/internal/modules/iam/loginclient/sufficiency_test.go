@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -851,11 +852,50 @@ func TestRegisterTOTPDecodesURIAndSecret(t *testing.T) {
 	t.Cleanup(srv.Close)
 	c := New(srv.URL, "pat", srv.Client())
 
-	got, err := c.RegisterTOTP(context.Background(), "1")
+	got, err := c.RegisterTOTP(context.Background(), "1", "x@helivanta.dev")
 	require.NoError(t, err)
 	require.True(t, registered.Load(), "POST /v2/users/{id}/totp was not called")
 	require.Equal(t, "ABCD", got.Secret)
-	require.Equal(t, "otpauth://totp/ZITADEL:x@helivanta.dev?secret=ABCD&issuer=ZITADEL", got.URI)
+	// Display parts rebranded, secret untouched (#1765).
+	require.Equal(t, "otpauth://totp/Helivanta:x@helivanta.dev?issuer=Helivanta&secret=ABCD", got.URI)
+}
+
+// #1765: the authenticator entry reads "Helivanta: <email>". Only the issuer
+// and account label change; every code-bearing parameter is copied as is, and
+// a URI that is not a TOTP URI with a secret fails closed.
+func TestBrandTOTPURIRewritesOnlyTheDisplayParts(t *testing.T) {
+	zitadel := "otpauth://totp/ZITADEL:owner-dfc65e33-9d17-5672-829e-7e23209a1f69?secret=JBSWY3DPEHPK3PXP&issuer=ZITADEL&algorithm=SHA1&digits=6&period=30"
+	got, err := brandTOTPURI(zitadel, "dr.patel+qa@example.test")
+	require.NoError(t, err)
+	u, err := url.Parse(got)
+	require.NoError(t, err)
+	require.Equal(t, "otpauth", u.Scheme)
+	require.Equal(t, "totp", u.Host)
+	require.Equal(t, "/Helivanta:dr.patel+qa@example.test", u.Path)
+	// `@` and `+` are legal path characters, so Go leaves them bare (the Key
+	// URI examples do too); a space in the fallback label is what must encode.
+	require.Contains(t, got, "/Helivanta:dr.patel+qa@example.test?")
+	q := u.Query()
+	require.Equal(t, "Helivanta", q.Get("issuer"))
+	for key, want := range map[string]string{"secret": "JBSWY3DPEHPK3PXP", "algorithm": "SHA1", "digits": "6", "period": "30"} {
+		require.Equal(t, want, q.Get(key), key)
+	}
+	require.NotContains(t, got, "ZITADEL")
+	require.NotContains(t, got, "owner-")
+
+	fallback, err := brandTOTPURI(zitadel, "")
+	require.NoError(t, err)
+	require.Contains(t, fallback, "/Helivanta:Helivanta%20account?")
+
+	for name, bad := range map[string]string{
+		"hotp":        "otpauth://hotp/ZITADEL:x?secret=ABCD&counter=1",
+		"no secret":   "otpauth://totp/ZITADEL:x?issuer=ZITADEL",
+		"not otpauth": "https://example.test/totp?secret=ABCD",
+		"unparsable":  "otpauth://totp/%zz",
+	} {
+		_, err := brandTOTPURI(bad, "x@example.test")
+		require.ErrorIs(t, err, ErrUnavailable, name)
+	}
 }
 
 // A 200 without a usable uri/secret, and a 409 (verified TOTP already
@@ -864,6 +904,9 @@ func TestRegisterTOTPDecodesURIAndSecret(t *testing.T) {
 func TestRegisterTOTPFailsClosedOnBadAnswers(t *testing.T) {
 	for name, handler := range map[string]http.HandlerFunc{
 		"missing secret": func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte(`{"uri":"otpauth://x"}`)) },
+		"uri without a secret parameter": func(w http.ResponseWriter, _ *http.Request) {
+			w.Write([]byte(`{"uri":"otpauth://totp/ZITADEL:x?issuer=ZITADEL","secret":"ABCD"}`))
+		},
 		"409 already set up": func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusConflict)
 			w.Write([]byte(`{"code":6,"message":"already set up","details":[{"id":"COMMAND-do9se"}]}`))
@@ -879,7 +922,7 @@ func TestRegisterTOTPFailsClosedOnBadAnswers(t *testing.T) {
 			}))
 			t.Cleanup(srv.Close)
 			c := New(srv.URL, "pat", srv.Client())
-			got, err := c.RegisterTOTP(context.Background(), "1")
+			got, err := c.RegisterTOTP(context.Background(), "1", "")
 			require.ErrorIs(t, err, ErrUnavailable)
 			require.Empty(t, got.Secret)
 		})

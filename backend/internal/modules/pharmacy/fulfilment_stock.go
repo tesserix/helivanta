@@ -79,7 +79,7 @@ func (h *outletFulfilment) Snapshot(tx *gorm.DB, p f.AllocationPlan) (f.StockEvi
 	if err := tx.Where("tenant_id=? AND outlet_id=? AND id=?", p.OwnerTenantID, p.SourceLocationID, p.Product.ProductID).Take(&product).Error; err != nil {
 		return f.StockEvidence{}, err
 	}
-	if err := tx.Where("tenant_id=? AND outlet_id=? AND id=?", p.OwnerTenantID, p.SourceLocationID, p.Input.StockID).Take(&batch).Error; err != nil {
+	if err := tx.Select(batchColumns).Where("tenant_id=? AND outlet_id=? AND id=?", p.OwnerTenantID, p.SourceLocationID, p.Input.StockID).Take(&batch).Error; err != nil {
 		return f.StockEvidence{}, err
 	}
 	if p.Product.Owner != "pharmacy" || p.Product.Version == nil || product.Version != *p.Product.Version || product.Status != "active" || product.UnitOfIssue != p.UnitCode || batch.BatchFields.ProductID != product.ID {

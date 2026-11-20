@@ -85,7 +85,9 @@ Stock page has a low-stock view and configuration for a selected active product,
 with current issue unit, explicit disable, version conflicts and uncertain-save
 recovery. Overview links to that exact view. Names label products, never account
 IDs. Existing `pharmacy_catalogue` and `pharmacy_stock` release gates protect the
-new routes and controls. Both remain locked until their prerequisites and this
+new routes and controls. The overview API also requires Stock; its existing UI
+Reports gate already depends on Stock. Catalogue alone must never expose the
+new stock count. Both remain locked until their prerequisites and this
 slice's hosted owner, gateway, browser and release checks pass.
 
 Prove thresholds 0/equality/above, no stock, quarantine, today-expiry/local

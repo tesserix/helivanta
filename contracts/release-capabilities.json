@@ -2649,7 +2649,7 @@
     {
       "method": "GET",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/overview",
-      "capability": "pharmacy_catalogue"
+      "capability": "pharmacy_stock"
     },
     {
       "method": "GET",

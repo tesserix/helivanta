@@ -938,6 +938,10 @@ This additive implementation is protected by `pharmacy_stock`, which depends on
 `pharmacy_catalogue`. Neither capability is enabled by this change; passing the
 new tests does not constitute acceptance of all stock/catalogue features.
 
+The overview API is also gated by `pharmacy_stock`; Catalogue alone cannot
+expose its stock counts. The overview page retains its existing `pharmacy_reports`
+visibility gate, which already depends on Stock.
+
 All paths below start at
 `/v1/pharmacy/pharmacies/{pharmacy}/outlets/{outlet}`. Each request verifies the
 current principal, tenant, pharmacy and outlet grant. GET requires

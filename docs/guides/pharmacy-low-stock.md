@@ -4,7 +4,9 @@ Availability: this feature is part of the `pharmacy_stock` release capability,
 which depends on `pharmacy_catalogue`. It remains unavailable until those
 capabilities have completed their release checks and are enabled through
 [Console feature management](../runbooks/feature-flags.md). A source merge or
-passing unit test is not evidence that it is available in a tenant.
+passing unit test is not evidence that it is available in a tenant. The overview
+card additionally follows the existing Reports visibility gate, which depends
+on Stock.
 
 1. Select the pharmacy and outlet in PharmaConnect. Open **Stock → Low stock**.
 2. An outlet editor with catalogue-read, catalogue-write and stock-read permission can select an

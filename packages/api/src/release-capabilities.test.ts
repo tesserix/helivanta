@@ -68,3 +68,13 @@ it("maps pages exactly, so an unregistered path does not inherit staff access", 
   expect(capabilityForPage("/workforce-leak")).toBeUndefined();
   expect(capabilityForPage("/settings/security")).toBe("baseline");
 });
+
+it("keeps the pharmacy overview UI dependent on stock without unlocking its release", () => {
+  const page = capabilityForPage("/pharmacy");
+  expect(page).toBe("pharmacy_reports");
+  expect(releaseDefinitions.find((entry) => entry.key === page)?.dependencies).toContain(
+    "pharmacy_stock",
+  );
+  for (const key of ["pharmacy_stock", "pharmacy_catalogue"])
+    expect(releaseDefinitions.find((entry) => entry.key === key)?.eligible).toBe(false);
+});

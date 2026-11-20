@@ -234,3 +234,9 @@ func TestDisabledFutureDefinitionsDoNotBreakRollingDeployments(t *testing.T) {
 		require.ErrorIs(t, service.Refresh(t.Context()), ErrUnavailable, unknown)
 	}
 }
+
+func TestPharmacyOverviewUsesStockReleaseBoundary(t *testing.T) {
+	capability, ok := RouteCapability("GET", "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/overview")
+	require.True(t, ok)
+	require.Equal(t, "pharmacy_stock", capability, "catalogue alone must not expose inventory counts")
+}

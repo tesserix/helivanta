@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { z } from "zod";
 import {
   sendCustomerLink,
@@ -10,7 +10,10 @@ import {
   useApiQuery,
   CustomerSignupReceiptContract,
 } from "@helivanta/api";
+import { ApiError } from "@helivanta/api";
 import { Button, Field, RequestFailure, useZodForm } from "@helivanta/ui";
+import { signinForCustomerSignup } from "@/lib/signup-signin";
+import { emailRequestRefusal } from "../signup-form";
 
 type Link = { phase: "email" | "password"; userId: string; code: string };
 const passwordForm = z
@@ -27,7 +30,9 @@ export function SignupVerification() {
   const [linkStore] = useState(signupLinkStore);
   const link = useSyncExternalStore(linkStore.subscribe, linkStore.snapshot, () => undefined);
   const [completed, setCompleted] = useState<"email" | "password" | null>(null);
-  const [problem, setProblem] = useState(false);
+  // "expired": the link's code was refused, so it is spent. "policy": the
+  // identity owner refused the password itself; the link is intact (#1763).
+  const [problem, setProblem] = useState<"expired" | "policy" | null>(null);
   const progress = useApiQuery<unknown>(
     ["signup-link-status", link?.userId],
     `/auth/signup?userId=${encodeURIComponent(link?.userId ?? "")}`,
@@ -54,7 +59,10 @@ export function SignupVerification() {
       : null;
   const readyTenantId = ready?.tenantId;
   const alreadyVerified = receipt?.state === "password_action_required" || !!ready;
-  const passwordDone = completed === "password" || (link?.phase === "password" && !!ready);
+  // A completed email link also set the password (one request, #1763); only a
+  // link reopened after an earlier, separate verification still owes one.
+  const passwordDone =
+    completed === "password" || completed === "email" || (link?.phase === "password" && !!ready);
   const emailDone = completed === "email" || (link?.phase === "email" && alreadyVerified);
   useEffect(() => {
     if (
@@ -76,18 +84,25 @@ export function SignupVerification() {
       suppressErrorToast: true,
     },
   );
-  async function prove(secret?: string) {
+  // One request per link (#1763): the email link verifies the address and
+  // sets the password together, password first on the identity owner's side,
+  // so a refused password leaves the code unspent and the form retries.
+  async function prove(secret: string) {
     if (!link || !link.code) return;
-    setProblem(false);
+    setProblem(null);
     try {
       if (link.phase === "email")
-        await verify.mutateAsync({ userId: link.userId, code: link.code });
+        await verify.mutateAsync({ userId: link.userId, code: link.code, password: secret });
       else await password.mutateAsync({ userId: link.userId, code: link.code, password: secret });
       setCompleted(link.phase);
       linkStore.consume();
       void progress.refetch();
-    } catch {
-      setProblem(true);
+    } catch (error) {
+      if (error instanceof ApiError && error.code === "password_policy") {
+        setProblem("policy");
+        return;
+      }
+      setProblem("expired");
     } finally {
       form.reset();
       verify.reset();
@@ -99,7 +114,7 @@ export function SignupVerification() {
     return (
       <div className="space-y-5">
         <h1 className="text-2xl font-medium">Open your latest email link</h1>
-        <p>This link is incomplete. Open the latest verification or password setup email.</p>
+        <p>This link is incomplete. Open the most recent email from Helivanta.</p>
         <a className="underline underline-offset-4" href="/signup">
           Return to workspace setup
         </a>
@@ -125,9 +140,11 @@ export function SignupVerification() {
   if (passwordDone)
     return (
       <div className="space-y-5">
-        <h1 className="text-2xl font-medium">Your password is set</h1>
+        <h1 className="text-2xl font-medium">
+          {ready ? "Signing you in" : "Setting up your workspace"}
+        </h1>
         {ready ? (
-          <SignupLoginCountdown tenantId={ready.tenantId} />
+          <SignupSignin tenantId={ready.tenantId} />
         ) : (
           <>
             {statusFailed ? (
@@ -137,9 +154,7 @@ export function SignupVerification() {
                 retry={progress.refetch}
               />
             ) : (
-              <p role="status">
-                Preparing your workspace sign-in. Your password is set; do not use this link again.
-              </p>
+              <p role="status">This usually takes a few seconds.</p>
             )}
             <a className="underline underline-offset-4" href="/signup">
               Continue workspace setup
@@ -148,27 +163,22 @@ export function SignupVerification() {
         )}
       </div>
     );
-  if (emailDone)
+  if (emailDone && completed !== "email")
     return (
       <div className="space-y-5">
-        <h1 className="text-2xl font-medium">
-          {completed === "email" ? "Your email is verified" : "Your email is already verified"}
-        </h1>
+        <h1 className="text-2xl font-medium">Your email is already verified</h1>
         {ready ? (
-          <SignupLoginCountdown tenantId={ready.tenantId} />
+          <SignupSignin tenantId={ready.tenantId} />
         ) : (
           <>
-            <p>Request a password setup email to finish creating your login.</p>
-            <EmailDeliveryPolicy />
+            <p>Next, set your password. We&apos;ll email you a link.</p>
             <Button type="button" disabled={delivery.isPending} onClick={() => delivery.mutate()}>
-              Send password setup email
+              Send password link
             </Button>
             {delivery.isSuccess && (
-              <p role="status">
-                If this request can receive an email, a password setup link has been requested.
-              </p>
+              <p role="status">If this address can receive email, a new link is on its way.</p>
             )}
-            {delivery.error && <p role="alert">We could not request the email. Try again later.</p>}
+            {delivery.error && <p role="alert">{emailRequestRefusal(delivery.error)}</p>}
             <a className="block underline underline-offset-4" href="/signup">
               Return to workspace setup
             </a>
@@ -189,21 +199,18 @@ export function SignupVerification() {
   const pending = verify.isPending || password.isPending;
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-medium">
-        {link.phase === "email" ? "Verify your email address" : "Set your password"}
-      </h1>
-      <EmailDeliveryPolicy />
-      {problem && (
+      <h1 className="text-2xl font-medium">Set your password</h1>
+      {link.phase === "email" && <p>This also confirms your email address.</p>}
+      {problem === "expired" && (
+        <p role="alert">This link has expired or was already used. Send a new link.</p>
+      )}
+      {problem === "policy" && (
         <p role="alert">
-          This link may have expired or already been used. Check your password or request a fresh
-          email link.
+          That password doesn&apos;t meet your workspace&apos;s password rules. Try a longer one
+          with letters, numbers and a symbol.
         </p>
       )}
-      {link.phase === "email" ? (
-        <Button type="button" disabled={pending} onClick={() => void prove()}>
-          Verify email address
-        </Button>
-      ) : (
+      {
         <form
           noValidate
           className="space-y-5"
@@ -239,45 +246,51 @@ export function SignupVerification() {
             Set password
           </Button>
         </form>
-      )}
+      }
       <Button
         type="button"
         variant="outline"
         disabled={pending || delivery.isPending}
         onClick={() => delivery.mutate()}
       >
-        Request a fresh email link
+        Send a new link
       </Button>
       {delivery.isSuccess && (
-        <p role="status">If this request can receive an email, a fresh link has been requested.</p>
+        <p role="status">If this address can receive email, a new link is on its way.</p>
       )}
-      {delivery.error && <p role="alert">We could not request the email. Try again later.</p>}
+      {delivery.error && <p role="alert">{emailRequestRefusal(delivery.error)}</p>}
     </div>
   );
 }
 
-function SignupLoginCountdown({ tenantId }: { tenantId: string }) {
-  const [seconds, setSeconds] = useState(7);
-  const href = `/login?workspace=${encodeURIComponent(tenantId)}`;
+// The password was set moments ago, so sign-in starts at once (#1763 D4):
+// the scoped request for this workspace, with prompt=login, exactly what the
+// removed "Open workspace" button did. A failed start leaves a link to retry.
+function SignupSignin({ tenantId }: { tenantId: string }) {
+  const [failed, setFailed] = useState(false);
+  const started = useRef(false);
   useEffect(() => {
-    const countdown = window.setInterval(() => setSeconds((value) => Math.max(0, value - 1)), 1000);
-    const redirect = window.setTimeout(() => window.location.assign(href), 7000);
-    return () => {
-      window.clearInterval(countdown);
-      window.clearTimeout(redirect);
-    };
-  }, [href]);
-  return (
-    <div className="space-y-4">
-      <p role="status">
-        Taking you to your workspace sign-in in {seconds} seconds. Sign in and register your own
-        second factor.
-      </p>
-      <a className="underline underline-offset-4" href={href}>
-        Sign in now
-      </a>
-    </div>
-  );
+    if (started.current) return;
+    started.current = true;
+    // A synchronous throw (state parse, OIDC settings) must land in the same
+    // failed state as a rejected redirect, so the person always gets a link.
+    Promise.resolve()
+      .then(() => signinForCustomerSignup(tenantId))
+      .catch(() => setFailed(true));
+  }, [tenantId]);
+  if (failed)
+    return (
+      <div className="space-y-4">
+        <p role="alert">We couldn&apos;t open sign-in. Try again.</p>
+        <a
+          className="underline underline-offset-4"
+          href={`/login?workspace=${encodeURIComponent(tenantId)}`}
+        >
+          Sign in
+        </a>
+      </div>
+    );
+  return <p role="status">Opening sign-in…</p>;
 }
 
 function signupLinkStore() {
@@ -318,18 +331,4 @@ function signupLinkStore() {
       for (const listener of listeners) listener();
     },
   };
-}
-
-function EmailDeliveryPolicy() {
-  return (
-    <>
-      <p className="text-sm text-muted-foreground">
-        Links expire after 1 hour. If yours has expired, request a fresh email link below.
-      </p>
-      <p className="text-sm text-muted-foreground">
-        Up to 3 emails per hour and 10 per 24 hours, shared across verification and password setup.
-        Verified email addresses do not receive another verification email.
-      </p>
-    </>
-  );
 }

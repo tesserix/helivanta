@@ -204,7 +204,10 @@ select:autofill {
   line-height: 1.2;
   letter-spacing: -0.04em;
 }
-.login-content .text-center {
+/* Left-aligns the auth card's text blocks. Never an input: the code-entry
+   boxes carry text-center too, and left-aligning them put each digit and its
+   placeholder against the box's left edge (#1764). */
+.login-content .text-center:not(input) {
   text-align: left;
 }
 .login-content [data-auth-submit] {

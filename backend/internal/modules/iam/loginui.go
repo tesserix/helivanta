@@ -636,7 +636,14 @@ func (h *LoginUIHandlers) continueWithSession(c *gin.Context, authRequestID, sub
 		// failed row write is invisible to authentication_methods
 		// (verified live, design spec table) and is replaced by the next
 		// attempt's registration.
-		enrollment, err := h.client.RegisterTOTP(c.Request.Context(), session.ID)
+		// The entry's account name in the authenticator app: the email
+		// when that is what identified this sign-in, never the generated
+		// username (#1765).
+		account := ""
+		if strings.Contains(subject, "@") {
+			account = subject
+		}
+		enrollment, err := h.client.RegisterTOTP(c.Request.Context(), session.ID, account)
 		if err != nil {
 			h.respondLoginClientError(c, err, "register_totp")
 			return

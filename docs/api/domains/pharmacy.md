@@ -1071,6 +1071,9 @@ after the reviewer's explicit physical-transfer attestation. The existing
 reservation and overdraft guards remain authoritative. A narrowly linked native
 movement guard allows only the approved shortage correction outside quarantine;
 ordinary unlinked corrections retain the quarantine-only rule. Every correction
+in this review is supported by its native adjustment link; existing free-text
+source references remain valid and never create reviewed evidence on their own.
+Each reviewed correction
 is linked to its counted bucket and review command, uses the existing `correction`
 movement kind, and publishes only protected stock references through the bounded
 transactional outbox. This command does not issue a release, disposal or financial

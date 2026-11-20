@@ -259,7 +259,7 @@ CREATE FUNCTION pharmacy_stocktake_movement_matches(m pharmacy_stock_movements)R
 $$;
 CREATE FUNCTION pharmacy_stocktake_movement_guard()RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
- IF(starts_with(NEW.source_reference,'stocktake:')OR EXISTS(SELECT 1 FROM pharmacy_stocktake_adjustments WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND movement_id=NEW.id))AND NOT pharmacy_stocktake_movement_matches(NEW)THEN
+ IF EXISTS(SELECT 1 FROM pharmacy_stocktake_adjustments WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND movement_id=NEW.id)AND NOT pharmacy_stocktake_movement_matches(NEW)THEN
   RAISE EXCEPTION 'stocktake movement needs reviewed evidence' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_movement';
  END IF;
  RETURN NEW;

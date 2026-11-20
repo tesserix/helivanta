@@ -2,6 +2,7 @@ package pharmacy_test
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -144,7 +145,19 @@ func TestStocktakeIndependentApprovalPreservesLaterMovements(t *testing.T) {
 	exported := do(r, "GET", path+"/register.csv", "reader", "")
 	require.Equal(t, 200, exported.Code, exported.Body.String())
 	require.Contains(t, exported.Header().Get("Content-Type"), "text/csv")
-	require.Equal(t, "no-store", exported.Header().Get("Cache-Control"))
+	require.Contains(t, exported.Header().Get("Cache-Control"), "no-store")
+	require.Contains(t, exported.Header().Get("Cache-Control"), "private")
+	require.Equal(t, "1", exported.Header().Get("X-Export-Row-Count"))
+	require.Equal(t, fmt.Sprintf("%x", sha256.Sum256(exported.Body.Bytes())), exported.Header().Get("X-Export-Sha256"))
+	var original struct {
+		ID       string
+		OutletID string `json:"outlet_id"`
+	}
+	require.NoError(t, json.Unmarshal(created.Body.Bytes(), &original))
+	require.Equal(t, testutil.TenantA, exported.Header().Get("X-Stocktake-Tenant-Id"))
+	require.Equal(t, original.OutletID, exported.Header().Get("X-Stocktake-Outlet-Id"))
+	require.Equal(t, original.ID, exported.Header().Get("X-Stocktake-Id"))
+	require.Equal(t, "3", exported.Header().Get("X-Stocktake-Version"))
 	records, err := csv.NewReader(strings.NewReader(exported.Body.String())).ReadAll()
 	require.NoError(t, err)
 	require.Len(t, records, 2)

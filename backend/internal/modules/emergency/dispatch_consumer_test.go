@@ -125,10 +125,25 @@ func TestDispatchConsumerRejectsCompletedDescriptionWithoutRunReceipt(t *testing
 	c := &mocks.Client{}
 	c.On("ExecuteWorkflow", mock.Anything, mock.Anything, emergency.DispatchWorkflowName, in).Return(nil, nil).Once()
 	c.On("SignalWorkflow", mock.Anything, id, "", emergency.DispatchVersionSignal, int64(3)).Return(serviceerror.NewNotFound("closed")).Once()
-	c.On("DescribeWorkflowExecution", mock.Anything, id, "").Return(&workflowservice.DescribeWorkflowExecutionResponse{WorkflowExecutionInfo: &workflowpb.WorkflowExecutionInfo{Status: enums.WORKFLOW_EXECUTION_STATUS_COMPLETED}}, nil).Once()
+	c.On("DescribeWorkflow", mock.Anything, id, "").Return(&client.WorkflowExecutionDescription{RawResponse: &workflowservice.DescribeWorkflowExecutionResponse{WorkflowExecutionInfo: &workflowpb.WorkflowExecutionInfo{Status: enums.WORKFLOW_EXECUTION_STATUS_COMPLETED}}}, nil).Once()
 	history := &mocks.HistoryEventIterator{}
 	c.On("GetWorkflowHistory", mock.Anything, id, "", false, enums.HISTORY_EVENT_FILTER_TYPE_ALL_EVENT).Return(history).Maybe()
 	history.On("HasNext").Return(false).Maybe()
+	require.ErrorContains(t, emergency.DispatchConsumer(c).AfterCommit(t.Context(), evt), "reconciliation")
+	c.AssertExpectations(t)
+}
+
+func TestDispatchConsumerReconcilesWhenClosedWorkflowHasNoDescription(t *testing.T) {
+	in := emergencycontract.DispatchWorkflowInput{TenantID: testutil.TenantA, BaseID: newID(), DispatchID: newID()}
+	data, err := json.Marshal(emergencycontract.DispatchChangedData{BaseID: in.BaseID, DispatchID: in.DispatchID, Version: 4})
+	require.NoError(t, err)
+	evt := events.Event{ID: newID(), Type: emergencycontract.SubjectDispatchChanged, Version: 1, TenantID: in.TenantID, Data: data}
+	id, err := emergency.DispatchWorkflowID(in)
+	require.NoError(t, err)
+	c := &mocks.Client{}
+	c.On("ExecuteWorkflow", mock.Anything, mock.Anything, emergency.DispatchWorkflowName, in).Return(nil, nil).Once()
+	c.On("SignalWorkflow", mock.Anything, id, "", emergency.DispatchVersionSignal, int64(4)).Return(serviceerror.NewNotFound("closed")).Once()
+	c.On("DescribeWorkflow", mock.Anything, id, "").Return((*client.WorkflowExecutionDescription)(nil), nil).Once()
 	require.ErrorContains(t, emergency.DispatchConsumer(c).AfterCommit(t.Context(), evt), "reconciliation")
 	c.AssertExpectations(t)
 }
@@ -146,7 +161,7 @@ func TestDispatchConsumerAcceptsOnlyCompletedMatchingReceipts(t *testing.T) {
 			c := &mocks.Client{}
 			c.On("ExecuteWorkflow", mock.Anything, mock.Anything, emergency.DispatchWorkflowName, in).Return(nil, nil).Once()
 			c.On("SignalWorkflow", mock.Anything, id, "", emergency.DispatchVersionSignal, int64(8)).Return(serviceerror.NewNotFound("closed")).Once()
-			c.On("DescribeWorkflowExecution", mock.Anything, id, "").Return(&workflowservice.DescribeWorkflowExecutionResponse{WorkflowExecutionInfo: &workflowpb.WorkflowExecutionInfo{Status: state, Execution: &commonpb.WorkflowExecution{WorkflowId: id, RunId: run}}}, nil).Once()
+			c.On("DescribeWorkflow", mock.Anything, id, "").Return(&client.WorkflowExecutionDescription{RawResponse: &workflowservice.DescribeWorkflowExecutionResponse{WorkflowExecutionInfo: &workflowpb.WorkflowExecutionInfo{Status: state, Execution: &commonpb.WorkflowExecution{WorkflowId: id, RunId: run}}}}, nil).Once()
 			if state == enums.WORKFLOW_EXECUTION_STATUS_COMPLETED {
 				history := &mocks.HistoryEventIterator{}
 				payload, err := converter.GetDefaultDataConverter().ToPayloads(in)

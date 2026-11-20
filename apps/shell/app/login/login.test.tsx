@@ -304,6 +304,18 @@ describe("LoginPage", () => {
     expect(window.sessionStorage.getItem("helivanta.login.branding-tenant")).toBe(tenant);
   });
 
+  // The session check and the redirect start are one pending card: the same
+  // line and a spinner, never step-by-step wording.
+  it("shows one pending card while it checks the session and starts sign-in", async () => {
+    signinRedirect.mockReturnValue(new Promise(() => {}));
+    renderWithProviders(<LoginPage />);
+    await waitFor(() => expect(signinRedirect).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("status")).toHaveTextContent("Loading");
+    expect(screen.getByText("Sign in to continue.")).toBeInTheDocument();
+    expect(screen.queryByText(/Redirecting/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign in" })).not.toBeInTheDocument();
+  });
+
   describe("with no auth request (landing page)", () => {
     // Arriving here unauthenticated is the COMMON case — middleware.ts
     // redirects any unauthenticated request to /login — so the default
@@ -314,7 +326,9 @@ describe("LoginPage", () => {
     it("does not claim the user signed out when they simply arrived here", async () => {
       renderWithProviders(<LoginPage />);
       expect(screen.queryByText(/you are signed out/i)).not.toBeInTheDocument();
-      expect(await screen.findByText(/sign in to continue/i)).toBeInTheDocument();
+      // The session check and the redirect start show the same pending card,
+      // remounted between them, so wait for the text rather than hold a node.
+      await waitFor(() => expect(screen.getByText(/sign in to continue/i)).toBeInTheDocument());
     });
 
     it("confirms the sign-out when the user actually signed out", async () => {
@@ -343,7 +357,9 @@ describe("LoginPage", () => {
       first.unmount();
 
       renderWithProviders(<LoginPage />);
-      expect(await screen.findByText(/sign in to continue/i)).toBeInTheDocument();
+      // The session check and the redirect start show the same pending card,
+      // remounted between them, so wait for the text rather than hold a node.
+      await waitFor(() => expect(screen.getByText(/sign in to continue/i)).toBeInTheDocument());
     });
 
     // CRITICAL review finding: a stale SIGNED_OUT_MARK from an earlier,
@@ -365,7 +381,9 @@ describe("LoginPage", () => {
       first.unmount();
 
       renderWithProviders(<LoginPage />);
-      expect(await screen.findByText(/sign in to continue/i)).toBeInTheDocument();
+      // The session check and the redirect start show the same pending card,
+      // remounted between them, so wait for the text rather than hold a node.
+      await waitFor(() => expect(screen.getByText(/sign in to continue/i)).toBeInTheDocument());
       expect(screen.queryByText(/you are signed out/i)).not.toBeInTheDocument();
       expect(screen.queryByText(/ended after a period of inactivity/i)).not.toBeInTheDocument();
     });
@@ -379,7 +397,9 @@ describe("LoginPage", () => {
       first.unmount();
 
       renderWithProviders(<LoginPage />);
-      expect(await screen.findByText(/sign in to continue/i)).toBeInTheDocument();
+      // The session check and the redirect start show the same pending card,
+      // remounted between them, so wait for the text rather than hold a node.
+      await waitFor(() => expect(screen.getByText(/sign in to continue/i)).toBeInTheDocument());
     });
 
     // #847: the redirect must NOT fire on the arrival a sign-out causes.
@@ -1106,6 +1126,7 @@ describe("LoginPage", () => {
         const { user } = renderWithProviders(<LoginPage />);
         const button = await screen.findByRole("button", { name: "Sign in" });
         expect(signinRedirect).not.toHaveBeenCalled();
+        expect(screen.getByRole("link", { name: "Find my accounts by email" })).toBeInTheDocument();
         await user.click(button);
 
         await waitFor(() =>
@@ -1114,7 +1135,8 @@ describe("LoginPage", () => {
             state: { purpose: "email-login" },
           }),
         );
-        expect(screen.getByRole("link", { name: "Find my accounts by email" })).toBeInTheDocument();
+        // Starting the redirect replaces the landing with the pending card.
+        expect(screen.getByRole("status")).toHaveTextContent("Loading");
       });
 
       // The expired-request wording and the sign-out wording must never

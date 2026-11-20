@@ -72,6 +72,32 @@ function countIntent(input: PharmacyStocktakeCountInput) {
   });
 }
 
+function checkedCount(scope: PharmacyScope, take: string, command: string, value: unknown) {
+  const receipt = pharmacyStocktakeCountReceiptSchema.parse(value);
+  if (
+    receipt.id !== command ||
+    receipt.outlet_id !== scope.outletId ||
+    receipt.stocktake_id !== take ||
+    receipt.version !== receipt.expected_version + 1
+  )
+    throw new Error("The counted observation receipt does not match this outlet and command.");
+  return receipt;
+}
+
+export async function readStocktakeCount(
+  scope: PharmacyScope,
+  take: string,
+  command: string,
+  signal?: AbortSignal,
+) {
+  return checkedCount(
+    scope,
+    take,
+    command,
+    await apiFetch(`${root(scope, take)}/counts/${id.parse(command)}`, request(scope, signal)),
+  );
+}
+
 const decisionStates = {
   submit: "submitted",
   approve: "posted",
@@ -196,20 +222,17 @@ export async function recordStocktakeCount(
   input: PharmacyStocktakeCountInput,
 ) {
   const intent = pharmacyStocktakeCountInputSchema.parse(input);
-  const receipt = pharmacyStocktakeCountReceiptSchema.parse(
+  const receipt = checkedCount(
+    scope,
+    take,
+    command,
     await apiFetch(`${root(scope, take)}/counts/${id.parse(command)}`, {
       ...request(scope),
       method: "PUT",
       body: JSON.stringify(intent),
     }),
   );
-  if (
-    receipt.id !== command ||
-    receipt.outlet_id !== scope.outletId ||
-    receipt.stocktake_id !== take ||
-    receipt.version !== receipt.expected_version + 1 ||
-    countIntent(receipt) !== countIntent(intent)
-  )
+  if (countIntent(receipt) !== countIntent(intent))
     throw new Error("The counted observation receipt does not match this outlet and command.");
   return receipt;
 }

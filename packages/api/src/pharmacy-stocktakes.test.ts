@@ -3,6 +3,7 @@ import {
   fetchStocktakeLines,
   readStocktake,
   recordStocktakeCount,
+  readStocktakeCount,
   recordStocktakeDecision,
   readStocktakeDecision,
   fetchStocktakes,
@@ -39,6 +40,34 @@ const receipt = {
 };
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
 afterEach(() => vi.unstubAllGlobals());
+
+it("recovers the immutable count receipt and refuses another command or version", async () => {
+  const saved = {
+    id: command,
+    stocktake_id: take,
+    outlet_id: scope.outletId,
+    expected_version: 0,
+    version: 1,
+    state: "counting",
+    counts: [{ line_id: command, counted_units: 0 }],
+    reason: "TEST empty shelf",
+    recorded_by: "TEST counter",
+    recorded_at: "2026-11-20T00:00:00Z",
+  };
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(json(saved))
+    .mockResolvedValueOnce(json({ ...saved, id: take }))
+    .mockResolvedValueOnce(json({ ...saved, version: 3 }));
+  vi.stubGlobal("fetch", fetch);
+  expect(await readStocktakeCount(scope, take, command)).toEqual(saved);
+  expect(fetch.mock.calls[0]?.[0]).toContain(`/stocktakes/${take}/counts/${command}`);
+  const request = fetch.mock.calls[0]?.[1] as RequestInit;
+  expect(request.cache).toBe("no-store");
+  expect(new Headers(request.headers).get("X-Helivanta-Expected-Tenant")).toBe(scope.tenantId);
+  await expect(readStocktakeCount(scope, take, command)).rejects.toThrow(/receipt/i);
+  await expect(readStocktakeCount(scope, take, command)).rejects.toThrow(/receipt/i);
+});
 
 it("loads bounded stocktake pages and rejects wrong scope or a broken continuation", async () => {
   const summary = {

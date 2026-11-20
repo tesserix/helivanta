@@ -2,9 +2,11 @@ package pharmacy
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -84,7 +86,13 @@ func (h *catalogueHandlers) exportStocktakeRegister(c *gin.Context) {
 		stocktakeError(c, err)
 		return
 	}
-	c.Header("Cache-Control", "no-store")
+	c.Header("Cache-Control", "private, no-store")
+	c.Header("X-Export-Row-Count", strconv.FormatInt(header.SnapshotRows, 10))
+	c.Header("X-Export-Sha256", fmt.Sprintf("%x", sha256.Sum256(data)))
+	c.Header("X-Stocktake-Tenant-Id", p.TenantID)
+	c.Header("X-Stocktake-Outlet-Id", outlet.String())
+	c.Header("X-Stocktake-Id", id.String())
+	c.Header("X-Stocktake-Version", strconv.FormatInt(header.Version, 10))
 	c.Header("X-Content-Type-Options", "nosniff")
 	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="stocktake-%d-register.csv"`, header.Number))
 	c.Data(http.StatusOK, "text/csv; charset=utf-8", data)

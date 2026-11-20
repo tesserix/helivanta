@@ -249,6 +249,7 @@ export {
   startStocktake,
   readStocktake,
   recordStocktakeCount,
+  readStocktakeCount,
   fetchStocktakeLines,
   fetchStocktakes,
   recordStocktakeDecision,

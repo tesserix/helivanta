@@ -1,6 +1,7 @@
 package pharmacy_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,7 +11,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/testutil"
@@ -251,4 +254,49 @@ func TestReorderSharedAvailabilityAtLocalMidnightAndSafetyBlock(t *testing.T) {
 	rows := lowProducts(t, w.r)
 	require.Len(t, rows, 1)
 	require.Equal(t, "0", rows[0].Available, "an incident blocks the lot even on the released shelf")
+}
+
+func TestReorderAuditFailureRollsBackAndOriginalCommandCanRecover(t *testing.T) {
+	r, db := catalogueHarness(t)
+	grantCatalogue(t, r, "user-editor", "editor")
+	product, _, _ := stockFixture(t, r)
+	command := uuid.Must(uuid.NewV7()).String()
+	path := productPath(product) + "/reorder-levels/" + command
+	input := reorderBody("5", 0, 1)
+	require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_reorder_audit_fault", SQL: `CREATE FUNCTION test_reorder_audit_fault()RETURNS trigger LANGUAGE plpgsql AS $$BEGIN IF NEW.resource_type='pharmacy_reorder_levels'THEN RAISE EXCEPTION 'synthetic private audit dependency failed';END IF;RETURN NEW;END $$;CREATE TRIGGER test_reorder_audit_fault BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION test_reorder_audit_fault();`}}))
+	restore := func() {
+		require.NoError(t, db.Migrate(context.WithoutCancel(t.Context()), []tenantdb.Migration{{ID: "test_reorder_audit_restore", SQL: `DROP TRIGGER test_reorder_audit_fault ON audit_events;DROP FUNCTION test_reorder_audit_fault();`}}))
+	}
+	t.Cleanup(restore)
+	failed := do(r, "PUT", path, "editor", input)
+	require.Equal(t, 500, failed.Code, failed.Body.String())
+	require.NotContains(t, failed.Body.String(), "synthetic private audit dependency")
+	require.Equal(t, 404, do(r, "GET", path, "editor", "").Code)
+	current := do(r, "GET", productPath(product)+"/reorder-level", "editor", "")
+	require.Equal(t, 200, current.Code, current.Body.String())
+	require.JSONEq(t, `{"level":null}`, current.Body.String())
+	restore()
+	recovered := do(r, "PUT", path, "editor", input)
+	require.Equal(t, 200, recovered.Code, recovered.Body.String())
+	replay := do(r, "PUT", path, "editor", input)
+	require.Equal(t, 200, replay.Code, replay.Body.String())
+	require.JSONEq(t, recovered.Body.String(), replay.Body.String())
+	tamper := db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec("SELECT set_config('app.pharmacy_subject','user-editor',true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)", pharmaOutlet, pharmaOrganization).Error; err != nil {
+			return err
+		}
+		return tx.Exec("UPDATE pharmacy_reorder_levels SET minimum_units=6 WHERE tenant_id=? AND outlet_id=? AND id=?", testutil.TenantA, pharmaOutlet, command).Error
+	})
+	var pg *pgconn.PgError
+	require.ErrorAs(t, tamper, &pg)
+	require.Equal(t, "23514", pg.Code)
+	require.JSONEq(t, recovered.Body.String(), do(r, "GET", path, "editor", "").Body.String())
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		var n int64
+		if err := tx.Table("audit_events").Where("resource_type='pharmacy_reorder_levels' AND resource_id=?", command).Count(&n).Error; err != nil {
+			return err
+		}
+		require.Equal(t, int64(1), n, "only the recovered committed revision has an audit record")
+		return nil
+	}))
 }

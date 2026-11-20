@@ -1,7 +1,8 @@
-import { screen, within, waitFor } from "@testing-library/react";
+import { act, screen, within, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { NavigationGuardProvider } from "@helivanta/ui";
 import { renderWithProviders } from "@helivanta/api/testing";
+import { focusManager } from "@tanstack/react-query";
 import { LowStockPanel } from "./low-stock-panel";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -13,6 +14,7 @@ const scope = {
 const product = {
   id: "0199e000-0000-7000-8000-000000000002",
   version: 1,
+  outlet_id: scope.outletId,
   brand_name: "TEST Medicine",
   sku: "TEST-MED",
   unit_of_issue: "capsule",
@@ -20,7 +22,10 @@ const product = {
 };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  focusManager.setFocused(undefined);
+});
 function renderPanel(configure = false) {
   return renderWithProviders(
     <NavigationGuardProvider>
@@ -44,6 +49,8 @@ it("distinguishes unconfigured products from a zero-availability warning", async
 });
 it("recovers an uncertain committed save by the original command, without a second write", async () => {
   let receipt: Record<string, unknown> | null = null;
+  let latest: Record<string, unknown> | null = null;
+  let levelReads = 0;
   const writes: string[] = [];
   vi.stubGlobal(
     "fetch",
@@ -59,10 +66,15 @@ it("recovers an uncertain committed save by the original command, without a seco
           unit_of_issue: product.unit_of_issue,
           recorded_at: "2026-11-20T00:00:00Z",
         };
+        latest = receipt;
         throw new TypeError("TEST connection lost after commit");
       }
       if (url.includes("/reorder-levels/")) return json(receipt);
-      if (url.endsWith("/reorder-level")) return json({ level: receipt });
+      if (url.endsWith("/reorder-level")) {
+        levelReads++;
+        return json({ level: latest });
+      }
+      if (url.endsWith(`/catalogue/products/${product.id}`)) return json(product);
       if (url.includes("/catalogue/products")) return json(page([product]));
       if (url.includes("/stock/low-products"))
         return json(
@@ -75,7 +87,7 @@ it("recovers an uncertain committed save by the original command, without a seco
                     sku: product.sku,
                     brand_name: product.brand_name,
                     unit_of_issue: product.unit_of_issue,
-                    minimum_units: 0,
+                    minimum_units: Number(latest?.minimum_units ?? 0),
                     available_units: "0",
                     observed_at: "2026-11-20T00:00:00Z",
                     local_date: "2026-11-20",
@@ -97,12 +109,66 @@ it("recovers an uncertain committed save by the original command, without a seco
   await user.click(screen.getByRole("button", { name: "Save reorder level" }));
   expect(await screen.findByText(/save could not be confirmed/)).toBeVisible();
   expect(enabled).toBeDisabled();
-  await user.click(screen.getByRole("button", { name: "Check saved result" }));
+  latest = Object.assign({}, receipt, {
+    id: "0199e000-0000-7000-8000-000000000009",
+    minimum_units: 8,
+    expected_version: 1,
+    version: 2,
+  });
+  await act(async () => {
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+  });
+  await waitFor(() => expect(levelReads).toBeGreaterThan(1));
+  await user.click(await screen.findByRole("button", { name: "Check saved result" }));
   const list = within(screen.getByRole("region", { name: "Low stock" }));
   expect(await list.findByText("TEST Medicine")).toBeVisible();
-  expect(list.getAllByText("0 capsule")).toHaveLength(2);
+  expect(list.getAllByText("0 capsule")).toHaveLength(1);
+  expect(list.getByText("8 capsule")).toBeVisible();
   await waitFor(() =>
     expect(screen.getByRole("checkbox", { name: "Enable low-stock warning" })).toBeEnabled(),
   );
+  expect(await screen.findByText(/Newer product or reorder values/)).toBeVisible();
+  expect(screen.getByRole("button", { name: "Save reorder level" })).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "Reload current values" }));
+  await waitFor(() =>
+    expect(screen.getByRole("textbox", { name: "Minimum (capsule)" })).toHaveValue("8"),
+  );
   expect(writes).toHaveLength(1);
+});
+
+it("refreshes availability explicitly when stock changes outside this page", async () => {
+  let calls = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => {
+      calls++;
+      return json(
+        page(
+          calls === 1
+            ? []
+            : [
+                {
+                  id: product.id,
+                  outlet_id: scope.outletId,
+                  sku: product.sku,
+                  brand_name: product.brand_name,
+                  unit_of_issue: product.unit_of_issue,
+                  minimum_units: 10,
+                  available_units: "4",
+                  observed_at: "2026-11-20T00:00:00Z",
+                  local_date: "2026-11-20",
+                  time_zone: "Asia/Kolkata",
+                },
+              ],
+        ),
+      );
+    }),
+  );
+  const { user } = renderPanel();
+  expect(await screen.findByText(/No low-stock warnings/)).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "Refresh low-stock warnings" }));
+  const list = within(screen.getByRole("region", { name: "Low stock" }));
+  expect(await list.findByText("TEST Medicine")).toBeVisible();
+  expect(list.getByText("4 capsule")).toBeVisible();
 });

@@ -13,7 +13,8 @@ passing unit test is not evidence that it is available in a tenant.
    unit. Zero means warn when none is available. Save the reorder level.
 4. Products whose available quantity is at or below the minimum appear in the
    list. Products with no batches can appear with zero. The overview's
-   **Low-stock products** link opens this same scoped view.
+   **Low-stock products** link opens this same scoped view. Use **Refresh low-stock
+   warnings** to update availability after stock changes elsewhere.
 5. To stop a warning, select the product, clear **Enable low-stock warning**, and
    save. The previous configuration remains in accountable history.
 
@@ -24,7 +25,10 @@ An unconfigured product is not counted. If a product's unit changes before it
 has any batches, its previous minimum is inactive and must be confirmed again
 in the new unit.
 
-If a save conflicts, reload the current product and level before editing. If a
+Background refreshes retain unsaved values and pending commands. If newer values
+arrive, confirm any pending command first, then use **Reload current values**
+before another change. If a save conflicts, reload the current product and level
+before editing. If a
 save cannot be confirmed, keep the form open and choose **Check saved result**.
 Only an authoritative not-found response offers **Retry original change**, which
 uses the same command and input. A request failure is never shown as an empty

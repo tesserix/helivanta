@@ -54,7 +54,10 @@ Writes serialize on the product row; a database trigger enforces revision sequen
 current product version/unit, scope and actor. Revision, audit and receipt are one
 transaction. Ambiguous saves retain the exact command/input; recovery reads that
 command before any resubmission. Authoritative 404 offers an explicit identical
-retry, never a fresh command. Every request reauthorizes. No stock movement or
+retry, never a fresh command. Background refreshes cannot replace an editing baseline or
+unmount a pending command. After a confirmed save, a newer server revision
+requires an explicit reload of the product and level before editing again. Every
+request reauthorizes. No stock movement or
 event is created by configuring a level.
 
 ## Capacity and failure behavior

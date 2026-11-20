@@ -167,3 +167,11 @@ describe("OverviewTiles", () => {
     expect(screen.queryByRole("region", { name: "Setup gaps" })).toBeNull();
   });
 });
+
+it("does not present a missing low-stock projection as a count or link", async () => {
+  serve({ overview: { ...full, stock: { expired: 1, due_30: 2, due_90: 4 } } });
+  renderWithProviders(<OverviewTiles scope={scope} outlet={outlet} />);
+  expect(await screen.findByText("Low-stock count unavailable.")).toBeVisible();
+  expect(screen.queryByRole("link", { name: /Low-stock products/ })).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: /Within 30 days/ })).toContainHTML("2");
+});

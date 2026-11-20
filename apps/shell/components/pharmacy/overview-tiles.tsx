@@ -111,11 +111,17 @@ export function OverviewTiles({ scope, outlet }: { scope: PharmacyScope; outlet:
             <>
               {data.stock && (
                 <Tile title="Stock alerts" note="Low-stock products and stock lines nearing expiry">
-                  <Count
-                    value={data.stock.low_stock}
-                    label="Low-stock products"
-                    href={`/pharmacy/stock?view=low&pharmacy=${encodeURIComponent(scope.pharmacyId)}&outlet=${encodeURIComponent(scope.outletId)}`}
-                  />
+                  {Number.isSafeInteger(data.stock.low_stock) && data.stock.low_stock >= 0 ? (
+                    <Count
+                      value={data.stock.low_stock}
+                      label="Low-stock products"
+                      href={`/pharmacy/stock?view=low&pharmacy=${encodeURIComponent(scope.pharmacyId)}&outlet=${encodeURIComponent(scope.outletId)}`}
+                    />
+                  ) : (
+                    <p role="status" className="px-2 py-1.5 text-sm text-muted-foreground">
+                      Low-stock count unavailable.
+                    </p>
+                  )}
                   <Count
                     value={data.stock.expired}
                     label="Expired"

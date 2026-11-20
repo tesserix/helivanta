@@ -6,6 +6,8 @@ import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import {
   ApiError,
+  apiFetch,
+  pharmacyProductFieldsSchema,
   formatZonedDateTime,
   fetchLowStockPage,
   newPharmacyId,
@@ -27,6 +29,7 @@ import {
   LoadMore,
   Panel,
   RequestFailure,
+  RefreshButton,
   SelectControl,
   useConfirmLeave,
   useLeaveGuard,
@@ -46,7 +49,14 @@ export function LowStockPanel({
   return (
     <div className="flex flex-col gap-5">
       <Panel aria-label="Low stock">
-        <h2 className="font-semibold">Low stock</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-semibold">Low stock</h2>
+          {!stock.isPending && !stock.error && (
+            <RefreshButton refresh={stock.retry} error={stock.error} busy={stock.isRefreshing}>
+              Refresh low-stock warnings
+            </RefreshButton>
+          )}
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">
           Active products at or below their configured minimum. Available stock excludes quarantine,
           expired or blocked lots and supplier reservations. This view does not place orders.
@@ -171,22 +181,33 @@ function LevelEditor({ scope, product }: { scope: PharmacyScope; product: Pharma
     queryFn: ({ signal }) => readReorderLevel(scope, product.id, signal),
     staleTime: 0,
   });
-  if (level.error)
-    return (
-      <RequestFailure
-        message="The current reorder level could not be loaded."
-        retry={() => void level.refetch()}
-        error={level.error}
-      />
-    );
-  if (level.isPending) return <p role="status">Loading reorder level…</p>;
+  if (level.data === undefined) {
+    if (level.error)
+      return (
+        <RequestFailure
+          message="The current reorder level could not be loaded."
+          retry={() => void level.refetch()}
+          error={level.error}
+        />
+      );
+    return <p role="status">Loading reorder level…</p>;
+  }
   return (
-    <LevelForm
-      key={`${product.version}:${level.data?.version ?? 0}`}
-      scope={scope}
-      product={product}
-      current={level.data}
-    />
+    <>
+      {level.error && (
+        <RequestFailure
+          message="The current reorder level could not be loaded. Your pending change is retained."
+          retry={() => void level.refetch()}
+          error={level.error}
+        />
+      )}
+      <LevelForm
+        scope={scope}
+        product={product}
+        current={level.data}
+        unavailable={Boolean(level.error)}
+      />
+    </>
   );
 }
 
@@ -213,16 +234,20 @@ function LevelForm({
   scope,
   product,
   current,
+  unavailable,
 }: {
   scope: PharmacyScope;
   product: PharmacyProduct;
   current: PharmacyReorderLevelReceipt | null;
+  unavailable: boolean;
 }) {
   const client = useQueryClient();
-  const valid = current !== null && current.unit_of_issue === product.unit_of_issue;
+  const [basis, setBasis] = useState(() => ({ product, current }));
+  const baseline = basis.current;
+  const valid = baseline !== null && baseline.unit_of_issue === basis.product.unit_of_issue;
   const form = useZodForm(levelFormSchema, {
-    enabled: valid && current?.minimum_units !== null,
-    minimum: valid && current?.minimum_units !== null ? String(current.minimum_units) : "",
+    enabled: valid && baseline?.minimum_units !== null,
+    minimum: valid && baseline?.minimum_units !== null ? String(baseline.minimum_units) : "",
   });
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -232,11 +257,13 @@ function LevelForm({
     if (
       receipt.minimum_units !== submitted.input.minimum_units ||
       receipt.expected_version !== submitted.input.expected_version ||
-      receipt.product_version !== submitted.input.product_version
+      receipt.product_version !== submitted.input.product_version ||
+      receipt.unit_of_issue !== basis.product.unit_of_issue
     )
       throw new Error(
         "The saved result does not match this change. Keep the form open and contact support.",
       );
+    setBasis({ product: basis.product, current: receipt });
     setAttempt(null);
     setNotFound(false);
     setSaved(true);
@@ -269,7 +296,45 @@ function LevelForm({
     },
     retry: false,
   });
-  const busy = save.isPending || recover.isPending;
+  const reload = useMutation({
+    mutationFn: async () => {
+      const [fresh, latest] = await Promise.all([
+        apiFetch<PharmacyProduct>(`${pharmacyRoot(scope)}/catalogue/products/${product.id}`, {
+          headers: { "X-Helivanta-Expected-Tenant": scope.tenantId },
+          signal: AbortSignal.timeout(15000),
+          cache: "no-store",
+        }),
+        readReorderLevel(scope, product.id),
+      ]);
+      const fields = pharmacyProductFieldsSchema
+        .pick({ brand_name: true, unit_of_issue: true })
+        .strip()
+        .parse(fresh);
+      if (
+        fresh.id !== product.id ||
+        fresh.outlet_id !== scope.outletId ||
+        !Number.isSafeInteger(fresh.version) ||
+        fresh.version < 1
+      )
+        throw new Error(
+          "The product does not match this outlet. Reload the workspace before editing.",
+        );
+      const active =
+        latest?.unit_of_issue === fields.unit_of_issue && latest.minimum_units !== null;
+      setBasis({ product: { ...fresh, ...fields }, current: latest });
+      form.reset({ enabled: active, minimum: active ? String(latest.minimum_units) : "" });
+      setAttempt(null);
+      setNotFound(false);
+      setSaved(false);
+      save.reset();
+      recover.reset();
+      await invalidate();
+    },
+    retry: false,
+  });
+  const busy = save.isPending || recover.isPending || reload.isPending;
+  const changed =
+    product.version > basis.product.version || (current?.version ?? 0) > (baseline?.version ?? 0);
   useLeaveGuard(
     form.formState.isDirty || attempt !== null,
     `reorder level for ${product.brand_name}`,
@@ -277,18 +342,24 @@ function LevelForm({
   );
   const conflict = save.error instanceof ApiError && save.error.status === 409;
   const enabled = form.watch("enabled");
+  if (unavailable)
+    return (
+      <p role="status">
+        Editing is paused until the current level is available. Your pending change is retained.
+      </p>
+    );
   return (
     <form
       noValidate
       className="mt-5 flex max-w-xl flex-col gap-4"
       onSubmit={form.handleSubmit((values) => {
-        if (attempt || busy) return;
+        if (attempt || busy || changed) return;
         const next = {
           command: newPharmacyId(),
           input: {
             minimum_units: values.enabled ? Number(values.minimum) : null,
-            expected_version: current?.version ?? 0,
-            product_version: product.version,
+            expected_version: baseline?.version ?? 0,
+            product_version: basis.product.version,
           },
         };
         setSaved(false);
@@ -297,7 +368,7 @@ function LevelForm({
         save.mutate(next);
       })}
     >
-      {current && !valid && (
+      {baseline && !valid && (
         <p role="status">
           The product unit changed. The previous minimum is inactive; save a new minimum in{" "}
           {product.unit_of_issue}.
@@ -314,7 +385,7 @@ function LevelForm({
       </label>
       <Field
         id="reorder-minimum"
-        label={`Minimum (${product.unit_of_issue})`}
+        label={`Minimum (${basis.product.unit_of_issue})`}
         error={form.formState.errors.minimum?.message}
       >
         <Input
@@ -334,16 +405,7 @@ function LevelForm({
               : "The save could not be confirmed. Check its saved result before changing or resending it."}
           </p>
           {conflict ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setAttempt(null);
-                save.reset();
-                form.reset();
-                void invalidate();
-              }}
-            >
+            <Button type="button" variant="outline" onClick={() => reload.mutate()} disabled={busy}>
               Reload current values
             </Button>
           ) : (
@@ -375,6 +437,21 @@ function LevelForm({
           )}
         </div>
       )}
+      {changed && !attempt && (
+        <div role="status" className="text-sm">
+          <p>Newer product or reorder values are available. Reload them before another change.</p>
+          <Button type="button" variant="outline" onClick={() => reload.mutate()} disabled={busy}>
+            Reload current values
+          </Button>
+        </div>
+      )}
+      {reload.error && (
+        <RequestFailure
+          message="Current product and reorder values could not be reloaded. Your draft is retained."
+          retry={() => reload.mutate()}
+          error={reload.error}
+        />
+      )}
       {recover.error && (
         <RequestFailure
           message="The saved result could not be checked. Your original change is retained."
@@ -383,7 +460,10 @@ function LevelForm({
         />
       )}
       {saved && <p role="status">Reorder level saved.</p>}
-      <Button type="submit" disabled={busy || attempt !== null || !form.formState.isDirty}>
+      <Button
+        type="submit"
+        disabled={busy || changed || attempt !== null || !form.formState.isDirty}
+      >
         {busy ? "Checking…" : "Save reorder level"}
       </Button>
     </form>

@@ -31,15 +31,12 @@ test("reopened verified email shows password setup without reusing its code", as
   expect(new URL(page.url()).hash).toBe("");
 });
 
-test("password setup redirects only to its confirmed workspace after seven seconds", async ({
-  page,
-}) => {
+// #1763 D4: once the workspace is ready the page starts the pinned sign-in at
+// once, with prompt=login and max_age=0, instead of a seven-second countdown.
+test("password setup starts its confirmed workspace's sign-in at once", async ({ page }) => {
   const tenantId = "11111111-1111-4111-8111-111111111111";
   let passwordSet = false;
   let workspaceReady = false;
-  const frozen = new Date("2026-11-12T00:00:00Z");
-  await page.clock.install({ time: new Date(frozen.getTime() - 60000) });
-  await page.clock.pauseAt(frozen);
   await page.route("**/api/v1/auth/signup?userId=*", (route) =>
     route.fulfill({
       status: 200,
@@ -65,16 +62,14 @@ test("password setup redirects only to its confirmed workspace after seven secon
       body: JSON.stringify({ state: "provisioning" }),
     });
   });
-  await page.route(`**/login?workspace=${tenantId}`, (route) =>
-    route.fulfill({ status: 200, contentType: "text/html", body: "<h1>Workspace sign-in</h1>" }),
+  await page.route("**/oauth/v2/authorize?**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: "<p>Captured sign-in request</p>",
+    }),
   );
   await page.goto("/signup/verify#phase=password&userId=owner-synthetic&code=one-use-proof");
-  await expect
-    .poll(async () => {
-      await page.clock.runFor(1);
-      return page.getByLabel("New password", { exact: true }).count();
-    })
-    .toBe(1);
   await page.getByLabel("New password", { exact: true }).fill("Synthetic-password-only-42!");
   await page.getByLabel("Confirm password", { exact: true }).fill("Synthetic-password-only-42!");
   const preparing = page.waitForResponse(
@@ -84,39 +79,18 @@ test("password setup redirects only to its confirmed workspace after seven secon
   );
   await page.getByRole("button", { name: "Set password", exact: true }).click();
   await preparing;
-  await expect
-    .poll(async () => {
-      await page.clock.runFor(1);
-      return page.getByRole("status").textContent();
-    })
-    .toContain("Preparing your workspace sign-in");
-  await expect(page.getByRole("link", { name: "Sign in now" })).toHaveCount(0);
-  workspaceReady = true;
-  const ready = page.waitForResponse(
-    async (response) =>
-      response.url().includes("/api/v1/auth/signup?userId=") &&
-      (await response.json()).state === "ready",
-  );
-  // Let the readiness poll run before measuring the separate login countdown.
-  await page.clock.runFor(4000);
-  await ready;
-  await expect
-    .poll(async () => {
-      await page.clock.runFor(1);
-      return page.getByRole("link", { name: "Sign in now" }).count();
-    })
-    .toBe(1);
-  await expect(page.getByRole("heading", { name: "Your password is set" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Sign in now" })).toHaveAttribute(
-    "href",
-    `/login?workspace=${tenantId}`,
-  );
-  await expect(page.getByRole("status")).toContainText("7 seconds");
-  await page.clock.runFor(6000);
+  await expect(page.getByRole("heading", { name: "Setting up your workspace" })).toBeVisible();
   expect(new URL(page.url()).pathname).toBe("/signup/verify");
-  await page.clock.runFor(1000);
-  await expect(page).toHaveURL(new RegExp(`/login\\?workspace=${tenantId}$`));
-  await expect(page.getByRole("heading", { name: "Workspace sign-in" })).toBeVisible();
+  workspaceReady = true;
+  const authorize = page.waitForRequest(
+    (request) => new URL(request.url()).pathname === "/oauth/v2/authorize",
+  );
+  const url = new URL((await authorize).url());
+  expect(url.searchParams.get("scope")?.split(" ")).toContain(
+    `urn:zitadel:iam:org:id:helivanta-${tenantId}`,
+  );
+  expect(url.searchParams.get("prompt")).toBe("login");
+  expect(url.searchParams.get("max_age")).toBe("0");
 });
 
 test("new tenant signup requires its own account instead of adopting another organisation's user", async ({
@@ -317,7 +291,10 @@ test("expired email proof offers a new verification link without up-front delive
   await expect(page.getByText(/emails per hour/)).toHaveCount(0);
   await expect.poll(() => new URL(page.url()).hash).toBe("");
   expect(deliveries).toEqual([]);
-  await page.getByRole("button", { name: "Verify email" }).click();
+  // #1763: the email link opens the password form; submitting it is the proof.
+  await page.getByLabel("New password", { exact: true }).fill("Synthetic-password-only-42!");
+  await page.getByLabel("Confirm password", { exact: true }).fill("Synthetic-password-only-42!");
+  await page.getByRole("button", { name: "Set password", exact: true }).click();
   await expect(page.getByRole("alert").filter({ hasText: "This link has expired" })).toHaveText(
     "This link has expired or was already used. Send a new link.",
   );

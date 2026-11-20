@@ -2,6 +2,7 @@ package pharmacy_test
 
 import (
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -137,6 +138,53 @@ func TestStocktakeIndependentApprovalPreservesLaterMovements(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(balance.Body.Bytes(), &stock))
 	require.Equal(t, int64(13), stock.Units)
+	exported := do(r, "GET", path+"/register.csv", "reader", "")
+	require.Equal(t, 200, exported.Code, exported.Body.String())
+	require.Contains(t, exported.Header().Get("Content-Type"), "text/csv")
+	require.Equal(t, "no-store", exported.Header().Get("Cache-Control"))
+	records, err := csv.NewReader(strings.NewReader(exported.Body.String())).ReadAll()
+	require.NoError(t, err)
+	require.Len(t, records, 2)
+	register := map[string]string{}
+	for i, field := range records[0] {
+		register[field] = records[1][i]
+	}
+	require.Equal(t, "1", register["stocktake_number"])
+	require.Equal(t, "posted", register["stocktake_state"])
+	require.Equal(t, "3", register["stocktake_version"])
+	require.Equal(t, "10", register["book_units"])
+	require.Equal(t, "8", register["counted_units"])
+	require.Equal(t, "-2", register["difference_units"])
+	require.Equal(t, "-2", register["adjustment_units"])
+	require.Equal(t, "unknown", register["register_section"])
+	require.Equal(t, "user-reviewer", register["counted_by_reference"])
+	require.Equal(t, "user-approver", register["approved_by_reference"])
+	movement, err := uuid.Parse(register["adjustment_movement_id"])
+	require.NoError(t, err)
+	require.Equal(t, uuid.Version(7), movement.Version())
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		var count int64
+		if err := tx.Table("outbox_events").Where("payload->'data'->>'movement_id'=?", movement.String()).Count(&count).Error; err != nil {
+			return err
+		}
+		require.Equal(t, int64(1), count)
+		return nil
+	}))
+	positions := do(r, "GET", outletPath("/stock/positions.csv?as_of=")+time.Now().UTC().Format(time.RFC3339Nano), "reader", "")
+	require.Equal(t, 200, positions.Code, positions.Body.String())
+	parts, err := csv.NewReader(strings.NewReader(positions.Body.String())).ReadAll()
+	require.NoError(t, err)
+	require.Len(t, parts, 2)
+	position := map[string]string{}
+	for i, field := range parts[0] {
+		position[field] = parts[1][i]
+	}
+	require.Equal(t, "13", position["on_hand_units"])
+	require.Equal(t, "-2", position["correction_units"])
+	for _, actor := range []string{"sibling", "foreign"} {
+		require.Equal(t, 404, do(r, "GET", path+"/register.csv", actor, "").Code)
+	}
+	require.Equal(t, 403, do(r, "GET", path+"/register.csv", "denied", "").Code)
 	require.Equal(t, 409, do(r, "PUT", path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "approver", strings.Replace(approvalInput, `"expected_version":2`, `"expected_version":3`, 1)).Code)
 	creationReplay := do(r, "PUT", path, "editor", start)
 	require.Equal(t, 200, creationReplay.Code, creationReplay.Body.String())

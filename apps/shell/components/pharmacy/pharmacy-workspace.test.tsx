@@ -192,6 +192,30 @@ function mockPharmacy(
   return fetcher;
 }
 
+it("lets outlet readers recover stocktake outcomes without access-management permission", async () => {
+  const scope = {
+    tenantId: "11111111-1111-1111-1111-111111111111",
+    subject: "TEST-editor",
+    pharmacyId: pharmacy,
+    outletId: outlet,
+  };
+  retainStocktakeCommand(scope, {
+    kind: "count",
+    stocktakeId: "0199e000-0000-7000-8000-0000000000aa",
+    commandId: "0199e000-0000-7000-8000-0000000000ab",
+  });
+  const fetcher = mockPharmacy("reader");
+  renderWorkspace("stocktake-recovery");
+  expect(await screen.findByRole("button", { name: "Check original count result" })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Start stocktake" })).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Cancel retained stocktake" }),
+  ).not.toBeInTheDocument();
+  expect(
+    fetcher.mock.calls.some(([url]) => /\/lines|register\.csv|\/stock\/positions/.test(url)),
+  ).toBe(false);
+});
+
 it("shows private catalogue identity and clears rows when switching outlet", async () => {
   const fetcher = mockPharmacy();
   const { user } = renderWorkspace("catalogue");

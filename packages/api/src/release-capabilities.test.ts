@@ -80,6 +80,7 @@ it("keeps the pharmacy overview UI dependent on stock without unlocking its rele
 });
 
 it("keeps outlet setup reachable for retained-work recovery independently of Stock and Reports", () => {
+  expect(capabilityForPage("/pharmacy/stocktake-recovery")).toBe("pharmacy_setup");
   const page = capabilityForPage("/pharmacy/setup");
   expect(page).toBe("pharmacy_setup");
   const definition = releaseDefinitions.find((entry) => entry.key === page)!;

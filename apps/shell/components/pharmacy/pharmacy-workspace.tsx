@@ -35,6 +35,7 @@ import { BusinessProfilePanel } from "../organization/business-profile";
 import { PharmacyRegistrySetup } from "./pharmacy-registry-setup";
 import { StockOverview } from "./stock-overview";
 import { StockWorkspace } from "./stock-workspace";
+import { StocktakeContinuations } from "./stocktake-continuations";
 import { BatchSafety } from "./batch-safety";
 import { OutletsSetup } from "./outlets-setup";
 import { CounterSale } from "./counter-sale";
@@ -57,6 +58,7 @@ type PharmacyView =
   | "daily-report"
   | "h1-register"
   | "prescription-register"
+  | "stocktake-recovery"
   | "stock-overview"
   | "stock"
   | "supplier-orders"
@@ -76,6 +78,7 @@ const DESCRIPTIONS: Record<PharmacyView, string> = {
     "Each Schedule H1 supply and its returns, as recorded at the sale, for inspection.",
   "prescription-register":
     "Every Schedule G, H and H1 supply on a prescription and its returns, for inspection.",
+  "stocktake-recovery": "Inspect retained count outcomes or cancel unfinished work at this outlet.",
   "stock-overview": "Stock, expiry and recorded purchase value across your accessible outlets.",
   stock: "What each outlet holds, by product and batch, with reconciliation and export.",
   "supplier-orders":
@@ -425,6 +428,17 @@ function OutletPharmacy({
           retry={access.refetch}
           error={access.error}
         />
+      ) : view === "stocktake-recovery" ? (
+        can("pharmacy.stock.read") ? (
+          <StocktakeContinuations
+            key={subject}
+            scope={{ ...scope, subject }}
+            timeZone={outlet.timezone}
+            canCancel={access.data?.level === "editor" && can("pharmacy.stock.correct")}
+          />
+        ) : (
+          <p>You do not have permission to read stock.</p>
+        )
       ) : view === "setup" ? null : view === "overview" ? (
         <OverviewTiles scope={scope} outlet={outlet} />
       ) : view === "counter" ? (

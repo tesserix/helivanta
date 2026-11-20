@@ -59,11 +59,21 @@ test("count an outlet, require independent review and download the verified regi
         if (status === "quarantine") {
           await expect(page.getByText(/The save could not be confirmed/)).toBeVisible();
           await page.unroute(countRequests);
+          const stocktakeUrl = page.url();
+          const recoveryUrl = new URL(stocktakeUrl);
+          recoveryUrl.pathname = "/pharmacy/stocktake-recovery";
+          recoveryUrl.searchParams.delete("count");
+          recoveryUrl.searchParams.delete("view");
           page.once("dialog", (dialog) => dialog.accept());
+          await page.goto(recoveryUrl.toString());
           await page.reload();
           await page.getByRole("button", { name: "Check original count result" }).click();
           await expect(page.getByText(/Original physical count was recorded/)).toBeVisible();
           await page.getByRole("button", { name: "Acknowledge saved result" }).click();
+          await expect(
+            page.getByRole("heading", { name: "Pending stocktake outcomes" }),
+          ).toHaveCount(0);
+          await page.goto(stocktakeUrl);
         }
         await expect(page.getByText(new RegExp(`${completed} of 2 buckets counted`))).toBeVisible();
       }

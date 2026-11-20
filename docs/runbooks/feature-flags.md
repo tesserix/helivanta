@@ -86,6 +86,17 @@ The other 16 definitions are release locked: `pharmacy_catalogue`, `pharmacy_sto
 `billing_workspace` and `unreleased`. Do not turn on stock, supplier fulfilment,
 receiving, financial or advanced Staff workflows as a shortcut to MVP testing.
 
+### Retained pharmacy stocktakes
+
+The **Retained stocktakes** page uses `pharmacy_setup`, independently of Stock
+and Reports. It requires stock-read permission, the existing pharmacy directory
+access and the selected outlet's current grant. Ordinary stock staff do not need
+access-management authority. Managers also have recovery in an opened outlet's
+**Outlets & access** detail. These continuations can inspect retained status and
+original outcomes; cancellation additionally needs correction permission and an
+outlet editor grant. They cannot start a count, change quantities, approve
+adjustments or export inventory while Stock is disabled.
+
 ### Pending Staff authenticator recovery control
 
 Policy `2026-11-19-r1` adds `staff_mfa_recovery`, dependent on `staff_core` and

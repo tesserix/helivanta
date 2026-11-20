@@ -5790,6 +5790,10 @@
       "capability": "pharmacy_staff"
     },
     {
+      "path": "/pharmacy/stocktake-recovery",
+      "capability": "pharmacy_setup"
+    },
+    {
       "path": "/pharmacy/stock",
       "capability": "pharmacy_stock"
     },

@@ -92,10 +92,15 @@ keyed by verified tenant, actor, pharmacy and outlet. Markers contain only kind,
 stocktake UUID and command UUID; never quantities, reasons, names or credentials.
 Persist and verify a marker before dispatch; if persistence is unavailable, do
 not send the command. Exact retries reuse it. Successful confirmation clears only
-the matching marker. The retained-work panel lives in the opened outlet detail in **Outlets &
-access** (`/pharmacy/setup`), independently of Stock and Reports. It binds to that
-opened outlet, not the parent working-outlet selection. It can inspect original
-outcomes even with Stock off and verifies the original actor before acknowledging a result.
+the matching marker. The retained-work page (`/pharmacy/stocktake-recovery`) uses the existing
+`pharmacy_setup` capability and `pharmacy.stock.read`, independently of Stock and
+Reports. Ordinary stock staff do not need access-management authority. It reuses
+bounded organization/outlet selectors and the current outlet grant check; no
+new service, data owner or business API is introduced. Its existing reads remain
+paginated, private and fail closed on unavailable identity or authorization. The
+same panel also lives in the opened outlet detail in **Outlets & access** for
+managers. There it binds to that opened outlet, not the parent working-outlet
+selection. It can inspect original outcomes even with Stock off and verifies the original actor before acknowledging a result.
 An explicitly dismissed not-found result remains unknown, not a claimed failure;
 refresh current state before further commands. Existing active-count uniqueness,
 version, terminal-state and command-identity guards still decide every race.

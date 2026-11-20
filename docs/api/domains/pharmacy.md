@@ -1157,10 +1157,14 @@ The sealed-count list/header and original count/decision receipt reads are
 baseline continuations. Their product authorization and read audit remain in
 force even when Stock is off. The cancellation-only path is also baseline; the
 general decision path, start, count entry, snapshot-line reads and CSV export
-remain Stock-gated. The selected outlet's detail in **Outlets & access** (`/pharmacy/setup`) hosts
-the **Retained stocktakes** panel. This page is independent of Stock and Reports;
-the overview is not a recovery entry point. The panel uses the opened detail's
-outlet, which can differ from the working outlet. It reads status and offers
+remain Stock-gated. The **Retained stocktakes** page (`/pharmacy/stocktake-recovery`) is classified
+under `pharmacy_setup` and requires stock-read permission plus the existing
+pharmacy directory and outlet authority. It remains reachable to stock staff who
+cannot manage access. Read-only outlet staff cannot cancel; correction permission
+and a current editor grant are required. Managers also have the same panel in the
+selected outlet's **Outlets & access** (`/pharmacy/setup`) detail. Both pages are independent of Stock and Reports;
+the overview is not a recovery entry point. The panel uses the selected page's outlet or the opened setup detail's outlet, which can differ
+from the working outlet. It reads status and offers
 cancellation only. A displayed cancellation action still needs
 the server's current outlet editor check; a route permission is not a scope grant.
 The panel never fetches live stock, snapshot lines or an operational catalogue.

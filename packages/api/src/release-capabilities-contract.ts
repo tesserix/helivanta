@@ -200,6 +200,7 @@ export const releasePages = [
   { path: "/pharmacy/sales", capability: "pharmacy_counter" },
   { path: "/pharmacy/setup", capability: "pharmacy_setup" },
   { path: "/pharmacy/staff", capability: "pharmacy_staff" },
+  { path: "/pharmacy/stocktake-recovery", capability: "pharmacy_setup" },
   { path: "/pharmacy/stock", capability: "pharmacy_stock" },
   { path: "/pharmacy/stock-overview", capability: "pharmacy_stock" },
   { path: "/pharmacy/supplier-orders", capability: "supplier_collaboration" },

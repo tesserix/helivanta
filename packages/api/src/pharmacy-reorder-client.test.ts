@@ -35,7 +35,7 @@ it("pins the command and scope and rejects a receipt for another product", async
   expect(JSON.parse(request.body as string)).toEqual(input);
   await expect(saveReorderLevel(scope, product, command, input)).rejects.toThrow(/receipt/i);
 });
-it("keeps exact large quantities and rejects a foreign outlet page", async () => {
+it("keeps exact quantities and rejects a foreign outlet page", async () => {
   const row = {
     id: product,
     outlet_id: scope.outletId,
@@ -60,27 +60,25 @@ it("keeps exact large quantities and rejects a foreign outlet page", async () =>
 it("rejects unsafe quantities before displaying a low-stock page", async () => {
   vi.stubGlobal(
     "fetch",
-    vi
-      .fn()
-      .mockResolvedValue(
-        json({
-          data: [
-            {
-              id: product,
-              outlet_id: scope.outletId,
-              sku: "TEST",
-              brand_name: "TEST",
-              unit_of_issue: "tablet",
-              minimum_units: 10,
-              available_units: -1,
-              observed_at: "2026-11-20T00:00:00Z",
-              local_date: "2026-11-20",
-              time_zone: "Asia/Kolkata",
-            },
-          ],
-          page: { has_more: false, next_cursor: null },
-        }),
-      ),
+    vi.fn().mockResolvedValue(
+      json({
+        data: [
+          {
+            id: product,
+            outlet_id: scope.outletId,
+            sku: "TEST",
+            brand_name: "TEST",
+            unit_of_issue: "tablet",
+            minimum_units: 10,
+            available_units: -1,
+            observed_at: "2026-11-20T00:00:00Z",
+            local_date: "2026-11-20",
+            time_zone: "Asia/Kolkata",
+          },
+        ],
+        page: { has_more: false, next_cursor: null },
+      }),
+    ),
   );
   await expect(fetchLowStockPage(scope, null)).rejects.toThrow();
 });

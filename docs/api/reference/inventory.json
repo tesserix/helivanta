@@ -5807,7 +5807,7 @@
         },
         {
           "id": "0052_pharmacy_reorder_levels",
-          "sql_sha256": "0b577f7378c32428f63cda73c86b177a4f8a29e56a3e99c3b51de3fcb173f9d7",
+          "sql_sha256": "d8fe63ee7699048c47f6265f37a16d5e98c5ba44edb52a082d807553ae5a2819",
           "creates_tables": [
             "pharmacy_reorder_levels"
           ]

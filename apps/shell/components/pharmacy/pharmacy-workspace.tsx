@@ -494,7 +494,11 @@ function OutletPharmacy({
           scope={scope}
           timeZone={outlet.timezone}
           defaultCurrency={countryProfile(outlet.country_code)?.currency ?? ""}
-          writable={access.data?.level === "editor" && can("pharmacy.catalogue.write")}
+          writable={
+            access.data?.level === "editor" &&
+            can("pharmacy.catalogue.read") &&
+            can("pharmacy.catalogue.write")
+          }
           countryCode={outlet.country_code}
           canManageTax={access.data?.level === "editor" && can("pharmacy.tax.manage")}
           canDeclarePrice={access.data?.level === "editor" && can("pharmacy.price_control.declare")}
@@ -511,7 +515,11 @@ function OutletPharmacy({
         <StockWorkspace
           scope={scope}
           timeZone={outlet.timezone}
-          canConfigure={access.data?.level === "editor" && can("pharmacy.catalogue.write")}
+          canConfigure={
+            access.data?.level === "editor" &&
+            can("pharmacy.catalogue.read") &&
+            can("pharmacy.catalogue.write")
+          }
         />
       ) : view === "safety" ? (
         <BatchSafety scope={scope} timeZone={outlet.timezone} />

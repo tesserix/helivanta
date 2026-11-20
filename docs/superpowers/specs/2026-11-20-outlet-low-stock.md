@@ -70,7 +70,9 @@ separate requests can legitimately differ after stock/configuration changes.
 
 Authorization, database and audit dependencies are critical and fail closed.
 No external network calls occur under locks. Additive migration 0052 creates
-only owned configuration history/indexes; no existing data is backfilled or
+owned configuration history and its restrictive governance-purpose policies. It
+verifies the existing purpose-integrity fingerprint before extending it for the
+new table, preserving native location-choice isolation; no existing data is backfilled or
 reinterpreted. Roll back application readers/writers while retaining history.
 No destructive down migration is appropriate for accountable configuration.
 

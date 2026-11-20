@@ -19,9 +19,11 @@ import (
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
+type reorderLevelRequest reorderLevelInput
+
 // UnmarshalJSON distinguishes an explicit disable from an accidentally omitted level.
-func (in *reorderLevelInput) UnmarshalJSON(data []byte) error {
-	type wire reorderLevelInput
+func (in *reorderLevelRequest) UnmarshalJSON(data []byte) error {
+	type wire reorderLevelRequest
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal(data, &fields); err != nil {
 		return err
@@ -135,10 +137,11 @@ func (h *catalogueHandlers) putReorderLevel(c *gin.Context) {
 		respond.Error(c, 400, "invalid_request", "invalid reorder command")
 		return
 	}
-	var in reorderLevelInput
-	if !decodeCatalogue(c, &in) {
+	var request reorderLevelRequest
+	if !decodeCatalogue(c, &request) {
 		return
 	}
+	in := reorderLevelInput(request)
 	var result reorderLevel
 	err = h.transaction(c.Request.Context(), p, outlet, true, func(tx *gorm.DB) error {
 		var item catalogueProduct

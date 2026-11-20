@@ -959,10 +959,14 @@ exact integer-string available units, observed instant, outlet-local date and
 timezone. UI labels use names and SKUs. No patient or Staff profile is disclosed.
 
 Configuration history is append-only and audited in its write transaction.
+Migration 0052 also installs the standard restrictive operating-choice policies
+on this table and extends the integrity fingerprint only after the existing
+fingerprint passes. Adding a table must not disable native location choices or
+allow a governance-selection purpose to read or modify stock configuration.
 Writes serialize on the product row; a database trigger checks active product,
 product version/unit, actor and next revision. Repeating the same command, input
 and actor returns its original receipt. Changed reuse and stale product/level
-versions return 409 `version_conflict`. Missing/invalid fields return 400;
+versions return 409 `conflict`. Missing/invalid fields return 400;
 permission denial is 403 and inaccessible scoped objects are 404. No event,
 stock movement, payable or order is created.
 

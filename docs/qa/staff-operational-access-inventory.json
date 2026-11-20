@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "registry_sha256": "88dfaee8abc90bc7eae50109a1c075535769eab74d221fcb568b0a12f19b613b",
+  "registry_sha256": "27ffc80a966e6133a370ac8e86db7d2cf78b9c5ce78193873039d63d566c1cb1",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
     "total": 1165,
@@ -8651,7 +8651,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/reorder_levels.go",
-            "sha256": "221275c2ef6ecd8513594d01df735ddc888ac6a4211178b4962d2dcfc9de7e34",
+            "sha256": "7d7e70c7ed6958f198133d970a9042631f6573c63b089a5382c78481aa3be019",
             "symbol": "func reorderRoutes("
           },
           {
@@ -8695,7 +8695,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/reorder_levels.go",
-            "sha256": "221275c2ef6ecd8513594d01df735ddc888ac6a4211178b4962d2dcfc9de7e34",
+            "sha256": "7d7e70c7ed6958f198133d970a9042631f6573c63b089a5382c78481aa3be019",
             "symbol": "func reorderRoutes("
           },
           {
@@ -9659,7 +9659,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/reorder_levels.go",
-            "sha256": "221275c2ef6ecd8513594d01df735ddc888ac6a4211178b4962d2dcfc9de7e34",
+            "sha256": "7d7e70c7ed6958f198133d970a9042631f6573c63b089a5382c78481aa3be019",
             "symbol": "func reorderRoutes("
           },
           {
@@ -10852,7 +10852,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/reorder_levels.go",
-            "sha256": "221275c2ef6ecd8513594d01df735ddc888ac6a4211178b4962d2dcfc9de7e34",
+            "sha256": "7d7e70c7ed6958f198133d970a9042631f6573c63b089a5382c78481aa3be019",
             "symbol": "func reorderRoutes("
           },
           {

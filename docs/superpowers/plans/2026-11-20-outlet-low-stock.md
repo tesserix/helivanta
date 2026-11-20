@@ -17,5 +17,6 @@
    behavior before closing the issue. Continue #1686 only after #1685 acceptance.
 
 Status: owner API, configuration migration, generated contracts, SDK, UI and tests
-implemented. Local input and consumer tests pass. Hosted database/E2E, full local
-build checks, review and release acceptance are pending; #1685 remains open.
+implemented. Local input, API (1,503), shell (2,171) and consumer tests pass. Local
+Go build/vet/lint and configured Next build pass. Hosted database/E2E, review
+and release acceptance are pending; #1685 remains open.

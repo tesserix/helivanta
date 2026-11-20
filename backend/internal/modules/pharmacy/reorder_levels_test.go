@@ -115,7 +115,21 @@ func TestReorderScopeReplayConcurrencyAndHistory(t *testing.T) {
 			return err
 		}
 		require.Equal(t, int64(3), counts.Revisions)
+
 		require.Equal(t, counts.Revisions, counts.Audits)
+		var supported bool
+		if err := tx.Raw("SELECT pharmacy_operating_choice_support()").Scan(&supported).Error; err != nil {
+			return err
+		}
+		require.True(t, supported, "adding stock configuration preserves the native location-choice security inventory")
+		if err := tx.Exec("SELECT set_config('app.pharmacy_operating_choices','{}',true)").Error; err != nil {
+			return err
+		}
+		var disclosed int64
+		if err := tx.Table("pharmacy_reorder_levels").Where("product_id=?", product).Count(&disclosed).Error; err != nil {
+			return err
+		}
+		require.Zero(t, disclosed, "a governance-selection purpose cannot inherit ordinary stock configuration reads")
 		return nil
 	}))
 	// The read and identical replay both reauthorize after an outlet grant changes.

@@ -7,7 +7,7 @@ capabilities have completed their release checks and are enabled through
 passing unit test is not evidence that it is available in a tenant.
 
 1. Select the pharmacy and outlet in PharmaConnect. Open **Stock → Low stock**.
-2. An outlet editor with catalogue-write and stock-read permission can select an
+2. An outlet editor with catalogue-read, catalogue-write and stock-read permission can select an
    active product under **Configure reorder level**. Readers can view warnings.
 3. Enable the warning and enter a whole-number minimum in the displayed issue
    unit. Zero means warn when none is available. Save the reorder level.

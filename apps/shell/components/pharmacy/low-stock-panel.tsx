@@ -91,7 +91,7 @@ export function LowStockPanel({
                     <td className="p-2">
                       {formatZonedDateTime(row.observed_at, row.time_zone)}
                       <span className="block text-xs text-muted-foreground">
-                        Expiry date: {row.local_date} · {row.time_zone}
+                        Outlet date: {row.local_date} · {row.time_zone}
                       </span>
                     </td>
                   </tr>
@@ -104,6 +104,7 @@ export function LowStockPanel({
           hasMore={stock.hasMore}
           isLoading={stock.isFetchingMore}
           onClick={stock.loadMore}
+          label="Load more warnings"
         />
       </Panel>
       {canConfigure && (
@@ -155,6 +156,7 @@ function LevelChooser({ scope }: { scope: PharmacyScope }) {
             hasMore={products.hasMore}
             isLoading={products.isFetchingMore}
             onClick={products.loadMore}
+            label="Load more products"
           />
         </>
       )}
@@ -317,6 +319,7 @@ function LevelForm({
       >
         <Input
           id="reorder-minimum"
+          maxLength={10}
           inputMode="numeric"
           {...form.register("minimum")}
           disabled={!enabled || busy || attempt !== null}

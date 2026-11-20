@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "d576577fdad88bb99d8d503970aa0faafa0b6f197307135b39747d3e405791da",
+  "registry_sha256": "9116b8f52e4d406add3bd5474abda1fa6c1adb7a9417e85fdfe8f97800dfd5f8",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1175,
-    "unclassified": 1024
+    "total": 1177,
+    "unclassified": 1026
   },
   "entries": [
     {
@@ -9621,6 +9621,22 @@
       "review": null
     },
     {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/holds/:hold",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/holds/:hold",
+        "permission": "pharmacy.stock.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/locations",
       "kind": "http",
       "module": "pharmacy",
@@ -11300,6 +11316,22 @@
         "method": "PUT",
         "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/corrections/:id",
         "permission": "pharmacy.stock.correct",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/holds/:hold",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "PUT",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/holds/:hold",
+        "permission": "pharmacy.stock.quarantine",
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,

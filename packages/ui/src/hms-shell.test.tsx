@@ -1038,6 +1038,7 @@ describe("expandable navigation", () => {
       "Inventory",
       "Stock across outlets",
       "Stock on hand",
+      "Retained stocktakes",
       "Receiving",
       "Expiry & safety",
       "Product catalogue",

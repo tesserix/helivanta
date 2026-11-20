@@ -6,13 +6,13 @@ import { Button, Input } from "@tesserix/web";
 import {
   ApiError,
   newPharmacyId,
-  pharmacyKey,
+  stocktakeKey,
   pharmacyRoot,
   pharmacyStocktakeStartInputSchema,
   startStocktake,
   recoverStocktakeStart,
   useApiPagedQuery,
-  type PharmacyScope,
+  type PharmacyStocktakeScope,
   type PharmacyLocation,
   type PharmacyProduct,
   type PharmacyStocktakeStartInput,
@@ -27,6 +27,12 @@ import {
   useLeaveGuard,
   useZodForm,
 } from "@helivanta/ui";
+
+import {
+  retainStocktakeCommand,
+  forgetStocktakeCommand,
+  StocktakeRecoveryError,
+} from "./stocktake-recovery";
 
 const schema = pharmacyStocktakeStartInputSchema.superRefine((value, ctx) => {
   if (value.selection === "selected" && value.product_ids.length === 0)
@@ -48,7 +54,7 @@ export function StocktakeStart({
   scope,
   onStarted,
 }: {
-  scope: PharmacyScope;
+  scope: PharmacyStocktakeScope;
   onStarted: (take: PharmacyStocktake) => void;
 }) {
   const form = useZodForm(schema, {
@@ -63,12 +69,12 @@ export function StocktakeStart({
     cache: "no-store" as const,
   };
   const locations = useApiPagedQuery<PharmacyLocation>(
-    pharmacyKey(scope, "stocktake-locations"),
+    stocktakeKey(scope, "stocktake-locations"),
     `${pharmacyRoot(scope)}/stock/locations`,
     { request },
   );
   const products = useApiPagedQuery<PharmacyProduct>(
-    pharmacyKey(scope, "stocktake-products"),
+    stocktakeKey(scope, "stocktake-products"),
     `${pharmacyRoot(scope)}/catalogue/products`,
     { request, enabled: selected },
   );
@@ -76,14 +82,21 @@ export function StocktakeStart({
   const [notFound, setNotFound] = useState(false);
   const [saved, setSaved] = useState(false);
   const complete = (take: PharmacyStocktake) => {
+    forgetStocktakeCommand(scope, { kind: "start", stocktakeId: take.id, commandId: take.id });
     setAttempt(null);
     setSaved(true);
     form.reset();
     onStarted(take);
   };
   const save = useMutation({
-    mutationFn: async (value: Attempt) =>
-      complete(await startStocktake(scope, value.command, value.input)),
+    mutationFn: async (value: Attempt) => {
+      retainStocktakeCommand(scope, {
+        kind: "start",
+        stocktakeId: value.command,
+        commandId: value.command,
+      });
+      complete(await startStocktake(scope, value.command, value.input));
+    },
     retry: false,
   });
   const recover = useMutation({
@@ -103,6 +116,7 @@ export function StocktakeStart({
     retry: false,
   });
   const busy = save.isPending || recover.isPending;
+  const retentionFailed = save.error instanceof StocktakeRecoveryError;
   const unavailable =
     locations.isPending ||
     locations.isRefreshing ||
@@ -231,20 +245,27 @@ export function StocktakeStart({
         {attempt && save.error && (
           <div role="alert" className="space-y-2 text-sm">
             <p>
-              The start could not be confirmed. Your original scope and command are retained. Check
-              for the count before retrying.
+              {retentionFailed
+                ? "No start request was sent because its recovery reference could not be retained. Check browser storage or resolve pending results before retrying."
+                : "The start could not be confirmed. Your original scope and command are retained. Check for the count before retrying."}
             </p>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={busy}
-              onClick={() => recover.mutate()}
-            >
-              Check started count
-            </Button>
-            {notFound && (
+            {!retentionFailed && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={() => recover.mutate()}
+              >
+                Check started count
+              </Button>
+            )}
+            {(notFound || retentionFailed) && (
               <>
-                <p>The count was not found. Retry the same start without changing its scope.</p>
+                <p>
+                  {retentionFailed
+                    ? "Retry the same start after recovery storage is available."
+                    : "The count was not found. Retry the same start without changing its scope."}
+                </p>
                 <Button
                   type="button"
                   disabled={busy}

@@ -12,6 +12,7 @@ import {
 } from "./index";
 
 const scope = {
+  subject: "TEST stocktake actor",
   tenantId: "0199e000-0000-7000-8000-0000000000aa",
   pharmacyId: "0199e000-0000-7000-8000-000000000010",
   outletId: "0199e000-0000-7000-8000-000000000001",
@@ -29,7 +30,7 @@ const receipt = {
   id: take,
   outlet_id: scope.outletId,
   number: 1,
-  started_by: "TEST starter",
+  started_by: scope.subject,
   started_at: "2026-11-20T00:00:00Z",
   snapshot_rows: 1,
   counted_rows: 0,
@@ -42,28 +43,61 @@ const receipt = {
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
 afterEach(() => vi.unstubAllGlobals());
 
+it.each(["start", "count", "decision"] as const)(
+  "refuses a %s write receipt recorded by another account",
+  async (kind) => {
+    const count = {
+      expected_version: 0,
+      counts: [{ line_id: command, counted_units: 0 }],
+      reason: "TEST zero",
+    };
+    const decision = { decision: "submit" as const, expected_version: 0, reason: "TEST complete" };
+    const value =
+      kind === "start"
+        ? { ...receipt, started_by: "TEST another account" }
+        : {
+            ...(kind === "count" ? count : decision),
+            id: command,
+            stocktake_id: take,
+            outlet_id: scope.outletId,
+            version: 1,
+            state: kind === "count" ? "counting" : "submitted",
+            adjustment_count: 0,
+            recorded_by: "TEST another account",
+            recorded_at: receipt.started_at,
+          };
+    if (kind === "count") delete (value as Record<string, unknown>).adjustment_count;
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(value)));
+    const write =
+      kind === "start"
+        ? startStocktake(scope, take, input)
+        : kind === "count"
+          ? recordStocktakeCount(scope, take, command, count)
+          : recordStocktakeDecision(scope, take, command, decision);
+    await expect(write).rejects.toThrow(/receipt/i);
+  },
+);
+
 it("sends cancellation through the cancellation-only continuation", async () => {
   const input = {
     decision: "cancel" as const,
     expected_version: 0,
     reason: "TEST abandoned count",
   };
-  const fetch = vi
-    .fn()
-    .mockResolvedValue(
-      json({
-        ...input,
-        extra_units_disposition: null,
-        id: command,
-        stocktake_id: take,
-        outlet_id: scope.outletId,
-        version: 1,
-        state: "cancelled",
-        adjustment_count: 0,
-        recorded_by: "TEST starter",
-        recorded_at: receipt.started_at,
-      }),
-    );
+  const fetch = vi.fn().mockResolvedValue(
+    json({
+      ...input,
+      extra_units_disposition: null,
+      id: command,
+      stocktake_id: take,
+      outlet_id: scope.outletId,
+      version: 1,
+      state: "cancelled",
+      adjustment_count: 0,
+      recorded_by: scope.subject,
+      recorded_at: receipt.started_at,
+    }),
+  );
   vi.stubGlobal("fetch", fetch);
   await recordStocktakeDecision(scope, take, command, input);
   expect(fetch.mock.calls[0]?.[0]).toContain(`/stocktakes/${take}/cancellations/${command}`);
@@ -93,7 +127,7 @@ it("recovers the immutable count receipt and refuses another command or version"
     state: "counting",
     counts: [{ line_id: command, counted_units: 0 }],
     reason: "TEST empty shelf",
-    recorded_by: "TEST counter",
+    recorded_by: scope.subject,
     recorded_at: "2026-11-20T00:00:00Z",
   };
   const fetch = vi
@@ -107,6 +141,7 @@ it("recovers the immutable count receipt and refuses another command or version"
   const request = fetch.mock.calls[0]?.[1] as RequestInit;
   expect(request.cache).toBe("no-store");
   expect(new Headers(request.headers).get("X-Helivanta-Expected-Tenant")).toBe(scope.tenantId);
+  expect(new Headers(request.headers).get("X-Helivanta-Expected-Subject")).toBe(scope.subject);
   await expect(readStocktakeCount(scope, take, command)).rejects.toThrow(/receipt/i);
   await expect(readStocktakeCount(scope, take, command)).rejects.toThrow(/receipt/i);
 });
@@ -117,7 +152,7 @@ it("loads bounded stocktake pages and rejects wrong scope or a broken continuati
     id: take,
     outlet_id: scope.outletId,
     number: 1,
-    started_by: "TEST starter",
+    started_by: scope.subject,
     started_at: "2026-11-20T00:00:00Z",
     snapshot_rows: 1,
     state: "counting",
@@ -153,7 +188,7 @@ it("retains a review command and recovers its original receipt after later revis
     version: 2,
     state: "submitted",
     adjustment_count: 0,
-    recorded_by: "TEST starter",
+    recorded_by: scope.subject,
     recorded_at: "2026-11-20T00:00:00Z",
   };
   const fetch = vi
@@ -203,6 +238,7 @@ it("pins a start to its tenant, outlet, command and normalized intent", async ()
   );
   const request = fetch.mock.calls[0]?.[1] as RequestInit;
   expect(new Headers(request.headers).get("X-Helivanta-Expected-Tenant")).toBe(scope.tenantId);
+  expect(new Headers(request.headers).get("X-Helivanta-Expected-Subject")).toBe(scope.subject);
   expect(JSON.parse(request.body as string)).toEqual(input);
   await expect(startStocktake(scope, take, input)).rejects.toThrow(/receipt/i);
 });
@@ -220,7 +256,7 @@ it("rejects a count receipt with another command or different physical quantitie
     outlet_id: scope.outletId,
     version: 1,
     state: "counting",
-    recorded_by: "TEST counter",
+    recorded_by: scope.subject,
     recorded_at: "2026-11-20T00:00:00Z",
   };
   const fetch = vi

@@ -35,7 +35,6 @@ import { BusinessProfilePanel } from "../organization/business-profile";
 import { PharmacyRegistrySetup } from "./pharmacy-registry-setup";
 import { StockOverview } from "./stock-overview";
 import { StockWorkspace } from "./stock-workspace";
-import { StocktakeContinuations } from "./stocktake-continuations";
 import { BatchSafety } from "./batch-safety";
 import { OutletsSetup } from "./outlets-setup";
 import { CounterSale } from "./counter-sale";
@@ -401,15 +400,6 @@ function OutletPharmacy({
   return (
     <>
       <p className="mb-4 text-xs text-muted-foreground">Times are in {outlet.timezone}.</p>
-      {view === "overview" && can("pharmacy.stock.read") && (
-        <div className="mb-5">
-          <StocktakeContinuations
-            scope={scope}
-            timeZone={outlet.timezone}
-            canCancel={can("pharmacy.stock.correct")}
-          />
-        </div>
-      )}
       {view === "supplier-orders" ? (
         ownership === "hospital_owned" ? (
           <p>Use the hospital department workspace for a hospital-owned pharmacy source.</p>
@@ -524,6 +514,7 @@ function OutletPharmacy({
       ) : view === "stock" ? (
         <StockWorkspace
           scope={scope}
+          subject={subject}
           timeZone={outlet.timezone}
           canCount={access.data?.level === "editor" && can("pharmacy.stock.correct")}
           canConfigure={

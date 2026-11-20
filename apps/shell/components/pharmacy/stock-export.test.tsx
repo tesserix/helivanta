@@ -5,6 +5,7 @@ import { renderWithProviders } from "@helivanta/api/testing";
 import { StockExport } from "./stock-export";
 
 const scope = {
+  subject: "TEST-viewer",
   tenantId: "11111111-1111-1111-1111-111111111111",
   pharmacyId: "0199e000-0000-7000-8000-000000000010",
   outletId: "0199e000-0000-7000-8000-000000000001",

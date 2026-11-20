@@ -6,6 +6,7 @@ import type { PharmacyStocktake, PharmacyStocktakeLine } from "@helivanta/api";
 import { StocktakeCountEditor } from "./stocktake-count-editor";
 
 const scope = {
+  subject: "TEST-viewer",
   tenantId: "0199e000-0000-7000-8000-0000000000aa",
   pharmacyId: "0199e000-0000-7000-8000-000000000010",
   outletId: "0199e000-0000-7000-8000-000000000001",
@@ -56,7 +57,11 @@ const line: PharmacyStocktakeLine = {
   snapshotted_at: take.started_at,
 };
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  sessionStorage.clear();
+});
 function panel() {
   const saved = vi.fn();
   return {
@@ -69,6 +74,20 @@ function panel() {
   };
 }
 
+it("does not send a physical count when its recovery reference cannot be retained", async () => {
+  const fetch = vi.fn().mockResolvedValue(json({ error: "TEST unexpected request" }, 503));
+  vi.stubGlobal("fetch", fetch);
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new DOMException("TEST quota", "QuotaExceededError");
+  });
+  const { user } = panel();
+  await user.type(screen.getByRole("textbox", { name: "Physical count (tablet)" }), "0");
+  await user.type(screen.getByRole("textbox", { name: "Count reason" }), "TEST empty shelf");
+  await user.click(screen.getByRole("button", { name: "Save physical count" }));
+  await screen.findByText(/No count request was sent/i);
+  expect(fetch).not.toHaveBeenCalled();
+});
+
 it("keeps an untouched count blank and records an explicit physical zero", async () => {
   const fetch = vi.fn(async (_url: string, init?: RequestInit) => {
     const input = JSON.parse(String(init?.body));
@@ -80,7 +99,7 @@ it("keeps an untouched count blank and records an explicit physical zero", async
       outlet_id: scope.outletId,
       version: 1,
       state: "counting",
-      recorded_by: "TEST counter",
+      recorded_by: scope.subject,
       recorded_at: take.started_at,
     });
   });
@@ -120,7 +139,7 @@ it("freezes an uncertain command, checks recovery and retries its exact original
       outlet_id: scope.outletId,
       version: 1,
       state: "counting",
-      recorded_by: "TEST counter",
+      recorded_by: scope.subject,
       recorded_at: take.started_at,
     });
   });

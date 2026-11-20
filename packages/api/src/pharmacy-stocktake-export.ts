@@ -1,12 +1,16 @@
 import { apiFetchResponse } from "./client";
 import { sha256Hex } from "./attachment-file";
-import { pharmacyRoot, type PharmacyScope } from "./pharmacy";
-import type { PharmacyStocktakeSummary } from "./pharmacy-stocktakes";
+import { pharmacyRoot } from "./pharmacy";
+import {
+  stocktakeHeaders,
+  type PharmacyStocktakeScope,
+  type PharmacyStocktakeSummary,
+} from "./pharmacy-stocktakes";
 
 const byteLimit = 8 * 1024 * 1024;
 
 export async function fetchStocktakeCSV(
-  scope: PharmacyScope,
+  scope: PharmacyStocktakeScope,
   take: Pick<PharmacyStocktakeSummary, "id" | "number" | "version" | "snapshot_rows">,
   signal: AbortSignal,
 ): Promise<{ blob: Blob; filename: string }> {
@@ -15,7 +19,7 @@ export async function fetchStocktakeCSV(
   const response = await apiFetchResponse(
     `${pharmacyRoot(scope)}/stock/stocktakes/${encodeURIComponent(take.id)}/register.csv`,
     {
-      headers: { "X-Helivanta-Expected-Tenant": scope.tenantId },
+      headers: stocktakeHeaders(scope),
       cache: "no-store",
       signal: active,
     },

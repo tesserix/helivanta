@@ -7,6 +7,7 @@ import {
   fetchPharmacyStockOverviewCSV,
   fetchStocktakeCSV,
   type PharmacyStocktakeSummary,
+  type PharmacyStocktakeScope,
   type PharmacyStockOverviewScope,
   tenantTransitionPending,
   type PharmacyScope,
@@ -17,7 +18,7 @@ type Props = { disabled: boolean } & (
   | { scope: PharmacyScope; filters: string; overview?: false; stocktake?: never }
   | { scope: PharmacyStockOverviewScope; filters: string; overview: true; stocktake?: never }
   | {
-      scope: PharmacyScope;
+      scope: PharmacyStocktakeScope;
       stocktake: Pick<PharmacyStocktakeSummary, "id" | "number" | "version" | "snapshot_rows">;
       filters?: never;
       overview?: never;

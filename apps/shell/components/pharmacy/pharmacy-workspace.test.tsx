@@ -4,6 +4,7 @@ import { renderWithProviders } from "@helivanta/api/testing";
 import { NavigationGuardProvider, useConfirmLeave, useLeaveGuard } from "@helivanta/ui";
 import { chooseOption } from "../../test/select";
 import { PharmacyWorkspace } from "./pharmacy-workspace";
+import { retainStocktakeCommand } from "./stocktake-recovery";
 
 const pharmacy = "0199e000-0000-7000-8000-000000000010";
 const outlet = "0199e000-0000-7000-8000-000000000001";
@@ -1180,6 +1181,39 @@ describe("Outlets & access", () => {
     // The list is the outlet chooser here: the heading keeps only the pharmacy.
     expect(screen.queryByLabelText("Outlet")).toBeNull();
     expect(screen.getByLabelText("Pharmacy")).toBeVisible();
+  });
+
+  it("recovers retained work in the opened setup outlet rather than the working outlet", async () => {
+    const tenantId = "11111111-1111-1111-1111-111111111111";
+    const scope = { tenantId, subject: "TEST-editor", pharmacyId: pharmacy, outletId: sibling };
+    retainStocktakeCommand(scope, {
+      kind: "count",
+      stocktakeId: "0199e000-0000-7000-8000-0000000000aa",
+      commandId: "0199e000-0000-7000-8000-0000000000ab",
+    });
+    const fetcher = adminFetch(() => undefined);
+    nav.search = `pharmacy=${pharmacy}&outlet=${outlet}&open=${sibling}`;
+    const { user } = renderWorkspace("setup");
+    const pane = await screen.findByRole("region", { name: "Outlet TEST Sister Outlet" });
+    expect(
+      await within(pane).findByRole("button", { name: "Check original count result" }),
+    ).toBeVisible();
+    const calls = fetcher.mock.calls.filter(([url]) => url.includes("/stock/stocktakes"));
+    expect(calls.length).toBeGreaterThan(0);
+    for (const [url, init] of calls) {
+      expect(url).toContain(`/outlets/${sibling}/stock/stocktakes?`);
+      expect(new Headers(init?.headers).get("X-Helivanta-Expected-Subject")).toBe(scope.subject);
+    }
+    expect(
+      fetcher.mock.calls.some(([url]) => /\/lines|register\.csv|\/catalogue\//.test(url)),
+    ).toBe(false);
+    expect(screen.queryByRole("button", { name: "Start stocktake" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Close outlet" }));
+    await user.click(screen.getByRole("button", { name: "Open TEST-MAIN" }));
+    expect(await screen.findByRole("heading", { name: "TEST Main Outlet" })).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Check original count result" }),
+    ).not.toBeInTheDocument();
   });
 
   it("opening an outlet does not change the working outlet", async () => {

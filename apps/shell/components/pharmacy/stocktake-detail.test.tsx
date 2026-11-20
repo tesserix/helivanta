@@ -6,6 +6,7 @@ import { AccountPresentationsProvider, NavigationGuardProvider } from "@helivant
 import { StocktakeDetail } from "./stocktake-detail";
 
 const scope = {
+  subject: "TEST-viewer",
   tenantId: "0199e000-0000-7000-8000-0000000000aa",
   pharmacyId: "0199e000-0000-7000-8000-000000000010",
   outletId: "0199e000-0000-7000-8000-000000000001",

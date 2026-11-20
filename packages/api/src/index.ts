@@ -247,6 +247,7 @@ export {
 } from "./pharmacy-reorder";
 export {
   startStocktake,
+  stocktakeKey,
   recoverStocktakeStart,
   readStocktake,
   recordStocktakeCount,
@@ -256,6 +257,7 @@ export {
   recordStocktakeDecision,
   readStocktakeDecision,
   type PharmacyStocktake,
+  type PharmacyStocktakeScope,
   type PharmacyStocktakeSummary,
   type PharmacyStocktakeLine,
   type PharmacyStocktakeStartInput,

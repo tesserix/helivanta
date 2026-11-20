@@ -77,7 +77,7 @@ func readStocktakeCount(tx *gorm.DB, tenant string, outlet, take, command uuid.U
 }
 
 func (h *catalogueHandlers) putStocktakeCount(c *gin.Context) {
-	p, outlet, ok := catalogueScope(c)
+	p, outlet, ok := stocktakeScope(c)
 	if !ok {
 		return
 	}
@@ -168,7 +168,7 @@ func recordStocktakeCount(tx *gorm.DB, p authn.Principal, outlet, take, command 
 }
 
 func (h *catalogueHandlers) getStocktakeCount(c *gin.Context) {
-	p, outlet, ok := catalogueScope(c)
+	p, outlet, ok := stocktakeScope(c)
 	if !ok {
 		return
 	}

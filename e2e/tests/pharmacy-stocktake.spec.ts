@@ -47,7 +47,24 @@ test("count an outlet, require independent review and download the verified regi
         await page
           .getByRole("textbox", { name: "Count reason" })
           .fill(`TEST counted ${status} shelf`);
+        const countRequests = "**/stock/stocktakes/*/counts/*";
+        if (status === "quarantine") {
+          await page.route(countRequests, async (route) => {
+            const response = await route.fetch();
+            expect(response.ok()).toBe(true);
+            await route.abort("failed");
+          });
+        }
         await page.getByRole("button", { name: "Save physical count" }).click();
+        if (status === "quarantine") {
+          await expect(page.getByText(/The save could not be confirmed/)).toBeVisible();
+          await page.unroute(countRequests);
+          page.once("dialog", (dialog) => dialog.accept());
+          await page.reload();
+          await page.getByRole("button", { name: "Check original count result" }).click();
+          await expect(page.getByText(/Original physical count was recorded/)).toBeVisible();
+          await page.getByRole("button", { name: "Acknowledge saved result" }).click();
+        }
         await expect(page.getByText(new RegExp(`${completed} of 2 buckets counted`))).toBeVisible();
       }
       await page.getByRole("button", { name: "Review or close stocktake" }).click();

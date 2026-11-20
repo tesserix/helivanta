@@ -4,7 +4,9 @@ import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { AccountPresentationsProvider, NavigationGuardProvider } from "@helivanta/ui";
 import { StocktakeContinuations } from "./stocktake-continuations";
+import { pendingStocktakeCommands, retainStocktakeCommand } from "./stocktake-recovery";
 const scope = {
+  subject: "TEST-viewer",
   tenantId: "0199e000-0000-7000-8000-0000000000aa",
   pharmacyId: "0199e000-0000-7000-8000-000000000010",
   outletId: "0199e000-0000-7000-8000-000000000001",
@@ -24,7 +26,59 @@ const take = {
   version: 2,
 };
 const json = (body: unknown) => new Response(JSON.stringify(body));
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  sessionStorage.clear();
+});
+
+it("recovers a lost physical-count response from retained work while the Stock workspace is absent", async () => {
+  const marker = {
+    kind: "count" as const,
+    stocktakeId: take.id,
+    commandId: "0199e000-0000-7000-8000-000000000004",
+  };
+  retainStocktakeCommand(scope, marker);
+  const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.includes("account-presentations"))
+      return json({
+        tenant_id: scope.tenantId,
+        actor_subject: scope.subject,
+        data: [{ subject: scope.subject, available: false, name: null, email: null, roles: [] }],
+      });
+    expect(init?.method).toBeUndefined();
+    if (url.includes("/counts/"))
+      return json({
+        id: marker.commandId,
+        stocktake_id: take.id,
+        outlet_id: scope.outletId,
+        expected_version: 0,
+        version: 1,
+        state: "counting",
+        counts: [{ line_id: scope.pharmacyId, counted_units: 0 }],
+        reason: "TEST hidden reason",
+        recorded_by: scope.subject,
+        recorded_at: take.started_at,
+      });
+    if (url.includes("/stock/stocktakes?"))
+      return json({ data: [], page: { next_cursor: null, has_more: false } });
+    throw new Error("Unexpected TEST stock endpoint");
+  });
+  vi.stubGlobal("fetch", fetch);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccountPresentationsProvider scope={{ tenantId: scope.tenantId, subject: scope.subject }}>
+        <StocktakeContinuations scope={scope} timeZone="Asia/Kolkata" canCancel />
+      </AccountPresentationsProvider>
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Check original count result" }));
+  expect(await screen.findByText(/Original physical count was recorded/i)).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "Acknowledge saved result" }));
+  await waitFor(() => expect(pendingStocktakeCommands(scope)).toEqual([]));
+  expect(fetch.mock.calls.some(([url]) => /\/lines|register\.csv|\/decisions\//.test(url))).toBe(
+    false,
+  );
+});
 it("inspects and cancels retained work without touching stock entry, inventory lines or approval APIs", async () => {
   const writes: string[] = [];
   const fetch = vi.fn(async (url: string, init?: RequestInit) => {
@@ -51,7 +105,7 @@ it("inspects and cancels retained work without touching stock entry, inventory l
         version: 3,
         state: "cancelled",
         adjustment_count: 0,
-        recorded_by: "TEST viewer",
+        recorded_by: scope.subject,
         recorded_at: take.started_at,
       });
     }

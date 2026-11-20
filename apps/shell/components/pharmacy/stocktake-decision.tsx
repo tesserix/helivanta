@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { z } from "zod";
+import { z } from "@/lib/csp-zod";
 import { Button, Input } from "@tesserix/web";
 import {
   ApiError,
@@ -10,7 +10,7 @@ import {
   pharmacyStocktakeDecisionInputSchema,
   recordStocktakeDecision,
   readStocktakeDecision,
-  type PharmacyScope,
+  type PharmacyStocktakeScope,
   type PharmacyStocktake,
   type PharmacyStocktakeDecisionInput,
   type PharmacyStocktakeDecisionReceipt,
@@ -23,6 +23,12 @@ import {
   useLeaveGuard,
   useZodForm,
 } from "@helivanta/ui";
+
+import {
+  retainStocktakeCommand,
+  forgetStocktakeCommand,
+  StocktakeRecoveryError,
+} from "./stocktake-recovery";
 
 const labels = {
   submit: "Submit for independent review",
@@ -39,7 +45,7 @@ export function StocktakeDecision({
   paused = false,
   cancelOnly = false,
 }: {
-  scope: PharmacyScope;
+  scope: PharmacyStocktakeScope;
   take: PharmacyStocktake;
   onSaved: () => void;
   paused?: boolean;
@@ -89,20 +95,32 @@ export function StocktakeDecision({
   const [saved, setSaved] = useState(false);
   const complete = (receipt: PharmacyStocktakeDecisionReceipt, value: Attempt) => {
     if (
+      receipt.recorded_by !== scope.subject ||
       receipt.expected_version !== value.input.expected_version ||
       receipt.decision !== value.input.decision ||
       receipt.reason !== value.input.reason ||
       (receipt.extra_units_disposition ?? null) !== (value.input.extra_units_disposition ?? null)
     )
       throw new Error("The recovered decision does not match the original review.");
+    forgetStocktakeCommand(scope, {
+      kind: "decision",
+      stocktakeId: take.id,
+      commandId: value.command,
+    });
     setAttempt(null);
     setSaved(true);
     form.reset();
     onSaved();
   };
   const save = useMutation({
-    mutationFn: async (value: Attempt) =>
-      complete(await recordStocktakeDecision(scope, take.id, value.command, value.input), value),
+    mutationFn: async (value: Attempt) => {
+      retainStocktakeCommand(scope, {
+        kind: "decision",
+        stocktakeId: take.id,
+        commandId: value.command,
+      });
+      complete(await recordStocktakeDecision(scope, take.id, value.command, value.input), value);
+    },
     retry: false,
   });
   const recover = useMutation({
@@ -122,6 +140,7 @@ export function StocktakeDecision({
     retry: false,
   });
   const busy = save.isPending || recover.isPending;
+  const retentionFailed = save.error instanceof StocktakeRecoveryError;
   const stale =
     take.version !== basis.version ||
     take.state !== basis.state ||
@@ -212,13 +231,28 @@ export function StocktakeDecision({
       )}
       {attempt && save.error && (
         <div role="alert" className="space-y-2 text-sm">
-          <p>The decision could not be confirmed. Check its saved result before retrying.</p>
-          <Button type="button" variant="outline" disabled={busy} onClick={() => recover.mutate()}>
-            Check saved decision
-          </Button>
-          {notFound && (
+          <p>
+            {retentionFailed
+              ? "No decision request was sent because its recovery reference could not be retained. Check browser storage or resolve pending results before retrying."
+              : "The decision could not be confirmed. Check its saved result before retrying."}
+          </p>
+          {!retentionFailed && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => recover.mutate()}
+            >
+              Check saved decision
+            </Button>
+          )}
+          {(notFound || retentionFailed) && (
             <>
-              <p>No saved decision was found. Only the original decision can be retried.</p>
+              <p>
+                {retentionFailed
+                  ? "Retry the same decision after recovery storage is available."
+                  : "No saved decision was found. Only the original decision can be retried."}
+              </p>
               <Button
                 type="button"
                 disabled={busy}

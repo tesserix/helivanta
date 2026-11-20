@@ -7,9 +7,10 @@ import {
   fetchStocktakeLines,
   readStocktake,
   pharmacyKey,
+  stocktakeKey,
   usePagedQuery,
   formatZonedDateTime,
-  type PharmacyScope,
+  type PharmacyStocktakeScope,
   type PharmacyStocktakeLine,
 } from "@helivanta/api";
 import { AccountName, LoadMore, Panel, RequestFailure, useConfirmLeave } from "@helivanta/ui";
@@ -45,7 +46,7 @@ export function StocktakeDetail({
   timeZone,
   canConfigure,
 }: {
-  scope: PharmacyScope;
+  scope: PharmacyStocktakeScope;
   takeId: string;
   timeZone: string;
   canConfigure: boolean;
@@ -53,12 +54,12 @@ export function StocktakeDetail({
   const client = useQueryClient();
   const leave = useConfirmLeave();
   const header = useQuery({
-    queryKey: pharmacyKey(scope, "stocktake", takeId),
+    queryKey: stocktakeKey(scope, "stocktake", takeId),
     queryFn: ({ signal }) => readStocktake(scope, takeId, signal),
     staleTime: 0,
   });
   const lines = usePagedQuery(
-    pharmacyKey(scope, "stocktake-lines", takeId),
+    stocktakeKey(scope, "stocktake-lines", takeId),
     (cursor, signal) => fetchStocktakeLines(scope, takeId, cursor, signal),
     { enabled: Boolean(header.data) },
   );

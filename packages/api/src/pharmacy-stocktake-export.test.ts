@@ -3,6 +3,7 @@ import { fetchStocktakeCSV } from "./index";
 import { sha256Hex } from "./attachment-file";
 
 const scope = {
+  subject: "TEST stocktake actor",
   tenantId: "0199e000-0000-7000-8000-0000000000aa",
   pharmacyId: "0199e000-0000-7000-8000-000000000010",
   outletId: "0199e000-0000-7000-8000-000000000001",
@@ -37,6 +38,9 @@ it("downloads only a byte-verified register for the displayed outlet and revisio
   vi.stubGlobal("fetch", fetch);
   const result = await fetchStocktakeCSV(scope, take, new AbortController().signal);
   expect(result.filename).toBe("stocktake-4-register.csv");
+  expect(new Headers(fetch.mock.calls[0]?.[1].headers).get("X-Helivanta-Expected-Subject")).toBe(
+    scope.subject,
+  );
   expect(await result.blob.text()).toBe("TEST register\r\n");
   expect(fetch.mock.calls[0]?.[0]).toContain(`/stocktakes/${take.id}/register.csv`);
   expect(new Headers(fetch.mock.calls[0]?.[1].headers).get("X-Helivanta-Expected-Tenant")).toBe(

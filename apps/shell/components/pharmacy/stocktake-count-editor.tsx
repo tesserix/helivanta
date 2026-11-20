@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { z } from "zod";
+import { z } from "@/lib/csp-zod";
 import { Button, Input } from "@tesserix/web";
 import {
   ApiError,
@@ -11,13 +11,18 @@ import {
   pharmacyStocktakeCountEntrySchema,
   recordStocktakeCount,
   readStocktakeCount,
-  type PharmacyScope,
+  type PharmacyStocktakeScope,
   type PharmacyStocktake,
   type PharmacyStocktakeLine,
   type PharmacyStocktakeCountInput,
   type PharmacyStocktakeCountReceipt,
 } from "@helivanta/api";
 import { Field, RequestFailure, useLeaveGuard, useZodForm } from "@helivanta/ui";
+import {
+  retainStocktakeCommand,
+  forgetStocktakeCommand,
+  StocktakeRecoveryError,
+} from "./stocktake-recovery";
 
 const schema = pharmacyStocktakeCountInputSchema.extend({
   counts: z
@@ -44,7 +49,7 @@ export function StocktakeCountEditor({
   onSaved,
   paused = false,
 }: {
-  scope: PharmacyScope;
+  scope: PharmacyStocktakeScope;
   take: PharmacyStocktake;
   line: PharmacyStocktakeLine;
   onSaved: () => void;
@@ -61,6 +66,7 @@ export function StocktakeCountEditor({
   const [saved, setSaved] = useState(false);
   const complete = (receipt: PharmacyStocktakeCountReceipt, submitted: Attempt) => {
     if (
+      receipt.recorded_by !== scope.subject ||
       receipt.expected_version !== submitted.input.expected_version ||
       receipt.reason !== submitted.input.reason ||
       receipt.counts.length !== 1 ||
@@ -68,14 +74,25 @@ export function StocktakeCountEditor({
       receipt.counts[0]?.counted_units !== submitted.input.counts[0]?.counted_units
     )
       throw new Error("The recovered count does not match the original observation.");
+    forgetStocktakeCommand(scope, {
+      kind: "count",
+      stocktakeId: take.id,
+      commandId: submitted.command,
+    });
     setAttempt(null);
     setSaved(true);
     form.reset();
     onSaved();
   };
   const save = useMutation({
-    mutationFn: async (value: Attempt) =>
-      complete(await recordStocktakeCount(scope, take.id, value.command, value.input), value),
+    mutationFn: async (value: Attempt) => {
+      retainStocktakeCommand(scope, {
+        kind: "count",
+        stocktakeId: take.id,
+        commandId: value.command,
+      });
+      complete(await recordStocktakeCount(scope, take.id, value.command, value.input), value);
+    },
     retry: false,
   });
   const recover = useMutation({
@@ -95,6 +112,7 @@ export function StocktakeCountEditor({
     retry: false,
   });
   const busy = save.isPending || recover.isPending;
+  const retentionFailed = save.error instanceof StocktakeRecoveryError;
   const stale = paused || take.version !== version || take.state !== "counting";
   useLeaveGuard(
     !saved && (form.formState.isDirty || attempt !== null),
@@ -158,17 +176,26 @@ export function StocktakeCountEditor({
       {attempt && save.error && (
         <div role="alert" className="space-y-2 text-sm">
           <p>
-            The save could not be confirmed. Your original count is retained. Check its result
-            before retrying.
+            {retentionFailed
+              ? "No count request was sent because its recovery reference could not be retained. Check browser storage or resolve pending results before retrying."
+              : "The save could not be confirmed. Your original count is retained. Check its result before retrying."}
           </p>
-          <Button type="button" variant="outline" disabled={busy} onClick={() => recover.mutate()}>
-            Check saved count
-          </Button>
-          {notFound && (
+          {!retentionFailed && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => recover.mutate()}
+            >
+              Check saved count
+            </Button>
+          )}
+          {(notFound || retentionFailed) && (
             <>
               <p>
-                No saved command was found. You can retry the identical count; a stale revision will
-                be refused.
+                {retentionFailed
+                  ? "Retry the same count after recovery storage is available."
+                  : "No saved command was found. You can retry the identical count; a stale revision will be refused."}
               </p>
               <Button
                 type="button"

@@ -6,6 +6,7 @@ import type { PharmacyStocktake } from "@helivanta/api";
 import { StocktakeDecision } from "./stocktake-decision";
 
 const scope = {
+  subject: "TEST-viewer",
   tenantId: "0199e000-0000-7000-8000-0000000000aa",
   pharmacyId: "0199e000-0000-7000-8000-000000000010",
   outletId: "0199e000-0000-7000-8000-000000000001",
@@ -29,7 +30,11 @@ const take: PharmacyStocktake = {
   version: 2,
 };
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  sessionStorage.clear();
+});
 function panel(current = take, cancelOnly = false) {
   const saved = vi.fn();
   return {
@@ -41,6 +46,20 @@ function panel(current = take, cancelOnly = false) {
     saved,
   };
 }
+
+it("does not dispatch a decision if its recovery reference cannot be retained", async () => {
+  const fetch = vi.fn().mockResolvedValue(json({ error: "TEST unexpected" }));
+  vi.stubGlobal("fetch", fetch);
+  const { user } = panel();
+  await user.type(screen.getByRole("textbox", { name: "Decision reason" }), "TEST review");
+  await user.click(screen.getByRole("checkbox", { name: /physically moved all extra units/i }));
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new DOMException("TEST quota", "QuotaExceededError");
+  });
+  await user.click(screen.getByRole("button", { name: "Record decision" }));
+  await screen.findByText(/No decision request was sent/i);
+  expect(fetch).not.toHaveBeenCalled();
+});
 
 it("offers only cancellation in a retained-work continuation, including to an independent reviewer", async () => {
   const { user } = panel(take, true);
@@ -60,7 +79,7 @@ it("requires explicit physical quarantine attestation for positive differences b
       version: 3,
       state: "posted",
       adjustment_count: 2,
-      recorded_by: "TEST independent reviewer",
+      recorded_by: scope.subject,
       recorded_at: take.started_at,
     }),
   );

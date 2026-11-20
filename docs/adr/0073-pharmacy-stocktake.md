@@ -86,6 +86,28 @@ original exact receipt but cannot accept a new operational command. The same
 UUID/actor/input identity and sealed-parent checks apply. This adds no permission,
 policy exception, stock movement or new data owner.
 
+Unknown transport outcomes must survive a page reload or a release-boundary
+unmount. Retain at most eight recovery markers in tab-local session storage,
+keyed by verified tenant, actor, pharmacy and outlet. Markers contain only kind,
+stocktake UUID and command UUID; never quantities, reasons, names or credentials.
+Persist and verify a marker before dispatch; if persistence is unavailable, do
+not send the command. Exact retries reuse it. Successful confirmation clears only
+the matching marker. The retained-work panel lives in the opened outlet detail in **Outlets &
+access** (`/pharmacy/setup`), independently of Stock and Reports. It binds to that
+opened outlet, not the parent working-outlet selection. It can inspect original
+outcomes even with Stock off and verifies the original actor before acknowledging a result.
+An explicitly dismissed not-found result remains unknown, not a claimed failure;
+refresh current state before further commands. Existing active-count uniqueness,
+version, terminal-state and command-identity guards still decide every race.
+
+Bind stocktake SDK requests and query/recovery state to the verified actor as
+well as tenant/outlet. Send the standard expected-subject precondition and reject
+a mismatched supplied subject before product access. Storage is a recovery hint,
+never authority. A different account cannot adopt a marker or silently reuse its
+pending input. Reads, cancellations and any subsequent operation reauthorize on
+the server. This follows the existing Staff MFA recovery-marker pattern without
+introducing a new persistence service or copying private inputs into storage.
+
 ## Failure, consistency and recovery
 
 The count, count revisions, approval, adjustments, audit and outbox are local to

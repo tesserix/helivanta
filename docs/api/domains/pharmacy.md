@@ -1002,8 +1002,9 @@ unchanged. Reviewed decisions and atomic corrections have passed the native core
 journey, including audit/outbox failure rollback, exact retry, register integrity
 and sellable/quarantine adjustment cases. The SDK and UI cover start, count,
 review, status, exact-command recovery and verified register downloads.
-Baseline continuation acceptance, broader both-owner/Global API safety coverage, final CI,
-deployment and live UI acceptance remain required before operational activation.
+Native both-owner, Global API, reservation-conservation and atomic failure/retry
+journeys have passed. Final CI, deployment and live UI acceptance remain required
+before operational activation.
 See [ADR-0073](../../adr/0073-pharmacy-stocktake.md).
 
 Paths below use the same pharmacy/outlet prefix as reorder levels. Every request
@@ -1156,7 +1157,32 @@ The sealed-count list/header and original count/decision receipt reads are
 baseline continuations. Their product authorization and read audit remain in
 force even when Stock is off. The cancellation-only path is also baseline; the
 general decision path, start, count entry, snapshot-line reads and CSV export
-remain Stock-gated. The outlet overview's **Retained stocktakes** panel reads
-status and offers cancellation only. A displayed cancellation action still needs
+remain Stock-gated. The selected outlet's detail in **Outlets & access** (`/pharmacy/setup`) hosts
+the **Retained stocktakes** panel. This page is independent of Stock and Reports;
+the overview is not a recovery entry point. The panel uses the opened detail's
+outlet, which can differ from the working outlet. It reads status and offers
+cancellation only. A displayed cancellation action still needs
 the server's current outlet editor check; a route permission is not a scope grant.
 The panel never fetches live stock, snapshot lines or an operational catalogue.
+
+Unknown stocktake outcomes retain at most eight tab-local recovery markers per
+verified tenant, actor, pharmacy and outlet. Markers contain only operation kind,
+stocktake reference and command reference, never input quantities or reasons.
+Storage must persist and verify a marker before the command is dispatched;
+unavailable or full storage blocks new commands. Reload recovery is read-only and
+checks the original actor before acknowledgement. A not-found result remains
+unknown: the original request may still finish. Explicit dismissal refreshes
+current state before new operations; it does not undo or assert failure of a
+command. With retained markers, new Stock actions pause while an already active
+form can recover its exact attempt. Confirmed outcomes clear only their matching
+marker. The same recovery panel is available in the selected outlet's setup
+detail when Stock is disabled.
+
+Stocktake SDK requests send `X-Helivanta-Expected-Subject` alongside the existing
+expected-tenant precondition. The server returns `409 session_changed` for a
+supplied blank, duplicate or mismatched expected subject before resource access;
+missing subject remains compatible with older/native callers. Identity and
+current outlet authority always come from the verified principal, never these
+headers. Actor-specific query keys and recovery storage prevent another account
+in the same tenant from adopting a pending command. Write receipts must match the
+original actor; authorized historical receipt reads remain available.

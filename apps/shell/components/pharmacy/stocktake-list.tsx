@@ -4,9 +4,9 @@ import { Button } from "@tesserix/web";
 import {
   fetchStocktakes,
   formatZonedDateTime,
-  pharmacyKey,
+  stocktakeKey,
   usePagedQuery,
-  type PharmacyScope,
+  type PharmacyStocktakeScope,
   type PharmacyStocktakeSummary,
 } from "@helivanta/api";
 import {
@@ -33,12 +33,12 @@ export function StocktakeList({
   onStart,
   onOpen,
 }: {
-  scope: PharmacyScope;
+  scope: PharmacyStocktakeScope;
   timeZone: string;
   onStart?: () => void;
   onOpen?: (count: PharmacyStocktakeSummary) => void;
 }) {
-  const counts = usePagedQuery(pharmacyKey(scope, "stocktakes"), (cursor, signal) =>
+  const counts = usePagedQuery(stocktakeKey(scope, "stocktakes"), (cursor, signal) =>
     fetchStocktakes(scope, cursor, signal),
   );
   const people = useAccountPresentations(counts.items.map((count) => count.started_by));
@@ -46,6 +46,7 @@ export function StocktakeList({
     (count) => count.state === "counting" || count.state === "submitted",
   );
   const root = `/pharmacy/stock?pharmacy=${encodeURIComponent(scope.pharmacyId)}&outlet=${encodeURIComponent(scope.outletId)}&view=counts`;
+  if (onOpen && !counts.isPending && !counts.error && counts.items.length === 0) return null;
   return (
     <Panel aria-label="Stocktakes">
       <div className="flex flex-wrap items-center justify-between gap-3">

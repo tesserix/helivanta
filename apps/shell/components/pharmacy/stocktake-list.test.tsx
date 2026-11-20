@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { AccountPresentationsProvider, NavigationGuardProvider } from "@helivanta/ui";
@@ -6,6 +6,7 @@ import { StocktakeList } from "./stocktake-list";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 const scope = {
+  subject: "TEST-viewer",
   tenantId: "0199e000-0000-7000-8000-0000000000aa",
   pharmacyId: "0199e000-0000-7000-8000-000000000010",
   outletId: "0199e000-0000-7000-8000-000000000001",
@@ -28,15 +29,41 @@ const count = {
   snapshot_rows: 2,
 };
 afterEach(() => vi.unstubAllGlobals());
-function panel(onStart?: () => void) {
+function panel(onStart?: () => void, onOpen?: () => void) {
   return renderWithProviders(
     <NavigationGuardProvider>
       <AccountPresentationsProvider scope={{ tenantId: scope.tenantId, subject: "TEST-viewer" }}>
-        <StocktakeList scope={scope} timeZone="Asia/Kolkata" onStart={onStart} />
+        <StocktakeList scope={scope} timeZone="Asia/Kolkata" onStart={onStart} onOpen={onOpen} />
       </AccountPresentationsProvider>
     </NavigationGuardProvider>,
   );
 }
+
+it("hides an empty retained-work card instead of advertising unreleased stocktaking", async () => {
+  let resolve!: (response: Response) => void;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      () =>
+        new Promise<Response>((done) => {
+          resolve = done;
+        }),
+    ),
+  );
+  panel(undefined, vi.fn());
+  expect(screen.getByRole("heading", { name: "Retained stocktakes" })).toBeVisible();
+  await act(async () => {
+    resolve(json(page([])));
+  });
+  await waitFor(() =>
+    expect(screen.queryByRole("heading", { name: "Retained stocktakes" })).not.toBeInTheDocument(),
+  );
+});
+it("keeps an unavailable retained-work read visible rather than treating it as no history", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json({ error: "unavailable" }, 503)));
+  panel(undefined, vi.fn());
+  expect(await screen.findByText("Stocktakes could not be loaded.")).toBeVisible();
+});
 it("keeps unavailable stocktakes distinct from an empty result and pauses creation", async () => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json({ error: "unavailable" }, 503)));
   panel(vi.fn());

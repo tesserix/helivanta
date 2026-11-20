@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { apiFetch } from "./client";
-import { pharmacyRoot, type PharmacyScope } from "./pharmacy";
+import { pharmacyKey, pharmacyRoot, type PharmacyScope } from "./pharmacy";
 import {
   pharmacyStocktakeCountInputSchema,
   pharmacyStocktakeCountReceiptSchema,
@@ -13,6 +13,16 @@ import {
 } from "./pharmacy-contract";
 
 export type PharmacyStocktake = z.infer<typeof pharmacyStocktakeSchema>;
+export type PharmacyStocktakeScope = PharmacyScope & { subject: string };
+export function stocktakeKey(scope: PharmacyStocktakeScope, ...parts: unknown[]) {
+  return pharmacyKey(scope, "stocktake-actor", scope.subject, ...parts);
+}
+export function stocktakeHeaders(scope: PharmacyStocktakeScope) {
+  return {
+    "X-Helivanta-Expected-Tenant": id.parse(scope.tenantId),
+    "X-Helivanta-Expected-Subject": z.string().min(1).max(200).parse(scope.subject),
+  };
+}
 export type PharmacyStocktakeSummary = z.infer<typeof pharmacyStocktakeSummarySchema>;
 export type PharmacyStocktakeLine = z.infer<typeof pharmacyStocktakeLineSchema>;
 export type PharmacyStocktakeStartInput = z.infer<typeof pharmacyStocktakeStartInputSchema>;
@@ -35,7 +45,7 @@ const takePage = z.object({
 });
 
 export async function fetchStocktakes(
-  scope: PharmacyScope,
+  scope: PharmacyStocktakeScope,
   cursor: string | null,
   signal?: AbortSignal,
 ) {
@@ -51,16 +61,16 @@ export async function fetchStocktakes(
   return page;
 }
 
-function request(scope: PharmacyScope, signal?: AbortSignal): RequestInit {
+function request(scope: PharmacyStocktakeScope, signal?: AbortSignal): RequestInit {
   const timeout = AbortSignal.timeout(15000);
   return {
-    headers: { "X-Helivanta-Expected-Tenant": id.parse(scope.tenantId) },
+    headers: stocktakeHeaders(scope),
     signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
     cache: "no-store",
   };
 }
 
-function root(scope: PharmacyScope, take: string) {
+function root(scope: PharmacyStocktakeScope, take: string) {
   return `${pharmacyRoot(scope)}/stock/stocktakes/${id.parse(take)}`;
 }
 
@@ -72,7 +82,12 @@ function countIntent(input: PharmacyStocktakeCountInput) {
   });
 }
 
-function checkedCount(scope: PharmacyScope, take: string, command: string, value: unknown) {
+function checkedCount(
+  scope: PharmacyStocktakeScope,
+  take: string,
+  command: string,
+  value: unknown,
+) {
   const receipt = pharmacyStocktakeCountReceiptSchema.parse(value);
   if (
     receipt.id !== command ||
@@ -85,7 +100,7 @@ function checkedCount(scope: PharmacyScope, take: string, command: string, value
 }
 
 export async function readStocktakeCount(
-  scope: PharmacyScope,
+  scope: PharmacyStocktakeScope,
   take: string,
   command: string,
   signal?: AbortSignal,
@@ -105,7 +120,12 @@ const decisionStates = {
   cancel: "cancelled",
 } as const;
 
-function checkedDecision(scope: PharmacyScope, take: string, command: string, value: unknown) {
+function checkedDecision(
+  scope: PharmacyStocktakeScope,
+  take: string,
+  command: string,
+  value: unknown,
+) {
   const result = pharmacyStocktakeDecisionReceiptSchema.parse(value);
   if (
     result.id !== command ||
@@ -133,7 +153,7 @@ function decisionIntent(input: PharmacyStocktakeDecisionInput) {
 }
 
 export async function recordStocktakeDecision(
-  scope: PharmacyScope,
+  scope: PharmacyStocktakeScope,
   take: string,
   command: string,
   input: PharmacyStocktakeDecisionInput,
@@ -150,13 +170,13 @@ export async function recordStocktakeDecision(
       body: JSON.stringify(intent),
     }),
   );
-  if (decisionIntent(result) !== decisionIntent(intent))
+  if (result.recorded_by !== scope.subject || decisionIntent(result) !== decisionIntent(intent))
     throw new Error("The review receipt does not match the submitted decision.");
   return result;
 }
 
 export async function readStocktakeDecision(
-  scope: PharmacyScope,
+  scope: PharmacyStocktakeScope,
   take: string,
   command: string,
   signal?: AbortSignal,
@@ -169,7 +189,11 @@ export async function readStocktakeDecision(
   );
 }
 
-export async function readStocktake(scope: PharmacyScope, take: string, signal?: AbortSignal) {
+export async function readStocktake(
+  scope: PharmacyStocktakeScope,
+  take: string,
+  signal?: AbortSignal,
+) {
   const result = pharmacyStocktakeSchema.parse(
     await apiFetch(root(scope, take), request(scope, signal)),
   );
@@ -184,9 +208,14 @@ export async function readStocktake(scope: PharmacyScope, take: string, signal?:
   return result;
 }
 
-function matchesStart(receipt: PharmacyStocktake, intent: PharmacyStocktakeStartInput) {
+function matchesStart(
+  receipt: PharmacyStocktake,
+  intent: PharmacyStocktakeStartInput,
+  subject: string,
+) {
   return (
     receipt.review_relationship === "starter" &&
+    receipt.started_by === subject &&
     receipt.selection === intent.selection &&
     receipt.quarantine_location_id === intent.quarantine_location_id &&
     receipt.reason === intent.reason &&
@@ -196,20 +225,20 @@ function matchesStart(receipt: PharmacyStocktake, intent: PharmacyStocktakeStart
 }
 
 export async function recoverStocktakeStart(
-  scope: PharmacyScope,
+  scope: PharmacyStocktakeScope,
   take: string,
   input: PharmacyStocktakeStartInput,
   signal?: AbortSignal,
 ) {
   const intent = pharmacyStocktakeStartInputSchema.parse(input);
   const current = await readStocktake(scope, take, signal);
-  if (!matchesStart(current, intent))
+  if (!matchesStart(current, intent, scope.subject))
     throw new Error("The recovered stocktake does not match this start and its original actor.");
   return current;
 }
 
 export async function startStocktake(
-  scope: PharmacyScope,
+  scope: PharmacyStocktakeScope,
   take: string,
   input: PharmacyStocktakeStartInput,
 ) {
@@ -229,14 +258,14 @@ export async function startStocktake(
     receipt.counted_rows !== 0 ||
     receipt.difference_rows !== 0 ||
     receipt.positive_difference_rows !== 0 ||
-    !matchesStart(receipt, intent)
+    !matchesStart(receipt, intent, scope.subject)
   )
     throw new Error("The stocktake creation receipt does not match this outlet and command.");
   return receipt;
 }
 
 export async function recordStocktakeCount(
-  scope: PharmacyScope,
+  scope: PharmacyStocktakeScope,
   take: string,
   command: string,
   input: PharmacyStocktakeCountInput,
@@ -252,13 +281,13 @@ export async function recordStocktakeCount(
       body: JSON.stringify(intent),
     }),
   );
-  if (countIntent(receipt) !== countIntent(intent))
+  if (receipt.recorded_by !== scope.subject || countIntent(receipt) !== countIntent(intent))
     throw new Error("The counted observation receipt does not match this outlet and command.");
   return receipt;
 }
 
 export async function fetchStocktakeLines(
-  scope: PharmacyScope,
+  scope: PharmacyStocktakeScope,
   take: string,
   cursor: string | null,
   signal?: AbortSignal,

@@ -758,6 +758,11 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/evidence/:file/content": "one evidence file's released bytes, not a collection",
 	"GET /workforce/hospitals/:hospital/staff/:id/attendance":                                                                 "one person's derived days over a bounded range of at most 42 days",
 	"GET /workforce/pharmacies/:pharmacy":                                                                                     "one standalone pharmacy's employer registration",
+
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake":                    "one sealed count header with at most 100 selected product references; snapshot buckets and count history are not embedded",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/counts/:command":    "one immutable original count-command receipt with at most 100 observations, not a command collection",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/decisions/:command": "one immutable decision-command receipt with scalar posting totals, not a decision collection",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/register.csv":       "explicit complete register export; refuses more than 10000 buckets or 8 MiB before any attachment, never truncates; JSON lists and buckets remain cursor-paginated",
 }
 
 // TestEveryCollectionGETIsPaginated is the one hole platform.ListRoute's

@@ -38,8 +38,8 @@ it("shows already verified for a reopened owner-bound email link without consumi
   expect(
     await screen.findByRole("heading", { name: "Your email is already verified" }),
   ).toBeVisible();
-  expect(screen.queryByRole("button", { name: "Verify email address" })).not.toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Send password setup email" })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Verify email" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Send password link" })).toBeVisible();
   expect(fetcher).toHaveBeenCalledTimes(1);
   expect(fetcher.mock.calls[0][0]).toBe("/api/v1/auth/signup?userId=owner-synthetic");
   expect(window.location.hash).toBe("");
@@ -89,10 +89,8 @@ it("does not offer credential actions when the owner status is unavailable", asy
   );
   renderWithProviders(<SignupVerification />);
   expect(await screen.findByRole("alert")).toHaveTextContent("could not check this link's status");
-  expect(screen.queryByRole("button", { name: "Verify email address" })).not.toBeInTheDocument();
-  expect(
-    screen.queryByRole("button", { name: "Request a fresh email link" }),
-  ).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Verify email" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Send a new link" })).not.toBeInTheDocument();
 });
 
 it.each([
@@ -109,9 +107,7 @@ it.each([
   renderWithProviders(<SignupVerification />);
   expect(await screen.findByRole("heading", { name: heading })).toBeVisible();
   expect(screen.queryByLabelText("New password")).not.toBeInTheDocument();
-  expect(
-    screen.queryByRole("button", { name: "Request a fresh email link" }),
-  ).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Send a new link" })).not.toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "Sign in now" })).not.toBeInTheDocument();
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
@@ -136,7 +132,7 @@ it("removes the native email code from the address bar before submitting it", as
   await waitFor(() => expect(window.location.hash).toBe(""));
   expect(requests).toHaveLength(0);
   const user = userEvent.setup();
-  await user.click(await screen.findByRole("button", { name: "Verify email address" }));
+  await user.click(await screen.findByRole("button", { name: "Verify email" }));
   await waitFor(() =>
     expect(requests).toEqual([
       {
@@ -146,10 +142,8 @@ it("removes the native email code from the address bar before submitting it", as
       },
     ]),
   );
-  expect(await screen.findByRole("button", { name: "Send password setup email" })).toBeVisible();
-  expect(
-    screen.queryByRole("heading", { name: "Your workspace is ready" }),
-  ).not.toBeInTheDocument();
+  expect(await screen.findByRole("button", { name: "Send password link" })).toBeVisible();
+  expect(screen.queryByRole("heading", { name: /is ready$/ })).not.toBeInTheDocument();
 });
 
 it("sets the password through the Global API with the native reset proof", async () => {
@@ -211,12 +205,13 @@ it("explains link lifetime and lets an expired email link request verification w
     }),
   );
   renderWithProviders(<SignupVerification />);
-  expect(await screen.findByText(/Links expire after 1 hour/)).toBeVisible();
-  expect(screen.getByText(/3 emails per hour and 10 per 24 hours/)).toBeVisible();
+  // #1762: the email limits are told only on refusal, never as preamble.
+  expect(await screen.findByRole("button", { name: "Verify email" })).toBeVisible();
+  expect(screen.queryByText(/emails per hour/)).not.toBeInTheDocument();
   const user = userEvent.setup();
-  await user.click(screen.getByRole("button", { name: "Verify email address" }));
-  expect(await screen.findByRole("alert")).toHaveTextContent(/expired|fresh email link/);
-  await user.click(screen.getByRole("button", { name: "Request a fresh email link" }));
+  await user.click(screen.getByRole("button", { name: "Verify email" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(/expired or was already used/);
+  await user.click(screen.getByRole("button", { name: "Send a new link" }));
   await waitFor(() =>
     expect(requests).toEqual([
       {
@@ -253,15 +248,12 @@ it("keeps expiry guidance after verification and describes a password-link reque
   );
   renderWithProviders(<SignupVerification />);
   const user = userEvent.setup();
-  await user.click(await screen.findByRole("button", { name: "Verify email address" }));
+  await user.click(await screen.findByRole("button", { name: "Verify email" }));
   expect(await screen.findByRole("heading", { name: "Your email is verified" })).toBeVisible();
-  expect(screen.getByText(/Links expire after 1 hour/)).toBeVisible();
-  expect(screen.getByText(/3 emails per hour and 10 per 24 hours/)).toBeVisible();
-  await user.click(screen.getByRole("button", { name: "Send password setup email" }));
-  expect(await screen.findByRole("status")).toHaveTextContent(
-    "If this request can receive an email",
-  );
-  expect(screen.getByRole("button", { name: "Send password setup email" })).toBeEnabled();
+  expect(screen.queryByText(/emails per hour/)).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Send password link" }));
+  expect(await screen.findByRole("status")).toHaveTextContent("If this address can receive email");
+  expect(screen.getByRole("button", { name: "Send password link" })).toBeEnabled();
   expect(requests).toEqual([
     "/api/v1/auth/signup/verify-email",
     "/api/v1/auth/signup/password-link",

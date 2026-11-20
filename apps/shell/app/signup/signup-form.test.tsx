@@ -105,7 +105,7 @@ it("submits an independent pharmacy with its owner and waits for verified provis
     ]),
   );
   expect(await screen.findByRole("heading", { name: "Setting up your workspace" })).toHaveFocus();
-  expect(screen.queryByText("Your workspace is ready")).not.toBeInTheDocument();
+  expect(screen.queryByText(/is ready$/)).not.toBeInTheDocument();
 });
 
 it("does not offer another signup or show readiness when progress is malformed", async () => {
@@ -116,9 +116,7 @@ it("does not offer another signup or show readiness when progress is malformed",
   renderWithProviders(<SignupForm />);
   expect(await screen.findByRole("alert")).toHaveTextContent("Workspace setup is unavailable");
   expect(screen.queryByRole("button", { name: "Create workspace" })).not.toBeInTheDocument();
-  expect(
-    screen.queryByRole("heading", { name: "Your workspace is ready" }),
-  ).not.toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: /is ready$/ })).not.toBeInTheDocument();
 });
 
 it("offers password setup after email proof instead of resending verification", async () => {
@@ -131,14 +129,33 @@ it("offers password setup after email proof instead of resending verification", 
     }),
   );
   renderWithProviders(<SignupForm />);
-  expect(await screen.findByRole("heading", { name: "Set your password" })).toBeVisible();
-  await userEvent.setup().click(screen.getByRole("button", { name: "Send password setup email" }));
+  expect(await screen.findByRole("heading", { name: "Your email is verified" })).toBeVisible();
+  await userEvent.setup().click(screen.getByRole("button", { name: "Send password link" }));
   await waitFor(() =>
     expect(calls).toEqual([{ path: "/api/v1/auth/signup/password-link", body: {} }]),
   );
-  expect(
-    screen.queryByRole("button", { name: "Resend verification email" }),
-  ).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Resend email" })).not.toBeInTheDocument();
+});
+
+// #1762: the email limits are not preamble; they are told when a resend is refused.
+it("tells the email limits only when a resend is refused", async () => {
+  stubSignupApi(
+    "fetch",
+    vi.fn(async (_path: string, init?: RequestInit) =>
+      init?.method === "POST"
+        ? new Response(JSON.stringify({ error: "rate_limited", message: "Too many" }), {
+            status: 429,
+          })
+        : new Response(JSON.stringify({ state: "email_action_required" }), { status: 200 }),
+    ),
+  );
+  renderWithProviders(<SignupForm />);
+  expect(await screen.findByRole("heading", { name: "Check your email" })).toBeVisible();
+  expect(screen.queryByText(/emails per hour|several emails/)).not.toBeInTheDocument();
+  await userEvent.setup().click(screen.getByRole("button", { name: "Resend email" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "You've requested several emails. Try again in about an hour.",
+  );
 });
 
 it("requires business contact and headquarters details before submitting", async () => {
@@ -214,12 +231,11 @@ it("requires a fresh tenant account instead of offering cross-organisation accou
       ),
   );
   renderWithProviders(<SignupForm />);
-  expect(await screen.findByRole("heading", { name: "Verify your account" })).toHaveFocus();
+  expect(await screen.findByRole("heading", { name: "Check your email" })).toHaveFocus();
   expect(
     screen.queryByRole("button", { name: "Continue with an existing account" }),
   ).not.toBeInTheDocument();
-  expect(screen.getByText(/separate login for this workspace/i)).toBeVisible();
-  expect(screen.getByRole("button", { name: "Resend verification email" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Resend email" })).toBeVisible();
   expect(signinRedirect).not.toHaveBeenCalled();
 });
 
@@ -318,8 +334,8 @@ it("unavailable signup decisions do not show a registration form", async () => {
 });
 
 it.each([
-  ["email_action_required", "Verify your account"],
-  ["password_action_required", "Set your password"],
+  ["email_action_required", "Check your email"],
+  ["password_action_required", "Your email is verified"],
 ])("existing %s journeys continue without requesting a signup decision", async (state, heading) => {
   const fetcher = vi.fn(async () => new Response(JSON.stringify({ state })));
   vi.stubGlobal("fetch", fetcher);

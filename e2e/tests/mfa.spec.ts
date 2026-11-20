@@ -162,3 +162,17 @@ test("a wrong TOTP code keeps the clinician on the OTP step with the shared refu
   // spec D6 allows five wrong guesses before the attempt is exhausted.
   await expect(page.getByRole("group", { name: "Verification code", exact: true })).toBeVisible();
 });
+
+// #1764: every code box centres its digit and placeholder in a real browser.
+// The login card left-aligns its own text, and that rule once matched the
+// boxes too, pushing each dot against the box's left edge.
+test("the code boxes centre their digits and placeholders", async ({ page }) => {
+  await signInAndReachOtpStep(page);
+  const group = page.getByRole("group", { name: "Verification code", exact: true });
+  for (let digit = 1; digit <= 6; digit++) {
+    await expect(group.getByRole("textbox", { name: `Digit ${digit}`, exact: true })).toHaveCSS(
+      "text-align",
+      "center",
+    );
+  }
+});

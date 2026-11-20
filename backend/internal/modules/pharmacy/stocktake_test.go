@@ -23,6 +23,11 @@ import (
 
 func stocktakeHarness(t *testing.T) (*gin.Engine, *tenantdb.DB) {
 	t.Helper()
+	return stocktakeHarnessForOwnership(t, "independent")
+}
+
+func stocktakeHarnessForOwnership(t *testing.T, ownership string) (*gin.Engine, *tenantdb.DB) {
+	t.Helper()
 	write := []authz.Permission{"pharmacy.catalogue.read", "pharmacy.catalogue.write", "pharmacy.access.manage", "pharmacy.stock.read", "pharmacy.stock.receive", "pharmacy.stock.correct", "pharmacy.stock.release", "pharmacy.stock.quarantine"}
 	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"editor": testutil.TenantA, "reviewer": testutil.TenantA, "approver": testutil.TenantA, "reader": testutil.TenantA, "sibling": testutil.TenantA, "foreign": testutil.TenantB, "denied": testutil.TenantA},
@@ -32,12 +37,65 @@ func stocktakeHarness(t *testing.T) (*gin.Engine, *tenantdb.DB) {
 		},
 		Modules: []platform.Module{pharmacy.New()},
 	})
-	seedPharmacyOutlet(t, r)
+	root := "/v1/pharmacy/pharmacies/" + pharmaOrganization
+	organization := do(r, "PUT", root, "editor", fmt.Sprintf(`{"code":"TEST-PHARMACY","name":"TEST Count Pharmacy","ownership_type":%q}`, ownership))
+	require.Equal(t, 200, organization.Code, organization.Body.String())
+	outlet := do(r, "PUT", root+"/outlets/"+pharmaOutlet, "editor", `{"code":"TEST-MAIN","name":"TEST Main Outlet","country_code":"IN","timezone":"Asia/Kolkata"}`)
+	require.Equal(t, 200, outlet.Code, outlet.Body.String())
 	grantCatalogue(t, r, "user-editor", "editor")
 	grantCatalogue(t, r, "user-reviewer", "editor")
 	grantCatalogue(t, r, "user-approver", "editor")
 	grantCatalogue(t, r, "user-reader", "reader")
 	return r, db
+}
+
+func TestStocktakeOwnershipModelsKeepScopedPosting(t *testing.T) {
+	for _, ownership := range []string{"hospital_owned", "independent", "chain"} {
+		t.Run(ownership, func(t *testing.T) {
+			r, _ := stocktakeHarnessForOwnership(t, ownership)
+			grantCatalogue(t, r, "user-sibling", "editor")
+			product, location, batch := stockFixture(t, r)
+			received := do(r, "PUT", outletPath("/stock/movements/")+uuid.Must(uuid.NewV7()).String(), "editor", stockBody(location, batch, "receipt", "TEST-ownership-opening", 10))
+			require.Equal(t, 200, received.Code, received.Body.String())
+			path := outletPath("/stock/stocktakes/") + uuid.Must(uuid.NewV7()).String()
+			started := do(r, "PUT", path, "editor", fmt.Sprintf(`{"selection":"selected","product_ids":[%q],"quarantine_location_id":%q,"reason":"TEST selected ownership count"}`, product, location))
+			require.Equal(t, 200, started.Code, started.Body.String())
+			lines := do(r, "GET", path+"/lines", "reader", "")
+			require.Equal(t, 200, lines.Code, lines.Body.String())
+			var list struct {
+				Data []struct {
+					ID        string
+					BookUnits int64 `json:"book_units"`
+				}
+			}
+			require.NoError(t, json.Unmarshal(lines.Body.Bytes(), &list))
+			require.Len(t, list.Data, 1)
+			require.EqualValues(t, 10, list.Data[0].BookUnits)
+			for version, actor := range []string{"reviewer", "approver"} {
+				counted := do(r, "PUT", path+"/counts/"+uuid.Must(uuid.NewV7()).String(), actor, fmt.Sprintf(`{"expected_version":%d,"counts":[{"line_id":%q,"counted_units":%d}],"reason":"TEST recounted shelf"}`, version, list.Data[0].ID, version+8))
+				require.Equal(t, 200, counted.Code, counted.Body.String())
+			}
+			submitted := do(r, "PUT", path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "editor", `{"decision":"submit","expected_version":2,"reason":"TEST all counted"}`)
+			require.Equal(t, 200, submitted.Code, submitted.Body.String())
+			approval := `{"decision":"approve","expected_version":3,"extra_units_disposition":"no_extra_units","reason":"TEST independent final review"}`
+			approvalPath := path + "/decisions/" + uuid.Must(uuid.NewV7()).String()
+			for _, actor := range []string{"editor", "reviewer", "approver"} {
+				rejected := do(r, "PUT", approvalPath, actor, approval)
+				require.Equal(t, 409, rejected.Code, rejected.Body.String())
+			}
+			approved := do(r, "PUT", approvalPath, "sibling", approval)
+			require.Equal(t, 200, approved.Code, approved.Body.String())
+			balance := do(r, "GET", outletPath("/stock/balance?location_id=")+location+"&batch_id="+batch, "reader", "")
+			require.Equal(t, 200, balance.Code, balance.Body.String())
+			var stock struct {
+				OnHandUnits int64 `json:"on_hand_units"`
+			}
+			require.NoError(t, json.Unmarshal(balance.Body.Bytes(), &stock))
+			require.EqualValues(t, 9, stock.OnHandUnits)
+			denied := do(r, "GET", path, "foreign", "")
+			require.Equal(t, 404, denied.Code, denied.Body.String())
+		})
+	}
 }
 
 func TestStocktakeSellableDifferencesPreserveQuarantineAndLaterTransfers(t *testing.T) {

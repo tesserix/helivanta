@@ -102,7 +102,7 @@ func TestStockHoldEvidenceFailureRollsBackBothLegs(t *testing.T) {
 		{"outbox_events", "subject<>'helivanta.in.pharmacy.stock_movement_recorded.v1'"},
 	} {
 		apply := func(sql string) {
-			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 			require.NoError(t, w.db.Migrate(ctx, []tenantdb.Migration{{ID: "test_hold_fault_" + uuid.Must(uuid.NewV7()).String(), SQL: sql}}))
 		}

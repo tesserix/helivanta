@@ -40,6 +40,68 @@ func stocktakeHarness(t *testing.T) (*gin.Engine, *tenantdb.DB) {
 	return r, db
 }
 
+func TestStocktakeSellableDifferencesPreserveQuarantineAndLaterTransfers(t *testing.T) {
+	for _, counted := range []int{25, 35} {
+		t.Run(fmt.Sprintf("count_%d", counted), func(t *testing.T) {
+			w := newReleaseWorld(t)
+			code, body := w.release(w.batch, 30)
+			require.Equal(t, 200, code, body)
+			path := stockPath("stocktakes/" + uuid.Must(uuid.NewV7()).String())
+			started := do(w.r, "PUT", path, "editor", fmt.Sprintf(`{"selection":"all","product_ids":[],"quarantine_location_id":%q,"reason":"TEST shelf count"}`, w.quarantine))
+			require.Equal(t, 200, started.Code, started.Body.String())
+			list := do(w.r, "GET", path+"/lines", "clerk", "")
+			require.Equal(t, 200, list.Code, list.Body.String())
+			var lines struct {
+				Data []struct {
+					ID         string
+					LocationID string `json:"location_id"`
+				}
+			}
+			require.NoError(t, json.Unmarshal(list.Body.Bytes(), &lines))
+			require.Len(t, lines.Data, 2)
+			entries := make([]map[string]any, 0, 2)
+			for _, line := range lines.Data {
+				units := 70
+				if line.LocationID == w.sellable {
+					units = counted
+				} else {
+					require.Equal(t, w.quarantine, line.LocationID)
+				}
+				entries = append(entries, map[string]any{"line_id": line.ID, "counted_units": units})
+			}
+			input, err := json.Marshal(map[string]any{"expected_version": 0, "counts": entries, "reason": "TEST physical shelves"})
+			require.NoError(t, err)
+			observed := do(w.r, "PUT", path+"/counts/"+uuid.Must(uuid.NewV7()).String(), "editor", string(input))
+			require.Equal(t, 200, observed.Code, observed.Body.String())
+			if counted == 25 {
+				code, body = w.release(w.batch, 5)
+				require.Equal(t, 200, code, body)
+			}
+			submitted := do(w.r, "PUT", path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "editor", `{"decision":"submit","expected_version":1,"reason":"TEST counted all"}`)
+			require.Equal(t, 200, submitted.Code, submitted.Body.String())
+			disposition := "no_extra_units"
+			if counted > 30 {
+				wrong := do(w.r, "PUT", path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "pharmacist", `{"decision":"approve","expected_version":2,"extra_units_disposition":"no_extra_units","reason":"TEST wrong attestation"}`)
+				require.Equal(t, 409, wrong.Code, wrong.Body.String())
+				require.EqualValues(t, 70, w.balance(t, w.quarantine, w.batch))
+				require.EqualValues(t, 30, w.balance(t, w.sellable, w.batch))
+				disposition = "moved_to_quarantine"
+			}
+			approved := do(w.r, "PUT", path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "pharmacist", fmt.Sprintf(`{"decision":"approve","expected_version":2,"extra_units_disposition":%q,"reason":"TEST independent review"}`, disposition))
+			require.Equal(t, 200, approved.Code, approved.Body.String())
+			quarantine := 65
+			if counted > 30 {
+				quarantine = 75
+			}
+			require.EqualValues(t, quarantine, w.balance(t, w.quarantine, w.batch))
+			require.EqualValues(t, 30, w.balance(t, w.sellable, w.batch))
+			forged := do(w.r, "PUT", stockPath("corrections/"+uuid.Must(uuid.NewV7()).String()), "editor", fmt.Sprintf(`{"location_id":%q,"batch_id":%q,"quantity_units":-1,"reason":"TEST forged count","source_reference":"stocktake:TEST-forged"}`, w.sellable, w.batch))
+			require.Equal(t, 409, forged.Code, forged.Body.String())
+			require.EqualValues(t, 30, w.balance(t, w.sellable, w.batch))
+		})
+	}
+}
+
 func TestStocktakeIndependentApprovalPreservesLaterMovements(t *testing.T) {
 	r, db := stocktakeHarness(t)
 	_, location, batch := stockFixture(t, r)

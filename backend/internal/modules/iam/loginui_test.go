@@ -360,7 +360,12 @@ func TestPasswordUnderForceMFAWithNothingEnrolledAsksForEnrolment(t *testing.T) 
 	}
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &parsed))
 	require.Equal(t, []string{"totp"}, parsed.Factors)
-	require.Equal(t, enrollmentFakeURI, parsed.TOTP.URI)
+	// The URI the page gets is rebranded (#1765): Helivanta as issuer, the
+	// typed email as the account, the fake's secret untouched.
+	require.True(t, strings.HasPrefix(parsed.TOTP.URI, "otpauth://totp/Helivanta:test@helivanta.dev?"), parsed.TOTP.URI)
+	require.Contains(t, parsed.TOTP.URI, "issuer=Helivanta")
+	require.Contains(t, parsed.TOTP.URI, "secret="+enrollmentFakeSecret)
+	require.NotContains(t, parsed.TOTP.URI, "ZITADEL")
 	require.Equal(t, enrollmentFakeSecret, parsed.TOTP.Secret)
 	require.NotContains(t, body, "callback_url")
 	require.NotContains(t, body, "mfa_enrollment_required", "the #947 refusal code must be gone, not merely unreachable")
@@ -1632,7 +1637,7 @@ func TestPasswordEnrollmentRegistrationFailureWritesNoRow(t *testing.T) {
 
 func TestEnrollmentFakeKeepsNativeUserPathBinding(t *testing.T) {
 	fake := newZitadelEnrollmentFake(t)
-	enrollment, err := fake.client.RegisterTOTP(t.Context(), "sess-enrol")
+	enrollment, err := fake.client.RegisterTOTP(t.Context(), "sess-enrol", "")
 	require.NoError(t, err)
 	require.Equal(t, enrollmentFakeSecret, enrollment.Secret)
 	require.EqualValues(t, 1, fake.registrations.Load())

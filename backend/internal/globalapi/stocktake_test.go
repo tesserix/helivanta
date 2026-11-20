@@ -68,7 +68,14 @@ func TestStocktakePreservesSupplierReservations(t *testing.T) {
 	}
 	allocation := uuid.Must(uuid.NewV7())
 	require.NoError(t, run(func(tx *gorm.DB) error {
-		_, _, err := store.Create(tx, allocation, order, input, actor, adapter.Snapshot)
+		_, _, err := store.Create(tx, allocation, order, input, actor, func(tx *gorm.DB, plan f.AllocationPlan) (f.StockEvidence, error) {
+			evidence, err := adapter.Snapshot(tx, plan)
+			require.NoError(t, err)
+			require.Equal(t, "2030-12-31", evidence.ExpiresOn)
+			require.EqualValues(t, 100, evidence.AvailableUnits)
+			require.EqualValues(t, 10, evidence.PackSize)
+			return evidence, err
+		})
 		return err
 	}))
 	call("PUT", path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "owner", `{"decision":"submit","expected_version":1,"reason":"TEST all shelves counted"}`, 200)

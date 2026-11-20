@@ -1,10 +1,12 @@
 package pharmacy_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -14,6 +16,7 @@ import (
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
+	"gorm.io/gorm"
 )
 
 func stocktakeHarness(t *testing.T) (*gin.Engine, *tenantdb.DB) {
@@ -36,7 +39,7 @@ func stocktakeHarness(t *testing.T) (*gin.Engine, *tenantdb.DB) {
 }
 
 func TestStocktakeIndependentApprovalPreservesLaterMovements(t *testing.T) {
-	r, _ := stocktakeHarness(t)
+	r, db := stocktakeHarness(t)
 	_, location, batch := stockFixture(t, r)
 	received := do(r, "PUT", outletPath("/stock/movements/")+uuid.Must(uuid.NewV7()).String(), "editor", stockBody(location, batch, "receipt", "TEST-reviewed-count-opening", 10))
 	require.Equal(t, 200, received.Code, received.Body.String())
@@ -65,6 +68,50 @@ func TestStocktakeIndependentApprovalPreservesLaterMovements(t *testing.T) {
 	approvalInput := `{"decision":"approve","expected_version":2,"extra_units_disposition":"no_extra_units","reason":"TEST independently reviewed shortage"}`
 	for _, actor := range []string{"editor", "reviewer"} {
 		require.Equal(t, 409, do(r, "PUT", approvalPath, actor, approvalInput).Code)
+	}
+	for _, fault := range []struct{ table, check string }{
+		{"audit_events", "resource_type<>'pharmacy_stocktake_commands'"},
+		{"outbox_events", "subject<>'helivanta.in.pharmacy.stock_movement_recorded.v1'"},
+	} {
+		apply := func(sql string) {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_stocktake_fault_" + uuid.Must(uuid.NewV7()).String(), SQL: sql}}))
+		}
+		clear := func() {
+			apply("ALTER TABLE " + fault.table + " DROP CONSTRAINT IF EXISTS synthetic_stocktake_evidence_failure")
+		}
+		t.Cleanup(clear)
+		apply("ALTER TABLE " + fault.table + " ADD CONSTRAINT synthetic_stocktake_evidence_failure CHECK(" + fault.check + ") NOT VALID")
+		failed := do(r, "PUT", approvalPath, "approver", approvalInput)
+		require.Equal(t, 503, failed.Code, failed.Body.String())
+		require.NotContains(t, failed.Body.String(), "synthetic_stocktake_evidence_failure")
+		require.Equal(t, 404, do(r, "GET", approvalPath, "reader", "").Code)
+		unchanged := do(r, "GET", path, "reader", "")
+		require.Equal(t, 200, unchanged.Code, unchanged.Body.String())
+		var pending struct {
+			State   string
+			Version int64
+		}
+		require.NoError(t, json.Unmarshal(unchanged.Body.Bytes(), &pending))
+		require.Equal(t, "submitted", pending.State)
+		require.Equal(t, int64(2), pending.Version)
+		balance := do(r, "GET", outletPath("/stock/balance?location_id=")+location+"&batch_id="+batch, "reader", "")
+		require.Equal(t, 200, balance.Code, balance.Body.String())
+		var units struct {
+			OnHand int64 `json:"on_hand_units"`
+		}
+		require.NoError(t, json.Unmarshal(balance.Body.Bytes(), &units))
+		require.Equal(t, int64(15), units.OnHand)
+		require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+			var events int64
+			if err := tx.Table("outbox_events").Where("subject='helivanta.in.pharmacy.stock_movement_recorded.v1'").Count(&events).Error; err != nil {
+				return err
+			}
+			require.Equal(t, int64(2), events)
+			return nil
+		}))
+		clear()
 	}
 	approved := do(r, "PUT", approvalPath, "approver", approvalInput)
 	require.Equal(t, 200, approved.Code, approved.Body.String())

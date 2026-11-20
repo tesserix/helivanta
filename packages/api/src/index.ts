@@ -250,10 +250,14 @@ export {
   readStocktake,
   recordStocktakeCount,
   fetchStocktakeLines,
+  recordStocktakeDecision,
+  readStocktakeDecision,
   type PharmacyStocktake,
   type PharmacyStocktakeLine,
   type PharmacyStocktakeStartInput,
   type PharmacyStocktakeCountInput,
   type PharmacyStocktakeCountReceipt,
+  type PharmacyStocktakeDecisionInput,
+  type PharmacyStocktakeDecisionReceipt,
 } from "./pharmacy-stocktakes";
 export { pharmacyReorderLevelInputSchema } from "./pharmacy-contract";

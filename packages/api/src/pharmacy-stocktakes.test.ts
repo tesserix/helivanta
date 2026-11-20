@@ -3,6 +3,8 @@ import {
   fetchStocktakeLines,
   readStocktake,
   recordStocktakeCount,
+  recordStocktakeDecision,
+  readStocktakeDecision,
   startStocktake,
 } from "./index";
 
@@ -34,6 +36,32 @@ const receipt = {
 };
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
 afterEach(() => vi.unstubAllGlobals());
+
+it("retains a review command and recovers its original receipt after later revisions", async () => {
+  const input = { decision: "submit" as const, expected_version: 1, reason: "TEST all counted" };
+  const saved = {
+    ...input,
+    extra_units_disposition: null,
+    id: command,
+    stocktake_id: take,
+    outlet_id: scope.outletId,
+    version: 2,
+    state: "submitted",
+    adjustment_count: 0,
+    recorded_by: "TEST starter",
+    recorded_at: "2026-11-20T00:00:00Z",
+  };
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(json(saved))
+    .mockResolvedValueOnce(json(saved))
+    .mockResolvedValueOnce(json({ ...saved, state: "posted" }));
+  vi.stubGlobal("fetch", fetch);
+  expect(await recordStocktakeDecision(scope, take, command, input)).toEqual(saved);
+  expect(await readStocktakeDecision(scope, take, command)).toEqual(saved);
+  expect(fetch.mock.calls[1]?.[0]).toContain(`/stocktakes/${take}/decisions/${command}`);
+  await expect(recordStocktakeDecision(scope, take, command, input)).rejects.toThrow(/receipt/i);
+});
 
 it("reads current progress and refuses a foreign or inconsistent stocktake", async () => {
   const current = {

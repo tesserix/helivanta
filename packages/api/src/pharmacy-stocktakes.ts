@@ -4,6 +4,8 @@ import { pharmacyRoot, type PharmacyScope } from "./pharmacy";
 import {
   pharmacyStocktakeCountInputSchema,
   pharmacyStocktakeCountReceiptSchema,
+  pharmacyStocktakeDecisionInputSchema,
+  pharmacyStocktakeDecisionReceiptSchema,
   pharmacyStocktakeLineSchema,
   pharmacyStocktakeSchema,
   pharmacyStocktakeStartInputSchema,
@@ -14,6 +16,10 @@ export type PharmacyStocktakeLine = z.infer<typeof pharmacyStocktakeLineSchema>;
 export type PharmacyStocktakeStartInput = z.infer<typeof pharmacyStocktakeStartInputSchema>;
 export type PharmacyStocktakeCountInput = z.infer<typeof pharmacyStocktakeCountInputSchema>;
 export type PharmacyStocktakeCountReceipt = z.infer<typeof pharmacyStocktakeCountReceiptSchema>;
+export type PharmacyStocktakeDecisionInput = z.infer<typeof pharmacyStocktakeDecisionInputSchema>;
+export type PharmacyStocktakeDecisionReceipt = z.infer<
+  typeof pharmacyStocktakeDecisionReceiptSchema
+>;
 
 const id = z.string().guid();
 const continuation = z.object({ next_cursor: z.string().min(1).nullable(), has_more: z.boolean() });
@@ -41,6 +47,76 @@ function countIntent(input: PharmacyStocktakeCountInput) {
     reason: input.reason,
     counts: [...input.counts].sort((a, b) => a.line_id.localeCompare(b.line_id)),
   });
+}
+
+const decisionStates = {
+  submit: "submitted",
+  approve: "posted",
+  reject: "rejected",
+  cancel: "cancelled",
+} as const;
+
+function checkedDecision(scope: PharmacyScope, take: string, command: string, value: unknown) {
+  const result = pharmacyStocktakeDecisionReceiptSchema.parse(value);
+  if (
+    result.id !== command ||
+    result.stocktake_id !== take ||
+    result.outlet_id !== scope.outletId ||
+    result.version !== result.expected_version + 1 ||
+    result.state !== decisionStates[result.decision] ||
+    (result.decision !== "approve" &&
+      (result.adjustment_count !== 0 || result.extra_units_disposition != null)) ||
+    (result.decision === "approve" &&
+      (result.extra_units_disposition == null ||
+        (result.adjustment_count === 0 && result.extra_units_disposition !== "no_extra_units")))
+  )
+    throw new Error("The review receipt does not match this stocktake and command.");
+  return result;
+}
+
+function decisionIntent(input: PharmacyStocktakeDecisionInput) {
+  return JSON.stringify({
+    decision: input.decision,
+    expected_version: input.expected_version,
+    reason: input.reason,
+    extra_units_disposition: input.extra_units_disposition ?? null,
+  });
+}
+
+export async function recordStocktakeDecision(
+  scope: PharmacyScope,
+  take: string,
+  command: string,
+  input: PharmacyStocktakeDecisionInput,
+) {
+  const intent = pharmacyStocktakeDecisionInputSchema.parse(input);
+  const result = checkedDecision(
+    scope,
+    take,
+    command,
+    await apiFetch(`${root(scope, take)}/decisions/${id.parse(command)}`, {
+      ...request(scope),
+      method: "PUT",
+      body: JSON.stringify(intent),
+    }),
+  );
+  if (decisionIntent(result) !== decisionIntent(intent))
+    throw new Error("The review receipt does not match the submitted decision.");
+  return result;
+}
+
+export async function readStocktakeDecision(
+  scope: PharmacyScope,
+  take: string,
+  command: string,
+  signal?: AbortSignal,
+) {
+  return checkedDecision(
+    scope,
+    take,
+    command,
+    await apiFetch(`${root(scope, take)}/decisions/${id.parse(command)}`, request(scope, signal)),
+  );
 }
 
 export async function readStocktake(scope: PharmacyScope, take: string, signal?: AbortSignal) {

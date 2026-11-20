@@ -135,7 +135,7 @@ func postStocktakeDecision(tx *gorm.DB, p authn.Principal, pharmacy, outlet, tak
 	if len(plans) == 0 {
 		return nil
 	}
-	if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended(?::text||':'||?::text||':'||d.location_id::text||':'||d.batch_id::text,0))
+	if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended(?::uuid::text||':'||?::uuid::text||':'||d.location_id::text||':'||d.batch_id::text,0))
  FROM(SELECT DISTINCT CASE WHEN x.quantity_units>0 THEN s.quarantine_location_id ELSE x.from_location_id END location_id,x.batch_id
  FROM pharmacy_stocktake_differences(?,?,?)x JOIN pharmacy_stocktakes s ON s.tenant_id=? AND s.outlet_id=? AND s.id=?)d
  ORDER BY d.location_id,d.batch_id`, p.TenantID, outlet, p.TenantID, outlet, take, p.TenantID, outlet, take).Error; err != nil {

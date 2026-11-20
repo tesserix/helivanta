@@ -234,6 +234,15 @@ type movementInput struct {
 	SourceReference string    `json:"source_reference" binding:"required,min=1,max=100"`
 }
 
+type StockMovementReceipt struct {
+	Kind         string    `json:"kind" binding:"required,oneof=receipt correction release sale return supplier_dispatch quarantine_hold"`
+	ID           uuid.UUID `json:"id" binding:"required"`
+	OutletID     uuid.UUID `json:"outlet_id" binding:"required"`
+	ActorSubject string    `json:"actor_subject" binding:"required,min=1,max=200"`
+	CreatedAt    string    `json:"created_at"`
+	movementInput
+}
+
 type StorageAddressFields struct {
 	ZoneCode  string `json:"zone_code"`
 	AisleCode string `json:"aisle_code"`

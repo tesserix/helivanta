@@ -328,6 +328,26 @@ export const pharmacyMovementInputSchema = z
   })
   .strict();
 
+export const pharmacyStockMovementReceiptSchema = pharmacyMovementInputSchema
+  .extend({
+    kind: z.enum([
+      "receipt",
+      "correction",
+      "release",
+      "sale",
+      "return",
+      "supplier_dispatch",
+      "quarantine_hold",
+    ]),
+    id: identifier,
+    outlet_id: identifier,
+    actor_subject: z.string().min(1).max(200),
+    created_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+  })
+  .strict();
+
 export const pharmacyStorageAddressSchema = z
   .object({
     zone_code: z

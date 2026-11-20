@@ -35,7 +35,7 @@ ALTER TABLE pharmacy_stock_holds ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pharmacy_stock_holds FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON pharmacy_stock_holds
  USING(hms_tenant_visible(tenant_id)AND pharmacy_outlet_allowed(tenant_id,outlet_id,false))
- WITH CHECK(hms_tenant_visible(tenant_id)AND pharmacy_outlet_allowed(tenant_id,outlet_id,true)AND actor_subject=NULLIF(current_setting('app.pharmacy_subject',true),''));
+ WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid AND pharmacy_outlet_allowed(tenant_id,outlet_id,true)AND actor_subject=NULLIF(current_setting('app.pharmacy_subject',true),''));
 CREATE INDEX pharmacy_stock_hold_batch ON pharmacy_stock_holds(tenant_id,outlet_id,batch_id);
 CREATE INDEX pharmacy_stock_hold_source ON pharmacy_stock_holds(tenant_id,outlet_id,from_location_id);
 CREATE INDEX pharmacy_stock_hold_quarantine ON pharmacy_stock_holds(tenant_id,outlet_id,quarantine_location_id);

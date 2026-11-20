@@ -967,6 +967,45 @@
       ]
     },
     {
+      "name": "StockMovementReceipt",
+      "schema": "pharmacyStockMovementReceiptSchema",
+      "embed": "movementInput",
+      "fields": [
+        {
+          "name": "kind",
+          "type": "string",
+          "enum": [
+            "receipt",
+            "correction",
+            "release",
+            "sale",
+            "return",
+            "supplier_dispatch",
+            "quarantine_hold"
+          ]
+        },
+        {
+          "name": "id",
+          "type": "uuid"
+        },
+        {
+          "name": "outlet_id",
+          "type": "uuid"
+        },
+        {
+          "name": "actor_subject",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "created_at",
+          "type": "string",
+          "format": "datetime"
+        }
+      ]
+    },
+    {
       "name": "StorageAddressFields",
       "schema": "pharmacyStorageAddressSchema",
       "fields": [

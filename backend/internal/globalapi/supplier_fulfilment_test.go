@@ -82,6 +82,17 @@ func TestOwnerAllocationBudgetsSerializeAndRecoverOriginalIntent(t *testing.T) {
 		t.Run(string(owner), func(t *testing.T) {
 			store := supplierstock.Store{Owner: owner}
 			fixture := seedSupplierStock(t, r, db, string(owner))
+
+			if owner == supplierstock.Outlet {
+				root := "/v1/pharmacy/pharmacies/" + fixture.organization.String() + "/outlets/" + fixture.location.String()
+				level := testutil.Do(r, "PUT", root+"/catalogue/products/"+fixture.product.ProductID.String()+"/reorder-levels/"+uuid.Must(uuid.NewV7()).String(), "owner", `{"minimum_units":50,"expected_version":0,"product_version":1}`)
+				require.Equal(t, 200, level.Code, level.Body.String())
+				before := testutil.Do(r, "GET", root+"/stock/low-products", "owner", "")
+				require.Equal(t, 200, before.Code, before.Body.String())
+				var rows struct{ Data []json.RawMessage }
+				require.NoError(t, json.Unmarshal(before.Body.Bytes(), &rows))
+				require.Empty(t, rows.Data)
+			}
 			order, in, actor := sourceOrder(t, string(owner), fixture)
 			tenant := order.OwnerTenantID
 			scope := supplierstock.Scope{TenantID: tenant, OrganizationID: order.Terms.Seller.OrganizationID, LocationID: order.Terms.Seller.LocationID, StaffID: actor.StaffID, Subject: actor.Subject, Mode: "operator"}
@@ -158,6 +169,21 @@ func TestOwnerAllocationBudgetsSerializeAndRecoverOriginalIntent(t *testing.T) {
 			}
 			require.Equal(t, 1, success)
 			require.Equal(t, 1, conflicts)
+			if owner == supplierstock.Outlet {
+				root := "/v1/pharmacy/pharmacies/" + fixture.organization.String() + "/outlets/" + fixture.location.String()
+				after := testutil.Do(r, "GET", root+"/stock/low-products", "owner", "")
+				require.Equal(t, 200, after.Code, after.Body.String())
+				var rows struct {
+					Data []struct {
+						ID        uuid.UUID
+						Available string `json:"available_units"`
+					}
+				}
+				require.NoError(t, json.Unmarshal(after.Body.Bytes(), &rows))
+				require.Len(t, rows.Data, 1)
+				require.Equal(t, fixture.product.ProductID, rows.Data[0].ID)
+				require.Equal(t, "40", rows.Data[0].Available, "supplier holds cause a low-stock warning before physical dispatch")
+			}
 
 			require.NoError(t, run(t.Context(), func(tx *gorm.DB) error {
 				rows, err := choices(tx, source, order.Input.Lines[0], pagination.Params{Limit: 1})

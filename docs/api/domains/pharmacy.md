@@ -931,3 +931,56 @@ schedule, tax, category, price-control or stock release reviews. Source transpor
 can fetch/stage licensed releases; live vendor activation remains dependent on
 procurement and independent stewardship. #1683 is not complete until an approved
 Indian branded release is evidenced in production.
+
+## Outlet reorder levels and low-stock warnings (#1685)
+
+This additive implementation is protected by `pharmacy_stock`, which depends on
+`pharmacy_catalogue`. Neither capability is enabled by this change; passing the
+new tests does not constitute acceptance of all stock/catalogue features.
+
+All paths below start at
+`/v1/pharmacy/pharmacies/{pharmacy}/outlets/{outlet}`. Each request verifies the
+current principal, tenant, pharmacy and outlet grant. GET requires
+`pharmacy.stock.read`; PUT also requires `pharmacy.catalogue.write` and an editor
+grant. A tenant or hospital affiliation does not replace that grant.
+
+| Method/path                                             | Input and result                                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET `/catalogue/products/{id}/reorder-level`            | `{level: receipt                                                                                                                                                                                                                                                                                               | null}`; an existing product with no level returns null; an inaccessible product returns 404. |
+| PUT `/catalogue/products/{id}/reorder-levels/{command}` | UUIDv7 command, strict `{minimum_units, expected_version, product_version}`. Minimum is an integer 0–1,000,000,000 issue units or explicit null to disable. All fields are required. Initial expected version is 0; product version is the current catalogue version. Returns the immutable receipt, HTTP 200. |
+| GET `/catalogue/products/{id}/reorder-levels/{command}` | Returns the immutable receipt under current read authority, or 404. This is recovery after an ambiguous PUT; receipt remains the original revision after later changes.                                                                                                                                        |
+| GET `/stock/low-products`                               | Standard bounded keyset envelope; only `limit` and `cursor`, each once and nonempty. Default 50, maximum 200. No historical stock or automatic ordering.                                                                                                                                                       |
+
+Canonical command, receipt and list-row fields derive from
+`contracts/pharmacy.json`. Receipt carries the command/product/outlet IDs,
+minimum, expected/product/result versions, issue unit and UTC recorded instant.
+List rows identify the product by `id`, with outlet, SKU, brand, unit, minimum,
+exact integer-string available units, observed instant, outlet-local date and
+timezone. UI labels use names and SKUs. No patient or Staff profile is disclosed.
+
+Configuration history is append-only and audited in its write transaction.
+Writes serialize on the product row; a database trigger checks active product,
+product version/unit, actor and next revision. Repeating the same command, input
+and actor returns its original receipt. Changed reuse and stale product/level
+versions return 409 `version_conflict`. Missing/invalid fields return 400;
+permission denial is 403 and inaccessible scoped objects are 404. No event,
+stock movement, payable or order is created.
+
+The list and additive `overview.stock.low_stock` count share one projection.
+Only active products with a configured, non-null minimum in the current issue
+unit participate. Zero is configured and warns at zero availability. Products
+without batches are included. A unit change before any batch exists invalidates
+the old-unit configuration; the editor identifies it and requires a new save.
+Inventory already freezes product identity after a batch exists.
+
+Availability reuses `pharmacy_sellable_buckets`, as the stock balance does:
+sellable locations, MRP present, expiry strictly after outlet-local today, no
+safety incident, and live supplier holds subtracted. It is not a dispensing
+permission; product classification, licences, tax and sale checks still apply.
+Equality is low stock. Counts/quantities are never substituted with zero when
+an owner query fails. Lists have a 10-second request deadline and 8-second SQL
+budget; configuration lookup uses the latest indexed revision for each product.
+Different requests can differ when stock, reservations or configuration changes.
+
+[Operator guide](../../guides/pharmacy-low-stock.md) ·
+[Design and release gates](../../superpowers/specs/2026-11-20-outlet-low-stock.md)

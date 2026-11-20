@@ -11,12 +11,6 @@ import (
 	"github.com/tesserix/helivanta/pkg/countryprofile"
 )
 
-type overviewStock struct {
-	Expired int64 `json:"expired"`
-	Due30   int64 `json:"due_30"`
-	Due90   int64 `json:"due_90"`
-}
-
 type overviewSafety struct {
 	Recent int64 `json:"recent"`
 }
@@ -101,6 +95,9 @@ func (h *catalogueHandlers) getOverview(c *gin.Context) {
 				return err
 			}
 			if stock.Due90, err = positions("due_90"); err != nil {
+				return err
+			}
+			if stock.LowStock, err = count(tx.Table("(?) low_stock", lowStockSource(tx, p.TenantID, outlet, stockAsOf))); err != nil {
 				return err
 			}
 			result.Stock = &stock

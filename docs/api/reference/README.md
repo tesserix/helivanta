@@ -535,6 +535,9 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/price-control/:declaration/review` | `pharmacy.price_control.review` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/price-control/:declaration` | `pharmacy.price_control.declare` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/price-control` | `pharmacy.catalogue.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-level` | `pharmacy.stock.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-levels/:command` | `pharmacy.stock.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-levels/:command` | `pharmacy.catalogue.write` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/revisions` | `pharmacy.catalogue.read` | true | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration/countersign` | `pharmacy.schedule.countersign` | false | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration/review` | `pharmacy.schedule.review` | false | false |
@@ -622,6 +625,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/corrections/:id` | `pharmacy.stock.correct` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/locations/:id` | `pharmacy.stock.receive` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/locations` | `pharmacy.stock.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/low-products` | `pharmacy.stock.read` | true | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/movements/:id` | `pharmacy.stock.receive` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/movements` | `pharmacy.stock.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/positions.csv` | `pharmacy.stock.read` | false | false |
@@ -735,6 +739,7 @@ Migration table declarations:
 - `0042_pharmacy_supplier_receiving_release`: `pharmacy_supplier_receiving_releases`.
 - `0045_pharmacy_hospital_names`: `pharmacy_hospital_names`.
 - `0050_pharmacy_schedule_lowering`: `pharmacy_product_schedule_countersigns`.
+- `0052_pharmacy_reorder_levels`: `pharmacy_reorder_levels`.
 
 ## payments
 

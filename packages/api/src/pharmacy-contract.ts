@@ -8,6 +8,53 @@ const identifier = z
     /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     "Choose a valid record.",
   );
+export const pharmacyOverviewStockSchema = z
+  .object({
+    low_stock: z.number().int().min(0).max(9007199254740991),
+    expired: z.number().int().min(0).max(9007199254740991),
+    due_30: z.number().int().min(0).max(9007199254740991),
+    due_90: z.number().int().min(0).max(9007199254740991),
+  })
+  .strict();
+
+export const pharmacyReorderLevelInputSchema = z
+  .object({
+    minimum_units: z.number().int().min(0).max(1000000000).nullable(),
+    expected_version: z.number().int().min(0).max(9007199254740990),
+    product_version: z.number().int().min(1).max(9007199254740991),
+  })
+  .strict();
+
+export const pharmacyReorderLevelReceiptSchema = pharmacyReorderLevelInputSchema
+  .extend({
+    id: identifier,
+    outlet_id: identifier,
+    product_id: identifier,
+    version: z.number().int().min(1).max(9007199254740991),
+    unit_of_issue: z.string().min(1).max(40),
+    recorded_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+  })
+  .strict();
+
+export const pharmacyLowStockProductSchema = z
+  .object({
+    id: identifier,
+    outlet_id: identifier,
+    sku: z.string().min(1).max(40),
+    brand_name: z.string().min(1).max(200),
+    unit_of_issue: z.string().min(1).max(40),
+    minimum_units: z.number().int().min(0).max(1000000000),
+    available_units: z.string().regex(new RegExp("^(0|[1-9][0-9]*)$"), "Use the required format."),
+    observed_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+    local_date: z.string().date("Use a full valid date."),
+    time_zone: z.string().min(1).max(64),
+  })
+  .strict();
+
 export const pharmacyLicenceFieldsSchema = z
   .object({
     licence_kind: z.enum(["retail", "wholesale"]),

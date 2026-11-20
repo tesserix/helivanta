@@ -3,6 +3,42 @@ package pharmacy
 
 import "github.com/google/uuid"
 
+type overviewStock struct {
+	LowStock int64 `json:"low_stock" binding:"min=0,max=9007199254740991"`
+	Expired  int64 `json:"expired" binding:"min=0,max=9007199254740991"`
+	Due30    int64 `json:"due_30" binding:"min=0,max=9007199254740991"`
+	Due90    int64 `json:"due_90" binding:"min=0,max=9007199254740991"`
+}
+
+type reorderLevelInput struct {
+	MinimumUnits    *int64 `json:"minimum_units" binding:"omitempty,min=0,max=1000000000"`
+	ExpectedVersion *int64 `json:"expected_version" binding:"required,min=0,max=9007199254740990"`
+	ProductVersion  *int64 `json:"product_version" binding:"required,min=1,max=9007199254740991"`
+}
+
+type ReorderLevelReceipt struct {
+	ID          uuid.UUID `json:"id" binding:"required"`
+	OutletID    uuid.UUID `json:"outlet_id" binding:"required"`
+	ProductID   uuid.UUID `json:"product_id" binding:"required"`
+	Version     int64     `json:"version" binding:"min=1,max=9007199254740991"`
+	UnitOfIssue string    `json:"unit_of_issue" binding:"required,min=1,max=40"`
+	RecordedAt  string    `json:"recorded_at"`
+	reorderLevelInput
+}
+
+type LowStockProduct struct {
+	ID             uuid.UUID `json:"id" binding:"required"`
+	OutletID       uuid.UUID `json:"outlet_id" binding:"required"`
+	SKU            string    `json:"sku" binding:"required,min=1,max=40"`
+	BrandName      string    `json:"brand_name" binding:"required,min=1,max=200"`
+	UnitOfIssue    string    `json:"unit_of_issue" binding:"required,min=1,max=40"`
+	MinimumUnits   int64     `json:"minimum_units" binding:"min=0,max=1000000000"`
+	AvailableUnits string    `json:"available_units"`
+	ObservedAt     string    `json:"observed_at"`
+	LocalDate      string    `json:"local_date"`
+	TimeZone       string    `json:"time_zone" binding:"required,min=1,max=64"`
+}
+
 type LicenceFields struct {
 	LicenceKind            string `json:"licence_kind" binding:"required,oneof=retail wholesale"`
 	FormLabel              string `json:"form_label" binding:"required,min=1,max=40"`

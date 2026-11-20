@@ -54,10 +54,11 @@ export async function generateContract(moduleName) {
       const base = array ? field.type.slice(2) : field.type;
       let goType = base === "uuid" ? "uuid.UUID" : base;
       if (array) goType = "[]" + goType;
-      if (field.pointer || field.optional) goType = "*" + goType;
+      if (field.pointer || field.optional || field.nullable) goType = "*" + goType;
       const validation = [];
       if (
         !field.optional &&
+        !field.nullable &&
         ((base === "string" && field.min > 0) ||
           base === "uuid" ||
           array ||
@@ -65,7 +66,7 @@ export async function generateContract(moduleName) {
           field.nonzero)
       )
         validation.push("required");
-      if (field.optional) validation.push("omitempty");
+      if (field.optional || field.nullable) validation.push("omitempty");
       if (field.min !== undefined) validation.push(`min=${field.min}`);
       if (field.max !== undefined) validation.push(`max=${field.max}`);
       if (array) validation.push("dive");
@@ -102,6 +103,7 @@ export async function generateContract(moduleName) {
         schema += '.refine(value=>new Set(value).size===value.length,"Choose each value once.")';
       if (field.nonzero) schema += '.refine(value=>value!==0,"Quantity cannot be zero.")';
       if (field.optional) schema += ".nullable().optional()";
+      else if (field.nullable) schema += ".nullable()";
       ts += `${field.name}:${schema},\n`;
     }
     if (model.embed) go += `${model.embed}\n`;

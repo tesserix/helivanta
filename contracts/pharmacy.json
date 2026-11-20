@@ -1,47 +1,231 @@
 {
   "models": [
     {
+      "name": "overviewStock",
+      "schema": "pharmacyOverviewStockSchema",
+      "fields": [
+        {
+          "name": "low_stock",
+          "type": "int64",
+          "min": 0,
+          "max": 9007199254740991
+        },
+        {
+          "name": "expired",
+          "type": "int64",
+          "min": 0,
+          "max": 9007199254740991
+        },
+        {
+          "name": "due_30",
+          "type": "int64",
+          "min": 0,
+          "max": 9007199254740991
+        },
+        { "name": "due_90", "type": "int64", "min": 0, "max": 9007199254740991 }
+      ]
+    },
+    {
+      "name": "reorderLevelInput",
+      "schema": "pharmacyReorderLevelInputSchema",
+      "fields": [
+        {
+          "name": "minimum_units",
+          "type": "int64",
+          "nullable": true,
+          "min": 0,
+          "max": 1000000000
+        },
+        {
+          "name": "expected_version",
+          "type": "int64",
+          "pointer": true,
+          "min": 0,
+          "max": 9007199254740990
+        },
+        {
+          "name": "product_version",
+          "type": "int64",
+          "pointer": true,
+          "min": 1,
+          "max": 9007199254740991
+        }
+      ]
+    },
+    {
+      "name": "ReorderLevelReceipt",
+      "schema": "pharmacyReorderLevelReceiptSchema",
+      "embed": "reorderLevelInput",
+      "fields": [
+        { "name": "id", "type": "uuid" },
+        { "name": "outlet_id", "type": "uuid" },
+        { "name": "product_id", "type": "uuid" },
+        {
+          "name": "version",
+          "type": "int64",
+          "min": 1,
+          "max": 9007199254740991
+        },
+        { "name": "unit_of_issue", "type": "string", "min": 1, "max": 40 },
+        { "name": "recorded_at", "type": "string", "format": "datetime" }
+      ]
+    },
+    {
+      "name": "LowStockProduct",
+      "schema": "pharmacyLowStockProductSchema",
+      "fields": [
+        { "name": "id", "type": "uuid" },
+        { "name": "outlet_id", "type": "uuid" },
+        { "name": "sku", "type": "string", "min": 1, "max": 40 },
+        { "name": "brand_name", "type": "string", "min": 1, "max": 200 },
+        { "name": "unit_of_issue", "type": "string", "min": 1, "max": 40 },
+        {
+          "name": "minimum_units",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000
+        },
+        {
+          "name": "available_units",
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        { "name": "observed_at", "type": "string", "format": "datetime" },
+        { "name": "local_date", "type": "string", "format": "date" },
+        { "name": "time_zone", "type": "string", "min": 1, "max": 64 }
+      ]
+    },
+    {
       "name": "LicenceFields",
       "schema": "pharmacyLicenceFieldsSchema",
       "fields": [
-        {"name":"licence_kind","type":"string","enum":["retail","wholesale"]},
-        {"name":"form_label","type":"string","min":1,"max":40,"trim":true},
-        {"name":"licence_number","type":"string","min":1,"max":100,"trim":true},
-        {"name":"issuing_authority","type":"string","min":1,"max":200,"trim":true},
-        {"name":"valid_from","type":"string","format":"date","min":10,"max":10},
-        {"name":"valid_until","type":"string","format":"date","min":10,"max":10},
-        {"name":"pharmacist_name","type":"string","min":1,"max":200,"trim":true},
-        {"name":"pharmacist_registration","type":"string","min":1,"max":100,"trim":true}
+        {
+          "name": "licence_kind",
+          "type": "string",
+          "enum": ["retail", "wholesale"]
+        },
+        {
+          "name": "form_label",
+          "type": "string",
+          "min": 1,
+          "max": 40,
+          "trim": true
+        },
+        {
+          "name": "licence_number",
+          "type": "string",
+          "min": 1,
+          "max": 100,
+          "trim": true
+        },
+        {
+          "name": "issuing_authority",
+          "type": "string",
+          "min": 1,
+          "max": 200,
+          "trim": true
+        },
+        {
+          "name": "valid_from",
+          "type": "string",
+          "format": "date",
+          "min": 10,
+          "max": 10
+        },
+        {
+          "name": "valid_until",
+          "type": "string",
+          "format": "date",
+          "min": 10,
+          "max": 10
+        },
+        {
+          "name": "pharmacist_name",
+          "type": "string",
+          "min": 1,
+          "max": 200,
+          "trim": true
+        },
+        {
+          "name": "pharmacist_registration",
+          "type": "string",
+          "min": 1,
+          "max": 100,
+          "trim": true
+        }
       ]
     },
     {
       "name": "LicenceReviewFields",
       "schema": "pharmacyLicenceReviewFieldsSchema",
       "fields": [
-        {"name":"decision","type":"string","enum":["approved","rejected"]},
-        {"name":"reason","type":"string","min":1,"max":500,"trim":true}
+        {
+          "name": "decision",
+          "type": "string",
+          "enum": ["approved", "rejected"]
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 1,
+          "max": 500,
+          "trim": true
+        }
       ]
     },
     {
       "name": "LicenceRenewalNotice",
       "schema": "pharmacyLicenceRenewalNoticeSchema",
       "fields": [
-        {"name":"licence_id","type":"uuid"},
-        {"name":"date_status","type":"string","enum":["not_yet_valid","expired","expires_today","renewal_due_30","renewal_due_90","renewal_due_180","current"]},
-        {"name":"days_remaining","type":"int64","min":-3652058,"max":3652058},
-        {"name":"local_date","type":"string","format":"date","min":10,"max":10},
-        {"name":"time_zone","type":"string","min":1,"max":100},
-        {"name":"observed_at","type":"string","min":20,"max":35}
+        { "name": "licence_id", "type": "uuid" },
+        {
+          "name": "date_status",
+          "type": "string",
+          "enum": [
+            "not_yet_valid",
+            "expired",
+            "expires_today",
+            "renewal_due_30",
+            "renewal_due_90",
+            "renewal_due_180",
+            "current"
+          ]
+        },
+        {
+          "name": "days_remaining",
+          "type": "int64",
+          "min": -3652058,
+          "max": 3652058
+        },
+        {
+          "name": "local_date",
+          "type": "string",
+          "format": "date",
+          "min": 10,
+          "max": 10
+        },
+        { "name": "time_zone", "type": "string", "min": 1, "max": 100 },
+        { "name": "observed_at", "type": "string", "min": 20, "max": 35 }
       ]
     },
     {
       "name": "LicenceEvidenceFields",
       "schema": "pharmacyLicenceEvidenceFieldsSchema",
       "fields": [
-        {"name":"filename","type":"string","min":1,"max":180},
-        {"name":"content_type","type":"string","enum":["image/png","image/jpeg"]},
-        {"name":"size","type":"int64","min":1,"max":10485760},
-        {"name":"sha256","type":"string","min":64,"max":64,"pattern":"^[a-f0-9]{64}$"}
+        { "name": "filename", "type": "string", "min": 1, "max": 180 },
+        {
+          "name": "content_type",
+          "type": "string",
+          "enum": ["image/png", "image/jpeg"]
+        },
+        { "name": "size", "type": "int64", "min": 1, "max": 10485760 },
+        {
+          "name": "sha256",
+          "type": "string",
+          "min": 64,
+          "max": 64,
+          "pattern": "^[a-f0-9]{64}$"
+        }
       ]
     },
     {

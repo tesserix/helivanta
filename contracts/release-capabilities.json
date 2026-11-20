@@ -5600,6 +5600,26 @@
       "method": "PUT",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/from-drugmaster",
       "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-level",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-levels/:command",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-levels/:command",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/low-products",
+      "capability": "pharmacy_stock"
     }
   ],
   "pages": [

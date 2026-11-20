@@ -38,7 +38,7 @@ Per #1763 and onboarding #50: the verification link opens **Set your password**;
 
 - Zitadel's password-changed notification is disabled for Helivanta organisations and replaced by a Helivanta notice sent only on real changes (onboarding #51).
 - The authenticator entry reads `Helivanta: <email>` (#1765).
-- Emails are Helivanta-branded, one button, one expiry line (onboarding #49, wording in the copy spec).
+- **One email layout for every Helivanta email** (onboarding #49). A single `signupmail` layout (wordmark, one heading, one line of context, one button, expiry, "Didn't ask for this? Ignore this email.", footer with the sending address) renders all five templates: verify email, set password, sign-in code, staff invite, password recovery. Each template supplies only its heading, line, button label, URL or code, and expiry. The text part is generated from the same fields, so HTML and text never drift. A Go test renders every template through the layout and asserts no template carries its own markup. Zitadel-sent emails are disabled for Helivanta organisations (#51), so the layout covers everything a customer receives.
 - No Helivanta control links to Zitadel's hosted login. The explicit security-key continuation (ADR-0069) is the one documented exception and stays as it is.
 
 ### D6 — Smaller cuts on existing steps

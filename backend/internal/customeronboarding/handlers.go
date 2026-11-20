@@ -309,6 +309,12 @@ func (h *Handlers) request(c *gin.Context, method, path string, cap capability, 
 	if response.StatusCode == 404 && method == http.MethodGet {
 		return customercontract.Receipt{State: customercontract.NotStarted}, uuid.Nil, true
 	}
+	if response.StatusCode == 422 {
+		// The identity owner refused the password itself (one-shot signup,
+		// #1763): the link is intact, so the form keeps it and asks again.
+		respond.Error(c, 422, "password_policy", "That password doesn't meet your workspace's password rules. Try a longer one with letters, numbers and a symbol.")
+		return empty, uuid.Nil, false
+	}
 	if response.StatusCode == 400 || response.StatusCode == 409 || response.StatusCode == 404 {
 		respond.Error(c, 400, "signup_refused", "Check your details or request a fresh email link.")
 		return empty, uuid.Nil, false

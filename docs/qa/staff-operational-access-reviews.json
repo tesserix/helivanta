@@ -4514,7 +4514,7 @@
         },
         {
           "path": "backend/internal/customeronboarding/handlers.go",
-          "sha256": "b4e6903527cfe4dbf81098fa72be3b5acb3cf61526af91e3361d1e74e2cebb95",
+          "sha256": "2517b6017a1103b32b73df3e259577e83d806869aa0625534c966c258483acdc",
           "symbol": "func (h *Handlers) browser("
         }
       ],
@@ -4537,7 +4537,7 @@
         },
         {
           "path": "backend/internal/customeronboarding/handlers.go",
-          "sha256": "b4e6903527cfe4dbf81098fa72be3b5acb3cf61526af91e3361d1e74e2cebb95",
+          "sha256": "2517b6017a1103b32b73df3e259577e83d806869aa0625534c966c258483acdc",
           "symbol": "func (h *Handlers) browser("
         }
       ],
@@ -4560,7 +4560,7 @@
         },
         {
           "path": "backend/internal/customeronboarding/handlers.go",
-          "sha256": "b4e6903527cfe4dbf81098fa72be3b5acb3cf61526af91e3361d1e74e2cebb95",
+          "sha256": "2517b6017a1103b32b73df3e259577e83d806869aa0625534c966c258483acdc",
           "symbol": "func (h *Handlers) browser("
         }
       ],

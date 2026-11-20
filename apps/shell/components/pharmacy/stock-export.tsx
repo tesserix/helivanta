@@ -5,18 +5,28 @@ import {
   ApiError,
   fetchPharmacyStockCSV,
   fetchPharmacyStockOverviewCSV,
+  fetchStocktakeCSV,
+  type PharmacyStocktakeSummary,
+  type PharmacyStocktakeScope,
   type PharmacyStockOverviewScope,
   tenantTransitionPending,
   type PharmacyScope,
 } from "@helivanta/api";
 import { Button } from "@tesserix/web";
 
-type Props = { filters: string; disabled: boolean } & (
-  { scope: PharmacyScope; overview?: false } | { scope: PharmacyStockOverviewScope; overview: true }
+type Props = { disabled: boolean } & (
+  | { scope: PharmacyScope; filters: string; overview?: false; stocktake?: never }
+  | { scope: PharmacyStockOverviewScope; filters: string; overview: true; stocktake?: never }
+  | {
+      scope: PharmacyStocktakeScope;
+      stocktake: Pick<PharmacyStocktakeSummary, "id" | "number" | "version" | "snapshot_rows">;
+      filters?: never;
+      overview?: never;
+    }
 );
 
 export function StockExport(props: Props) {
-  const { filters, disabled } = props;
+  const { disabled } = props;
   const controller = useRef<AbortController | null>(null);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
@@ -32,9 +42,11 @@ export function StockExport(props: Props) {
     setError("");
     try {
       const signal = AbortSignal.any([current.signal, AbortSignal.timeout(20_000)]);
-      const file = await (props.overview
-        ? fetchPharmacyStockOverviewCSV(props.scope, filters, signal)
-        : fetchPharmacyStockCSV(props.scope, filters, signal));
+      const file = await (props.stocktake
+        ? fetchStocktakeCSV(props.scope, props.stocktake, signal)
+        : props.overview
+          ? fetchPharmacyStockOverviewCSV(props.scope, props.filters, signal)
+          : fetchPharmacyStockCSV(props.scope, props.filters, signal));
       signal.throwIfAborted();
       if (tenantTransitionPending()) return;
       const objectURL = URL.createObjectURL(file.blob);
@@ -53,8 +65,10 @@ export function StockExport(props: Props) {
           cause instanceof ApiError
             ? cause.message
             : cause instanceof Error && cause.name === "TimeoutError"
-              ? "CSV preparation timed out. Narrow the filters and try again."
-              : "Could not download the stock CSV. Try again.",
+              ? "CSV preparation timed out. Refresh and try again."
+              : props.stocktake
+                ? "Could not verify the stocktake register. Refresh and try again."
+                : "Could not download the stock CSV. Try again.",
         );
     } finally {
       if (!current.signal.aborted) {
@@ -67,10 +81,19 @@ export function StockExport(props: Props) {
   return (
     <div className="space-y-2">
       <Button variant="outline" disabled={disabled || pending} onClick={download}>
-        {pending ? "Preparing CSV…" : "Download CSV"}
+        {pending
+          ? "Preparing CSV…"
+          : props.stocktake
+            ? "Download stocktake register"
+            : "Download CSV"}
       </Button>
       <p role="status" aria-label="Stock CSV export" className="text-sm text-muted-foreground">
-        {message || (pending ? "Preparing all matching stock positions…" : "")}
+        {message ||
+          (pending
+            ? props.stocktake
+              ? "Verifying the complete stocktake register…"
+              : "Preparing all matching stock positions…"
+            : "")}
       </p>
       {error && (
         <p role="alert" className="text-sm text-destructive">

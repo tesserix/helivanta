@@ -279,6 +279,7 @@ describe("zone icons and sections", () => {
       ["Inventory", "Receiving", "/pharmacy/receiving"],
       ["Inventory", "Expiry & safety", "/pharmacy/safety"],
       ["Inventory", "Product catalogue", "/pharmacy/catalogue"],
+      ["Recovery", "Retained stocktakes", "/pharmacy/stocktake-recovery"],
       ["Purchasing", "Supplier bills", "/pharmacy/accounts"],
       ["Staff", "Staff source", "/pharmacy/staff"],
       ["Setup", "Outlets & access", "/pharmacy/setup"],

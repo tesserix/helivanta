@@ -131,13 +131,22 @@ func New(cfg Config) (http.Handler, error) {
 			ModifyResponse: func(r *http.Response) error {
 				// Middleware owns the response ID; ReverseProxy appends copied headers.
 				r.Header.Del("X-Request-ID")
-				r.Header.Set("Cache-Control", "no-store")
+				cachePolicy := "no-store"
+				for _, value := range r.Header.Values("Cache-Control") {
+					for directive := range strings.SplitSeq(value, ",") {
+						if strings.EqualFold(strings.TrimSpace(directive), "private") {
+							cachePolicy = "private, no-store"
+						}
+					}
+				}
+				r.Header.Set("Cache-Control", cachePolicy)
 				if r.StatusCode >= http.StatusInternalServerError {
 					slog.WarnContext(r.Request.Context(), "global API upstream response failed", "product", product, "request_id", r.Request.Header.Get("X-Request-ID"), "status", r.StatusCode)
 				}
 				return nil
 			},
 			ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+				w.Header().Set("Cache-Control", "no-store")
 				status, code := http.StatusBadGateway, "upstream_unavailable"
 				if errors.Is(err, context.DeadlineExceeded) {
 					status, code = http.StatusGatewayTimeout, "upstream_timeout"
@@ -216,6 +225,9 @@ func New(cfg Config) (http.Handler, error) {
 		}
 		r.Header.Set("X-Request-ID", c.GetString(requestid.Key))
 		r.RemoteAddr = c.ClientIP()
+		// ReverseProxy appends owner headers; replace the middleware default
+		// with the normalized upstream policy instead of creating two values.
+		c.Writer.Header().Del("Cache-Control")
 		proxy.ServeHTTP(c.Writer, r)
 	})
 	return server.Engine, nil

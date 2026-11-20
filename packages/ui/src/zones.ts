@@ -16,6 +16,7 @@ import {
   CalendarX,
   Clock,
   ClipboardCheck,
+  ClipboardList,
   Contact,
   BriefcaseMedical,
   Factory,
@@ -268,6 +269,13 @@ export const ZONES: Zone[] = [
         href: "/pharmacy/catalogue",
         icon: BookOpen,
         permission: "pharmacy.catalogue.read",
+      },
+      {
+        section: "Recovery",
+        label: "Retained stocktakes",
+        href: "/pharmacy/stocktake-recovery",
+        icon: ClipboardList,
+        permission: "pharmacy.stock.read",
       },
       {
         section: "Purchasing",

@@ -374,6 +374,33 @@ func (b *Bus) Publish(tx *gorm.DB, subject string, evt Event) error {
 
 // Enqueue records durable work without requiring a broker connection in the writer.
 func Enqueue(tx *gorm.DB, subject string, evt Event) error {
+	row, err := prepareOutboxRow(subject, evt)
+	if err != nil {
+		return err
+	}
+	return tx.Create(&row).Error
+}
+
+// EnqueueBatch records bounded durable work inside the caller's transaction.
+func EnqueueBatch(tx *gorm.DB, subject string, evts []Event) error {
+	if len(evts) > 10000 {
+		return fmt.Errorf("events: batch exceeds 10000 events")
+	}
+	if len(evts) == 0 {
+		return nil
+	}
+	rows := make([]outboxRow, 0, len(evts))
+	for _, evt := range evts {
+		row, err := prepareOutboxRow(subject, evt)
+		if err != nil {
+			return err
+		}
+		rows = append(rows, row)
+	}
+	return tx.CreateInBatches(rows, 500).Error
+}
+
+func prepareOutboxRow(subject string, evt Event) (outboxRow, error) {
 	var id uuid.UUID
 	if evt.ID == "" {
 		id = uuid.New()
@@ -381,7 +408,7 @@ func Enqueue(tx *gorm.DB, subject string, evt Event) error {
 	} else {
 		parsed, err := uuid.Parse(evt.ID)
 		if err != nil {
-			return fmt.Errorf("events: event id must be a uuid: %w", err)
+			return outboxRow{}, fmt.Errorf("events: event id must be a uuid: %w", err)
 		}
 		id = parsed
 	}
@@ -390,7 +417,7 @@ func Enqueue(tx *gorm.DB, subject string, evt Event) error {
 	}
 	payload, err := json.Marshal(evt)
 	if err != nil {
-		return err
+		return outboxRow{}, err
 	}
 	row := outboxRow{ID: id, Subject: subject, Payload: payload}
 	// tenant_id is derived from the envelope itself, never a separate
@@ -402,7 +429,7 @@ func Enqueue(tx *gorm.DB, subject string, evt Event) error {
 	if tenantID, err := uuid.Parse(evt.TenantID); err == nil {
 		row.TenantID = &tenantID
 	}
-	return tx.Create(&row).Error
+	return row, nil
 }
 
 // RunDispatcher drains the outbox into JetStream until ctx ends or the

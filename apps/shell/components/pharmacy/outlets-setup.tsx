@@ -20,6 +20,7 @@ import { OutletForm, PharmacyRegistrySetup } from "./pharmacy-registry-setup";
 import { TaxRegistrationPanel } from "./tax-registration-panel";
 import { LicencePanel } from "./licence-panel";
 import { OutletAccess } from "./outlet-access";
+import { StocktakeContinuations } from "./stocktake-continuations";
 
 type Outlets = ReturnType<typeof useApiPagedQuery<PharmacyOutlet>>;
 
@@ -255,6 +256,14 @@ function OpenOutlet({
           ))}
         </dl>
       </Panel>
+      {can("pharmacy.stock.read") && (
+        <StocktakeContinuations
+          key={subject}
+          scope={{ ...scope, subject }}
+          timeZone={row.timezone}
+          canCancel={can("pharmacy.stock.correct")}
+        />
+      )}
       <OutletAccess
         scope={scope}
         subject={subject}

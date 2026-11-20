@@ -1041,6 +1041,8 @@ describe("expandable navigation", () => {
       "Receiving",
       "Expiry & safety",
       "Product catalogue",
+      "Recovery",
+      "Retained stocktakes",
       "Staff",
       "Staff source",
     ]);

@@ -240,3 +240,35 @@ func TestPharmacyOverviewUsesStockReleaseBoundary(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, "pharmacy_stock", capability, "catalogue alone must not expose inventory counts")
 }
+
+func TestStocktakeRoutesUseStockReleaseBoundary(t *testing.T) {
+	for _, route := range []struct{ method, suffix string }{
+		{"PUT", "/stocktakes/:stocktake"},
+		{"GET", "/stocktakes/:stocktake/lines"},
+		{"PUT", "/stocktakes/:stocktake/counts/:command"},
+		{"PUT", "/stocktakes/:stocktake/decisions/:command"},
+		{"GET", "/stocktakes/:stocktake/register.csv"},
+	} {
+		path := "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock" + route.suffix
+		capability, known := RouteCapability(route.method, path)
+		if !known || capability != "pharmacy_stock" {
+			t.Errorf("%s %s: capability=%q, known=%t", route.method, path, capability, known)
+		}
+	}
+}
+
+func TestStocktakeContinuationsUseBaselineBoundary(t *testing.T) {
+	for _, route := range []struct{ method, suffix string }{
+		{"GET", "/stocktakes"},
+		{"GET", "/stocktakes/:stocktake"},
+		{"GET", "/stocktakes/:stocktake/counts/:command"},
+		{"GET", "/stocktakes/:stocktake/decisions/:command"},
+		{"PUT", "/stocktakes/:stocktake/cancellations/:command"},
+	} {
+		path := "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock" + route.suffix
+		capability, known := RouteCapability(route.method, path)
+		if !known || capability != "baseline" {
+			t.Errorf("%s %s: capability=%q, known=%t", route.method, path, capability, known)
+		}
+	}
+}

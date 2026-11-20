@@ -32,7 +32,11 @@ describe("released navigation", () => {
       expect(staff.pages.some((page) => page.href === path)).toBe(false);
     const pharmacy = zones.find((zone) => zone.key === "pharmacy")!;
     expect(pharmacy.href).toBe("/pharmacy/setup");
-    expect(pharmacy.pages.map((page) => page.href)).toEqual(["/pharmacy/staff", "/pharmacy/setup"]);
+    expect(pharmacy.pages.map((page) => page.href)).toEqual([
+      "/pharmacy/stocktake-recovery",
+      "/pharmacy/staff",
+      "/pharmacy/setup",
+    ]);
   });
 
   it("unknown or unavailable release state does not reveal permission-eligible business pages", () => {
@@ -55,4 +59,18 @@ describe("released navigation", () => {
       zones.flatMap((zone) => zone.pages).some((page) => page.permission === "iam.member.manage"),
     ).toBe(false);
   });
+});
+
+it("keeps retained stocktake recovery reachable to stock staff without access-management authority", () => {
+  const zones = visibleZones(
+    (permission) =>
+      ["public", "pharmacy.catalogue.read", "pharmacy.stock.read"].includes(permission),
+    (key) => foundation.has(key ?? ""),
+  );
+  const pharmacy = zones.find((zone) => zone.key === "pharmacy")!;
+  expect(pharmacy?.pages.map((page) => page.href)).toEqual([
+    "/pharmacy/stocktake-recovery",
+    "/pharmacy/staff",
+  ]);
+  expect(pharmacy.href).toBe("/pharmacy/stocktake-recovery");
 });

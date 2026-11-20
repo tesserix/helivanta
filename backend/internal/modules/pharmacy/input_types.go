@@ -3,6 +3,105 @@ package pharmacy
 
 import "github.com/google/uuid"
 
+type StocktakeDecisionInput struct {
+	Decision              string  `json:"decision" binding:"required,oneof=submit approve reject cancel"`
+	ExpectedVersion       *int64  `json:"expected_version" binding:"required,min=0,max=9007199254740990"`
+	Reason                string  `json:"reason" binding:"required,min=1,max=500"`
+	ExtraUnitsDisposition *string `json:"extra_units_disposition" binding:"omitempty,required,oneof=no_extra_units moved_to_quarantine"`
+}
+
+type StocktakeDecisionReceipt struct {
+	ID              uuid.UUID `json:"id" binding:"required"`
+	StocktakeID     uuid.UUID `json:"stocktake_id" binding:"required"`
+	OutletID        uuid.UUID `json:"outlet_id" binding:"required"`
+	Version         int64     `json:"version" binding:"min=1,max=9007199254740991"`
+	State           string    `json:"state" binding:"required,oneof=submitted posted rejected cancelled"`
+	AdjustmentCount int64     `json:"adjustment_count" binding:"min=0,max=500"`
+	RecordedBy      string    `json:"recorded_by" binding:"required,min=1,max=200"`
+	RecordedAt      string    `json:"recorded_at"`
+	StocktakeDecisionInput
+}
+
+type StocktakeCountEntry struct {
+	LineID       uuid.UUID `json:"line_id" binding:"required"`
+	CountedUnits *int64    `json:"counted_units" binding:"required,min=0,max=1000000000000"`
+}
+
+type StocktakeCountInput struct {
+	ExpectedVersion *int64                `json:"expected_version" binding:"required,min=0,max=9007199254740990"`
+	Counts          []StocktakeCountEntry `json:"counts" binding:"required,min=1,max=100,dive"`
+	Reason          string                `json:"reason" binding:"required,min=1,max=500"`
+}
+
+type StocktakeCountReceipt struct {
+	ID          uuid.UUID `json:"id" binding:"required"`
+	StocktakeID uuid.UUID `json:"stocktake_id" binding:"required"`
+	OutletID    uuid.UUID `json:"outlet_id" binding:"required"`
+	Version     int64     `json:"version" binding:"min=1,max=9007199254740991"`
+	State       string    `json:"state" binding:"required,oneof=counting"`
+	RecordedBy  string    `json:"recorded_by" binding:"required,min=1,max=200"`
+	RecordedAt  string    `json:"recorded_at"`
+	StocktakeCountInput
+}
+
+type StocktakeStartInput struct {
+	Selection            string      `json:"selection" binding:"required,oneof=all selected"`
+	ProductIds           []uuid.UUID `json:"product_ids" binding:"required,min=0,max=100,dive"`
+	QuarantineLocationID uuid.UUID   `json:"quarantine_location_id" binding:"required"`
+	Reason               string      `json:"reason" binding:"required,min=1,max=500"`
+}
+
+type StocktakeSummary struct {
+	ID                   uuid.UUID   `json:"id" binding:"required"`
+	OutletID             uuid.UUID   `json:"outlet_id" binding:"required"`
+	Number               int64       `json:"number" binding:"min=1,max=9007199254740991"`
+	Selection            string      `json:"selection" binding:"required,oneof=all selected"`
+	ProductIds           []uuid.UUID `json:"product_ids" binding:"required,min=0,max=100,dive" gorm:"-"`
+	QuarantineLocationID uuid.UUID   `json:"quarantine_location_id" binding:"required"`
+	Reason               string      `json:"reason" binding:"required,min=1,max=500"`
+	StartedBy            string      `json:"started_by" binding:"required,min=1,max=200"`
+	StartedAt            string      `json:"started_at"`
+	SnapshotRows         int64       `json:"snapshot_rows" binding:"min=0,max=10000"`
+	State                string      `json:"state" binding:"required,oneof=counting submitted posted rejected cancelled"`
+	Version              int64       `json:"version" binding:"min=0,max=9007199254740991"`
+}
+
+type Stocktake struct {
+	CountedRows            int64  `json:"counted_rows" binding:"min=0,max=10000"`
+	DifferenceRows         int64  `json:"difference_rows" binding:"min=0,max=10000"`
+	PositiveDifferenceRows int64  `json:"positive_difference_rows" binding:"min=0,max=10000"`
+	ReviewRelationship     string `json:"review_relationship" binding:"required,oneof=starter counter independent"`
+	StocktakeSummary
+}
+
+type StocktakeLine struct {
+	ID                    uuid.UUID  `json:"id" binding:"required"`
+	StocktakeID           uuid.UUID  `json:"stocktake_id" binding:"required"`
+	ProductID             uuid.UUID  `json:"product_id" binding:"required"`
+	ProductVersion        int64      `json:"product_version" binding:"min=1,max=9007199254740991"`
+	SKU                   string     `json:"sku" binding:"required,min=1,max=40"`
+	BrandName             string     `json:"brand_name" binding:"required,min=1,max=200"`
+	UnitOfIssue           string     `json:"unit_of_issue" binding:"required,min=1,max=40"`
+	BatchID               uuid.UUID  `json:"batch_id" binding:"required"`
+	LotNumber             string     `json:"lot_number" binding:"required,min=1,max=100"`
+	ExpiresOn             string     `json:"expires_on"`
+	LocationID            uuid.UUID  `json:"location_id" binding:"required"`
+	LocationCode          string     `json:"location_code" binding:"required,min=1,max=40"`
+	LocationName          string     `json:"location_name" binding:"required,min=1,max=200"`
+	StockStatus           string     `json:"stock_status" binding:"required,oneof=quarantine sellable"`
+	BookUnits             int64      `json:"book_units" binding:"min=0,max=1000000000000"`
+	MovementCount         int64      `json:"movement_count" binding:"min=0,max=9007199254740991"`
+	RegulatoryClass       *string    `json:"regulatory_class" binding:"omitempty,required,oneof=none G H H1 X"`
+	NdpsStatus            string     `json:"ndps_status" binding:"required,oneof=unknown no yes"`
+	ScheduleDeclarationID *uuid.UUID `json:"schedule_declaration_id" binding:"omitempty"`
+	CountedUnits          *int64     `json:"counted_units" binding:"omitempty,min=0,max=1000000000000"`
+	CountedBy             *string    `json:"counted_by" binding:"omitempty,min=1,max=200"`
+	CountReason           *string    `json:"count_reason" binding:"omitempty,min=1,max=500"`
+	CountedAt             *string    `json:"counted_at" binding:"omitempty"`
+	DifferenceUnits       *int64     `json:"difference_units" binding:"omitempty,min=-1000000000000,max=1000000000000"`
+	SnapshottedAt         string     `json:"snapshotted_at"`
+}
+
 type overviewStock struct {
 	LowStock int64 `json:"low_stock" binding:"min=0,max=9007199254740991"`
 	Expired  int64 `json:"expired" binding:"min=0,max=9007199254740991"`

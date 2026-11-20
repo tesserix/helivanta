@@ -635,6 +635,16 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents/:id` | `pharmacy.stock.quarantine` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents/recent` | `pharmacy.stock.read` | true | true |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents` | `pharmacy.stock.read` | true | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/cancellations/:command` | `pharmacy.stock.correct` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/counts/:command` | `pharmacy.stock.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/counts/:command` | `pharmacy.stock.correct` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/decisions/:command` | `pharmacy.stock.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/decisions/:command` | `pharmacy.stock.correct` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/lines` | `pharmacy.stock.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/register.csv` | `pharmacy.stock.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake` | `pharmacy.stock.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake` | `pharmacy.stock.correct` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes` | `pharmacy.stock.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/commands/:command` | `public` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/commands/:command` | `public` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/creation-receipt` | `public` | false | false |
@@ -740,6 +750,7 @@ Migration table declarations:
 - `0045_pharmacy_hospital_names`: `pharmacy_hospital_names`.
 - `0050_pharmacy_schedule_lowering`: `pharmacy_product_schedule_countersigns`.
 - `0052_pharmacy_reorder_levels`: `pharmacy_reorder_levels`.
+- `0053_pharmacy_stocktakes`: `pharmacy_stocktakes`, `pharmacy_stocktake_lines`, `pharmacy_stocktake_commands`, `pharmacy_stocktake_counts`, `pharmacy_stocktake_adjustments`.
 
 ## payments
 

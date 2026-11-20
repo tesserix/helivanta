@@ -992,3 +992,201 @@ Different requests can differ when stock, reservations or configuration changes.
 
 [Operator guide](../../guides/pharmacy-low-stock.md) ·
 [Design and release gates](../../superpowers/specs/2026-11-20-outlet-low-stock.md)
+
+## Reviewed outlet stocktakes (#1686, implementation candidate)
+
+The draft implementation adds a frozen physical-book snapshot, versioned
+counted observations, reviewed correction posting and a Stock workspace. It is unreleased and
+protected by `pharmacy_stock`; capability eligibility and provider values are
+unchanged. Reviewed decisions and atomic corrections have passed the native core
+journey, including audit/outbox failure rollback, exact retry, register integrity
+and sellable/quarantine adjustment cases. The SDK and UI cover start, count,
+review, status, exact-command recovery and verified register downloads.
+Native both-owner, Global API, reservation-conservation and atomic failure/retry
+journeys have passed. Final CI, deployment and live UI acceptance remain required
+before operational activation.
+See [ADR-0073](../../adr/0073-pharmacy-stocktake.md).
+
+Paths below use the same pharmacy/outlet prefix as reorder levels. Every request
+requires verified tenant, pharmacy and current outlet scope through Global API.
+Reads require `pharmacy.stock.read`; starting requires `pharmacy.stock.correct`
+and a current editor grant. Ownership or affiliation alone is insufficient.
+
+| Method/path                                                 | Contract                                                                                                                                                                                                                                                                                                                                                                                |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PUT `/stock/stocktakes/{stocktake}`                         | UUIDv7 identity; strict `{selection, product_ids, quarantine_location_id, reason}`. `all` requires an empty product list; `selected` requires 1–100 unique UUIDv7 product IDs. Required reason is at most 500 characters; body at most 64 KiB. Returns the immutable creation receipt.                                                                                                  |
+| GET `/stock/stocktakes/{stocktake}`                         | Current sealed snapshot and progress; no query or request body.                                                                                                                                                                                                                                                                                                                         |
+| GET `/stock/stocktakes`                                     | Standard keyset list; only one nonempty `limit` and `cursor` allowed, default 50 / maximum 200.                                                                                                                                                                                                                                                                                         |
+| GET `/stock/stocktakes/{stocktake}/lines`                   | Same pagination; immutable batch/location book quantities, issue units, product version, snapshot time and retained schedule declaration. Missing physical counts are null.                                                                                                                                                                                                             |
+| PUT `/stock/stocktakes/{stocktake}/counts/{command}`        | UUIDv7 command; strict `{expected_version, counts: [{line_id, counted_units}], reason}`. Version zero and physical zero are explicit values. At most 100 unique lines per command, quantities 0–1,000,000,000,000 issue units, required reason at most 500 characters and body at most 64 KiB. Returns the immutable original receipt.                                                  |
+| GET `/stock/stocktakes/{stocktake}/counts/{command}`        | Original count receipt under current read authority; no query or body. This does not return a later edit's quantities.                                                                                                                                                                                                                                                                  |
+| PUT `/stock/stocktakes/{stocktake}/decisions/{command}`     | Strict `{decision, expected_version, reason, extra_units_disposition?}`. Decision is submit, approve, reject or cancel. Only approval requires a disposition: `moved_to_quarantine` if any difference is positive, otherwise `no_extra_units`. Required reason at most 500 characters; body at most 64 KiB. Returns an original immutable decision receipt, including adjustment count. |
+| GET `/stock/stocktakes/{stocktake}/decisions/{command}`     | Original immutable decision receipt under current read authority; no query or body.                                                                                                                                                                                                                                                                                                     |
+| PUT `/stock/stocktakes/{stocktake}/cancellations/{command}` | Cancellation-only retained-work continuation; same decision schema but only `decision: cancel` is accepted. Requires current correction permission and outlet editor authority, an existing sealed count, current version and original actor/input binding for replay. No observation or movement can be posted through this path.                                                      |
+| GET `/stock/stocktakes/{stocktake}/register.csv`            | Audited physical-count register, bounded to 10,000 buckets / 8 MiB with no partial file. No query or body. Current read authority is required, as for the existing stock register CSV.                                                                                                                                                                                                  |
+
+Start captures quantities and movement counts in one SQL statement, including
+expired and non-sellable physical buckets. At most 10,000 buckets are permitted;
+larger selections fail rather than truncate. Snapshot insertion and sealing are
+atomic with audit evidence. The quarantine destination must exist in the same
+outlet and cannot be sellable. Snapshot headers and lines are immutable after
+sealing. Only one counting or submitted stocktake may exist per outlet. Posted,
+rejected and cancelled counts remain retained and allow a new snapshot.
+
+Exact start retries bind the original actor and normalized input; changed reuse
+returns 409. Reads and recovery are audited in the same transaction and return
+503 `audit_unavailable` if audit evidence cannot be retained. Inaccessible scope
+is 404, missing permission 403, invalid input 400. Migration 0053 adds forced RLS
+and restrictive operating-choice purpose policies, extending the policy
+fingerprint only after validating the existing fingerprint. Canonical models
+are generated from `contracts/pharmacy.json`; registry parity does not prove
+native database or deployed acceptance.
+
+Count observations are append-only. A command serializes on its sealed parent,
+requires the exact current version and locks submitted ledger buckets in a
+consistent order before recording. A database guard rejects a changed movement
+count, even when its net quantity is unchanged. It verifies that all entries
+belong to the same parent and original command transaction; a deferred guard
+rejects a command with missing entries. Failure rolls back the whole command.
+Exact actor/input replay returns its original version and quantities after later
+edits; changed reuse is 409. Current progress and line observations use one
+statement snapshot per request and preserve zero separately from missing. Starting
+again with the original identity still returns the original creation receipt.
+No observation changes stock or publishes a stock-movement event. Snapshot,
+counting and core approval journeys have passed native tests; the operator UI,
+failure/recovery cases and live acceptance are separate release requirements.
+
+Submit requires an observation for every frozen bucket. Only counting permits
+new observations or submission. Cancellation is available while counting or
+submitted. Approval and rejection require submitted state and a reviewer who is
+neither the starter nor any historical counter, including superseded counters.
+Every action uses the exact current version. Terminal states cannot be reopened.
+Exact original-command recovery remains valid after later decisions.
+Detail includes `positive_difference_rows` from the entire current count, not
+just its visible page. `review_relationship` describes the current actor as
+starter, historical counter or independent; it is a presentation fact and grants
+no permission or professional authority. Original creation receipts always retain
+zero progress and the original actor's starter relationship.
+
+Approval applies each nonzero difference to the current balance, preserving
+movements after the accepted observation. Negative differences remove stock from
+the counted location; positive differences go to the named quarantine location
+after the reviewer's explicit physical-transfer attestation. The existing
+reservation and overdraft guards remain authoritative. A narrowly linked native
+movement guard allows only the approved shortage correction outside quarantine;
+ordinary unlinked corrections retain the quarantine-only rule. Every correction
+in this review is supported by its native adjustment link; existing free-text
+source references remain valid and never create reviewed evidence on their own.
+Each reviewed correction
+is linked to its counted bucket and review command, uses the existing `correction`
+movement kind, and publishes only protected stock references through the bounded
+transactional outbox. This command does not issue a release, disposal or financial
+posting command; movement consumers remain subject to their published contracts.
+
+At most 500 nonzero corrections, each within the existing ±1,000,000,000 issue-unit
+movement limit, may post in one approval. Excess differences return 409
+`stocktake_posting_limit` without truncation or partial posting. Retain genuine
+observations and ask the responsible stock owner to resolve the limit; never
+alter a physical count merely to make posting succeed. Native version, transition,
+independence, quantity, linkage, audit and outbox failure all roll back the whole
+decision, leaving its identity available for a safe exact retry.
+Audit or outbox write failures return 503 `stocktake_evidence_unavailable` without
+revealing private database diagnostics; a failure is never reported as a completed
+stock adjustment or a caller's invalid catalogue input.
+
+The physical-count CSV retains the book, observation, issue unit, schedule
+declaration and linked correction. H1, X and NDPS have separate sections; a row
+with NDPS=yes uses the NDPS section while retaining its source schedule class.
+Unknown declarations and NDPS status remain explicit. Other declared classes
+appear in the ordinary report section without changing their dispensing rules.
+Missing observations are blank, physical zero is zero. Actor/movement references
+are retained for backend audit correlation; UI account presentation uses names.
+The file is a physical stocktake report and does not replace statutory controlled
+drug filings. The existing stock register retains its six movement totals and
+includes these corrections without a new movement kind.
+
+Export locks the sealed parent for the short read transaction so its revision,
+observations and corrections cannot be mixed across a review. It buffers the
+complete bounded file, neutralizes formula-like text cells and retains read audit
+before returning any data. A missing bucket returns 503; excessive rows/bytes
+return 413 `stocktake_export_too_large`, with no truncated CSV. The retained paged
+record remains available for examination. Responses are non-cacheable attachments
+named by the outlet's human stocktake number. Export does not change stock.
+Responses retain `Cache-Control: private, no-store` through Global API and include
+`X-Stocktake-Tenant-Id`, `X-Stocktake-Outlet-Id`, `X-Stocktake-Id`,
+`X-Stocktake-Version`, `X-Export-Row-Count` and `X-Export-Sha256` (lowercase hex
+SHA-256 of the actual CSV bytes). Download clients bind these to the displayed
+record, enforce the byte bound while reading, and verify the digest before
+offering a file. A concurrent revision requires refresh rather than exporting a
+different revision under the displayed one.
+
+### Stock workspace operation (unreleased source)
+
+1. In the selected pharmacy/outlet's Stock workspace, choose **Stocktakes**.
+   Starting and counting require `pharmacy.stock.correct` and the current outlet
+   editor grant. Catalogue-edit permission alone does not show these actions.
+2. Start for all products or select up to 100 products. Choose the named
+   quarantine destination and supply the count reason. The start freezes the
+   book; it does not freeze normal stock operations or count later new batches.
+3. Open each bucket's count entry. Quantity starts blank even when a previous
+   observation exists. Enter an actual whole physical quantity and reason; zero
+   must be explicit. Existing observations are shown separately. Save and refresh
+   the current version before continuing. A conflicting intervening movement
+   requires examining/cancelling the count, not silently rebasing its frozen book.
+4. After all buckets are counted, submit for independent review. The original
+   starter and every historical counter are ineligible to approve or reject.
+   The reviewer checks the full count, including positive differences beyond the
+   currently loaded page, and explicitly attests physical quarantine placement
+   for all extra units before approval. Cancellation and rejection retain history.
+5. A lost save response retains the original command and input and locks edits.
+   Check the saved result before retrying. A not-found recovery permits only an
+   identical retry. Start recovery reads the current sealed record and verifies
+   its original starter and immutable start fields, even after later revisions;
+   it neither starts a replacement nor adopts another person's count. A changed
+   version never resets a dirty form silently.
+6. Download the register from the current detail. The client verifies the actual
+   bytes and displayed revision before offering a file. The detail separates
+   loaded H1, X, NDPS, other declared and unknown differences; it explicitly labels
+   the loaded subset, while the file includes the complete bounded snapshot.
+
+All UI actors use authorized named-account presentation. Internal subjects,
+command identifiers and tenant IDs remain request/recovery bindings. Unavailable
+identity or count data is explicit; new commands pause on unavailable status.
+
+The sealed-count list/header and original count/decision receipt reads are
+baseline continuations. Their product authorization and read audit remain in
+force even when Stock is off. The cancellation-only path is also baseline; the
+general decision path, start, count entry, snapshot-line reads and CSV export
+remain Stock-gated. The **Retained stocktakes** page (`/pharmacy/stocktake-recovery`) is classified
+under `pharmacy_setup` and requires stock-read permission plus the existing
+pharmacy directory and outlet authority. It remains reachable to stock staff who
+cannot manage access. Read-only outlet staff cannot cancel; correction permission
+and a current editor grant are required. Managers also have the same panel in the
+selected outlet's **Outlets & access** (`/pharmacy/setup`) detail. Both pages are independent of Stock and Reports;
+the overview is not a recovery entry point. The panel uses the selected page's outlet or the opened setup detail's outlet, which can differ
+from the working outlet. It reads status and offers
+cancellation only. A displayed cancellation action still needs
+the server's current outlet editor check; a route permission is not a scope grant.
+The panel never fetches live stock, snapshot lines or an operational catalogue.
+
+Unknown stocktake outcomes retain at most eight tab-local recovery markers per
+verified tenant, actor, pharmacy and outlet. Markers contain only operation kind,
+stocktake reference and command reference, never input quantities or reasons.
+Storage must persist and verify a marker before the command is dispatched;
+unavailable or full storage blocks new commands. Reload recovery is read-only and
+checks the original actor before acknowledgement. A not-found result remains
+unknown: the original request may still finish. Explicit dismissal refreshes
+current state before new operations; it does not undo or assert failure of a
+command. With retained markers, new Stock actions pause while an already active
+form can recover its exact attempt. Confirmed outcomes clear only their matching
+marker. The same recovery panel is available in the selected outlet's setup
+detail when Stock is disabled.
+
+Stocktake SDK requests send `X-Helivanta-Expected-Subject` alongside the existing
+expected-tenant precondition. The server returns `409 session_changed` for a
+supplied blank, duplicate or mismatched expected subject before resource access;
+missing subject remains compatible with older/native callers. Identity and
+current outlet authority always come from the verified principal, never these
+headers. Actor-specific query keys and recovery storage prevent another account
+in the same tenant from adopting a pending command. Write receipts must match the
+original actor; authorized historical receipt reads remain available.

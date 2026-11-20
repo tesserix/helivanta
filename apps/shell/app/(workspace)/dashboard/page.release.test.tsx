@@ -28,6 +28,7 @@ const mvp = [
   "pharmacy_staff",
 ];
 const mvpCards = [
+  "/pharmacy/stocktake-recovery",
   "/pharmacy/staff",
   "/pharmacy/setup",
   "/workforce",
@@ -124,6 +125,12 @@ it("shows only enabled MVP cards when recovery is eligible and the owner has eve
   await screen.findByText("Test availability settled");
   await waitFor(() => expect(cardPaths()).toEqual(mvpCards));
   expect(screen.queryByText("Hospital overview")).not.toBeInTheDocument();
+  expect(
+    screen.getByText("Check saved stocktake outcomes and cancel unfinished counts"),
+  ).toBeVisible();
+  expect(
+    screen.queryByText("Stock on hand, receiving, expiry and the product catalogue"),
+  ).not.toBeInTheDocument();
 });
 
 it.each(mvp)("removes every unavailable destination when %s is disabled", async (disabled) => {

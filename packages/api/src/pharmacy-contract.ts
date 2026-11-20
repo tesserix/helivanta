@@ -8,6 +8,134 @@ const identifier = z
     /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     "Choose a valid record.",
   );
+export const pharmacyStocktakeDecisionInputSchema = z
+  .object({
+    decision: z.enum(["submit", "approve", "reject", "cancel"]),
+    expected_version: z.number().int().min(0).max(9007199254740990),
+    reason: z.string().trim().min(1).max(500),
+    extra_units_disposition: z
+      .enum(["no_extra_units", "moved_to_quarantine"])
+      .nullable()
+      .optional(),
+  })
+  .strict();
+
+export const pharmacyStocktakeDecisionReceiptSchema = pharmacyStocktakeDecisionInputSchema
+  .extend({
+    id: identifier,
+    stocktake_id: identifier,
+    outlet_id: identifier,
+    version: z.number().int().min(1).max(9007199254740991),
+    state: z.enum(["submitted", "posted", "rejected", "cancelled"]),
+    adjustment_count: z.number().int().min(0).max(500),
+    recorded_by: z.string().min(1).max(200),
+    recorded_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+  })
+  .strict();
+
+export const pharmacyStocktakeCountEntrySchema = z
+  .object({
+    line_id: identifier,
+    counted_units: z.number().int().min(0).max(1000000000000),
+  })
+  .strict();
+
+export const pharmacyStocktakeCountInputSchema = z
+  .object({
+    expected_version: z.number().int().min(0).max(9007199254740990),
+    counts: z.array(pharmacyStocktakeCountEntrySchema).min(1).max(100),
+    reason: z.string().trim().min(1).max(500),
+  })
+  .strict();
+
+export const pharmacyStocktakeCountReceiptSchema = pharmacyStocktakeCountInputSchema
+  .extend({
+    id: identifier,
+    stocktake_id: identifier,
+    outlet_id: identifier,
+    version: z.number().int().min(1).max(9007199254740991),
+    state: z.enum(["counting"]),
+    recorded_by: z.string().min(1).max(200),
+    recorded_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+  })
+  .strict();
+
+export const pharmacyStocktakeStartInputSchema = z
+  .object({
+    selection: z.enum(["all", "selected"]),
+    product_ids: z.array(identifier).min(0).max(100),
+    quarantine_location_id: identifier,
+    reason: z.string().trim().min(1).max(500),
+  })
+  .strict();
+
+export const pharmacyStocktakeSummarySchema = z
+  .object({
+    id: identifier,
+    outlet_id: identifier,
+    number: z.number().int().min(1).max(9007199254740991),
+    selection: z.enum(["all", "selected"]),
+    product_ids: z.array(identifier).min(0).max(100),
+    quarantine_location_id: identifier,
+    reason: z.string().min(1).max(500),
+    started_by: z.string().min(1).max(200),
+    started_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+    snapshot_rows: z.number().int().min(0).max(10000),
+    state: z.enum(["counting", "submitted", "posted", "rejected", "cancelled"]),
+    version: z.number().int().min(0).max(9007199254740991),
+  })
+  .strict();
+
+export const pharmacyStocktakeSchema = pharmacyStocktakeSummarySchema
+  .extend({
+    counted_rows: z.number().int().min(0).max(10000),
+    difference_rows: z.number().int().min(0).max(10000),
+    positive_difference_rows: z.number().int().min(0).max(10000),
+    review_relationship: z.enum(["starter", "counter", "independent"]),
+  })
+  .strict();
+
+export const pharmacyStocktakeLineSchema = z
+  .object({
+    id: identifier,
+    stocktake_id: identifier,
+    product_id: identifier,
+    product_version: z.number().int().min(1).max(9007199254740991),
+    sku: z.string().min(1).max(40),
+    brand_name: z.string().min(1).max(200),
+    unit_of_issue: z.string().min(1).max(40),
+    batch_id: identifier,
+    lot_number: z.string().min(1).max(100),
+    expires_on: z.string().date("Use a full valid date."),
+    location_id: identifier,
+    location_code: z.string().min(1).max(40),
+    location_name: z.string().min(1).max(200),
+    stock_status: z.enum(["quarantine", "sellable"]),
+    book_units: z.number().int().min(0).max(1000000000000),
+    movement_count: z.number().int().min(0).max(9007199254740991),
+    regulatory_class: z.enum(["none", "G", "H", "H1", "X"]).nullable(),
+    ndps_status: z.enum(["unknown", "no", "yes"]),
+    schedule_declaration_id: identifier.nullable(),
+    counted_units: z.number().int().min(0).max(1000000000000).nullable(),
+    counted_by: z.string().min(1).max(200).nullable(),
+    count_reason: z.string().min(1).max(500).nullable(),
+    counted_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." })
+      .nullable(),
+    difference_units: z.number().int().min(-1000000000000).max(1000000000000).nullable(),
+    snapshotted_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+  })
+  .strict();
+
 export const pharmacyOverviewStockSchema = z
   .object({
     low_stock: z.number().int().min(0).max(9007199254740991),

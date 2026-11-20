@@ -245,4 +245,32 @@ export {
   type PharmacyReorderLevelInput,
   type PharmacyReorderLevelReceipt,
 } from "./pharmacy-reorder";
+export {
+  startStocktake,
+  stocktakeKey,
+  recoverStocktakeStart,
+  readStocktake,
+  recordStocktakeCount,
+  readStocktakeCount,
+  fetchStocktakeLines,
+  fetchStocktakes,
+  recordStocktakeDecision,
+  readStocktakeDecision,
+  type PharmacyStocktake,
+  type PharmacyStocktakeScope,
+  type PharmacyStocktakeSummary,
+  type PharmacyStocktakeLine,
+  type PharmacyStocktakeStartInput,
+  type PharmacyStocktakeCountInput,
+  type PharmacyStocktakeCountReceipt,
+  type PharmacyStocktakeDecisionInput,
+  type PharmacyStocktakeDecisionReceipt,
+} from "./pharmacy-stocktakes";
+export { fetchStocktakeCSV } from "./pharmacy-stocktake-export";
+export {
+  pharmacyStocktakeCountInputSchema,
+  pharmacyStocktakeCountEntrySchema,
+  pharmacyStocktakeDecisionInputSchema,
+  pharmacyStocktakeStartInputSchema,
+} from "./pharmacy-contract";
 export { pharmacyReorderLevelInputSchema } from "./pharmacy-contract";

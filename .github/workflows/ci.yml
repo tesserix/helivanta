@@ -79,6 +79,12 @@ jobs:
           staff_schema=$(mktemp "$RUNNER_TEMP/staff-owner-schema.XXXXXX.sql")
           bash scripts/ci/fetch-staff-identity-schema.sh "$staff_schema"
           printf 'STAFF_IDENTITY_OWNER_SCHEMA=%s\n' "$staff_schema" >> "$GITHUB_ENV"
+      - name: Bounded outbox batch atomicity
+        run: go test -race -count=1 -timeout=10m -run '^TestEnqueueBatch' ./pkg/events
+      - name: Pharmacy stocktake native acceptance
+        run: go test -race -count=1 -timeout=15m -run '^TestStocktake(SnapshotIsFrozenAndOutletScoped|CountsAreVersionedAndMovementBound|IndependentApprovalPreservesLaterMovements|SellableDifferencesPreserveQuarantineAndLaterTransfers|OwnershipModelsKeepScopedPosting|PostingFailuresDoNotPartiallyAdjustBuckets)$' ./internal/modules/pharmacy
+      - name: Pharmacy stocktake Global API acceptance
+        run: go test -race -count=1 -timeout=10m -run '^TestStocktake(ThroughGlobalAPIPreservesScopeAndRegisterEvidence|PreservesSupplierReservations)$' ./internal/globalapi
       - name: Verify integration harness context lifetime
         run: go test -race ./internal/testutil -run '^TestHarnessContextLivesUntilTestCleanup$'
       - name: Staff governance input boundaries

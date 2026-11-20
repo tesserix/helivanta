@@ -1,6 +1,456 @@
 {
   "models": [
     {
+      "name": "StocktakeDecisionInput",
+      "schema": "pharmacyStocktakeDecisionInputSchema",
+      "fields": [
+        {
+          "name": "decision",
+          "type": "string",
+          "enum": [
+            "submit",
+            "approve",
+            "reject",
+            "cancel"
+          ]
+        },
+        {
+          "name": "expected_version",
+          "type": "int64",
+          "pointer": true,
+          "min": 0,
+          "max": 9007199254740990
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 1,
+          "max": 500,
+          "trim": true
+        },
+        {
+          "name": "extra_units_disposition",
+          "type": "string",
+          "optional": true,
+          "enum": [
+            "no_extra_units",
+            "moved_to_quarantine"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "StocktakeDecisionReceipt",
+      "schema": "pharmacyStocktakeDecisionReceiptSchema",
+      "embed": "StocktakeDecisionInput",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid"
+        },
+        {
+          "name": "stocktake_id",
+          "type": "uuid"
+        },
+        {
+          "name": "outlet_id",
+          "type": "uuid"
+        },
+        {
+          "name": "version",
+          "type": "int64",
+          "min": 1,
+          "max": 9007199254740991
+        },
+        {
+          "name": "state",
+          "type": "string",
+          "enum": [
+            "submitted",
+            "posted",
+            "rejected",
+            "cancelled"
+          ]
+        },
+        {
+          "name": "adjustment_count",
+          "type": "int64",
+          "min": 0,
+          "max": 500
+        },
+        {
+          "name": "recorded_by",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "recorded_at",
+          "type": "string",
+          "format": "datetime"
+        }
+      ]
+    },
+    {
+      "name": "StocktakeCountEntry",
+      "schema": "pharmacyStocktakeCountEntrySchema",
+      "fields": [
+        {
+          "name": "line_id",
+          "type": "uuid"
+        },
+        {
+          "name": "counted_units",
+          "type": "int64",
+          "pointer": true,
+          "min": 0,
+          "max": 1000000000000
+        }
+      ]
+    },
+    {
+      "name": "StocktakeCountInput",
+      "schema": "pharmacyStocktakeCountInputSchema",
+      "fields": [
+        {
+          "name": "expected_version",
+          "type": "int64",
+          "pointer": true,
+          "min": 0,
+          "max": 9007199254740990
+        },
+        {
+          "name": "counts",
+          "type": "[]StocktakeCountEntry",
+          "min": 1,
+          "max": 100
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 1,
+          "max": 500,
+          "trim": true
+        }
+      ]
+    },
+    {
+      "name": "StocktakeCountReceipt",
+      "schema": "pharmacyStocktakeCountReceiptSchema",
+      "embed": "StocktakeCountInput",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid"
+        },
+        {
+          "name": "stocktake_id",
+          "type": "uuid"
+        },
+        {
+          "name": "outlet_id",
+          "type": "uuid"
+        },
+        {
+          "name": "version",
+          "type": "int64",
+          "min": 1,
+          "max": 9007199254740991
+        },
+        {
+          "name": "state",
+          "type": "string",
+          "enum": [
+            "counting"
+          ]
+        },
+        {
+          "name": "recorded_by",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "recorded_at",
+          "type": "string",
+          "format": "datetime"
+        }
+      ]
+    },
+    {
+      "name": "StocktakeStartInput",
+      "schema": "pharmacyStocktakeStartInputSchema",
+      "fields": [
+        {
+          "name": "selection",
+          "type": "string",
+          "enum": ["all", "selected"]
+        },
+        {
+          "name": "product_ids",
+          "type": "[]uuid",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "quarantine_location_id",
+          "type": "uuid"
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 1,
+          "max": 500,
+          "trim": true
+        }
+      ]
+    },
+    {
+      "name": "StocktakeSummary",
+      "schema": "pharmacyStocktakeSummarySchema",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid"
+        },
+        {
+          "name": "outlet_id",
+          "type": "uuid"
+        },
+        {
+          "name": "number",
+          "type": "int64",
+          "min": 1,
+          "max": 9007199254740991
+        },
+        {
+          "name": "selection",
+          "type": "string",
+          "enum": ["all", "selected"]
+        },
+        {
+          "name": "product_ids",
+          "type": "[]uuid",
+          "min": 0,
+          "max": 100,
+          "gorm": "-"
+        },
+        {
+          "name": "quarantine_location_id",
+          "type": "uuid"
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 1,
+          "max": 500
+        },
+        {
+          "name": "started_by",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "started_at",
+          "type": "string",
+          "format": "datetime"
+        },
+        {
+          "name": "snapshot_rows",
+          "type": "int64",
+          "min": 0,
+          "max": 10000
+        },
+        {
+          "name": "state",
+          "type": "string",
+          "enum": ["counting", "submitted", "posted", "rejected", "cancelled"]
+        },
+        {
+          "name": "version",
+          "type": "int64",
+          "min": 0,
+          "max": 9007199254740991
+        }
+      ]
+    },
+    {
+      "name": "Stocktake",
+      "schema": "pharmacyStocktakeSchema",
+      "embed": "StocktakeSummary",
+      "fields": [
+        {
+          "name": "counted_rows",
+          "type": "int64",
+          "min": 0,
+          "max": 10000
+        },
+        {
+          "name": "difference_rows",
+          "type": "int64",
+          "min": 0,
+          "max": 10000
+        },
+        {
+          "name": "positive_difference_rows",
+          "type": "int64",
+          "min": 0,
+          "max": 10000
+        },
+        {
+          "name": "review_relationship",
+          "type": "string",
+          "enum": ["starter", "counter", "independent"]
+        }
+      ]
+    },
+    {
+      "name": "StocktakeLine",
+      "schema": "pharmacyStocktakeLineSchema",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid"
+        },
+        {
+          "name": "stocktake_id",
+          "type": "uuid"
+        },
+        {
+          "name": "product_id",
+          "type": "uuid"
+        },
+        {
+          "name": "product_version",
+          "type": "int64",
+          "min": 1,
+          "max": 9007199254740991
+        },
+        {
+          "name": "sku",
+          "type": "string",
+          "min": 1,
+          "max": 40
+        },
+        {
+          "name": "brand_name",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "unit_of_issue",
+          "type": "string",
+          "min": 1,
+          "max": 40
+        },
+        {
+          "name": "batch_id",
+          "type": "uuid"
+        },
+        {
+          "name": "lot_number",
+          "type": "string",
+          "min": 1,
+          "max": 100
+        },
+        {
+          "name": "expires_on",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "location_id",
+          "type": "uuid"
+        },
+        {
+          "name": "location_code",
+          "type": "string",
+          "min": 1,
+          "max": 40
+        },
+        {
+          "name": "location_name",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "stock_status",
+          "type": "string",
+          "enum": ["quarantine", "sellable"]
+        },
+        {
+          "name": "book_units",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000
+        },
+        {
+          "name": "movement_count",
+          "type": "int64",
+          "min": 0,
+          "max": 9007199254740991
+        },
+        {
+          "name": "regulatory_class",
+          "type": "string",
+          "nullable": true,
+          "enum": ["none", "G", "H", "H1", "X"]
+        },
+        {
+          "name": "ndps_status",
+          "type": "string",
+          "enum": ["unknown", "no", "yes"]
+        },
+        {
+          "name": "schedule_declaration_id",
+          "type": "uuid",
+          "nullable": true
+        },
+        {
+          "name": "counted_units",
+          "type": "int64",
+          "nullable": true,
+          "min": 0,
+          "max": 1000000000000
+        },
+        {
+          "name": "counted_by",
+          "type": "string",
+          "nullable": true,
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "count_reason",
+          "type": "string",
+          "nullable": true,
+          "min": 1,
+          "max": 500
+        },
+        {
+          "name": "counted_at",
+          "type": "string",
+          "nullable": true,
+          "format": "datetime"
+        },
+        {
+          "name": "difference_units",
+          "type": "int64",
+          "nullable": true,
+          "min": -1000000000000,
+          "max": 1000000000000
+        },
+        {
+          "name": "snapshotted_at",
+          "type": "string",
+          "format": "datetime"
+        }
+      ]
+    },
+    {
       "name": "overviewStock",
       "schema": "pharmacyOverviewStockSchema",
       "fields": [

@@ -52,6 +52,38 @@ func TestRoutesProductAndPreservesContract(t *testing.T) {
 	require.Equal(t, 1, calls)
 }
 
+func TestRegisterExportPreservesPrivacyAndIntegrityHeaders(t *testing.T) {
+	for _, policy := range []string{"private, no-store", "PRIVATE, max-age=60", "public, max-age=60", ""} {
+		t.Run(policy, func(t *testing.T) {
+			evidence := map[string]string{"Content-Disposition": `attachment; filename="stocktake-1-register.csv"`, "X-Export-Sha256": strings.Repeat("a", 64), "X-Export-Row-Count": "1", "X-Stocktake-Tenant-Id": "tenant", "X-Stocktake-Outlet-Id": "outlet", "X-Stocktake-Id": "count", "X-Stocktake-Version": "3"}
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				for key, value := range evidence {
+					w.Header().Set(key, value)
+				}
+				w.Header().Set("Cache-Control", policy)
+				w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+				_, err := w.Write([]byte("TEST register\r\n"))
+				require.NoError(t, err)
+			}))
+			t.Cleanup(upstream.Close)
+			handler, err := New(Config{Upstreams: map[string]string{"pharmacy": upstream.URL}, Development: true, Timeout: time.Second})
+			require.NoError(t, err)
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/v1/pharmacy/pharmacies/test/outlets/test/stock/stocktakes/test/register.csv", nil))
+			require.Equal(t, 200, response.Code)
+			require.Equal(t, "TEST register\r\n", response.Body.String())
+			for key, value := range evidence {
+				require.Equal(t, value, response.Header().Get(key), key)
+			}
+			expected := "no-store"
+			if strings.Contains(strings.ToLower(policy), "private") {
+				expected = "private, no-store"
+			}
+			require.Equal(t, expected, response.Header().Get("Cache-Control"))
+		})
+	}
+}
+
 func TestUnconfiguredAndAmbiguousRoutesNeverReachUpstream(t *testing.T) {
 	calls := 0
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { calls++; w.WriteHeader(200) }))

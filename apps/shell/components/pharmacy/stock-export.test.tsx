@@ -33,6 +33,43 @@ function downloads() {
   return { create, revoke, click };
 }
 
+it("downloads the displayed stocktake revision through its validated register endpoint", async () => {
+  const { click, create } = downloads();
+  const take = {
+    id: "0199e000-0000-7000-8000-000000000002",
+    number: 1,
+    version: 3,
+    snapshot_rows: 1,
+  };
+  const bytes = new TextEncoder().encode("TEST register\r\n");
+  const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (b) =>
+    b.toString(16).padStart(2, "0"),
+  ).join("");
+  const fetch = vi.fn().mockResolvedValue(
+    new Response(bytes, {
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": 'attachment; filename="stocktake-1-register.csv"',
+        "Cache-Control": "private, no-store",
+        "X-Stocktake-Tenant-Id": scope.tenantId,
+        "X-Stocktake-Outlet-Id": scope.outletId,
+        "X-Stocktake-Id": take.id,
+        "X-Stocktake-Version": "3",
+        "X-Export-Row-Count": "1",
+        "X-Export-Sha256": digest,
+      },
+    }),
+  );
+  vi.stubGlobal("fetch", fetch);
+  const { user } = renderWithProviders(
+    <StockExport scope={scope} stocktake={take} disabled={false} />,
+  );
+  await user.click(screen.getByRole("button", { name: "Download stocktake register" }));
+  await waitFor(() => expect(click).toHaveBeenCalledOnce());
+  expect(create).toHaveBeenCalledWith(expect.any(Blob));
+  expect(fetch.mock.calls[0]?.[0]).toContain(`/stocktakes/${take.id}/register.csv`);
+});
+
 it("shows workspace-change guidance without creating a CSV download", async () => {
   const { click, create } = downloads();
   vi.stubGlobal(

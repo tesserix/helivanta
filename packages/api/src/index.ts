@@ -263,4 +263,5 @@ export {
   type PharmacyStocktakeDecisionInput,
   type PharmacyStocktakeDecisionReceipt,
 } from "./pharmacy-stocktakes";
+export { fetchStocktakeCSV } from "./pharmacy-stocktake-export";
 export { pharmacyReorderLevelInputSchema } from "./pharmacy-contract";

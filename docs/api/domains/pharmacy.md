@@ -1108,3 +1108,10 @@ before returning any data. A missing bucket returns 503; excessive rows/bytes
 return 413 `stocktake_export_too_large`, with no truncated CSV. The retained paged
 record remains available for examination. Responses are non-cacheable attachments
 named by the outlet's human stocktake number. Export does not change stock.
+Responses retain `Cache-Control: private, no-store` through Global API and include
+`X-Stocktake-Tenant-Id`, `X-Stocktake-Outlet-Id`, `X-Stocktake-Id`,
+`X-Stocktake-Version`, `X-Export-Row-Count` and `X-Export-Sha256` (lowercase hex
+SHA-256 of the actual CSV bytes). Download clients bind these to the displayed
+record, enforce the byte bound while reading, and verify the digest before
+offering a file. A concurrent revision requires refresh rather than exporting a
+different revision under the displayed one.

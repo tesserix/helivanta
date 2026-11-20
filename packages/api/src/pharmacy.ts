@@ -150,6 +150,7 @@ export type PharmacyStockPosition = z.infer<typeof pharmacyStockExpiryFieldsSche
   sale_units: string;
   return_units: string;
   supplier_dispatch_units: string;
+  quarantine_hold_units: string;
 };
 export type PharmacyStockReconciliation = {
   location_id: string;
@@ -163,6 +164,7 @@ export type PharmacyStockReconciliation = {
   sale_units: string;
   return_units: string;
   supplier_dispatch_units: string;
+  quarantine_hold_units: string;
   closing_units: number;
   movement_count: number;
 };

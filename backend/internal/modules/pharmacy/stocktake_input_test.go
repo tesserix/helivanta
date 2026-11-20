@@ -37,7 +37,7 @@ func TestStocktakeStartHTTPInput(t *testing.T) {
 			r := gin.New()
 			r.PUT("/", func(c *gin.Context) {
 				var in StocktakeStartInput
-				if !decodeStocktake(c, &in) {
+				if !decodeStockCommand(c, &in) {
 					return
 				}
 				if !normalizeStocktakeStart(&in) {
@@ -79,7 +79,7 @@ func TestStocktakeCountHTTPInput(t *testing.T) {
 			r := gin.New()
 			r.PUT("/", func(c *gin.Context) {
 				var in StocktakeCountInput
-				if !decodeStocktake(c, &in) {
+				if !decodeStockCommand(c, &in) {
 					return
 				}
 				if !normalizeStocktakeCount(&in) {
@@ -119,7 +119,7 @@ func TestStocktakeDecisionHTTPInput(t *testing.T) {
 			r := gin.New()
 			r.PUT("/", func(c *gin.Context) {
 				var in StocktakeDecisionInput
-				if !decodeStocktake(c, &in) {
+				if !decodeStockCommand(c, &in) {
 					return
 				}
 				if !normalizeStocktakeDecision(&in) {

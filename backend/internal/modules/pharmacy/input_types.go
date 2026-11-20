@@ -12,6 +12,16 @@ type StockHoldInput struct {
 	PhysicalDisposition  string    `json:"physical_disposition" binding:"required,oneof=moved_to_quarantine"`
 }
 
+type StockHoldReceipt struct {
+	ID            uuid.UUID `json:"id" binding:"required"`
+	OutletID      uuid.UUID `json:"outlet_id" binding:"required"`
+	OutMovementID uuid.UUID `json:"out_movement_id" binding:"required"`
+	InMovementID  uuid.UUID `json:"in_movement_id" binding:"required"`
+	HeldBy        string    `json:"held_by" binding:"required,min=1,max=200"`
+	HeldAt        string    `json:"held_at"`
+	StockHoldInput
+}
+
 type StocktakeDecisionInput struct {
 	Decision              string  `json:"decision" binding:"required,oneof=submit approve reject cancel"`
 	ExpectedVersion       *int64  `json:"expected_version" binding:"required,min=0,max=9007199254740990"`

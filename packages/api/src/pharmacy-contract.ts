@@ -19,6 +19,19 @@ export const pharmacyStockHoldInputSchema = z
   })
   .strict();
 
+export const pharmacyStockHoldReceiptSchema = pharmacyStockHoldInputSchema
+  .extend({
+    id: identifier,
+    outlet_id: identifier,
+    out_movement_id: identifier,
+    in_movement_id: identifier,
+    held_by: z.string().min(1).max(200),
+    held_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+  })
+  .strict();
+
 export const pharmacyStocktakeDecisionInputSchema = z
   .object({
     decision: z.enum(["submit", "approve", "reject", "cancel"]),

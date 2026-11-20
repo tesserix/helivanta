@@ -49,6 +49,7 @@ const row = {
   sale_units: "0",
   return_units: "0",
   supplier_dispatch_units: "0",
+  quarantine_hold_units: "0",
 };
 const page = (data: unknown[], cursor: string | null = null) => ({
   data,
@@ -113,6 +114,7 @@ function fixture() {
           sale_units: "0",
           return_units: "0",
           supplier_dispatch_units: "0",
+          quarantine_hold_units: "0",
           closing_units: 0,
           movement_count: 2,
         }),
@@ -192,8 +194,8 @@ it("retains zero stock and opens a focused reconciliation using one frozen snaps
     "tabindex",
     "0",
   );
-  // The five zero movement totals.
-  expect(within(table).getAllByText("0")).toHaveLength(5);
+  // Six movement totals are zero, including quarantine holds.
+  expect(within(table).getAllByText("0")).toHaveLength(6);
   await user.click(screen.getByRole("button", { name: "Inspect TEST-500 lot TEST-LOT at TEST-Q" }));
   expect(
     await screen.findByRole("heading", { name: "TEST-500 · TEST-LOT · TEST-Q" }),
@@ -392,6 +394,7 @@ it("renders exact cumulative decimal totals without losing units beyond Number s
             sale_units: "0",
             return_units: "0",
             supplier_dispatch_units: "0",
+            quarantine_hold_units: "0",
             closing_units: 0,
             movement_count: 2,
           }),
@@ -713,6 +716,7 @@ const footed = {
   sale_units: "0",
   return_units: "1",
   supplier_dispatch_units: "0",
+  quarantine_hold_units: "0",
   closing_units: 6,
 };
 
@@ -727,10 +731,11 @@ it("shows every movement kind with its sign and the formula", async () => {
   expect(value("Sales in period")).toMatch(/^0 /);
   expect(value("Returns in period")).toMatch(/^\+1 /);
   expect(value("Supplied to hospital orders in period")).toMatch(/^0 /);
+  expect(value("Quarantine holds in period")).toMatch(/^0 /);
   expect(value("Closing stock")).toMatch(/^6 /);
   expect(
     screen.getByText(
-      /Opening \+ the movements in this period = closing stock\. Sales and supplies are negative; receipts and returns are positive; releases are negative where stock left and positive where it arrived\./,
+      /Opening \+ the movements in this period = closing stock\. Sales and supplies are negative; receipts and returns are positive; releases and quarantine holds are negative where stock left and positive where it arrived\./,
     ),
   ).toBeInTheDocument();
   expect(pane.queryByRole("alert")).not.toBeInTheDocument();
@@ -765,6 +770,7 @@ it("shows every movement kind in the register", async () => {
     "Sales",
     "Returns",
     "Supplied to hospitals",
+    "Quarantine holds",
   ])
     expect(within(table).getByRole("columnheader", { name: header })).toBeInTheDocument();
 });

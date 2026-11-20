@@ -1190,3 +1190,55 @@ current outlet authority always come from the verified principal, never these
 headers. Actor-specific query keys and recovery storage prevent another account
 in the same tenant from adopting a pending command. Write receipts must match the
 original actor; authorized historical receipt reads remain available.
+
+## Physical quarantine holds (#1687, unreleased source)
+
+PharmaConnect owns these commands and both stock buckets. This is the physical
+hold prerequisite for supplier returns, not supplier dispatch or a financial
+settlement. Supplier returns, credit matching/allocation and their printable note
+remain in development; see [ADR-0075](../../adr/0075-pharmacy-supplier-returns.md).
+Migration `0054_pharmacy_stock_holds` has not been approved for live application.
+No availability or role grants are enabled by this source change.
+
+The Global API forwards
+`/v1/pharmacy/pharmacies/{pharmacy}/outlets/{outlet}/stock/holds/{hold}` to the
+owning product. `hold` is a UUIDv7 command reference.
+
+- `PUT` requires `pharmacy.stock.quarantine`, verified tenant membership and
+  current editor access to the exact pharmacy/outlet. Its strict canonical
+  `StockHoldInput` contains `batch_id`, `from_location_id`,
+  `quarantine_location_id`, `quantity_units`, `reason` and
+  `physical_disposition: moved_to_quarantine`. IDs must be UUIDv7, locations must
+  differ, quantity is 1–1,000,000,000 issue units, and the required reason is at
+  most 500 characters without control characters. Request bodies are limited to
+  64 KiB. Queries, duplicate fields and unknown properties are rejected.
+- `GET` requires `pharmacy.stock.read`, current exact-outlet read access and the
+  original actor. It recovers the immutable `StockHoldReceipt`, including both
+  movement references, actor and timestamp. No request body or query is accepted;
+  successful recovery is audited and `private, no-store`. Recovery is classified
+  as baseline so an operational release lock does not erase uncertain commands.
+
+The source location must be sellable and the destination quarantine in the same
+outlet. The hold does not require that an unsafe or expired batch be releasable
+for sale. It creates an immutable parent and signed `quarantine_hold` movements:
+negative from the source, positive into quarantine. Existing reservation and
+balance guards remain authoritative; holds cannot consume an active supplier
+reservation. Both movement events and audit evidence use the same transaction.
+Database guards reject forged movement references and incomplete pairs at commit.
+Releases and holds acquire both bucket locks in the same order.
+
+Identical replay by the original actor returns the original receipt without
+moving stock again, even after later stock changes. Reusing an identity with
+changed intent or actor is `409`; a missing or foreign-scope object is `404` and
+missing route permission is `403`. Supplied expected-tenant/subject headers are
+checked before resource access; a changed account is `409 session_changed`.
+Authority/evidence dependency failures fail closed; no stock success is returned.
+Both commands have a 15-second transaction deadline. Retain the original command
+reference when a response is uncertain and recover it before creating another.
+
+Stock positions, reconciliation, CSV and the stock register include the signed
+`quarantine_hold_units` contribution. Missing totals remain explicitly unavailable
+rather than being presented as zero or as a reconciled balance. Hosted acceptance
+covers owner models, scoped denial, exact recovery, concurrent holds, supplier
+reservations and evidence rollback. Those tests do not establish live deployment,
+regulatory return authority or supplier receipt of goods.

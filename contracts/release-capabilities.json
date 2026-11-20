@@ -5670,6 +5670,16 @@
       "method": "PUT",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/cancellations/:command",
       "capability": "baseline"
+        },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/holds/:hold",
+      "capability": "pharmacy_stock"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/holds/:hold",
+      "capability": "baseline"
     }
   ],
   "pages": [

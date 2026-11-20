@@ -4729,6 +4729,24 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/holds/:hold",
+          "permission": "pharmacy.stock.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/holds/:hold",
+          "permission": "pharmacy.stock.quarantine",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "PUT",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/locations/:id",
           "permission": "pharmacy.stock.receive",
@@ -5911,6 +5929,13 @@
             "pharmacy_stocktake_commands",
             "pharmacy_stocktake_counts",
             "pharmacy_stocktake_adjustments"
+          ]
+        },
+        {
+          "id": "0054_pharmacy_stock_holds",
+          "sql_sha256": "2b5df7ac7d19839e3319989392392b162485e15edb84799566b9ade65d3c2afd",
+          "creates_tables": [
+            "pharmacy_stock_holds"
           ]
         }
       ]

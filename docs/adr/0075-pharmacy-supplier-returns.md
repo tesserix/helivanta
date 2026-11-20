@@ -68,7 +68,7 @@ these require hosted measurement and are not claimed SLO evidence.
 ## Authority, concurrency and failure
 
 Reuse tenant/outlet server authorization and existing system role templates.
-Pharmacists/inventory staff may hold stock with stock-correction authority;
+Pharmacists/inventory staff may hold stock with existing stock-quarantine authority;
 purchasing/owner return preparation and dispatch need declared return permissions
 and a current exact-outlet editor grant. Finance credit recording/allocation uses
 financial authority. Route admission never substitutes for verified tenant,

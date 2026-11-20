@@ -40,6 +40,40 @@
       ]
     },
     {
+      "name": "StockHoldReceipt",
+      "schema": "pharmacyStockHoldReceiptSchema",
+      "embed": "StockHoldInput",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid"
+        },
+        {
+          "name": "outlet_id",
+          "type": "uuid"
+        },
+        {
+          "name": "out_movement_id",
+          "type": "uuid"
+        },
+        {
+          "name": "in_movement_id",
+          "type": "uuid"
+        },
+        {
+          "name": "held_by",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "held_at",
+          "type": "string",
+          "format": "datetime"
+        }
+      ]
+    },
+    {
       "name": "StocktakeDecisionInput",
       "schema": "pharmacyStocktakeDecisionInputSchema",
       "fields": [

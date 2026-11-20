@@ -214,6 +214,9 @@ func (h *catalogueHandlers) applyRelease(ctx context.Context, tx *gorm.DB, p aut
 				id, p.TenantID, outlet, in.BatchID, in.FromLocationID, in.ToLocationID, in.QuantityUnits, in.Reason, class, declaration, digest, p.Subject).Error; err != nil {
 				return err
 			}
+			if err := lockStockTransferBuckets(tx, p.TenantID, outlet, in.BatchID, in.FromLocationID, in.ToLocationID); err != nil {
+				return err
+			}
 			// Out of quarantine first: the bucket guard refuses an overdraft
 			// before anything reaches the sellable location.
 			for _, m := range []struct {

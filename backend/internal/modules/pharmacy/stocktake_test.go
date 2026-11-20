@@ -99,3 +99,84 @@ func TestStocktakeSnapshotIsFrozenAndOutletScoped(t *testing.T) {
 	require.Equal(t, 403, do(r, "GET", path, "denied", "").Code)
 	require.Equal(t, 401, do(r, "GET", path, "unknown", "").Code)
 }
+
+func TestStocktakeCountsAreVersionedAndMovementBound(t *testing.T) {
+	r, _ := stocktakeHarness(t)
+	_, location, batch := stockFixture(t, r)
+	receipt := do(r, "PUT", outletPath("/stock/movements/")+uuid.Must(uuid.NewV7()).String(), "editor", stockBody(location, batch, "receipt", "TEST-count-opening", 10))
+	require.Equal(t, 200, receipt.Code, receipt.Body.String())
+	path := outletPath("/stock/stocktakes/") + uuid.Must(uuid.NewV7()).String()
+	start := fmt.Sprintf(`{"selection":"all","product_ids":[],"quarantine_location_id":%q,"reason":"TEST count"}`, location)
+	created := do(r, "PUT", path, "editor", start)
+	require.Equal(t, 200, created.Code, created.Body.String())
+	lines := do(r, "GET", path+"/lines", "reader", "")
+	require.Equal(t, 200, lines.Code, lines.Body.String())
+	var list struct {
+		Data []struct{ ID string }
+	}
+	require.NoError(t, json.Unmarshal(lines.Body.Bytes(), &list))
+	require.Len(t, list.Data, 1)
+	input := fmt.Sprintf(`{"expected_version":0,"counts":[{"line_id":%q,"counted_units":8}],"reason":"TEST shelf observation"}`, list.Data[0].ID)
+	command := path + "/counts/" + uuid.Must(uuid.NewV7()).String()
+	counted := do(r, "PUT", command, "editor", input)
+	require.Equal(t, 200, counted.Code, counted.Body.String())
+	var saved struct {
+		Version int64
+		State   string
+	}
+	require.NoError(t, json.Unmarshal(counted.Body.Bytes(), &saved))
+	require.Equal(t, int64(1), saved.Version)
+	require.Equal(t, "counting", saved.State)
+	current := do(r, "GET", path, "reader", "")
+	require.Equal(t, 200, current.Code, current.Body.String())
+	var progress struct {
+		Version        int64
+		CountedRows    int64 `json:"counted_rows"`
+		DifferenceRows int64 `json:"difference_rows"`
+	}
+	require.NoError(t, json.Unmarshal(current.Body.Bytes(), &progress))
+	require.Equal(t, int64(1), progress.Version)
+	require.Equal(t, int64(1), progress.CountedRows)
+	require.Equal(t, int64(1), progress.DifferenceRows)
+	lines = do(r, "GET", path+"/lines", "reader", "")
+	var counts struct {
+		Data []struct {
+			CountedUnits    *int64 `json:"counted_units"`
+			DifferenceUnits *int64 `json:"difference_units"`
+			CountedBy       string `json:"counted_by"`
+		}
+	}
+	require.NoError(t, json.Unmarshal(lines.Body.Bytes(), &counts))
+	require.Len(t, counts.Data, 1)
+	require.NotNil(t, counts.Data[0].CountedUnits)
+	require.Equal(t, int64(8), *counts.Data[0].CountedUnits)
+	require.NotNil(t, counts.Data[0].DifferenceUnits)
+	require.Equal(t, int64(-2), *counts.Data[0].DifferenceUnits)
+	require.Equal(t, "user-editor", counts.Data[0].CountedBy)
+	newInput := strings.Replace(strings.Replace(input, `"expected_version":0`, `"expected_version":1`, 1), `"counted_units":8`, `"counted_units":9`, 1)
+	edited := do(r, "PUT", path+"/counts/"+uuid.Must(uuid.NewV7()).String(), "reviewer", newInput)
+	require.Equal(t, 200, edited.Code, edited.Body.String())
+	replayed := do(r, "PUT", command, "editor", input)
+	require.Equal(t, 200, replayed.Code, replayed.Body.String())
+	require.JSONEq(t, counted.Body.String(), replayed.Body.String())
+	recovered := do(r, "GET", command, "reader", "")
+	require.Equal(t, 200, recovered.Code, recovered.Body.String())
+	require.JSONEq(t, counted.Body.String(), recovered.Body.String())
+	require.Equal(t, 409, do(r, "PUT", command, "reviewer", input).Code)
+	require.Equal(t, 409, do(r, "PUT", command, "editor", newInput).Code)
+	require.Equal(t, 409, do(r, "PUT", path+"/counts/"+uuid.Must(uuid.NewV7()).String(), "editor", input).Code)
+	// Accepted observations survive later movements; recording a new observation
+	// against a changed book snapshot must fail even for net-zero movements.
+	for i, quantity := range []int{1, -1} {
+		moved := do(r, "PUT", outletPath("/stock/movements/")+uuid.Must(uuid.NewV7()).String(), "editor", stockBody(location, batch, "correction", fmt.Sprintf("TEST-net-zero-%d", i), quantity))
+		require.Equal(t, 200, moved.Code, moved.Body.String())
+	}
+	require.Equal(t, 409, do(r, "PUT", path+"/counts/"+uuid.Must(uuid.NewV7()).String(), "editor", strings.Replace(newInput, `"expected_version":1`, `"expected_version":2`, 1)).Code)
+	creationReplay := do(r, "PUT", path, "editor", start)
+	require.Equal(t, 200, creationReplay.Code, creationReplay.Body.String())
+	require.JSONEq(t, created.Body.String(), creationReplay.Body.String())
+	for _, token := range []string{"sibling", "foreign"} {
+		require.Equal(t, 404, do(r, "PUT", command, token, input).Code)
+	}
+	require.Equal(t, 403, do(r, "PUT", command, "reader", input).Code)
+}

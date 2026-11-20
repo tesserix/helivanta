@@ -164,6 +164,10 @@ func stocktakeError(c *gin.Context, err error) {
 		return
 	}
 	var pg *pgconn.PgError
+	if errors.As(err, &pg) && (pg.TableName == "audit_events" || pg.TableName == "outbox_events") {
+		respond.Error(c, http.StatusServiceUnavailable, "stocktake_evidence_unavailable", "Stocktake evidence could not be retained. Recover the original command before retrying.")
+		return
+	}
 	if errors.As(err, &pg) && strings.HasPrefix(pg.ConstraintName, "pharmacy_stocktake") {
 		respond.Conflict(c, "The stocktake snapshot or state changed. Review the existing count before continuing.")
 		return

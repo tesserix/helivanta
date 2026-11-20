@@ -998,8 +998,8 @@ Different requests can differ when stock, reservations or configuration changes.
 The draft implementation adds a frozen physical-book snapshot and versioned
 counted observations, not a completed stocktake workflow. It is unreleased and
 protected by `pharmacy_stock`; capability eligibility and provider values are
-unchanged. Reviewed decisions and atomic corrections are now an implementation
-candidate; native acceptance is pending. Recovery continuations, register export,
+unchanged. Reviewed decisions and atomic corrections have passed the native core
+journey; evidence-failure acceptance is still in progress. Recovery continuations, register export,
 the UI and failure/recovery coverage remain
 required before operational activation. See [ADR-0073](../../adr/0073-pharmacy-stocktake.md).
 
@@ -1046,8 +1046,9 @@ Exact actor/input replay returns its original version and quantities after later
 edits; changed reuse is 409. Current progress and line observations use one
 statement snapshot per request and preserve zero separately from missing. Starting
 again with the original identity still returns the original creation receipt.
-No observation changes stock or publishes a stock-movement event. Hosted native
-count acceptance is required before claiming this candidate works end to end.
+No observation changes stock or publishes a stock-movement event. Snapshot,
+counting and core approval journeys have passed native tests; the operator UI,
+failure/recovery cases and live acceptance are separate release requirements.
 
 Submit requires an observation for every frozen bucket. Only counting permits
 new observations or submission. Cancellation is available while counting or
@@ -1074,3 +1075,6 @@ observations and ask the responsible stock owner to resolve the limit; never
 alter a physical count merely to make posting succeed. Native version, transition,
 independence, quantity, linkage, audit and outbox failure all roll back the whole
 decision, leaving its identity available for a safe exact retry.
+Audit or outbox write failures return 503 `stocktake_evidence_unavailable` without
+revealing private database diagnostics; a failure is never reported as a completed
+stock adjustment or a caller's invalid catalogue input.

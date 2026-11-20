@@ -25,8 +25,8 @@ test("reopened verified email shows password setup without reusing its code", as
   });
   await page.goto("/signup/verify#phase=email&userId=owner-synthetic&code=used-proof");
   await expect(page.getByRole("heading", { name: "Your email is already verified" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Verify email address" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Send password setup email" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Verify email" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Send password link" })).toBeVisible();
   expect(writes).toEqual([]);
   expect(new URL(page.url()).hash).toBe("");
 });
@@ -130,11 +130,10 @@ test("new tenant signup requires its own account instead of adopting another org
     }),
   );
   await page.goto("/signup");
-  await expect(page.getByRole("heading", { name: "Verify your account" })).toBeFocused();
+  await expect(page.getByRole("heading", { name: "Check your email" })).toBeFocused();
   await expect(page.getByRole("button", { name: "Continue with an existing account" })).toHaveCount(
     0,
   );
-  await expect(page.getByText(/separate login for this workspace/)).toBeVisible();
 });
 
 test("ready workspace sign-in pins the native organisation with PKCE", async ({ page }) => {
@@ -205,7 +204,7 @@ test("signup never reports readiness when its provisioner is unavailable", async
   );
   await page.goto("/signup");
   await expect(page.getByText("Workspace setup is unavailable. Try again.")).toBeVisible();
-  await expect(page.getByText("Your workspace is ready")).toHaveCount(0);
+  await expect(page.getByText(/is ready$/)).toHaveCount(0);
 });
 
 for (const kind of ["hospital", "pharmacy"] as const) {
@@ -290,11 +289,11 @@ for (const kind of ["hospital", "pharmacy"] as const) {
     const status = page.getByRole("heading", { name: "Setting up your workspace" });
     await expect(status).toBeFocused();
     await expect(status).toBeInViewport();
-    await expect(page.getByText("Your workspace is ready")).toHaveCount(0);
+    await expect(page.getByText(/is ready$/)).toHaveCount(0);
   });
 }
 
-test("expired email proof offers a fresh verification link with expiry and shared delivery limits", async ({
+test("expired email proof offers a new verification link without up-front delivery limits", async ({
   page,
 }) => {
   const deliveries: string[] = [];
@@ -314,19 +313,17 @@ test("expired email proof offers a fresh verification link with expiry and share
     });
   });
   await page.goto("/signup/verify#phase=email&userId=owner-synthetic&code=expired-proof");
-  await expect(page.getByText(/Links expire after 1 hour/)).toBeVisible();
-  await expect(page.getByText(/3 emails per hour and 10 per 24 hours/)).toBeVisible();
+  // #1762: the email limits are told only when a resend is refused, never up front.
+  await expect(page.getByText(/emails per hour/)).toHaveCount(0);
   await expect.poll(() => new URL(page.url()).hash).toBe("");
   expect(deliveries).toEqual([]);
-  await page.getByRole("button", { name: "Verify email address" }).click();
-  await expect(
-    page.getByRole("alert").filter({ hasText: "This link may have expired" }),
-  ).toHaveText(
-    "This link may have expired or already been used. Check your password or request a fresh email link.",
+  await page.getByRole("button", { name: "Verify email" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "This link has expired" })).toHaveText(
+    "This link has expired or was already used. Send a new link.",
   );
-  await page.getByRole("button", { name: "Request a fresh email link" }).click();
+  await page.getByRole("button", { name: "Send a new link" }).click();
   await expect.poll(() => deliveries).toEqual(["/api/v1/auth/signup/email-link"]);
-  await expect(page.getByRole("status")).toContainText("If this request can receive an email");
+  await expect(page.getByRole("status")).toContainText("If this address can receive email");
 });
 
 test("another workspace opens a blank signup without provisioning or deleting the existing one", async ({

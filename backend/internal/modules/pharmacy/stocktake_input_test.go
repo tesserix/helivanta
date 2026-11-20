@@ -96,3 +96,34 @@ func TestStocktakeCountHTTPInput(t *testing.T) {
 		})
 	}
 }
+
+func TestStocktakeReadParameterShape(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		path   string
+		paged  bool
+		status int
+	}{
+		{"record", "/", false, 200},
+		{"page", "/?limit=1", true, 200},
+		{"record query", "/?limit=1", false, 400},
+		{"undeclared filter", "/?tenant_id=forged", true, 400},
+		{"repeated limit", "/?limit=1&limit=2", true, 400},
+		{"empty cursor", "/?cursor=", true, 400},
+		{"invalid encoding", "/?%=x", true, 400},
+		{"invalid record encoding", "/?%=x", false, 400},
+		{"ambiguous delimiter", "/?limit=1;limit=2", true, 400},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			r := gin.New()
+			r.GET("/", func(c *gin.Context) {
+				if stocktakeRead(c, tt.paged) {
+					respond.OK(c, "accepted")
+				}
+			})
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, httptest.NewRequest("GET", tt.path, nil))
+			require.Equal(t, tt.status, w.Code, w.Body.String())
+		})
+	}
+}

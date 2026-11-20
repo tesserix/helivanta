@@ -4838,6 +4838,42 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/lines",
+          "permission": "pharmacy.stock.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake",
+          "permission": "pharmacy.stock.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake",
+          "permission": "pharmacy.stock.correct",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes",
+          "permission": "pharmacy.stock.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/commands/:command",
           "permission": "public",
           "authentication_required": true,
@@ -5810,6 +5846,14 @@
           "sql_sha256": "d8fe63ee7699048c47f6265f37a16d5e98c5ba44edb52a082d807553ae5a2819",
           "creates_tables": [
             "pharmacy_reorder_levels"
+          ]
+        },
+        {
+          "id": "0053_pharmacy_stocktakes",
+          "sql_sha256": "8bf3855bccb034e357befde9353e4673fbb1cb51c9236a092934cfc69cadf7cf",
+          "creates_tables": [
+            "pharmacy_stocktakes",
+            "pharmacy_stocktake_lines"
           ]
         }
       ]

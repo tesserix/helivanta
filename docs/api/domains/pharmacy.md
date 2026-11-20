@@ -992,3 +992,40 @@ Different requests can differ when stock, reservations or configuration changes.
 
 [Operator guide](../../guides/pharmacy-low-stock.md) ·
 [Design and release gates](../../superpowers/specs/2026-11-20-outlet-low-stock.md)
+
+## Reviewed outlet stocktakes (#1686, implementation candidate)
+
+The draft implementation adds a frozen physical-book snapshot, not a completed
+stocktake workflow. It is unreleased and protected by `pharmacy_stock`; capability
+eligibility and provider values are unchanged. Counting, independent review,
+atomic corrections, recovery continuations, register export and the UI remain
+required before operational activation. See [ADR-0073](../../adr/0073-pharmacy-stocktake.md).
+
+Paths below use the same pharmacy/outlet prefix as reorder levels. Every request
+requires verified tenant, pharmacy and current outlet scope through Global API.
+Reads require `pharmacy.stock.read`; starting requires `pharmacy.stock.correct`
+and a current editor grant. Ownership or affiliation alone is insufficient.
+
+| Method/path | Contract |
+| --- | --- |
+| PUT `/stock/stocktakes/{stocktake}` | UUIDv7 identity; strict `{selection, product_ids, quarantine_location_id, reason}`. `all` requires an empty product list; `selected` requires 1–100 unique UUIDv7 product IDs. Required reason is at most 500 characters; body at most 64 KiB. Returns the immutable creation receipt. |
+| GET `/stock/stocktakes/{stocktake}` | Current sealed snapshot and progress; no query or request body. |
+| GET `/stock/stocktakes` | Standard keyset list; only one nonempty `limit` and `cursor` allowed, default 50 / maximum 200. |
+| GET `/stock/stocktakes/{stocktake}/lines` | Same pagination; immutable batch/location book quantities, issue units, product version, snapshot time and retained schedule declaration. Missing physical counts are null. |
+
+Start captures quantities and movement counts in one SQL statement, including
+expired and non-sellable physical buckets. At most 10,000 buckets are permitted;
+larger selections fail rather than truncate. Snapshot insertion and sealing are
+atomic with audit evidence. The quarantine destination must exist in the same
+outlet and cannot be sellable. Snapshot headers and lines are immutable after
+sealing. The current draft prevents a second count in the outlet; terminal-state
+handling must replace that guard when the lifecycle is implemented.
+
+Exact start retries bind the original actor and normalized input; changed reuse
+returns 409. Reads and recovery are audited in the same transaction and return
+503 `audit_unavailable` if audit evidence cannot be retained. Inaccessible scope
+is 404, missing permission 403, invalid input 400. Migration 0053 adds forced RLS
+and restrictive operating-choice purpose policies, extending the policy
+fingerprint only after validating the existing fingerprint. Canonical models
+are generated from `contracts/pharmacy.json`; registry parity does not prove
+native database or deployed acceptance.

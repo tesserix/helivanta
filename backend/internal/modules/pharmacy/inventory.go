@@ -84,6 +84,7 @@ func inventoryRoutes(g *platform.Router, deps platform.Deps) {
 	stockOverviewRoutes(g, h)
 	operatingStockRoutes(g, h)
 	s := g.Group("/pharmacies/:pharmacy/outlets/:outlet/stock")
+	stocktakeRoutes(s, h)
 	s.PUT("/locations/:id", PermStockReceive, h.putLocation)
 	s.PUT("/batches/:id", PermStockReceive, h.putBatch)
 	s.GET("/batches/:id", PermStockRead, h.getBatch)

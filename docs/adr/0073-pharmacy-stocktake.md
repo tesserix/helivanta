@@ -13,15 +13,16 @@ outlet grant are required; hospital ownership alone grants no stock authority.
 
 Planning assumptions, not measured deployment claims: one active count per
 outlet, up to 10,000 batch/location buckets, 100 count entries per command,
-500 nonzero adjustments per approval and 100 rows per requested page. Commands
+500 nonzero adjustments per approval and pages of 50 rows by default, at most 200. Commands
 are also bounded to 64 KiB. A 3,000-product outlet averaging two buckets uses
 6,000 snapshot rows. At 10 concurrent large counts, bounded application working
 data should remain below 100 MB. Plan for 10 count commands/s across tenants,
 read:write 10:1, roughly 4 KB commands and 50 KB pages. At 200 outlets and monthly
 counts of 6,000 buckets, snapshots alone add 14.4 million rows/year; index by
 tenant/outlet/count rather than scanning history. Review at 600 outlets/36 months.
-Targets are p99 below 300 ms for a page and five seconds for start/post under
-these bounds, within the existing API availability SLO. These need measured
+Planning targets are 99.9% monthly availability, p99 below 300 ms for a page and
+five seconds for start/post under these bounds. Start commands have a ten-second
+request deadline. These targets need measured
 database evidence before activation. Oversized requests fail explicitly.
 
 Relevant contracts: `docs/api/domains/pharmacy.md`, `docs/api/http-contract.md`,
@@ -69,6 +70,10 @@ stocktake register export under the existing Stock capability. All new entry
 remains dark with `pharmacy_stock`; eligibility and provider values are unchanged.
 Use human stocktake references within the selected outlet and shared named-account
 components for actors. Backend command and subject identifiers stay internal.
+Existing-count status, original-command recovery and cancellation need narrowly
+classified baseline continuations before operational activation. They must verify
+an already sealed count and current authority; they cannot start a count, record
+new counted quantities or approve stock adjustments while Stock is disabled.
 
 ## Failure, consistency and recovery
 

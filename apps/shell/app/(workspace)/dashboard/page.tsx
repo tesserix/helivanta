@@ -15,6 +15,7 @@ const DESCRIPTIONS: Record<string, string> = {
   "pharmacy:Overview": "What needs attention at your outlet today",
   "pharmacy:Dispensing": "Past dispenses from the retired queue",
   "pharmacy:Inventory": "Stock on hand, receiving, expiry and the product catalogue",
+  "pharmacy:Recovery": "Check saved stocktake outcomes and cancel unfinished counts",
   "pharmacy:Purchasing": "Supplier bills, payments and outstanding balances",
   "pharmacy:Setup": "Pharmacy outlets and who can access them",
   "/supply/staff": "Independent supplier Staff records and reviewed accounts",

@@ -244,13 +244,6 @@ export const ZONES: Zone[] = [
       },
       {
         section: "Inventory",
-        label: "Retained stocktakes",
-        href: "/pharmacy/stocktake-recovery",
-        icon: ClipboardList,
-        permission: "pharmacy.stock.read",
-      },
-      {
-        section: "Inventory",
         label: "Supplier fulfilment",
         href: "/pharmacy/supplier-orders",
         icon: Truck,
@@ -276,6 +269,13 @@ export const ZONES: Zone[] = [
         href: "/pharmacy/catalogue",
         icon: BookOpen,
         permission: "pharmacy.catalogue.read",
+      },
+      {
+        section: "Recovery",
+        label: "Retained stocktakes",
+        href: "/pharmacy/stocktake-recovery",
+        icon: ClipboardList,
+        permission: "pharmacy.stock.read",
       },
       {
         section: "Purchasing",

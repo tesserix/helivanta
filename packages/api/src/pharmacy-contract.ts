@@ -96,6 +96,8 @@ export const pharmacyStocktakeSchema = pharmacyStocktakeSummarySchema
   .extend({
     counted_rows: z.number().int().min(0).max(10000),
     difference_rows: z.number().int().min(0).max(10000),
+    positive_difference_rows: z.number().int().min(0).max(10000),
+    review_relationship: z.enum(["starter", "counter", "independent"]),
   })
   .strict();
 

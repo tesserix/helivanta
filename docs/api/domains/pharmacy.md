@@ -999,7 +999,8 @@ The draft implementation adds a frozen physical-book snapshot and versioned
 counted observations, not a completed stocktake workflow. It is unreleased and
 protected by `pharmacy_stock`; capability eligibility and provider values are
 unchanged. Reviewed decisions and atomic corrections have passed the native core
-journey; evidence-failure acceptance is still in progress. Recovery continuations, register export,
+journey, including audit/outbox failure rollback and exact retry. Recovery
+continuations, register-export acceptance,
 the UI and failure/recovery coverage remain
 required before operational activation. See [ADR-0073](../../adr/0073-pharmacy-stocktake.md).
 
@@ -1018,6 +1019,7 @@ and a current editor grant. Ownership or affiliation alone is insufficient.
 | GET `/stock/stocktakes/{stocktake}/counts/{command}` | Original count receipt under current read authority; no query or body. This does not return a later edit's quantities. |
 | PUT `/stock/stocktakes/{stocktake}/decisions/{command}` | Strict `{decision, expected_version, reason, extra_units_disposition?}`. Decision is submit, approve, reject or cancel. Only approval requires a disposition: `moved_to_quarantine` if any difference is positive, otherwise `no_extra_units`. Required reason at most 500 characters; body at most 64 KiB. Returns an original immutable decision receipt, including adjustment count. |
 | GET `/stock/stocktakes/{stocktake}/decisions/{command}` | Original immutable decision receipt under current read authority; no query or body. |
+| GET `/stock/stocktakes/{stocktake}/register.csv` | Audited physical-count register, bounded to 10,000 buckets / 8 MiB with no partial file. No query or body. Current read authority is required, as for the existing stock register CSV. |
 
 Start captures quantities and movement counts in one SQL statement, including
 expired and non-sellable physical buckets. At most 10,000 buckets are permitted;
@@ -1056,6 +1058,11 @@ submitted. Approval and rejection require submitted state and a reviewer who is
 neither the starter nor any historical counter, including superseded counters.
 Every action uses the exact current version. Terminal states cannot be reopened.
 Exact original-command recovery remains valid after later decisions.
+Detail includes `positive_difference_rows` from the entire current count, not
+just its visible page. `review_relationship` describes the current actor as
+starter, historical counter or independent; it is a presentation fact and grants
+no permission or professional authority. Original creation receipts always retain
+zero progress and the original actor's starter relationship.
 
 Approval applies each nonzero difference to the current balance, preserving
 movements after the accepted observation. Negative differences remove stock from
@@ -1066,7 +1073,8 @@ movement guard allows only the approved shortage correction outside quarantine;
 ordinary unlinked corrections retain the quarantine-only rule. Every correction
 is linked to its counted bucket and review command, uses the existing `correction`
 movement kind, and publishes only protected stock references through the bounded
-transactional outbox. No stock is released, disposed or financially posted.
+transactional outbox. This command does not issue a release, disposal or financial
+posting command; movement consumers remain subject to their published contracts.
 
 At most 500 nonzero corrections, each within the existing ±1,000,000,000 issue-unit
 movement limit, may post in one approval. Excess differences return 409
@@ -1078,3 +1086,22 @@ decision, leaving its identity available for a safe exact retry.
 Audit or outbox write failures return 503 `stocktake_evidence_unavailable` without
 revealing private database diagnostics; a failure is never reported as a completed
 stock adjustment or a caller's invalid catalogue input.
+
+The physical-count CSV retains the book, observation, issue unit, schedule
+declaration and linked correction. H1, X and NDPS have separate sections; a row
+with NDPS=yes uses the NDPS section while retaining its source schedule class.
+Unknown declarations and NDPS status remain explicit. Other declared classes
+appear in the ordinary report section without changing their dispensing rules.
+Missing observations are blank, physical zero is zero. Actor/movement references
+are retained for backend audit correlation; UI account presentation uses names.
+The file is a physical stocktake report and does not replace statutory controlled
+drug filings. The existing stock register retains its six movement totals and
+includes these corrections without a new movement kind.
+
+Export locks the sealed parent for the short read transaction so its revision,
+observations and corrections cannot be mixed across a review. It buffers the
+complete bounded file, neutralizes formula-like text cells and retains read audit
+before returning any data. A missing bucket returns 503; excessive rows/bytes
+return 413 `stocktake_export_too_large`, with no truncated CSV. The retained paged
+record remains available for examination. Responses are non-cacheable attachments
+named by the outlet's human stocktake number. Export does not change stock.

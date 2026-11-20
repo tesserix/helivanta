@@ -640,6 +640,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/decisions/:command` | `pharmacy.stock.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/decisions/:command` | `pharmacy.stock.correct` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/lines` | `pharmacy.stock.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/register.csv` | `pharmacy.stock.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake` | `pharmacy.stock.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake` | `pharmacy.stock.correct` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes` | `pharmacy.stock.read` | true | false |

@@ -67,8 +67,10 @@ type StocktakeSummary struct {
 }
 
 type Stocktake struct {
-	CountedRows    int64 `json:"counted_rows" binding:"min=0,max=10000"`
-	DifferenceRows int64 `json:"difference_rows" binding:"min=0,max=10000"`
+	CountedRows            int64  `json:"counted_rows" binding:"min=0,max=10000"`
+	DifferenceRows         int64  `json:"difference_rows" binding:"min=0,max=10000"`
+	PositiveDifferenceRows int64  `json:"positive_difference_rows" binding:"min=0,max=10000"`
+	ReviewRelationship     string `json:"review_relationship" binding:"required,oneof=starter counter independent"`
 	StocktakeSummary
 }
 

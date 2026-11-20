@@ -5,6 +5,7 @@ import {
   recordStocktakeCount,
   recordStocktakeDecision,
   readStocktakeDecision,
+  fetchStocktakes,
   startStocktake,
 } from "./index";
 
@@ -31,11 +32,44 @@ const receipt = {
   snapshot_rows: 1,
   counted_rows: 0,
   difference_rows: 0,
+  positive_difference_rows: 0,
+  review_relationship: "starter",
   version: 0,
   state: "counting",
 };
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
 afterEach(() => vi.unstubAllGlobals());
+
+it("loads bounded stocktake pages and rejects wrong scope or a broken continuation", async () => {
+  const summary = {
+    ...input,
+    id: take,
+    outlet_id: scope.outletId,
+    number: 1,
+    started_by: "TEST starter",
+    started_at: "2026-11-20T00:00:00Z",
+    snapshot_rows: 1,
+    state: "counting",
+    version: 0,
+  };
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(
+      json({ data: [summary], page: { has_more: true, next_cursor: "TEST-next" } }),
+    )
+    .mockResolvedValueOnce(
+      json({
+        data: [{ ...summary, outlet_id: command }],
+        page: { has_more: false, next_cursor: null },
+      }),
+    )
+    .mockResolvedValueOnce(json({ data: [], page: { has_more: true, next_cursor: null } }));
+  vi.stubGlobal("fetch", fetch);
+  expect((await fetchStocktakes(scope, null)).data).toEqual([summary]);
+  await expect(fetchStocktakes(scope, "TEST-next")).rejects.toThrow(/outlet/i);
+  await expect(fetchStocktakes(scope, null)).rejects.toThrow(/continuation/i);
+  expect(fetch.mock.calls[1]?.[0]).toContain("cursor=TEST-next");
+});
 
 it("retains a review command and recovers its original receipt after later revisions", async () => {
   const input = { decision: "submit" as const, expected_version: 1, reason: "TEST all counted" };
@@ -77,10 +111,12 @@ it("reads current progress and refuses a foreign or inconsistent stocktake", asy
       .fn()
       .mockResolvedValueOnce(json(current))
       .mockResolvedValueOnce(json({ ...current, outlet_id: command }))
-      .mockResolvedValueOnce(json({ ...current, counted_rows: 2 })),
+      .mockResolvedValueOnce(json({ ...current, counted_rows: 2 }))
+      .mockResolvedValueOnce(json({ ...current, positive_difference_rows: 2 })),
   );
   expect(await readStocktake(scope, take)).toEqual(current);
   await expect(readStocktake(scope, take)).rejects.toThrow(/stocktake/i);
+  await expect(readStocktake(scope, take)).rejects.toThrow(/progress/i);
   await expect(readStocktake(scope, take)).rejects.toThrow(/progress/i);
 });
 

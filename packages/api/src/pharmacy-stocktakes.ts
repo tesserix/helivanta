@@ -8,10 +8,12 @@ import {
   pharmacyStocktakeDecisionReceiptSchema,
   pharmacyStocktakeLineSchema,
   pharmacyStocktakeSchema,
+  pharmacyStocktakeSummarySchema,
   pharmacyStocktakeStartInputSchema,
 } from "./pharmacy-contract";
 
 export type PharmacyStocktake = z.infer<typeof pharmacyStocktakeSchema>;
+export type PharmacyStocktakeSummary = z.infer<typeof pharmacyStocktakeSummarySchema>;
 export type PharmacyStocktakeLine = z.infer<typeof pharmacyStocktakeLineSchema>;
 export type PharmacyStocktakeStartInput = z.infer<typeof pharmacyStocktakeStartInputSchema>;
 export type PharmacyStocktakeCountInput = z.infer<typeof pharmacyStocktakeCountInputSchema>;
@@ -27,6 +29,27 @@ const linePage = z.object({
   data: z.array(pharmacyStocktakeLineSchema).max(200),
   page: continuation,
 });
+const takePage = z.object({
+  data: z.array(pharmacyStocktakeSummarySchema).max(200),
+  page: continuation,
+});
+
+export async function fetchStocktakes(
+  scope: PharmacyScope,
+  cursor: string | null,
+  signal?: AbortSignal,
+) {
+  const query = new URLSearchParams();
+  if (cursor) query.set("cursor", cursor);
+  const page = takePage.parse(
+    await apiFetch(`${pharmacyRoot(scope)}/stock/stocktakes?${query}`, request(scope, signal)),
+  );
+  if (page.data.some((take) => take.outlet_id !== scope.outletId))
+    throw new Error("The stocktake page does not match this outlet.");
+  if (page.page.has_more !== Boolean(page.page.next_cursor))
+    throw new Error("The stocktake page has an invalid continuation.");
+  return page;
+}
 
 function request(scope: PharmacyScope, signal?: AbortSignal): RequestInit {
   const timeout = AbortSignal.timeout(15000);
@@ -125,7 +148,11 @@ export async function readStocktake(scope: PharmacyScope, take: string, signal?:
   );
   if (result.id !== take || result.outlet_id !== scope.outletId)
     throw new Error("The stocktake does not match this outlet.");
-  if (result.counted_rows > result.snapshot_rows || result.difference_rows > result.counted_rows)
+  if (
+    result.counted_rows > result.snapshot_rows ||
+    result.difference_rows > result.counted_rows ||
+    result.positive_difference_rows > result.difference_rows
+  )
     throw new Error("The stocktake progress is inconsistent. Refresh before continuing.");
   return result;
 }
@@ -150,6 +177,8 @@ export async function startStocktake(
     receipt.version !== 0 ||
     receipt.counted_rows !== 0 ||
     receipt.difference_rows !== 0 ||
+    receipt.positive_difference_rows !== 0 ||
+    receipt.review_relationship !== "starter" ||
     receipt.selection !== intent.selection ||
     receipt.quarantine_location_id !== intent.quarantine_location_id ||
     receipt.reason !== intent.reason ||

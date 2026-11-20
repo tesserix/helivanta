@@ -117,12 +117,15 @@ func TestStocktakeIndependentApprovalPreservesLaterMovements(t *testing.T) {
 	approved := do(r, "PUT", approvalPath, "approver", approvalInput)
 	require.Equal(t, 200, approved.Code, approved.Body.String())
 	var decision struct {
-		State   string
-		Version int64
+		State      string
+		Version    int64
+		RecordedAt string `json:"recorded_at"`
 	}
 	require.NoError(t, json.Unmarshal(approved.Body.Bytes(), &decision))
 	require.Equal(t, "posted", decision.State)
 	require.Equal(t, int64(3), decision.Version)
+	_, err := time.Parse(time.RFC3339Nano, decision.RecordedAt)
+	require.NoError(t, err)
 	for i := 0; i < 2; i++ {
 		replayed := do(r, "PUT", approvalPath, "approver", approvalInput)
 		require.Equal(t, 200, replayed.Code, replayed.Body.String())
@@ -170,7 +173,7 @@ func TestStocktakeIndependentApprovalPreservesLaterMovements(t *testing.T) {
 		require.Equal(t, int64(1), count)
 		return nil
 	}))
-	positions := do(r, "GET", outletPath("/stock/positions.csv?as_of=")+time.Now().UTC().Format(time.RFC3339Nano), "reader", "")
+	positions := do(r, "GET", outletPath("/stock/positions.csv?as_of=")+decision.RecordedAt, "reader", "")
 	require.Equal(t, 200, positions.Code, positions.Body.String())
 	parts, err := csv.NewReader(strings.NewReader(positions.Body.String())).ReadAll()
 	require.NoError(t, err)
@@ -293,14 +296,19 @@ func TestStocktakeCountsAreVersionedAndMovementBound(t *testing.T) {
 	current := do(r, "GET", path, "reader", "")
 	require.Equal(t, 200, current.Code, current.Body.String())
 	var progress struct {
-		Version        int64
-		CountedRows    int64 `json:"counted_rows"`
-		DifferenceRows int64 `json:"difference_rows"`
+		Version                int64
+		CountedRows            int64  `json:"counted_rows"`
+		DifferenceRows         int64  `json:"difference_rows"`
+		PositiveDifferenceRows *int64 `json:"positive_difference_rows"`
+		ReviewRelationship     string `json:"review_relationship"`
 	}
 	require.NoError(t, json.Unmarshal(current.Body.Bytes(), &progress))
 	require.Equal(t, int64(1), progress.Version)
 	require.Equal(t, int64(1), progress.CountedRows)
 	require.Equal(t, int64(1), progress.DifferenceRows)
+	require.NotNil(t, progress.PositiveDifferenceRows)
+	require.Zero(t, *progress.PositiveDifferenceRows)
+	require.Equal(t, "independent", progress.ReviewRelationship)
 	lines = do(r, "GET", path+"/lines", "reader", "")
 	var counts struct {
 		Data []struct {
@@ -319,6 +327,13 @@ func TestStocktakeCountsAreVersionedAndMovementBound(t *testing.T) {
 	newInput := strings.Replace(strings.Replace(input, `"expected_version":0`, `"expected_version":1`, 1), `"counted_units":8`, `"counted_units":9`, 1)
 	edited := do(r, "PUT", path+"/counts/"+uuid.Must(uuid.NewV7()).String(), "reviewer", newInput)
 	require.Equal(t, 200, edited.Code, edited.Body.String())
+	participant := do(r, "GET", path, "reviewer", "")
+	require.Equal(t, 200, participant.Code, participant.Body.String())
+	var relationship struct {
+		ReviewRelationship string `json:"review_relationship"`
+	}
+	require.NoError(t, json.Unmarshal(participant.Body.Bytes(), &relationship))
+	require.Equal(t, "counter", relationship.ReviewRelationship)
 	replayed := do(r, "PUT", command, "editor", input)
 	require.Equal(t, 200, replayed.Code, replayed.Body.String())
 	require.JSONEq(t, counted.Body.String(), replayed.Body.String())
@@ -331,7 +346,7 @@ func TestStocktakeCountsAreVersionedAndMovementBound(t *testing.T) {
 	// Accepted observations survive later movements; recording a new observation
 	// against a changed book snapshot must fail even for net-zero movements.
 	for i, quantity := range []int{1, -1} {
-		moved := do(r, "PUT", outletPath("/stock/corrections/")+uuid.Must(uuid.NewV7()).String(), "editor", stockBody(location, batch, "correction", fmt.Sprintf("TEST-net-zero-%d", i), quantity))
+		moved := do(r, "PUT", outletPath("/stock/corrections/")+uuid.Must(uuid.NewV7()).String(), "editor", stockBody(location, batch, "correction", fmt.Sprintf("stocktake:TEST-legacy-reference-%d", i), quantity))
 		require.Equal(t, 200, moved.Code, moved.Body.String())
 	}
 	require.Equal(t, 409, do(r, "PUT", path+"/counts/"+uuid.Must(uuid.NewV7()).String(), "editor", strings.Replace(newInput, `"expected_version":1`, `"expected_version":2`, 1)).Code)

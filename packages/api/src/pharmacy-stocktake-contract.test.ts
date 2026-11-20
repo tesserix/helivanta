@@ -4,12 +4,37 @@ import {
   pharmacyStocktakeCountReceiptSchema,
   pharmacyStocktakeDecisionInputSchema,
   pharmacyStocktakeStartInputSchema,
+  pharmacyStocktakeSchema,
 } from "./pharmacy-contract";
 
 const location = "0199e000-0000-7000-8000-000000000001";
 const line = "0199e000-0000-7000-8000-000000000002";
 
 describe("stocktake input contracts", () => {
+  it("provides exact extra-unit progress and the current actor's review relationship", () => {
+    const detail = {
+      id: line,
+      outlet_id: location,
+      number: 1,
+      state: "submitted",
+      version: 2,
+      selection: "all",
+      product_ids: [],
+      quarantine_location_id: location,
+      reason: "TEST snapshot",
+      started_by: "TEST starter",
+      started_at: "2026-11-20T00:00:00Z",
+      snapshot_rows: 1,
+      counted_rows: 1,
+      difference_rows: 1,
+      positive_difference_rows: 1,
+      review_relationship: "counter",
+    };
+    expect(pharmacyStocktakeSchema.parse(detail)).toEqual(detail);
+    expect(
+      pharmacyStocktakeSchema.safeParse({ ...detail, review_relationship: "owner" }).success,
+    ).toBe(false);
+  });
   it("retains a reviewed decision and an explicit quarantine attestation", () => {
     const input = {
       decision: "approve",

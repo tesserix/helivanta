@@ -291,6 +291,17 @@
           "type": "int64",
           "min": 0,
           "max": 10000
+        },
+        {
+          "name": "positive_difference_rows",
+          "type": "int64",
+          "min": 0,
+          "max": 10000
+        },
+        {
+          "name": "review_relationship",
+          "type": "string",
+          "enum": ["starter", "counter", "independent"]
         }
       ]
     },

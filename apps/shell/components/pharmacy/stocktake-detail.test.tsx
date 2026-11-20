@@ -1,4 +1,5 @@
 import { screen } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { AccountPresentationsProvider, NavigationGuardProvider } from "@helivanta/ui";
@@ -59,19 +60,49 @@ const line = {
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status });
 afterEach(() => vi.unstubAllGlobals());
 function panel(canConfigure = false) {
+  function PermissionFixture() {
+    const [allowed, setAllowed] = useState(canConfigure);
+    return (
+      <>
+        <button type="button" onClick={() => setAllowed((value) => !value)}>
+          Toggle correction permission
+        </button>
+        <StocktakeDetail scope={scope} takeId={id} timeZone="Asia/Kolkata" canConfigure={allowed} />
+      </>
+    );
+  }
   return renderWithProviders(
     <NavigationGuardProvider>
       <AccountPresentationsProvider scope={{ tenantId: scope.tenantId, subject: "TEST-viewer" }}>
-        <StocktakeDetail
-          scope={scope}
-          takeId={id}
-          timeZone="Asia/Kolkata"
-          canConfigure={canConfigure}
-        />
+        <PermissionFixture />
       </AccountPresentationsProvider>
     </NavigationGuardProvider>,
   );
 }
+
+it("retains an open physical entry but pauses it when correction permission is withdrawn", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("account-presentations"))
+        return json({
+          tenant_id: scope.tenantId,
+          actor_subject: "TEST-viewer",
+          data: [{ subject: actor, available: false, name: null, email: null, roles: [] }],
+        });
+      if (url.includes("/lines"))
+        return json({ data: [line], page: { next_cursor: null, has_more: false } });
+      return json(header);
+    }),
+  );
+  const { user } = panel(true);
+  await user.click(await screen.findByRole("button", { name: "Record count · TEST-ZERO" }));
+  const quantity = screen.getByRole("textbox", { name: "Physical count (tablet)" });
+  await user.type(quantity, "8");
+  await user.click(screen.getByRole("button", { name: "Toggle correction permission" }));
+  expect(quantity).toBeDisabled();
+  expect(quantity).toHaveValue("8");
+});
 it("presents missing counts separately from zero and retains schedule groups and named people", async () => {
   vi.stubGlobal(
     "fetch",

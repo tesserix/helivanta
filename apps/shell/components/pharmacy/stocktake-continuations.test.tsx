@@ -1,4 +1,5 @@
 import { screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { AccountPresentationsProvider, NavigationGuardProvider } from "@helivanta/ui";
@@ -67,10 +68,21 @@ it("inspects and cancels retained work without touching stock entry, inventory l
     throw new Error(`Unexpected TEST endpoint: ${url}`);
   });
   vi.stubGlobal("fetch", fetch);
+  function PermissionFixture() {
+    const [canCancel, setCanCancel] = useState(true);
+    return (
+      <>
+        <button type="button" onClick={() => setCanCancel((value) => !value)}>
+          Toggle correction permission
+        </button>
+        <StocktakeContinuations scope={scope} timeZone="Asia/Kolkata" canCancel={canCancel} />
+      </>
+    );
+  }
   const { user } = renderWithProviders(
     <NavigationGuardProvider>
       <AccountPresentationsProvider scope={{ tenantId: scope.tenantId, subject: "TEST-viewer" }}>
-        <StocktakeContinuations scope={scope} timeZone="Asia/Kolkata" canCancel />
+        <PermissionFixture />
       </AccountPresentationsProvider>
     </NavigationGuardProvider>,
   );
@@ -79,6 +91,9 @@ it("inspects and cancels retained work without touching stock entry, inventory l
   await user.click(screen.getByRole("combobox", { name: "Decision" }));
   expect(screen.queryByRole("option", { name: /Approve/ })).not.toBeInTheDocument();
   await user.click(screen.getByRole("option", { name: "Cancel stocktake" }));
+  await user.click(screen.getByRole("button", { name: "Toggle correction permission" }));
+  expect(screen.getByRole("button", { name: "Record decision" })).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "Toggle correction permission" }));
   await user.type(
     screen.getByRole("textbox", { name: "Decision reason" }),
     "TEST abandoned safely",

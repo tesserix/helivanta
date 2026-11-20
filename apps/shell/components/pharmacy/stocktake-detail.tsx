@@ -274,7 +274,7 @@ export function StocktakeDetail({
                 scope={scope}
                 take={take}
                 onSaved={complete}
-                paused={unavailable}
+                paused={unavailable || !canConfigure}
               />
             ) : (
               <StocktakeCountEditor
@@ -282,7 +282,7 @@ export function StocktakeDetail({
                 take={take}
                 line={entry}
                 onSaved={complete}
-                paused={unavailable}
+                paused={unavailable || !canConfigure}
               />
             )}
           </div>

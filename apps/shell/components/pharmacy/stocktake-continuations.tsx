@@ -87,7 +87,7 @@ export function StocktakeContinuations({
               scope={scope}
               take={current}
               cancelOnly
-              paused={Boolean(header.error) || header.isFetching}
+              paused={!canCancel || Boolean(header.error) || header.isFetching}
               onSaved={() => {
                 setCancelling(false);
                 void client.invalidateQueries({ queryKey: pharmacyKey(scope) });

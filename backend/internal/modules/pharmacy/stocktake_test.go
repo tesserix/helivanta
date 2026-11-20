@@ -98,6 +98,91 @@ func TestStocktakeOwnershipModelsKeepScopedPosting(t *testing.T) {
 	}
 }
 
+func TestStocktakePostingFailuresDoNotPartiallyAdjustBuckets(t *testing.T) {
+	for _, failure := range []string{"later_shortage", "oversized_difference"} {
+		t.Run(failure, func(t *testing.T) {
+			r, _ := stocktakeHarness(t)
+			_, first, batch := stockFixture(t, r)
+			second := uuid.Must(uuid.NewV7()).String()
+			created := do(r, "PUT", outletPath("/stock/locations/")+second, "editor", `{"code":"TEST-Q2","name":"TEST second quarantine"}`)
+			require.Equal(t, 200, created.Code, created.Body.String())
+			for _, location := range []string{first, second} {
+				receipt := do(r, "PUT", outletPath("/stock/movements/")+uuid.Must(uuid.NewV7()).String(), "editor", stockBody(location, batch, "receipt", "TEST-two-bucket-opening-"+location, 10))
+				require.Equal(t, 200, receipt.Code, receipt.Body.String())
+			}
+			balance := func(location string) int64 {
+				t.Helper()
+				read := do(r, "GET", outletPath("/stock/balance?location_id=")+location+"&batch_id="+batch, "reader", "")
+				require.Equal(t, 200, read.Code, read.Body.String())
+				var result struct {
+					OnHandUnits int64 `json:"on_hand_units"`
+				}
+				require.NoError(t, json.Unmarshal(read.Body.Bytes(), &result))
+				return result.OnHandUnits
+			}
+			path := outletPath("/stock/stocktakes/") + uuid.Must(uuid.NewV7()).String()
+			started := do(r, "PUT", path, "editor", fmt.Sprintf(`{"selection":"all","product_ids":[],"quarantine_location_id":%q,"reason":"TEST atomic count"}`, second))
+			require.Equal(t, 200, started.Code, started.Body.String())
+			lines := do(r, "GET", path+"/lines", "reader", "")
+			require.Equal(t, 200, lines.Code, lines.Body.String())
+			var page struct {
+				Data []struct {
+					ID         string
+					LocationID string `json:"location_id"`
+				}
+			}
+			require.NoError(t, json.Unmarshal(lines.Body.Bytes(), &page))
+			require.Len(t, page.Data, 2)
+			entries := make([]map[string]any, 0, 2)
+			for _, line := range page.Data {
+				var units int64
+				if line.LocationID == second {
+					units = 20
+					if failure == "oversized_difference" {
+						units = 1000000000000
+					}
+				}
+				entries = append(entries, map[string]any{"line_id": line.ID, "counted_units": units})
+			}
+			input, err := json.Marshal(map[string]any{"expected_version": 0, "counts": entries, "reason": "TEST two shelves observed"})
+			require.NoError(t, err)
+			counted := do(r, "PUT", path+"/counts/"+uuid.Must(uuid.NewV7()).String(), "editor", string(input))
+			require.Equal(t, 200, counted.Code, counted.Body.String())
+			expectedFirst := int64(10)
+			if failure == "later_shortage" {
+				later := do(r, "PUT", outletPath("/stock/corrections/")+uuid.Must(uuid.NewV7()).String(), "editor", stockBody(first, batch, "correction", "TEST-later-separate-correction", -5))
+				require.Equal(t, 200, later.Code, later.Body.String())
+				expectedFirst = 5
+			}
+			submitted := do(r, "PUT", path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "editor", `{"decision":"submit","expected_version":1,"reason":"TEST ready for review"}`)
+			require.Equal(t, 200, submitted.Code, submitted.Body.String())
+			approvalPath := path + "/decisions/" + uuid.Must(uuid.NewV7()).String()
+			approval := `{"decision":"approve","expected_version":2,"extra_units_disposition":"moved_to_quarantine","reason":"TEST independent atomic review"}`
+			refused := do(r, "PUT", approvalPath, "approver", approval)
+			require.Equal(t, 409, refused.Code, refused.Body.String())
+			require.Equal(t, expectedFirst, balance(first))
+			require.EqualValues(t, 10, balance(second))
+			current := do(r, "GET", path, "reader", "")
+			require.Equal(t, 200, current.Code, current.Body.String())
+			var status struct {
+				State   string
+				Version int64
+			}
+			require.NoError(t, json.Unmarshal(current.Body.Bytes(), &status))
+			require.Equal(t, "submitted", status.State)
+			require.EqualValues(t, 2, status.Version)
+			if failure == "later_shortage" {
+				restored := do(r, "PUT", outletPath("/stock/movements/")+uuid.Must(uuid.NewV7()).String(), "editor", stockBody(first, batch, "receipt", "TEST-replenishment-before-exact-retry", 5))
+				require.Equal(t, 200, restored.Code, restored.Body.String())
+				posted := do(r, "PUT", approvalPath, "approver", approval)
+				require.Equal(t, 200, posted.Code, posted.Body.String())
+				require.EqualValues(t, 0, balance(first))
+				require.EqualValues(t, 20, balance(second))
+			}
+		})
+	}
+}
+
 func TestStocktakeSellableDifferencesPreserveQuarantineAndLaterTransfers(t *testing.T) {
 	for _, counted := range []int{25, 35} {
 		t.Run(fmt.Sprintf("count_%d", counted), func(t *testing.T) {
@@ -278,6 +363,26 @@ func TestStocktakeIndependentApprovalPreservesLaterMovements(t *testing.T) {
 	require.Equal(t, original.OutletID, exported.Header().Get("X-Stocktake-Outlet-Id"))
 	require.Equal(t, original.ID, exported.Header().Get("X-Stocktake-Id"))
 	require.Equal(t, "3", exported.Header().Get("X-Stocktake-Version"))
+	changeExportAuditGuard := func(sql string) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_stocktake_export_fault_" + uuid.Must(uuid.NewV7()).String(), SQL: sql}}))
+	}
+	clearExportAuditGuard := func() {
+		changeExportAuditGuard("ALTER TABLE audit_events DROP CONSTRAINT IF EXISTS synthetic_stocktake_export_audit_failure")
+	}
+	t.Cleanup(clearExportAuditGuard)
+	changeExportAuditGuard("ALTER TABLE audit_events ADD CONSTRAINT synthetic_stocktake_export_audit_failure CHECK(resource_type<>'pharmacy_stocktake_register') NOT VALID")
+	unaudited := do(r, "GET", path+"/register.csv", "reader", "")
+	require.Equal(t, 503, unaudited.Code, unaudited.Body.String())
+	require.Contains(t, unaudited.Header().Get("Content-Type"), "application/json")
+	require.Empty(t, unaudited.Header().Get("Content-Disposition"))
+	require.NotContains(t, unaudited.Body.String(), "register_section")
+	require.NotContains(t, unaudited.Body.String(), "synthetic_stocktake_export_audit_failure")
+	clearExportAuditGuard()
+	retriedExport := do(r, "GET", path+"/register.csv", "reader", "")
+	require.Equal(t, 200, retriedExport.Code, retriedExport.Body.String())
+	require.Equal(t, exported.Body.String(), retriedExport.Body.String())
 	records, err := csv.NewReader(strings.NewReader(exported.Body.String())).ReadAll()
 	require.NoError(t, err)
 	require.Len(t, records, 2)

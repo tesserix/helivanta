@@ -14,9 +14,88 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
 	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/supplierstock"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
+	f "github.com/tesserix/helivanta/pkg/supplierfulfilment"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
+	"gorm.io/gorm"
 )
+
+func TestStocktakePreservesSupplierReservations(t *testing.T) {
+	perms := []authz.Permission{pharmacy.PermCatalogueRead, pharmacy.PermCatalogueWrite, pharmacy.PermAccessManage, pharmacy.PermStockRead, pharmacy.PermStockReceive, pharmacy.PermStockCorrect, pharmacy.PermStockRelease, "pharmacy.tax.manage", "pharmacy.schedule.declare", "pharmacy.schedule.review"}
+	r, db, bus, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"owner": testutil.TenantA, "reviewer": testutil.TenantA}, Perms: map[string][]authz.Permission{"owner": perms, "reviewer": perms}, Modules: []platform.Module{pharmacy.New()}})
+	fixture := seedSupplierStock(t, r, db, "pharmacy")
+	root := "/v1/pharmacy/pharmacies/" + fixture.organization.String() + "/outlets/" + fixture.location.String()
+	call := func(method, path, actor, body string, status int) string {
+		t.Helper()
+		response := testutil.Do(r, method, path, actor, body)
+		require.Equal(t, status, response.Code, response.Body.String())
+		return response.Body.String()
+	}
+	path := root + "/stock/stocktakes/" + uuid.Must(uuid.NewV7()).String()
+	call("PUT", path, "owner", fmt.Sprintf(`{"selection":"all","product_ids":[],"quarantine_location_id":%q,"reason":"TEST reservation-aware count"}`, fixture.quarantine), 200)
+	var lines struct {
+		Data []struct {
+			ID         string
+			LocationID string `json:"location_id"`
+		}
+	}
+	require.NoError(t, json.Unmarshal([]byte(call("GET", path+"/lines", "owner", "", 200)), &lines))
+	require.Len(t, lines.Data, 2)
+	entries := make([]map[string]any, 0, 2)
+	for _, line := range lines.Data {
+		units := 0
+		if line.LocationID == fixture.bucket.String() {
+			units = 50
+		}
+		entries = append(entries, map[string]any{"line_id": line.ID, "counted_units": units})
+	}
+	count, err := json.Marshal(map[string]any{"expected_version": 0, "counts": entries, "reason": "TEST physical shelf shortage"})
+	require.NoError(t, err)
+	call("PUT", path+"/counts/"+uuid.Must(uuid.NewV7()).String(), "owner", string(count), 200)
+	order, input, actor := sourceOrder(t, "pharmacy", fixture)
+	store := supplierstock.Store{Owner: supplierstock.Outlet}
+	adapter := pharmacy.SupplierStock(platform.Deps{DB: db, Bus: bus})
+	scope := supplierstock.Scope{TenantID: order.OwnerTenantID, OrganizationID: fixture.organization, LocationID: fixture.location, StaffID: actor.StaffID, Subject: actor.Subject, Mode: "operator"}
+	run := func(action func(*gorm.DB) error) error {
+		return db.WithTenant(tenantdb.WithActor(t.Context(), actor.Subject), order.OwnerTenantID.String(), func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.pharmacy_subject',?,true),set_config('app.pharmacy_stock_pharmacy',?,true),set_config('app.pharmacy_stock_outlet',?,true),set_config('app.pharmacy_stock_access','authorized',true),set_config('app.pharmacy_stock_permission','pharmacy.stock.fulfil',true)`, actor.Subject, fixture.organization.String(), fixture.location.String()).Error; err != nil {
+				return err
+			}
+			return store.Frame(tx, scope, func() error { return action(tx) })
+		})
+	}
+	allocation := uuid.Must(uuid.NewV7())
+	require.NoError(t, run(func(tx *gorm.DB) error {
+		_, _, err := store.Create(tx, allocation, order, input, actor, adapter.Snapshot)
+		return err
+	}))
+	call("PUT", path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "owner", `{"decision":"submit","expected_version":1,"reason":"TEST all shelves counted"}`, 200)
+	approvalPath := path + "/decisions/" + uuid.Must(uuid.NewV7()).String()
+	approval := `{"decision":"approve","expected_version":2,"extra_units_disposition":"no_extra_units","reason":"TEST independent reservation check"}`
+	call("PUT", approvalPath, "reviewer", approval, 409)
+	balance := func() int64 {
+		t.Helper()
+		var result struct {
+			OnHandUnits int64 `json:"on_hand_units"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(call("GET", root+"/stock/balance?location_id="+fixture.bucket.String()+"&batch_id="+fixture.stock.String(), "owner", "", 200)), &result))
+		return result.OnHandUnits
+	}
+	require.EqualValues(t, 100, balance())
+	require.NoError(t, run(func(tx *gorm.DB) error {
+		held, err := store.Held(tx, order.OwnerTenantID, fixture.location, fixture.stock, *fixture.bucket)
+		if err != nil {
+			return err
+		}
+		require.EqualValues(t, 60, held)
+		_, _, err = store.Command(tx, order.OwnerTenantID, allocation, uuid.Must(uuid.NewV7()), f.AllocationDecisionInput{ExpectedVersion: 1, Decision: "release", QuantityUnits: 60, Reason: "TEST source released reservation"}, actor, adapter)
+		return err
+	}))
+	call("PUT", approvalPath, "reviewer", approval, 200)
+	require.EqualValues(t, 50, balance())
+}
 
 func TestStocktakeThroughGlobalAPIPreservesScopeAndRegisterEvidence(t *testing.T) {
 	write := []authz.Permission{pharmacy.PermCatalogueRead, pharmacy.PermCatalogueWrite, pharmacy.PermAccessManage, pharmacy.PermStockRead, pharmacy.PermStockReceive, pharmacy.PermStockCorrect}

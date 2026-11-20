@@ -102,11 +102,16 @@ func DeadlineConsumer(c client.Client) events.Consumer {
 				if !errors.As(err, &closed) {
 					return errors.New("deadline workflow signal unavailable")
 				}
-				description, err := c.DescribeWorkflowExecution(ctx, id, "")
-				if err != nil || description.GetWorkflowExecutionInfo().GetStatus() != enums.WORKFLOW_EXECUTION_STATUS_COMPLETED || description.GetWorkflowExecutionInfo().GetExecution().GetRunId() == "" {
+				description, err := c.DescribeWorkflow(ctx, id, "")
+				// A missing description cannot prove a completed run, so reconcile rather than signal.
+				if err != nil || description == nil {
 					return errors.New("deadline workflow needs reconciliation")
 				}
-				if err := verifyDeadlineExecution(ctx, c, id, description.GetWorkflowExecutionInfo().GetExecution().GetRunId(), in); err != nil {
+				info := description.RawResponse.GetWorkflowExecutionInfo()
+				if info.GetStatus() != enums.WORKFLOW_EXECUTION_STATUS_COMPLETED || info.GetExecution().GetRunId() == "" {
+					return errors.New("deadline workflow needs reconciliation")
+				}
+				if err := verifyDeadlineExecution(ctx, c, id, info.GetExecution().GetRunId(), in); err != nil {
 					return err
 				}
 			}

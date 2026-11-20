@@ -15,6 +15,8 @@ import (
 	historypb "go.temporal.io/api/history/v1"
 	"go.temporal.io/api/serviceerror"
 	taskqueuepb "go.temporal.io/api/taskqueue/v1"
+	workflowpb "go.temporal.io/api/workflow/v1"
+	"go.temporal.io/api/workflowservice/v1"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/converter"
 	"go.temporal.io/sdk/mocks"
@@ -109,6 +111,50 @@ func TestDeadlineConsumerVerifiesDuplicateExecutionBeforeSignalling(t *testing.T
 			} else {
 				require.Error(t, err)
 				require.NotContains(t, err.Error(), "private upstream text")
+			}
+			c.AssertExpectations(t)
+			history.AssertExpectations(t)
+		})
+	}
+}
+
+func TestDeadlineConsumerReconcilesClosedWorkflowOnlyFromCompletedMatchingReceipt(t *testing.T) {
+	for _, variant := range []string{"completed", "failed", "canceled", "terminated", "missing_run", "missing_description"} {
+		t.Run(variant, func(t *testing.T) {
+			in := privacycontract.DeadlineWorkflowInput{TenantID: testutil.TenantA, RequestID: uuid.Must(uuid.NewV7()).String()}
+			data, err := json.Marshal(privacycontract.DeadlineChangedData{RequestID: in.RequestID, Version: 5})
+			require.NoError(t, err)
+			evt := events.Event{Type: privacycontract.SubjectDeadlineChanged, Version: 1, TenantID: in.TenantID, Data: data}
+			id, err := privacy.DeadlineWorkflowID(in)
+			require.NoError(t, err)
+			run := uuid.Must(uuid.NewV7()).String()
+			status := map[string]enums.WorkflowExecutionStatus{"failed": enums.WORKFLOW_EXECUTION_STATUS_FAILED, "canceled": enums.WORKFLOW_EXECUTION_STATUS_CANCELED, "terminated": enums.WORKFLOW_EXECUTION_STATUS_TERMINATED}[variant]
+			if status == enums.WORKFLOW_EXECUTION_STATUS_UNSPECIFIED {
+				status = enums.WORKFLOW_EXECUTION_STATUS_COMPLETED
+			}
+			execution := &commonpb.WorkflowExecution{WorkflowId: id, RunId: run}
+			if variant == "missing_run" {
+				execution.RunId = ""
+			}
+			description := &client.WorkflowExecutionDescription{RawResponse: &workflowservice.DescribeWorkflowExecutionResponse{WorkflowExecutionInfo: &workflowpb.WorkflowExecutionInfo{Status: status, Execution: execution}}}
+			if variant == "missing_description" {
+				description = nil
+			}
+			c := new(mocks.Client)
+			c.On("ExecuteWorkflow", mock.Anything, mock.Anything, privacy.DeadlineWorkflowName, in).Return(nil, nil).Once()
+			c.On("SignalWorkflow", mock.Anything, id, "", privacy.DeadlineChangedSignal, int64(5)).Return(serviceerror.NewNotFound("closed")).Once()
+			c.On("DescribeWorkflow", mock.Anything, id, "").Return(description, nil).Once()
+			history := new(mocks.HistoryEventIterator)
+			if variant == "completed" {
+				payload, err := converter.GetDefaultDataConverter().ToPayloads(in)
+				require.NoError(t, err)
+				started := &historypb.WorkflowExecutionStartedEventAttributes{WorkflowType: &commonpb.WorkflowType{Name: privacy.DeadlineWorkflowName}, TaskQueue: &taskqueuepb.TaskQueue{Name: privacy.DeadlineTaskQueue}, Input: payload}
+				c.On("GetWorkflowHistory", mock.Anything, id, run, false, enums.HISTORY_EVENT_FILTER_TYPE_ALL_EVENT).Return(history).Once()
+				history.On("HasNext").Return(true).Once()
+				history.On("Next").Return(&historypb.HistoryEvent{Attributes: &historypb.HistoryEvent_WorkflowExecutionStartedEventAttributes{WorkflowExecutionStartedEventAttributes: started}}, nil).Once()
+				require.NoError(t, privacy.DeadlineConsumer(c).AfterCommit(t.Context(), evt))
+			} else {
+				require.ErrorContains(t, privacy.DeadlineConsumer(c).AfterCommit(t.Context(), evt), "reconciliation")
 			}
 			c.AssertExpectations(t)
 			history.AssertExpectations(t)

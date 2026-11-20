@@ -168,7 +168,7 @@ func TestStocktakeCountsAreVersionedAndMovementBound(t *testing.T) {
 	// Accepted observations survive later movements; recording a new observation
 	// against a changed book snapshot must fail even for net-zero movements.
 	for i, quantity := range []int{1, -1} {
-		moved := do(r, "PUT", outletPath("/stock/movements/")+uuid.Must(uuid.NewV7()).String(), "editor", stockBody(location, batch, "correction", fmt.Sprintf("TEST-net-zero-%d", i), quantity))
+		moved := do(r, "PUT", outletPath("/stock/corrections/")+uuid.Must(uuid.NewV7()).String(), "editor", stockBody(location, batch, "correction", fmt.Sprintf("TEST-net-zero-%d", i), quantity))
 		require.Equal(t, 200, moved.Code, moved.Body.String())
 	}
 	require.Equal(t, 409, do(r, "PUT", path+"/counts/"+uuid.Must(uuid.NewV7()).String(), "editor", strings.Replace(newInput, `"expected_version":1`, `"expected_version":2`, 1)).Code)

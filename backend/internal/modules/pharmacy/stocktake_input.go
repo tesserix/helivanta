@@ -77,3 +77,18 @@ func normalizeStocktakeCount(in *StocktakeCountInput) bool {
 	slices.SortFunc(in.Counts, func(a, b StocktakeCountEntry) int { return bytes.Compare(a.LineID[:], b.LineID[:]) })
 	return true
 }
+
+func normalizeStocktakeDecision(in *StocktakeDecisionInput) bool {
+	in.Reason = strings.TrimSpace(in.Reason)
+	if !stocktakeText(in.Reason, 500) || in.ExpectedVersion == nil || *in.ExpectedVersion < 0 || *in.ExpectedVersion > 9007199254740990 {
+		return false
+	}
+	switch in.Decision {
+	case "approve":
+		return in.ExtraUnitsDisposition != nil && (*in.ExtraUnitsDisposition == "no_extra_units" || *in.ExtraUnitsDisposition == "moved_to_quarantine")
+	case "submit", "reject", "cancel":
+		return in.ExtraUnitsDisposition == nil
+	default:
+		return false
+	}
+}

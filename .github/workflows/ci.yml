@@ -82,7 +82,7 @@ jobs:
       - name: Bounded outbox batch atomicity
         run: go test -race -count=1 -timeout=10m -run '^TestEnqueueBatch' ./pkg/events
       - name: Pharmacy stocktake native acceptance
-        run: go test -race -count=1 -timeout=15m -run '^TestStocktake(SnapshotIsFrozenAndOutletScoped|CountsAreVersionedAndMovementBound)$' ./internal/modules/pharmacy
+        run: go test -race -count=1 -timeout=15m -run '^TestStocktake(SnapshotIsFrozenAndOutletScoped|CountsAreVersionedAndMovementBound|IndependentApprovalPreservesLaterMovements)$' ./internal/modules/pharmacy
       - name: Verify integration harness context lifetime
         run: go test -race ./internal/testutil -run '^TestHarnessContextLivesUntilTestCleanup$'
       - name: Staff governance input boundaries

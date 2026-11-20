@@ -1,6 +1,97 @@
 {
   "models": [
     {
+      "name": "StocktakeDecisionInput",
+      "schema": "pharmacyStocktakeDecisionInputSchema",
+      "fields": [
+        {
+          "name": "decision",
+          "type": "string",
+          "enum": [
+            "submit",
+            "approve",
+            "reject",
+            "cancel"
+          ]
+        },
+        {
+          "name": "expected_version",
+          "type": "int64",
+          "pointer": true,
+          "min": 0,
+          "max": 9007199254740990
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 1,
+          "max": 500,
+          "trim": true
+        },
+        {
+          "name": "extra_units_disposition",
+          "type": "string",
+          "optional": true,
+          "enum": [
+            "no_extra_units",
+            "moved_to_quarantine"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "StocktakeDecisionReceipt",
+      "schema": "pharmacyStocktakeDecisionReceiptSchema",
+      "embed": "StocktakeDecisionInput",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid"
+        },
+        {
+          "name": "stocktake_id",
+          "type": "uuid"
+        },
+        {
+          "name": "outlet_id",
+          "type": "uuid"
+        },
+        {
+          "name": "version",
+          "type": "int64",
+          "min": 1,
+          "max": 9007199254740991
+        },
+        {
+          "name": "state",
+          "type": "string",
+          "enum": [
+            "submitted",
+            "posted",
+            "rejected",
+            "cancelled"
+          ]
+        },
+        {
+          "name": "adjustment_count",
+          "type": "int64",
+          "min": 0,
+          "max": 500
+        },
+        {
+          "name": "recorded_by",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "recorded_at",
+          "type": "string",
+          "format": "datetime"
+        }
+      ]
+    },
+    {
       "name": "StocktakeCountEntry",
       "schema": "pharmacyStocktakeCountEntrySchema",
       "fields": [

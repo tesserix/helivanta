@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   pharmacyStocktakeCountInputSchema,
   pharmacyStocktakeCountReceiptSchema,
+  pharmacyStocktakeDecisionInputSchema,
   pharmacyStocktakeStartInputSchema,
 } from "./pharmacy-contract";
 
@@ -9,6 +10,28 @@ const location = "0199e000-0000-7000-8000-000000000001";
 const line = "0199e000-0000-7000-8000-000000000002";
 
 describe("stocktake input contracts", () => {
+  it("retains a reviewed decision and an explicit quarantine attestation", () => {
+    const input = {
+      decision: "approve",
+      expected_version: 2,
+      reason: " Independent review ",
+      extra_units_disposition: "moved_to_quarantine",
+    };
+    expect(pharmacyStocktakeDecisionInputSchema.parse(input)).toEqual({
+      ...input,
+      reason: "Independent review",
+    });
+    expect(
+      pharmacyStocktakeDecisionInputSchema.safeParse({ ...input, actor_subject: "another" })
+        .success,
+    ).toBe(false);
+    expect(
+      pharmacyStocktakeDecisionInputSchema.safeParse({
+        ...input,
+        extra_units_disposition: "sellable",
+      }).success,
+    ).toBe(false);
+  });
   it("retains the original counted observation in its versioned command receipt", () => {
     const receipt = {
       id: line,

@@ -97,6 +97,46 @@ func TestStocktakeCountHTTPInput(t *testing.T) {
 	}
 }
 
+func TestStocktakeDecisionHTTPInput(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		body   string
+		status int
+	}{
+		{"submit", `{"decision":"submit","expected_version":1,"reason":"Ready for review"}`, 200},
+		{"cancel initial version", `{"decision":"cancel","expected_version":0,"reason":"Count abandoned"}`, 200},
+		{"approve shortage", `{"decision":"approve","expected_version":2,"reason":"Reviewed","extra_units_disposition":"no_extra_units"}`, 200},
+		{"quarantine attested", `{"decision":"approve","expected_version":2,"reason":"Reviewed","extra_units_disposition":"moved_to_quarantine"}`, 200},
+		{"missing attestation", `{"decision":"approve","expected_version":2,"reason":"Reviewed"}`, 400},
+		{"null attestation", `{"decision":"approve","expected_version":2,"reason":"Reviewed","extra_units_disposition":null}`, 400},
+		{"sellable extras", `{"decision":"approve","expected_version":2,"reason":"Reviewed","extra_units_disposition":"sellable"}`, 400},
+		{"irrelevant attestation", `{"decision":"submit","expected_version":1,"reason":"Ready","extra_units_disposition":"no_extra_units"}`, 400},
+		{"blank reason", `{"decision":"reject","expected_version":2,"reason":"  "}`, 400},
+		{"missing version", `{"decision":"cancel","reason":"Abandoned"}`, 400},
+		{"forged authority", `{"decision":"cancel","expected_version":0,"reason":"Abandoned","actor_subject":"someone"}`, 400},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			r := gin.New()
+			r.PUT("/", func(c *gin.Context) {
+				var in StocktakeDecisionInput
+				if !decodeStocktake(c, &in) {
+					return
+				}
+				if !normalizeStocktakeDecision(&in) {
+					respond.Error(c, 400, "invalid_request", "Provide a versioned decision and appropriate physical evidence.")
+					return
+				}
+				respond.OK(c, in)
+			})
+			req := httptest.NewRequest("PUT", "/", strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+			require.Equal(t, tt.status, w.Code, w.Body.String())
+		})
+	}
+}
+
 func TestStocktakeReadParameterShape(t *testing.T) {
 	for _, tt := range []struct {
 		name   string

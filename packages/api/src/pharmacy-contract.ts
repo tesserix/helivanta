@@ -8,6 +8,33 @@ const identifier = z
     /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     "Choose a valid record.",
   );
+export const pharmacyStocktakeDecisionInputSchema = z
+  .object({
+    decision: z.enum(["submit", "approve", "reject", "cancel"]),
+    expected_version: z.number().int().min(0).max(9007199254740990),
+    reason: z.string().trim().min(1).max(500),
+    extra_units_disposition: z
+      .enum(["no_extra_units", "moved_to_quarantine"])
+      .nullable()
+      .optional(),
+  })
+  .strict();
+
+export const pharmacyStocktakeDecisionReceiptSchema = pharmacyStocktakeDecisionInputSchema
+  .extend({
+    id: identifier,
+    stocktake_id: identifier,
+    outlet_id: identifier,
+    version: z.number().int().min(1).max(9007199254740991),
+    state: z.enum(["submitted", "posted", "rejected", "cancelled"]),
+    adjustment_count: z.number().int().min(0).max(500),
+    recorded_by: z.string().min(1).max(200),
+    recorded_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+  })
+  .strict();
+
 export const pharmacyStocktakeCountEntrySchema = z
   .object({
     line_id: identifier,

@@ -3,6 +3,25 @@ package pharmacy
 
 import "github.com/google/uuid"
 
+type StocktakeDecisionInput struct {
+	Decision              string  `json:"decision" binding:"required,oneof=submit approve reject cancel"`
+	ExpectedVersion       *int64  `json:"expected_version" binding:"required,min=0,max=9007199254740990"`
+	Reason                string  `json:"reason" binding:"required,min=1,max=500"`
+	ExtraUnitsDisposition *string `json:"extra_units_disposition" binding:"omitempty,required,oneof=no_extra_units moved_to_quarantine"`
+}
+
+type StocktakeDecisionReceipt struct {
+	ID              uuid.UUID `json:"id" binding:"required"`
+	StocktakeID     uuid.UUID `json:"stocktake_id" binding:"required"`
+	OutletID        uuid.UUID `json:"outlet_id" binding:"required"`
+	Version         int64     `json:"version" binding:"min=1,max=9007199254740991"`
+	State           string    `json:"state" binding:"required,oneof=submitted posted rejected cancelled"`
+	AdjustmentCount int64     `json:"adjustment_count" binding:"min=0,max=500"`
+	RecordedBy      string    `json:"recorded_by" binding:"required,min=1,max=200"`
+	RecordedAt      string    `json:"recorded_at"`
+	StocktakeDecisionInput
+}
+
 type StocktakeCountEntry struct {
 	LineID       uuid.UUID `json:"line_id" binding:"required"`
 	CountedUnits *int64    `json:"counted_units" binding:"required,min=0,max=1000000000000"`

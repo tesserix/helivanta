@@ -20,9 +20,9 @@ func stocktakeHarness(t *testing.T) (*gin.Engine, *tenantdb.DB) {
 	t.Helper()
 	write := []authz.Permission{"pharmacy.catalogue.read", "pharmacy.catalogue.write", "pharmacy.access.manage", "pharmacy.stock.read", "pharmacy.stock.receive", "pharmacy.stock.correct", "pharmacy.stock.release", "pharmacy.stock.quarantine"}
 	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
-		Tokens: map[string]string{"editor": testutil.TenantA, "reviewer": testutil.TenantA, "reader": testutil.TenantA, "sibling": testutil.TenantA, "foreign": testutil.TenantB, "denied": testutil.TenantA},
+		Tokens: map[string]string{"editor": testutil.TenantA, "reviewer": testutil.TenantA, "approver": testutil.TenantA, "reader": testutil.TenantA, "sibling": testutil.TenantA, "foreign": testutil.TenantB, "denied": testutil.TenantA},
 		Perms: map[string][]authz.Permission{
-			"editor": write, "reviewer": write, "sibling": write, "foreign": write,
+			"editor": write, "reviewer": write, "approver": write, "sibling": write, "foreign": write,
 			"reader": {"pharmacy.catalogue.read", "pharmacy.stock.read"},
 		},
 		Modules: []platform.Module{pharmacy.New()},
@@ -30,8 +30,76 @@ func stocktakeHarness(t *testing.T) (*gin.Engine, *tenantdb.DB) {
 	seedPharmacyOutlet(t, r)
 	grantCatalogue(t, r, "user-editor", "editor")
 	grantCatalogue(t, r, "user-reviewer", "editor")
+	grantCatalogue(t, r, "user-approver", "editor")
 	grantCatalogue(t, r, "user-reader", "reader")
 	return r, db
+}
+
+func TestStocktakeIndependentApprovalPreservesLaterMovements(t *testing.T) {
+	r, _ := stocktakeHarness(t)
+	_, location, batch := stockFixture(t, r)
+	received := do(r, "PUT", outletPath("/stock/movements/")+uuid.Must(uuid.NewV7()).String(), "editor", stockBody(location, batch, "receipt", "TEST-reviewed-count-opening", 10))
+	require.Equal(t, 200, received.Code, received.Body.String())
+	path := outletPath("/stock/stocktakes/") + uuid.Must(uuid.NewV7()).String()
+	start := fmt.Sprintf(`{"selection":"all","product_ids":[],"quarantine_location_id":%q,"reason":"TEST reviewed count"}`, location)
+	created := do(r, "PUT", path, "editor", start)
+	require.Equal(t, 200, created.Code, created.Body.String())
+	lines := do(r, "GET", path+"/lines", "reader", "")
+	require.Equal(t, 200, lines.Code, lines.Body.String())
+	var list struct{ Data []struct{ ID string } }
+	require.NoError(t, json.Unmarshal(lines.Body.Bytes(), &list))
+	require.Len(t, list.Data, 1)
+	input := fmt.Sprintf(`{"expected_version":0,"counts":[{"line_id":%q,"counted_units":8}],"reason":"TEST physical observation"}`, list.Data[0].ID)
+	counted := do(r, "PUT", path+"/counts/"+uuid.Must(uuid.NewV7()).String(), "reviewer", input)
+	require.Equal(t, 200, counted.Code, counted.Body.String())
+	// An accepted observation precedes this legitimate receipt. Approval must
+	// apply its difference to fifteen, preserving the five later received units.
+	later := do(r, "PUT", outletPath("/stock/movements/")+uuid.Must(uuid.NewV7()).String(), "editor", stockBody(location, batch, "receipt", "TEST-reviewed-count-later", 5))
+	require.Equal(t, 200, later.Code, later.Body.String())
+	submitPath := path + "/decisions/" + uuid.Must(uuid.NewV7()).String()
+	submitInput := `{"decision":"submit","expected_version":1,"reason":"TEST all shelves counted"}`
+	submitted := do(r, "PUT", submitPath, "editor", submitInput)
+	require.Equal(t, 200, submitted.Code, submitted.Body.String())
+	require.Equal(t, 409, do(r, "PUT", path+"/counts/"+uuid.Must(uuid.NewV7()).String(), "reviewer", strings.Replace(input, `"expected_version":0`, `"expected_version":2`, 1)).Code)
+	approvalPath := path + "/decisions/" + uuid.Must(uuid.NewV7()).String()
+	approvalInput := `{"decision":"approve","expected_version":2,"extra_units_disposition":"no_extra_units","reason":"TEST independently reviewed shortage"}`
+	for _, actor := range []string{"editor", "reviewer"} {
+		require.Equal(t, 409, do(r, "PUT", approvalPath, actor, approvalInput).Code)
+	}
+	approved := do(r, "PUT", approvalPath, "approver", approvalInput)
+	require.Equal(t, 200, approved.Code, approved.Body.String())
+	var decision struct {
+		State   string
+		Version int64
+	}
+	require.NoError(t, json.Unmarshal(approved.Body.Bytes(), &decision))
+	require.Equal(t, "posted", decision.State)
+	require.Equal(t, int64(3), decision.Version)
+	for i := 0; i < 2; i++ {
+		replayed := do(r, "PUT", approvalPath, "approver", approvalInput)
+		require.Equal(t, 200, replayed.Code, replayed.Body.String())
+		require.JSONEq(t, approved.Body.String(), replayed.Body.String())
+	}
+	recovered := do(r, "GET", submitPath, "reader", "")
+	require.Equal(t, 200, recovered.Code, recovered.Body.String())
+	require.JSONEq(t, submitted.Body.String(), recovered.Body.String())
+	balance := do(r, "GET", outletPath("/stock/balance?location_id=")+location+"&batch_id="+batch, "reader", "")
+	require.Equal(t, 200, balance.Code, balance.Body.String())
+	var stock struct {
+		Units int64 `json:"on_hand_units"`
+	}
+	require.NoError(t, json.Unmarshal(balance.Body.Bytes(), &stock))
+	require.Equal(t, int64(13), stock.Units)
+	require.Equal(t, 409, do(r, "PUT", path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "approver", strings.Replace(approvalInput, `"expected_version":2`, `"expected_version":3`, 1)).Code)
+	creationReplay := do(r, "PUT", path, "editor", start)
+	require.Equal(t, 200, creationReplay.Code, creationReplay.Body.String())
+	require.JSONEq(t, created.Body.String(), creationReplay.Body.String())
+	nextPath := outletPath("/stock/stocktakes/") + uuid.Must(uuid.NewV7()).String()
+	next := do(r, "PUT", nextPath, "editor", start)
+	require.Equal(t, 200, next.Code, next.Body.String())
+	cancelled := do(r, "PUT", nextPath+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "editor", `{"decision":"cancel","expected_version":0,"reason":"TEST retain abandoned count"}`)
+	require.Equal(t, 200, cancelled.Code, cancelled.Body.String())
+	require.Equal(t, 200, do(r, "PUT", outletPath("/stock/stocktakes/")+uuid.Must(uuid.NewV7()).String(), "editor", start).Code)
 }
 
 func TestStocktakeSnapshotIsFrozenAndOutletScoped(t *testing.T) {

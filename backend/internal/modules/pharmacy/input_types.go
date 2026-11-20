@@ -3,6 +3,19 @@ package pharmacy
 
 import "github.com/google/uuid"
 
+type SupplierReturnDraftLineInput struct {
+	ReceiptID            uuid.UUID `json:"receipt_id" binding:"required"`
+	QuarantineLocationID uuid.UUID `json:"quarantine_location_id" binding:"required"`
+	QuantityUnits        *int64    `json:"quantity_units" binding:"min=1,max=1000000000"`
+	ExpectedCreditMinor  *int64    `json:"expected_credit_minor" binding:"min=0,max=1000000000000"`
+}
+
+type SupplierReturnDraftInput struct {
+	PayableID uuid.UUID                      `json:"payable_id" binding:"required"`
+	Lines     []SupplierReturnDraftLineInput `json:"lines" binding:"required,min=1,max=100,dive" gorm:"-"`
+	Reason    string                         `json:"reason" binding:"required,min=1,max=500"`
+}
+
 type StockHoldInput struct {
 	BatchID              uuid.UUID `json:"batch_id" binding:"required"`
 	FromLocationID       uuid.UUID `json:"from_location_id" binding:"required"`

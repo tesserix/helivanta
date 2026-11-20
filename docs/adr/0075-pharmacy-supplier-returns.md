@@ -129,3 +129,13 @@ reversal/void, audit/outbox rollback, private printing, original-result recovery
 Global API traversal and actual browser journeys. Hosted databases/browsers and
 local builds/checks are required; no local application/database/container is run.
 The deployed revision and remaining live release gates must be recorded honestly.
+
+### Draft scope
+
+Each draft binds one original inventory payable, its frozen counterparty/currency
+and one or more original receipt movements from that payable. Multiple bills use
+separate returns; a later actual supplier credit document can cover multiple
+returns without duplicating its amount. Draft quantities and explicit expected
+credit are bounded, in issue units and the payable currency's minor units.
+Creating a draft neither removes/reserves stock nor settles the bill. Physical
+availability and cumulative receipt-return limits are rechecked at dispatch.

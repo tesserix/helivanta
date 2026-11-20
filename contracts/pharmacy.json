@@ -1,6 +1,56 @@
 {
   "models": [
     {
+      "name": "SupplierReturnDraftLineInput",
+      "schema": "pharmacySupplierReturnDraftLineInputSchema",
+      "fields": [
+        {
+          "name": "receipt_id",
+          "type": "uuid"
+        },
+        {
+          "name": "quarantine_location_id",
+          "type": "uuid"
+        },
+        {
+          "name": "quantity_units",
+          "type": "*int64",
+          "min": 1,
+          "max": 1000000000
+        },
+        {
+          "name": "expected_credit_minor",
+          "type": "*int64",
+          "min": 0,
+          "max": 1000000000000
+        }
+      ]
+    },
+    {
+      "name": "SupplierReturnDraftInput",
+      "schema": "pharmacySupplierReturnDraftInputSchema",
+      "fields": [
+        {
+          "name": "payable_id",
+          "type": "uuid"
+        },
+        {
+          "name": "lines",
+          "type": "[]SupplierReturnDraftLineInput",
+          "min": 1,
+          "max": 100,
+          "gorm": "-"
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 1,
+          "max": 500,
+          "trim": true
+        }
+      ]
+    },
+    {
       "name": "StockHoldInput",
       "schema": "pharmacyStockHoldInputSchema",
       "fields": [

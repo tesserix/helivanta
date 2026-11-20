@@ -111,3 +111,32 @@ func TestTenantLoginTargetsUsesPrivateWorkloadAndRejectsAnythingOffContract(t *t
 		})
 	}
 }
+
+// A 503 at sign-in must be traceable from the API log: the error names the
+// operation and the identity owner's status, never a body or the credential.
+func TestIdentityOwnerFailureNamesTheOperationAndStatus(t *testing.T) {
+	native := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(404)
+		_, _ = w.Write([]byte(`{"secret":"never logged"}`))
+	}))
+	defer native.Close()
+	tokenFile := filepath.Join(t.TempDir(), "token")
+	if err := os.WriteFile(tokenFile, []byte("synthetic-workload"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	h := &Handlers{base: native.URL, tokenFile: tokenFile, client: native.Client()}
+	_, _, err := h.TenantLoginTargets(t.Context(), "same@example.test")
+	if !errors.Is(err, loginclient.ErrUnavailable) {
+		t.Fatalf("not unavailable: %v", err)
+	}
+	for _, want := range []string{"/internal/v1/customer-signups/login-targets", "status 404"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error %q does not name %q", err, want)
+		}
+	}
+	for _, leak := range []string{"never logged", "synthetic-workload"} {
+		if strings.Contains(err.Error(), leak) {
+			t.Fatalf("error leaked %q", leak)
+		}
+	}
+}

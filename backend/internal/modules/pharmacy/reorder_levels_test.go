@@ -87,6 +87,9 @@ func TestReorderScopeReplayConcurrencyAndHistory(t *testing.T) {
 	}
 	require.Equal(t, 404, do(r, "PUT", command, "reader", original).Code)
 	require.Equal(t, 200, do(r, "GET", command, "reader", "").Code)
+	grantCatalogue(t, r, "user-reader", "editor")
+	require.Equal(t, 409, do(r, "PUT", command, "reader", original).Code, "another authorized editor cannot take over the original actor's command")
+	grantCatalogue(t, r, "user-reader", "reader")
 	require.Equal(t, 409, do(r, "PUT", command, "editor", reorderBody("1", 0, first.ProductVersion)).Code)
 	require.Equal(t, 409, do(r, "PUT", productPath(product)+"/reorder-levels/"+uuid.Must(uuid.NewV7()).String(), "editor", original).Code)
 	require.Equal(t, 404, do(r, "GET", strings.Replace(command, pharmaOutlet, "0199e000-0000-7000-8000-000000000002", 1), "editor", "").Code)
@@ -108,6 +111,28 @@ func TestReorderScopeReplayConcurrencyAndHistory(t *testing.T) {
 	close(start)
 	a, b := <-codes, <-codes
 	require.ElementsMatch(t, []int{200, 409}, []int{a, b})
+	replayPath := productPath(product) + "/reorder-levels/" + uuid.Must(uuid.NewV7()).String()
+	replayInput := reorderBody("9", 3, second.ProductVersion)
+	results := make(chan struct {
+		status int
+		body   string
+	}, 2)
+	repeatStart := make(chan struct{})
+	for range 2 {
+		go func() {
+			<-repeatStart
+			response := do(r, "PUT", replayPath, "editor", replayInput)
+			results <- struct {
+				status int
+				body   string
+			}{response.Code, response.Body.String()}
+		}()
+	}
+	close(repeatStart)
+	left, right := <-results, <-results
+	require.Equal(t, 200, left.status, left.body)
+	require.Equal(t, 200, right.status, right.body)
+	require.JSONEq(t, left.body, right.body, "simultaneous duplicate commands return the same original receipt")
 	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 		if err := tx.Exec("SELECT set_config('app.pharmacy_subject','user-editor',true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)", pharmaOutlet, pharmaOrganization).Error; err != nil {
 			return err
@@ -117,7 +142,7 @@ func TestReorderScopeReplayConcurrencyAndHistory(t *testing.T) {
    (SELECT count(*) FROM audit_events WHERE resource_type='pharmacy_reorder_levels') audits`, product).Scan(&counts).Error; err != nil {
 			return err
 		}
-		require.Equal(t, int64(3), counts.Revisions)
+		require.Equal(t, int64(4), counts.Revisions)
 
 		require.Equal(t, counts.Revisions, counts.Audits)
 		var supported bool

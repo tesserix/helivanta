@@ -4856,6 +4856,24 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/decisions/:command",
+          "permission": "pharmacy.stock.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/decisions/:command",
+          "permission": "pharmacy.stock.correct",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/lines",
           "permission": "pharmacy.stock.read",
           "authentication_required": true,
@@ -5868,12 +5886,13 @@
         },
         {
           "id": "0053_pharmacy_stocktakes",
-          "sql_sha256": "33654818e40d2457699a583753fbbf485f522d72147ac2280a705d99be43a790",
+          "sql_sha256": "1d423d45c51af9e101a961d41922670b9090494460eb41c45c008e2bbec832fe",
           "creates_tables": [
             "pharmacy_stocktakes",
             "pharmacy_stocktake_lines",
             "pharmacy_stocktake_commands",
-            "pharmacy_stocktake_counts"
+            "pharmacy_stocktake_counts",
+            "pharmacy_stocktake_adjustments"
           ]
         }
       ]

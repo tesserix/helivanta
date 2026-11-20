@@ -998,8 +998,9 @@ Different requests can differ when stock, reservations or configuration changes.
 The draft implementation adds a frozen physical-book snapshot and versioned
 counted observations, not a completed stocktake workflow. It is unreleased and
 protected by `pharmacy_stock`; capability eligibility and provider values are
-unchanged. Independent review, atomic corrections, recovery continuations,
-register export and the UI remain
+unchanged. Reviewed decisions and atomic corrections are now an implementation
+candidate; native acceptance is pending. Recovery continuations, register export,
+the UI and failure/recovery coverage remain
 required before operational activation. See [ADR-0073](../../adr/0073-pharmacy-stocktake.md).
 
 Paths below use the same pharmacy/outlet prefix as reorder levels. Every request
@@ -1015,14 +1016,16 @@ and a current editor grant. Ownership or affiliation alone is insufficient.
 | GET `/stock/stocktakes/{stocktake}/lines` | Same pagination; immutable batch/location book quantities, issue units, product version, snapshot time and retained schedule declaration. Missing physical counts are null. |
 | PUT `/stock/stocktakes/{stocktake}/counts/{command}` | UUIDv7 command; strict `{expected_version, counts: [{line_id, counted_units}], reason}`. Version zero and physical zero are explicit values. At most 100 unique lines per command, quantities 0–1,000,000,000,000 issue units, required reason at most 500 characters and body at most 64 KiB. Returns the immutable original receipt. |
 | GET `/stock/stocktakes/{stocktake}/counts/{command}` | Original count receipt under current read authority; no query or body. This does not return a later edit's quantities. |
+| PUT `/stock/stocktakes/{stocktake}/decisions/{command}` | Strict `{decision, expected_version, reason, extra_units_disposition?}`. Decision is submit, approve, reject or cancel. Only approval requires a disposition: `moved_to_quarantine` if any difference is positive, otherwise `no_extra_units`. Required reason at most 500 characters; body at most 64 KiB. Returns an original immutable decision receipt, including adjustment count. |
+| GET `/stock/stocktakes/{stocktake}/decisions/{command}` | Original immutable decision receipt under current read authority; no query or body. |
 
 Start captures quantities and movement counts in one SQL statement, including
 expired and non-sellable physical buckets. At most 10,000 buckets are permitted;
 larger selections fail rather than truncate. Snapshot insertion and sealing are
 atomic with audit evidence. The quarantine destination must exist in the same
 outlet and cannot be sellable. Snapshot headers and lines are immutable after
-sealing. The current draft prevents a second count in the outlet; terminal-state
-handling must replace that guard when the lifecycle is implemented.
+sealing. Only one counting or submitted stocktake may exist per outlet. Posted,
+rejected and cancelled counts remain retained and allow a new snapshot.
 
 Exact start retries bind the original actor and normalized input; changed reuse
 returns 409. Reads and recovery are audited in the same transaction and return
@@ -1045,3 +1048,29 @@ statement snapshot per request and preserve zero separately from missing. Starti
 again with the original identity still returns the original creation receipt.
 No observation changes stock or publishes a stock-movement event. Hosted native
 count acceptance is required before claiming this candidate works end to end.
+
+Submit requires an observation for every frozen bucket. Only counting permits
+new observations or submission. Cancellation is available while counting or
+submitted. Approval and rejection require submitted state and a reviewer who is
+neither the starter nor any historical counter, including superseded counters.
+Every action uses the exact current version. Terminal states cannot be reopened.
+Exact original-command recovery remains valid after later decisions.
+
+Approval applies each nonzero difference to the current balance, preserving
+movements after the accepted observation. Negative differences remove stock from
+the counted location; positive differences go to the named quarantine location
+after the reviewer's explicit physical-transfer attestation. The existing
+reservation and overdraft guards remain authoritative. A narrowly linked native
+movement guard allows only the approved shortage correction outside quarantine;
+ordinary unlinked corrections retain the quarantine-only rule. Every correction
+is linked to its counted bucket and review command, uses the existing `correction`
+movement kind, and publishes only protected stock references through the bounded
+transactional outbox. No stock is released, disposed or financially posted.
+
+At most 500 nonzero corrections, each within the existing ±1,000,000,000 issue-unit
+movement limit, may post in one approval. Excess differences return 409
+`stocktake_posting_limit` without truncation or partial posting. Retain genuine
+observations and ask the responsible stock owner to resolve the limit; never
+alter a physical count merely to make posting succeed. Native version, transition,
+independence, quantity, linkage, audit and outbox failure all roll back the whole
+decision, leaving its identity available for a safe exact retry.

@@ -16,16 +16,19 @@ import (
 )
 
 type stocktakeCommand struct {
-	ID              uuid.UUID
-	StocktakeID     uuid.UUID
-	OutletID        uuid.UUID
-	ExpectedVersion int64
-	Version         int64
-	State           string
-	Reason          string
-	ActorSubject    string
-	IntentSHA256    string
-	CreatedAt       time.Time
+	ID                    uuid.UUID
+	StocktakeID           uuid.UUID
+	OutletID              uuid.UUID
+	ExpectedVersion       int64
+	Version               int64
+	State                 string
+	Kind                  string
+	ItemCount             int64
+	ExtraUnitsDisposition *string
+	Reason                string
+	ActorSubject          string
+	IntentSHA256          string
+	CreatedAt             time.Time
 }
 
 func (stocktakeCommand) TableName() string { return "pharmacy_stocktake_commands" }
@@ -43,7 +46,7 @@ type stocktakeCountRow struct {
 
 func (stocktakeCountRow) TableName() string { return "pharmacy_stocktake_counts" }
 
-const stocktakeCommandColumns = `id,stocktake_id,outlet_id,expected_version,version,state,reason,actor_subject,intent_sha256,created_at`
+const stocktakeCommandColumns = `id,stocktake_id,outlet_id,expected_version,version,state,kind,item_count,extra_units_disposition,reason,actor_subject,intent_sha256,created_at`
 
 func stocktakeCommandID(c *gin.Context) (uuid.UUID, bool) {
 	id, err := uuid.Parse(c.Param("command"))

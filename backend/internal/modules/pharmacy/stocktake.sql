@@ -55,11 +55,12 @@ CREATE INDEX pharmacy_stocktake_line_schedule ON pharmacy_stocktake_lines(tenant
 
 CREATE TABLE pharmacy_stocktake_commands (
  tenant_id uuid NOT NULL,outlet_id uuid NOT NULL,id uuid NOT NULL CHECK(substring(id::text,15,1)='7'),
- stocktake_id uuid NOT NULL,kind text NOT NULL CHECK(kind='count'),
+ stocktake_id uuid NOT NULL,kind text NOT NULL CHECK(kind IN('count','submit','approve','reject','cancel')),
  expected_version bigint NOT NULL CHECK(expected_version BETWEEN 0 AND 9007199254740990),
  version bigint NOT NULL CHECK(version=expected_version+1),
- state text NOT NULL CHECK(state='counting'),
- item_count integer NOT NULL CHECK(item_count BETWEEN 1 AND 100),
+ state text NOT NULL CHECK(state=CASE kind WHEN 'count'THEN 'counting'WHEN 'submit'THEN 'submitted'WHEN 'approve'THEN 'posted'WHEN 'reject'THEN 'rejected'WHEN 'cancel'THEN 'cancelled'END),
+ item_count integer NOT NULL CHECK((kind='count'AND item_count BETWEEN 1 AND 100)OR(kind='approve'AND item_count BETWEEN 0 AND 500)OR(kind IN('submit','reject','cancel')AND item_count=0)),
+ extra_units_disposition text CHECK((kind='approve'AND extra_units_disposition IS NOT NULL AND extra_units_disposition IN('no_extra_units','moved_to_quarantine'))OR(kind<>'approve'AND extra_units_disposition IS NULL)),
  reason text NOT NULL CHECK(length(btrim(reason))BETWEEN 1 AND 500),
  actor_subject text NOT NULL CHECK(length(btrim(actor_subject))BETWEEN 1 AND 200),
  intent_sha256 text NOT NULL CHECK(intent_sha256~'^[0-9a-f]{64}$'),
@@ -68,6 +69,7 @@ CREATE TABLE pharmacy_stocktake_commands (
  UNIQUE(tenant_id,outlet_id,stocktake_id,version),
  FOREIGN KEY(tenant_id,outlet_id,stocktake_id)REFERENCES pharmacy_stocktakes(tenant_id,outlet_id,id)ON DELETE RESTRICT
 );
+CREATE INDEX pharmacy_stocktake_counter ON pharmacy_stocktake_commands(tenant_id,outlet_id,stocktake_id,actor_subject)WHERE kind='count';
 CREATE TABLE pharmacy_stocktake_counts (
  tenant_id uuid NOT NULL,outlet_id uuid NOT NULL,id uuid NOT NULL CHECK(substring(id::text,15,1)='7'),
  stocktake_id uuid NOT NULL,command_id uuid NOT NULL,line_id uuid NOT NULL,
@@ -81,8 +83,23 @@ CREATE TABLE pharmacy_stocktake_counts (
 CREATE INDEX pharmacy_stocktake_count_latest ON pharmacy_stocktake_counts(tenant_id,outlet_id,stocktake_id,line_id,command_version DESC);
 CREATE INDEX pharmacy_stocktake_count_line ON pharmacy_stocktake_counts(tenant_id,outlet_id,line_id);
 
+CREATE TABLE pharmacy_stocktake_adjustments (
+ tenant_id uuid NOT NULL,outlet_id uuid NOT NULL,id uuid NOT NULL CHECK(substring(id::text,15,1)='7'),
+ stocktake_id uuid NOT NULL,command_id uuid NOT NULL,line_id uuid NOT NULL,
+ movement_id uuid NOT NULL,location_id uuid NOT NULL,quantity_units bigint NOT NULL CHECK(quantity_units<>0 AND quantity_units BETWEEN -1000000000 AND 1000000000),
+ created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ PRIMARY KEY(tenant_id,outlet_id,id),UNIQUE(tenant_id,outlet_id,movement_id),UNIQUE(tenant_id,outlet_id,stocktake_id,line_id),
+ FOREIGN KEY(tenant_id,outlet_id,stocktake_id,command_id)REFERENCES pharmacy_stocktake_commands(tenant_id,outlet_id,stocktake_id,id)ON DELETE RESTRICT,
+ FOREIGN KEY(tenant_id,outlet_id,line_id)REFERENCES pharmacy_stocktake_lines(tenant_id,outlet_id,id)ON DELETE RESTRICT,
+ FOREIGN KEY(tenant_id,outlet_id,location_id)REFERENCES pharmacy_stock_locations(tenant_id,outlet_id,id)ON DELETE RESTRICT,
+ FOREIGN KEY(tenant_id,outlet_id,movement_id)REFERENCES pharmacy_stock_movements(tenant_id,outlet_id,id)ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED
+);
+CREATE INDEX pharmacy_stocktake_adjustment_command ON pharmacy_stocktake_adjustments(tenant_id,outlet_id,stocktake_id,command_id);
+CREATE INDEX pharmacy_stocktake_adjustment_line ON pharmacy_stocktake_adjustments(tenant_id,outlet_id,line_id);
+CREATE INDEX pharmacy_stocktake_adjustment_location ON pharmacy_stocktake_adjustments(tenant_id,outlet_id,location_id);
+
 DO $scope$DECLARE target text;BEGIN
- FOREACH target IN ARRAY ARRAY['pharmacy_stocktakes','pharmacy_stocktake_lines','pharmacy_stocktake_commands','pharmacy_stocktake_counts'] LOOP
+ FOREACH target IN ARRAY ARRAY['pharmacy_stocktakes','pharmacy_stocktake_lines','pharmacy_stocktake_commands','pharmacy_stocktake_counts','pharmacy_stocktake_adjustments'] LOOP
   EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY',target);
   EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY',target);
   EXECUTE format($policy$CREATE POLICY tenant_isolation ON %I USING(hms_tenant_visible(tenant_id)AND pharmacy_outlet_allowed(tenant_id,outlet_id,false))WITH CHECK(pharmacy_outlet_allowed(tenant_id,outlet_id,true))$policy$,target);
@@ -98,7 +115,8 @@ BEGIN
   RAISE EXCEPTION 'stocktake actor or seal changed' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_identity';
  END IF;
  PERFORM pg_advisory_xact_lock(hashtextextended(NEW.tenant_id::text||':'||NEW.outlet_id::text||':stocktake-start',0));
- IF EXISTS(SELECT 1 FROM pharmacy_stocktakes WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id)THEN
+ IF EXISTS(SELECT 1 FROM pharmacy_stocktakes s WHERE s.tenant_id=NEW.tenant_id AND s.outlet_id=NEW.outlet_id
+  AND COALESCE((SELECT c.state FROM pharmacy_stocktake_commands c WHERE c.tenant_id=s.tenant_id AND c.outlet_id=s.outlet_id AND c.stocktake_id=s.id ORDER BY c.version DESC LIMIT 1),'counting')IN('counting','submitted'))THEN
   RAISE EXCEPTION 'an outlet count is already open' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_open';
  END IF;
  IF NOT EXISTS(SELECT 1 FROM pharmacy_stock_locations WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND id=NEW.quarantine_location_id AND stock_status='quarantine')THEN
@@ -145,19 +163,45 @@ BEGIN
 END $$;
 CREATE CONSTRAINT TRIGGER pharmacy_stocktake_commit_guard AFTER INSERT ON pharmacy_stocktakes DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION pharmacy_stocktake_commit_guard();
 
+CREATE FUNCTION pharmacy_stocktake_differences(t uuid,o uuid,s uuid)RETURNS TABLE(line_id uuid,batch_id uuid,from_location_id uuid,quantity_units bigint)LANGUAGE sql STABLE AS $$
+ SELECT l.id,l.batch_id,l.location_id,e.counted_units-l.book_units
+ FROM pharmacy_stocktake_lines l JOIN LATERAL(
+  SELECT counted_units FROM pharmacy_stocktake_counts x WHERE x.tenant_id=l.tenant_id AND x.outlet_id=l.outlet_id AND x.stocktake_id=l.stocktake_id AND x.line_id=l.id ORDER BY command_version DESC LIMIT 1
+ )e ON true
+ WHERE l.tenant_id=t AND l.outlet_id=o AND l.stocktake_id=s AND e.counted_units<>l.book_units
+$$;
+
 CREATE FUNCTION pharmacy_stocktake_command_guard()RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE parent pharmacy_stocktakes;prior_version bigint;
+DECLARE parent pharmacy_stocktakes;prior_version bigint;prior_state text;actual bigint;extras bigint;bounded boolean;
 BEGIN
  SELECT *INTO parent FROM pharmacy_stocktakes WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND id=NEW.stocktake_id AND sealed FOR UPDATE;
- SELECT COALESCE(MAX(version),0)INTO prior_version FROM pharmacy_stocktake_commands WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND stocktake_id=NEW.stocktake_id;
+ SELECT version,state INTO prior_version,prior_state FROM pharmacy_stocktake_commands WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND stocktake_id=NEW.stocktake_id ORDER BY version DESC LIMIT 1;
+ prior_version:=COALESCE(prior_version,0);prior_state:=COALESCE(prior_state,'counting');
  IF parent.id IS NULL OR NEW.actor_subject IS DISTINCT FROM NULLIF(current_setting('app.pharmacy_subject',true),'')OR NEW.expected_version<>prior_version OR NEW.posted_xact<>pg_current_xact_id()THEN
   RAISE EXCEPTION 'stocktake command or version changed' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_command';
+ END IF;
+ IF NOT((NEW.kind IN('count','submit')AND prior_state='counting')OR(NEW.kind IN('approve','reject')AND prior_state='submitted')OR(NEW.kind='cancel'AND prior_state IN('counting','submitted')))THEN
+  RAISE EXCEPTION 'stocktake transition is unavailable' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_transition';
+ END IF;
+ IF NEW.kind='submit'AND EXISTS(SELECT 1 FROM pharmacy_stocktake_lines l WHERE l.tenant_id=NEW.tenant_id AND l.outlet_id=NEW.outlet_id AND l.stocktake_id=NEW.stocktake_id
+  AND NOT EXISTS(SELECT 1 FROM pharmacy_stocktake_counts e WHERE e.tenant_id=l.tenant_id AND e.outlet_id=l.outlet_id AND e.stocktake_id=l.stocktake_id AND e.line_id=l.id))THEN
+  RAISE EXCEPTION 'every snapshot bucket needs an observation' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_incomplete';
+ END IF;
+ IF NEW.kind IN('approve','reject')AND(parent.actor_subject=NEW.actor_subject OR EXISTS(SELECT 1 FROM pharmacy_stocktake_commands c WHERE c.tenant_id=NEW.tenant_id AND c.outlet_id=NEW.outlet_id AND c.stocktake_id=NEW.stocktake_id AND c.kind='count'AND c.actor_subject=NEW.actor_subject))THEN
+  RAISE EXCEPTION 'stocktake review must be independent' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_independent';
+ END IF;
+ IF NEW.kind='approve'THEN
+  SELECT COUNT(*),COUNT(*)FILTER(WHERE quantity_units>0),COALESCE(bool_and(quantity_units BETWEEN -1000000000 AND 1000000000),true)INTO actual,extras,bounded FROM pharmacy_stocktake_differences(NEW.tenant_id,NEW.outlet_id,NEW.stocktake_id);
+  IF actual<>NEW.item_count OR actual>500 OR NOT bounded OR NEW.extra_units_disposition IS DISTINCT FROM(CASE WHEN extras>0 THEN 'moved_to_quarantine'ELSE 'no_extra_units'END)THEN
+   RAISE EXCEPTION 'stocktake corrections exceed the reviewed posting scope' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_posting_scope';
+  END IF;
  END IF;
  RETURN NEW;
 END $$;
 CREATE TRIGGER pharmacy_stocktake_command_guard BEFORE INSERT ON pharmacy_stocktake_commands FOR EACH ROW EXECUTE FUNCTION pharmacy_stocktake_command_guard();
 CREATE TRIGGER pharmacy_stocktake_command_immutable BEFORE UPDATE OR DELETE OR TRUNCATE ON pharmacy_stocktake_commands FOR EACH STATEMENT EXECUTE FUNCTION pharmacy_catalogue_immutable();
 CREATE TRIGGER pharmacy_stocktake_count_immutable BEFORE UPDATE OR DELETE OR TRUNCATE ON pharmacy_stocktake_counts FOR EACH STATEMENT EXECUTE FUNCTION pharmacy_catalogue_immutable();
+CREATE TRIGGER pharmacy_stocktake_adjustment_immutable BEFORE UPDATE OR DELETE OR TRUNCATE ON pharmacy_stocktake_adjustments FOR EACH STATEMENT EXECUTE FUNCTION pharmacy_catalogue_immutable();
 
 CREATE FUNCTION pharmacy_stocktake_count_guard()RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE command pharmacy_stocktake_commands;line pharmacy_stocktake_lines;observed bigint;
@@ -180,11 +224,63 @@ CREATE TRIGGER pharmacy_stocktake_count_guard BEFORE INSERT ON pharmacy_stocktak
 CREATE FUNCTION pharmacy_stocktake_command_commit_guard()RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE actual bigint;
 BEGIN
- SELECT COUNT(*)INTO actual FROM pharmacy_stocktake_counts WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND command_id=NEW.id;
+ IF NEW.kind='count'THEN
+  SELECT COUNT(*)INTO actual FROM pharmacy_stocktake_counts WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND command_id=NEW.id;
+ ELSIF NEW.kind='approve'THEN
+  SELECT COUNT(*)INTO actual FROM pharmacy_stocktake_adjustments WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND command_id=NEW.id;
+ ELSE actual:=0;END IF;
  IF actual<>NEW.item_count THEN RAISE EXCEPTION 'count command is incomplete' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_count_incomplete';END IF;
  RETURN NULL;
 END $$;
 CREATE CONSTRAINT TRIGGER pharmacy_stocktake_command_commit_guard AFTER INSERT ON pharmacy_stocktake_commands DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION pharmacy_stocktake_command_commit_guard();
+
+CREATE FUNCTION pharmacy_stocktake_adjustment_guard()RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE command pharmacy_stocktake_commands;parent pharmacy_stocktakes;line pharmacy_stocktake_lines;difference bigint;destination uuid;
+BEGIN
+ SELECT *INTO command FROM pharmacy_stocktake_commands WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND id=NEW.command_id AND stocktake_id=NEW.stocktake_id;
+ SELECT *INTO parent FROM pharmacy_stocktakes WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND id=NEW.stocktake_id AND sealed;
+ SELECT *INTO line FROM pharmacy_stocktake_lines WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND id=NEW.line_id AND stocktake_id=NEW.stocktake_id;
+ SELECT quantity_units INTO difference FROM pharmacy_stocktake_differences(NEW.tenant_id,NEW.outlet_id,NEW.stocktake_id)WHERE line_id=NEW.line_id;
+ destination:=CASE WHEN difference>0 THEN parent.quarantine_location_id ELSE line.location_id END;
+ IF command.id IS NULL OR parent.id IS NULL OR line.id IS NULL OR command.kind<>'approve'OR command.posted_xact<>pg_current_xact_id()OR command.actor_subject IS DISTINCT FROM NULLIF(current_setting('app.pharmacy_subject',true),'')OR NEW.quantity_units IS DISTINCT FROM difference OR NEW.location_id IS DISTINCT FROM destination THEN
+  RAISE EXCEPTION 'correction is outside its reviewed count' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_adjustment';
+ END IF;
+ NEW.created_at:=command.created_at;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER pharmacy_stocktake_adjustment_guard BEFORE INSERT ON pharmacy_stocktake_adjustments FOR EACH ROW EXECUTE FUNCTION pharmacy_stocktake_adjustment_guard();
+
+CREATE FUNCTION pharmacy_stocktake_movement_matches(m pharmacy_stock_movements)RETURNS boolean LANGUAGE sql STABLE AS $$
+ SELECT EXISTS(SELECT 1 FROM pharmacy_stocktake_adjustments a JOIN pharmacy_stocktake_commands c ON c.tenant_id=a.tenant_id AND c.outlet_id=a.outlet_id AND c.id=a.command_id
+ JOIN pharmacy_stocktake_lines l ON l.tenant_id=a.tenant_id AND l.outlet_id=a.outlet_id AND l.id=a.line_id AND l.stocktake_id=a.stocktake_id
+ WHERE a.tenant_id=m.tenant_id AND a.outlet_id=m.outlet_id AND a.movement_id=m.id AND c.kind='approve'AND c.posted_xact=pg_current_xact_id()
+ AND m.kind='correction'AND m.location_id=a.location_id AND m.batch_id=l.batch_id AND m.quantity_units=a.quantity_units
+ AND m.reason=c.reason AND m.actor_subject=c.actor_subject AND m.source_reference='stocktake:'||a.command_id::text||':'||a.line_id::text)
+$$;
+CREATE FUNCTION pharmacy_stocktake_movement_guard()RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF(starts_with(NEW.source_reference,'stocktake:')OR EXISTS(SELECT 1 FROM pharmacy_stocktake_adjustments WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND movement_id=NEW.id))AND NOT pharmacy_stocktake_movement_matches(NEW)THEN
+  RAISE EXCEPTION 'stocktake movement needs reviewed evidence' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_movement';
+ END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER pharmacy_stocktake_movement_guard BEFORE INSERT ON pharmacy_stock_movements FOR EACH ROW EXECUTE FUNCTION pharmacy_stocktake_movement_guard();
+
+CREATE OR REPLACE FUNCTION pharmacy_stock_movement_location_guard()RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE status text;
+BEGIN
+ SELECT stock_status INTO status FROM pharmacy_stock_locations WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND id=NEW.location_id;
+ IF NEW.kind IN('receipt','correction')AND status<>'quarantine'AND NOT(NEW.kind='correction'AND NEW.quantity_units<0 AND pharmacy_stocktake_movement_matches(NEW))THEN
+  RAISE EXCEPTION 'stock is received and corrected in quarantine only' USING ERRCODE='23514',CONSTRAINT='pharmacy_stock_quarantine_only';
+ END IF;
+ IF NEW.kind='release'AND NOT EXISTS(SELECT 1 FROM pharmacy_stock_releases r WHERE r.tenant_id=NEW.tenant_id AND r.outlet_id=NEW.outlet_id AND NEW.source_reference IN('release:'||r.id||':out','release:'||r.id||':in'))THEN
+  RAISE EXCEPTION 'a release movement belongs to a recorded release' USING ERRCODE='23514',CONSTRAINT='pharmacy_stock_release_movement';
+ END IF;
+ IF NEW.kind='sale'AND(status<>'sellable'OR NEW.source_reference!~'^sale:[0-9a-f-]{36}:[1-9][0-9]{0,3}$'OR NOT EXISTS(SELECT 1 FROM pharmacy_sale_lines l WHERE l.tenant_id=NEW.tenant_id AND l.outlet_id=NEW.outlet_id AND l.sale_id=split_part(NEW.source_reference,':',2)::uuid AND l.line_number=split_part(NEW.source_reference,':',3)::int AND l.batch_id=NEW.batch_id AND l.location_id=NEW.location_id AND l.quantity_units=-NEW.quantity_units))THEN
+  RAISE EXCEPTION 'a sale movement takes its line''s units off a sellable shelf' USING ERRCODE='23514',CONSTRAINT='pharmacy_stock_sale_movement';
+ END IF;
+ RETURN NEW;
+END $$;
 
 -- Extend the checked purpose inventory only after validating its existing fingerprint.
 DO $integrity$

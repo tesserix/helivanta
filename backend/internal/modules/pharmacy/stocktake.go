@@ -110,6 +110,8 @@ func stocktakeRoutes(s *platform.Router, h *catalogueHandlers) {
 	platform.ListRoute(s, "/stocktakes/:stocktake/lines", PermStockRead, h.listStocktakeLines)
 	s.PUT("/stocktakes/:stocktake/counts/:command", PermStockCorrect, h.putStocktakeCount)
 	s.GET("/stocktakes/:stocktake/counts/:command", PermStockRead, h.getStocktakeCount)
+	s.PUT("/stocktakes/:stocktake/decisions/:command", PermStockCorrect, h.putStocktakeDecision)
+	s.GET("/stocktakes/:stocktake/decisions/:command", PermStockRead, h.getStocktakeDecision)
 }
 
 func stocktakeID(c *gin.Context) (uuid.UUID, bool) {
@@ -141,6 +143,10 @@ func stocktakeRead(c *gin.Context, paged bool) bool {
 }
 
 func stocktakeError(c *gin.Context, err error) {
+	if errors.Is(err, errStocktakePostingLimit) {
+		respond.Error(c, 409, "stocktake_posting_limit", "These differences exceed posting limits. Retain the observations and ask the responsible stock owner to review them.")
+		return
+	}
 	if errors.Is(err, errStocktakeAudit) {
 		respond.Error(c, http.StatusServiceUnavailable, "audit_unavailable", "Stocktake read evidence is unavailable.")
 		return

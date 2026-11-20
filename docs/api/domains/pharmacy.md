@@ -1225,6 +1225,10 @@ negative from the source, positive into quarantine. Existing reservation and
 balance guards remain authoritative; holds cannot consume an active supplier
 reservation. Both movement events and audit evidence use the same transaction.
 Database guards reject forged movement references and incomplete pairs at commit.
+The hold table also has restrictive location-choice purpose/delete policies; the
+prior operating-choice integrity fingerprint is validated before migration and
+extended with the new policies afterward. Native Staff location selection remains
+fail-closed without exposing hold records through that read purpose.
 Releases and holds acquire both bucket locks in the same order.
 
 Identical replay by the original actor returns the original receipt without

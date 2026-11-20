@@ -45,6 +45,27 @@ func TestStockHoldConservesStockAndRecoversOriginalActor(t *testing.T) {
 			require.NotEqual(t, receipt.OutMovementID, receipt.InMovementID)
 			require.Equal(t, uuid.Version(7), receipt.OutMovementID.Version())
 			require.Equal(t, uuid.Version(7), receipt.InMovementID.Version())
+			require.NoError(t, catalogueTx(t, w.db, func(tx *gorm.DB) error {
+				var healthy bool
+				if err := tx.Raw("SELECT pharmacy_operating_choice_integrity() AND pharmacy_operating_choice_support()").Scan(&healthy).Error; err != nil {
+					return err
+				}
+				require.True(t, healthy, "hold tables must preserve native Staff location-choice authority")
+				var count int64
+				if err := tx.Table("pharmacy_stock_holds").Where("id=?", id).Count(&count).Error; err != nil {
+					return err
+				}
+				require.EqualValues(t, 1, count)
+				if err := tx.Exec("SELECT set_config('app.pharmacy_operating_choices','TEST-choice-purpose',true)").Error; err != nil {
+					return err
+				}
+				if err := tx.Table("pharmacy_stock_holds").Where("id=?", id).Count(&count).Error; err != nil {
+					return err
+				}
+				require.Zero(t, count, "a location-choice purpose must never disclose physical hold evidence")
+				return nil
+			}))
+
 			_, err := time.Parse(time.RFC3339Nano, receipt.HeldAt)
 			require.NoError(t, err)
 			require.EqualValues(t, 22, w.balance(t, w.sellable, w.batch))

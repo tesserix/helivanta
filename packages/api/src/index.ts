@@ -264,4 +264,10 @@ export {
   type PharmacyStocktakeDecisionReceipt,
 } from "./pharmacy-stocktakes";
 export { fetchStocktakeCSV } from "./pharmacy-stocktake-export";
+export {
+  pharmacyStocktakeCountInputSchema,
+  pharmacyStocktakeCountEntrySchema,
+  pharmacyStocktakeDecisionInputSchema,
+  pharmacyStocktakeStartInputSchema,
+} from "./pharmacy-contract";
 export { pharmacyReorderLevelInputSchema } from "./pharmacy-contract";

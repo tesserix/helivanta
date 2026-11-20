@@ -95,7 +95,7 @@ func TestStocktakeSellableDifferencesPreserveQuarantineAndLaterTransfers(t *test
 			}
 			require.EqualValues(t, quarantine, w.balance(t, w.quarantine, w.batch))
 			require.EqualValues(t, 30, w.balance(t, w.sellable, w.batch))
-			forged := do(w.r, "PUT", stockPath("corrections/"+uuid.Must(uuid.NewV7()).String()), "editor", fmt.Sprintf(`{"location_id":%q,"batch_id":%q,"quantity_units":-1,"reason":"TEST forged count","source_reference":"stocktake:TEST-forged"}`, w.sellable, w.batch))
+			forged := do(w.r, "PUT", stockPath("corrections/"+uuid.Must(uuid.NewV7()).String()), "editor", fmt.Sprintf(`{"location_id":%q,"batch_id":%q,"kind":"correction","quantity_units":-1,"reason":"TEST forged count","source_reference":"stocktake:TEST-forged"}`, w.sellable, w.batch))
 			require.Equal(t, 409, forged.Code, forged.Body.String())
 			require.EqualValues(t, 30, w.balance(t, w.sellable, w.batch))
 		})

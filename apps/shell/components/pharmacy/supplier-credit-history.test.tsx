@@ -155,3 +155,54 @@ it("hides a previously verified credit reference when financial history access i
   expect(document.body).not.toHaveTextContent("TEST-CN-REVOKED");
   expect(screen.queryByRole("region", { name: "Supplier credit details" })).not.toBeInTheDocument();
 });
+
+it("opens replacement entry from a named voided credit detail without any raw-ID or supplier lookup", async () => {
+  const voided = {
+    ...row,
+    state: "voided",
+    version: 4,
+    matched_minor: 0,
+    allocated_minor: 0,
+    available_minor: 0,
+  };
+  const fetcher = vi.fn(
+    async (url: string) =>
+      new Response(
+        JSON.stringify(
+          url.endsWith("/context")
+            ? {
+                ...voided,
+                local_date: "2026-11-22",
+                timezone: "Asia/Kolkata",
+                as_of: "2026-11-22T00:00:00Z",
+              }
+            : url.endsWith("/void")
+              ? {
+                  id: "0199e000-0000-7000-8000-000000000009",
+                  outlet_id: scope.outletId,
+                  credit_id: row.id,
+                  expected_version: 3,
+                  version: 4,
+                  reason: "TEST incorrect supplier amount",
+                  recorded_by: scope.subject,
+                  recorded_at: row.recorded_at,
+                }
+              : {
+                  data: url.includes("/matches?") || url.includes("/allocations?") ? [] : [voided],
+                  page: { has_more: false, next_cursor: null },
+                },
+        ),
+      ),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = render(
+    <SupplierCreditHistory scope={scope} canRecord timeZone="Asia/Kolkata" />,
+  );
+  await user.click(await screen.findByRole("button", { name: "Open credit TEST-CN-ONE" }));
+  await user.click(await screen.findByRole("button", { name: "Replace voided credit" }));
+  expect(
+    await screen.findByRole("heading", { name: "Replace voided supplier credit" }),
+  ).toBeInTheDocument();
+  expect(screen.getByText(/Replacing TEST-CN-ONE/)).toBeInTheDocument();
+  expect(fetcher.mock.calls.some(([url]) => url.includes("source-returns"))).toBe(false);
+});

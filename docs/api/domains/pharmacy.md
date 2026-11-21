@@ -1774,5 +1774,28 @@ refresh. Unknown outcomes retain their original identity without automatic retry
 storage and cleanup failures use the same financial-command safeguards. The
 hosted candidate journey loses the committed void response after reversing all
 applications/matches and verifies one-write recovery and unchanged bill payment.
-Correction/replacement entry UI and latest hosted/visual/live acceptance remain
-open in #1784.
+Latest hosted/visual/live acceptance remains open in #1784.
+
+Candidate **Replace voided credit** entry reuses the canonical actual-credit
+form beneath the named original. It binds `correction_of` and the original
+dispatched return internally; supplier/currency come from the current finance
+context. The actual replacement amount, reference, date and reason are explicit,
+not defaults copied from the original note. This control corrects the note on
+that original return; it does not reassign an existing note to another supplier
+or return. The owning command atomically verifies current voided state, same
+supplier/currency, source/date validity and the unique correction. The original
+becomes corrected with zero unused pool; the replacement has its own actual
+amount, active pool and immutable receipt. Neither creates a bill application,
+payment or stock movement.
+
+Correction recovery is scoped additionally to its original note. After reload,
+the recovered immutable receipt must still identify that original, return,
+supplier and currency, even when no submitted form intent survives. Recovery
+remains available when the original has become corrected or new writes are
+disabled, including after closing and resuming the form. Stale refusal preserves
+entered values and offers explicit refresh of the original observations.
+Normal document entry retains its original recovery namespace and cannot accept
+a correction receipt as an unrelated original note. The hosted candidate extends
+void recovery with replacement response loss, one-write recovery, retained
+original history and unchanged payments/stock. Latest hosted/visual evidence,
+payable journal/report integration and approved live acceptance remain open.

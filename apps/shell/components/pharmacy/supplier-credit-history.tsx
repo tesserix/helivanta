@@ -136,6 +136,7 @@ export function SupplierCreditHistory({
           id={selected}
           timeZone={timeZone}
           canManage={canRecord}
+          onRecorded={setSelected}
           close={() => confirmLeave(() => setSelected(null))}
         />
       )}
@@ -147,12 +148,14 @@ function CreditDetail({
   id,
   timeZone,
   canManage,
+  onRecorded,
   close,
 }: {
   scope: PharmacyActorScope;
   id: string;
   timeZone: string;
   canManage: boolean;
+  onRecorded: (id: string) => void;
   close: () => void;
 }) {
   const detail = useQuery({
@@ -218,6 +221,14 @@ function CreditDetail({
           <SupplierCreditMatching scope={scope} credit={detail.data} canManage={canManage} />
           <SupplierCreditApplications scope={scope} credit={detail.data} canManage={canManage} />
           <SupplierCreditVoid scope={scope} credit={detail.data} canManage={canManage} />
+          {detail.data.state !== "active" && (
+            <SupplierCreditRecord
+              scope={scope}
+              canRecord={canManage}
+              correction={detail.data}
+              onRecorded={onRecorded}
+            />
+          )}
         </>
       )}
     </section>

@@ -13,7 +13,8 @@ async function attachSupplierEvidence(
     | "supplier-credit-match-reversed"
     | "supplier-credit-applied"
     | "supplier-credit-application-reversed"
-    | "supplier-credit-voided",
+    | "supplier-credit-voided"
+    | "supplier-credit-corrected",
 ) {
   const path = info.outputPath(`${name}.png`);
   await page.screenshot({ path, fullPage: true });
@@ -627,6 +628,71 @@ test("supplier return preparation and physical dispatch recover response loss wi
       0,
     );
     await attachSupplierEvidence(page, testInfo, "supplier-credit-voided");
+    await page.getByRole("button", { name: "Replace voided credit", exact: true }).click();
+    await expect(
+      page.getByRole("combobox", { name: "Dispatched supplier return", exact: true }),
+    ).toHaveCount(0);
+    const replacementReference = `TEST-CORRECTED-${stamp}`;
+    await page.getByLabel("Supplier credit reference", { exact: true }).fill(replacementReference);
+    await page.getByLabel("Credit issue date", { exact: true }).fill("2026-11-21");
+    await expect(page.getByLabel("Actual credit amount (INR)", { exact: true })).toHaveValue("");
+    await page.getByLabel("Actual credit amount (INR)", { exact: true }).fill("8.00");
+    await page
+      .getByLabel("Credit record reason", { exact: true })
+      .fill("TEST corrected actual supplier credit document");
+    const replacementPattern = "**/accounts/supplier-credits/*";
+    let replacementWrites = 0,
+      replacementId = "";
+    await page.route(replacementPattern, async (route) => {
+      if (route.request().method() !== "PUT") return route.continue();
+      replacementWrites++;
+      const response = await route.fetch();
+      expect(response.status(), await response.text()).toBe(200);
+      const replaced = (await response.json()) as { id: string; correction_of: string };
+      expect(replaced.correction_of).toBe(creditId);
+      replacementId = replaced.id;
+      await route.abort("failed");
+    });
+    await page.getByRole("button", { name: "Save replacement credit", exact: true }).click();
+    await expect(page.getByText(/credit outcome is unconfirmed/)).toBeVisible();
+    await page.unroute(replacementPattern);
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.reload();
+    await page.getByRole("button", { name: `Open credit ${creditReference}`, exact: true }).click();
+    await page.getByRole("button", { name: "Check original credit", exact: true }).click();
+    await expect(
+      page.getByRole("heading", {
+        name: `Credit ${replacementReference} · TEST External Supplier`,
+        exact: true,
+      }),
+    ).toBeVisible();
+    expect(replacementWrites).toBe(1);
+    expect(
+      await financial(page, "GET", `${outlet}/accounts/supplier-credits/${replacementId}`),
+    ).toMatchObject({
+      correction_of: creditId,
+      return_id: returnId,
+      amount_minor: 800,
+      available_minor: 800,
+      state: "active",
+    });
+    expect(
+      await financial(page, "GET", `${outlet}/accounts/supplier-credits/${creditId}`),
+    ).toMatchObject({ amount_minor: 750, available_minor: 0, state: "corrected" });
+    expect(await owner(page, "GET", `${outlet}/accounts/payables/${futurePayable}`)).toMatchObject({
+      credit_minor: 0,
+      paid_minor: 680,
+      outstanding_minor: 500,
+    });
+    expect(
+      await owner(
+        page,
+        "GET",
+        `${outlet}/stock/balance?location_id=${quarantine}&batch_id=${batch}`,
+      ),
+    ).toMatchObject({ on_hand_units: 20 });
+    expect(await page.locator("body").innerText()).not.toContain(replacementId);
+    await attachSupplierEvidence(page, testInfo, "supplier-credit-corrected");
     for (const id of [applicationId, applicationReversalId, futurePayable, futureReceipt])
       expect(await page.locator("body").innerText()).not.toContain(id);
     expect(await page.locator("body").innerText()).not.toContain(creditId);

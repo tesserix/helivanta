@@ -17,6 +17,7 @@ test("retains only named synthetic supplier screenshots before later phases over
     for (const name of [
       "supplier-credit-voided-1.png",
       "supplier-credit-recovered-1.png",
+      "supplier-credit-corrected-1.png",
       "supplier-credit-match-reversed-1.png",
       "supplier-credit-matched-1.png",
       "supplier-credit-applied-1.png",
@@ -39,6 +40,7 @@ test("retains only named synthetic supplier screenshots before later phases over
       "commercial-return-note-print-1.png",
       "supplier-credit-application-reversed-1.png",
       "supplier-credit-applied-1.png",
+      "supplier-credit-corrected-1.png",
       "supplier-credit-match-reversed-1.png",
       "supplier-credit-matched-1.png",
       "supplier-credit-recovered-1.png",
@@ -98,6 +100,31 @@ test("requires retained void evidence after application reversal", async () => {
       "supplier-credit-applied",
       "supplier-credit-application-reversed",
       "commercial-return-note-print",
+    ])
+      await writeFile(path.join(fixture, `${name}-1.png`), "TEST image");
+    await assert.rejects(
+      () => retainSupplierReturnEvidence(source, path.join(temp, "output")),
+      /Missing required synthetic supplier screenshots/,
+    );
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
+test("requires replacement evidence after retained void recovery", async () => {
+  const temp = await mkdtemp(path.join(tmpdir(), "helivanta-supplier-evidence-"));
+  try {
+    const source = path.join(temp, "results");
+    const fixture = path.join(source, "pharmacy-supplier-return-dispatch-specs", "attachments");
+    await mkdir(fixture, { recursive: true });
+    for (const name of [
+      "commercial-return-note-print",
+      "supplier-credit-recovered",
+      "supplier-credit-matched",
+      "supplier-credit-match-reversed",
+      "supplier-credit-applied",
+      "supplier-credit-application-reversed",
+      "supplier-credit-voided",
     ])
       await writeFile(path.join(fixture, `${name}-1.png`), "TEST image");
     await assert.rejects(

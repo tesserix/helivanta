@@ -204,7 +204,7 @@ func TestSupplierReturnCreditAllocationRecoveryScopeAndNetZeroPaymentVersion(t *
 	payment := uuid.Must(uuid.NewV7()).String()
 	paid := do(w.r, "PUT", payableRoot()+"/payables/"+bill+"/payments/"+payment, "editor", `{"kind":"payment","amount_minor":1,"currency":"INR","paid_by":"TEST Finance operator","method":"bank","source_reference":"TEST-NET-ZERO-PAY","occurred_on":"2026-11-19","reason":"TEST changes the bill observation","reversal_of":null}`)
 	require.Equal(t, 200, paid.Code, paid.Body.String())
-	reversed := do(w.r, "PUT", payableRoot()+"/payables/"+bill+"/payments/"+uuid.Must(uuid.NewV7()).String(), "editor", fmt.Sprintf(`{"kind":"payment_reversal","amount_minor":1,"currency":"INR","paid_by":"TEST Finance operator","method":"bank","source_reference":"TEST-NET-ZERO-REVERSE","occurred_on":"2026-11-20","reason":"TEST restores balance but not version","reversal_of":%q}`, payment))
+	reversed := do(w.r, "PUT", payableRoot()+"/payables/"+bill+"/adjustments/"+uuid.Must(uuid.NewV7()).String(), "editor", fmt.Sprintf(`{"kind":"payment_reversal","amount_minor":1,"currency":"INR","paid_by":"TEST Finance operator","method":"bank","source_reference":"TEST-NET-ZERO-REVERSE","occurred_on":"2026-11-20","reason":"TEST restores balance but not version","reversal_of":%q}`, payment))
 	require.Equal(t, 200, reversed.Code, reversed.Body.String())
 	stale := creditJSON(t, allocationIntent(bill, 2, 250, 2, 680, 250))
 	require.Equal(t, 409, w.request("PUT", credit+"/allocations/"+uuid.Must(uuid.NewV7()).String(), "editor", stale).Code)

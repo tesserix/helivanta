@@ -1335,3 +1335,40 @@ See the [history design](../../superpowers/specs/2026-11-21-supplier-return-hist
 and [delivery plan](../../superpowers/plans/2026-11-21-supplier-return-history.md).
 Hosted native and browser acceptance and approved live rollout remain required;
 this addition does not complete #1687 or enable any locked operational capability.
+
+### Attributable supplier return dispatch (#1784)
+
+`PUT /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/dispatches/:dispatch`
+requires `pharmacy.supplier_returns.dispatch` (owner/purchasing defaults; the
+platform also grants tenant administrators), verified expected tenant and subject,
+and current exact-outlet authority. It is Stock-gated. Input is canonical
+`SupplierReturnDispatchInput`: expected draft version zero, current reviewed
+outlet licence, commercial outward reference, recipient name, explicit handoff
+instant, `handed_to_supplier` disposition and reason. Unknown, X or NDPS product
+classifications refuse dispatch; outlet evidence does not certify supplier drug
+licensing, statutory transport paperwork or tax treatment. See ADR-0075 for the
+operational release-review boundary.
+
+The whole draft dispatches atomically. Each line has one dedicated negative
+`supplier_return` quarantine movement, its current approved schedule declaration
+and original receipt lineage. Cumulative dispatch across all drafts cannot exceed
+that receipt's original units; available balance and reservations remain enforced.
+Partial movement, duplicate dispatch, cancellation after dispatch and dispatch
+after cancellation are refused. Expected credit, payables, payments and actual
+supplier credit are unaffected. No stock is silently restored by financial edits.
+
+`GET` of that exact command requires return-read authority and the original
+actor. It is private/no-store and audited, and remains baseline-available for
+response-loss recovery when new Stock writes are paused. Exact PUT replay returns
+the original receipt; changed intent or actor conflicts. Current return detail and
+history report `dispatched`/version one; original creation replay stays draft/zero.
+Outward references and recipient names are private business evidence; stock events
+continue publishing protected references only. Stock register, reconciliation and
+CSV expose signed `supplier_return_units` separately from hospital fulfilment
+`supplier_dispatch_units` and customer `return_units`.
+
+Canonical schema: `contracts/pharmacy.json`; owner: pharmacy. New append-only
+migration: `0056_pharmacy_supplier_return_dispatch`. The Shell now labels dispatched
+returns correctly; preparation/dispatch command forms and the separate actual
+credit, allocation, reversal and printable-document workflows remain tracked in
+#1784. This contract is not evidence those remaining interfaces are delivered.

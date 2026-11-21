@@ -3836,6 +3836,24 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/dispatches/:dispatch",
+          "permission": "pharmacy.supplier_returns.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/dispatches/:dispatch",
+          "permission": "pharmacy.supplier_returns.dispatch",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return",
           "permission": "pharmacy.supplier_returns.read",
           "authentication_required": true,
@@ -5250,6 +5268,13 @@
           ]
         },
         {
+          "permission": "pharmacy.supplier_returns.dispatch",
+          "roles": [
+            "pharmacy_owner",
+            "pharmacy_purchasing"
+          ]
+        },
+        {
           "permission": "pharmacy.accounts.read",
           "roles": [
             "pharmacy_owner",
@@ -6004,6 +6029,14 @@
             "pharmacy_supplier_returns",
             "pharmacy_supplier_return_lines",
             "pharmacy_supplier_return_cancellations"
+          ]
+        },
+        {
+          "id": "0056_pharmacy_supplier_return_dispatch",
+          "sql_sha256": "2c2879161fb08f32fb8f972faf341634029dd7a7dcaf695296675ae8a2f7b154",
+          "creates_tables": [
+            "pharmacy_supplier_return_dispatches",
+            "pharmacy_supplier_return_dispatch_lines"
           ]
         }
       ]

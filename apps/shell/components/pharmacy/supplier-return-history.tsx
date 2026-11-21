@@ -21,6 +21,10 @@ import { useApiMutation } from "@helivanta/api";
 import { useUrlPage } from "@/lib/use-url-page";
 import { formatPharmacyMoney } from "./currency-amount-field";
 
+function returnState(state: "draft" | "cancelled" | "dispatched") {
+  return state === "draft" ? "Draft" : state === "cancelled" ? "Cancelled" : "Dispatched";
+}
+
 export function SupplierReturnHistory({
   scope,
   canCancel,
@@ -93,7 +97,7 @@ export function SupplierReturnHistory({
                         </td>
                         <td className="p-3">{row.payee_name}</td>
                         <td className="p-3">{row.document_reference}</td>
-                        <td className="p-3">{row.state === "draft" ? "Draft" : "Cancelled"}</td>
+                        <td className="p-3">{returnState(row.state)}</td>
                         <td className="p-3 tabular-nums">
                           {formatPharmacyMoney(row.expected_credit_minor, row.currency)}
                         </td>
@@ -172,8 +176,7 @@ function SupplierReturnDetail({
             Return {detail.data.number} · {detail.data.payee_name}
           </h3>
           <p className="mt-2 text-sm">
-            Original bill {detail.data.document_reference} ·{" "}
-            {detail.data.state === "draft" ? "Draft" : "Cancelled"}
+            Original bill {detail.data.document_reference} · {returnState(detail.data.state)}
           </p>
           <p className="mt-2 text-sm">{detail.data.reason}</p>
           <div className="my-4 overflow-x-auto">

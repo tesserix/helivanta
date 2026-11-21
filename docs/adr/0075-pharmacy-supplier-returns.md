@@ -154,3 +154,32 @@ UI, physical dispatch, accepted supplier credit and printable outward notes rema
 separate unfinished delivery work. The implementation and acceptance boundaries
 are specified in
 [the history design](../superpowers/specs/2026-11-21-supplier-return-history.md).
+
+### Physical dispatch contract
+
+A new immutable dispatch command consumes the complete draft, with no partial
+posting. Input binds draft version zero, a current reviewed outlet `licence_id`,
+commercial `document_reference`, `recipient_name`, explicit RFC3339
+`handed_over_at` (at most microsecond precision), `handed_to_supplier` physical
+disposition and reason. The time cannot precede any original receipt or be in the
+future. Recording time is separate. The licence review and current approved
+product schedule declarations are retained as evidence; unknown, Schedule X and
+NDPS classifications refuse dispatch pending their separate controlled policies.
+Licence review establishes the existing outlet evidence only; it does not certify
+supplier authority, a statutory document, tax treatment or a legal return policy.
+Operational availability remains subject to the existing release review.
+
+The dispatch receipt binds the original actor, exact intent, parent return number
+and one dedicated negative `supplier_return` movement per draft line. The creation
+receipt stays immutable. Current detail/history becomes dispatched/version one;
+cancellation and dispatch are mutually exclusive. Recovery is a private audited
+actor-bound read, including when Stock is unavailable; starting a dispatch remains
+Stock-gated. Financial credit is unchanged by dispatch.
+
+Lock order is parent return, reviewed licence, sorted product schedule keys,
+sorted original receipt keys, then sorted quarantine location/batch keys. The DB
+checks cumulative dispatched quantities against each original receipt under those
+locks, and enforces the complete set of exact movement proofs at commit. Existing
+stock bucket guards preserve reservations and nonnegative balances. Every proof,
+movement, audit and outbox write commits together. This append-only migration is
+irreversible after use; rollback retains evidence and uses forward correction.

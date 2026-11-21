@@ -14,7 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy" //nolint:depguard // external test importing its own module
 	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
@@ -27,9 +29,19 @@ type supplierReturnWorld struct {
 }
 
 func newSupplierReturnWorld(t *testing.T, ownership string) supplierReturnWorld {
+	return supplierReturnWorldWithDispatch(t, ownership, false)
+}
+func supplierReturnWorldWithDispatch(t *testing.T, ownership string, dispatch bool) supplierReturnWorld {
 	t.Helper()
-	perms := []authz.Permission{pharmacy.PermCatalogueRead, pharmacy.PermCatalogueWrite, pharmacy.PermAccessManage, pharmacy.PermStockRead, pharmacy.PermStockReceive, pharmacy.PermAccountsRead, pharmacy.PermAccountsWrite, pharmacy.PermAccountsPayment, pharmacy.PermAccountsAdjust, pharmacy.PermSupplierReturnRead, pharmacy.PermSupplierReturnPrepare}
-	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"editor": testutil.TenantA, "writer": testutil.TenantA, "reader": testutil.TenantA, "sibling": testutil.TenantA, "foreign": testutil.TenantB, "denied": testutil.TenantA}, Perms: map[string][]authz.Permission{"editor": perms, "writer": perms, "reader": {pharmacy.PermSupplierReturnRead}, "sibling": perms, "foreign": perms}, Modules: []platform.Module{pharmacy.New()}})
+	perms := []authz.Permission{pharmacy.PermCatalogueRead, pharmacy.PermCatalogueWrite, pharmacy.PermAccessManage, pharmacy.PermStockRead, pharmacy.PermStockReceive, pharmacy.PermAccountsRead, pharmacy.PermAccountsWrite, pharmacy.PermAccountsPayment, pharmacy.PermAccountsAdjust, pharmacy.PermSupplierReturnRead, pharmacy.PermSupplierReturnPrepare, pharmacy.PermSupplierReturnDispatch, pharmacy.PermLicenceManage, pharmacy.PermLicenceReview, pharmacy.PermScheduleDeclare, pharmacy.PermScheduleReview}
+	var files *attachments.GCS
+	if dispatch {
+		cloud := testinfra.NewGCSProtocol(t)
+		var err error
+		files, err = attachments.NewGCS(cloud.Client, cloud.Quarantine, cloud.Released)
+		require.NoError(t, err)
+	}
+	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"editor": testutil.TenantA, "writer": testutil.TenantA, "reader": testutil.TenantA, "sibling": testutil.TenantA, "foreign": testutil.TenantB, "denied": testutil.TenantA}, Perms: map[string][]authz.Permission{"editor": perms, "writer": perms, "reader": {pharmacy.PermSupplierReturnRead}, "sibling": perms, "foreign": perms}, Modules: []platform.Module{pharmacy.New()}, Documents: files, PharmacyEvidenceEnabled: dispatch})
 	root := "/v1/pharmacy/pharmacies/" + pharmaOrganization
 	created := do(r, "PUT", root, "editor", fmt.Sprintf(`{"code":"TEST-RETURN","name":"TEST Return Pharmacy","ownership_type":%q}`, ownership))
 	require.Equal(t, 200, created.Code, created.Body.String())
@@ -39,7 +51,17 @@ func newSupplierReturnWorld(t *testing.T, ownership string) supplierReturnWorld 
 		grantCatalogue(t, r, subject, "editor")
 	}
 	grantCatalogue(t, r, "user-reader", "reader")
-	_, location, batch := stockFixture(t, r)
+	product, location, batch := stockFixture(t, r)
+	if dispatch {
+		declaration := declare(t, r, product, "H", "editor")
+		require.Equal(t, 200, review(r, product, declaration, "writer", "approved"))
+		licence := uuid.Must(uuid.NewV7()).String()
+		created := do(r, "PUT", licencePath("/licences/"+licence), "editor", licenceBody("2026-01-01", "2030-12-31"))
+		require.Equal(t, 201, created.Code, created.Body.String())
+		releaseLicenceEvidenceForTest(t, r, db, files, licence, "editor")
+		approved := do(r, "POST", licencePath("/licences/"+licence+"/review"), "writer", `{"decision":"approved","reason":"TEST independent licence check"}`)
+		require.Equal(t, 200, approved.Code, approved.Body.String())
+	}
 	w := supplierReturnWorld{r: r, db: db, bill: uuid.Must(uuid.NewV7()).String(), receipt: uuid.Must(uuid.NewV7()).String(), batch: batch, location: location}
 	received := do(r, "PUT", stockPath("movements/"+w.receipt), "editor", stockBody(location, batch, "receipt", "TEST-original-supplier-delivery", 80))
 	require.Equal(t, 200, received.Code, received.Body.String())

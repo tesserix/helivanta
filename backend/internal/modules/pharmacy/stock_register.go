@@ -86,6 +86,7 @@ type stockPosition struct {
 	SaleUnits             string    `json:"sale_units"`
 	ReturnUnits           string    `json:"return_units"`
 	QuarantineHoldUnits   string    `json:"quarantine_hold_units"`
+	SupplierReturnUnits   string    `json:"supplier_return_units"`
 	SupplierDispatchUnits string    `json:"supplier_dispatch_units"`
 }
 
@@ -176,7 +177,7 @@ func (h *catalogueHandlers) listStockPositions(c *gin.Context, params pagination
 // stockMovementKinds is every movement kind, in reconciliation order. It must
 // equal pharmacy_stock_movements_kind_check, which a test enforces: a kind
 // missing here would leave the reconciliation's parts short of closing.
-var stockMovementKinds = []string{"receipt", "correction", "release", "sale", "return", "supplier_dispatch", "quarantine_hold"}
+var stockMovementKinds = []string{"receipt", "correction", "release", "sale", "return", "supplier_dispatch", "quarantine_hold", "supplier_return"}
 
 // stockKindTotals is one signed total per movement kind, as "<kind>_units"
 // text columns over the movements aliased by prefix; period, when not empty,
@@ -197,6 +198,7 @@ type stockReconciliationTotals struct {
 	SaleUnits             string `json:"sale_units"`
 	ReturnUnits           string `json:"return_units"`
 	QuarantineHoldUnits   string `json:"quarantine_hold_units"`
+	SupplierReturnUnits   string `json:"supplier_return_units"`
 	SupplierDispatchUnits string `json:"supplier_dispatch_units"`
 	ClosingUnits          int64  `json:"closing_units"`
 	MovementCount         int64  `json:"movement_count"`

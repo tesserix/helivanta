@@ -50,6 +50,7 @@ const row = {
   return_units: "0",
   supplier_dispatch_units: "0",
   quarantine_hold_units: "0",
+  supplier_return_units: "0",
 };
 const page = (data: unknown[], cursor: string | null = null) => ({
   data,
@@ -115,6 +116,7 @@ function fixture() {
           return_units: "0",
           supplier_dispatch_units: "0",
           quarantine_hold_units: "0",
+          supplier_return_units: "0",
           closing_units: 0,
           movement_count: 2,
         }),
@@ -194,8 +196,8 @@ it("retains zero stock and opens a focused reconciliation using one frozen snaps
     "tabindex",
     "0",
   );
-  // Six movement totals are zero, including quarantine holds.
-  expect(within(table).getAllByText("0")).toHaveLength(6);
+  // All seven non-receipt movement totals are zero.
+  expect(within(table).getAllByText("0")).toHaveLength(7);
   await user.click(screen.getByRole("button", { name: "Inspect TEST-500 lot TEST-LOT at TEST-Q" }));
   expect(
     await screen.findByRole("heading", { name: "TEST-500 · TEST-LOT · TEST-Q" }),
@@ -395,6 +397,7 @@ it("renders exact cumulative decimal totals without losing units beyond Number s
             return_units: "0",
             supplier_dispatch_units: "0",
             quarantine_hold_units: "0",
+            supplier_return_units: "0",
             closing_units: 0,
             movement_count: 2,
           }),
@@ -717,6 +720,7 @@ const footed = {
   return_units: "1",
   supplier_dispatch_units: "0",
   quarantine_hold_units: "0",
+  supplier_return_units: "0",
   closing_units: 6,
 };
 

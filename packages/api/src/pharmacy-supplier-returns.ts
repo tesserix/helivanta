@@ -3,6 +3,8 @@ import { apiFetch } from "./client";
 import { pharmacyRoot, pharmacyKey } from "./pharmacy";
 import { pharmacyActorHeaders, type PharmacyActorScope } from "./pharmacy-actor";
 import {
+  pharmacySupplierReturnDispatchInputSchema,
+  pharmacySupplierReturnDispatchReceiptSchema,
   pharmacySupplierReturnSummarySchema,
   pharmacySupplierReturnDraftInputSchema,
   pharmacySupplierReturnCreationReceiptSchema,
@@ -21,6 +23,13 @@ export type PharmacySupplierReturnCancelInput = z.infer<
 >;
 export type PharmacySupplierReturnCancellation = z.infer<
   typeof pharmacySupplierReturnCancellationReceiptSchema
+>;
+
+export type PharmacySupplierReturnDispatchInput = z.infer<
+  typeof pharmacySupplierReturnDispatchInputSchema
+>;
+export type PharmacySupplierReturnDispatchReceipt = z.infer<
+  typeof pharmacySupplierReturnDispatchReceiptSchema
 >;
 
 const id = z.string().guid();
@@ -205,3 +214,82 @@ export async function listPharmacySupplierReturns(
 }
 
 export { pharmacySupplierReturnCancelInputSchema };
+
+function checkedDispatch(
+  value: unknown,
+  scope: PharmacyActorScope,
+  returnId: string,
+  commandId: string,
+): PharmacySupplierReturnDispatchReceipt {
+  const row = pharmacySupplierReturnDispatchReceiptSchema.parse(value);
+  if (
+    !sameID(row.id, commandId) ||
+    !sameID(row.return_id, returnId) ||
+    !sameID(row.outlet_id, scope.outletId) ||
+    row.dispatched_by !== scope.subject ||
+    new Set(row.lines.map((line) => line.return_line_id.toLowerCase())).size !== row.lines.length ||
+    new Set(row.lines.map((line) => line.movement_id.toLowerCase())).size !== row.lines.length
+  ) {
+    throw new Error(
+      "Could not verify the original supplier return dispatch; recover it before continuing.",
+    );
+  }
+  return row;
+}
+export function supplierReturnDispatchKey(
+  scope: PharmacyActorScope,
+  returnId: string,
+  commandId: string,
+) {
+  return [...pharmacySupplierReturnKey(scope, returnId), "dispatch", commandId] as const;
+}
+function dispatchMicros(value: string) {
+  const fraction = value.match(/\.(\d+)(?:Z|[+-]\d{2}:\d{2})$/)?.[1] ?? "";
+  if (fraction.length > 6)
+    throw new Error("Supplier return handoff time supports at most microsecond precision.");
+  return BigInt(Date.parse(value)) * 1000n + BigInt(fraction.padEnd(6, "0").slice(3));
+}
+export async function dispatchPharmacySupplierReturn(
+  scope: PharmacyActorScope,
+  returnId: string,
+  commandId: string,
+  input: PharmacySupplierReturnDispatchInput,
+) {
+  const normalized = pharmacySupplierReturnDispatchInputSchema.parse(input);
+  dispatchMicros(normalized.handed_over_at);
+  const value = await apiFetch(`${root(scope, returnId)}/dispatches/${id.parse(commandId)}`, {
+    method: "PUT",
+    body: JSON.stringify(normalized),
+    ...request(scope),
+  });
+  const row = checkedDispatch(value, scope, returnId, commandId);
+  for (const field of [
+    "licence_id",
+    "document_reference",
+    "recipient_name",
+    "physical_disposition",
+    "reason",
+  ] as const) {
+    if (row[field] !== normalized[field])
+      throw new Error(
+        "Supplier return dispatch did not match the submitted handoff; recover it before continuing.",
+      );
+  }
+  if (dispatchMicros(row.handed_over_at) !== dispatchMicros(normalized.handed_over_at))
+    throw new Error(
+      "Supplier return dispatch time could not be verified; recover it before continuing.",
+    );
+  return row;
+}
+export async function recoverPharmacySupplierReturnDispatch(
+  scope: PharmacyActorScope,
+  returnId: string,
+  commandId: string,
+) {
+  return checkedDispatch(
+    await apiFetch(`${root(scope, returnId)}/dispatches/${id.parse(commandId)}`, request(scope)),
+    scope,
+    returnId,
+    commandId,
+  );
+}

@@ -8,6 +8,44 @@ const identifier = z
     /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     "Choose a valid record.",
   );
+export const pharmacySupplierReturnDispatchInputSchema = z
+  .object({
+    expected_version: z.number().int().min(0).max(0),
+    licence_id: identifier,
+    document_reference: z.string().trim().min(1).max(100),
+    recipient_name: z.string().trim().min(1).max(200),
+    handed_over_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+    physical_disposition: z.enum(["handed_to_supplier"]),
+    reason: z.string().trim().min(1).max(500),
+  })
+  .strict();
+
+export const pharmacySupplierReturnDispatchLineSchema = z
+  .object({
+    return_line_id: identifier,
+    movement_id: identifier,
+  })
+  .strict();
+
+export const pharmacySupplierReturnDispatchReceiptSchema = pharmacySupplierReturnDispatchInputSchema
+  .extend({
+    id: identifier,
+    outlet_id: identifier,
+    return_id: identifier,
+    number: z.number().int().min(1).max(1000000000000),
+    version: z.number().int().min(1).max(1),
+    state: z.enum(["dispatched"]),
+    licence_review_id: identifier,
+    lines: z.array(pharmacySupplierReturnDispatchLineSchema).min(1).max(100),
+    dispatched_by: z.string().min(1).max(200),
+    recorded_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+  })
+  .strict();
+
 export const pharmacySupplierReturnDraftLineInputSchema = z
   .object({
     receipt_id: identifier,
@@ -66,7 +104,7 @@ export const pharmacySupplierReturnCreationReceiptSchema = z
 
 export const pharmacySupplierReturnViewSchema = pharmacySupplierReturnCreationReceiptSchema
   .extend({
-    state: z.enum(["draft", "cancelled"]),
+    state: z.enum(["draft", "cancelled", "dispatched"]),
     version: z.number().int().min(0).max(1),
   })
   .strict();
@@ -84,7 +122,7 @@ export const pharmacySupplierReturnSummarySchema = z
       .string()
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
     line_count: z.number().int().min(1).max(100),
-    state: z.enum(["draft", "cancelled"]),
+    state: z.enum(["draft", "cancelled", "dispatched"]),
     version: z.number().int().min(0).max(1),
   })
   .strict();
@@ -441,6 +479,7 @@ export const pharmacyStockMovementReceiptSchema = pharmacyMovementInputSchema
       "return",
       "supplier_dispatch",
       "quarantine_hold",
+      "supplier_return",
     ]),
     id: identifier,
     outlet_id: identifier,

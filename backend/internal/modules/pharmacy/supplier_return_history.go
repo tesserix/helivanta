@@ -43,8 +43,8 @@ func (h *catalogueHandlers) listSupplierReturns(c *gin.Context, params paginatio
 	err = h.transaction(ctx, p, outlet, false, func(tx *gorm.DB) error {
 		const columns = `id,outlet_id,number,payee_name,document_reference,currency,expected_credit_minor,line_count,created_at,
    to_char(created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS prepared_at,
-   CASE WHEN EXISTS(SELECT 1 FROM pharmacy_supplier_return_cancellations c WHERE c.tenant_id=pharmacy_supplier_returns.tenant_id AND c.outlet_id=pharmacy_supplier_returns.outlet_id AND c.return_id=pharmacy_supplier_returns.id)THEN 'cancelled' ELSE 'draft' END state,
-   CASE WHEN EXISTS(SELECT 1 FROM pharmacy_supplier_return_cancellations c WHERE c.tenant_id=pharmacy_supplier_returns.tenant_id AND c.outlet_id=pharmacy_supplier_returns.outlet_id AND c.return_id=pharmacy_supplier_returns.id)THEN 1 ELSE 0 END version`
+   CASE WHEN EXISTS(SELECT 1 FROM pharmacy_supplier_return_cancellations c WHERE c.tenant_id=pharmacy_supplier_returns.tenant_id AND c.outlet_id=pharmacy_supplier_returns.outlet_id AND c.return_id=pharmacy_supplier_returns.id)THEN 'cancelled' WHEN EXISTS(SELECT 1 FROM pharmacy_supplier_return_dispatches d WHERE d.tenant_id=pharmacy_supplier_returns.tenant_id AND d.outlet_id=pharmacy_supplier_returns.outlet_id AND d.return_id=pharmacy_supplier_returns.id)THEN 'dispatched' ELSE 'draft' END state,
+   CASE WHEN EXISTS(SELECT 1 FROM pharmacy_supplier_return_cancellations c WHERE c.tenant_id=pharmacy_supplier_returns.tenant_id AND c.outlet_id=pharmacy_supplier_returns.outlet_id AND c.return_id=pharmacy_supplier_returns.id)THEN 1 WHEN EXISTS(SELECT 1 FROM pharmacy_supplier_return_dispatches d WHERE d.tenant_id=pharmacy_supplier_returns.tenant_id AND d.outlet_id=pharmacy_supplier_returns.outlet_id AND d.return_id=pharmacy_supplier_returns.id)THEN 1 ELSE 0 END version`
 		if err := tenantdb.ApplyKeyset(tx, params).Select(columns).Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet).Find(&rows).Error; err != nil {
 			return err
 		}

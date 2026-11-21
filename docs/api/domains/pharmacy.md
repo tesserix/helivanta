@@ -1619,7 +1619,9 @@ financial retry. These client checks supplement current server authority.
 Current credit context and source choices are read through
 `/:credit/context`, `/:credit/eligible-payables` and
 `/:credit/eligible-returns` beneath the supplier-credit collection. All require
-current finance read authority and exact owner/outlet scope. Context includes the
+current finance read authority and exact owner/outlet scope. New eligible-source
+choices additionally require Payables release admission; retained credit context
+and financial history remain baseline reads under fresh authority. Context includes the
 outlet's database-derived local date, timezone and as-of timestamp. Payable
 choices expose positive outstanding external inventory bills for the same
 supplier and currency, with current credit/payment-inclusive balances and a

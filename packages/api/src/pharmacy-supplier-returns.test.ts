@@ -264,3 +264,48 @@ it("does not retry a physical dispatch after response loss", async () => {
   ).rejects.toBe(error);
   expect(apiFetch).toHaveBeenCalledTimes(1);
 });
+
+it("compares canonical licence IDs and preserves offset microsecond handoff intent", async () => {
+  const input = {
+    expected_version: 0,
+    licence_id: id.toUpperCase(),
+    document_reference: "TEST-OUT",
+    recipient_name: "TEST Supplier",
+    handed_over_at: "2026-11-21T05:30:00.123456+05:30",
+    physical_disposition: "handed_to_supplier" as const,
+    reason: "TEST handoff",
+  };
+  const row = {
+    ...input,
+    licence_id: id,
+    handed_over_at: "2026-11-21T00:00:00.123456Z",
+    id,
+    return_id: id,
+    outlet_id: scope.outletId,
+    number: 1,
+    version: 1,
+    state: "dispatched",
+    licence_review_id: id,
+    dispatched_by: scope.subject,
+    recorded_at: "2026-11-21T01:00:00Z",
+    lines: [{ return_line_id: id, movement_id: id }],
+  };
+  vi.mocked(apiFetch).mockResolvedValue(row);
+  expect(await client.dispatchPharmacySupplierReturn(scope, id, id, input)).toEqual(row);
+  vi.mocked(apiFetch).mockResolvedValue({ ...row, handed_over_at: "2026-11-21T00:00:00.123457Z" });
+  await expect(client.dispatchPharmacySupplierReturn(scope, id, id, input)).rejects.toThrow(/time/);
+});
+it("refuses unsupported sub-microsecond precision before sending a dispatch", async () => {
+  await expect(
+    client.dispatchPharmacySupplierReturn(scope, id, id, {
+      expected_version: 0,
+      licence_id: id,
+      document_reference: "TEST-OUT",
+      recipient_name: "TEST Supplier",
+      handed_over_at: "2026-11-21T00:00:00.1234561Z",
+      physical_disposition: "handed_to_supplier",
+      reason: "TEST handoff",
+    }),
+  ).rejects.toThrow(/precision/);
+  expect(apiFetch).not.toHaveBeenCalled();
+});

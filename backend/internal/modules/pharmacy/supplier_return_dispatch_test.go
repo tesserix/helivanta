@@ -61,7 +61,7 @@ func TestSupplierReturnDispatchRemovesQuarantineExactlyOnce(t *testing.T) {
 			balance := do(w.r, "GET", stockPath("balance?location_id="+w.location+"&batch_id="+w.batch), "editor", "")
 			require.Equal(t, 200, balance.Code, balance.Body.String())
 			require.Contains(t, balance.Body.String(), `"on_hand_units":76`)
-			snapshot := time.Now().UTC().Format(time.RFC3339Nano)
+			snapshot := time.Now().UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano)
 			reconciliation := do(w.r, "GET", stockPath("reconciliation?location_id="+w.location+"&batch_id="+w.batch+"&from=1970-01-01T00:00:00Z&as_of="+snapshot), "editor", "")
 			require.Equal(t, 200, reconciliation.Code, reconciliation.Body.String())
 			require.Contains(t, reconciliation.Body.String(), `"supplier_return_units":"-4"`)

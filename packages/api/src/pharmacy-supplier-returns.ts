@@ -270,7 +270,11 @@ export async function dispatchPharmacySupplierReturn(
     "physical_disposition",
     "reason",
   ] as const) {
-    if (row[field] !== normalized[field])
+    const matches =
+      field === "licence_id"
+        ? sameID(row[field], normalized[field])
+        : row[field] === normalized[field];
+    if (!matches)
       throw new Error(
         "Supplier return dispatch did not match the submitted handoff; recover it before continuing.",
       );

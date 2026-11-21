@@ -10,7 +10,7 @@ it.each([
   "return",
   "supplier_dispatch",
   "quarantine_hold",
- "supplier_return",
+  "supplier_return",
 ])("decodes %s from the stock ledger while preserving command authority", (kind) => {
   const schema = Reflect.get(contract, "pharmacyStockMovementReceiptSchema") as
     z.ZodType | undefined;

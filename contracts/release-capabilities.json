@@ -5893,6 +5893,11 @@
       "method": "GET",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/allocations/:allocation/context",
       "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/source-returns",
+      "capability": "pharmacy_payables"
     }
   ],
   "pages": [

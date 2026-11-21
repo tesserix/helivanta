@@ -253,3 +253,19 @@ it("uses owner identity evidence rather than requiring identical historical supp
     await client.readPharmacySupplierCreditAllocationContext(scope, credit, allocationId),
   ).toEqual(renamed);
 });
+
+it("lists dispatched sources before a first credit exists using only finance scope", async () => {
+  const page = { data: [returned], page: { has_more: false, next_cursor: null } };
+  vi.mocked(apiFetch).mockResolvedValue(page);
+  expect(await client.listPharmacySupplierCreditInitialSources(scope)).toEqual(page);
+  expect(apiFetch).toHaveBeenLastCalledWith(
+    `/pharmacy/pharmacies/${scope.pharmacyId}/outlets/${scope.outletId}/accounts/supplier-credits/source-returns?limit=50`,
+    expect.objectContaining({
+      cache: "no-store",
+      headers: {
+        "X-Helivanta-Expected-Tenant": scope.tenantId,
+        "X-Helivanta-Expected-Subject": scope.subject,
+      },
+    }),
+  );
+});

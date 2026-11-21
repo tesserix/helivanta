@@ -14,6 +14,7 @@ import (
 )
 
 func supplierCreditSourceRoutes(r *platform.Router, h *catalogueHandlers) {
+	platform.ResourceListRoute(r, "/source-returns", PermAccountsRead, 50, h.listSupplierCreditInitialSources)
 	r.GET("/:credit/context", PermAccountsRead, h.getSupplierCreditContext)
 	platform.ResourceListRoute(r, "/:credit/eligible-payables", PermAccountsRead, 50, h.listSupplierCreditPayableChoices)
 	platform.ResourceListRoute(r, "/:credit/eligible-returns", PermAccountsRead, 50, h.listSupplierCreditReturnChoices)
@@ -109,7 +110,7 @@ func (h *catalogueHandlers) listSupplierCreditReturnChoices(c *gin.Context, para
 		if err != nil {
 			return err
 		}
-		q := tenantdb.ApplyKeyset(tx, params).Table("pharmacy_supplier_returns").Select("id,outlet_id,number,payee_name,document_reference AS original_bill_reference,currency,expected_credit_minor,pharmacy_supplier_return_matched(tenant_id,outlet_id,id) AS matched_minor,created_at").Where("tenant_id=? AND outlet_id=? AND payee_reference=? AND currency=?", p.TenantID, outlet, doc.PayeeReference, doc.Fields.Currency).Where("EXISTS(SELECT 1 FROM pharmacy_supplier_return_dispatches d WHERE d.tenant_id=pharmacy_supplier_returns.tenant_id AND d.outlet_id=pharmacy_supplier_returns.outlet_id AND d.return_id=pharmacy_supplier_returns.id)")
+		q := supplierCreditReturnChoiceQuery(tx, p.TenantID, outlet, params).Where("payee_reference=? AND currency=?", doc.PayeeReference, doc.Fields.Currency)
 		if err := q.Find(&rows).Error; err != nil {
 			return err
 		}
@@ -145,3 +146,27 @@ func loadSupplierCreditContext(tx *gorm.DB, tenant string, outlet, credit uuid.U
 }
 
 const supplierCreditPayableColumns = "id,outlet_id,payee_name,document_reference,to_char(issued_on,'YYYY-MM-DD') AS issued_on,to_char(due_on,'YYYY-MM-DD') AS due_on,currency,total_minor,paid_minor,credit_minor,outstanding_minor,pharmacy_supplier_payable_version(tenant_id,outlet_id,id) AS version,created_at" // #nosec G101 -- Static SQL identifiers; no credential values.
+
+func supplierCreditReturnChoiceQuery(tx *gorm.DB, tenant string, outlet uuid.UUID, params pagination.Params) *gorm.DB {
+	return tenantdb.ApplyKeyset(tx, params).Table("pharmacy_supplier_returns").Select("id,outlet_id,number,payee_name,document_reference AS original_bill_reference,currency,expected_credit_minor,pharmacy_supplier_return_matched(tenant_id,outlet_id,id) AS matched_minor,created_at").Where("tenant_id=? AND outlet_id=?", tenant, outlet).Where("EXISTS(SELECT 1 FROM pharmacy_supplier_return_dispatches d WHERE d.tenant_id=pharmacy_supplier_returns.tenant_id AND d.outlet_id=pharmacy_supplier_returns.outlet_id AND d.return_id=pharmacy_supplier_returns.id)")
+}
+func (h *catalogueHandlers) listSupplierCreditInitialSources(c *gin.Context, params pagination.Params) ([]supplierCreditReturnChoiceRow, error) {
+	p, outlet, ok := supplierReturnScope(c)
+	if !ok || !pharmacyFinancialCursorRead(c) {
+		return nil, nil
+	}
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 15*time.Second)
+	defer cancel()
+	rows := []supplierCreditReturnChoiceRow{}
+	err := h.transaction(ctx, p, outlet, false, func(tx *gorm.DB) error {
+		if err := supplierCreditReturnChoiceQuery(tx, p.TenantID, outlet, params).Find(&rows).Error; err != nil {
+			return err
+		}
+		return auditRegisterRead(c, tx, "supplier_credit_initial_sources", p.TenantID, p.Subject, outlet, "list_read")
+	})
+	if err != nil {
+		supplierCreditError(c, err)
+		return nil, nil
+	}
+	return rows, nil
+}

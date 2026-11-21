@@ -1644,3 +1644,35 @@ readable under current authority and never rewrites the original receipt.
 
 Hosted SQL/native acceptance, finance UI/report explanations and actual Global API/browser/live acceptance are still required in
 #1784.
+
+### Supplier-credit entry and retained history UI (candidate)
+
+Accounts includes a Supplier credits tab under current accounts-read authority.
+It shows human credit/supplier/bill references and keeps actual amount, return
+attribution, bill applications and unused pool distinct. Account labels use the
+authorised presentation component instead of displaying recorder subjects.
+Current history/detail failures hide cached records and verified-reference
+notices. No deployed acceptance or feature activation is implied.
+
+New recording requires outlet editor authority, accounts-adjust permission and
+Payables availability. Its bounded `GET /accounts/supplier-credits/source-returns`
+selector uses accounts-read, Payables admission and exact current outlet scope;
+it exposes dispatched financial references without granting physical return or
+stock permission. It works before an actual credit exists. The supplied note
+reference, issue date, positive actual amount and reason remain explicit; expected
+return value never defaults the actual amount.
+
+The form stores only a command reference bound to tenant, actor, pharmacy and
+outlet before submission. Uncertain responses retain it. Recovery verifies actor
+and scope, plus the retained intent when available. After remount, a missing
+original can be re-entered with that same reference; an immutable recorded
+command cannot be overwritten or duplicated by changing the input. No automatic
+financial retry occurs. Recovery reads remain available when new recording is
+disabled. The hosted dispatch browser journey now additionally exercises a lost
+actual-credit response and recovery, actual versus expected amounts, unchanged
+bill liability and human-only rendered references. Latest hosted evidence is
+required before claiming that journey passed.
+
+Matching, allocation, void/correction and reversal UI, complete bill history/report
+integration, remaining Global API E2E and approved live acceptance remain open in
+#1784.

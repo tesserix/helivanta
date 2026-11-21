@@ -147,23 +147,24 @@ func TestDisabledPayablesHideCreditSourceChoicesButRetainEvidence(t *testing.T) 
 	require.NoError(t, service.Refresh(t.Context()))
 	const base = "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit"
 	for _, tc := range []struct {
-		suffix string
-		want   int
+		path string
+		want int
 	}{
-		{"/eligible-payables", http.StatusNotFound},
-		{"/eligible-returns", http.StatusNotFound},
-		{"/context", http.StatusNoContent},
-		{"/allocations", http.StatusNoContent},
-		{"/allocations/:allocation/recovery", http.StatusNoContent},
-		{"/allocations/:allocation/context", http.StatusNoContent},
+		{strings.TrimSuffix(base, "/:credit") + "/source-returns", http.StatusNotFound},
+		{base + "/eligible-payables", http.StatusNotFound},
+		{base + "/eligible-returns", http.StatusNotFound},
+		{base + "/context", http.StatusNoContent},
+		{base + "/allocations", http.StatusNoContent},
+		{base + "/allocations/:allocation/recovery", http.StatusNoContent},
+		{base + "/allocations/:allocation/context", http.StatusNoContent},
 	} {
-		t.Run(tc.suffix, func(t *testing.T) {
+		t.Run(tc.path, func(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			engine := gin.New()
 			engine.Use(func(c *gin.Context) {
 				c.Set("authn.principal", authn.Principal{TenantID: "018f8f5b-1111-7111-8111-111111111111", Subject: "TEST-owner"})
 			})
-			route := base + tc.suffix
+			route := tc.path
 			called := false
 			engine.GET(route, service.Admission(http.MethodGet, route), func(c *gin.Context) { called = true; c.Status(http.StatusNoContent) })
 			response := httptest.NewRecorder()

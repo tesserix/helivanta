@@ -293,3 +293,10 @@ it("propagates refusal or uncertain transport without inventing a receipt or ret
   await expect(client.recordPharmacySupplierCredit(scope, credit, input)).rejects.toBe(error);
   expect(apiFetch).toHaveBeenCalledTimes(1);
 });
+
+it("refuses an original recovery receipt that differs from a retained financial intent", async () => {
+  vi.mocked(apiFetch).mockResolvedValue({ ...receipt, reason: "TEST different original intent" });
+  await expect(
+    client.recoverPharmacySupplierCredit(scope, credit, undefined, input),
+  ).rejects.toThrow();
+});

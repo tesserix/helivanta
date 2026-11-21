@@ -145,8 +145,9 @@ required; this owner read does not complete them.
 
 ## Finance UI acceptance prerequisites
 
-- Finance users need a bounded dispatched-return source picker before the first
-  actual credit exists. Accounts authority must not silently require granting
+- Finance users use the bounded dispatched-return source picker at
+  `/accounts/supplier-credits/source-returns` before the first actual credit
+  exists (development candidate; hosted acceptance pending). Accounts authority must not silently require granting
   physical return/stock authority or manually entering backend identifiers.
 - Match reversal needs a single authorised current match/return context. The
   return's net attributed amount includes other credit documents; the original

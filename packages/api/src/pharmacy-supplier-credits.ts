@@ -117,12 +117,19 @@ export async function recoverPharmacySupplierCredit(
   scope: PharmacyActorScope,
   credit: string,
   signal?: AbortSignal,
+  expectedInput?: PharmacySupplierCreditInput,
 ) {
-  return checkedReceipt(
+  const expected =
+    expectedInput === undefined
+      ? undefined
+      : documentIntent(pharmacySupplierCreditDocumentInputSchema.parse(expectedInput));
+  const row = checkedReceipt(
     scope,
     credit,
     await apiFetch(`${root(scope, credit)}/recovery`, request(scope, signal)),
   );
+  if (expected !== undefined && documentIntent(row) !== expected) return mismatch();
+  return row;
 }
 
 const cursorSchema = z.string().min(1).max(4096);
@@ -762,6 +769,12 @@ export async function listPharmacySupplierCreditPayableChoices(
       return mismatch();
   return page;
 }
+function checkedReturnChoices(scope: PharmacyActorScope, value: unknown, cursor: string | null) {
+  const page = returnChoicePage.parse(value);
+  checkCreditContinuation(page, cursor);
+  for (const row of page.data) if (!sameID(row.outlet_id, scope.outletId)) return mismatch();
+  return page;
+}
 export async function listPharmacySupplierCreditReturnChoices(
   scope: PharmacyActorScope,
   credit: string,
@@ -770,12 +783,27 @@ export async function listPharmacySupplierCreditReturnChoices(
 ) {
   const query = new URLSearchParams({ limit: "50" });
   if (cursor !== null) query.set("cursor", cursorSchema.parse(cursor));
-  const page = returnChoicePage.parse(
+  return checkedReturnChoices(
+    scope,
     await apiFetch(`${root(scope, credit)}/eligible-returns?${query}`, request(scope, signal)),
+    cursor,
   );
-  checkCreditContinuation(page, cursor);
-  for (const row of page.data) if (!sameID(row.outlet_id, scope.outletId)) return mismatch();
-  return page;
+}
+export async function listPharmacySupplierCreditInitialSources(
+  scope: PharmacyActorScope,
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  const query = new URLSearchParams({ limit: "50" });
+  if (cursor !== null) query.set("cursor", cursorSchema.parse(cursor));
+  return checkedReturnChoices(
+    scope,
+    await apiFetch(
+      `${pharmacyRoot(scope)}/accounts/supplier-credits/source-returns?${query}`,
+      request(scope, signal),
+    ),
+    cursor,
+  );
 }
 
 export type PharmacySupplierCreditAllocationContext = z.infer<

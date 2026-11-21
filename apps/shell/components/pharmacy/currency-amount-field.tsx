@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, type Ref } from "react";
 import { Input } from "@tesserix/web";
 import { Field } from "@helivanta/ui";
 import { countryConfiguration } from "@helivanta/api";
@@ -33,6 +33,8 @@ export function CurrencyAmountField({
   error,
   disabled,
   onChange,
+  inputRef,
+  onBlur,
 }: {
   id: string;
   label: string;
@@ -41,6 +43,8 @@ export function CurrencyAmountField({
   error?: string;
   disabled?: boolean;
   onChange: (minor: number) => void;
+  inputRef?: Ref<HTMLInputElement>;
+  onBlur?: () => void;
 }) {
   const digits = currencyDigits(currency);
   const scale = 10n ** BigInt(digits);
@@ -69,6 +73,8 @@ export function CurrencyAmountField({
     >
       <Input
         id={id}
+        ref={inputRef}
+        onBlur={onBlur}
         inputMode="decimal"
         maxLength={20}
         value={value}

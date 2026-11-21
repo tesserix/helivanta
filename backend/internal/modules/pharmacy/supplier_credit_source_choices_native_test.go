@@ -119,9 +119,9 @@ func TestSupplierReturnCreditSourceChoicesAuditFailureDoesNotDisclose(t *testing
 		apply("ALTER TABLE audit_events DROP CONSTRAINT IF EXISTS synthetic_credit_source_read_failure")
 	}
 	t.Cleanup(clear)
-	apply("ALTER TABLE audit_events ADD CONSTRAINT synthetic_credit_source_read_failure CHECK(resource_type NOT IN('pharmacy_supplier_credit_context','pharmacy_supplier_credit_payable_choices','pharmacy_supplier_credit_return_choices')) NOT VALID")
-	for _, suffix := range []string{"/context", "/eligible-payables", "/eligible-returns"} {
-		failed := w.request("GET", credit+suffix, "reader", "")
+	apply("ALTER TABLE audit_events ADD CONSTRAINT synthetic_credit_source_read_failure CHECK(resource_type NOT IN('pharmacy_supplier_credit_context','pharmacy_supplier_credit_payable_choices','pharmacy_supplier_credit_return_choices','pharmacy_supplier_credit_initial_sources')) NOT VALID")
+	for _, path := range []string{credit + "/context", credit + "/eligible-payables", credit + "/eligible-returns", payableRoot() + "/supplier-credits/source-returns"} {
+		failed := w.request("GET", path, "reader", "")
 		require.Equal(t, 503, failed.Code, failed.Body.String())
 		require.NotContains(t, failed.Body.String(), "TEST-CHOICE-PRIVATE")
 		require.NotContains(t, failed.Body.String(), "TEST External Supplier")
@@ -136,8 +136,8 @@ func TestSupplierReturnCreditSourceChoicesAuditFailureDoesNotDisclose(t *testing
 		require.EqualValues(t, 2, count)
 		return nil
 	}))
-	for _, suffix := range []string{"/context", "/eligible-payables", "/eligible-returns"} {
-		read := w.request("GET", credit+suffix, "reader", "")
+	for _, path := range []string{credit + "/context", credit + "/eligible-payables", credit + "/eligible-returns", payableRoot() + "/supplier-credits/source-returns"} {
+		read := w.request("GET", path, "reader", "")
 		require.Equal(t, 200, read.Code, read.Body.String())
 	}
 }

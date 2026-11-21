@@ -1,5 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { stocktakeKey } from "@helivanta/api";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { AccountPresentationsProvider, NavigationGuardProvider } from "@helivanta/ui";
@@ -159,3 +161,83 @@ it("inspects and cancels retained work without touching stock entry, inventory l
   );
   expect(screen.queryByRole("button", { name: "Start stocktake" })).not.toBeInTheDocument();
 });
+
+it.each([403, 409, 503])(
+  "hides retained status after a %s refresh and rechecks current access",
+  async (status) => {
+    let refused = false;
+    const namedTake = { ...take, started_by: "TEST-starter" };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("account-presentations"))
+          return json({
+            tenant_id: scope.tenantId,
+            actor_subject: scope.subject,
+            data: JSON.parse(String(init?.body)).subjects.map((subject: string) => ({
+              subject,
+              available: true,
+              name: "TEST Stock Lead",
+              email: "test@example.invalid",
+              roles: [],
+            })),
+          });
+        if (url.endsWith(`/${take.id}`))
+          return refused
+            ? new Response(
+                JSON.stringify({ error: "unavailable", message: "TEST retained status refused" }),
+                { status },
+              )
+            : json({
+                ...namedTake,
+                counted_rows: 2,
+                difference_rows: 1,
+                positive_difference_rows: 0,
+                review_relationship: "independent",
+              });
+        if (url.includes("/stock/stocktakes?"))
+          return json({ data: [namedTake], page: { next_cursor: null, has_more: false } });
+        throw new Error("Unexpected TEST endpoint");
+      }),
+    );
+    function RefreshFixture() {
+      const client = useQueryClient();
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => void client.invalidateQueries({ queryKey: stocktakeKey(scope) })}
+          >
+            Refresh current retained status
+          </button>
+          <StocktakeContinuations scope={scope} timeZone="Asia/Kolkata" canCancel />
+        </>
+      );
+    }
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <AccountPresentationsProvider scope={{ tenantId: scope.tenantId, subject: scope.subject }}>
+          <RefreshFixture />
+        </AccountPresentationsProvider>
+      </NavigationGuardProvider>,
+    );
+    await user.click(await screen.findByRole("button", { name: "Inspect stocktake 1" }));
+    expect(await screen.findByRole("heading", { name: "Stocktake 1" })).toBeVisible();
+    expect(await screen.findByText("TEST Stock Lead")).toBeVisible();
+    refused = true;
+    await user.click(screen.getByRole("button", { name: "Refresh current retained status" }));
+    await screen.findByRole("alert");
+    expect(screen.queryByRole("heading", { name: "Stocktake 1" })).not.toBeInTheDocument();
+    expect(screen.queryByText("TEST Stock Lead")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Cancel retained stocktake" }),
+    ).not.toBeInTheDocument();
+    refused = false;
+    await user.click(
+      screen.getByRole("button", {
+        name: status === 403 ? "Check retained stocktake access" : "Try again",
+      }),
+    );
+    expect(await screen.findByRole("heading", { name: "Stocktake 1" })).toBeVisible();
+  },
+);

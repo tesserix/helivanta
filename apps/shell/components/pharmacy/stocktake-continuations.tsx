@@ -49,7 +49,7 @@ export function StocktakeContinuations({
         />
       </div>
     );
-  const current = header.data;
+  const current = header.error ? undefined : header.data;
   return (
     <div className="flex flex-col gap-4">
       {recoveryPanel}
@@ -70,6 +70,7 @@ export function StocktakeContinuations({
             message="The retained stocktake status is unavailable. New decisions are paused."
             error={header.error}
             retry={() => void header.refetch()}
+            recheck="Check retained stocktake access"
           />
         )}
         {!current ? (

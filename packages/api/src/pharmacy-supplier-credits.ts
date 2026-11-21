@@ -2,6 +2,11 @@ import { apiFetch } from "./client";
 import { pharmacyKey, pharmacyRoot } from "./pharmacy";
 import { pharmacyActorHeaders, type PharmacyActorScope } from "./pharmacy-actor";
 import {
+  pharmacySupplierCreditAllocationInputSchema,
+  pharmacySupplierCreditAllocationReceiptSchema,
+  pharmacySupplierCreditAllocationViewSchema,
+  pharmacySupplierCreditAllocationReversalInputSchema,
+  pharmacySupplierCreditAllocationReversalReceiptSchema,
   pharmacySupplierCreditDocumentInputSchema,
   pharmacySupplierCreditDocumentReceiptSchema,
   pharmacySupplierCreditDocumentViewSchema,
@@ -460,3 +465,237 @@ export async function readPharmacySupplierCredit(
   return checkedView(scope, credit, await apiFetch(root(scope, credit), request(scope, signal)));
 }
 import { z } from "zod";
+
+export type PharmacySupplierCreditAllocationInput = z.infer<
+  typeof pharmacySupplierCreditAllocationInputSchema
+>;
+export type PharmacySupplierCreditAllocationReceipt = z.infer<
+  typeof pharmacySupplierCreditAllocationReceiptSchema
+>;
+function checkedAllocation(
+  scope: PharmacyActorScope,
+  credit: string,
+  allocation: string,
+  value: unknown,
+) {
+  const row = pharmacySupplierCreditAllocationReceiptSchema.parse(value);
+  if (
+    !sameID(row.credit_id, credit) ||
+    !sameID(row.id, allocation) ||
+    !sameID(row.outlet_id, scope.outletId) ||
+    row.version !== row.expected_version + 1 ||
+    row.payable_version !== row.expected_payable_version + 1 ||
+    row.available_minor !== row.expected_available_minor - row.amount_minor ||
+    row.outstanding_minor !== row.expected_outstanding_minor - row.amount_minor
+  )
+    return mismatch();
+  return row;
+}
+function allocationIntent(value: PharmacySupplierCreditAllocationInput) {
+  const input = pharmacySupplierCreditAllocationInputSchema.strip().parse(value);
+  return JSON.stringify({ ...input, payable_id: input.payable_id.toLowerCase() });
+}
+export async function allocatePharmacySupplierCredit(
+  scope: PharmacyActorScope,
+  credit: string,
+  allocation: string,
+  input: PharmacySupplierCreditAllocationInput,
+  signal?: AbortSignal,
+) {
+  const body = pharmacySupplierCreditAllocationInputSchema.parse(input);
+  if (
+    body.amount_minor > body.expected_available_minor ||
+    body.amount_minor > body.expected_outstanding_minor
+  )
+    return mismatch();
+  const row = checkedAllocation(
+    scope,
+    credit,
+    allocation,
+    await apiFetch(`${root(scope, credit)}/allocations/${identifier.parse(allocation)}`, {
+      ...request(scope, signal),
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  );
+  if (row.recorded_by !== scope.subject || allocationIntent(row) !== allocationIntent(body))
+    return mismatch();
+  return row;
+}
+
+function checkedAllocationView(
+  scope: PharmacyActorScope,
+  credit: string,
+  allocation: string,
+  value: unknown,
+) {
+  const row = pharmacySupplierCreditAllocationViewSchema.parse(value);
+  checkedAllocation(
+    scope,
+    credit,
+    allocation,
+    pharmacySupplierCreditAllocationReceiptSchema.strip().parse(row),
+  );
+  return row;
+}
+export async function readPharmacySupplierCreditAllocation(
+  scope: PharmacyActorScope,
+  credit: string,
+  allocation: string,
+  signal?: AbortSignal,
+) {
+  return checkedAllocationView(
+    scope,
+    credit,
+    allocation,
+    await apiFetch(
+      `${root(scope, credit)}/allocations/${identifier.parse(allocation)}`,
+      request(scope, signal),
+    ),
+  );
+}
+export async function recoverPharmacySupplierCreditAllocation(
+  scope: PharmacyActorScope,
+  credit: string,
+  allocation: string,
+  signal?: AbortSignal,
+) {
+  const row = checkedAllocation(
+    scope,
+    credit,
+    allocation,
+    await apiFetch(
+      `${root(scope, credit)}/allocations/${identifier.parse(allocation)}/recovery`,
+      request(scope, signal),
+    ),
+  );
+  if (row.recorded_by !== scope.subject) return mismatch();
+  return row;
+}
+
+export type PharmacySupplierCreditAllocationReversalInput = z.infer<
+  typeof pharmacySupplierCreditAllocationReversalInputSchema
+>;
+export type PharmacySupplierCreditAllocationReversalReceipt = z.infer<
+  typeof pharmacySupplierCreditAllocationReversalReceiptSchema
+>;
+function checkedAllocationReversal(
+  scope: PharmacyActorScope,
+  credit: string,
+  allocation: string,
+  value: unknown,
+) {
+  const row = pharmacySupplierCreditAllocationReversalReceiptSchema.parse(value);
+  if (
+    !sameID(row.credit_id, credit) ||
+    !sameID(row.allocation_id, allocation) ||
+    !sameID(row.outlet_id, scope.outletId) ||
+    row.version !== row.expected_version + 1 ||
+    row.payable_version !== row.expected_payable_version + 1 ||
+    row.available_minor !== row.expected_available_minor + row.amount_minor ||
+    row.outstanding_minor !== row.expected_outstanding_minor + row.amount_minor
+  )
+    return mismatch();
+  return row;
+}
+export async function reversePharmacySupplierCreditAllocation(
+  scope: PharmacyActorScope,
+  credit: string,
+  original: PharmacySupplierCreditAllocationReceipt,
+  entry: string,
+  input: PharmacySupplierCreditAllocationReversalInput,
+  signal?: AbortSignal,
+) {
+  const allocation = checkedAllocation(
+    scope,
+    credit,
+    original.id,
+    pharmacySupplierCreditAllocationReceiptSchema.strip().parse(original),
+  );
+  const body = pharmacySupplierCreditAllocationReversalInputSchema.parse(input);
+  if (
+    body.expected_available_minor + allocation.amount_minor > 1000000000000 ||
+    body.expected_outstanding_minor + allocation.amount_minor > 1000000000000
+  )
+    return mismatch();
+  const row = checkedAllocationReversal(
+    scope,
+    credit,
+    allocation.id,
+    await apiFetch(
+      `${root(scope, credit)}/allocations/${identifier.parse(allocation.id)}/reversals/${identifier.parse(entry)}`,
+      {
+        ...request(scope, signal),
+        method: "PUT",
+        body: JSON.stringify(body),
+      },
+    ),
+  );
+  if (
+    !sameID(row.id, entry) ||
+    row.recorded_by !== scope.subject ||
+    !sameID(row.payable_id, allocation.payable_id) ||
+    row.amount_minor !== allocation.amount_minor ||
+    row.payable_reference !== allocation.payable_reference ||
+    row.credit_document_reference !== allocation.credit_document_reference ||
+    row.payee_name !== allocation.payee_name ||
+    JSON.stringify(pharmacySupplierCreditAllocationReversalInputSchema.strip().parse(row)) !==
+      JSON.stringify(body)
+  )
+    return mismatch();
+  return row;
+}
+
+const allocationPage = creditPage.extend({
+  data: z.array(pharmacySupplierCreditAllocationViewSchema).max(50),
+});
+export async function listPharmacySupplierCreditAllocations(
+  scope: PharmacyActorScope,
+  credit: string,
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  const query = new URLSearchParams({ limit: "50" });
+  if (cursor !== null) query.set("cursor", cursorSchema.parse(cursor));
+  const page = allocationPage.parse(
+    await apiFetch(`${root(scope, credit)}/allocations?${query}`, request(scope, signal)),
+  );
+  checkCreditContinuation(page, cursor);
+  for (const row of page.data) checkedAllocationView(scope, credit, row.id, row);
+  return page;
+}
+export async function readPharmacySupplierCreditAllocationReversal(
+  scope: PharmacyActorScope,
+  credit: string,
+  allocation: string,
+  signal?: AbortSignal,
+) {
+  return checkedAllocationReversal(
+    scope,
+    credit,
+    allocation,
+    await apiFetch(
+      `${root(scope, credit)}/allocations/${identifier.parse(allocation)}/reversal`,
+      request(scope, signal),
+    ),
+  );
+}
+export async function recoverPharmacySupplierCreditAllocationReversal(
+  scope: PharmacyActorScope,
+  credit: string,
+  allocation: string,
+  entry: string,
+  signal?: AbortSignal,
+) {
+  const row = checkedAllocationReversal(
+    scope,
+    credit,
+    allocation,
+    await apiFetch(
+      `${root(scope, credit)}/allocations/${identifier.parse(allocation)}/reversals/${identifier.parse(entry)}/recovery`,
+      request(scope, signal),
+    ),
+  );
+  if (!sameID(row.id, entry) || row.recorded_by !== scope.subject) return mismatch();
+  return row;
+}

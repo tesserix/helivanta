@@ -1608,5 +1608,14 @@ versions, latest actor and net amounts. Journal, projection, audit and minimal
 outbox notification commit together. Audit/dependency/proof failure is503 with no
 partial result; recover the original reference before fresh intent. Neither
 allocation nor reversal moves stock, captures/refunds cash or decides tax/ITC/GL.
-Hosted SQL/native acceptance, source selectors/indexes, UI/SDK/report explanations
-and actual Global API/browser/live acceptance are still required in #1784.
+The SDK verifies allocation intent, actor-bound recovery, exact credit and bill
+versions, and both post-command balance equations. Reversal submission takes the
+original allocation receipt to verify the original bill, human references,
+supplier and full amount. Normal history retains authorised recorders and
+reversal references; bounded collections reject duplicate rows and inconsistent
+continuation metadata. Transport/dependency errors do not trigger automatic
+financial retry. These client checks supplement current server authority.
+
+Hosted SQL/native acceptance, source selectors/indexes, finance UI/report
+explanations and actual Global API/browser/live acceptance are still required in
+#1784.

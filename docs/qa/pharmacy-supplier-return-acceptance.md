@@ -106,24 +106,27 @@ These SDK tests do not substitute for a real Global API/browser financial journe
 Matching and allocation/reversal have separate owner-native and SDK scenarios;
 do not claim financial settlement from document-stage acceptance alone.
 
-The matching candidate adds `supplier_credit_matching_native_test.go`. Its hosted
-baseline at `0d3ee674` reached the first match after actual document/dispatch setup
-and observed expected200/actual404 in all three ownership models (workflow
-44903792286, job136845006033). The wired candidate still needs hosted execution
-before it can be called accepted. It covers partial/combined attribution without
+The matching native scenarios in `supplier_credit_matching_native_test.go` passed
+at `49907284` in [CI 44907133122](https://github.com/tesserix/helivanta/actions/runs/44907133122)
+and [supplier workflow 44907133061](https://github.com/tesserix/helivanta/actions/runs/44907133061).
+They cover all three ownership models, partial/combined attribution without
 spending credit, cross-document stale totals and explicit excess rationale,
 immutable full reversal and original recovery after void, bounded history,
 foreign tenant/outlet/actor and readonly denial, actual grant revocation, different
 supplier/draft/unknown source, projection edit refusal and audit/outbox rollback
-for both match and reversal. Matching UI, source selectors and full payable
-allocation remain separate unfinished work. No live matching test is claimed.
+for both match and reversal. Owner allocation/reversal also passed its separate
+head gates in [CI 44923078989](https://github.com/tesserix/helivanta/actions/runs/44923078989);
+current financial contexts passed in [CI 44924265641](https://github.com/tesserix/helivanta/actions/runs/44924265641).
+Keep UI, latest integrated hosted/visual evidence and deployed operational
+acceptance distinct from those owner-native results. Matching alone does not
+prove bill settlement. No live matching test is claimed.
 
 The matching SDK is covered by
 `packages/api/src/pharmacy-supplier-credit-matching.test.ts`: exact scope, original
 intent, explained excess, version/return-total arithmetic, original-amount reversal,
 cross-actor history versus recovery, bounded/unique pages, cancellation and no
 automatic second intent after uncertain transport. These tests and the document
-SDK suite pass together (86 cases); they do not establish browser or live acceptance.
+SDK suite must pass together; they do not establish browser or live acceptance.
 
 ## Record and recover actual supplier credit
 
@@ -159,8 +162,43 @@ SDK suite pass together (86 cases); they do not establish browser or live accept
 The hosted spec extends the existing dispatch journey with real credit entry and
 response-loss recovery, then captures `supplier-credit-recovered` for visual review.
 Local component/SDK tests do not substitute for that hosted run or live acceptance.
-Matching, bill application, reversal and void/correction controls still require
-finance UI and complete browser acceptance; document entry is not settlement.
+Matching is now a development UI candidate; bill application, reversal and
+void/correction controls still require finance UI and complete browser acceptance.
+Document entry and matching are not bill settlement.
+
+### Match actual credit to dispatched returns
+
+1. Open the named credit and inspect **Return matching**. Retained history must
+   remain readable with operating capabilities disabled, without loading choices.
+2. With current financial editor authority and Payables availability, choose
+   **Match credit to return**, select the named dispatched return, then enter an
+   explicit amount and reason. The amount starts blank. Verify the expected
+   return value, total attribution across credit documents and this credit's
+   remaining attribution are separately labelled.
+3. Try an amount above remaining actual credit: no command may be sent. Try an
+   attribution that exceeds the return's expected value without an explanation:
+   no command may be sent until explicit supporting evidence is entered.
+4. Save once and inspect the named return's immutable history. The credit's
+   matched amount increases; its unused pool and bill liability remain unchanged.
+5. Lose the committed response in the hosted fixture, reload, reopen the named
+   credit and choose **Check original match**. Verify one matching PUT, recovery
+   of the same actor-bound command and no automatic retry. Repeat after turning
+   new recording off and when the entire actual credit is already matched.
+6. Refuse a stale observation: the actual input remains visible. Choose
+   **Refresh credit and matching sources** and review fresh observations before
+   creating a new command. Unknown outcomes must retain the reference. If browser
+   cleanup fails even after a verified response, only the original recovery may
+   continue until its reference can be cleared.
+7. Check wrong-actor/source/scope data is rejected and source/history failures
+   hide cached private references. Changing a retained in-memory matching intent
+   must not turn an unrelated recovered receipt into a verified match.
+
+CI retains only the named synthetic `commercial-return-note-print`,
+`supplier-credit-recovered` and `supplier-credit-matched` PNGs in the
+`supplier-return-visual-evidence` artifact for seven days. The capture runs before
+later Playwright phases overwrite their reports; missing required images fail
+capture. Download and visually inspect that artifact before accepting the UI.
+No live patient, staff or supplier data belongs in these fixtures.
 
 ## Evidence and remaining scope
 

@@ -10,6 +10,7 @@ coverage/
 backend/bin/
 test-results/
 playwright-report/
+supplier-return-evidence/
 .DS_Store
 next-env.d.ts
 *.tsbuildinfo

@@ -51,6 +51,236 @@
       ]
     },
     {
+      "name": "SupplierReturnLine",
+      "schema": "pharmacySupplierReturnLineSchema",
+      "embed": "SupplierReturnDraftLineInput",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid"
+        },
+        {
+          "name": "batch_id",
+          "type": "uuid"
+        },
+        {
+          "name": "product_id",
+          "type": "uuid"
+        },
+        {
+          "name": "product_version",
+          "type": "int64",
+          "min": 1
+        },
+        {
+          "name": "product_name",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "generic_name",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "unit_code",
+          "type": "string",
+          "min": 1,
+          "max": 40
+        },
+        {
+          "name": "lot_number",
+          "type": "string",
+          "min": 1,
+          "max": 100
+        },
+        {
+          "name": "expires_on",
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        {
+          "name": "receipt_units",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000000
+        },
+        {
+          "name": "source_reference",
+          "type": "string",
+          "min": 1,
+          "max": 100
+        },
+        {
+          "name": "source_created_at",
+          "type": "string",
+          "format": "datetime"
+        }
+      ]
+    },
+    {
+      "name": "SupplierReturnCreationReceipt",
+      "schema": "pharmacySupplierReturnCreationReceiptSchema",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid"
+        },
+        {
+          "name": "outlet_id",
+          "type": "uuid"
+        },
+        {
+          "name": "number",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000000000
+        },
+        {
+          "name": "payable_id",
+          "type": "uuid"
+        },
+        {
+          "name": "payee_reference",
+          "type": "string",
+          "min": 1,
+          "max": 100
+        },
+        {
+          "name": "payee_name",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "document_reference",
+          "type": "string",
+          "min": 1,
+          "max": 100
+        },
+        {
+          "name": "currency",
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        {
+          "name": "expected_credit_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000
+        },
+        {
+          "name": "lines",
+          "type": "[]SupplierReturnLine",
+          "min": 1,
+          "max": 100,
+          "gorm": "-"
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 1,
+          "max": 500
+        },
+        {
+          "name": "prepared_by",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "prepared_at",
+          "type": "string",
+          "format": "datetime"
+        }
+      ]
+    },
+    {
+      "name": "SupplierReturnView",
+      "schema": "pharmacySupplierReturnViewSchema",
+      "embed": "SupplierReturnCreationReceipt",
+      "fields": [
+        {
+          "name": "state",
+          "type": "string",
+          "enum": [
+            "draft",
+            "cancelled"
+          ]
+        },
+        {
+          "name": "version",
+          "type": "int64",
+          "min": 0,
+          "max": 1
+        }
+      ]
+    },
+    {
+      "name": "SupplierReturnCancelInput",
+      "schema": "pharmacySupplierReturnCancelInputSchema",
+      "fields": [
+        {
+          "name": "expected_version",
+          "type": "*int64",
+          "min": 0,
+          "max": 9007199254740991
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 1,
+          "max": 500,
+          "trim": true
+        }
+      ]
+    },
+    {
+      "name": "SupplierReturnCancellationReceipt",
+      "schema": "pharmacySupplierReturnCancellationReceiptSchema",
+      "embed": "SupplierReturnCancelInput",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid"
+        },
+        {
+          "name": "outlet_id",
+          "type": "uuid"
+        },
+        {
+          "name": "return_id",
+          "type": "uuid"
+        },
+        {
+          "name": "version",
+          "type": "int64",
+          "min": 1,
+          "max": 1
+        },
+        {
+          "name": "state",
+          "type": "string",
+          "enum": [
+            "cancelled"
+          ]
+        },
+        {
+          "name": "cancelled_by",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "cancelled_at",
+          "type": "string",
+          "format": "datetime"
+        }
+      ]
+    },
+    {
       "name": "StockHoldInput",
       "schema": "pharmacyStockHoldInputSchema",
       "fields": [

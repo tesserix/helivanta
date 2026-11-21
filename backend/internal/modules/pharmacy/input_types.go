@@ -16,6 +16,60 @@ type SupplierReturnDraftInput struct {
 	Reason    string                         `json:"reason" binding:"required,min=1,max=500"`
 }
 
+type SupplierReturnLine struct {
+	ID              uuid.UUID `json:"id" binding:"required"`
+	BatchID         uuid.UUID `json:"batch_id" binding:"required"`
+	ProductID       uuid.UUID `json:"product_id" binding:"required"`
+	ProductVersion  int64     `json:"product_version" binding:"min=1"`
+	ProductName     string    `json:"product_name" binding:"required,min=1,max=200"`
+	GenericName     string    `json:"generic_name" binding:"required,min=1,max=200"`
+	UnitCode        string    `json:"unit_code" binding:"required,min=1,max=40"`
+	LotNumber       string    `json:"lot_number" binding:"required,min=1,max=100"`
+	ExpiresOn       string    `json:"expires_on"`
+	ReceiptUnits    int64     `json:"receipt_units" binding:"min=1,max=1000000000"`
+	SourceReference string    `json:"source_reference" binding:"required,min=1,max=100"`
+	SourceCreatedAt string    `json:"source_created_at"`
+	SupplierReturnDraftLineInput
+}
+
+type SupplierReturnCreationReceipt struct {
+	ID                  uuid.UUID            `json:"id" binding:"required"`
+	OutletID            uuid.UUID            `json:"outlet_id" binding:"required"`
+	Number              int64                `json:"number" binding:"min=1,max=1000000000000"`
+	PayableID           uuid.UUID            `json:"payable_id" binding:"required"`
+	PayeeReference      string               `json:"payee_reference" binding:"required,min=1,max=100"`
+	PayeeName           string               `json:"payee_name" binding:"required,min=1,max=200"`
+	DocumentReference   string               `json:"document_reference" binding:"required,min=1,max=100"`
+	Currency            string               `json:"currency"`
+	ExpectedCreditMinor int64                `json:"expected_credit_minor" binding:"min=0,max=1000000000000"`
+	Lines               []SupplierReturnLine `json:"lines" binding:"required,min=1,max=100,dive" gorm:"-"`
+	Reason              string               `json:"reason" binding:"required,min=1,max=500"`
+	PreparedBy          string               `json:"prepared_by" binding:"required,min=1,max=200"`
+	PreparedAt          string               `json:"prepared_at"`
+}
+
+type SupplierReturnView struct {
+	State   string `json:"state" binding:"required,oneof=draft cancelled"`
+	Version int64  `json:"version" binding:"min=0,max=1"`
+	SupplierReturnCreationReceipt
+}
+
+type SupplierReturnCancelInput struct {
+	ExpectedVersion *int64 `json:"expected_version" binding:"min=0,max=9007199254740991"`
+	Reason          string `json:"reason" binding:"required,min=1,max=500"`
+}
+
+type SupplierReturnCancellationReceipt struct {
+	ID          uuid.UUID `json:"id" binding:"required"`
+	OutletID    uuid.UUID `json:"outlet_id" binding:"required"`
+	ReturnID    uuid.UUID `json:"return_id" binding:"required"`
+	Version     int64     `json:"version" binding:"min=1,max=1"`
+	State       string    `json:"state" binding:"required,oneof=cancelled"`
+	CancelledBy string    `json:"cancelled_by" binding:"required,min=1,max=200"`
+	CancelledAt string    `json:"cancelled_at"`
+	SupplierReturnCancelInput
+}
+
 type StockHoldInput struct {
 	BatchID              uuid.UUID `json:"batch_id" binding:"required"`
 	FromLocationID       uuid.UUID `json:"from_location_id" binding:"required"`

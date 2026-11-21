@@ -523,6 +523,10 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id` | `pharmacy.accounts.write` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/counted` | `pharmacy.accounts.read` | true | true |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables` | `pharmacy.accounts.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/cancellations/:cancellation` | `pharmacy.supplier_returns.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/cancellations/:cancellation` | `pharmacy.supplier_returns.prepare` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return` | `pharmacy.supplier_returns.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return` | `pharmacy.supplier_returns.prepare` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/admission-occupant` | `pharmacy.sale.create` | false | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories/:id/retire` | `pharmacy.category.declare` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories/:id` | `pharmacy.category.declare` | false | false |
@@ -754,6 +758,7 @@ Migration table declarations:
 - `0052_pharmacy_reorder_levels`: `pharmacy_reorder_levels`.
 - `0053_pharmacy_stocktakes`: `pharmacy_stocktakes`, `pharmacy_stocktake_lines`, `pharmacy_stocktake_commands`, `pharmacy_stocktake_counts`, `pharmacy_stocktake_adjustments`.
 - `0054_pharmacy_stock_holds`: `pharmacy_stock_holds`.
+- `0055_pharmacy_supplier_return_drafts`: `pharmacy_supplier_returns`, `pharmacy_supplier_return_lines`, `pharmacy_supplier_return_cancellations`.
 
 ## payments
 

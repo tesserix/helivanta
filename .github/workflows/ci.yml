@@ -81,6 +81,8 @@ jobs:
           printf 'STAFF_IDENTITY_OWNER_SCHEMA=%s\n' "$staff_schema" >> "$GITHUB_ENV"
       - name: Bounded outbox batch atomicity
         run: go test -race -count=1 -timeout=10m -run '^TestEnqueueBatch' ./pkg/events
+      - name: Pharmacy supplier return draft acceptance
+        run: go test -race -count=1 -timeout=15m -run '^TestSupplierReturn' ./internal/modules/pharmacy
       - name: Pharmacy physical quarantine hold acceptance
         run: |
           go test -race -count=1 -timeout=15m -run '^TestStockHold' ./internal/modules/pharmacy

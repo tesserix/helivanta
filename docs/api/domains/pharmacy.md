@@ -1246,3 +1246,53 @@ rather than being presented as zero or as a reconciled balance. Hosted acceptanc
 covers owner models, scoped denial, exact recovery, concurrent holds, supplier
 reservations and evidence rollback. Those tests do not establish live deployment,
 regulatory return authority or supplier receipt of goods.
+
+## Supplier return drafts (#1687, unreleased source)
+
+The draft slice adds `PUT/GET /accounts/supplier-returns/{return}` and
+`PUT/GET /accounts/supplier-returns/{return}/cancellations/{cancellation}` under
+the existing pharmacy/outlet prefix. These handlers are implemented in source and remain unreleased pending
+hosted and live acceptance. Migration
+`0055_pharmacy_supplier_return_drafts` is not approved for live application.
+
+`pharmacy.supplier_returns.prepare` permits creation/cancellation and
+`pharmacy.supplier_returns.read` permits private reads. Default grants are limited
+to pharmacy owners and purchasing staff. Each request also requires verified
+tenant membership and a current exact-outlet reader/editor grant. Both expected
+subject and expected tenant headers are mandatory intent fences; supplied IDs or
+headers never grant authority. These legacy outlet grants do not by themselves
+prove reviewed Staff employment or clinical/financial posting authority.
+
+A bounded draft contains one original payable, at most 100 original receipt/bucket
+lines, positive issue units, explicit expected credit in the payable's currency
+minor units, and a reason. It freezes the original supplier, bill, product
+revision, brand/generic labels, issue unit, lot, expiry and source receipt facts.
+Only original inventory lines from that payable qualify. Platform-supplier
+receipts are rejected until an acknowledged reverse protocol exists. Duplicate
+receipt/bucket pairs, quantities beyond original receipt/available quarantine
+stock, and credit expectations exceeding the bounded total are rejected.
+
+Creation records **no stock movement, stock reservation or settlement**. Fully
+paid bills remain fully paid. Immutable database evidence requires the complete
+line set and exact source facts; failed audit writes roll back the whole draft.
+Its per-outlet number is a commercial reference, not a statutory tax document.
+Identical replay by the original actor retains the original creation receipt,
+including after later cancellation. Changed intent or actor is `409`.
+
+Cancellation uses a separate UUIDv7 command, expected version and reason. It
+preserves the original draft, appends its own attributable receipt and changes
+the read view from draft/version 0 to cancelled/version 1. Recovery is limited to
+the original cancellation actor with current read authority. Repeated or stale
+cancellations cannot erase or change evidence. Private business reads and recovery
+are audited and fail closed if their audit cannot be retained. Read/cancellation
+routes remain baseline-classified when operating availability is disabled.
+
+Bodies are strict, bounded to 64 KiB and reject duplicate/unknown fields and query
+parameters. Commands and reads have a 15-second deadline. Resource reads return
+one guarded object with no more than 100 lines; collection pagination exemptions
+must document that bound. The new tables also participate in the restrictive
+location-choice purpose policies and integrity fingerprint.
+
+Dispatch, actual supplier-credit recognition/matching/allocation, printable notes,
+SDK/UI integration and complete live acceptance remain outstanding. The expected
+credit is not an actual credit note, refund, GST/ITC decision or GL posting.

@@ -25,6 +25,74 @@ export const pharmacySupplierReturnDraftInputSchema = z
   })
   .strict();
 
+export const pharmacySupplierReturnLineSchema = pharmacySupplierReturnDraftLineInputSchema
+  .extend({
+    id: identifier,
+    batch_id: identifier,
+    product_id: identifier,
+    product_version: z.number().int().min(1),
+    product_name: z.string().min(1).max(200),
+    generic_name: z.string().min(1).max(200),
+    unit_code: z.string().min(1).max(40),
+    lot_number: z.string().min(1).max(100),
+    expires_on: z.string().regex(new RegExp("^\\d{4}-\\d{2}-\\d{2}$"), "Use the required format."),
+    receipt_units: z.number().int().min(1).max(1000000000),
+    source_reference: z.string().min(1).max(100),
+    source_created_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+  })
+  .strict();
+
+export const pharmacySupplierReturnCreationReceiptSchema = z
+  .object({
+    id: identifier,
+    outlet_id: identifier,
+    number: z.number().int().min(1).max(1000000000000),
+    payable_id: identifier,
+    payee_reference: z.string().min(1).max(100),
+    payee_name: z.string().min(1).max(200),
+    document_reference: z.string().min(1).max(100),
+    currency: z.string().regex(new RegExp("^[A-Z]{3}$"), "Use the required format."),
+    expected_credit_minor: z.number().int().min(0).max(1000000000000),
+    lines: z.array(pharmacySupplierReturnLineSchema).min(1).max(100),
+    reason: z.string().min(1).max(500),
+    prepared_by: z.string().min(1).max(200),
+    prepared_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+  })
+  .strict();
+
+export const pharmacySupplierReturnViewSchema = pharmacySupplierReturnCreationReceiptSchema
+  .extend({
+    state: z.enum(["draft", "cancelled"]),
+    version: z.number().int().min(0).max(1),
+  })
+  .strict();
+
+export const pharmacySupplierReturnCancelInputSchema = z
+  .object({
+    expected_version: z.number().int().min(0).max(9007199254740991),
+    reason: z.string().trim().min(1).max(500),
+  })
+  .strict();
+
+export const pharmacySupplierReturnCancellationReceiptSchema =
+  pharmacySupplierReturnCancelInputSchema
+    .extend({
+      id: identifier,
+      outlet_id: identifier,
+      return_id: identifier,
+      version: z.number().int().min(1).max(1),
+      state: z.enum(["cancelled"]),
+      cancelled_by: z.string().min(1).max(200),
+      cancelled_at: z
+        .string()
+        .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+    })
+    .strict();
+
 export const pharmacyStockHoldInputSchema = z
   .object({
     batch_id: identifier,

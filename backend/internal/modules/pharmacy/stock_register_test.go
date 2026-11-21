@@ -361,7 +361,7 @@ func TestStockPositionsAndExportFootEveryMovementKind(t *testing.T) {
 	rows, err := csv.NewReader(strings.NewReader(res.Body.String())).ReadAll()
 	require.NoError(t, err)
 	require.Len(t, rows, 3)
-	require.Equal(t, []string{"on_hand_units", "receipt_units", "correction_units", "release_units", "sale_units", "return_units", "supplier_dispatch_units"}, rows[0][len(rows[0])-7:])
+	require.Equal(t, []string{"on_hand_units", "receipt_units", "correction_units", "release_units", "sale_units", "return_units", "supplier_dispatch_units", "quarantine_hold_units"}, rows[0][len(rows[0])-8:])
 	for _, row := range rows[1:] {
 		values := map[string]string{}
 		for i, name := range rows[0] {

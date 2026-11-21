@@ -318,13 +318,13 @@ func TestStockReconciliationFootsEveryMovementKind(t *testing.T) {
 	w, batch, released, last := everyKindLot(t)
 	q := footing(t, w, w.quarantine, batch, released, last)
 	require.EqualValues(t, 97, q["opening_units"])
-	for kind, want := range map[string]string{"receipt": "0", "correction": "0", "release": "-30", "sale": "0", "return": "4", "supplier_dispatch": "0"} {
+	for kind, want := range map[string]string{"receipt": "0", "correction": "0", "release": "-30", "sale": "0", "return": "4", "supplier_dispatch": "0", "quarantine_hold": "0"} {
 		require.Equal(t, want, q[kind+"_units"], kind)
 	}
 	require.EqualValues(t, 71, q["closing_units"])
 	s := footing(t, w, w.sellable, batch, released, last)
 	require.EqualValues(t, 0, s["opening_units"])
-	for kind, want := range map[string]string{"receipt": "0", "correction": "0", "release": "30", "sale": "-10", "return": "0", "supplier_dispatch": "0"} {
+	for kind, want := range map[string]string{"receipt": "0", "correction": "0", "release": "30", "sale": "-10", "return": "0", "supplier_dispatch": "0", "quarantine_hold": "0"} {
 		require.Equal(t, want, s[kind+"_units"], kind)
 	}
 	require.EqualValues(t, 20, s["closing_units"])
@@ -341,8 +341,8 @@ func TestStockPositionsAndExportFootEveryMovementKind(t *testing.T) {
 	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &page))
 	require.Len(t, page.Data, 2)
 	want := map[string]map[string]string{
-		w.quarantine: {"receipt": "100", "correction": "-3", "release": "-30", "sale": "0", "return": "4", "supplier_dispatch": "0"},
-		w.sellable:   {"receipt": "0", "correction": "0", "release": "30", "sale": "-10", "return": "0", "supplier_dispatch": "0"},
+		w.quarantine: {"receipt": "100", "correction": "-3", "release": "-30", "sale": "0", "return": "4", "supplier_dispatch": "0", "quarantine_hold": "0"},
+		w.sellable:   {"receipt": "0", "correction": "0", "release": "30", "sale": "-10", "return": "0", "supplier_dispatch": "0", "quarantine_hold": "0"},
 	}
 	for _, row := range page.Data {
 		var sum int64

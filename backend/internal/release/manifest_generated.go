@@ -1143,7 +1143,14 @@ var routeCapabilities = map[string]string{"POST /v1/workforce/hospitals/:hospita
 	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/preparation/:payable":                "pharmacy_stock",
 	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/preparation":                 "baseline",
 	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/original-bills":                      "pharmacy_stock",
-	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/note.html":                   "baseline"}
+	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/note.html":                   "baseline",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits":                                     "baseline",
+	"PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit":                             "pharmacy_payables",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit":                             "baseline",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/recovery":                    "baseline",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/void":                        "baseline",
+	"PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/voids/:entry":                "pharmacy_payables",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/voids/:entry/recovery":       "baseline"}
 var internalRouteCapabilities = map[string]string{"POST /v1/supply/internal/trading-source/check": "baseline",
 	"POST /v1/supply/internal/relationship/check": "baseline",
 	"POST /internal/v1/mediconnect/current-claim": "baseline",

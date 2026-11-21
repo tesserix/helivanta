@@ -84,7 +84,7 @@ func supplierReturnScope(c *gin.Context) (authn.Principal, uuid.UUID, bool) {
 	}
 	subject, tenant := c.Request.Header.Values("X-Helivanta-Expected-Subject"), c.Request.Header.Values("X-Helivanta-Expected-Tenant")
 	if len(subject) != 1 || subject[0] != p.Subject || len(tenant) != 1 || tenant[0] != p.TenantID {
-		respond.Error(c, http.StatusConflict, "session_changed", "The financial account changed. Reload before preparing supplier returns.")
+		respond.Error(c, http.StatusConflict, "session_changed", "The financial account changed. Reload before continuing.")
 		return p, outlet, false
 	}
 	c.Header("Cache-Control", "private, no-store")
@@ -100,7 +100,7 @@ func supplierReturnID(c *gin.Context, param string) (uuid.UUID, bool) {
 }
 func supplierReturnReadRequest(c *gin.Context) bool {
 	if c.Request.URL.RawQuery != "" || c.Request.ContentLength > 0 || len(c.Request.TransferEncoding) > 0 {
-		respond.Error(c, http.StatusBadRequest, "invalid_request", "Supplier return reads do not accept a body or query.")
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "Financial reads do not accept a body or query.")
 		return false
 	}
 	return true

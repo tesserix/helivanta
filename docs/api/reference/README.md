@@ -523,6 +523,13 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id` | `pharmacy.accounts.write` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/counted` | `pharmacy.accounts.read` | true | true |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables` | `pharmacy.accounts.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/recovery` | `pharmacy.accounts.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/void` | `pharmacy.accounts.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/voids/:entry/recovery` | `pharmacy.accounts.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/voids/:entry` | `pharmacy.accounts.adjust` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit` | `pharmacy.accounts.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit` | `pharmacy.accounts.adjust` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits` | `pharmacy.accounts.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/cancellations/:cancellation` | `pharmacy.supplier_returns.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/cancellations/:cancellation` | `pharmacy.supplier_returns.prepare` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/dispatches/:dispatch` | `pharmacy.supplier_returns.read` | false | false |
@@ -685,6 +692,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 
 Published subjects:
 
+- `helivanta.in.pharmacy.supplier_credit_changed.v1`
 - `helivanta.in.pharmacy.supplier_receiving_recorded.v1`
 - `helivanta.in.pharmacy.supplier_dispatch_recorded.v1`
 - `helivanta.in.pharmacy.staff_department_binding_changed.v1`
@@ -767,6 +775,7 @@ Migration table declarations:
 - `0054_pharmacy_stock_holds`: `pharmacy_stock_holds`.
 - `0055_pharmacy_supplier_return_drafts`: `pharmacy_supplier_returns`, `pharmacy_supplier_return_lines`, `pharmacy_supplier_return_cancellations`.
 - `0056_pharmacy_supplier_return_dispatch`: `pharmacy_supplier_return_dispatches`, `pharmacy_supplier_return_dispatch_lines`.
+- `0058_pharmacy_supplier_credit_documents`: `pharmacy_supplier_credit_documents`, `pharmacy_supplier_credit_positions`, `pharmacy_supplier_credit_voids`.
 
 ## payments
 

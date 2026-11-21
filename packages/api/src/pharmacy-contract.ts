@@ -8,6 +8,66 @@ const identifier = z
     /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     "Choose a valid record.",
   );
+export const pharmacySupplierCreditDocumentInputSchema = z
+  .object({
+    return_id: identifier,
+    document_reference: z.string().trim().toUpperCase().min(1).max(100),
+    issued_on: z
+      .string()
+      .regex(new RegExp("^(?:19[7-9][0-9]|[2-9][0-9]{3})-"), "Use the required format.")
+      .date("Use a full valid date."),
+    amount_minor: z.number().int().min(1).max(1000000000000),
+    currency: z.enum(["INR"]),
+    reason: z.string().trim().min(1).max(500),
+    correction_of: identifier.nullable().optional(),
+  })
+  .strict();
+
+export const pharmacySupplierCreditDocumentReceiptSchema = pharmacySupplierCreditDocumentInputSchema
+  .extend({
+    id: identifier,
+    outlet_id: identifier,
+    return_number: z.number().int().min(1).max(1000000000000),
+    payee_reference: z.string().min(1).max(100),
+    payee_name: z.string().min(1).max(200),
+    original_bill_reference: z.string().min(1).max(100),
+    recorded_by: z.string().min(1).max(200),
+    recorded_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+  })
+  .strict();
+
+export const pharmacySupplierCreditDocumentViewSchema = pharmacySupplierCreditDocumentReceiptSchema
+  .extend({
+    version: z.number().int().min(1).max(1000000000000),
+    state: z.enum(["active", "voided", "corrected"]),
+    matched_minor: z.number().int().min(0).max(1000000000000),
+    allocated_minor: z.number().int().min(0).max(1000000000000),
+    available_minor: z.number().int().min(0).max(1000000000000),
+  })
+  .strict();
+
+export const pharmacySupplierCreditVoidInputSchema = z
+  .object({
+    expected_version: z.number().int().min(1).max(1000000000000),
+    reason: z.string().trim().min(1).max(500),
+  })
+  .strict();
+
+export const pharmacySupplierCreditVoidReceiptSchema = pharmacySupplierCreditVoidInputSchema
+  .extend({
+    id: identifier,
+    outlet_id: identifier,
+    credit_id: identifier,
+    version: z.number().int().min(1).max(1000000000000),
+    recorded_by: z.string().min(1).max(200),
+    recorded_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+  })
+  .strict();
+
 export const pharmacySupplierReturnOriginalBillSchema = z
   .object({
     id: identifier,

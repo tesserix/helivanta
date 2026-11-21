@@ -3,6 +3,52 @@ package pharmacy
 
 import "github.com/google/uuid"
 
+type SupplierCreditDocumentInput struct {
+	ReturnID          uuid.UUID  `json:"return_id" binding:"required"`
+	DocumentReference string     `json:"document_reference" binding:"required,min=1,max=100"`
+	IssuedOn          string     `json:"issued_on"`
+	AmountMinor       *int64     `json:"amount_minor" binding:"required,min=1,max=1000000000000"`
+	Currency          string     `json:"currency" binding:"required,oneof=INR"`
+	Reason            string     `json:"reason" binding:"required,min=1,max=500"`
+	CorrectionOf      *uuid.UUID `json:"correction_of" binding:"omitempty"`
+}
+
+type SupplierCreditDocumentReceipt struct {
+	ID                    uuid.UUID `json:"id" binding:"required"`
+	OutletID              uuid.UUID `json:"outlet_id" binding:"required"`
+	ReturnNumber          int64     `json:"return_number" binding:"min=1,max=1000000000000"`
+	PayeeReference        string    `json:"payee_reference" binding:"required,min=1,max=100"`
+	PayeeName             string    `json:"payee_name" binding:"required,min=1,max=200"`
+	OriginalBillReference string    `json:"original_bill_reference" binding:"required,min=1,max=100"`
+	RecordedBy            string    `json:"recorded_by" binding:"required,min=1,max=200"`
+	RecordedAt            string    `json:"recorded_at"`
+	SupplierCreditDocumentInput
+}
+
+type SupplierCreditDocumentView struct {
+	Version        int64  `json:"version" binding:"min=1,max=1000000000000"`
+	State          string `json:"state" binding:"required,oneof=active voided corrected"`
+	MatchedMinor   int64  `json:"matched_minor" binding:"min=0,max=1000000000000"`
+	AllocatedMinor int64  `json:"allocated_minor" binding:"min=0,max=1000000000000"`
+	AvailableMinor int64  `json:"available_minor" binding:"min=0,max=1000000000000"`
+	SupplierCreditDocumentReceipt
+}
+
+type SupplierCreditVoidInput struct {
+	ExpectedVersion *int64 `json:"expected_version" binding:"required,min=1,max=1000000000000"`
+	Reason          string `json:"reason" binding:"required,min=1,max=500"`
+}
+
+type SupplierCreditVoidReceipt struct {
+	ID         uuid.UUID `json:"id" binding:"required"`
+	OutletID   uuid.UUID `json:"outlet_id" binding:"required"`
+	CreditID   uuid.UUID `json:"credit_id" binding:"required"`
+	Version    int64     `json:"version" binding:"min=1,max=1000000000000"`
+	RecordedBy string    `json:"recorded_by" binding:"required,min=1,max=200"`
+	RecordedAt string    `json:"recorded_at"`
+	SupplierCreditVoidInput
+}
+
 type SupplierReturnOriginalBill struct {
 	ID                uuid.UUID `json:"id" binding:"required"`
 	OutletID          uuid.UUID `json:"outlet_id" binding:"required"`

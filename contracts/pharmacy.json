@@ -1,6 +1,200 @@
 {
   "models": [
     {
+      "name": "SupplierCreditDocumentInput",
+      "schema": "pharmacySupplierCreditDocumentInputSchema",
+      "fields": [
+        {
+          "name": "return_id",
+          "type": "uuid"
+        },
+        {
+          "name": "document_reference",
+          "type": "string",
+          "min": 1,
+          "max": 100,
+          "trim": true,
+          "upper": true
+        },
+        {
+          "name": "issued_on",
+          "type": "string",
+          "format": "date",
+          "pattern": "^(?:19[7-9][0-9]|[2-9][0-9]{3})-"
+        },
+        {
+          "name": "amount_minor",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000000000,
+          "pointer": true
+        },
+        {
+          "name": "currency",
+          "type": "string",
+          "country_currency": true
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 1,
+          "max": 500,
+          "trim": true
+        },
+        {
+          "name": "correction_of",
+          "type": "uuid",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "name": "SupplierCreditDocumentReceipt",
+      "schema": "pharmacySupplierCreditDocumentReceiptSchema",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid"
+        },
+        {
+          "name": "outlet_id",
+          "type": "uuid"
+        },
+        {
+          "name": "return_number",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000000000
+        },
+        {
+          "name": "payee_reference",
+          "type": "string",
+          "min": 1,
+          "max": 100
+        },
+        {
+          "name": "payee_name",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "original_bill_reference",
+          "type": "string",
+          "min": 1,
+          "max": 100
+        },
+        {
+          "name": "recorded_by",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "recorded_at",
+          "type": "string",
+          "format": "datetime"
+        }
+      ],
+      "embed": "SupplierCreditDocumentInput"
+    },
+    {
+      "name": "SupplierCreditDocumentView",
+      "schema": "pharmacySupplierCreditDocumentViewSchema",
+      "fields": [
+        {
+          "name": "version",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000000000
+        },
+        {
+          "name": "state",
+          "type": "string",
+          "enum": [
+            "active",
+            "voided",
+            "corrected"
+          ]
+        },
+        {
+          "name": "matched_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000
+        },
+        {
+          "name": "allocated_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000
+        },
+        {
+          "name": "available_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000
+        }
+      ],
+      "embed": "SupplierCreditDocumentReceipt"
+    },
+    {
+      "name": "SupplierCreditVoidInput",
+      "schema": "pharmacySupplierCreditVoidInputSchema",
+      "fields": [
+        {
+          "name": "expected_version",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000000000,
+          "pointer": true
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 1,
+          "max": 500,
+          "trim": true
+        }
+      ]
+    },
+    {
+      "name": "SupplierCreditVoidReceipt",
+      "schema": "pharmacySupplierCreditVoidReceiptSchema",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid"
+        },
+        {
+          "name": "outlet_id",
+          "type": "uuid"
+        },
+        {
+          "name": "credit_id",
+          "type": "uuid"
+        },
+        {
+          "name": "version",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000000000
+        },
+        {
+          "name": "recorded_by",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "recorded_at",
+          "type": "string",
+          "format": "datetime"
+        }
+      ],
+      "embed": "SupplierCreditVoidInput"
+    },
+    {
       "name": "SupplierReturnOriginalBill",
       "schema": "pharmacySupplierReturnOriginalBillSchema",
       "fields": [

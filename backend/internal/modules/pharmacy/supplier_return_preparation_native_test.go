@@ -113,8 +113,12 @@ func TestSupplierReturnPreparationFailsClosedWhenReadAuditUnavailable(t *testing
 
 func TestSupplierReturnOriginalBillsAreScopedInventoryOnlyAndPaginated(t *testing.T) {
 	w := newSupplierReturnWorld(t, "independent")
-	utility := do(w.r, "PUT", payableRoot()+"/payables/"+uuid.Must(uuid.NewV7()).String(), "editor", expenseBody("TEST utility"))
+	utilityID := uuid.Must(uuid.NewV7()).String()
+	utility := do(w.r, "PUT", payableRoot()+"/payables/"+utilityID, "editor", expenseBody("TEST utility"))
 	require.Equal(t, 200, utility.Code, utility.Body.String())
+	preparation := w.request("GET", payableRoot()+"/supplier-returns/preparation/"+utilityID, "editor", "")
+	require.Equal(t, 404, preparation.Code, preparation.Body.String())
+	require.NotContains(t, preparation.Body.String(), "TEST utility")
 	for range 2 {
 		receipt := uuid.Must(uuid.NewV7()).String()
 		received := do(w.r, "PUT", stockPath("movements/"+receipt), "editor", stockBody(w.location, w.batch, "receipt", "TEST further purchase "+receipt, 20))

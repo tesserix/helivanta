@@ -16,6 +16,7 @@ import {
   pharmacySupplierCreditDocumentViewSchema,
   pharmacySupplierCreditVoidInputSchema,
   pharmacySupplierCreditVoidReceiptSchema,
+  pharmacySupplierCreditMatchContextSchema,
   pharmacySupplierCreditMatchInputSchema,
   pharmacySupplierCreditMatchReceiptSchema,
   pharmacySupplierCreditMatchViewSchema,
@@ -824,7 +825,7 @@ export async function readPharmacySupplierCreditAllocationContext(
   const current = checkedCreditContext(scope, credit, context.credit);
   const original = checkedAllocationView(scope, credit, allocation, context.allocation);
   const bill = context.payable;
-  const reversed = original.reversal_id !== null;
+  const reversed = original.reversal_id != null;
   if (
     !sameID(bill.id, original.payable_id) ||
     !sameID(bill.outlet_id, scope.outletId) ||
@@ -839,6 +840,41 @@ export async function readPharmacySupplierCreditAllocationContext(
       (current.state !== "active" ||
         current.allocated_minor < original.amount_minor ||
         bill.credit_minor < original.amount_minor))
+  )
+    return mismatch();
+  return context;
+}
+
+export type PharmacySupplierCreditMatchContext = z.infer<
+  typeof pharmacySupplierCreditMatchContextSchema
+>;
+export async function readPharmacySupplierCreditMatchContext(
+  scope: PharmacyActorScope,
+  credit: string,
+  match: string,
+  signal?: AbortSignal,
+) {
+  const context = pharmacySupplierCreditMatchContextSchema.parse(
+    await apiFetch(
+      `${root(scope, credit)}/matches/${identifier.parse(match)}/context`,
+      request(scope, signal),
+    ),
+  );
+  const current = checkedCreditContext(scope, credit, context.credit);
+  const original = checkedMatchView(scope, credit, match, context.match);
+  const returned = context.returned;
+  const reversed = original.reversal_id != null;
+  if (
+    !sameID(returned.id, original.return_id) ||
+    !sameID(returned.outlet_id, scope.outletId) ||
+    returned.currency !== current.currency ||
+    returned.number !== original.return_number ||
+    returned.expected_credit_minor !== original.expected_credit_minor ||
+    current.version < original.version + (reversed ? 1 : 0) ||
+    (!reversed &&
+      (current.state !== "active" ||
+        current.matched_minor < original.amount_minor ||
+        returned.matched_minor < original.amount_minor))
   )
     return mismatch();
   return context;

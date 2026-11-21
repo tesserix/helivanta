@@ -3341,6 +3341,27 @@
           "gorm": "-"
         }
       ]
+    },
+    {
+      "name": "SupplierCreditMatchContext",
+      "schema": "pharmacySupplierCreditMatchContextSchema",
+      "fields": [
+        {
+          "name": "credit",
+          "type": "SupplierCreditContext",
+          "gorm": "-"
+        },
+        {
+          "name": "match",
+          "type": "SupplierCreditMatchView",
+          "gorm": "-"
+        },
+        {
+          "name": "returned",
+          "type": "SupplierCreditReturnChoice",
+          "gorm": "-"
+        }
+      ]
     }
   ]
 }

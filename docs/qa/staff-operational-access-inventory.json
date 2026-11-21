@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "0b63fb638d8d94337d4ec2985daf195c768a340ceb5781ab9ba76c2ce09c6436",
+  "registry_sha256": "de5d4e76e96eb808ac4f1e4c1ba4751cc97e037a514d76cdd225791f0fd5647f",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1214,
-    "unclassified": 1063
+    "total": 1215,
+    "unclassified": 1064
   },
   "entries": [
     {
@@ -8683,6 +8683,22 @@
         "source": "backend/internal/modules/pharmacy/module.go",
         "method": "GET",
         "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match",
+        "permission": "pharmacy.accounts.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match/context",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match/context",
         "permission": "pharmacy.accounts.read",
         "authentication_required": true,
         "membership_required": true,

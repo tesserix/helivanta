@@ -351,6 +351,7 @@ export async function recoverPharmacySupplierCreditMatch(
   credit: string,
   match: string,
   signal?: AbortSignal,
+  expectedInput?: PharmacySupplierCreditMatchInput,
 ) {
   const row = checkedMatch(
     scope,
@@ -361,7 +362,11 @@ export async function recoverPharmacySupplierCreditMatch(
       request(scope, signal),
     ),
   );
-  if (row.recorded_by !== scope.subject) return mismatch();
+  if (
+    row.recorded_by !== scope.subject ||
+    (expectedInput && matchIntent(row) !== matchIntent(expectedInput))
+  )
+    return mismatch();
   return row;
 }
 

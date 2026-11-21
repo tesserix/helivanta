@@ -1,0 +1,90 @@
+"use client";
+
+import {
+  listPharmacySupplierCreditMatches,
+  pharmacySupplierCreditKey,
+  usePagedQuery,
+  type PharmacyActorScope,
+  type PharmacySupplierCreditContext,
+} from "@helivanta/api";
+import { AccountName, LoadMore, Panel, RequestFailure } from "@helivanta/ui";
+import { formatPharmacyMoney } from "./currency-amount-field";
+import { SupplierCreditMatchForm } from "./supplier-credit-match-form";
+
+type Props = {
+  scope: PharmacyActorScope;
+  credit: PharmacySupplierCreditContext;
+  canManage: boolean;
+};
+export function SupplierCreditMatching({ scope, credit, canManage }: Props) {
+  const history = usePagedQuery(
+    pharmacySupplierCreditKey(scope, "matches", credit.id),
+    (cursor, signal) => listPharmacySupplierCreditMatches(scope, credit.id, cursor, signal),
+    { gcTime: 0, retry: false },
+  );
+  return (
+    <Panel>
+      <h4 className="font-semibold">Return matching</h4>
+      <p className="my-3 text-sm text-muted-foreground">
+        Matching attributes actual credit to dispatched returns. It does not apply credit to bills
+        or move stock.
+      </p>
+      {history.isError ? (
+        <RequestFailure
+          message="Return matching history is unavailable. Previously loaded evidence is hidden."
+          error={history.error}
+          retry={history.retry}
+        />
+      ) : history.isPending ? (
+        <p role="status">Loading return matching…</p>
+      ) : (
+        <>
+          <SupplierCreditMatchForm scope={scope} credit={credit} canManage={canManage} />
+          {!history.items.length ? (
+            <p>No returns matched to this credit.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table
+                aria-label="Supplier credit return matching"
+                className="w-full text-left text-sm"
+              >
+                <thead>
+                  <tr>
+                    {["Return", "Matched amount", "Status", "Reason", "Recorded by"].map(
+                      (label) => (
+                        <th scope="col" className="p-3" key={label}>
+                          {label}
+                        </th>
+                      ),
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.items.map((row) => (
+                    <tr key={row.id} className="border-t">
+                      <td className="p-3">Return {row.return_number}</td>
+                      <td className="p-3 tabular-nums">
+                        {formatPharmacyMoney(row.amount_minor, credit.currency)}
+                      </td>
+                      <td className="p-3">{row.reversal_id ? "Reversed" : "Active"}</td>
+                      <td className="p-3">{row.reason}</td>
+                      <td className="p-3">
+                        <AccountName subject={row.recorded_by} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <LoadMore
+            label="Load more return matches"
+            hasMore={history.hasMore}
+            isLoading={history.isFetchingMore}
+            onClick={history.loadMore}
+          />
+        </>
+      )}
+    </Panel>
+  );
+}

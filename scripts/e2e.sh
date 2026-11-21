@@ -431,6 +431,7 @@ wait_for_port "http://$WEB_HOST:$SHELL_PORT/login" "e2e ingress on :$SHELL_PORT"
 
 echo "Phase 1/3 — specs + bulk against the main stack…"
 pnpm --filter e2e exec playwright test --project=specs --project=bulk
+node scripts/retain-supplier-return-evidence.mjs
 
 echo "Phase 2/3 — idle-timeout against its own API + shell…"
 # The main web stack keeps running: it was only ever stopped here because

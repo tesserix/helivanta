@@ -534,6 +534,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/context` | `pharmacy.accounts.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/eligible-payables` | `pharmacy.accounts.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/eligible-returns` | `pharmacy.accounts.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match/context` | `pharmacy.accounts.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match/recovery` | `pharmacy.accounts.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match/reversal` | `pharmacy.accounts.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match/reversals/:entry/recovery` | `pharmacy.accounts.read` | false | false |

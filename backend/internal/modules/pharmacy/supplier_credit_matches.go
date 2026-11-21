@@ -58,6 +58,7 @@ func supplierCreditMatchRoutes(r *platform.Router, h *catalogueHandlers) {
 	platform.ResourceListRoute(m, "", PermAccountsRead, 50, h.listSupplierCreditMatches)
 	m.PUT("/:match", PermAccountsAdjust, h.putSupplierCreditMatch)
 	m.GET("/:match", PermAccountsRead, h.getSupplierCreditMatch)
+	m.GET("/:match/context", PermAccountsRead, h.getSupplierCreditMatchContext)
 	m.GET("/:match/recovery", PermAccountsRead, h.recoverSupplierCreditMatch)
 	m.PUT("/:match/reversals/:entry", PermAccountsAdjust, h.putSupplierCreditMatchReversal)
 	m.GET("/:match/reversal", PermAccountsRead, h.getSupplierCreditMatchReversal)

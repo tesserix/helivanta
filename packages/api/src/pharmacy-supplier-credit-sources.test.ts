@@ -243,6 +243,22 @@ it("keeps original evidence after reversal and later void while using current bi
     await client.readPharmacySupplierCreditAllocationContext(scope, credit, allocationId),
   ).toEqual(voided);
 });
+it.each([null, undefined])(
+  "treats an absent optional reversal reference as an active allocation: %s",
+  async (reversal) => {
+    vi.mocked(apiFetch).mockResolvedValue({
+      ...paidContext,
+      allocation: { ...allocated, reversal_id: reversal },
+    });
+    const observed = await client.readPharmacySupplierCreditAllocationContext(
+      scope,
+      credit,
+      allocationId,
+    );
+    expect(observed.allocation.reversal_id).toBe(reversal);
+    expect(observed.credit.version).toBe(2);
+  },
+);
 it("uses owner identity evidence rather than requiring identical historical supplier display names", async () => {
   const renamed = {
     ...paidContext,
@@ -267,5 +283,69 @@ it("lists dispatched sources before a first credit exists using only finance sco
         "X-Helivanta-Expected-Subject": scope.subject,
       },
     }),
+  );
+});
+
+const matchID = "0199e000-0000-7000-8000-000000000016";
+const currentMatch = {
+  id: matchID,
+  outlet_id: scope.outletId,
+  credit_id: credit,
+  return_id: source,
+  expected_version: 1,
+  expected_return_matched_minor: 0,
+  amount_minor: 500,
+  reason: "TEST original match",
+  version: 2,
+  recorded_by: "TEST-finance",
+  recorded_at: "2026-11-19T00:00:00Z",
+  return_number: returned.number,
+  expected_credit_minor: returned.expected_credit_minor,
+  return_matched_minor: 500,
+};
+const matchContext = {
+  credit: { ...context, version: 2, matched_minor: 500 },
+  match: currentMatch,
+  returned: { ...returned, matched_minor: 600 },
+};
+it("loads exact current match context including other credits' return matches", async () => {
+  vi.mocked(apiFetch).mockResolvedValue(matchContext);
+  expect(await client.readPharmacySupplierCreditMatchContext(scope, credit, matchID)).toEqual(
+    matchContext,
+  );
+  expect(apiFetch).toHaveBeenCalledWith(
+    `${root}/matches/${matchID}/context`,
+    expect.objectContaining({ cache: "no-store" }),
+  );
+});
+it.each([
+  { credit: { ...matchContext.credit, version: 1 } },
+  { credit: { ...matchContext.credit, matched_minor: 499 } },
+  { credit: { ...matchContext.credit, state: "voided", matched_minor: 0 } },
+  { match: { ...currentMatch, id: source } },
+  { match: { ...currentMatch, credit_id: source } },
+  { match: { ...currentMatch, outlet_id: source } },
+  { returned: { ...matchContext.returned, id: credit } },
+  { returned: { ...matchContext.returned, outlet_id: source } },
+  { returned: { ...matchContext.returned, currency: "USD" } },
+  { returned: { ...matchContext.returned, number: 13 } },
+  { returned: { ...matchContext.returned, expected_credit_minor: 999 } },
+  { returned: { ...matchContext.returned, matched_minor: 499 } },
+])("rejects unrelated or insufficient match reversal evidence: %j", async (patch) => {
+  vi.mocked(apiFetch).mockResolvedValue({ ...matchContext, ...patch });
+  await expect(
+    client.readPharmacySupplierCreditMatchContext(scope, credit, matchID),
+  ).rejects.toThrow();
+});
+it("retains reversed match context after void with remaining matches from another credit", async () => {
+  const retained = {
+    ...matchContext,
+    credit: { ...context, state: "voided", version: 4, matched_minor: 0, available_minor: 0 },
+    match: { ...currentMatch, reversal_id: "0199e000-0000-7000-8000-000000000017" },
+    returned: { ...returned, matched_minor: 100 },
+  };
+  vi.mocked(apiFetch).mockResolvedValue(retained);
+  expect(await client.readPharmacySupplierCreditMatchContext(scope, credit, matchID)).toEqual(
+    retained,
   );
 });

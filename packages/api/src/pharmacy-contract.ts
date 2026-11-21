@@ -1065,3 +1065,11 @@ export const pharmacySupplierCreditAllocationContextSchema = z
     payable: pharmacySupplierCreditPayableContextSchema,
   })
   .strict();
+
+export const pharmacySupplierCreditMatchContextSchema = z
+  .object({
+    credit: pharmacySupplierCreditContextSchema,
+    match: pharmacySupplierCreditMatchViewSchema,
+    returned: pharmacySupplierCreditReturnChoiceSchema,
+  })
+  .strict();

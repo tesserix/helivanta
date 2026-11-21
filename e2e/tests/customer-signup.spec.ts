@@ -291,12 +291,14 @@ test("expired email proof offers a new verification link without up-front delive
   await expect(page.getByText(/emails per hour/)).toHaveCount(0);
   await expect.poll(() => new URL(page.url()).hash).toBe("");
   expect(deliveries).toEqual([]);
+  // #1767: no resend control until the link is refused.
+  await expect(page.getByRole("button", { name: "Send a new link" })).toHaveCount(0);
   // #1763: the email link opens the password form; submitting it is the proof.
   await page.getByLabel("New password", { exact: true }).fill("Synthetic-password-only-42!");
   await page.getByLabel("Confirm password", { exact: true }).fill("Synthetic-password-only-42!");
   await page.getByRole("button", { name: "Set password", exact: true }).click();
   await expect(page.getByRole("alert").filter({ hasText: "This link has expired" })).toHaveText(
-    "This link has expired or was already used. Send a new link.",
+    "This link has expired or was already used.",
   );
   await page.getByRole("button", { name: "Send a new link" }).click();
   await expect.poll(() => deliveries).toEqual(["/api/v1/auth/signup/email-link"]);

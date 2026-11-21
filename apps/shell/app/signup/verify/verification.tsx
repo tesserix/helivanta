@@ -10,6 +10,7 @@ import {
   useApiQuery,
   CustomerSignupReceiptContract,
 } from "@helivanta/api";
+import { Loader2 } from "lucide-react";
 import { ApiError } from "@helivanta/api";
 import { Button, Field, RequestFailure, useZodForm } from "@helivanta/ui";
 import { signinForCustomerSignup } from "@/lib/signup-signin";
@@ -124,17 +125,13 @@ export function SignupVerification() {
     return (
       <div className="space-y-5">
         <h1 className="text-2xl font-medium">
-          {receipt.state === "needs_support" ? "Setup needs support" : "Preparing your workspace"}
+          {receipt.state === "needs_support" ? "Setup needs a hand" : "Setting up your workspace"}
         </h1>
-        <p>
-          {passwordDone ? "Your password is set. " : ""}
-          {receipt.state === "needs_support"
-            ? "Contact support to review this setup. Your request has been preserved."
-            : "Workspace setup is still in progress. This page will check for the next step; do not reuse your password setup link."}
-        </p>
-        <a className="underline underline-offset-4" href="/signup">
-          Continue workspace setup
-        </a>
+        {receipt.state === "needs_support" ? (
+          <p>Contact support. We&apos;ve saved everything you entered.</p>
+        ) : (
+          <SetupWait />
+        )}
       </div>
     );
   if (passwordDone)
@@ -154,11 +151,8 @@ export function SignupVerification() {
                 retry={progress.refetch}
               />
             ) : (
-              <p role="status">This usually takes a few seconds.</p>
+              <SetupWait />
             )}
-            <a className="underline underline-offset-4" href="/signup">
-              Continue workspace setup
-            </a>
           </>
         )}
       </div>
@@ -201,9 +195,7 @@ export function SignupVerification() {
     <div className="space-y-5">
       <h1 className="text-2xl font-medium">Set your password</h1>
       {link.phase === "email" && <p>This also confirms your email address.</p>}
-      {problem === "expired" && (
-        <p role="alert">This link has expired or was already used. Send a new link.</p>
-      )}
+      {problem === "expired" && <p role="alert">This link has expired or was already used.</p>}
       {problem === "policy" && (
         <p role="alert">
           That password doesn&apos;t meet your workspace&apos;s password rules. Try a longer one
@@ -247,18 +239,31 @@ export function SignupVerification() {
           </Button>
         </form>
       }
-      <Button
-        type="button"
-        variant="outline"
-        disabled={pending || delivery.isPending}
-        onClick={() => delivery.mutate()}
-      >
-        Send a new link
-      </Button>
+      {problem === "expired" && (
+        <button
+          type="button"
+          className="text-sm underline underline-offset-4 disabled:opacity-50"
+          disabled={pending || delivery.isPending}
+          onClick={() => delivery.mutate()}
+        >
+          Send a new link
+        </button>
+      )}
       {delivery.isSuccess && (
         <p role="status">If this address can receive email, a new link is on its way.</p>
       )}
       {delivery.error && <p role="alert">{emailRequestRefusal(delivery.error)}</p>}
+    </div>
+  );
+}
+
+// Provisioning takes a minute or two (measured 1m40s-1m45s on 2026-11-20).
+// The page polls and signs in by itself, so it says so and shows it is alive.
+function SetupWait() {
+  return (
+    <div role="status" className="flex items-start gap-3 text-sm text-muted-foreground">
+      <Loader2 aria-hidden className="mt-0.5 size-4 shrink-0 animate-spin" />
+      <p>This can take up to 2 minutes. We&apos;ll sign you in as soon as it&apos;s ready.</p>
     </div>
   );
 }

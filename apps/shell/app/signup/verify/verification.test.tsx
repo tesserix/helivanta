@@ -117,8 +117,8 @@ it("does not offer credential actions when the owner status is unavailable", asy
 });
 
 it.each([
-  ["provisioning", "Preparing your workspace"],
-  ["needs_support", "Setup needs support"],
+  ["provisioning", "Setting up your workspace"],
+  ["needs_support", "Setup needs a hand"],
 ])("does not reopen password setup while the signup is %s", async (state, heading) => {
   window.history.replaceState(
     null,
@@ -132,6 +132,10 @@ it.each([
   expect(screen.queryByLabelText("New password")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Send a new link" })).not.toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "Sign in now" })).not.toBeInTheDocument();
+  // #1767: no link back to /signup, which only showed the old button.
+  expect(screen.queryByRole("link", { name: /workspace setup/ })).not.toBeInTheDocument();
+  if (state === "provisioning")
+    expect(screen.getByRole("status")).toHaveTextContent("up to 2 minutes");
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
 
@@ -329,4 +333,27 @@ it("keeps the link and asks again when the password is refused by policy", async
     { userId: "owner-synthetic", code: "valid-proof", password: "short" },
     { userId: "owner-synthetic", code: "valid-proof", password: "Long-enough-pass-1!" },
   ]);
+});
+
+// #1767: the password form has one button. "Send a new link" exists only
+// after the link was refused, as a quiet text link.
+it("shows one button on the password form until the link is refused", async () => {
+  window.history.replaceState(
+    null,
+    "",
+    "/signup/verify#phase=email&userId=owner-synthetic&code=expired-proof",
+  );
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string) =>
+      path.includes("?userId=")
+        ? new Response(JSON.stringify({ state: "email_action_required" }), { status: 200 })
+        : new Response(JSON.stringify({ error: "invalid_request", message: "x" }), { status: 400 }),
+    ),
+  );
+  renderWithProviders(<SignupVerification />);
+  expect(await screen.findByRole("heading", { name: "Set your password" })).toBeVisible();
+  expect(screen.getAllByRole("button")).toHaveLength(1);
+  await setPassword(userEvent.setup());
+  expect(await screen.findByRole("button", { name: "Send a new link" })).toBeVisible();
 });

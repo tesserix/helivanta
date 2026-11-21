@@ -3794,7 +3794,7 @@
         {
           "path": "backend/internal/modules/supply/order_authority.go",
           "symbol": "func (h *purchaseOrderHandlers) buyer(",
-          "sha256": "f60b5a0b14c6577f32187495d68dd2218e767a7ec6a358891c7d8f3e3cc5e285"
+          "sha256": "4e1554da2673158def99c0b61e7d320f508c5ebb8c82e3a84053ed10329a0e2b"
         },
         {
           "path": "backend/internal/modules/supply/orders.sql",
@@ -3832,7 +3832,7 @@
         {
           "path": "backend/internal/modules/supply/order_authority.go",
           "symbol": "func (h *purchaseOrderHandlers) buyer(",
-          "sha256": "f60b5a0b14c6577f32187495d68dd2218e767a7ec6a358891c7d8f3e3cc5e285"
+          "sha256": "4e1554da2673158def99c0b61e7d320f508c5ebb8c82e3a84053ed10329a0e2b"
         },
         {
           "path": "backend/internal/modules/supply/orders.sql",
@@ -3870,7 +3870,7 @@
         {
           "path": "backend/internal/modules/supply/order_authority.go",
           "symbol": "func (h *purchaseOrderHandlers) buyer(",
-          "sha256": "f60b5a0b14c6577f32187495d68dd2218e767a7ec6a358891c7d8f3e3cc5e285"
+          "sha256": "4e1554da2673158def99c0b61e7d320f508c5ebb8c82e3a84053ed10329a0e2b"
         },
         {
           "path": "backend/internal/modules/supply/orders.sql",
@@ -3908,7 +3908,7 @@
         {
           "path": "backend/internal/modules/supply/order_authority.go",
           "symbol": "func (h *purchaseOrderHandlers) buyer(",
-          "sha256": "f60b5a0b14c6577f32187495d68dd2218e767a7ec6a358891c7d8f3e3cc5e285"
+          "sha256": "4e1554da2673158def99c0b61e7d320f508c5ebb8c82e3a84053ed10329a0e2b"
         },
         {
           "path": "backend/internal/modules/supply/orders.sql",
@@ -3946,7 +3946,7 @@
         {
           "path": "backend/internal/modules/supply/order_authority.go",
           "symbol": "func (h *purchaseOrderHandlers) buyer(",
-          "sha256": "f60b5a0b14c6577f32187495d68dd2218e767a7ec6a358891c7d8f3e3cc5e285"
+          "sha256": "4e1554da2673158def99c0b61e7d320f508c5ebb8c82e3a84053ed10329a0e2b"
         },
         {
           "path": "backend/internal/modules/supply/orders.sql",
@@ -3984,7 +3984,7 @@
         {
           "path": "backend/internal/modules/supply/order_authority.go",
           "symbol": "func (h *purchaseOrderHandlers) buyer(",
-          "sha256": "f60b5a0b14c6577f32187495d68dd2218e767a7ec6a358891c7d8f3e3cc5e285"
+          "sha256": "4e1554da2673158def99c0b61e7d320f508c5ebb8c82e3a84053ed10329a0e2b"
         },
         {
           "path": "backend/internal/modules/supply/orders.sql",
@@ -4022,7 +4022,7 @@
         {
           "path": "backend/internal/modules/supply/order_authority.go",
           "symbol": "func (h *purchaseOrderHandlers) buyer(",
-          "sha256": "f60b5a0b14c6577f32187495d68dd2218e767a7ec6a358891c7d8f3e3cc5e285"
+          "sha256": "4e1554da2673158def99c0b61e7d320f508c5ebb8c82e3a84053ed10329a0e2b"
         },
         {
           "path": "backend/internal/modules/supply/orders.sql",
@@ -4060,7 +4060,7 @@
         {
           "path": "backend/internal/modules/supply/order_authority.go",
           "symbol": "func (h *purchaseOrderHandlers) buyer(",
-          "sha256": "f60b5a0b14c6577f32187495d68dd2218e767a7ec6a358891c7d8f3e3cc5e285"
+          "sha256": "4e1554da2673158def99c0b61e7d320f508c5ebb8c82e3a84053ed10329a0e2b"
         },
         {
           "path": "backend/internal/modules/supply/orders.sql",

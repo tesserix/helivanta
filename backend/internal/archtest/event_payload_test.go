@@ -70,7 +70,7 @@ var eventPayloadReviewedNonPHI = map[string]string{
 	"pharmacy.SupplierCreditChangedData.OutletID":                       "tenant-local commercial outlet reference from the authorised operation; no clinical or personal data",
 	"pharmacy.SupplierCreditChangedData.CreditID":                       "opaque owner credit-ledger document key; no supplier name, document reference, amount or patient identity",
 	"pharmacy.SupplierCreditChangedData.EntryID":                        "opaque immutable credit command key used for owner reconciliation; no actor identity or private reason",
-	"pharmacy.SupplierCreditChangedData.Operation":                      "server-selected recorded/voided lifecycle label, never user-entered free text or clinical information",
+	"pharmacy.SupplierCreditChangedData.Operation":                      "server-selected credit lifecycle label, never user-entered free text or clinical information",
 	"pharmacy.SupplierCreditChangedData.RelatedCreditID":                "optional opaque prior credit-ledger key for explicit correction lineage; no person or supplier details",
 	"supply.SupplierReceivingResponseExchangeData.ID":                   "commercial response identity, contracting scope, version, fixed decision or timestamp; no patient or Staff profile data; exact buyer only",
 	"supply.SupplierReceivingResponseExchangeData.OwnerTenantID":        "commercial response identity, contracting scope, version, fixed decision or timestamp; no patient or Staff profile data; exact buyer only",

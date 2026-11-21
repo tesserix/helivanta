@@ -20,7 +20,7 @@ private retained evidence. Both require verified expected tenant/actor headers,
 current membership, exact active outlet authority and existing operating-purpose
 fences. Writes are payables-gated; retained recovery is baseline but never bypasses
 current authorization. There is no new role, Staff authority or independent
-review rule. ORG access boundaries and IN-RC exact-money/source-history principles
+review rule. ORG access boundaries and IN-RC-04/05/11 exact-money/source-history principles
 apply; this is supplier finance, not patient revenue or a regulatory tax posting.
 
 ## Commands and retained evidence
@@ -70,7 +70,7 @@ exists. Do not disable the proof or make direct projection updates possible.
 Audit, journal, projection and minimal identifier-only outbox notification commit
 together. No synchronous external call occurs under locks.
 
-Reuse ADR planning numbers: 20 peak commands/s, 128 KiB request ceiling,
+Reuse ADR planning numbers: 20 peak commands/s, 64 KiB effective command ceiling,
 15-second deadline, p99 targets 500 ms bounded reads/2 s commands (unmeasured).
 Each cursor page is capped at 50, with tenant/outlet/credit indexes and no offset.
 Inherited 12/36-month return volumes are 3.65/32.85 million lines, not forecasts

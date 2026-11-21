@@ -1473,7 +1473,9 @@ unused, unmatched voided document for the same supplier; one successor preserves
 the original record as corrected.
 
 Recording actual credit neither matches a return nor allocates a bill. In the
-current document stage, `matched_minor` and `allocated_minor` are zero. An active
+document-only migration0058 stage, `matched_minor` and `allocated_minor` are zero.
+The migration0059 matching candidate below advances net matched values separately.
+An active
 record's available pool is its actual amount less allocation; a voided/corrected
 record has zero matched, allocated and available amounts. Voiding starts from an
 explicit `expected_version` and reason, preserving the original recording receipt.
@@ -1492,6 +1494,64 @@ The SDK verifies exact resource/outlet identity, original actor/intent on writes
 and recovery, current amount conservation, void version arithmetic and bounded
 cursor integrity. Requests are account-bound, private/no-store and cancellable
 with a 15-second limit; they never automatically retry a financial command.
-Matching, allocation/reversals, their payable-balance integration and financial
-UI/live acceptance remain unfinished. No stock-cost, GST/ITC or general-ledger
+Bill allocation/reversals, their payable-balance integration, source selectors and
+financial UI/live acceptance remain unfinished. No stock-cost, GST/ITC or general-ledger
 effect follows document recording or event publication.
+
+### Supplier-credit matching and full reversal (candidate)
+
+Under the same credit prefix, `/accounts/supplier-credits/:credit/matches`:
+
+| Method/path                             | Meaning and permission                                             |
+| --------------------------------------- | ------------------------------------------------------------------ |
+| `GET /`                                 | Current match history, cursor maximum 50; `pharmacy.accounts.read` |
+| `PUT /:match`                           | Explicit partial attribution; `pharmacy.accounts.adjust`           |
+| `GET /:match`                           | One match with optional unique `reversal_id`; accounts-read        |
+| `GET /:match/recovery`                  | Original actor-bound match receipt; accounts-read                  |
+| `PUT /:match/reversals/:entry`          | Full attributed-amount reversal; accounts-adjust                   |
+| `GET /:match/reversal`                  | One retained reversal, if any; accounts-read                       |
+| `GET /:match/reversals/:entry/recovery` | Original actor-bound reversal receipt; accounts-read               |
+
+These are development routes, not a completed financial workspace or live release.
+The same verified tenant/actor, exact outlet, operating-purpose and audit rules
+apply. New writes are payables-gated; retained history/recovery remains baseline
+under current authority. Inputs use the existing strict 64 KiB command decoder
+without query parameters, UUIDv7 command keys and a 15-second deadline.
+
+A match requires `return_id`, current credit `expected_version`, explicitly
+observed `expected_return_matched_minor`, positive `amount_minor`, reason and
+optional `overage_reason`. The source must have complete immutable dispatch proof
+and the same supplier, outlet and currency as the credit. Both the document's
+net matched value and each observed return total are bounded at 10^12 minor units;
+attribution cannot exceed the actual document value. Attribution exceeding the
+return's expected credit requires a nonempty explicit overage rationale.
+
+One document can cover multiple returns in explicit parts; multiple documents
+can cover one return. Credit-lock then return-attribution-lock ordering serializes
+these commands. The observed return-total precondition catches changes made using
+another document as well as stale credit versions. Receipts retain the original
+return number, expected amount and resulting return matched total. Replaying the
+same original actor/identity/intent returns that receipt without reapplying it.
+
+A full reversal supplies the current credit version, observed return total and
+reason. It subtracts exactly its immutable original match once. To correct a
+partial amount, reverse the match and create a new explicit match. Both entries
+remain, and original command recovery remains unchanged after reversal or later
+document void. Normal authorised history can show another recorder; original
+recovery cannot. History includes reversal identity without an extra request per
+row. Current grants and private-read audit are checked before returning evidence.
+
+Migration0059 adds immutable matching/reversal journals and forced tenant/exact-
+outlet RLS. Its deferred projection proof reconciles command count, current
+version/state, latest actor and net matched amount, retaining document void and
+correction checks. Allocated amount must remain zero until the allocation owner
+journal is implemented. Matching/reversal does not consume the available credit
+pool, settle liability, reverse a payment or restore physically returned stock.
+Audit, projection, journal and minimal outbox notification commit atomically.
+Stale totals, duplicate/conflicting intent, invalid sources and missing excess
+rationale return 409 `supplier_credit_conflict`; invisible records/recovery return
+404; dependency/audit/proof failure returns 503 without partial evidence.
+
+Source selectors, matching SDK/UI, bill allocation/reversal and corresponding
+Global API/browser/live acceptance remain required in #1784. This candidate does
+not activate any release capability or statutory finance policy.

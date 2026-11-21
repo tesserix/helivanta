@@ -105,6 +105,18 @@ These SDK tests do not substitute for a real Global API/browser financial journe
 Matching and allocation/reversal tests must be added with those owner commands;
 do not claim financial settlement from document-stage acceptance alone.
 
+The matching candidate adds `supplier_credit_matching_native_test.go`. Its hosted
+baseline at `0d3ee674` reached the first match after actual document/dispatch setup
+and observed expected200/actual404 in all three ownership models (workflow
+44903792286, job136845006033). The wired candidate still needs hosted execution
+before it can be called accepted. It covers partial/combined attribution without
+spending credit, cross-document stale totals and explicit excess rationale,
+immutable full reversal and original recovery after void, bounded history,
+foreign tenant/outlet/actor and readonly denial, actual grant revocation, different
+supplier/draft/unknown source, projection edit refusal and audit/outbox rollback
+for both match and reversal. Matching SDK/UI, source selectors and full payable
+allocation remain separate unfinished work. No live matching test is claimed.
+
 ## Evidence and remaining scope
 
 `e2e/tests/pharmacy-supplier-return-dispatch.spec.ts` exercises the real browser,

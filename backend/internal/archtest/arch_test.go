@@ -450,6 +450,9 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return":                                                                                        "one immutable return aggregate with at most 100 guarded lines; no return collection",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/cancellations/:cancellation":                                                            "one actor-bound immutable cancellation receipt; no command collection",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/holds/:hold":                                                                                                        "one actor-bound immutable physical-hold receipt; no collection",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-level":                                                                                     "one current product/outlet reorder-level receipt or explicit null; never a history collection",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-levels/:command":                                                                           "one immutable product/outlet/command-scoped reorder-level receipt; never a collection",
 	"GET /workforce/hospitals/:hospital/staff/:id/mfa-recoveries/:command":                                                                                                        "one tenant/employer/Staff/initiator-scoped recovery receipt containing only command ID and lifecycle state; never a collection",

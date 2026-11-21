@@ -60,6 +60,7 @@ const RECONCILED = [
   ["sale_units", "Sales in period"],
   ["return_units", "Returns in period"],
   ["supplier_dispatch_units", "Supplied to hospital orders in period"],
+  ["quarantine_hold_units", "Quarantine holds in period"],
 ] as const;
 const WHOLE = /^-?\d+$/;
 const SIGNED = new Intl.NumberFormat(undefined, { signDisplay: "exceptZero" });
@@ -188,6 +189,7 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
         "Sales",
         "Returns",
         "Supplied to hospitals",
+        "Quarantine holds",
         "Inspect",
       ];
   // A failed snapshot hides every earlier figure, the open position's too.
@@ -437,6 +439,7 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
                                 ["sales", row.sale_units],
                                 ["returns", row.return_units],
                                 ["supplied", row.supplier_dispatch_units],
+                                ["held", row.quarantine_hold_units],
                               ] as const)
                           ).map(([field, value]) => (
                             <td className="p-3 text-right tabular-nums" key={field}>
@@ -606,7 +609,7 @@ function PositionDetail({
         {from ? `Period from ${formatZonedDateTime(from, timeZone)}` : "All recorded history"}{" "}
         through {formatZonedDateTime(asOf, timeZone)} ({timeZone}). Opening + the movements in this
         period = closing stock. Sales and supplies are negative; receipts and returns are positive;
-        releases are negative where stock left and positive where it arrived.
+        releases and quarantine holds are negative where stock left and positive where it arrived.
       </p>
       {reconciliation.isError ? (
         <RequestFailure

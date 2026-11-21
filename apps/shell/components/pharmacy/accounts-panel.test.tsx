@@ -625,3 +625,45 @@ it("does not pull the person back when a save finishes after they left", async (
   await new Promise((resolve) => setTimeout(resolve, 50));
   expect(nav.calls.slice(before)).toEqual([]);
 });
+
+it("wires permitted supplier return history into the accounts workspace", async () => {
+  nav.search = "tab=supplier-returns";
+  const base = mockAccounts();
+  const fetcher = vi.fn(async (url: string) => {
+    if (url.endsWith("/permissions")) {
+      const response = await base(url);
+      const body = await response.json();
+      return new Response(
+        JSON.stringify({ ...body, data: [...body.data, "pharmacy.supplier_returns.read"] }),
+      );
+    }
+    if (url.includes("/accounts/supplier-returns?")) return new Response(JSON.stringify(page([])));
+    return base(url);
+  });
+  vi.stubGlobal("fetch", fetcher);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <PharmacyWorkspace view="accounts" />
+    </NavigationGuardProvider>,
+  );
+  expect(
+    await screen.findByText("No supplier returns recorded for this outlet."),
+  ).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Supplier returns" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  expect(requested(fetcher, "/accounts/payables")).toEqual([]);
+});
+it("does not fetch return history without its separate permission", async () => {
+  nav.search = "tab=supplier-returns";
+  const fetcher = mockAccounts();
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <PharmacyWorkspace view="accounts" />
+    </NavigationGuardProvider>,
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent("Supplier return access is required");
+  expect(requested(fetcher, "/accounts/supplier-returns")).toEqual([]);
+  expect(screen.queryByRole("link", { name: "Supplier returns" })).not.toBeInTheDocument();
+});

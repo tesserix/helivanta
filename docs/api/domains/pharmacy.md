@@ -1190,3 +1190,148 @@ current outlet authority always come from the verified principal, never these
 headers. Actor-specific query keys and recovery storage prevent another account
 in the same tenant from adopting a pending command. Write receipts must match the
 original actor; authorized historical receipt reads remain available.
+
+## Physical quarantine holds (#1687, unreleased source)
+
+PharmaConnect owns these commands and both stock buckets. This is the physical
+hold prerequisite for supplier returns, not supplier dispatch or a financial
+settlement. Supplier returns, credit matching/allocation and their printable note
+remain in development; see [ADR-0075](../../adr/0075-pharmacy-supplier-returns.md).
+Migration `0054_pharmacy_stock_holds` has not been approved for live application.
+No availability or role grants are enabled by this source change.
+
+The Global API forwards
+`/v1/pharmacy/pharmacies/{pharmacy}/outlets/{outlet}/stock/holds/{hold}` to the
+owning product. `hold` is a UUIDv7 command reference.
+
+- `PUT` requires `pharmacy.stock.quarantine`, verified tenant membership and
+  current editor access to the exact pharmacy/outlet. Its strict canonical
+  `StockHoldInput` contains `batch_id`, `from_location_id`,
+  `quarantine_location_id`, `quantity_units`, `reason` and
+  `physical_disposition: moved_to_quarantine`. IDs must be UUIDv7, locations must
+  differ, quantity is 1–1,000,000,000 issue units, and the required reason is at
+  most 500 characters without control characters. Request bodies are limited to
+  64 KiB. Queries, duplicate fields and unknown properties are rejected.
+- `GET` requires `pharmacy.stock.read`, current exact-outlet read access and the
+  original actor. It recovers the immutable `StockHoldReceipt`, including both
+  movement references, actor and timestamp. No request body or query is accepted;
+  successful recovery is audited and `private, no-store`. Recovery is classified
+  as baseline so an operational release lock does not erase uncertain commands.
+
+The source location must be sellable and the destination quarantine in the same
+outlet. The hold does not require that an unsafe or expired batch be releasable
+for sale. It creates an immutable parent and signed `quarantine_hold` movements:
+negative from the source, positive into quarantine. Existing reservation and
+balance guards remain authoritative; holds cannot consume an active supplier
+reservation. Both movement events and audit evidence use the same transaction.
+Database guards reject forged movement references and incomplete pairs at commit.
+The hold table also has restrictive location-choice purpose/delete policies; the
+prior operating-choice integrity fingerprint is validated before migration and
+extended with the new policies afterward. Native Staff location selection remains
+fail-closed without exposing hold records through that read purpose.
+Releases and holds acquire both bucket locks in the same order.
+
+Identical replay by the original actor returns the original receipt without
+moving stock again, even after later stock changes. Reusing an identity with
+changed intent or actor is `409`; a missing or foreign-scope object is `404` and
+missing route permission is `403`. Supplied expected-tenant/subject headers are
+checked before resource access; a changed account is `409 session_changed`.
+Authority/evidence dependency failures fail closed; no stock success is returned.
+Both commands have a 15-second transaction deadline. Retain the original command
+reference when a response is uncertain and recover it before creating another.
+
+Stock positions, reconciliation, CSV and the stock register include the signed
+`quarantine_hold_units` contribution. Missing totals remain explicitly unavailable
+rather than being presented as zero or as a reconciled balance. Hosted acceptance
+covers owner models, scoped denial, exact recovery, concurrent holds, supplier
+reservations and evidence rollback. Those tests do not establish live deployment,
+regulatory return authority or supplier receipt of goods.
+
+## Supplier return drafts (#1687, unreleased source)
+
+The draft slice adds `PUT/GET /accounts/supplier-returns/{return}` and
+`PUT/GET /accounts/supplier-returns/{return}/cancellations/{cancellation}` under
+the existing pharmacy/outlet prefix. These handlers are implemented in source and remain unreleased pending
+hosted and live acceptance. Migration
+`0055_pharmacy_supplier_return_drafts` is not approved for live application.
+
+`pharmacy.supplier_returns.prepare` permits creation/cancellation and
+`pharmacy.supplier_returns.read` permits private reads. Module grants name pharmacy
+owners and purchasing staff; the platform grant reconciler also adds tenant
+administrators to every registered permission. This slice preserves that existing
+platform policy. Each request still requires verified
+tenant membership and a current exact-outlet reader/editor grant. Both expected
+subject and expected tenant headers are mandatory intent fences; supplied IDs or
+headers never grant authority. These legacy outlet grants do not by themselves
+prove reviewed Staff employment or clinical/financial posting authority.
+
+A bounded draft contains one original payable, at most 100 original receipt/bucket
+lines, positive issue units, explicit expected credit in the payable's currency
+minor units, and a reason. It freezes the original supplier, bill, product
+revision, brand/generic labels, issue unit, lot, expiry and source receipt facts.
+Only original inventory lines from that payable qualify. Platform-supplier
+receipts are rejected until an acknowledged reverse protocol exists. Duplicate
+receipt/bucket pairs, quantities beyond original receipt/available quarantine
+stock, and credit expectations exceeding the bounded total are rejected.
+
+Creation records **no stock movement, stock reservation or settlement**. Fully
+paid bills remain fully paid. Immutable database evidence requires the complete
+line set and exact source facts; failed audit writes roll back the whole draft.
+Its per-outlet number is a commercial reference, not a statutory tax document.
+Identical replay by the original actor retains the original creation receipt,
+including after later cancellation. Changed intent or actor is `409`.
+
+Cancellation uses a separate UUIDv7 command, expected version and reason. It
+preserves the original draft, appends its own attributable receipt and changes
+the read view from draft/version 0 to cancelled/version 1. Recovery is limited to
+the original cancellation actor with current read authority. Repeated or stale
+cancellations cannot erase or change evidence. Private business reads and recovery
+are audited and fail closed if their audit cannot be retained. Read/cancellation
+routes remain baseline-classified when operating availability is disabled.
+
+Bodies are strict, bounded to 64 KiB and reject duplicate/unknown fields and query
+parameters. Commands and reads have a 15-second deadline. Resource reads return
+one guarded object with no more than 100 lines; collection pagination exemptions
+must document that bound. The new tables also participate in the restrictive
+location-choice purpose policies and integrity fingerprint.
+
+Dispatch, actual supplier-credit recognition/matching/allocation, printable notes,
+UI integration and complete live acceptance remain outstanding. The account-bound
+SDK validates outlet, actor, command, original receipt quantities and explicit
+credit totals without retrying uncertain commands under a new identity. The expected
+credit is not an actual credit note, refund, GST/ITC decision or GL posting.
+
+### Supplier return history and cancellation workspace (unreleased)
+
+`GET /accounts/supplier-returns` under the same pharmacy/outlet root is a
+private, audited cursor collection. It accepts only single nonempty `limit` and
+`cursor` parameters and no body. Platform limits are 1–200 (default 50); the
+workspace requests 25. Summaries use canonical `SupplierReturnSummary`, omit actor
+subjects and source-line bodies, and project current cancellation state without
+changing the stable original creation receipt. Audit failure returns 503 without
+rows. Verified membership, return-read permission, current exact-outlet access
+and both expected-account fences remain mandatory.
+
+The accounts workspace adds a permission-controlled Supplier returns tab behind
+the existing pharmacy-payables release gate; its panel classification is
+`pharmacy.supplier_return_history`. Return numbers, named suppliers, original
+bill references, product names, batch, expiry and units replace raw identity
+labels. Preparation dates use the outlet timezone. Expected credit is explicitly
+not an accepted supplier credit or bill settlement. No creation, dispatch, credit
+allocation or tax-document action is exposed by this history view.
+
+An authorised current outlet editor can cancel a draft with a reason and the
+existing versioned immutable command. The UI first retains only the command
+reference in session storage scoped to tenant/subject/pharmacy/outlet/return.
+Storage failure prevents submission. Response loss or reload preserves recovery
+of the same actor-bound command; a confirmed missing result permits an explicit
+retry with the same reference and original reason. It never creates a fresh
+command to resolve an uncertain write. Read authority permits recovery even if
+preparation authority has subsequently been removed. Changes of account reset
+the panel and use separate account-scoped cache keys. Unsaved/uncertain commands
+participate in the workspace navigation guard.
+
+See the [history design](../../superpowers/specs/2026-11-21-supplier-return-history.md)
+and [delivery plan](../../superpowers/plans/2026-11-21-supplier-return-history.md).
+Hosted native and browser acceptance and approved live rollout remain required;
+this addition does not complete #1687 or enable any locked operational capability.

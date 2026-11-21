@@ -9,7 +9,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/authn"
 )
 
-func stocktakeScope(c *gin.Context) (authn.Principal, uuid.UUID, bool) {
+func stockCommandScope(c *gin.Context) (authn.Principal, uuid.UUID, bool) {
 	p, outlet, ok := catalogueScope(c)
 	if !ok {
 		return p, uuid.Nil, false

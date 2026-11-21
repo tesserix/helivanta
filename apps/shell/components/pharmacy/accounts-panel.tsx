@@ -19,14 +19,17 @@ import { useListDetail } from "@/lib/use-list-detail";
 import { useStepBackWhenEmpty, useUrlPage } from "@/lib/use-url-page";
 import { formatPharmacyMoney } from "./currency-amount-field";
 import { PayableForm, PayableHistory } from "./payable-forms";
+import { SupplierReturnHistory } from "./supplier-return-history";
 
 export function AccountsPanel({
   scope,
+  subject,
   writable,
   defaultCurrency,
   timeZone = "UTC",
 }: {
   scope: PharmacyScope;
+  subject: string;
   writable: boolean;
   defaultCurrency: string;
   timeZone?: string;
@@ -43,8 +46,9 @@ export function AccountsPanel({
     );
   return (
     <OutletAccounts
-      key={`${scope.tenantId}:${scope.pharmacyId}:${scope.outletId}:${timeZone}`}
+      key={`${scope.tenantId}:${subject}:${scope.pharmacyId}:${scope.outletId}:${timeZone}`}
       scope={scope}
+      subject={subject}
       writable={writable}
       defaultCurrency={defaultCurrency}
       timeZone={timeZone}
@@ -53,11 +57,13 @@ export function AccountsPanel({
 }
 function OutletAccounts({
   scope,
+  subject,
   writable,
   defaultCurrency,
   timeZone,
 }: {
   scope: PharmacyScope;
+  subject: string;
   writable: boolean;
   defaultCurrency: string;
   timeZone: string;
@@ -85,13 +91,32 @@ function OutletAccounts({
     <PageTabs
       label="Supplier bills"
       current={tab}
-      tabs={(Object.keys(TABS) as BillsTab[]).map((key) => ({
-        key,
-        label: TABS[key],
-        href: url.hrefFor({ tab: key }),
-      }))}
+      tabs={(Object.keys(TABS) as BillsTab[])
+        .filter((key) => key !== "supplier-returns" || can("pharmacy.supplier_returns.read"))
+        .map((key) => ({
+          key,
+          label: TABS[key],
+          href: url.hrefFor({ tab: key }),
+        }))}
     />
   );
+  if (tab === "supplier-returns")
+    return (
+      <div className="space-y-5">
+        {tabs}
+        {can("pharmacy.supplier_returns.read") ? (
+          <SupplierReturnHistory
+            scope={{ ...scope, subject }}
+            canCancel={writable && can("pharmacy.supplier_returns.prepare")}
+            timeZone={timeZone}
+          />
+        ) : (
+          <Panel>
+            <p role="alert">Supplier return access is required for this outlet.</p>
+          </Panel>
+        )}
+      </div>
+    );
   if (tab === "audit")
     return (
       <div className="space-y-6">
@@ -159,6 +184,7 @@ const TABS = {
   week: "Due within 7 days",
   all: "All bills",
   audit: "Inventory cost audit",
+  "supplier-returns": "Supplier returns",
 } as const;
 type BillsTab = keyof typeof TABS;
 type UrlPage = ReturnType<typeof useUrlPage>;
@@ -178,7 +204,7 @@ function Bills({
   pane,
 }: {
   scope: PharmacyScope;
-  tab: Exclude<BillsTab, "audit">;
+  tab: Exclude<BillsTab, "audit" | "supplier-returns">;
   url: UrlPage;
   tabs: React.ReactNode;
   canRecord: boolean;

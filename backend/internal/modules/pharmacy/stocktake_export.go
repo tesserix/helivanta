@@ -30,7 +30,7 @@ const stocktakeAdjustmentJoin = `LEFT JOIN LATERAL(
 )adjustment ON true`
 
 func (h *catalogueHandlers) exportStocktakeRegister(c *gin.Context) {
-	p, outlet, ok := stocktakeScope(c)
+	p, outlet, ok := stockCommandScope(c)
 	if !ok {
 		return
 	}

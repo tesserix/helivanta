@@ -3,6 +3,106 @@ package pharmacy
 
 import "github.com/google/uuid"
 
+type SupplierReturnDraftLineInput struct {
+	ReceiptID            uuid.UUID `json:"receipt_id" binding:"required"`
+	QuarantineLocationID uuid.UUID `json:"quarantine_location_id" binding:"required"`
+	QuantityUnits        *int64    `json:"quantity_units" binding:"min=1,max=1000000000"`
+	ExpectedCreditMinor  *int64    `json:"expected_credit_minor" binding:"min=0,max=1000000000000"`
+}
+
+type SupplierReturnDraftInput struct {
+	PayableID uuid.UUID                      `json:"payable_id" binding:"required"`
+	Lines     []SupplierReturnDraftLineInput `json:"lines" binding:"required,min=1,max=100,dive" gorm:"-"`
+	Reason    string                         `json:"reason" binding:"required,min=1,max=500"`
+}
+
+type SupplierReturnLine struct {
+	ID              uuid.UUID `json:"id" binding:"required"`
+	BatchID         uuid.UUID `json:"batch_id" binding:"required"`
+	ProductID       uuid.UUID `json:"product_id" binding:"required"`
+	ProductVersion  int64     `json:"product_version" binding:"min=1"`
+	ProductName     string    `json:"product_name" binding:"required,min=1,max=200"`
+	GenericName     string    `json:"generic_name" binding:"required,min=1,max=200"`
+	UnitCode        string    `json:"unit_code" binding:"required,min=1,max=40"`
+	LotNumber       string    `json:"lot_number" binding:"required,min=1,max=100"`
+	ExpiresOn       string    `json:"expires_on"`
+	ReceiptUnits    int64     `json:"receipt_units" binding:"min=1,max=1000000000"`
+	SourceReference string    `json:"source_reference" binding:"required,min=1,max=100"`
+	SourceCreatedAt string    `json:"source_created_at"`
+	SupplierReturnDraftLineInput
+}
+
+type SupplierReturnCreationReceipt struct {
+	ID                  uuid.UUID            `json:"id" binding:"required"`
+	OutletID            uuid.UUID            `json:"outlet_id" binding:"required"`
+	Number              int64                `json:"number" binding:"min=1,max=1000000000000"`
+	PayableID           uuid.UUID            `json:"payable_id" binding:"required"`
+	PayeeReference      string               `json:"payee_reference" binding:"required,min=1,max=100"`
+	PayeeName           string               `json:"payee_name" binding:"required,min=1,max=200"`
+	DocumentReference   string               `json:"document_reference" binding:"required,min=1,max=100"`
+	Currency            string               `json:"currency"`
+	ExpectedCreditMinor int64                `json:"expected_credit_minor" binding:"min=0,max=1000000000000"`
+	Lines               []SupplierReturnLine `json:"lines" binding:"required,min=1,max=100,dive" gorm:"-"`
+	Reason              string               `json:"reason" binding:"required,min=1,max=500"`
+	PreparedBy          string               `json:"prepared_by" binding:"required,min=1,max=200"`
+	PreparedAt          string               `json:"prepared_at"`
+}
+
+type SupplierReturnView struct {
+	State   string `json:"state" binding:"required,oneof=draft cancelled"`
+	Version int64  `json:"version" binding:"min=0,max=1"`
+	SupplierReturnCreationReceipt
+}
+
+type SupplierReturnSummary struct {
+	ID                  uuid.UUID `json:"id" binding:"required"`
+	OutletID            uuid.UUID `json:"outlet_id" binding:"required"`
+	Number              int64     `json:"number" binding:"min=1,max=1000000000000"`
+	PayeeName           string    `json:"payee_name" binding:"required,min=1,max=200"`
+	DocumentReference   string    `json:"document_reference" binding:"required,min=1,max=100"`
+	Currency            string    `json:"currency"`
+	ExpectedCreditMinor int64     `json:"expected_credit_minor" binding:"min=0,max=1000000000000"`
+	PreparedAt          string    `json:"prepared_at"`
+	LineCount           int64     `json:"line_count" binding:"min=1,max=100"`
+	State               string    `json:"state" binding:"required,oneof=draft cancelled"`
+	Version             int64     `json:"version" binding:"min=0,max=1"`
+}
+
+type SupplierReturnCancelInput struct {
+	ExpectedVersion *int64 `json:"expected_version" binding:"min=0,max=9007199254740991"`
+	Reason          string `json:"reason" binding:"required,min=1,max=500"`
+}
+
+type SupplierReturnCancellationReceipt struct {
+	ID          uuid.UUID `json:"id" binding:"required"`
+	OutletID    uuid.UUID `json:"outlet_id" binding:"required"`
+	ReturnID    uuid.UUID `json:"return_id" binding:"required"`
+	Version     int64     `json:"version" binding:"min=1,max=1"`
+	State       string    `json:"state" binding:"required,oneof=cancelled"`
+	CancelledBy string    `json:"cancelled_by" binding:"required,min=1,max=200"`
+	CancelledAt string    `json:"cancelled_at"`
+	SupplierReturnCancelInput
+}
+
+type StockHoldInput struct {
+	BatchID              uuid.UUID `json:"batch_id" binding:"required"`
+	FromLocationID       uuid.UUID `json:"from_location_id" binding:"required"`
+	QuarantineLocationID uuid.UUID `json:"quarantine_location_id" binding:"required"`
+	QuantityUnits        *int64    `json:"quantity_units" binding:"required,min=1,max=1000000000"`
+	Reason               string    `json:"reason" binding:"required,min=1,max=500"`
+	PhysicalDisposition  string    `json:"physical_disposition" binding:"required,oneof=moved_to_quarantine"`
+}
+
+type StockHoldReceipt struct {
+	ID            uuid.UUID `json:"id" binding:"required"`
+	OutletID      uuid.UUID `json:"outlet_id" binding:"required"`
+	OutMovementID uuid.UUID `json:"out_movement_id" binding:"required"`
+	InMovementID  uuid.UUID `json:"in_movement_id" binding:"required"`
+	HeldBy        string    `json:"held_by" binding:"required,min=1,max=200"`
+	HeldAt        string    `json:"held_at"`
+	StockHoldInput
+}
+
 type StocktakeDecisionInput struct {
 	Decision              string  `json:"decision" binding:"required,oneof=submit approve reject cancel"`
 	ExpectedVersion       *int64  `json:"expected_version" binding:"required,min=0,max=9007199254740990"`
@@ -213,6 +313,15 @@ type movementInput struct {
 	QuantityUnits   int64     `json:"quantity_units" binding:"required,min=-1000000000,max=1000000000"`
 	Reason          string    `json:"reason" binding:"required,min=1,max=500"`
 	SourceReference string    `json:"source_reference" binding:"required,min=1,max=100"`
+}
+
+type StockMovementReceipt struct {
+	Kind         string    `json:"kind" binding:"required,oneof=receipt correction release sale return supplier_dispatch quarantine_hold"`
+	ID           uuid.UUID `json:"id" binding:"required"`
+	OutletID     uuid.UUID `json:"outlet_id" binding:"required"`
+	ActorSubject string    `json:"actor_subject" binding:"required,min=1,max=200"`
+	CreatedAt    string    `json:"created_at"`
+	movementInput
 }
 
 type StorageAddressFields struct {

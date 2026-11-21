@@ -81,6 +81,12 @@ jobs:
           printf 'STAFF_IDENTITY_OWNER_SCHEMA=%s\n' "$staff_schema" >> "$GITHUB_ENV"
       - name: Bounded outbox batch atomicity
         run: go test -race -count=1 -timeout=10m -run '^TestEnqueueBatch' ./pkg/events
+      - name: Pharmacy supplier return draft acceptance
+        run: go test -race -count=1 -timeout=15m -run '^TestSupplierReturn' ./internal/modules/pharmacy
+      - name: Pharmacy physical quarantine hold acceptance
+        run: |
+          go test -race -count=1 -timeout=15m -run '^(TestStockHold|TestStockPositionsAndExportFootEveryMovementKind$|TestStockReconciliationFootsEveryMovementKind$)' ./internal/modules/pharmacy
+          go test -race -count=1 -timeout=10m -run '^TestStockHold' ./internal/globalapi
       - name: Pharmacy stocktake native acceptance
         run: go test -race -count=1 -timeout=15m -run '^TestStocktake(SnapshotIsFrozenAndOutletScoped|CountsAreVersionedAndMovementBound|IndependentApprovalPreservesLaterMovements|SellableDifferencesPreserveQuarantineAndLaterTransfers|OwnershipModelsKeepScopedPosting|PostingFailuresDoNotPartiallyAdjustBuckets)$' ./internal/modules/pharmacy
       - name: Pharmacy stocktake Global API acceptance

@@ -38,16 +38,28 @@ type releaseWorld struct {
 // and one received batch of 100 with an MRP.
 func newReleaseWorld(t *testing.T) releaseWorld {
 	t.Helper()
+	return newReleaseWorldForOwnership(t, "independent")
+}
+
+func newReleaseWorldForOwnership(t *testing.T, ownership string) releaseWorld {
+	t.Helper()
 	pharmacy.SetClock(t, func() time.Time { return time.Date(2026, 11, 1, 6, 30, 0, 0, time.UTC) })
 	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
-		Tokens: map[string]string{"editor": testutil.TenantA, "pharmacist": testutil.TenantA, "clerk": testutil.TenantA},
+		Tokens: map[string]string{"editor": testutil.TenantA, "pharmacist": testutil.TenantA, "clerk": testutil.TenantA, "foreign": testutil.TenantB, "sibling": testutil.TenantA},
 		Perms: map[string][]authz.Permission{
 			"editor":     releasePerms,
+			"foreign":    releasePerms,
+			"sibling":    releasePerms,
 			"pharmacist": releasePerms,
 			"clerk":      {"pharmacy.catalogue.read", "pharmacy.stock.read", "pharmacy.stock.receive"},
 		}, Modules: []platform.Module{pharmacy.New()},
 	})
-	seedPharmacyOutlet(t, r)
+
+	root := "/v1/pharmacy/pharmacies/" + pharmaOrganization
+	organization := do(r, "PUT", root, "editor", fmt.Sprintf(`{"code":"TEST-PHARMACY","name":"TEST Hold Pharmacy","ownership_type":%q}`, ownership))
+	require.Equal(t, 200, organization.Code, organization.Body.String())
+	outlet := do(r, "PUT", root+"/outlets/"+pharmaOutlet, "editor", `{"code":"TEST-MAIN","name":"TEST Main Outlet","country_code":"IN","timezone":"Asia/Kolkata"}`)
+	require.Equal(t, 200, outlet.Code, outlet.Body.String())
 	for _, s := range []string{"user-editor", "user-pharmacist", "user-clerk"} {
 		grantCatalogue(t, r, s, "editor")
 	}

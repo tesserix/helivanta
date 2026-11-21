@@ -5,7 +5,7 @@ import {
   pharmacyLocationInputSchema,
   pharmacyProductInputSchema,
   pharmacyProductFieldsSchema,
-  pharmacyMovementInputSchema,
+  pharmacyStockMovementReceiptSchema,
   pharmacyBatchInputSchema,
   pharmacyStockExpiryFieldsSchema,
   pharmacyTaxRegistrationInputSchema,
@@ -16,6 +16,7 @@ export {
   pharmacyUnusedPaymentRefundFieldsSchema,
   pharmacyBatchInputSchema,
   pharmacyMovementInputSchema,
+  pharmacyStockMovementReceiptSchema,
   pharmacyProductFieldsSchema,
   pharmacyLocationInputSchema,
   pharmacyTaxRegistrationInputSchema,
@@ -111,12 +112,7 @@ export type PharmacyBatch = Omit<z.infer<typeof pharmacyBatchInputSchema>, "mrp_
   product_version: number;
   created_at: string;
 };
-export type PharmacyMovement = z.infer<typeof pharmacyMovementInputSchema> & {
-  id: string;
-  outlet_id: string;
-  actor_subject: string;
-  created_at: string;
-};
+export type PharmacyMovement = z.infer<typeof pharmacyStockMovementReceiptSchema>;
 export type PharmacyRevision = {
   id: string;
   product_id: string;
@@ -150,6 +146,7 @@ export type PharmacyStockPosition = z.infer<typeof pharmacyStockExpiryFieldsSche
   sale_units: string;
   return_units: string;
   supplier_dispatch_units: string;
+  quarantine_hold_units: string;
 };
 export type PharmacyStockReconciliation = {
   location_id: string;
@@ -163,6 +160,7 @@ export type PharmacyStockReconciliation = {
   sale_units: string;
   return_units: string;
   supplier_dispatch_units: string;
+  quarantine_hold_units: string;
   closing_units: number;
   movement_count: number;
 };

@@ -8,6 +8,133 @@ const identifier = z
     /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     "Choose a valid record.",
   );
+export const pharmacySupplierReturnDraftLineInputSchema = z
+  .object({
+    receipt_id: identifier,
+    quarantine_location_id: identifier,
+    quantity_units: z.number().int().min(1).max(1000000000),
+    expected_credit_minor: z.number().int().min(0).max(1000000000000),
+  })
+  .strict();
+
+export const pharmacySupplierReturnDraftInputSchema = z
+  .object({
+    payable_id: identifier,
+    lines: z.array(pharmacySupplierReturnDraftLineInputSchema).min(1).max(100),
+    reason: z.string().trim().min(1).max(500),
+  })
+  .strict();
+
+export const pharmacySupplierReturnLineSchema = pharmacySupplierReturnDraftLineInputSchema
+  .extend({
+    id: identifier,
+    batch_id: identifier,
+    product_id: identifier,
+    product_version: z.number().int().min(1),
+    product_name: z.string().min(1).max(200),
+    generic_name: z.string().min(1).max(200),
+    unit_code: z.string().min(1).max(40),
+    lot_number: z.string().min(1).max(100),
+    expires_on: z.string().regex(new RegExp("^\\d{4}-\\d{2}-\\d{2}$"), "Use the required format."),
+    receipt_units: z.number().int().min(1).max(1000000000),
+    source_reference: z.string().min(1).max(100),
+    source_created_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+  })
+  .strict();
+
+export const pharmacySupplierReturnCreationReceiptSchema = z
+  .object({
+    id: identifier,
+    outlet_id: identifier,
+    number: z.number().int().min(1).max(1000000000000),
+    payable_id: identifier,
+    payee_reference: z.string().min(1).max(100),
+    payee_name: z.string().min(1).max(200),
+    document_reference: z.string().min(1).max(100),
+    currency: z.string().regex(new RegExp("^[A-Z]{3}$"), "Use the required format."),
+    expected_credit_minor: z.number().int().min(0).max(1000000000000),
+    lines: z.array(pharmacySupplierReturnLineSchema).min(1).max(100),
+    reason: z.string().min(1).max(500),
+    prepared_by: z.string().min(1).max(200),
+    prepared_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+  })
+  .strict();
+
+export const pharmacySupplierReturnViewSchema = pharmacySupplierReturnCreationReceiptSchema
+  .extend({
+    state: z.enum(["draft", "cancelled"]),
+    version: z.number().int().min(0).max(1),
+  })
+  .strict();
+
+export const pharmacySupplierReturnSummarySchema = z
+  .object({
+    id: identifier,
+    outlet_id: identifier,
+    number: z.number().int().min(1).max(1000000000000),
+    payee_name: z.string().min(1).max(200),
+    document_reference: z.string().min(1).max(100),
+    currency: z.string().regex(new RegExp("^[A-Z]{3}$"), "Use the required format."),
+    expected_credit_minor: z.number().int().min(0).max(1000000000000),
+    prepared_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+    line_count: z.number().int().min(1).max(100),
+    state: z.enum(["draft", "cancelled"]),
+    version: z.number().int().min(0).max(1),
+  })
+  .strict();
+
+export const pharmacySupplierReturnCancelInputSchema = z
+  .object({
+    expected_version: z.number().int().min(0).max(9007199254740991),
+    reason: z.string().trim().min(1).max(500),
+  })
+  .strict();
+
+export const pharmacySupplierReturnCancellationReceiptSchema =
+  pharmacySupplierReturnCancelInputSchema
+    .extend({
+      id: identifier,
+      outlet_id: identifier,
+      return_id: identifier,
+      version: z.number().int().min(1).max(1),
+      state: z.enum(["cancelled"]),
+      cancelled_by: z.string().min(1).max(200),
+      cancelled_at: z
+        .string()
+        .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+    })
+    .strict();
+
+export const pharmacyStockHoldInputSchema = z
+  .object({
+    batch_id: identifier,
+    from_location_id: identifier,
+    quarantine_location_id: identifier,
+    quantity_units: z.number().int().min(1).max(1000000000),
+    reason: z.string().trim().min(1).max(500),
+    physical_disposition: z.enum(["moved_to_quarantine"]),
+  })
+  .strict();
+
+export const pharmacyStockHoldReceiptSchema = pharmacyStockHoldInputSchema
+  .extend({
+    id: identifier,
+    outlet_id: identifier,
+    out_movement_id: identifier,
+    in_movement_id: identifier,
+    held_by: z.string().min(1).max(200),
+    held_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+  })
+  .strict();
+
 export const pharmacyStocktakeDecisionInputSchema = z
   .object({
     decision: z.enum(["submit", "approve", "reject", "cancel"]),
@@ -301,6 +428,26 @@ export const pharmacyMovementInputSchema = z
       .refine((value) => value !== 0, "Quantity cannot be zero."),
     reason: z.string().trim().min(1).max(500),
     source_reference: z.string().trim().min(1).max(100),
+  })
+  .strict();
+
+export const pharmacyStockMovementReceiptSchema = pharmacyMovementInputSchema
+  .extend({
+    kind: z.enum([
+      "receipt",
+      "correction",
+      "release",
+      "sale",
+      "return",
+      "supplier_dispatch",
+      "quarantine_hold",
+    ]),
+    id: identifier,
+    outlet_id: identifier,
+    actor_subject: z.string().min(1).max(200),
+    created_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
   })
   .strict();
 

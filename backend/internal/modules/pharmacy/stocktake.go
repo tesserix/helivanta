@@ -232,7 +232,7 @@ func finishStocktakeHeader(row *stocktakeHeaderRow) error {
 }
 
 func (h *catalogueHandlers) putStocktake(c *gin.Context) {
-	p, outlet, ok := stocktakeScope(c)
+	p, outlet, ok := stockCommandScope(c)
 	if !ok {
 		return
 	}
@@ -241,7 +241,7 @@ func (h *catalogueHandlers) putStocktake(c *gin.Context) {
 		return
 	}
 	var in StocktakeStartInput
-	if !decodeStocktake(c, &in) {
+	if !decodeStockCommand(c, &in) {
 		return
 	}
 	if !normalizeStocktakeStart(&in) {
@@ -345,7 +345,7 @@ func startStocktake(tx *gorm.DB, p authn.Principal, outlet, id uuid.UUID, in Sto
 }
 
 func (h *catalogueHandlers) getStocktake(c *gin.Context) {
-	p, outlet, ok := stocktakeScope(c)
+	p, outlet, ok := stockCommandScope(c)
 	if !ok {
 		return
 	}
@@ -370,7 +370,7 @@ func (h *catalogueHandlers) getStocktake(c *gin.Context) {
 }
 
 func (h *catalogueHandlers) listStocktakes(c *gin.Context, params pagination.Params) ([]stocktakeHeaderRow, error) {
-	p, outlet, ok := stocktakeScope(c)
+	p, outlet, ok := stockCommandScope(c)
 	if !ok || !stocktakeRead(c, true) {
 		return nil, nil
 	}
@@ -394,7 +394,7 @@ func (h *catalogueHandlers) listStocktakes(c *gin.Context, params pagination.Par
 }
 
 func (h *catalogueHandlers) listStocktakeLines(c *gin.Context, params pagination.Params) ([]stocktakeLineRow, error) {
-	p, outlet, ok := stocktakeScope(c)
+	p, outlet, ok := stockCommandScope(c)
 	if !ok {
 		return nil, nil
 	}

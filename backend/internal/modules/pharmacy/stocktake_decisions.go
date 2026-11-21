@@ -61,7 +61,7 @@ func (h *catalogueHandlers) putStocktakeCancellation(c *gin.Context) {
 }
 
 func (h *catalogueHandlers) writeStocktakeDecision(c *gin.Context, cancelOnly bool) {
-	p, outlet, ok := stocktakeScope(c)
+	p, outlet, ok := stockCommandScope(c)
 	if !ok {
 		return
 	}
@@ -74,7 +74,7 @@ func (h *catalogueHandlers) writeStocktakeDecision(c *gin.Context, cancelOnly bo
 		return
 	}
 	var in StocktakeDecisionInput
-	if !decodeStocktake(c, &in) {
+	if !decodeStockCommand(c, &in) {
 		return
 	}
 	if !normalizeStocktakeDecision(&in) {
@@ -184,7 +184,7 @@ func postStocktakeDecision(tx *gorm.DB, p authn.Principal, pharmacy, outlet, tak
 }
 
 func (h *catalogueHandlers) getStocktakeDecision(c *gin.Context) {
-	p, outlet, ok := stocktakeScope(c)
+	p, outlet, ok := stockCommandScope(c)
 	if !ok {
 		return
 	}

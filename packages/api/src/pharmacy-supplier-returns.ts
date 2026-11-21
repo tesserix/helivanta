@@ -213,7 +213,7 @@ export async function listPharmacySupplierReturns(
   return page;
 }
 
-export { pharmacySupplierReturnCancelInputSchema };
+export { pharmacySupplierReturnCancelInputSchema, pharmacySupplierReturnDispatchInputSchema };
 
 function checkedDispatch(
   value: unknown,

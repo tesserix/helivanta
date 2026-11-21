@@ -136,31 +136,31 @@ func (h *catalogueHandlers) dispatchSupplierReturn(c *gin.Context) {
 		if terminal != 0 {
 			return errSupplierReturnConflict
 		}
-		var review uuid.UUID
-		if err := tx.Raw("SELECT review_id FROM pharmacy_trading_licence_source(?,?,?)", p.TenantID, outlet, in.LicenceID).Scan(&review).Error; err != nil {
+		var licence struct{ ReviewID uuid.UUID }
+		if err := tx.Raw("SELECT review_id FROM pharmacy_trading_licence_source(?,?,?)", p.TenantID, outlet, in.LicenceID).Scan(&licence).Error; err != nil {
 			return err
 		}
-		if review == uuid.Nil {
+		if licence.ReviewID == uuid.Nil {
 			return errSupplierReturnConflict
 		}
 		at, err := time.Parse(time.RFC3339Nano, in.HandedOverAt)
 		if err != nil {
 			return err
 		}
-		row = supplierReturnDispatchRow{ID: id, TenantID: uuid.MustParse(p.TenantID), OutletID: outlet, ReturnID: parent, LicenceID: in.LicenceID, LicenceReviewID: review, DocumentReference: in.DocumentReference, RecipientName: in.RecipientName, HandedOverAt: at, PhysicalDisposition: in.PhysicalDisposition, Reason: in.Reason, IntentSHA256: digest, ActorSubject: p.Subject}
+		row = supplierReturnDispatchRow{ID: id, TenantID: uuid.MustParse(p.TenantID), OutletID: outlet, ReturnID: parent, LicenceID: in.LicenceID, LicenceReviewID: licence.ReviewID, DocumentReference: in.DocumentReference, RecipientName: in.RecipientName, HandedOverAt: at, PhysicalDisposition: in.PhysicalDisposition, Reason: in.Reason, IntentSHA256: digest, ActorSubject: p.Subject}
 		if err := tx.Create(&row).Error; err != nil {
 			return err
 		}
 		proof := make([]supplierReturnDispatchLineRow, len(lines))
 		for i, line := range lines {
-			var declaration uuid.UUID
-			if err := tx.Raw("SELECT declaration_id FROM pharmacy_product_schedule_in_force(?,?,?)", p.TenantID, outlet, line.ProductID).Scan(&declaration).Error; err != nil {
+			var schedule struct{ DeclarationID uuid.UUID }
+			if err := tx.Raw("SELECT declaration_id FROM pharmacy_product_schedule_in_force(?,?,?)", p.TenantID, outlet, line.ProductID).Scan(&schedule).Error; err != nil {
 				return err
 			}
-			if declaration == uuid.Nil {
+			if schedule.DeclarationID == uuid.Nil {
 				return errSupplierReturnConflict
 			}
-			proof[i] = supplierReturnDispatchLineRow{TenantID: row.TenantID, OutletID: outlet, DispatchID: id, ReturnLineID: line.ID, MovementID: uuid.Must(uuid.NewV7()), ScheduleDeclarationID: declaration}
+			proof[i] = supplierReturnDispatchLineRow{TenantID: row.TenantID, OutletID: outlet, DispatchID: id, ReturnLineID: line.ID, MovementID: uuid.Must(uuid.NewV7()), ScheduleDeclarationID: schedule.DeclarationID}
 		}
 		if err := tx.Create(&proof).Error; err != nil {
 			return err

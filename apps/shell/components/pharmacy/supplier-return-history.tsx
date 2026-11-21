@@ -237,7 +237,11 @@ function SupplierReturnDetail({
             canStart={canDispatch}
             timeZone={timeZone}
           />
-          <SupplierReturnNoteDownload scope={scope} value={detail.data} disabled={detail.isFetching} />
+          <SupplierReturnNoteDownload
+            scope={scope}
+            value={detail.data}
+            disabled={detail.isFetching}
+          />
           {
             <CancelReturn
               key={id}

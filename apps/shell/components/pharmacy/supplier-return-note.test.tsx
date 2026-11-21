@@ -135,13 +135,11 @@ it("conceals private refusal details and requires an explicit access recheck", a
   const { create } = downloads();
   vi.stubGlobal(
     "fetch",
-    vi
-      .fn()
-      .mockResolvedValue(
-        new Response(JSON.stringify({ error: "forbidden", message: "TEST private supplier" }), {
-          status: 403,
-        }),
-      ),
+    vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: "forbidden", message: "TEST private supplier" }), {
+        status: 403,
+      }),
+    ),
   );
   const { user } = renderWithProviders(
     <SupplierReturnNoteDownload scope={scope} value={value} disabled={false} />,

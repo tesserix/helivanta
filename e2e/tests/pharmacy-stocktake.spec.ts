@@ -77,6 +77,33 @@ test("count an outlet, require independent review and download the verified regi
         }
         await expect(page.getByText(new RegExp(`${completed} of 2 buckets counted`))).toBeVisible();
       }
+
+      const currentStocktake = "**/stock/stocktakes/*";
+      await expect(page.getByRole("region", { name: "Frozen stocktake buckets" })).toBeVisible();
+      await page.route(currentStocktake, (route) =>
+        route.fulfill({
+          status: 403,
+          contentType: "application/json",
+          headers: { "Cache-Control": "private, no-store" },
+          body: JSON.stringify({
+            error: "forbidden",
+            message: "TEST current stocktake read refused",
+          }),
+        }),
+      );
+      await page.getByRole("button", { name: "Refresh stocktake" }).click();
+      await expect(
+        page.getByRole("alert").filter({ hasText: "you don't have access to it" }),
+      ).toBeVisible();
+      await expect(page.getByRole("region", { name: "Frozen stocktake buckets" })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Download stocktake register" })).toHaveCount(
+        0,
+      );
+      await page.unroute(currentStocktake);
+      await page.getByRole("button", { name: "Check stocktake access" }).click();
+      await expect(page.getByRole("region", { name: "Frozen stocktake buckets" })).toBeVisible();
+      await expect(page.getByText(/2 of 2 buckets counted/)).toBeVisible();
+
       await page.getByRole("button", { name: "Review or close stocktake" }).click();
       await page
         .getByRole("textbox", { name: "Decision reason" })

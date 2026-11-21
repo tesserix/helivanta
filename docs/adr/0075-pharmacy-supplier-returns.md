@@ -358,3 +358,23 @@ An application to another bill remains a separate command after replacement.
 Tests must cover explicit linkage, wrong-original recovery, lost committed response,
 withdrawn writes and unchanged stock/payments. Hosted and live acceptance remain
 required before release; this UI does not establish statutory credit-note policy.
+
+### Bill-scoped supplier-credit journal
+
+Accounts reads `GET /payables/:id/supplier-credit-allocations` from PharmaConnect
+through Global API. Reuse the canonical allocation view and retained reversal
+identity; do not scan all credits client-side or create a second settlement master.
+Verify the bill in the current tenant/exact outlet and validate retained evidence.
+Each page requires a committed disclosure audit and current accounts-read authority,
+including when new operating Payables admission is paused. No new write authority
+or money movement is introduced. Wrong/missing bill scope is 404; unavailable
+identity/audit releases no rows. Use sealed financial keyset cursors and a 50-row cap.
+
+Add forward concurrent index migration0062 for tenant/outlet/bill/created_at/id
+ordering. Existing RLS, deadlines and pool budgets apply; no infrastructure/cost
+allocation change. Hosted migration/native tests and actual EXPLAIN evidence are
+required; a small synthetic plan is not proof of large-cardinality performance.
+The bill UI separates direct settlements from managed applications, displays owner
+totals rather than partial-page sums, hides refused cached evidence, and uses
+human references/named recorders instead of receipt/reversal UUIDs. Extend the
+hosted journey to inspect bill history after application and paid-bill reversal.

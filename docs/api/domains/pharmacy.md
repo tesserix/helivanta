@@ -1658,6 +1658,44 @@ Latest hosted execution is required before claiming these scenarios passed.
 Hosted SQL/native acceptance, finance UI/report explanations and actual Global API/browser/live acceptance are still required in
 #1784.
 
+### Bill-scoped supplier-credit journal (candidate)
+
+`GET /accounts/payables/:id/supplier-credit-allocations` returns the existing
+canonical `SupplierCreditAllocationView` collection for one visible bill. It
+requires `pharmacy.accounts.read`, verified tenant/expected subject, current
+exact pharmacy/outlet authority and a visible parent bill. It is a baseline
+retained-history read, not a new-write or release-activation permission. A reader
+may inspect another authorised recorder's application. Recovery remains bound
+to the original actor through its existing separate route.
+
+The resource collection is bounded to 50 rows per page, ordered by creation time
+and identifier descending. Sealed cursors bind the actor, resource path and bill
+parameters; unknown query fields, limits above 50 and a cursor from another bill
+are refused. Invisible bill/outlet/tenant is 404, missing permission is 403,
+changed expected actor is 409 and unavailable authority/audit is 503. Each page's
+`list_read` audit names the selected bill under
+`pharmacy_payable_supplier_credit_allocations` and must commit before disclosure.
+The response retains an application after reversal with its unique reversal
+identity; exact reversal evidence is loaded through the existing selected-credit
+read, under fresh authority. No per-row reversal query is performed.
+
+The bill UI displays human credit references and authorised recorder names. It
+formats application amounts in the parent bill's currency, hides cached private
+evidence after current read failures and resets selected details on an account or
+resource switch. Current totals come from the owner bill projection, never a sum
+of partial history pages. Legacy direct adjustments and managed applications
+remain distinct. A reversal retains recorded payments and restores only its
+original credit/liability amount. Receipt and reversal UUIDs stay internal.
+
+Forward migration `0062_pharmacy_payable_credit_journal` adds the concurrent
+`(tenant_id,outlet_id,payable_id,created_at DESC,id DESC)` index using the existing
+runner. No old migration, balance master, write authority or flag changes. Hosted
+native tests include hospital-owned, independent and chain scopes, multi-document
+pagination, a fully paid bill's reversal, denial/revocation, audit failure and a
+small synthetic `EXPLAIN (ANALYZE, BUFFERS)` result. That small plan is not
+large-cardinality performance evidence. Hosted execution, visual review and live
+acceptance remain separate gates in #1784.
+
 ### Supplier-credit entry and retained history UI (candidate)
 
 Accounts includes a Supplier credits tab under current accounts-read authority.

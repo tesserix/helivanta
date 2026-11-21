@@ -69,6 +69,7 @@ func payableRoutes(g *platform.Router, deps platform.Deps) {
 	s.PUT("/payables/:id/payments/:entry", PermAccountsPayment, h.putPayment)
 	s.PUT("/payables/:id/adjustments/:entry", PermAccountsAdjust, h.putAdjustment)
 	platform.ListRoute(s, "/payables/:id/settlements", PermAccountsRead, h.listSettlements)
+	platform.ResourceListRoute(s, "/payables/:id/supplier-credit-allocations", PermAccountsRead, 50, h.listPayableCreditAllocations)
 	platform.ListRoute(s, "/payables", PermAccountsRead, h.listPayables)
 	platform.ResourceListRoute(s, "/acquisition-receipts", PermAccountsRead, 50, h.listAcquisitionReceipts)
 	platform.ListRoute(s, "/inventory-audit", PermAccountsRead, h.listInventoryAudit)

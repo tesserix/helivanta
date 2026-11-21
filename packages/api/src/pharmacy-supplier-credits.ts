@@ -732,6 +732,28 @@ export async function listPharmacySupplierCreditAllocations(
   for (const row of page.data) checkedAllocationView(scope, credit, row.id, row);
   return page;
 }
+export async function listPharmacyPayableCreditAllocations(
+  scope: PharmacyActorScope,
+  payable: string,
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  const bill = pharmacySupplierCreditAllocationInputSchema.shape.payable_id.parse(payable);
+  const query = new URLSearchParams({ limit: "50" });
+  if (cursor !== null) query.set("cursor", cursorSchema.parse(cursor));
+  const page = allocationPage.parse(
+    await apiFetch(
+      `${pharmacyRoot(scope)}/accounts/payables/${bill}/supplier-credit-allocations?${query}`,
+      request(scope, signal),
+    ),
+  );
+  checkCreditContinuation(page, cursor);
+  for (const row of page.data) {
+    checkedAllocationView(scope, row.credit_id, row.id, row);
+    if (!sameID(row.payable_id, bill)) return mismatch();
+  }
+  return page;
+}
 export async function readPharmacySupplierCreditAllocationReversal(
   scope: PharmacyActorScope,
   credit: string,

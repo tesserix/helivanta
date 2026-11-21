@@ -344,3 +344,60 @@ it("verifies retained allocation and reversal intent and exact original bill whe
     ),
   ).toEqual(reversal);
 });
+
+it("reads a bounded bill journal across credit documents with current actor/outlet preconditions", async () => {
+  const row = { ...receipt, reversal_id: null };
+  const page = {
+    data: [
+      row,
+      {
+        ...row,
+        id: entry,
+        credit_id: entry,
+        credit_document_reference: "TEST-CN-TWO",
+        recorded_by: "TEST-other-finance",
+      },
+    ],
+    page: { has_more: false, next_cursor: null },
+  };
+  vi.mocked(apiFetch).mockResolvedValue(page);
+  expect(await client.listPharmacyPayableCreditAllocations(scope, payable)).toEqual(page);
+  expect(apiFetch).toHaveBeenCalledWith(
+    `/pharmacy/pharmacies/${scope.pharmacyId}/outlets/${scope.outletId}/accounts/payables/${payable}/supplier-credit-allocations?limit=50`,
+    expect.objectContaining({
+      cache: "no-store",
+      headers: {
+        "X-Helivanta-Expected-Tenant": scope.tenantId,
+        "X-Helivanta-Expected-Subject": scope.subject,
+      },
+    }),
+  );
+});
+it.each([
+  { payable_id: entry },
+  { outlet_id: entry },
+  { version: 3 },
+  { available_minor: 251 },
+  { outstanding_minor: 681 },
+])("refuses contradictory or wrong-scope bill journal evidence %j", async (patch) => {
+  vi.mocked(apiFetch).mockResolvedValue({
+    data: [{ ...receipt, reversal_id: null, ...patch }],
+    page: { has_more: false, next_cursor: null },
+  });
+  await expect(client.listPharmacyPayableCreditAllocations(scope, payable)).rejects.toThrow();
+});
+it("rejects duplicate journal entries and non-advancing continuation", async () => {
+  const row = { ...receipt, reversal_id: null };
+  vi.mocked(apiFetch).mockResolvedValue({
+    data: [row, row],
+    page: { has_more: false, next_cursor: null },
+  });
+  await expect(client.listPharmacyPayableCreditAllocations(scope, payable)).rejects.toThrow();
+  vi.mocked(apiFetch).mockResolvedValue({
+    data: [row],
+    page: { has_more: true, next_cursor: "TEST-cursor" },
+  });
+  await expect(
+    client.listPharmacyPayableCreditAllocations(scope, payable, "TEST-cursor"),
+  ).rejects.toThrow();
+});

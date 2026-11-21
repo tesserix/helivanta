@@ -310,11 +310,42 @@ Document entry and matching are not bill settlement.
    payment, return attribution, bill application, tax decision or automatic credit
    accepted from the platform supplier; those remain separate commands/boundaries.
 
+## Review credits from the original bill
+
+1. After applying an actual credit, open **Accounts → All bills** and choose the
+   named target bill. In **Supplier credit applications**, verify the human note
+   reference, original applied amount, date, reason, recorder name and Active
+   status. Receipt and account UUIDs must not appear in rendered content.
+2. Compare the owner's bill totals with the application; do not sum a partial
+   history page as the bill balance. Direct legacy adjustments remain in their
+   separate settlement history. Use read-only finance staff to confirm that
+   reviewing history needs no adjustment authority or Stock permission.
+3. After a retained payment and full application reversal, reopen that bill.
+   Verify Reversed status and use **View reversal** to inspect its exact reason,
+   date and recorder. The original applied amount remains visible, payment is
+   retained, and owner liability reflects the reversal. The hosted journey
+   captures `bill-supplier-credit-history` at this point.
+4. Check multiple actual documents applied to one bill, pagination, a bill with
+   no managed credit and a fully paid bill subsequently reopened by reversal.
+   A cursor from another bill, foreign outlet/tenant, revoked current authority
+   and failed read audit must not disclose journal evidence. A changed account
+   must immediately lose the previous account's selected reversal.
+5. Refuse a current history/reversal read after loading it: cached private rows
+   and affected reversal details must be hidden until a fresh authorised retry.
+   Use the hosted harness for injected failures. Never disrupt the shared live
+   environment for this purpose.
+
+The candidate reuses `SupplierCreditAllocationView` with a 50-row resource cursor,
+baseline retained-read admission and accounts-read authority. Migration 0062
+adds its concurrent bill-history index. Hosted native tests inspect a two-row
+synthetic query plan; this is not a large-cardinality performance measurement.
+Record actual hosted and live evidence before marking these cases passed.
+
 CI retains only the named synthetic `commercial-return-note-print`,
 `supplier-credit-recovered`, `supplier-credit-matched`,
 `supplier-credit-match-reversed`, `supplier-credit-applied` and
 `supplier-credit-application-reversed`, `supplier-credit-voided` and
-`supplier-credit-corrected` PNGs in the
+`supplier-credit-corrected` and `bill-supplier-credit-history` PNGs in the
 `supplier-return-visual-evidence` artifact for seven days. The capture runs before
 later Playwright phases overwrite their reports; missing required images fail
 capture. Download and visually inspect that artifact before accepting the UI.
@@ -326,7 +357,8 @@ No live patient, staff or supplier data belongs in these fixtures.
 Global API and owning backend for preparation and dispatch response-loss recovery,
 then commercial-note download/print-media rendering, actual credit entry,
 matching/reversal, application/paid-bill reversal, void and replacement with response-loss recovery
-through the Supplier credits workspace. Inspect the latest hosted run before
+through the Supplier credits workspace, plus retained applications/reversal
+from the actual target bill. Inspect the latest hosted run before
 recording any of these candidate journeys as passed.
 `TestSupplierReturn*` includes native ownership, authority, concurrency, receipt
 cap and audit/outbox cases. Local compilation/targeted tests alone do not prove

@@ -3,6 +3,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const required = [
+  "bill-supplier-credit-history",
   "supplier-credit-recovered",
   "supplier-credit-matched",
   "supplier-credit-match-reversed",

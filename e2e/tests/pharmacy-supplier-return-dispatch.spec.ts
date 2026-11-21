@@ -14,7 +14,8 @@ async function attachSupplierEvidence(
     | "supplier-credit-applied"
     | "supplier-credit-application-reversed"
     | "supplier-credit-voided"
-    | "supplier-credit-corrected",
+    | "supplier-credit-corrected"
+    | "bill-supplier-credit-history",
 ) {
   const path = info.outputPath(`${name}.png`);
   await page.screenshot({ path, fullPage: true });
@@ -483,6 +484,25 @@ test("supplier return preparation and physical dispatch recover response loss wi
       outstanding_minor: 0,
     });
     await attachSupplierEvidence(page, testInfo, "supplier-credit-applied");
+    await page.getByRole("link", { name: "All bills", exact: true }).click();
+    await page.getByRole("button", { name: `Open ${futureReference}`, exact: true }).click();
+    const billCreditHistory = page.getByRole("table", {
+      name: "Bill supplier credit applications",
+      exact: true,
+    });
+    await expect(
+      billCreditHistory.getByRole("cell", { name: creditReference, exact: true }),
+    ).toBeVisible();
+    await expect(
+      billCreditHistory.getByRole("cell", { name: "Active", exact: true }),
+    ).toBeVisible();
+    await expect(
+      billCreditHistory.getByRole("cell", { name: "INR 5.00", exact: true }),
+    ).toBeVisible();
+    expect(await page.locator("body").innerText()).not.toContain(futureReceipt);
+    await page.getByRole("button", { name: "Close document", exact: true }).click();
+    await page.getByRole("link", { name: "Supplier credits", exact: true }).click();
+    await page.getByRole("button", { name: `Open credit ${creditReference}`, exact: true }).click();
     await owner(page, "PUT", `${outlet}/accounts/payables/${futurePayable}/payments/${uuidv7()}`, {
       kind: "payment",
       amount_minor: 680,
@@ -583,6 +603,28 @@ test("supplier return preparation and physical dispatch recover response loss wi
       await owner(page, "GET", `${outlet}/stock/balance?location_id=${shelf}&batch_id=${batch}`),
     ).toMatchObject({ on_hand_units: 16 });
     await attachSupplierEvidence(page, testInfo, "supplier-credit-application-reversed");
+    await page.getByRole("link", { name: "All bills", exact: true }).click();
+    await page.getByRole("button", { name: `Open ${futureReference}`, exact: true }).click();
+    await expect(
+      billCreditHistory.getByRole("cell", { name: "Reversed", exact: true }),
+    ).toBeVisible();
+    await billCreditHistory
+      .getByRole("button", { name: `View reversal for ${creditReference}`, exact: true })
+      .click();
+    const billReversal = page.getByRole("region", {
+      name: "Supplier credit application reversal",
+      exact: true,
+    });
+    await expect(
+      billReversal.getByText("TEST correct credit application after bill payment", { exact: true }),
+    ).toBeVisible();
+    await expect(billReversal.getByText(/Recorded payments are retained/)).toBeVisible();
+    await billReversal.scrollIntoViewIfNeeded();
+    await attachSupplierEvidence(page, testInfo, "bill-supplier-credit-history");
+    expect(await page.locator("body").innerText()).not.toContain(applicationId);
+    await page.getByRole("button", { name: "Close document", exact: true }).click();
+    await page.getByRole("link", { name: "Supplier credits", exact: true }).click();
+    await page.getByRole("button", { name: `Open credit ${creditReference}`, exact: true }).click();
     await page.getByRole("button", { name: "Void unused credit", exact: true }).click();
     await page
       .getByLabel("Void reason", { exact: true })

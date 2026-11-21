@@ -22,6 +22,7 @@ test("retains only named synthetic supplier screenshots before later phases over
       "supplier-credit-matched-1.png",
       "supplier-credit-applied-1.png",
       "supplier-credit-application-reversed-1.png",
+      "bill-supplier-credit-history-1.png",
       "commercial-return-note-print-1.png",
       "PRIVATE.png",
       "trace.zip",
@@ -37,6 +38,7 @@ test("retains only named synthetic supplier screenshots before later phases over
     );
     await retainSupplierReturnEvidence(source, target);
     assert.deepEqual((await readdir(target)).sort(), [
+      "bill-supplier-credit-history-1.png",
       "commercial-return-note-print-1.png",
       "supplier-credit-application-reversed-1.png",
       "supplier-credit-applied-1.png",
@@ -125,6 +127,32 @@ test("requires replacement evidence after retained void recovery", async () => {
       "supplier-credit-applied",
       "supplier-credit-application-reversed",
       "supplier-credit-voided",
+    ])
+      await writeFile(path.join(fixture, `${name}-1.png`), "TEST image");
+    await assert.rejects(
+      () => retainSupplierReturnEvidence(source, path.join(temp, "output")),
+      /Missing required synthetic supplier screenshots/,
+    );
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
+test("requires actual bill-history evidence as well as credit-workspace evidence", async () => {
+  const temp = await mkdtemp(path.join(tmpdir(), "helivanta-supplier-evidence-"));
+  try {
+    const source = path.join(temp, "results"),
+      fixture = path.join(source, "pharmacy-supplier-return-dispatch-specs", "attachments");
+    await mkdir(fixture, { recursive: true });
+    for (const name of [
+      "commercial-return-note-print",
+      "supplier-credit-recovered",
+      "supplier-credit-matched",
+      "supplier-credit-match-reversed",
+      "supplier-credit-applied",
+      "supplier-credit-application-reversed",
+      "supplier-credit-voided",
+      "supplier-credit-corrected",
     ])
       await writeFile(path.join(fixture, `${name}-1.png`), "TEST image");
     await assert.rejects(

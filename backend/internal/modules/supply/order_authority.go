@@ -34,7 +34,7 @@ type sellerOrderScope struct {
 	hospital, department                   uuid.UUID
 }
 
-var orderFrameKeys = []string{"app.actor_subject", "app.supply_order_mode", "app.supply_order_id", "app.supply_order_hospital", "app.supply_order_department", "app.supply_order_outlet", "app.supply_order_product", "app.supply_order_organization", "app.supply_order_location", "app.supply_order_actor_staff", "app.supply_order_origin"}
+var orderFrameKeys = []string{"app.actor_subject", "app.supply_order_mode", "app.supply_order_id", "app.supply_order_hospital", "app.supply_order_department", "app.supply_order_outlet", "app.supply_order_product", "app.supply_order_organization", "app.supply_order_location", "app.supply_order_actor_staff", "app.supply_order_origin", "app.supply_partner_shipments"}
 
 func purchaseOrderFrame(tx *gorm.DB, values map[string]string, action func() error) (err error) {
 	raw, err := json.Marshal(orderFrameKeys)

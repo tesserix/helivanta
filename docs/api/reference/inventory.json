@@ -5567,6 +5567,7 @@
         }
       ],
       "publishes": [
+        "helivanta.in.pharmacy.supplier_credit_changed.v1",
         "helivanta.in.pharmacy.supplier_receiving_recorded.v1",
         "helivanta.in.pharmacy.supplier_dispatch_recorded.v1",
         "helivanta.in.pharmacy.staff_department_binding_changed.v1",
@@ -6079,6 +6080,15 @@
           "id": "0057_pharmacy_supplier_return_note",
           "sql_sha256": "73f1ede5ca37756c1c97e24f0bc25cde2c4d04ce2b63c707cabdfb19779787b1",
           "creates_tables": []
+        },
+        {
+          "id": "0058_pharmacy_supplier_credit_documents",
+          "sql_sha256": "4cbebe123278ab164c628ec78e8d8bba357dd9f62820b3b5d5396ce448aba1c6",
+          "creates_tables": [
+            "pharmacy_supplier_credit_documents",
+            "pharmacy_supplier_credit_positions",
+            "pharmacy_supplier_credit_voids"
+          ]
         }
       ]
     },

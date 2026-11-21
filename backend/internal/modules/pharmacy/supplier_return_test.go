@@ -31,7 +31,7 @@ type supplierReturnWorld struct {
 func newSupplierReturnWorld(t *testing.T, ownership string) supplierReturnWorld {
 	return supplierReturnWorldWithDispatch(t, ownership, false)
 }
-func supplierReturnWorldWithDispatch(t *testing.T, ownership string, dispatch bool) supplierReturnWorld {
+func supplierReturnWorldWithDispatch(t *testing.T, ownership string, dispatch bool, readerPermissions ...authz.Permission) supplierReturnWorld {
 	t.Helper()
 	perms := []authz.Permission{pharmacy.PermCatalogueRead, pharmacy.PermCatalogueWrite, pharmacy.PermAccessManage, pharmacy.PermStockRead, pharmacy.PermStockReceive, pharmacy.PermAccountsRead, pharmacy.PermAccountsWrite, pharmacy.PermAccountsPayment, pharmacy.PermAccountsAdjust, pharmacy.PermSupplierReturnRead, pharmacy.PermSupplierReturnPrepare, pharmacy.PermSupplierReturnDispatch, pharmacy.PermLicenceManage, pharmacy.PermLicenceReview, pharmacy.PermScheduleDeclare, pharmacy.PermScheduleReview}
 	var files *attachments.GCS
@@ -41,7 +41,8 @@ func supplierReturnWorldWithDispatch(t *testing.T, ownership string, dispatch bo
 		files, err = attachments.NewGCS(cloud.Client, cloud.Quarantine, cloud.Released)
 		require.NoError(t, err)
 	}
-	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"editor": testutil.TenantA, "writer": testutil.TenantA, "reader": testutil.TenantA, "sibling": testutil.TenantA, "foreign": testutil.TenantB, "denied": testutil.TenantA}, Perms: map[string][]authz.Permission{"editor": perms, "writer": perms, "reader": {pharmacy.PermSupplierReturnRead}, "sibling": perms, "foreign": perms}, Modules: []platform.Module{pharmacy.New()}, Documents: files, PharmacyEvidenceEnabled: dispatch})
+	readPermissions := append([]authz.Permission{pharmacy.PermSupplierReturnRead}, readerPermissions...)
+	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"editor": testutil.TenantA, "writer": testutil.TenantA, "reader": testutil.TenantA, "sibling": testutil.TenantA, "foreign": testutil.TenantB, "denied": testutil.TenantA}, Perms: map[string][]authz.Permission{"editor": perms, "writer": perms, "reader": readPermissions, "sibling": perms, "foreign": perms}, Modules: []platform.Module{pharmacy.New()}, Documents: files, PharmacyEvidenceEnabled: dispatch})
 	root := "/v1/pharmacy/pharmacies/" + pharmaOrganization
 	created := do(r, "PUT", root, "editor", fmt.Sprintf(`{"code":"TEST-RETURN","name":"TEST Return Pharmacy","ownership_type":%q}`, ownership))
 	require.Equal(t, 200, created.Code, created.Body.String())

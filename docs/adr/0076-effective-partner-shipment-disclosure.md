@@ -48,7 +48,10 @@ because these are reads.
 Only the source projection owner's guarded tenant context may read its rows. Add
 an isolated `partner_shipments` SELECT purpose, exact source/buyer/hospital/outlet/
 relationship predicates and a no-write fence. Existing permissions and original
-migrations stay unchanged. This purpose must not make order commands/history,
+migrations stay unchanged. The new migration extends each selected table's
+single permissive tenant policy and preserves its existing write check; restrictive
+purpose and delete policies forbid writes and unrelated reads. The database's
+one-permissive-policy gate remains unchanged. This purpose must not make order commands/history,
 private reasons, internal actor or Staff references visible via parent-row RLS.
 Use a concurrent `(tenant_id,relationship_id,created_at DESC,id DESC)` order index
 and the existing per-order shipment keyset index. Audit the selected grant and

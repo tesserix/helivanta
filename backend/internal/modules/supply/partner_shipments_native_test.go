@@ -76,7 +76,7 @@ func verifyPartnerShipmentProjection(t *testing.T, db *tenantdb.DB, order suppli
 		current := grant
 		current.ValidUntil = time.Now().Add(30 * time.Second)
 		if err := supply.TestPartnerShipmentFrame(tx, current, "TEST-partner-reader", func() error {
-			for _, statement := range []string{"UPDATE supply_purchase_orders SET version=version+1 WHERE id=?", "UPDATE supply_supplier_dispatched_shipments SET receiving_version=receiving_version+1 WHERE id=?"} {
+			for _, statement := range []string{"UPDATE supply_purchase_orders SET version=version+1 WHERE id=?", "UPDATE supply_supplier_dispatched_shipments SET created_at=created_at WHERE id=?"} {
 				target := order.ID
 				if strings.Contains(statement, "dispatched_shipments") {
 					target = shipment.ID

@@ -24,14 +24,8 @@ CREATE FUNCTION supply_partner_shipment_order(t uuid,row_side text,h uuid,outlet
  AND buyer_org::text=proof->>'buyer_organization_id',false)
  FROM(SELECT NULLIF(current_setting('app.supply_partner_shipments',true),'')::jsonb AS proof)frame
 $$;
-CREATE POLICY partner_shipments_read ON supply_purchase_orders FOR SELECT USING(
- supply_partner_shipment_order(tenant_id,side,hospital_id,buyer_outlet_id,source_product,source_organization_id,source_location_id,relationship_id,body#>>'{input,terms_sha256}',origin_tenant_id,(body#>>'{terms,buyer,organization_id}')::uuid));
-CREATE POLICY partner_shipments_read ON supply_supplier_dispatched_shipments FOR SELECT USING(
- hms_tenant_visible(tenant_id)AND EXISTS(SELECT 1 FROM supply_purchase_orders o WHERE o.tenant_id=supply_supplier_dispatched_shipments.tenant_id AND o.id=supply_supplier_dispatched_shipments.order_id
- AND o.origin_tenant_id=supply_supplier_dispatched_shipments.buyer_tenant_id
- AND supply_partner_shipment_order(o.tenant_id,o.side,o.hospital_id,o.buyer_outlet_id,o.source_product,o.source_organization_id,o.source_location_id,o.relationship_id,o.body#>>'{input,terms_sha256}',o.origin_tenant_id,(o.body#>>'{terms,buyer,organization_id}')::uuid)));
 DO $purpose$
-DECLARE target record;reading text;
+DECLARE target record;reading text;prior text;
 BEGIN
  FOR target IN SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
  WHERE n.nspname=current_schema()AND c.relkind IN('r','p')AND starts_with(c.relname,'supply_')
@@ -41,6 +35,10 @@ BEGIN
    reading:='supply_partner_shipment_order(tenant_id,side,hospital_id,buyer_outlet_id,source_product,source_organization_id,source_location_id,relationship_id,body#>>''{input,terms_sha256}'',origin_tenant_id,(body#>>''{terms,buyer,organization_id}'')::uuid)';
   ELSIF target.relname='supply_supplier_dispatched_shipments'THEN
    reading:='EXISTS(SELECT 1 FROM supply_purchase_orders o WHERE o.tenant_id=supply_supplier_dispatched_shipments.tenant_id AND o.id=supply_supplier_dispatched_shipments.order_id AND o.origin_tenant_id=supply_supplier_dispatched_shipments.buyer_tenant_id AND supply_partner_shipment_order(o.tenant_id,o.side,o.hospital_id,o.buyer_outlet_id,o.source_product,o.source_organization_id,o.source_location_id,o.relationship_id,o.body#>>''{input,terms_sha256}'',o.origin_tenant_id,(o.body#>>''{terms,buyer,organization_id}'')::uuid))';
+  END IF;
+  IF reading<>'false'THEN
+   SELECT pg_get_expr(polqual,polrelid)INTO STRICT prior FROM pg_policy WHERE polrelid=('public.'||quote_ident(target.relname))::regclass AND polname='tenant_isolation'AND polpermissive AND polcmd='*'AND polqual IS NOT NULL AND polwithcheck IS NOT NULL;
+   EXECUTE format('ALTER POLICY tenant_isolation ON %I USING(hms_tenant_visible(tenant_id)AND((%s)OR(%s)))',target.relname,prior,reading);
   END IF;
   EXECUTE format('CREATE POLICY partner_shipment_purpose ON %I AS RESTRICTIVE USING(hms_tenant_visible(tenant_id)AND(COALESCE(current_setting(''app.supply_partner_shipments'',true),'''')=''''OR(%s)))WITH CHECK(tenant_id=NULLIF(current_setting(''app.tenant_id'',true),'''')::uuid AND COALESCE(current_setting(''app.supply_partner_shipments'',true),'''')='''')',target.relname,reading);
   EXECUTE format('CREATE POLICY partner_shipment_delete ON %I AS RESTRICTIVE FOR DELETE USING(hms_tenant_visible(tenant_id)AND COALESCE(current_setting(''app.supply_partner_shipments'',true),'''')='''')',target.relname);
@@ -67,12 +65,12 @@ DECLARE policies text;functions text;policy_count bigint;
 BEGIN
  SELECT string_agg(format('(%L::regclass,%L,%L)',c.relname,p.polname,md5(p.polcmd::text||p.polpermissive::text||p.polroles::text||COALESCE(pg_get_expr(p.polqual,p.polrelid),'')||COALESCE(pg_get_expr(p.polwithcheck,p.polrelid),''))),','ORDER BY c.relname,p.polname),count(*)INTO policies,policy_count
  FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid JOIN pg_namespace n ON n.oid=c.relnamespace
- WHERE n.nspname=current_schema()AND starts_with(c.relname,'supply_')AND p.polname IN('partner_shipments_read','partner_shipment_purpose','partner_shipment_delete');
+ WHERE n.nspname=current_schema()AND starts_with(c.relname,'supply_')AND(p.polname IN('partner_shipment_purpose','partner_shipment_delete')OR c.relname IN('supply_purchase_orders','supply_supplier_dispatched_shipments')AND p.polname='tenant_isolation');
  SELECT format('(%L,%L)',p.oid::regprocedure::text,md5(pg_get_functiondef(p.oid)))INTO STRICT functions FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname=current_schema()AND p.proname='supply_partner_shipment_order';
  EXECUTE format($definition$CREATE FUNCTION supply_partner_shipment_integrity()RETURNS boolean LANGUAGE sql STABLE AS $body$
  SELECT NOT EXISTS(SELECT 1 FROM(VALUES %s)expected(relation,name,digest)LEFT JOIN pg_policy p ON p.polrelid=expected.relation AND p.polname=expected.name
  WHERE p.oid IS NULL OR md5(p.polcmd::text||p.polpermissive::text||p.polroles::text||COALESCE(pg_get_expr(p.polqual,p.polrelid),'')||COALESCE(pg_get_expr(p.polwithcheck,p.polrelid),''))<>expected.digest)
- AND(SELECT count(*)FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=current_schema()AND starts_with(c.relname,'supply_')AND p.polname IN('partner_shipments_read','partner_shipment_purpose','partner_shipment_delete'))=%s
+ AND(SELECT count(*)FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=current_schema()AND starts_with(c.relname,'supply_')AND(p.polname IN('partner_shipment_purpose','partner_shipment_delete')OR c.relname IN('supply_purchase_orders','supply_supplier_dispatched_shipments')AND p.polname='tenant_isolation'))=%s
  AND NOT EXISTS(SELECT 1 FROM(VALUES %s)expected(name,digest)LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.name)WHERE p.oid IS NULL OR md5(pg_get_functiondef(p.oid))<>expected.digest)
  $body$ $definition$,policies,policy_count,functions);
 END $integrity$;

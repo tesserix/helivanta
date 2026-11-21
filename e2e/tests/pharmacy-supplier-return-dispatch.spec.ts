@@ -1,7 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import { choose, owner, readyOutlet } from "./support/pharmacy-counter";
 import { uuidv7 } from "./support/pharmacy";
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 
 async function financial<T>(page: Page, method: string, path: string, body?: unknown): Promise<T> {
   const actor = await owner<{ subject: string; tenant_id: string }>(
@@ -174,10 +175,24 @@ test("supplier return preparation and physical dispatch recover response loss wi
       ).toHaveCount(2);
       await expect(printPreview.getByRole("cell", { name: "4", exact: true })).toBeVisible();
       await expect(printPreview.getByText(/Not a tax invoice/)).toBeVisible();
+      const screenshot = await printPreview.screenshot({ fullPage: true });
       await testInfo.attach("commercial-return-note-print", {
-        body: await printPreview.screenshot({ fullPage: true }),
+        body: screenshot,
         contentType: "image/png",
       });
+      const printDirectory = process.env.HELIVANTA_E2E_PRINT_DIR;
+      if (printDirectory) {
+        await mkdir(printDirectory, { recursive: true, mode: 0o700 });
+        await writeFile(join(printDirectory, "supplier-return-note.png"), screenshot, {
+          mode: 0o600,
+        });
+        const pdf = await printPreview.pdf({
+          format: "A4",
+          printBackground: true,
+          preferCSSPageSize: true,
+        });
+        await writeFile(join(printDirectory, "supplier-return-note.pdf"), pdf, { mode: 0o600 });
+      }
     } finally {
       await printPreview.close();
     }

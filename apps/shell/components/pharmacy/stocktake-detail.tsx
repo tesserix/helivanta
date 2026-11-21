@@ -13,7 +13,14 @@ import {
   type PharmacyStocktakeScope,
   type PharmacyStocktakeLine,
 } from "@helivanta/api";
-import { AccountName, LoadMore, Panel, RequestFailure, useConfirmLeave } from "@helivanta/ui";
+import {
+  AccountName,
+  LoadMore,
+  Panel,
+  RequestFailure,
+  firstError,
+  useConfirmLeave,
+} from "@helivanta/ui";
 import { StockExport } from "./stock-export";
 import { StocktakeCountEditor } from "./stocktake-count-editor";
 import { StocktakeDecision } from "./stocktake-decision";
@@ -61,7 +68,7 @@ export function StocktakeDetail({
   const lines = usePagedQuery(
     stocktakeKey(scope, "stocktake-lines", takeId),
     (cursor, signal) => fetchStocktakeLines(scope, takeId, cursor, signal),
-    { enabled: Boolean(header.data) },
+    { enabled: Boolean(header.data) && !header.error },
   );
   const [entry, setEntry] = useState<PharmacyStocktakeLine | "decision" | null>(null);
   const take = header.data;
@@ -72,18 +79,21 @@ export function StocktakeDetail({
     setEntry(null);
     refresh();
   };
-  if (!take)
-    return header.error ? (
+  if (header.error || lines.error)
+    return (
       <RequestFailure
-        message="The stocktake could not be loaded."
-        error={header.error}
-        retry={() => void header.refetch()}
+        message={
+          header.error
+            ? "The stocktake could not be loaded."
+            : "Stocktake buckets could not be loaded. Editing is paused."
+        }
+        error={firstError(header.error, lines.error)}
+        retry={refresh}
+        recheck="Check stocktake access"
       />
-    ) : (
-      <p role="status">Loading stocktake…</p>
     );
-  const unavailable =
-    Boolean(header.error || lines.error) || header.isFetching || lines.isRefreshing;
+  if (!take) return <p role="status">Loading stocktake…</p>;
+  const unavailable = header.isFetching || lines.isRefreshing;
   const editable = canConfigure && take.state === "counting" && !unavailable;
   return (
     <div className="flex flex-col gap-5">
@@ -136,13 +146,6 @@ export function StocktakeDetail({
           Book quantities are frozen. Later movements remain in the live stock ledger. Uncounted
           buckets are not zero. Extra units must go to quarantine before reviewed posting.
         </p>
-        {header.error && (
-          <RequestFailure
-            message="Current stocktake status is unavailable. New commands are paused."
-            error={header.error}
-            retry={() => void header.refetch()}
-          />
-        )}
         <div className="mt-4">
           <StockExport
             key={`${take.id}:${take.version}`}
@@ -154,13 +157,6 @@ export function StocktakeDetail({
       </Panel>
       <Panel aria-label="Frozen stocktake buckets">
         <h3 className="font-semibold">Frozen stocktake buckets</h3>
-        {lines.error && (
-          <RequestFailure
-            message="Stocktake buckets could not be loaded. Editing is paused."
-            error={lines.error}
-            retry={lines.retry}
-          />
-        )}
         {lines.isPending ? (
           <p role="status">Loading counted buckets…</p>
         ) : (

@@ -106,24 +106,27 @@ These SDK tests do not substitute for a real Global API/browser financial journe
 Matching and allocation/reversal have separate owner-native and SDK scenarios;
 do not claim financial settlement from document-stage acceptance alone.
 
-The matching candidate adds `supplier_credit_matching_native_test.go`. Its hosted
-baseline at `0d3ee674` reached the first match after actual document/dispatch setup
-and observed expected200/actual404 in all three ownership models (workflow
-44903792286, job136845006033). The wired candidate still needs hosted execution
-before it can be called accepted. It covers partial/combined attribution without
+The matching native scenarios in `supplier_credit_matching_native_test.go` passed
+at `49907284` in [CI 44907133122](https://github.com/tesserix/helivanta/actions/runs/44907133122)
+and [supplier workflow 44907133061](https://github.com/tesserix/helivanta/actions/runs/44907133061).
+They cover all three ownership models, partial/combined attribution without
 spending credit, cross-document stale totals and explicit excess rationale,
 immutable full reversal and original recovery after void, bounded history,
 foreign tenant/outlet/actor and readonly denial, actual grant revocation, different
 supplier/draft/unknown source, projection edit refusal and audit/outbox rollback
-for both match and reversal. Matching UI, source selectors and full payable
-allocation remain separate unfinished work. No live matching test is claimed.
+for both match and reversal. Owner allocation/reversal also passed its separate
+head gates in [CI 44923078989](https://github.com/tesserix/helivanta/actions/runs/44923078989);
+current financial contexts passed in [CI 44924265641](https://github.com/tesserix/helivanta/actions/runs/44924265641).
+Keep UI, latest integrated hosted/visual evidence and deployed operational
+acceptance distinct from those owner-native results. Matching alone does not
+prove bill settlement. No live matching test is claimed.
 
 The matching SDK is covered by
 `packages/api/src/pharmacy-supplier-credit-matching.test.ts`: exact scope, original
 intent, explained excess, version/return-total arithmetic, original-amount reversal,
 cross-actor history versus recovery, bounded/unique pages, cancellation and no
 automatic second intent after uncertain transport. These tests and the document
-SDK suite pass together (86 cases); they do not establish browser or live acceptance.
+SDK suite must pass together; they do not establish browser or live acceptance.
 
 ## Record and recover actual supplier credit
 

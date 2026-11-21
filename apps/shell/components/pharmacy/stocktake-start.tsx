@@ -204,32 +204,36 @@ export function StocktakeStart({
             />
           </fieldset>
         )}
-        {locations.error && (
+        {locations.error ? (
           <RequestFailure
             message="Quarantine locations are unavailable."
             error={locations.error}
             retry={locations.retry}
+            recheck="Check quarantine access"
           />
+        ) : (
+          <>
+            <FormSelectField
+              control={form.control}
+              name="quarantine_location_id"
+              id="stocktake-quarantine"
+              label="Quarantine destination"
+              options={locations.items
+                .filter((location) => location.stock_status === "quarantine")
+                .map((location) => ({
+                  value: location.id,
+                  label: `${location.name} · ${location.code}`,
+                }))}
+              disabled={locked || locations.isPending || Boolean(locations.error)}
+            />
+            <LoadMore
+              hasMore={locations.hasMore}
+              isLoading={locations.isFetchingMore}
+              onClick={locations.loadMore}
+              label="Load more stocktake locations"
+            />
+          </>
         )}
-        <FormSelectField
-          control={form.control}
-          name="quarantine_location_id"
-          id="stocktake-quarantine"
-          label="Quarantine destination"
-          options={locations.items
-            .filter((location) => location.stock_status === "quarantine")
-            .map((location) => ({
-              value: location.id,
-              label: `${location.name} · ${location.code}`,
-            }))}
-          disabled={locked || locations.isPending || Boolean(locations.error)}
-        />
-        <LoadMore
-          hasMore={locations.hasMore}
-          isLoading={locations.isFetchingMore}
-          onClick={locations.loadMore}
-          label="Load more stocktake locations"
-        />
         <Field
           id="stocktake-start-reason"
           label="Start reason"

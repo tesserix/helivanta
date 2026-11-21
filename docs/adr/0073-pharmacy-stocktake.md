@@ -153,3 +153,20 @@ approval, audit/outbox failure, exact retry, reservations, quarantine destinatio
 unknown/H1/X/NDPS grouping, export audit, revoked and cross-outlet/tenant access.
 Unit/contract, hosted PostgreSQL and browser tests plus local builds are required.
 Keep #1686 open until deployment and applicable live acceptance are evidenced.
+
+## Current-read failure handling
+
+The stocktake detail must hide previously loaded header, bucket, classification
+and export/action surfaces when either current header or bucket retrieval fails.
+Current refusal takes precedence over a concurrent dependency outage. A 401
+requires sign-in; an authorised access recheck/retry refreshes both reads before
+private detail returns. A header denial prevents new dependent bucket reads. This
+preserves the existing behavior for loss of correction authority alone: an
+authorised reader may retain an open entry, but saving/review stays paused. The retained-status view also hides its previous header on read failure. A failed
+quarantine-location read conceals the selected location label while preserving
+operator-entered start intent for a fresh authorised retry. None of this adds
+permissions, changes the API contract or activates Stock.
+
+Use the [stocktake acceptance guide](../qa/pharmacy-stocktake-acceptance.md) for
+applicable hosted and live evidence. Unexecuted live cases remain pending; a
+healthy deployment or a passing source check is not operational sign-off.

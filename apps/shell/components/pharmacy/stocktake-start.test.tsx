@@ -1,4 +1,6 @@
 import { screen, waitFor } from "@testing-library/react";
+import { useQueryClient } from "@tanstack/react-query";
+import { stocktakeKey } from "@helivanta/api";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { NavigationGuardProvider } from "@helivanta/ui";
@@ -29,6 +31,72 @@ function panel() {
     started,
   };
 }
+
+it.each([403, 503])(
+  "conceals a selected quarantine label after a %s location read",
+  async (status) => {
+    let refused = false;
+    const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+      if (!url.includes("/stock/locations") || init?.method === "PUT")
+        throw new Error("Unexpected TEST stocktake request");
+      return refused
+        ? new Response(
+            JSON.stringify({ error: "unavailable", message: "TEST location read refused" }),
+            { status },
+          )
+        : json(
+            page([
+              {
+                id: location,
+                outlet_id: scope.outletId,
+                code: "TEST-Q",
+                name: "TEST Quarantine",
+                stock_status: "quarantine",
+                created_at: "2026-11-20T00:00:00Z",
+              },
+            ]),
+          );
+    });
+    vi.stubGlobal("fetch", fetch);
+    function RefreshFixture() {
+      const client = useQueryClient();
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => void client.invalidateQueries({ queryKey: stocktakeKey(scope) })}
+          >
+            Refresh stocktake locations
+          </button>
+          <StocktakeStart scope={scope} onStarted={vi.fn()} />
+        </>
+      );
+    }
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <RefreshFixture />
+      </NavigationGuardProvider>,
+    );
+    await user.click(screen.getByRole("combobox", { name: "Quarantine destination" }));
+    await user.click(await screen.findByRole("option", { name: "TEST Quarantine · TEST-Q" }));
+    refused = true;
+    await user.click(screen.getByRole("button", { name: "Refresh stocktake locations" }));
+    await screen.findByRole("alert");
+    expect(
+      screen.queryByRole("combobox", { name: "Quarantine destination" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("TEST Quarantine · TEST-Q")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Freeze book and start count" })).toBeDisabled();
+    refused = false;
+    await user.click(
+      screen.getByRole("button", {
+        name: status === 403 ? "Check quarantine access" : "Try again",
+      }),
+    );
+    expect(await screen.findByRole("combobox", { name: "Quarantine destination" })).toBeEnabled();
+    expect(fetch.mock.calls.every(([, request]) => request?.method !== "PUT")).toBe(true);
+  },
+);
 
 it("does not start a count if its recovery reference cannot be retained", async () => {
   const fetch = vi.fn().mockResolvedValue(

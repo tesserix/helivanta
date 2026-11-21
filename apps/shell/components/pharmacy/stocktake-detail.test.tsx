@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
@@ -166,4 +166,115 @@ it("shows an unavailable record rather than an empty or editable count", async (
   expect(
     screen.queryByRole("button", { name: "Download stocktake register" }),
   ).not.toBeInTheDocument();
+});
+
+it.each([401, 403, 404, 409, 503])(
+  "hides previously loaded private stocktake details after a %s refresh",
+  async (status) => {
+    let refused = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("account-presentations"))
+          return json({ tenant_id: scope.tenantId, actor_subject: scope.subject, data: [] });
+        if (url.includes("/lines"))
+          return json({ data: [line], page: { next_cursor: null, has_more: false } });
+        return refused
+          ? json({ error: "unavailable", message: "TEST current read refused" }, status)
+          : json(header);
+      }),
+    );
+    const { user } = panel(true);
+    expect(await screen.findByText("TEST Product")).toBeVisible();
+    refused = true;
+    await user.click(screen.getByRole("button", { name: "Refresh stocktake" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      status === 401
+        ? "Your session has ended."
+        : status === 403 || status === 404
+          ? "This wasn't found, or you don't have access to it."
+          : "The stocktake could not be loaded.",
+    );
+    expect(screen.queryByRole("heading", { name: "Stocktake 1" })).not.toBeInTheDocument();
+    expect(screen.queryByText("TEST Product")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Schedule H1 differences" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Download stocktake register" }),
+    ).not.toBeInTheDocument();
+    if (status === 401)
+      expect(
+        screen.queryByRole("button", { name: "Check stocktake access" }),
+      ).not.toBeInTheDocument();
+    if (status === 403 || status === 404) {
+      refused = false;
+      await user.click(screen.getByRole("button", { name: "Check stocktake access" }));
+      expect(await screen.findByText("TEST Product")).toBeVisible();
+    }
+  },
+);
+
+it("hides cached bucket evidence on line failure and reloads it on retry", async () => {
+  let refused = false;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("account-presentations"))
+        return json({ tenant_id: scope.tenantId, actor_subject: scope.subject, data: [] });
+      if (url.includes("/lines"))
+        return refused
+          ? json(
+              { error: "authz_unavailable", message: "TEST current bucket authority unavailable" },
+              503,
+            )
+          : json({ data: [line], page: { next_cursor: null, has_more: false } });
+      return json(header);
+    }),
+  );
+  const { user } = panel(true);
+  expect(await screen.findByText("TEST Product")).toBeVisible();
+  refused = true;
+  await user.click(screen.getByRole("button", { name: "Refresh stocktake" }));
+  expect(
+    await screen.findByText("Stocktake buckets could not be loaded. Editing is paused."),
+  ).toBeVisible();
+  expect(screen.queryByText("TEST Product")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("heading", { name: "Schedule H1 differences" }),
+  ).not.toBeInTheDocument();
+  refused = false;
+  await user.click(screen.getByRole("button", { name: /retry|try again/i }));
+  expect(await screen.findByText("TEST Product")).toBeVisible();
+  await waitFor(() => expect(screen.getByRole("button", { name: /Record count/ })).toBeEnabled());
+});
+
+it("shows refusal rather than an outage when concurrent reads fail differently", async () => {
+  let refused = false;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("account-presentations"))
+        return json({ tenant_id: scope.tenantId, actor_subject: scope.subject, data: [] });
+      if (url.includes("/lines"))
+        return refused
+          ? json({ error: "forbidden", message: "TEST revoked bucket access" }, 403)
+          : json({ data: [line], page: { next_cursor: null, has_more: false } });
+      return refused
+        ? json({ error: "authz_unavailable", message: "TEST status unavailable" }, 503)
+        : json(header);
+    }),
+  );
+  const { user } = panel(true);
+  await screen.findByText("TEST Product");
+  refused = true;
+  await user.click(screen.getByRole("button", { name: "Refresh stocktake" }));
+  await waitFor(() =>
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "This wasn't found, or you don't have access to it.",
+    ),
+  );
+  expect(screen.queryByText("TEST Product")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
 });

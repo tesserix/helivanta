@@ -372,9 +372,67 @@ it("focuses a new signup after a delayed availability decision permits the form"
   await userEvent
     .setup()
     .click(await screen.findByRole("button", { name: "Create another workspace" }));
-  expect(await screen.findByText("Checking registration availability…")).toBeVisible();
+  expect(await screen.findByRole("status")).toHaveTextContent("Loading");
   allow(publicRelease());
   await waitFor(() =>
     expect(screen.getByRole("heading", { name: "Create your workspace" })).toHaveFocus(),
   );
+});
+
+// #1767: someone who waited on this page while the workspace was set up is
+// signed in as soon as it is ready, without an "Open workspace" click.
+it("signs in by itself after waiting through setup", async () => {
+  const tenantId = "11111111-1111-4111-8111-111111111111";
+  let ready = false;
+  signinRedirect.mockResolvedValue(undefined);
+  stubSignupApi(
+    "fetch",
+    vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify(
+            ready
+              ? {
+                  state: "ready",
+                  name: "QA",
+                  kind: "hospital",
+                  tenantId,
+                  resourceId: "1aee9771-66c3-445c-8b3e-b18f472ca409",
+                }
+              : { state: "provisioning" },
+          ),
+          { status: 200 },
+        ),
+    ),
+  );
+  renderWithProviders(<SignupForm />);
+  expect(await screen.findByText(/up to 2 minutes/)).toBeVisible();
+  expect(signinRedirect).not.toHaveBeenCalled();
+  ready = true;
+  await waitFor(() => expect(signinRedirect).toHaveBeenCalledTimes(1), { timeout: 6000 });
+});
+
+// Coming back later to a ready workspace still offers the button, so the
+// page stays usable for "Create another workspace".
+it("does not sign in by itself when the workspace was already ready", async () => {
+  stubSignupApi(
+    "fetch",
+    vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            state: "ready",
+            name: "QA",
+            kind: "hospital",
+            tenantId: "11111111-1111-4111-8111-111111111111",
+            resourceId: "1aee9771-66c3-445c-8b3e-b18f472ca409",
+          }),
+          { status: 200 },
+        ),
+    ),
+  );
+  renderWithProviders(<SignupForm />);
+  expect(await screen.findByRole("button", { name: "Open workspace" })).toBeVisible();
+  await new Promise((r) => setTimeout(r, 300));
+  expect(signinRedirect).not.toHaveBeenCalled();
 });

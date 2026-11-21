@@ -82,8 +82,8 @@ export function TenantPicker() {
         open={confirming}
         onOpenChange={setConfirming}
         title="Switch account?"
-        description="This signs out your current account on all devices. You can then choose another hospital or pharmacy account using its own password and two-step verification."
-        confirmLabel="Sign out and choose account"
+        description="You'll be signed out on all your devices."
+        confirmLabel="Sign out and switch"
         busy={switchAccount.isPending}
         onConfirm={() => {
           setConfirming(false);

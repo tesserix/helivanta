@@ -96,7 +96,7 @@ describe("Separate account switching", () => {
     const { user } = renderPicker();
     await user.click(screen.getByRole("button", { name: "Switch account" }));
     expect(fetch).not.toHaveBeenCalledWith("/logout", { method: "POST" });
-    await user.click(screen.getByRole("button", { name: "Sign out and choose account" }));
+    await user.click(screen.getByRole("button", { name: "Sign out and switch" }));
     await waitFor(() => expect(endSession).toHaveBeenCalled());
     expect(fetch).toHaveBeenCalledWith("/logout", { method: "POST" });
     expect(window.localStorage.getItem(PERMISSIONS_CACHE_KEY)).toBeNull();
@@ -111,7 +111,7 @@ describe("Separate account switching", () => {
     rememberWorkspace("11111111-1111-4111-8111-111111111111");
     const { user } = renderPicker();
     await user.click(screen.getByRole("button", { name: "Switch account" }));
-    await user.click(screen.getByRole("button", { name: "Sign out and choose account" }));
+    await user.click(screen.getByRole("button", { name: "Sign out and switch" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /current account has not been replaced/,
     );

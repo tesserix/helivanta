@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
 import type { FormEvent } from "react";
 
 import {
@@ -72,7 +73,9 @@ export function SignupForm() {
       },
     });
   }
-  if (progress.isPending) return <p role="status">Checking workspace setup…</p>;
+  // One quiet pending state until the first answer, so the card never paints
+  // half its controls and then grows (#1767).
+  if (progress.isPending) return <PendingCard />;
   if (progress.isError || !parsed.success)
     return (
       <RequestFailure
@@ -87,7 +90,7 @@ export function SignupForm() {
       <SignupStatus receipt={receipt} resend={resend} begin={begin} beginAnother={beginAnother} />
     );
   const errors = form.formState.errors;
-  if (release.isPending) return <p role="status">Checking registration availability…</p>;
+  if (release.isPending) return <PendingCard />;
   if (release.isError)
     return (
       <RequestFailure
@@ -265,6 +268,19 @@ function SignupStatus({
     heading.current?.focus({ preventScroll: true });
     heading.current?.scrollIntoView({ block: "center", behavior: "instant" });
   }, [receipt.state]);
+  // Someone who watched this page while the workspace was set up is signed in
+  // as soon as it is ready; someone who comes back to a ready workspace later
+  // still gets the button, so "Create another workspace" stays reachable.
+  const waited = useRef(false);
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (receipt.state === "provisioning") waited.current = true;
+    if (receipt.state !== "ready" || !waited.current || autoStarted.current) return;
+    autoStarted.current = true;
+    void signin();
+    // signin only reads the receipt it was rendered with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [receipt.state]);
 
   return (
     <div aria-live="polite" className="space-y-6">
@@ -293,8 +309,14 @@ function SignupStatus({
                 ? "Next, set your password. We'll email you a link."
                 : receipt.state === "email_action_required"
                   ? "We sent a verification link to your email. Open it to continue."
-                  : "This usually takes a few seconds."}
+                  : null}
         </p>
+        {receipt.state === "provisioning" && (
+          <div className="flex items-start gap-3 text-sm text-muted-foreground">
+            <Loader2 aria-hidden className="mt-0.5 size-4 shrink-0 animate-spin" />
+            <p>This can take up to 2 minutes. We&apos;ll sign you in as soon as it&apos;s ready.</p>
+          </div>
+        )}
       </div>
       {receipt.state === "ready" && (
         <Button type="button" className="w-full" disabled={signingIn} onClick={() => void signin()}>
@@ -424,4 +446,13 @@ export function emailRequestRefusal(error: unknown): string {
   return error instanceof ApiError && error.status === 429
     ? "You've requested several emails. Try again in about an hour."
     : "We couldn't send the email. Try again.";
+}
+
+function PendingCard() {
+  return (
+    <div role="status" className="flex justify-center py-10">
+      <Loader2 aria-hidden className="size-5 animate-spin text-muted-foreground" />
+      <span className="sr-only">Loading</span>
+    </div>
+  );
 }

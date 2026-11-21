@@ -7,7 +7,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
 import {
   AuthCardCentered,
-  AuthCardFooter,
   AuthCredentialForm,
   AuthSetPasswordForm,
   Button,
@@ -676,11 +675,9 @@ function CredentialForm({
           </Link>
         )}
 
-        <AuthCardFooter>
-          <p className="text-xs text-muted-foreground">
-            Your credential is checked directly by Helivanta.
-          </p>
-        </AuthCardFooter>
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          Need access? Contact your organisation&apos;s administrator.
+        </p>
       </AuthCardCentered>
     </TenantLoginLayout>
   );
@@ -844,12 +841,6 @@ function OtpStep({
                 : undefined)
           }
         />
-
-        <AuthCardFooter>
-          <p className="text-xs text-muted-foreground">
-            Your code is checked directly by Helivanta.
-          </p>
-        </AuthCardFooter>
       </AuthCardCentered>
     </TenantLoginLayout>
   );
@@ -915,8 +906,7 @@ function EnrollStep({
         <div className="space-y-2 text-center">
           <h1 className="text-2xl font-semibold tracking-tight">Set up two-step verification</h1>
           <p className="text-sm text-muted-foreground">
-            Your organisation requires an authenticator app. Scan this code with your app, then
-            enter the 6-digit code it shows.
+            Scan with your authenticator app, then enter the code.
           </p>
         </div>
 
@@ -930,15 +920,16 @@ function EnrollStep({
           >
             <QRCodeSVG value={totp.uri} size={176} aria-hidden="true" />
           </div>
-          <p className="text-center text-xs text-muted-foreground">
-            Can&apos;t scan? Enter this key in your app:
-          </p>
-          <code
-            className="select-all rounded-md border px-2 py-1 font-mono text-sm tracking-wider"
-            aria-label="Authenticator setup key"
-          >
-            {totp.secret}
-          </code>
+          <details className="text-center text-xs text-muted-foreground">
+            <summary className="cursor-pointer">Can&apos;t scan?</summary>
+            <p className="mt-2">Enter this key in your authenticator app:</p>
+            <code
+              className="mt-1 inline-block select-all rounded-md border px-2 py-1 font-mono text-sm tracking-wider text-foreground"
+              aria-label="Authenticator setup key"
+            >
+              {totp.secret}
+            </code>
+          </details>
         </div>
 
         <MfaCodeForm
@@ -960,12 +951,6 @@ function EnrollStep({
                 : undefined)
           }
         />
-
-        <AuthCardFooter>
-          <p className="text-xs text-muted-foreground">
-            Your code is checked directly by Helivanta.
-          </p>
-        </AuthCardFooter>
       </AuthCardCentered>
     </TenantLoginLayout>
   );
@@ -1096,12 +1081,6 @@ function PasswordChangeStep({
           passwordLabel="New password"
           confirmLabel="Confirm new password"
         />
-
-        <AuthCardFooter>
-          <p className="text-xs text-muted-foreground">
-            Your new password is set directly by Helivanta.
-          </p>
-        </AuthCardFooter>
       </AuthCardCentered>
     </TenantLoginLayout>
   );
@@ -1323,7 +1302,7 @@ function RedirectLanding({
   if (starting && !error) return <AuthChromeLoading />;
 
   return (
-    <TenantLoginLayout>
+    <TenantLoginLayout entry>
       <AuthCardCentered>
         <div className="space-y-2 text-center">
           {/* One heading for every state of this page (#1431 D3). */}
@@ -1373,11 +1352,9 @@ function RedirectLanding({
           </p>
         ) : null}
 
-        <AuthCardFooter>
-          <p className="text-xs text-muted-foreground">
-            You will be redirected to sign in securely.
-          </p>
-        </AuthCardFooter>
+        <p className="text-center text-xs text-muted-foreground">
+          Need access? Contact your organisation&apos;s administrator.
+        </p>
       </AuthCardCentered>
     </TenantLoginLayout>
   );

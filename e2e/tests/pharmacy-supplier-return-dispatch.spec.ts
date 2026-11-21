@@ -27,7 +27,7 @@ async function financial<T>(page: Page, method: string, path: string, body?: unk
   return JSON.parse(response.body) as T;
 }
 
-test("physical supplier return dispatch recovers response loss without another stock removal", async ({
+test("supplier return preparation and physical dispatch recover response loss without duplicate facts", async ({
   page,
   browser,
 }) => {
@@ -70,22 +70,44 @@ test("physical supplier return dispatch recovers response loss without another s
         },
       ],
     });
-    const returnId = uuidv7();
-    const root = `${outlet}/accounts/supplier-returns/${returnId}`;
-    await financial(page, "PUT", root, {
-      payable_id: payable,
-      lines: [
-        {
-          receipt_id: receipt!.id,
-          quarantine_location_id: quarantine,
-          quantity_units: 4,
-          expected_credit_minor: 1500,
-        },
-      ],
-      reason: "TEST supplier agreed to collect short-dated units",
-    });
     await page.goto("/pharmacy/accounts?tab=supplier-returns");
-    await page.getByRole("button", { name: "Open return 1", exact: true }).click();
+    await choose(page, "Original supplier bill", new RegExp(`TEST-BILL-${stamp}`));
+    await choose(page, "Original receipt", /batch/);
+    await choose(page, "Quarantine location", /recorded/);
+    await page.getByLabel("Return units", { exact: true }).fill("4");
+    await page.getByLabel("Expected credit (INR)", { exact: true }).fill("15.00");
+    await page.getByRole("button", { name: "Add return line", exact: true }).click();
+    await page
+      .getByLabel("Return reason", { exact: true })
+      .fill("TEST supplier agreed to collect short-dated units");
+    let returnId = "",
+      preparations = 0;
+    await page.route("**/accounts/supplier-returns/*", async (route) => {
+      if (route.request().method() !== "PUT") {
+        await route.continue();
+        return;
+      }
+      preparations++;
+      const response = await route.fetch();
+      expect(response.status(), await response.text()).toBe(200);
+      const created = (await response.json()) as { id: string };
+      returnId = created.id;
+      await route.abort("failed");
+    });
+    await page.getByRole("button", { name: "Prepare supplier return", exact: true }).click();
+    await expect(page.getByText(/The preparation result is unconfirmed/)).toBeVisible();
+    await page.unroute("**/accounts/supplier-returns/*");
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.reload();
+    await page.getByRole("button", { name: "Check preparation result", exact: true }).click();
+    await expect(page.getByText(/Return 1 prepared/)).toBeVisible();
+    expect(preparations).toBe(1);
+    const beforeDispatch = await owner<{ on_hand_units: number }>(
+      page,
+      "GET",
+      `${outlet}/stock/balance?location_id=${quarantine}&batch_id=${batch}`,
+    );
+    expect(beforeDispatch.on_hand_units).toBe(4);
     await choose(page, "Reviewed outlet licence", new RegExp(`TEST-DL-${stamp}`));
     await page.getByLabel("Outward document reference", { exact: true }).fill(`TEST-OUT-${stamp}`);
     await page.getByLabel("Recipient name", { exact: true }).fill("TEST Supplier Driver");

@@ -107,7 +107,7 @@ func stockReference(tx *gorm.DB, table string, tenant string, outlet, id uuid.UU
 }
 
 func (h *catalogueHandlers) listStockPositions(c *gin.Context, params pagination.Params) ([]stockPosition, error) {
-	p, outlet, ok := catalogueScope(c)
+	p, outlet, ok := stockCommandScope(c)
 	if !ok {
 		return nil, nil
 	}

@@ -150,8 +150,8 @@ existing drafts and frozen line evidence using human references, supplier and
 product names. This view inherits pharmacy-payables release gating and separate
 return-read permission. Cancellation uses the existing immutable command with
 reference-only tab-local recovery before explicit retry. Source-choice/preparation
-UI, physical dispatch, accepted supplier credit and printable outward notes remain
-separate unfinished delivery work. The implementation and acceptance boundaries
+UI and physical dispatch are the in-progress additions described below. Accepted
+supplier credit and printable outward notes remain unfinished delivery work. The implementation and acceptance boundaries
 are specified in
 [the history design](../superpowers/specs/2026-11-21-supplier-return-history.md).
 
@@ -183,3 +183,42 @@ locks, and enforces the complete set of exact movement proofs at commit. Existin
 stock bucket guards preserve reservations and nonnegative balances. Every proof,
 movement, audit and outbox write commits together. This append-only migration is
 irreversible after use; rollback retains evidence and uses forward correction.
+
+### Original-bill preparation and recovery
+
+`GET /accounts/supplier-returns/preparation/:payable` is a private, audited,
+Stock-gated projection under the same pharmacy/outlet prefix. It requires return
+preparation authority, verified tenant/subject preconditions and current outlet
+access. One original bill owns at most 100 immutable lines. Missing line evidence
+fails closed; paid bills remain selectable. The projection shares its receipt
+lookup with command validation, retaining original product revision, issue unit,
+batch, expiry and source facts. It reports actual dispatched units separately from
+other drafts, and marks platform-supplier origins unsupported for the separate
+reverse-acknowledgement protocol.
+
+`stock_as_of` is issued by the database clock for the quarantine picker. The UI
+uses that cutoff with the stock-position API rather than assuming the device clock
+is correct. It can refresh the bill/stock observations, conceals failed or
+inconsistent reads, and names products, lots and locations instead of asking for
+backend IDs. Multiple lines require explicit whole units and expected credit,
+including explicit zero. Duplicate receipt/bucket pairs are refused, not merged.
+Already dispatched units count toward the original receipt allowance; other drafts
+do not reserve it. All quantities and current authority are checked again by the
+command and by final physical dispatch.
+
+Before issuing preparation, the browser retains only the new return reference,
+scoped to tenant, account, pharmacy and outlet. Response loss freezes new submission
+until a check; a missing result can retry the same reference. No bill facts,
+recipient details or monetary intent are persisted in browser recovery storage.
+`GET /accounts/supplier-returns/:return/preparation` is a separate baseline,
+private audited, actor-bound read of the immutable creation receipt. It can recover
+after cancellation or dispatch and does not imply the return is still a draft;
+current detail/history remains the source for current state. New preparation and
+physical dispatch remain Stock-gated. The original read permissions and active
+outlet grant still govern recovery after a write pause.
+
+The bill picker uses `GET /accounts/supplier-returns/original-bills`, a dedicated
+Stock-gated, actor-bound, audited cursor page capped at 50. It selects bills with
+inventory receipts regardless of payment status and publishes only original bill
+identity, supplier name, issue date and currency. It does not enumerate unrelated
+salary/expense bills or depend on an unaudited generic financial listing.

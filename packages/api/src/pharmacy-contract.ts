@@ -8,6 +8,53 @@ const identifier = z
     /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     "Choose a valid record.",
   );
+export const pharmacySupplierReturnOriginalBillSchema = z
+  .object({
+    id: identifier,
+    outlet_id: identifier,
+    payee_name: z.string().min(1).max(200),
+    document_reference: z.string().min(1).max(100),
+    issued_on: z.string().date("Use a full valid date."),
+    currency: z.string().regex(new RegExp("^[A-Z]{3}$"), "Use the required format."),
+  })
+  .strict();
+
+export const pharmacySupplierReturnPreparationSourceSchema = z
+  .object({
+    receipt_id: identifier,
+    batch_id: identifier,
+    product_id: identifier,
+    product_version: z.number().int().min(1),
+    product_name: z.string().min(1).max(200),
+    generic_name: z.string().min(1).max(200),
+    unit_code: z.string().min(1).max(40),
+    lot_number: z.string().min(1).max(100),
+    expires_on: z.string().regex(new RegExp("^\\d{4}-\\d{2}-\\d{2}$"), "Use the required format."),
+    receipt_units: z.number().int().min(1).max(1000000000),
+    source_reference: z.string().min(1).max(100),
+    source_created_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+    dispatched_units: z.number().int().min(0).max(1000000000),
+    origin: z.enum(["external", "platform"]),
+  })
+  .strict();
+
+export const pharmacySupplierReturnPreparationSchema = z
+  .object({
+    outlet_id: identifier,
+    payable_id: identifier,
+    payee_reference: z.string().min(1).max(100),
+    payee_name: z.string().min(1).max(200),
+    document_reference: z.string().min(1).max(100),
+    currency: z.string().regex(new RegExp("^[A-Z]{3}$"), "Use the required format."),
+    stock_as_of: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+    lines: z.array(pharmacySupplierReturnPreparationSourceSchema).min(0).max(100),
+  })
+  .strict();
+
 export const pharmacySupplierReturnDispatchInputSchema = z
   .object({
     expected_version: z.number().int().min(0).max(0),

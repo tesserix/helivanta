@@ -3,6 +3,8 @@ import { apiFetch } from "./client";
 import { pharmacyRoot, pharmacyKey } from "./pharmacy";
 import { pharmacyActorHeaders, type PharmacyActorScope } from "./pharmacy-actor";
 import {
+  pharmacySupplierReturnOriginalBillSchema,
+  pharmacySupplierReturnPreparationSchema,
   pharmacySupplierReturnDispatchInputSchema,
   pharmacySupplierReturnDispatchReceiptSchema,
   pharmacySupplierReturnSummarySchema,
@@ -296,4 +298,73 @@ export async function recoverPharmacySupplierReturnDispatch(
     returnId,
     commandId,
   );
+}
+
+export type PharmacySupplierReturnPreparation = z.infer<
+  typeof pharmacySupplierReturnPreparationSchema
+>;
+export async function readPharmacySupplierReturnPreparation(
+  scope: PharmacyActorScope,
+  payableId: string,
+  signal?: AbortSignal,
+) {
+  const row = pharmacySupplierReturnPreparationSchema.parse(
+    await apiFetch(
+      `${pharmacyRoot(scope)}/accounts/supplier-returns/preparation/${id.parse(payableId)}`,
+      request(scope, signal),
+    ),
+  );
+  if (
+    !sameID(row.outlet_id, scope.outletId) ||
+    !sameID(row.payable_id, payableId) ||
+    new Set(row.lines.map((line) => line.receipt_id.toLowerCase())).size !== row.lines.length
+  )
+    return mismatch();
+  for (const line of row.lines) {
+    if (
+      line.dispatched_units > line.receipt_units ||
+      (line.origin === "external" && line.source_reference.startsWith("supplier-receipt:"))
+    )
+      return mismatch();
+  }
+  return row;
+}
+export async function recoverPharmacySupplierReturnPreparation(
+  scope: PharmacyActorScope,
+  returnId: string,
+) {
+  const row = checked(
+    scope,
+    returnId,
+    await apiFetch(`${root(scope, returnId)}/preparation`, request(scope)),
+  );
+  if (row.prepared_by !== scope.subject) return mismatch();
+  return row;
+}
+export { pharmacySupplierReturnDraftInputSchema };
+
+const originalBillPage = historyPage.extend({
+  data: z.array(pharmacySupplierReturnOriginalBillSchema).max(50),
+});
+export async function listPharmacySupplierReturnOriginalBills(
+  scope: PharmacyActorScope,
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  const query = new URLSearchParams({ limit: "50" });
+  if (cursor !== null) query.set("cursor", z.string().min(1).max(4096).parse(cursor));
+  const page = originalBillPage.parse(
+    await apiFetch(
+      `${pharmacyRoot(scope)}/accounts/supplier-returns/original-bills?${query}`,
+      request(scope, signal),
+    ),
+  );
+  if (
+    page.page.has_more !== (page.page.next_cursor !== null) ||
+    (page.page.has_more && (!page.data.length || page.page.next_cursor === cursor)) ||
+    new Set(page.data.map((row) => row.id.toLowerCase())).size !== page.data.length ||
+    page.data.some((row) => !sameID(row.outlet_id, scope.outletId))
+  )
+    return mismatch();
+  return page;
 }

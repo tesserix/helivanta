@@ -155,6 +155,7 @@ type supplierReturnSource struct {
 	SourceReference string
 	SourceCreatedAt string
 	PlatformReceipt bool
+	DispatchedUnits int64
 }
 
 func prepareSupplierReturnLines(tx *gorm.DB, tenant string, outlet, id uuid.UUID, in SupplierReturnDraftInput, currency string) ([]supplierReturnLineRow, error) {
@@ -162,12 +163,7 @@ func prepareSupplierReturnLines(tx *gorm.DB, tenant string, outlet, id uuid.UUID
 	for i, line := range in.Lines {
 		ids[i] = line.ReceiptID
 	}
-	var rows []supplierReturnSource
-	err := tx.Table("pharmacy_payable_lines l").Select(`m.id AS receipt_id,m.batch_id,b.product_id,b.product_version,COALESCE(NULLIF(r.snapshot->>'brand_name',''),r.snapshot->>'generic_name') AS product_name,r.snapshot->>'generic_name' AS generic_name,r.snapshot->>'unit_of_issue' AS unit_code,r.snapshot->>'currency' AS currency,b.lot_number,to_char(b.expires_on,'YYYY-MM-DD') AS expires_on,m.quantity_units AS receipt_units,m.source_reference,to_char(m.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS source_created_at,EXISTS(SELECT 1 FROM pharmacy_supplier_receipts sr WHERE sr.tenant_id=m.tenant_id AND sr.outlet_id=m.outlet_id AND sr.id=m.id) AS platform_receipt`).
-		Joins("JOIN pharmacy_stock_movements m ON m.tenant_id=l.tenant_id AND m.outlet_id=l.outlet_id AND m.id=l.receipt_id").
-		Joins("JOIN pharmacy_stock_batches b ON b.tenant_id=m.tenant_id AND b.outlet_id=m.outlet_id AND b.id=m.batch_id").
-		Joins("JOIN pharmacy_catalogue_revisions r ON r.tenant_id=b.tenant_id AND r.outlet_id=b.outlet_id AND r.product_id=b.product_id AND r.version=b.product_version").
-		Where("l.tenant_id=? AND l.outlet_id=? AND l.payable_id=? AND l.category='inventory' AND m.kind='receipt' AND m.id IN ?", tenant, outlet, in.PayableID, ids).Limit(100).Scan(&rows).Error
+	rows, err := lookupSupplierReturnSources(tx, tenant, outlet, in.PayableID, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -187,11 +183,11 @@ func prepareSupplierReturnLines(tx *gorm.DB, tenant string, outlet, id uuid.UUID
 		if source.PlatformReceipt || strings.HasPrefix(source.SourceReference, "supplier-receipt:") {
 			return nil, errSupplierReturnUnsupported
 		}
-		if source.Currency != currency || source.ProductName == "" || source.GenericName == "" || source.UnitCode == "" || source.ReceiptUnits < 1 {
+		if source.Currency != currency || source.ProductName == "" || source.GenericName == "" || source.UnitCode == "" || source.ReceiptUnits < 1 || source.DispatchedUnits < 0 || source.DispatchedUnits > source.ReceiptUnits {
 			return nil, errSupplierReturnEvidence
 		}
 		requested[line.ReceiptID] += *line.QuantityUnits
-		if requested[line.ReceiptID] > source.ReceiptUnits {
+		if requested[line.ReceiptID]+source.DispatchedUnits > source.ReceiptUnits {
 			return nil, errSupplierReturnConflict
 		}
 		key := bucket{source.BatchID, line.QuarantineLocationID}
@@ -215,4 +211,23 @@ func prepareSupplierReturnLines(tx *gorm.DB, tenant string, outlet, id uuid.UUID
 		}
 	}
 	return result, nil
+}
+
+func lookupSupplierReturnSources(tx *gorm.DB, tenant string, outlet, payableID uuid.UUID, ids []uuid.UUID) ([]supplierReturnSource, error) {
+	if len(ids) == 0 {
+		return []supplierReturnSource{}, nil
+	}
+	if len(ids) > 100 {
+		return nil, errSupplierReturnEvidence
+	}
+	var rows []supplierReturnSource
+	err := tx.Table("pharmacy_payable_lines l").Select(`m.id AS receipt_id,m.batch_id,b.product_id,b.product_version,COALESCE(NULLIF(r.snapshot->>'brand_name',''),r.snapshot->>'generic_name') AS product_name,r.snapshot->>'generic_name' AS generic_name,r.snapshot->>'unit_of_issue' AS unit_code,r.snapshot->>'currency' AS currency,b.lot_number,to_char(b.expires_on,'YYYY-MM-DD') AS expires_on,m.quantity_units AS receipt_units,m.source_reference,to_char(m.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS source_created_at,EXISTS(SELECT 1 FROM pharmacy_supplier_receipts sr WHERE sr.tenant_id=m.tenant_id AND sr.outlet_id=m.outlet_id AND sr.id=m.id) AS platform_receipt,COALESCE((SELECT SUM(rl.quantity_units) FROM pharmacy_supplier_return_lines rl JOIN pharmacy_supplier_return_dispatches d ON d.tenant_id=rl.tenant_id AND d.outlet_id=rl.outlet_id AND d.return_id=rl.return_id WHERE rl.tenant_id=m.tenant_id AND rl.outlet_id=m.outlet_id AND rl.receipt_id=m.id),0) AS dispatched_units`).
+		Joins("JOIN pharmacy_stock_movements m ON m.tenant_id=l.tenant_id AND m.outlet_id=l.outlet_id AND m.id=l.receipt_id").
+		Joins("JOIN pharmacy_stock_batches b ON b.tenant_id=m.tenant_id AND b.outlet_id=m.outlet_id AND b.id=m.batch_id").
+		Joins("JOIN pharmacy_catalogue_revisions r ON r.tenant_id=b.tenant_id AND r.outlet_id=b.outlet_id AND r.product_id=b.product_id AND r.version=b.product_version").
+		Where("l.tenant_id=? AND l.outlet_id=? AND l.payable_id=? AND l.category='inventory' AND m.kind='receipt' AND m.id IN ?", tenant, outlet, payableID, ids).Order("l.position").Limit(100).Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
 }

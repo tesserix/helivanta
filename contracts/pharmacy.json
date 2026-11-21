@@ -1,6 +1,174 @@
 {
   "models": [
     {
+      "name": "SupplierReturnOriginalBill",
+      "schema": "pharmacySupplierReturnOriginalBillSchema",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid"
+        },
+        {
+          "name": "outlet_id",
+          "type": "uuid"
+        },
+        {
+          "name": "payee_name",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "document_reference",
+          "type": "string",
+          "min": 1,
+          "max": 100
+        },
+        {
+          "name": "issued_on",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "currency",
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        }
+      ]
+    },
+    {
+      "name": "SupplierReturnPreparationSource",
+      "schema": "pharmacySupplierReturnPreparationSourceSchema",
+      "fields": [
+        {
+          "name": "receipt_id",
+          "type": "uuid"
+        },
+        {
+          "name": "batch_id",
+          "type": "uuid"
+        },
+        {
+          "name": "product_id",
+          "type": "uuid"
+        },
+        {
+          "name": "product_version",
+          "type": "int64",
+          "min": 1
+        },
+        {
+          "name": "product_name",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "generic_name",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "unit_code",
+          "type": "string",
+          "min": 1,
+          "max": 40
+        },
+        {
+          "name": "lot_number",
+          "type": "string",
+          "min": 1,
+          "max": 100
+        },
+        {
+          "name": "expires_on",
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        {
+          "name": "receipt_units",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000000
+        },
+        {
+          "name": "source_reference",
+          "type": "string",
+          "min": 1,
+          "max": 100
+        },
+        {
+          "name": "source_created_at",
+          "type": "string",
+          "format": "datetime"
+        },
+        {
+          "name": "dispatched_units",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000
+        },
+        {
+          "name": "origin",
+          "type": "string",
+          "enum": [
+            "external",
+            "platform"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "SupplierReturnPreparation",
+      "schema": "pharmacySupplierReturnPreparationSchema",
+      "fields": [
+        {
+          "name": "outlet_id",
+          "type": "uuid"
+        },
+        {
+          "name": "payable_id",
+          "type": "uuid"
+        },
+        {
+          "name": "payee_reference",
+          "type": "string",
+          "min": 1,
+          "max": 100
+        },
+        {
+          "name": "payee_name",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "document_reference",
+          "type": "string",
+          "min": 1,
+          "max": 100
+        },
+        {
+          "name": "currency",
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        {
+          "name": "stock_as_of",
+          "type": "string",
+          "format": "datetime"
+        },
+        {
+          "name": "lines",
+          "type": "[]SupplierReturnPreparationSource",
+          "min": 0,
+          "max": 100,
+          "gorm": "-"
+        }
+      ]
+    },
+    {
       "name": "SupplierReturnDispatchInput",
       "schema": "pharmacySupplierReturnDispatchInputSchema",
       "fields": [

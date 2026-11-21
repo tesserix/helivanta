@@ -58,6 +58,8 @@ jobs:
         with:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
+      - name: Supplier return preparation, dispatch and private recovery
+        run: go test -race -v -timeout 35m ./internal/modules/pharmacy -run '^TestSupplierReturn'
       - name: Effective supplier grant consent
         run: go test -race ./pkg/supplieraccess
       - name: Supplier order intent and owner protocol

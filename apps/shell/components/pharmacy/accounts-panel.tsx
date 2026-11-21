@@ -110,6 +110,12 @@ function OutletAccounts({
           <SupplierReturnHistory
             scope={{ ...scope, subject }}
             canCancel={writable && can("pharmacy.supplier_returns.prepare")}
+            canPrepare={
+              writable &&
+              can("pharmacy.supplier_returns.prepare") &&
+              !release.error &&
+              release.available("pharmacy_stock")
+            }
             canDispatch={
               writable &&
               can("pharmacy.supplier_returns.dispatch") &&

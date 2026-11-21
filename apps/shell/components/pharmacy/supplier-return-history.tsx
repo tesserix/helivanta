@@ -24,6 +24,7 @@ import {
   supplierReturnDispatchStorageKey,
 } from "./supplier-return-dispatch";
 import { formatPharmacyMoney } from "./currency-amount-field";
+import { SupplierReturnPrepare } from "./supplier-return-prepare";
 
 function returnState(state: "draft" | "cancelled" | "dispatched") {
   return state === "draft" ? "Draft" : state === "cancelled" ? "Cancelled" : "Dispatched";
@@ -33,11 +34,13 @@ export function SupplierReturnHistory({
   scope,
   canCancel,
   canDispatch = false,
+  canPrepare = false,
   timeZone,
 }: {
   scope: PharmacyActorScope;
   canCancel: boolean;
   canDispatch?: boolean;
+  canPrepare?: boolean;
   timeZone: string;
 }) {
   const confirmLeave = useConfirmLeave();
@@ -51,6 +54,11 @@ export function SupplierReturnHistory({
   });
   return (
     <div className="space-y-5">
+      <SupplierReturnPrepare
+        scope={scope}
+        canStart={canPrepare && !history.isError && !history.isPending}
+        onPrepared={setSelected}
+      />
       <Panel>
         <h3 className="font-semibold">Supplier returns</h3>
         <p className="mt-2 text-sm text-muted-foreground">

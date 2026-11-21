@@ -3,6 +3,43 @@ package pharmacy
 
 import "github.com/google/uuid"
 
+type SupplierReturnOriginalBill struct {
+	ID                uuid.UUID `json:"id" binding:"required"`
+	OutletID          uuid.UUID `json:"outlet_id" binding:"required"`
+	PayeeName         string    `json:"payee_name" binding:"required,min=1,max=200"`
+	DocumentReference string    `json:"document_reference" binding:"required,min=1,max=100"`
+	IssuedOn          string    `json:"issued_on"`
+	Currency          string    `json:"currency"`
+}
+
+type SupplierReturnPreparationSource struct {
+	ReceiptID       uuid.UUID `json:"receipt_id" binding:"required"`
+	BatchID         uuid.UUID `json:"batch_id" binding:"required"`
+	ProductID       uuid.UUID `json:"product_id" binding:"required"`
+	ProductVersion  int64     `json:"product_version" binding:"min=1"`
+	ProductName     string    `json:"product_name" binding:"required,min=1,max=200"`
+	GenericName     string    `json:"generic_name" binding:"required,min=1,max=200"`
+	UnitCode        string    `json:"unit_code" binding:"required,min=1,max=40"`
+	LotNumber       string    `json:"lot_number" binding:"required,min=1,max=100"`
+	ExpiresOn       string    `json:"expires_on"`
+	ReceiptUnits    int64     `json:"receipt_units" binding:"min=1,max=1000000000"`
+	SourceReference string    `json:"source_reference" binding:"required,min=1,max=100"`
+	SourceCreatedAt string    `json:"source_created_at"`
+	DispatchedUnits int64     `json:"dispatched_units" binding:"min=0,max=1000000000"`
+	Origin          string    `json:"origin" binding:"required,oneof=external platform"`
+}
+
+type SupplierReturnPreparation struct {
+	OutletID          uuid.UUID                         `json:"outlet_id" binding:"required"`
+	PayableID         uuid.UUID                         `json:"payable_id" binding:"required"`
+	PayeeReference    string                            `json:"payee_reference" binding:"required,min=1,max=100"`
+	PayeeName         string                            `json:"payee_name" binding:"required,min=1,max=200"`
+	DocumentReference string                            `json:"document_reference" binding:"required,min=1,max=100"`
+	Currency          string                            `json:"currency"`
+	StockAsOf         string                            `json:"stock_as_of"`
+	Lines             []SupplierReturnPreparationSource `json:"lines" binding:"required,min=1,max=100,dive" gorm:"-"`
+}
+
 type SupplierReturnDispatchInput struct {
 	ExpectedVersion     *int64    `json:"expected_version" binding:"min=0,max=0"`
 	LicenceID           uuid.UUID `json:"licence_id" binding:"required"`

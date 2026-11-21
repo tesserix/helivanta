@@ -338,3 +338,96 @@ it("recovers a receipt with the licence owner's legacy UUIDv4 review identifier"
   });
   await expect(client.recoverPharmacySupplierReturnDispatch(scope, id, id)).rejects.toThrow();
 });
+
+it("verifies bounded original bill sources and current returned quantities", async () => {
+  const line = {
+    receipt_id: id,
+    batch_id: id,
+    product_id: id,
+    product_version: 1,
+    product_name: "TEST Medicine",
+    generic_name: "TEST Generic",
+    unit_code: "tablet",
+    lot_number: "TEST LOT",
+    expires_on: "2028-01-01",
+    receipt_units: 80,
+    source_reference: "TEST original delivery",
+    source_created_at: "2026-11-21T00:00:00Z",
+    dispatched_units: 48,
+    origin: "external",
+  };
+  const row = {
+    outlet_id: scope.outletId,
+    payable_id: id,
+    payee_reference: "TEST-EXT",
+    payee_name: "TEST Supplier",
+    document_reference: "TEST-BILL",
+    currency: "INR",
+    stock_as_of: "2026-11-21T00:00:00Z",
+    lines: [line],
+  };
+  vi.mocked(apiFetch).mockResolvedValue(row);
+  expect(await client.readPharmacySupplierReturnPreparation(scope, id.toUpperCase())).toEqual(row);
+  expect(apiFetch).toHaveBeenCalledWith(
+    expect.stringContaining(`/supplier-returns/preparation/${id.toUpperCase()}`),
+    expect.objectContaining({
+      cache: "no-store",
+      headers: expect.objectContaining({
+        "X-Helivanta-Expected-Subject": scope.subject,
+        "X-Helivanta-Expected-Tenant": scope.tenantId,
+      }),
+    }),
+  );
+  for (const changed of [
+    { outlet_id: id },
+    { payable_id: scope.outletId },
+    { lines: [] },
+    { lines: [line, line] },
+    { lines: [{ ...line, dispatched_units: 81 }] },
+    { lines: [{ ...line, source_reference: "supplier-receipt:TEST" }] },
+  ]) {
+    vi.mocked(apiFetch).mockResolvedValue({ ...row, ...changed });
+    await expect(client.readPharmacySupplierReturnPreparation(scope, id)).rejects.toThrow();
+  }
+  vi.mocked(apiFetch).mockResolvedValue({ ...row, lines: [{ ...line, origin: "platform" }] });
+  expect((await client.readPharmacySupplierReturnPreparation(scope, id)).lines[0]?.origin).toBe(
+    "platform",
+  );
+});
+
+it("recovers immutable preparation only for the original actor", async () => {
+  vi.mocked(apiFetch).mockResolvedValue(receipt);
+  expect(await client.recoverPharmacySupplierReturnPreparation(scope, id)).toEqual(receipt);
+  expect(apiFetch).toHaveBeenCalledWith(
+    expect.stringContaining(`/supplier-returns/${id}/preparation`),
+    expect.objectContaining({ cache: "no-store" }),
+  );
+  vi.mocked(apiFetch).mockResolvedValue({ ...receipt, prepared_by: "TEST-other-actor" });
+  await expect(client.recoverPharmacySupplierReturnPreparation(scope, id)).rejects.toThrow(
+    /verified/,
+  );
+});
+
+it("loads only scoped audited original inventory bill choices with bounded pagination", async () => {
+  const row = {
+    id,
+    outlet_id: scope.outletId,
+    payee_name: "TEST Supplier",
+    document_reference: "TEST-BILL",
+    issued_on: "2026-11-01",
+    currency: "INR",
+  };
+  vi.mocked(apiFetch).mockResolvedValue({
+    data: [row],
+    page: { has_more: false, next_cursor: null },
+  });
+  expect((await client.listPharmacySupplierReturnOriginalBills(scope)).data).toEqual([row]);
+  expect(apiFetch).toHaveBeenCalledWith(
+    expect.stringContaining("/supplier-returns/original-bills?limit=50"),
+    expect.objectContaining({ cache: "no-store" }),
+  );
+  for (const data of [[{ ...row, outlet_id: id }], [row, row]]) {
+    vi.mocked(apiFetch).mockResolvedValue({ data, page: { has_more: false, next_cursor: null } });
+    await expect(client.listPharmacySupplierReturnOriginalBills(scope)).rejects.toThrow();
+  }
+});

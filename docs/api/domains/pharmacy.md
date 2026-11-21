@@ -1377,3 +1377,41 @@ response loss, reload, exact original recovery and unchanged financial balance.
 Return preparation, actual credit, allocation, reversal and printable-document
 workflows remain tracked in
 #1784. This contract is not evidence those remaining interfaces are delivered.
+
+### Supplier return preparation sources and original command recovery
+
+Preparation lookups refuse bills without original inventory receipt lines with
+404; unrelated expense bills cannot be disclosed through this projection.
+
+Under `/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns`:
+
+- `GET /original-bills` is an audited, account-bound cursor page capped at 50.
+  It requires preparation authority and Stock availability and includes only bills
+  with inventory receipts, including paid bills. The projection exposes bill and
+  supplier labels, issue date and currency rather than unrelated expenses.
+- `GET /preparation/:payable` requires `pharmacy.supplier_returns.prepare` and
+  Stock availability. It returns canonical `SupplierReturnPreparation`: verified
+  original bill labels, at most 100 original inventory receipt projections,
+  committed dispatched units and a database-issued `stock_as_of`. It accepts no
+  query/body. Fully paid bills are supported. Platform-supplier origins are
+  explicitly identified as requiring their separate reverse protocol.
+- `GET /:return/preparation` requires return-read authority and the original
+  preparing actor. It returns the immutable creation receipt, even after later
+  state transitions. It is baseline-available for response-loss recovery; this
+  receipt does not assert the current return state.
+
+Both reads require the expected tenant/subject and exact current outlet authority;
+responses are private/no-store and fail unavailable if their audit cannot persist.
+The shared original-source query is also used for draft validation. Previously
+dispatched units reduce the observed original-receipt allowance; concurrent drafts
+still reserve neither original quantities nor stock. Dispatch rechecks the cap
+under locks. Stock positions now honor an explicitly supplied expected-subject
+precondition, alongside their existing tenant precondition; callers omitting the
+optional subject retain their previous authorization behavior.
+
+The Shell preparation builder uses readable original bill, product/batch/expiry
+and quarantine choices, supports multiple lines and explicit expected credit, and
+stores only an account-scoped recovery reference. Preparation is Stock-gated;
+original-result recovery survives a pause. See the supplier-return QA guide for
+implemented scenarios and remaining financial/document acceptance. Actual accepted
+credit, allocation, reversal and printable commercial notes remain distinct work.

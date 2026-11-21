@@ -3,6 +3,92 @@ package pharmacy
 
 import "github.com/google/uuid"
 
+type SupplierCreditAllocationInput struct {
+	PayableID                uuid.UUID `json:"payable_id" binding:"required"`
+	ExpectedVersion          *int64    `json:"expected_version" binding:"required,min=1,max=999999999999"`
+	ExpectedAvailableMinor   *int64    `json:"expected_available_minor" binding:"required,min=0,max=1000000000000"`
+	ExpectedPayableVersion   *int64    `json:"expected_payable_version" binding:"required,min=1,max=999999999999"`
+	ExpectedOutstandingMinor *int64    `json:"expected_outstanding_minor" binding:"required,min=0,max=1000000000000"`
+	OccurredOn               string    `json:"occurred_on"`
+	Reason                   string    `json:"reason" binding:"required,min=1,max=500"`
+	AmountMinor              *int64    `json:"amount_minor" binding:"required,min=1,max=1000000000000"`
+}
+
+type SupplierCreditAllocationReceipt struct {
+	ID                      uuid.UUID `json:"id" binding:"required"`
+	OutletID                uuid.UUID `json:"outlet_id" binding:"required"`
+	CreditID                uuid.UUID `json:"credit_id" binding:"required"`
+	Version                 int64     `json:"version" binding:"min=1,max=1000000000000"`
+	PayableVersion          int64     `json:"payable_version" binding:"min=1,max=1000000000000"`
+	AvailableMinor          int64     `json:"available_minor" binding:"min=0,max=1000000000000"`
+	OutstandingMinor        int64     `json:"outstanding_minor" binding:"min=0,max=1000000000000"`
+	PayableReference        string    `json:"payable_reference" binding:"required,min=1,max=100"`
+	CreditDocumentReference string    `json:"credit_document_reference" binding:"required,min=1,max=100"`
+	PayeeName               string    `json:"payee_name" binding:"required,min=1,max=200"`
+	RecordedBy              string    `json:"recorded_by" binding:"required,min=1,max=200"`
+	RecordedAt              string    `json:"recorded_at"`
+	SupplierCreditAllocationInput
+}
+
+type SupplierCreditAllocationView struct {
+	ReversalID *uuid.UUID `json:"reversal_id" binding:"omitempty"`
+	SupplierCreditAllocationReceipt
+}
+
+type SupplierCreditAllocationReversalInput struct {
+	ExpectedVersion          *int64 `json:"expected_version" binding:"required,min=1,max=999999999999"`
+	ExpectedAvailableMinor   *int64 `json:"expected_available_minor" binding:"required,min=0,max=1000000000000"`
+	ExpectedPayableVersion   *int64 `json:"expected_payable_version" binding:"required,min=1,max=999999999999"`
+	ExpectedOutstandingMinor *int64 `json:"expected_outstanding_minor" binding:"required,min=0,max=1000000000000"`
+	OccurredOn               string `json:"occurred_on"`
+	Reason                   string `json:"reason" binding:"required,min=1,max=500"`
+}
+
+type SupplierCreditAllocationReversalReceipt struct {
+	ID                      uuid.UUID `json:"id" binding:"required"`
+	OutletID                uuid.UUID `json:"outlet_id" binding:"required"`
+	CreditID                uuid.UUID `json:"credit_id" binding:"required"`
+	Version                 int64     `json:"version" binding:"min=1,max=1000000000000"`
+	PayableVersion          int64     `json:"payable_version" binding:"min=1,max=1000000000000"`
+	AvailableMinor          int64     `json:"available_minor" binding:"min=0,max=1000000000000"`
+	OutstandingMinor        int64     `json:"outstanding_minor" binding:"min=0,max=1000000000000"`
+	PayableReference        string    `json:"payable_reference" binding:"required,min=1,max=100"`
+	CreditDocumentReference string    `json:"credit_document_reference" binding:"required,min=1,max=100"`
+	PayeeName               string    `json:"payee_name" binding:"required,min=1,max=200"`
+	RecordedBy              string    `json:"recorded_by" binding:"required,min=1,max=200"`
+	RecordedAt              string    `json:"recorded_at"`
+	AllocationID            uuid.UUID `json:"allocation_id" binding:"required"`
+	PayableID               uuid.UUID `json:"payable_id" binding:"required"`
+	AmountMinor             int64     `json:"amount_minor" binding:"min=1,max=1000000000000"`
+	SupplierCreditAllocationReversalInput
+}
+
+type SupplierCreditPayableChoice struct {
+	ID                uuid.UUID `json:"id" binding:"required"`
+	OutletID          uuid.UUID `json:"outlet_id" binding:"required"`
+	DocumentReference string    `json:"document_reference" binding:"required,min=1,max=100"`
+	PayeeName         string    `json:"payee_name" binding:"required,min=1,max=200"`
+	Currency          string    `json:"currency" binding:"required,oneof=INR"`
+	IssuedOn          string    `json:"issued_on"`
+	DueOn             string    `json:"due_on"`
+	TotalMinor        int64     `json:"total_minor" binding:"min=1,max=1000000000000"`
+	PaidMinor         int64     `json:"paid_minor" binding:"min=0,max=1000000000000"`
+	CreditMinor       int64     `json:"credit_minor" binding:"min=0,max=1000000000000"`
+	OutstandingMinor  int64     `json:"outstanding_minor" binding:"min=1,max=1000000000000"`
+	Version           int64     `json:"version" binding:"min=1,max=1000000000000"`
+}
+
+type SupplierCreditReturnChoice struct {
+	ID                    uuid.UUID `json:"id" binding:"required"`
+	OutletID              uuid.UUID `json:"outlet_id" binding:"required"`
+	Number                int64     `json:"number" binding:"min=1,max=1000000000000"`
+	OriginalBillReference string    `json:"original_bill_reference" binding:"required,min=1,max=100"`
+	PayeeName             string    `json:"payee_name" binding:"required,min=1,max=200"`
+	Currency              string    `json:"currency" binding:"required,oneof=INR"`
+	ExpectedCreditMinor   int64     `json:"expected_credit_minor" binding:"min=0,max=1000000000000"`
+	MatchedMinor          int64     `json:"matched_minor" binding:"min=0,max=1000000000000"`
+}
+
 type SupplierCreditMatchInput struct {
 	ReturnID                   uuid.UUID `json:"return_id" binding:"required"`
 	ExpectedVersion            *int64    `json:"expected_version" binding:"required,min=1,max=999999999999"`
@@ -80,6 +166,13 @@ type SupplierCreditDocumentView struct {
 	AllocatedMinor int64  `json:"allocated_minor" binding:"min=0,max=1000000000000"`
 	AvailableMinor int64  `json:"available_minor" binding:"min=0,max=1000000000000"`
 	SupplierCreditDocumentReceipt
+}
+
+type SupplierCreditContext struct {
+	LocalDate string `json:"local_date"`
+	AsOf      string `json:"as_of"`
+	Timezone  string `json:"timezone" binding:"required,min=1,max=100"`
+	SupplierCreditDocumentView
 }
 
 type SupplierCreditVoidInput struct {

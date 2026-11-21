@@ -29,6 +29,10 @@ The active credit's unallocated amount and the bill's positive outstanding
 liability must both cover the allocation. Require at least one inventory source
 line and exact original supplier reference/currency; salary, expense-only,
 foreign, paid and unsupported sources cannot become eligible by supplying an ID.
+Exclude bills containing platform-supplier receipt sources, even if a manually
+recorded external supplier reference matches. That financial acknowledgement is
+a separate owner protocol, not authority conferred by matching text. Mixed-source
+bills fail this boundary too; validate it in both source choices and DB guards.
 Do not require the original source bill itself to remain unpaid. The actual credit
 document is value authority; matching does not spend the pool or multiply it.
 
@@ -49,7 +53,7 @@ a lock cycle. Under the locks recheck credit version/available pool and the bill
 version/outstanding. Different documents targeting one bill serialize on that
 bill; one credit targeting several bills serializes on that credit.
 
-The bill observation version is creation1 plus immutable legacy settlement,
+The bill observation version is creation 1 plus immutable legacy settlement,
 managed-allocation and allocation-reversal counts. A payment followed by its
 reversal still changes it even when balances net to zero. Return matching does
 not change bill versions. Publish this version in the new owner allocation
@@ -82,18 +86,22 @@ and current observations; no raw-ID form. Use the existing explicit concurrent-
 index migration support for indexes on already populated bill/return tables,
 separate from transactional ledger DDL. New journal indexes are created with
 their empty tables. Cursor pages are capped at 50 and audited before disclosure.
+A separate payables-gated credit context supplies the current credit snapshot,
+database as-of timestamp, verified outlet timezone and outlet-local date. Forms
+use that date rather than a browser clock. It extends the canonical credit view
+on a new route; existing strict current-document responses do not change.
 
 Same actor/command/intent returns the original receipt after subsequent activity.
 Changed intent or actor conflicts; recovery by another actor is invisible. Normal
 authorised history may show another recorder. Reference-only browser recovery
 retains no supplier, money or private reason. A 503 means unconfirmed outcome:
 recover before a fresh intent. Audit/outbox/projection failure rolls back every
-write and releases no private read. Unauthorised object404, missing permission403,
-stale/duplicate/ineligible state409 and unavailable dependency503 remain explicit.
+write and releases no private read. Unauthorised object 404, missing permission 403,
+stale/duplicate/ineligible state 409 and unavailable dependency 503 remain explicit.
 
 Inherit ADR planning: 20 peak commands/s, 64 KiB effective command limit,
-15-second deadline, unmeasured p99 targets500ms reads/2s commands and existing
-12/36-month return envelope3.65/32.85million lines. One credit and bill per command;
+15-second deadline, unmeasured p99 targets 500 ms reads/2 s commands and existing
+12/36-month return envelope 3.65/32.85 million lines. One credit and bill per command;
 no synchronous external calls under locks or added infrastructure cost. Ledger
 migrations are additive and irreversible after use: retain evidence and roll
 forward. Deployment/activation require the existing named approval/release review.

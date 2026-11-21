@@ -112,3 +112,11 @@ A changed agreement requires a refreshed choice/page. It does not broaden access
 to another agreement's history; hospital-local retained obligations use their own
 existing authority. Public projections include that `terms_sha256` for exact SDK
 checking, without the private source document or its actors.
+
+The native protocol/storage fixture now repeats for both `supply` and `pharmacy`
+source product contracts. Pharmacy intent uses its versioned catalogue identity;
+warehouse intent uses its formulation-version identity. A pure contract check was
+observed rejecting the previously hardcoded warehouse intent for a pharmacy
+agreement before correction. This expands retained-projection tests only: it does
+not establish real current grant/Staff/graph admission, licence activation,
+physical stock dispatch or browser acceptance for either owner.

@@ -61,6 +61,9 @@ func verifyPartnerShipmentProjection(t *testing.T, db *tenantdb.DB, order suppli
 				changed.SourceLocationID = uuid.Must(uuid.NewV7())
 			case "source_product":
 				changed.Product = "pharmacy"
+				if grant.Product == "pharmacy" {
+					changed.Product = "supply"
+				}
 			case "buyer_organization":
 				changed.BuyerOrganizationID = uuid.Must(uuid.NewV7())
 			case "buyer_location":

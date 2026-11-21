@@ -22,8 +22,7 @@ func verifyPurchaseOrderProtocol(t *testing.T, db *tenantdb.DB, seller, buyer su
 	actor := supplierorder.Actor{Subject: "TEST-order-maker", StaffID: uuid.New()}
 	reviewer := supplierorder.Actor{Subject: "TEST-order-reviewer", StaffID: uuid.New()}
 	supplier := supplierorder.Actor{Subject: "TEST-order-source", StaffID: uuid.New()}
-	version := uuid.New()
-	input := supplierorder.SupplierOrderInput{RelationshipID: buyer.ID, TermsSha256: buyer.TermsSha256, PurchaseOrderReference: "TEST-PO-001", QuoteReference: "TEST agreed quote reference", ExpiresAt: buyer.Terms.ExpiresAt.Add(-time.Minute), Reason: "TEST shared order instructions", Lines: []supplierorder.SupplierOrderLine{{ID: uuid.Must(uuid.NewV7()), Product: supplierorder.SupplierOrderProduct{Owner: "supply", ProductID: uuid.New(), VersionID: &version}, QuantityUnits: 100, UnitCode: "capsule"}}}
+	input := protocolPurchaseOrderInput(buyer)
 	order, err := supplierorder.Prepare(uuid.Must(uuid.NewV7()), buyer, input, actor, time.Now())
 	require.NoError(t, err)
 	order.BuyerDepartmentID = &dept
@@ -164,4 +163,32 @@ func verifyPurchaseOrderProtocol(t *testing.T, db *tenantdb.DB, seller, buyer su
 			return nil
 		})
 	}))
+}
+
+func protocolPurchaseOrderInput(buyer suppliertrade.Relationship) supplierorder.SupplierOrderInput {
+	version := uuid.New()
+	product := supplierorder.SupplierOrderProduct{Owner: buyer.Terms.Seller.Product, ProductID: uuid.New(), VersionID: &version}
+	if product.Owner == "pharmacy" {
+		revision := int64(1)
+		product.ProductID = uuid.Must(uuid.NewV7())
+		product.VersionID = nil
+		product.Version = &revision
+	}
+	return supplierorder.SupplierOrderInput{RelationshipID: buyer.ID, TermsSha256: buyer.TermsSha256, PurchaseOrderReference: "TEST-PO-001", QuoteReference: "TEST agreed quote reference", ExpiresAt: buyer.Terms.ExpiresAt.Add(-time.Minute), Reason: "TEST shared order instructions", Lines: []supplierorder.SupplierOrderLine{{ID: uuid.Must(uuid.NewV7()), Product: product, QuantityUnits: 100, UnitCode: "capsule"}}}
+}
+
+func TestProtocolPurchaseIntentUsesTheSelectedSourceContract(t *testing.T) {
+	at := time.Date(2026, 11, 22, 12, 0, 0, 0, time.UTC)
+	for _, product := range []string{"supply", "pharmacy"} {
+		t.Run(product, func(t *testing.T) {
+			terms := protocolTradeTerms(product, at)
+			require.NoError(t, suppliertrade.ValidateTerms(terms, at))
+			digest, err := suppliertrade.TermsDigest(terms)
+			require.NoError(t, err)
+			relationship := suppliertrade.Relationship{ID: uuid.Must(uuid.NewV7()), Terms: terms, TermsSha256: digest}
+			input := protocolPurchaseOrderInput(relationship)
+			require.Equal(t, product, input.Lines[0].Product.Owner)
+			require.NoError(t, supplierorder.ValidateInput(terms, input, at))
+		})
+	}
 }

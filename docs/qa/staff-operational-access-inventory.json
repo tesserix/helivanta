@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "de5d4e76e96eb808ac4f1e4c1ba4751cc97e037a514d76cdd225791f0fd5647f",
+  "registry_sha256": "8ad0455ea108a212326fa62582027c332b0cb2a1930f0534cee79220e2892868",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1215,
-    "unclassified": 1064
+    "total": 1217,
+    "unclassified": 1066
   },
   "entries": [
     {
@@ -12838,6 +12838,38 @@
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http supply GET /v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders",
+      "kind": "http",
+      "module": "supply",
+      "registration": {
+        "source": "backend/internal/modules/supply/module.go",
+        "method": "GET",
+        "path": "/v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http supply GET /v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders/:order/shipments",
+      "kind": "http",
+      "module": "supply",
+      "registration": {
+        "source": "backend/internal/modules/supply/module.go",
+        "method": "GET",
+        "path": "/v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders/:order/shipments",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
         "counted": false
       },
       "review": null

@@ -28,6 +28,7 @@ type PartnerScopeGrant struct {
 	BuyerOrganizationID, BuyerLocationID   uuid.UUID
 	Category                               string
 	Permission                             Permission
+	TermsSha256                            string
 	ProjectionHash                         string
 	ValidUntil                             time.Time
 }

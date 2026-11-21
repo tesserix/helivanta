@@ -103,6 +103,34 @@ type SupplierGrantSummary struct {
 	UpdatedAt         time.Time          `json:"updated_at"`
 }
 
+type PartnerShipmentOrder struct {
+	ID                     uuid.UUID          `json:"id"`
+	Scope                  SupplierGrantScope `json:"scope"`
+	GrantID                uuid.UUID          `json:"grant_id"`
+	RelationshipID         uuid.UUID          `json:"relationship_id"`
+	TermsSha256            string             `json:"terms_sha256"`
+	PurchaseOrderReference string             `json:"purchase_order_reference"`
+	CreatedAt              time.Time          `json:"created_at"`
+}
+
+type PartnerShipment struct {
+	ID                     uuid.UUID          `json:"id"`
+	Scope                  SupplierGrantScope `json:"scope"`
+	GrantID                uuid.UUID          `json:"grant_id"`
+	RelationshipID         uuid.UUID          `json:"relationship_id"`
+	TermsSha256            string             `json:"terms_sha256"`
+	OrderID                uuid.UUID          `json:"order_id"`
+	PurchaseOrderReference string             `json:"purchase_order_reference"`
+	ProductDescription     string             `json:"product_description"`
+	UnitCode               string             `json:"unit_code"`
+	PackSize               int64              `json:"pack_size"`
+	QuantityUnits          int64              `json:"quantity_units"`
+	LotNumber              string             `json:"lot_number"`
+	ExpiresOn              string             `json:"expires_on"`
+	HandoffReference       string             `json:"handoff_reference"`
+	DispatchedAt           time.Time          `json:"dispatched_at"`
+}
+
 const maximumValidityDays = 366
 
 var templates = map[string]Template{"partner.catalogue_viewer.v1": {Permission: "partner.catalogue.read", GroupPurposes: []string{"procurement", "receiving"}}, "partner.shipment_reader.v1": {Permission: "partner.shipment.read", GroupPurposes: []string{"procurement", "receiving"}}, "partner.invoice_viewer.v1": {Permission: "partner.invoice.read", GroupPurposes: []string{"finance"}}}

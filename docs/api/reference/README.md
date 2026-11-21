@@ -974,6 +974,8 @@ Source: [backend/internal/modules/supply/module.go](../../../backend/internal/mo
 | GET | `/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/shipments` | `public` | true | false |
 | GET | `/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order` | `public` | false | false |
 | GET | `/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders` | `public` | true | false |
+| GET | `/v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders/:order/shipments` | `public` | true | false |
+| GET | `/v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders` | `public` | true | false |
 | GET | `/v1/supply/parties/:party/access-limits/revisions` | `supply.party.access.manage` | true | false |
 | GET | `/v1/supply/parties/:party/access-limits` | `supply.party.access.manage` | false | false |
 | PUT | `/v1/supply/parties/:party/access-limits` | `supply.party.access.manage` | false | false |
@@ -1133,6 +1135,7 @@ Migration table declarations:
 - `0015_supply_purchase_orders`: `supply_purchase_orders`, `supply_purchase_order_commands`, `supply_purchase_order_history`.
 - `0016_supply_supplier_fulfilment`: `supply_supplier_allocations`, `supply_supplier_holds`, `supply_supplier_commands`, `supply_supplier_allocation_history`, `supply_stock_fulfilment_balances`, `supply_stock_dispatches`, `supply_supplier_shipments`, `supply_supplier_dispatched_shipments`, `supply_supplier_receiving_updates`, `supply_supplier_discrepancy_responses`.
 - `0017_supply_supplier_response_exchange`: `supply_supplier_received_responses`.
+- `0020_supply_partner_shipment_order_index`: concurrent index `supply_partner_shipment_order_page` on `supply_purchase_orders (tenant_id, relationship_id, created_at DESC, id DESC)`.
 
 ## lab
 

@@ -6,7 +6,31 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const contract = JSON.parse(
   await readFile(path.join(root, "contracts/supplier-access.json"), "utf8"),
 );
-const models = emitModels(contract.models);
+const sources = {
+  "supplier-access": contract,
+  "supplier-orders": JSON.parse(
+    await readFile(path.join(root, "contracts/supplier-orders.json"), "utf8"),
+  ),
+  "supplier-fulfilment": JSON.parse(
+    await readFile(path.join(root, "contracts/supplier-fulfilment.json"), "utf8"),
+  ),
+};
+const resolvedModels = Object.fromEntries(
+  Object.entries(contract.models).map(([name, fields]) => [
+    name,
+    fields.map((field) => {
+      if (!field.field_from) return field;
+      const [source, model, member] = field.field_from;
+      const original = sources[source]?.models[model]?.find(
+        (candidate) => candidate.name === member,
+      );
+      if (field.field_from.length !== 3 || !original?.type || original.field_from)
+        throw new Error(`Unknown canonical projection field: ${name}.${field.name}`);
+      return { ...original, name: field.name };
+    }),
+  ]),
+);
+const models = emitModels(resolvedModels);
 await writeGenerated(
   root,
   "backend/pkg/supplieraccess/types_generated.go",

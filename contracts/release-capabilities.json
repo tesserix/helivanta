@@ -5903,6 +5903,16 @@
       "method": "GET",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/source-returns",
       "capability": "pharmacy_payables"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders/:order/shipments",
+      "capability": "supplier_collaboration"
     }
   ],
   "pages": [

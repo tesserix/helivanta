@@ -29,6 +29,8 @@ func verifyReceivingResponseProjection(t *testing.T, db *tenantdb.DB, order supp
 			return tx.Exec(`INSERT INTO supply_supplier_shipments(tenant_id,id,order_id,hospital_id,department_id,pharmacy_id,outlet_id,source_tenant_id,source_product,body,actor_subject,created_at)VALUES(?,?,?,?,?,?,?,?,?,?::jsonb,?,?)`, order.OwnerTenantID, shipment.ID, order.ID, shipment.HospitalID, department, shipment.BuyerOrganizationID, shipment.BuyerLocationID, shipment.SourceTenantID, shipment.Product.Owner, string(body), "system:supplier-shipments", at).Error
 		})
 	}))
+	verifyPartnerShipmentProjection(t, db, order, shipment)
+
 	record := f.ReceivingResponseRecord{ID: id(), OwnerTenantID: shipment.SourceTenantID, BuyerTenantID: shipment.BuyerTenantID, OrderID: order.ID, ShipmentID: shipment.ID, SourceProduct: shipment.Product.Owner, SourceOrganizationID: shipment.SourceOrganizationID, SourceLocationID: shipment.SourceLocationID, SummaryVersion: 2, Response: "disputed", Reason: "TEST ask to review shortage evidence", ActorSubject: "TEST source responder", ActorStaffID: id(), CreatedAt: at.Add(time.Second)}
 	data, err := json.Marshal(f.ShareReceivingResponse(record))
 	require.NoError(t, err)

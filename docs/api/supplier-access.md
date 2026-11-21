@@ -83,3 +83,55 @@ The current consent/store/API implementation still needs its consuming authorize
 product projections, SDK/UI and complete shared-environment acceptance before any
 claim of the full supplier workflow. The owner protocol tests are component
 acceptance, not substitutes for those gates.
+
+
+## Effective shipment disclosure candidate (ADR-0076)
+
+The current authorizer is now consumed by the development candidate in
+`internal/modules/supply/partner_shipments.go`. Both reads use
+`PartnerScopes.WithPartnerScope`, not the hospital-local eligibility port. They
+operate on SupplyConnect's retained owner-published dispatch projection for
+PharmaConnect outlet and SupplyConnect warehouse sources; neither reads another
+module's stock tables nor moves stock.
+
+Candidate paths under `/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms`:
+`GET /shipment-orders` and `GET /shipment-orders/:order/shipments`.
+Both are sealed resource collections capped at 50, under `partner.shipment.read`,
+with current expected account, exact hospital/grant/product, bilateral relationship,
+current Staff/group/graph and source guards on every page. Only orders with
+published dispatch facts become choices. A source SELECT purpose binds exact
+source tenant/org/location and buyer tenant/hospital/org/outlet/relationship;
+private command/history tables and all writes remain denied in that purpose.
+A failed source audit or current authority check withholds the response.
+
+`PartnerShipmentOrder` and `PartnerShipment` are canonical minimal projection
+models in `contracts/supplier-access.json`. Their field bounds inherit the actual
+source-owned order/fulfilment contracts. They include human references and frozen
+physical description/unit/pack/quantity/lot/expiry/dispatch evidence, excluding
+actors, Staff, prices, patient data and private source documents. Client parsing
+rejects extra fields, mismatched account/grant/relationship/order/source,
+duplicated rows and inconsistent/looping continuation. It keeps the hospital
+account; it does not log into the source tenant or gain operational authority.
+
+Additive migrations 0019/0020 establish the isolated purpose and concurrent order
+keyset index. The migration first verifies the previous Supply operating-choice
+inventory before refreshing it for the intended new restrictive policies. The new
+purpose inventories its policies/function and fails closed for missing/bypassed
+RLS, privilege drift, unsupported new tables or an absent/unready index. Original
+migrations and ordinary source/buyer/exchange purposes are unchanged.
+
+This remains dark under `supplier_collaboration`; eligibility/provider settings
+are unchanged. Storage-purpose fixtures are not real IAM admission evidence.
+Hosted native/positive real-grant tests, a reachable named recipient/source chooser
+and browser UI, performance evidence, protected integration and approved live
+acceptance remain gates in [ADR-0076](../adr/0076-effective-partner-shipment-disclosure.md).
+Catalogue and source-issued invoice consumers remain distinct unfinished work.
+
+Shipment sharing is restricted to the exact source/hospital-approved terms hash.
+The `:terms` path segment is that canonical SHA-256, supplied by an authorised
+chooser rather than entered by a user. It binds the sealed cursor; every query
+also checks the owner order's original terms hash against the final current grant.
+A changed agreement requires a refreshed choice/page. It does not broaden access
+to another agreement's history; hospital-local retained obligations use their own
+existing authority. Public projections include that `terms_sha256` for exact SDK
+checking, without the private source document or its actors.

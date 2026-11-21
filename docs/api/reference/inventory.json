@@ -7565,6 +7565,24 @@
         },
         {
           "method": "GET",
+          "path": "/v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders/:order/shipments",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/supply/parties/:party/access-limits/revisions",
           "permission": "supply.party.access.manage",
           "authentication_required": true,
@@ -9050,6 +9068,40 @@
           "id": "0018_supply_operating_location_choices",
           "sql_sha256": "2a4244623118b87e2d91630a7fc7e216d469ad2bbb4cf841da3f66064453fc9e",
           "creates_tables": []
+        },
+        {
+          "id": "0019_supply_partner_shipments",
+          "sql_sha256": "853966cd2cbd8dc9f2ab9b35d88b129c472bcb38c4a50257efcb0a9fdf462e85",
+          "creates_tables": []
+        },
+        {
+          "id": "0020_supply_partner_shipment_order_index",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "supply_partner_shipment_order_page",
+              "table": "supply_purchase_orders",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "relationship_id",
+                  "descending": false
+                },
+                {
+                  "name": "created_at",
+                  "descending": true
+                },
+                {
+                  "name": "id",
+                  "descending": true
+                }
+              ]
+            }
+          ]
         }
       ]
     },

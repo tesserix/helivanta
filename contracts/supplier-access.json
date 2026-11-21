@@ -440,6 +440,178 @@
         "name": "updated_at",
         "type": "time"
       }
+    ],
+    "PartnerShipmentOrder": [
+      {
+        "name": "id",
+        "field_from": [
+          "supplier-orders",
+          "SupplierOrder",
+          "id"
+        ]
+      },
+      {
+        "name": "scope",
+        "type": "SupplierGrantScope"
+      },
+      {
+        "name": "grant_id",
+        "field_from": [
+          "supplier-access",
+          "SupplierGrant",
+          "id"
+        ]
+      },
+      {
+        "name": "relationship_id",
+        "field_from": [
+          "supplier-access",
+          "SupplierGrantInput",
+          "relationship_id"
+        ]
+      },
+      {
+        "name": "terms_sha256",
+        "field_from": [
+          "supplier-orders",
+          "SupplierOrderInput",
+          "terms_sha256"
+        ]
+      },
+      {
+        "name": "purchase_order_reference",
+        "field_from": [
+          "supplier-orders",
+          "SupplierOrderInput",
+          "purchase_order_reference"
+        ]
+      },
+      {
+        "name": "created_at",
+        "field_from": [
+          "supplier-orders",
+          "SupplierOrder",
+          "created_at"
+        ]
+      }
+    ],
+    "PartnerShipment": [
+      {
+        "name": "id",
+        "field_from": [
+          "supplier-fulfilment",
+          "Shipment",
+          "id"
+        ]
+      },
+      {
+        "name": "scope",
+        "type": "SupplierGrantScope"
+      },
+      {
+        "name": "grant_id",
+        "field_from": [
+          "supplier-access",
+          "SupplierGrant",
+          "id"
+        ]
+      },
+      {
+        "name": "relationship_id",
+        "field_from": [
+          "supplier-access",
+          "SupplierGrantInput",
+          "relationship_id"
+        ]
+      },
+      {
+        "name": "terms_sha256",
+        "field_from": [
+          "supplier-orders",
+          "SupplierOrderInput",
+          "terms_sha256"
+        ]
+      },
+      {
+        "name": "order_id",
+        "field_from": [
+          "supplier-fulfilment",
+          "Shipment",
+          "order_id"
+        ]
+      },
+      {
+        "name": "purchase_order_reference",
+        "field_from": [
+          "supplier-orders",
+          "SupplierOrderInput",
+          "purchase_order_reference"
+        ]
+      },
+      {
+        "name": "product_description",
+        "field_from": [
+          "supplier-fulfilment",
+          "Shipment",
+          "product_description"
+        ]
+      },
+      {
+        "name": "unit_code",
+        "field_from": [
+          "supplier-fulfilment",
+          "Shipment",
+          "unit_code"
+        ]
+      },
+      {
+        "name": "pack_size",
+        "field_from": [
+          "supplier-fulfilment",
+          "Shipment",
+          "pack_size"
+        ]
+      },
+      {
+        "name": "quantity_units",
+        "field_from": [
+          "supplier-fulfilment",
+          "Shipment",
+          "quantity_units"
+        ]
+      },
+      {
+        "name": "lot_number",
+        "field_from": [
+          "supplier-fulfilment",
+          "Shipment",
+          "lot_number"
+        ]
+      },
+      {
+        "name": "expires_on",
+        "field_from": [
+          "supplier-fulfilment",
+          "Shipment",
+          "expires_on"
+        ]
+      },
+      {
+        "name": "handoff_reference",
+        "field_from": [
+          "supplier-fulfilment",
+          "Shipment",
+          "handoff_reference"
+        ]
+      },
+      {
+        "name": "dispatched_at",
+        "field_from": [
+          "supplier-fulfilment",
+          "Shipment",
+          "dispatched_at"
+        ]
+      }
     ]
   }
 }

@@ -25,19 +25,84 @@ func assertSupplierRecipientCurrentMembership(t *testing.T, db *tenantdb.DB, aut
 	require.NoError(t, err)
 	var member iam.PartnerGroupMemberProposal
 	require.NoError(t, json.Unmarshal(raw, &member))
+	groupCatalogue := seedSupplierRecipientFixture(t, db, tenant, subject, member, "group", "supply", "partner.catalogue_viewer.v1")
+	groupShipments := seedSupplierRecipientFixture(t, db, tenant, subject, member, "group", "pharmacy", "partner.shipment_reader.v1")
+	namedShipments := seedSupplierRecipientFixture(t, db, tenant, subject, member, "subject", "pharmacy", "partner.shipment_reader.v1")
+	authorizer := iam.NewPartnerScopeAuthorizer(platform.Deps{DB: db, ScopedAuthorizer: authority, PartnerMembers: staff})
+	recipientSource := authorizer.(authz.PartnerRecipientSource)
+	assertRecipient := func(request authz.PartnerScopeRequest, allowed bool) {
+		t.Helper()
+		called := false
+		err := recipientSource.WithCurrentPartnerRecipient(t.Context(), request, func(ctx context.Context) error {
+			called = true
+			require.True(t, db.GuardedCommandActive(ctx))
+			return nil
+		})
+		if allowed {
+			require.NoError(t, err)
+		} else {
+			require.Error(t, err)
+		}
+		require.Equal(t, allowed, called, "recipient eligibility must hold through the actual guarded callback")
+	}
+	for _, request := range []authz.PartnerScopeRequest{groupCatalogue, groupShipments, namedShipments} {
+		assertRecipient(request, true)
+		called := false
+		require.ErrorIs(t, authorizer.WithPartnerScope(t.Context(), request, func(context.Context, authz.PartnerScopeGrant) error { called = true; return nil }), authz.ErrScopedAuthorizationUnavailable)
+		require.False(t, called, "hospital-local eligibility is not authority to release supplier data without its other owners")
+		wrong := request
+		wrong.HospitalID = uuid.New()
+		assertRecipient(wrong, false)
+	}
+	for _, stale := range []string{"membership", "generation"} {
+		changed := member
+		if stale == "membership" {
+			changed.MemberMembershipEpoch++
+		} else {
+			changed.MemberGenerationID = uuid.Must(uuid.NewV7())
+		}
+		request := seedSupplierRecipientFixture(t, db, tenant, subject, changed, "subject", "pharmacy", "partner.shipment_reader.v1")
+		assertRecipient(request, false)
+	}
+	invoice := seedSupplierRecipientFixture(t, db, tenant, subject, member, "group", "supply", "partner.invoice_viewer.v1")
+	assertRecipient(invoice, false)
+	path := "/v1/iam/hospitals/" + member.HospitalID.String() + "/partner-groups/" + member.GroupID.String() + "/member-proposals/" + member.ID.String() + "/commands/" + uuid.Must(uuid.NewV7()).String()
+	call(t, "PUT", path, reviewer, map[string]any{"expected_version": member.Version, "operation": "suspend", "reason": "TEST immediate supplier recipient reduction"}, 200)
+	assertRecipient(groupCatalogue, false)
+	assertRecipient(groupShipments, false)
+	assertRecipient(namedShipments, true)
+}
+
+type supplierRecipientBasisFixture struct {
+	GroupVersion    int64                                            `json:"group_version,omitempty"`
+	Named           *supplieraccess.SupplierGrantRecipientBasisInput `json:"named,omitempty"`
+	Identity        *authz.StaffActorReference                       `json:"identity,omitempty"`
+	MembershipEpoch int64                                            `json:"membership_epoch,omitempty"`
+	Actor           authz.StaffActorReference                        `json:"actor"`
+}
+
+func seedSupplierRecipientFixture(t *testing.T, db *tenantdb.DB, tenant, subject string, member iam.PartnerGroupMemberProposal, kind, product, template string) authz.PartnerScopeRequest {
+	t.Helper()
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	id := uuid.Must(uuid.NewV7())
 	home := uuid.MustParse(tenant)
 	source := uuid.New()
 	group := member.GroupID
-	scope := supplieraccess.SupplierGrantScope{SourceTenantID: source, RecipientTenantID: home, HospitalID: member.HospitalID, SourceProduct: "supply", SourceOrganizationID: uuid.Must(uuid.NewV7()), SourceLocationID: uuid.Must(uuid.NewV7())}
-	input := supplieraccess.SupplierGrantInput{RelationshipID: uuid.Must(uuid.NewV7()), TermsSha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", RecipientKind: "group", RecipientGroupID: &group, TemplateKey: "partner.catalogue_viewer.v1", ValidFrom: now.Add(-time.Minute), ExpiresAt: now.Add(time.Minute), Reason: "TEST stored bilateral consent; recipient component only"}
+	scope := supplieraccess.SupplierGrantScope{SourceTenantID: source, RecipientTenantID: home, HospitalID: member.HospitalID, SourceProduct: product, SourceOrganizationID: uuid.Must(uuid.NewV7()), SourceLocationID: uuid.Must(uuid.NewV7())}
+	input := supplieraccess.SupplierGrantInput{RelationshipID: uuid.Must(uuid.NewV7()), TermsSha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", RecipientKind: kind, TemplateKey: template, ValidFrom: now.Add(-time.Minute), ExpiresAt: now.Add(time.Minute), Reason: "TEST stored bilateral consent; recipient component only"}
+	basisInput := supplierRecipientBasisFixture{}
+	if kind == "group" {
+		input.RecipientGroupID = &group
+		basisInput.GroupVersion = member.Input.ExpectedGroupVersion
+	} else {
+		input.RecipientSubject = &subject
+		basisInput.Named = &supplieraccess.SupplierGrantRecipientBasisInput{StaffID: member.Input.StaffID, PostingID: member.Input.PostingID, PostingRevisionID: member.Input.PostingRevisionID, PostingVersion: member.Input.PostingVersion, DepartmentID: member.Input.DepartmentID, DepartmentRevisionID: member.Input.DepartmentRevisionID}
+		basisInput.Identity = &authz.StaffActorReference{StaffID: member.MemberStaffID, LinkID: member.MemberLinkID, LinkVersion: member.MemberLinkVersion, GenerationID: member.MemberGenerationID, EmploymentEpoch: member.MemberEmploymentEpoch}
+		basisInput.MembershipEpoch = member.MemberMembershipEpoch
+	}
 	digest, err := supplieraccess.InputHash(scope, input)
 	require.NoError(t, err)
-	basis, err := json.Marshal(struct {
-		GroupVersion int64                     `json:"group_version,omitempty"`
-		Actor        authz.StaffActorReference `json:"actor"`
-	}{GroupVersion: member.Input.ExpectedGroupVersion})
+	basis, err := json.Marshal(basisInput)
 	require.NoError(t, err)
 	sum := sha256.Sum256(basis)
 	basisHash := hex.EncodeToString(sum[:])
@@ -56,27 +121,7 @@ func assertSupplierRecipientCurrentMembership(t *testing.T, db *tenantdb.DB, aut
 		}
 		return tx.Exec(`INSERT INTO iam_supplier_grant_bases(tenant_id,grant_id,hospital_id,document,basis_hash,actor_subject,created_at,updated_at)VALUES(?,?,?,?::jsonb,?,?,?,?)`, home, id, member.HospitalID, string(basis), basisHash, "TEST-fixture", now, now).Error
 	}))
-	request := authz.PartnerScopeRequest{Principal: authn.Principal{TenantID: tenant, Subject: subject, AuthTime: time.Now(), IdleDeadline: time.Now().Add(time.Hour)}, HospitalID: member.HospitalID, GrantID: id, Product: "supply", Permission: authz.PartnerCatalogueRead}
-	authorizer := iam.NewPartnerScopeAuthorizer(platform.Deps{DB: db, ScopedAuthorizer: authority, PartnerMembers: staff})
-	recipientSource := authorizer.(authz.PartnerRecipientSource)
-	called := false
-	require.NoError(t, recipientSource.WithCurrentPartnerRecipient(t.Context(), request, func(ctx context.Context) error {
-		called = true
-		require.True(t, db.GuardedCommandActive(ctx))
-		return nil
-	}))
-	require.True(t, called)
-	called = false
-	require.ErrorIs(t, authorizer.WithPartnerScope(t.Context(), request, func(context.Context, authz.PartnerScopeGrant) error { called = true; return nil }), authz.ErrScopedAuthorizationUnavailable)
-	require.False(t, called, "hospital-local eligibility is not authority to release supplier data without its other owners")
-	wrong := request
-	wrong.HospitalID = uuid.New()
-	called = false
-	require.Error(t, recipientSource.WithCurrentPartnerRecipient(t.Context(), wrong, func(context.Context) error { called = true; return nil }))
-	require.False(t, called)
-	path := "/v1/iam/hospitals/" + member.HospitalID.String() + "/partner-groups/" + group.String() + "/member-proposals/" + member.ID.String() + "/commands/" + uuid.Must(uuid.NewV7()).String()
-	call(t, "PUT", path, reviewer, map[string]any{"expected_version": member.Version, "operation": "suspend", "reason": "TEST immediate supplier recipient reduction"}, 200)
-	called = false
-	require.Error(t, recipientSource.WithCurrentPartnerRecipient(t.Context(), request, func(context.Context) error { called = true; return nil }))
-	require.False(t, called, "a retained approved supplier grant cannot survive current hospital membership suspension")
+	definition, ok := supplieraccess.TemplateFor(template)
+	require.True(t, ok)
+	return authz.PartnerScopeRequest{Principal: authn.Principal{TenantID: tenant, Subject: subject, AuthTime: time.Now(), IdleDeadline: time.Now().Add(time.Hour)}, HospitalID: member.HospitalID, GrantID: id, Product: product, Permission: authz.Permission(definition.Permission)}
 }

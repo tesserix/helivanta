@@ -51,7 +51,13 @@ function query(after: string | null) {
 }
 function checkScope(
   scope: PartnerShipmentScope,
-  rows: { id: string; grant_id: string; relationship_id: string; scope: SupplierGrantScope }[],
+  rows: {
+    id: string;
+    grant_id: string;
+    relationship_id: string;
+    terms_sha256: string;
+    scope: SupplierGrantScope;
+  }[],
 ) {
   for (const row of rows) {
     record.parse(row.id);

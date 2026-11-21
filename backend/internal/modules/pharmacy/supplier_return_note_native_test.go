@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
 )
@@ -37,11 +38,32 @@ func TestSupplierReturnNoteRetainsNamesAndReauthorizesEveryDownload(t *testing.T
 			for _, text := range []string{"TEST Return Pharmacy", "TEST Main Outlet", "TEST External Supplier", "TEST-BILL-1", "Not a tax invoice"} {
 				require.Contains(t, first.Body.String(), text)
 			}
+			require.Error(t, catalogueTx(t, w.db, func(tx *gorm.DB) error {
+				return tx.Exec("UPDATE pharmacy_outlets SET name='TEST forbidden rename' WHERE id=?", pharmaOutlet).Error
+			}))
+			// Simulate a future directory metadata migration without granting application update authority.
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			err := w.db.Migrate(ctx, []tenantdb.Migration{{ID: "test_note_directory_change_" + uuid.Must(uuid.NewV7()).String(), SQL: fmt.Sprintf(`
+SELECT set_config('app.tenant_id','%s',true);
+ALTER TABLE pharmacy_outlets DISABLE TRIGGER pharmacy_outlet_immutable;
+ALTER TABLE pharmacy_organizations DISABLE TRIGGER pharmacy_organization_immutable;
+UPDATE pharmacy_outlets SET name='TEST renamed outlet' WHERE tenant_id=current_setting('app.tenant_id')::uuid AND id='%s';
+UPDATE pharmacy_organizations SET name='TEST renamed pharmacy' WHERE tenant_id=current_setting('app.tenant_id')::uuid AND id='%s';
+ALTER TABLE pharmacy_outlets ENABLE TRIGGER pharmacy_outlet_immutable;
+ALTER TABLE pharmacy_organizations ENABLE TRIGGER pharmacy_organization_immutable;`, testutil.TenantA, pharmaOutlet, pharmaOrganization)}})
+			cancel()
+			require.NoError(t, err)
 			require.NoError(t, catalogueTx(t, w.db, func(tx *gorm.DB) error {
-				if err := tx.Exec("UPDATE pharmacy_outlets SET name='TEST renamed outlet' WHERE id=?", pharmaOutlet).Error; err != nil {
+				var names struct{ OutletName, PharmacyName string }
+				if err := tx.Raw(`SELECT o.name AS outlet_name,p.name AS pharmacy_name FROM pharmacy_outlets o JOIN pharmacy_organizations p ON p.tenant_id=o.tenant_id AND p.id=o.pharmacy_id WHERE o.tenant_id=? AND o.id=?`, testutil.TenantA, pharmaOutlet).Scan(&names).Error; err != nil {
 					return err
 				}
-				return tx.Exec("UPDATE pharmacy_organizations SET name='TEST renamed pharmacy' WHERE id=?", pharmaOrganization).Error
+				require.Equal(t, "TEST renamed outlet", names.OutletName)
+				require.Equal(t, "TEST renamed pharmacy", names.PharmacyName)
+				return nil
+			}))
+			require.Error(t, catalogueTx(t, w.db, func(tx *gorm.DB) error {
+				return tx.Exec("UPDATE pharmacy_outlets SET name='TEST forbidden rename' WHERE id=?", pharmaOutlet).Error
 			}))
 			repeated := w.request("GET", path, "reader", "")
 			require.Equal(t, 200, repeated.Code, repeated.Body.String())

@@ -238,6 +238,9 @@ database trigger derives those values from the same tenant's current directory;
 caller-supplied snapshots cannot override them. Old dispatches without historical
 snapshots are not backfilled with guessed names and refuse note release. The
 migration is forward-only: rollback retains the snapshot columns and evidence.
+Directory rows remain immutable; the snapshot also protects against future
+approved metadata evolution. Hosted metadata-change injection tests this
+boundary without adding application rename authority.
 
 The note rechecks complete dispatch/movement proof and uses frozen supplier,
 original bill, product, batch, expiry, issue units, quantity and handoff facts.

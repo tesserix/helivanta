@@ -63,8 +63,11 @@ the file and use the browser's Print command to print or save as PDF. Check A4
 layout and repeated headings for a multi-page note. No backend IDs, active
 content, external resources or inferred tax/credit acceptance belong in the view.
 
-Re-download after an authorized directory rename: retained names and bytes must
-remain unchanged. Every release requires a new disclosure audit. A draft, foreign
+In the disposable hosted fixture, simulate a later directory metadata migration:
+retained names and bytes must remain unchanged. The current directory is
+immutable; ordinary application rename attempts must remain refused before and
+after this fixture injection. Do not disable live guards to perform this check.
+Every file release requires a new disclosure audit. A draft, foreign
 tenant/outlet or revoked grant must release no attachment. Missing historical
 name snapshots, incomplete movement proof and audit failure refuse bytes; do not
 backfill historical names from today's directory. A changed identity, wrong

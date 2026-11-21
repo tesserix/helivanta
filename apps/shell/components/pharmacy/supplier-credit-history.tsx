@@ -15,6 +15,7 @@ import { useUrlPage } from "@/lib/use-url-page";
 import { formatPharmacyMoney } from "./currency-amount-field";
 import { SupplierCreditRecord } from "./supplier-credit-record";
 import { SupplierCreditMatching } from "./supplier-credit-matching";
+import { SupplierCreditApplications } from "./supplier-credit-applications";
 
 const states: Record<PharmacySupplierCredit["state"], string> = {
   active: "Active",
@@ -212,7 +213,10 @@ function CreditDetail({
         )}
       </Panel>
       {!detail.isError && !detail.isPending && (
-        <SupplierCreditMatching scope={scope} credit={detail.data} canManage={canManage} />
+        <>
+          <SupplierCreditMatching scope={scope} credit={detail.data} canManage={canManage} />
+          <SupplierCreditApplications scope={scope} credit={detail.data} canManage={canManage} />
+        </>
       )}
     </section>
   );

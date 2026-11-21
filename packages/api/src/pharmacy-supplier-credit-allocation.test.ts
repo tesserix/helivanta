@@ -295,3 +295,52 @@ it("preserves unavailable outcomes and cancellation without automatic financial 
   expect(apiFetch).toHaveBeenCalledTimes(1);
   expect(vi.mocked(apiFetch).mock.calls[0]![1]!.signal?.aborted).toBe(true);
 });
+
+it("verifies retained allocation and reversal intent and exact original bill when supplied", async () => {
+  vi.mocked(apiFetch).mockResolvedValue({ ...receipt, reason: "TEST changed allocation" });
+  await expect(
+    client.recoverPharmacySupplierCreditAllocation(scope, credit, allocation, undefined, input),
+  ).rejects.toThrow();
+  vi.mocked(apiFetch).mockResolvedValue({ ...reversal, payable_id: entry });
+  await expect(
+    client.readPharmacySupplierCreditAllocationReversal(
+      scope,
+      credit,
+      allocation,
+      undefined,
+      receipt,
+    ),
+  ).rejects.toThrow();
+  await expect(
+    client.recoverPharmacySupplierCreditAllocationReversal(
+      scope,
+      credit,
+      allocation,
+      entry,
+      undefined,
+      { original: receipt, input: reverseInput },
+    ),
+  ).rejects.toThrow();
+  vi.mocked(apiFetch).mockResolvedValue({ ...reversal, reason: "TEST changed reversal" });
+  await expect(
+    client.recoverPharmacySupplierCreditAllocationReversal(
+      scope,
+      credit,
+      allocation,
+      entry,
+      undefined,
+      { original: receipt, input: reverseInput },
+    ),
+  ).rejects.toThrow();
+  vi.mocked(apiFetch).mockResolvedValue(reversal);
+  expect(
+    await client.recoverPharmacySupplierCreditAllocationReversal(
+      scope,
+      credit,
+      allocation,
+      entry,
+      undefined,
+      { original: receipt, input: reverseInput },
+    ),
+  ).toEqual(reversal);
+});

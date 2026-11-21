@@ -55,7 +55,10 @@ it("shows separate actual, matched, applied and unused values with human referen
                 as_of: "2026-11-21T20:00:00Z",
                 timezone: "Asia/Kolkata",
               }
-            : { data: [row], page: { has_more: false, next_cursor: null } },
+            : {
+                data: url.includes("/matches?") || url.includes("/allocations?") ? [] : [row],
+                page: { has_more: false, next_cursor: null },
+              },
         ),
       ),
   );
@@ -72,6 +75,9 @@ it("shows separate actual, matched, applied and unused values with human referen
   for (const value of ["INR 7.50", "INR 3.00", "INR 2.00", "INR 5.50"])
     expect(detail.getByText(value)).toBeInTheDocument();
   expect(detail.getByText(/Original bill TEST-ORIGINAL-BILL/)).toBeInTheDocument();
+  expect(
+    await detail.findByText("No bill applications recorded for this credit."),
+  ).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Record supplier credit" })).not.toBeInTheDocument();
   expect(fetcher.mock.calls.some(([url]) => url.includes("source-returns"))).toBe(false);
   for (const value of [

@@ -22,7 +22,7 @@ case ${1:-} in
   setup)
     schema=$(mktemp)
     trap 'rm -f "$schema"' EXIT
-    curl --fail --silent --show-error --location \
+    curl --fail --silent --show-error --location --retry 3 --retry-delay 1 --retry-max-time 30 --connect-timeout 5 --max-time 15 \
       https://raw.githubusercontent.com/tesserix/tesserix-k8s/7bd817e6fdfec553ee95499faf6076f155a4907d/charts/apps/db-schema-bootstrap/schemas/global/global/onboarding_db.sql \
       --output "$schema"
     printf '%s  %s\n' 844877964546ef1c936298837123c6f528543d8ca609effb4aa7fe566ab6b0a2 "$schema" | shasum -a 256 -c >&2

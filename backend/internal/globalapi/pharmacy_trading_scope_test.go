@@ -121,6 +121,27 @@ func TestPharmacyTradingScopeNeedsCurrentSourceAdministrationAndIndependentEvide
 	}
 	require.NoError(t, check())
 	require.Equal(t, 1, seen)
+	peer := tradingSourcePeerForTest(t, platform.Deps{DB: f.db, TradingEndpoints: sources})
+	currentReference, err := peer.Check(t.Context(), suppliertrade.SourceCheckInput{Endpoint: endpoint, Category: "prescription", Operation: "order"})
+	require.NoError(t, err)
+	require.Equal(t, endpoint, currentReference.Endpoint)
+	require.NotEqual(t, uuid.Nil, currentReference.PolicyVersion)
+	require.NotEqual(t, uuid.Nil, currentReference.LicenceReviewID)
+
+	independent := endpoint
+	hospital, binding, bindingVersion := uuid.New(), uuid.Must(uuid.NewV7()), int64(2)
+	endpoint.HospitalID, endpoint.BindingID, endpoint.BindingVersion = &hospital, &binding, &bindingVersion
+	require.True(t, suppliertrade.ValidEndpointUse(endpoint, "prescription", "order"), "the forged department scope must reach the physical owner's real ownership check")
+	require.ErrorIs(t, check(), suppliertrade.ErrIneligible)
+	_, err = peer.Check(t.Context(), suppliertrade.SourceCheckInput{Endpoint: endpoint, Category: "prescription", Operation: "order"})
+	require.ErrorIs(t, err, suppliertrade.ErrIneligible)
+	require.Equal(t, 1, seen, "an independent pharmacy cannot impersonate a hospital department")
+	endpoint = independent
+	wrongTenant := endpoint
+	wrongTenant.TenantID = uuid.MustParse(testutil.TenantB)
+	_, err = peer.Check(t.Context(), suppliertrade.SourceCheckInput{Endpoint: wrongTenant, Category: "prescription", Operation: "order"})
+	require.ErrorIs(t, err, suppliertrade.ErrIneligible, "another tenant cannot reuse the real outlet identifiers")
+
 	revocationID := uuid.Must(uuid.NewV7())
 	revoked := call("PUT", licencePath+"/revocations/"+revocationID.String(), "reviewer", suppliertrade.PharmacyLicenceRevocationInput{Reason: "TEST immediate licence withdrawal"}, 201)
 	require.JSONEq(t, revoked, call("GET", licencePath+"/revocations/"+revocationID.String(), "reviewer", nil, 200))
@@ -129,6 +150,8 @@ func TestPharmacyTradingScopeNeedsCurrentSourceAdministrationAndIndependentEvide
 	call("PUT", licencePath+"/revocations/"+revocationID.String(), "reviewer", suppliertrade.PharmacyLicenceRevocationInput{Reason: "TEST altered intent"}, 409)
 	require.ErrorIs(t, check(), suppliertrade.ErrIneligible)
 	require.Equal(t, 1, seen)
+	_, err = peer.Check(t.Context(), suppliertrade.SourceCheckInput{Endpoint: endpoint, Category: "prescription", Operation: "order"})
+	require.ErrorIs(t, err, suppliertrade.ErrIneligible, "the real peer must refuse a newly revoked licence without a positive eligibility cache")
 	// With no positive cache, the immediately following current-source read stays denied.
 	require.True(t, errors.Is(check(), suppliertrade.ErrIneligible))
 

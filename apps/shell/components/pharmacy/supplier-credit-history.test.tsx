@@ -72,6 +72,7 @@ it("shows separate actual, matched, applied and unused values with human referen
   expect(detail.getByText("Matched to returns")).toBeInTheDocument();
   expect(detail.getByText("Applied to bills")).toBeInTheDocument();
   expect(detail.getByText("Unused credit")).toBeInTheDocument();
+  expect(await detail.findByRole("heading", { name: "Credit void" })).toBeInTheDocument();
   for (const value of ["INR 7.50", "INR 3.00", "INR 2.00", "INR 5.50"])
     expect(detail.getByText(value)).toBeInTheDocument();
   expect(detail.getByText(/Original bill TEST-ORIGINAL-BILL/)).toBeInTheDocument();

@@ -12,7 +12,8 @@ async function attachSupplierEvidence(
     | "supplier-credit-matched"
     | "supplier-credit-match-reversed"
     | "supplier-credit-applied"
-    | "supplier-credit-application-reversed",
+    | "supplier-credit-application-reversed"
+    | "supplier-credit-voided",
 ) {
   const path = info.outputPath(`${name}.png`);
   await page.screenshot({ path, fullPage: true });
@@ -581,6 +582,51 @@ test("supplier return preparation and physical dispatch recover response loss wi
       await owner(page, "GET", `${outlet}/stock/balance?location_id=${shelf}&batch_id=${batch}`),
     ).toMatchObject({ on_hand_units: 16 });
     await attachSupplierEvidence(page, testInfo, "supplier-credit-application-reversed");
+    await page.getByRole("button", { name: "Void unused credit", exact: true }).click();
+    await page
+      .getByLabel("Void reason", { exact: true })
+      .fill("TEST void incorrect supplier note after reversing applications");
+    const voidPattern = `**/accounts/supplier-credits/${creditId}/voids/*`;
+    let voidWrites = 0;
+    await page.route(voidPattern, async (route) => {
+      if (route.request().method() !== "PUT") return route.continue();
+      voidWrites++;
+      const response = await route.fetch();
+      expect(response.status(), await response.text()).toBe(200);
+      await route.abort("failed");
+    });
+    await page.getByRole("button", { name: "Confirm credit void", exact: true }).click();
+    await expect(page.getByText(/Supplier credit void outcome is unconfirmed/)).toBeVisible();
+    await page.unroute(voidPattern);
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.reload();
+    await page.getByRole("button", { name: `Open credit ${creditReference}`, exact: true }).click();
+    await page.getByRole("button", { name: "Check original credit void", exact: true }).click();
+    await expect(page.getByText(/Supplier credit void verified/)).toBeVisible();
+    await expect(
+      page.getByText("TEST void incorrect supplier note after reversing applications", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    expect(voidWrites).toBe(1);
+    expect(
+      await financial(page, "GET", `${outlet}/accounts/supplier-credits/${creditId}`),
+    ).toMatchObject({
+      state: "voided",
+      amount_minor: 750,
+      allocated_minor: 0,
+      matched_minor: 0,
+      available_minor: 0,
+    });
+    expect(await owner(page, "GET", `${outlet}/accounts/payables/${futurePayable}`)).toMatchObject({
+      credit_minor: 0,
+      paid_minor: 680,
+      outstanding_minor: 500,
+    });
+    await expect(page.getByRole("button", { name: "Void unused credit", exact: true })).toHaveCount(
+      0,
+    );
+    await attachSupplierEvidence(page, testInfo, "supplier-credit-voided");
     for (const id of [applicationId, applicationReversalId, futurePayable, futureReceipt])
       expect(await page.locator("body").innerText()).not.toContain(id);
     expect(await page.locator("body").innerText()).not.toContain(creditId);

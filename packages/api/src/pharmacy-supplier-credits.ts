@@ -226,6 +226,7 @@ export async function recoverPharmacySupplierCreditVoid(
   credit: string,
   entry: string,
   signal?: AbortSignal,
+  expectedInput?: PharmacySupplierCreditVoidInput,
 ) {
   const row = checkedVoid(
     scope,
@@ -236,6 +237,11 @@ export async function recoverPharmacySupplierCreditVoid(
     ),
   );
   if (!sameID(row.id, entry) || row.recorded_by !== scope.subject) return mismatch();
+  if (expectedInput) {
+    const input = pharmacySupplierCreditVoidInputSchema.parse(expectedInput);
+    if (row.expected_version !== input.expected_version || row.reason !== input.reason)
+      return mismatch();
+  }
   return row;
 }
 

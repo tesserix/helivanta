@@ -1753,5 +1753,26 @@ The hosted browser candidate additionally covers a fully paid source bill,
 partial application to a later bill, payment of its remainder, full application
 reversal, unchanged payments/stock and same-command reload recovery for both
 writes. Latest hosted/visual evidence and approved live acceptance remain
-required. Void/correction UI, complete bill history/report integration and the
-remaining supplier acceptance remain open in #1784.
+required. Complete bill history/report integration and the remaining supplier
+acceptance remain open in #1784.
+
+Candidate **Credit void** controls retain a separate reason and authorised
+recorder without deleting the original note. A new void requires an active credit
+with zero current net return attribution and zero current bill applications, the
+current version, explicit reason and existing financial editor/accounts-adjust/
+Payables authority. Active matches and applications must first be reversed through
+their owning commands. Voiding removes the unused pool; it never changes physical
+stock, bill liability, recorded payments or cash. A replacement/correction note
+remains a separate explicit command and is not automatically generated.
+
+Void recovery stores only the scope/credit-bound command reference, checks the
+original actor and any retained version/reason, and remains available after reload
+or withdrawal of new-write authority. Retained void history is available for
+voided/corrected credits under current read authority; failed current reads hide
+cached evidence. Stale refusals preserve the entered reason for review and explicit
+refresh. Unknown outcomes retain their original identity without automatic retry;
+storage and cleanup failures use the same financial-command safeguards. The
+hosted candidate journey loses the committed void response after reversing all
+applications/matches and verifies one-write recovery and unchanged bill payment.
+Correction/replacement entry UI and latest hosted/visual/live acceptance remain
+open in #1784.

@@ -15,6 +15,7 @@ test("retains only named synthetic supplier screenshots before later phases over
     await mkdir(fixtures, { recursive: true });
     await mkdir(unrelated, { recursive: true });
     for (const name of [
+      "supplier-credit-voided-1.png",
       "supplier-credit-recovered-1.png",
       "supplier-credit-match-reversed-1.png",
       "supplier-credit-matched-1.png",
@@ -41,6 +42,7 @@ test("retains only named synthetic supplier screenshots before later phases over
       "supplier-credit-match-reversed-1.png",
       "supplier-credit-matched-1.png",
       "supplier-credit-recovered-1.png",
+      "supplier-credit-voided-1.png",
     ]);
   } finally {
     await rm(temp, { recursive: true, force: true });
@@ -74,6 +76,30 @@ test("refuses to claim complete visual evidence if a required screenshot is miss
       fixture = path.join(source, "pharmacy-supplier-return-dispatch-specs", "attachments");
     await mkdir(fixture, { recursive: true });
     await writeFile(path.join(fixture, "supplier-credit-recovered-1.png"), "TEST image");
+    await assert.rejects(
+      () => retainSupplierReturnEvidence(source, path.join(temp, "output")),
+      /Missing required synthetic supplier screenshots/,
+    );
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
+test("requires retained void evidence after application reversal", async () => {
+  const temp = await mkdtemp(path.join(tmpdir(), "helivanta-supplier-evidence-"));
+  try {
+    const source = path.join(temp, "results");
+    const fixture = path.join(source, "pharmacy-supplier-return-dispatch-specs", "attachments");
+    await mkdir(fixture, { recursive: true });
+    for (const name of [
+      "supplier-credit-recovered",
+      "supplier-credit-matched",
+      "supplier-credit-match-reversed",
+      "supplier-credit-applied",
+      "supplier-credit-application-reversed",
+      "commercial-return-note-print",
+    ])
+      await writeFile(path.join(fixture, `${name}-1.png`), "TEST image");
     await assert.rejects(
       () => retainSupplierReturnEvidence(source, path.join(temp, "output")),
       /Missing required synthetic supplier screenshots/,

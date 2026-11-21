@@ -8,6 +8,7 @@ const required = [
   "supplier-credit-match-reversed",
   "supplier-credit-applied",
   "supplier-credit-application-reversed",
+  "supplier-credit-voided",
   "commercial-return-note-print",
 ];
 export async function retainSupplierReturnEvidence(source, target) {

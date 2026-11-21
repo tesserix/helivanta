@@ -16,6 +16,7 @@ import { formatPharmacyMoney } from "./currency-amount-field";
 import { SupplierCreditRecord } from "./supplier-credit-record";
 import { SupplierCreditMatching } from "./supplier-credit-matching";
 import { SupplierCreditApplications } from "./supplier-credit-applications";
+import { SupplierCreditVoid } from "./supplier-credit-void";
 
 const states: Record<PharmacySupplierCredit["state"], string> = {
   active: "Active",
@@ -216,6 +217,7 @@ function CreditDetail({
         <>
           <SupplierCreditMatching scope={scope} credit={detail.data} canManage={canManage} />
           <SupplierCreditApplications scope={scope} credit={detail.data} canManage={canManage} />
+          <SupplierCreditVoid scope={scope} credit={detail.data} canManage={canManage} />
         </>
       )}
     </section>

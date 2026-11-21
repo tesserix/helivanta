@@ -160,8 +160,9 @@ The hosted spec extends the existing dispatch journey with real credit entry and
 response-loss recovery, then captures `supplier-credit-recovered` for visual review.
 Local component/SDK tests do not substitute for that hosted run or live acceptance.
 Matching, full match reversal and bill application/reversal are development UI
-candidates pending their latest hosted/visual and live acceptance. Void/correction
-controls still require finance UI and complete browser acceptance.
+candidates pending their latest hosted/visual and live acceptance. Credit void is
+also a candidate control; replacement/correction entry still requires finance UI
+and complete browser acceptance.
 Document entry and matching are not bill settlement.
 
 ### Match actual credit to dispatched returns
@@ -257,10 +258,32 @@ Document entry and matching are not bill settlement.
    original command/intent may retry. After reload, re-entry must keep the same
    command identity. A cleanup failure retains recovery and blocks another write.
 
+### Void an unused note without erasing evidence
+
+1. Confirm the note has zero active return matches and zero bill applications.
+   **Void unused credit** must be unavailable while either remains, when the
+   note is already voided/corrected, or when write authority is unavailable.
+   Reverse matches and applications through their own explicit commands first.
+2. Open **Void unused credit**, enter a reason and confirm. A current version is
+   required. Stale refusal preserves the reason; refresh observations and review
+   before explicitly submitting a new command. No automatic replacement is made.
+3. Verify the note is retained as Voided with its immutable original amount,
+   separate void reason and named recorder. Unused credit becomes zero. Bill
+   liability, payment history and stock remain unchanged. Original matching and
+   application/reversal history remains readable under current read authority.
+4. In the hosted fixture, lose the committed response, reload and reopen the
+   named credit. Choose **Check original credit void** and verify one PUT and the
+   same actor-bound original. Recovery remains available with writes disabled;
+   only its scoped command reference is stored. Wrong retained reason/version,
+   actor or scope cannot be accepted as successful recovery.
+5. Refuse a refreshed retained-void read: hide cached reason/recorder and recheck
+   current access. Unavailable reference storage prevents submission. Failed
+   cleanup retains the same recovery reference and blocks another command.
+
 CI retains only the named synthetic `commercial-return-note-print`,
 `supplier-credit-recovered`, `supplier-credit-matched`,
 `supplier-credit-match-reversed`, `supplier-credit-applied` and
-`supplier-credit-application-reversed` PNGs in the
+`supplier-credit-application-reversed` and `supplier-credit-voided` PNGs in the
 `supplier-return-visual-evidence` artifact for seven days. The capture runs before
 later Playwright phases overwrite their reports; missing required images fail
 capture. Download and visually inspect that artifact before accepting the UI.
@@ -271,7 +294,7 @@ No live patient, staff or supplier data belongs in these fixtures.
 `e2e/tests/pharmacy-supplier-return-dispatch.spec.ts` exercises the real browser,
 Global API and owning backend for preparation and dispatch response-loss recovery,
 then commercial-note download/print-media rendering, actual credit entry,
-matching/reversal and application/paid-bill reversal with response-loss recovery
+matching/reversal, application/paid-bill reversal and void with response-loss recovery
 through the Supplier credits workspace. Inspect the latest hosted run before
 recording any of these candidate journeys as passed.
 `TestSupplierReturn*` includes native ownership, authority, concurrency, receipt

@@ -18,7 +18,7 @@ export type CreditApplicationReference = z.infer<typeof referenceSchema>;
 export function creditApplicationCommandKey(
   scope: PharmacyActorScope,
   credit: string,
-  kind: "application" | "application-reversal",
+  kind: "application" | "application-reversal" | "void",
 ) {
   return `helivanta:supplier-credit-${kind}:v1:${JSON.stringify([scope.tenantId, scope.subject, scope.pharmacyId, scope.outletId, credit])}`;
 }

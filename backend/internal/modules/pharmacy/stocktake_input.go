@@ -21,7 +21,7 @@ func decodeStockCommand(c *gin.Context, target any) bool {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, limit)
 	raw, err := io.ReadAll(c.Request.Body)
 	if err != nil || c.Request.URL.RawQuery != "" || suppliertrade.DecodeBoundedObject(raw, target, limit) != nil || binding.Validator.ValidateStruct(target) != nil {
-		respond.Error(c, http.StatusBadRequest, "invalid_request", "Provide one bounded stock command without query parameters.")
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "Provide one bounded command without query parameters.")
 		return false
 	}
 	return true

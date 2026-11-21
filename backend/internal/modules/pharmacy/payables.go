@@ -63,6 +63,7 @@ func payableRoutes(g *platform.Router, deps platform.Deps) {
 	h := &catalogueHandlers{db: deps.DB, bus: deps.Bus}
 	s := g.Group("/pharmacies/:pharmacy/outlets/:outlet/accounts")
 	supplierReturnRoutes(s, h)
+	supplierCreditRoutes(s, h)
 	s.PUT("/payables/:id", PermAccountsWrite, h.putPayable)
 	s.GET("/payables/:id", PermAccountsRead, h.getPayable)
 	s.PUT("/payables/:id/payments/:entry", PermAccountsPayment, h.putPayment)

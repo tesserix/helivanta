@@ -1440,3 +1440,59 @@ before release. Current scope and all metadata/bytes are checked before the
 browser creates a download. Download is baseline retained evidence and changes
 neither stock nor financial balances. Print/PDF uses the downloaded document's
 browser print view. It does not issue a statutory or supplier credit document.
+
+### Retained supplier-credit documents (candidate)
+
+Under `/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits`:
+
+| Method/path                          | Meaning and permission                                                          |
+| ------------------------------------ | ------------------------------------------------------------------------------- |
+| `GET /`                              | Cursor page of current positions, maximum 50; `pharmacy.accounts.read`          |
+| `PUT /:credit`                       | Record actual document or explicit correction; `pharmacy.accounts.adjust`       |
+| `GET /:credit`                       | Current document position; `pharmacy.accounts.read`                             |
+| `GET /:credit/recovery`              | Original recording receipt, original actor only; `pharmacy.accounts.read`       |
+| `GET /:credit/void`                  | Retained void evidence; `pharmacy.accounts.read`                                |
+| `PUT /:credit/voids/:entry`          | Void unused/unmatched credit at an explicit version; `pharmacy.accounts.adjust` |
+| `GET /:credit/voids/:entry/recovery` | Original void receipt, original actor only; `pharmacy.accounts.read`            |
+
+These routes are registered in the development candidate, not deployed or
+operationally released. Inputs and responses derive from `contracts/pharmacy.json`.
+Every route requires verified expected tenant/subject headers, current membership
+and exact active outlet authority. Writes require the pharmacy-payables release
+capability; retained reads use baseline availability and still reauthorize and
+audit each disclosure. A reader may inspect another authorised actor's historical
+record, but cannot recover that actor's original command receipt.
+
+The recording command uses a UUIDv7 credit identity, dispatched `return_id`,
+normalized supplier document reference, `issued_on`, explicit positive INR
+`amount_minor` (at most 10^12), reason and optional `correction_of`. Source supplier,
+outlet, original bill and currency come from the dispatched return, never from
+caller-supplied supplier metadata. Dates start in 1970, cannot precede the original
+bill and cannot exceed the database-authoritative current outlet date. Duplicate
+references serialize within the outlet/supplier scope. A correction must name an
+unused, unmatched voided document for the same supplier; one successor preserves
+the original record as corrected.
+
+Recording actual credit neither matches a return nor allocates a bill. In the
+current document stage, `matched_minor` and `allocated_minor` are zero. An active
+record's available pool is its actual amount less allocation; a voided/corrected
+record has zero matched, allocated and available amounts. Voiding starts from an
+explicit `expected_version` and reason, preserving the original recording receipt.
+Current views and immutable command receipts are distinct contracts.
+
+Same-ID, same-actor, same-intent replay returns the original receipt; a conflicting
+identity/source/state returns 409 `supplier_credit_conflict`. Invisible records or
+another actor's recovery return 404. Audit/dependency/projection failure returns
+503 `supplier_credit_outcome_unknown`; no private result or partial write is
+released. Recover the original reference after uncertainty before any fresh intent.
+Audit, immutable ledger, protected projection and minimal outbox event commit in
+one owner transaction. Event fields have explicit privacy classifications and
+exclude names, amounts, document references, actor and reason.
+
+The SDK verifies exact resource/outlet identity, original actor/intent on writes
+and recovery, current amount conservation, void version arithmetic and bounded
+cursor integrity. Requests are account-bound, private/no-store and cancellable
+with a 15-second limit; they never automatically retry a financial command.
+Matching, allocation/reversals, their payable-balance integration and financial
+UI/live acceptance remain unfinished. No stock-cost, GST/ITC or general-ledger
+effect follows document recording or event publication.

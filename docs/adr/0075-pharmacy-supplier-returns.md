@@ -266,3 +266,50 @@ The Shell
 aborts on unmount, refuses duplicate/in-transition downloads and releases its
 temporary URL. An authorization refusal conceals private error details and needs
 an explicit access recheck; it never falls back to a cached file.
+
+### Retained supplier credit ledger (in progress)
+
+Actual supplier documents are distinct from expected return credit, legacy manual
+bill adjustments, bank receipts and customer credit notes. A received document
+anchors to one dispatched return for the frozen supplier/currency and original
+bill context; it does not automatically match that return or settle its bill.
+The operator supplies the actual document reference, date, positive INR paise and
+reason. Supported commercial document dates start in 1970, cannot precede the
+anchor bill and cannot be in the future on the outlet's authoritative local date.
+These are application input bounds, not a statutory tax decision.
+
+Additive migration0058 owns immutable document and void records plus a guarded
+current-position projection in PharmaConnect. The projection starts at version1
+with no matches or allocations. Only nested owner ledger triggers can update it;
+deferred proof reconciles its version/state/amounts with immutable evidence.
+Direct edits, deletes and truncation cannot erase or manufacture credit. All
+tables retain forced tenant/exact-outlet RLS, actor checks and restrictive
+operating-purpose policies; stock duties do not inherit financial authority.
+
+The supplier's normalized reference is unique in its outlet/counterparty context.
+Duplicate-reference admission serializes independently of command IDs. Correction
+requires an explicit link to the same supplier's unused, unmatched voided record;
+one replacement advances the old record to `corrected` while preserving it. A
+new record carries the corrected amount. Original command receipts are actor-bound
+and immutable even after void/correction; current state is a separate read.
+
+Financial commands use `pharmacy.accounts.adjust`; retained reads use
+`pharmacy.accounts.read`, verified tenant/actor preconditions and active exact
+outlet access. Audit, position evidence and the minimal supplier-credit outbox
+notification commit together. Read audit failure releases no private result.
+Reference-only recovery never stores credit values or supplier details locally.
+The existing pharmacy-payables operational family remains release-ineligible.
+The seven document/read/void/recovery routes are registered and classified in the
+release manifest. Hosted native document acceptance passed after the observed
+missing-route baseline; full CI, Staff-finance review, UI and live release gates
+remain required. Canonical payloads alone are not integration evidence. The
+identifier-only event fields have explicit privacy classifications; the event
+conveys no amount, supplier details, document reference, actor or private reason.
+
+Next required commands remain explicit partial/combined return matching, safe
+eligible-bill allocation, allocation/match reversal and the read/selection UI.
+Matching attributes commercial credit; allocation separately consumes the pool.
+The existing payable-balance view must include net managed allocation alongside
+legacy settlements, and both allocation and payment posting must serialize on
+the same payable key. Retained credit on a fully paid original bill stays
+unallocated. No stock-cost, GST/ITC or general-ledger effect is inferred.

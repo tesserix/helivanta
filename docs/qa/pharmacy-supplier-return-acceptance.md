@@ -83,6 +83,28 @@ private scope, duplicate suppression and abort-on-unmount. Hosted execution,
 rendered screenshot review and authenticated live release remain Pending until
 their evidence is recorded.
 
+## Actual supplier-credit document candidate
+
+The registered document backend and SDK are in development; there is no delivered
+credit workspace or live acceptance yet. The native hosted scenarios exercise:
+
+- Actual partial credit of 750 paise against a fully paid 11800-paise source bill,
+  across hospital-owned, independent and chain outlets. The bill stays paid and
+  all actual credit remains unallocated; expected return credit is not replaced.
+- Normalized reference admission and concurrent duplicate-reference attempts,
+  actor-bound same-command replay, changed intent and another actor's recovery.
+- Versioned void/correction, one replacement and immutable original receipts.
+- Readonly finance access, tenant/outlet denial, revocation and bounded history.
+- Invalid dates/source/actor, audit/outbox rollback and failed private-read audit.
+
+`packages/api/src/pharmacy-supplier-credits.test.ts` exercises current-position
+conservation, exact request/response scope, normalized original intent, separate
+current/immutable reads, cross-actor historical read versus recovery, versioned
+void evidence, bounded/unique pages and no automatic retry after uncertainty.
+These SDK tests do not substitute for a real Global API/browser financial journey.
+Matching and allocation/reversal tests must be added with those owner commands;
+do not claim financial settlement from document-stage acceptance alone.
+
 ## Evidence and remaining scope
 
 `e2e/tests/pharmacy-supplier-return-dispatch.spec.ts` exercises the real browser,

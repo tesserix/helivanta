@@ -3,13 +3,10 @@ package pharmacy
 import (
 	"context"
 	"errors"
-	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
@@ -28,19 +25,13 @@ func (h *catalogueHandlers) listSupplierReturns(c *gin.Context, params paginatio
 	if !ok {
 		return nil, nil
 	}
-	query, err := url.ParseQuery(c.Request.URL.RawQuery)
-	valid := err == nil && c.Request.ContentLength <= 0 && len(c.Request.TransferEncoding) == 0
-	for key, values := range query {
-		valid = valid && (key == "limit" || key == "cursor") && len(values) == 1 && values[0] != ""
-	}
-	if !valid {
-		respond.Error(c, http.StatusBadRequest, "invalid_request", "Use only bounded supplier return pagination parameters and no body.")
+	if !pharmacyFinancialCursorRead(c) {
 		return nil, nil
 	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 15*time.Second)
 	defer cancel()
 	rows := []supplierReturnSummaryRow{}
-	err = h.transaction(ctx, p, outlet, false, func(tx *gorm.DB) error {
+	err := h.transaction(ctx, p, outlet, false, func(tx *gorm.DB) error {
 		const columns = `id,outlet_id,number,payee_name,document_reference,currency,expected_credit_minor,line_count,created_at,
    to_char(created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS prepared_at,
    CASE WHEN EXISTS(SELECT 1 FROM pharmacy_supplier_return_cancellations c WHERE c.tenant_id=pharmacy_supplier_returns.tenant_id AND c.outlet_id=pharmacy_supplier_returns.outlet_id AND c.return_id=pharmacy_supplier_returns.id)THEN 'cancelled' WHEN EXISTS(SELECT 1 FROM pharmacy_supplier_return_dispatches d WHERE d.tenant_id=pharmacy_supplier_returns.tenant_id AND d.outlet_id=pharmacy_supplier_returns.outlet_id AND d.return_id=pharmacy_supplier_returns.id)THEN 'dispatched' ELSE 'draft' END state,

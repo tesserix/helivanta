@@ -667,3 +667,30 @@ it("does not fetch return history without its separate permission", async () => 
   expect(requested(fetcher, "/accounts/supplier-returns")).toEqual([]);
   expect(screen.queryByRole("link", { name: "Supplier returns" })).not.toBeInTheDocument();
 });
+
+it("opens retained supplier credits using finance permission without physical return permission", async () => {
+  nav.search = "tab=supplier-credits";
+  const base = mockAccounts();
+  const fetcher = vi.fn(async (url: string) =>
+    url.includes("/accounts/supplier-credits?")
+      ? new Response(JSON.stringify({ data: [], page: { has_more: false, next_cursor: null } }))
+      : base(url),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <PharmacyWorkspace view="accounts" />
+    </NavigationGuardProvider>,
+  );
+  expect(
+    await screen.findByText("No supplier credits recorded for this outlet."),
+  ).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Supplier credits" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  expect(screen.queryByRole("button", { name: "Record supplier credit" })).not.toBeInTheDocument();
+  expect(requested(fetcher, "/accounts/supplier-returns")).toEqual([]);
+  expect(requested(fetcher, "/accounts/payables")).toEqual([]);
+  expect(requested(fetcher, "/source-returns")).toEqual([]);
+});

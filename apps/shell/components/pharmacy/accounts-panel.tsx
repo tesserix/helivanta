@@ -21,6 +21,7 @@ import { useStepBackWhenEmpty, useUrlPage } from "@/lib/use-url-page";
 import { formatPharmacyMoney } from "./currency-amount-field";
 import { PayableForm, PayableHistory } from "./payable-forms";
 import { SupplierReturnHistory } from "./supplier-return-history";
+import { SupplierCreditHistory } from "./supplier-credit-history";
 
 export function AccountsPanel({
   scope,
@@ -102,6 +103,22 @@ function OutletAccounts({
         }))}
     />
   );
+  if (tab === "supplier-credits")
+    return (
+      <div className="space-y-5">
+        {tabs}
+        <SupplierCreditHistory
+          scope={{ ...scope, subject }}
+          canRecord={
+            writable &&
+            can("pharmacy.accounts.adjust") &&
+            !release.error &&
+            release.available("pharmacy_payables")
+          }
+          timeZone={timeZone}
+        />
+      </div>
+    );
   if (tab === "supplier-returns")
     return (
       <div className="space-y-5">
@@ -199,6 +216,7 @@ const TABS = {
   all: "All bills",
   audit: "Inventory cost audit",
   "supplier-returns": "Supplier returns",
+  "supplier-credits": "Supplier credits",
 } as const;
 type BillsTab = keyof typeof TABS;
 type UrlPage = ReturnType<typeof useUrlPage>;
@@ -218,7 +236,7 @@ function Bills({
   pane,
 }: {
   scope: PharmacyScope;
-  tab: Exclude<BillsTab, "audit" | "supplier-returns">;
+  tab: Exclude<BillsTab, "audit" | "supplier-returns" | "supplier-credits">;
   url: UrlPage;
   tabs: React.ReactNode;
   canRecord: boolean;

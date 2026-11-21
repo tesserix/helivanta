@@ -214,6 +214,83 @@ test("supplier return preparation and physical dispatch recover response loss wi
       `${outlet}/accounts/payables/${payable}`,
     );
     expect(bill.outstanding_minor).toBe(11800);
+    const outletParts = outlet.split("/");
+    await page.goto(
+      `/pharmacy/accounts?tab=supplier-credits&pharmacy=${outletParts[3]}&outlet=${outletParts[5]}`,
+    );
+    await page.getByRole("button", { name: "Record supplier credit", exact: true }).click();
+    await choose(
+      page,
+      "Dispatched supplier return",
+      new RegExp(`Return 1.*TEST External Supplier.*TEST-BILL-${stamp}`),
+    );
+    await expect(page.getByLabel("Actual credit amount (INR)", { exact: true })).toHaveValue("");
+    const creditReference = `TEST-CN-${stamp}`;
+    await page.getByLabel("Supplier credit reference", { exact: true }).fill(creditReference);
+    await page.getByLabel("Credit issue date", { exact: true }).fill("2026-11-18");
+    await page.getByLabel("Actual credit amount (INR)", { exact: true }).fill("7.50");
+    await page
+      .getByLabel("Credit record reason", { exact: true })
+      .fill("TEST actual partial credit issued by supplier");
+    let creditId = "",
+      creditWrites = 0;
+    await page.route("**/accounts/supplier-credits/*", async (route) => {
+      if (route.request().method() !== "PUT") {
+        await route.continue();
+        return;
+      }
+      creditWrites++;
+      const response = await route.fetch();
+      expect(response.status(), await response.text()).toBe(200);
+      creditId = ((await response.json()) as { id: string }).id;
+      await route.abort("failed");
+    });
+    await page.getByRole("button", { name: "Save supplier credit", exact: true }).click();
+    await expect(page.getByText(/credit outcome is unconfirmed/)).toBeVisible();
+    await page.unroute("**/accounts/supplier-credits/*");
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.reload();
+    await page.getByRole("button", { name: "Check original credit", exact: true }).click();
+    await expect(
+      page.getByText(
+        `Supplier credit ${creditReference} verified. Return matching and bill applications are separate steps.`,
+      ),
+    ).toBeVisible();
+    expect(creditWrites).toBe(1);
+    const credit = await financial<{
+      amount_minor: number;
+      matched_minor: number;
+      allocated_minor: number;
+      available_minor: number;
+    }>(page, "GET", `${outlet}/accounts/supplier-credits/${creditId}`);
+    expect(credit).toMatchObject({
+      amount_minor: 750,
+      matched_minor: 0,
+      allocated_minor: 0,
+      available_minor: 750,
+    });
+    const unchangedBill = await owner<{ outstanding_minor: number }>(
+      page,
+      "GET",
+      `${outlet}/accounts/payables/${payable}`,
+    );
+    expect(unchangedBill.outstanding_minor).toBe(11800);
+    const creditDetails = page.getByRole("region", {
+      name: "Supplier credit details",
+      exact: true,
+    });
+    await expect(
+      creditDetails.getByRole("heading", {
+        name: `Credit ${creditReference} · TEST External Supplier`,
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(creditDetails.getByText("INR 7.50", { exact: true })).toHaveCount(2);
+    await testInfo.attach("supplier-credit-recovered", {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: "image/png",
+    });
+    expect(await page.locator("body").innerText()).not.toContain(creditId);
     expect(await page.locator("body").innerText()).not.toContain(returnId);
   } finally {
     await fixture.context.close();

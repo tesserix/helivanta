@@ -1,6 +1,421 @@
 {
   "models": [
     {
+      "name": "SupplierCreditAllocationInput",
+      "schema": "pharmacySupplierCreditAllocationInputSchema",
+      "fields": [
+        {
+          "name": "payable_id",
+          "type": "uuid"
+        },
+        {
+          "name": "expected_version",
+          "type": "int64",
+          "min": 1,
+          "max": 999999999999,
+          "pointer": true
+        },
+        {
+          "name": "expected_available_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000,
+          "pointer": true
+        },
+        {
+          "name": "expected_payable_version",
+          "type": "int64",
+          "min": 1,
+          "max": 999999999999,
+          "pointer": true
+        },
+        {
+          "name": "expected_outstanding_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000,
+          "pointer": true
+        },
+        {
+          "name": "occurred_on",
+          "type": "string",
+          "format": "date",
+          "pattern": "^(?:19[7-9][0-9]|[2-9][0-9]{3})-"
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 1,
+          "max": 500,
+          "trim": true
+        },
+        {
+          "name": "amount_minor",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000000000,
+          "pointer": true
+        }
+      ]
+    },
+    {
+      "name": "SupplierCreditAllocationReceipt",
+      "schema": "pharmacySupplierCreditAllocationReceiptSchema",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid"
+        },
+        {
+          "name": "outlet_id",
+          "type": "uuid"
+        },
+        {
+          "name": "credit_id",
+          "type": "uuid"
+        },
+        {
+          "name": "version",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000000000
+        },
+        {
+          "name": "payable_version",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000000000
+        },
+        {
+          "name": "available_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000
+        },
+        {
+          "name": "outstanding_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000
+        },
+        {
+          "name": "payable_reference",
+          "type": "string",
+          "min": 1,
+          "max": 100
+        },
+        {
+          "name": "credit_document_reference",
+          "type": "string",
+          "min": 1,
+          "max": 100
+        },
+        {
+          "name": "payee_name",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "recorded_by",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "recorded_at",
+          "type": "string",
+          "format": "datetime"
+        }
+      ],
+      "embed": "SupplierCreditAllocationInput"
+    },
+    {
+      "name": "SupplierCreditAllocationView",
+      "schema": "pharmacySupplierCreditAllocationViewSchema",
+      "fields": [
+        {
+          "name": "reversal_id",
+          "type": "uuid",
+          "optional": true
+        }
+      ],
+      "embed": "SupplierCreditAllocationReceipt"
+    },
+    {
+      "name": "SupplierCreditAllocationReversalInput",
+      "schema": "pharmacySupplierCreditAllocationReversalInputSchema",
+      "fields": [
+        {
+          "name": "expected_version",
+          "type": "int64",
+          "min": 1,
+          "max": 999999999999,
+          "pointer": true
+        },
+        {
+          "name": "expected_available_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000,
+          "pointer": true
+        },
+        {
+          "name": "expected_payable_version",
+          "type": "int64",
+          "min": 1,
+          "max": 999999999999,
+          "pointer": true
+        },
+        {
+          "name": "expected_outstanding_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000,
+          "pointer": true
+        },
+        {
+          "name": "occurred_on",
+          "type": "string",
+          "format": "date",
+          "pattern": "^(?:19[7-9][0-9]|[2-9][0-9]{3})-"
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 1,
+          "max": 500,
+          "trim": true
+        }
+      ]
+    },
+    {
+      "name": "SupplierCreditAllocationReversalReceipt",
+      "schema": "pharmacySupplierCreditAllocationReversalReceiptSchema",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid"
+        },
+        {
+          "name": "outlet_id",
+          "type": "uuid"
+        },
+        {
+          "name": "credit_id",
+          "type": "uuid"
+        },
+        {
+          "name": "version",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000000000
+        },
+        {
+          "name": "payable_version",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000000000
+        },
+        {
+          "name": "available_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000
+        },
+        {
+          "name": "outstanding_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000
+        },
+        {
+          "name": "payable_reference",
+          "type": "string",
+          "min": 1,
+          "max": 100
+        },
+        {
+          "name": "credit_document_reference",
+          "type": "string",
+          "min": 1,
+          "max": 100
+        },
+        {
+          "name": "payee_name",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "recorded_by",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "recorded_at",
+          "type": "string",
+          "format": "datetime"
+        },
+        {
+          "name": "allocation_id",
+          "type": "uuid"
+        },
+        {
+          "name": "payable_id",
+          "type": "uuid"
+        },
+        {
+          "name": "amount_minor",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000000000
+        }
+      ],
+      "embed": "SupplierCreditAllocationReversalInput"
+    },
+    {
+      "name": "SupplierCreditPayableFields",
+      "schema": "pharmacySupplierCreditPayableFieldsSchema",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid"
+        },
+        {
+          "name": "outlet_id",
+          "type": "uuid"
+        },
+        {
+          "name": "document_reference",
+          "type": "string",
+          "min": 1,
+          "max": 100
+        },
+        {
+          "name": "payee_name",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "currency",
+          "type": "string",
+          "country_currency": true
+        },
+        {
+          "name": "issued_on",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "due_on",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "total_minor",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000000000
+        },
+        {
+          "name": "paid_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000
+        },
+        {
+          "name": "credit_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000
+        },
+        {
+          "name": "version",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000000000
+        }
+      ]
+    },
+    {
+      "name": "SupplierCreditPayableChoice",
+      "schema": "pharmacySupplierCreditPayableChoiceSchema",
+      "fields": [
+        {
+          "name": "outstanding_minor",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000000000
+        }
+      ],
+      "embed": "SupplierCreditPayableFields"
+    },
+    {
+      "name": "SupplierCreditPayableContext",
+      "schema": "pharmacySupplierCreditPayableContextSchema",
+      "fields": [
+        {
+          "name": "outstanding_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000
+        }
+      ],
+      "embed": "SupplierCreditPayableFields"
+    },
+    {
+      "name": "SupplierCreditReturnChoice",
+      "schema": "pharmacySupplierCreditReturnChoiceSchema",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid"
+        },
+        {
+          "name": "outlet_id",
+          "type": "uuid"
+        },
+        {
+          "name": "number",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000000000
+        },
+        {
+          "name": "original_bill_reference",
+          "type": "string",
+          "min": 1,
+          "max": 100
+        },
+        {
+          "name": "payee_name",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "currency",
+          "type": "string",
+          "country_currency": true
+        },
+        {
+          "name": "expected_credit_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000
+        },
+        {
+          "name": "matched_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000
+        }
+      ]
+    },
+    {
       "name": "SupplierCreditMatchInput",
       "schema": "pharmacySupplierCreditMatchInputSchema",
       "fields": [
@@ -338,6 +753,29 @@
         }
       ],
       "embed": "SupplierCreditDocumentReceipt"
+    },
+    {
+      "name": "SupplierCreditContext",
+      "schema": "pharmacySupplierCreditContextSchema",
+      "fields": [
+        {
+          "name": "local_date",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "as_of",
+          "type": "string",
+          "format": "datetime"
+        },
+        {
+          "name": "timezone",
+          "type": "string",
+          "min": 1,
+          "max": 100
+        }
+      ],
+      "embed": "SupplierCreditDocumentView"
     },
     {
       "name": "SupplierCreditVoidInput",
@@ -2880,6 +3318,27 @@
           "min": 5,
           "max": 200,
           "trim": true
+        }
+      ]
+    },
+    {
+      "name": "SupplierCreditAllocationContext",
+      "schema": "pharmacySupplierCreditAllocationContextSchema",
+      "fields": [
+        {
+          "name": "credit",
+          "type": "SupplierCreditContext",
+          "gorm": "-"
+        },
+        {
+          "name": "allocation",
+          "type": "SupplierCreditAllocationView",
+          "gorm": "-"
+        },
+        {
+          "name": "payable",
+          "type": "SupplierCreditPayableContext",
+          "gorm": "-"
         }
       ]
     }

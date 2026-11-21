@@ -450,6 +450,11 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/allocations/:allocation":                           "one immutable allocation and optional unique reversal reference",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/allocations/:allocation/recovery":                  "one original actor-bound allocation receipt",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/allocations/:allocation/reversal":                  "zero or one immutable full allocation reversal",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/allocations/:allocation/reversals/:entry/recovery": "one original actor-bound allocation reversal receipt",
+
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match":                           "one immutable financial match with its optional unique reversal reference; no collection",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match/recovery":                  "one original actor-bound immutable financial match receipt",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match/reversal":                  "zero or one immutable full-match reversal; no collection",
@@ -460,6 +465,8 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/preparation/:payable":                                                                           "one original bill with at most 100 immutable inventory receipts; no collection query",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/preparation":                                                                            "one original actor-bound preparation receipt; no command collection",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit":                                                                                        "one audited financial document and guarded current credit position; no collection",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/allocations/:allocation/context":                                                        "one original allocation with current owner credit, bill balances and versions",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/context":                                                                                "one current credit position with the owner outlet date and timezone",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/recovery":                                                                               "one immutable actor-bound credit creation receipt",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/void":                                                                                   "zero or one audited immutable financial void record",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/voids/:entry/recovery":                                                                  "one immutable actor-bound financial void receipt",

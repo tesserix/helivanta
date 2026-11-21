@@ -87,3 +87,28 @@ func TestSupplierReturnDefaultRolesRestrictCommercialAuthority(t *testing.T) {
 	}
 	require.Equal(t, 2, seen)
 }
+
+func TestSupplierReturnHistoryRejectsUnboundedQueryBeforeResourceAccess(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	registered := gin.New()
+	sealer, err := pagination.NewSealer([]byte(strings.Repeat("x", 32)))
+	require.NoError(t, err)
+	New().Routes(platform.NewRouter(registered.Group("/v1"), stockHoldRegistrationOnly{}).WithCursorSealer(sealer), platform.Deps{})
+	r := gin.New()
+	r.Use(authn.Middleware(stocktakeScopeVerifier{}, stocktakeScopeRevocation{}))
+	path := "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns"
+	for _, route := range registered.Routes() {
+		if route.Method == "GET" && route.Path == path {
+			r.GET(path, route.HandlerFunc)
+		}
+	}
+	for _, query := range []string{"?unknown=all", "?limit=1&limit=2", "?cursor=", "?limit=%zz"} {
+		req := httptest.NewRequest("GET", "/v1/pharmacy/pharmacies/0199e000-0000-7000-8000-000000000010/outlets/0199e000-0000-7000-8000-000000000002/accounts/supplier-returns"+query, nil)
+		req.Header.Set("Authorization", "Bearer TEST")
+		req.Header.Set("X-Helivanta-Expected-Subject", "TEST-actor")
+		req.Header.Set("X-Helivanta-Expected-Tenant", "0199e000-0000-7000-8000-000000000001")
+		response := httptest.NewRecorder()
+		r.ServeHTTP(response, req)
+		require.Equal(t, 400, response.Code, response.Body.String())
+	}
+}

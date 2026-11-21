@@ -3,6 +3,7 @@ import { apiFetch } from "./client";
 import { pharmacyRoot, pharmacyKey } from "./pharmacy";
 import { pharmacyActorHeaders, type PharmacyActorScope } from "./pharmacy-actor";
 import {
+  pharmacySupplierReturnSummarySchema,
   pharmacySupplierReturnDraftInputSchema,
   pharmacySupplierReturnCreationReceiptSchema,
   pharmacySupplierReturnViewSchema,
@@ -171,3 +172,36 @@ export async function recoverPharmacySupplierReturnCancellation(
     ),
   );
 }
+
+export type PharmacySupplierReturnSummary = z.infer<typeof pharmacySupplierReturnSummarySchema>;
+const historyPage = z.object({
+  data: z.array(pharmacySupplierReturnSummarySchema).max(25),
+  page: z.object({ next_cursor: z.string().min(1).max(4096).nullable(), has_more: z.boolean() }),
+});
+export async function listPharmacySupplierReturns(
+  scope: PharmacyActorScope,
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  const query = new URLSearchParams({ limit: "25" });
+  if (cursor !== null) query.set("cursor", z.string().min(1).max(4096).parse(cursor));
+  const page = historyPage.parse(
+    await apiFetch(
+      `${pharmacyRoot(scope)}/accounts/supplier-returns?${query}`,
+      request(scope, signal),
+    ),
+  );
+  if (
+    page.page.has_more !== (page.page.next_cursor !== null) ||
+    (page.page.has_more && (page.data.length === 0 || page.page.next_cursor === cursor)) ||
+    new Set(page.data.map((row) => row.id.toLowerCase())).size !== page.data.length ||
+    page.data.some(
+      (row) =>
+        !sameID(row.outlet_id, scope.outletId) || row.version !== (row.state === "draft" ? 0 : 1),
+    )
+  )
+    return mismatch();
+  return page;
+}
+
+export { pharmacySupplierReturnCancelInputSchema };

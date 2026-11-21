@@ -64,6 +64,7 @@ const supplierReturnLineColumns = `tenant_id,outlet_id,return_id,position,id,rec
 
 func supplierReturnRoutes(s *platform.Router, h *catalogueHandlers) {
 	r := s.Group("/supplier-returns")
+	platform.ListRoute(r, "", PermSupplierReturnRead, h.listSupplierReturns)
 	r.PUT("/:return", PermSupplierReturnPrepare, h.putSupplierReturn)
 	r.GET("/:return", PermSupplierReturnRead, h.getSupplierReturn)
 	r.PUT("/:return/cancellations/:cancellation", PermSupplierReturnPrepare, h.cancelSupplierReturn)

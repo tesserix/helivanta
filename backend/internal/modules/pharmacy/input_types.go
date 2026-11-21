@@ -54,6 +54,20 @@ type SupplierReturnView struct {
 	SupplierReturnCreationReceipt
 }
 
+type SupplierReturnSummary struct {
+	ID                  uuid.UUID `json:"id" binding:"required"`
+	OutletID            uuid.UUID `json:"outlet_id" binding:"required"`
+	Number              int64     `json:"number" binding:"min=1,max=1000000000000"`
+	PayeeName           string    `json:"payee_name" binding:"required,min=1,max=200"`
+	DocumentReference   string    `json:"document_reference" binding:"required,min=1,max=100"`
+	Currency            string    `json:"currency"`
+	ExpectedCreditMinor int64     `json:"expected_credit_minor" binding:"min=0,max=1000000000000"`
+	PreparedAt          string    `json:"prepared_at"`
+	LineCount           int64     `json:"line_count" binding:"min=1,max=100"`
+	State               string    `json:"state" binding:"required,oneof=draft cancelled"`
+	Version             int64     `json:"version" binding:"min=0,max=1"`
+}
+
 type SupplierReturnCancelInput struct {
 	ExpectedVersion *int64 `json:"expected_version" binding:"min=0,max=9007199254740991"`
 	Reason          string `json:"reason" binding:"required,min=1,max=500"`

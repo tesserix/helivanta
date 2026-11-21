@@ -142,3 +142,15 @@ returns without duplicating its amount. Draft quantities and explicit expected
 credit are bounded, in issue units and the payable currency's minor units.
 Creating a draft neither removes/reserves stock nor settles the bill. Physical
 availability and cumulative receipt-return limits are rechecked at dispatch.
+
+### Retained history workspace
+
+A compact audited cursor collection and the accounts Supplier returns tab expose
+existing drafts and frozen line evidence using human references, supplier and
+product names. This view inherits pharmacy-payables release gating and separate
+return-read permission. Cancellation uses the existing immutable command with
+reference-only tab-local recovery before explicit retry. Source-choice/preparation
+UI, physical dispatch, accepted supplier credit and printable outward notes remain
+separate unfinished delivery work. The implementation and acceptance boundaries
+are specified in
+[the history design](../superpowers/specs/2026-11-21-supplier-return-history.md).

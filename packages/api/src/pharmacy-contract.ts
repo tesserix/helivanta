@@ -71,6 +71,24 @@ export const pharmacySupplierReturnViewSchema = pharmacySupplierReturnCreationRe
   })
   .strict();
 
+export const pharmacySupplierReturnSummarySchema = z
+  .object({
+    id: identifier,
+    outlet_id: identifier,
+    number: z.number().int().min(1).max(1000000000000),
+    payee_name: z.string().min(1).max(200),
+    document_reference: z.string().min(1).max(100),
+    currency: z.string().regex(new RegExp("^[A-Z]{3}$"), "Use the required format."),
+    expected_credit_minor: z.number().int().min(0).max(1000000000000),
+    prepared_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+    line_count: z.number().int().min(1).max(100),
+    state: z.enum(["draft", "cancelled"]),
+    version: z.number().int().min(0).max(1),
+  })
+  .strict();
+
 export const pharmacySupplierReturnCancelInputSchema = z
   .object({
     expected_version: z.number().int().min(0).max(9007199254740991),

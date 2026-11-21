@@ -1300,3 +1300,38 @@ UI integration and complete live acceptance remain outstanding. The account-boun
 SDK validates outlet, actor, command, original receipt quantities and explicit
 credit totals without retrying uncertain commands under a new identity. The expected
 credit is not an actual credit note, refund, GST/ITC decision or GL posting.
+
+### Supplier return history and cancellation workspace (unreleased)
+
+`GET /accounts/supplier-returns` under the same pharmacy/outlet root is a
+private, audited cursor collection. It accepts only single nonempty `limit` and
+`cursor` parameters and no body. Platform limits are 1–200 (default 50); the
+workspace requests 25. Summaries use canonical `SupplierReturnSummary`, omit actor
+subjects and source-line bodies, and project current cancellation state without
+changing the stable original creation receipt. Audit failure returns 503 without
+rows. Verified membership, return-read permission, current exact-outlet access
+and both expected-account fences remain mandatory.
+
+The accounts workspace adds a permission-controlled Supplier returns tab behind
+the existing pharmacy-payables release gate; its panel classification is
+`pharmacy.supplier_return_history`. Return numbers, named suppliers, original
+bill references, product names, batch, expiry and units replace raw identity
+labels. Preparation dates use the outlet timezone. Expected credit is explicitly
+not an accepted supplier credit or bill settlement. No creation, dispatch, credit
+allocation or tax-document action is exposed by this history view.
+
+An authorised current outlet editor can cancel a draft with a reason and the
+existing versioned immutable command. The UI first retains only the command
+reference in session storage scoped to tenant/subject/pharmacy/outlet/return.
+Storage failure prevents submission. Response loss or reload preserves recovery
+of the same actor-bound command; a confirmed missing result permits an explicit
+retry with the same reference and original reason. It never creates a fresh
+command to resolve an uncertain write. Read authority permits recovery even if
+preparation authority has subsequently been removed. Changes of account reset
+the panel and use separate account-scoped cache keys. Unsaved/uncertain commands
+participate in the workspace navigation guard.
+
+See the [history design](../../superpowers/specs/2026-11-21-supplier-return-history.md)
+and [delivery plan](../../superpowers/plans/2026-11-21-supplier-return-history.md).
+Hosted native and browser acceptance and approved live rollout remain required;
+this addition does not complete #1687 or enable any locked operational capability.

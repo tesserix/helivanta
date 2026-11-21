@@ -138,3 +138,65 @@ it("binds cancellation and recovery to the original actor and command", async ()
     client.recoverPharmacySupplierReturnCancellation(scope, id, command),
   ).rejects.toThrow(/recover|verified/i);
 });
+
+it("lists bounded supplier return history with account fences and continuation", async () => {
+  const summary = {
+    id,
+    outlet_id: scope.outletId,
+    number: 1,
+    payee_name: receipt.payee_name,
+    document_reference: receipt.document_reference,
+    currency: "INR",
+    expected_credit_minor: 1500,
+    line_count: 1,
+    prepared_at: receipt.prepared_at,
+    state: "draft",
+    version: 0,
+  };
+  const result = { data: [summary], page: { next_cursor: "TEST-next", has_more: true } };
+  vi.mocked(apiFetch).mockResolvedValue(result);
+  expect(await Reflect.get(client, "listPharmacySupplierReturns")(scope, "TEST-current")).toEqual(
+    result,
+  );
+  expect(apiFetch).toHaveBeenCalledWith(
+    expect.stringMatching(/supplier-returns\?limit=25&cursor=TEST-current$/),
+    expect.objectContaining({
+      cache: "no-store",
+      headers: {
+        "X-Helivanta-Expected-Tenant": scope.tenantId,
+        "X-Helivanta-Expected-Subject": scope.subject,
+      },
+    }),
+  );
+});
+
+it.each(["foreign", "duplicate", "state", "continuation", "loop"])(
+  "rejects inconsistent history %s",
+  async (kind) => {
+    const summary = {
+      id,
+      outlet_id: scope.outletId,
+      number: 1,
+      payee_name: receipt.payee_name,
+      document_reference: receipt.document_reference,
+      currency: "INR",
+      expected_credit_minor: 1500,
+      line_count: 1,
+      prepared_at: receipt.prepared_at,
+      state: "draft",
+      version: 0,
+    };
+    const value = {
+      data: [summary],
+      page: { has_more: false, next_cursor: null as string | null },
+    };
+    if (kind === "foreign") summary.outlet_id = input.payable_id;
+    if (kind === "duplicate") value.data.push(summary);
+    if (kind === "state") summary.version = 1;
+    if (kind === "continuation") value.page.has_more = true;
+    if (kind === "loop") value.page = { has_more: true, next_cursor: "TEST-current" };
+    vi.mocked(apiFetch).mockResolvedValue(value);
+    await expect(client.listPharmacySupplierReturns(scope, "TEST-current")).rejects.toThrow();
+    expect(apiFetch).toHaveBeenCalledTimes(1);
+  },
+);

@@ -248,3 +248,59 @@ func TestSupplierReturnDraftDatabaseRejectsMissingAndForgedLineEvidence(t *testi
 	require.Equal(t, 200, replay.Code, replay.Body.String())
 	require.JSONEq(t, created.Body.String(), replay.Body.String())
 }
+
+func TestSupplierReturnHistoryIsBoundedScopedAndAudited(t *testing.T) {
+	w := newSupplierReturnWorld(t, "independent")
+	root := payableRoot() + "/supplier-returns"
+	var newest string
+	for range 3 {
+		newest = uuid.Must(uuid.NewV7()).String()
+		response := w.request("PUT", supplierReturnPath(newest), "editor", w.body(4))
+		require.Equal(t, 200, response.Code, response.Body.String())
+	}
+	cancelled := w.request("PUT", supplierReturnPath(newest)+"/cancellations/"+uuid.Must(uuid.NewV7()).String(), "editor", `{"expected_version":0,"reason":"TEST cancelled history"}`)
+	require.Equal(t, 200, cancelled.Code, cancelled.Body.String())
+	first := w.request("GET", root+"?limit=2", "reader", "")
+	require.Equal(t, 200, first.Code, first.Body.String())
+	require.Equal(t, "private, no-store", first.Header().Get("Cache-Control"))
+	var page struct {
+		Data []pharmacy.SupplierReturnSummary `json:"data"`
+		Page struct {
+			Next *string `json:"next_cursor"`
+			More bool    `json:"has_more"`
+		} `json:"page"`
+	}
+	require.NoError(t, json.Unmarshal(first.Body.Bytes(), &page))
+	require.Len(t, page.Data, 2)
+	require.True(t, page.Page.More)
+	require.NotNil(t, page.Page.Next)
+	require.EqualValues(t, 3, page.Data[0].Number)
+	require.Equal(t, "TEST External Supplier", page.Data[0].PayeeName)
+	require.Equal(t, "cancelled", page.Data[0].State)
+	require.EqualValues(t, 1, page.Data[0].Version)
+	require.NotContains(t, first.Body.String(), "actor_subject")
+	second := w.request("GET", root+"?limit=2&cursor="+*page.Page.Next, "reader", "")
+	require.Equal(t, 200, second.Code, second.Body.String())
+	require.NoError(t, json.Unmarshal(second.Body.Bytes(), &page))
+	require.Len(t, page.Data, 1)
+	require.EqualValues(t, 1, page.Data[0].Number)
+	require.False(t, page.Page.More)
+	require.Nil(t, page.Page.Next)
+	for _, actor := range []string{"sibling", "foreign"} {
+		require.Equal(t, 404, w.request("GET", root, actor, "").Code)
+	}
+	require.Equal(t, 403, w.request("GET", root, "denied", "").Code)
+	for _, query := range []string{"?limit=201", "?limit=1&limit=2", "?other=all", "?cursor=bad"} {
+		response := w.request("GET", root+query, "reader", "")
+		require.Equal(t, 400, response.Code, response.Body.String())
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	require.NoError(t, w.db.Migrate(ctx, []tenantdb.Migration{{ID: uuid.Must(uuid.NewV7()).String(), SQL: "ALTER TABLE audit_events ADD CONSTRAINT synthetic_return_history_audit_failure CHECK(resource_type<>'pharmacy_supplier_returns' OR action<>'list_read') NOT VALID"}}))
+	t.Cleanup(func() {
+		require.NoError(t, w.db.Migrate(context.Background(), []tenantdb.Migration{{ID: uuid.Must(uuid.NewV7()).String(), SQL: "ALTER TABLE audit_events DROP CONSTRAINT synthetic_return_history_audit_failure"}}))
+	})
+	failed := w.request("GET", root, "reader", "")
+	require.Equal(t, 503, failed.Code, failed.Body.String())
+	require.NotContains(t, failed.Body.String(), "TEST External Supplier")
+}

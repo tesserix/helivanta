@@ -5670,7 +5670,7 @@
       "method": "PUT",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/cancellations/:command",
       "capability": "baseline"
-        },
+    },
     {
       "method": "PUT",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/holds/:hold",
@@ -5699,6 +5699,11 @@
     {
       "method": "GET",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/cancellations/:cancellation",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns",
       "capability": "baseline"
     }
   ],
@@ -6100,6 +6105,10 @@
     {
       "key": "staff.accounts.mfa_recovery",
       "capability": "staff_mfa_recovery"
+    },
+    {
+      "key": "pharmacy.supplier_return_history",
+      "capability": "pharmacy_payables"
     }
   ],
   "models": {

@@ -35,3 +35,8 @@ it.each([
     }).success,
   ).toBe(false);
 });
+
+it("exports account-bound physical hold commands", async () => {
+  const sdk = await import("./index");
+  expect(Reflect.get(sdk, "recordPharmacyStockHold")).toBeTypeOf("function");
+});

@@ -277,3 +277,4 @@ export { pharmacyReorderLevelInputSchema } from "./pharmacy-contract";
 
 export * from "./pharmacy-actor";
 export * from "./pharmacy-supplier-returns";
+export * from "./pharmacy-stock-holds";

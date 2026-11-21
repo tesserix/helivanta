@@ -70,7 +70,10 @@ these require hosted measurement and are not claimed SLO evidence.
 Reuse tenant/outlet server authorization and existing system role templates.
 Pharmacists/inventory staff may hold stock with existing stock-quarantine authority;
 purchasing/owner return preparation and dispatch need declared return permissions
-and a current exact-outlet editor grant. Finance credit recording/allocation uses
+and a current exact-outlet editor grant. The existing platform reconciler also
+adds tenant administrators to every registered permission; these permissions do
+not exclude that implicit grant. Tenant administration alone still does not grant
+exact-outlet access. Finance credit recording/allocation uses
 financial authority. Route admission never substitutes for verified tenant,
 current membership, narrower outlet grant or an independently required review.
 An invisible object is 404, missing route permission 403 and unavailable authority 503. Receiver/fulfiller duties do not acquire these operations implicitly.

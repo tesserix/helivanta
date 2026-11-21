@@ -1256,8 +1256,10 @@ hosted and live acceptance. Migration
 `0055_pharmacy_supplier_return_drafts` is not approved for live application.
 
 `pharmacy.supplier_returns.prepare` permits creation/cancellation and
-`pharmacy.supplier_returns.read` permits private reads. Default grants are limited
-to pharmacy owners and purchasing staff. Each request also requires verified
+`pharmacy.supplier_returns.read` permits private reads. Module grants name pharmacy
+owners and purchasing staff; the platform grant reconciler also adds tenant
+administrators to every registered permission. This slice preserves that existing
+platform policy. Each request still requires verified
 tenant membership and a current exact-outlet reader/editor grant. Both expected
 subject and expected tenant headers are mandatory intent fences; supplied IDs or
 headers never grant authority. These legacy outlet grants do not by themselves

@@ -40,6 +40,12 @@ export async function fetchPharmacySupplierReturnNote(
     ?.split(",")
     .map((part) => part.trim().toLowerCase());
   const policy = headers.get("Content-Security-Policy") ?? "";
+  const sandboxedNote = policy.split(",").some((part) => {
+    const directives = part
+      .split(";")
+      .map((value) => value.trim().toLowerCase().replace(/\s+/g, " "));
+    return directives.includes("sandbox") && directives.includes("default-src 'none'");
+  });
   if (
     headers.get("X-Supplier-Return-Tenant-Id")?.toLowerCase() !== scope.tenantId.toLowerCase() ||
     headers.get("X-Supplier-Return-Outlet-Id")?.toLowerCase() !== scope.outletId.toLowerCase() ||
@@ -50,8 +56,7 @@ export async function fetchPharmacySupplierReturnNote(
     !/^text\/html(?:;\s*charset=utf-8)?$/i.test(headers.get("Content-Type") ?? "") ||
     !cache?.includes("private") ||
     !cache.includes("no-store") ||
-    !/(?:^|;)\s*sandbox\s*(?:;|$)/.test(policy) ||
-    !policy.includes("default-src 'none'") ||
+    !sandboxedNote ||
     !/^[a-f0-9]{64}$/.test(digest) ||
     !/^[1-9]\d*$/.test(byteCount) ||
     !Number.isSafeInteger(size) ||

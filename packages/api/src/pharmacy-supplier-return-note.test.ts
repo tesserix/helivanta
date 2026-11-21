@@ -68,6 +68,21 @@ it("downloads only the private byte-verified note for the displayed return", asy
   expect(options.cache).toBe("no-store");
 });
 
+it("accepts the restrictive note policy alongside the gateway policy", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(
+      await response({
+        "Content-Security-Policy":
+          "default-src 'none'; frame-ancestors 'none', sandbox; default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'",
+      }),
+    ),
+  );
+  const file = await fetchPharmacySupplierReturnNote(scope, note, new AbortController().signal);
+  expect(file.filename).toBe("supplier-return-1.html");
+  expect(await file.blob.text()).toContain("TEST Return 1");
+});
+
 it.each([
   ["X-Supplier-Return-Tenant-Id", note.id],
   ["X-Supplier-Return-Outlet-Id", note.id],
@@ -81,6 +96,8 @@ it.each([
   ["Content-Disposition", 'attachment; filename="another.html"'],
   ["Cache-Control", "public"],
   ["Content-Security-Policy", "default-src *"],
+  ["Content-Security-Policy", "default-src 'none', sandbox; default-src 'self'"],
+  ["Content-Security-Policy", "sandbox allow-scripts; default-src 'none'"],
 ])("refuses a mismatched %s proof", async (header, value) => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(await response({ [header]: value })));
   await expect(

@@ -259,6 +259,10 @@ certificate. Download neither moves stock nor changes a financial balance.
 Response metadata binds tenant, outlet, return, human number, row count, exact
 uncompressed byte count and SHA-256. The SDK verifies scope, private/no-store
 caching, MIME, disposition, size and digest before creating a download. The Shell
+also verifies a response policy containing both bare `sandbox` and
+`default-src 'none'`; multiple gateway/owner policy fields form a comma-separated
+policy list rather than one directive list.
+The Shell
 aborts on unmount, refuses duplicate/in-transition downloads and releases its
 temporary URL. An authorization refusal conceals private error details and needs
 an explicit access recheck; it never falls back to a cached file.

@@ -6,6 +6,16 @@
 This is source-review tooling. No employment guard, grant classification in a live
 database, migration, account change or runtime activation is performed by it.
 
+## Supplier-credit registration recheck — 21 November 2026
+
+`payableRoutes` additionally registers the separate supplier-credit document/void
+group. Its existing acquisition-receipt registration and authorization are
+unchanged; the acquisition handler, projection, SELECT-only purpose, outlet
+transaction/access and disclosure-audit source pins still match. The existing
+acquisition review retains its classification and all remaining obligations with
+the refreshed registration-file pin. This recheck neither classifies the new
+credit routes nor supplies reviewed Staff finance authority or live acceptance.
+
 ## Medicine catalogue source review — 19 November 2026
 
 The two outlet medicine search/import routes are classified as `mixed` and use

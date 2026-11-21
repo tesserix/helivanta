@@ -64,7 +64,7 @@ type PayableRecordedData struct {
 const SubjectSettlementRecorded = "helivanta.in.pharmacy.settlement_recorded.v1"
 
 // SubjectSupplierCreditChanged announces retained supplier credit evidence, not a bank capture.
-const SubjectSupplierCreditChanged = "helivanta.in.pharmacy.supplier_credit_changed.v1"
+const SubjectSupplierCreditChanged = "helivanta.in.pharmacy.supplier_credit_changed.v1" // #nosec G101 -- Public routing subject, not a credential.
 
 // SupplierCreditChangedData omits amounts, document references and counterparty details.
 type SupplierCreditChangedData struct {

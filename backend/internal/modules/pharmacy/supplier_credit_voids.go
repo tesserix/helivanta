@@ -22,7 +22,7 @@ type supplierCreditVoidRow struct {
 
 func (supplierCreditVoidRow) TableName() string { return "pharmacy_supplier_credit_voids" }
 
-const supplierCreditVoidColumns = "id,tenant_id,outlet_id,credit_id,expected_version,reason,intent_sha256,actor_subject,created_at"
+const supplierCreditVoidColumns = "id,tenant_id,outlet_id,credit_id,expected_version,reason,intent_sha256,actor_subject,created_at" // #nosec G101 -- Static SQL identifiers; no credential values.
 
 func (r supplierCreditVoidRow) receipt() (SupplierCreditVoidReceipt, error) {
 	if r.Fields.ExpectedVersion == nil || *r.Fields.ExpectedVersion < 1 || *r.Fields.ExpectedVersion >= 1000000000000 {

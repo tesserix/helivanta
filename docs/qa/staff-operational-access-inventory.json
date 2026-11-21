@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "b34286204e62b7ef57eb47d7ad1fbf9c196e8b27d3fe2717937d1206b420ae65",
+  "registry_sha256": "f468e2a917532710cfd6d8bd78f1e4cb84a167fe0464a095f25fc92b996f86a9",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1188,
-    "unclassified": 1037
+    "total": 1195,
+    "unclassified": 1044
   },
   "entries": [
     {
@@ -8347,11 +8347,11 @@
         "registration_sha256": "cf4b6c94081a3135942c86e7d6dc59c663f5584dac3b705d4b2eb255604b9efd",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant, exact pharmacy and outlet, accounts-read permission and current private outlet reader grant.",
-        "rationale": "The financial owner exposes bounded acquisition/invoice lineage for direct receipts and both supplier stock owners. It pins expected account/workspace, locks the current outlet grant, enters a SELECT-only acquisition purpose, verifies retained owner evidence and audits disclosure. This is a source classification, not approved employment enforcement or live supplier acceptance. No physical, financial-write, clinical or external partner authority is created by this read. Source rechecked for #1685 on 2026-11-20: catalogue.go only registers the additional reorder routes. Existing catalogue handlers, transaction, outletAccess and grants are unchanged; this registration and its recorded authority remain unchanged. Source rechecked for #1687 on 2026-11-21: payableRoutes additionally registers supplier-return draft/read/cancellation routes with separate permissions. The acquisition-receipts registration, expected-account checks, projection, SELECT-only purpose and read audit are unchanged.",
+        "rationale": "The financial owner exposes bounded acquisition/invoice lineage for direct receipts and both supplier stock owners. It pins expected account/workspace, locks the current outlet grant, enters a SELECT-only acquisition purpose, verifies retained owner evidence and audits disclosure. This is a source classification, not approved employment enforcement or live supplier acceptance. No physical, financial-write, clinical or external partner authority is created by this read. Source rechecked for #1685 on 2026-11-20: catalogue.go only registers the additional reorder routes. Existing catalogue handlers, transaction, outletAccess and grants are unchanged; this registration and its recorded authority remain unchanged. Source rechecked for #1687 on 2026-11-21: payableRoutes additionally registers supplier-return draft/read/cancellation routes with separate permissions. The acquisition-receipts registration, expected-account checks, projection, SELECT-only purpose and read audit are unchanged. Source rechecked for #1784 on 2026-11-21: payableRoutes only adds the separate supplier-credit route group with accounts-read/adjust permissions. The existing acquisition registration and its handler, projection, SELECT-only purpose, outlet authorization and audit sources are unchanged. New credit surfaces are not classified or activated by this pin refresh.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/payables.go",
-            "sha256": "58580c4cf7a47d0ebeb7eacb69e9f5e00185e1d10b61fa0042ccd1fd2470af7e",
+            "sha256": "a3165565f61b7fc8b752a1d85983f8c8331bce583ea81cd521c33338db6153d3",
             "symbol": "func payableRoutes("
           },
           {
@@ -8480,6 +8480,86 @@
         "membership_required": true,
         "paginated": true,
         "counted": true
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits",
+        "permission": "pharmacy.accounts.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit",
+        "permission": "pharmacy.accounts.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/recovery",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/recovery",
+        "permission": "pharmacy.accounts.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/void",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/void",
+        "permission": "pharmacy.accounts.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/voids/:entry/recovery",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/voids/:entry/recovery",
+        "permission": "pharmacy.accounts.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
       },
       "review": null
     },
@@ -10949,6 +11029,38 @@
         "method": "PUT",
         "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/payments/:entry",
         "permission": "pharmacy.accounts.payment",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "PUT",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit",
+        "permission": "pharmacy.accounts.adjust",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/voids/:entry",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "PUT",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/voids/:entry",
+        "permission": "pharmacy.accounts.adjust",
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,

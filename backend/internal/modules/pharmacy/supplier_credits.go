@@ -28,7 +28,7 @@ type supplierCreditDocumentRow struct {
 
 func (supplierCreditDocumentRow) TableName() string { return "pharmacy_supplier_credit_documents" }
 
-const supplierCreditDocumentColumns = `id,tenant_id,outlet_id,return_id,document_reference,to_char(issued_on,'YYYY-MM-DD') AS issued_on,amount_minor,currency,reason,correction_of,return_number,payee_reference,payee_name,original_bill_reference,intent_sha256,actor_subject,created_at`
+const supplierCreditDocumentColumns = `id,tenant_id,outlet_id,return_id,document_reference,to_char(issued_on,'YYYY-MM-DD') AS issued_on,amount_minor,currency,reason,correction_of,return_number,payee_reference,payee_name,original_bill_reference,intent_sha256,actor_subject,created_at` // #nosec G101 -- Static SQL identifiers; no credential values.
 
 func (r supplierCreditDocumentRow) receipt() SupplierCreditDocumentReceipt {
 	return SupplierCreditDocumentReceipt{SupplierCreditDocumentInput: r.Fields, ID: r.ID, OutletID: r.OutletID, ReturnNumber: r.ReturnNumber, PayeeReference: r.PayeeReference, PayeeName: r.PayeeName, OriginalBillReference: r.OriginalBillReference, RecordedBy: r.ActorSubject, RecordedAt: r.CreatedAt.UTC().Format(time.RFC3339Nano)}

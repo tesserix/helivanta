@@ -20,7 +20,7 @@ func TestSupplierReturnCreditAllocationFailurePreservesCreditAndBill(t *testing.
 	reversal := allocation + "/reversals/" + uuid.Must(uuid.NewV7()).String()
 	reverseBody := creditJSON(t, allocationReversalIntent(2, 250, 2, 680))
 	apply := func(sql string) {
-		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		require.NoError(t, w.db.Migrate(ctx, []tenantdb.Migration{{ID: "test_allocation_fault_" + uuid.Must(uuid.NewV7()).String(), SQL: sql}}))
 	}

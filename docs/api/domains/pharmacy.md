@@ -1552,6 +1552,14 @@ Stale totals, duplicate/conflicting intent, invalid sources and missing excess
 rationale return 409 `supplier_credit_conflict`; invisible records/recovery return
 404; dependency/audit/proof failure returns 503 without partial evidence.
 
-Source selectors, matching SDK/UI, bill allocation/reversal and corresponding
+The SDK checks original matching intent, expected/result versions and observed
+return-total arithmetic. Reversal submission takes the original match receipt so
+it can additionally verify the returned source, human return reference and exact
+original amount. Original-result recovery remains actor-bound and reference-only;
+normal history retains other authorised actors and reversal references. Both
+credit-document and matching collections share bounded cursor/duplicate checks.
+New commands are not automatically retried after uncertain transport.
+
+Source selectors, matching UI, bill allocation/reversal and corresponding
 Global API/browser/live acceptance remain required in #1784. This candidate does
 not activate any release capability or statutory finance policy.

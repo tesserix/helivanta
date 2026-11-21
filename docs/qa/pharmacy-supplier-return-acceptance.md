@@ -114,8 +114,15 @@ spending credit, cross-document stale totals and explicit excess rationale,
 immutable full reversal and original recovery after void, bounded history,
 foreign tenant/outlet/actor and readonly denial, actual grant revocation, different
 supplier/draft/unknown source, projection edit refusal and audit/outbox rollback
-for both match and reversal. Matching SDK/UI, source selectors and full payable
+for both match and reversal. Matching UI, source selectors and full payable
 allocation remain separate unfinished work. No live matching test is claimed.
+
+The matching SDK is covered by
+`packages/api/src/pharmacy-supplier-credit-matching.test.ts`: exact scope, original
+intent, explained excess, version/return-total arithmetic, original-amount reversal,
+cross-actor history versus recovery, bounded/unique pages, cancellation and no
+automatic second intent after uncertain transport. These tests and the document
+SDK suite pass together (86 cases); they do not establish browser or live acceptance.
 
 ## Evidence and remaining scope
 

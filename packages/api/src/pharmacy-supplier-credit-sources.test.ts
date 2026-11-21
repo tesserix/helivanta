@@ -161,3 +161,95 @@ it("preserves empty authorised collections and owner read failures", async () =>
   vi.mocked(apiFetch).mockRejectedValue(error);
   await expect(client.readPharmacySupplierCreditContext(scope, credit)).rejects.toBe(error);
 });
+
+const allocationId = "0199e000-0000-7000-8000-000000000006";
+const allocated = {
+  id: allocationId,
+  outlet_id: scope.outletId,
+  credit_id: credit,
+  payable_id: source,
+  expected_version: 1,
+  expected_available_minor: 750,
+  expected_payable_version: 1,
+  expected_outstanding_minor: 1180,
+  amount_minor: 500,
+  occurred_on: "2026-11-18",
+  reason: "TEST allocate",
+  version: 2,
+  payable_version: 2,
+  available_minor: 250,
+  outstanding_minor: 680,
+  payable_reference: payable.document_reference,
+  credit_document_reference: context.document_reference,
+  payee_name: context.payee_name,
+  recorded_by: "TEST-writer",
+  recorded_at: context.recorded_at,
+  reversal_id: null,
+};
+const paidContext = {
+  credit: { ...context, version: 2, allocated_minor: 500, available_minor: 250 },
+  allocation: allocated,
+  payable: { ...payable, paid_minor: 680, credit_minor: 500, outstanding_minor: 0, version: 3 },
+};
+it("loads a paid bill's current context without mistaking the original allocation for today's balances", async () => {
+  vi.mocked(apiFetch).mockResolvedValue(paidContext);
+  expect(
+    await client.readPharmacySupplierCreditAllocationContext(scope, credit, allocationId),
+  ).toEqual(paidContext);
+  expect(apiFetch).toHaveBeenLastCalledWith(
+    `${root}/allocations/${allocationId}/context`,
+    expect.objectContaining({ cache: "no-store" }),
+  );
+});
+
+it.each([
+  { credit: { ...paidContext.credit, id: source } },
+  { allocation: { ...allocated, id: source } },
+  { payable: { ...paidContext.payable, id: allocationId } },
+  { payable: { ...paidContext.payable, outlet_id: source } },
+  { payable: { ...paidContext.payable, version: 1 } },
+  { payable: { ...paidContext.payable, paid_minor: 679 } },
+  { payable: { ...paidContext.payable, outstanding_minor: -1 } },
+  { payable: { ...paidContext.payable, currency: "USD" } },
+  { payable: { ...paidContext.payable, document_reference: "TEST-other-bill" } },
+  { credit: { ...paidContext.credit, document_reference: "TEST-other-credit" } },
+  { credit: { ...paidContext.credit, payee_name: "TEST-other-supplier" } },
+  { credit: { ...paidContext.credit, local_date: "2026-11-21" } },
+  { credit: { ...paidContext.credit, allocated_minor: 499, available_minor: 251 } },
+  { payable: { ...paidContext.payable, credit_minor: 499, paid_minor: 681 } },
+  { allocation: { ...allocated, reversal_id: credit } },
+])("refuses mismatched current allocation context", async (patch) => {
+  vi.mocked(apiFetch).mockResolvedValue({ ...paidContext, ...patch });
+  await expect(
+    client.readPharmacySupplierCreditAllocationContext(scope, credit, allocationId),
+  ).rejects.toThrow();
+});
+it("keeps original evidence after reversal and later void while using current bill observations", async () => {
+  const reversed = {
+    credit: { ...paidContext.credit, version: 3, allocated_minor: 0, available_minor: 750 },
+    allocation: { ...allocated, reversal_id: credit },
+    payable: { ...paidContext.payable, version: 4, credit_minor: 0, outstanding_minor: 500 },
+  };
+  vi.mocked(apiFetch).mockResolvedValue(reversed);
+  expect(
+    await client.readPharmacySupplierCreditAllocationContext(scope, credit, allocationId),
+  ).toEqual(reversed);
+  const voided = {
+    ...reversed,
+    credit: { ...reversed.credit, version: 4, state: "voided", available_minor: 0 },
+  };
+  vi.mocked(apiFetch).mockResolvedValue(voided);
+  expect(
+    await client.readPharmacySupplierCreditAllocationContext(scope, credit, allocationId),
+  ).toEqual(voided);
+});
+it("uses owner identity evidence rather than requiring identical historical supplier display names", async () => {
+  const renamed = {
+    ...paidContext,
+    payable: { ...paidContext.payable, payee_name: "TEST Supplier billing name" },
+  };
+  vi.mocked(apiFetch).mockResolvedValue(renamed);
+  expect(
+    await client.readPharmacySupplierCreditAllocationContext(scope, credit, allocationId),
+  ).toEqual(renamed);
+});

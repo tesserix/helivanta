@@ -88,7 +88,7 @@ export const pharmacySupplierCreditAllocationReversalReceiptSchema =
     })
     .strict();
 
-export const pharmacySupplierCreditPayableChoiceSchema = z
+export const pharmacySupplierCreditPayableFieldsSchema = z
   .object({
     id: identifier,
     outlet_id: identifier,
@@ -100,8 +100,19 @@ export const pharmacySupplierCreditPayableChoiceSchema = z
     total_minor: z.number().int().min(1).max(1000000000000),
     paid_minor: z.number().int().min(0).max(1000000000000),
     credit_minor: z.number().int().min(0).max(1000000000000),
-    outstanding_minor: z.number().int().min(1).max(1000000000000),
     version: z.number().int().min(1).max(1000000000000),
+  })
+  .strict();
+
+export const pharmacySupplierCreditPayableChoiceSchema = pharmacySupplierCreditPayableFieldsSchema
+  .extend({
+    outstanding_minor: z.number().int().min(1).max(1000000000000),
+  })
+  .strict();
+
+export const pharmacySupplierCreditPayableContextSchema = pharmacySupplierCreditPayableFieldsSchema
+  .extend({
+    outstanding_minor: z.number().int().min(0).max(1000000000000),
   })
   .strict();
 
@@ -1044,5 +1055,13 @@ export const pharmacyUnusedPaymentRefundFieldsSchema = z
   .object({
     reference: z.string().trim().min(1).max(64),
     reason: z.string().trim().min(5).max(200),
+  })
+  .strict();
+
+export const pharmacySupplierCreditAllocationContextSchema = z
+  .object({
+    credit: pharmacySupplierCreditContextSchema,
+    allocation: pharmacySupplierCreditAllocationViewSchema,
+    payable: pharmacySupplierCreditPayableContextSchema,
   })
   .strict();

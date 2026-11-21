@@ -2,6 +2,7 @@ import { apiFetch } from "./client";
 import { pharmacyKey, pharmacyRoot } from "./pharmacy";
 import { pharmacyActorHeaders, type PharmacyActorScope } from "./pharmacy-actor";
 import {
+  pharmacySupplierCreditAllocationContextSchema,
   pharmacySupplierCreditAllocationInputSchema,
   pharmacySupplierCreditAllocationReceiptSchema,
   pharmacySupplierCreditAllocationViewSchema,
@@ -710,14 +711,8 @@ export type PharmacySupplierCreditPayableChoice = z.infer<
 export type PharmacySupplierCreditReturnChoice = z.infer<
   typeof pharmacySupplierCreditReturnChoiceSchema
 >;
-export async function readPharmacySupplierCreditContext(
-  scope: PharmacyActorScope,
-  credit: string,
-  signal?: AbortSignal,
-) {
-  const context = pharmacySupplierCreditContextSchema.parse(
-    await apiFetch(`${root(scope, credit)}/context`, request(scope, signal)),
-  );
+function checkedCreditContext(scope: PharmacyActorScope, credit: string, value: unknown) {
+  const context = pharmacySupplierCreditContextSchema.parse(value);
   checkedView(scope, credit, pharmacySupplierCreditDocumentViewSchema.strip().parse(context));
   const asOf = z.string().datetime({ offset: true }).parse(context.as_of);
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -729,6 +724,17 @@ export async function readPharmacySupplierCreditContext(
   const part = (type: string) => parts.find((value) => value.type === type)?.value;
   if (context.local_date !== `${part("year")}-${part("month")}-${part("day")}`) return mismatch();
   return context;
+}
+export async function readPharmacySupplierCreditContext(
+  scope: PharmacyActorScope,
+  credit: string,
+  signal?: AbortSignal,
+) {
+  return checkedCreditContext(
+    scope,
+    credit,
+    await apiFetch(`${root(scope, credit)}/context`, request(scope, signal)),
+  );
 }
 const payableChoicePage = creditPage.extend({
   data: z.array(pharmacySupplierCreditPayableChoiceSchema).max(50),
@@ -770,4 +776,42 @@ export async function listPharmacySupplierCreditReturnChoices(
   checkCreditContinuation(page, cursor);
   for (const row of page.data) if (!sameID(row.outlet_id, scope.outletId)) return mismatch();
   return page;
+}
+
+export type PharmacySupplierCreditAllocationContext = z.infer<
+  typeof pharmacySupplierCreditAllocationContextSchema
+>;
+export async function readPharmacySupplierCreditAllocationContext(
+  scope: PharmacyActorScope,
+  credit: string,
+  allocation: string,
+  signal?: AbortSignal,
+) {
+  const context = pharmacySupplierCreditAllocationContextSchema.parse(
+    await apiFetch(
+      `${root(scope, credit)}/allocations/${identifier.parse(allocation)}/context`,
+      request(scope, signal),
+    ),
+  );
+  const current = checkedCreditContext(scope, credit, context.credit);
+  const original = checkedAllocationView(scope, credit, allocation, context.allocation);
+  const bill = context.payable;
+  const reversed = original.reversal_id !== null;
+  if (
+    !sameID(bill.id, original.payable_id) ||
+    !sameID(bill.outlet_id, scope.outletId) ||
+    bill.total_minor !== bill.paid_minor + bill.credit_minor + bill.outstanding_minor ||
+    bill.currency !== current.currency ||
+    bill.document_reference !== original.payable_reference ||
+    current.document_reference !== original.credit_document_reference ||
+    current.payee_name !== original.payee_name ||
+    bill.version < original.payable_version + (reversed ? 1 : 0) ||
+    current.version < original.version + (reversed ? 1 : 0) ||
+    (!reversed &&
+      (current.state !== "active" ||
+        current.allocated_minor < original.amount_minor ||
+        bill.credit_minor < original.amount_minor))
+  )
+    return mismatch();
+  return context;
 }

@@ -1631,5 +1631,16 @@ and ordered by the owner's creation timestamp and identifier; supplied choices
 never confer command authority. Migration 0061 creates supplier/currency keyset
 indexes on existing source tables through the concurrent-index runner.
 
+`/:credit/allocations/:allocation/context` is a retained finance read for an
+original allocation and its current credit and bill observations, including a
+fully paid bill. `SupplierCreditAllocationContext` binds the three projections;
+`SupplierCreditPayableContext` permits zero outstanding while allocation choices
+remain positive-only. Both use the same canonical payable fields. Acquire the
+credit lock then the existing payable lock, check the original bill's tenant,
+outlet, supplier and currency, and audit before returning data. The SDK validates
+scope/linkage, original human references, current version lower bounds, balance
+conservation and current allocation coverage. A reversed/voided document remains
+readable under current authority and never rewrites the original receipt.
+
 Hosted SQL/native acceptance, finance UI/report explanations and actual Global API/browser/live acceptance are still required in
 #1784.

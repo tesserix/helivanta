@@ -129,4 +129,41 @@ A paid or fully credited bill is intentionally absent from allocation choices.
 The reversal screen must still load that original bill's current version and
 balance through an authorised owner context; it must not reuse its historical
 allocation receipt or assume a zero-net payment/reversal left the version
-unchanged. This context and the complete finance UI remain acceptance work.
+unchanged. The allocation context endpoint is
+`/:credit/allocations/:allocation/context` under supplier credits. Its canonical
+`SupplierCreditAllocationContext` returns the original allocation view, current
+`SupplierCreditContext`, and current `SupplierCreditPayableContext`. The latter
+permits zero outstanding; allocation choices still require a positive balance.
+Both share canonical payable fields, without redefining existing v1 bill wire
+models. Read under the credit lock followed by the same payable lock used by
+settlements, then audit before disclosure. Require finance read permission and
+exact credit/allocation/bill/outlet linkage even for retained evidence. Never use
+historical receipt observations to construct a fresh reversal command.
+
+The finance UI, full Global API/browser E2E and approved live acceptance remain
+required; this owner read does not complete them.
+
+## Finance UI acceptance prerequisites
+
+- Finance users need a bounded dispatched-return source picker before the first
+  actual credit exists. Accounts authority must not silently require granting
+  physical return/stock authority or manually entering backend identifiers.
+- Match reversal needs a single authorised current match/return context. The
+  return's net attributed amount includes other credit documents; the original
+  match receipt is historical and searching unlimited source pages is not an
+  acceptable way to obtain current observations.
+- Paid-bill reversal uses the allocation context above. Commands retain original
+  actor/scope/identity and intent through uncertain responses; recover original
+  evidence before permitting an exact retry, and re-read current context before
+  creating a new command after a stale-state conflict.
+- Show actual credit, return attribution, bill applications and unused pool as
+  separate values. Resolve authorised recorder names or explicitly report name
+  availability; do not display account identifiers as names or fabricate roles.
+- New actions and source choices require Payables release admission. Retained
+  history/context requires current finance authority even after flag disable,
+  reversal or void. No frontend capability grants backend authority.
+- Integrate application/reversal history into the bill UI and reconcile existing
+  balance/report consumers without treating applications as new stock cost,
+  tax/ITC treatment, a bank movement or statutory accounting approval.
+
+These are remaining acceptance requirements, not implemented UI claims.

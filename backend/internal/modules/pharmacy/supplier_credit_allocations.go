@@ -63,6 +63,7 @@ func supplierCreditAllocationRoutes(r *platform.Router, h *catalogueHandlers) {
 	platform.ResourceListRoute(a, "", PermAccountsRead, 50, h.listSupplierCreditAllocations)
 	a.PUT("/:allocation", PermAccountsAdjust, h.putSupplierCreditAllocation)
 	a.GET("/:allocation", PermAccountsRead, h.getSupplierCreditAllocation)
+	a.GET("/:allocation/context", PermAccountsRead, h.getSupplierCreditAllocationContext)
 	a.GET("/:allocation/recovery", PermAccountsRead, h.recoverSupplierCreditAllocation)
 	a.PUT("/:allocation/reversals/:entry", PermAccountsAdjust, h.putSupplierCreditAllocationReversal)
 	a.GET("/:allocation/reversal", PermAccountsRead, h.getSupplierCreditAllocationReversal)

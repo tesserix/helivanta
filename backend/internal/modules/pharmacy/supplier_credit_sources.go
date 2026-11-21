@@ -32,19 +32,11 @@ func (h *catalogueHandlers) getSupplierCreditContext(c *gin.Context) {
 	defer cancel()
 	var result SupplierCreditContext
 	err := h.transaction(ctx, p, outlet, false, func(tx *gorm.DB) error {
-		view, err := loadSupplierCreditView(tx, p.TenantID, outlet, credit)
+		var err error
+		result, err = loadSupplierCreditContext(tx, p.TenantID, outlet, credit)
 		if err != nil {
 			return err
 		}
-		var clock struct {
-			AsOf      time.Time
-			LocalDate string
-			Timezone  string
-		}
-		if err := tx.Table("pharmacy_outlets").Select("transaction_timestamp() AS as_of,to_char(transaction_timestamp() AT TIME ZONE timezone,'YYYY-MM-DD') AS local_date,timezone").Where("tenant_id=? AND id=?", p.TenantID, outlet).Take(&clock).Error; err != nil {
-			return err
-		}
-		result = SupplierCreditContext{SupplierCreditDocumentView: view, LocalDate: clock.LocalDate, AsOf: clock.AsOf.UTC().Format(time.RFC3339Nano), Timezone: clock.Timezone}
 		return auditRegisterRead(c, tx, "supplier_credit_context", p.TenantID, p.Subject, credit, "viewed")
 	})
 	if err != nil {
@@ -79,7 +71,7 @@ func (h *catalogueHandlers) listSupplierCreditPayableChoices(c *gin.Context, par
 		if err != nil {
 			return err
 		}
-		q := tenantdb.ApplyKeyset(tx, params).Table("pharmacy_payable_balances").Select("id,outlet_id,payee_name,document_reference,to_char(issued_on,'YYYY-MM-DD') AS issued_on,to_char(due_on,'YYYY-MM-DD') AS due_on,currency,total_minor,paid_minor,credit_minor,outstanding_minor,pharmacy_supplier_payable_version(tenant_id,outlet_id,id) AS version,created_at").Where("tenant_id=? AND outlet_id=? AND payee_reference=? AND currency=? AND outstanding_minor>0", p.TenantID, outlet, doc.PayeeReference, doc.Fields.Currency).Where("pharmacy_supplier_credit_payable_eligible(tenant_id,outlet_id,id)")
+		q := tenantdb.ApplyKeyset(tx, params).Table("pharmacy_payable_balances").Select(supplierCreditPayableColumns).Where("tenant_id=? AND outlet_id=? AND payee_reference=? AND currency=? AND outstanding_minor>0", p.TenantID, outlet, doc.PayeeReference, doc.Fields.Currency).Where("pharmacy_supplier_credit_payable_eligible(tenant_id,outlet_id,id)")
 		if err := q.Find(&rows).Error; err != nil {
 			return err
 		}
@@ -136,3 +128,20 @@ func supplierCreditSourceIndexes() []tenantdb.ConcurrentIndex {
 		{Name: "pharmacy_supplier_credit_return_choices", Table: "pharmacy_supplier_returns", Columns: []tenantdb.IndexColumn{{Name: "tenant_id"}, {Name: "outlet_id"}, {Name: "payee_reference"}, {Name: "currency"}, {Name: "created_at", Descending: true}, {Name: "id", Descending: true}}},
 	}
 }
+
+func loadSupplierCreditContext(tx *gorm.DB, tenant string, outlet, credit uuid.UUID) (SupplierCreditContext, error) {
+	view, err := loadSupplierCreditView(tx, tenant, outlet, credit)
+	if err != nil {
+		return SupplierCreditContext{}, err
+	}
+	var clock struct {
+		AsOf                time.Time
+		LocalDate, Timezone string
+	}
+	if err := tx.Table("pharmacy_outlets").Select("transaction_timestamp() AS as_of,to_char(transaction_timestamp() AT TIME ZONE timezone,'YYYY-MM-DD') AS local_date,timezone").Where("tenant_id=? AND id=?", tenant, outlet).Take(&clock).Error; err != nil {
+		return SupplierCreditContext{}, err
+	}
+	return SupplierCreditContext{SupplierCreditDocumentView: view, LocalDate: clock.LocalDate, AsOf: clock.AsOf.UTC().Format(time.RFC3339Nano), Timezone: clock.Timezone}, nil
+}
+
+const supplierCreditPayableColumns = "id,outlet_id,payee_name,document_reference,to_char(issued_on,'YYYY-MM-DD') AS issued_on,to_char(due_on,'YYYY-MM-DD') AS due_on,currency,total_minor,paid_minor,credit_minor,outstanding_minor,pharmacy_supplier_payable_version(tenant_id,outlet_id,id) AS version,created_at" // #nosec G101 -- Static SQL identifiers; no credential values.

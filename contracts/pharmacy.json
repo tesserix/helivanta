@@ -276,8 +276,8 @@
       "embed": "SupplierCreditAllocationReversalInput"
     },
     {
-      "name": "SupplierCreditPayableChoice",
-      "schema": "pharmacySupplierCreditPayableChoiceSchema",
+      "name": "SupplierCreditPayableFields",
+      "schema": "pharmacySupplierCreditPayableFieldsSchema",
       "fields": [
         {
           "name": "id",
@@ -333,18 +333,38 @@
           "max": 1000000000000
         },
         {
-          "name": "outstanding_minor",
-          "type": "int64",
-          "min": 1,
-          "max": 1000000000000
-        },
-        {
           "name": "version",
           "type": "int64",
           "min": 1,
           "max": 1000000000000
         }
       ]
+    },
+    {
+      "name": "SupplierCreditPayableChoice",
+      "schema": "pharmacySupplierCreditPayableChoiceSchema",
+      "fields": [
+        {
+          "name": "outstanding_minor",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000000000
+        }
+      ],
+      "embed": "SupplierCreditPayableFields"
+    },
+    {
+      "name": "SupplierCreditPayableContext",
+      "schema": "pharmacySupplierCreditPayableContextSchema",
+      "fields": [
+        {
+          "name": "outstanding_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000
+        }
+      ],
+      "embed": "SupplierCreditPayableFields"
     },
     {
       "name": "SupplierCreditReturnChoice",
@@ -3298,6 +3318,27 @@
           "min": 5,
           "max": 200,
           "trim": true
+        }
+      ]
+    },
+    {
+      "name": "SupplierCreditAllocationContext",
+      "schema": "pharmacySupplierCreditAllocationContextSchema",
+      "fields": [
+        {
+          "name": "credit",
+          "type": "SupplierCreditContext",
+          "gorm": "-"
+        },
+        {
+          "name": "allocation",
+          "type": "SupplierCreditAllocationView",
+          "gorm": "-"
+        },
+        {
+          "name": "payable",
+          "type": "SupplierCreditPayableContext",
+          "gorm": "-"
         }
       ]
     }

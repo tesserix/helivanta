@@ -155,6 +155,7 @@ func TestDisabledPayablesHideCreditSourceChoicesButRetainEvidence(t *testing.T) 
 		{"/context", http.StatusNoContent},
 		{"/allocations", http.StatusNoContent},
 		{"/allocations/:allocation/recovery", http.StatusNoContent},
+		{"/allocations/:allocation/context", http.StatusNoContent},
 	} {
 		t.Run(tc.suffix, func(t *testing.T) {
 			gin.SetMode(gin.TestMode)

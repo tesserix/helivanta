@@ -63,7 +63,7 @@ type SupplierCreditAllocationReversalReceipt struct {
 	SupplierCreditAllocationReversalInput
 }
 
-type SupplierCreditPayableChoice struct {
+type SupplierCreditPayableFields struct {
 	ID                uuid.UUID `json:"id" binding:"required"`
 	OutletID          uuid.UUID `json:"outlet_id" binding:"required"`
 	DocumentReference string    `json:"document_reference" binding:"required,min=1,max=100"`
@@ -74,8 +74,17 @@ type SupplierCreditPayableChoice struct {
 	TotalMinor        int64     `json:"total_minor" binding:"min=1,max=1000000000000"`
 	PaidMinor         int64     `json:"paid_minor" binding:"min=0,max=1000000000000"`
 	CreditMinor       int64     `json:"credit_minor" binding:"min=0,max=1000000000000"`
-	OutstandingMinor  int64     `json:"outstanding_minor" binding:"min=1,max=1000000000000"`
 	Version           int64     `json:"version" binding:"min=1,max=1000000000000"`
+}
+
+type SupplierCreditPayableChoice struct {
+	OutstandingMinor int64 `json:"outstanding_minor" binding:"min=1,max=1000000000000"`
+	SupplierCreditPayableFields
+}
+
+type SupplierCreditPayableContext struct {
+	OutstandingMinor int64 `json:"outstanding_minor" binding:"min=0,max=1000000000000"`
+	SupplierCreditPayableFields
 }
 
 type SupplierCreditReturnChoice struct {
@@ -716,4 +725,10 @@ type StockOverviewValuationFields struct {
 type UnusedPaymentRefundFields struct {
 	Reference string `json:"reference" binding:"required,min=1,max=64"`
 	Reason    string `json:"reason" binding:"required,min=5,max=200"`
+}
+
+type SupplierCreditAllocationContext struct {
+	Credit     SupplierCreditContext        `json:"credit" gorm:"-"`
+	Allocation SupplierCreditAllocationView `json:"allocation" gorm:"-"`
+	Payable    SupplierCreditPayableContext `json:"payable" gorm:"-"`
 }

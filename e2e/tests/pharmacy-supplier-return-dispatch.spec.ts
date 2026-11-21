@@ -6,7 +6,11 @@ import { readFile } from "node:fs/promises";
 async function attachSupplierEvidence(
   page: Page,
   info: TestInfo,
-  name: "commercial-return-note-print" | "supplier-credit-recovered" | "supplier-credit-matched",
+  name:
+    | "commercial-return-note-print"
+    | "supplier-credit-recovered"
+    | "supplier-credit-matched"
+    | "supplier-credit-match-reversed",
 ) {
   const path = info.outputPath(`${name}.png`);
   await page.screenshot({ path, fullPage: true });
@@ -329,6 +333,65 @@ test("supplier return preparation and physical dispatch recover response loss wi
         .getByRole("cell", { name: "INR 7.50", exact: true }),
     ).toBeVisible();
     await attachSupplierEvidence(page, testInfo, "supplier-credit-matched");
+    await page.getByRole("button", { name: "Review match for return 1", exact: true }).click();
+    await page
+      .getByLabel("Reversal reason", { exact: true })
+      .fill("TEST correct original matching evidence");
+    let reversalWrites = 0,
+      reversalId = "";
+    const reversalPattern = `**/accounts/supplier-credits/${creditId}/matches/*/reversals/*`;
+    await page.route(reversalPattern, async (route) => {
+      if (route.request().method() !== "PUT") {
+        await route.continue();
+        return;
+      }
+      reversalWrites++;
+      const response = await route.fetch();
+      expect(response.status(), await response.text()).toBe(200);
+      reversalId = ((await response.json()) as { id: string }).id;
+      await route.abort("failed");
+    });
+    await page.getByRole("button", { name: "Reverse full match", exact: true }).click();
+    await expect(page.getByText(/reversal outcome is unconfirmed/)).toBeVisible();
+    await page.unroute(reversalPattern);
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.reload();
+    await page.getByRole("button", { name: `Open credit ${creditReference}`, exact: true }).click();
+    await page.getByRole("button", { name: "Check original reversal", exact: true }).click();
+    await expect(page.getByText(/Return matching reversal verified/)).toBeVisible();
+    await expect(
+      page.getByText("TEST correct original matching evidence", { exact: true }),
+    ).toBeVisible();
+    expect(reversalWrites).toBe(1);
+    const reversedCredit = await financial<{
+      matched_minor: number;
+      allocated_minor: number;
+      available_minor: number;
+    }>(page, "GET", `${outlet}/accounts/supplier-credits/${creditId}`);
+    expect(reversedCredit).toMatchObject({
+      matched_minor: 0,
+      allocated_minor: 0,
+      available_minor: 750,
+    });
+    const reversedBill = await owner<{ outstanding_minor: number }>(
+      page,
+      "GET",
+      `${outlet}/accounts/payables/${payable}`,
+    );
+    expect(reversedBill.outstanding_minor).toBe(11800);
+    const unchangedStock = await owner<{ on_hand_units: number }>(
+      page,
+      "GET",
+      `${outlet}/stock/balance?location_id=${quarantine}&batch_id=${batch}`,
+    );
+    expect(unchangedStock.on_hand_units).toBe(0);
+    const matchHistory = await financial<{
+      data: { reversal_id: string | null; amount_minor: number }[];
+    }>(page, "GET", `${outlet}/accounts/supplier-credits/${creditId}/matches`);
+    expect(matchHistory.data).toHaveLength(1);
+    expect(matchHistory.data[0]?.amount_minor).toBe(750);
+    expect(matchHistory.data[0]?.reversal_id).toBe(reversalId);
+    await attachSupplierEvidence(page, testInfo, "supplier-credit-match-reversed");
     expect(await page.locator("body").innerText()).not.toContain(creditId);
     expect(await page.locator("body").innerText()).not.toContain(returnId);
   } finally {

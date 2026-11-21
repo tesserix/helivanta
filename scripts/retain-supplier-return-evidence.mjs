@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 const required = [
   "supplier-credit-recovered",
   "supplier-credit-matched",
+  "supplier-credit-match-reversed",
   "commercial-return-note-print",
 ];
 export async function retainSupplierReturnEvidence(source, target) {

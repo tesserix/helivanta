@@ -442,8 +442,9 @@ export async function readPharmacySupplierCreditMatchReversal(
   credit: string,
   match: string,
   signal?: AbortSignal,
+  original?: PharmacySupplierCreditMatch,
 ) {
-  return checkedMatchReversal(
+  const row = checkedMatchReversal(
     scope,
     credit,
     match,
@@ -452,6 +453,26 @@ export async function readPharmacySupplierCreditMatchReversal(
       request(scope, signal),
     ),
   );
+  checkMatchReversalSource(scope, credit, match, row, original);
+  return row;
+}
+
+function checkMatchReversalSource(
+  scope: PharmacyActorScope,
+  credit: string,
+  match: string,
+  row: PharmacySupplierCreditMatchReversalReceipt,
+  original?: PharmacySupplierCreditMatch,
+) {
+  if (!original) return;
+  const source = checkedMatchView(scope, credit, match, original);
+  if (
+    !sameID(row.return_id, source.return_id) ||
+    row.return_number !== source.return_number ||
+    row.amount_minor !== source.amount_minor ||
+    (source.reversal_id != null && !sameID(row.id, source.reversal_id))
+  )
+    return mismatch();
 }
 
 export async function recoverPharmacySupplierCreditMatchReversal(
@@ -460,6 +481,10 @@ export async function recoverPharmacySupplierCreditMatchReversal(
   match: string,
   entry: string,
   signal?: AbortSignal,
+  expected?: {
+    original: PharmacySupplierCreditMatch;
+    input?: PharmacySupplierCreditMatchReversalInput;
+  },
 ) {
   const row = checkedMatchReversal(
     scope,
@@ -471,6 +496,16 @@ export async function recoverPharmacySupplierCreditMatchReversal(
     ),
   );
   if (!sameID(row.id, entry) || row.recorded_by !== scope.subject) return mismatch();
+  checkMatchReversalSource(scope, credit, match, row, expected?.original);
+  if (expected?.input) {
+    const input = pharmacySupplierCreditMatchReversalInputSchema.parse(expected.input);
+    if (
+      row.expected_version !== input.expected_version ||
+      row.expected_return_matched_minor !== input.expected_return_matched_minor ||
+      row.reason !== input.reason
+    )
+      return mismatch();
+  }
   return row;
 }
 

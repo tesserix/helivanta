@@ -159,8 +159,9 @@ SDK suite pass together (86 cases); they do not establish browser or live accept
 The hosted spec extends the existing dispatch journey with real credit entry and
 response-loss recovery, then captures `supplier-credit-recovered` for visual review.
 Local component/SDK tests do not substitute for that hosted run or live acceptance.
-Matching is now a development UI candidate; bill application, reversal and
-void/correction controls still require finance UI and complete browser acceptance.
+Matching and full match reversal are development UI candidates; bill
+application/reversal and void/correction controls still require finance UI and
+complete browser acceptance.
 Document entry and matching are not bill settlement.
 
 ### Match actual credit to dispatched returns
@@ -190,8 +191,37 @@ Document entry and matching are not bill settlement.
    hide cached private references. Changing a retained in-memory matching intent
    must not turn an unrelated recovered receipt into a verified match.
 
+### Review and reverse an original match
+
+1. Open **Review match** from the named return's matching history. Verify its
+   original amount/reason and the current total return attribution across credit
+   documents. Review remains available without new-write authority. Current
+   observations come from the exact owner context, never the original receipt's
+   historical totals or a scan of eligible-source pages.
+2. With current financial editor authority and Payables availability, enter an
+   explicit reversal reason and choose **Reverse full match**. A stale observation
+   must refuse without a partial reversal; preserve the reason, refresh current
+   observations, review them and explicitly submit a new command.
+3. Verify the original match is marked reversed and retains its immutable amount,
+   recorder and reason. Retained reversal evidence identifies its own reason and
+   named recorder. Other credit documents' attribution, unused actual credit,
+   bill liability and physical stock remain unchanged. A financial reversal does
+   not receive dispatched medicines back into stock.
+4. Lose the committed reversal response in the hosted fixture, reload and reopen
+   the named credit. The pending reversal must reopen from only its scoped
+   command/match references, even when its original match has left the active
+   set or new writes are disabled. Choose **Check original reversal** and verify
+   the same command, one PUT and no automatic retry. Re-enter a missing original
+   only with its retained reference; never generate a replacement command while
+   its outcome remains uncertain.
+5. Repeat after void: original and reversal evidence remains readable, with no
+   new reversal offered. Wrong-source/actor/intent results or failed current
+   disclosure must not be presented as verified. A storage failure must prevent
+   submission or preserve the existing reference for recovery.
+
 CI retains only the named synthetic `commercial-return-note-print`,
-`supplier-credit-recovered` and `supplier-credit-matched` PNGs in the
+`supplier-credit-recovered`, `supplier-credit-matched` and
+`supplier-credit-match-reversed` PNGs in the
 `supplier-return-visual-evidence` artifact for seven days. The capture runs before
 later Playwright phases overwrite their reports; missing required images fail
 capture. Download and visually inspect that artifact before accepting the UI.

@@ -75,6 +75,7 @@ func supplierCreditRoutes(s *platform.Router, h *catalogueHandlers) {
 	r.GET("/:credit/void", PermAccountsRead, h.getSupplierCreditVoid)
 	r.PUT("/:credit/voids/:entry", PermAccountsAdjust, h.putSupplierCreditVoid)
 	r.GET("/:credit/voids/:entry/recovery", PermAccountsRead, h.recoverSupplierCreditVoid)
+	supplierCreditMatchRoutes(r, h)
 }
 func supplierCreditID(c *gin.Context, param string) (uuid.UUID, bool) {
 	id, err := uuid.Parse(c.Param(param))

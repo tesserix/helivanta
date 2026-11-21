@@ -450,6 +450,11 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match":                           "one immutable financial match with its optional unique reversal reference; no collection",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match/recovery":                  "one original actor-bound immutable financial match receipt",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match/reversal":                  "zero or one immutable full-match reversal; no collection",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match/reversals/:entry/recovery": "one original actor-bound financial match reversal receipt",
+
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return":                                                                                        "one immutable return aggregate with at most 100 guarded lines; no return collection",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/note.html":                                                                              "one audited dispatched return document, at most 100 frozen lines and 1 MiB; no collection query",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/preparation/:payable":                                                                           "one original bill with at most 100 immutable inventory receipts; no collection query",

@@ -7,6 +7,11 @@ import {
   pharmacySupplierCreditDocumentViewSchema,
   pharmacySupplierCreditVoidInputSchema,
   pharmacySupplierCreditVoidReceiptSchema,
+  pharmacySupplierCreditMatchInputSchema,
+  pharmacySupplierCreditMatchReceiptSchema,
+  pharmacySupplierCreditMatchViewSchema,
+  pharmacySupplierCreditMatchReversalInputSchema,
+  pharmacySupplierCreditMatchReversalReceiptSchema,
 } from "./pharmacy-contract";
 
 export type PharmacySupplierCreditInput = z.infer<typeof pharmacySupplierCreditDocumentInputSchema>;
@@ -119,6 +124,18 @@ const creditPage = z
   })
   .strict();
 
+function checkCreditContinuation(
+  value: Pick<z.infer<typeof creditPage>, "page"> & { data: { id: string }[] },
+  cursor: string | null,
+) {
+  if (
+    value.page.has_more !== (value.page.next_cursor !== null) ||
+    (value.page.has_more && (!value.data.length || value.page.next_cursor === cursor)) ||
+    new Set(value.data.map((row) => row.id.toLowerCase())).size !== value.data.length
+  )
+    return mismatch();
+}
+
 export async function listPharmacySupplierCredits(
   scope: PharmacyActorScope,
   cursor: string | null = null,
@@ -132,12 +149,7 @@ export async function listPharmacySupplierCredits(
       request(scope, signal),
     ),
   );
-  if (
-    page.page.has_more !== (page.page.next_cursor !== null) ||
-    (page.page.has_more && (!page.data.length || page.page.next_cursor === cursor)) ||
-    new Set(page.data.map((row) => row.id.toLowerCase())).size !== page.data.length
-  )
-    return mismatch();
+  checkCreditContinuation(page, cursor);
   for (const row of page.data) checkedView(scope, row.id, row);
   return page;
 }
@@ -210,7 +222,235 @@ export async function recoverPharmacySupplierCreditVoid(
   return row;
 }
 
-export { pharmacySupplierCreditDocumentInputSchema, pharmacySupplierCreditVoidInputSchema };
+export {
+  pharmacySupplierCreditDocumentInputSchema,
+  pharmacySupplierCreditVoidInputSchema,
+  pharmacySupplierCreditMatchInputSchema,
+  pharmacySupplierCreditMatchReversalInputSchema,
+};
+
+export type PharmacySupplierCreditMatchInput = z.infer<
+  typeof pharmacySupplierCreditMatchInputSchema
+>;
+export type PharmacySupplierCreditMatchReceipt = z.infer<
+  typeof pharmacySupplierCreditMatchReceiptSchema
+>;
+export type PharmacySupplierCreditMatch = z.infer<typeof pharmacySupplierCreditMatchViewSchema>;
+
+function checkedMatch(scope: PharmacyActorScope, credit: string, match: string, value: unknown) {
+  const row = pharmacySupplierCreditMatchReceiptSchema.parse(value);
+  if (
+    !sameID(row.id, match) ||
+    !sameID(row.credit_id, credit) ||
+    !sameID(row.outlet_id, scope.outletId) ||
+    row.version !== row.expected_version + 1 ||
+    row.return_matched_minor !== row.expected_return_matched_minor + row.amount_minor ||
+    (row.return_matched_minor > row.expected_credit_minor && !row.overage_reason)
+  )
+    return mismatch();
+  return row;
+}
+function matchIntent(value: PharmacySupplierCreditMatchInput) {
+  const input = pharmacySupplierCreditMatchInputSchema.strip().parse(value);
+  return JSON.stringify({
+    ...input,
+    return_id: input.return_id.toLowerCase(),
+    overage_reason: input.overage_reason ?? null,
+  });
+}
+export async function matchPharmacySupplierCredit(
+  scope: PharmacyActorScope,
+  credit: string,
+  match: string,
+  input: PharmacySupplierCreditMatchInput,
+  signal?: AbortSignal,
+) {
+  const body = pharmacySupplierCreditMatchInputSchema.parse(input);
+  if (body.expected_return_matched_minor + body.amount_minor > 1000000000000) return mismatch();
+  const row = checkedMatch(
+    scope,
+    credit,
+    match,
+    await apiFetch(`${root(scope, credit)}/matches/${identifier.parse(match)}`, {
+      ...request(scope, signal),
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  );
+  if (row.recorded_by !== scope.subject || matchIntent(row) !== matchIntent(body))
+    return mismatch();
+  return row;
+}
+
+export async function readPharmacySupplierCreditMatch(
+  scope: PharmacyActorScope,
+  credit: string,
+  match: string,
+  signal?: AbortSignal,
+) {
+  return checkedMatchView(
+    scope,
+    credit,
+    match,
+    await apiFetch(
+      `${root(scope, credit)}/matches/${identifier.parse(match)}`,
+      request(scope, signal),
+    ),
+  );
+}
+
+function checkedMatchView(
+  scope: PharmacyActorScope,
+  credit: string,
+  match: string,
+  value: unknown,
+) {
+  const row = pharmacySupplierCreditMatchViewSchema.parse(value);
+  checkedMatch(scope, credit, match, pharmacySupplierCreditMatchReceiptSchema.strip().parse(row));
+  return row;
+}
+
+const matchPage = creditPage.extend({
+  data: z.array(pharmacySupplierCreditMatchViewSchema).max(50),
+});
+export async function listPharmacySupplierCreditMatches(
+  scope: PharmacyActorScope,
+  credit: string,
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  const query = new URLSearchParams({ limit: "50" });
+  if (cursor !== null) query.set("cursor", cursorSchema.parse(cursor));
+  const page = matchPage.parse(
+    await apiFetch(`${root(scope, credit)}/matches?${query}`, request(scope, signal)),
+  );
+  checkCreditContinuation(page, cursor);
+  for (const row of page.data) checkedMatchView(scope, credit, row.id, row);
+  return page;
+}
+
+export async function recoverPharmacySupplierCreditMatch(
+  scope: PharmacyActorScope,
+  credit: string,
+  match: string,
+  signal?: AbortSignal,
+) {
+  const row = checkedMatch(
+    scope,
+    credit,
+    match,
+    await apiFetch(
+      `${root(scope, credit)}/matches/${identifier.parse(match)}/recovery`,
+      request(scope, signal),
+    ),
+  );
+  if (row.recorded_by !== scope.subject) return mismatch();
+  return row;
+}
+
+export type PharmacySupplierCreditMatchReversalInput = z.infer<
+  typeof pharmacySupplierCreditMatchReversalInputSchema
+>;
+export type PharmacySupplierCreditMatchReversalReceipt = z.infer<
+  typeof pharmacySupplierCreditMatchReversalReceiptSchema
+>;
+function checkedMatchReversal(
+  scope: PharmacyActorScope,
+  credit: string,
+  match: string,
+  value: unknown,
+) {
+  const row = pharmacySupplierCreditMatchReversalReceiptSchema.parse(value);
+  if (
+    !sameID(row.credit_id, credit) ||
+    !sameID(row.match_id, match) ||
+    !sameID(row.outlet_id, scope.outletId) ||
+    row.version !== row.expected_version + 1 ||
+    row.return_matched_minor !== row.expected_return_matched_minor - row.amount_minor
+  )
+    return mismatch();
+  return row;
+}
+
+export async function reversePharmacySupplierCreditMatch(
+  scope: PharmacyActorScope,
+  credit: string,
+  original: PharmacySupplierCreditMatchReceipt,
+  entry: string,
+  input: PharmacySupplierCreditMatchReversalInput,
+  signal?: AbortSignal,
+) {
+  const match = checkedMatch(
+    scope,
+    credit,
+    original.id,
+    pharmacySupplierCreditMatchReceiptSchema.strip().parse(original),
+  );
+  const body = pharmacySupplierCreditMatchReversalInputSchema.parse(input);
+  if (body.expected_return_matched_minor < match.amount_minor) return mismatch();
+  const row = checkedMatchReversal(
+    scope,
+    credit,
+    match.id,
+    await apiFetch(
+      `${root(scope, credit)}/matches/${identifier.parse(match.id)}/reversals/${identifier.parse(entry)}`,
+      {
+        ...request(scope, signal),
+        method: "PUT",
+        body: JSON.stringify(body),
+      },
+    ),
+  );
+  if (
+    !sameID(row.id, entry) ||
+    row.recorded_by !== scope.subject ||
+    row.expected_version !== body.expected_version ||
+    row.expected_return_matched_minor !== body.expected_return_matched_minor ||
+    row.reason !== body.reason ||
+    !sameID(row.return_id, match.return_id) ||
+    row.return_number !== match.return_number ||
+    row.amount_minor !== match.amount_minor
+  )
+    return mismatch();
+  return row;
+}
+
+export async function readPharmacySupplierCreditMatchReversal(
+  scope: PharmacyActorScope,
+  credit: string,
+  match: string,
+  signal?: AbortSignal,
+) {
+  return checkedMatchReversal(
+    scope,
+    credit,
+    match,
+    await apiFetch(
+      `${root(scope, credit)}/matches/${identifier.parse(match)}/reversal`,
+      request(scope, signal),
+    ),
+  );
+}
+
+export async function recoverPharmacySupplierCreditMatchReversal(
+  scope: PharmacyActorScope,
+  credit: string,
+  match: string,
+  entry: string,
+  signal?: AbortSignal,
+) {
+  const row = checkedMatchReversal(
+    scope,
+    credit,
+    match,
+    await apiFetch(
+      `${root(scope, credit)}/matches/${identifier.parse(match)}/reversals/${identifier.parse(entry)}/recovery`,
+      request(scope, signal),
+    ),
+  );
+  if (!sameID(row.id, entry) || row.recorded_by !== scope.subject) return mismatch();
+  return row;
+}
 
 export async function readPharmacySupplierCredit(
   scope: PharmacyActorScope,

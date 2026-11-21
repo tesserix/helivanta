@@ -8,6 +8,66 @@ const identifier = z
     /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     "Choose a valid record.",
   );
+export const pharmacySupplierCreditMatchInputSchema = z
+  .object({
+    return_id: identifier,
+    expected_version: z.number().int().min(1).max(999999999999),
+    expected_return_matched_minor: z.number().int().min(0).max(1000000000000),
+    amount_minor: z.number().int().min(1).max(1000000000000),
+    reason: z.string().trim().min(1).max(500),
+    overage_reason: z.string().trim().min(1).max(500).nullable().optional(),
+  })
+  .strict();
+
+export const pharmacySupplierCreditMatchReceiptSchema = pharmacySupplierCreditMatchInputSchema
+  .extend({
+    id: identifier,
+    outlet_id: identifier,
+    credit_id: identifier,
+    version: z.number().int().min(1).max(1000000000000),
+    recorded_by: z.string().min(1).max(200),
+    recorded_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+    return_number: z.number().int().min(1).max(1000000000000),
+    expected_credit_minor: z.number().int().min(0).max(1000000000000),
+    return_matched_minor: z.number().int().min(0).max(1000000000000),
+  })
+  .strict();
+
+export const pharmacySupplierCreditMatchViewSchema = pharmacySupplierCreditMatchReceiptSchema
+  .extend({
+    reversal_id: identifier.nullable().optional(),
+  })
+  .strict();
+
+export const pharmacySupplierCreditMatchReversalInputSchema = z
+  .object({
+    expected_version: z.number().int().min(1).max(999999999999),
+    expected_return_matched_minor: z.number().int().min(0).max(1000000000000),
+    reason: z.string().trim().min(1).max(500),
+  })
+  .strict();
+
+export const pharmacySupplierCreditMatchReversalReceiptSchema =
+  pharmacySupplierCreditMatchReversalInputSchema
+    .extend({
+      id: identifier,
+      outlet_id: identifier,
+      credit_id: identifier,
+      version: z.number().int().min(1).max(1000000000000),
+      recorded_by: z.string().min(1).max(200),
+      recorded_at: z
+        .string()
+        .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+      match_id: identifier,
+      return_id: identifier,
+      return_number: z.number().int().min(1).max(1000000000000),
+      amount_minor: z.number().int().min(1).max(1000000000000),
+      return_matched_minor: z.number().int().min(0).max(1000000000000),
+    })
+    .strict();
+
 export const pharmacySupplierCreditDocumentInputSchema = z
   .object({
     return_id: identifier,

@@ -28,6 +28,7 @@ CREATE TABLE pharmacy_supplier_return_dispatches(
 CREATE TABLE pharmacy_supplier_return_dispatch_lines(
  tenant_id uuid NOT NULL,outlet_id uuid NOT NULL,dispatch_id uuid NOT NULL,return_line_id uuid NOT NULL,
  movement_id uuid NOT NULL CHECK(substring(movement_id::text,15,1)='7'),schedule_declaration_id uuid NOT NULL,
+ id uuid GENERATED ALWAYS AS(movement_id) STORED NOT NULL,
  created_at timestamptz NOT NULL DEFAULT now(),
  PRIMARY KEY(tenant_id,outlet_id,dispatch_id,return_line_id),UNIQUE(tenant_id,outlet_id,return_line_id),UNIQUE(tenant_id,outlet_id,movement_id),
  FOREIGN KEY(tenant_id,outlet_id,dispatch_id)REFERENCES pharmacy_supplier_return_dispatches(tenant_id,outlet_id,id)ON DELETE RESTRICT,

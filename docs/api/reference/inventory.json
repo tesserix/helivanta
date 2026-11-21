@@ -6033,7 +6033,7 @@
         },
         {
           "id": "0056_pharmacy_supplier_return_dispatch",
-          "sql_sha256": "2c2879161fb08f32fb8f972faf341634029dd7a7dcaf695296675ae8a2f7b154",
+          "sql_sha256": "fa5d31d1a6ceec389bc8a0fc89303044633b0ff93b42b7c225920f961b278f89",
           "creates_tables": [
             "pharmacy_supplier_return_dispatches",
             "pharmacy_supplier_return_dispatch_lines"

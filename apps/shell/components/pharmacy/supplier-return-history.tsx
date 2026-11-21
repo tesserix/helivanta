@@ -19,6 +19,10 @@ import {
 } from "@helivanta/api";
 import { useApiMutation } from "@helivanta/api";
 import { useUrlPage } from "@/lib/use-url-page";
+import {
+  SupplierReturnDispatch,
+  supplierReturnDispatchStorageKey,
+} from "./supplier-return-dispatch";
 import { formatPharmacyMoney } from "./currency-amount-field";
 
 function returnState(state: "draft" | "cancelled" | "dispatched") {
@@ -28,10 +32,12 @@ function returnState(state: "draft" | "cancelled" | "dispatched") {
 export function SupplierReturnHistory({
   scope,
   canCancel,
+  canDispatch = false,
   timeZone,
 }: {
   scope: PharmacyActorScope;
   canCancel: boolean;
+  canDispatch?: boolean;
   timeZone: string;
 }) {
   const confirmLeave = useConfirmLeave();
@@ -133,6 +139,8 @@ export function SupplierReturnHistory({
           scope={scope}
           id={selected}
           canCancel={canCancel}
+          canDispatch={canDispatch}
+          timeZone={timeZone}
           close={() => confirmLeave(() => setSelected(null))}
         />
       )}
@@ -144,11 +152,15 @@ function SupplierReturnDetail({
   scope,
   id,
   canCancel,
+  canDispatch,
+  timeZone,
   close,
 }: {
   scope: PharmacyActorScope;
   id: string;
   canCancel: boolean;
+  canDispatch: boolean;
+  timeZone: string;
   close: () => void;
 }) {
   const detail = useQuery({
@@ -210,6 +222,12 @@ function SupplierReturnDetail({
               </tbody>
             </table>
           </div>
+          <SupplierReturnDispatch
+            scope={scope}
+            value={detail.data}
+            canStart={canDispatch}
+            timeZone={timeZone}
+          />
           {
             <CancelReturn
               key={id}
@@ -306,6 +324,10 @@ function CancelReturn({
         }
         const id = command ?? newPharmacyId();
         try {
+          if (sessionStorage.getItem(supplierReturnDispatchStorageKey(scope, value.id)) !== null) {
+            setFailure("Verify the pending physical dispatch before cancelling this return.");
+            return;
+          }
           sessionStorage.setItem(storageKey, id);
           if (sessionStorage.getItem(storageKey) !== id) throw new Error("storage");
         } catch {

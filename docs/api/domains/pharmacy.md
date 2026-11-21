@@ -1368,7 +1368,11 @@ CSV expose signed `supplier_return_units` separately from hospital fulfilment
 `supplier_dispatch_units` and customer `return_units`.
 
 Canonical schema: `contracts/pharmacy.json`; owner: pharmacy. New append-only
-migration: `0056_pharmacy_supplier_return_dispatch`. The Shell now labels dispatched
-returns correctly; preparation/dispatch command forms and the separate actual
-credit, allocation, reversal and printable-document workflows remain tracked in
+migration: `0056_pharmacy_supplier_return_dispatch`. The Shell provides a Stock-gated physical dispatch form with
+readable reviewed licence choices, explicit handoff evidence and actor-scoped
+reference-only recovery storage. It hides failed or wrong-outlet licence results
+and keeps recovery available when new writes are paused. Browser testing includes
+response loss, reload, exact original recovery and unchanged financial balance.
+Return preparation, actual credit, allocation, reversal and printable-document
+workflows remain tracked in
 #1784. This contract is not evidence those remaining interfaces are delivered.

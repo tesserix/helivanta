@@ -85,6 +85,10 @@ func TestSupplierReturnDispatchRemovesQuarantineExactlyOnce(t *testing.T) {
 					return err
 				}
 				require.EqualValues(t, 1, n)
+				if err := tx.Table("audit_events").Where("resource_type='pharmacy_supplier_return_dispatch_lines' AND resource_id=?", receipt.Lines[0].MovementID).Count(&n).Error; err != nil {
+					return err
+				}
+				require.EqualValues(t, 1, n)
 				var healthy bool
 				if err := tx.Raw("SELECT pharmacy_operating_choice_integrity() AND pharmacy_operating_choice_support()").Scan(&healthy).Error; err != nil {
 					return err
@@ -136,7 +140,7 @@ func TestSupplierReturnDispatchRejectsFutureHandoffAndUnsupportedSchedule(t *tes
 	input := dispatchInput(t, w)
 	var decoded map[string]any
 	require.NoError(t, json.Unmarshal([]byte(input), &decoded))
-	for _, at := range []string{time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339Nano), "1970-01-01T00:00:00Z"} {
+	for _, at := range []string{time.Now().Add(24 * time.Hour).UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano), "1970-01-01T00:00:00Z"} {
 		decoded["handed_over_at"] = at
 		body, err := json.Marshal(decoded)
 		require.NoError(t, err)

@@ -1379,6 +1379,9 @@ workflows remain tracked in
 
 ### Supplier return preparation sources and original command recovery
 
+Preparation lookups refuse bills without original inventory receipt lines with
+404; unrelated expense bills cannot be disclosed through this projection.
+
 Under `/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns`:
 
 - `GET /original-bills` is an audited, account-bound cursor page capped at 50.

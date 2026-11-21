@@ -51,7 +51,7 @@ export const pharmacySupplierReturnPreparationSchema = z
     stock_as_of: z
       .string()
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
-    lines: z.array(pharmacySupplierReturnPreparationSourceSchema).min(0).max(100),
+    lines: z.array(pharmacySupplierReturnPreparationSourceSchema).min(1).max(100),
   })
   .strict();
 

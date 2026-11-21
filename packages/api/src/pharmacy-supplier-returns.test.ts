@@ -381,6 +381,7 @@ it("verifies bounded original bill sources and current returned quantities", asy
   for (const changed of [
     { outlet_id: id },
     { payable_id: scope.outletId },
+    { lines: [] },
     { lines: [line, line] },
     { lines: [{ ...line, dispatched_units: 81 }] },
     { lines: [{ ...line, source_reference: "supplier-receipt:TEST" }] },

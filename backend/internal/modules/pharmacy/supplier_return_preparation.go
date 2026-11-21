@@ -41,6 +41,9 @@ func (h *catalogueHandlers) getSupplierReturnPreparation(c *gin.Context) {
 				ids = append(ids, *line.ReceiptID)
 			}
 		}
+		if len(ids) == 0 {
+			return gorm.ErrRecordNotFound
+		}
 		result = SupplierReturnPreparation{OutletID: outlet, PayableID: id, PayeeReference: bill.Fields.PayeeReference, PayeeName: bill.Fields.PayeeName, DocumentReference: bill.Fields.DocumentReference, Currency: bill.Fields.Currency, Lines: []SupplierReturnPreparationSource{}}
 		var clock struct{ At time.Time }
 		if err := tx.Raw("SELECT clock_timestamp() AS at").Scan(&clock).Error; err != nil {

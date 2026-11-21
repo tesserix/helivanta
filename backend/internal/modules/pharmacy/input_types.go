@@ -37,7 +37,7 @@ type SupplierReturnPreparation struct {
 	DocumentReference string                            `json:"document_reference" binding:"required,min=1,max=100"`
 	Currency          string                            `json:"currency"`
 	StockAsOf         string                            `json:"stock_as_of"`
-	Lines             []SupplierReturnPreparationSource `json:"lines" binding:"required,min=0,max=100,dive" gorm:"-"`
+	Lines             []SupplierReturnPreparationSource `json:"lines" binding:"required,min=1,max=100,dive" gorm:"-"`
 }
 
 type SupplierReturnDispatchInput struct {

@@ -1706,6 +1706,23 @@ history or source reads hide cached private evidence. The hosted browser journey
 extends actual credit entry with full-amount matching, response-loss reload
 recovery and proof that bill liability and unused credit remain unchanged.
 
-Allocation, void/correction and reversal UI, complete bill history/report
-integration, hosted acceptance of the new matching workspace, remaining Global
+A candidate **Review match** control now opens the exact original match and
+current owner observations, including attribution from other credit documents.
+Full reversal requires an explicit reason, the current credit version and current
+return total; it preserves the original amount and leaves other credit matches,
+unused credit, bill liability and physical stock unchanged. A stale refusal
+preserves the reason and offers the shared authorised refresh control. Retained
+reversal evidence remains readable after void and with new writes unavailable.
+
+Reversal recovery persists only the command/match references under the verified
+scope and credit. It reopens without scanning history pages, survives reload and
+works when new writes are disabled. Normal retained reads bind evidence to the
+original return, amount and reversal reference. Recovery additionally verifies
+the original actor/command and any retained submitted intent. Private evidence
+is hidden on failed owner reads; a storage cleanup failure preserves same-command
+recovery and blocks another reversal. The hosted browser scenario now covers a
+lost committed reversal, reload, one-write recovery and unchanged bill/stock.
+
+Bill application/reversal and void/correction UI, complete bill history/report
+integration, hosted/visual acceptance of matching and reversal, remaining Global
 API E2E and approved live acceptance remain open in #1784.

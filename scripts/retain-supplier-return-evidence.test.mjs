@@ -16,6 +16,7 @@ test("retains only named synthetic supplier screenshots before later phases over
     await mkdir(unrelated, { recursive: true });
     for (const name of [
       "supplier-credit-recovered-1.png",
+      "supplier-credit-match-reversed-1.png",
       "supplier-credit-matched-1.png",
       "commercial-return-note-print-1.png",
       "PRIVATE.png",
@@ -33,6 +34,7 @@ test("retains only named synthetic supplier screenshots before later phases over
     await retainSupplierReturnEvidence(source, target);
     assert.deepEqual((await readdir(target)).sort(), [
       "commercial-return-note-print-1.png",
+      "supplier-credit-match-reversed-1.png",
       "supplier-credit-matched-1.png",
       "supplier-credit-recovered-1.png",
     ]);

@@ -25,6 +25,7 @@ import {
 } from "./supplier-return-dispatch";
 import { formatPharmacyMoney } from "./currency-amount-field";
 import { SupplierReturnPrepare } from "./supplier-return-prepare";
+import { SupplierReturnNoteDownload } from "./supplier-return-note";
 
 function returnState(state: "draft" | "cancelled" | "dispatched") {
   return state === "draft" ? "Draft" : state === "cancelled" ? "Cancelled" : "Dispatched";
@@ -235,6 +236,11 @@ function SupplierReturnDetail({
             value={detail.data}
             canStart={canDispatch}
             timeZone={timeZone}
+          />
+          <SupplierReturnNoteDownload
+            scope={scope}
+            value={detail.data}
+            disabled={detail.isFetching}
           />
           {
             <CancelReturn

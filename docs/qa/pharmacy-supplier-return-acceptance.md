@@ -53,18 +53,50 @@ fixtures supply their own reviewed evidence; local apps/databases are not requir
    dispatch or movement. Audit/outbox failure must roll back writes and refuse
    private reads. Check signed register/reconciliation/CSV totals.
 
+## Printable commercial note
+
+After a dispatch made with migration0057 installed, open its current detail and
+choose **Download commercial return note**. Verify the downloaded file's human
+return number, original bill, named pharmacy/outlet and supplier, outward
+reference, recipient, UTC handoff, product/lot/expiry and exact issue units. Open
+the file and use the browser's Print command to print or save as PDF. Check A4
+layout and repeated headings for a multi-page note. No backend IDs, active
+content, external resources or inferred tax/credit acceptance belong in the view.
+
+In the disposable hosted fixture, simulate a later directory metadata migration:
+retained names and bytes must remain unchanged. The current directory is
+immutable; ordinary application rename attempts must remain refused before and
+after this fixture injection. Do not disable live guards to perform this check.
+Every file release requires a new disclosure audit. A draft, foreign
+tenant/outlet or revoked grant must release no attachment. Missing historical
+name snapshots, incomplete movement proof and audit failure refuse bytes; do not
+backfill historical names from today's directory. A changed identity, wrong
+scope/count/digest, truncated/extra file, oversize response or navigation during
+download must not create a local file. Stock and bill balances stay unchanged.
+
+The hosted browser journey downloads the actual file through Global API,
+verifies its batch table and takes a print-media screenshot for visual review.
+`TestSupplierReturnNote*` covers rendering/escaping, bounded evidence, both
+ownership models and chain outlets, retained names, current access, missing old
+snapshots and audit failure. SDK and component tests verify complete bytes,
+private scope, duplicate suppression and abort-on-unmount. Hosted execution,
+rendered screenshot review and authenticated live release remain Pending until
+their evidence is recorded.
+
 ## Evidence and remaining scope
 
 `e2e/tests/pharmacy-supplier-return-dispatch.spec.ts` exercises the real browser,
-Global API and owning backend for preparation and dispatch response-loss recovery.
+Global API and owning backend for preparation and dispatch response-loss recovery,
+then complete commercial-note download and print-media rendering.
 `TestSupplierReturn*` includes native ownership, authority, concurrency, receipt
 cap and audit/outbox cases. Local compilation/targeted tests alone do not prove
 hosted or deployed acceptance.
 
 Actual supplier credit acceptance, partial/combined-note matching, retained unused
-credit, eligible bill allocation and immutable reversal/correction, and a private
-audited printable commercial return note remain open in #1784. Do not label them
-complete from these preparation/dispatch checks. Statutory GST/ITC/GL treatment and
+credit, eligible bill allocation and immutable reversal/correction remain open in
+#1784. The private commercial-note implementation is a candidate pending its
+hosted, visual and live acceptance. Do not label these remaining gates complete
+from local preparation/dispatch checks. Statutory GST/ITC/GL treatment and
 platform reverse acknowledgement retain their explicit review/protocol boundaries.
 Record deployed image/migration evidence and authenticated live results before
 closing the issue or enabling a release capability.

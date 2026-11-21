@@ -1,6 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import { choose, owner, readyOutlet } from "./support/pharmacy-counter";
 import { uuidv7 } from "./support/pharmacy";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 
 async function financial<T>(page: Page, method: string, path: string, body?: unknown): Promise<T> {
   const actor = await owner<{ subject: string; tenant_id: string }>(
@@ -30,7 +32,7 @@ async function financial<T>(page: Page, method: string, path: string, body?: unk
 test("supplier return preparation and physical dispatch recover response loss without duplicate facts", async ({
   page,
   browser,
-}) => {
+}, testInfo) => {
   test.setTimeout(180_000);
   const fixture = await readyOutlet(page, browser);
   const { outlet, batch, quarantine, shelf, stamp } = fixture;
@@ -149,6 +151,51 @@ test("supplier return preparation and physical dispatch recover response loss wi
     );
     expect(dispatched.state).toBe("dispatched");
     expect(dispatched.lines).toHaveLength(1);
+    const downloaded = page.waitForEvent("download");
+    await page
+      .getByRole("button", { name: "Download commercial return note", exact: true })
+      .click();
+    const note = await downloaded;
+    expect(note.suggestedFilename()).toBe("supplier-return-1.html");
+    const notePath = await note.path();
+    if (!notePath) throw new Error("The commercial note download was not retained.");
+    const noteHTML = await readFile(notePath, "utf8");
+    expect(noteHTML).toContain(`TEST-BILL-${stamp}`);
+    expect(noteHTML).toContain(`TEST-OUT-${stamp}`);
+    expect(noteHTML).not.toContain(returnId);
+    const printPreview = await page.context().newPage();
+    try {
+      await printPreview.emulateMedia({ media: "print" });
+      await printPreview.setContent(noteHTML);
+      await expect(
+        printPreview.getByRole("heading", { name: "Commercial supplier return note", exact: true }),
+      ).toBeVisible();
+      await expect(
+        printPreview.getByRole("table", { name: "Returned batches" }).getByRole("row"),
+      ).toHaveCount(2);
+      await expect(printPreview.getByRole("cell", { name: "4", exact: true })).toBeVisible();
+      await expect(printPreview.getByText(/Not a tax invoice/)).toBeVisible();
+      const screenshot = await printPreview.screenshot({ fullPage: true });
+      await testInfo.attach("commercial-return-note-print", {
+        body: screenshot,
+        contentType: "image/png",
+      });
+      const printDirectory = process.env.HELIVANTA_E2E_PRINT_DIR;
+      if (printDirectory) {
+        await mkdir(printDirectory, { recursive: true, mode: 0o700 });
+        await writeFile(join(printDirectory, "supplier-return-note.png"), screenshot, {
+          mode: 0o600,
+        });
+        const pdf = await printPreview.pdf({
+          format: "A4",
+          printBackground: true,
+          preferCSSPageSize: true,
+        });
+        await writeFile(join(printDirectory, "supplier-return-note.pdf"), pdf, { mode: 0o600 });
+      }
+    } finally {
+      await printPreview.close();
+    }
     const balance = await owner<{ on_hand_units: number }>(
       page,
       "GET",

@@ -5933,7 +5933,7 @@
         },
         {
           "id": "0054_pharmacy_stock_holds",
-          "sql_sha256": "2b5df7ac7d19839e3319989392392b162485e15edb84799566b9ade65d3c2afd",
+          "sql_sha256": "88ce4d549363a4aabb1d52739b6fbea1f02a9fab408d1d5bb74820d851cc7af3",
           "creates_tables": [
             "pharmacy_stock_holds"
           ]

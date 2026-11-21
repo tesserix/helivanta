@@ -306,8 +306,13 @@ remain required. Canonical payloads alone are not integration evidence. The
 identifier-only event fields have explicit privacy classifications; the event
 conveys no amount, supplier details, document reference, actor or private reason.
 
-Next required commands remain explicit partial/combined return matching, safe
-eligible-bill allocation, allocation/match reversal and the read/selection UI.
+The next candidate implements explicit partial/combined return matching and full
+match reversal through migration0059 and seven registered routes. It preserves
+net amount, version, actor and terminal-state proof across all document commands;
+new native acceptance remains pending after the observed missing-handler baseline.
+See [the matching design](../superpowers/specs/2026-11-21-supplier-credit-matching.md).
+Safe eligible-bill allocation, allocation reversal and the read/selection UI remain
+required commands.
 Matching attributes commercial credit; allocation separately consumes the pool.
 The existing payable-balance view must include net managed allocation alongside
 legacy settlements, and both allocation and payment posting must serialize on

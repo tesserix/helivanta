@@ -3,6 +3,54 @@ package pharmacy
 
 import "github.com/google/uuid"
 
+type SupplierCreditMatchInput struct {
+	ReturnID                   uuid.UUID `json:"return_id" binding:"required"`
+	ExpectedVersion            *int64    `json:"expected_version" binding:"required,min=1,max=999999999999"`
+	ExpectedReturnMatchedMinor *int64    `json:"expected_return_matched_minor" binding:"required,min=0,max=1000000000000"`
+	AmountMinor                *int64    `json:"amount_minor" binding:"required,min=1,max=1000000000000"`
+	Reason                     string    `json:"reason" binding:"required,min=1,max=500"`
+	OverageReason              *string   `json:"overage_reason" binding:"omitempty,min=1,max=500"`
+}
+
+type SupplierCreditMatchReceipt struct {
+	ID                  uuid.UUID `json:"id" binding:"required"`
+	OutletID            uuid.UUID `json:"outlet_id" binding:"required"`
+	CreditID            uuid.UUID `json:"credit_id" binding:"required"`
+	Version             int64     `json:"version" binding:"min=1,max=1000000000000"`
+	RecordedBy          string    `json:"recorded_by" binding:"required,min=1,max=200"`
+	RecordedAt          string    `json:"recorded_at"`
+	ReturnNumber        int64     `json:"return_number" binding:"min=1,max=1000000000000"`
+	ExpectedCreditMinor int64     `json:"expected_credit_minor" binding:"min=0,max=1000000000000"`
+	ReturnMatchedMinor  int64     `json:"return_matched_minor" binding:"min=0,max=1000000000000"`
+	SupplierCreditMatchInput
+}
+
+type SupplierCreditMatchView struct {
+	ReversalID *uuid.UUID `json:"reversal_id" binding:"omitempty"`
+	SupplierCreditMatchReceipt
+}
+
+type SupplierCreditMatchReversalInput struct {
+	ExpectedVersion            *int64 `json:"expected_version" binding:"required,min=1,max=999999999999"`
+	ExpectedReturnMatchedMinor *int64 `json:"expected_return_matched_minor" binding:"required,min=0,max=1000000000000"`
+	Reason                     string `json:"reason" binding:"required,min=1,max=500"`
+}
+
+type SupplierCreditMatchReversalReceipt struct {
+	ID                 uuid.UUID `json:"id" binding:"required"`
+	OutletID           uuid.UUID `json:"outlet_id" binding:"required"`
+	CreditID           uuid.UUID `json:"credit_id" binding:"required"`
+	Version            int64     `json:"version" binding:"min=1,max=1000000000000"`
+	RecordedBy         string    `json:"recorded_by" binding:"required,min=1,max=200"`
+	RecordedAt         string    `json:"recorded_at"`
+	MatchID            uuid.UUID `json:"match_id" binding:"required"`
+	ReturnID           uuid.UUID `json:"return_id" binding:"required"`
+	ReturnNumber       int64     `json:"return_number" binding:"min=1,max=1000000000000"`
+	AmountMinor        int64     `json:"amount_minor" binding:"min=1,max=1000000000000"`
+	ReturnMatchedMinor int64     `json:"return_matched_minor" binding:"min=0,max=1000000000000"`
+	SupplierCreditMatchReversalInput
+}
+
 type SupplierCreditDocumentInput struct {
 	ReturnID          uuid.UUID  `json:"return_id" binding:"required"`
 	DocumentReference string     `json:"document_reference" binding:"required,min=1,max=100"`

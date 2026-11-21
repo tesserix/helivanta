@@ -3818,6 +3818,69 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match/recovery",
+          "permission": "pharmacy.accounts.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match/reversal",
+          "permission": "pharmacy.accounts.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match/reversals/:entry/recovery",
+          "permission": "pharmacy.accounts.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match/reversals/:entry",
+          "permission": "pharmacy.accounts.adjust",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match",
+          "permission": "pharmacy.accounts.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match",
+          "permission": "pharmacy.accounts.adjust",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches",
+          "permission": "pharmacy.accounts.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/recovery",
           "permission": "pharmacy.accounts.read",
           "authentication_required": true,
@@ -6151,6 +6214,14 @@
             "pharmacy_supplier_credit_documents",
             "pharmacy_supplier_credit_positions",
             "pharmacy_supplier_credit_voids"
+          ]
+        },
+        {
+          "id": "0059_pharmacy_supplier_credit_matching",
+          "sql_sha256": "b82fe1fb585d1ec230525ebca146d86f0b0a713c796bad2db8f43769e24ee1ba",
+          "creates_tables": [
+            "pharmacy_supplier_credit_matches",
+            "pharmacy_supplier_credit_match_reversals"
           ]
         }
       ]

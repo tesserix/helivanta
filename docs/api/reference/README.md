@@ -523,6 +523,13 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id` | `pharmacy.accounts.write` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/counted` | `pharmacy.accounts.read` | true | true |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables` | `pharmacy.accounts.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/allocations/:allocation/recovery` | `pharmacy.accounts.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/allocations/:allocation/reversal` | `pharmacy.accounts.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/allocations/:allocation/reversals/:entry/recovery` | `pharmacy.accounts.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/allocations/:allocation/reversals/:entry` | `pharmacy.accounts.adjust` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/allocations/:allocation` | `pharmacy.accounts.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/allocations/:allocation` | `pharmacy.accounts.adjust` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/allocations` | `pharmacy.accounts.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match/recovery` | `pharmacy.accounts.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match/reversal` | `pharmacy.accounts.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match/reversals/:entry/recovery` | `pharmacy.accounts.read` | false | false |
@@ -784,6 +791,7 @@ Migration table declarations:
 - `0056_pharmacy_supplier_return_dispatch`: `pharmacy_supplier_return_dispatches`, `pharmacy_supplier_return_dispatch_lines`.
 - `0058_pharmacy_supplier_credit_documents`: `pharmacy_supplier_credit_documents`, `pharmacy_supplier_credit_positions`, `pharmacy_supplier_credit_voids`.
 - `0059_pharmacy_supplier_credit_matching`: `pharmacy_supplier_credit_matches`, `pharmacy_supplier_credit_match_reversals`.
+- `0060_pharmacy_supplier_credit_allocations`: `pharmacy_supplier_credit_allocations`, `pharmacy_supplier_credit_allocation_reversals`.
 
 ## payments
 

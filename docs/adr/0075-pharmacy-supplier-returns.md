@@ -318,3 +318,21 @@ The existing payable-balance view must include net managed allocation alongside
 legacy settlements, and both allocation and payment posting must serialize on
 the same payable key. Retained credit on a fully paid original bill stays
 unallocated. No stock-cost, GST/ITC or general-ledger effect is inferred.
+
+### Supplier-credit allocation candidate
+
+Migration0060 and seven registered handlers add allocation/full reversal to the
+existing financial owner. It preserves original receipts and uses credit-then-
+existing-payable locks, observed credit/bill versions and available/outstanding
+balances. Both the payable balance view and existing payment/manual-credit guard
+include net managed allocation. No v1 payable fields or settlement kinds change.
+The deferred credit proof includes every allocation/reversal while preserving
+matching, void and correction evidence. Target bills must have external inventory
+sources of the same supplier/currency/outlet; platform receipts remain outside
+this local-credit protocol. See the [allocation design](../superpowers/specs/2026-11-22-supplier-credit-allocation.md).
+
+The actual hosted baseline observed expected200/actual404 after real paid-source,
+credit and future-bill setup for all ownership models (44907683241/job136856646618).
+Current wired SQL/handler behavior is pending hosted execution. Source selectors,
+financial UI/SDK, expanded concurrency/rollback/report checks and live acceptance
+remain required; these journals alone do not complete #1784 or activate payables.

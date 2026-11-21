@@ -1494,8 +1494,9 @@ The SDK verifies exact resource/outlet identity, original actor/intent on writes
 and recovery, current amount conservation, void version arithmetic and bounded
 cursor integrity. Requests are account-bound, private/no-store and cancellable
 with a 15-second limit; they never automatically retry a financial command.
-Bill allocation/reversals, their payable-balance integration, source selectors and
-financial UI/live acceptance remain unfinished. No stock-cost, GST/ITC or general-ledger
+The migration0060 allocation candidate below adds the owner journal and payable
+balance integration. Source selectors, financial UI and full hosted/live
+acceptance remain unfinished. No stock-cost, GST/ITC or general-ledger
 effect follows document recording or event publication.
 
 ### Supplier-credit matching and full reversal (candidate)
@@ -1544,8 +1545,8 @@ row. Current grants and private-read audit are checked before returning evidence
 Migration0059 adds immutable matching/reversal journals and forced tenant/exact-
 outlet RLS. Its deferred projection proof reconciles command count, current
 version/state, latest actor and net matched amount, retaining document void and
-correction checks. Allocated amount must remain zero until the allocation owner
-journal is implemented. Matching/reversal does not consume the available credit
+correction checks. Migration0059 alone requires allocated amount zero; the
+migration0060 candidate extends the same proof with the allocation journal. Matching/reversal does not consume the available credit
 pool, settle liability, reverse a payment or restore physically returned stock.
 Audit, projection, journal and minimal outbox notification commit atomically.
 Stale totals, duplicate/conflicting intent, invalid sources and missing excess
@@ -1563,3 +1564,49 @@ New commands are not automatically retried after uncertain transport.
 Source selectors, matching UI, bill allocation/reversal and corresponding
 Global API/browser/live acceptance remain required in #1784. This candidate does
 not activate any release capability or statutory finance policy.
+
+### Supplier-credit bill allocation (candidate)
+
+Under `/accounts/supplier-credits/:credit/allocations`, the registered development
+candidate has cursor `GET /` (maximum50), `PUT /:allocation`, normal
+`GET /:allocation`, actor-bound `GET /:allocation/recovery`,
+`PUT /:allocation/reversals/:entry`, normal `GET /:allocation/reversal` and
+actor-bound `GET /:allocation/reversals/:entry/recovery`. Writes require
+accounts-adjust and payables availability; retained reads require accounts-read,
+current exact outlet authority and verified tenant/subject headers. No flag is
+activated and no completed financial workspace is asserted.
+
+Allocation input binds `payable_id`, credit `expected_version`,
+`expected_available_minor`, `expected_payable_version`,
+`expected_outstanding_minor`, positive `amount_minor`, `occurred_on` and reason.
+Inconsistent declared balances/amount or malformed input is400; changed actual
+state, currency, supplier, date or source eligibility is409. The target must have
+external inventory receipt evidence, the same supplier/outlet/currency and enough
+positive liability. Platform-supplier or mixed-platform receipt sources remain
+unsupported pending their distinct acknowledgement protocol. A fully paid source
+bill can retain its credit for an eligible future bill.
+
+Migration0060 serializes credit then the same payable key used by existing
+payments. Credit version/available amount and bill version/outstanding are checked
+under those locks. Bill version is creation1 plus legacy settlement, managed
+allocation and managed reversal counts; net-zero payment/reversal still changes
+it. Current payable wire fields stay unchanged. The payable balance view adds net
+managed allocation to legacy credits, and the legacy settlement guard includes
+that same net amount before allowing payment/manual credit.
+
+A full allocation reversal restores exactly its original amount to credit and
+liability, preserving intervening payments. It binds current credit/bill versions,
+observed available/outstanding balances, date and reason; a second reversal is
+refused. Original receipts and their recorded post-command versions/balances are
+immutable snapshots, not current balances. Same original actor/identity/intent
+replays that receipt after later activity; recovery by another actor is404.
+Normal authorised history can show another recorder and its unique reversal.
+
+Both journals have forced tenant/outlet RLS, actor/purpose fences, immutability and
+audit. The deferred credit proof reconciles all document/match/allocation commands,
+versions, latest actor and net amounts. Journal, projection, audit and minimal
+outbox notification commit together. Audit/dependency/proof failure is503 with no
+partial result; recover the original reference before fresh intent. Neither
+allocation nor reversal moves stock, captures/refunds cash or decides tax/ITC/GL.
+Hosted SQL/native acceptance, source selectors/indexes, UI/SDK/report explanations
+and actual Global API/browser/live acceptance are still required in #1784.

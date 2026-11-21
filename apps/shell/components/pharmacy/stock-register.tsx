@@ -61,6 +61,7 @@ const RECONCILED = [
   ["return_units", "Returns in period"],
   ["supplier_dispatch_units", "Supplied to hospital orders in period"],
   ["quarantine_hold_units", "Quarantine holds in period"],
+  ["supplier_return_units", "Supplier return dispatches in period"],
 ] as const;
 const WHOLE = /^-?\d+$/;
 const SIGNED = new Intl.NumberFormat(undefined, { signDisplay: "exceptZero" });
@@ -190,6 +191,7 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
         "Returns",
         "Supplied to hospitals",
         "Quarantine holds",
+        "Supplier return dispatches",
         "Inspect",
       ];
   // A failed snapshot hides every earlier figure, the open position's too.
@@ -440,6 +442,7 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
                                 ["returns", row.return_units],
                                 ["supplied", row.supplier_dispatch_units],
                                 ["held", row.quarantine_hold_units],
+                                ["supplier returned", row.supplier_return_units],
                               ] as const)
                           ).map(([field, value]) => (
                             <td className="p-3 text-right tabular-nums" key={field}>

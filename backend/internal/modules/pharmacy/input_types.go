@@ -3,6 +3,35 @@ package pharmacy
 
 import "github.com/google/uuid"
 
+type SupplierReturnDispatchInput struct {
+	ExpectedVersion     *int64    `json:"expected_version" binding:"min=0,max=0"`
+	LicenceID           uuid.UUID `json:"licence_id" binding:"required"`
+	DocumentReference   string    `json:"document_reference" binding:"required,min=1,max=100"`
+	RecipientName       string    `json:"recipient_name" binding:"required,min=1,max=200"`
+	HandedOverAt        string    `json:"handed_over_at"`
+	PhysicalDisposition string    `json:"physical_disposition" binding:"required,oneof=handed_to_supplier"`
+	Reason              string    `json:"reason" binding:"required,min=1,max=500"`
+}
+
+type SupplierReturnDispatchLine struct {
+	ReturnLineID uuid.UUID `json:"return_line_id" binding:"required"`
+	MovementID   uuid.UUID `json:"movement_id" binding:"required"`
+}
+
+type SupplierReturnDispatchReceipt struct {
+	ID              uuid.UUID                    `json:"id" binding:"required"`
+	OutletID        uuid.UUID                    `json:"outlet_id" binding:"required"`
+	ReturnID        uuid.UUID                    `json:"return_id" binding:"required"`
+	Number          int64                        `json:"number" binding:"min=1,max=1000000000000"`
+	Version         int64                        `json:"version" binding:"min=1,max=1"`
+	State           string                       `json:"state" binding:"required,oneof=dispatched"`
+	LicenceReviewID uuid.UUID                    `json:"licence_review_id" binding:"required"`
+	Lines           []SupplierReturnDispatchLine `json:"lines" binding:"required,min=1,max=100,dive" gorm:"-"`
+	DispatchedBy    string                       `json:"dispatched_by" binding:"required,min=1,max=200"`
+	RecordedAt      string                       `json:"recorded_at"`
+	SupplierReturnDispatchInput
+}
+
 type SupplierReturnDraftLineInput struct {
 	ReceiptID            uuid.UUID `json:"receipt_id" binding:"required"`
 	QuarantineLocationID uuid.UUID `json:"quarantine_location_id" binding:"required"`
@@ -49,7 +78,7 @@ type SupplierReturnCreationReceipt struct {
 }
 
 type SupplierReturnView struct {
-	State   string `json:"state" binding:"required,oneof=draft cancelled"`
+	State   string `json:"state" binding:"required,oneof=draft cancelled dispatched"`
 	Version int64  `json:"version" binding:"min=0,max=1"`
 	SupplierReturnCreationReceipt
 }
@@ -64,7 +93,7 @@ type SupplierReturnSummary struct {
 	ExpectedCreditMinor int64     `json:"expected_credit_minor" binding:"min=0,max=1000000000000"`
 	PreparedAt          string    `json:"prepared_at"`
 	LineCount           int64     `json:"line_count" binding:"min=1,max=100"`
-	State               string    `json:"state" binding:"required,oneof=draft cancelled"`
+	State               string    `json:"state" binding:"required,oneof=draft cancelled dispatched"`
 	Version             int64     `json:"version" binding:"min=0,max=1"`
 }
 
@@ -316,7 +345,7 @@ type movementInput struct {
 }
 
 type StockMovementReceipt struct {
-	Kind         string    `json:"kind" binding:"required,oneof=receipt correction release sale return supplier_dispatch quarantine_hold"`
+	Kind         string    `json:"kind" binding:"required,oneof=receipt correction release sale return supplier_dispatch quarantine_hold supplier_return"`
 	ID           uuid.UUID `json:"id" binding:"required"`
 	OutletID     uuid.UUID `json:"outlet_id" binding:"required"`
 	ActorSubject string    `json:"actor_subject" binding:"required,min=1,max=200"`

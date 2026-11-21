@@ -18,8 +18,9 @@ import (
 )
 
 const (
-	PermSupplierReturnRead    authz.Permission = "pharmacy.supplier_returns.read"
-	PermSupplierReturnPrepare authz.Permission = "pharmacy.supplier_returns.prepare"
+	PermSupplierReturnRead     authz.Permission = "pharmacy.supplier_returns.read"
+	PermSupplierReturnPrepare  authz.Permission = "pharmacy.supplier_returns.prepare"
+	PermSupplierReturnDispatch authz.Permission = "pharmacy.supplier_returns.dispatch"
 )
 
 var (
@@ -69,6 +70,8 @@ func supplierReturnRoutes(s *platform.Router, h *catalogueHandlers) {
 	r.GET("/:return", PermSupplierReturnRead, h.getSupplierReturn)
 	r.PUT("/:return/cancellations/:cancellation", PermSupplierReturnPrepare, h.cancelSupplierReturn)
 	r.GET("/:return/cancellations/:cancellation", PermSupplierReturnRead, h.getSupplierReturnCancellation)
+	r.PUT("/:return/dispatches/:dispatch", PermSupplierReturnDispatch, h.dispatchSupplierReturn)
+	r.GET("/:return/dispatches/:dispatch", PermSupplierReturnRead, h.getSupplierReturnDispatch)
 }
 func supplierReturnScope(c *gin.Context) (authn.Principal, uuid.UUID, bool) {
 	p, outlet, ok := stockCommandScope(c)
@@ -149,6 +152,14 @@ func (h *catalogueHandlers) getSupplierReturn(c *gin.Context) {
 		if err := tx.Model(&supplierReturnCancellationRow{}).Where("tenant_id=? AND outlet_id=? AND return_id=?", p.TenantID, outlet, id).Count(&cancelled).Error; err != nil {
 			return err
 		}
+		var dispatched int64
+		if err := tx.Model(&supplierReturnDispatchRow{}).Where("tenant_id=? AND outlet_id=? AND return_id=?", p.TenantID, outlet, id).Count(&dispatched).Error; err != nil {
+			return err
+		}
+		if dispatched > 0 {
+			receipt.State = "dispatched"
+			receipt.Version = 1
+		}
 		if cancelled > 0 {
 			receipt.State = "cancelled"
 			receipt.Version = 1
@@ -178,7 +189,7 @@ func supplierReturnError(c *gin.Context, err error) {
 		return
 	}
 	var pg *pgconn.PgError
-	if !errors.Is(err, errSupplierReturnEvidence) && errors.As(err, &pg) && pg.TableName != "audit_events" && pg.TableName != "outbox_events" && (strings.HasPrefix(pg.ConstraintName, "pharmacy_supplier_return") || pg.Code == "23505") {
+	if !errors.Is(err, errSupplierReturnEvidence) && errors.As(err, &pg) && pg.TableName != "audit_events" && pg.TableName != "outbox_events" && (strings.HasPrefix(pg.ConstraintName, "pharmacy_supplier_return") || pg.ConstraintName == "pharmacy_stock_quantity_bounds" || pg.Code == "23505") {
 		respond.Conflict(c, "Supplier return evidence changed or could not be completed.")
 		return
 	}

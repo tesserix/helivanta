@@ -253,3 +253,29 @@ it("retries a confirmed missing cancellation with its original command reference
   expect(writes).toHaveLength(2);
   expect(writes[1]).toBe(writes[0]);
 });
+
+it("labels a physically dispatched return without offering draft cancellation", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      async (url: string) =>
+        new Response(
+          JSON.stringify(
+            url.includes("?limit=")
+              ? {
+                  data: [{ ...row, state: "dispatched", version: 1 }],
+                  page: { has_more: false, next_cursor: null },
+                }
+              : { ...detail, state: "dispatched", version: 1 },
+          ),
+        ),
+    ),
+  );
+  const { user } = renderWithProviders(
+    <SupplierReturnHistory scope={scope} canCancel={true} timeZone="Asia/Kolkata" />,
+  );
+  expect(await screen.findByText("Dispatched")).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "Open return 17" }));
+  expect(await screen.findByText(/Original bill TEST-INVOICE · Dispatched/)).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Cancel draft" })).not.toBeInTheDocument();
+});

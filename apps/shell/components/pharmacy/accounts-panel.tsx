@@ -8,6 +8,7 @@ import {
   PAGE_SIZE,
   useApiPageQuery,
   usePermissions,
+  useReleaseCapabilities,
   pharmacyKey,
   pharmacyRoot,
   type PharmacyScope,
@@ -69,6 +70,7 @@ function OutletAccounts({
   timeZone: string;
 }) {
   const { can } = usePermissions();
+  const release = useReleaseCapabilities();
   // The tab is the URL (#576 slice 3 D4): Overdue and Due within 7 days are
   // the overview's counts, filtered on the outlet's date the same way.
   // Anything else, an old ?due= link included, is All bills.
@@ -108,6 +110,12 @@ function OutletAccounts({
           <SupplierReturnHistory
             scope={{ ...scope, subject }}
             canCancel={writable && can("pharmacy.supplier_returns.prepare")}
+            canDispatch={
+              writable &&
+              can("pharmacy.supplier_returns.dispatch") &&
+              !release.error &&
+              release.available("pharmacy_stock")
+            }
             timeZone={timeZone}
           />
         ) : (

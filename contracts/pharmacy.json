@@ -1,6 +1,130 @@
 {
   "models": [
     {
+      "name": "SupplierReturnDispatchInput",
+      "schema": "pharmacySupplierReturnDispatchInputSchema",
+      "fields": [
+        {
+          "name": "expected_version",
+          "type": "*int64",
+          "min": 0,
+          "max": 0
+        },
+        {
+          "name": "licence_id",
+          "type": "uuid"
+        },
+        {
+          "name": "document_reference",
+          "type": "string",
+          "min": 1,
+          "max": 100,
+          "trim": true
+        },
+        {
+          "name": "recipient_name",
+          "type": "string",
+          "min": 1,
+          "max": 200,
+          "trim": true
+        },
+        {
+          "name": "handed_over_at",
+          "type": "string",
+          "format": "datetime"
+        },
+        {
+          "name": "physical_disposition",
+          "type": "string",
+          "enum": [
+            "handed_to_supplier"
+          ]
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 1,
+          "max": 500,
+          "trim": true
+        }
+      ]
+    },
+    {
+      "name": "SupplierReturnDispatchLine",
+      "schema": "pharmacySupplierReturnDispatchLineSchema",
+      "fields": [
+        {
+          "name": "return_line_id",
+          "type": "uuid"
+        },
+        {
+          "name": "movement_id",
+          "type": "uuid"
+        }
+      ]
+    },
+    {
+      "name": "SupplierReturnDispatchReceipt",
+      "schema": "pharmacySupplierReturnDispatchReceiptSchema",
+      "embed": "SupplierReturnDispatchInput",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid"
+        },
+        {
+          "name": "outlet_id",
+          "type": "uuid"
+        },
+        {
+          "name": "return_id",
+          "type": "uuid"
+        },
+        {
+          "name": "number",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000000000
+        },
+        {
+          "name": "version",
+          "type": "int64",
+          "min": 1,
+          "max": 1
+        },
+        {
+          "name": "state",
+          "type": "string",
+          "enum": [
+            "dispatched"
+          ]
+        },
+        {
+          "name": "licence_review_id",
+          "type": "uuid",
+          "uuid_any": true
+        },
+        {
+          "name": "lines",
+          "type": "[]SupplierReturnDispatchLine",
+          "min": 1,
+          "max": 100,
+          "gorm": "-"
+        },
+        {
+          "name": "dispatched_by",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "recorded_at",
+          "type": "string",
+          "format": "datetime"
+        }
+      ]
+    },
+    {
       "name": "SupplierReturnDraftLineInput",
       "schema": "pharmacySupplierReturnDraftLineInputSchema",
       "fields": [
@@ -205,7 +329,11 @@
         {
           "name": "state",
           "type": "string",
-          "enum": ["draft", "cancelled"]
+          "enum": [
+            "draft",
+            "cancelled",
+            "dispatched"
+          ]
         },
         {
           "name": "version",
@@ -270,7 +398,11 @@
         {
           "name": "state",
           "type": "string",
-          "enum": ["draft", "cancelled"]
+          "enum": [
+            "draft",
+            "cancelled",
+            "dispatched"
+          ]
         },
         {
           "name": "version",
@@ -325,7 +457,9 @@
         {
           "name": "state",
           "type": "string",
-          "enum": ["cancelled"]
+          "enum": [
+            "cancelled"
+          ]
         },
         {
           "name": "cancelled_by",
@@ -373,7 +507,9 @@
         {
           "name": "physical_disposition",
           "type": "string",
-          "enum": ["moved_to_quarantine"]
+          "enum": [
+            "moved_to_quarantine"
+          ]
         }
       ]
     },
@@ -418,7 +554,12 @@
         {
           "name": "decision",
           "type": "string",
-          "enum": ["submit", "approve", "reject", "cancel"]
+          "enum": [
+            "submit",
+            "approve",
+            "reject",
+            "cancel"
+          ]
         },
         {
           "name": "expected_version",
@@ -438,7 +579,10 @@
           "name": "extra_units_disposition",
           "type": "string",
           "optional": true,
-          "enum": ["no_extra_units", "moved_to_quarantine"]
+          "enum": [
+            "no_extra_units",
+            "moved_to_quarantine"
+          ]
         }
       ]
     },
@@ -468,7 +612,12 @@
         {
           "name": "state",
           "type": "string",
-          "enum": ["submitted", "posted", "rejected", "cancelled"]
+          "enum": [
+            "submitted",
+            "posted",
+            "rejected",
+            "cancelled"
+          ]
         },
         {
           "name": "adjustment_count",
@@ -558,7 +707,9 @@
         {
           "name": "state",
           "type": "string",
-          "enum": ["counting"]
+          "enum": [
+            "counting"
+          ]
         },
         {
           "name": "recorded_by",
@@ -580,7 +731,10 @@
         {
           "name": "selection",
           "type": "string",
-          "enum": ["all", "selected"]
+          "enum": [
+            "all",
+            "selected"
+          ]
         },
         {
           "name": "product_ids",
@@ -622,7 +776,10 @@
         {
           "name": "selection",
           "type": "string",
-          "enum": ["all", "selected"]
+          "enum": [
+            "all",
+            "selected"
+          ]
         },
         {
           "name": "product_ids",
@@ -661,7 +818,13 @@
         {
           "name": "state",
           "type": "string",
-          "enum": ["counting", "submitted", "posted", "rejected", "cancelled"]
+          "enum": [
+            "counting",
+            "submitted",
+            "posted",
+            "rejected",
+            "cancelled"
+          ]
         },
         {
           "name": "version",
@@ -697,7 +860,11 @@
         {
           "name": "review_relationship",
           "type": "string",
-          "enum": ["starter", "counter", "independent"]
+          "enum": [
+            "starter",
+            "counter",
+            "independent"
+          ]
         }
       ]
     },
@@ -775,7 +942,10 @@
         {
           "name": "stock_status",
           "type": "string",
-          "enum": ["quarantine", "sellable"]
+          "enum": [
+            "quarantine",
+            "sellable"
+          ]
         },
         {
           "name": "book_units",
@@ -793,12 +963,22 @@
           "name": "regulatory_class",
           "type": "string",
           "nullable": true,
-          "enum": ["none", "G", "H", "H1", "X"]
+          "enum": [
+            "none",
+            "G",
+            "H",
+            "H1",
+            "X"
+          ]
         },
         {
           "name": "ndps_status",
           "type": "string",
-          "enum": ["unknown", "no", "yes"]
+          "enum": [
+            "unknown",
+            "no",
+            "yes"
+          ]
         },
         {
           "name": "schedule_declaration_id",
@@ -1005,7 +1185,10 @@
         {
           "name": "licence_kind",
           "type": "string",
-          "enum": ["retail", "wholesale"]
+          "enum": [
+            "retail",
+            "wholesale"
+          ]
         },
         {
           "name": "form_label",
@@ -1065,7 +1248,10 @@
         {
           "name": "decision",
           "type": "string",
-          "enum": ["approved", "rejected"]
+          "enum": [
+            "approved",
+            "rejected"
+          ]
         },
         {
           "name": "reason",
@@ -1137,7 +1323,10 @@
         {
           "name": "content_type",
           "type": "string",
-          "enum": ["image/png", "image/jpeg"]
+          "enum": [
+            "image/png",
+            "image/jpeg"
+          ]
         },
         {
           "name": "size",
@@ -1269,7 +1458,11 @@
         {
           "name": "status",
           "type": "string",
-          "enum": ["active", "discontinued", "withdrawn"]
+          "enum": [
+            "active",
+            "discontinued",
+            "withdrawn"
+          ]
         }
       ]
     },
@@ -1344,7 +1537,10 @@
         {
           "name": "kind",
           "type": "string",
-          "enum": ["receipt", "correction"]
+          "enum": [
+            "receipt",
+            "correction"
+          ]
         },
         {
           "name": "quantity_units",
@@ -1384,7 +1580,8 @@
             "sale",
             "return",
             "supplier_dispatch",
-            "quarantine_hold"
+            "quarantine_hold",
+            "supplier_return"
           ]
         },
         {
@@ -1471,7 +1668,10 @@
         {
           "name": "stock_status",
           "type": "string",
-          "enum": ["quarantine", "sellable"],
+          "enum": [
+            "quarantine",
+            "sellable"
+          ],
           "optional": true
         }
       ]
@@ -1499,7 +1699,11 @@
         {
           "name": "ownership_type",
           "type": "string",
-          "enum": ["independent", "chain", "hospital_owned"]
+          "enum": [
+            "independent",
+            "chain",
+            "hospital_owned"
+          ]
         }
       ]
     },
@@ -1548,7 +1752,11 @@
         {
           "name": "relationship",
           "type": "string",
-          "enum": ["owner", "serving", "partner"]
+          "enum": [
+            "owner",
+            "serving",
+            "partner"
+          ]
         }
       ]
     },
@@ -1666,7 +1874,11 @@
         {
           "name": "kind",
           "type": "string",
-          "enum": ["payment", "credit", "payment_reversal"]
+          "enum": [
+            "payment",
+            "credit",
+            "payment_reversal"
+          ]
         },
         {
           "name": "amount_minor",
@@ -1689,7 +1901,13 @@
         {
           "name": "method",
           "type": "string",
-          "enum": ["cash", "bank", "card", "upi", "other"]
+          "enum": [
+            "cash",
+            "bank",
+            "card",
+            "upi",
+            "other"
+          ]
         },
         {
           "name": "source_reference",
@@ -1847,7 +2065,11 @@
         {
           "name": "supply_nature",
           "type": "string",
-          "enum": ["taxable", "nil_rated", "exempt"]
+          "enum": [
+            "taxable",
+            "nil_rated",
+            "exempt"
+          ]
         },
         {
           "name": "rate_percent",
@@ -1886,7 +2108,10 @@
         {
           "name": "price_control",
           "type": "string",
-          "enum": ["controlled", "not_controlled"]
+          "enum": [
+            "controlled",
+            "not_controlled"
+          ]
         },
         {
           "name": "ceiling_minor",
@@ -1946,7 +2171,10 @@
         {
           "name": "channel",
           "type": "string",
-          "enum": ["counter", "ward_delivery"]
+          "enum": [
+            "counter",
+            "ward_delivery"
+          ]
         },
         {
           "name": "amount_minor",
@@ -1957,12 +2185,18 @@
         {
           "name": "status",
           "type": "string",
-          "enum": ["available", "withdrawn"]
+          "enum": [
+            "available",
+            "withdrawn"
+          ]
         },
         {
           "name": "tax_treatment",
           "type": "string",
-          "enum": ["own_service", "principal_supply"]
+          "enum": [
+            "own_service",
+            "principal_supply"
+          ]
         },
         {
           "name": "sac_code",
@@ -1976,7 +2210,11 @@
         {
           "name": "supply_nature",
           "type": "string",
-          "enum": ["taxable", "nil_rated", "exempt"],
+          "enum": [
+            "taxable",
+            "nil_rated",
+            "exempt"
+          ],
           "optional": true
         },
         {

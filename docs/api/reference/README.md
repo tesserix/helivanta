@@ -525,6 +525,8 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables` | `pharmacy.accounts.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/cancellations/:cancellation` | `pharmacy.supplier_returns.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/cancellations/:cancellation` | `pharmacy.supplier_returns.prepare` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/dispatches/:dispatch` | `pharmacy.supplier_returns.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/dispatches/:dispatch` | `pharmacy.supplier_returns.dispatch` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return` | `pharmacy.supplier_returns.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return` | `pharmacy.supplier_returns.prepare` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns` | `pharmacy.supplier_returns.read` | true | false |
@@ -760,6 +762,7 @@ Migration table declarations:
 - `0053_pharmacy_stocktakes`: `pharmacy_stocktakes`, `pharmacy_stocktake_lines`, `pharmacy_stocktake_commands`, `pharmacy_stocktake_counts`, `pharmacy_stocktake_adjustments`.
 - `0054_pharmacy_stock_holds`: `pharmacy_stock_holds`.
 - `0055_pharmacy_supplier_return_drafts`: `pharmacy_supplier_returns`, `pharmacy_supplier_return_lines`, `pharmacy_supplier_return_cancellations`.
+- `0056_pharmacy_supplier_return_dispatch`: `pharmacy_supplier_return_dispatches`, `pharmacy_supplier_return_dispatch_lines`.
 
 ## payments
 

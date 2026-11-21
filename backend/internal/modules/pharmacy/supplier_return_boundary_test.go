@@ -80,12 +80,12 @@ func TestSupplierReturnInputDoesNotMergeDuplicatesOrInventCredit(t *testing.T) {
 func TestSupplierReturnDefaultRolesRestrictCommercialAuthority(t *testing.T) {
 	seen := 0
 	for _, grant := range New().Permissions() {
-		if grant.Permission == PermSupplierReturnRead || grant.Permission == PermSupplierReturnPrepare {
+		if grant.Permission == PermSupplierReturnRead || grant.Permission == PermSupplierReturnPrepare || grant.Permission == PermSupplierReturnDispatch {
 			seen++
 			require.ElementsMatch(t, []authz.Role{authz.RolePharmacyOwner, authz.RolePharmacyPurchasing}, grant.Roles)
 		}
 	}
-	require.Equal(t, 2, seen)
+	require.Equal(t, 3, seen)
 }
 
 func TestSupplierReturnHistoryRejectsUnboundedQueryBeforeResourceAccess(t *testing.T) {

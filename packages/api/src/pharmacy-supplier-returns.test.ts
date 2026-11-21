@@ -200,3 +200,141 @@ it.each(["foreign", "duplicate", "state", "continuation", "loop"])(
     expect(apiFetch).toHaveBeenCalledTimes(1);
   },
 );
+
+it("binds physical dispatch/recovery to exact intent, actor and movement proofs", async () => {
+  const command = "0199e000-0000-7000-8000-000000000020";
+  const input = {
+    expected_version: 0,
+    licence_id: command,
+    document_reference: "TEST-OUT-1",
+    recipient_name: "TEST Supplier",
+    handed_over_at: "2026-11-21T00:00:00Z",
+    physical_disposition: "handed_to_supplier" as const,
+    reason: "TEST physical handoff",
+  };
+  const row = {
+    ...input,
+    id: command,
+    return_id: id,
+    outlet_id: scope.outletId,
+    number: 1,
+    version: 1,
+    state: "dispatched",
+    licence_review_id: command,
+    dispatched_by: scope.subject,
+    recorded_at: input.handed_over_at,
+    lines: [{ return_line_id: command, movement_id: id }],
+  };
+  vi.mocked(apiFetch).mockResolvedValue(row);
+  expect(await client.dispatchPharmacySupplierReturn(scope, id, command, input)).toEqual(row);
+  expect(await client.recoverPharmacySupplierReturnDispatch(scope, id, command)).toEqual(row);
+  for (const changed of [
+    { dispatched_by: "TEST-other" },
+    { return_id: command },
+    { lines: [row.lines[0], row.lines[0]] },
+    { state: "draft" },
+    { version: 0 },
+  ]) {
+    vi.mocked(apiFetch).mockResolvedValue({ ...row, ...changed });
+    await expect(
+      client.recoverPharmacySupplierReturnDispatch(scope, id, command),
+    ).rejects.toThrow();
+  }
+  vi.mocked(apiFetch).mockResolvedValue({ ...row, reason: "TEST changed" });
+  await expect(client.dispatchPharmacySupplierReturn(scope, id, command, input)).rejects.toThrow(
+    /match/,
+  );
+  expect(client.supplierReturnDispatchKey(scope, id, command)).not.toEqual(
+    client.supplierReturnDispatchKey({ ...scope, subject: "TEST-other" }, id, command),
+  );
+});
+it("does not retry a physical dispatch after response loss", async () => {
+  const error = new Error("TEST response lost");
+  vi.mocked(apiFetch).mockRejectedValue(error);
+  await expect(
+    client.dispatchPharmacySupplierReturn(scope, id, id, {
+      expected_version: 0,
+      licence_id: id,
+      document_reference: "TEST-OUT",
+      recipient_name: "TEST recipient",
+      handed_over_at: "2026-11-21T00:00:00Z",
+      physical_disposition: "handed_to_supplier",
+      reason: "TEST actual handoff",
+    }),
+  ).rejects.toBe(error);
+  expect(apiFetch).toHaveBeenCalledTimes(1);
+});
+
+it("compares canonical licence IDs and preserves offset microsecond handoff intent", async () => {
+  const input = {
+    expected_version: 0,
+    licence_id: id.toUpperCase(),
+    document_reference: "TEST-OUT",
+    recipient_name: "TEST Supplier",
+    handed_over_at: "2026-11-21T05:30:00.123456+05:30",
+    physical_disposition: "handed_to_supplier" as const,
+    reason: "TEST handoff",
+  };
+  const row = {
+    ...input,
+    licence_id: id,
+    handed_over_at: "2026-11-21T00:00:00.123456Z",
+    id,
+    return_id: id,
+    outlet_id: scope.outletId,
+    number: 1,
+    version: 1,
+    state: "dispatched",
+    licence_review_id: id,
+    dispatched_by: scope.subject,
+    recorded_at: "2026-11-21T01:00:00Z",
+    lines: [{ return_line_id: id, movement_id: id }],
+  };
+  vi.mocked(apiFetch).mockResolvedValue(row);
+  expect(await client.dispatchPharmacySupplierReturn(scope, id, id, input)).toEqual(row);
+  vi.mocked(apiFetch).mockResolvedValue({ ...row, handed_over_at: "2026-11-21T00:00:00.123457Z" });
+  await expect(client.dispatchPharmacySupplierReturn(scope, id, id, input)).rejects.toThrow(/time/);
+});
+it("refuses unsupported sub-microsecond precision before sending a dispatch", async () => {
+  await expect(
+    client.dispatchPharmacySupplierReturn(scope, id, id, {
+      expected_version: 0,
+      licence_id: id,
+      document_reference: "TEST-OUT",
+      recipient_name: "TEST Supplier",
+      handed_over_at: "2026-11-21T00:00:00.1234561Z",
+      physical_disposition: "handed_to_supplier",
+      reason: "TEST handoff",
+    }),
+  ).rejects.toThrow(/precision/);
+  expect(apiFetch).not.toHaveBeenCalled();
+});
+
+it("recovers a receipt with the licence owner's legacy UUIDv4 review identifier", async () => {
+  const row = {
+    expected_version: 0,
+    licence_id: id,
+    document_reference: "TEST-OUT",
+    recipient_name: "TEST Supplier",
+    handed_over_at: "2026-11-21T08:23:02.18Z",
+    physical_disposition: "handed_to_supplier",
+    reason: "TEST handoff",
+    id,
+    return_id: id,
+    outlet_id: scope.outletId,
+    number: 1,
+    version: 1,
+    state: "dispatched",
+    licence_review_id: "00000000-0000-4000-8000-000000000001",
+    dispatched_by: scope.subject,
+    recorded_at: "2026-11-21T08:23:02.519032Z",
+    lines: [{ return_line_id: id, movement_id: id }],
+  };
+  vi.mocked(apiFetch).mockResolvedValue(row);
+  expect(await client.recoverPharmacySupplierReturnDispatch(scope, id, id)).toEqual(row);
+  vi.mocked(apiFetch).mockResolvedValue({
+    ...row,
+    licence_review_id: "00000000-0000-0000-0000-000000000000",
+  });
+  await expect(client.recoverPharmacySupplierReturnDispatch(scope, id, id)).rejects.toThrow();
+});

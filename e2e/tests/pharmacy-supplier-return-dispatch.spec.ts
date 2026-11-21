@@ -10,7 +10,9 @@ async function attachSupplierEvidence(
     | "commercial-return-note-print"
     | "supplier-credit-recovered"
     | "supplier-credit-matched"
-    | "supplier-credit-match-reversed",
+    | "supplier-credit-match-reversed"
+    | "supplier-credit-applied"
+    | "supplier-credit-application-reversed",
 ) {
   const path = info.outputPath(`${name}.png`);
   await page.screenshot({ path, fullPage: true });
@@ -46,7 +48,7 @@ test("supplier return preparation and physical dispatch recover response loss wi
   page,
   browser,
 }, testInfo) => {
-  test.setTimeout(180_000);
+  test.setTimeout(240_000);
   const fixture = await readyOutlet(page, browser);
   const { outlet, batch, quarantine, shelf, stamp } = fixture;
   try {
@@ -392,6 +394,195 @@ test("supplier return preparation and physical dispatch recover response loss wi
     expect(matchHistory.data[0]?.amount_minor).toBe(750);
     expect(matchHistory.data[0]?.reversal_id).toBe(reversalId);
     await attachSupplierEvidence(page, testInfo, "supplier-credit-match-reversed");
+    await owner(page, "PUT", `${outlet}/accounts/payables/${payable}/payments/${uuidv7()}`, {
+      kind: "payment",
+      amount_minor: 11800,
+      currency: "INR",
+      paid_by: "TEST Finance operator",
+      method: "bank",
+      source_reference: `TEST-ORIGINAL-PAID-${stamp}`,
+      occurred_on: "2026-11-19",
+      reason: "TEST original supplier bill fully paid",
+      reversal_of: null,
+    });
+    const futureReceipt = uuidv7(),
+      futurePayable = uuidv7(),
+      futureReference = `TEST-FUTURE-BILL-${stamp}`;
+    await owner(page, "PUT", `${outlet}/stock/movements/${futureReceipt}`, {
+      location_id: quarantine,
+      batch_id: batch,
+      kind: "receipt",
+      quantity_units: 20,
+      reason: "TEST separate later supplier delivery",
+      source_reference: `TEST-FUTURE-GRN-${stamp}`,
+    });
+    await owner(page, "PUT", `${outlet}/accounts/payables/${futurePayable}`, {
+      payee_reference: "TEST-EXT",
+      payee_name: "TEST External Supplier",
+      document_reference: futureReference,
+      issued_on: "2026-11-19",
+      due_on: "2026-11-30",
+      currency: "INR",
+      lines: [
+        {
+          category: "inventory",
+          receipt_id: futureReceipt,
+          description: "TEST later inventory acquisition",
+          net_minor: 1000,
+          tax_minor: 180,
+          recoverable_tax_minor: 180,
+          landed_minor: 0,
+        },
+      ],
+    });
+    await page.reload();
+    await page.getByRole("button", { name: `Open credit ${creditReference}`, exact: true }).click();
+    await page.getByRole("button", { name: "Apply credit to bill", exact: true }).click();
+    await choose(page, "Eligible supplier bill", new RegExp(futureReference));
+    await expect(page.getByLabel("Amount to apply (INR)", { exact: true })).toHaveValue("");
+    await page.getByLabel("Amount to apply (INR)", { exact: true }).fill("5.00");
+    await page.getByLabel("Application date", { exact: true }).fill("2026-11-19");
+    await page
+      .getByLabel("Application reason", { exact: true })
+      .fill("TEST apply retained credit to later bill");
+    const applicationPattern = `**/accounts/supplier-credits/${creditId}/allocations/*`;
+    let applicationWrites = 0,
+      applicationId = "";
+    await page.route(applicationPattern, async (route) => {
+      if (route.request().method() !== "PUT") return route.continue();
+      applicationWrites++;
+      const response = await route.fetch();
+      expect(response.status(), await response.text()).toBe(200);
+      applicationId = ((await response.json()) as { id: string }).id;
+      await route.abort("failed");
+    });
+    await page.getByRole("button", { name: "Save bill application", exact: true }).click();
+    await expect(page.getByText(/Bill application outcome is unconfirmed/)).toBeVisible();
+    await page.unroute(applicationPattern);
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.reload();
+    await page.getByRole("button", { name: `Open credit ${creditReference}`, exact: true }).click();
+    await page
+      .getByRole("button", { name: "Check original bill application", exact: true })
+      .click();
+    await expect(page.getByText(/Bill application verified/)).toBeVisible();
+    expect(applicationWrites).toBe(1);
+    expect(
+      await financial(page, "GET", `${outlet}/accounts/supplier-credits/${creditId}`),
+    ).toMatchObject({ allocated_minor: 500, available_minor: 250 });
+    expect(await owner(page, "GET", `${outlet}/accounts/payables/${futurePayable}`)).toMatchObject({
+      credit_minor: 500,
+      paid_minor: 0,
+      outstanding_minor: 680,
+    });
+    expect(await owner(page, "GET", `${outlet}/accounts/payables/${payable}`)).toMatchObject({
+      credit_minor: 0,
+      paid_minor: 11800,
+      outstanding_minor: 0,
+    });
+    await attachSupplierEvidence(page, testInfo, "supplier-credit-applied");
+    await owner(page, "PUT", `${outlet}/accounts/payables/${futurePayable}/payments/${uuidv7()}`, {
+      kind: "payment",
+      amount_minor: 680,
+      currency: "INR",
+      paid_by: "TEST Finance operator",
+      method: "bank",
+      source_reference: `TEST-FUTURE-PAID-${stamp}`,
+      occurred_on: "2026-11-20",
+      reason: "TEST pay remaining later-bill liability",
+      reversal_of: null,
+    });
+    expect(await owner(page, "GET", `${outlet}/accounts/payables/${futurePayable}`)).toMatchObject({
+      credit_minor: 500,
+      paid_minor: 680,
+      outstanding_minor: 0,
+    });
+    await page.reload();
+    await page.getByRole("button", { name: `Open credit ${creditReference}`, exact: true }).click();
+    await page
+      .getByRole("button", {
+        name: `Review application for ${futureReference}`,
+        exact: true,
+      })
+      .click();
+    const applicationReview = page.getByRole("region", {
+      name: "Bill application review",
+      exact: true,
+    });
+    await expect(
+      applicationReview.getByText("Current bill outstanding: INR 0.00", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      applicationReview.getByText("Payments retained on bill: INR 6.80", { exact: true }),
+    ).toBeVisible();
+    await page.getByLabel("Application reversal date", { exact: true }).fill("2026-11-21");
+    await page
+      .getByLabel("Application reversal reason", { exact: true })
+      .fill("TEST correct credit application after bill payment");
+    const applicationReversalPattern = `**/accounts/supplier-credits/${creditId}/allocations/${applicationId}/reversals/*`;
+    let applicationReversalWrites = 0,
+      applicationReversalId = "";
+    await page.route(applicationReversalPattern, async (route) => {
+      if (route.request().method() !== "PUT") return route.continue();
+      applicationReversalWrites++;
+      const response = await route.fetch();
+      expect(response.status(), await response.text()).toBe(200);
+      applicationReversalId = ((await response.json()) as { id: string }).id;
+      await route.abort("failed");
+    });
+    await page.getByRole("button", { name: "Reverse full bill application", exact: true }).click();
+    await expect(page.getByText(/Bill application reversal outcome is unconfirmed/)).toBeVisible();
+    await page.unroute(applicationReversalPattern);
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.reload();
+    await page.getByRole("button", { name: `Open credit ${creditReference}`, exact: true }).click();
+    await page
+      .getByRole("button", {
+        name: "Check original bill application reversal",
+        exact: true,
+      })
+      .click();
+    await expect(page.getByText(/Bill application reversal verified/)).toBeVisible();
+    await expect(
+      applicationReview.getByText("TEST correct credit application after bill payment", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    expect(applicationReversalWrites).toBe(1);
+    expect(
+      await financial(page, "GET", `${outlet}/accounts/supplier-credits/${creditId}`),
+    ).toMatchObject({ allocated_minor: 0, available_minor: 750, matched_minor: 0 });
+    expect(await owner(page, "GET", `${outlet}/accounts/payables/${futurePayable}`)).toMatchObject({
+      credit_minor: 0,
+      paid_minor: 680,
+      outstanding_minor: 500,
+    });
+    const applicationHistory = await financial<{
+      data: {
+        id: string;
+        reversal_id: string | null;
+        amount_minor: number;
+      }[];
+    }>(page, "GET", `${outlet}/accounts/supplier-credits/${creditId}/allocations`);
+    expect(applicationHistory.data).toHaveLength(1);
+    expect(applicationHistory.data[0]).toMatchObject({
+      id: applicationId,
+      reversal_id: applicationReversalId,
+      amount_minor: 500,
+    });
+    expect(
+      await owner(
+        page,
+        "GET",
+        `${outlet}/stock/balance?location_id=${quarantine}&batch_id=${batch}`,
+      ),
+    ).toMatchObject({ on_hand_units: 20 });
+    expect(
+      await owner(page, "GET", `${outlet}/stock/balance?location_id=${shelf}&batch_id=${batch}`),
+    ).toMatchObject({ on_hand_units: 16 });
+    await attachSupplierEvidence(page, testInfo, "supplier-credit-application-reversed");
+    for (const id of [applicationId, applicationReversalId, futurePayable, futureReceipt])
+      expect(await page.locator("body").innerText()).not.toContain(id);
     expect(await page.locator("body").innerText()).not.toContain(creditId);
     expect(await page.locator("body").innerText()).not.toContain(returnId);
   } finally {

@@ -18,6 +18,8 @@ test("retains only named synthetic supplier screenshots before later phases over
       "supplier-credit-recovered-1.png",
       "supplier-credit-match-reversed-1.png",
       "supplier-credit-matched-1.png",
+      "supplier-credit-applied-1.png",
+      "supplier-credit-application-reversed-1.png",
       "commercial-return-note-print-1.png",
       "PRIVATE.png",
       "trace.zip",
@@ -34,10 +36,33 @@ test("retains only named synthetic supplier screenshots before later phases over
     await retainSupplierReturnEvidence(source, target);
     assert.deepEqual((await readdir(target)).sort(), [
       "commercial-return-note-print-1.png",
+      "supplier-credit-application-reversed-1.png",
+      "supplier-credit-applied-1.png",
       "supplier-credit-match-reversed-1.png",
       "supplier-credit-matched-1.png",
       "supplier-credit-recovered-1.png",
     ]);
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+test("requires application and paid-bill reversal evidence as well as matching evidence", async () => {
+  const temp = await mkdtemp(path.join(tmpdir(), "helivanta-supplier-evidence-"));
+  try {
+    const source = path.join(temp, "results");
+    const fixture = path.join(source, "pharmacy-supplier-return-dispatch-specs", "attachments");
+    await mkdir(fixture, { recursive: true });
+    for (const name of [
+      "supplier-credit-recovered",
+      "supplier-credit-matched",
+      "supplier-credit-match-reversed",
+      "commercial-return-note-print",
+    ])
+      await writeFile(path.join(fixture, `${name}-1.png`), "TEST image");
+    await assert.rejects(
+      () => retainSupplierReturnEvidence(source, path.join(temp, "output")),
+      /Missing required synthetic supplier screenshots/,
+    );
   } finally {
     await rm(temp, { recursive: true, force: true });
   }

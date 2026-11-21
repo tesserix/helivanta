@@ -159,9 +159,9 @@ SDK suite pass together (86 cases); they do not establish browser or live accept
 The hosted spec extends the existing dispatch journey with real credit entry and
 response-loss recovery, then captures `supplier-credit-recovered` for visual review.
 Local component/SDK tests do not substitute for that hosted run or live acceptance.
-Matching and full match reversal are development UI candidates; bill
-application/reversal and void/correction controls still require finance UI and
-complete browser acceptance.
+Matching, full match reversal and bill application/reversal are development UI
+candidates pending their latest hosted/visual and live acceptance. Void/correction
+controls still require finance UI and complete browser acceptance.
 Document entry and matching are not bill settlement.
 
 ### Match actual credit to dispatched returns
@@ -219,9 +219,48 @@ Document entry and matching are not bill settlement.
    disclosure must not be presented as verified. A storage failure must prevent
    submission or preserve the existing reference for recovery.
 
+### Apply actual credit and reverse after bill payment
+
+1. Fully pay the original source bill through the normal owning payment API.
+   Verify the credit remains unused. Create a separate later receipt and inventory
+   bill for that supplier; do not reuse the same receipt on two bills.
+2. Open the named credit and choose **Apply credit to bill**. Select the named
+   eligible bill. The amount must start blank; enter it, a date and reason
+   explicitly. Verify unused credit and outstanding liability are distinct.
+   Exceeding either balance or using a date before either document or after the
+   current outlet date must prevent submission. Matching the entire credit to
+   returns must not incorrectly remove its unused pool.
+3. Apply INR 5.00 from a INR 7.50 credit to a INR 11.80 later bill. Verify unused
+   credit becomes INR 2.50, applied credit INR 5.00 and outstanding INR 6.80.
+   The original fully paid bill remains unchanged. In the disposable hosted
+   fixture, lose the committed response, reload, reopen the credit and choose
+   **Check original bill application**. Verify one PUT and the same original.
+4. Record INR 6.80 against the later bill through the normal payment API. The
+   bill is now fully paid and absent from eligible choices. From application
+   history choose **Review application**: exact original context must still
+   show INR 0.00 outstanding and INR 6.80 retained payment.
+5. Enter a reversal reason/date on or after the original application and no later
+   than the outlet date. Choose **Reverse full bill application**. Verify INR
+   7.50 unused credit, zero applied credit, INR 5.00 restored liability and INR
+   6.80 retained payment. Original application amount/reason/recorder remain
+   immutable, with separate named reversal evidence. Stock, cash and matching
+   remain unchanged.
+6. Lose the committed reversal response in the hosted fixture, reload and reopen
+   the named credit. The original review reopens from its scoped references;
+   choose **Check original bill application reversal**. Verify one PUT and the
+   same reversal. Recovery for both commands must also work when writes are
+   disabled, without querying eligible choices. Reference storage contains no
+   supplier, amount or reason. No unknown outcome may cause automatic retry.
+7. Exercise stale credit/bill observations, scope/actor changes, source/history
+   refusal and storage failure. New commands fail closed; cached private evidence
+   is hidden on refusal. After confirmed not-found recovery, only the exact
+   original command/intent may retry. After reload, re-entry must keep the same
+   command identity. A cleanup failure retains recovery and blocks another write.
+
 CI retains only the named synthetic `commercial-return-note-print`,
-`supplier-credit-recovered`, `supplier-credit-matched` and
-`supplier-credit-match-reversed` PNGs in the
+`supplier-credit-recovered`, `supplier-credit-matched`,
+`supplier-credit-match-reversed`, `supplier-credit-applied` and
+`supplier-credit-application-reversed` PNGs in the
 `supplier-return-visual-evidence` artifact for seven days. The capture runs before
 later Playwright phases overwrite their reports; missing required images fail
 capture. Download and visually inspect that artifact before accepting the UI.
@@ -231,8 +270,10 @@ No live patient, staff or supplier data belongs in these fixtures.
 
 `e2e/tests/pharmacy-supplier-return-dispatch.spec.ts` exercises the real browser,
 Global API and owning backend for preparation and dispatch response-loss recovery,
-then commercial-note download/print-media rendering and actual credit-entry
-response-loss recovery through the Supplier credits workspace.
+then commercial-note download/print-media rendering, actual credit entry,
+matching/reversal and application/paid-bill reversal with response-loss recovery
+through the Supplier credits workspace. Inspect the latest hosted run before
+recording any of these candidate journeys as passed.
 `TestSupplierReturn*` includes native ownership, authority, concurrency, receipt
 cap and audit/outbox cases. Local compilation/targeted tests alone do not prove
 hosted or deployed acceptance.

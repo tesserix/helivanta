@@ -1723,6 +1723,35 @@ is hidden on failed owner reads; a storage cleanup failure preserves same-comman
 recovery and blocks another reversal. The hosted browser scenario now covers a
 lost committed reversal, reload, one-write recovery and unchanged bill/stock.
 
-Bill application/reversal and void/correction UI, complete bill history/report
-integration, hosted/visual acceptance of matching and reversal, remaining Global
-API E2E and approved live acceptance remain open in #1784.
+Candidate bill application controls now select a named eligible outstanding bill
+for the same supplier/currency. The actual amount starts blank and must fit both
+the unused credit pool and current bill liability. Return attribution does not
+spend that pool. The explicit application date must be on/after both documents
+and no later than the owner-provided outlet date. Submission includes current
+credit/bill versions and both observed balances. Financial editor authority,
+accounts-adjust and Payables admission remain necessary for new commands.
+
+Bounded immutable application history retains the original bill reference,
+amount, date, reason and named recorder. Exact application context supports review
+even after a bill is fully paid and absent from eligible choices. Full reversal
+requires an explicit reason/date and current observations; it restores only the
+original applied amount to credit and liability, retaining subsequent payments.
+Its date cannot precede the original application or exceed the outlet date.
+Neither command changes physical stock or captures/refunds cash.
+
+Application recovery stores only its scoped command reference. Reversal recovery
+stores only the scoped command and original application references, reopening the
+exact review after reload without scanning eligible bills. In-memory intent is
+checked when retained; the SDK also binds recovered reversal evidence to the
+original bill, amount and human references. Unknown outcomes never retry
+automatically. Missing originals reuse the same identity; failed storage prevents
+submission, and failed cleanup blocks another command. Retained history/recovery
+continues with new writes disabled under current read authority. Failed history
+or current context reads conceal cached financial evidence.
+
+The hosted browser candidate additionally covers a fully paid source bill,
+partial application to a later bill, payment of its remainder, full application
+reversal, unchanged payments/stock and same-command reload recovery for both
+writes. Latest hosted/visual evidence and approved live acceptance remain
+required. Void/correction UI, complete bill history/report integration and the
+remaining supplier acceptance remain open in #1784.

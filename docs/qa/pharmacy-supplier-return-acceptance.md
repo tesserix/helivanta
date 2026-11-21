@@ -85,8 +85,9 @@ their evidence is recorded.
 
 ## Actual supplier-credit document candidate
 
-The registered document backend and SDK are in development; there is no delivered
-credit workspace or live acceptance yet. The native hosted scenarios exercise:
+The document backend, SDK and Accounts credit-entry/history workspace are
+development candidates. They have not been deployed or accepted live. The native
+hosted scenarios exercise:
 
 - Actual partial credit of 750 paise against a fully paid 11800-paise source bill,
   across hospital-owned, independent and chain outlets. The bill stays paid and
@@ -102,7 +103,7 @@ conservation, exact request/response scope, normalized original intent, separate
 current/immutable reads, cross-actor historical read versus recovery, versioned
 void evidence, bounded/unique pages and no automatic retry after uncertainty.
 These SDK tests do not substitute for a real Global API/browser financial journey.
-Matching and allocation/reversal tests must be added with those owner commands;
+Matching and allocation/reversal have separate owner-native and SDK scenarios;
 do not claim financial settlement from document-stage acceptance alone.
 
 The matching candidate adds `supplier_credit_matching_native_test.go`. Its hosted
@@ -124,11 +125,49 @@ cross-actor history versus recovery, bounded/unique pages, cancellation and no
 automatic second intent after uncertain transport. These tests and the document
 SDK suite pass together (86 cases); they do not establish browser or live acceptance.
 
+## Record and recover actual supplier credit
+
+1. Use an account with current accounts-read/accounts-adjust permission and an
+   active grant to this outlet. Finance-only staff must not need physical stock or
+   supplier-return permission. Confirm Payables is available in the reviewed release.
+2. Open **Pharmacy → Accounts → Supplier credits → Record supplier credit**.
+   Choose the dispatched return by return number, supplier and original bill.
+   Draft returns must be absent. Page through additional choices when necessary.
+3. Confirm the expected return value is informational. The actual credit amount
+   starts blank. Enter the supplier note reference, issue date, actual amount and
+   reason from its evidence. Do not substitute the expected value or infer tax.
+4. Save once. Check the named supplier/reference and recorder, actual amount,
+   matched-to-returns amount, applied-to-bills amount and unused pool separately.
+   Recording the note alone must not change physical stock or the original bill's
+   liability, including when that source bill is fully paid.
+5. In the disposable hosted browser fixture, lose the save response after commit.
+   Reload and choose **Check original credit**. Only the scoped command reference
+   is retained in browser session storage; no supplier, amount or reason is stored.
+   Verify the same credit, a single PUT and no duplicate document. Repeat with
+   new recording disabled: retained recovery must remain available under current
+   read authority. If recovery returns not found, retry only the original command
+   and intent; do not start another note while its outcome is uncertain.
+6. Check invalid amounts focus the inline field error. A definite refusal must
+   keep the actual amount visible. Unavailable storage must prevent submission.
+   Foreign/malformed source responses, history refusal or failed detail reads must
+   hide previously loaded private evidence. Switching accounts or outlets must
+   not expose another scope's draft, choices or recovery reference.
+7. Repeat tenant/outlet/actor denial, revoked access and read-audit failure through
+   the Global API. No private choices or successful financial write may escape
+   failed authorization or failed audit.
+
+The hosted spec extends the existing dispatch journey with real credit entry and
+response-loss recovery, then captures `supplier-credit-recovered` for visual review.
+Local component/SDK tests do not substitute for that hosted run or live acceptance.
+Matching, bill application, reversal and void/correction controls still require
+finance UI and complete browser acceptance; document entry is not settlement.
+
 ## Evidence and remaining scope
 
 `e2e/tests/pharmacy-supplier-return-dispatch.spec.ts` exercises the real browser,
 Global API and owning backend for preparation and dispatch response-loss recovery,
-then complete commercial-note download and print-media rendering.
+then commercial-note download/print-media rendering and actual credit-entry
+response-loss recovery through the Supplier credits workspace.
 `TestSupplierReturn*` includes native ownership, authority, concurrency, receipt
 cap and audit/outbox cases. Local compilation/targeted tests alone do not prove
 hosted or deployed acceptance.

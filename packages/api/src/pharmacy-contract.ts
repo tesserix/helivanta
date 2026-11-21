@@ -8,6 +8,127 @@ const identifier = z
     /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     "Choose a valid record.",
   );
+export const pharmacySupplierCreditAllocationInputSchema = z
+  .object({
+    payable_id: identifier,
+    expected_version: z.number().int().min(1).max(999999999999),
+    expected_available_minor: z.number().int().min(0).max(1000000000000),
+    expected_payable_version: z.number().int().min(1).max(999999999999),
+    expected_outstanding_minor: z.number().int().min(0).max(1000000000000),
+    occurred_on: z
+      .string()
+      .regex(new RegExp("^(?:19[7-9][0-9]|[2-9][0-9]{3})-"), "Use the required format.")
+      .date("Use a full valid date."),
+    reason: z.string().trim().min(1).max(500),
+    amount_minor: z.number().int().min(1).max(1000000000000),
+  })
+  .strict();
+
+export const pharmacySupplierCreditAllocationReceiptSchema =
+  pharmacySupplierCreditAllocationInputSchema
+    .extend({
+      id: identifier,
+      outlet_id: identifier,
+      credit_id: identifier,
+      version: z.number().int().min(1).max(1000000000000),
+      payable_version: z.number().int().min(1).max(1000000000000),
+      available_minor: z.number().int().min(0).max(1000000000000),
+      outstanding_minor: z.number().int().min(0).max(1000000000000),
+      payable_reference: z.string().min(1).max(100),
+      credit_document_reference: z.string().min(1).max(100),
+      payee_name: z.string().min(1).max(200),
+      recorded_by: z.string().min(1).max(200),
+      recorded_at: z
+        .string()
+        .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+    })
+    .strict();
+
+export const pharmacySupplierCreditAllocationViewSchema =
+  pharmacySupplierCreditAllocationReceiptSchema
+    .extend({
+      reversal_id: identifier.nullable().optional(),
+    })
+    .strict();
+
+export const pharmacySupplierCreditAllocationReversalInputSchema = z
+  .object({
+    expected_version: z.number().int().min(1).max(999999999999),
+    expected_available_minor: z.number().int().min(0).max(1000000000000),
+    expected_payable_version: z.number().int().min(1).max(999999999999),
+    expected_outstanding_minor: z.number().int().min(0).max(1000000000000),
+    occurred_on: z
+      .string()
+      .regex(new RegExp("^(?:19[7-9][0-9]|[2-9][0-9]{3})-"), "Use the required format.")
+      .date("Use a full valid date."),
+    reason: z.string().trim().min(1).max(500),
+  })
+  .strict();
+
+export const pharmacySupplierCreditAllocationReversalReceiptSchema =
+  pharmacySupplierCreditAllocationReversalInputSchema
+    .extend({
+      id: identifier,
+      outlet_id: identifier,
+      credit_id: identifier,
+      version: z.number().int().min(1).max(1000000000000),
+      payable_version: z.number().int().min(1).max(1000000000000),
+      available_minor: z.number().int().min(0).max(1000000000000),
+      outstanding_minor: z.number().int().min(0).max(1000000000000),
+      payable_reference: z.string().min(1).max(100),
+      credit_document_reference: z.string().min(1).max(100),
+      payee_name: z.string().min(1).max(200),
+      recorded_by: z.string().min(1).max(200),
+      recorded_at: z
+        .string()
+        .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+      allocation_id: identifier,
+      payable_id: identifier,
+      amount_minor: z.number().int().min(1).max(1000000000000),
+    })
+    .strict();
+
+export const pharmacySupplierCreditPayableFieldsSchema = z
+  .object({
+    id: identifier,
+    outlet_id: identifier,
+    document_reference: z.string().min(1).max(100),
+    payee_name: z.string().min(1).max(200),
+    currency: z.enum(["INR"]),
+    issued_on: z.string().date("Use a full valid date."),
+    due_on: z.string().date("Use a full valid date."),
+    total_minor: z.number().int().min(1).max(1000000000000),
+    paid_minor: z.number().int().min(0).max(1000000000000),
+    credit_minor: z.number().int().min(0).max(1000000000000),
+    version: z.number().int().min(1).max(1000000000000),
+  })
+  .strict();
+
+export const pharmacySupplierCreditPayableChoiceSchema = pharmacySupplierCreditPayableFieldsSchema
+  .extend({
+    outstanding_minor: z.number().int().min(1).max(1000000000000),
+  })
+  .strict();
+
+export const pharmacySupplierCreditPayableContextSchema = pharmacySupplierCreditPayableFieldsSchema
+  .extend({
+    outstanding_minor: z.number().int().min(0).max(1000000000000),
+  })
+  .strict();
+
+export const pharmacySupplierCreditReturnChoiceSchema = z
+  .object({
+    id: identifier,
+    outlet_id: identifier,
+    number: z.number().int().min(1).max(1000000000000),
+    original_bill_reference: z.string().min(1).max(100),
+    payee_name: z.string().min(1).max(200),
+    currency: z.enum(["INR"]),
+    expected_credit_minor: z.number().int().min(0).max(1000000000000),
+    matched_minor: z.number().int().min(0).max(1000000000000),
+  })
+  .strict();
+
 export const pharmacySupplierCreditMatchInputSchema = z
   .object({
     return_id: identifier,
@@ -105,6 +226,16 @@ export const pharmacySupplierCreditDocumentViewSchema = pharmacySupplierCreditDo
     matched_minor: z.number().int().min(0).max(1000000000000),
     allocated_minor: z.number().int().min(0).max(1000000000000),
     available_minor: z.number().int().min(0).max(1000000000000),
+  })
+  .strict();
+
+export const pharmacySupplierCreditContextSchema = pharmacySupplierCreditDocumentViewSchema
+  .extend({
+    local_date: z.string().date("Use a full valid date."),
+    as_of: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+    timezone: z.string().min(1).max(100),
   })
   .strict();
 
@@ -924,5 +1055,13 @@ export const pharmacyUnusedPaymentRefundFieldsSchema = z
   .object({
     reference: z.string().trim().min(1).max(64),
     reason: z.string().trim().min(5).max(200),
+  })
+  .strict();
+
+export const pharmacySupplierCreditAllocationContextSchema = z
+  .object({
+    credit: pharmacySupplierCreditContextSchema,
+    allocation: pharmacySupplierCreditAllocationViewSchema,
+    payable: pharmacySupplierCreditPayableContextSchema,
   })
   .strict();

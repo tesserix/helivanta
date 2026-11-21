@@ -139,3 +139,38 @@ func TestUnreleasedStaffRemindersCannotUseCoreStaffAdmission(t *testing.T) {
 		})
 	}
 }
+
+func TestDisabledPayablesHideCreditSourceChoicesButRetainEvidence(t *testing.T) {
+	now := time.Date(2026, 11, 21, 0, 0, 0, 0, time.UTC)
+	payload := `{"features":{}}`
+	service := testService(t, &payload, &now)
+	require.NoError(t, service.Refresh(t.Context()))
+	const base = "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit"
+	for _, tc := range []struct {
+		path string
+		want int
+	}{
+		{strings.TrimSuffix(base, "/:credit") + "/source-returns", http.StatusNotFound},
+		{base + "/eligible-payables", http.StatusNotFound},
+		{base + "/eligible-returns", http.StatusNotFound},
+		{base + "/context", http.StatusNoContent},
+		{base + "/allocations", http.StatusNoContent},
+		{base + "/allocations/:allocation/recovery", http.StatusNoContent},
+		{base + "/allocations/:allocation/context", http.StatusNoContent},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			engine := gin.New()
+			engine.Use(func(c *gin.Context) {
+				c.Set("authn.principal", authn.Principal{TenantID: "018f8f5b-1111-7111-8111-111111111111", Subject: "TEST-owner"})
+			})
+			route := tc.path
+			called := false
+			engine.GET(route, service.Admission(http.MethodGet, route), func(c *gin.Context) { called = true; c.Status(http.StatusNoContent) })
+			response := httptest.NewRecorder()
+			engine.ServeHTTP(response, httptest.NewRequest(http.MethodGet, strings.ReplaceAll(route, ":", ""), nil))
+			require.Equal(t, tc.want, response.Code, response.Body.String())
+			require.Equal(t, tc.want == http.StatusNoContent, called)
+		})
+	}
+}

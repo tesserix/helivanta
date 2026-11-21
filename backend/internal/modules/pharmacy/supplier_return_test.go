@@ -72,7 +72,7 @@ func TestSupplierReturnDraftKeepsStockAndPaidBillsAndSupportsCancellation(t *tes
 		t.Run(ownership, func(t *testing.T) {
 			w := newSupplierReturnWorld(t, ownership)
 			billPath := payableRoot() + "/payables/" + w.bill
-			paid := do(w.r, "PUT", billPath+"/payments/"+uuid.Must(uuid.NewV7()).String(), "editor", settlementBody("payment", "TEST fully paid", 11800, nil))
+			paid := do(w.r, "PUT", billPath+"/payments/"+uuid.Must(uuid.NewV7()).String(), "editor", strings.Replace(settlementBody("payment", "TEST fully paid", 11800, nil), "2026-10-15", "2026-11-15", 1))
 			require.Equal(t, 200, paid.Code, paid.Body.String())
 			id := uuid.Must(uuid.NewV7()).String()
 			path := supplierReturnPath(id)

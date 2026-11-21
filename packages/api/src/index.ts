@@ -274,3 +274,6 @@ export {
   pharmacyStocktakeStartInputSchema,
 } from "./pharmacy-contract";
 export { pharmacyReorderLevelInputSchema } from "./pharmacy-contract";
+
+export * from "./pharmacy-actor";
+export * from "./pharmacy-supplier-returns";

@@ -1294,5 +1294,7 @@ must document that bound. The new tables also participate in the restrictive
 location-choice purpose policies and integrity fingerprint.
 
 Dispatch, actual supplier-credit recognition/matching/allocation, printable notes,
-SDK/UI integration and complete live acceptance remain outstanding. The expected
+UI integration and complete live acceptance remain outstanding. The account-bound
+SDK validates outlet, actor, command, original receipt quantities and explicit
+credit totals without retrying uncertain commands under a new identity. The expected
 credit is not an actual credit note, refund, GST/ITC decision or GL posting.

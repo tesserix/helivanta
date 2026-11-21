@@ -35,3 +35,8 @@ it.each([
 ])("refuses %s in a supplier-return command", (_name, input) => {
   expect(schema()?.safeParse(input).success).toBe(false);
 });
+
+it("exports the account-bound supplier return transport", async () => {
+  const sdk = await import("./index");
+  expect(Reflect.get(sdk, "preparePharmacySupplierReturn")).toBeTypeOf("function");
+});

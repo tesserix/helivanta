@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { apiFetch } from "./client";
-import { pharmacyKey, pharmacyRoot, type PharmacyScope } from "./pharmacy";
+import { pharmacyKey, pharmacyRoot } from "./pharmacy";
+import { pharmacyActorHeaders, type PharmacyActorScope } from "./pharmacy-actor";
 import {
   pharmacyStocktakeCountInputSchema,
   pharmacyStocktakeCountReceiptSchema,
@@ -13,15 +14,12 @@ import {
 } from "./pharmacy-contract";
 
 export type PharmacyStocktake = z.infer<typeof pharmacyStocktakeSchema>;
-export type PharmacyStocktakeScope = PharmacyScope & { subject: string };
+export type PharmacyStocktakeScope = PharmacyActorScope;
 export function stocktakeKey(scope: PharmacyStocktakeScope, ...parts: unknown[]) {
   return pharmacyKey(scope, "stocktake-actor", scope.subject, ...parts);
 }
 export function stocktakeHeaders(scope: PharmacyStocktakeScope) {
-  return {
-    "X-Helivanta-Expected-Tenant": id.parse(scope.tenantId),
-    "X-Helivanta-Expected-Subject": z.string().min(1).max(200).parse(scope.subject),
-  };
+  return pharmacyActorHeaders(scope);
 }
 export type PharmacyStocktakeSummary = z.infer<typeof pharmacyStocktakeSummarySchema>;
 export type PharmacyStocktakeLine = z.infer<typeof pharmacyStocktakeLineSchema>;

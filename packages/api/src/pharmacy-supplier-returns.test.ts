@@ -1,0 +1,140 @@
+import { afterEach, expect, it, vi } from "vitest";
+import * as client from "./pharmacy-supplier-returns";
+import { apiFetch } from "./client";
+vi.mock("./client", () => ({ apiFetch: vi.fn() }));
+afterEach(() => vi.resetAllMocks());
+const scope = {
+  tenantId: "0199e000-0000-7000-8000-000000000001",
+  pharmacyId: "0199e000-0000-7000-8000-000000000002",
+  outletId: "0199e000-0000-7000-8000-000000000003",
+  subject: "TEST-owner",
+};
+const id = "0199e000-0000-7000-8000-000000000004";
+const input = {
+  payable_id: "0199e000-0000-7000-8000-000000000005",
+  reason: "TEST review",
+  lines: [
+    {
+      receipt_id: "0199e000-0000-7000-8000-000000000006",
+      quarantine_location_id: "0199e000-0000-7000-8000-000000000007",
+      quantity_units: 4,
+      expected_credit_minor: 1500,
+    },
+  ],
+};
+const receipt = {
+  id,
+  outlet_id: scope.outletId,
+  number: 1,
+  payable_id: input.payable_id,
+  payee_reference: "TEST-EXT",
+  payee_name: "TEST External Supplier",
+  document_reference: "TEST-BILL",
+  currency: "INR",
+  expected_credit_minor: 1500,
+  reason: input.reason,
+  prepared_by: scope.subject,
+  prepared_at: "2026-11-21T00:00:00Z",
+  lines: [
+    {
+      ...input.lines[0],
+      id: "0199e000-0000-7000-8000-000000000008",
+      batch_id: "0199e000-0000-7000-8000-000000000009",
+      product_id: "0199e000-0000-7000-8000-000000000010",
+      product_version: 1,
+      product_name: "TEST Brand",
+      generic_name: "TEST generic",
+      unit_code: "capsule",
+      lot_number: "TEST-LOT",
+      expires_on: "2030-10-31",
+      receipt_units: 80,
+      source_reference: "TEST-delivery",
+      source_created_at: "2026-11-20T00:00:00Z",
+    },
+  ],
+};
+it("binds draft creation to account, outlet, original receipts and explicit expectation", async () => {
+  vi.mocked(apiFetch).mockResolvedValue(receipt);
+  expect(await client.preparePharmacySupplierReturn(scope, id, input)).toEqual(receipt);
+  expect(apiFetch).toHaveBeenCalledTimes(1);
+  expect(apiFetch).toHaveBeenCalledWith(
+    expect.stringContaining(`/accounts/supplier-returns/${id}`),
+    expect.objectContaining({
+      method: "PUT",
+      cache: "no-store",
+      headers: {
+        "X-Helivanta-Expected-Tenant": scope.tenantId,
+        "X-Helivanta-Expected-Subject": scope.subject,
+      },
+      signal: expect.any(AbortSignal),
+    }),
+  );
+});
+it.each([
+  { ...receipt, outlet_id: input.payable_id },
+  { ...receipt, prepared_by: "TEST-other" },
+  { ...receipt, expected_credit_minor: 1501 },
+  { ...receipt, lines: [{ ...receipt.lines[0], quantity_units: 5 }] },
+])("does not acknowledge an inconsistent creation receipt", async (value) => {
+  vi.mocked(apiFetch).mockResolvedValue(value);
+  await expect(client.preparePharmacySupplierReturn(scope, id, input)).rejects.toThrow(
+    /recover|match|verified/i,
+  );
+  expect(apiFetch).toHaveBeenCalledTimes(1);
+});
+it("allows authorised business reads of another preparer's draft", async () => {
+  vi.mocked(apiFetch).mockResolvedValue({
+    ...receipt,
+    prepared_by: "TEST-other",
+    state: "draft",
+    version: 0,
+  });
+  expect((await client.readPharmacySupplierReturn(scope, id)).prepared_by).toBe("TEST-other");
+});
+it("rejects an impossible state/version projection", async () => {
+  vi.mocked(apiFetch).mockResolvedValue({ ...receipt, state: "cancelled", version: 0 });
+  await expect(client.readPharmacySupplierReturn(scope, id)).rejects.toThrow();
+});
+it("does not send invalid commands or silently retry failures", async () => {
+  await expect(
+    client.preparePharmacySupplierReturn(scope, id, { ...input, lines: [] }),
+  ).rejects.toThrow();
+  expect(apiFetch).not.toHaveBeenCalled();
+  const unavailable = new Error("TEST authority unavailable");
+  vi.mocked(apiFetch).mockRejectedValue(unavailable);
+  await expect(client.preparePharmacySupplierReturn(scope, id, input)).rejects.toBe(unavailable);
+  expect(apiFetch).toHaveBeenCalledTimes(1);
+});
+
+it("binds cancellation and recovery to the original actor and command", async () => {
+  const command = "0199e000-0000-7000-8000-000000000020";
+  const cancellation = {
+    id: command,
+    return_id: id,
+    outlet_id: scope.outletId,
+    expected_version: 0,
+    version: 1,
+    state: "cancelled",
+    reason: "TEST corrected supplier request",
+    cancelled_by: scope.subject,
+    cancelled_at: "2026-11-21T00:00:00Z",
+  };
+  vi.mocked(apiFetch).mockResolvedValue(cancellation);
+  expect(
+    await client.cancelPharmacySupplierReturn(scope, id, command, {
+      expected_version: 0,
+      reason: cancellation.reason,
+    }),
+  ).toEqual(cancellation);
+  expect(await client.recoverPharmacySupplierReturnCancellation(scope, id, command)).toEqual(
+    cancellation,
+  );
+  vi.mocked(apiFetch).mockResolvedValue({ ...cancellation, cancelled_by: "TEST-other" });
+  await expect(
+    client.recoverPharmacySupplierReturnCancellation(scope, id, command),
+  ).rejects.toThrow(/recover|verified/i);
+  vi.mocked(apiFetch).mockResolvedValue({ ...cancellation, return_id: input.payable_id });
+  await expect(
+    client.recoverPharmacySupplierReturnCancellation(scope, id, command),
+  ).rejects.toThrow(/recover|verified/i);
+});

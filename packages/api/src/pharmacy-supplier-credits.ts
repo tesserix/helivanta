@@ -7,6 +7,9 @@ import {
   pharmacySupplierCreditAllocationViewSchema,
   pharmacySupplierCreditAllocationReversalInputSchema,
   pharmacySupplierCreditAllocationReversalReceiptSchema,
+  pharmacySupplierCreditContextSchema,
+  pharmacySupplierCreditPayableChoiceSchema,
+  pharmacySupplierCreditReturnChoiceSchema,
   pharmacySupplierCreditDocumentInputSchema,
   pharmacySupplierCreditDocumentReceiptSchema,
   pharmacySupplierCreditDocumentViewSchema,
@@ -698,4 +701,73 @@ export async function recoverPharmacySupplierCreditAllocationReversal(
   );
   if (!sameID(row.id, entry) || row.recorded_by !== scope.subject) return mismatch();
   return row;
+}
+
+export type PharmacySupplierCreditContext = z.infer<typeof pharmacySupplierCreditContextSchema>;
+export type PharmacySupplierCreditPayableChoice = z.infer<
+  typeof pharmacySupplierCreditPayableChoiceSchema
+>;
+export type PharmacySupplierCreditReturnChoice = z.infer<
+  typeof pharmacySupplierCreditReturnChoiceSchema
+>;
+export async function readPharmacySupplierCreditContext(
+  scope: PharmacyActorScope,
+  credit: string,
+  signal?: AbortSignal,
+) {
+  const context = pharmacySupplierCreditContextSchema.parse(
+    await apiFetch(`${root(scope, credit)}/context`, request(scope, signal)),
+  );
+  checkedView(scope, credit, pharmacySupplierCreditDocumentViewSchema.strip().parse(context));
+  const asOf = z.string().datetime({ offset: true }).parse(context.as_of);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: context.timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(asOf));
+  const part = (type: string) => parts.find((value) => value.type === type)?.value;
+  if (context.local_date !== `${part("year")}-${part("month")}-${part("day")}`) return mismatch();
+  return context;
+}
+const payableChoicePage = creditPage.extend({
+  data: z.array(pharmacySupplierCreditPayableChoiceSchema).max(50),
+});
+const returnChoicePage = creditPage.extend({
+  data: z.array(pharmacySupplierCreditReturnChoiceSchema).max(50),
+});
+export async function listPharmacySupplierCreditPayableChoices(
+  scope: PharmacyActorScope,
+  credit: string,
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  const query = new URLSearchParams({ limit: "50" });
+  if (cursor !== null) query.set("cursor", cursorSchema.parse(cursor));
+  const page = payableChoicePage.parse(
+    await apiFetch(`${root(scope, credit)}/eligible-payables?${query}`, request(scope, signal)),
+  );
+  checkCreditContinuation(page, cursor);
+  for (const row of page.data)
+    if (
+      !sameID(row.outlet_id, scope.outletId) ||
+      row.total_minor !== row.paid_minor + row.credit_minor + row.outstanding_minor
+    )
+      return mismatch();
+  return page;
+}
+export async function listPharmacySupplierCreditReturnChoices(
+  scope: PharmacyActorScope,
+  credit: string,
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  const query = new URLSearchParams({ limit: "50" });
+  if (cursor !== null) query.set("cursor", cursorSchema.parse(cursor));
+  const page = returnChoicePage.parse(
+    await apiFetch(`${root(scope, credit)}/eligible-returns?${query}`, request(scope, signal)),
+  );
+  checkCreditContinuation(page, cursor);
+  for (const row of page.data) if (!sameID(row.outlet_id, scope.outletId)) return mismatch();
+  return page;
 }

@@ -3881,6 +3881,33 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/context",
+          "permission": "pharmacy.accounts.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/eligible-payables",
+          "permission": "pharmacy.accounts.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/eligible-returns",
+          "permission": "pharmacy.accounts.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match/recovery",
           "permission": "pharmacy.accounts.read",
           "authentication_required": true,
@@ -6293,6 +6320,73 @@
           "creates_tables": [
             "pharmacy_supplier_credit_allocations",
             "pharmacy_supplier_credit_allocation_reversals"
+          ]
+        },
+        {
+          "id": "0061_pharmacy_supplier_credit_source_indexes",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "pharmacy_supplier_credit_payable_choices",
+              "table": "pharmacy_payables",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "outlet_id",
+                  "descending": false
+                },
+                {
+                  "name": "payee_reference",
+                  "descending": false
+                },
+                {
+                  "name": "currency",
+                  "descending": false
+                },
+                {
+                  "name": "created_at",
+                  "descending": true
+                },
+                {
+                  "name": "id",
+                  "descending": true
+                }
+              ]
+            },
+            {
+              "name": "pharmacy_supplier_credit_return_choices",
+              "table": "pharmacy_supplier_returns",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "outlet_id",
+                  "descending": false
+                },
+                {
+                  "name": "payee_reference",
+                  "descending": false
+                },
+                {
+                  "name": "currency",
+                  "descending": false
+                },
+                {
+                  "name": "created_at",
+                  "descending": true
+                },
+                {
+                  "name": "id",
+                  "descending": true
+                }
+              ]
+            }
           ]
         }
       ]

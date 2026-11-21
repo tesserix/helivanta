@@ -1616,6 +1616,18 @@ reversal references; bounded collections reject duplicate rows and inconsistent
 continuation metadata. Transport/dependency errors do not trigger automatic
 financial retry. These client checks supplement current server authority.
 
-Hosted SQL/native acceptance, source selectors/indexes, finance UI/report
-explanations and actual Global API/browser/live acceptance are still required in
+Current credit context and source choices are read through
+`/:credit/context`, `/:credit/eligible-payables` and
+`/:credit/eligible-returns` beneath the supplier-credit collection. All require
+current finance read authority and exact owner/outlet scope. Context includes the
+outlet's database-derived local date, timezone and as-of timestamp. Payable
+choices expose positive outstanding external inventory bills for the same
+supplier and currency, with current credit/payment-inclusive balances and a
+bill version. Return choices expose dispatched returns for that supplier and
+currency with the current net matched amount. Collections are audited, bounded,
+and ordered by the owner's creation timestamp and identifier; supplied choices
+never confer command authority. Migration 0061 creates supplier/currency keyset
+indexes on existing source tables through the concurrent-index runner.
+
+Hosted SQL/native acceptance, finance UI/report explanations and actual Global API/browser/live acceptance are still required in
 #1784.

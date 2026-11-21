@@ -122,3 +122,11 @@ Rejected: using legacy manual credit to force a paid bill below zero; duplicatin
 credit for each return/bill; event-only integration; deleting allocations; adding
 fields silently to strict existing payable responses; and unlocked preflight-only
 balance checks.
+
+## Reversal context requirement
+
+A paid or fully credited bill is intentionally absent from allocation choices.
+The reversal screen must still load that original bill's current version and
+balance through an authorised owner context; it must not reuse its historical
+allocation receipt or assume a zero-net payment/reversal left the version
+unchanged. This context and the complete finance UI remain acceptance work.

@@ -58,9 +58,7 @@ func TestADepositIsHeldThenAppliedAgainstTheFinalBill(t *testing.T) {
 	w := newBedWorld(t)
 	w.priced(t)
 	admission, patient := uuid.NewString(), uuid.NewString()
-	bedStay := stay{uuid.NewString(), uuid.NewString(), "general"}
-	started, ordered := financialStayTimes(time.Now())
-	require.NoError(t, w.start(admission, patient, bedStay, started))
+	bedStay, ordered := w.financialStay(admission, patient)
 	_, shiftID := w.counterWithShift(t, "clerk", "IPD-D1", 0)
 
 	// An advance beyond anything owed yet is a deposit, not a payment.
@@ -126,7 +124,7 @@ func TestADepositIsHeldThenAppliedAgainstTheFinalBill(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, do(w.r, "GET", w.root+"/admissions/"+admission+"/deposit-applications", "outsider", "").Code)
 
 	// Released, the account takes no deposit.
-	require.NoError(t, w.end(admission, bedStay, time.Now(), "release"))
+	require.NoError(t, w.end(admission, bedStay, ordered, "release"))
 	require.NoError(t, w.release(admission, patient, time.Now()))
 	status, body = w.deposit("clerk", admission, 100)
 	require.Equal(t, http.StatusConflict, status)
@@ -141,8 +139,7 @@ func TestApplyingTwiceAtOnceNeverExceedsWhatIsHeld(t *testing.T) {
 	w := newBedWorld(t)
 	w.priced(t)
 	admission, patient := uuid.NewString(), uuid.NewString()
-	started, ordered := financialStayTimes(time.Now())
-	require.NoError(t, w.start(admission, patient, stay{uuid.NewString(), uuid.NewString(), "general"}, started))
+	_, ordered := w.financialStay(admission, patient)
 	w.counterWithShift(t, "clerk", "IPD-D2", 0)
 	status, body := w.deposit("clerk", admission, 1000)
 	require.Equal(t, http.StatusCreated, status, body)
@@ -175,8 +172,7 @@ func TestDepositTablesHoldTheirRules(t *testing.T) {
 	w := newBedWorld(t)
 	w.priced(t)
 	admission, patient := uuid.NewString(), uuid.NewString()
-	started, ordered := financialStayTimes(time.Now())
-	require.NoError(t, w.start(admission, patient, stay{uuid.NewString(), uuid.NewString(), "general"}, started))
+	_, ordered := w.financialStay(admission, patient)
 	w.counterWithShift(t, "clerk", "IPD-D3", 0)
 	status, body := w.deposit("clerk", admission, 1000)
 	require.Equal(t, http.StatusCreated, status, body)

@@ -79,6 +79,7 @@ test("every shell page renders without a policy violation", async ({ page }) => 
   await login(page, specAdmin());
   await clean("sign-in");
 
+  await expect.poll(async () => (await pageLinks(page, "Zones")).length).toBeGreaterThan(3);
   const zones = await pageLinks(page, "Zones");
   expect(zones.length).toBeGreaterThan(3);
   const visited = new Set<string>();

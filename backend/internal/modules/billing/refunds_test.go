@@ -7,7 +7,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -23,8 +22,7 @@ func (w *bedWorld) refundable(t *testing.T, deposit, owed int64) (admission, shi
 	t.Helper()
 	w.priced(t)
 	admission, patient := uuid.NewString(), uuid.NewString()
-	started, ordered := financialStayTimes(time.Now())
-	require.NoError(t, w.start(admission, patient, stay{uuid.NewString(), uuid.NewString(), "general"}, started))
+	_, ordered := w.financialStay(admission, patient)
 	_, shift = w.counterWithShift(t, "clerk", "IPD-R"+strings.ToUpper(admission[:4]), 0)
 	status, body := w.deposit("clerk", admission, deposit)
 	require.Equal(t, http.StatusCreated, status, body)
@@ -141,8 +139,7 @@ func TestARefundWaitsForTheFinalBillAndTheDrawer(t *testing.T) {
 	w := newBedWorld(t)
 	w.priced(t)
 	admission, patient := uuid.NewString(), uuid.NewString()
-	started, ordered := financialStayTimes(time.Now())
-	require.NoError(t, w.start(admission, patient, stay{uuid.NewString(), uuid.NewString(), "general"}, started))
+	_, ordered := w.financialStay(admission, patient)
 	// The deposit was taken at another counter: this drawer holds only its float.
 	w.counterWithShift(t, "clerk2", "IPD-RX", 0)
 	status, body := w.deposit("clerk2", admission, 500000)
@@ -267,8 +264,7 @@ func TestARefundIsCappedAtTheSurplusOverTheBill(t *testing.T) {
 	w := newBedWorld(t)
 	w.priced(t)
 	admission, patient := uuid.NewString(), uuid.NewString()
-	started, ordered := financialStayTimes(time.Now())
-	require.NoError(t, w.start(admission, patient, stay{uuid.NewString(), uuid.NewString(), "general"}, started))
+	_, ordered := w.financialStay(admission, patient)
 	w.counterWithShift(t, "clerk", "IPD-RS", 0)
 	status, body := w.deposit("clerk", admission, 400000)
 	require.Equal(t, http.StatusCreated, status, body)
@@ -304,8 +300,7 @@ func TestAVoidCannotTakeTheDrawerBelowZero(t *testing.T) {
 	w.priced(t)
 	// The deposit was taken at another counter.
 	refunded, patient := uuid.NewString(), uuid.NewString()
-	started, ordered := financialStayTimes(time.Now())
-	require.NoError(t, w.start(refunded, patient, stay{uuid.NewString(), uuid.NewString(), "general"}, started))
+	_, ordered := w.financialStay(refunded, patient)
 	w.counterWithShift(t, "clerk2", "IPD-V1", 0)
 	status, body := w.deposit("clerk2", refunded, 500000)
 	require.Equal(t, http.StatusCreated, status, body)

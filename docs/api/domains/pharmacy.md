@@ -1686,6 +1686,26 @@ actual-credit response and recovery, actual versus expected amounts, unchanged
 bill liability and human-only rendered references. Latest hosted evidence is
 required before claiming that journey passed.
 
-Matching, allocation, void/correction and reversal UI, complete bill history/report
-integration, remaining Global API E2E and approved live acceptance remain open in
-#1784.
+Return matching now has a candidate workspace beneath the selected credit.
+Its retained, bounded history uses return numbers, human reasons and authorised
+recorder names. New matching requires Payables availability and current financial
+editor authority; it chooses a dispatched financial source and keeps the amount
+blank until entered. Current credit version and total return attribution come
+from owner reads. Amounts cannot exceed remaining credit attribution; exceeding
+the expected return value requires explicit evidence. Matching never applies the
+credit to a bill. A stale refusal preserves the visible amount and offers a
+refresh of current credit/source observations before another command.
+
+Only the scope/credit-bound command reference is retained in session storage.
+Uncertain writes are never retried automatically. Recovery checks the original
+actor, scope and retained in-memory intent; after reload it rechecks the same
+immutable command. If session cleanup fails, the same verified reference remains
+recoverable and another match is blocked. Retained recovery still works when new
+matching is disabled or all actual credit has already been attributed. Failed
+history or source reads hide cached private evidence. The hosted browser journey
+extends actual credit entry with full-amount matching, response-loss reload
+recovery and proof that bill liability and unused credit remain unchanged.
+
+Allocation, void/correction and reversal UI, complete bill history/report
+integration, hosted acceptance of the new matching workspace, remaining Global
+API E2E and approved live acceptance remain open in #1784.

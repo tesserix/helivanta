@@ -14,6 +14,7 @@ import { AccountName, Pager, Panel, RequestFailure, useConfirmLeave } from "@hel
 import { useUrlPage } from "@/lib/use-url-page";
 import { formatPharmacyMoney } from "./currency-amount-field";
 import { SupplierCreditRecord } from "./supplier-credit-record";
+import { SupplierCreditMatching } from "./supplier-credit-matching";
 
 const states: Record<PharmacySupplierCredit["state"], string> = {
   active: "Active",
@@ -132,6 +133,7 @@ export function SupplierCreditHistory({
           scope={scope}
           id={selected}
           timeZone={timeZone}
+          canManage={canRecord}
           close={() => confirmLeave(() => setSelected(null))}
         />
       )}
@@ -142,11 +144,13 @@ function CreditDetail({
   scope,
   id,
   timeZone,
+  canManage,
   close,
 }: {
   scope: PharmacyActorScope;
   id: string;
   timeZone: string;
+  canManage: boolean;
   close: () => void;
 }) {
   const detail = useQuery({
@@ -207,6 +211,9 @@ function CreditDetail({
           </>
         )}
       </Panel>
+      {!detail.isError && !detail.isPending && (
+        <SupplierCreditMatching scope={scope} credit={detail.data} canManage={canManage} />
+      )}
     </section>
   );
 }

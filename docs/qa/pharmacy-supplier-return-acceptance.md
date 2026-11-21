@@ -159,8 +159,43 @@ SDK suite pass together (86 cases); they do not establish browser or live accept
 The hosted spec extends the existing dispatch journey with real credit entry and
 response-loss recovery, then captures `supplier-credit-recovered` for visual review.
 Local component/SDK tests do not substitute for that hosted run or live acceptance.
-Matching, bill application, reversal and void/correction controls still require
-finance UI and complete browser acceptance; document entry is not settlement.
+Matching is now a development UI candidate; bill application, reversal and
+void/correction controls still require finance UI and complete browser acceptance.
+Document entry and matching are not bill settlement.
+
+### Match actual credit to dispatched returns
+
+1. Open the named credit and inspect **Return matching**. Retained history must
+   remain readable with operating capabilities disabled, without loading choices.
+2. With current financial editor authority and Payables availability, choose
+   **Match credit to return**, select the named dispatched return, then enter an
+   explicit amount and reason. The amount starts blank. Verify the expected
+   return value, total attribution across credit documents and this credit's
+   remaining attribution are separately labelled.
+3. Try an amount above remaining actual credit: no command may be sent. Try an
+   attribution that exceeds the return's expected value without an explanation:
+   no command may be sent until explicit supporting evidence is entered.
+4. Save once and inspect the named return's immutable history. The credit's
+   matched amount increases; its unused pool and bill liability remain unchanged.
+5. Lose the committed response in the hosted fixture, reload, reopen the named
+   credit and choose **Check original match**. Verify one matching PUT, recovery
+   of the same actor-bound command and no automatic retry. Repeat after turning
+   new recording off and when the entire actual credit is already matched.
+6. Refuse a stale observation: the actual input remains visible. Choose
+   **Refresh credit and matching sources** and review fresh observations before
+   creating a new command. Unknown outcomes must retain the reference. If browser
+   cleanup fails even after a verified response, only the original recovery may
+   continue until its reference can be cleared.
+7. Check wrong-actor/source/scope data is rejected and source/history failures
+   hide cached private references. Changing a retained in-memory matching intent
+   must not turn an unrelated recovered receipt into a verified match.
+
+CI retains only the named synthetic `commercial-return-note-print`,
+`supplier-credit-recovered` and `supplier-credit-matched` PNGs in the
+`supplier-return-visual-evidence` artifact for seven days. The capture runs before
+later Playwright phases overwrite their reports; missing required images fail
+capture. Download and visually inspect that artifact before accepting the UI.
+No live patient, staff or supplier data belongs in these fixtures.
 
 ## Evidence and remaining scope
 

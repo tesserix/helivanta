@@ -3917,6 +3917,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match/context",
+          "permission": "pharmacy.accounts.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match/recovery",
           "permission": "pharmacy.accounts.read",
           "authentication_required": true,

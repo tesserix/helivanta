@@ -732,3 +732,9 @@ type SupplierCreditAllocationContext struct {
 	Allocation SupplierCreditAllocationView `json:"allocation" gorm:"-"`
 	Payable    SupplierCreditPayableContext `json:"payable" gorm:"-"`
 }
+
+type SupplierCreditMatchContext struct {
+	Credit   SupplierCreditContext      `json:"credit" gorm:"-"`
+	Match    SupplierCreditMatchView    `json:"match" gorm:"-"`
+	Returned SupplierCreditReturnChoice `json:"returned" gorm:"-"`
+}

@@ -1642,6 +1642,19 @@ scope/linkage, original human references, current version lower bounds, balance
 conservation and current allocation coverage. A reversed/voided document remains
 readable under current authority and never rewrites the original receipt.
 
+`/:credit/matches/:match/context` similarly binds an immutable match and its
+reversal reference to the current credit and exact return's total attribution.
+That total includes other actual credit documents; the original match receipt
+must not be reused as the current return observation. Acquire the credit lock
+then the existing return-matching lock, verify the supplier/currency in the same
+tenant/outlet and audit before disclosure. `SupplierCreditMatchContext` is a
+baseline retained read under current accounts-read authority. The SDK verifies
+scope, linkage, expected return value, current version and active match coverage;
+reversed/voided context remains available. Native tests cover three pharmacy
+ownership models, another credit's matching, stale reversal refusal, exact
+current reversal, retained void history, foreign scope and failed-read audit.
+Latest hosted execution is required before claiming these scenarios passed.
+
 Hosted SQL/native acceptance, finance UI/report explanations and actual Global API/browser/live acceptance are still required in
 #1784.
 

@@ -149,7 +149,8 @@ required; this owner read does not complete them.
   `/accounts/supplier-credits/source-returns` before the first actual credit
   exists (development candidate; hosted acceptance pending). Accounts authority must not silently require granting
   physical return/stock authority or manually entering backend identifiers.
-- Match reversal needs a single authorised current match/return context. The
+- Match reversal uses the candidate `/:credit/matches/:match/context` read for a
+  single authorised current match/return context, including other credits' matches. The
   return's net attributed amount includes other credit documents; the original
   match receipt is historical and searching unlimited source pages is not an
   acceptable way to obtain current observations.

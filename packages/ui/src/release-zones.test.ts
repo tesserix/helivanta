@@ -74,3 +74,19 @@ it("keeps retained stocktake recovery reachable to stock staff without access-ma
   ]);
   expect(pharmacy.href).toBe("/pharmacy/stocktake-recovery");
 });
+
+it("offers the shared shipment workspace only with the release flag and shipment permission", () => {
+  const can = (permission: string) => ["public", "partner.shipment.read"].includes(permission);
+  const paths = (released: (key: string | undefined) => boolean) =>
+    visibleZones(can, released).flatMap((zone) => zone.pages.map((page) => page.href));
+  expect(paths((key) => key === "baseline" || key === "supplier_collaboration")).toContain(
+    "/workforce/shared-shipments",
+  );
+  expect(paths((key) => key === "baseline")).not.toContain("/workforce/shared-shipments");
+  expect(
+    visibleZones(
+      (permission) => permission === "public",
+      () => true,
+    ).flatMap((zone) => zone.pages.map((page) => page.href)),
+  ).not.toContain("/workforce/shared-shipments");
+});

@@ -55,6 +55,7 @@ func (m *Module) registerSupplierGrants(r *platform.Router, deps platform.Deps) 
 	r.GET("/supplier-grants/:id/commands/:command", PermSupplierGrantRead, h.sourceReceipt)
 	platform.ListRoute(r, "/supplier-sources/:product/:organization/locations/:location/grants", PermSupplierGrantRead, h.listSource)
 	r.GET("/hospitals/:hospital/supplier-grants/:id", authz.Public, h.getHospitalGrant)
+	platform.ResourceListRoute(r, "/hospitals/:hospital/supplier-shipment-grants", authz.Public, 50, h.listHospitalShipmentGrants)
 	home := "/hospitals/:hospital/supplier-grant-offers"
 	r.GET(home+"/:id", authz.Public, h.getHospitalOffer)
 	platform.ListRoute(r, home, authz.Public, h.listHospitalOffers)

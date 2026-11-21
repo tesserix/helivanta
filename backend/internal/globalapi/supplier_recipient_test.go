@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,6 +29,26 @@ func assertSupplierRecipientCurrentMembership(t *testing.T, db *tenantdb.DB, aut
 	groupCatalogue := seedSupplierRecipientFixture(t, db, tenant, subject, member, "group", "supply", "partner.catalogue_viewer.v1")
 	groupShipments := seedSupplierRecipientFixture(t, db, tenant, subject, member, "group", "pharmacy", "partner.shipment_reader.v1")
 	namedShipments := seedSupplierRecipientFixture(t, db, tenant, subject, member, "subject", "pharmacy", "partner.shipment_reader.v1")
+
+	directoryPath := "/v1/iam/hospitals/" + member.HospitalID.String() + "/supplier-shipment-grants"
+	directory := call(t, "GET", directoryPath+"?limit=1", subject, nil, 200)
+	first := directory["data"].([]any)
+	require.Len(t, first, 1)
+	row := first[0].(map[string]any)
+	require.Len(t, row, 6, "read-only discovery must withhold consent reasons, signers and private basis")
+	for _, key := range []string{"id", "scope", "relationship_id", "terms_sha256", "recipient_kind", "created_at"} {
+		require.Contains(t, row, key)
+	}
+	page := directory["page"].(map[string]any)
+	require.Equal(t, true, page["has_more"])
+	next := call(t, "GET", directoryPath+"?limit=1&cursor="+page["next_cursor"].(string), subject, nil, 200)
+	second := next["data"].([]any)
+	require.Len(t, second, 1)
+	require.NotEqual(t, row["id"], second[0].(map[string]any)["id"])
+	call(t, "GET", "/v1/iam/hospitals/"+member.HospitalID.String()+"/supplier-grant-offers", subject, nil, 403)
+	call(t, "GET", directoryPath+"?unknown=1", subject, nil, 400)
+	call(t, "GET", directoryPath+"?limit=1&cursor="+page["next_cursor"].(string), reviewer, nil, 400)
+	call(t, "GET", strings.Replace(directoryPath, member.HospitalID.String(), uuid.NewString(), 1)+"?limit=1&cursor="+page["next_cursor"].(string), subject, nil, 400)
 	authorizer := iam.NewPartnerScopeAuthorizer(platform.Deps{DB: db, ScopedAuthorizer: authority, PartnerMembers: staff})
 	recipientSource := authorizer.(authz.PartnerRecipientSource)
 	assertRecipient := func(request authz.PartnerScopeRequest, allowed bool) {

@@ -280,3 +280,5 @@ export * from "./pharmacy-supplier-returns";
 export * from "./pharmacy-supplier-credits";
 export { fetchPharmacySupplierReturnNote } from "./pharmacy-supplier-return-note";
 export * from "./pharmacy-stock-holds";
+
+export * from "./supplier-shipment-sources";

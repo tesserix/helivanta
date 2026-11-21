@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/supplieraccess"
 	"github.com/tesserix/helivanta/pkg/suppliertrade"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
@@ -298,4 +299,15 @@ func TestAccessBoundaryOperatingErrorsDoNotExposePrivateEvidence(t *testing.T) {
 			require.NotContains(t, w.Body.String(), private)
 		})
 	}
+}
+
+func TestShipmentGrantDirectoryRequiresCurrentHospitalAuthority(t *testing.T) {
+	h := &supplierGrantHandlers{}
+	handler := func(c *gin.Context) {
+		_, err := h.listHospitalShipmentGrants(c, pagination.Params{Limit: 25})
+		require.NoError(t, err)
+	}
+	w := boundaryRequest(t, http.MethodGet, "/iam/hospitals/:hospital/supplier-shipment-grants", "", handler, nil)
+	require.Equal(t, http.StatusServiceUnavailable, w.Code, w.Body.String())
+	require.Equal(t, "no-store", w.Header().Get("Cache-Control"))
 }

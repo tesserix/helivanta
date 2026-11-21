@@ -215,7 +215,8 @@ It is not a backend registry route or a duplicate product wire model.
 
 ### Shared supplier shipment projection fields
 
-`contracts/supplier-access.json` owns `PartnerShipmentOrder` and `PartnerShipment`.
+`contracts/supplier-access.json` owns `PartnerShipmentOrder`, `PartnerShipment`,
+`PartnerShipmentSource` and the minimal hospital-local `SupplierShipmentGrantCandidate`.
 A field may declare `field_from: [contract, model, member]` to inherit an existing
 concrete source-owned definition. `generate-supplier-access.mjs` resolves only the
 closed supplier-access/orders/fulfilment/trade inputs before emitting either Go or Zod;

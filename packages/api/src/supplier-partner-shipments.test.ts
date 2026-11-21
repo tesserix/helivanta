@@ -198,3 +198,18 @@ it.each([
     await expect(sdk.listPartnerShipmentOrders(scope)).rejects.toThrow();
   },
 );
+
+it("loads a current named sharing source even when it has no published orders", async () => {
+  const source = {
+    scope: scope.source,
+    grant_id: scope.grantId,
+    relationship_id: scope.relationshipId,
+    terms_sha256: scope.termsSha256,
+    source_organization_name: row.source_organization_name,
+    source_location_name: row.source_location_name,
+  };
+  const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(source)));
+  vi.stubGlobal("fetch", fetch);
+  expect(await sdk.getPartnerShipmentSource(scope)).toEqual(source);
+  expect(fetch.mock.calls[0][0]).toContain("/shipment-source");
+});

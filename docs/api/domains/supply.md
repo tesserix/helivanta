@@ -31,6 +31,35 @@ Bilateral trading requires approved relationship, current organisation identity,
 
 Published events are minimized party/premise/licence/bin/access/corporate/territory/task references. The evidence-scan request is consumed through the configured Temporal bridge, with a deterministic workflow ID bound to tenant/party/licence/file/scan attempt. A third-party identity outage must deny an authority-dependent trade command or leave review pending; it must not fall back to a stale allow. GCS/scanner outage leaves evidence quarantined and visible as unavailable/pending.
 
+## Candidate shared shipment workspace
+
+[ADR-0076](../../adr/0076-effective-partner-shipment-disclosure.md) specifies the
+candidate read-only workspace at `/workforce/shared-shipments`. It remains dark
+under `supplier_collaboration`; merged source or passing component tests do not
+constitute release activation or live supplier acceptance.
+
+The Global API exposes a hospital-local IAM discovery resource at
+`GET /v1/iam/hospitals/:hospital/supplier-shipment-grants`. Current Staff hospital
+and `iam.supplier_grant.inbox.read` authority are required on every page. Its
+canonical `SupplierShipmentGrantCandidate` projects only approved shipment-reader
+IDs, scope, relationship, terms hash, recipient kind and creation time, with no
+private consent basis, reasons or signers. It commits a read audit and returns
+no-store pages capped at 50 with sealed actor/hospital-bound continuations. It
+confers no supplier-data authority and does not require or grant offer acceptance.
+
+Each candidate is independently verified through
+`GET /v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-source`.
+The same current compound source/hospital grant, exact bilateral terms, recipient
+membership, acknowledged graph and current physical-owner presentation checks
+protect that resource and its sibling shipment-order/shipment list resources.
+Current organization and branch names are returned even when no dispatch exists.
+The UI checks at most five sources concurrently, renders human references/names,
+and conceals cached evidence on current read failures or account changes. Hidden
+sources return 404; account changes return 409; unverifiable authority or audit
+returns 503. The singular source resource accepts no query parameters. Catalogue,
+source-issued invoices, operating duties and receiving/financial writes are not
+created by this read path and retain their separate authorities and acceptance.
+
 ## Traceability and tests
 
 The [India requirements](../../requirements/pharmaconnect-india.md), [legacy procurement requirements](../../requirements/pharmaconnect-legacy-procurement.md), [licence evidence](../../supply-licence-evidence.md) and [delivery backlog](../../delivery/2026-10-18-pharmaconnect-backlog.md) retain detailed field/state coverage. Relevant issues: [#1135](https://github.com/tesserix/helivanta/issues/1135), [#1136](https://github.com/tesserix/helivanta/issues/1136), [#1137](https://github.com/tesserix/helivanta/issues/1137), [#1000](https://github.com/tesserix/helivanta/issues/1000), [#1002](https://github.com/tesserix/helivanta/issues/1002), [#1005](https://github.com/tesserix/helivanta/issues/1005), [#1006](https://github.com/tesserix/helivanta/issues/1006), [#1147](https://github.com/tesserix/helivanta/issues/1147).

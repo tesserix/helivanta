@@ -135,6 +135,24 @@ type PartnerShipment struct {
 	SourceLocationName     string             `json:"source_location_name"`
 }
 
+type PartnerShipmentSource struct {
+	Scope                  SupplierGrantScope `json:"scope"`
+	GrantID                uuid.UUID          `json:"grant_id"`
+	RelationshipID         uuid.UUID          `json:"relationship_id"`
+	TermsSha256            string             `json:"terms_sha256"`
+	SourceOrganizationName string             `json:"source_organization_name"`
+	SourceLocationName     string             `json:"source_location_name"`
+}
+
+type SupplierShipmentGrantCandidate struct {
+	ID             uuid.UUID          `json:"id"`
+	Scope          SupplierGrantScope `json:"scope"`
+	RelationshipID uuid.UUID          `json:"relationship_id"`
+	TermsSha256    string             `json:"terms_sha256"`
+	RecipientKind  string             `json:"recipient_kind"`
+	CreatedAt      time.Time          `json:"created_at"`
+}
+
 const maximumValidityDays = 366
 
 var templates = map[string]Template{"partner.catalogue_viewer.v1": {Permission: "partner.catalogue.read", GroupPurposes: []string{"procurement", "receiving"}}, "partner.shipment_reader.v1": {Permission: "partner.shipment.read", GroupPurposes: []string{"procurement", "receiving"}}, "partner.invoice_viewer.v1": {Permission: "partner.invoice.read", GroupPurposes: []string{"finance"}}}

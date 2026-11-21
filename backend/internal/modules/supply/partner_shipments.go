@@ -40,6 +40,7 @@ func partnerShipmentRoutes(r *platform.Router, deps platform.Deps) {
 	presentations, _ := deps.TradingEndpoints.(suppliertrade.CurrentEndpointPresentationGuard)
 	h := &partnerShipmentHandlers{db: deps.DB, authority: deps.PartnerScopes, presentations: presentations}
 	root := "/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders"
+	r.GET("/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-source", authz.Public, h.source)
 	platform.ResourceListRoute(r, root, authz.Public, 50, h.orders)
 	platform.ResourceListRoute(r, root+"/:order/shipments", authz.Public, 50, h.shipments)
 }
@@ -161,6 +162,29 @@ func partnerShipmentFrame(tx *gorm.DB, g authz.PartnerScopeGrant, actor string, 
 		}
 		return nil
 	})
+}
+
+func (h *partnerShipmentHandlers) source(c *gin.Context) {
+	p, request, ok := partnerShipmentRequest(c)
+	if !ok {
+		return
+	}
+	if c.Request.URL.RawQuery != "" {
+		respond.Error(c, 400, "invalid_query", "This shared source resource does not accept query parameters.")
+		return
+	}
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 15*time.Second)
+	defer cancel()
+	var result supplieraccess.PartnerShipmentSource
+	err := h.with(ctx, request, c.Param("terms"), func(tx *gorm.DB, g authz.PartnerScopeGrant, presentation suppliertrade.EndpointPresentation) error {
+		result = supplieraccess.PartnerShipmentSource{Scope: partnerShipmentScope(g), GrantID: g.GrantID, RelationshipID: g.RelationshipID, TermsSha256: g.TermsSha256, SourceOrganizationName: presentation.OrganizationName, SourceLocationName: presentation.LocationName}
+		return tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id)VALUES(?,?,'partner_shipment_source_read','supply_partner_shipments',?)`, g.SourceTenantID, p.Subject, g.GrantID).Error
+	})
+	if err != nil {
+		partnerShipmentError(c, err)
+		return
+	}
+	respond.OK(c, result)
 }
 
 func partnerShipmentOrderQuery(tx *gorm.DB, g authz.PartnerScopeGrant) *gorm.DB {

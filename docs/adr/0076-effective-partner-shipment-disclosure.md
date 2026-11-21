@@ -152,3 +152,33 @@ bytes. Go producer HTML escaping can add 120 KiB plus field syntax at the
 upper name lengths. These are planning bounds, not measured
 throughput or release evidence. Disabling the candidate leaves the old machine
 protocol untouched and preserves historical stock and financial data.
+
+## Shared source discovery
+
+Reuse the current Staff hospital-choice port and add the hospital-owned IAM
+`GET /iam/hospitals/:hospital/supplier-shipment-grants` directory under existing
+`iam.supplier_grant.inbox.read` authority. The offer directory requires acceptance
+authority and must not be reused by viewers. The new directory projects only
+approved shipment-reader grant IDs, scope, relationship, exact terms, recipient
+kind and creation time. It withholds reasons, signer identities and private basis.
+These are hospital-local discovery metadata, not authority to disclose another
+tenant's facts. Its transaction rechecks current hospital Staff and inbox authority,
+commits a read audit and returns no-store pages capped at 50 with sealed
+actor/hospital/resource cursors. No migration or new role permission is needed.
+The chooser
+resolves only approved shipment-reader records through a new singular
+`GET .../partner-grants/:product/:grant/terms/:terms/shipment-source` resource.
+This resource invokes the same full current compound grant and owner name guard
+as the shipment lists and commits a disclosure audit. It returns only grant,
+relationship, exact terms, scope and the two current source labels, including
+when no published dispatch order exists. No query parameters or writes apply.
+
+Keep the existing combined 50-read/s candidate planning budget, 99.9% availability
+and 500 ms p99 target. A source response is under 3 KiB at the canonical bounds.
+The chooser checks one inbox page at a time and at most five source resources
+concurrently. Per-source denied/not-found records remain undisclosed; dependency
+or account failures are explicit and cannot masquerade as an empty result. Use
+bounded hospital-choice and resource-bound directory cursors; do not add a global cross-hospital table
+scan, a new directory master, background job or infrastructure component. This
+is a read-only extension under the same disabled capability; full real-grant
+admission, UI/browser and live release acceptance remain required.

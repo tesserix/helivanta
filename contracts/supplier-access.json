@@ -644,6 +644,106 @@
           "location_name"
         ]
       }
+    ],
+    "PartnerShipmentSource": [
+      {
+        "name": "scope",
+        "field_from": [
+          "supplier-access",
+          "SupplierGrant",
+          "scope"
+        ]
+      },
+      {
+        "name": "grant_id",
+        "field_from": [
+          "supplier-access",
+          "SupplierGrant",
+          "id"
+        ]
+      },
+      {
+        "name": "relationship_id",
+        "field_from": [
+          "supplier-access",
+          "SupplierGrantInput",
+          "relationship_id"
+        ]
+      },
+      {
+        "name": "terms_sha256",
+        "field_from": [
+          "supplier-access",
+          "SupplierGrantInput",
+          "terms_sha256"
+        ]
+      },
+      {
+        "name": "source_organization_name",
+        "field_from": [
+          "supplier-trade",
+          "SupplierTradeEndpointPresentation",
+          "organization_name"
+        ]
+      },
+      {
+        "name": "source_location_name",
+        "field_from": [
+          "supplier-trade",
+          "SupplierTradeEndpointPresentation",
+          "location_name"
+        ]
+      }
+    ],
+    "SupplierShipmentGrantCandidate": [
+      {
+        "name": "id",
+        "field_from": [
+          "supplier-access",
+          "SupplierGrant",
+          "id"
+        ]
+      },
+      {
+        "name": "scope",
+        "field_from": [
+          "supplier-access",
+          "SupplierGrant",
+          "scope"
+        ]
+      },
+      {
+        "name": "relationship_id",
+        "field_from": [
+          "supplier-access",
+          "SupplierGrantInput",
+          "relationship_id"
+        ]
+      },
+      {
+        "name": "terms_sha256",
+        "field_from": [
+          "supplier-access",
+          "SupplierGrantInput",
+          "terms_sha256"
+        ]
+      },
+      {
+        "name": "recipient_kind",
+        "field_from": [
+          "supplier-access",
+          "SupplierGrantInput",
+          "recipient_kind"
+        ]
+      },
+      {
+        "name": "created_at",
+        "field_from": [
+          "supplier-access",
+          "SupplierGrant",
+          "created_at"
+        ]
+      }
     ]
   }
 }

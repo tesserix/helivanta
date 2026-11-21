@@ -5,6 +5,7 @@ import {
   SupplierGrantScopeContract,
   PartnerShipmentOrderContract,
   PartnerShipmentContract,
+  PartnerShipmentSourceContract,
   type SupplierGrantScope,
   type PartnerShipmentOrder,
 } from "./supplier-access-contract";
@@ -24,7 +25,7 @@ const orderPage = z
 const shipmentPage = z
   .object({ data: z.array(PartnerShipmentContract).max(50), page: pageInfo })
   .strict();
-function base(scope: PartnerShipmentScope) {
+function grantBase(scope: PartnerShipmentScope) {
   const source = SupplierGrantScopeContract.parse(scope.source);
   PartnerShipmentOrderContract.shape.terms_sha256.parse(scope.termsSha256);
   record.parse(scope.relationshipId);
@@ -36,7 +37,7 @@ function base(scope: PartnerShipmentScope) {
     source.source_tenant_id === scope.tenantId
   )
     throw new Error("Supplier sharing belongs to another hospital or workspace.");
-  return `/supply/hospitals/${z.uuid().parse(scope.hospitalId)}/partner-grants/${source.source_product}/${record.parse(scope.grantId)}/terms/${scope.termsSha256}/shipment-orders`;
+  return `/supply/hospitals/${z.uuid().parse(scope.hospitalId)}/partner-grants/${source.source_product}/${record.parse(scope.grantId)}/terms/${scope.termsSha256}`;
 }
 function request(scope: PartnerShipmentScope, signal?: AbortSignal): RequestInit {
   const deadline = AbortSignal.timeout(15000);
@@ -71,17 +72,24 @@ function checkScope(
       row.source_location_name !== first?.source_location_name
     )
       throw new Error("The shared shipment page contains inconsistent source names.");
-    if (
-      row.grant_id !== scope.grantId ||
-      row.relationship_id !== scope.relationshipId ||
-      row.terms_sha256 !== scope.termsSha256 ||
-      Object.entries(scope.source).some(
-        ([key, value]) => row.scope[key as keyof SupplierGrantScope] !== value,
-      )
-    )
-      throw new Error("The shared shipment evidence does not match this account, grant or source.");
+    checkResourceScope(scope, row);
   }
 }
+function checkResourceScope(
+  scope: PartnerShipmentScope,
+  row: Pick<PartnerShipmentOrder, "grant_id" | "relationship_id" | "terms_sha256" | "scope">,
+) {
+  if (
+    row.grant_id !== scope.grantId ||
+    row.relationship_id !== scope.relationshipId ||
+    row.terms_sha256 !== scope.termsSha256 ||
+    Object.entries(scope.source).some(
+      ([key, value]) => row.scope[key as keyof SupplierGrantScope] !== value,
+    )
+  )
+    throw new Error("The shared shipment evidence does not match this account, grant or source.");
+}
+
 function checkContinuation(
   page: { data: { id: string }[]; page: { has_more: boolean; next_cursor: string | null } },
   after: string | null,
@@ -100,7 +108,7 @@ export async function listPartnerShipmentOrders(
   signal?: AbortSignal,
 ) {
   const page = orderPage.parse(
-    await apiFetch(`${base(scope)}?${query(after)}`, request(scope, signal)),
+    await apiFetch(`${grantBase(scope)}/shipment-orders?${query(after)}`, request(scope, signal)),
   );
   checkContinuation(page, after);
   checkScope(scope, page.data);
@@ -114,7 +122,7 @@ export async function listPartnerShipments(
 ) {
   const page = shipmentPage.parse(
     await apiFetch(
-      `${base(scope)}/${record.parse(order)}/shipments?${query(after)}`,
+      `${grantBase(scope)}/shipment-orders/${record.parse(order)}/shipments?${query(after)}`,
       request(scope, signal),
     ),
   );
@@ -124,4 +132,12 @@ export async function listPartnerShipments(
     if (row.order_id !== order)
       throw new Error("The shared shipment evidence belongs to another order.");
   return page;
+}
+
+export async function getPartnerShipmentSource(scope: PartnerShipmentScope, signal?: AbortSignal) {
+  const source = PartnerShipmentSourceContract.parse(
+    await apiFetch(`${grantBase(scope)}/shipment-source`, request(scope, signal)),
+  );
+  checkResourceScope(scope, source);
+  return source;
 }

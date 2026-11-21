@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "c0120a3dd96de2da593b715919410e5022718d871a6f7a947fe27588715cd432",
+  "registry_sha256": "a7b35058cfbb9047ac80e38548ed563b54daf2e6be4d0ee567c0c15d22387230",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1217,
-    "unclassified": 1066
+    "total": 1219,
+    "unclassified": 1068
   },
   "entries": [
     {
@@ -3508,6 +3508,22 @@
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http iam GET /v1/iam/hospitals/:hospital/supplier-shipment-grants",
+      "kind": "http",
+      "module": "iam",
+      "registration": {
+        "source": "backend/internal/modules/iam/module.go",
+        "method": "GET",
+        "path": "/v1/iam/hospitals/:hospital/supplier-shipment-grants",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
         "counted": false
       },
       "review": null
@@ -12870,6 +12886,22 @@
         "authentication_required": true,
         "membership_required": true,
         "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http supply GET /v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-source",
+      "kind": "http",
+      "module": "supply",
+      "registration": {
+        "source": "backend/internal/modules/supply/module.go",
+        "method": "GET",
+        "path": "/v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-source",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
         "counted": false
       },
       "review": null

@@ -49,6 +49,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/hospitals/:hospital/supplier-grant-offers/:id` | `public` | false | false |
 | GET | `/v1/iam/hospitals/:hospital/supplier-grant-offers` | `public` | true | false |
 | GET | `/v1/iam/hospitals/:hospital/supplier-grants/:id` | `public` | false | false |
+| GET | `/v1/iam/hospitals/:hospital/supplier-shipment-grants` | `public` | true | false |
 | GET | `/v1/iam/identity-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/intake-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/me/permissions` | `no_tenant_membership` | false | false |
@@ -976,6 +977,7 @@ Source: [backend/internal/modules/supply/module.go](../../../backend/internal/mo
 | GET | `/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders` | `public` | true | false |
 | GET | `/v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders/:order/shipments` | `public` | true | false |
 | GET | `/v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders` | `public` | true | false |
+| GET | `/v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-source` | `public` | false | false |
 | GET | `/v1/supply/parties/:party/access-limits/revisions` | `supply.party.access.manage` | true | false |
 | GET | `/v1/supply/parties/:party/access-limits` | `supply.party.access.manage` | false | false |
 | PUT | `/v1/supply/parties/:party/access-limits` | `supply.party.access.manage` | false | false |

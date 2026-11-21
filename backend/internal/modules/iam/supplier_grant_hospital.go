@@ -394,3 +394,46 @@ func (h *supplierGrantHandlers) getHospitalGrant(c *gin.Context) {
 	}
 	respond.OK(c, supplieraccess.SupplierGrantSummary{ID: record.ID, Scope: record.Scope, Input: record.Input, ConsentStatus: "approved", Version: record.Version, SourceAccessState: "not_evaluated", CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt})
 }
+
+type supplierShipmentGrantPage struct {
+	supplieraccess.SupplierShipmentGrantCandidate
+}
+
+func (r supplierShipmentGrantPage) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
+
+func (h *supplierGrantHandlers) listHospitalShipmentGrants(c *gin.Context, page pagination.Params) ([]supplierShipmentGrantPage, error) {
+	p, hospital, _, ok := supplierHomePrincipal(c)
+	if !ok {
+		return nil, nil
+	}
+	for key, values := range c.Request.URL.Query() {
+		if (key != "limit" && key != "cursor") || len(values) != 1 || values[0] == "" {
+			respond.BadRequest(c, supplieraccess.ErrInvalid)
+			return nil, nil
+		}
+	}
+	result := []supplierShipmentGrantPage{}
+	err := h.homeTransaction(c, p, hospital, PermSupplierGrantInbox, func(_ context.Context, tx *gorm.DB, _ authz.StaffActorReference) error {
+		var rows []struct{ Document []byte }
+		q := tx.Table("iam_supplier_grants").Select("document").Where("tenant_id=? AND hospital_id=? AND document->>'side'='hospital' AND document->>'status'='approved' AND document#>>'{input,template_key}'='partner.shipment_reader.v1'", p.TenantID, hospital).Order("created_at DESC,id DESC").Limit(page.Limit + 1)
+		if page.After != nil {
+			q = q.Where("(created_at,id)<(?,?)", page.After.CreatedAt, page.After.ID)
+		}
+		if e := q.Find(&rows).Error; e != nil {
+			return e
+		}
+		for _, row := range rows {
+			var g supplieraccess.SupplierGrant
+			if suppliertrade.DecodeObject(row.Document, &g) != nil || supplieraccess.ValidateRecord(g) != nil || g.OwnerTenantID.String() != p.TenantID || g.Scope.RecipientTenantID.String() != p.TenantID || g.Scope.HospitalID != hospital || g.Side != "hospital" || g.Status != "approved" || g.Input.TemplateKey != "partner.shipment_reader.v1" {
+				return suppliertrade.ErrUnavailable
+			}
+			result = append(result, supplierShipmentGrantPage{supplieraccess.SupplierShipmentGrantCandidate{ID: g.ID, Scope: g.Scope, RelationshipID: g.Input.RelationshipID, TermsSha256: g.Input.TermsSha256, RecipientKind: g.Input.RecipientKind, CreatedAt: g.CreatedAt}})
+		}
+		return grantReadAudit(tx, p, hospital, "supplier_shipment_grant_directory_read")
+	})
+	if err != nil {
+		supplierGrantError(c, err)
+		return nil, nil
+	}
+	return result, nil
+}

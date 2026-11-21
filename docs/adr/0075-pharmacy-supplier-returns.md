@@ -299,8 +299,12 @@ outlet access. Audit, position evidence and the minimal supplier-credit outbox
 notification commit together. Read audit failure releases no private result.
 Reference-only recovery never stores credit values or supplier details locally.
 The existing pharmacy-payables operational family remains release-ineligible.
-The new handlers are not a delivered public API until registration, full hosted
-acceptance and review; canonical payloads alone are not integration evidence.
+The seven document/read/void/recovery routes are registered and classified in the
+release manifest. Hosted native document acceptance passed after the observed
+missing-route baseline; full CI, Staff-finance review, UI and live release gates
+remain required. Canonical payloads alone are not integration evidence. The
+identifier-only event fields have explicit privacy classifications; the event
+conveys no amount, supplier details, document reference, actor or private reason.
 
 Next required commands remain explicit partial/combined return matching, safe
 eligible-bill allocation, allocation/match reversal and the read/selection UI.

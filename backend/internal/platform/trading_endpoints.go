@@ -35,7 +35,7 @@ func (g tradingEndpointOwners) WithCurrentTradingEndpoint(ctx context.Context, e
 		return suppliertrade.ErrUnavailable
 	}
 	return owner.WithCurrentTradingEndpoint(ctx, e, category, operation, func(ctx context.Context, ref suppliertrade.EndpointReference) error {
-		if ref.Category != category || ref.Operation != operation || !suppliertrade.EndpointEqual(e, ref.Endpoint) || ref.LicenceReviewID == uuid.Nil || ref.LicenceReviewVersion < 1 || ref.PolicyVersion == uuid.Nil {
+		if !validTradingEndpointReference(e, category, operation, ref) {
 			return suppliertrade.ErrUnavailable
 		}
 		return action(ctx, ref)
@@ -59,4 +59,24 @@ func (g tradingEndpointOwners) WithHospitalDepartment(ctx context.Context, e sup
 		return suppliertrade.ErrUnavailable
 	}
 	return owner.WithHospitalDepartment(ctx, e, department, action)
+}
+
+func validTradingEndpointReference(e suppliertrade.Endpoint, category, operation string, ref suppliertrade.EndpointReference) bool {
+	return ref.Category == category && ref.Operation == operation && suppliertrade.EndpointEqual(e, ref.Endpoint) && ref.LicenceReviewID != uuid.Nil && ref.LicenceReviewVersion >= 1 && ref.PolicyVersion != uuid.Nil
+}
+
+func (g tradingEndpointOwners) WithCurrentTradingEndpointPresentation(ctx context.Context, e suppliertrade.Endpoint, category, operation string, action func(context.Context, suppliertrade.EndpointReference, suppliertrade.EndpointPresentation) error) error {
+	if !suppliertrade.ValidEndpointUse(e, category, operation) {
+		return suppliertrade.ErrIneligible
+	}
+	owner, ok := g.owners[e.Product].(suppliertrade.CurrentEndpointPresentationGuard)
+	if !ok || owner == nil || action == nil {
+		return suppliertrade.ErrUnavailable
+	}
+	return owner.WithCurrentTradingEndpointPresentation(ctx, e, category, operation, func(current context.Context, ref suppliertrade.EndpointReference, presentation suppliertrade.EndpointPresentation) error {
+		if !validTradingEndpointReference(e, category, operation, ref) || !suppliertrade.ValidEndpointPresentation(presentation) {
+			return suppliertrade.ErrUnavailable
+		}
+		return action(current, ref, presentation)
+	})
 }

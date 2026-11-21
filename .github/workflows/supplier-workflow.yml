@@ -4,7 +4,9 @@ on:
     paths:
       - "backend/pkg/supplieraccess/**"
       - "packages/api/src/supplier-access*"
+      - "packages/api/src/supplier-partner-shipments*"
       - "contracts/supplier-access.json"
+      - "contracts/supplier-trade.json"
       - "backend/pkg/suppliertrade/**"
       - "backend/pkg/supplierorder/**"
       - "backend/pkg/supplierfulfilment/**"
@@ -44,6 +46,24 @@ jobs:
           cache-dependency-path: backend/go.sum
       - name: Compare bounded Staff point reads with unchanged tenant isolation
         run: go test -race -v -timeout 5m ./internal/modules/workforce -run '^TestStaffPointReadPlansPreserveTenantIsolation$'
+  source-presentations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Current names retain warehouse and pharmacy owner eligibility
+        run: |
+          go test -race -timeout 12m ./internal/modules/supply -run '^TestSupplierTradingSource'
+          go test -race -timeout 12m ./internal/globalapi -run '^TestPharmacyTradingEndpointUsesIndependentOwnerAndRejectsDepartmentImpersonation$'
   supplier:
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -106,4 +126,4 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Supplier grant client context and exact recovery
-        run: pnpm --dir packages/api exec vitest run src/supplier-access.test.ts src/supplier-orders.test.ts src/supplier-orders-contract.test.ts
+        run: pnpm --dir packages/api exec vitest run src/supplier-access.test.ts src/supplier-orders.test.ts src/supplier-orders-contract.test.ts src/supplier-partner-shipments.test.ts

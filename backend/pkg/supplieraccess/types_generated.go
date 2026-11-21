@@ -111,6 +111,8 @@ type PartnerShipmentOrder struct {
 	TermsSha256            string             `json:"terms_sha256"`
 	PurchaseOrderReference string             `json:"purchase_order_reference"`
 	CreatedAt              time.Time          `json:"created_at"`
+	SourceOrganizationName string             `json:"source_organization_name"`
+	SourceLocationName     string             `json:"source_location_name"`
 }
 
 type PartnerShipment struct {
@@ -129,6 +131,8 @@ type PartnerShipment struct {
 	ExpiresOn              string             `json:"expires_on"`
 	HandoffReference       string             `json:"handoff_reference"`
 	DispatchedAt           time.Time          `json:"dispatched_at"`
+	SourceOrganizationName string             `json:"source_organization_name"`
+	SourceLocationName     string             `json:"source_location_name"`
 }
 
 const maximumValidityDays = 366

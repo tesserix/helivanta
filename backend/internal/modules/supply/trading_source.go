@@ -25,6 +25,27 @@ func (*Module) TradingEndpoints(db *tenantdb.DB, _ authz.DepartmentReferenceGuar
 	return tradingEndpointGuard{db: db}
 }
 func (g tradingEndpointGuard) WithCurrentTradingEndpoint(ctx context.Context, endpoint suppliertrade.Endpoint, category, operation string, action func(context.Context, suppliertrade.EndpointReference) error) error {
+	if action == nil {
+		return suppliertrade.ErrUnavailable
+	}
+	return g.withCurrentTradingEndpoint(ctx, endpoint, category, operation, func(current context.Context, reference suppliertrade.EndpointReference, _ suppliertrade.EndpointPresentation) error {
+		return action(current, reference)
+	})
+}
+
+func (g tradingEndpointGuard) WithCurrentTradingEndpointPresentation(ctx context.Context, endpoint suppliertrade.Endpoint, category, operation string, action func(context.Context, suppliertrade.EndpointReference, suppliertrade.EndpointPresentation) error) error {
+	if action == nil {
+		return suppliertrade.ErrUnavailable
+	}
+	return g.withCurrentTradingEndpoint(ctx, endpoint, category, operation, func(current context.Context, reference suppliertrade.EndpointReference, presentation suppliertrade.EndpointPresentation) error {
+		if !suppliertrade.ValidEndpointPresentation(presentation) {
+			return suppliertrade.ErrUnavailable
+		}
+		return action(current, reference, presentation)
+	})
+}
+
+func (g tradingEndpointGuard) withCurrentTradingEndpoint(ctx context.Context, endpoint suppliertrade.Endpoint, category, operation string, action func(context.Context, suppliertrade.EndpointReference, suppliertrade.EndpointPresentation) error) error {
 	if g.db == nil || !g.db.GuardedCommandActive(ctx) || action == nil {
 		return suppliertrade.ErrUnavailable
 	}
@@ -32,6 +53,7 @@ func (g tradingEndpointGuard) WithCurrentTradingEndpoint(ctx context.Context, en
 		return suppliertrade.ErrIneligible
 	}
 	ref := suppliertrade.EndpointReference{Endpoint: endpoint, Category: category, Operation: operation}
+	presentation := suppliertrade.EndpointPresentation{}
 	err := g.db.WithTenantCommand(ctx, endpoint.TenantID.String(), func(tx *gorm.DB) (err error) {
 		keys := []string{"app.supply_employer_check", "app.supply_operating_reference", "app.supply_reference_party", "app.supply_reference_premise", "app.supply_trade_source", "app.supply_trade_party", "app.supply_trade_licence"}
 		rawKeys, err := json.Marshal(keys)
@@ -48,7 +70,7 @@ func (g tradingEndpointGuard) WithCurrentTradingEndpoint(ctx context.Context, en
 		if err = tx.Exec(`SELECT pg_advisory_xact_lock_shared(hashtextextended(?,0)),set_config('app.supply_employer_check','true',true),set_config('app.supply_operating_reference','true',true),set_config('app.supply_reference_party',?,true),set_config('app.supply_reference_premise',?,true),set_config('app.supply_trade_source','current',true),set_config('app.supply_trade_party',?,true),set_config('app.supply_trade_licence',?,true)`, endpoint.TenantID.String()+":supply-license:"+endpoint.OrganizationID.String()+":"+endpoint.LicenceID.String(), endpoint.OrganizationID.String(), endpoint.LocationID.String(), endpoint.OrganizationID.String(), endpoint.LicenceID.String()).Error; err != nil {
 			return err
 		}
-		err = tx.Raw(`SELECT r.id,r.version FROM supply_parties p JOIN supply_premises m ON(m.tenant_id,m.party_id)=(p.tenant_id,p.id)JOIN supply_licenses l ON(l.tenant_id,l.party_id,l.premise_id)=(m.tenant_id,m.party_id,m.id)JOIN supply_license_reviews r ON(r.tenant_id,r.party_id,r.license_id)=(l.tenant_id,l.party_id,l.id)JOIN supply_license_evidence e ON(e.tenant_id,e.party_id,e.license_id,e.id)=(r.tenant_id,r.party_id,r.license_id,r.evidence_id)WHERE p.tenant_id=? AND p.id=? AND p.version=? AND p.record_kind='owned_organisation'AND p.country_code='IN'AND p.jurisdiction=? AND m.id=? AND m.version=? AND m.region=? AND m.country_code='IN'AND m.status='active'AND m.kind IN('warehouse','depot')AND l.id=? AND l.version=? AND l.jurisdiction=? AND l.country_code='IN'AND jsonb_exists(l.product_categories,?)AND(timezone(m.time_zone,CURRENT_TIMESTAMP))::date BETWEEN l.issued_on AND l.expires_on AND r.version=(SELECT max(v.version)FROM supply_license_reviews v WHERE v.tenant_id=l.tenant_id AND v.party_id=l.party_id AND v.license_id=l.id)AND r.status='verified'AND r.party_version=p.version AND r.premise_version=m.version AND r.license_version=l.version AND e.status='available'AND e.license_version=l.version FOR SHARE OF p,m,l,r,e`, endpoint.TenantID, endpoint.OrganizationID, endpoint.OrganizationVersion, endpoint.Jurisdiction, endpoint.LocationID, endpoint.LocationVersion, endpoint.Jurisdiction, endpoint.LicenceID, endpoint.LicenceVersion, endpoint.Jurisdiction, category).Row().Scan(&ref.LicenceReviewID, &ref.LicenceReviewVersion)
+		err = tx.Raw(`SELECT r.id,r.version,COALESCE(p.legal_name,''),COALESCE(m.name,'') FROM supply_parties p JOIN supply_premises m ON(m.tenant_id,m.party_id)=(p.tenant_id,p.id)JOIN supply_licenses l ON(l.tenant_id,l.party_id,l.premise_id)=(m.tenant_id,m.party_id,m.id)JOIN supply_license_reviews r ON(r.tenant_id,r.party_id,r.license_id)=(l.tenant_id,l.party_id,l.id)JOIN supply_license_evidence e ON(e.tenant_id,e.party_id,e.license_id,e.id)=(r.tenant_id,r.party_id,r.license_id,r.evidence_id)WHERE p.tenant_id=? AND p.id=? AND p.version=? AND p.record_kind='owned_organisation'AND p.country_code='IN'AND p.jurisdiction=? AND m.id=? AND m.version=? AND m.region=? AND m.country_code='IN'AND m.status='active'AND m.kind IN('warehouse','depot')AND l.id=? AND l.version=? AND l.jurisdiction=? AND l.country_code='IN'AND jsonb_exists(l.product_categories,?)AND(timezone(m.time_zone,CURRENT_TIMESTAMP))::date BETWEEN l.issued_on AND l.expires_on AND r.version=(SELECT max(v.version)FROM supply_license_reviews v WHERE v.tenant_id=l.tenant_id AND v.party_id=l.party_id AND v.license_id=l.id)AND r.status='verified'AND r.party_version=p.version AND r.premise_version=m.version AND r.license_version=l.version AND e.status='available'AND e.license_version=l.version FOR SHARE OF p,m,l,r,e`, endpoint.TenantID, endpoint.OrganizationID, endpoint.OrganizationVersion, endpoint.Jurisdiction, endpoint.LocationID, endpoint.LocationVersion, endpoint.Jurisdiction, endpoint.LicenceID, endpoint.LicenceVersion, endpoint.Jurisdiction, category).Row().Scan(&ref.LicenceReviewID, &ref.LicenceReviewVersion, &presentation.OrganizationName, &presentation.LocationName)
 		if errors.Is(err, sql.ErrNoRows) {
 			return suppliertrade.ErrIneligible
 		}
@@ -71,7 +93,7 @@ func (g tradingEndpointGuard) WithCurrentTradingEndpoint(ctx context.Context, en
 	if err != nil {
 		return errors.Join(suppliertrade.ErrUnavailable, err)
 	}
-	return action(ctx, ref)
+	return action(ctx, ref, presentation)
 }
 
 func (g tradingEndpointGuard) WithTradingAdministration(ctx context.Context, p authn.Principal, e suppliertrade.Endpoint, write bool, action func(context.Context) error) error {

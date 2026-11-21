@@ -6,6 +6,7 @@ import {
   PartnerShipmentOrderContract,
   PartnerShipmentContract,
   type SupplierGrantScope,
+  type PartnerShipmentOrder,
 } from "./supplier-access-contract";
 import type { SupplierHospitalScope } from "./supplier-access";
 export type PartnerShipmentScope = SupplierHospitalScope & {
@@ -51,16 +52,25 @@ function query(after: string | null) {
 }
 function checkScope(
   scope: PartnerShipmentScope,
-  rows: {
-    id: string;
-    grant_id: string;
-    relationship_id: string;
-    terms_sha256: string;
-    scope: SupplierGrantScope;
-  }[],
+  rows: Pick<
+    PartnerShipmentOrder,
+    | "id"
+    | "grant_id"
+    | "relationship_id"
+    | "terms_sha256"
+    | "scope"
+    | "source_organization_name"
+    | "source_location_name"
+  >[],
 ) {
+  const first = rows[0];
   for (const row of rows) {
     record.parse(row.id);
+    if (
+      row.source_organization_name !== first?.source_organization_name ||
+      row.source_location_name !== first?.source_location_name
+    )
+      throw new Error("The shared shipment page contains inconsistent source names.");
     if (
       row.grant_id !== scope.grantId ||
       row.relationship_id !== scope.relationshipId ||

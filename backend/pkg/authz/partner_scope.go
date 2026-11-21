@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/google/uuid"
 	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/suppliertrade"
 	"time"
 )
 
@@ -30,6 +31,7 @@ type PartnerScopeGrant struct {
 	Permission                             Permission
 	TermsSha256                            string
 	ProjectionHash                         string
+	SourceEndpoint                         suppliertrade.Endpoint
 	ValidUntil                             time.Time
 }
 type PartnerScopeAuthorizer interface {

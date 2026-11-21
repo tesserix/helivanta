@@ -663,6 +663,22 @@
         "name": "observed_at",
         "type": "time"
       }
+    ],
+    "SupplierTradeEndpointPresentation": [
+      {
+        "name": "organization_name",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "pattern": "^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$"
+      },
+      {
+        "name": "location_name",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "pattern": "^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$"
+      }
     ]
   }
 }

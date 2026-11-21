@@ -139,3 +139,12 @@ and removes generated build outputs before merge. It does not start local app
 servers, containers or an integration environment. Database-backed and browser
 journeys run in CI and the shared pre-GA web environment with dedicated synthetic
 users and records.
+
+`CurrentEndpointPresentationGuard` is a local owner port, separate from the v1
+machine source-check wire. It returns only the canonical
+`SupplierTradeEndpointPresentation` organisation and location names after the
+same current endpoint/licence/policy check. Both stock owners restore private
+purpose settings before invoking its callback. The platform checks the returned
+endpoint reference and text bounds. The older endpoint guard discards names and
+retains its existing fact-check semantics; no names are added to machine
+requests, references, peer signatures or authority hashes.

@@ -3491,7 +3491,7 @@
         },
         {
           "path": "backend/internal/platform/trading_endpoints.go",
-          "sha256": "5bde9f205a9714519c05316fe5d4bcb89205a409ae65b78bdca62aa9a9686630",
+          "sha256": "7599d0075d394362d7b7bb346ef364e59cf4e312a53110e2b5c4469502425910",
           "symbol": "func (g tradingEndpointOwners) WithTradingAdministration("
         }
       ],
@@ -3524,7 +3524,7 @@
         },
         {
           "path": "backend/internal/platform/trading_endpoints.go",
-          "sha256": "5bde9f205a9714519c05316fe5d4bcb89205a409ae65b78bdca62aa9a9686630",
+          "sha256": "7599d0075d394362d7b7bb346ef364e59cf4e312a53110e2b5c4469502425910",
           "symbol": "func (g tradingEndpointOwners) WithTradingAdministration("
         }
       ],
@@ -3557,7 +3557,7 @@
         },
         {
           "path": "backend/internal/platform/trading_endpoints.go",
-          "sha256": "5bde9f205a9714519c05316fe5d4bcb89205a409ae65b78bdca62aa9a9686630",
+          "sha256": "7599d0075d394362d7b7bb346ef364e59cf4e312a53110e2b5c4469502425910",
           "symbol": "func (g tradingEndpointOwners) WithTradingAdministration("
         }
       ],
@@ -3590,7 +3590,7 @@
         },
         {
           "path": "backend/internal/platform/trading_endpoints.go",
-          "sha256": "5bde9f205a9714519c05316fe5d4bcb89205a409ae65b78bdca62aa9a9686630",
+          "sha256": "7599d0075d394362d7b7bb346ef364e59cf4e312a53110e2b5c4469502425910",
           "symbol": "func (g tradingEndpointOwners) WithTradingAdministration("
         }
       ],
@@ -3623,7 +3623,7 @@
         },
         {
           "path": "backend/internal/platform/trading_endpoints.go",
-          "sha256": "5bde9f205a9714519c05316fe5d4bcb89205a409ae65b78bdca62aa9a9686630",
+          "sha256": "7599d0075d394362d7b7bb346ef364e59cf4e312a53110e2b5c4469502425910",
           "symbol": "func (g tradingEndpointOwners) WithTradingAdministration("
         }
       ],
@@ -3656,7 +3656,7 @@
         },
         {
           "path": "backend/internal/platform/trading_endpoints.go",
-          "sha256": "5bde9f205a9714519c05316fe5d4bcb89205a409ae65b78bdca62aa9a9686630",
+          "sha256": "7599d0075d394362d7b7bb346ef364e59cf4e312a53110e2b5c4469502425910",
           "symbol": "func (g tradingEndpointOwners) WithTradingAdministration("
         }
       ],

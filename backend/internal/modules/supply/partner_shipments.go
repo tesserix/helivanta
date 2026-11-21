@@ -23,8 +23,9 @@ import (
 )
 
 type partnerShipmentHandlers struct {
-	db        *tenantdb.DB
-	authority authz.PartnerScopeAuthorizer
+	db            *tenantdb.DB
+	authority     authz.PartnerScopeAuthorizer
+	presentations suppliertrade.CurrentEndpointPresentationGuard
 }
 type partnerShipmentOrder struct {
 	supplieraccess.PartnerShipmentOrder
@@ -36,7 +37,8 @@ type partnerShipment struct{ supplieraccess.PartnerShipment }
 
 func (r partnerShipment) PageKey() (time.Time, uuid.UUID) { return r.DispatchedAt, r.ID }
 func partnerShipmentRoutes(r *platform.Router, deps platform.Deps) {
-	h := &partnerShipmentHandlers{db: deps.DB, authority: deps.PartnerScopes}
+	presentations, _ := deps.TradingEndpoints.(suppliertrade.CurrentEndpointPresentationGuard)
+	h := &partnerShipmentHandlers{db: deps.DB, authority: deps.PartnerScopes, presentations: presentations}
 	root := "/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders"
 	platform.ResourceListRoute(r, root, authz.Public, 50, h.orders)
 	platform.ResourceListRoute(r, root+"/:order/shipments", authz.Public, 50, h.shipments)
@@ -88,6 +90,9 @@ func partnerShipmentHash(value string) bool {
 	return err == nil && len(digest) == 32 && hex.EncodeToString(digest) == value
 }
 func validPartnerShipmentGrant(request authz.PartnerScopeRequest, g authz.PartnerScopeGrant) bool {
+	if !suppliertrade.ValidEndpointUse(g.SourceEndpoint, g.Category, "order") || g.SourceEndpoint.TenantID.String() != g.SourceTenantID || g.SourceEndpoint.Product != g.Product || g.SourceEndpoint.OrganizationID != g.SourceOrganizationID || g.SourceEndpoint.LocationID != g.SourceLocationID {
+		return false
+	}
 	for _, hash := range []string{g.ProjectionHash, g.TermsSha256} {
 		if !partnerShipmentHash(hash) {
 			return false
@@ -106,8 +111,8 @@ func validPartnerShipmentGrant(request authz.PartnerScopeRequest, g authz.Partne
 	home, err := uuid.Parse(g.RecipientTenantID)
 	return err == nil && home != uuid.Nil && home.String() == g.RecipientTenantID && g.SourceTenantID != g.RecipientTenantID && g.RecipientTenantID == request.Principal.TenantID && g.HospitalID == request.HospitalID && g.GrantID == request.GrantID && g.Product == request.Product && g.Permission == authz.PartnerShipmentRead && g.RelationshipID.Version() == 7 && g.SourceOrganizationID.Version() == 7 && g.SourceLocationID.Version() == 7 && g.BuyerOrganizationID.Version() == 7 && g.BuyerLocationID.Version() == 7 && len(g.ProjectionHash) == 64 && time.Now().Before(g.ValidUntil)
 }
-func (h *partnerShipmentHandlers) with(ctx context.Context, request authz.PartnerScopeRequest, terms string, action func(*gorm.DB, authz.PartnerScopeGrant) error) error {
-	if h.db == nil || h.authority == nil {
+func (h *partnerShipmentHandlers) with(ctx context.Context, request authz.PartnerScopeRequest, terms string, action func(*gorm.DB, authz.PartnerScopeGrant, suppliertrade.EndpointPresentation) error) error {
+	if h.db == nil || h.authority == nil || h.presentations == nil || action == nil {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
 	return h.authority.WithPartnerScope(ctx, request, func(held context.Context, g authz.PartnerScopeGrant) error {
@@ -118,8 +123,20 @@ func (h *partnerShipmentHandlers) with(ctx context.Context, request authz.Partne
 		if g.TermsSha256 != terms {
 			return authz.ErrScopedCommandDenied
 		}
-		return h.db.WithTenantCommand(held, g.SourceTenantID, func(tx *gorm.DB) error {
-			return partnerShipmentFrame(tx, g, request.Principal.Subject, func() error { return action(tx, g) })
+		return h.presentations.WithCurrentTradingEndpointPresentation(held, g.SourceEndpoint, g.Category, "order", func(current context.Context, reference suppliertrade.EndpointReference, presentation suppliertrade.EndpointPresentation) error {
+			if !h.db.GuardedCommandActive(current) || tenantdb.ActorFrom(current) != request.Principal.Subject || !suppliertrade.EndpointEqual(reference.Endpoint, g.SourceEndpoint) || reference.Category != g.Category || reference.Operation != "order" || !suppliertrade.ValidEndpointPresentation(presentation) {
+				return authz.ErrScopedAuthorizationUnavailable
+			}
+			deadline, bounded := current.Deadline()
+			if !bounded {
+				return authz.ErrScopedAuthorizationUnavailable
+			}
+			if deadline.Before(g.ValidUntil) {
+				g.ValidUntil = deadline
+			}
+			return h.db.WithTenantCommand(current, g.SourceTenantID, func(tx *gorm.DB) error {
+				return partnerShipmentFrame(tx, g, request.Principal.Subject, func() error { return action(tx, g, presentation) })
+			})
 		})
 	})
 }
@@ -157,7 +174,7 @@ func (h *partnerShipmentHandlers) orders(c *gin.Context, page pagination.Params)
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 15*time.Second)
 	defer cancel()
 	result := []partnerShipmentOrder{}
-	err := h.with(ctx, request, c.Param("terms"), func(tx *gorm.DB, g authz.PartnerScopeGrant) error {
+	err := h.with(ctx, request, c.Param("terms"), func(tx *gorm.DB, g authz.PartnerScopeGrant, presentation suppliertrade.EndpointPresentation) error {
 		var rows []struct {
 			ID        uuid.UUID
 			Reference string
@@ -170,7 +187,7 @@ func (h *partnerShipmentHandlers) orders(c *gin.Context, page pagination.Params)
 			if r.ID.Version() != 7 || !suppliertrade.Text(r.Reference, 200) || r.CreatedAt.IsZero() {
 				return f.ErrUnavailable
 			}
-			result = append(result, partnerShipmentOrder{supplieraccess.PartnerShipmentOrder{ID: r.ID, Scope: partnerShipmentScope(g), GrantID: g.GrantID, RelationshipID: g.RelationshipID, TermsSha256: g.TermsSha256, PurchaseOrderReference: r.Reference, CreatedAt: r.CreatedAt}})
+			result = append(result, partnerShipmentOrder{supplieraccess.PartnerShipmentOrder{ID: r.ID, Scope: partnerShipmentScope(g), GrantID: g.GrantID, RelationshipID: g.RelationshipID, TermsSha256: g.TermsSha256, SourceOrganizationName: presentation.OrganizationName, SourceLocationName: presentation.LocationName, PurchaseOrderReference: r.Reference, CreatedAt: r.CreatedAt}})
 		}
 		return tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id)VALUES(?,?,'partner_shipment_orders_read','supply_partner_shipments',?)`, g.SourceTenantID, p.Subject, g.GrantID).Error
 	})
@@ -192,7 +209,7 @@ func (h *partnerShipmentHandlers) shipments(c *gin.Context, page pagination.Para
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 15*time.Second)
 	defer cancel()
 	result := []partnerShipment{}
-	err := h.with(ctx, request, c.Param("terms"), func(tx *gorm.DB, g authz.PartnerScopeGrant) error {
+	err := h.with(ctx, request, c.Param("terms"), func(tx *gorm.DB, g authz.PartnerScopeGrant, presentation suppliertrade.EndpointPresentation) error {
 		var visible struct{ ID uuid.UUID }
 		if err := partnerShipmentOrderQuery(tx, g).Select("id").Where("id=?", order).Take(&visible).Error; err != nil {
 			return err
@@ -212,7 +229,7 @@ func (h *partnerShipmentHandlers) shipments(c *gin.Context, page pagination.Para
 			if !shipmentMatchesBuyerOrder(r.Shipment, buyer) {
 				return supplierorder.ErrUnavailable
 			}
-			result = append(result, partnerShipment{supplieraccess.PartnerShipment{ID: r.ID, Scope: partnerShipmentScope(g), GrantID: g.GrantID, RelationshipID: g.RelationshipID, TermsSha256: g.TermsSha256, OrderID: order, PurchaseOrderReference: parent.Order.Input.PurchaseOrderReference, ProductDescription: r.ProductDescription, UnitCode: r.UnitCode, PackSize: r.PackSize, QuantityUnits: r.QuantityUnits, LotNumber: r.LotNumber, ExpiresOn: r.ExpiresOn, HandoffReference: r.HandoffReference, DispatchedAt: r.DispatchedAt}})
+			result = append(result, partnerShipment{supplieraccess.PartnerShipment{ID: r.ID, Scope: partnerShipmentScope(g), GrantID: g.GrantID, RelationshipID: g.RelationshipID, TermsSha256: g.TermsSha256, SourceOrganizationName: presentation.OrganizationName, SourceLocationName: presentation.LocationName, OrderID: order, PurchaseOrderReference: parent.Order.Input.PurchaseOrderReference, ProductDescription: r.ProductDescription, UnitCode: r.UnitCode, PackSize: r.PackSize, QuantityUnits: r.QuantityUnits, LotNumber: r.LotNumber, ExpiresOn: r.ExpiresOn, HandoffReference: r.HandoffReference, DispatchedAt: r.DispatchedAt}})
 		}
 		return tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id)VALUES(?,?,'partner_shipments_read','supply_purchase_orders',?)`, g.SourceTenantID, p.Subject, order).Error
 	})

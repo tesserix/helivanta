@@ -9071,7 +9071,7 @@
         },
         {
           "id": "0019_supply_partner_shipments",
-          "sql_sha256": "853966cd2cbd8dc9f2ab9b35d88b129c472bcb38c4a50257efcb0a9fdf462e85",
+          "sql_sha256": "d80ee6a268331a34a82d26e56210f6a2c7151bbb61e755cc34a479cbcdeed7c1",
           "creates_tables": []
         },
         {

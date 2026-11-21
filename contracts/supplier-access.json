@@ -493,6 +493,22 @@
           "SupplierOrder",
           "created_at"
         ]
+      },
+      {
+        "name": "source_organization_name",
+        "field_from": [
+          "supplier-trade",
+          "SupplierTradeEndpointPresentation",
+          "organization_name"
+        ]
+      },
+      {
+        "name": "source_location_name",
+        "field_from": [
+          "supplier-trade",
+          "SupplierTradeEndpointPresentation",
+          "location_name"
+        ]
       }
     ],
     "PartnerShipment": [
@@ -610,6 +626,22 @@
           "supplier-fulfilment",
           "Shipment",
           "dispatched_at"
+        ]
+      },
+      {
+        "name": "source_organization_name",
+        "field_from": [
+          "supplier-trade",
+          "SupplierTradeEndpointPresentation",
+          "organization_name"
+        ]
+      },
+      {
+        "name": "source_location_name",
+        "field_from": [
+          "supplier-trade",
+          "SupplierTradeEndpointPresentation",
+          "location_name"
         ]
       }
     ]

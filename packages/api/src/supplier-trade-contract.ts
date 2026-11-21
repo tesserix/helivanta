@@ -317,3 +317,23 @@ export const SupplierRelationshipCheckResultContract = z
 export type SupplierRelationshipCheckResult = z.infer<
   typeof SupplierRelationshipCheckResultContract
 >;
+
+export const SupplierTradeEndpointPresentationContract = z
+  .object({
+    organization_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .regex(new RegExp("^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    location_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .regex(new RegExp("^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type SupplierTradeEndpointPresentation = z.infer<
+  typeof SupplierTradeEndpointPresentationContract
+>;

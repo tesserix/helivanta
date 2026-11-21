@@ -25,6 +25,8 @@ const row = {
   terms_sha256: scope.termsSha256,
   purchase_order_reference: "TEST hospital PO",
   created_at: "2026-11-22T00:00:00Z",
+  source_organization_name: "TEST Source Organisation",
+  source_location_name: "TEST Pune Premise",
 };
 const page = (rows: unknown[]) => ({ data: rows, page: { has_more: false, next_cursor: null } });
 afterEach(() => vi.unstubAllGlobals());
@@ -41,6 +43,15 @@ it("reads named source order references through Global API under the hospital ac
   expect(new Headers(request.headers).get("X-Helivanta-Expected-Subject")).toBe(scope.subject);
   expect(request.cache).toBe("no-store");
   expect(request.signal).toBeInstanceOf(AbortSignal);
+});
+it("preserves current source organisation and premise names for human choices", async () => {
+  const named = {
+    ...row,
+    source_organization_name: "TEST Independent Pharmacy",
+    source_location_name: "TEST Pune Outlet",
+  };
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(page([named])))));
+  expect((await sdk.listPartnerShipmentOrders(scope)).data).toEqual([named]);
 });
 it.each([
   "source_tenant_id",
@@ -100,6 +111,8 @@ const shipment = {
   expires_on: "2027-05-01",
   handoff_reference: "TEST dispatch note",
   dispatched_at: "2026-11-22T01:00:00Z",
+  source_organization_name: row.source_organization_name,
+  source_location_name: row.source_location_name,
 };
 it.each(["pharmacy", "supply"] as const)(
   "reads only the declared shipment projection from %s",
@@ -153,3 +166,35 @@ it("refuses evidence for another approved agreement snapshot", async () => {
   );
   await expect(sdk.listPartnerShipmentOrders(scope)).rejects.toThrow();
 });
+
+it("refuses mixed source names within one guarded projection page", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify(
+            page([row, { ...row, id: id(10), source_organization_name: "TEST Other Supplier" }]),
+          ),
+        ),
+      ),
+  );
+  await expect(sdk.listPartnerShipmentOrders(scope)).rejects.toThrow();
+});
+
+it.each([
+  { ...row, source_organization_name: undefined },
+  { ...row, source_location_name: undefined },
+  { ...row, source_organization_name: "" },
+  { ...row, source_location_name: " TEST Premise" },
+  { ...row, source_organization_name: "TEST\nSupplier" },
+  { ...row, source_location_name: "x".repeat(201) },
+  { ...row, source_location_name: "😀".repeat(201) },
+])(
+  "refuses missing or unsafe source labels instead of falling back to identifiers %#",
+  async (value) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(page([value])))));
+    await expect(sdk.listPartnerShipmentOrders(scope)).rejects.toThrow();
+  },
+);

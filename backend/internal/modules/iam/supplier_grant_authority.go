@@ -276,7 +276,7 @@ func (a *partnerScopeAuthority) WithPartnerScope(ctx context.Context, request au
 						return e
 					}
 					until, _ := held.Deadline()
-					return action(held, authz.PartnerScopeGrant{SourceTenantID: source.Scope.SourceTenantID.String(), RecipientTenantID: p.TenantID, HospitalID: request.HospitalID, GrantID: source.ID, RelationshipID: source.Input.RelationshipID, Product: source.Scope.SourceProduct, SourceOrganizationID: source.Scope.SourceOrganizationID, SourceLocationID: source.Scope.SourceLocationID, BuyerOrganizationID: trade.Terms.Buyer.OrganizationID, BuyerLocationID: trade.Terms.Buyer.LocationID, Category: trade.Terms.Category, TermsSha256: source.Input.TermsSha256, Permission: request.Permission, ProjectionHash: projectionHash, ValidUntil: until})
+					return action(held, authz.PartnerScopeGrant{SourceTenantID: source.Scope.SourceTenantID.String(), RecipientTenantID: p.TenantID, HospitalID: request.HospitalID, GrantID: source.ID, RelationshipID: source.Input.RelationshipID, Product: source.Scope.SourceProduct, SourceOrganizationID: source.Scope.SourceOrganizationID, SourceLocationID: source.Scope.SourceLocationID, BuyerOrganizationID: trade.Terms.Buyer.OrganizationID, BuyerLocationID: trade.Terms.Buyer.LocationID, Category: trade.Terms.Category, SourceEndpoint: trade.Terms.Seller, TermsSha256: source.Input.TermsSha256, Permission: request.Permission, ProjectionHash: projectionHash, ValidUntil: until})
 				})
 			})
 		})

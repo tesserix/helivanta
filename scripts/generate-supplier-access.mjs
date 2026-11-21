@@ -7,6 +7,9 @@ const contract = JSON.parse(
   await readFile(path.join(root, "contracts/supplier-access.json"), "utf8"),
 );
 const sources = {
+  "supplier-trade": JSON.parse(
+    await readFile(path.join(root, "contracts/supplier-trade.json"), "utf8"),
+  ),
   "supplier-access": contract,
   "supplier-orders": JSON.parse(
     await readFile(path.join(root, "contracts/supplier-orders.json"), "utf8"),

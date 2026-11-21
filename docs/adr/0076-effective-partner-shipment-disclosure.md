@@ -120,3 +120,35 @@ observed rejecting the previously hardcoded warehouse intent for a pharmacy
 agreement before correction. This expands retained-projection tests only: it does
 not establish real current grant/Staff/graph admission, licence activation,
 physical stock dispatch or browser acceptance for either owner.
+
+## Current owner names for the source chooser
+
+Read organisation and premise names only through each physical owner's local
+endpoint-presentation guard after the current licence, policy and premise check.
+The platform dispatches to that owner; SupplyConnect does not query pharmacy
+master tables. IAM supplies the verified source endpoint fact descriptor with its
+held grant;
+SupplyConnect uses the owner presentation port inside that same guarded callback
+before releasing shipment projections. The two canonical text fields are bounded
+at 200
+characters; invalid or missing labels withhold the new sharing projection rather
+than substitute identifiers. Labels are presentation facts, never grant, graph,
+permission or stock authority.
+
+Keep the existing machine source-check request/reference wire unchanged: its
+strict v1 clients must not receive unexpected metadata during a rolling deploy.
+The presentation port is local and optional to the older fact-check interface;
+shipment sharing requires it. Existing fact checks retain their eligibility
+semantics. Reuse the source rows and locks already checked by the owner, restore
+its private purpose before the callback, and audit the final sharing read.
+
+At the existing 50 sharing reads/s planning peak this adds a bounded local owner
+fact read, no service, cache, datastore, migration or infrastructure allocation.
+The prior 500 ms p99 target and five-second held source deadline still apply;
+measure the added read in hosted acceptance. Two 200-character labels repeated in
+50 rows add roughly 40 KiB before JSON escaping if each character averages two
+encoded
+bytes. Go producer HTML escaping can add 120 KiB plus field syntax at the
+upper name lengths. These are planning bounds, not measured
+throughput or release evidence. Disabling the candidate leaves the old machine
+protocol untouched and preserves historical stock and financial data.

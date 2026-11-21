@@ -84,7 +84,6 @@ product projections, SDK/UI and complete shared-environment acceptance before an
 claim of the full supplier workflow. The owner protocol tests are component
 acceptance, not substitutes for those gates.
 
-
 ## Effective shipment disclosure candidate (ADR-0076)
 
 The current authorizer is now consumed by the development candidate in
@@ -135,3 +134,16 @@ A changed agreement requires a refreshed choice/page. It does not broaden access
 to another agreement's history; hospital-local retained obligations use their own
 existing authority. Public projections include that `terms_sha256` for exact SDK
 checking, without the private source document or its actors.
+
+The candidate shipment order and shipment projections include required
+`source_organization_name` and `source_location_name` fields. These come from the
+current physical owner's presentation guard under the already-held compound
+source grant, not from the request, actor ID or cross-module table reads. IAM
+passes the verified seller endpoint descriptor through its internal grant; the
+SupplyConnect consumer resolves the names and can only shorten that grant's
+remaining deadline. A missing owner projection or invalid label withholds the
+response. The canonical presentation bounds are 1–200 Unicode characters, with
+no surrounding whitespace or control characters. The SDK preserves the names,
+refuses missing/unsafe labels and refuses mixed source labels within a page.
+The underlying v1 machine source-check reference remains unchanged; presentation
+facts do not grant trading, staff, financial or physical stock authority.

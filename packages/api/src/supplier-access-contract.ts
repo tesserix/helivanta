@@ -218,6 +218,18 @@ export const PartnerShipmentOrderContract = z
       .max(200)
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     created_at: z.string().datetime({ offset: true }),
+    source_organization_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .regex(new RegExp("^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    source_location_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .regex(new RegExp("^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
 export type PartnerShipmentOrder = z.infer<typeof PartnerShipmentOrderContract>;
@@ -267,6 +279,18 @@ export const PartnerShipmentContract = z
       .max(200)
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     dispatched_at: z.string().datetime({ offset: true }),
+    source_organization_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .regex(new RegExp("^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    source_location_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .regex(new RegExp("^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
 export type PartnerShipment = z.infer<typeof PartnerShipmentContract>;

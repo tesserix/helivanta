@@ -97,11 +97,15 @@ func TestPharmacyTradingScopeNeedsCurrentSourceAdministrationAndIndependentEvide
 	registrationVersion := int64(2)
 	endpoint := suppliertrade.Endpoint{TenantID: uuid.MustParse(testutil.TenantA), Product: "pharmacy", OrganizationID: organization, LocationID: outlet, OrganizationVersion: 1, LocationVersion: 1, LicenceID: licence, LicenceVersion: 1, Jurisdiction: "IN-MH", RegistrationID: &scope, RegistrationVersion: &registrationVersion}
 	sources := platform.TradingEndpoints([]platform.Module{pharmacy.New()}, f.db, nil)
+	presentations, ok := sources.(suppliertrade.CurrentEndpointPresentationGuard)
+	require.True(t, ok)
 	seen := 0
 	check := func() error {
 		return f.db.WithGuardedTenantCommand(tenantdb.WithActor(t.Context(), "user-owner"), testutil.TenantA, time.Now().Add(5*time.Second), func(*gorm.DB) error { return nil }, func(ctx context.Context) error {
-			return sources.WithCurrentTradingEndpoint(ctx, endpoint, "prescription", "order", func(ctx context.Context, ref suppliertrade.EndpointReference) error {
+			return presentations.WithCurrentTradingEndpointPresentation(ctx, endpoint, "prescription", "order", func(ctx context.Context, ref suppliertrade.EndpointReference, presentation suppliertrade.EndpointPresentation) error {
 				seen++
+				require.Equal(t, "TEST Independent Supplier Pharmacy", presentation.OrganizationName)
+				require.Equal(t, "TEST Pune Premise", presentation.LocationName)
 				require.True(t, suppliertrade.EndpointEqual(endpoint, ref.Endpoint))
 				require.Equal(t, "order", ref.Operation)
 				return f.db.WithTenantCommand(ctx, testutil.TenantA, func(tx *gorm.DB) error {

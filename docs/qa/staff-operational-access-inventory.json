@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "registry_sha256": "8ad0455ea108a212326fa62582027c332b0cb2a1930f0534cee79220e2892868",
+  "registry_sha256": "c0120a3dd96de2da593b715919410e5022718d871a6f7a947fe27588715cd432",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
     "total": 1217,
@@ -14014,7 +14014,7 @@
           },
           {
             "path": "backend/internal/platform/trading_endpoints.go",
-            "sha256": "5bde9f205a9714519c05316fe5d4bcb89205a409ae65b78bdca62aa9a9686630",
+            "sha256": "7599d0075d394362d7b7bb346ef364e59cf4e312a53110e2b5c4469502425910",
             "symbol": "func (g tradingEndpointOwners) WithTradingAdministration("
           }
         ],
@@ -14062,7 +14062,7 @@
           },
           {
             "path": "backend/internal/platform/trading_endpoints.go",
-            "sha256": "5bde9f205a9714519c05316fe5d4bcb89205a409ae65b78bdca62aa9a9686630",
+            "sha256": "7599d0075d394362d7b7bb346ef364e59cf4e312a53110e2b5c4469502425910",
             "symbol": "func (g tradingEndpointOwners) WithTradingAdministration("
           }
         ],
@@ -14110,7 +14110,7 @@
           },
           {
             "path": "backend/internal/platform/trading_endpoints.go",
-            "sha256": "5bde9f205a9714519c05316fe5d4bcb89205a409ae65b78bdca62aa9a9686630",
+            "sha256": "7599d0075d394362d7b7bb346ef364e59cf4e312a53110e2b5c4469502425910",
             "symbol": "func (g tradingEndpointOwners) WithTradingAdministration("
           }
         ],
@@ -14424,7 +14424,7 @@
           },
           {
             "path": "backend/internal/platform/trading_endpoints.go",
-            "sha256": "5bde9f205a9714519c05316fe5d4bcb89205a409ae65b78bdca62aa9a9686630",
+            "sha256": "7599d0075d394362d7b7bb346ef364e59cf4e312a53110e2b5c4469502425910",
             "symbol": "func (g tradingEndpointOwners) WithTradingAdministration("
           }
         ],
@@ -15121,7 +15121,7 @@
           },
           {
             "path": "backend/internal/platform/trading_endpoints.go",
-            "sha256": "5bde9f205a9714519c05316fe5d4bcb89205a409ae65b78bdca62aa9a9686630",
+            "sha256": "7599d0075d394362d7b7bb346ef364e59cf4e312a53110e2b5c4469502425910",
             "symbol": "func (g tradingEndpointOwners) WithTradingAdministration("
           }
         ],
@@ -15169,7 +15169,7 @@
           },
           {
             "path": "backend/internal/platform/trading_endpoints.go",
-            "sha256": "5bde9f205a9714519c05316fe5d4bcb89205a409ae65b78bdca62aa9a9686630",
+            "sha256": "7599d0075d394362d7b7bb346ef364e59cf4e312a53110e2b5c4469502425910",
             "symbol": "func (g tradingEndpointOwners) WithTradingAdministration("
           }
         ],

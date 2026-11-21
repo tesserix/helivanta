@@ -71,6 +71,7 @@ func supplierReturnRoutes(s *platform.Router, h *catalogueHandlers) {
 	platform.ListRoute(r, "", PermSupplierReturnRead, h.listSupplierReturns)
 	r.PUT("/:return", PermSupplierReturnPrepare, h.putSupplierReturn)
 	r.GET("/:return", PermSupplierReturnRead, h.getSupplierReturn)
+	r.GET("/:return/note.html", PermSupplierReturnRead, h.exportSupplierReturnNote)
 	r.PUT("/:return/cancellations/:cancellation", PermSupplierReturnPrepare, h.cancelSupplierReturn)
 	r.GET("/:return/cancellations/:cancellation", PermSupplierReturnRead, h.getSupplierReturnCancellation)
 	r.PUT("/:return/dispatches/:dispatch", PermSupplierReturnDispatch, h.dispatchSupplierReturn)

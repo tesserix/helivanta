@@ -1142,7 +1142,8 @@ var routeCapabilities = map[string]string{"POST /v1/workforce/hospitals/:hospita
 	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/dispatches/:dispatch":        "baseline",
 	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/preparation/:payable":                "pharmacy_stock",
 	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/preparation":                 "baseline",
-	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/original-bills":                      "pharmacy_stock"}
+	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/original-bills":                      "pharmacy_stock",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/note.html":                   "baseline"}
 var internalRouteCapabilities = map[string]string{"POST /v1/supply/internal/trading-source/check": "baseline",
 	"POST /v1/supply/internal/relationship/check": "baseline",
 	"POST /internal/v1/mediconnect/current-claim": "baseline",

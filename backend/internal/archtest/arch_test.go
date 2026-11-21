@@ -451,6 +451,7 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return":                                                                                        "one immutable return aggregate with at most 100 guarded lines; no return collection",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/note.html":                                                                              "one audited dispatched return document, at most 100 frozen lines and 1 MiB; no collection query",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/preparation/:payable":                                                                           "one original bill with at most 100 immutable inventory receipts; no collection query",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/preparation":                                                                            "one original actor-bound preparation receipt; no command collection",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/cancellations/:cancellation":                                                            "one actor-bound immutable cancellation receipt; no command collection",

@@ -1414,3 +1414,28 @@ stores only an account-scoped recovery reference. Preparation is Stock-gated;
 original-result recovery survives a pause. See the supplier-return QA guide for
 implemented scenarios and remaining financial/document acceptance. Actual accepted
 credit, allocation, reversal and printable commercial notes remain distinct work.
+
+### Private commercial return note
+
+`GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/note.html`
+requires `pharmacy.supplier_returns.read`, active exact-outlet authority and both
+expected tenant/subject headers. It accepts no body or query. A draft, undisclosed
+return or missing dispatch is 404. Incomplete proof, missing historical name
+snapshot, failed audit or timeout returns 503 with no file disposition or bytes.
+
+Success is a private/no-store UTF-8 HTML attachment, not JSON:
+`attachment; filename="supplier-return-<number>.html"`. It contains frozen
+pharmacy/outlet names, supplier and original bill, outward reference, recipient,
+UTC handoff time, products, lots, expiries and returned issue units. Migration0057
+captures directory names at dispatch; later renames do not rewrite the note.
+Pre-migration rows without that snapshot are deliberately unavailable.
+
+`X-Supplier-Return-Tenant-Id`, `X-Supplier-Return-Outlet-Id`,
+`X-Supplier-Return-Id` and `X-Supplier-Return-Number` identify the source;
+`X-Export-Row-Count`, `X-Export-Byte-Count` and `X-Export-Sha256` prove completeness
+and byte integrity. The file is capped at 100 lines / 1 MiB. Dynamic text is
+escaped, content policies prohibit active/external content, and audit commits
+before release. Current scope and all metadata/bytes are checked before the
+browser creates a download. Download is baseline retained evidence and changes
+neither stock nor financial balances. Print/PDF uses the downloaded document's
+browser print view. It does not issue a statutory or supplier credit document.

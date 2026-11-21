@@ -222,3 +222,40 @@ Stock-gated, actor-bound, audited cursor page capped at 50. It selects bills wit
 inventory receipts regardless of payment status and publishes only original bill
 identity, supplier name, issue date and currency. It does not enumerate unrelated
 salary/expense bills or depend on an unaudited generic financial listing.
+
+### Private commercial return note
+
+`GET /accounts/supplier-returns/:return/note.html` releases one complete printable
+commercial record for a dispatched return. It requires current return-read
+permission, the exact active outlet grant and verified tenant/actor preconditions.
+It is baseline retained evidence, so withdrawing Stock does not prevent an
+otherwise authorized operator from reading an already completed handoff. No
+provider value or compiled release eligibility is activated by adding this read.
+
+Additive migration `0057_pharmacy_supplier_return_note` retains pharmacy/outlet
+names and outlet code at dispatch in the existing immutable dispatch row. A
+database trigger derives those values from the same tenant's current directory;
+caller-supplied snapshots cannot override them. Old dispatches without historical
+snapshots are not backfilled with guessed names and refuse note release. The
+migration is forward-only: rollback retains the snapshot columns and evidence.
+
+The note rechecks complete dispatch/movement proof and uses frozen supplier,
+original bill, product, batch, expiry, issue units, quantity and handoff facts.
+The read transaction renders all rows and commits its disclosure audit before any
+file headers or bytes are released. Missing evidence, audit failure or timeout
+returns no partial document. The inherited planning budgets apply: at most 100
+rows, 1 MiB, a 15-second deadline, and the unmeasured bounded-read latency target.
+No new service, storage allocation or infrastructure is introduced.
+
+The UTF-8 HTML attachment has escaped dynamic text, restrictive HTTP and embedded
+content policy, no scripts, forms, images or external resources, and print styles
+for A4 with repeated table headings. It is explicitly not a tax invoice,
+statutory debit note, accepted supplier credit, settlement or regulatory
+certificate. Download neither moves stock nor changes a financial balance.
+
+Response metadata binds tenant, outlet, return, human number, row count, exact
+uncompressed byte count and SHA-256. The SDK verifies scope, private/no-store
+caching, MIME, disposition, size and digest before creating a download. The Shell
+aborts on unmount, refuses duplicate/in-transition downloads and releases its
+temporary URL. An authorization refusal conceals private error details and needs
+an explicit access recheck; it never falls back to a cached file.

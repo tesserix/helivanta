@@ -3854,6 +3854,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/note.html",
+          "permission": "pharmacy.supplier_returns.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/preparation",
           "permission": "pharmacy.supplier_returns.read",
           "authentication_required": true,
@@ -6065,6 +6074,11 @@
             "pharmacy_supplier_return_dispatches",
             "pharmacy_supplier_return_dispatch_lines"
           ]
+        },
+        {
+          "id": "0057_pharmacy_supplier_return_note",
+          "sql_sha256": "73f1ede5ca37756c1c97e24f0bc25cde2c4d04ce2b63c707cabdfb19779787b1",
+          "creates_tables": []
         }
       ]
     },

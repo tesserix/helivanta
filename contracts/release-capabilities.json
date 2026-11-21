@@ -5763,6 +5763,11 @@
       "method": "GET",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/original-bills",
       "capability": "pharmacy_stock"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/:return/note.html",
+      "capability": "baseline"
     }
   ],
   "pages": [

@@ -608,16 +608,17 @@ Until the worker is rolled out (#1406), uploaded pages stay `scan_pending` and a
 `from` to `as_of`) returns `opening_units` and `closing_units` (numbers), a
 signed in-period total per movement kind as an exact decimal string
 (`receipt_units`, `correction_units`, `release_units`, `sale_units`,
-`return_units`, `supplier_dispatch_units`) and `movement_count`, in one
+`return_units`, `supplier_dispatch_units`, `quarantine_hold_units`) and `movement_count`, in one
 statement. Totals are stored quantities, never sign-flipped: receipts and
 returns are positive, sales and supplies to hospital orders negative, a
 release negative where stock left and positive where it arrived, a correction
-either. `opening + every kind = closing`, tested; a test also fails when the
+either. Physical quarantine holds are negative at the sellable source and positive
+at the quarantine destination. `opening + every kind = closing`, tested; a test also fails when the
 movement kind constraint names a kind without a total. Register rows (outlet
-and pharmacy-wide) carry the same six totals over all history to `as_of`, so
+and pharmacy-wide) carry the same registered movement totals over all history to `as_of`, so
 `on_hand_units` equals their sum, and the stock CSVs end `on_hand_units`,
 `receipt_units`, `correction_units`, `release_units`, `sale_units`,
-`return_units`, `supplier_dispatch_units`. Snapshot rows and CSVs carry no
+`return_units`, `supplier_dispatch_units`, `quarantine_hold_units`. Snapshot rows and CSVs carry no
 `dispensable_units`: sellability at a past `as_of` cannot be reconstructed, so
 only the balance reports it (#1708). The panel shows every signed part and, if the parts are
 missing or do not sum, an alert instead of a reconciliation.

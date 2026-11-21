@@ -450,6 +450,7 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-source":                                            "one current grant-scoped source identity projection; shipment-order and shipment collections use ResourceListRoute",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/allocations/:allocation":                           "one immutable allocation and optional unique reversal reference",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/allocations/:allocation/recovery":                  "one original actor-bound allocation receipt",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/allocations/:allocation/reversal":                  "zero or one immutable full allocation reversal",

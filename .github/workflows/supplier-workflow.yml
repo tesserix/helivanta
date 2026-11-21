@@ -60,10 +60,13 @@ jobs:
         with:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
+      - name: Verify supplier acceptance selectors
+        run: node --test ../scripts/supplier-workflow.test.mjs
       - name: Current names retain warehouse and pharmacy owner eligibility
         run: |
           go test -race -timeout 12m ./internal/modules/supply -run '^TestSupplierTradingSource'
-          go test -race -timeout 12m ./internal/globalapi -run '^TestPharmacyTradingEndpointUsesIndependentOwnerAndRejectsDepartmentImpersonation$'
+          go test -list '^TestPharmacyTradingScopeNeedsCurrentSourceAdministrationAndIndependentEvidence$' ./internal/globalapi | grep -Fx 'TestPharmacyTradingScopeNeedsCurrentSourceAdministrationAndIndependentEvidence'
+          go test -race -timeout 12m ./internal/globalapi -run '^TestPharmacyTradingScopeNeedsCurrentSourceAdministrationAndIndependentEvidence$'
   supplier:
     runs-on: ubuntu-latest
     timeout-minutes: 45

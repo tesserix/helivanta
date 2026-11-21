@@ -309,3 +309,32 @@ it("refuses unsupported sub-microsecond precision before sending a dispatch", as
   ).rejects.toThrow(/precision/);
   expect(apiFetch).not.toHaveBeenCalled();
 });
+
+it("recovers a receipt with the licence owner's legacy UUIDv4 review identifier", async () => {
+  const row = {
+    expected_version: 0,
+    licence_id: id,
+    document_reference: "TEST-OUT",
+    recipient_name: "TEST Supplier",
+    handed_over_at: "2026-11-21T08:23:02.18Z",
+    physical_disposition: "handed_to_supplier",
+    reason: "TEST handoff",
+    id,
+    return_id: id,
+    outlet_id: scope.outletId,
+    number: 1,
+    version: 1,
+    state: "dispatched",
+    licence_review_id: "00000000-0000-4000-8000-000000000001",
+    dispatched_by: scope.subject,
+    recorded_at: "2026-11-21T08:23:02.519032Z",
+    lines: [{ return_line_id: id, movement_id: id }],
+  };
+  vi.mocked(apiFetch).mockResolvedValue(row);
+  expect(await client.recoverPharmacySupplierReturnDispatch(scope, id, id)).toEqual(row);
+  vi.mocked(apiFetch).mockResolvedValue({
+    ...row,
+    licence_review_id: "00000000-0000-0000-0000-000000000000",
+  });
+  await expect(client.recoverPharmacySupplierReturnDispatch(scope, id, id)).rejects.toThrow();
+});

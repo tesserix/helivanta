@@ -101,7 +101,8 @@
         },
         {
           "name": "licence_review_id",
-          "type": "uuid"
+          "type": "uuid",
+          "uuid_any": true
         },
         {
           "name": "lines",

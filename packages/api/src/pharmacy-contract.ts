@@ -37,7 +37,13 @@ export const pharmacySupplierReturnDispatchReceiptSchema = pharmacySupplierRetur
     number: z.number().int().min(1).max(1000000000000),
     version: z.number().int().min(1).max(1),
     state: z.enum(["dispatched"]),
-    licence_review_id: identifier,
+    licence_review_id: z
+      .string()
+      .guid()
+      .refine(
+        (value) => value !== "00000000-0000-0000-0000-000000000000",
+        "Choose a valid hospital reference.",
+      ),
     lines: z.array(pharmacySupplierReturnDispatchLineSchema).min(1).max(100),
     dispatched_by: z.string().min(1).max(200),
     recorded_at: z

@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within, waitFor } from "@testing-library/react";
 import { renderWithProviders as renderBase } from "@helivanta/api/testing";
 import { NavigationGuardProvider } from "@helivanta/ui";
 import type { ReactElement } from "react";
@@ -68,6 +68,11 @@ it("shows separate actual, matched, applied and unused values with human referen
   );
   await user.click(await screen.findByRole("button", { name: "Open credit TEST-CN-ONE" }));
   const detail = within(await screen.findByRole("region", { name: "Supplier credit details" }));
+  await waitFor(() =>
+    expect(
+      detail.getByRole("heading", { name: `Credit ${row.document_reference} · ${row.payee_name}` }),
+    ).toHaveFocus(),
+  );
   expect(await detail.findByText("Actual credit")).toBeInTheDocument();
   expect(detail.getByText("Matched to returns")).toBeInTheDocument();
   expect(detail.getByText("Applied to bills")).toBeInTheDocument();
@@ -157,6 +162,7 @@ it("hides a previously verified credit reference when financial history access i
 });
 
 it("opens replacement entry from a named voided credit detail without any raw-ID or supplier lookup", async () => {
+  let contextReads = 0;
   const voided = {
     ...row,
     state: "voided",
@@ -174,7 +180,7 @@ it("opens replacement entry from a named voided credit detail without any raw-ID
                 ...voided,
                 local_date: "2026-11-22",
                 timezone: "Asia/Kolkata",
-                as_of: "2026-11-22T00:00:00Z",
+                as_of: contextReads++ === 0 ? "2026-11-22T00:00:00Z" : "2026-11-22T00:00:01Z",
               }
             : url.endsWith("/void")
               ? {
@@ -205,4 +211,14 @@ it("opens replacement entry from a named voided credit detail without any raw-ID
   ).toBeInTheDocument();
   expect(screen.getByText(/Replacing TEST-CN-ONE/)).toBeInTheDocument();
   expect(fetcher.mock.calls.some(([url]) => url.includes("source-returns"))).toBe(false);
+  const amount = screen.getByLabelText("Actual credit amount (INR)");
+  await user.type(amount, "8.00");
+  const refresh = screen.getByRole("button", { name: "Refresh original credit observations" });
+  await user.click(refresh);
+  await waitFor(() => expect(contextReads).toBe(2));
+  await waitFor(() => expect(refresh).not.toBeDisabled());
+  expect(
+    screen.getByRole("heading", { name: `Credit ${row.document_reference} · ${row.payee_name}` }),
+  ).not.toHaveFocus();
+  expect(amount).toHaveValue("8.00");
 });

@@ -627,6 +627,9 @@ test("supplier return preparation and physical dispatch recover response loss wi
     await expect(page.getByRole("button", { name: "Void unused credit", exact: true })).toHaveCount(
       0,
     );
+    await page
+      .getByText("TEST void incorrect supplier note after reversing applications", { exact: true })
+      .scrollIntoViewIfNeeded();
     await attachSupplierEvidence(page, testInfo, "supplier-credit-voided");
     await page.getByRole("button", { name: "Replace voided credit", exact: true }).click();
     await expect(
@@ -692,6 +695,12 @@ test("supplier return preparation and physical dispatch recover response loss wi
       ),
     ).toMatchObject({ on_hand_units: 20 });
     expect(await page.locator("body").innerText()).not.toContain(replacementId);
+    const replacementHeading = page.getByRole("heading", {
+      name: `Credit ${replacementReference} · TEST External Supplier`,
+      exact: true,
+    });
+    await expect(replacementHeading).toBeFocused();
+    await replacementHeading.scrollIntoViewIfNeeded();
     await attachSupplierEvidence(page, testInfo, "supplier-credit-corrected");
     for (const id of [applicationId, applicationReversalId, futurePayable, futureReceipt])
       expect(await page.locator("body").innerText()).not.toContain(id);

@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/tesserix/helivanta/internal/modules/pharmacy" //nolint:depguard // Protocol fixture needs the real pharmacy stock-cancellation owner.
-	"github.com/tesserix/helivanta/internal/modules/supply"   //nolint:depguard // external test exercises its own module
+	"github.com/tesserix/helivanta/internal/bootstrap"
+	"github.com/tesserix/helivanta/internal/modules/supply" //nolint:depguard // external test exercises its own module
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/events"
@@ -27,7 +27,12 @@ func verifyDirectedRelationshipProtocol(t *testing.T, product string) {
 	t.Helper()
 	modules := []platform.Module{supply.New()}
 	if product == "pharmacy" {
-		modules = append(modules, pharmacy.New())
+		for _, module := range bootstrap.Modules(nil, nil) {
+			if module.Name() == product {
+				modules = append(modules, module)
+			}
+		}
+		require.Len(t, modules, 2, "the protocol fixture needs the registered physical stock owner")
 	}
 	_, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Modules: modules})
 	verifyRelationshipProofBoundaries(t, db)

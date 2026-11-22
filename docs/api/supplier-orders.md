@@ -452,3 +452,93 @@ many distinct shipments or source owners; grouped owner safety validation remain
 an open acceptance item. Hosted focused unit tests cover partial receipt scope,
 contradictory captures, malformed bodies and foreign buyer identities. The full
 composed journey must also pass before this change is release-eligible.
+
+## Next slice: source-issued commercial evidence (proposed, not implemented)
+
+The current order stores an unverified quote reference, and the current buyer
+payable records buyer-entered amounts. Neither is a source-issued quote or
+invoice. Do not enable invoice disclosure or automatic three-way approval using
+these records. This continuation applies to both independent pharmacy outlets
+and warehouse/depot sources supplying Maharashtra and Odisha hospital outlets;
+it creates no patient billing or payment-provider authority.
+
+### Single owners and exact lineage
+
+| Evidence | Authoritative owner | Consumer boundary |
+| --- | --- | --- |
+| Reviewed quote and supplier invoice/credit | Seller's source product, tenant and legal organization | Directed immutable commercial projection; no buyer edits or copied supplier ledger |
+| Bilateral order and its exact accepted lines | Existing SupplyConnect order owner | Existing purpose-bound order publication guard; a text PO/quote reference is insufficient |
+| Dispatch and source return receipt | Actual pharmacy/warehouse stock owner | Published immutable physical evidence, never an inferred receipt from an invoice |
+| Hospital counts, corrections, closure and return dispatch | Hospital destination stock owner | Current versioned acquisition/receiving evidence; preserve original facts |
+| Buyer bill, liability, allocations and settlement | Existing PharmaConnect accounts owner | Explicit reviewed linkage to source documents; no source-side write to buyer accounts |
+
+Each commercial document must retain the exact seller tenant, product,
+organization and supplying location; buyer tenant, hospital, organization and
+receiving outlet; bilateral relationship/terms hash; accepted order/input hash;
+stable order lines; actual product versions and owner units; and its predecessor
+document where applicable. Mutable organization names are presentations, not
+identity. Supplier numbering must be unique under the accountable legal entity's
+reviewed numbering policy, independently of the command UUID. Reusing a number
+with changed content must conflict rather than create another liability.
+
+### Authority and publication
+
+Preparation, independent review/issuance and credit issuance require explicit
+financial operating duties for the exact supplying location. Stock fulfilment,
+order acceptance, source administration and `partner.invoice.read` alone must
+not issue financial documents. Bind reviewer separation to verified Staff IDs,
+not only login subjects. Hospital finance decisions retain their separate
+current accounts authority; a supplier's signature cannot approve a buyer bill.
+The finance duty templates and owning handlers still need implementation and
+their organization-access review before any route is registered.
+
+A draft can be cancelled before issuance. Issuance freezes source document
+content, reviewer attribution, exact monetary totals and immutable original
+recovery; source audit and directed outbox publication commit atomically.
+Issued documents are corrected by linked reviewed credit/debit evidence, never
+in-place editing or deletion. Exact retries recover the original command;
+changed content conflicts. Consumers deduplicate immutable source identity and
+digest, reject contradictory copies and retain earlier versions when exchange
+arrives out of order. A publication timeout is pending/unknown until recovery,
+not permission to issue another numbered invoice.
+
+Hospital discovery and every source-document disclosure must consume the actual
+effective invoice grant, current named/group membership, acknowledged graph,
+bilateral terms and exact source authority. A cached shipment-reader grant does
+not suffice. Commit the disclosure audit before responding. Grant withdrawal
+blocks new supplier disclosure, while already recorded hospital obligations
+remain available through their own currently authorized retained-history reads.
+
+### Reconciliation and financial safety
+
+Three-way review must compare the issued source quote/version, accepted order,
+source invoice lines and current hospital receiving/correction versions. Keep
+ordered, dispatched, counted, accepted, rejected, short, physically returned,
+invoiced, credited and paid quantities/amounts distinct. A supplier's confirmation
+does not change the hospital's physical count. Receipt corrections invalidate
+stale reconciliation versions without rewriting a posted payable.
+
+Prices, currency, tax treatment, rounding and numbering are explicit reviewed
+source evidence. Use exact bounded minor-unit arithmetic and the owner's units;
+do not introduce floating-point totals, inferred pack conversions, automatic GST
+rates/exemptions or a universal Maharashtra/Odisha tax rule. Partial invoices
+need an explicit quote allocation/rounding policy and cumulative quantity/value
+budgets; until implemented they must fail explicitly rather than silently
+prorate. An accepted quantity mismatch, missing quote, unknown source document,
+unapproved tax evidence or outstanding credit leaves review unresolved and
+cannot manufacture a matched/paid status. Relevant requirements are `IN-RC-02`,
+`IN-RC-04`, `IN-RC-05`, `IN-RC-10` and `IN-RC-11` in the
+[India revenue reference](../domain/india/billing-and-insurance.md). Statutory
+document/tax applicability still requires current primary-source and qualified
+review; this proposal activates no statutory policy.
+
+The release gate must exercise both source owners through their actual finance
+duties and durable exchange: source quote → accepted order → split dispatch →
+partial/discrepant receipt → source invoice → explicit buyer reconciliation and
+bill linkage → supplier credit → buyer allocation/reversal. Include duplicate
+document numbers, wrong tenant/outlet/order/unit/currency, stale receipt/quote,
+same-Staff review, graph/group revocation, source/audit outages, replay, lost
+responses and reordered publication. Platform returns additionally need actual
+buyer return dispatch and source acceptance/credit; the external-return path
+does not satisfy that gate. No new invoice API, wire schema, authority, stock
+effect or release eligibility is claimed by this proposed section.

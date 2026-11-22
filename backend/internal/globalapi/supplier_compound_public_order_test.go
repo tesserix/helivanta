@@ -38,12 +38,25 @@ func (f supplierCompoundFixture) sourceStaffRequest(t *testing.T, actor authn.Pr
 
 func (f supplierCompoundFixture) assertPublicPharmacyOrder(t *testing.T, buyerAdmin, admin, operator operatingDutyFixture, relationship suppliertrade.Relationship, department uuid.UUID, preparer, reviewer string) {
 	t.Helper()
-	seller, buyer := relationship.Terms.Seller, relationship.Terms.Buyer
+	seller := relationship.Terms.Seller
 	product := uuid.Must(uuid.NewV7())
 	admin.call("PUT", "/v1/pharmacy/pharmacies/"+seller.OrganizationID.String()+"/outlets/"+seller.LocationID.String()+"/catalogue/products/"+product.String(), "owner", json.RawMessage(receiverProduct), 200)
+	order := f.assertPublicSupplierOrder(t, admin, operator, relationship, department, preparer, reviewer, supplierorder.SupplierOrderProduct{Owner: "pharmacy", ProductID: product, Version: ptr(int64(1))}, "capsule", "TEST-COMPOUND-PUBLIC-PHARMACY")
+	var shipments []fulfilment.Shipment
+	require.True(t, t.Run("physical pharmacy stock reservation and split dispatch", func(t *testing.T) {
+		shipments = f.assertPublicPharmacyDispatch(t, admin, operator, order, department, preparer)
+	}))
+	require.True(t, t.Run("hospital count quarantine discrepancies and independent release", func(t *testing.T) {
+		f.assertHospitalSupplierReceiving(t, buyerAdmin, shipments, department, preparer, reviewer)
+	}))
+}
+
+func (f supplierCompoundFixture) assertPublicSupplierOrder(t *testing.T, admin, operator operatingDutyFixture, relationship suppliertrade.Relationship, department uuid.UUID, preparer, reviewer string, product supplierorder.SupplierOrderProduct, unit, reference string) supplierorder.SupplierOrder {
+	t.Helper()
+	seller, buyer := relationship.Terms.Seller, relationship.Terms.Buyer
 	orderID, lineID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 	base := "/v1/supply/hospitals/" + buyer.HospitalID.String() + "/departments/" + department.String() + "/outlets/" + buyer.LocationID.String() + "/purchase-orders/" + orderID.String()
-	input := supplierorder.SupplierOrderInput{RelationshipID: relationship.ID, TermsSha256: relationship.TermsSha256, PurchaseOrderReference: "TEST-COMPOUND-PUBLIC-PHARMACY", QuoteReference: "TEST owner-selected current capsule", ExpiresAt: time.Now().UTC().Add(10 * time.Minute).Truncate(time.Microsecond), Reason: "TEST hospital intent through current Staff authority", Lines: []supplierorder.SupplierOrderLine{{ID: lineID, Product: supplierorder.SupplierOrderProduct{Owner: "pharmacy", ProductID: product, Version: ptr(int64(1))}, QuantityUnits: 10, UnitCode: "capsule"}}}
+	input := supplierorder.SupplierOrderInput{RelationshipID: relationship.ID, TermsSha256: relationship.TermsSha256, PurchaseOrderReference: reference, QuoteReference: "TEST owner-selected current product", ExpiresAt: time.Now().UTC().Add(10 * time.Minute).Truncate(time.Microsecond), Reason: "TEST hospital intent through current Staff authority", Lines: []supplierorder.SupplierOrderLine{{ID: lineID, Product: product, QuantityUnits: 10, UnitCode: unit}}}
 	proposal := f.hospitalCall(t, "PUT", base, preparer, input, 201)
 	require.Equal(t, "pending_review", proposal["status"])
 	require.Equal(t, preparer, proposal["prepared_by"])
@@ -72,16 +85,7 @@ func (f supplierCompoundFixture) assertPublicPharmacyOrder(t *testing.T, buyerAd
 	accept := supplierorder.SupplierOrderDecisionInput{ExpectedVersion: incoming.Version, Decision: "approve", Reason: "TEST source Staff confirms actual current catalogue"}
 	denied := f.sourceStaffRequest(t, operator.principal, "PUT", commandPath, accept)
 	require.Equal(t, 403, denied.Code, "a fulfilment duty cannot approve supplier orders: %s", denied.Body.String())
-	acceptor := operator.input
-	acceptor.TemplateKey, acceptor.Reason = "pharmacy.order_acceptor.v1", "TEST separate current-source order acceptance duty"
-	dutyPath := "/v1/iam/operating-duties/" + uuid.Must(uuid.NewV7()).String()
-	admin.call("PUT", dutyPath, "owner", acceptor, 201)
-	admin.call("PUT", dutyPath+"/commands/"+uuid.Must(uuid.NewV7()).String(), "reviewer", iam.OperatingDutyDecisionInput{ExpectedVersion: 1, Decision: "approve", Reason: "TEST independent source order-acceptor approval"}, 201)
-	require.Eventually(t, func() bool {
-		var duty iam.OperatingDuty
-		require.NoError(t, json.Unmarshal([]byte(admin.call("GET", dutyPath, "owner", nil, 200)), &duty))
-		return duty.Status == "active"
-	}, 20*time.Second, 100*time.Millisecond)
+	f.approveSourceOperatingDuty(t, admin, operator, seller.Product+".order_acceptor.v1", "TEST separate current-source order acceptance duty")
 	accepted := f.sourceStaffRequest(t, operator.principal, "PUT", commandPath, accept)
 	require.Equal(t, 201, accepted.Code, accepted.Body.String())
 	var receipt supplierorder.SupplierOrderCommandReceipt
@@ -106,11 +110,19 @@ func (f supplierCompoundFixture) assertPublicPharmacyOrder(t *testing.T, buyerAd
 		current := f.hospitalCall(t, "GET", base, preparer, nil, 200)
 		return current["status"] == "accepted"
 	}, 20*time.Second, 100*time.Millisecond)
-	var shipments []fulfilment.Shipment
-	require.True(t, t.Run("physical pharmacy stock reservation and split dispatch", func(t *testing.T) {
-		shipments = f.assertPublicPharmacyDispatch(t, admin, operator, receipt.Order, department, preparer)
-	}))
-	require.True(t, t.Run("hospital count quarantine discrepancies and independent release", func(t *testing.T) {
-		f.assertHospitalSupplierReceiving(t, buyerAdmin, shipments, department, preparer, reviewer)
-	}))
+	return receipt.Order
+}
+
+func (f supplierCompoundFixture) approveSourceOperatingDuty(t *testing.T, admin, operator operatingDutyFixture, template, reason string) {
+	t.Helper()
+	input := operator.input
+	input.TemplateKey, input.Reason = template, reason
+	path := "/v1/iam/operating-duties/" + uuid.Must(uuid.NewV7()).String()
+	admin.call("PUT", path, "owner", input, 201)
+	admin.call("PUT", path+"/commands/"+uuid.Must(uuid.NewV7()).String(), "reviewer", iam.OperatingDutyDecisionInput{ExpectedVersion: 1, Decision: "approve", Reason: "TEST independent source duty approval"}, 201)
+	require.Eventually(t, func() bool {
+		var duty iam.OperatingDuty
+		require.NoError(t, json.Unmarshal([]byte(admin.call("GET", path, "owner", nil, 200)), &duty))
+		return duty.Status == "active"
+	}, 20*time.Second, 100*time.Millisecond)
 }

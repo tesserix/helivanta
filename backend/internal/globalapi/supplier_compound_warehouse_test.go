@@ -25,10 +25,10 @@ func approveCompoundWarehouseEndpoint(t *testing.T, f operatingDutyFixture, file
 	t.Helper()
 	organization, premise, licence, evidence := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 	root := "/v1/supply/parties/" + organization.String()
-	f.call("PUT", root, "owner", map[string]any{"expected_version": 0, "code": "TEST-COMPOUND-WAREHOUSE", "record_kind": "owned_organisation", "legal_name": "TEST Independent Compound Distributor", "trading_name": "TEST Compound Supply", "business_kind": "distributor", "country_code": "IN", "jurisdiction": "IN-MH", "registration_number": "TEST-COMPOUND-REG", "corporate_group": "", "website": "https://supplier.example.invalid", "default_credit_days": 30, "contacts": []any{}, "addresses": []any{}, "tax_registrations": []any{}}, 200)
-	f.call("PUT", root+"/premises/"+premise.String(), "owner", map[string]any{"expected_version": 0, "code": "TEST-COMPOUND-DEPOT", "name": "TEST Compound Nagpur Warehouse", "kind": "warehouse", "line1": "TEST Synthetic Warehouse", "line2": "", "city": "Nagpur", "region": "IN-MH", "postal_code": "440001", "country_code": "IN", "time_zone": "Asia/Kolkata", "status": "active"}, 200)
+	f.call("PUT", root, "owner", map[string]any{"expected_version": 0, "code": "TEST-COMPOUND-WAREHOUSE", "record_kind": "owned_organisation", "legal_name": "TEST Independent Compound Distributor", "trading_name": "TEST Compound Supply", "business_kind": "distributor", "country_code": "IN", "jurisdiction": "IN-OD", "registration_number": "TEST-COMPOUND-REG", "corporate_group": "", "website": "https://supplier.example.invalid", "default_credit_days": 30, "contacts": []any{}, "addresses": []any{}, "tax_registrations": []any{}}, 200)
+	f.call("PUT", root+"/premises/"+premise.String(), "owner", map[string]any{"expected_version": 0, "code": "TEST-COMPOUND-DEPOT", "name": "TEST Compound Bhubaneswar Warehouse", "kind": "warehouse", "line1": "TEST Synthetic Warehouse", "line2": "", "city": "Bhubaneswar", "region": "IN-OD", "postal_code": "751001", "country_code": "IN", "time_zone": "Asia/Kolkata", "status": "active"}, 200)
 	path := root + "/licenses/" + licence.String()
-	f.call("PUT", path, "owner", map[string]any{"expected_version": 0, "kind": "wholesale", "number": "TEST-" + licence.String(), "issuing_authority": "TEST Authority", "jurisdiction": "IN-MH", "premise_id": premise, "issued_on": "2026-01-01", "expires_on": "2030-12-31", "product_categories": []string{"prescription"}}, 200)
+	f.call("PUT", path, "owner", map[string]any{"expected_version": 0, "kind": "wholesale", "number": "TEST-" + licence.String(), "issuing_authority": "TEST Authority", "jurisdiction": "IN-OD", "premise_id": premise, "issued_on": "2026-01-01", "expires_on": "2030-12-31", "product_categories": []string{"prescription"}}, 200)
 	for _, subject := range []string{"compound-source-owner", "compound-source-reviewer"} {
 		f.call("PUT", root+"/access/"+subject+"/compliance", "owner", nil, 200)
 	}
@@ -62,5 +62,6 @@ func approveCompoundWarehouseEndpoint(t *testing.T, f operatingDutyFixture, file
 		}
 		f.call("PUT", path+"/reviews/"+uuid.Must(uuid.NewV7()).String(), actor, map[string]any{"expected_version": version, "expected_party_version": 1, "expected_premise_version": 1, "expected_license_version": 1, "evidence_id": evidence, "action": action, "reason": "TEST independent synthetic warehouse review", "method": method, "reference": reference}, 201)
 	}
-	return suppliertrade.Endpoint{TenantID: uuid.MustParse(f.principal.TenantID), Product: "supply", OrganizationID: organization, LocationID: premise, OrganizationVersion: 1, LocationVersion: 1, LicenceID: licence, LicenceVersion: 1, Jurisdiction: "IN-MH"}, evidencePath
+	approveSyntheticTradingPolicyForReviewer(t, f, "IN-OD", "prescription", "order", "compound-source-reviewer")
+	return suppliertrade.Endpoint{TenantID: uuid.MustParse(f.principal.TenantID), Product: "supply", OrganizationID: organization, LocationID: premise, OrganizationVersion: 1, LocationVersion: 1, LicenceID: licence, LicenceVersion: 1, Jurisdiction: "IN-OD"}, evidencePath
 }

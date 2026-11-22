@@ -55,10 +55,10 @@ jobs:
           name: stocktake-contract-references
           path: docs/api/reference
           retention-days: 7
-      - name: Snapshot guards and native stocktake regression
-        run: go test -race -count=1 -timeout=15m ./internal/modules/pharmacy -run '^TestStocktake'
       - name: Global API stocktake and reservation conservation
         run: go test -race -count=1 -timeout=10m ./internal/globalapi -run '^TestStocktake'
+      - name: Snapshot guards and native stocktake regression
+        run: go test -race -count=1 -timeout=15m ./internal/modules/pharmacy -run '^TestStocktake'
       - name: Operating duty release admission
         run: go test -race -count=1 -timeout=5m ./internal/modules/iam -run '^TestOperatingTemplateRelease'
       - name: Measure 10000 buckets and 500 reviewed adjustments

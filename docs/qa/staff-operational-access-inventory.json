@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "d9fe87f9fa0819a82e3a702b24273a6d0bd1df0f2bbf9f0404a381df3b3975dd",
+  "registry_sha256": "b42175a11c8d87bdf41e0e93ca90c9b04ff49700dc83d6fb45ba9ca81fd233f8",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1220,
-    "unclassified": 1069
+    "total": 1224,
+    "unclassified": 1073
   },
   "entries": [
     {
@@ -3508,6 +3508,22 @@
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http iam GET /v1/iam/hospitals/:hospital/supplier-shipment-grants",
+      "kind": "http",
+      "module": "iam",
+      "registration": {
+        "source": "backend/internal/modules/iam/module.go",
+        "method": "GET",
+        "path": "/v1/iam/hospitals/:hospital/supplier-shipment-grants",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
         "counted": false
       },
       "review": null
@@ -12954,6 +12970,54 @@
         "source": "backend/internal/modules/supply/module.go",
         "method": "GET",
         "path": "/v1/supply/hospitals/:hospital/departments/:department/pharmacies/:organization/outlets/:location/supplier-orders/:order/shipments/:shipment/receiving/responses/:response",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http supply GET /v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders",
+      "kind": "http",
+      "module": "supply",
+      "registration": {
+        "source": "backend/internal/modules/supply/module.go",
+        "method": "GET",
+        "path": "/v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http supply GET /v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders/:order/shipments",
+      "kind": "http",
+      "module": "supply",
+      "registration": {
+        "source": "backend/internal/modules/supply/module.go",
+        "method": "GET",
+        "path": "/v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders/:order/shipments",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http supply GET /v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-source",
+      "kind": "http",
+      "module": "supply",
+      "registration": {
+        "source": "backend/internal/modules/supply/module.go",
+        "method": "GET",
+        "path": "/v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-source",
         "permission": "public",
         "authentication_required": true,
         "membership_required": true,

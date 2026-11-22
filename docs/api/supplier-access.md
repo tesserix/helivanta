@@ -89,6 +89,15 @@ directed source replies and receipt-backed buyer payables. External identity,
 workload and object-storage protocols remain synthetic test boundaries; this
 does not prove live onboarding or deployed browser acceptance.
 
+Hosted correction run
+[44999841841](https://github.com/tesserix/helivanta/actions/runs/44999841841)
+also passed the full composed root. For both stock owners, an independently
+reviewed recount retained original receipt and physical-release evidence,
+reopened receiving, required explicit reclosure and updated current financial
+choices and directed source replies without changing accepted/released stock.
+These results precede the combined current-main integration; that integration
+requires its own passing checks.
+
 Catalogue and source-issued invoice consumers, platform supplier returns and
 their source credits remain unfinished. Buyer-entered payables and credits do
 not constitute source-issued documents. Batches with many distinct source

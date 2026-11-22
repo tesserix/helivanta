@@ -151,6 +151,8 @@ func TestDisabledPayablesHideCreditSourceChoicesButRetainEvidence(t *testing.T) 
 		want int
 	}{
 		{strings.TrimSuffix(base, "/:credit") + "/source-returns", http.StatusNotFound},
+		{"/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id", http.StatusNotFound},
+		{"/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/supplier-credit-allocations", http.StatusNoContent},
 		{base + "/eligible-payables", http.StatusNotFound},
 		{base + "/eligible-returns", http.StatusNotFound},
 		{base + "/context", http.StatusNoContent},

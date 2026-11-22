@@ -32,7 +32,7 @@ func (f supplierCompoundFixture) assertHospitalSupplierReceiving(t *testing.T, a
 	admin.call("PUT", root+"/stock/locations/"+shelf.String(), "owner", map[string]any{"code": "TEST-RECEIVING-SHELF", "name": "TEST Receiving Shelf", "stock_status": "sellable"}, 200)
 	stock := func(location uuid.UUID, want int64) {
 		t.Helper()
-		path := root + "/stock/positions?as_of=" + url.QueryEscape(time.Now().UTC().Format(time.RFC3339Nano)) + "&balance=on_hand&batch_id=" + batch.String() + "&location_id=" + location.String()
+		path := root + "/stock/positions?as_of=" + url.QueryEscape(time.Now().UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano)) + "&balance=on_hand&batch_id=" + batch.String() + "&location_id=" + location.String()
 		var page struct {
 			Data []struct {
 				OnHandUnits int64 `json:"on_hand_units"`

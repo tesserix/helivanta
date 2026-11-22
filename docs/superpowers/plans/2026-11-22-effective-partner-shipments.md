@@ -138,7 +138,10 @@ posting remain separate unfinished steps. Run `44984160694` passed the physical
 subtest (`3.89s`) and created the first hospital receipt, then stopped on a fixture
 stock-query timestamp exceeding the owner's microsecond precision. Corrected run
 [44985411548](https://github.com/tesserix/helivanta/actions/runs/44985411548)
-is pending; receipt clearance/release is not yet proven.
+passed with the full native root (`1130.74s`), including physical dispatch and
+hospital receiving (`8.78s`). Actual quarantine/sellable balances, closure,
+independent clearance and physical release all passed. This is hosted Pharmacy
+source evidence, not warehouse receiving or live/browser acceptance.
 
 Still exercise warehouse reservation/dispatch and consume the published shipment
 through completed hospital receiving,

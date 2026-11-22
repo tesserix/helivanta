@@ -2,15 +2,20 @@ package pharmacy_test
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
+	"github.com/tesserix/helivanta/internal/testutil"
+	"gorm.io/gorm"
 )
 
 // ADR-0073's latency budgets are measured alone, outside the parallel coverage run.
@@ -18,7 +23,7 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 	if os.Getenv("HELIVANTA_STOCKTAKE_CAPACITY") != "1" {
 		t.Skip("run the isolated Stocktake capacity workflow")
 	}
-	r, _ := stocktakeHarness(t)
+	r, db := stocktakeHarness(t)
 	product, location, firstBatch := stockFixture(t, r)
 	fixtureStart := time.Now()
 	for i := range 10000 {
@@ -32,10 +37,59 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 		require.Equal(t, 200, response.Code, "receipt %d", i)
 	}
 	t.Logf("created 10000 distinct stocked batches through normal APIs in %s", time.Since(fixtureStart))
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		before := func(tx *gorm.DB) { tx.InstanceSet("stocktake-capacity-start", time.Now()) }
+		after := func(tx *gorm.DB) {
+			value, ok := tx.InstanceGet("stocktake-capacity-start")
+			if !ok {
+				return
+			}
+			elapsed := time.Since(value.(time.Time))
+			if elapsed < 50*time.Millisecond && tx.Error == nil {
+				return
+			}
+			stage := "other"
+			query := tx.Statement.SQL.String()
+			for _, table := range []string{"pharmacy_stocktake_lines", "pharmacy_stocktake_commands", "pharmacy_stocktake_counts", "pharmacy_stocktake_adjustments", "pharmacy_stocktakes", "pharmacy_stock_movements", "audit_events"} {
+				if strings.Contains(query, table) {
+					stage = table
+					break
+				}
+			}
+			if strings.HasPrefix(query, "WITH products AS") {
+				stage = "book_snapshot"
+			}
+			code := "none"
+			var pg *pgconn.PgError
+			if errors.As(tx.Error, &pg) {
+				code = pg.Code
+			} else if tx.Error != nil {
+				code = "non_sql_error"
+			}
+			t.Logf("database stage=%s elapsed=%s error_class=%s", stage, elapsed, code)
+		}
+		if err := tx.Callback().Create().Before("gorm:create").Register("test:stocktake-capacity-before", before); err != nil {
+			return err
+		}
+		if err := tx.Callback().Create().After("gorm:create").Register("test:stocktake-capacity-after", after); err != nil {
+			return err
+		}
+		if err := tx.Callback().Raw().Before("gorm:raw").Register("test:stocktake-capacity-before", before); err != nil {
+			return err
+		}
+		if err := tx.Callback().Raw().After("gorm:raw").Register("test:stocktake-capacity-after", after); err != nil {
+			return err
+		}
+		if err := tx.Callback().Row().Before("gorm:row").Register("test:stocktake-capacity-before", before); err != nil {
+			return err
+		}
+		return tx.Callback().Row().After("gorm:row").Register("test:stocktake-capacity-after", after)
+	}))
 	path := outletPath("/stock/stocktakes/") + uuid.Must(uuid.NewV7()).String()
 	start := time.Now()
 	response := do(r, "PUT", path, "editor", fmt.Sprintf(`{"selection":"all","product_ids":[],"quarantine_location_id":%q,"reason":"TEST capacity count"}`, location))
 	startElapsed := time.Since(start)
+	t.Logf("10000-bucket start returned HTTP %d in %s", response.Code, startElapsed)
 	require.Equal(t, 200, response.Code, response.Body.String())
 	var header struct {
 		SnapshotRows int `json:"snapshot_rows"`

@@ -185,7 +185,7 @@ func newSubmittedReviewedStocktake(t *testing.T) (pharmacyReceiverFixture, strin
 	return f, path
 }
 
-func TestStocktakeReviewedCounterAliasCannotApprove(t *testing.T) {
+func TestStocktakeReviewedReadsCounterAliasCannotApprove(t *testing.T) {
 	f, path := newSubmittedReviewedStocktake(t)
 	f.call("POST", "/v1/iam/members", "owner", map[string]any{"subject": "user-stock-reviewer", "role_key": "staff_member"}, 202)
 	require.Eventually(t, func() bool {
@@ -203,6 +203,11 @@ func TestStocktakeReviewedCounterAliasCannotApprove(t *testing.T) {
 	f.input.Identity.LinkID = uuid.MustParse(link)
 	f.input.Identity.LinkVersion = 2
 	f.activate(t)
+	var header struct {
+		Relationship string `json:"review_relationship"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(f.call("GET", path, "stock-reviewer", nil, 200)), &header))
+	require.Equal(t, "starter", header.Relationship, "account rotation must not present the same Staff as an independent reviewer")
 	approval := path + "/decisions/" + v7()
 	f.call("PUT", approval, "stock-reviewer", map[string]any{"decision": "approve", "expected_version": 2, "reason": "TEST same Staff is not independent", "extra_units_disposition": "no_extra_units"}, 409)
 	f.call("GET", approval, "stock-reviewer", nil, 404)

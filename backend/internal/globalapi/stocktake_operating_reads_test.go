@@ -7,6 +7,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
+
+	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 func TestStocktakeReviewedReadsAndRegisterStayWithinReviewedHistory(t *testing.T) {
@@ -73,4 +77,50 @@ func TestStocktakeReviewedReadsAndRegisterStayWithinReviewedHistory(t *testing.T
 	}
 	f.checks.down.Store(false)
 	require.Equal(t, register, f.call("GET", path+"/register.csv", "receiver", nil, 200))
+}
+
+func TestStocktakeReviewedReadsWithholdDataWhenAuditCannotCommit(t *testing.T) {
+	f, path := newSubmittedReviewedStocktake(t)
+	root := path[:len(path)-37]
+	for _, fault := range []struct{ table, check string }{
+		{"pharmacy_stocktake_operating_evidence", "kind NOT IN('record_read','list_read','register_read')"},
+		{"audit_events", "resource_type NOT IN('pharmacy_stocktake','pharmacy_stocktakes','pharmacy_stocktake_register')"},
+	} {
+		apply := func(sql string) {
+			t.Helper()
+			require.NoError(t, f.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_stocktake_read_fault_" + v7(), SQL: sql}}))
+		}
+		clear := func() {
+			apply("ALTER TABLE " + fault.table + " DROP CONSTRAINT IF EXISTS synthetic_stocktake_read_failure")
+		}
+		t.Cleanup(clear)
+		apply("ALTER TABLE " + fault.table + " ADD CONSTRAINT synthetic_stocktake_read_failure CHECK(" + fault.check + ") NOT VALID")
+		for _, read := range []string{path, root, path + "/register.csv"} {
+			unavailable := f.call("GET", read, "receiver", nil, 503)
+			require.NotContains(t, unavailable, "TEST-REVIEW-PARTICIPANT")
+			require.NotContains(t, unavailable, "synthetic_stocktake_read_failure")
+			require.NotContains(t, unavailable, "user-receiver")
+		}
+		require.NoError(t, f.db.WithAdmin(t.Context(), func(tx *gorm.DB) error {
+			var count int64
+			if err := tx.Table("pharmacy_stocktake_operating_evidence").Where("tenant_id=? AND outlet_id=? AND kind IN('record_read','list_read','register_read')", testutil.TenantA, f.outlet).Count(&count).Error; err != nil {
+				return err
+			}
+			require.Zero(t, count, "failed reads must roll back their new duty/source evidence")
+			return nil
+		}))
+		clear()
+	}
+	require.Contains(t, f.call("GET", path, "receiver", nil, 200), `"state":"submitted"`)
+	f.call("GET", root, "receiver", nil, 200)
+	f.call("GET", path+"/register.csv", "receiver", nil, 200)
+	f.ownerOutletTx(t, func(tx *gorm.DB) error {
+		var ledger struct{ Corrections, Units int64 }
+		if err := tx.Raw(`SELECT count(*) FILTER(WHERE kind='correction') corrections,COALESCE(sum(quantity_units),0) units FROM pharmacy_stock_movements WHERE tenant_id=? AND outlet_id=?`, testutil.TenantA, f.outlet).Scan(&ledger).Error; err != nil {
+			return err
+		}
+		require.Zero(t, ledger.Corrections)
+		require.EqualValues(t, 30, ledger.Units)
+		return nil
+	})
 }

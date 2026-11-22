@@ -68,7 +68,7 @@ jobs:
       - name: Build affected test packages with a fresh runner cache
         run: go test -race -run '^$' ./internal/globalapi ./internal/testutil
       - name: Current hospital Staff and effective compound supplier grants
-        run: go test -race -v -count=1 -timeout 35m ./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'
+        run: go test -race -v -count=1 -failfast -timeout 35m ./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'
   staff-query-plans:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.validation_scope == 'full' }}
     runs-on: ubuntu-latest

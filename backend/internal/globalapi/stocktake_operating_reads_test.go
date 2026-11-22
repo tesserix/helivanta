@@ -1,10 +1,12 @@
 package globalapi
 
 import (
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -88,7 +90,9 @@ func TestStocktakeReviewedReadsWithholdDataWhenAuditCannotCommit(t *testing.T) {
 	} {
 		apply := func(sql string) {
 			t.Helper()
-			require.NoError(t, f.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_stocktake_read_fault_" + v7(), SQL: sql}}))
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			require.NoError(t, f.db.Migrate(ctx, []tenantdb.Migration{{ID: "test_stocktake_read_fault_" + v7(), SQL: sql}}))
 		}
 		clear := func() {
 			apply("ALTER TABLE " + fault.table + " DROP CONSTRAINT IF EXISTS synthetic_stocktake_read_failure")

@@ -291,6 +291,16 @@ export const releasePanels = [
   { key: "staff.accounts.mfa_recovery", capability: "staff_mfa_recovery" },
   { key: "pharmacy.supplier_return_history", capability: "pharmacy_payables" },
   { key: "pharmacy.tally_export", capability: "pharmacy_payables" },
+  { key: "staff.operating.supply.inventory_receiver.v1", capability: "baseline" },
+  { key: "staff.operating.pharmacy.inventory_receiver.v1", capability: "baseline" },
+  { key: "staff.operating.supply.stock_quality_reviewer.v1", capability: "baseline" },
+  { key: "staff.operating.supply.order_acceptor.v1", capability: "baseline" },
+  { key: "staff.operating.pharmacy.order_acceptor.v1", capability: "baseline" },
+  { key: "staff.operating.supply.stock_fulfiller.v1", capability: "baseline" },
+  { key: "staff.operating.pharmacy.stock_fulfiller.v1", capability: "baseline" },
+  { key: "staff.operating.pharmacy.stocktake_reader.v1", capability: "pharmacy_stocktake" },
+  { key: "staff.operating.pharmacy.stocktake_counter.v1", capability: "pharmacy_stocktake" },
+  { key: "staff.operating.pharmacy.stocktake_reviewer.v1", capability: "pharmacy_stocktake" },
 ] as const;
 const identifier = z
   .string()

@@ -13,6 +13,7 @@ on:
       - "backend/internal/modules/iam/**"
       - "backend/internal/globalapi/stocktake*"
       - "apps/shell/components/workforce/operating-duty*"
+      - "apps/shell/components/workforce/independent-operating-duties*"
       - "contracts/operating-assignments.json"
       - "contracts/release-capabilities.json"
       - "scripts/generate-operating-assignments.mjs"
@@ -42,8 +43,8 @@ jobs:
           cache: false
       - name: Build and vet the affected package
         run: |
-          go build ./internal/modules/pharmacy
-          go vet ./internal/modules/pharmacy
+          go build ./internal/modules/pharmacy ./internal/modules/iam
+          go vet ./internal/modules/pharmacy ./internal/modules/iam
       - name: Regenerate and verify registered contracts
         run: |
           go run ./cmd/contractdocs
@@ -58,6 +59,8 @@ jobs:
         run: go test -race -count=1 -timeout=15m ./internal/modules/pharmacy -run '^TestStocktake'
       - name: Global API stocktake and reservation conservation
         run: go test -race -count=1 -timeout=10m ./internal/globalapi -run '^TestStocktake'
+      - name: Operating duty release admission
+        run: go test -race -count=1 -timeout=5m ./internal/modules/iam -run '^TestOperatingTemplateRelease'
       - name: Measure 10000 buckets and 500 reviewed adjustments
         env:
           HELIVANTA_STOCKTAKE_CAPACITY: "1"
@@ -75,7 +78,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Reviewed operating duty release visibility
-        run: pnpm --filter @helivanta/shell exec vitest run components/workforce/operating-duty-preparation.test.tsx
+        run: pnpm --filter @helivanta/shell exec vitest run components/workforce/operating-duty-preparation.test.tsx components/workforce/independent-operating-duties.test.tsx
       - name: Affected API and shell type checks
         run: |
           pnpm --filter @helivanta/api exec tsc --noEmit --incremental false

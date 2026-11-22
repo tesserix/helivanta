@@ -1199,6 +1199,16 @@ var assignmentFamilyCapabilities = map[string]string{"leave": "workforce_schedul
 	"activation":         "staff_core",
 	"purchase_order":     "supplier_collaboration",
 	"supplier_receiving": "supplier_collaboration"}
+var operatingTemplateCapabilities = map[string]string{"supply.inventory_receiver.v1": "baseline",
+	"pharmacy.inventory_receiver.v1":   "baseline",
+	"supply.stock_quality_reviewer.v1": "baseline",
+	"supply.order_acceptor.v1":         "baseline",
+	"pharmacy.order_acceptor.v1":       "baseline",
+	"supply.stock_fulfiller.v1":        "baseline",
+	"pharmacy.stock_fulfiller.v1":      "baseline",
+	"pharmacy.stocktake_reader.v1":     "pharmacy_stocktake",
+	"pharmacy.stocktake_counter.v1":    "pharmacy_stocktake",
+	"pharmacy.stocktake_reviewer.v1":   "pharmacy_stocktake"}
 
 type ReleaseCapability struct {
 	Key       string `json:"key"`

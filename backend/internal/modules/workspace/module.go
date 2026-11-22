@@ -87,7 +87,7 @@ type branding struct {
 
 func (branding) TableName() string { return "workspace_branding" }
 func defaults() branding {
-	return branding{DisplayName: "Helivanta", WelcomeText: "A connected workspace for exceptional care.", Theme: "teal", LoginLayout: "split"}
+	return branding{DisplayName: "Helivanta", WelcomeText: "A connected workspace for exceptional care.", Theme: "teal", LoginLayout: "centered"}
 }
 
 type handler struct{ db *tenantdb.DB }

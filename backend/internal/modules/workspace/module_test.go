@@ -37,6 +37,8 @@ func TestBrandingPersistsPerTenantAndPublishesOnlyPublicFields(t *testing.T) {
 	}))
 	require.Error(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error { return tx.Exec("DELETE FROM workspace_branding_audit").Error }))
 
+	// #1767: a workspace that never chose a layout gets the single card.
+	require.Contains(t, testutil.Do(r, "GET", path, "other", "").Body.String(), `"login_layout":"centered"`)
 	require.NotContains(t, testutil.Do(r, "GET", path, "other", "").Body.String(), "YES HOSPITAL")
 	w = testutil.Do(r, "GET", "/branding/"+testutil.TenantA, "", "")
 	require.Equal(t, 200, w.Code, w.Body.String())

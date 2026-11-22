@@ -510,6 +510,8 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts/:id` | `public` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts/:id` | `public` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts` | `public` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/lines` | `public` | true | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake` | `public` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access-grants` | `pharmacy.access.manage` | true | false |
 | DELETE | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access/:subject` | `pharmacy.access.manage` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access/:subject` | `pharmacy.access.manage` | false | false |
@@ -808,6 +810,7 @@ Migration table declarations:
 - `0061_pharmacy_supplier_credit_source_indexes`: concurrent index `pharmacy_supplier_credit_return_choices` on `pharmacy_supplier_returns (tenant_id, outlet_id, payee_reference, currency, created_at DESC, id DESC)`.
 - `0062_pharmacy_tally_ledger_maps`: `pharmacy_tally_ledger_maps`, `pharmacy_tally_ledger_map_entries`.
 - `0063_pharmacy_payable_credit_journal`: concurrent index `pharmacy_payable_credit_journal` on `pharmacy_supplier_credit_allocations (tenant_id, outlet_id, payable_id, created_at DESC, id DESC)`.
+- `0065_pharmacy_stocktake_operating`: `pharmacy_stocktake_operating_evidence`.
 
 ## payments
 

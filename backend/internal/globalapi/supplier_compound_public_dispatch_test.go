@@ -12,7 +12,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/supplierorder"
 )
 
-func (f supplierCompoundFixture) assertPublicPharmacyDispatch(t *testing.T, admin, operator operatingDutyFixture, order supplierorder.SupplierOrder, department uuid.UUID, receiver string) {
+func (f supplierCompoundFixture) assertPublicPharmacyDispatch(t *testing.T, admin, operator operatingDutyFixture, order supplierorder.SupplierOrder, department uuid.UUID, receiver string) []fulfilment.Shipment {
 	t.Helper()
 	seller, buyer := order.Terms.Seller, order.Terms.Buyer
 	root := "/v1/pharmacy/pharmacies/" + seller.OrganizationID.String() + "/outlets/" + seller.LocationID.String()
@@ -112,4 +112,5 @@ func (f supplierCompoundFixture) assertPublicPharmacyDispatch(t *testing.T, admi
 		}
 		return true
 	}, 20*time.Second, 100*time.Millisecond)
+	return shipments.Data
 }

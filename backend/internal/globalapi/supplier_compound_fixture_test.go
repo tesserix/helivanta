@@ -287,7 +287,7 @@ func (f supplierCompoundFixture) assertAdmission(t *testing.T, subject, reviewer
 		}
 		if source.endpoint.Product == "pharmacy" {
 			require.True(t, t.Run("public hospital pharmacy order and independent source acceptance", func(t *testing.T) {
-				f.assertPublicPharmacyOrder(t, sellerActor, operator, relationship, member.Input.DepartmentID, subject, reviewer)
+				f.assertPublicPharmacyOrder(t, buyerActor, sellerActor, operator, relationship, member.Input.DepartmentID, subject, reviewer)
 				for _, kind := range []string{"subject", "group"} {
 					base := paths["pharmacy/"+kind] + "/shipment-orders"
 					orders := f.hospitalCall(t, "GET", base, subject, nil, 200)["data"].([]any)

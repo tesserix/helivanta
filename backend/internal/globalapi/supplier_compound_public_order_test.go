@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/pkg/authn"
+	fulfilment "github.com/tesserix/helivanta/pkg/supplierfulfilment"
 	"github.com/tesserix/helivanta/pkg/supplierorder"
 	"github.com/tesserix/helivanta/pkg/suppliertrade"
 )
@@ -35,7 +36,7 @@ func (f supplierCompoundFixture) sourceStaffRequest(t *testing.T, actor authn.Pr
 	return response
 }
 
-func (f supplierCompoundFixture) assertPublicPharmacyOrder(t *testing.T, admin, operator operatingDutyFixture, relationship suppliertrade.Relationship, department uuid.UUID, preparer, reviewer string) {
+func (f supplierCompoundFixture) assertPublicPharmacyOrder(t *testing.T, buyerAdmin, admin, operator operatingDutyFixture, relationship suppliertrade.Relationship, department uuid.UUID, preparer, reviewer string) {
 	t.Helper()
 	seller, buyer := relationship.Terms.Seller, relationship.Terms.Buyer
 	product := uuid.Must(uuid.NewV7())
@@ -105,5 +106,11 @@ func (f supplierCompoundFixture) assertPublicPharmacyOrder(t *testing.T, admin, 
 		current := f.hospitalCall(t, "GET", base, preparer, nil, 200)
 		return current["status"] == "accepted"
 	}, 20*time.Second, 100*time.Millisecond)
-	f.assertPublicPharmacyDispatch(t, admin, operator, receipt.Order, department, preparer)
+	var shipments []fulfilment.Shipment
+	require.True(t, t.Run("physical pharmacy stock reservation and split dispatch", func(t *testing.T) {
+		shipments = f.assertPublicPharmacyDispatch(t, admin, operator, receipt.Order, department, preparer)
+	}))
+	require.True(t, t.Run("hospital count quarantine discrepancies and independent release", func(t *testing.T) {
+		f.assertHospitalSupplierReceiving(t, buyerAdmin, shipments, department, preparer, reviewer)
+	}))
 }

@@ -25,6 +25,10 @@ func (f supplierCompoundFixture) assertPublicSupplierRelationship(t *testing.T, 
 	command := path + "/commands/" + uuid.Must(uuid.NewV7()).String()
 	approve := suppliertrade.SupplierRelationshipCommand{ExpectedVersion: proposed.Version, Decision: "approve", Reason: "TEST independent source signatory approves proposed terms"}
 	sellerAdmin.call("PUT", command, "owner", approve, 409)
+	if seller.Product == "supply" {
+		sellerAdmin.call("PUT", command, "reviewer", approve, 404)
+		sellerAdmin.call("PUT", "/v1/supply/parties/"+seller.OrganizationID.String()+"/access/compound-source-reviewer/administrator", "owner", nil, 200)
+	}
 	offered := sellerAdmin.call("PUT", command, "reviewer", approve, 201)
 	require.JSONEq(t, offered, sellerAdmin.call("PUT", command, "reviewer", approve, 200))
 	require.JSONEq(t, offered, sellerAdmin.call("GET", command, "reviewer", nil, 200))

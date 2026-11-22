@@ -123,29 +123,7 @@ func TestStocktakeReviewedIndependentCounterFreezesReceivedStock(t *testing.T) {
 		"decision": "approve", "expected_version": 2, "reason": "TEST counter cannot independently approve", "extra_units_disposition": "no_extra_units",
 	}, 404)
 	counterDuty := f.duty
-	f.call("POST", "/v1/iam/members", "owner", map[string]any{"subject": "user-stock-reviewer", "role_key": "staff_member"}, 202)
-	require.Eventually(t, func() bool {
-		member, err := f.graph.IsMember(t.Context(), "user-stock-reviewer", testutil.TenantA)
-		return err == nil && member
-	}, 20*time.Second, 50*time.Millisecond)
-	reviewStaff, reviewLink := v7(), v7()
-	staffRoot := "/v1/workforce/pharmacies/" + f.pharmacy + "/staff"
-	f.call("PUT", staffRoot+"/"+reviewStaff+"?directory_context=v1", "owner", map[string]any{
-		"employee_code": "TEST-PH-REVIEW", "expected_version": 0, "display_name": "TEST Independent Stock Reviewer", "job_category": "pharmacist", "employment_status": "active", "directory_context_version": "v1",
-	}, 200)
-	reviewStaffRoot := staffRoot + "/" + reviewStaff
-	f.call("PUT", reviewStaffRoot+"/account-links/"+reviewLink, "owner", map[string]any{
-		"subject": "user-stock-reviewer", "expected_staff_version": 1, "reason": "TEST distinct approver account",
-	}, 201)
-	f.call("PUT", reviewStaffRoot+"/account-links/"+reviewLink+"/commands/"+v7(), "reviewer", map[string]any{
-		"decision": "approve", "expected_version": 1, "reason": "TEST approve distinct account proof",
-	}, 201)
-	f.input.TemplateKey = "pharmacy.stocktake_reviewer.v1"
-	f.input.Subject = "user-stock-reviewer"
-	f.input.Identity.StaffID, f.input.Identity.LinkID = uuid.MustParse(reviewStaff), uuid.MustParse(reviewLink)
-	f.input.Identity.StaffVersion, f.input.Identity.LinkVersion = 1, 2
-	f.duty = "/v1/iam/operating-duties/" + v7()
-	f.activate(t)
+	activateReviewedStocktakeReviewer(t, &f)
 	approvalPath := path + "/decisions/" + v7()
 	approval := map[string]any{"decision": "approve", "expected_version": 2, "reason": "TEST independently approve observed shortage", "extra_units_disposition": "no_extra_units"}
 	posted := f.call("PUT", approvalPath, "stock-reviewer", approval, 200)
@@ -229,4 +207,31 @@ func TestStocktakeReviewedCounterAliasCannotApprove(t *testing.T) {
 		require.EqualValues(t, 30, ledger.Units)
 		return nil
 	})
+}
+
+func activateReviewedStocktakeReviewer(t *testing.T, f *pharmacyReceiverFixture) {
+	t.Helper()
+	f.call("POST", "/v1/iam/members", "owner", map[string]any{"subject": "user-stock-reviewer", "role_key": "staff_member"}, 202)
+	require.Eventually(t, func() bool {
+		member, err := f.graph.IsMember(t.Context(), "user-stock-reviewer", testutil.TenantA)
+		return err == nil && member
+	}, 20*time.Second, 50*time.Millisecond)
+	reviewStaff, reviewLink := v7(), v7()
+	staffRoot := "/v1/workforce/pharmacies/" + f.pharmacy + "/staff"
+	f.call("PUT", staffRoot+"/"+reviewStaff+"?directory_context=v1", "owner", map[string]any{
+		"employee_code": "TEST-PH-REVIEW", "expected_version": 0, "display_name": "TEST Independent Stock Reviewer", "job_category": "pharmacist", "employment_status": "active", "directory_context_version": "v1",
+	}, 200)
+	reviewStaffRoot := staffRoot + "/" + reviewStaff
+	f.call("PUT", reviewStaffRoot+"/account-links/"+reviewLink, "owner", map[string]any{
+		"subject": "user-stock-reviewer", "expected_staff_version": 1, "reason": "TEST distinct approver account",
+	}, 201)
+	f.call("PUT", reviewStaffRoot+"/account-links/"+reviewLink+"/commands/"+v7(), "reviewer", map[string]any{
+		"decision": "approve", "expected_version": 1, "reason": "TEST approve distinct account proof",
+	}, 201)
+	f.input.TemplateKey = "pharmacy.stocktake_reviewer.v1"
+	f.input.Subject = "user-stock-reviewer"
+	f.input.Identity.StaffID, f.input.Identity.LinkID = uuid.MustParse(reviewStaff), uuid.MustParse(reviewLink)
+	f.input.Identity.StaffVersion, f.input.Identity.LinkVersion = 1, 2
+	f.duty = "/v1/iam/operating-duties/" + v7()
+	f.activate(t)
 }

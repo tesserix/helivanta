@@ -79,6 +79,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Reviewed operating duty release visibility
         run: pnpm --filter @helivanta/shell exec vitest run components/workforce/operating-duty-preparation.test.tsx components/workforce/independent-operating-duties.test.tsx
+      - name: Lint affected Staff and release files
+        run: |
+          pnpm --filter @helivanta/shell exec eslint components/workforce/operating-duty-preparation.tsx components/workforce/operating-duty-preparation.test.tsx components/workforce/independent-operating-duties.tsx components/workforce/independent-operating-duties.test.tsx
+          pnpm --filter @helivanta/api exec eslint src/operating-assignments-contract.ts src/release-capabilities-contract.ts src/release-capabilities.ts
       - name: Affected API and shell type checks
         run: |
           pnpm --filter @helivanta/api exec tsc --noEmit --incremental false

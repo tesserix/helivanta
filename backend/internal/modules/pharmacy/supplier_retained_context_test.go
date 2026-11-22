@@ -23,7 +23,7 @@ func (s *retainedContextSafety) WithSafeShipment(ctx context.Context, shipment f
 		return errors.New("source guard continuation lost its retained context")
 	}
 	if depth == s.refuse {
-		return f.ErrIneligible
+		return f.ErrConflict
 	}
 	return next(context.WithValue(ctx, supplierSafetyDepth{}, depth+1))
 }
@@ -41,7 +41,7 @@ func TestSupplierRetainedSafetyPropagatesEverySourceFrameAndLateDenial(t *testin
 			require.NoError(t, err)
 			require.Equal(t, 1, called)
 		} else {
-			require.ErrorIs(t, err, f.ErrIneligible)
+			require.ErrorIs(t, err, f.ErrConflict)
 			require.Zero(t, called)
 		}
 	}

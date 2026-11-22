@@ -2136,7 +2136,7 @@
         "registration_sha256": "59f1f94e61c427ddf3e5a397f6c3090caaa8eb061f016424b657e92cc1884171",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant/actor with declared stock-reference permission; published product/barcode reference only.",
-        "rationale": "The catalogue owner requires the registered stock-purpose read permission and returns only an exact current published active product/formulation/pack reference. No patient, prescription, stock balance or private source record is disclosed. Warehouse-scoped consumption separately reauthorizes its physical source at the product owner. This is an unreleased source review, not runtime acceptance.",
+        "rationale": "The catalogue owner requires the registered stock-purpose read permission and returns only an exact current published active product/formulation/pack reference. No patient, prescription, stock balance or private source record is disclosed. Warehouse-scoped consumption separately reauthorizes its physical source at the product owner. Published reference/source guards now share a DB-bound synchronous app-role transaction; global frames clear tenant scope, restore tenant/actor and reject invalid callback reuse. Existing registered permission and published projection remain unchanged. This is an unreleased source review, not runtime acceptance.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/drugmaster/module.go",
@@ -2145,8 +2145,13 @@
           },
           {
             "path": "backend/internal/modules/drugmaster/stock_reference.go",
-            "sha256": "e3776ff70b889f9caae2059554c0ccbfdf25fc96b66085fd56b43b273282d5cc",
+            "sha256": "707cb5e8336329577ab14940ec8a1c75536df3b47c56be1d456efac3939fbdf5",
             "symbol": "func (h *readHandlers) stockReferenceByGTIN("
+          },
+          {
+            "path": "backend/pkg/tenantdb/retained_frame.go",
+            "sha256": "5a022379e2285ef514eaae5131868c0722e0ec18fac6c5af9870a29f4d374c37",
+            "symbol": "func (d *DB) WithRetainedSystemFrame("
           }
         ],
         "remaining": [

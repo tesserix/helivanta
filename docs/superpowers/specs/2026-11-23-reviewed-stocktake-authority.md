@@ -11,10 +11,15 @@ The first count-entry hosted test failed as intended (45058843484, positive PUT
 expected 200/actual 404). Hosted validation 45059958549 passed build/vet, contract
 generation/check, native PostgreSQL stocktake regressions, Global API count and
 recovery/cutoff/rollback/legacy-boundary checks, IAM release admission and the
-Staff web tests/lint/types/build. A separate submission/recovery test is pushed
-and awaiting its red result. Eligibility remains false. Submission, independent
-review/posting, hospital authority, operational UI and live acceptance below
-remain unfinished.
+Staff web tests/lint/types/build. The submission/recovery test first failed as intended in run 45060564552
+(expected 200/actual 404). Its implementation, cross-command conflict, submitted
+edit rollback, original recovery and counter approval denial passed Global API,
+native PostgreSQL and IAM release checks in clean run 45061412084; capacity is
+still running. Canonical contracts are synced from that hosted artifact. A new
+independent approval/posting red test is pushed in 18fbadff and running in
+45062256483, with a separate Staff/account and exact one-time stock conservation.
+Eligibility remains false. Independent review/posting, same-Staff alias proof,
+hospital authority, operational UI and live acceptance below remain unfinished.
 
 Capacity regression 45058563586 passed start at 4.624 s and page p99 at approximately
 10 ms, but 500 adjustments took 5.167 s and failed the unchanged five-second gate.

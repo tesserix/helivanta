@@ -84,7 +84,9 @@ returns the original receipt on exact replay or GET recovery. Reusing a count
 command ID conflicts. Submission posts no adjustment and cannot be used to
 approve a count. Other decisions remain unavailable pending their reviewed
 implementation. The hosted submission red test 45060564552 returned the expected
-missing-route 404; implementation and clean capacity validation remain pending.
+missing-route 404. The implementation, replay/recovery, count-ID conflict and
+submitted-edit rollback passed Global API, native PostgreSQL and IAM release
+checks in hosted run 45061412084. Clean capacity validation remains pending.
 
 ## Current contract families
 

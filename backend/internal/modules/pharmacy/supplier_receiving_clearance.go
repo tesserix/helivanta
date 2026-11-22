@@ -1,6 +1,7 @@
 package pharmacy
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -107,11 +108,23 @@ type supplierBatchSource struct {
 
 func supplierBatchShipments(rows []supplierBatchSource, tenant, outlet uuid.UUID) ([]f.Shipment, error) {
 	result := make([]f.Shipment, 0, len(rows))
+	seen := make(map[uuid.UUID][]byte, len(rows))
 	for _, row := range rows {
 		var shipment f.Shipment
-		if supplierorder.DecodeObject(row.Body, &shipment) != nil {
+		if row.ID == uuid.Nil || row.ShipmentID == uuid.Nil || supplierorder.DecodeObject(row.Body, &shipment) != nil || shipment.ID != row.ShipmentID || shipment.BuyerTenantID != tenant || shipment.BuyerLocationID != outlet {
 			return nil, f.ErrUnavailable
 		}
+		body, err := json.Marshal(shipment)
+		if err != nil {
+			return nil, f.ErrUnavailable
+		}
+		if previous, ok := seen[shipment.ID]; ok {
+			if !bytes.Equal(previous, body) {
+				return nil, f.ErrUnavailable
+			}
+			continue
+		}
+		seen[shipment.ID] = body
 		result = append(result, shipment)
 	}
 	return result, nil

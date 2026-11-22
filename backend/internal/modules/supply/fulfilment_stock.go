@@ -16,6 +16,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/supplierorder"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"time"
 )
 
@@ -60,18 +61,29 @@ func (h *warehouseFulfilment) Admit(ctx context.Context, p authn.Principal, s f.
 	})
 }
 func (h *warehouseFulfilment) Lock(tx *gorm.DB, a f.Allocation) error {
-	var receipt uuid.UUID
-	err := tx.Raw(`SELECT id FROM supply_stock_receipts WHERE tenant_id=? AND party_id=? AND premise_id=? AND id=? FOR UPDATE`, a.Plan.OwnerTenantID, a.Plan.SourceOrganizationID, a.Plan.SourceLocationID, a.Plan.Input.StockID).Scan(&receipt).Error
+	return lockWarehouseReceipt(tx, a.Plan, clause.Locking{Strength: "UPDATE"})
+}
+
+func lockWarehouseReceipt(tx *gorm.DB, p f.AllocationPlan, lock clause.Locking) error {
+	var receipt struct{ ID uuid.UUID }
+	err := tx.Table("supply_stock_receipts").Select("id").Where("tenant_id=? AND party_id=? AND premise_id=? AND id=?", p.OwnerTenantID, p.SourceOrganizationID, p.SourceLocationID, p.Input.StockID).Clauses(lock).Take(&receipt).Error
 	if err != nil {
 		return err
 	}
-	if receipt == uuid.Nil {
+	if receipt.ID == uuid.Nil {
 		return gorm.ErrRecordNotFound
 	}
 	return nil
 }
 func (h *warehouseFulfilment) Snapshot(tx *gorm.DB, p f.AllocationPlan) (f.StockEvidence, error) {
 	if err := h.Lock(tx, f.Allocation{Plan: p}); err != nil {
+		return f.StockEvidence{}, err
+	}
+	return warehouseSupplierEvidence(tx, p)
+}
+
+func (h *warehouseFulfilment) safeSnapshot(tx *gorm.DB, p f.AllocationPlan) (f.StockEvidence, error) {
+	if err := lockWarehouseReceipt(tx, p, clause.Locking{Strength: "SHARE"}); err != nil {
 		return f.StockEvidence{}, err
 	}
 	return warehouseSupplierEvidence(tx, p)

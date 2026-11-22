@@ -6,6 +6,21 @@
 This is source-review tooling. No employment guard, grant classification in a live
 database, migration, account change or runtime activation is performed by it.
 
+## Fulfilment audit source recheck — 22 November 2026
+
+Eight independent pharmacy stock read/receipt reviews pin `operating_stock.go`.
+Against the preceding reviewed revision `38cb5514`, that file is byte-identical
+after removing only the new migration embed declaration. Their authority functions,
+tenant/outlet scope, classification and remaining acceptance obligations are unchanged.
+
+Migration `0062_pharmacy_operating_fulfilment_audit` preserves every original
+read/receipt action-resource-permission combination and the audit RLS. Its only new
+combination requires fulfilment permission, a supplier-order resource and an order
+ID. Each affected review additionally pins this forward migration. Hosted run
+`44978972536` passed its invalid-shape/RLS database matrix and real both-owner Staff
+admission. This recheck does not close these routes' separate runtime cutoff,
+receiver navigation, browser or clinical/regulatory acceptance obligations.
+
 ## Bill credit-history registration recheck — 22 November 2026
 
 `payableRoutes` adds the separate selected-bill supplier-credit history read.

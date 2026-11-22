@@ -79,7 +79,99 @@ After a grant or relationship ends, retained hospital obligations remain governe
 by their own financial/receipt owner permissions; historical consent is not a
 replacement user grant.
 
-The current consent/store/API implementation still needs its consuming authorizer,
-product projections, SDK/UI and complete shared-environment acceptance before any
-claim of the full supplier workflow. The owner protocol tests are component
-acceptance, not substitutes for those gates.
+The development candidate includes the consuming authorizer, shipment
+projections and their SDK/UI. Hosted Linux run
+[44992780809](https://github.com/tesserix/helivanta/actions/runs/44992780809)
+passed positive admission through the actual IAM, Staff, graph, database and
+stock owners for both warehouse and pharmacy sources. The same composed journey
+covered split dispatch, hospital receiving, independent clearance/release,
+directed source replies and receipt-backed buyer payables. External identity,
+workload and object-storage protocols remain synthetic test boundaries; this
+does not prove live onboarding or deployed browser acceptance.
+
+Hosted correction run
+[44999841841](https://github.com/tesserix/helivanta/actions/runs/44999841841)
+also passed the full composed root. For both stock owners, an independently
+reviewed recount retained original receipt and physical-release evidence,
+reopened receiving, required explicit reclosure and updated current financial
+choices and directed source replies without changing accepted/released stock.
+These results precede the combined current-main integration; that integration
+requires its own passing checks.
+
+Catalogue and source-issued invoice consumers, platform supplier returns and
+their source credits remain unfinished. Buyer-entered payables and credits do
+not constitute source-issued documents. Batches with many distinct source
+shipments also need bounded retained safety checks before the full workflow can
+be declared complete. The presence of closed disclosure templates does not
+establish those APIs or financial records. Shared-environment release and
+authenticated browser acceptance remain separate gates.
+
+## Effective shipment disclosure candidate (ADR-0076)
+
+The current authorizer is now consumed by the development candidate in
+`internal/modules/supply/partner_shipments.go`. All shipment reads use
+`PartnerScopes.WithPartnerScope`, not the hospital-local eligibility port. They
+operate on SupplyConnect's retained owner-published dispatch projection for
+PharmaConnect outlet and SupplyConnect warehouse sources; neither reads another
+module's stock tables nor moves stock.
+
+Candidate paths under `/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms`:
+`GET /shipment-source`, `GET /shipment-orders` and
+`GET /shipment-orders/:order/shipments`.
+The source singleton returns current organization/location names under the same
+compound authority even before the first published dispatch. It commits its own
+disclosure audit before returning metadata; it does not expose an empty or
+fabricated order, catalogue, invoice or stock balance.
+The two collections use sealed resource pagination capped at 50. All three reads
+require `partner.shipment.read`,
+with current expected account, exact hospital/grant/product, bilateral relationship,
+current Staff/group/graph and source guards on every page. Only orders with
+published dispatch facts become choices. A source SELECT purpose binds exact
+source tenant/org/location and buyer tenant/hospital/org/outlet/relationship;
+private command/history tables and all writes remain denied in that purpose.
+A failed source audit or current authority check withholds the response.
+
+`PartnerShipmentOrder` and `PartnerShipment` are canonical minimal projection
+models in `contracts/supplier-access.json`. Their field bounds inherit the actual
+source-owned order/fulfilment contracts. They include human references and frozen
+physical description/unit/pack/quantity/lot/expiry/dispatch evidence, excluding
+actors, Staff, prices, patient data and private source documents. Client parsing
+rejects extra fields, mismatched account/grant/relationship/order/source,
+duplicated rows and inconsistent/looping continuation. It keeps the hospital
+account; it does not log into the source tenant or gain operational authority.
+
+Additive migrations 0019/0020 establish the isolated purpose and concurrent order
+keyset index. The migration first verifies the previous Supply operating-choice
+inventory before refreshing it for the intended new restrictive policies. The new
+purpose inventories its policies/function and fails closed for missing/bypassed
+RLS, privilege drift, unsupported new tables or an absent/unready index. Original
+migrations and ordinary source/buyer/exchange purposes are unchanged.
+
+This remains dark under `supplier_collaboration`; eligibility/provider settings
+are unchanged. Storage-purpose fixtures are not real IAM admission evidence.
+Hosted native/positive real-grant tests, a reachable named recipient/source chooser
+and browser UI, performance evidence, protected integration and approved live
+acceptance remain gates in [ADR-0076](../adr/0076-effective-partner-shipment-disclosure.md).
+Catalogue and source-issued invoice consumers remain distinct unfinished work.
+
+Shipment sharing is restricted to the exact source/hospital-approved terms hash.
+The `:terms` path segment is that canonical SHA-256, supplied by an authorised
+chooser rather than entered by a user. It binds the sealed cursor; every query
+also checks the owner order's original terms hash against the final current grant.
+A changed agreement requires a refreshed choice/page. It does not broaden access
+to another agreement's history; hospital-local retained obligations use their own
+existing authority. Public projections include that `terms_sha256` for exact SDK
+checking, without the private source document or its actors.
+
+The candidate shipment order and shipment projections include required
+`source_organization_name` and `source_location_name` fields. These come from the
+current physical owner's presentation guard under the already-held compound
+source grant, not from the request, actor ID or cross-module table reads. IAM
+passes the verified seller endpoint descriptor through its internal grant; the
+SupplyConnect consumer resolves the names and can only shorten that grant's
+remaining deadline. A missing owner projection or invalid label withholds the
+response. The canonical presentation bounds are 1–200 Unicode characters, with
+no surrounding whitespace or control characters. The SDK preserves the names,
+refuses missing/unsafe labels and refuses mixed source labels within a page.
+The underlying v1 machine source-check reference remains unchanged; presentation
+facts do not grant trading, staff, financial or physical stock authority.

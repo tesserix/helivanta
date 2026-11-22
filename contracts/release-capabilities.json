@@ -1166,6 +1166,11 @@
     },
     {
       "method": "GET",
+      "path": "/v1/iam/hospitals/:hospital/supplier-shipment-grants",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
       "path": "/v1/iam/hospitals/:hospital/supplier-grant-offers",
       "capability": "supplier_collaboration"
     },
@@ -5926,6 +5931,21 @@
     },
     {
       "method": "GET",
+      "path": "/v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders/:order/shipments",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-source",
+      "capability": "supplier_collaboration"
+    },
+    {
+      "method": "GET",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/supplier-credit-allocations",
       "capability": "baseline"
     }
@@ -6218,6 +6238,10 @@
     {
       "path": "/recover-password",
       "capability": "baseline"
+    },
+    {
+      "path": "/workforce/shared-shipments",
+      "capability": "supplier_collaboration"
     }
   ],
   "panels": [

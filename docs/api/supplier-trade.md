@@ -134,8 +134,18 @@ Those consumers must use current authority and retain their own idempotent
 command/evidence histories. Source-fact, consent protocol and component tests must
 not be reported as full journey acceptance.
 
-Local validation builds affected targets, runs isolated unit/architecture checks
-and removes generated build outputs before merge. It does not start local app
-servers, containers or an integration environment. Database-backed and browser
-journeys run in CI and the shared pre-GA web environment with dedicated synthetic
-users and records.
+Validation runs focused hosted builds and unit/architecture checks for the
+affected targets before the required protected merge checks. Do not run local
+builds, applications, databases or container runtimes, including Colima.
+Database-backed and browser journeys run in CI and the shared pre-GA web
+environment with dedicated synthetic users and records. Inspect actual workflow
+logs and cache evidence before attributing failures to caches.
+
+`CurrentEndpointPresentationGuard` is a local owner port, separate from the v1
+machine source-check wire. It returns only the canonical
+`SupplierTradeEndpointPresentation` organisation and location names after the
+same current endpoint/licence/policy check. Both stock owners restore private
+purpose settings before invoking its callback. The platform checks the returned
+endpoint reference and text bounds. The older endpoint guard discards names and
+retains its existing fact-check semantics; no names are added to machine
+requests, references, peer signatures or authority hashes.

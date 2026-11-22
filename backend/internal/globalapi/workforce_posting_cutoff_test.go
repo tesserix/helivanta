@@ -188,7 +188,9 @@ func assertPostingRetainedAncestorCutoff(t *testing.T, db *tenantdb.DB, observer
 	}
 	cutoffInstant, err := time.Parse(time.RFC3339Nano, cutoff["cutoff_at"].(string))
 	require.NoError(t, err)
-	futureTemplate["starts_at"] = cutoffInstant.Add(time.Minute).Format(time.RFC3339Nano)
+	futureStart := cutoffInstant.Add(time.Minute)
+	futureTemplate["starts_at"] = futureStart.Format(time.RFC3339Nano)
+	futureTemplate["ends_at"] = futureStart.Add(time.Minute).Format(time.RFC3339Nano)
 	futureRoot, futureChild := prepare(futureTemplate, submitter, map[string]any{"kind": "department_supervisor", "supervisor_staff_id": parent["staff_id"], "supervisor_proposal_id": parent["id"], "supervisor_revision_id": parent["revision_id"]})
 	futureSelector := fmt.Sprintf("/context?purpose=review&expected_version=1&expected_revision_id=%s&supervision_context=v1&lifecycle_review=current", futureChild["revision_id"])
 	call(t, "GET", futureRoot+futureSelector, reviewer, nil, 409)

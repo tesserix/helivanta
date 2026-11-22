@@ -35,6 +35,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/organizationidentity"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/session"
+	"github.com/tesserix/helivanta/pkg/suppliertrade"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"github.com/tesserix/helivanta/pkg/transit"
 )
@@ -222,6 +223,9 @@ type HarnessOptions struct {
 	ScopedAuthorizer            func(*tenantdb.DB) authz.ScopedAuthorizer
 	OperatingAuthorizer         func(*tenantdb.DB) authz.OperatingScopeAuthorizer
 	SourceAdministration        func(*tenantdb.DB) authz.SourceAdministrationGuard
+	SourceChecks                func(platform.Deps) suppliertrade.SourceChecker
+	TradingRelationships        func(platform.Deps) suppliertrade.CurrentRelationshipGuard
+	PartnerScopes               func(platform.Deps) authz.PartnerScopeAuthorizer
 	Resolver                    authz.Resolver
 	// Revocation defaults to a checker that answers "never revoked" for
 	// every subject — see neverRevoked's doc comment. Set it explicitly
@@ -467,6 +471,15 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 		SessionTTL:          opts.SessionTTL,
 		SessionSecureCookie: opts.SessionSecureCookie,
 		IdleTimeout:         idleTimeout,
+	}
+	if opts.SourceChecks != nil {
+		deps.SourceChecks = opts.SourceChecks(deps)
+	}
+	if opts.TradingRelationships != nil {
+		deps.TradingRelationships = opts.TradingRelationships(deps)
+	}
+	if opts.PartnerScopes != nil {
+		deps.PartnerScopes = opts.PartnerScopes(deps)
 	}
 	deps.FulfilmentOrders = platform.FulfilmentOrders(opts.Modules, deps)
 	deps.ReceivingAuthority = platform.ReceivingAuthority(opts.Modules, deps)

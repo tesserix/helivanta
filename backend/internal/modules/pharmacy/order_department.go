@@ -30,7 +30,7 @@ func (g tradingEndpointGuard) WithHospitalDepartment(ctx context.Context, e supp
 		if err = tx.Exec(`SELECT set_config('app.pharmacy_trade_source','current',true),set_config('app.pharmacy_trade_outlet',?,true),set_config('app.pharmacy_trade_binding',?,true),set_config('app.pharmacy_trade_hospital',?,true)`, e.LocationID.String(), e.BindingID.String(), e.HospitalID.String()).Error; err != nil {
 			return err
 		}
-		err = tx.Raw(`SELECT department_revision_id FROM pharmacy_staff_department_bindings WHERE tenant_id=? AND pharmacy_id=? AND outlet_id=? AND id=? AND hospital_id=? AND department_id=? AND version=? AND status='approved'FOR SHARE`, e.TenantID, e.OrganizationID, e.LocationID, *e.BindingID, *e.HospitalID, department, *e.BindingVersion).Row().Scan(&revision)
+		err = tx.Raw(`SELECT b.department_revision_id FROM pharmacy_staff_department_bindings b JOIN pharmacy_outlets o ON(o.tenant_id,o.id)=(b.tenant_id,b.outlet_id)WHERE b.tenant_id=? AND o.pharmacy_id=? AND b.outlet_id=? AND b.id=? AND b.hospital_id=? AND b.department_id=? AND b.version=? AND b.status='approved'FOR SHARE OF b,o`, e.TenantID, e.OrganizationID, e.LocationID, *e.BindingID, *e.HospitalID, department, *e.BindingVersion).Row().Scan(&revision)
 		if errors.Is(err, sql.ErrNoRows) {
 			return suppliertrade.ErrIneligible
 		}

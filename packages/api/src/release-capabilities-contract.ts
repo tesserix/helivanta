@@ -246,6 +246,7 @@ export const releasePages = [
   { path: "/workforce/shifts", capability: "workforce_scheduling" },
   { path: "/workforce/supplier-staff", capability: "supplier_collaboration" },
   { path: "/recover-password", capability: "baseline" },
+  { path: "/workforce/shared-shipments", capability: "supplier_collaboration" },
 ] as const;
 export const releasePanels = [
   { key: "staff.posting_drafts", capability: "department_teams" },

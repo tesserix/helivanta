@@ -47,6 +47,31 @@ test("a released feature never makes an unknown API route available", () => {
   );
 });
 
+test("disabling new Pharmacy payables preserves retained bill credit evidence", () => {
+  const value = JSON.parse(
+    readFileSync(new URL("../contracts/release-capabilities.json", import.meta.url), "utf8"),
+  );
+  const base = "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables";
+  const routes = value.routes.filter(
+    (route) => route.path === base || route.path.startsWith(`${base}/`),
+  );
+  assert.ok(
+    routes.some(
+      (route) => route.method === "GET" && route.path === `${base}/:id/supplier-credit-allocations`,
+    ),
+    "selected-bill credit history must have an explicit release binding",
+  );
+  for (const route of routes) {
+    const retained =
+      route.method === "GET" && route.path === `${base}/:id/supplier-credit-allocations`;
+    assert.equal(
+      route.capability,
+      retained ? "baseline" : "pharmacy_payables",
+      `${route.method} ${route.path}`,
+    );
+  }
+});
+
 test("known API, page and panel bindings share one capability vocabulary", () => {
   const value = manifest();
   assert.doesNotThrow(() => validateReleaseManifest(value, value.routes));

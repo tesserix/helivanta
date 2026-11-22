@@ -399,6 +399,12 @@ export const ZONES: Zone[] = [
         permission: "public",
       },
       {
+        label: "Shared supplier shipments",
+        href: "/workforce/shared-shipments",
+        icon: Truck,
+        permission: "partner.shipment.read",
+      },
+      {
         label: "Partner teams",
         href: "/workforce/partner-teams",
         icon: Network,

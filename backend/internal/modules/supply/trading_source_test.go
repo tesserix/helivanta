@@ -49,11 +49,29 @@ func TestSupplierTradingSourceRequiresCurrentIndependentLicenceAndPolicyReview(t
 	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &licence))
 	endpoint.LocationID = licence.PremiseID
 	guard := supply.New().TradingEndpoints(s.db, nil)
+	presentationGuard, ok := guard.(suppliertrade.CurrentEndpointPresentationGuard)
+	require.True(t, ok)
+	companyResponse := testutil.Do(s.r, "GET", s.root, "owner", "")
+	require.Equal(t, 200, companyResponse.Code, companyResponse.Body.String())
+	var company struct {
+		LegalName string `json:"legal_name"`
+	}
+	require.NoError(t, json.Unmarshal(companyResponse.Body.Bytes(), &company))
+	premiseResponse := testutil.Do(s.r, "GET", s.root+"/premises/"+endpoint.LocationID.String(), "owner", "")
+	require.Equal(t, 200, premiseResponse.Code, premiseResponse.Body.String())
+	var premise struct {
+		Name string `json:"name"`
+	}
+	require.NoError(t, json.Unmarshal(premiseResponse.Body.Bytes(), &premise))
+	require.NotEmpty(t, company.LegalName)
+	require.NotEmpty(t, premise.Name)
 	calls := 0
 	run := func() error {
 		return s.db.WithGuardedTenantCommand(tenantdb.WithActor(t.Context(), "user-owner"), testutil.TenantA, time.Now().Add(5*time.Second), func(*gorm.DB) error { return nil }, func(ctx context.Context) error {
-			return guard.WithCurrentTradingEndpoint(ctx, endpoint, "prescription", "order", func(ctx context.Context, ref suppliertrade.EndpointReference) error {
+			return presentationGuard.WithCurrentTradingEndpointPresentation(ctx, endpoint, "prescription", "order", func(ctx context.Context, ref suppliertrade.EndpointReference, presentation suppliertrade.EndpointPresentation) error {
 				calls++
+				require.Equal(t, company.LegalName, presentation.OrganizationName)
+				require.Equal(t, premise.Name, presentation.LocationName)
 				require.Equal(t, endpoint, ref.Endpoint)
 				require.Equal(t, int64(2), ref.LicenceReviewVersion)
 				require.NotEqual(t, uuid.Nil, ref.PolicyVersion)

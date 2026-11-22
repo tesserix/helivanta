@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/tesserix/helivanta/internal/bootstrap"
 	"github.com/tesserix/helivanta/internal/modules/supply" //nolint:depguard // external test exercises its own module
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
@@ -17,12 +18,26 @@ import (
 )
 
 func TestDirectedRelationshipProtocolPersistsBothConsentsAndNeverReactivatesFromReplay(t *testing.T) {
-	_, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Modules: []platform.Module{supply.New()}})
+	for _, product := range []string{"supply", "pharmacy"} {
+		t.Run(product, func(t *testing.T) { verifyDirectedRelationshipProtocol(t, product) })
+	}
+}
+
+func verifyDirectedRelationshipProtocol(t *testing.T, product string) {
+	t.Helper()
+	modules := []platform.Module{supply.New()}
+	if product == "pharmacy" {
+		for _, module := range bootstrap.Modules(nil, nil) {
+			if module.Name() == product {
+				modules = append(modules, module)
+			}
+		}
+		require.Len(t, modules, 2, "the protocol fixture needs the registered physical stock owner")
+	}
+	_, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Modules: modules})
 	verifyRelationshipProofBoundaries(t, db)
 	sellerID, buyerID := uuid.MustParse(testutil.TenantA), uuid.MustParse(testutil.TenantB)
-	hospital, binding, registration := uuid.New(), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
-	two := int64(2)
-	terms := suppliertrade.Terms{Seller: suppliertrade.Endpoint{TenantID: sellerID, Product: "supply", OrganizationID: uuid.Must(uuid.NewV7()), LocationID: uuid.Must(uuid.NewV7()), OrganizationVersion: 1, LocationVersion: 1, LicenceID: uuid.Must(uuid.NewV7()), LicenceVersion: 1, Jurisdiction: "IN-MH"}, Buyer: suppliertrade.Endpoint{TenantID: buyerID, Product: "pharmacy", OrganizationID: uuid.Must(uuid.NewV7()), LocationID: uuid.Must(uuid.NewV7()), OrganizationVersion: 1, LocationVersion: 1, LicenceID: uuid.Must(uuid.NewV7()), LicenceVersion: 1, Jurisdiction: "IN-OD", HospitalID: &hospital, BindingID: &binding, BindingVersion: &two, RegistrationID: &registration, RegistrationVersion: &two}, Category: "prescription", Currency: "INR", ValidFrom: time.Now().Add(-time.Minute), ExpiresAt: time.Now().Add(time.Hour), TermsReference: "TEST ONLY directed consent protocol; no trade activation"}
+	terms := protocolTradeTerms(product, time.Now())
 	input := suppliertrade.SupplierRelationshipInput{Terms: terms, Reason: "TEST protocol fixture"}
 	id := uuid.Must(uuid.NewV7())
 	state, err := suppliertrade.PrepareRelationship(id, terms, "TEST-maker", time.Now())
@@ -139,4 +154,17 @@ func TestDirectedRelationshipProtocolPersistsBothConsentsAndNeverReactivatesFrom
 		require.Zero(t, count)
 		return nil
 	}))
+}
+
+func protocolTradeTerms(product string, at time.Time) suppliertrade.Terms {
+	sellerID, buyerID := uuid.MustParse(testutil.TenantA), uuid.MustParse(testutil.TenantB)
+	hospital, binding, registration := uuid.New(), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
+	two := int64(2)
+	terms := suppliertrade.Terms{Seller: suppliertrade.Endpoint{TenantID: sellerID, Product: product, OrganizationID: uuid.Must(uuid.NewV7()), LocationID: uuid.Must(uuid.NewV7()), OrganizationVersion: 1, LocationVersion: 1, LicenceID: uuid.Must(uuid.NewV7()), LicenceVersion: 1, Jurisdiction: "IN-MH"}, Buyer: suppliertrade.Endpoint{TenantID: buyerID, Product: "pharmacy", OrganizationID: uuid.Must(uuid.NewV7()), LocationID: uuid.Must(uuid.NewV7()), OrganizationVersion: 1, LocationVersion: 1, LicenceID: uuid.Must(uuid.NewV7()), LicenceVersion: 1, Jurisdiction: "IN-OD", HospitalID: &hospital, BindingID: &binding, BindingVersion: &two, RegistrationID: &registration, RegistrationVersion: &two}, Category: "prescription", Currency: "INR", ValidFrom: at.Add(-time.Minute), ExpiresAt: at.Add(time.Hour), TermsReference: "TEST ONLY directed consent protocol; no trade activation"}
+	if product == "pharmacy" {
+		registration := uuid.Must(uuid.NewV7())
+		terms.Seller.RegistrationID = &registration
+		terms.Seller.RegistrationVersion = &two
+	}
+	return terms
 }

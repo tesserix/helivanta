@@ -40,3 +40,16 @@ type CurrentRelationshipGuard interface {
 type HospitalDepartmentGuard interface {
 	WithHospitalDepartment(context.Context, Endpoint, uuid.UUID, func(context.Context) error) error
 }
+
+// EndpointPresentation contains only owner-supplied organisation and premise names.
+type EndpointPresentation = SupplierTradeEndpointPresentation
+
+// ValidEndpointPresentation checks the canonical name bounds without normalising owner facts.
+func ValidEndpointPresentation(p EndpointPresentation) bool {
+	return Text(p.OrganizationName, maximumPresentationOrganizationNameLength) && Text(p.LocationName, maximumPresentationLocationNameLength)
+}
+
+// CurrentEndpointPresentationGuard releases names only after the owner's current endpoint check.
+type CurrentEndpointPresentationGuard interface {
+	WithCurrentTradingEndpointPresentation(context.Context, Endpoint, string, string, func(context.Context, EndpointReference, EndpointPresentation) error) error
+}

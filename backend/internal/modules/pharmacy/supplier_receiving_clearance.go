@@ -1,6 +1,7 @@
 package pharmacy
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -100,11 +101,37 @@ func (h *supplierReceiving) clearance(c *gin.Context) {
 }
 
 // safeSupplierBatches runs on the release owner's existing transaction; no receipt means no new dependency.
-func (h *catalogueHandlers) safeSupplierBatches(ctx context.Context, tx *gorm.DB, tenant string, outlet, batch uuid.UUID, action func() error) error {
-	var rows []struct {
-		ID, ShipmentID uuid.UUID
-		Body           json.RawMessage
+type supplierBatchSource struct {
+	ID, ShipmentID uuid.UUID
+	Body           json.RawMessage
+}
+
+func supplierBatchShipments(rows []supplierBatchSource, tenant, outlet uuid.UUID) ([]f.Shipment, error) {
+	result := make([]f.Shipment, 0, len(rows))
+	seen := make(map[uuid.UUID][]byte, len(rows))
+	for _, row := range rows {
+		var shipment f.Shipment
+		if row.ID == uuid.Nil || row.ShipmentID == uuid.Nil || supplierorder.DecodeObject(row.Body, &shipment) != nil || shipment.ID != row.ShipmentID || shipment.BuyerTenantID != tenant || shipment.BuyerLocationID != outlet {
+			return nil, f.ErrUnavailable
+		}
+		body, err := json.Marshal(shipment)
+		if err != nil {
+			return nil, f.ErrUnavailable
+		}
+		if previous, ok := seen[shipment.ID]; ok {
+			if !bytes.Equal(previous, body) {
+				return nil, f.ErrUnavailable
+			}
+			continue
+		}
+		seen[shipment.ID] = body
+		result = append(result, shipment)
 	}
+	return result, nil
+}
+
+func (h *catalogueHandlers) safeSupplierBatches(ctx context.Context, tx *gorm.DB, tenant string, outlet, batch uuid.UUID, action func() error) error {
+	var rows []supplierBatchSource
 	if err := tx.Table("pharmacy_supplier_batch_sources").Select("receipt_id AS id,shipment_id,source AS body").Where("tenant_id=? AND outlet_id=? AND batch_id=?", tenant, outlet, batch).Limit(1001).Scan(&rows).Error; err != nil {
 		return err
 	}
@@ -117,13 +144,21 @@ func (h *catalogueHandlers) safeSupplierBatches(ctx context.Context, tx *gorm.DB
 	if h.supplierSafety == nil {
 		return f.ErrUnavailable
 	}
+	tenantID, err := uuid.Parse(tenant)
+	if err != nil {
+		return f.ErrUnavailable
+	}
+	shipments, err := supplierBatchShipments(rows, tenantID, outlet)
+	if err != nil {
+		return err
+	}
 	old := ""
 	if err := tx.Raw(`SELECT COALESCE(current_setting('app.pharmacy_supplier_safe_receipts',true),'')`).Scan(&old).Error; err != nil {
 		return err
 	}
 	var run func(int) error
 	run = func(index int) error {
-		if index == len(rows) {
+		if index == len(shipments) {
 			safe := "|"
 			for _, row := range rows {
 				safe += row.ID.String() + "|"
@@ -134,11 +169,7 @@ func (h *catalogueHandlers) safeSupplierBatches(ctx context.Context, tx *gorm.DB
 			err := action()
 			return errors.Join(err, tx.Exec(`SELECT set_config('app.pharmacy_supplier_safe_receipts',?,true)`, old).Error)
 		}
-		var shipment f.Shipment
-		if supplierorder.DecodeObject(rows[index].Body, &shipment) != nil {
-			return f.ErrUnavailable
-		}
-		return h.supplierSafety.WithSafeShipment(ctx, shipment, func(context.Context) error { return run(index + 1) })
+		return h.supplierSafety.WithSafeShipment(ctx, shipments[index], func(context.Context) error { return run(index + 1) })
 	}
 	return run(0)
 }

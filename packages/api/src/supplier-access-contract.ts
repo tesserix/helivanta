@@ -200,3 +200,139 @@ export const SupplierGrantSummaryContract = z
   })
   .strict();
 export type SupplierGrantSummary = z.infer<typeof SupplierGrantSummaryContract>;
+
+export const PartnerShipmentOrderContract = z
+  .object({
+    id: identifier,
+    scope: SupplierGrantScopeContract,
+    grant_id: identifier,
+    relationship_id: identifier,
+    terms_sha256: z
+      .string()
+      .min(1)
+      .max(64)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    purchase_order_reference: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    created_at: z.string().datetime({ offset: true }),
+    source_organization_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .regex(new RegExp("^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    source_location_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .regex(new RegExp("^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type PartnerShipmentOrder = z.infer<typeof PartnerShipmentOrderContract>;
+
+export const PartnerShipmentContract = z
+  .object({
+    id: identifier,
+    scope: SupplierGrantScopeContract,
+    grant_id: identifier,
+    relationship_id: identifier,
+    terms_sha256: z
+      .string()
+      .min(1)
+      .max(64)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    order_id: identifier,
+    purchase_order_reference: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    product_description: z
+      .string()
+      .min(1)
+      .max(2000)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    unit_code: z
+      .string()
+      .min(1)
+      .max(100)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    pack_size: z.number().int().min(1).max(1000000000),
+    quantity_units: z.number().int().min(1).max(1000000000),
+    lot_number: z
+      .string()
+      .min(1)
+      .max(100)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    expires_on: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    handoff_reference: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    dispatched_at: z.string().datetime({ offset: true }),
+    source_organization_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .regex(new RegExp("^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    source_location_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .regex(new RegExp("^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type PartnerShipment = z.infer<typeof PartnerShipmentContract>;
+
+export const PartnerShipmentSourceContract = z
+  .object({
+    scope: SupplierGrantScopeContract,
+    grant_id: identifier,
+    relationship_id: identifier,
+    terms_sha256: z
+      .string()
+      .min(64)
+      .max(64)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    source_organization_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .regex(new RegExp("^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    source_location_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .regex(new RegExp("^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type PartnerShipmentSource = z.infer<typeof PartnerShipmentSourceContract>;
+
+export const SupplierShipmentGrantCandidateContract = z
+  .object({
+    id: identifier,
+    scope: SupplierGrantScopeContract,
+    relationship_id: identifier,
+    terms_sha256: z
+      .string()
+      .min(64)
+      .max(64)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    recipient_kind: z.enum(["subject", "group"]),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type SupplierShipmentGrantCandidate = z.infer<typeof SupplierShipmentGrantCandidateContract>;

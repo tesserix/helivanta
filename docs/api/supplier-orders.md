@@ -88,6 +88,37 @@ receiving/corrections need a separately bounded retained-transaction purpose,
 current local authority and the exact established shipment. A viewing grant
 cannot place or approve an order, reserve stock, dispatch goods or post receipt.
 
+Dispatch preflight checks the buyer's current endpoint through the canonical
+bulk `dispatch` operation, including the buyer's reviewed dispatch policy. Its
+earlier `order` policy does not substitute for that activity. The peer contract
+does not define a `receive` operation; hospital receiving remains the separate
+destination-owned command and retained-shipment authority described above.
+
+The current physical allocation `PUT` and allocation-command `PUT` return `200`
+for both a successful first operation and exact recovery. Inspect the returned
+allocation/receipt, version, quantities and actor attribution; `201` is not their
+current wire contract. Public purchase proposals/decisions retain their separate
+first-operation versus recovery behavior.
+
+Independent pharmacy fulfilment admission records the current duty, snapshot,
+authority epoch and reviewed Staff/account link in the owner's append-only
+operating-stock audit. Migration `0062_pharmacy_operating_fulfilment_audit`
+adds only the `supplier_fulfilment_access` / `supplier_order` /
+`pharmacy.stock.fulfil` combination with a required order reference. Existing
+receiving/read combinations and the audit's RLS remain enforced; the fulfilment
+duty does not become a receiving duty. A failed audit denies the complete
+admission. The real Staff/product regression reproduced the previous constraint
+failure in hosted run `44978021214`. Fixed hosted run `44978972536` passed the
+focused database negative matrix and the full native root under the race
+detector (`1045.633s`), including real independently reviewed source Staff,
+account links and operating-duty admission for both owner products. This proves
+current stock-owner admission, not public procurement or physical dispatch.
+
+This additive migration preserves existing evidence and validates the expanded
+checks. It requires the normal approved migration rollout. After new fulfilment
+audit records exist, a code rollback keeps the widened audit schema and retained
+records; there is no destructive down migration or removal of completed evidence.
+
 ## Remaining implementation and verification
 
 The candidate implements order owner APIs, permissions and reviewed Staff
@@ -358,3 +389,66 @@ under another duty. Current-duty, current-identity, credential, source/location,
 revocation and graph checks retain their fail-closed outcomes. The real IAM /
 Workforce / OpenFGA source scenario covers hidden objects, denied duties, outage,
 revocation, original recovery and once-only callback error propagation.
+
+
+### Warehouse dispatch-balance repair candidate
+
+Forward Supply migration `0021_supply_fulfilment_balance_guard` repairs the
+physical dispatch counter policy without changing migration 0016. The dispatch
+journal's AFTER INSERT trigger writes the derived balance at trigger depth one;
+the old depth-greater-than-one write check rejected that legitimate operation.
+The repaired check still requires the verified tenant, exact party/premise,
+current fulfilment permission and operator/Staff frame. Forced RLS stays enabled.
+
+A new balance trigger refuses direct writes, changed receipt identity, deletion
+and truncation. The dispatch-count trigger binds its exact new journal ID in a
+transaction-local frame. Balance validation reads that journal by primary key,
+requires the same tenant/party/premise/receipt/actor and current transaction xmin,
+and checks the exact first-insert or increment amount. An already-written balance
+in that command cannot be counted twice. The current API runs one physical
+command per transaction; batching multiple dispatches of the same receipt into
+one transaction is not an exposed contract. Point lookups avoid rescanning a
+receipt's complete dispatch history. The frame is restored on success; any error
+rolls back the dispatch statement and its local settings.
+
+The regression uses real source Staff admission and owner storage to attempt
+manual insert/update/delete/truncate and an unrelated temporary trigger carrying
+an old journal ID. None may change the actual balance. Public split dispatch and
+replay must still produce exactly ten dispatched units. These are candidate
+assertions until hosted execution passes. Run `44989322954` reproduced the original
+RLS denial after the earlier UUID-lock fix had admitted real reservation/recovery.
+
+This is a forward-only policy/trigger repair, with no data deletion or inverse
+physical movement. A code rollback retains the derived balance guard and journal
+history; a schema rollback would reinstate a known broken dispatch path and is
+not automated. Deployment requires the separately approved Supply0021 migration
+in addition to the already pending Pharmacy migrations and Kargo rollout.
+
+
+Warehouse source-safety callbacks now hold shared receipt locks while validating
+buyer release, rather than reusing the exclusive allocation/dispatch snapshot.
+Two dispatched shipments from one source receipt can therefore be verified in
+the same destination batch without opening mutually blocked source transactions.
+Identity and quality commands, allocation and dispatch retain exclusive locks on
+that receipt; they cannot change the verified facts during the held safety read.
+Drugmaster publication remains protected by its existing shared publication lock.
+The composed two-shipment destination release is the regression; no safety or
+maker/checker condition is skipped.
+
+
+### Partial-receipt source-safety normalization
+
+A destination batch can contain several partial receiving records for the same
+immutable shipment. The safety planner retains every receipt ID in the destination
+write scope, but checks each identical shipment once while the owner keeps its
+current safety guard active. The captured receipt ID and shipment ID must be
+nonzero, the row's shipment ID must match its decoded body, and the body's buyer
+tenant/outlet must match the destination. Conflicting copies of one shipment fail
+closed; neither the newest nor the first copy is treated as authoritative.
+
+This normalization reduces duplicate held source connections without relaxing a
+source-safety condition. It does not establish capacity for a batch containing
+many distinct shipments or source owners; grouped owner safety validation remains
+an open acceptance item. Hosted focused unit tests cover partial receipt scope,
+contradictory captures, malformed bodies and foreign buyer identities. The full
+composed journey must also pass before this change is release-eligible.

@@ -28,6 +28,27 @@ func (*Module) TradingEndpoints(db *tenantdb.DB, departments authz.DepartmentRef
 	return tradingEndpointGuard{db: db, departments: departments}
 }
 func (g tradingEndpointGuard) WithCurrentTradingEndpoint(ctx context.Context, e suppliertrade.Endpoint, category, operation string, action func(context.Context, suppliertrade.EndpointReference) error) error {
+	if action == nil {
+		return suppliertrade.ErrUnavailable
+	}
+	return g.withCurrentTradingEndpoint(ctx, e, category, operation, func(current context.Context, reference suppliertrade.EndpointReference, _ suppliertrade.EndpointPresentation) error {
+		return action(current, reference)
+	})
+}
+
+func (g tradingEndpointGuard) WithCurrentTradingEndpointPresentation(ctx context.Context, e suppliertrade.Endpoint, category, operation string, action func(context.Context, suppliertrade.EndpointReference, suppliertrade.EndpointPresentation) error) error {
+	if action == nil {
+		return suppliertrade.ErrUnavailable
+	}
+	return g.withCurrentTradingEndpoint(ctx, e, category, operation, func(current context.Context, reference suppliertrade.EndpointReference, presentation suppliertrade.EndpointPresentation) error {
+		if !suppliertrade.ValidEndpointPresentation(presentation) {
+			return suppliertrade.ErrUnavailable
+		}
+		return action(current, reference, presentation)
+	})
+}
+
+func (g tradingEndpointGuard) withCurrentTradingEndpoint(ctx context.Context, e suppliertrade.Endpoint, category, operation string, action func(context.Context, suppliertrade.EndpointReference, suppliertrade.EndpointPresentation) error) error {
 	if g.db == nil || !g.db.GuardedCommandActive(ctx) || action == nil {
 		return suppliertrade.ErrUnavailable
 	}
@@ -42,6 +63,7 @@ func (g tradingEndpointGuard) WithCurrentTradingEndpoint(ctx context.Context, e 
 	}
 	ref := suppliertrade.EndpointReference{Endpoint: e, Category: category, Operation: operation, LicenceReviewVersion: 1}
 	var department, revision uuid.UUID
+	presentation := suppliertrade.EndpointPresentation{}
 	err := g.db.WithTenantCommand(ctx, e.TenantID.String(), func(tx *gorm.DB) (err error) {
 		keys, _ := json.Marshal([]string{"app.pharmacy_trade_source", "app.pharmacy_trade_outlet", "app.pharmacy_trade_registration", "app.pharmacy_trade_licence", "app.pharmacy_trade_binding", "app.pharmacy_trade_hospital"})
 		var prior string
@@ -60,7 +82,7 @@ func (g tradingEndpointGuard) WithCurrentTradingEndpoint(ctx context.Context, e 
 			return err
 		}
 		var ownership string
-		err = tx.Raw(`SELECT p.ownership_type FROM pharmacy_organizations p JOIN pharmacy_outlets o ON(o.tenant_id,o.pharmacy_id)=(p.tenant_id,p.id)JOIN pharmacy_trading_scopes s ON(s.tenant_id,s.pharmacy_id,s.outlet_id)=(o.tenant_id,o.pharmacy_id,o.id)WHERE p.tenant_id=? AND p.id=? AND o.id=? AND o.country_code='IN'AND s.id=? AND s.status='approved'AND s.version=? AND s.input->>'licence_id'=? AND s.input->>'jurisdiction'=? AND s.input->>'category'=? FOR SHARE OF p,o,s`, e.TenantID, e.OrganizationID, e.LocationID, *e.RegistrationID, *e.RegistrationVersion, e.LicenceID.String(), e.Jurisdiction, category).Row().Scan(&ownership)
+		err = tx.Raw(`SELECT p.ownership_type,COALESCE(p.name,''),COALESCE(o.name,'') FROM pharmacy_organizations p JOIN pharmacy_outlets o ON(o.tenant_id,o.pharmacy_id)=(p.tenant_id,p.id)JOIN pharmacy_trading_scopes s ON(s.tenant_id,s.pharmacy_id,s.outlet_id)=(o.tenant_id,o.pharmacy_id,o.id)WHERE p.tenant_id=? AND p.id=? AND o.id=? AND o.country_code='IN'AND s.id=? AND s.status='approved'AND s.version=? AND s.input->>'licence_id'=? AND s.input->>'jurisdiction'=? AND s.input->>'category'=? FOR SHARE OF p,o,s`, e.TenantID, e.OrganizationID, e.LocationID, *e.RegistrationID, *e.RegistrationVersion, e.LicenceID.String(), e.Jurisdiction, category).Row().Scan(&ownership, &presentation.OrganizationName, &presentation.LocationName)
 		if errors.Is(err, sql.ErrNoRows) {
 			return suppliertrade.ErrIneligible
 		}
@@ -74,7 +96,7 @@ func (g tradingEndpointGuard) WithCurrentTradingEndpoint(ctx context.Context, e 
 			if g.departments == nil {
 				return suppliertrade.ErrUnavailable
 			}
-			err = tx.Raw(`SELECT department_id,department_revision_id FROM pharmacy_staff_department_bindings WHERE tenant_id=? AND pharmacy_id=? AND outlet_id=? AND id=? AND hospital_id=? AND version=? AND status='approved'FOR SHARE`, e.TenantID, e.OrganizationID, e.LocationID, *e.BindingID, *e.HospitalID, *e.BindingVersion).Row().Scan(&department, &revision)
+			err = tx.Raw(`SELECT b.department_id,b.department_revision_id FROM pharmacy_staff_department_bindings b JOIN pharmacy_outlets o ON(o.tenant_id,o.id)=(b.tenant_id,b.outlet_id)WHERE b.tenant_id=? AND o.pharmacy_id=? AND b.outlet_id=? AND b.id=? AND b.hospital_id=? AND b.version=? AND b.status='approved'FOR SHARE OF b,o`, e.TenantID, e.OrganizationID, e.LocationID, *e.BindingID, *e.HospitalID, *e.BindingVersion).Row().Scan(&department, &revision)
 			if errors.Is(err, sql.ErrNoRows) {
 				return suppliertrade.ErrIneligible
 			}
@@ -104,7 +126,7 @@ func (g tradingEndpointGuard) WithCurrentTradingEndpoint(ctx context.Context, e 
 		return errors.Join(suppliertrade.ErrUnavailable, err)
 	}
 	if e.HospitalID != nil {
-		err = g.departments.WithCurrentDepartment(ctx, authz.DepartmentReference{TenantID: e.TenantID.String(), HospitalID: *e.HospitalID, DepartmentID: department, DepartmentRevision: revision}, func(ctx context.Context) error { return action(ctx, ref) })
+		err = g.departments.WithCurrentDepartment(ctx, authz.DepartmentReference{TenantID: e.TenantID.String(), HospitalID: *e.HospitalID, DepartmentID: department, DepartmentRevision: revision}, func(ctx context.Context) error { return action(ctx, ref, presentation) })
 		if errors.Is(err, authz.ErrDepartmentReferenceChanged) || errors.Is(err, authz.ErrDepartmentReferenceHidden) {
 			return suppliertrade.ErrIneligible
 		}
@@ -113,7 +135,7 @@ func (g tradingEndpointGuard) WithCurrentTradingEndpoint(ctx context.Context, e 
 		}
 		return nil
 	}
-	return action(ctx, ref)
+	return action(ctx, ref, presentation)
 }
 
 func (g tradingEndpointGuard) WithTradingAdministration(ctx context.Context, p authn.Principal, e suppliertrade.Endpoint, write bool, action func(context.Context) error) error {

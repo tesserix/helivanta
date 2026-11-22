@@ -212,3 +212,19 @@ directives rather than writing static enum/bound values. See
 The [frontend error report](frontend-errors.md) uses the canonical Zod schema in
 `apps/shell/lib/frontend-errors-contract.ts`, shared by browser and collector.
 It is not a backend registry route or a duplicate product wire model.
+
+### Shared supplier shipment projection fields
+
+`contracts/supplier-access.json` owns `PartnerShipmentOrder`, `PartnerShipment`,
+`PartnerShipmentSource` and the minimal hospital-local `SupplierShipmentGrantCandidate`.
+A field may declare `field_from: [contract, model, member]` to inherit an existing
+concrete source-owned definition. `generate-supplier-access.mjs` resolves only the
+closed supplier-access/orders/fulfilment/trade inputs before emitting either Go or Zod;
+unknown or chained references fail before output writes. The projection owns its
+explicit field set, while order references, agreement hashes and physical field
+bounds retain their source definitions. Current organisation and premise name
+bounds come from the separate supplier-trade presentation model; this does not
+add metadata to the v1 machine fact-check reference. Edit the canonical inputs and run
+`node scripts/generate-supplier-access.mjs` and `--check`; never hand-edit the Go
+or TypeScript output. This development projection remains subject to ADR-0076's
+current-authority, owner/RLS, UI and release acceptance gates.

@@ -178,6 +178,13 @@ type SupplierRelationshipCheckResult struct {
 	ObservedAt     time.Time `json:"observed_at"`
 }
 
+type SupplierTradeEndpointPresentation struct {
+	OrganizationName string `json:"organization_name"`
+	LocationName     string `json:"location_name"`
+}
+
 const maximumValidityDays = 366
+const maximumPresentationOrganizationNameLength = 200
+const maximumPresentationLocationNameLength = 200
 
 var categories = []string{"otc", "prescription", "controlled", "cold_chain"}

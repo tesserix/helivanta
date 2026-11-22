@@ -1,5 +1,10 @@
 SET LOCAL lock_timeout='5s';
 SET LOCAL statement_timeout='60s';
+DO $$BEGIN
+ IF pharmacy_operating_choice_integrity()IS DISTINCT FROM true THEN
+ RAISE EXCEPTION 'reviewed stocktake requires unchanged prior pharmacy selection authority';
+ END IF;
+END $$;
 
 CREATE FUNCTION pharmacy_stocktake_operating_scope(t uuid,o uuid,operation text)RETURNS boolean LANGUAGE sql STABLE AS $$
  SELECT COALESCE(hms_tenant_visible(t)
@@ -14,18 +19,24 @@ CREATE FUNCTION pharmacy_stocktake_operating_scope(t uuid,o uuid,operation text)
  AND x.pharmacy_id=NULLIF(current_setting('app.pharmacy_stock_pharmacy',true),'')::uuid),false)
 $$;
 
-DO $$DECLARE tab text;BEGIN
+DO $policies$DECLARE tab text;prior record;reading text;writing text;
+ active text:='starts_with(COALESCE(current_setting(''app.pharmacy_stock_permission'',true),''''),''pharmacy.stocktake.'')';
+BEGIN
+ reading:='tenant_id=NULLIF(current_setting(''app.tenant_id'',true),'''')::uuid AND outlet_id=NULLIF(current_setting(''app.pharmacy_stock_outlet'',true),'''')::uuid AND(SELECT pharmacy_stocktake_operating_scope(NULLIF(current_setting(''app.tenant_id'',true),'''')::uuid,NULLIF(current_setting(''app.pharmacy_stock_outlet'',true),'''')::uuid,''read''))';
  FOREACH tab IN ARRAY ARRAY['pharmacy_stocktakes','pharmacy_stocktake_lines','pharmacy_stocktake_commands','pharmacy_stocktake_counts','pharmacy_stocktake_adjustments',
  'pharmacy_catalogue_products','pharmacy_catalogue_revisions','pharmacy_stock_batches','pharmacy_stock_locations','pharmacy_stock_movements','pharmacy_product_schedule_declarations','pharmacy_product_schedule_reviews']LOOP
- EXECUTE format('CREATE POLICY stocktake_operating_read ON %I FOR SELECT USING(tenant_id=NULLIF(current_setting(''app.tenant_id'',true),'''')::uuid AND outlet_id=NULLIF(current_setting(''app.pharmacy_stock_outlet'',true),'''')::uuid AND(SELECT pharmacy_stocktake_operating_scope(NULLIF(current_setting(''app.tenant_id'',true),'''')::uuid,NULLIF(current_setting(''app.pharmacy_stock_outlet'',true),'''')::uuid,''read'')))',tab);
+ SELECT pg_get_expr(polqual,polrelid)AS reading,pg_get_expr(polwithcheck,polrelid)AS writing INTO STRICT prior
+ FROM pg_policy WHERE polrelid=tab::regclass AND polname='tenant_isolation'AND polpermissive AND polcmd='*';
+ IF prior.reading IS NULL OR prior.writing IS NULL THEN RAISE EXCEPTION 'reviewed stocktake requires explicit prior tenant checks';END IF;
+ writing:='false';
+ IF tab IN('pharmacy_stocktakes','pharmacy_stocktake_lines')THEN
+ writing:=replace(reading,'''read''','''count''');
+ END IF;
+ EXECUTE format('ALTER POLICY tenant_isolation ON %I USING((%s)OR(%s))WITH CHECK((%s)OR(%s))',tab,prior.reading,reading,prior.writing,writing);
+ EXECUTE format('CREATE POLICY stocktake_operating_purpose ON %I AS RESTRICTIVE USING(CASE WHEN %s THEN(%s)ELSE true END)WITH CHECK(CASE WHEN %s THEN(%s)ELSE true END)',tab,active,reading,active,writing);
+ EXECUTE format('CREATE POLICY stocktake_operating_delete ON %I AS RESTRICTIVE FOR DELETE USING(NOT(%s))',tab,active);
  END LOOP;
- FOREACH tab IN ARRAY ARRAY['pharmacy_stocktakes','pharmacy_stocktake_lines']LOOP
- EXECUTE format('CREATE POLICY stocktake_operating_start ON %I FOR INSERT WITH CHECK(tenant_id=NULLIF(current_setting(''app.tenant_id'',true),'''')::uuid AND outlet_id=NULLIF(current_setting(''app.pharmacy_stock_outlet'',true),'''')::uuid AND(SELECT pharmacy_stocktake_operating_scope(NULLIF(current_setting(''app.tenant_id'',true),'''')::uuid,NULLIF(current_setting(''app.pharmacy_stock_outlet'',true),'''')::uuid,''count'')))',tab);
- END LOOP;
-END $$;
-CREATE POLICY stocktake_operating_seal ON pharmacy_stocktakes FOR UPDATE
- USING(pharmacy_stocktake_operating_scope(tenant_id,outlet_id,'count'))
- WITH CHECK(pharmacy_stocktake_operating_scope(tenant_id,outlet_id,'count'));
+END $policies$;
 
 CREATE TABLE pharmacy_stocktake_operating_evidence(
  tenant_id uuid NOT NULL,outlet_id uuid NOT NULL,id uuid NOT NULL CHECK(substring(id::text,15,1)='7'),
@@ -49,11 +60,17 @@ CREATE INDEX ON pharmacy_stocktake_operating_evidence(tenant_id,outlet_id,stockt
 ALTER TABLE pharmacy_stocktake_operating_evidence ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pharmacy_stocktake_operating_evidence FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON pharmacy_stocktake_operating_evidence
- USING(pharmacy_stocktake_operating_scope(tenant_id,outlet_id,'read'))
- WITH CHECK(pharmacy_stocktake_operating_scope(tenant_id,outlet_id,CASE WHEN kind='start'THEN 'count'ELSE 'read'END)
+ USING(hms_tenant_visible(tenant_id)AND pharmacy_stocktake_operating_scope(tenant_id,outlet_id,'read'))
+ WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid
+ AND pharmacy_stocktake_operating_scope(tenant_id,outlet_id,CASE WHEN kind='start'THEN 'count'ELSE 'read'END)
  AND pharmacy_id=NULLIF(current_setting('app.pharmacy_stock_pharmacy',true),'')::uuid
  AND permission=current_setting('app.pharmacy_stock_permission',true)
  AND actor_subject=NULLIF(current_setting('app.actor_subject',true),''));
+CREATE POLICY operating_choice_purpose ON pharmacy_stocktake_operating_evidence AS RESTRICTIVE
+ USING(hms_tenant_visible(tenant_id)AND COALESCE(current_setting('app.pharmacy_operating_choices',true),'')='')
+ WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid AND COALESCE(current_setting('app.pharmacy_operating_choices',true),'')='');
+CREATE POLICY operating_choice_delete ON pharmacy_stocktake_operating_evidence AS RESTRICTIVE FOR DELETE
+ USING(hms_tenant_visible(tenant_id)AND COALESCE(current_setting('app.pharmacy_operating_choices',true),'')='');
 CREATE TRIGGER pharmacy_stocktake_operating_evidence_immutable BEFORE UPDATE OR DELETE OR TRUNCATE ON pharmacy_stocktake_operating_evidence FOR EACH STATEMENT EXECUTE FUNCTION pharmacy_catalogue_immutable();
 
 CREATE FUNCTION pharmacy_stocktake_operating_evidence_guard()RETURNS trigger LANGUAGE plpgsql AS $$
@@ -75,3 +92,19 @@ BEGIN
  RETURN NEW;
 END $$;
 CREATE TRIGGER pharmacy_stocktake_operating_start_guard BEFORE INSERT ON pharmacy_stocktakes FOR EACH ROW EXECUTE FUNCTION pharmacy_stocktake_operating_start_guard();
+
+DO $integrity$
+DECLARE policies text;functions text;policy_count bigint;
+BEGIN
+ SELECT string_agg(format('(%L::regclass,%L,%L)',p.polrelid::regclass::text,p.polname,md5(p.polcmd::text||p.polpermissive::text||p.polroles::text||COALESCE(pg_get_expr(p.polqual,p.polrelid),'')||COALESCE(pg_get_expr(p.polwithcheck,p.polrelid),''))),','),count(*)INTO policies,policy_count
+ FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid JOIN pg_namespace n ON n.oid=c.relnamespace
+ WHERE n.nspname=current_schema()AND(c.relname IN('pharmacy_organizations','pharmacy_outlets')OR starts_with(c.relname,'pharmacy_')AND p.polname IN('operating_choice_purpose','operating_choice_delete'));
+ SELECT string_agg(format('(%L,%L)',p.oid::regprocedure::text,md5(pg_get_functiondef(p.oid))),',')INTO functions FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+ WHERE n.nspname=current_schema()AND p.proname='pharmacy_operating_choice_context';
+ EXECUTE format($definition$CREATE OR REPLACE FUNCTION pharmacy_operating_choice_integrity()RETURNS boolean LANGUAGE sql STABLE AS $body$
+ SELECT NOT EXISTS(SELECT 1 FROM(VALUES %s)expected(relation,name,digest)LEFT JOIN pg_policy p ON p.polrelid=expected.relation AND p.polname=expected.name
+ WHERE p.oid IS NULL OR md5(p.polcmd::text||p.polpermissive::text||p.polroles::text||COALESCE(pg_get_expr(p.polqual,p.polrelid),'')||COALESCE(pg_get_expr(p.polwithcheck,p.polrelid),''))<>expected.digest)
+ AND(SELECT count(*)FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=current_schema()AND(c.relname IN('pharmacy_organizations','pharmacy_outlets')OR starts_with(c.relname,'pharmacy_')AND p.polname IN('operating_choice_purpose','operating_choice_delete')))=%s
+ AND NOT EXISTS(SELECT 1 FROM(VALUES %s)expected(name,digest)LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.name)WHERE p.oid IS NULL OR md5(pg_get_functiondef(p.oid))<>expected.digest)
+ $body$ $definition$,policies,policy_count,functions);
+END $integrity$;

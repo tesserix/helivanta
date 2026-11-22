@@ -102,9 +102,15 @@ disclosure of the actual published shipments. Hospital Staff receive explicit
 department goods-receiver/reviewer templates; sharing grants remain read-only.
 Composed fixture consent is bounded to five minutes and capped by membership and
 relationship expiry; generic component-fixture and production expiry rules are
-unchanged. Results remain pending. The harness still needs the production
-current-source dependency for real dispatch; the test must expose that missing
-wiring before it is supplied.
+unchanged. Run `44981591803` reached actual owner stock creation, choices and a
+ten-unit reservation, then stopped on another fixture assumption: stock allocation
+operations return `200`, not `201`. Corrected candidate
+[44982717640](https://github.com/tesserix/helivanta/actions/runs/44982717640)
+asserts that existing response contract and supplies the harness's optional
+current-source client before constructing relationship/fulfilment owners, as in
+production. The peer handler and owner guards remain real; no source check is
+bypassed. This is fixture parity, not a claimed production dependency failure.
+Physical dispatch acceptance remains pending.
 
 Still exercise reservation and physical dispatch for each stock owner, then
 consume the published shipment in hospital receiving,

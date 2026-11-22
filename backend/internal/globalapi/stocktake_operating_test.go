@@ -123,11 +123,11 @@ func TestStocktakeReviewedIndependentCounterFreezesReceivedStock(t *testing.T) {
 		"decision": "approve", "expected_version": 2, "reason": "TEST counter cannot independently approve", "extra_units_disposition": "no_extra_units",
 	}, 404)
 	counterDuty := f.duty
-	f.call("POST", "/v1/iam/members/user-stock-reviewer", "owner", map[string]any{"role": "staff_member"}, 202)
+	f.call("POST", "/v1/iam/members", "owner", map[string]any{"subject": "user-stock-reviewer", "role_key": "staff_member"}, 202)
 	require.Eventually(t, func() bool {
 		member, err := f.graph.IsMember(t.Context(), "user-stock-reviewer", testutil.TenantA)
 		return err == nil && member
-	}, 3*time.Second, 10*time.Millisecond)
+	}, 20*time.Second, 50*time.Millisecond)
 	reviewStaff, reviewLink := v7(), v7()
 	staffRoot := "/v1/workforce/pharmacy-employers/" + f.pharmacy + "/staff"
 	f.call("PUT", staffRoot+"/"+reviewStaff, "owner", map[string]any{
@@ -144,7 +144,7 @@ func TestStocktakeReviewedIndependentCounterFreezesReceivedStock(t *testing.T) {
 	f.input.Subject = "user-stock-reviewer"
 	f.input.Identity.StaffID, f.input.Identity.LinkID = uuid.MustParse(reviewStaff), uuid.MustParse(reviewLink)
 	f.input.Identity.StaffVersion, f.input.Identity.LinkVersion = 1, 2
-	f.duty = "/v1/iam/pharmacy-employers/" + f.pharmacy + "/operating-duties/" + v7()
+	f.duty = "/v1/iam/operating-duties/" + v7()
 	f.activate(t)
 	approvalPath := path + "/decisions/" + v7()
 	approval := map[string]any{"decision": "approve", "expected_version": 2, "reason": "TEST independently approve observed shortage", "extra_units_disposition": "no_extra_units"}

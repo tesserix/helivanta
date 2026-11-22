@@ -16,8 +16,9 @@ This is an execution plan, not a completion record.
 4. Implement current recipient grant discovery and human source labels through
    owning ports, then a reachable account-bound UI with named choices and no raw-ID
    entry. Test refusal conceals loaded evidence and context changes clear selection.
-5. Complete local builds/checks, remove generated outputs, commit/push, pass protected
-   hosted native/E2E/visual gates and integrate normally. No admin/check bypass.
+5. Commit/push, run focused hosted builds/checks, then pass protected hosted
+   native/E2E/visual gates and integrate normally. Do not run local builds, apps,
+   databases or container runtimes, including Colima. No admin/check bypass.
 6. Prepare a concrete named release/fixture/activation request, deploy only with its
    required approval and record authenticated acceptance. Keep catalogue/invoice
    consumers and wider supplier acceptance explicit; do not close the whole goal

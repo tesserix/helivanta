@@ -62,7 +62,7 @@ func TestRetainedFramesReuseOneBackendAndRestoreForcedRLS(t *testing.T) {
 			if err := check(tx); err != nil {
 				return err
 			}
-			if index < 23 {
+			if index < 999 {
 				if err := descend(next, index+1); err != nil {
 					return err
 				}
@@ -75,9 +75,9 @@ func TestRetainedFramesReuseOneBackendAndRestoreForcedRLS(t *testing.T) {
 		}
 		return db.WithRetainedTenantFrame(ctx, tenant, use)
 	}
-	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
 	defer cancel()
-	require.NoError(t, descend(ctx, 0), "24 nested tenant/global source frames must use one app connection")
+	require.NoError(t, descend(ctx, 0), "1,000 nested tenant/global source frames must use one app connection")
 	require.Positive(t, pid)
 }
 
@@ -197,4 +197,22 @@ func TestRetainedFramesCancelAnUnfinishedChild(t *testing.T) {
 	})
 	require.ErrorIs(t, err, tenantdb.ErrRetainedFrameScope)
 	require.ErrorIs(t, <-done, context.Canceled)
+}
+
+func TestRetainedFramesRestoreScopeAndRejectChildAfterPanic(t *testing.T) {
+	db := openMigrated(t)
+	tenant := uuid.NewString()
+	var escaped context.Context
+	require.NoError(t, db.WithRetainedTenantFrame(t.Context(), tenant, func(ctx context.Context, tx *gorm.DB) error {
+		require.PanicsWithValue(t, "TEST source panic", func() {
+			_ = db.WithRetainedSystemFrame(ctx, func(next context.Context, _ *gorm.DB) error {
+				escaped = next
+				panic("TEST source panic")
+			})
+		})
+		require.ErrorIs(t, db.WithRetainedSystemFrame(escaped, func(context.Context, *gorm.DB) error { t.Error("escaped panic frame executed"); return nil }), tenantdb.ErrRetainedFrameScope)
+		state, err := retainedScope(tx)
+		require.Equal(t, tenant, state.Tenant)
+		return err
+	}))
 }

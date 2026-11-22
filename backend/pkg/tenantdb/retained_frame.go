@@ -83,6 +83,7 @@ func (d *DB) useRetainedFrame(ctx context.Context, parent *retainedFrame, tenant
 	}
 	child := &retainedFrame{lease: lease}
 	child.available.Store(true)
+	defer child.available.Store(false)
 	err = fn(context.WithValue(ctx, retainedFrameKey{}, child), tx)
 	if !child.available.CompareAndSwap(true, false) {
 		lease.cancel()

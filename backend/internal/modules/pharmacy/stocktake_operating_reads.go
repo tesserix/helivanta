@@ -29,6 +29,13 @@ func (h *catalogueHandlers) getOperatingStocktake(c *gin.Context) {
 		if err != nil {
 			return err
 		}
+		if err := tx.Raw(`SELECT CASE WHEN COALESCE(bool_or(kind='start'),false)THEN 'starter'
+ WHEN COALESCE(bool_or(kind IN('count','submit')),false)THEN 'counter' ELSE 'independent' END
+ FROM pharmacy_stocktake_operating_evidence WHERE tenant_id=? AND outlet_id=? AND stocktake_id=?
+ AND kind IN('start','count','submit')AND(staff_id=? OR actor_subject=?)`,
+			p.TenantID, outlet, id, use.grant.Identity.StaffID, p.Subject).Scan(&result.ReviewRelationship).Error; err != nil {
+			return err
+		}
 		if err := use.stocktakeEvidence(tx, id, "record_read", nil); err != nil {
 			return err
 		}

@@ -12,7 +12,7 @@ import (
 	fulfilment "github.com/tesserix/helivanta/pkg/supplierfulfilment"
 )
 
-func assertSupplierReceiptFinancials(t *testing.T, admin operatingDutyFixture, shipment fulfilment.Shipment, receipt, product, batch uuid.UUID, accepted, acceptedTotal, discrepancy int64) {
+func assertSupplierReceiptFinancials(t *testing.T, admin operatingDutyFixture, shipment fulfilment.Shipment, receipt, product, batch uuid.UUID, accepted, acceptedTotal, discrepancy, receiptVersion, summaryVersion int64) {
 	t.Helper()
 	root := "/v1/pharmacy/pharmacies/" + shipment.BuyerOrganizationID.String() + "/outlets/" + shipment.BuyerLocationID.String() + "/accounts"
 	acquisition := func() pharmacy.AcquisitionReceipt {
@@ -43,8 +43,8 @@ func assertSupplierReceiptFinancials(t *testing.T, admin operatingDutyFixture, s
 	require.Equal(t, shipment.Product.Owner, original.Supplier.SourceProduct)
 	require.Equal(t, accepted, original.Supplier.OriginalAcceptedUnits)
 	require.Equal(t, accepted, original.Supplier.EffectiveAcceptedUnits)
-	require.EqualValues(t, 1, original.Supplier.ReceiptVersion)
-	require.EqualValues(t, 2, original.Supplier.SummaryVersion)
+	require.EqualValues(t, receiptVersion, original.Supplier.ReceiptVersion)
+	require.EqualValues(t, summaryVersion, original.Supplier.SummaryVersion)
 	require.True(t, original.Supplier.ReceivingClosed)
 	require.Equal(t, discrepancy, original.Supplier.DiscrepancyUnits)
 	today := time.Now().In(time.FixedZone("Asia/Kolkata", 19800))

@@ -2503,6 +2503,15 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 						grant(recipient, "iam.supplier_viewer.v1", authz.PartnerCatalogueRead)
 						groupID, member := assertHospitalPartnerMembership(t, call, source, partnerMembershipActors{Maker: maker, Checker: checker, Preparer: postingRootReviewer, Reviewer: postingRootApprover, Member: recipient, Unassigned: postingDepartmentReviewer})
 						assertPartnerMemberBrowser(t, gateway, tokens, postingRootApprover, groupID, member)
+						purchaseDepartment := uuid.MustParse(source["department_id"].(string))
+						purchasePath, err := platform.DepartmentScopes(registry.All(), db).CurrentPath(t.Context(), testutil.TenantA, uuid.MustParse(hospital), purchaseDepartment)
+						require.NoError(t, err)
+						purchasePathStrings := make([]string, len(purchasePath))
+						for i, id := range purchasePath {
+							purchasePathStrings[i] = id.String()
+						}
+						grantDepartment(recipient, purchaseDepartment.String(), purchasePathStrings, "supply.department_purchase_order_preparer.v1", supply.PermPurchaseOrderPrepare)
+						grantDepartment(postingRootApprover, purchaseDepartment.String(), purchasePathStrings, "supply.department_purchase_order_reviewer.v1", supply.PermPurchaseOrderReview)
 						cutoff := (supplierCompoundFixture{graphUnavailable: &authorizationUnavailable, db: db, graph: graph, registry: registry, signer: signer, handler: gateway, files: documents, binding: pharmacyBindingPrepared, hospitalCall: call}).assertAdmission(t, recipient, postingRootApprover, member)
 						assertSupplierRecipientCurrentMembership(t, db, authority, platform.PartnerMembers([]platform.Module{workforce.New(), organization.New()}, db), testutil.TenantA, recipient, member, call, postingRootApprover)
 						cutoff()

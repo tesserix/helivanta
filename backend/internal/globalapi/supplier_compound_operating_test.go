@@ -19,7 +19,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/suppliertrade"
 )
 
-func (f supplierCompoundFixture) assertSourceFulfilmentStaff(t *testing.T, admin operatingDutyFixture, source suppliertrade.Endpoint) {
+func (f supplierCompoundFixture) assertSourceFulfilmentStaff(t *testing.T, admin operatingDutyFixture, source suppliertrade.Endpoint) operatingDutyFixture {
 	t.Helper()
 	subject := "compound-" + source.Product + "-fulfiller"
 	require.NoError(t, f.graph.GrantTenantRole(t.Context(), source.TenantID.String(), authz.RoleStaffMember))
@@ -92,4 +92,5 @@ func (f supplierCompoundFixture) assertSourceFulfilmentStaff(t *testing.T, admin
 		require.Error(t, use(wrong), field)
 		require.Equal(t, 1, uses, "wrong source cannot invoke physical owner callback")
 	}
+	return operatingDutyFixture{principal: principal, input: input, duty: duty}
 }

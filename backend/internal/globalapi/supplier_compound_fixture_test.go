@@ -254,8 +254,9 @@ func (f supplierCompoundFixture) assertAdmission(t *testing.T, subject, reviewer
 	}))
 	paths := map[string]string{}
 	for _, source := range sources {
+		var operator operatingDutyFixture
 		require.True(t, t.Run(source.endpoint.Product+" reviewed source fulfilment Staff", func(t *testing.T) {
-			f.assertSourceFulfilmentStaff(t, sellerActor, source.endpoint)
+			operator = f.assertSourceFulfilmentStaff(t, sellerActor, source.endpoint)
 		}))
 		relationship := confirmedCompoundRelationship(t, f.db, source.endpoint, buyer)
 		for _, kind := range []string{"subject", "group"} {
@@ -282,6 +283,11 @@ func (f supplierCompoundFixture) assertAdmission(t *testing.T, subject, reviewer
 				require.Equal(t, false, orders["page"].(map[string]any)["has_more"])
 				f.hospitalCall(t, "GET", strings.Replace(base, relationship.TermsSha256, strings.Repeat("f", 64), 1)+"/shipment-source", subject, nil, 404)
 				sellerActor.call("GET", base+"/shipment-source", "owner", nil, 404)
+			}))
+		}
+		if source.endpoint.Product == "pharmacy" {
+			require.True(t, t.Run("public hospital pharmacy order and independent source acceptance", func(t *testing.T) {
+				f.assertPublicPharmacyOrder(t, sellerActor, operator, relationship, member.Input.DepartmentID, subject, reviewer)
 			}))
 		}
 	}

@@ -96,12 +96,15 @@ consumer compatibility. Implementation summaries and PRs must identify the
 contracts consulted or changed, validation evidence and unresolved review items;
 do not claim enterprise, clinical or regulatory readiness beyond that evidence.
 
-## Local validation before merge
+## Hosted validation before merge
 
-Before merging, build the affected application targets locally and run the
-applicable local checks. Remove the generated build artifacts created by the
-validation after it passes. Preserve source files, dependencies, shared caches
-and unrelated work. A passing CI run does not replace this local build gate.
+Do not run local builds or use Colima. Do not start local applications, databases
+or container runtimes for validation. Commit and push changes, then use focused
+GitHub Actions builds and tests for the affected targets before broadening checks.
+Inspect the actual workflow logs and cache restoration evidence; do not infer a
+cache defect from a timeout or assertion failure. Preserve dependencies, shared
+caches and unrelated work. Required protected checks still apply before merge;
+focused validation does not authorize bypassing them.
 
 ## Feature flags and MVP acceptance
 

@@ -89,8 +89,9 @@ rollback leaves the SELECT purpose/index unused and preserves all evidence.
 
 ## Acceptance and remaining work
 
-Observe red then green for boundary and SDK assertions; compile/build locally
-without an app/database/container. Hosted PostgreSQL verifies both owners, exact
+Observe red then green for boundary and SDK assertions using focused hosted
+builds and tests; do not run local builds, apps, databases or container runtimes
+(including Colima). Hosted PostgreSQL verifies both owners, exact
 named/group positive authorisation, other buyer/relationship/outlet denial,
 revocation/rehire, stale graph/owner failure, audit rollback, cursor isolation,
 private-table and write denial, and frame restoration. Built-browser acceptance

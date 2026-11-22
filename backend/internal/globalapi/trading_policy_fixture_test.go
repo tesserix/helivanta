@@ -10,6 +10,11 @@ import (
 // approveSyntheticTradingPolicy exercises the policy owner; its invalid source URL is test evidence only.
 func approveSyntheticTradingPolicy(t *testing.T, f operatingDutyFixture, jurisdiction, category, operation string) string {
 	t.Helper()
+	return approveSyntheticTradingPolicyForReviewer(t, f, jurisdiction, category, operation, "user-reviewer")
+}
+
+func approveSyntheticTradingPolicyForReviewer(t *testing.T, f operatingDutyFixture, jurisdiction, category, operation, reviewerSubject string) string {
+	t.Helper()
 	now := time.Now().UTC()
 	scope, version := uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
 	requirements := []tradingpolicy.Requirement{}
@@ -18,7 +23,7 @@ func approveSyntheticTradingPolicy(t *testing.T, f operatingDutyFixture, jurisdi
 	}
 	path := "/v1/workspace/country-policies"
 	f.call("POST", path, "owner", tradingpolicy.Submission{ID: version, ScopeID: scope, ExpectedRevision: 0, Country: "IN", Jurisdiction: jurisdiction, Category: category, Operation: operation, Currency: "INR", EffectiveFrom: now.Add(-time.Hour), EffectiveUntil: now.Add(time.Hour), Sources: []tradingpolicy.Source{{Key: "TEST-source", Title: "TEST ONLY source", Url: "https://regulator.example.invalid/test", ReviewedAt: now.Add(-time.Hour)}}, Requirements: requirements}, 202)
-	f.call("POST", path+"/"+scope+"/access", "owner", tradingpolicy.AccessChange{ID: uuid.Must(uuid.NewV7()).String(), ExpectedRevision: 1, Subject: "user-reviewer", Role: "reviewer"}, 202)
+	f.call("POST", path+"/"+scope+"/access", "owner", tradingpolicy.AccessChange{ID: uuid.Must(uuid.NewV7()).String(), ExpectedRevision: 1, Subject: reviewerSubject, Role: "reviewer"}, 202)
 	f.call("POST", path+"/"+scope+"/review", "reviewer", tradingpolicy.Review{ID: uuid.Must(uuid.NewV7()).String(), ExpectedRevision: 2, VersionID: version, Action: "approved", Reason: "TEST independent policy review"}, 202)
 	return scope
 }

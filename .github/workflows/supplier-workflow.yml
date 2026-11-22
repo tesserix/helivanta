@@ -1,5 +1,13 @@
 name: Supplier workflow regression tests
 on:
+  workflow_dispatch:
+    inputs:
+      validation_scope:
+        description: Focused compound admission or the full supplier regression workflow
+        type: choice
+        required: true
+        default: focused
+        options: [focused, full]
   pull_request:
     paths:
       - "backend/pkg/supplieraccess/**"
@@ -14,20 +22,18 @@ on:
       - "contracts/supplier-fulfilment.json"
       - "contracts/supplier-stock-schema.sql.tmpl"
       - "packages/api/src/supplier-fulfilment*"
-      - "backend/internal/globalapi/supplier_fulfilment_test.go"
       - "contracts/supplier-orders.json"
       - "packages/api/src/supplier-orders*"
       - "backend/internal/modules/iam/**"
       - "backend/internal/modules/workforce/**"
       - "backend/internal/modules/supply/**"
       - "backend/internal/modules/pharmacy/**"
-      - "backend/internal/globalapi/supplier_recipient_test.go"
+      - "backend/internal/globalapi/supplier_*"
+      - "backend/internal/globalapi/trading_policy_fixture_test.go"
+      - "backend/internal/testutil/harness.go"
       - "backend/internal/globalapi/pharmacy_trading_scope_test.go"
       - "backend/internal/globalapi/trading_source_peer_test.go"
-      - "backend/internal/globalapi/supplier_source_views_test.go"
-      - "backend/internal/globalapi/supplier_stock_test.go"
       - "scripts/supplier-workflow.test.mjs"
-      - "backend/internal/globalapi/supplier_order_http_test.go"
       - "backend/internal/globalapi/workforce_person_review_test.go"
       - "backend/internal/globalapi/workforce_posting*"
       - ".github/workflows/supplier-workflow.yml"
@@ -37,7 +43,34 @@ concurrency:
   group: supplier-workflow-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  compound-admission:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Isolate the focused Go build cache
+        run: printf 'GOCACHE=%s/helivanta-compound-go-cache\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version-file: backend/go.mod
+          cache: false
+      - name: Verify selected supplier tests and source triggers
+        run: node --test ../scripts/supplier-workflow.test.mjs
+      - name: Record focused build platform and isolated cache paths
+        run: |
+          go version
+          go env GOOS GOARCH GOCACHE GOMODCACHE
+      - name: Build affected test packages with a fresh runner cache
+        run: go test -race -run '^$' ./internal/globalapi ./internal/testutil
+      - name: Current hospital Staff and effective compound supplier grants
+        run: go test -race -v -count=1 -failfast -timeout 35m ./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'
   staff-query-plans:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.validation_scope == 'full' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -52,6 +85,7 @@ jobs:
       - name: Compare bounded Staff point reads with unchanged tenant isolation
         run: go test -race -v -timeout 5m ./internal/modules/workforce -run '^TestStaffPointReadPlansPreserveTenantIsolation$'
   source-presentations:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.validation_scope == 'full' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
@@ -73,6 +107,7 @@ jobs:
           go test -list '^TestPharmacyTradingScopeNeedsCurrentSourceAdministrationAndIndependentEvidence$' ./internal/globalapi | grep -Fx 'TestPharmacyTradingScopeNeedsCurrentSourceAdministrationAndIndependentEvidence'
           go test -race -timeout 12m ./internal/globalapi -run '^TestPharmacyTradingScopeNeedsCurrentSourceAdministrationAndIndependentEvidence$'
   supplier:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.validation_scope == 'full' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:
@@ -120,9 +155,8 @@ jobs:
         run: go test -race -timeout 35m ./internal/globalapi -run '^TestWholesaleIdentityCheckThroughGlobalAPIUsesCurrentCatalogueOwner$'
       - name: Supplier grant projection isolation
         run: go test -race ./pkg/authz -run '^TestPartnerAssignment'
-      - name: Current hospital Staff recipient and membership cutoff
-        run: go test -race -v -timeout 35m ./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'
   api-client:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.validation_scope == 'full' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

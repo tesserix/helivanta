@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/platform"
@@ -22,6 +23,8 @@ func operatingStocktakeRoutes(g *platform.Router, h *catalogueHandlers) {
 	platform.ListRoute(s, "/:stocktake/lines", authz.Public, h.listOperatingStocktakeLines)
 	s.PUT("/:stocktake/counts/:command", authz.Public, h.putOperatingStocktakeCount)
 	s.GET("/:stocktake/counts/:command", authz.Public, h.getOperatingStocktakeCount)
+	s.PUT("/:stocktake/decisions/:command", authz.Public, h.putOperatingStocktakeDecision)
+	s.GET("/:stocktake/decisions/:command", authz.Public, h.getOperatingStocktakeDecision)
 }
 
 func stocktakeOperatingError(c *gin.Context, err error) {
@@ -41,13 +44,17 @@ func (u operatingStockUse) stocktakeEvidence(tx *gorm.DB, take uuid.UUID, kind s
 	}
 	if kind == "start" {
 		id = take
-	} else if kind == "count" && command != nil {
+	} else if (kind == "count" || kind == "submit") && command != nil {
 		id = *command
 	}
 	g := u.grant
 	if err := tx.Exec(`INSERT INTO pharmacy_stocktake_operating_evidence(tenant_id,outlet_id,id,pharmacy_id,stocktake_id,kind,command_id,permission,duty_id,snapshot_version,authority_epoch,staff_id,staff_version,link_id,link_version,actor_subject)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		u.tenant, u.outlet, id, u.pharmacy, take, kind, command, g.Permission, g.DutyID, g.SnapshotVersion, g.AuthorityEpoch,
 		g.Identity.StaffID, g.Identity.StaffVersion, g.Identity.LinkID, g.Identity.LinkVersion, u.subject).Error; err != nil {
+		var pg *pgconn.PgError
+		if errors.As(err, &pg) && pg.Code == "23505" && pg.ConstraintName == "pharmacy_stocktake_operating_evidence_pkey" {
+			return errStocktakeIdentity
+		}
 		return operatingAuditFailure{err}
 	}
 	return nil
@@ -147,4 +154,15 @@ func (h *catalogueHandlers) listOperatingStocktakeLines(c *gin.Context, params p
 		rows[i].SnapshottedAt = rows[i].CreatedAt.UTC().Format(time.RFC3339Nano)
 	}
 	return rows, nil
+}
+
+func stocktakeCommandUnused(tx *gorm.DB, tenant string, outlet, command uuid.UUID) error {
+	var existing int64
+	if err := tx.Table("pharmacy_stocktake_commands").Where("tenant_id=? AND outlet_id=? AND id=?", tenant, outlet, command).Count(&existing).Error; err != nil {
+		return err
+	}
+	if existing != 0 {
+		return errStocktakeIdentity
+	}
+	return nil
 }

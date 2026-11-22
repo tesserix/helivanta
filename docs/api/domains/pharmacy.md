@@ -76,6 +76,16 @@ the first hosted count-entry test failed with the expected missing route (run
 rollback/cutoff/legacy-boundary checks. Submission and independent approval/posting,
 hospital authority, operational UI and live acceptance remain unfinished.
 
+Reviewed submission is a further unreleased candidate at
+`PUT/GET /{stocktake}/decisions/{command}`. Only `decision: submit` is implemented
+in this candidate. It requires the current counter duty, the exact version and
+complete physical observations, retains current Staff/link/duty evidence, and
+returns the original receipt on exact replay or GET recovery. Reusing a count
+command ID conflicts. Submission posts no adjustment and cannot be used to
+approve a count. Other decisions remain unavailable pending their reviewed
+implementation. The hosted submission red test 45060564552 returned the expected
+missing-route 404; implementation and clean capacity validation remain pending.
+
 ## Current contract families
 
 | Family                                        | Owning records / schema                                                                                                                                                          | Rules and consumer boundary                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |

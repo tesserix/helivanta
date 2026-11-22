@@ -62,6 +62,9 @@ func (h *catalogueHandlers) putOperatingStocktakeCount(c *gin.Context) {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
+		if err := stocktakeCommandUnused(tx, p.TenantID, outlet, command); err != nil {
+			return err
+		}
 		if err := use.stocktakeEvidence(tx, take, "count", &command); err != nil {
 			return err
 		}

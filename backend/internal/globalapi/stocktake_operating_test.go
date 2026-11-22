@@ -55,7 +55,8 @@ func TestStocktakeReviewedIndependentCounterFreezesReceivedStock(t *testing.T) {
 	require.NotContains(t, unavailable, "TEST-COUNT-LOT")
 	f.checks.down.Store(false)
 	f.call("GET", path+"/lines", "receiver", nil, 200)
-	countPath := path + "/counts/" + v7()
+	countCommand := v7()
+	countPath := path + "/counts/" + countCommand
 	count := map[string]any{
 		"expected_version": 0, "counts": []map[string]any{{"line_id": page.Data[0].ID, "counted_units": 27}},
 		"reason": "TEST reviewed physical shelf count",
@@ -96,6 +97,7 @@ func TestStocktakeReviewedIndependentCounterFreezesReceivedStock(t *testing.T) {
 	submitPath := path + "/decisions/" + v7()
 	submit := map[string]any{"decision": "submit", "expected_version": 1, "reason": "TEST physical observations ready for independent review"}
 	f.call("PUT", submitPath, "owner", submit, 404)
+	f.call("PUT", path+"/decisions/"+countCommand, "receiver", submit, 409)
 	submitted := f.call("PUT", submitPath, "receiver", submit, 200)
 	require.JSONEq(t, submitted, f.call("PUT", submitPath, "receiver", submit, 200))
 	require.JSONEq(t, submitted, f.call("GET", submitPath, "receiver", nil, 200))
@@ -108,6 +110,10 @@ func TestStocktakeReviewedIndependentCounterFreezesReceivedStock(t *testing.T) {
 	require.Equal(t, "submitted", decision.State)
 	require.EqualValues(t, 2, decision.Version)
 	require.Zero(t, decision.AdjustmentCount)
+	afterSubmissionPath := path + "/counts/" + v7()
+	afterSubmission := map[string]any{"expected_version": 2, "counts": []map[string]any{{"line_id": page.Data[0].ID, "counted_units": 26}}, "reason": "TEST submitted count cannot be edited"}
+	f.call("PUT", afterSubmissionPath, "receiver", afterSubmission, 409)
+	f.call("GET", afterSubmissionPath, "receiver", nil, 404)
 	f.call("PUT", path+"/decisions/"+v7(), "receiver", map[string]any{
 		"decision": "approve", "expected_version": 2, "reason": "TEST counter cannot independently approve", "extra_units_disposition": "no_extra_units",
 	}, 404)

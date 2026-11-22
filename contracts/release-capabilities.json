@@ -5942,6 +5942,16 @@
       "method": "GET",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/counts/:command",
       "capability": "pharmacy_stocktake"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/decisions/:command",
+      "capability": "pharmacy_stocktake"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/decisions/:command",
+      "capability": "pharmacy_stocktake"
     }
   ],
   "pages": [

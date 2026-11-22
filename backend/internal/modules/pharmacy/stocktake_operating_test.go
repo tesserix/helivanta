@@ -9,7 +9,30 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
+
+func TestStocktakeOperatingPurposeCannotInheritReceiptWrites(t *testing.T) {
+	r, db := stocktakeHarness(t)
+	_, location, batch := stockFixture(t, r)
+	for _, permission := range []string{"", "pharmacy.stocktake.count"} {
+		err := db.WithTenant(tenantdb.WithActor(t.Context(), "user-editor"), testutil.TenantA, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.pharmacy_subject','user-editor',true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true),
+ set_config('app.pharmacy_stock_access','authorized',true),set_config('app.pharmacy_stock_pharmacy',?,true),set_config('app.pharmacy_stock_outlet',?,true),set_config('app.pharmacy_stock_permission',?,true)`,
+				pharmaOutlet, pharmaOrganization, pharmaOrganization, pharmaOutlet, permission).Error; err != nil {
+				return err
+			}
+			return tx.Exec(`INSERT INTO pharmacy_stock_movements(tenant_id,outlet_id,id,batch_id,location_id,kind,quantity_units,reason,source_reference,actor_subject)
+ VALUES(?,?,?,?,?,'receipt',1,'TEST purpose separation',?,'user-editor')`,
+				testutil.TenantA, pharmaOutlet, uuid.Must(uuid.NewV7()), batch, location, "TEST-RECEIPT-"+permission).Error
+		})
+		if permission == "" {
+			require.NoError(t, err, "the existing editor control must remain valid")
+		} else {
+			requireSQLState(t, err, "42501")
+		}
+	}
+}
 
 func TestStocktakeOperatingDeferredGuardsRequireHeldPurpose(t *testing.T) {
 	r, db := stocktakeHarness(t)

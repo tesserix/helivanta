@@ -3706,6 +3706,24 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/counts/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/counts/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/lines",
           "permission": "public",
           "authentication_required": true,
@@ -6564,7 +6582,7 @@
         },
         {
           "id": "0065_pharmacy_stocktake_operating",
-          "sql_sha256": "ef1bddd7c3591a9894d0053b5c5166f87c8bd5c336256c177ae760106f270f7c",
+          "sql_sha256": "c0bc4b2bc0da9ab2faf3b5d5abe8a3df538382058d63c8205e36b00684794cd5",
           "creates_tables": [
             "pharmacy_stocktake_operating_evidence"
           ]

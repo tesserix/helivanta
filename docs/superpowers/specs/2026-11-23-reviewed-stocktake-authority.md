@@ -5,14 +5,21 @@ Depends on the tested capacity change in PR #1817. This document does not close
 #1686, grant operating access, or enable Stock/Catalogue.
 
 Development checkpoint: PR #1817 is merged as `0189efde`. The follow-up branch
-implements only reviewed independent start/line reads, immutable source evidence
-and canonical duty release bindings. Hosted tests have exercised a real
-IAM/Workforce/Global API start with received stock and deferred snapshot
-validation; duty-picker tests, type checks and the focused shell build passed.
-The additional scope policies regressed the legacy maximum-capacity post gate;
-the indexable predicate correction and broader denial/revocation tests are under
-hosted validation. Eligibility remains false. Counting, independent approval,
-hospital authority, operational UI and live acceptance below remain unfinished.
+implements reviewed independent start/line reads and count entry/original receipt
+recovery with immutable Staff/link/duty evidence and canonical release bindings.
+The first count-entry hosted test failed as intended (45058843484, positive PUT
+expected 200/actual 404). The implementation adds an immutable header authority
+model to prevent legacy/reviewed command mixing. Hosted validation 45059958549
+has passed build/vet, contract generation and the Staff web tests/lint/types/build;
+native count and Global API acceptance are still running. Eligibility remains
+false. Independent review/posting, hospital authority, operational UI and live
+acceptance below remain unfinished.
+
+The existing capacity regression 45058563586 passed start at 4.624 s and page p99
+at approximately 10 ms, but 500 adjustments took 5.167 s and failed the unchanged five-second gate.
+Correct posting, replay and conservation passed. Optional hosted query-plan
+diagnostics are running; their timings cannot establish clean acceptance. No
+capacity completion, merge or deployment approval is claimed for this branch.
 
 ## Problem verified against source
 

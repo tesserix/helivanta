@@ -20,6 +20,29 @@ CREATE FUNCTION pharmacy_stocktake_operating_scope(t uuid,o uuid,operation text)
  AND x.pharmacy_id=NULLIF(current_setting('app.pharmacy_stock_pharmacy',true),'')::uuid),false)
 $$;
 
+CREATE FUNCTION pharmacy_stocktake_movement_insert_guard()RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE reviewed boolean:=COALESCE(current_setting('app.pharmacy_stock_permission',true),'')='pharmacy.stocktake.review';
+BEGIN
+ IF EXISTS(
+ SELECT 1 FROM inserted_stocktake_movements i
+ LEFT JOIN pharmacy_stocktake_adjustments a ON(a.tenant_id,a.outlet_id,a.movement_id)=(i.tenant_id,i.outlet_id,i.id)
+ LEFT JOIN pharmacy_stocktake_commands c ON(c.tenant_id,c.outlet_id,c.id,c.stocktake_id)=(a.tenant_id,a.outlet_id,a.command_id,a.stocktake_id)
+ LEFT JOIN pharmacy_stocktake_lines l ON(l.tenant_id,l.outlet_id,l.id,l.stocktake_id)=(a.tenant_id,a.outlet_id,a.line_id,a.stocktake_id)
+ WHERE(a.id IS NOT NULL OR reviewed)AND(
+ a.id IS NULL OR c.id IS NULL OR l.id IS NULL OR c.kind IS DISTINCT FROM 'approve'OR c.posted_xact IS DISTINCT FROM pg_current_xact_id()
+ OR i.kind IS DISTINCT FROM 'correction'OR i.location_id IS DISTINCT FROM a.location_id OR i.batch_id IS DISTINCT FROM l.batch_id
+ OR i.quantity_units IS DISTINCT FROM a.quantity_units OR i.reason IS DISTINCT FROM c.reason OR i.actor_subject IS DISTINCT FROM c.actor_subject
+ OR i.source_reference IS DISTINCT FROM 'stocktake:'||a.command_id::text||':'||a.line_id::text)
+ )THEN
+ RAISE EXCEPTION 'stocktake movement needs reviewed evidence' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_movement';
+ END IF;
+ RETURN NULL;
+END $$;
+DROP TRIGGER pharmacy_stocktake_movement_guard ON pharmacy_stock_movements;
+CREATE TRIGGER pharmacy_stocktake_movement_guard AFTER INSERT ON pharmacy_stock_movements
+ REFERENCING NEW TABLE AS inserted_stocktake_movements FOR EACH STATEMENT
+ EXECUTE FUNCTION pharmacy_stocktake_movement_insert_guard();
+
 DO $policies$DECLARE tab text;prior record;reading text;writing text;scope text;
  active text:='(SELECT starts_with(COALESCE(current_setting(''app.pharmacy_stock_permission'',true),''''),''pharmacy.stocktake.''))';
 BEGIN
@@ -33,7 +56,7 @@ BEGIN
  IF tab IN('pharmacy_stocktakes','pharmacy_stocktake_lines','pharmacy_stocktake_counts')THEN writing:=replace(reading,'''read''','''count''');END IF;
  IF tab='pharmacy_stocktake_commands'THEN writing:='(('||replace(reading,'''read''','''count''')||')AND kind IN(''count'',''submit'',''cancel''))OR(('||replace(reading,'''read''','''review''')||')AND kind IN(''approve'',''reject''))';END IF;
  IF tab='pharmacy_stocktake_adjustments'THEN writing:=replace(reading,'''read''','''review''');END IF;
- IF tab='pharmacy_stock_movements'THEN writing:='('||replace(reading,'''read''','''review''')||')AND kind=''correction''AND actor_subject=current_setting(''app.actor_subject'',true)AND pharmacy_stocktake_movement_matches(pharmacy_stock_movements)';END IF;
+ IF tab='pharmacy_stock_movements'THEN writing:='('||replace(reading,'''read''','''review''')||')AND kind=''correction''AND actor_subject=current_setting(''app.actor_subject'',true)';END IF;
  IF tab IN('pharmacy_stocktakes','pharmacy_stocktake_lines','pharmacy_stocktake_commands','pharmacy_stocktake_counts','pharmacy_stocktake_adjustments')THEN
  scope:=format('tenant_id=NULLIF(current_setting(''app.tenant_id'',true),'''')::uuid AND outlet_id=(SELECT CASE WHEN %s THEN NULLIF(current_setting(''app.pharmacy_stock_outlet'',true),'''')::uuid ELSE NULLIF(current_setting(''app.pharmacy_outlet'',true),'''')::uuid END)',active);
  EXECUTE format('ALTER POLICY tenant_isolation ON %I USING((%s)AND CASE WHEN %s THEN(%s)ELSE(%s)END)WITH CHECK((%s)AND CASE WHEN %s THEN(%s)ELSE(%s)END)',tab,scope,active,reading,prior.reading,scope,active,writing,prior.writing);

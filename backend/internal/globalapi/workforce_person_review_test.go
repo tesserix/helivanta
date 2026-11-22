@@ -128,8 +128,11 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		OperatingAuthorizer: func(db *tenantdb.DB) authz.OperatingScopeAuthorizer {
 			return iam.NewOperatingAuthorizer(db, graph, platform.IndependentStaffIdentities(modules, db), platform.OperatingLocations(modules, db))
 		},
+		SourceChecks: func(deps platform.Deps) suppliertrade.SourceChecker {
+			return tradingSourcePeerForTest(t, deps)
+		},
 		TradingRelationships: func(deps platform.Deps) suppliertrade.CurrentRelationshipGuard {
-			return observedCompoundRelationships{CurrentRelationshipGuard: supply.NewRelationshipAuthority(deps.DB, deps.TradingEndpoints, tradingSourcePeerForTest(t, deps), deps.OrganizationIdentity), t: t}
+			return observedCompoundRelationships{CurrentRelationshipGuard: supply.NewRelationshipAuthority(deps.DB, deps.TradingEndpoints, deps.SourceChecks, deps.OrganizationIdentity), t: t}
 		},
 		PartnerScopes: func(deps platform.Deps) authz.PartnerScopeAuthorizer {
 			t.Logf("compound partner dependencies: writer=%T members=%T relationships=%T endpoints=%T", deps.Authz, deps.PartnerMembers, deps.TradingRelationships, deps.TradingEndpoints)
@@ -2512,6 +2515,8 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 						}
 						grantDepartment(recipient, purchaseDepartment.String(), purchasePathStrings, "supply.department_purchase_order_preparer.v1", supply.PermPurchaseOrderPrepare)
 						grantDepartment(postingRootApprover, purchaseDepartment.String(), purchasePathStrings, "supply.department_purchase_order_reviewer.v1", supply.PermPurchaseOrderReview)
+						grantDepartment(recipient, purchaseDepartment.String(), purchasePathStrings, "supply.department_goods_receiver.v1", supply.PermGoodsReceiptRecord)
+						grantDepartment(postingRootApprover, purchaseDepartment.String(), purchasePathStrings, "supply.department_goods_reviewer.v1", supply.PermGoodsReceiptReview)
 						cutoff := (supplierCompoundFixture{graphUnavailable: &authorizationUnavailable, db: db, graph: graph, registry: registry, signer: signer, handler: gateway, files: documents, binding: pharmacyBindingPrepared, hospitalCall: call}).assertAdmission(t, recipient, postingRootApprover, member)
 						assertSupplierRecipientCurrentMembership(t, db, authority, platform.PartnerMembers([]platform.Module{workforce.New(), organization.New()}, db), testutil.TenantA, recipient, member, call, postingRootApprover)
 						cutoff()

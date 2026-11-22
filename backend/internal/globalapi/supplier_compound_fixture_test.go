@@ -288,6 +288,24 @@ func (f supplierCompoundFixture) assertAdmission(t *testing.T, subject, reviewer
 		if source.endpoint.Product == "pharmacy" {
 			require.True(t, t.Run("public hospital pharmacy order and independent source acceptance", func(t *testing.T) {
 				f.assertPublicPharmacyOrder(t, sellerActor, operator, relationship, member.Input.DepartmentID, subject, reviewer)
+				for _, kind := range []string{"subject", "group"} {
+					base := paths["pharmacy/"+kind] + "/shipment-orders"
+					orders := f.hospitalCall(t, "GET", base, subject, nil, 200)["data"].([]any)
+					require.Len(t, orders, 1)
+					sharedOrder := orders[0].(map[string]any)
+					require.Equal(t, "TEST-COMPOUND-PUBLIC-PHARMACY", sharedOrder["purchase_order_reference"])
+					shipments := f.hospitalCall(t, "GET", base+"/"+sharedOrder["id"].(string)+"/shipments", subject, nil, 200)["data"].([]any)
+					require.Len(t, shipments, 2)
+					var quantity float64
+					for _, raw := range shipments {
+						shipment := raw.(map[string]any)
+						require.Equal(t, source.organizationName, shipment["source_organization_name"])
+						require.Equal(t, source.locationName, shipment["source_location_name"])
+						require.Equal(t, sharedOrder["id"], shipment["order_id"])
+						quantity += shipment["quantity_units"].(float64)
+					}
+					require.Equal(t, float64(10), quantity)
+				}
 			}))
 		}
 	}

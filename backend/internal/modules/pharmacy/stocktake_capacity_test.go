@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
 )
 
@@ -37,8 +38,16 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 		require.Equal(t, 200, response.Code, "receipt %d", i)
 	}
 	t.Logf("created 10000 distinct stocked batches through normal APIs in %s", time.Since(fixtureStart))
+	var bookQuery string
+	var bookArguments []any
 	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
-		before := func(tx *gorm.DB) { tx.InstanceSet("stocktake-capacity-start", time.Now()) }
+		before := func(tx *gorm.DB) {
+			if strings.HasPrefix(tx.Statement.SQL.String(), "WITH products AS") {
+				bookQuery = tx.Statement.SQL.String()
+				bookArguments = append([]any(nil), tx.Statement.Vars...)
+			}
+			tx.InstanceSet("stocktake-capacity-start", time.Now())
+		}
 		after := func(tx *gorm.DB) {
 			value, ok := tx.InstanceGet("stocktake-capacity-start")
 			if !ok {
@@ -90,6 +99,8 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 	response := do(r, "PUT", path, "editor", fmt.Sprintf(`{"selection":"all","product_ids":[],"quarantine_location_id":%q,"reason":"TEST capacity count"}`, location))
 	startElapsed := time.Since(start)
 	t.Logf("10000-bucket start returned HTTP %d in %s", response.Code, startElapsed)
+	require.NotEmpty(t, bookQuery)
+	stocktakeSnapshotPlan(t, db, bookQuery, bookArguments)
 	require.Equal(t, 200, response.Code, response.Body.String())
 	var header struct {
 		SnapshotRows int `json:"snapshot_rows"`
@@ -172,4 +183,40 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 	replayed := do(r, "PUT", approvalPath, "reviewer", body)
 	require.Equal(t, 200, replayed.Code, replayed.Body.String())
 	require.JSONEq(t, response.Body.String(), replayed.Body.String())
+}
+
+func stocktakeSnapshotPlan(t *testing.T, db *tenantdb.DB, query string, arguments []any) {
+	t.Helper()
+	var document string
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.pharmacy_subject','user-editor',true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)`, pharmaOutlet, pharmaOrganization).Error; err != nil {
+			return err
+		}
+		return tx.Raw("EXPLAIN(ANALYZE,BUFFERS,FORMAT JSON) "+query, arguments...).Row().Scan(&document)
+	}))
+	var plans []struct {
+		Plan map[string]any `json:"Plan"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(document), &plans))
+	require.Len(t, plans, 1)
+	var summarize func(map[string]any) map[string]any
+	summarize = func(node map[string]any) map[string]any {
+		result := map[string]any{}
+		for _, key := range []string{"Node Type", "Relation Name", "Actual Rows", "Actual Loops", "Actual Total Time", "Shared Hit Blocks", "Shared Read Blocks"} {
+			if value, ok := node[key]; ok {
+				result[key] = value
+			}
+		}
+		if children, ok := node["Plans"].([]any); ok {
+			var nested []map[string]any
+			for _, child := range children {
+				nested = append(nested, summarize(child.(map[string]any)))
+			}
+			result["Plans"] = nested
+		}
+		return result
+	}
+	safe, err := json.Marshal(summarize(plans[0].Plan))
+	require.NoError(t, err)
+	t.Logf("snapshot execution plan (no SQL or conditions): %s", safe)
 }

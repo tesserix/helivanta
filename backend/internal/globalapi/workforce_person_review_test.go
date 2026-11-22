@@ -128,8 +128,11 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		TradingRelationships: func(deps platform.Deps) suppliertrade.CurrentRelationshipGuard {
 			return supply.NewRelationshipAuthority(deps.DB, deps.TradingEndpoints, tradingSourcePeerForTest(t, deps), deps.OrganizationIdentity)
 		},
-		PartnerScopes: iam.NewPartnerScopeAuthorizer,
-		Writer:        graph, Roles: graph, Membership: graph, Resolver: graph,
+		PartnerScopes: func(deps platform.Deps) authz.PartnerScopeAuthorizer {
+			t.Logf("compound partner dependencies: writer=%T members=%T relationships=%T endpoints=%T", deps.Authz, deps.PartnerMembers, deps.TradingRelationships, deps.TradingEndpoints)
+			return observedCompoundPartnerScopes{PartnerScopeAuthorizer: iam.NewPartnerScopeAuthorizer(deps), t: t}
+		},
+		Writer: graph, Roles: graph, Membership: graph, Resolver: graph,
 		Verifier: authn.NewSessionVerifier(verifier), Modules: modules, Documents: documents,
 		ScopedAuthorizer: func(db *tenantdb.DB) authz.ScopedAuthorizer {
 			postingQueryObserver = newPostingLifecycleQueryObserver(t, db, testutil.TenantA)

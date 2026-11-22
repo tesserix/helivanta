@@ -117,6 +117,20 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &header))
 	require.Equal(t, 10000, header.SnapshotRows)
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.pharmacy_subject','user-editor',true),set_config('app.pharmacy_outlet',?,true)`, pharmaOutlet).Error; err != nil {
+			return err
+		}
+		var audits struct{ Total, Attributed int64 }
+		if err := tx.Raw(`SELECT count(*) total,count(*)FILTER(WHERE a.actor_subject='user-editor' AND a.changed_fields='{}'::text[]) attributed
+ FROM audit_events a JOIN pharmacy_stocktake_lines l ON l.tenant_id=a.tenant_id AND l.id=a.resource_id
+ WHERE l.tenant_id=? AND l.outlet_id=? AND l.stocktake_id=? AND a.resource_type='pharmacy_stocktake_lines' AND a.action='insert'`, testutil.TenantA, pharmaOutlet, strings.TrimPrefix(path, outletPath("/stock/stocktakes/"))).Scan(&audits).Error; err != nil {
+			return err
+		}
+		require.EqualValues(t, 10000, audits.Total)
+		require.Equal(t, audits.Total, audits.Attributed, "every line retains its attributable insert evidence")
+		return nil
+	}))
 	t.Logf("10000-bucket start: %s", startElapsed)
 	require.Less(t, startElapsed, 5*time.Second, "ADR-0073 start budget")
 

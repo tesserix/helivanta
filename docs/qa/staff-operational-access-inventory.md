@@ -6,6 +6,15 @@
 This is source-review tooling. No employment guard, grant classification in a live
 database, migration, account change or runtime activation is performed by it.
 
+## Bill credit-history registration recheck — 22 November 2026
+
+`payableRoutes` adds the separate selected-bill supplier-credit history read.
+The acquisition-receipt registration, handler, projection, SELECT-only purpose,
+current outlet authorization and disclosure audit retain their existing source.
+Only its registration-file pin is refreshed after comparing the one-line route
+addition. The new journal remains unclassified by this source review; this does
+not activate reviewed Staff finance authority or record live acceptance.
+
 ## Supplier-credit registration recheck — 21 November 2026
 
 `payableRoutes` additionally registers the separate supplier-credit document/void

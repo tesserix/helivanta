@@ -100,61 +100,10 @@ test("a signed-out session cannot be reconstructed from the browser", async ({ p
       "silently means Zitadel's SSO session outlived sign-out and the next user at this " +
       "terminal would be signed in as the previous one",
   ).toBeVisible({ timeout: 15_000 });
-  await page.goto("/login");
-
-  // The attack: the previous user's oidc-client-ts session used to
-  // survive in sessionStorage, so this rebuilt a working session by
-  // replaying its id_token.
-  //
-  // The leftover session lives in a Helivanta origin's sessionStorage
-  // (readStoredIdToken, e2e/tests/support/stored-session.ts — #976 replaced
-  // the dev-only `window.__hmsUserManager` hook this used to call, which
-  // production builds never expose). The browser is currently on Zitadel's
-  // origin (the wait above), so this navigates back to `/api/auth/callback`
-  // with NO `code`/`state` query params: the one shell route that constructs
-  // a UserManager and then STOPS — `signinRedirectCallback()` fails fast on the missing
-  // params and the page shows an error, triggering no further navigation
-  // of its own. That absence of a next hop is exactly what makes it a
-  // stable place to run `evaluate` from, unlike `/login` (which always
-  // redirects again) or a route-interception trick (tried and rejected —
-  // see below).
-  //
-  // Two techniques were tried first and rejected, worth recording so they
-  // are not tried again:
-  //  - `page.route(...).abort()` on the authorize request: aborting a
-  //    TOP-LEVEL navigation does not leave the browser on the previous
-  //    page — Chromium replaces the frame with its own
-  //    `chrome-error://chromewebdata/`, which has no app JS at all, so
-  //    no Helivanta storage or app JS is reachable there, on any attempt.
-  //  - Stubbing `window.location.assign`/`.replace` to a no-op via
-  //    `addInitScript`, to neutralise oidc-client-ts's own redirect call
-  //    before it becomes a navigation: had no effect at all (confirmed
-  //    live — the browser still reached Zitadel's real login form
-  //    regardless). Browsers generally refuse to let page script shadow
-  //    `Location` methods; the assignment silently no-ops.
-  //
-  // A goto immediately after the chain settles can still occasionally
-  // race a not-yet-finished internal redirect inside Zitadel's own login
-  // app and get `ERR_ABORTED`; retried a bounded number of times rather
-  // than treated as a failure, the same judgment call
-  // e2e/tests/support/login.ts's own retry makes for a real,
-  // non-permanent race.
-  let landed = false;
-  for (let attempt = 1; attempt <= 5 && !landed; attempt++) {
-    try {
-      await page.goto("/api/auth/callback", { waitUntil: "domcontentloaded", timeout: 10_000 });
-      landed = true;
-    } catch (err) {
-      if (!/ERR_ABORTED/.test(String(err)) || attempt === 5) throw err;
-      await page.waitForTimeout(300);
-    }
-  }
-  // The callback page without code/state fails fast and renders its error:
-  // proof its client code has run, and the stable resting point the comment
-  // above describes.
-  // Filtered to an alert WITH text: Next.js also renders an empty
-  // role="alert" route announcer on every page, which would otherwise match.
-  await expect(page.getByRole("alert").filter({ hasText: /\S/ })).toBeVisible({ timeout: 15_000 });
+  // Storage inspection needs only the same origin. The login landing can
+  // start another remembered-account redirect; the public home page cannot.
+  await page.goto(`${WEB_ORIGIN}/`);
+  await expect(page).toHaveURL(`${WEB_ORIGIN}/`);
 
   const leftover = await readStoredIdToken(page);
   const restored = leftover

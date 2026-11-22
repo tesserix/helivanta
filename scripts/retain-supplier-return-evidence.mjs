@@ -3,8 +3,14 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const required = [
+  "bill-supplier-credit-history",
   "supplier-credit-recovered",
   "supplier-credit-matched",
+  "supplier-credit-match-reversed",
+  "supplier-credit-applied",
+  "supplier-credit-application-reversed",
+  "supplier-credit-voided",
+  "supplier-credit-corrected",
   "commercial-return-note-print",
 ];
 export async function retainSupplierReturnEvidence(source, target) {

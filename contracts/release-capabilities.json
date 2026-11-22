@@ -5923,6 +5923,11 @@
       "method": "GET",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/source-returns",
       "capability": "pharmacy_payables"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/supplier-credit-allocations",
+      "capability": "baseline"
     }
   ],
   "pages": [

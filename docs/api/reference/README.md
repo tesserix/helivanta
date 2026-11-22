@@ -519,6 +519,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/adjustments/:entry` | `pharmacy.accounts.adjust` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/payments/:entry` | `pharmacy.accounts.payment` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/settlements` | `pharmacy.accounts.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/supplier-credit-allocations` | `pharmacy.accounts.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id` | `pharmacy.accounts.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id` | `pharmacy.accounts.write` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/counted` | `pharmacy.accounts.read` | true | true |
@@ -805,6 +806,7 @@ Migration table declarations:
 - `0061_pharmacy_supplier_credit_source_indexes`: concurrent index `pharmacy_supplier_credit_payable_choices` on `pharmacy_payables (tenant_id, outlet_id, payee_reference, currency, created_at DESC, id DESC)`.
 - `0061_pharmacy_supplier_credit_source_indexes`: concurrent index `pharmacy_supplier_credit_return_choices` on `pharmacy_supplier_returns (tenant_id, outlet_id, payee_reference, currency, created_at DESC, id DESC)`.
 - `0062_pharmacy_tally_ledger_maps`: `pharmacy_tally_ledger_maps`, `pharmacy_tally_ledger_map_entries`.
+- `0063_pharmacy_payable_credit_journal`: concurrent index `pharmacy_payable_credit_journal` on `pharmacy_supplier_credit_allocations (tenant_id, outlet_id, payable_id, created_at DESC, id DESC)`.
 
 ## payments
 

@@ -1659,6 +1659,44 @@ Latest hosted execution is required before claiming these scenarios passed.
 Hosted SQL/native acceptance, finance UI/report explanations and actual Global API/browser/live acceptance are still required in
 #1784.
 
+### Bill-scoped supplier-credit journal (candidate)
+
+`GET /accounts/payables/:id/supplier-credit-allocations` returns the existing
+canonical `SupplierCreditAllocationView` collection for one visible bill. It
+requires `pharmacy.accounts.read`, verified tenant/expected subject, current
+exact pharmacy/outlet authority and a visible parent bill. It is a baseline
+retained-history read, not a new-write or release-activation permission. A reader
+may inspect another authorised recorder's application. Recovery remains bound
+to the original actor through its existing separate route.
+
+The resource collection is bounded to 50 rows per page, ordered by creation time
+and identifier descending. Sealed cursors bind the actor, resource path and bill
+parameters; unknown query fields, limits above 50 and a cursor from another bill
+are refused. Invisible bill/outlet/tenant is 404, missing permission is 403,
+changed expected actor is 409 and unavailable authority/audit is 503. Each page's
+`list_read` audit names the selected bill under
+`pharmacy_payable_supplier_credit_allocations` and must commit before disclosure.
+The response retains an application after reversal with its unique reversal
+identity; exact reversal evidence is loaded through the existing selected-credit
+read, under fresh authority. No per-row reversal query is performed.
+
+The bill UI displays human credit references and authorised recorder names. It
+formats application amounts in the parent bill's currency, hides cached private
+evidence after current read failures and resets selected details on an account or
+resource switch. Current totals come from the owner bill projection, never a sum
+of partial history pages. Legacy direct adjustments and managed applications
+remain distinct. A reversal retains recorded payments and restores only its
+original credit/liability amount. Receipt and reversal UUIDs stay internal.
+
+Forward migration `0063_pharmacy_payable_credit_journal` adds the concurrent
+`(tenant_id,outlet_id,payable_id,created_at DESC,id DESC)` index using the existing
+runner. No old migration, balance master, write authority or flag changes. Hosted
+native tests include hospital-owned, independent and chain scopes, multi-document
+pagination, a fully paid bill's reversal, denial/revocation, audit failure and a
+small synthetic `EXPLAIN (ANALYZE, BUFFERS)` result. That small plan is not
+large-cardinality performance evidence. Hosted execution, visual review and live
+acceptance remain separate gates in #1784.
+
 ### Supplier-credit entry and retained history UI (candidate)
 
 Accounts includes a Supplier credits tab under current accounts-read authority.
@@ -1707,9 +1745,99 @@ history or source reads hide cached private evidence. The hosted browser journey
 extends actual credit entry with full-amount matching, response-loss reload
 recovery and proof that bill liability and unused credit remain unchanged.
 
-Allocation, void/correction and reversal UI, complete bill history/report
-integration, hosted acceptance of the new matching workspace, remaining Global
-API E2E and approved live acceptance remain open in #1784.
+A candidate **Review match** control now opens the exact original match and
+current owner observations, including attribution from other credit documents.
+Full reversal requires an explicit reason, the current credit version and current
+return total; it preserves the original amount and leaves other credit matches,
+unused credit, bill liability and physical stock unchanged. A stale refusal
+preserves the reason and offers the shared authorised refresh control. Retained
+reversal evidence remains readable after void and with new writes unavailable.
+
+Reversal recovery persists only the command/match references under the verified
+scope and credit. It reopens without scanning history pages, survives reload and
+works when new writes are disabled. Normal retained reads bind evidence to the
+original return, amount and reversal reference. Recovery additionally verifies
+the original actor/command and any retained submitted intent. Private evidence
+is hidden on failed owner reads; a storage cleanup failure preserves same-command
+recovery and blocks another reversal. The hosted browser scenario now covers a
+lost committed reversal, reload, one-write recovery and unchanged bill/stock.
+
+Candidate bill application controls now select a named eligible outstanding bill
+for the same supplier/currency. The actual amount starts blank and must fit both
+the unused credit pool and current bill liability. Return attribution does not
+spend that pool. The explicit application date must be on/after both documents
+and no later than the owner-provided outlet date. Submission includes current
+credit/bill versions and both observed balances. Financial editor authority,
+accounts-adjust and Payables admission remain necessary for new commands.
+
+Bounded immutable application history retains the original bill reference,
+amount, date, reason and named recorder. Exact application context supports review
+even after a bill is fully paid and absent from eligible choices. Full reversal
+requires an explicit reason/date and current observations; it restores only the
+original applied amount to credit and liability, retaining subsequent payments.
+Its date cannot precede the original application or exceed the outlet date.
+Neither command changes physical stock or captures/refunds cash.
+
+Application recovery stores only its scoped command reference. Reversal recovery
+stores only the scoped command and original application references, reopening the
+exact review after reload without scanning eligible bills. In-memory intent is
+checked when retained; the SDK also binds recovered reversal evidence to the
+original bill, amount and human references. Unknown outcomes never retry
+automatically. Missing originals reuse the same identity; failed storage prevents
+submission, and failed cleanup blocks another command. Retained history/recovery
+continues with new writes disabled under current read authority. Failed history
+or current context reads conceal cached financial evidence.
+
+The hosted browser candidate additionally covers a fully paid source bill,
+partial application to a later bill, payment of its remainder, full application
+reversal, unchanged payments/stock and same-command reload recovery for both
+writes. Latest hosted/visual evidence and approved live acceptance remain
+required. Complete bill history/report integration and the remaining supplier
+acceptance remain open in #1784.
+
+Candidate **Credit void** controls retain a separate reason and authorised
+recorder without deleting the original note. A new void requires an active credit
+with zero current net return attribution and zero current bill applications, the
+current version, explicit reason and existing financial editor/accounts-adjust/
+Payables authority. Active matches and applications must first be reversed through
+their owning commands. Voiding removes the unused pool; it never changes physical
+stock, bill liability, recorded payments or cash. A replacement/correction note
+remains a separate explicit command and is not automatically generated.
+
+Void recovery stores only the scope/credit-bound command reference, checks the
+original actor and any retained version/reason, and remains available after reload
+or withdrawal of new-write authority. Retained void history is available for
+voided/corrected credits under current read authority; failed current reads hide
+cached evidence. Stale refusals preserve the entered reason for review and explicit
+refresh. Unknown outcomes retain their original identity without automatic retry;
+storage and cleanup failures use the same financial-command safeguards. The
+hosted candidate journey loses the committed void response after reversing all
+applications/matches and verifies one-write recovery and unchanged bill payment.
+Latest hosted/visual/live acceptance remains open in #1784.
+
+Candidate **Replace voided credit** entry reuses the canonical actual-credit
+form beneath the named original. It binds `correction_of` and the original
+dispatched return internally; supplier/currency come from the current finance
+context. The actual replacement amount, reference, date and reason are explicit,
+not defaults copied from the original note. This control corrects the note on
+that original return; it does not reassign an existing note to another supplier
+or return. The owning command atomically verifies current voided state, same
+supplier/currency, source/date validity and the unique correction. The original
+becomes corrected with zero unused pool; the replacement has its own actual
+amount, active pool and immutable receipt. Neither creates a bill application,
+payment or stock movement.
+
+Correction recovery is scoped additionally to its original note. After reload,
+the recovered immutable receipt must still identify that original, return,
+supplier and currency, even when no submitted form intent survives. Recovery
+remains available when the original has become corrected or new writes are
+disabled, including after closing and resuming the form. Stale refusal preserves
+entered values and offers explicit refresh of the original observations.
+Normal document entry retains its original recovery namespace and cannot accept
+a correction receipt as an unrelated original note. The hosted candidate extends
+void recovery with replacement response loss, one-write recovery, retained
+original history and unchanged payments/stock. Latest hosted/visual evidence,
+payable journal/report integration and approved live acceptance remain open.
 
 ## Tally accounting export (#1690, unreleased source)
 

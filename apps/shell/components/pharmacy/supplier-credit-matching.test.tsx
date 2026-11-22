@@ -429,3 +429,27 @@ it("hides malformed foreign source choices without sending a command", async () 
   expect(screen.queryByRole("button", { name: "Save return match" })).not.toBeInTheDocument();
   expect(writes).toBe(0);
 });
+
+it("opens current match review from human history with writes disabled", async () => {
+  const fetcher = vi.fn(
+    async (url: string) =>
+      new Response(
+        JSON.stringify(
+          url.endsWith("/context")
+            ? { credit, match, returned: { ...returned, matched_minor: 600 } }
+            : { data: [match], page: { has_more: false, next_cursor: null } },
+        ),
+      ),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = render(
+    <SupplierCreditMatching scope={scope} credit={credit} canManage={false} />,
+  );
+  await user.click(await screen.findByRole("button", { name: "Review match for return 17" }));
+  const review = within(await screen.findByRole("region", { name: "Return matching reversal" }));
+  expect(
+    await review.findByText(/Current return attribution across credits: INR 6.00/),
+  ).toBeInTheDocument();
+  expect(review.queryByRole("button", { name: "Reverse full match" })).not.toBeInTheDocument();
+  expect(fetcher.mock.calls.some(([url]) => url.includes("eligible-returns"))).toBe(false);
+});

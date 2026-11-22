@@ -60,12 +60,12 @@ func (h *warehouseFulfilment) Admit(ctx context.Context, p authn.Principal, s f.
 	})
 }
 func (h *warehouseFulfilment) Lock(tx *gorm.DB, a f.Allocation) error {
-	var receipt uuid.UUID
+	var receipt struct{ ID uuid.UUID }
 	err := tx.Raw(`SELECT id FROM supply_stock_receipts WHERE tenant_id=? AND party_id=? AND premise_id=? AND id=? FOR UPDATE`, a.Plan.OwnerTenantID, a.Plan.SourceOrganizationID, a.Plan.SourceLocationID, a.Plan.Input.StockID).Scan(&receipt).Error
 	if err != nil {
 		return err
 	}
-	if receipt == uuid.Nil {
+	if receipt.ID == uuid.Nil {
 		return gorm.ErrRecordNotFound
 	}
 	return nil

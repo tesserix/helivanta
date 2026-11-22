@@ -2416,6 +2416,26 @@
     },
     {
       "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/ledger-maps/:map",
+      "capability": "pharmacy_payables"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/ledger-maps/:map",
+      "capability": "pharmacy_payables"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/preview",
+      "capability": "pharmacy_payables"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/vouchers.xml",
+      "capability": "pharmacy_payables"
+    },
+    {
+      "method": "GET",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/admission-occupant",
       "capability": "pharmacy_counter"
     },
@@ -6311,6 +6331,10 @@
     },
     {
       "key": "pharmacy.supplier_return_history",
+      "capability": "pharmacy_payables"
+    },
+    {
+      "key": "pharmacy.tally_export",
       "capability": "pharmacy_payables"
     }
   ],

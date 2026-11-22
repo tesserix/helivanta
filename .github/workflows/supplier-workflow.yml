@@ -1,5 +1,6 @@
 name: Supplier workflow regression tests
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - "backend/pkg/supplieraccess/**"
@@ -30,7 +31,57 @@ concurrency:
   group: supplier-workflow-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  merge-contracts:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      GOTOOLCHAIN: auto
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - run: printf 'GOCACHE=%s/helivanta-merge-go-cache\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version-file: backend/go.mod
+          cache: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+        working-directory: .
+      - name: Compile affected supplier credit and accounting packages
+        run: go test -race -run '^$' ./internal/modules/pharmacy ./internal/modules/billing
+      - name: Generate combined runtime contracts
+        run: |
+          go run ./cmd/contractdocs
+          go run ./cmd/contractdocs -check
+      - name: Generate and check canonical release and Pharmacy models
+        working-directory: .
+        run: |
+          node scripts/generate-release-capabilities.mjs
+          node scripts/generate-release-capabilities.mjs --check
+          node scripts/generate-pharmacy-contract.mjs
+          node scripts/generate-pharmacy-contract.mjs --check
+      - name: Retain merged runtime contracts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: supplier-merge-contracts
+          path: |
+            docs/api/reference/
+            backend/internal/release/manifest_generated.go
+            backend/internal/modules/pharmacy/input_types.go
+            packages/api/src/release-capabilities-contract.ts
+            packages/api/src/pharmacy-contract.ts
+          if-no-files-found: error
+      - name: Native credit journal and Tally regression
+        run: go test -race -count=1 -timeout 20m ./internal/modules/pharmacy -run '^Test(SupplierReturnCreditPayableJournal|PayableCreditJournal|Tally)'
   staff-query-plans:
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -45,6 +96,7 @@ jobs:
       - name: Compare bounded Staff point reads with unchanged tenant isolation
         run: go test -race -v -timeout 5m ./internal/modules/workforce -run '^TestStaffPointReadPlansPreserveTenantIsolation$'
   supplier:
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:
@@ -95,6 +147,7 @@ jobs:
       - name: Current hospital Staff recipient and membership cutoff
         run: go test -race -v -timeout 35m ./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'
   api-client:
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

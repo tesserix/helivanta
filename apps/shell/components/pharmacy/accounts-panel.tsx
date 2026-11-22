@@ -6,6 +6,7 @@ import { Button } from "@tesserix/web";
 import { ReceiptText, PackageSearch, Plus } from "lucide-react";
 import {
   PAGE_SIZE,
+  capabilityForPanel,
   useApiPageQuery,
   usePermissions,
   useReleaseCapabilities,
@@ -22,6 +23,7 @@ import { formatPharmacyMoney } from "./currency-amount-field";
 import { PayableForm, PayableHistory } from "./payable-forms";
 import { SupplierReturnHistory } from "./supplier-return-history";
 import { SupplierCreditHistory } from "./supplier-credit-history";
+import { TallyExport } from "./tally-export";
 
 export function AccountsPanel({
   scope,
@@ -72,6 +74,9 @@ function OutletAccounts({
 }) {
   const { can } = usePermissions();
   const release = useReleaseCapabilities();
+  const exportable =
+    can("pharmacy.accounts.export") &&
+    release.available(capabilityForPanel("pharmacy.tally_export"));
   // The tab is the URL (#576 slice 3 D4): Overdue and Due within 7 days are
   // the overview's counts, filtered on the outlet's date the same way.
   // Anything else, an old ?due= link included, is All bills.
@@ -96,6 +101,7 @@ function OutletAccounts({
       current={tab}
       tabs={(Object.keys(TABS) as BillsTab[])
         .filter((key) => key !== "supplier-returns" || can("pharmacy.supplier_returns.read"))
+        .filter((key) => key !== "tally" || exportable)
         .map((key) => ({
           key,
           label: TABS[key],
@@ -144,6 +150,29 @@ function OutletAccounts({
         ) : (
           <Panel>
             <p role="alert">Supplier return access is required for this outlet.</p>
+          </Panel>
+        )}
+      </div>
+    );
+  if (tab === "tally")
+    return (
+      <div className="space-y-5">
+        {tabs}
+        {exportable ? (
+          <TallyExport
+            scope={{ ...scope, subject }}
+            // The outlet's own date (en-CA formats as YYYY-MM-DD).
+            today={new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date())}
+            writable={writable}
+          />
+        ) : release.isLoading ? (
+          <p role="status">Checking Tally export…</p>
+        ) : (
+          <Panel>
+            <p role="alert">
+              Tally export needs the accounts export permission for this outlet, and Tally export
+              turned on for this workspace.
+            </p>
           </Panel>
         )}
       </div>
@@ -217,6 +246,7 @@ const TABS = {
   audit: "Inventory cost audit",
   "supplier-returns": "Supplier returns",
   "supplier-credits": "Supplier credits",
+  tally: "Tally export",
 } as const;
 type BillsTab = keyof typeof TABS;
 type UrlPage = ReturnType<typeof useUrlPage>;
@@ -236,7 +266,7 @@ function Bills({
   pane,
 }: {
   scope: PharmacyScope;
-  tab: Exclude<BillsTab, "audit" | "supplier-returns" | "supplier-credits">;
+  tab: Exclude<BillsTab, "audit" | "supplier-returns" | "supplier-credits" | "tally">;
   url: UrlPage;
   tabs: React.ReactNode;
   canRecord: boolean;

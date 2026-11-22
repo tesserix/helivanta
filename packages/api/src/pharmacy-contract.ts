@@ -8,6 +8,65 @@ const identifier = z
     /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     "Choose a valid record.",
   );
+export const pharmacyTallyLedgerMapEntryInputSchema = z
+  .object({
+    head: z.string().min(1).max(109),
+    ledger_name: z
+      .string()
+      .min(1, "Enter the Tally ledger name.")
+      .max(100, "Use at most 100 characters."),
+  })
+  .strict();
+
+export const pharmacyTallyLedgerMapInputSchema = z
+  .object({
+    replaces: identifier.nullable(),
+    entries: z.array(pharmacyTallyLedgerMapEntryInputSchema).min(1).max(1000),
+  })
+  .strict();
+
+export const pharmacyTallyLedgerMapEntrySchema = pharmacyTallyLedgerMapEntryInputSchema
+  .extend({
+    label: z.string().min(1).max(120),
+  })
+  .strict();
+
+export const pharmacyTallyLedgerMapReceiptSchema = z
+  .object({
+    id: identifier,
+    outlet_id: identifier,
+    replaces: identifier.nullable(),
+    entries: z.array(pharmacyTallyLedgerMapEntrySchema).min(1).max(1000),
+    recorded_by: z.string().min(1).max(200),
+    recorded_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+  })
+  .strict();
+
+export const pharmacyTallyExportHeadSchema = z
+  .object({
+    head: z.string().min(1).max(109),
+    label: z.string().min(1).max(120),
+    ledger_name: z.string().min(1).max(100).nullable(),
+    supplier_name: z.string().min(1).max(200).nullable(),
+  })
+  .strict();
+
+export const pharmacyTallyExportPreviewSchema = z
+  .object({
+    outlet_id: identifier,
+    from: z.string().date("Use a full valid date."),
+    to: z.string().date("Use a full valid date."),
+    ledger_map_id: identifier.nullable(),
+    sale_count: z.number().int().min(0).max(5000),
+    credit_note_count: z.number().int().min(0).max(5000),
+    supplier_payment_count: z.number().int().min(0).max(5000),
+    payment_reversal_count: z.number().int().min(0).max(5000),
+    heads: z.array(pharmacyTallyExportHeadSchema).min(0).max(1000),
+  })
+  .strict();
+
 export const pharmacySupplierCreditAllocationInputSchema = z
   .object({
     payable_id: identifier,

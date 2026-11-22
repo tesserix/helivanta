@@ -1,6 +1,9 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders as renderProviders } from "@helivanta/api/testing";
+import {
+  releaseSnapshotForTest,
+  renderWithProviders as renderProviders,
+} from "@helivanta/api/testing";
 import { NavigationGuardProvider } from "@helivanta/ui";
 import { PharmacyWorkspace } from "./pharmacy-workspace";
 const pharmacy = "0199e000-0000-7000-8000-000000000010",
@@ -693,4 +696,73 @@ it("opens retained supplier credits using finance permission without physical re
   expect(requested(fetcher, "/accounts/supplier-returns")).toEqual([]);
   expect(requested(fetcher, "/accounts/payables")).toEqual([]);
   expect(requested(fetcher, "/source-returns")).toEqual([]);
+});
+
+describe("Tally export tab", () => {
+  // Release snapshots must close over dependencies: payables needs setup, setup needs accounts.
+  const setup = ["team_accounts", "pharmacy_setup"];
+  const tally = (permissions: string[], released: string[]) => {
+    const base = mockAccounts();
+    const fetcher = vi.fn(async (url: string) => {
+      if (url.endsWith("/permissions")) {
+        const body = await (await base(url)).json();
+        return Response.json({ ...body, data: [...body.data, ...permissions] });
+      }
+      if (url.endsWith("/workspace/release-capabilities"))
+        return Response.json(
+          releaseSnapshotForTest(
+            { tenantId: "11111111-1111-1111-1111-111111111111", subject: "TEST-finance" },
+            released,
+          ),
+        );
+      if (url.includes("/accounts/tally/preview?"))
+        return Response.json({
+          outlet_id: outlet,
+          from: new URL(url, "http://test").searchParams.get("from"),
+          to: new URL(url, "http://test").searchParams.get("to"),
+          ledger_map_id: null,
+          sale_count: 0,
+          credit_note_count: 0,
+          supplier_payment_count: 0,
+          payment_reversal_count: 0,
+          heads: [],
+        });
+      return base(url);
+    });
+    vi.stubGlobal("fetch", fetcher);
+    renderWithProviders(
+      <NavigationGuardProvider>
+        <PharmacyWorkspace view="accounts" />
+      </NavigationGuardProvider>,
+    );
+    return fetcher;
+  };
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tashkent" }).format(new Date());
+
+  it("previews the outlet's month so far for an exporter once Tally export is released", async () => {
+    nav.search = "tab=tally";
+    const fetcher = tally(["pharmacy.accounts.export"], [...setup, "pharmacy_payables"]);
+    expect(await screen.findByText(/No sales, credit notes or supplier payments/)).toBeVisible();
+    expect(screen.getByRole("link", { name: "Tally export" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(requested(fetcher, "/accounts/tally/preview")).toEqual([
+      expect.stringContaining(`/accounts/tally/preview?from=${today.slice(0, 8)}01&to=${today}`),
+    ]);
+    expect(requested(fetcher, "/accounts/payables")).toEqual([]);
+  });
+
+  it.each([
+    ["without the export permission", [], [...setup, "pharmacy_payables"]],
+    ["while Tally export is not released", ["pharmacy.accounts.export"], setup],
+  ])("offers no Tally tab %s", async (_, permissions, released) => {
+    nav.search = "tab=tally";
+    const fetcher = tally(permissions, released);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Tally export needs the accounts export permission",
+    );
+    expect(screen.queryByRole("link", { name: "Tally export" })).not.toBeInTheDocument();
+    expect(requested(fetcher, "/accounts/tally")).toEqual([]);
+  });
 });

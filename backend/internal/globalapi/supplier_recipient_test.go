@@ -16,6 +16,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/supplieraccess"
+	"github.com/tesserix/helivanta/pkg/suppliertrade"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
 )
@@ -102,7 +103,7 @@ type supplierRecipientBasisFixture struct {
 	Actor           authz.StaffActorReference                        `json:"actor"`
 }
 
-func seedSupplierRecipientFixture(t *testing.T, db *tenantdb.DB, tenant, subject string, member iam.PartnerGroupMemberProposal, kind, product, template string) authz.PartnerScopeRequest {
+func seedSupplierRecipientFixture(t *testing.T, db *tenantdb.DB, tenant, subject string, member iam.PartnerGroupMemberProposal, kind, product, template string, relationships ...suppliertrade.Relationship) authz.PartnerScopeRequest {
 	t.Helper()
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	id := uuid.Must(uuid.NewV7())
@@ -111,6 +112,22 @@ func seedSupplierRecipientFixture(t *testing.T, db *tenantdb.DB, tenant, subject
 	group := member.GroupID
 	scope := supplieraccess.SupplierGrantScope{SourceTenantID: source, RecipientTenantID: home, HospitalID: member.HospitalID, SourceProduct: product, SourceOrganizationID: uuid.Must(uuid.NewV7()), SourceLocationID: uuid.Must(uuid.NewV7())}
 	input := supplieraccess.SupplierGrantInput{RelationshipID: uuid.Must(uuid.NewV7()), TermsSha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", RecipientKind: kind, TemplateKey: template, ValidFrom: now.Add(-time.Minute), ExpiresAt: now.Add(time.Minute), Reason: "TEST stored bilateral consent; recipient component only"}
+	require.LessOrEqual(t, len(relationships), 1)
+	if len(relationships) == 1 {
+		relationship := relationships[0]
+		require.Equal(t, home, relationship.Terms.Buyer.TenantID)
+		require.NotNil(t, relationship.Terms.Buyer.HospitalID)
+		require.Equal(t, member.HospitalID, *relationship.Terms.Buyer.HospitalID)
+		source = relationship.Terms.Seller.TenantID
+		scope.SourceTenantID, scope.SourceOrganizationID, scope.SourceLocationID = source, relationship.Terms.Seller.OrganizationID, relationship.Terms.Seller.LocationID
+		scope.SourceProduct = relationship.Terms.Seller.Product
+		require.Equal(t, product, scope.SourceProduct)
+		input.RelationshipID, input.TermsSha256 = relationship.ID, relationship.TermsSha256
+		if relationship.Terms.ExpiresAt.Before(input.ExpiresAt) {
+			input.ExpiresAt = relationship.Terms.ExpiresAt
+		}
+		input.Reason = "TEST retained bilateral consent for actual compound admission"
+	}
 	basisInput := supplierRecipientBasisFixture{}
 	if kind == "group" {
 		input.RecipientGroupID = &group
@@ -142,6 +159,25 @@ func seedSupplierRecipientFixture(t *testing.T, db *tenantdb.DB, tenant, subject
 		}
 		return tx.Exec(`INSERT INTO iam_supplier_grant_bases(tenant_id,grant_id,hospital_id,document,basis_hash,actor_subject,created_at,updated_at)VALUES(?,?,?,?::jsonb,?,?,?,?)`, home, id, member.HospitalID, string(basis), basisHash, "TEST-fixture", now, now).Error
 	}))
+	if len(relationships) == 1 {
+		sourceGrant := grant
+		sourceGrant.OwnerTenantID, sourceGrant.Side, sourceGrant.PreparedBy = source, "source", "TEST-source-preparer"
+		sourceGrant.SignedBy, sourceGrant.RemoteSignedBy = grant.RemoteSignedBy, grant.SignedBy
+		require.NoError(t, supplieraccess.ValidateRecord(sourceGrant))
+		require.NoError(t, db.WithTenant(tenantdb.WithActor(t.Context(), "TEST-fixture"), source.String(), func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.iam_supplier_access','source',true),set_config('app.iam_supplier_hospital','',true)`).Error; err != nil {
+				return err
+			}
+			document, err := json.Marshal(sourceGrant)
+			if err != nil {
+				return err
+			}
+			if err = tx.Exec(`INSERT INTO iam_supplier_grants(tenant_id,id,origin_tenant_id,origin_record_id,hospital_id,relationship_id,document,input_hash,version,created_at,updated_at)VALUES(?,?,?,?,?,?,?::jsonb,?,?,?,?)`, source, id, source, id, member.HospitalID, input.RelationshipID, string(document), digest, sourceGrant.Version, now, now).Error; err != nil {
+				return err
+			}
+			return tx.Exec(`INSERT INTO iam_supplier_grant_history(tenant_id,origin_tenant_id,origin_record_id,grant_id,hospital_id,version,document,actor_subject,created_at,updated_at)VALUES(?,?,?,?,?,?,?::jsonb,?,?,?)`, source, source, id, id, member.HospitalID, sourceGrant.Version, string(document), "TEST-fixture", now, now).Error
+		}))
+	}
 	definition, ok := supplieraccess.TemplateFor(template)
 	require.True(t, ok)
 	return authz.PartnerScopeRequest{Principal: authn.Principal{TenantID: tenant, Subject: subject, AuthTime: time.Now(), IdleDeadline: time.Now().Add(time.Hour)}, HospitalID: member.HospitalID, GrantID: id, Product: product, Permission: authz.Permission(definition.Permission)}

@@ -18,6 +18,21 @@ test("every exact supplier acceptance test exists and changes to it trigger the 
   assert.ok(pathBlock, "supplier workflow must declare its source triggers");
   const triggers = [...pathBlock.matchAll(/- "([^"]+)"/g)].map((match) => match[1]);
   const missingTriggers = new Set();
+  const triggered = (file) =>
+    triggers.some((trigger) =>
+      trigger.endsWith("/**")
+        ? file.startsWith(trigger.slice(0, -2))
+        : trigger.endsWith("*")
+          ? file.startsWith(trigger.slice(0, -1))
+          : file === trigger,
+    );
+  for (const file of await readdir(path.join(root, "backend/internal/globalapi"))) {
+    if (file.startsWith("supplier_") && file.endsWith("_test.go")) {
+      const source = `backend/internal/globalapi/${file}`;
+      if (!triggered(source)) missingTriggers.add(source);
+    }
+  }
+
   for (const [, pkg, name] of commands) {
     const directory = path.join(root, "backend", pkg);
     const files = (await readdir(directory)).filter((file) => file.endsWith("_test.go"));
@@ -31,13 +46,7 @@ test("every exact supplier acceptance test exists and changes to it trigger the 
     for (let index = 0; index < sources.length; index++) {
       if (!new RegExp(`^func ${name}\\(t \\*testing\\.T\\)`, "m").test(sources[index])) continue;
       const file = path.posix.join("backend", pkg, files[index]);
-      const covered = triggers.some((trigger) =>
-        trigger.endsWith("/**")
-          ? file.startsWith(trigger.slice(0, -2))
-          : trigger.endsWith("*")
-            ? file.startsWith(trigger.slice(0, -1))
-            : file === trigger,
-      );
+      const covered = triggered(file);
       if (!covered) missingTriggers.add(file);
     }
   }

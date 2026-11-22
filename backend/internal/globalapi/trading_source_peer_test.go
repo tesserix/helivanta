@@ -38,6 +38,7 @@ func tradingSourcePeerForTest(t *testing.T, deps platform.Deps) *suppliertrade.C
 	t.Helper()
 	owner := gin.New()
 	owner.POST(suppliertrade.SourceCheckPath, supply.NewTradingSourceCheckHandler(deps, tradingWorkloadFixture{}))
+	owner.POST(suppliertrade.RelationshipCheckPath, supply.NewRelationshipCheckHandler(deps, tradingWorkloadFixture{}))
 	client, err := suppliertrade.NewCurrentSourceClient("https://current-owner.example.invalid"+suppliertrade.SourceCheckPath, tradingOwnerTransport{owner}, func(context.Context) (string, error) { return "TEST-CURRENT-OWNER", nil })
 	require.NoError(t, err)
 	return client

@@ -28,8 +28,10 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/organization"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
+	"github.com/tesserix/helivanta/internal/modules/supply"
 	"github.com/tesserix/helivanta/internal/modules/workforce"
 	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
+	"github.com/tesserix/helivanta/internal/modules/workspace"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/internal/testutil"
@@ -37,6 +39,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/session"
+	"github.com/tesserix/helivanta/pkg/suppliertrade"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
 )
@@ -100,7 +103,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	t.Cleanup(fgaBoundary.Close)
 	graph, err := authz.NewClient(ctx, fgaBoundary.URL, testinfra.IsolationKey(t))
 	require.NoError(t, err)
-	modules := []platform.Module{&scopedLeaveIAMModule{iam.New(nil)}, &workforceBeforeDocumentProvenance{workforce.New()}, organization.New(), pharmacy.New()}
+	modules := []platform.Module{&scopedLeaveIAMModule{iam.New(nil).SetMembershipIdentityReader(globalEnrollmentIdentity{})}, &workforceBeforeDocumentProvenance{workforce.New()}, organization.New(), pharmacy.New(), supply.New(), workspace.New()}
 	registry := platform.NewRegistry()
 	for _, module := range modules {
 		require.NoError(t, registry.Register(module))
@@ -117,7 +120,16 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	var postingQueryObserver *postingLifecycleQueryObserver
 	owner, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{GovernanceSources: testutil.GovernanceReviewProtocol,
 		EmploymentActivationEnabled: true,
-		Writer:                      graph, Roles: graph, Membership: graph, Resolver: graph,
+		OrganizationIdentity:        supplierIdentityForTest(t),
+		PharmacyEvidenceEnabled:     true,
+		SourceAdministration: func(db *tenantdb.DB) authz.SourceAdministrationGuard {
+			return iam.NewSourceAdministrationGuard(db, graph)
+		},
+		TradingRelationships: func(deps platform.Deps) suppliertrade.CurrentRelationshipGuard {
+			return supply.NewRelationshipAuthority(deps.DB, deps.TradingEndpoints, tradingSourcePeerForTest(t, deps), deps.OrganizationIdentity)
+		},
+		PartnerScopes: iam.NewPartnerScopeAuthorizer,
+		Writer:        graph, Roles: graph, Membership: graph, Resolver: graph,
 		Verifier: authn.NewSessionVerifier(verifier), Modules: modules, Documents: documents,
 		ScopedAuthorizer: func(db *tenantdb.DB) authz.ScopedAuthorizer {
 			postingQueryObserver = newPostingLifecycleQueryObserver(t, db, testutil.TenantA)
@@ -126,7 +138,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	})
 	upstream := httptest.NewServer(owner)
 	t.Cleanup(upstream.Close)
-	gateway, err := New(Config{Development: true, Timeout: 10 * time.Second, Upstreams: map[string]string{"platform": upstream.URL, "workforce": upstream.URL, "pharmacy": upstream.URL}})
+	gateway, err := New(Config{Development: true, Timeout: 10 * time.Second, Upstreams: map[string]string{"platform": upstream.URL, "workforce": upstream.URL, "pharmacy": upstream.URL, "supply": upstream.URL}})
 	require.NoError(t, err)
 	tokens := map[string]string{}
 	var sessionInputs sync.Map
@@ -2485,7 +2497,9 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 						grant(recipient, "iam.supplier_viewer.v1", authz.PartnerCatalogueRead)
 						groupID, member := assertHospitalPartnerMembership(t, call, source, partnerMembershipActors{Maker: maker, Checker: checker, Preparer: postingRootReviewer, Reviewer: postingRootApprover, Member: recipient, Unassigned: postingDepartmentReviewer})
 						assertPartnerMemberBrowser(t, gateway, tokens, postingRootApprover, groupID, member)
+						cutoff := (supplierCompoundFixture{graphUnavailable: &authorizationUnavailable, db: db, graph: graph, registry: registry, signer: signer, handler: gateway, files: documents, binding: pharmacyBindingPrepared, hospitalCall: call}).assertAdmission(t, recipient, postingRootApprover, member)
 						assertSupplierRecipientCurrentMembership(t, db, authority, platform.PartnerMembers([]platform.Module{workforce.New(), organization.New()}, db), testutil.TenantA, recipient, member, call, postingRootApprover)
+						cutoff()
 					})
 					return
 				}

@@ -40,14 +40,9 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 	t.Logf("created 10000 distinct stocked batches through normal APIs in %s", time.Since(fixtureStart))
 	var bookQuery string
 	var bookArguments []any
-	profiledInsert := false
 	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 		before := func(tx *gorm.DB) {
-			if tx.Statement.Table == "pharmacy_stocktake_lines" && !profiledInsert {
-				profiledInsert = true
-				tx.InstanceSet("stocktake-insert-profile", true)
-				tx.AddError(tx.Session(&gorm.Session{NewDB: true}).Exec("SAVEPOINT stocktake_insert_profile").Error)
-			}
+
 			if strings.HasPrefix(tx.Statement.SQL.String(), "WITH products AS") {
 				bookQuery = tx.Statement.SQL.String()
 				bookArguments = append([]any(nil), tx.Statement.Vars...)
@@ -55,10 +50,7 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 			tx.InstanceSet("stocktake-capacity-start", time.Now())
 		}
 		after := func(tx *gorm.DB) {
-			if value, ok := tx.InstanceGet("stocktake-insert-profile"); ok && value == true && tx.Error == nil {
-				tx.InstanceSet("stocktake-insert-profile", false)
-				profileStocktakeInsert(t, tx)
-			}
+
 			value, ok := tx.InstanceGet("stocktake-capacity-start")
 			if !ok {
 				return
@@ -118,7 +110,7 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &header))
 	require.Equal(t, 10000, header.SnapshotRows)
 	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
-		if err := tx.Exec(`SELECT set_config('app.pharmacy_subject','user-editor',true),set_config('app.pharmacy_outlet',?,true)`, pharmaOutlet).Error; err != nil {
+		if err := tx.Exec(`SELECT set_config('app.pharmacy_subject','user-editor',true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)`, pharmaOutlet, pharmaOrganization).Error; err != nil {
 			return err
 		}
 		var audits struct{ Total, Attributed int64 }
@@ -207,55 +199,6 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 	replayed := do(r, "PUT", approvalPath, "reviewer", body)
 	require.Equal(t, 200, replayed.Code, replayed.Body.String())
 	require.JSONEq(t, response.Body.String(), replayed.Body.String())
-}
-
-// Re-execute one rolled-back batch to measure its real trigger work, retaining one final insert.
-func profileStocktakeInsert(t *testing.T, tx *gorm.DB) {
-	t.Helper()
-	query := tx.Statement.SQL.String()
-	arguments := append([]any(nil), tx.Statement.Vars...)
-	probe := tx.Session(&gorm.Session{NewDB: true})
-	if err := probe.Exec("ROLLBACK TO SAVEPOINT stocktake_insert_profile").Error; err != nil {
-		tx.AddError(err)
-		return
-	}
-	var document string
-	if err := probe.Raw("EXPLAIN(ANALYZE,BUFFERS,FORMAT JSON) "+query, arguments...).Row().Scan(&document); err != nil {
-		tx.AddError(err)
-		return
-	}
-	if err := probe.Exec("RELEASE SAVEPOINT stocktake_insert_profile").Error; err != nil {
-		tx.AddError(err)
-		return
-	}
-	var plans []struct {
-		ExecutionTime float64          `json:"Execution Time"`
-		Triggers      []map[string]any `json:"Triggers"`
-	}
-	if err := json.Unmarshal([]byte(document), &plans); err != nil {
-		tx.AddError(err)
-		return
-	}
-	if len(plans) != 1 {
-		tx.AddError(fmt.Errorf("expected one insert execution plan"))
-		return
-	}
-	var triggers []map[string]any
-	for _, trigger := range plans[0].Triggers {
-		safe := map[string]any{}
-		for _, key := range []string{"Trigger Name", "Constraint Name", "Relation", "Time", "Calls"} {
-			if value, ok := trigger[key]; ok {
-				safe[key] = value
-			}
-		}
-		triggers = append(triggers, safe)
-	}
-	safe, err := json.Marshal(map[string]any{"execution_ms": plans[0].ExecutionTime, "triggers": triggers})
-	if err != nil {
-		tx.AddError(err)
-		return
-	}
-	t.Logf("snapshot insert trigger metrics (no SQL or values): %s", safe)
 }
 
 func stocktakeSnapshotPlan(t *testing.T, db *tenantdb.DB, query string, arguments []any) {

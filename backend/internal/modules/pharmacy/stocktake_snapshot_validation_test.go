@@ -106,20 +106,22 @@ func TestStocktakeSnapshotAuditAndStatementScopedAuthority(t *testing.T) {
 	put(root+"/stock/stocktakes/"+take2, fmt.Sprintf(`{"selection":"all","product_ids":[],"quarantine_location_id":%q,"reason":"TEST second count"}`, location2))
 
 	for _, tc := range []struct {
-		name, tenant, subject, outlet string
-		want                          int64
+		name, tenant, subject, outlet, pharmacy string
+		want                                    int64
 	}{
-		{"first outlet only", testutil.TenantA, "user-editor", pharmaOutlet, 1},
-		{"second outlet only", testutil.TenantA, "user-editor", otherOutlet, 1},
-		{"reader first outlet", testutil.TenantA, "user-reader", pharmaOutlet, 1},
-		{"reader ungranted outlet", testutil.TenantA, "user-reader", otherOutlet, 0},
-		{"missing selected outlet", testutil.TenantA, "user-editor", "", 0},
-		{"ungranted subject", testutil.TenantA, "user-sibling", pharmaOutlet, 0},
-		{"foreign tenant", testutil.TenantB, "user-editor", pharmaOutlet, 0},
+		{"first outlet only", testutil.TenantA, "user-editor", pharmaOutlet, pharmaOrganization, 1},
+		{"second outlet only", testutil.TenantA, "user-editor", otherOutlet, pharmaOrganization, 1},
+		{"reader first outlet", testutil.TenantA, "user-reader", pharmaOutlet, pharmaOrganization, 1},
+		{"reader ungranted outlet", testutil.TenantA, "user-reader", otherOutlet, pharmaOrganization, 0},
+		{"missing selected outlet", testutil.TenantA, "user-editor", "", pharmaOrganization, 0},
+		{"ungranted subject", testutil.TenantA, "user-sibling", pharmaOutlet, pharmaOrganization, 0},
+		{"foreign tenant", testutil.TenantB, "user-editor", pharmaOutlet, pharmaOrganization, 0},
+		{"missing selected pharmacy", testutil.TenantA, "user-editor", pharmaOutlet, "", 0},
+		{"wrong selected pharmacy", testutil.TenantA, "user-editor", pharmaOutlet, uuid.Must(uuid.NewV7()).String(), 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			require.NoError(t, db.WithTenant(t.Context(), tc.tenant, func(tx *gorm.DB) error {
-				if err := tx.Exec(`SELECT set_config('app.pharmacy_subject',?,true),set_config('app.pharmacy_outlet',?,true)`, tc.subject, tc.outlet).Error; err != nil {
+				if err := tx.Exec(`SELECT set_config('app.pharmacy_subject',?,true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)`, tc.subject, tc.outlet, tc.pharmacy).Error; err != nil {
 					return err
 				}
 				var count int64
@@ -132,7 +134,7 @@ func TestStocktakeSnapshotAuditAndStatementScopedAuthority(t *testing.T) {
 		})
 	}
 	err := db.WithTenant(tenantdb.WithActor(t.Context(), "user-editor"), testutil.TenantA, func(tx *gorm.DB) error {
-		if err := tx.Exec(`SELECT set_config('app.pharmacy_subject','user-editor',true),set_config('app.pharmacy_outlet',?,true)`, pharmaOutlet).Error; err != nil {
+		if err := tx.Exec(`SELECT set_config('app.pharmacy_subject','user-editor',true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)`, pharmaOutlet, pharmaOrganization).Error; err != nil {
 			return err
 		}
 		return tx.Exec(`INSERT INTO pharmacy_stocktake_lines SELECT proposed.* FROM pharmacy_stocktake_lines l CROSS JOIN LATERAL jsonb_populate_record(NULL::pharmacy_stocktake_lines,to_jsonb(l)||jsonb_build_object('id',?::uuid,'outlet_id',?::uuid))proposed`, uuid.Must(uuid.NewV7()).String(), otherOutlet).Error
@@ -146,7 +148,7 @@ func TestStocktakeSnapshotAuditAndStatementScopedAuthority(t *testing.T) {
 			require.Equal(t, 200, response.Code, response.Body.String())
 		}
 		err := db.WithTenant(tenantdb.WithActor(t.Context(), subject), testutil.TenantA, func(tx *gorm.DB) error {
-			if err := tx.Exec(`SELECT set_config('app.pharmacy_subject',?,true),set_config('app.pharmacy_outlet',?,true)`, subject, pharmaOutlet).Error; err != nil {
+			if err := tx.Exec(`SELECT set_config('app.pharmacy_subject',?,true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)`, subject, pharmaOutlet, pharmaOrganization).Error; err != nil {
 				return err
 			}
 			return tx.Exec(`INSERT INTO pharmacy_stocktake_lines SELECT proposed.* FROM pharmacy_stocktake_lines l CROSS JOIN LATERAL jsonb_populate_record(NULL::pharmacy_stocktake_lines,to_jsonb(l)||jsonb_build_object('id',?::uuid))proposed`, uuid.Must(uuid.NewV7()).String()).Error

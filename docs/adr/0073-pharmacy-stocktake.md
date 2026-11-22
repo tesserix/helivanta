@@ -155,6 +155,14 @@ another tenant, an ungranted reader, and a previously privileged writer whose
 grant was downgraded before the next statement. These checks accompany the
 malformed-statement and audit-cardinality cases.
 
+The subsequent hosted profile returned HTTP 200 for 10,000-bucket start in
+2.14 seconds. Its first 500-line insert measured 49 ms, including one audit-trigger
+call instead of 500; the book query itself was unchanged. These isolated
+measurements are not a production latency claim. The write-replay profiler is
+removed from the final acceptance test; its read-only plan and strict audit
+checks remain. The final workflow must still prove every gate without write
+instrumentation before merge.
+
 The migration changes no stored rows and uses a five-second lock timeout. Its
 trigger replacement is transactional; a failed migration retains the old guard.
 An older API uses the same inserts and remains compatible. Any later restoration

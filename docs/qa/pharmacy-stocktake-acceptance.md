@@ -100,6 +100,12 @@ Relevant executable evidence:
   page without duplicate buckets, records 100 bounded count commands and posts
   500 differences with a separate reviewer account. It asserts page p99 below
   300 ms and start/post below five seconds, then verifies exact approval replay.
+  It also requires exactly 10,000 attributable snapshot-line audit events.
+  Snapshot guard regressions cover malformed mixed statements, missing audit
+  actors, two granted outlets, unfiltered scoped reads, cross-outlet writes,
+  readers and grant downgrades. Native fixture transactions supply the same
+  tenant/pharmacy/outlet context as the real handler; missing pharmacy scope is
+  separately required to fail closed.
   Run it with `HELIVANTA_STOCKTAKE_CAPACITY=1`; ordinary coverage deliberately
   does not run timing assertions alongside unrelated packages. The fixture uses
   one product and one quarantine location with legacy outlet grants. This is a

@@ -42,8 +42,14 @@ another department. The pre-fix run is
 [44975782135](https://github.com/tesserix/helivanta/actions/runs/44975782135);
 fixed-head validation is
 [44976648133](https://github.com/tesserix/helivanta/actions/runs/44976648133).
-The latter result is pending; these references are not a completed acceptance
-record.
+The fixed-head run passed its fresh-cache compile and the full native root under
+the race detector (793.695 seconds). Both owner-port matrices, named/group grants
+for both source products, graph-outage refusal/recovery and committed-audit
+refusal/recovery passed. The root also completed group suspension, pharmacy
+licence withdrawal and warehouse evidence withdrawal checks. Relationship and
+grant consent records remain state-machine fixtures; this is composed
+current-authority evidence, not public-consent, physical fulfilment or deployed
+browser acceptance.
 
 After admission passes, connect independent source Staff/account links and
 reviewed, acknowledged operating duties to the same fixture. Its harness must

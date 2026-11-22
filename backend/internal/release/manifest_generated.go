@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-const PolicyVersion = "2026-11-19-r1"
+const PolicyVersion = "2026-11-23.stocktake-authority.v1"
 
 var definitions = []Definition{{Key: "onboarding", Eligible: true, Dependencies: []string{}},
 	{Key: "team_accounts", Eligible: true, Dependencies: []string{}},
@@ -30,7 +30,8 @@ var definitions = []Definition{{Key: "onboarding", Eligible: true, Dependencies:
 	{Key: "lab", Eligible: false, Dependencies: []string{}},
 	{Key: "emergency", Eligible: false, Dependencies: []string{}},
 	{Key: "billing_workspace", Eligible: false, Dependencies: []string{}},
-	{Key: "unreleased", Eligible: false, Dependencies: []string{}}}
+	{Key: "unreleased", Eligible: false, Dependencies: []string{}},
+	{Key: "pharmacy_stocktake", Eligible: false, Dependencies: []string{"pharmacy_setup"}}}
 var routeCapabilities = map[string]string{"POST /v1/workforce/hospitals/:hospital/staff/:id/mfa-recoveries/:command/cancel": "baseline",
 	"POST /v1/workforce/pharmacies/:pharmacy/staff/:id/mfa-recoveries/:command/cancel": "baseline",
 	"POST /v1/workforce/suppliers/:supplier/staff/:id/mfa-recoveries/:command/cancel":  "baseline",
@@ -1179,7 +1180,9 @@ var routeCapabilities = map[string]string{"POST /v1/workforce/hospitals/:hospita
 	"GET /v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders":                                            "supplier_collaboration",
 	"GET /v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders/:order/shipments":                           "supplier_collaboration",
 	"GET /v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-source":                                            "supplier_collaboration",
-	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/supplier-credit-allocations":                                   "baseline"}
+	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/supplier-credit-allocations":                                   "baseline",
+	"PUT /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake":                                                   "pharmacy_stocktake",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/lines":                                             "pharmacy_stocktake"}
 var internalRouteCapabilities = map[string]string{"POST /v1/supply/internal/trading-source/check": "baseline",
 	"POST /v1/supply/internal/relationship/check": "baseline",
 	"POST /internal/v1/mediconnect/current-claim": "baseline",

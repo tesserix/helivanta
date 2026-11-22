@@ -83,6 +83,7 @@ func inventoryRoutes(g *platform.Router, deps platform.Deps) {
 	h := &catalogueHandlers{db: deps.DB, bus: deps.Bus, operating: deps.OperatingAuthorizer, supplierSafety: deps.SupplierShipmentSafety}
 	stockOverviewRoutes(g, h)
 	operatingStockRoutes(g, h)
+	operatingStocktakeRoutes(g, h)
 	s := g.Group("/pharmacies/:pharmacy/outlets/:outlet/stock")
 	stocktakeRoutes(s, h)
 	stockHoldRoutes(s, h)

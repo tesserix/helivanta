@@ -4,13 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/modules/drugmaster"
+	"github.com/tesserix/helivanta/internal/modules/supply"
+	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/pkg/stockproduct"
 	"github.com/tesserix/helivanta/pkg/supplierorder"
 	"github.com/tesserix/helivanta/pkg/suppliertrade"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 func (f supplierCompoundFixture) assertPublicWarehouseFulfilment(t *testing.T, buyerAdmin, admin, operator operatingDutyFixture, relationship suppliertrade.Relationship, department uuid.UUID, preparer, reviewer string) {
@@ -51,6 +55,20 @@ func (f supplierCompoundFixture) assertPublicWarehouseFulfilment(t *testing.T, b
 		require.Equal(t, product.UnitOfIssue, shipment.UnitCode)
 		require.Nil(t, shipment.MrpMinor, "the warehouse does not claim pharmacy-owned printed MRP")
 	}
+	require.True(t, t.Run("two current source safety checks share the same receipt", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(tenantdb.WithActor(t.Context(), operator.principal.Subject), 2*time.Second)
+		defer cancel()
+		safety := supply.New().ShipmentSafety(platform.Deps{DB: f.db, StockProducts: drugmaster.New().StockProducts(f.db)})
+		checked := false
+		err := safety.WithSafeShipment(ctx, shipments[0], func(context.Context) error {
+			return safety.WithSafeShipment(ctx, shipments[1], func(context.Context) error {
+				checked = true
+				return nil
+			})
+		})
+		require.NoError(t, err, "retained source safety reads must coexist when shipments share an immutable receipt")
+		require.True(t, checked)
+	}))
 	require.True(t, t.Run("warehouse hospital count quarantine discrepancies and independent release", func(t *testing.T) {
 		f.assertHospitalSupplierReceiving(t, buyerAdmin, shipments, department, preparer, reviewer)
 	}))

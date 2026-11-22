@@ -125,6 +125,9 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		SourceAdministration: func(db *tenantdb.DB) authz.SourceAdministrationGuard {
 			return iam.NewSourceAdministrationGuard(db, graph)
 		},
+		OperatingAuthorizer: func(db *tenantdb.DB) authz.OperatingScopeAuthorizer {
+			return iam.NewOperatingAuthorizer(db, graph, platform.IndependentStaffIdentities(modules, db), platform.OperatingLocations(modules, db))
+		},
 		TradingRelationships: func(deps platform.Deps) suppliertrade.CurrentRelationshipGuard {
 			return observedCompoundRelationships{CurrentRelationshipGuard: supply.NewRelationshipAuthority(deps.DB, deps.TradingEndpoints, tradingSourcePeerForTest(t, deps), deps.OrganizationIdentity), t: t}
 		},

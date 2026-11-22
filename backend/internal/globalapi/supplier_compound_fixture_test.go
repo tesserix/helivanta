@@ -251,6 +251,9 @@ func (f supplierCompoundFixture) assertAdmission(t *testing.T, subject, reviewer
 	}
 	paths := map[string]string{}
 	for _, source := range sources {
+		require.True(t, t.Run(source.endpoint.Product+" reviewed source fulfilment Staff", func(t *testing.T) {
+			f.assertSourceFulfilmentStaff(t, sellerActor, source.endpoint)
+		}))
 		relationship := confirmedCompoundRelationship(t, f.db, source.endpoint, buyer)
 		for _, kind := range []string{"subject", "group"} {
 			require.True(t, t.Run("effective "+source.endpoint.Product+" shipment grant for "+kind, func(t *testing.T) {

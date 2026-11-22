@@ -79,59 +79,52 @@ rollback/cutoff/legacy-boundary checks. Submission and independent approval/post
 are implemented in the unreleased candidate described below. Hospital authority,
 operational UI and live acceptance remain unfinished.
 
-Reviewed submission is a further unreleased candidate at
-`PUT/GET /{stocktake}/decisions/{command}`. Submission requires the current counter duty, the exact version and
-complete physical observations, retains current Staff/link/duty evidence, and
-returns the original receipt on exact replay or GET recovery. Reusing a count
-command ID conflicts. Submission posts no adjustment and cannot be used to
-approve a count. Review/rejection and counter cancellation are added in the next candidate
-below; their new acceptance is still pending. The hosted submission red test 45060564552 returned the expected
-missing-route 404. The implementation, replay/recovery, count-ID conflict and
-submitted-edit rollback passed Global API, native PostgreSQL and IAM release
-checks in hosted run 45061412084. Clean capacity validation also passed: 10,000-bucket start 4.670 s, page p99
-12.53 ms and posting 500 adjustments 4.954 s, with exact replay and conservation.
-Original thresholds remain unchanged. These timings cover the legacy/shared
-ledger path; reviewed-duty capacity remains unproven. Release eligibility is false.
+Reviewed commands use `PUT/GET /{stocktake}/decisions/{command}`. Submit and
+cancel require current `.stocktake.count`; approve and reject require current
+`.stocktake.review`. Submission requires the exact version and every physical
+observation, retains current Staff/link/duty evidence and posts no adjustment.
+Exact replay/GET recovers the original receipt; conflicting intent, actor/Staff
+or cross-command reuse is rejected.
 
-The next unreleased candidate admits `approve`/`reject` only through current
-`pharmacy.stocktake.review`; `submit`/`cancel` use `.count`. It verifies all retained
-participant history through Workforce's callback-only history guard, retains the
-reviewer's Staff/link/duty evidence, and posts only existing linked corrections
-within the original command/line guards and deferred completeness check. Retained
-participant accounts may be retired; their exact historical approved identity
-must remain provable. The current reviewer must still be active, independent and
-unchanged. Native source and actual Global API core tests passed in hosted
-run 45066520716, including same-Staff account rotation refusal and one-time stock
-conservation. Extended rejection/cancellation and dependency-failure checks await
-the next run; full reviewed capacity and both ownership models remain open.
-Reviewed correction guards can read exact-outlet supplier holds; they cannot
-change them or remove reservations to satisfy a shortage.
+Review validates every retained starter/counter/submitter through Workforce's
+callback-only history guard. An accepted observation remains attributable after
+its author account retires; current reviewer identity and historical
+independence must remain provable. Corrections use the existing command/line
+ledger, quantity/reservation guards and deferred completeness checks. Movement
+proof is validated atomically per inserted batch. Reviewed correction purposes
+can read exact-outlet supplier holds but cannot change or release them. Core
+source, command, rejection/cancellation, alias-denial, dependency-failure and
+one-time conservation checks passed hosted 45072870012; its final actual-reviewed
+capacity stage still failed, so it did not establish full acceptance.
 
-Reviewed header/list/register reads are a further unreleased candidate. They
-require current `.stocktake.read` at the exact outlet and disclose only operating
-counts. Legacy counts are excluded from these headers, lists, line reads and
-registers. The existing CSV loader retains its shared lock, row/byte bounds,
-complete-row check, digest and retained version metadata. Read/audit failure
-withholds results and bytes. Red run 45069725952 returned the expected missing
-header 404. Run 45070732446 passed header/register assertions but failed the list
-audit vocabulary. Candidate `fcbab7f7` stores collection provenance in the
-Stocktake evidence table; only collection evidence can omit a count reference.
-Run 45071343169 passed that correction. Run 45072841622 additionally passed
-provenance/audit failure nondisclosure, rollback, unchanged stock, retry and
-fixture cleanup after correcting the canceled cleanup context. These routes are
-still Stocktake-gated; withdrawal-continuation acceptance remains open.
+Current header/list/line/register reads require exact-outlet `.stocktake.read`
+and exclude legacy counts. Collection provenance is outlet-scoped; only
+collection evidence may omit a count reference. Header participation follows
+retained Staff/account identity after login rotation; it is a presentation hint,
+not approval authority. The shared CSV loader preserves its lock, complete-row
+check, row/byte bounds, digest and retained version metadata. Failed source,
+provenance or audit commits withhold data and bytes. Focused 45074844870 passed
+actual posted register values, tenant/outlet/legacy separation, rotated-account
+and distinct-reviewer labels, graph failure nondisclosure, provenance/audit
+rollback, unchanged stock, retry and cleanup.
 
-Corrected actual reviewed-capacity run 45068914714 failed start at the unchanged
-five-second gateway deadline with 504. Statement diagnostics and EXPLAIN in
-45071888071 identified repeated purpose checks and a batch join that filtered
-approximately 5,000 rows per lookup across 10,000 lookups. Candidate `b20a609b`
-selects reviewed RLS directly. Diagnostic45072654770 reduced snapshot time from
-9.569 s to 4.728 s, but total start still timed out. Forward concurrent
-migration0066 adds an exact tenant/outlet/product/batch index; validation
-45073576675 is running. A separate submission timeout prompted deferred
-completeness-query planning in `2b6abb2f`; clean regression45072870012 is running
-without diagnostics and predates the index. No capacity completion is claimed,
-no threshold was relaxed, and no candidate migration was applied live.
+Snapshot totals are aggregated per selected batch/location before metadata
+projection, preserving zero-balance buckets, selection, cutoff, ordering, units,
+row cap and regulatory source. Reviewed RLS chooses the reviewed-purpose branch
+directly. No new batch index remains. Completeness SQL is compiled when submit
+is executed, after observations exist. Diagnostic 45074658896 passed the actual
+reviewed 10,000-bucket workflow: start 4.348 s, page p99 110.18 ms and posting 500
+corrections in 1.433 s, including exact replay and 99,500 retained units. Diagnostic
+results are not clean capacity acceptance. Temporary probes/options were
+removed; clean full regression 45075494219 is running at the unchanged 5 s
+start/post and 300 ms page-p99 limits.
+
+Draft PR #1818 remains unreleased. Compiled eligibility stays false. Hospital
+admission, withdrawal-safe continuations, named choices, SDK/UI, full modern
+reservation/concurrency coverage and both-model browser/live acceptance remain
+open. New read routes are still Stocktake-gated and do not yet meet withdrawal
+continuation acceptance. IAM 0055/pharmacy 0065 are candidate migrations, not live
+state; migration 0064/main rollout awaits separately named approval.
 
 ## Current contract families
 

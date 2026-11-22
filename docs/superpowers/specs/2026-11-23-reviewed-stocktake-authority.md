@@ -4,104 +4,57 @@ Status: implementation proposal, not an activated API or release approval.
 Depends on the tested capacity change in PR #1817. This document does not close
 #1686, grant operating access, or enable Stock/Catalogue.
 
-Development checkpoint: PR #1817 is merged as `0189efde`; main CI
-45055181362 and signed-image run 45055181387 passed. Migration 0064 and its
-protected release/Kargo rollout still require named approval. No new live
-migration, identity, stock or release-flag change has been made.
+Development checkpoint: #1817 merged normally at `0189efde`; main CI 45055181362
+and signed-image run 45055181387 passed. Migration0064 and its protected
+Release/Kargo rollout still await named approval. Draft PR #1818 contains the
+unreleased reviewed independent backend. No candidate migration, identity, stock
+or release flag has changed live.
 
-The follow-up branch implements independent/chain start, paged line reads,
-counting, submission, review/rejection, cancellation and original command
-recovery. All commands retain immutable Staff/link/duty provenance. Hosted
-run 45066520716 passed native Workforce history, actual Global API independent
-posting/replay, same-Staff alias refusal, reservation-purpose visibility, native
-stocktake regression and IAM release admission. A distinct current reviewer can
-use exact retained evidence after the counter's account retires; historical
-aliases across separate current Staff records remain denied. Extended
-cancellation, rejection and dependency-failure assertions await the next run.
+The independent/chain candidate implements start, paged line/header/list reads,
+counting, submission, review/rejection, cancellation, original command receipts
+and the CSV register. Commands retain immutable Staff/link/duty provenance.
+Hosted 45072870012 passed core Workforce history, actual Global API regression,
+native corruption/stocktake and IAM release checks, plus the legacy capacity
+case, but failed actual reviewed start at the five-second gateway deadline.
+Core command tests include retired-counter evidence, same-Staff alias refusal,
+rejection/cancellation, graph failure and one-time correction conservation.
 
-Capacity evidence is deliberately separate. Clean run 45061412084 passed the
-**legacy/shared ledger** 10,000-bucket start (4.670 s), page p99 (12.53 ms) and
-500-correction post (4.954 s), with replay and conservation. Run 45066520716
-subsequently failed the unchanged posting budget at 5.021 s. No probes or relaxed
-thresholds are part of clean acceptance. Earlier instrumented diagnostic timings
-are not acceptance evidence.
+Focused 45072841622 passed read scope/legacy separation, posted CSV values,
+provenance/audit failure nondisclosure and rollback, unchanged physical stock,
+retry and cleanup. The later rotated-account header test failed as intended in
+45074170257: the same Staff was labeled independent. `597fb19b` derives known
+participation from retained Staff/account evidence. Focused 45074844870 passed
+that regression together with a distinct independent reviewer and the other
+read/failure tests. The label remains a presentation hint; approval still uses
+the full Workforce-owned historical independence check.
 
-Run 45067289212 passed the legacy capacity gate and core regressions, but the
-new actual reviewed-duty Global API fixture failed before measurement because
-its synthetic batches omitted mandatory `product_version`. Commit `8572b75f`
-corrected that field, price and canonical pagination. Baseline run 45068914714
-then passed legacy capacity (start 4.705 s, page p99 10.52 ms, post 4.858 s), but
-**actual reviewed start failed with HTTP 504 at 5.001 s**. This is a real
-five-second gateway failure, not reviewed-path acceptance.
+Performance diagnostics exposed repeated older-purpose checks and a join doing
+10,000 batch lookups, each filtering approximately 5,000 rows. Direct reviewed
+RLS selection reduced that work, but total start still timed out. A trial
+concurrent index was not chosen and was removed; no new stock-batch index or
+migration 0066 remains. The final query aggregates physical movements per
+selected batch/location before metadata projection, retaining selection,
+zero-balance buckets, cutoff, ordering, units, row cap and regulatory source.
+The submission guard also defers compilation of completeness SQL until submit,
+when observations exist. Historical migration 0064 remains unchanged.
 
-Candidate `d3a55b24` validates linked movement evidence once per inserted
-statement, retaining quantity/reservation/location guards, RLS, audit, foreign
-keys and deferred completeness. Run 45069240276 passed build/vet, contract
-checks, Workforce history, Global API regressions, native mixed-batch corruption
-checks, IAM admission and Staff UI checks/build. Its legacy capacity start passed
-at 3.425 s and page p99 at 7.76 ms, but submission failed with HTTP 500 before
-posting. The optimization remains unaccepted. Neither thresholds nor historical
-migration 0064 were changed.
-
-A separate diagnostic run 45070964833 uses opt-in test-only statement timings,
-template hashes and SQLSTATE/constraint metadata; it emits neither SQL values nor
-request payloads. It does not establish capacity acceptance. Both original
-budgets and the gateway timeout remain unchanged. Its first attempt stopped
-before jobs with a GitHub internal-server error; the retry ran normally. Legacy
-capacity/submission passed in that diagnostic run, but the reviewed snapshot
-SELECT ran for 4.884 s before cancellation and the start returned 504. Diagnostic
-run 45071888071 captures the actual parameterized snapshot and purpose settings,
-then executes a separately bounded EXPLAIN ANALYZE after the command has ended.
-It reports operator/index/row/loop/buffer metrics without SQL values. Diagnose the
-reviewed plan and unresolved submission failure before removing probes and
-rerunning clean gates.
-
-Read-contract red run 45069725952 failed as intended on the missing header
-(expected 200, actual 404). Candidate `1faa7059` added current reviewed
-header/list/register reads and excludes legacy counts, including from line reads.
-It reuses the bounded, locked CSV loader and response metadata. Run 45070732446
-passed header/register assertions but failed because the existing receiving/
-fulfilment audit vocabulary cannot represent Stocktake collections. Candidate
-`fcbab7f7` records outlet-level `list_read` provenance in the Stocktake evidence
-table instead; only collection evidence may omit its count reference. Run
-45071343169 passed the complete reviewed-read flow.
-
-Commit `83ce2c75` added provenance/audit failure and rollback assertions. Run
-45072028740 passed those assertions but failed fixture cleanup, because the test
-context is canceled before cleanup. `e68434c7` gives cleanup its own bounded
-context. Run 45072841622 then passed build/vet, contract generation/check and both
-reviewed-read tests, including scope/legacy separation, actual posted register,
-failed provenance/audit rollback, unchanged physical stock, retry and cleanup.
-
-The snapshot plan from diagnostic 45071888071 took 9.569 s with 10,000 batch
-lookups, each filtering approximately 5,000 same-product batches, plus repeated
-legacy/receiving purpose checks. Candidate `b20a609b` selects the reviewed RLS
-branch directly, preserving prior behavior for all other purposes. Diagnostic
-45072654770 reduced the reviewed snapshot to 4.728 s: movement lookup time fell
-from approximately 1.524 s to 27 ms and repeated location lookup from 0.302 ms
-to 0.005 ms per loop. Start still timed out at the unchanged five-second gateway
-limit; the batch lookup/filter problem remained.
-
-Candidate `90b32a88` registers forward concurrent migration0066 with the exact
-`(tenant_id,outlet_id,product_id,id)` batch index. It does not replace existing
-indexes or block live writers during index creation. Diagnostic45073576675 is
-running; no improvement or live application of this index is claimed yet.
-
-A separate submission failure was localized to the command insert, canceled at
-approximately 10 s. Candidate `2b6abb2f` compiles the completeness query only when
-submission occurs, rather than preparing it during early count commands before
-observations exist. Its expected effect on stale cached plans remains a
-hypothesis pending clean capacity. The replacement preserves every original
-transition, independence, posting-bound and completeness condition. Clean hosted
-regression45072870012 runs with diagnostics disabled and includes this change;
-it predates the new index. No threshold or deadline was relaxed.
+Diagnostic 45074658896 then passed both capacity cases. The actual reviewed
+Global API workflow measured start 4.348 s, page p99 110.18 ms and posting 500
+corrections in 1.433 s, with replay and 99,500 retained units. Legacy measurements were
+start 2.752 s, page p99 5.71 ms and post 1.343 s. These instrumented measurements are
+**not clean acceptance evidence**. All temporary diagnostic hooks/options were
+removed in `55e10301`. Clean full Stocktake run 45075494219 is running with the
+original 5 s start/post and 300 ms page-p99 gates. The unchanged Staff UI source
+passed tests/lint/types/Shell build in 45069240276.
 
 Eligibility remains false. Hospital authority, withdrawal continuations,
-operational UI/SDK and both-model live acceptance remain open in #1686. All new
-read routes are still Stocktake-gated and do not yet satisfy withdrawal recovery.
-The implemented independent slice does not establish either ownership model's
-complete release acceptance. Candidate migrations0065/0066 and IAM0055 are not
-live; migration0064/main rollout remains separately pending named approval.
+named choices, operational SDK/UI, full modern reservation/concurrency evidence
+and both-model browser/live acceptance remain open in #1686. All new read
+routes are still Stocktake-gated and do not yet satisfy withdrawal recovery.
+Source implementation and backend tests do not establish full release
+acceptance. Candidate IAM 0055/pharmacy 0065 are not live; no new Workforce DDL is
+introduced. New registry entries remain unclassified until their release gates
+are completed.
 
 ## Problem verified against source
 
@@ -226,11 +179,11 @@ Missing provenance refuses with 409 and unavailable source/audit with 503.
 
 The initial positive reviewer red test reached the intended missing decision
 (expected 200, actual 404) in run 45063570066 after correcting fixture contracts.
-The same-Staff alias scenario is added; its setup input was corrected to the
-canonical start selection/quarantine fields after run 45063696866. The current
-implementation candidate adds review/reject and counter cancellation, original
-decision recovery, and exact correction-only purpose checks. It has not yet passed
-its new native/source and Global API acceptance.
+The same-Staff alias scenario uses canonical selection/quarantine input.
+Review/rejection, counter cancellation, original decision recovery and exact
+correction-only purpose checks passed core native/source and Global API
+acceptance in run 45072870012. The current clean regression and remaining release
+gates are tracked in the development checkpoint above.
 
 The reviewed correction purpose also reads exact-outlet supplier holds for the
 existing ledger quantity guard. It cannot insert, update, delete or release those

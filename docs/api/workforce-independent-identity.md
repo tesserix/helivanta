@@ -118,6 +118,8 @@ Public wire models and event payloads remain unchanged. Canonical generators do
 not add private provenance to v1 responses. Focused Workforce/gateway fixtures use
 an explicit IAM protocol double; bootstrap acceptance uses the actual IAM grant
 and owner guards, FGA membership, PharmaConnect/SupplyConnect owner APIs and
-Workforce employer registration. New consumer database acceptance remains pending;
-this candidate does not prove first employment activation, operating-duty review,
-stock access or live recipient login.
+Workforce employer registration. The independent Stocktake consumer passed core
+history/command and focused read/failure acceptance; its clean capacity,
+hospital path and live acceptance remain separate gates. This evidence does not
+establish first employment activation, unrelated consumers or live recipient
+login.

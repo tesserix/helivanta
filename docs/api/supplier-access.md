@@ -80,11 +80,22 @@ by their own financial/receipt owner permissions; historical consent is not a
 replacement user grant.
 
 The development candidate includes the consuming authorizer, shipment
-projections and their SDK/UI. Positive admission through the composed current
-owners and complete shared-environment acceptance remain unproven. Catalogue
-and source-issued invoice consumers are still unfinished; the presence of their
-closed disclosure templates does not establish an API or a financial record.
-Owner protocol tests are component acceptance, not substitutes for these gates.
+projections and their SDK/UI. Hosted Linux run
+[44992780809](https://github.com/tesserix/helivanta/actions/runs/44992780809)
+passed positive admission through the actual IAM, Staff, graph, database and
+stock owners for both warehouse and pharmacy sources. The same composed journey
+covered split dispatch, hospital receiving, independent clearance/release,
+directed source replies and receipt-backed buyer payables. External identity,
+workload and object-storage protocols remain synthetic test boundaries; this
+does not prove live onboarding or deployed browser acceptance.
+
+Catalogue and source-issued invoice consumers, platform supplier returns and
+their source credits remain unfinished. Buyer-entered payables and credits do
+not constitute source-issued documents. Batches with many distinct source
+shipments also need bounded retained safety checks before the full workflow can
+be declared complete. The presence of closed disclosure templates does not
+establish those APIs or financial records. Shared-environment release and
+authenticated browser acceptance remain separate gates.
 
 ## Effective shipment disclosure candidate (ADR-0076)
 

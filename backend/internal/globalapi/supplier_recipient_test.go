@@ -123,6 +123,10 @@ func seedSupplierRecipientFixture(t *testing.T, db *tenantdb.DB, tenant, subject
 		scope.SourceProduct = relationship.Terms.Seller.Product
 		require.Equal(t, product, scope.SourceProduct)
 		input.RelationshipID, input.TermsSha256 = relationship.ID, relationship.TermsSha256
+		input.ExpiresAt = now.Add(5 * time.Minute)
+		if member.Input.ExpiresAt.Before(input.ExpiresAt) {
+			input.ExpiresAt = member.Input.ExpiresAt
+		}
 		if relationship.Terms.ExpiresAt.Before(input.ExpiresAt) {
 			input.ExpiresAt = relationship.Terms.ExpiresAt
 		}

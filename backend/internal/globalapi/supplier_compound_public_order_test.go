@@ -105,4 +105,5 @@ func (f supplierCompoundFixture) assertPublicPharmacyOrder(t *testing.T, admin, 
 		current := f.hospitalCall(t, "GET", base, preparer, nil, 200)
 		return current["status"] == "accepted"
 	}, 20*time.Second, 100*time.Millisecond)
+	f.assertPublicPharmacyDispatch(t, admin, operator, receipt.Order, department, preparer)
 }

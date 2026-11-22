@@ -78,6 +78,20 @@ reviewed source order-acceptor duty. It checks that a fulfiller cannot approve
 orders, command replay/conflicts and accepted-state delivery back to the buyer.
 That result is pending; no public-order acceptance is claimed yet.
 
+Physical-flow test candidate
+[44980499417](https://github.com/tesserix/helivanta/actions/runs/44980499417)
+extends that public journey with owner-API catalogue classification, source
+quarantine/receipt/independent stock release, a ten-unit reservation and split
+six/four-unit dispatch. It checks availability, over-dispatch refusal, replay,
+source shipment records, directed hospital shipment delivery and both named/group
+disclosure of the actual published shipments. Hospital Staff receive explicit
+department goods-receiver/reviewer templates; sharing grants remain read-only.
+Composed fixture consent is bounded to five minutes and capped by membership and
+relationship expiry; generic component-fixture and production expiry rules are
+unchanged. Results remain pending. The harness still needs the production
+current-source dependency for real dispatch; the test must expose that missing
+wiring before it is supplied.
+
 Still exercise reservation and physical dispatch for each stock owner, then
 consume the published shipment in hospital receiving,
 discrepancy handling, quality release and financial records. The existing empty

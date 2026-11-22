@@ -91,6 +91,9 @@ public consent journey. This test creates no reservation or physical dispatch.
 
 Physical-flow test candidate
 [44980499417](https://github.com/tesserix/helivanta/actions/runs/44980499417)
+stopped at a fixture typo: the reviewer template is canonically
+`supply.department_goods_reviewer.v1`. Corrected candidate
+[44981591803](https://github.com/tesserix/helivanta/actions/runs/44981591803)
 extends that public journey with owner-API catalogue classification, source
 quarantine/receipt/independent stock release, a ten-unit reservation and split
 six/four-unit dispatch. It checks availability, over-dispatch refusal, replay,

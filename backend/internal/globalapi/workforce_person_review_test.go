@@ -2505,6 +2505,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 						cleanupPostingFixtureGrant(authz.ScopeRequest{TenantID: testutil.TenantA, Subject: subject, HospitalID: hospital, Permission: authz.StaffPostingSourceUse})
 					}, newPartnerMemberUseProbe(authority, platform.PartnerMembers([]platform.Module{workforce.New(), organization.New()}, db), testutil.TenantA), func(t *testing.T, source map[string]any) {
 						grant(recipient, "iam.supplier_viewer.v1", authz.PartnerCatalogueRead)
+						grant(postingRootApprover, "iam.supplier_reviewer.v1", iam.PermSupplierGrantAccept)
 						groupID, member := assertHospitalPartnerMembership(t, call, source, partnerMembershipActors{Maker: maker, Checker: checker, Preparer: postingRootReviewer, Reviewer: postingRootApprover, Member: recipient, Unassigned: postingDepartmentReviewer})
 						assertPartnerMemberBrowser(t, gateway, tokens, postingRootApprover, groupID, member)
 						purchaseDepartment := uuid.MustParse(source["department_id"].(string))

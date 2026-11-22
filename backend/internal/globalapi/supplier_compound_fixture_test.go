@@ -261,13 +261,13 @@ func (f supplierCompoundFixture) assertAdmission(t *testing.T, subject, reviewer
 		relationship := f.assertPublicSupplierRelationship(t, sellerActor, buyerActor, source.endpoint, buyer)
 		for _, kind := range []string{"subject", "group"} {
 			require.True(t, t.Run("effective "+source.endpoint.Product+" shipment grant for "+kind, func(t *testing.T) {
-				request := seedSupplierRecipientFixture(t, f.db, testutil.TenantA, subject, member, kind, source.endpoint.Product, "partner.shipment_reader.v1", relationship)
-				base := fmt.Sprintf("/v1/supply/hospitals/%s/partner-grants/%s/%s/terms/%s", member.HospitalID, source.endpoint.Product, request.GrantID, relationship.TermsSha256)
+				grantID := f.assertPublicSupplierGrant(t, sellerActor, relationship, member, kind, subject, reviewer)
+				base := fmt.Sprintf("/v1/supply/hospitals/%s/partner-grants/%s/%s/terms/%s", member.HospitalID, source.endpoint.Product, grantID, relationship.TermsSha256)
 				paths[source.endpoint.Product+"/"+kind] = base
 				result := f.hospitalCall(t, "GET", base+"/shipment-source", subject, nil, 200)
 				require.Equal(t, source.organizationName, result["source_organization_name"])
 				require.Equal(t, source.locationName, result["source_location_name"])
-				require.Equal(t, request.GrantID.String(), result["grant_id"])
+				require.Equal(t, grantID.String(), result["grant_id"])
 				require.Equal(t, relationship.ID.String(), result["relationship_id"])
 				require.Equal(t, relationship.TermsSha256, result["terms_sha256"])
 				sharedScope := result["scope"].(map[string]any)

@@ -25,6 +25,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tesserix/helivanta/internal/modules/drugmaster"
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/organization"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
@@ -103,7 +104,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	t.Cleanup(fgaBoundary.Close)
 	graph, err := authz.NewClient(ctx, fgaBoundary.URL, testinfra.IsolationKey(t))
 	require.NoError(t, err)
-	modules := []platform.Module{&scopedLeaveIAMModule{iam.New(nil).SetMembershipIdentityReader(globalEnrollmentIdentity{})}, &workforceBeforeDocumentProvenance{workforce.New()}, organization.New(), pharmacy.New(), supply.New(), workspace.New()}
+	modules := []platform.Module{&scopedLeaveIAMModule{iam.New(nil).SetMembershipIdentityReader(globalEnrollmentIdentity{})}, &workforceBeforeDocumentProvenance{workforce.New()}, organization.New(), drugmaster.New(), pharmacy.New(), supply.New(), workspace.New()}
 	registry := platform.NewRegistry()
 	for _, module := range modules {
 		require.NoError(t, registry.Register(module))

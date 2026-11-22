@@ -14,7 +14,7 @@ import (
 
 func (f supplierCompoundFixture) assertPublicPharmacyDispatch(t *testing.T, admin, operator operatingDutyFixture, order supplierorder.SupplierOrder, department uuid.UUID, receiver string) []fulfilment.Shipment {
 	t.Helper()
-	seller, buyer := order.Terms.Seller, order.Terms.Buyer
+	seller := order.Terms.Seller
 	root := "/v1/pharmacy/pharmacies/" + seller.OrganizationID.String() + "/outlets/" + seller.LocationID.String()
 	product := order.Input.Lines[0].Product.ProductID
 	productPath := root + "/catalogue/products/" + product.String()
@@ -29,7 +29,12 @@ func (f supplierCompoundFixture) assertPublicPharmacyDispatch(t *testing.T, admi
 	admin.call("PUT", root+"/stock/movements/"+uuid.Must(uuid.NewV7()).String(), "owner", map[string]any{"location_id": quarantine, "batch_id": batch, "kind": "receipt", "quantity_units": 100, "reason": "TEST counted source stock", "source_reference": "TEST-COMPOUND-GRN:1"}, 200)
 	admin.call("PUT", root+"/stock/releases/"+uuid.Must(uuid.NewV7()).String(), "reviewer", map[string]any{"batch_id": batch, "from_location_id": quarantine, "to_location_id": shelf, "quantity_units": 100, "reason": "TEST independent source physical release"}, 200)
 	approveSyntheticTradingPolicyForReviewer(t, admin, "IN-MH", "prescription", "dispatch", "compound-source-reviewer")
-	stockRoot := root + "/supplier-orders/" + order.ID.String()
+	return f.assertPublicStockDispatch(t, operator, order, root+"/supplier-orders/"+order.ID.String(), batch, &shelf, department, receiver)
+}
+
+func (f supplierCompoundFixture) assertPublicStockDispatch(t *testing.T, operator operatingDutyFixture, order supplierorder.SupplierOrder, stockRoot string, stockID uuid.UUID, location *uuid.UUID, department uuid.UUID, receiver string) []fulfilment.Shipment {
+	t.Helper()
+	seller, buyer := order.Terms.Seller, order.Terms.Buyer
 	choicePath := stockRoot + "/lines/" + order.Input.Lines[0].ID.String() + "/stock-choices"
 	assertAvailable := func(want int64) {
 		t.Helper()
@@ -40,13 +45,19 @@ func (f supplierCompoundFixture) assertPublicPharmacyDispatch(t *testing.T, admi
 		}
 		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &page))
 		require.Len(t, page.Data, 1)
-		require.Equal(t, batch, page.Data[0].ID)
+		require.Equal(t, stockID, page.Data[0].ID)
 		require.Equal(t, want, page.Data[0].AvailableUnits)
 	}
 	assertAvailable(100)
 	allocationID := uuid.Must(uuid.NewV7())
 	allocationPath := stockRoot + "/allocations/" + allocationID.String()
-	reserve := fulfilment.ReserveInput{ExpectedOrderVersion: order.Version, LineID: order.Input.Lines[0].ID, StockID: batch, StockLocationID: &shelf, QuantityUnits: 10, ExpiresAt: time.Now().UTC().Add(5 * time.Minute).Truncate(time.Microsecond), Reason: "TEST ten source-owned units for this accepted line"}
+	reserve := fulfilment.ReserveInput{ExpectedOrderVersion: order.Version, LineID: order.Input.Lines[0].ID, StockID: stockID, StockLocationID: location, QuantityUnits: 10, ExpiresAt: time.Now().UTC().Add(5 * time.Minute).Truncate(time.Microsecond), Reason: "TEST ten source-owned units for this accepted line"}
+	if seller.Product == "supply" {
+		missing := reserve
+		missing.StockID = uuid.Must(uuid.NewV7())
+		refused := f.sourceStaffRequest(t, operator.principal, "PUT", allocationPath, missing)
+		require.Equal(t, 404, refused.Code, "a missing receipt cannot reserve warehouse stock: %s", refused.Body.String())
+	}
 	created := f.sourceStaffRequest(t, operator.principal, "PUT", allocationPath, reserve)
 	require.Equal(t, 200, created.Code, created.Body.String())
 	var allocation fulfilment.Allocation
@@ -73,6 +84,9 @@ func (f supplierCompoundFixture) assertPublicPharmacyDispatch(t *testing.T, admi
 		require.Equal(t, operator.principal.Subject, receipt.ActorSubject)
 		require.Equal(t, operator.input.Identity.StaffID, receipt.ActorStaffID)
 		require.Equal(t, int64(10), receipt.Allocation.ReservedUnits+receipt.Allocation.DispatchedUnits)
+		if seller.Product == "supply" && index == 0 {
+			f.assertWarehouseDerivedBalanceIsProtected(t, operator, receipt)
+		}
 		replay := f.sourceStaffRequest(t, operator.principal, "PUT", commandPath, input)
 		require.Equal(t, 200, replay.Code, replay.Body.String())
 		require.JSONEq(t, dispatched.Body.String(), replay.Body.String())
@@ -87,7 +101,7 @@ func (f supplierCompoundFixture) assertPublicPharmacyDispatch(t *testing.T, admi
 		Data []fulfilment.Shipment `json:"data"`
 	}
 	require.Eventually(t, func() bool {
-		response := f.sourceStaffRequest(t, operator.principal, "GET", "/v1/supply/stock-owners/pharmacy/organizations/"+seller.OrganizationID.String()+"/locations/"+seller.LocationID.String()+"/supplier-orders/"+order.ID.String()+"/shipments", nil)
+		response := f.sourceStaffRequest(t, operator.principal, "GET", "/v1/supply/stock-owners/"+seller.Product+"/organizations/"+seller.OrganizationID.String()+"/locations/"+seller.LocationID.String()+"/supplier-orders/"+order.ID.String()+"/shipments", nil)
 		require.Equal(t, 200, response.Code, response.Body.String())
 		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &shipments))
 		return len(shipments.Data) == 2
@@ -96,6 +110,8 @@ func (f supplierCompoundFixture) assertPublicPharmacyDispatch(t *testing.T, admi
 	var total int64
 	for _, shipment := range shipments.Data {
 		require.Equal(t, seller.TenantID, shipment.SourceTenantID)
+		require.Equal(t, seller.OrganizationID, shipment.SourceOrganizationID)
+		require.Equal(t, seller.LocationID, shipment.SourceLocationID)
 		require.Equal(t, buyer.TenantID, shipment.BuyerTenantID)
 		require.Equal(t, order.ID, shipment.OrderID)
 		require.Equal(t, allocationID, shipment.AllocationID)
@@ -107,13 +123,17 @@ func (f supplierCompoundFixture) assertPublicPharmacyDispatch(t *testing.T, admi
 	require.Eventually(t, func() bool {
 		page := f.hospitalCall(t, "GET", buyerList, receiver, nil, 200)
 		rows := page["data"].([]any)
-		if len(rows) != 2 {
-			return false
-		}
+		matched := 0
 		for _, raw := range rows {
-			require.Equal(t, order.ID.String(), raw.(map[string]any)["order_id"])
+			row := raw.(map[string]any)
+			if row["order_id"] == order.ID.String() {
+				require.Equal(t, seller.TenantID.String(), row["source_tenant_id"])
+				require.Equal(t, seller.OrganizationID.String(), row["source_organization_id"])
+				require.Equal(t, seller.LocationID.String(), row["source_location_id"])
+				matched++
+			}
 		}
-		return true
+		return matched == 2
 	}, 20*time.Second, 100*time.Millisecond)
 	return shipments.Data
 }

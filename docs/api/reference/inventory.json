@@ -9125,6 +9125,11 @@
               ]
             }
           ]
+        },
+        {
+          "id": "0021_supply_fulfilment_balance_guard",
+          "sql_sha256": "24b2f1280f0ea457eeaa0f2cf4fb31ecbbd2e94280d66a29f5e8d1cfa66908f4",
+          "creates_tables": []
         }
       ]
     },

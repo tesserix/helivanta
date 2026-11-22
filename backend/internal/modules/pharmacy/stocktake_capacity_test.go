@@ -55,7 +55,8 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 			tx.InstanceSet("stocktake-capacity-start", time.Now())
 		}
 		after := func(tx *gorm.DB) {
-			if _, ok := tx.InstanceGet("stocktake-insert-profile"); ok && tx.Error == nil {
+			if value, ok := tx.InstanceGet("stocktake-insert-profile"); ok && value == true && tx.Error == nil {
+				tx.InstanceSet("stocktake-insert-profile", false)
 				profileStocktakeInsert(t, tx)
 			}
 			value, ok := tx.InstanceGet("stocktake-capacity-start")

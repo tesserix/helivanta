@@ -44,7 +44,7 @@ func (g warehouseShipmentSafety) WithSafeShipment(ctx context.Context, s f.Shipm
 				return f.ErrUnavailable
 			}
 			adapter := warehouseFulfilment{}
-			evidence, e := adapter.Snapshot(tx, a.Plan)
+			evidence, e := adapter.safeSnapshot(tx, a.Plan)
 			if e != nil {
 				return e
 			}

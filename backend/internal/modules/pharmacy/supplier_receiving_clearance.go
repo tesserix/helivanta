@@ -131,7 +131,11 @@ func (h *catalogueHandlers) safeSupplierBatches(ctx context.Context, tx *gorm.DB
 	if h.supplierSafety == nil {
 		return f.ErrUnavailable
 	}
-	shipments, err := supplierBatchShipments(rows, tenant, outlet)
+	tenantID, err := uuid.Parse(tenant)
+	if err != nil {
+		return f.ErrUnavailable
+	}
+	shipments, err := supplierBatchShipments(rows, tenantID, outlet)
 	if err != nil {
 		return err
 	}

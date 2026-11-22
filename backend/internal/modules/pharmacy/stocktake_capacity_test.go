@@ -1,6 +1,7 @@
 package pharmacy_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -179,6 +180,7 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 		response = do(r, "PUT", path+"/counts/"+uuid.Must(uuid.NewV7()).String(), "editor", string(body))
 		require.Equal(t, 200, response.Code, "count command %d: %s", offset/100, response.Body.String())
 	}
+	stocktakePostingPlans(t, db, strings.TrimPrefix(path, outletPath("/stock/stocktakes/")))
 	response = do(r, "PUT", path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "editor", `{"decision":"submit","expected_version":100,"reason":"TEST capacity submission"}`)
 	require.Equal(t, 200, response.Code, response.Body.String())
 	approvalPath := path + "/decisions/" + uuid.Must(uuid.NewV7()).String()
@@ -211,6 +213,66 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 		return nil
 	}))
 	require.Less(t, postElapsed, 5*time.Second, "ADR-0073 post budget")
+}
+
+func stocktakePostingPlans(t *testing.T, db *tenantdb.DB, take string) {
+	t.Helper()
+	var definition string
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT pg_get_functiondef('pharmacy_stocktake_command_guard()'::regprocedure)`).Row().Scan(&definition)
+	}))
+	_, body, ok := strings.Cut(definition, "IF NEW.kind='submit'AND EXISTS(")
+	require.True(t, ok, "submission plan must come from the installed guard")
+	body, _, ok = strings.Cut(body, ")THEN")
+	require.True(t, ok)
+	body = strings.NewReplacer("NEW.tenant_id", "@tenant", "NEW.outlet_id", "@outlet", "NEW.stocktake_id", "@take").Replace(body)
+	require.NotContains(t, body, "NEW.")
+	for label, query := range map[string]string{"submit": "SELECT EXISTS(" + body + ")", "differences": "SELECT * FROM pharmacy_stocktake_differences(@tenant::uuid,@outlet::uuid,@take::uuid)"} {
+		for _, analyze := range []bool{false, true} {
+			ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
+			var document string
+			err := db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+				if err := tx.Exec(`SELECT set_config('app.pharmacy_subject','user-editor',true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)`, pharmaOutlet, pharmaOrganization).Error; err != nil {
+					return err
+				}
+				options := "FORMAT JSON"
+				if analyze {
+					options = "ANALYZE,BUFFERS,FORMAT JSON"
+				}
+				return tx.Raw("EXPLAIN("+options+") "+query, map[string]any{"tenant": testutil.TenantA, "outlet": pharmaOutlet, "take": take}).Row().Scan(&document)
+			})
+			cancel()
+			if err != nil {
+				t.Logf("%s execution-plan probe analyze=%t unavailable (SQL/values withheld)", label, analyze)
+				continue
+			}
+			var plans []struct {
+				Plan map[string]any `json:"Plan"`
+			}
+			require.NoError(t, json.Unmarshal([]byte(document), &plans))
+			require.Len(t, plans, 1)
+			var safe func(map[string]any) map[string]any
+			safe = func(node map[string]any) map[string]any {
+				out := map[string]any{}
+				for _, key := range []string{"Node Type", "Relation Name", "Index Name", "Subplan Name", "Plan Rows", "Total Cost", "Actual Rows", "Actual Loops", "Actual Total Time", "Shared Hit Blocks", "Shared Read Blocks"} {
+					if value, ok := node[key]; ok {
+						out[key] = value
+					}
+				}
+				if children, ok := node["Plans"].([]any); ok {
+					var nested []map[string]any
+					for _, child := range children {
+						nested = append(nested, safe(child.(map[string]any)))
+					}
+					out["Plans"] = nested
+				}
+				return out
+			}
+			data, err := json.Marshal(safe(plans[0].Plan))
+			require.NoError(t, err)
+			t.Logf("%s execution plan analyze=%t (no SQL or conditions): %s", label, analyze, data)
+		}
+	}
 }
 
 func stocktakeSnapshotPlan(t *testing.T, db *tenantdb.DB, query string, arguments []any) {

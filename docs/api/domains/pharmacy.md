@@ -996,16 +996,17 @@ Different requests can differ when stock, reservations or configuration changes.
 
 ## Reviewed outlet stocktakes (#1686, implementation candidate)
 
-The draft implementation adds a frozen physical-book snapshot, versioned
-counted observations, reviewed correction posting and a Stock workspace. It is unreleased and
+The implementation adds a frozen physical-book snapshot, versioned
+counted observations, reviewed correction posting and a Stock workspace. The code
+is deployed as part of `a5a4952b`, but operational activation remains unreleased and
 protected by `pharmacy_stock`; capability eligibility and provider values are
 unchanged. Reviewed decisions and atomic corrections have passed the native core
 journey, including audit/outbox failure rollback, exact retry, register integrity
 and sellable/quarantine adjustment cases. The SDK and UI cover start, count,
 review, status, exact-command recovery and verified register downloads.
 Native both-owner, Global API, reservation-conservation and atomic failure/retry
-journeys have passed. Final CI, deployment and live UI acceptance remain required
-before operational activation.
+journeys have passed. Authenticated live UI acceptance, reviewed Staff/person
+authority and release-boundary review remain required before operational activation.
 See [ADR-0073](../../adr/0073-pharmacy-stocktake.md).
 
 Paths below use the same pharmacy/outlet prefix as reorder levels. Every request

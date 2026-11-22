@@ -451,6 +451,9 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
 	"GET /supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-source":                                            "one current grant-scoped source identity projection; shipment-order and shipment collections use ResourceListRoute",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/ledger-maps/:map":                                                     "one immutable ledger-map version, at most 1,000 entries (ADR-0076)",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/preview":                                                              "one period summary; its heads are bounded with the map at 1,000 and the read at 5,000 vouchers, else 413 (ADR-0076)",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/vouchers.xml":                                                         "one file of at most 5,000 vouchers and 8 MiB, refused with 413 rather than cut off (ADR-0076)",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/allocations/:allocation":                           "one immutable allocation and optional unique reversal reference",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/allocations/:allocation/recovery":                  "one original actor-bound allocation receipt",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/allocations/:allocation/reversal":                  "zero or one immutable full allocation reversal",

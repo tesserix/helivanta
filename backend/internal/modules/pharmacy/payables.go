@@ -64,6 +64,7 @@ func payableRoutes(g *platform.Router, deps platform.Deps) {
 	s := g.Group("/pharmacies/:pharmacy/outlets/:outlet/accounts")
 	supplierReturnRoutes(s, h)
 	supplierCreditRoutes(s, h)
+	tallyRoutes(s, h)
 	s.PUT("/payables/:id", PermAccountsWrite, h.putPayable)
 	s.GET("/payables/:id", PermAccountsRead, h.getPayable)
 	s.PUT("/payables/:id/payments/:entry", PermAccountsPayment, h.putPayment)
@@ -133,13 +134,13 @@ func loadPayable(tx *gorm.DB, tenant string, outlet, id uuid.UUID) (payable, err
 	}
 	return row, nil
 }
-func payableSubject(c *gin.Context, subject string) bool {
+func payableSubject(c *gin.Context, subject, action string) bool {
 	values := c.Request.Header.Values("X-Helivanta-Expected-Subject")
 	if len(values) == 0 {
 		return true
 	}
 	if len(values) != 1 || values[0] != subject {
-		respond.Error(c, 409, "session_changed", "The financial account changed. Reload before recording or recovering a bill.")
+		respond.Error(c, 409, "session_changed", "The financial account changed. Reload before "+action+".")
 		return false
 	}
 	return true
@@ -147,7 +148,7 @@ func payableSubject(c *gin.Context, subject string) bool {
 
 func (h *catalogueHandlers) putPayable(c *gin.Context) {
 	p, outlet, ok := catalogueScope(c)
-	if !ok || !payableSubject(c, p.Subject) {
+	if !ok || !payableSubject(c, p.Subject, "recording or recovering a bill") {
 		return
 	}
 	id, ok := catalogueID(c)
@@ -208,7 +209,7 @@ func (h *catalogueHandlers) putPayable(c *gin.Context) {
 }
 func (h *catalogueHandlers) getPayable(c *gin.Context) {
 	p, outlet, ok := catalogueScope(c)
-	if !ok || !payableSubject(c, p.Subject) {
+	if !ok || !payableSubject(c, p.Subject, "recording or recovering a bill") {
 		return
 	}
 	id, ok := catalogueID(c)

@@ -66,6 +66,7 @@ export * from "./pharmacy-enrollment";
 export * from "./pharmacy-enrollment-queries";
 export * from "./billing";
 export * from "./pharmacy-stock-export";
+export * from "./pharmacy-tally-export";
 export * from "./pharmacy-daily-report";
 export * from "./pharmacy-sales-reports";
 export * from "./pharmacy-sales-worklist";

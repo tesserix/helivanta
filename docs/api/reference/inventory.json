@@ -340,15 +340,6 @@
         },
         {
           "method": "GET",
-          "path": "/v1/iam/hospitals/:hospital/supplier-shipment-grants",
-          "permission": "public",
-          "authentication_required": true,
-          "membership_required": true,
-          "paginated": true,
-          "counted": false
-        },
-        {
-          "method": "GET",
           "path": "/v1/iam/identity-assignment-proposals",
           "permission": "public",
           "authentication_required": true,
@@ -4169,6 +4160,42 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/ledger-maps/:map",
+          "permission": "pharmacy.accounts.export",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/ledger-maps/:map",
+          "permission": "pharmacy.accounts.export",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/preview",
+          "permission": "pharmacy.accounts.export",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/vouchers.xml",
+          "permission": "pharmacy.accounts.export",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/admission-occupant",
           "permission": "pharmacy.sale.create",
           "authentication_required": true,
@@ -5589,6 +5616,12 @@
           ]
         },
         {
+          "permission": "pharmacy.accounts.export",
+          "roles": [
+            "pharmacy_owner"
+          ]
+        },
+        {
           "permission": "pharmacy.stock.read",
           "roles": [
             "pharmacist",
@@ -6426,9 +6459,12 @@
           ]
         },
         {
-          "id": "0062_pharmacy_operating_fulfilment_audit",
-          "sql_sha256": "36be3016ff358c387696af3fb65fe767e0f9ed4827b3813a4fc315e751acdc44",
-          "creates_tables": []
+          "id": "0062_pharmacy_tally_ledger_maps",
+          "sql_sha256": "aa9ace100272c1cc78042fb9661353a9b8054682b5625c2607fa594025e5fa12",
+          "creates_tables": [
+            "pharmacy_tally_ledger_maps",
+            "pharmacy_tally_ledger_map_entries"
+          ]
         }
       ]
     },
@@ -7575,33 +7611,6 @@
           "authentication_required": true,
           "membership_required": true,
           "paginated": true,
-          "counted": false
-        },
-        {
-          "method": "GET",
-          "path": "/v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders/:order/shipments",
-          "permission": "public",
-          "authentication_required": true,
-          "membership_required": true,
-          "paginated": true,
-          "counted": false
-        },
-        {
-          "method": "GET",
-          "path": "/v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders",
-          "permission": "public",
-          "authentication_required": true,
-          "membership_required": true,
-          "paginated": true,
-          "counted": false
-        },
-        {
-          "method": "GET",
-          "path": "/v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-source",
-          "permission": "public",
-          "authentication_required": true,
-          "membership_required": true,
-          "paginated": false,
           "counted": false
         },
         {
@@ -9090,45 +9099,6 @@
         {
           "id": "0018_supply_operating_location_choices",
           "sql_sha256": "2a4244623118b87e2d91630a7fc7e216d469ad2bbb4cf841da3f66064453fc9e",
-          "creates_tables": []
-        },
-        {
-          "id": "0019_supply_partner_shipments",
-          "sql_sha256": "d80ee6a268331a34a82d26e56210f6a2c7151bbb61e755cc34a479cbcdeed7c1",
-          "creates_tables": []
-        },
-        {
-          "id": "0020_supply_partner_shipment_order_index",
-          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-          "creates_tables": [],
-          "concurrent_indexes": [
-            {
-              "name": "supply_partner_shipment_order_page",
-              "table": "supply_purchase_orders",
-              "columns": [
-                {
-                  "name": "tenant_id",
-                  "descending": false
-                },
-                {
-                  "name": "relationship_id",
-                  "descending": false
-                },
-                {
-                  "name": "created_at",
-                  "descending": true
-                },
-                {
-                  "name": "id",
-                  "descending": true
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "id": "0021_supply_fulfilment_balance_guard",
-          "sql_sha256": "24b2f1280f0ea457eeaa0f2cf4fb31ecbbd2e94280d66a29f5e8d1cfa66908f4",
           "creates_tables": []
         }
       ]

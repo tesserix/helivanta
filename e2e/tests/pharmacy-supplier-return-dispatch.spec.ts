@@ -1,8 +1,18 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { choose, owner, readyOutlet } from "./support/pharmacy-counter";
 import { uuidv7 } from "./support/pharmacy";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+
+async function attachSupplierEvidence(
+  page: Page,
+  info: TestInfo,
+  name: "commercial-return-note-print" | "supplier-credit-recovered" | "supplier-credit-matched",
+) {
+  const path = info.outputPath(`${name}.png`);
+  await page.screenshot({ path, fullPage: true });
+  await info.attach(name, { path, contentType: "image/png" });
+}
 
 async function financial<T>(page: Page, method: string, path: string, body?: unknown): Promise<T> {
   const actor = await owner<{ subject: string; tenant_id: string }>(
@@ -175,13 +185,10 @@ test("supplier return preparation and physical dispatch recover response loss wi
       ).toHaveCount(2);
       await expect(printPreview.getByRole("cell", { name: "4", exact: true })).toBeVisible();
       await expect(printPreview.getByText(/Not a tax invoice/)).toBeVisible();
-      const screenshot = await printPreview.screenshot({ fullPage: true });
-      await testInfo.attach("commercial-return-note-print", {
-        body: screenshot,
-        contentType: "image/png",
-      });
+      await attachSupplierEvidence(printPreview, testInfo, "commercial-return-note-print");
       const printDirectory = process.env.HELIVANTA_E2E_PRINT_DIR;
       if (printDirectory) {
+        const screenshot = await printPreview.screenshot({ fullPage: true });
         await mkdir(printDirectory, { recursive: true, mode: 0o700 });
         await writeFile(join(printDirectory, "supplier-return-note.png"), screenshot, {
           mode: 0o600,
@@ -286,10 +293,57 @@ test("supplier return preparation and physical dispatch recover response loss wi
       }),
     ).toBeVisible();
     await expect(creditDetails.getByText("INR 7.50", { exact: true })).toHaveCount(2);
-    await testInfo.attach("supplier-credit-recovered", {
-      body: await page.screenshot({ fullPage: true }),
-      contentType: "image/png",
+    await attachSupplierEvidence(page, testInfo, "supplier-credit-recovered");
+    await page.getByRole("button", { name: "Match credit to return", exact: true }).click();
+    await choose(page, "Dispatched return to match", new RegExp(`Return 1.*TEST-BILL-${stamp}`));
+    await expect(page.getByLabel("Amount to match (INR)", { exact: true })).toHaveValue("");
+    await page.getByLabel("Amount to match (INR)", { exact: true }).fill("7.50");
+    await page
+      .getByLabel("Matching reason", { exact: true })
+      .fill("TEST attribute actual partial supplier credit");
+    let matchWrites = 0;
+    const matchingPattern = `**/accounts/supplier-credits/${creditId}/matches/*`;
+    await page.route(matchingPattern, async (route) => {
+      if (route.request().method() !== "PUT") {
+        await route.continue();
+        return;
+      }
+      matchWrites++;
+      const response = await route.fetch();
+      expect(response.status(), await response.text()).toBe(200);
+      await route.abort("failed");
     });
+    await page.getByRole("button", { name: "Save return match", exact: true }).click();
+    await expect(page.getByText(/matching outcome is unconfirmed/)).toBeVisible();
+    await page.unroute(matchingPattern);
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.reload();
+    await page.getByRole("button", { name: `Open credit ${creditReference}`, exact: true }).click();
+    await page.getByRole("button", { name: "Check original match", exact: true }).click();
+    await expect(page.getByText(/Return matching verified/)).toBeVisible();
+    expect(matchWrites).toBe(1);
+    const attributed = await financial<{
+      matched_minor: number;
+      allocated_minor: number;
+      available_minor: number;
+    }>(page, "GET", `${outlet}/accounts/supplier-credits/${creditId}`);
+    expect(attributed).toMatchObject({
+      matched_minor: 750,
+      allocated_minor: 0,
+      available_minor: 750,
+    });
+    const stillUnpaid = await owner<{ outstanding_minor: number }>(
+      page,
+      "GET",
+      `${outlet}/accounts/payables/${payable}`,
+    );
+    expect(stillUnpaid.outstanding_minor).toBe(11800);
+    await expect(
+      page
+        .getByRole("table", { name: "Supplier credit return matching" })
+        .getByRole("cell", { name: "INR 7.50", exact: true }),
+    ).toBeVisible();
+    await attachSupplierEvidence(page, testInfo, "supplier-credit-matched");
     expect(await page.locator("body").innerText()).not.toContain(creditId);
     expect(await page.locator("body").innerText()).not.toContain(returnId);
   } finally {

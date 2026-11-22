@@ -87,7 +87,6 @@ BEGIN
    OR c.kind<>'approve'OR c.posted_xact<>pg_current_xact_id()
    OR c.actor_subject IS DISTINCT FROM NULLIF(current_setting('app.pharmacy_subject',true),'')
    OR i.created_at IS DISTINCT FROM c.created_at
-   OR i.batch_id IS DISTINCT FROM l.batch_id
    OR i.quantity_units IS DISTINCT FROM NULLIF(observed.counted_units-l.book_units,0)
    OR i.location_id IS DISTINCT FROM(CASE WHEN observed.counted_units>l.book_units THEN p.quarantine_location_id ELSE l.location_id END)
  )THEN

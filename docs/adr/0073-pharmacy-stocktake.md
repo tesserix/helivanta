@@ -171,13 +171,13 @@ checks took about 45 ms and its audit calls 27 ms. The migration therefore keeps
 the existing BEFORE trigger's command/transaction/actor checks and timestamp
 assignment, while moving row-to-line/delta/destination validation into an AFTER
 INSERT transition-table guard. It checks every command, sealed parent, immutable
-line, latest observation, batch, quantity, destination and command timestamp as a
+line (which owns batch identity), latest observation, quantity, destination and command timestamp as a
 set. Existing movement evidence checks, audit records, deferred completeness and
 foreign keys remain in force. Existing API inserts retain their timestamp
 behavior; no new client-supplied proof or timestamp is trusted.
 
 Regression tests corrupt the final row of a valid two-row approval with another
-quantity, batch or location. The adjustment insert must raise its constraint,
+quantity, line from a completed count, or location. The adjustment insert must raise its constraint,
 leave the count submitted at its prior version, and retain no adjustments,
 adjustment audit rows or physical corrections. An unmodified retry must succeed
 with the original command timestamps. Temporary write profiling is excluded from

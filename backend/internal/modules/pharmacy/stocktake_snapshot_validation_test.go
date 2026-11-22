@@ -94,31 +94,41 @@ func TestStocktakeAdjustmentBatchValidationIsAtomic(t *testing.T) {
 	}
 	put("/stock/batches/"+secondBatch.String(), fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-SECOND","expires_on":"2030-10-31","mrp_minor":12500}`, product))
 	put("/stock/locations/"+otherLocation.String(), `{"code":"TEST-OTHER-Q","name":"TEST other quarantine"}`)
-	for _, id := range []string{batch, secondBatch.String()} {
-		put("/stock/movements/"+uuid.Must(uuid.NewV7()).String(), stockBody(location, id, "receipt", "TEST adjustment validation", 10))
+	for i, id := range []string{batch, secondBatch.String()} {
+		put("/stock/movements/"+uuid.Must(uuid.NewV7()).String(), stockBody(location, id, "receipt", fmt.Sprintf("TEST adjustment receipt %d", i), 10))
 	}
-	take := uuid.Must(uuid.NewV7()).String()
-	path := outletPath("/stock/stocktakes/") + take
-	put("/stock/stocktakes/"+take, fmt.Sprintf(`{"selection":"all","product_ids":[],"quarantine_location_id":%q,"reason":"TEST adjustment validation"}`, location))
-	response := do(r, "GET", path+"/lines", "editor", "")
-	require.Equal(t, 200, response.Code, response.Body.String())
-	var page struct {
-		Data []struct {
-			ID string `json:"id"`
-		} `json:"data"`
+	prepare := func(units int64) (string, []string) {
+		t.Helper()
+		take := uuid.Must(uuid.NewV7()).String()
+		path := outletPath("/stock/stocktakes/") + take
+		put("/stock/stocktakes/"+take, fmt.Sprintf(`{"selection":"all","product_ids":[],"quarantine_location_id":%q,"reason":"TEST adjustment validation"}`, location))
+		response := do(r, "GET", path+"/lines", "editor", "")
+		require.Equal(t, 200, response.Code, response.Body.String())
+		var page struct {
+			Data []struct {
+				ID string `json:"id"`
+			} `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &page))
+		require.Len(t, page.Data, 2)
+		var counts []map[string]any
+		var ids []string
+		for _, line := range page.Data {
+			counts = append(counts, map[string]any{"line_id": line.ID, "counted_units": units})
+			ids = append(ids, line.ID)
+		}
+		body, err := json.Marshal(map[string]any{"expected_version": 0, "counts": counts, "reason": "TEST adjustment observations"})
+		require.NoError(t, err)
+		response = do(r, "PUT", path+"/counts/"+uuid.Must(uuid.NewV7()).String(), "editor", string(body))
+		require.Equal(t, 200, response.Code, response.Body.String())
+		response = do(r, "PUT", path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "editor", `{"decision":"submit","expected_version":1,"reason":"TEST mixed adjustment validation"}`)
+		require.Equal(t, 200, response.Code, response.Body.String())
+		return path, ids
 	}
-	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &page))
-	require.Len(t, page.Data, 2)
-	var counts []map[string]any
-	for _, line := range page.Data {
-		counts = append(counts, map[string]any{"line_id": line.ID, "counted_units": 9})
-	}
-	body, err := json.Marshal(map[string]any{"expected_version": 0, "counts": counts, "reason": "TEST two shortages"})
-	require.NoError(t, err)
-	response = do(r, "PUT", path+"/counts/"+uuid.Must(uuid.NewV7()).String(), "editor", string(body))
+	priorPath, priorLines := prepare(10)
+	response := do(r, "PUT", priorPath+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "reviewer", `{"decision":"approve","expected_version":2,"reason":"TEST completed baseline","extra_units_disposition":"no_extra_units"}`)
 	require.Equal(t, 200, response.Code, response.Body.String())
-	response = do(r, "PUT", path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "editor", `{"decision":"submit","expected_version":1,"reason":"TEST mixed adjustment validation"}`)
-	require.Equal(t, 200, response.Code, response.Body.String())
+	path, _ := prepare(9)
 	var fault, observedConstraint string
 	var callbackDB *gorm.DB
 	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
@@ -138,13 +148,8 @@ func TestStocktakeAdjustmentBatchValidationIsAtomic(t *testing.T) {
 				return
 			}
 			var value any = int64(-2)
-			if fault == "batch_id" {
-				var zero bool
-				value, zero = field.ValueOf(tx.Statement.Context, rows.Index(0))
-				if zero {
-					tx.AddError(fmt.Errorf("expected a real alternate batch"))
-					return
-				}
+			if fault == "line_id" {
+				value = uuid.MustParse(priorLines[0])
 			}
 			if fault == "location_id" {
 				value = otherLocation
@@ -167,7 +172,7 @@ func TestStocktakeAdjustmentBatchValidationIsAtomic(t *testing.T) {
 		require.NoError(t, callbackDB.Callback().Create().Remove("test:stocktake-adjustment-corruption"))
 		require.NoError(t, callbackDB.Callback().Create().Remove("test:stocktake-adjustment-constraint"))
 	})
-	for _, column := range []string{"quantity_units", "batch_id", "location_id"} {
+	for _, column := range []string{"quantity_units", "line_id", "location_id"} {
 		t.Run(column, func(t *testing.T) {
 			fault, observedConstraint = column, ""
 			response := do(r, "PUT", path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "reviewer", `{"decision":"approve","expected_version":2,"reason":"TEST malformed mixed adjustments","extra_units_disposition":"no_extra_units"}`)

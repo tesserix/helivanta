@@ -239,3 +239,43 @@ checks. The run then stopped on the older warehouse reservation UUID scan bug;
 it is not a passing full root or Pharma public-consent result. The complete retry
 [44989863836](https://github.com/tesserix/helivanta/actions/runs/44989863836) includes
 both the explicit warehouse contract authority and the receipt-scan fix.
+
+
+### Warehouse physical acceptance and remaining destination work
+
+[Run 44990923903](https://github.com/tesserix/helivanta/actions/runs/44990923903)
+passed the complete root (`1119.18s`) at runtime code `23a324ab`. The warehouse
+journey passed (`15.38s`), including real reserve/split dispatch and all five
+counter tampering denials. The existing Pharmacy-source destination receiving
+also passed (`7.77s`). Forward Supply0021 is now supported by native runtime
+proof; this does not constitute live migration approval or warehouse destination
+receiving acceptance.
+
+The hosted generator's nine artifacts were downloaded and compared. Only
+`docs/api/reference/inventory.json` changed, adding Supply0021 with checksum
+`24b2f1280f0ea457eeaa0f2cf4fb31ecbbd2e94280d66a29f5e8d1cfa66908f4`;
+no existing migration changed. The Staff inventory needed only its registry
+digest refreshed, with no classification upgrade. All fifteen ledger tests pass.
+
+The complete public-consent run `44991041206` subsequently reached warehouse
+receiving and completed the first actual receipt's bill, payment, credit and
+reversal. The second receipt's release returned503. Code inspection identified
+repeated exclusive source-receipt locks retained by nested batch safety callbacks.
+Identity and quality writers already lock that receipt exclusively; source safety
+now takes compatible shared locks, while allocation/dispatch retain exclusive
+locks. An explicit nested two-shipment safety regression complements the public
+two-receipt release regression. These later changes remain pending in the full
+[run 44992780809](https://github.com/tesserix/helivanta/actions/runs/44992780809).
+
+Financial test run `44991895473` also completed the first receipt's stronger cost
+assertions (`0.27s`) before the same second-release failure on older safety code.
+Those assertions cover missing cost before billing, exact accepted-stock
+acquisition cost after billing, unchanged cost during payment, and an unknown
+valuation requiring review after an unallocated credit. They do not claim a
+source-issued invoice, tax compliance or a completed second receipt.
+
+[Draft PR1813](https://github.com/tesserix/helivanta/pull/1813) collects the warehouse
+repair and native evidence. Its protected checks, current full candidate and
+specifically approved deployment/migrations remain required. Catalogue and
+source-issued invoice consumers, full receiving corrections/returns composition,
+feature activation and authenticated deployed browser acceptance remain open.

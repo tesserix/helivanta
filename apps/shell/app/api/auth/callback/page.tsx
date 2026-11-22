@@ -10,6 +10,7 @@ import {
   continueCustomerSignup,
 } from "@helivanta/api";
 import { getUserManager } from "@/lib/oidc";
+import { redirectFailure } from "@/lib/callback-error";
 import { exchangeIdToken } from "@/lib/auth-exchange";
 import { customerSignupSigninStateContract } from "@/lib/signup-signin";
 
@@ -52,11 +53,15 @@ export default function AuthCallbackPage() {
     ran.current = true;
 
     (async () => {
+      // Library and identity-provider errors are not for the reader; only the
+      // exchange below carries Helivanta's own wording (#1767).
+      let stage: "redirect" | "exchange" = "redirect";
       try {
         const user = await getUserManager().signinRedirectCallback();
         if (!user.id_token) {
           throw new Error("Zitadel did not return an id_token");
         }
+        stage = "exchange";
         const signup = customerSignupSigninStateContract.optional().parse(user.state ?? undefined);
         if (signup?.purpose === "customer-signup") {
           await continueCustomerSignup({ idToken: user.id_token });
@@ -86,7 +91,7 @@ export default function AuthCallbackPage() {
         notifySessionChanged();
         router.replace("/dashboard");
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Sign-in failed.");
+        setError(stage === "exchange" && err instanceof Error ? err.message : redirectFailure(err));
       }
     })();
   }, [router]);
@@ -99,7 +104,7 @@ export default function AuthCallbackPage() {
             {error}
           </p>
           <a href="/login" className="text-sm text-foreground underline underline-offset-4">
-            Try signing in again
+            Sign in again
           </a>
         </div>
       </main>

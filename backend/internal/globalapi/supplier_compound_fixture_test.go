@@ -211,7 +211,7 @@ func (f supplierCompoundFixture) assertAdmission(t *testing.T, subject, reviewer
 	require.NotNil(t, f.binding)
 	bindingID := uuid.Must(uuid.NewV7())
 	bindingPath := f.binding.base + "/hospitals/" + member.HospitalID.String() + "/staff-department-bindings/" + bindingID.String()
-	retained := f.hospitalCall(t, "GET", f.binding.base+"/staff-department-bindings?limit=50", reviewer, nil, 200)
+	retained := f.hospitalCall(t, "GET", f.binding.base+"/hospitals/"+member.HospitalID.String()+"/staff-department-bindings?limit=50", reviewer, nil, 200)
 	require.Equal(t, false, retained["page"].(map[string]any)["has_more"])
 	var current map[string]any
 	for _, raw := range retained["data"].([]any) {

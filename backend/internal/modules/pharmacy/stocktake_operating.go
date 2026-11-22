@@ -55,8 +55,12 @@ func (u operatingStockUse) stocktakeEvidence(tx *gorm.DB, take uuid.UUID, kind s
 		id = *command
 	}
 	g := u.grant
+	var resource *uuid.UUID
+	if take != uuid.Nil {
+		resource = &take
+	}
 	if err := tx.Exec(`INSERT INTO pharmacy_stocktake_operating_evidence(tenant_id,outlet_id,id,pharmacy_id,stocktake_id,kind,command_id,permission,duty_id,snapshot_version,authority_epoch,staff_id,staff_version,link_id,link_version,actor_subject)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		u.tenant, u.outlet, id, u.pharmacy, take, kind, command, g.Permission, g.DutyID, g.SnapshotVersion, g.AuthorityEpoch,
+		u.tenant, u.outlet, id, u.pharmacy, resource, kind, command, g.Permission, g.DutyID, g.SnapshotVersion, g.AuthorityEpoch,
 		g.Identity.StaffID, g.Identity.StaffVersion, g.Identity.LinkID, g.Identity.LinkVersion, u.subject).Error; err != nil {
 		var pg *pgconn.PgError
 		if errors.As(err, &pg) && pg.Code == "23505" && pg.ConstraintName == "pharmacy_stocktake_operating_evidence_pkey" {

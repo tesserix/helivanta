@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/platform/respond"
@@ -55,7 +56,7 @@ func (h *catalogueHandlers) listOperatingStocktakes(c *gin.Context, params pagin
 				return err
 			}
 		}
-		if err := use.audit(tx, "stocktake_list_read", "stocktakes", nil); err != nil {
+		if err := use.stocktakeEvidence(tx, uuid.Nil, "list_read", nil); err != nil {
 			return err
 		}
 		return stocktakeReadAudit(c, tx, p, "stocktakes", outlet, "list_read")

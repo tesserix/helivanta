@@ -121,8 +121,10 @@ results are not clean capacity acceptance. Temporary probes/options were
 removed; clean full regression 45075494219 passed at the unchanged 5 s
 start/post and 300 ms page-p99 limits. Its actual reviewed measurements were
 start 4.331 s, page p99 108.30 ms and post 1.432 s; both capacity paths retained
-exact replay and conservation. Later reference/documentation/scanner changes
-do not alter the tested application code; protected PR checks remain mandatory.
+exact replay and conservation. Those measurements apply to commit `55e10301`; current-head protected and
+capacity checks remain mandatory. Snapshot inserts now use at most 2,000 rows
+and stay below PostgreSQL's bind-parameter limit, reducing repeated statement
+checks while preserving atomic validation and rollback.
 
 PR #1818 contains this unreleased backend slice. Compiled eligibility stays false. Hospital
 admission, withdrawal-safe continuations, named choices, SDK/UI, full modern

@@ -49,8 +49,11 @@ IAM admission and both capacity gates. Actual reviewed measurements were
 start 4.331 s, page p99 108.30 ms and posting 500 corrections in 1.432 s; legacy
 measurements were 2.650 s, 7.47 ms and 1.303 s. Both preserved exact replay and
 stock conservation at the original 5 s start/post and 300 ms page-p99 limits.
-Application/test sources match that tested commit; later changes update only
-reference metadata, documentation and exact public-key scanner exceptions.
+Those measurements apply to `55e10301`; current-head protection/capacity checks
+remain required. A subsequent PR run again hit the start deadline. Snapshot
+inserts now use at most 2,000 rows, additionally bounded by PostgreSQL's 65,535
+bind-parameter limit, to reduce repeated statement-level validation. Every row
+and the complete snapshot remain validated in the original atomic transaction.
 The unchanged Staff UI source passed tests/lint/types/Shell build in
 45069240276. PR #1818 additionally enforces the required protected checks.
 

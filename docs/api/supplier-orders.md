@@ -423,3 +423,14 @@ physical movement. A code rollback retains the derived balance guard and journal
 history; a schema rollback would reinstate a known broken dispatch path and is
 not automated. Deployment requires the separately approved Supply0021 migration
 in addition to the already pending Pharmacy migrations and Kargo rollout.
+
+
+Warehouse source-safety callbacks now hold shared receipt locks while validating
+buyer release, rather than reusing the exclusive allocation/dispatch snapshot.
+Two dispatched shipments from one source receipt can therefore be verified in
+the same destination batch without opening mutually blocked source transactions.
+Identity and quality commands, allocation and dispatch retain exclusive locks on
+that receipt; they cannot change the verified facts during the held safety read.
+Drugmaster publication remains protected by its existing shared publication lock.
+The composed two-shipment destination release is the regression; no safety or
+maker/checker condition is skipped.

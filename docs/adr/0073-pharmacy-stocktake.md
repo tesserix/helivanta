@@ -165,6 +165,24 @@ table after real count, submit and independent approval commands. Timing failure
 does not skip replay and physical-conservation assertions; the latency assertion
 still fails the overall acceptance test.
 
+Profiling the remaining 500-adjustment insert measured 2.09 seconds, of which
+2.00 seconds were 500 calls to the adjustment validation trigger. Its foreign-key
+checks took about 45 ms and its audit calls 27 ms. The migration therefore keeps
+the existing BEFORE trigger's command/transaction/actor checks and timestamp
+assignment, while moving row-to-line/delta/destination validation into an AFTER
+INSERT transition-table guard. It checks every command, sealed parent, immutable
+line, latest observation, batch, quantity, destination and command timestamp as a
+set. Existing movement evidence checks, audit records, deferred completeness and
+foreign keys remain in force. Existing API inserts retain their timestamp
+behavior; no new client-supplied proof or timestamp is trusted.
+
+Regression tests corrupt the final row of a valid two-row approval with another
+quantity, batch or location. The adjustment insert must raise its constraint,
+leave the count submitted at its prior version, and retain no adjustments,
+adjustment audit rows or physical corrections. An unmodified retry must succeed
+with the original command timestamps. Temporary write profiling is excluded from
+final acceptance.
+
 The subsequent hosted profile returned HTTP 200 for 10,000-bucket start in
 2.14 seconds. Its first 500-line insert measured 49 ms, including one audit-trigger
 call instead of 500; the book query itself was unchanged. These isolated

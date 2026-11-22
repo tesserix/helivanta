@@ -2,6 +2,7 @@ package pharmacy_test
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -80,6 +81,147 @@ func TestStocktakeSnapshotInsertGuardsRollBackMixedStatements(t *testing.T) {
 			}))
 		})
 	}
+}
+
+func TestStocktakeAdjustmentBatchValidationIsAtomic(t *testing.T) {
+	r, db := stocktakeHarness(t)
+	product, location, batch := stockFixture(t, r)
+	secondBatch, otherLocation := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
+	put := func(path, body string) {
+		t.Helper()
+		response := do(r, "PUT", outletPath(path), "editor", body)
+		require.Equal(t, 200, response.Code, response.Body.String())
+	}
+	put("/stock/batches/"+secondBatch.String(), fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-SECOND","expires_on":"2030-10-31","mrp_minor":12500}`, product))
+	put("/stock/locations/"+otherLocation.String(), `{"code":"TEST-OTHER-Q","name":"TEST other quarantine"}`)
+	for _, id := range []string{batch, secondBatch.String()} {
+		put("/stock/movements/"+uuid.Must(uuid.NewV7()).String(), stockBody(location, id, "receipt", "TEST adjustment validation", 10))
+	}
+	take := uuid.Must(uuid.NewV7()).String()
+	path := outletPath("/stock/stocktakes/") + take
+	put("/stock/stocktakes/"+take, fmt.Sprintf(`{"selection":"all","product_ids":[],"quarantine_location_id":%q,"reason":"TEST adjustment validation"}`, location))
+	response := do(r, "GET", path+"/lines", "editor", "")
+	require.Equal(t, 200, response.Code, response.Body.String())
+	var page struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &page))
+	require.Len(t, page.Data, 2)
+	var counts []map[string]any
+	for _, line := range page.Data {
+		counts = append(counts, map[string]any{"line_id": line.ID, "counted_units": 9})
+	}
+	body, err := json.Marshal(map[string]any{"expected_version": 0, "counts": counts, "reason": "TEST two shortages"})
+	require.NoError(t, err)
+	response = do(r, "PUT", path+"/counts/"+uuid.Must(uuid.NewV7()).String(), "editor", string(body))
+	require.Equal(t, 200, response.Code, response.Body.String())
+	response = do(r, "PUT", path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "editor", `{"decision":"submit","expected_version":1,"reason":"TEST mixed adjustment validation"}`)
+	require.Equal(t, 200, response.Code, response.Body.String())
+	var fault, observedConstraint string
+	var callbackDB *gorm.DB
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		callbackDB = tx
+		if err := tx.Callback().Create().Before("gorm:create").Register("test:stocktake-adjustment-corruption", func(tx *gorm.DB) {
+			if tx.Statement.Table != "pharmacy_stocktake_adjustments" || fault == "" {
+				return
+			}
+			rows := tx.Statement.ReflectValue
+			if rows.Len() != 2 {
+				tx.AddError(fmt.Errorf("expected two adjustment rows"))
+				return
+			}
+			field := tx.Statement.Schema.LookUpField(fault)
+			if field == nil {
+				tx.AddError(fmt.Errorf("missing adjustment field"))
+				return
+			}
+			var value any = int64(-2)
+			if fault == "batch_id" {
+				var zero bool
+				value, zero = field.ValueOf(tx.Statement.Context, rows.Index(0))
+				if zero {
+					tx.AddError(fmt.Errorf("expected a real alternate batch"))
+					return
+				}
+			}
+			if fault == "location_id" {
+				value = otherLocation
+			}
+			tx.AddError(field.Set(tx.Statement.Context, rows.Index(1), value))
+		}); err != nil {
+			return err
+		}
+		return tx.Callback().Create().After("gorm:create").Register("test:stocktake-adjustment-constraint", func(tx *gorm.DB) {
+			if tx.Statement.Table != "pharmacy_stocktake_adjustments" {
+				return
+			}
+			var pg *pgconn.PgError
+			if errors.As(tx.Error, &pg) {
+				observedConstraint = pg.ConstraintName
+			}
+		})
+	}))
+	t.Cleanup(func() {
+		require.NoError(t, callbackDB.Callback().Create().Remove("test:stocktake-adjustment-corruption"))
+		require.NoError(t, callbackDB.Callback().Create().Remove("test:stocktake-adjustment-constraint"))
+	})
+	for _, column := range []string{"quantity_units", "batch_id", "location_id"} {
+		t.Run(column, func(t *testing.T) {
+			fault, observedConstraint = column, ""
+			response := do(r, "PUT", path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "reviewer", `{"decision":"approve","expected_version":2,"reason":"TEST malformed mixed adjustments","extra_units_disposition":"no_extra_units"}`)
+			require.Equal(t, 409, response.Code, response.Body.String())
+			require.Equal(t, "pharmacy_stocktake_adjustment", observedConstraint, "the adjustment insert itself must reject the malformed row")
+			header := do(r, "GET", path, "editor", "")
+			require.Equal(t, 200, header.Code, header.Body.String())
+			var state struct {
+				State   string `json:"state"`
+				Version int    `json:"version"`
+			}
+			require.NoError(t, json.Unmarshal(header.Body.Bytes(), &state))
+			require.Equal(t, "submitted", state.State)
+			require.Equal(t, 2, state.Version)
+			require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+				if err := tx.Exec(`SELECT set_config('app.pharmacy_subject','user-editor',true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)`, pharmaOutlet, pharmaOrganization).Error; err != nil {
+					return err
+				}
+				for _, table := range []string{"pharmacy_stocktake_adjustments", "audit_events"} {
+					query := tx.Table(table)
+					if table == "audit_events" {
+						query = query.Where("resource_type='pharmacy_stocktake_adjustments'")
+					}
+					var count int64
+					if err := query.Count(&count).Error; err != nil {
+						return err
+					}
+					require.Zero(t, count, "mixed invalid adjustment inserts must roll back their rows and audit")
+				}
+				var ledger struct{ Corrections, Units int64 }
+				if err := tx.Raw(`SELECT count(*)FILTER(WHERE kind='correction')corrections,COALESCE(sum(quantity_units),0)units FROM pharmacy_stock_movements WHERE tenant_id=? AND outlet_id=?`, testutil.TenantA, pharmaOutlet).Scan(&ledger).Error; err != nil {
+					return err
+				}
+				require.Zero(t, ledger.Corrections)
+				require.EqualValues(t, 20, ledger.Units, "rejected approval must not change physical stock")
+				return nil
+			}))
+		})
+	}
+	fault = ""
+	response = do(r, "PUT", path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "reviewer", `{"decision":"approve","expected_version":2,"reason":"TEST valid retry after refusals","extra_units_disposition":"no_extra_units"}`)
+	require.Equal(t, 200, response.Code, response.Body.String())
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.pharmacy_subject','user-reviewer',true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)`, pharmaOutlet, pharmaOrganization).Error; err != nil {
+			return err
+		}
+		var totals struct{ Rows, Mismatched int64 }
+		if err := tx.Raw(`SELECT count(*)rows,count(*)FILTER(WHERE a.created_at<>c.created_at)mismatched FROM pharmacy_stocktake_adjustments a JOIN pharmacy_stocktake_commands c ON(c.tenant_id,c.outlet_id,c.id)=(a.tenant_id,a.outlet_id,a.command_id) WHERE a.tenant_id=? AND a.outlet_id=?`, testutil.TenantA, pharmaOutlet).Scan(&totals).Error; err != nil {
+			return err
+		}
+		require.EqualValues(t, 2, totals.Rows)
+		require.Zero(t, totals.Mismatched, "older API inserts retain the command timestamp")
+		return nil
+	}))
 }
 
 func TestStocktakeSnapshotAuditAndStatementScopedAuthority(t *testing.T) {

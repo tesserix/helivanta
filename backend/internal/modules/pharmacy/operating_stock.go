@@ -20,6 +20,9 @@ import (
 //go:embed operating_receipts.sql
 var operatingReceiptsSchema string
 
+//go:embed operating_fulfilment_audit.sql
+var operatingFulfilmentAuditSchema string
+
 // operatingStockFailure marks PharmaConnect's own errors so IAM failures stay distinguishable (fail closed to 503).
 type operatingStockFailure struct{ err error }
 

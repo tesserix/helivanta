@@ -27,6 +27,9 @@ func TestIndependentStaffHistoryReview(t *testing.T) {
 	owner := &establishmentHarness{db: h.db}
 	employer := owner.pharmacy(t, "independent")
 	owner.grantPharmacyAccess(t, employer)
+	require.NoError(t, owner.tx(t, employer, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO workforce_hospital_access(tenant_id,hospital_id,subject,level)VALUES(?,?,'user-profiler','manager')`, testutil.TenantA, employer).Error
+	}))
 	root := "/v1/workforce/pharmacies/" + employer
 	call := func(method, path, actor string, body any, status int) {
 		raw, err := json.Marshal(body)

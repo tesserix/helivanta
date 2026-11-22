@@ -115,6 +115,97 @@ introducing a new persistence service or copying private inputs into storage.
 
 ## Failure, consistency and recovery
 
+### Snapshot validation at the declared bucket bound
+
+The first isolated hosted capacity run created 10,000 stocked batches through
+normal APIs, but starting their count returned HTTP 500 at the existing ten-second
+deadline. A second run measured 1.46 seconds for the book query and roughly
+0.75 seconds for each 500-line insert. Repeated per-row snapshot validation was
+still running when the deadline expired; no count was committed. These are
+observations from hosted synthetic acceptance, not production latency figures.
+
+Migration `0064_pharmacy_stocktake_snapshot_validation` replaces the snapshot
+line's row trigger with an AFTER INSERT statement trigger over its transition
+table. It locks every affected parent in tenant/outlet/count order and rejects
+the entire statement if any parent is missing, sealed, belongs to another actor
+or has another snapshot time. A set join verifies every batch's product, lot and
+expiry. Existing RLS, foreign keys, row audit, immutable-line rules and deferred
+seal/commit checks remain authoritative. A malformed row rolls back the complete
+statement, including its audit writes; there is no accepted unchecked interval
+outside the transaction. The API, snapshot source, page bounds and deadlines
+remain unchanged. Retaining per-row validation was rejected after its measured
+failure at the already declared limit; increasing deadlines would not meet the
+five-second planning target.
+
+Further profiling measured a 500-line insert at 188 ms: 43 ms in snapshot
+validation, 27 ms in 500 audit-trigger calls and 55 ms in foreign-key checks.
+Parent validation now groups inserted rows by parent and checks both the minimum
+and maximum creation time against that parent's frozen timestamp. Audit writes
+are set-based but retain one insert event per line, the verified actor and the
+same empty changed-fields list. A missing audit actor still aborts the statement.
+Foreign keys remain unchanged.
+
+The five stocktake tables' tenant policies evaluate their existing outlet grant
+function as an uncorrelated subquery, once per statement. Every row must still equal the
+selected tenant and outlet; read visibility and editor requirements are retained.
+This caches no authority across commands or transactions. It does not change
+operating-purpose policies, roles, permission names or grant/revocation semantics.
+Regression cases include a writer granted two outlets, missing selected scope,
+another tenant, an ungranted reader, and a previously privileged writer whose
+grant was downgraded before the next statement. These checks accompany the
+malformed-statement and audit-cardinality cases.
+
+The uninstrumented workflow subsequently started in 4.66 seconds, verified all
+10,000 audit events and measured 9.6 ms page p99. Posting 500 differences succeeded
+but took 8.23 seconds. Its repeated command/difference reads each spent roughly
+0.8 seconds evaluating grants across the observations. The same policy
+optimization is therefore applied to the header, command, observation and
+adjustment tables as well as lines. The two-outlet regression exercises every
+table after real count, submit and independent approval commands. Timing failure
+does not skip replay and physical-conservation assertions; the latency assertion
+still fails the overall acceptance test.
+
+Profiling the remaining 500-adjustment insert measured 2.09 seconds, of which
+2.00 seconds were 500 calls to the adjustment validation trigger. Its foreign-key
+checks took about 45 ms and its audit calls 27 ms. The migration therefore keeps
+the existing BEFORE trigger's command/transaction/actor checks and timestamp
+assignment, while moving row-to-line/delta/destination validation into an AFTER
+INSERT transition-table guard. It checks every command, sealed parent, immutable
+line (which owns batch identity), latest observation, quantity, destination and command timestamp as a
+set. Existing movement evidence checks, audit records, deferred completeness and
+foreign keys remain in force. Existing API inserts retain their timestamp
+behavior; no new client-supplied proof or timestamp is trusted.
+
+Regression tests corrupt the final row of a valid two-row approval with another
+quantity, line from a completed count, or location. The adjustment insert must raise its constraint,
+leave the count submitted at its prior version, and retain no adjustments,
+adjustment audit rows or physical corrections. An unmodified retry must succeed
+with the original command timestamps. Temporary write profiling is excluded from
+final acceptance.
+
+The profiled set-validation run measured 447 ms for the 500-adjustment insert,
+with 207 ms in the retained timestamp trigger and 204 ms in the single set guard.
+The complete instrumented workflow passed: start 2.07 seconds, page p99 6.5 ms,
+post 2.87 seconds, exact replay and 99,500 closing units. These measurements are
+isolated hosted evidence. Final acceptance removes both write-replay and read
+plan probes and must pass without their effects on timing or prepared plans.
+
+The subsequent hosted profile returned HTTP 200 for 10,000-bucket start in
+2.14 seconds. Its first 500-line insert measured 49 ms, including one audit-trigger
+call instead of 500; the book query itself was unchanged. These isolated
+measurements are not a production latency claim. The write-replay profiler is
+removed from the final acceptance test, as are the read-only pre-submit plan
+probes; strict audit checks remain. The final workflow must still prove every gate without write
+instrumentation before merge.
+
+The migration changes no stored rows and uses a five-second lock timeout. Its
+trigger replacement is transactional; a failed migration retains the old guard.
+An older API uses the same inserts and remains compatible. Any later restoration
+of the old trigger must be a separately reviewed forward migration; do not edit
+an applied migration or drop snapshot history. The hosted regression must prove
+batch/actor/time/seal refusals and complete rollback before this change can roll
+out. Capacity results and live Staff/release acceptance remain separate gates.
+
 The count, count revisions, approval, adjustments, audit and outbox are local to
 the pharmacy database. A single transaction decides posting. Unavailable current
 authority, failed audit/outbox writes, stale count input and failed reservation

@@ -94,6 +94,23 @@ in an issue. Mark unexecuted cases **Pending**, not Pass.
 
 Relevant executable evidence:
 
+- `.github/workflows/stocktake-capacity.yml`: isolated hosted Linux measurement
+  of the ADR-0073 limits. `TestStocktakeCapacityAt10000Buckets` creates 10,000
+  distinct batches and receipts through the product APIs, walks every snapshot
+  page without duplicate buckets, records 100 bounded count commands and posts
+  500 differences with a separate reviewer account. It asserts page p99 below
+  300 ms and start/post below five seconds, then verifies exact approval replay.
+  It also requires exactly 10,000 attributable snapshot-line audit events.
+  Snapshot guard regressions cover malformed mixed statements, missing audit
+  actors, two granted outlets, unfiltered scoped reads, cross-outlet writes,
+  readers and grant downgrades. Native fixture transactions supply the same
+  tenant/pharmacy/outlet context as the real handler; missing pharmacy scope is
+  separately required to fail closed.
+  Run it with `HELIVANTA_STOCKTAKE_CAPACITY=1`; ordinary coverage deliberately
+  does not run timing assertions alongside unrelated packages. The fixture uses
+  one product and one quarantine location with legacy outlet grants. This is a
+  maximum-bucket measurement, not proof of reviewed Staff authority, a diverse
+  product catalogue, ten simultaneous outlets or production network latency.
 - `backend/internal/modules/pharmacy/stocktake_test.go`: frozen scope, versioned
   counts, both-owner posting, independent review, later movements and rollback.
 - `backend/internal/globalapi/stocktake_test.go`: Global API isolation, register

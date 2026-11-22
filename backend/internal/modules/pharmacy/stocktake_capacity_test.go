@@ -195,10 +195,22 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 	require.Equal(t, "posted", receipt.State)
 	require.Equal(t, 500, receipt.AdjustmentCount)
 	t.Logf("500-adjustment post on 10000-bucket count: %s", postElapsed)
-	require.Less(t, postElapsed, 5*time.Second, "ADR-0073 post budget")
 	replayed := do(r, "PUT", approvalPath, "reviewer", body)
 	require.Equal(t, 200, replayed.Code, replayed.Body.String())
 	require.JSONEq(t, response.Body.String(), replayed.Body.String())
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.pharmacy_subject','user-reviewer',true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)`, pharmaOutlet, pharmaOrganization).Error; err != nil {
+			return err
+		}
+		var ledger struct{ Corrections, Units int64 }
+		if err := tx.Raw(`SELECT count(*)FILTER(WHERE kind='correction')corrections,COALESCE(sum(quantity_units),0)units FROM pharmacy_stock_movements WHERE tenant_id=? AND outlet_id=?`, testutil.TenantA, pharmaOutlet).Scan(&ledger).Error; err != nil {
+			return err
+		}
+		require.EqualValues(t, 500, ledger.Corrections, "replay must not create additional physical corrections")
+		require.EqualValues(t, 99500, ledger.Units, "only the 500 observed shortages reduce the opening 100000 units")
+		return nil
+	}))
+	require.Less(t, postElapsed, 5*time.Second, "ADR-0073 post budget")
 }
 
 func stocktakeSnapshotPlan(t *testing.T, db *tenantdb.DB, query string, arguments []any) {

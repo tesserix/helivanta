@@ -145,8 +145,8 @@ are set-based but retain one insert event per line, the verified actor and the
 same empty changed-fields list. A missing audit actor still aborts the statement.
 Foreign keys remain unchanged.
 
-The snapshot-line tenant policy evaluates its existing outlet grant function as
-an uncorrelated subquery, once per statement. Every row must still equal the
+The five stocktake tables' tenant policies evaluate their existing outlet grant
+function as an uncorrelated subquery, once per statement. Every row must still equal the
 selected tenant and outlet; read visibility and editor requirements are retained.
 This caches no authority across commands or transactions. It does not change
 operating-purpose policies, roles, permission names or grant/revocation semantics.
@@ -154,6 +154,16 @@ Regression cases include a writer granted two outlets, missing selected scope,
 another tenant, an ungranted reader, and a previously privileged writer whose
 grant was downgraded before the next statement. These checks accompany the
 malformed-statement and audit-cardinality cases.
+
+The uninstrumented workflow subsequently started in 4.66 seconds, verified all
+10,000 audit events and measured 9.6 ms page p99. Posting 500 differences succeeded
+but took 8.23 seconds. Its repeated command/difference reads each spent roughly
+0.8 seconds evaluating grants across the observations. The same policy
+optimization is therefore applied to the header, command, observation and
+adjustment tables as well as lines. The two-outlet regression exercises every
+table after real count, submit and independent approval commands. Timing failure
+does not skip replay and physical-conservation assertions; the latency assertion
+still fails the overall acceptance test.
 
 The subsequent hosted profile returned HTTP 200 for 10,000-bucket start in
 2.14 seconds. Its first 500-line insert measured 49 ms, including one audit-trigger

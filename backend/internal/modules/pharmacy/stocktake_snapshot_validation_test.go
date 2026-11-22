@@ -1,6 +1,7 @@
 package pharmacy_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -98,6 +99,7 @@ func TestStocktakeSnapshotAuditAndStatementScopedAuthority(t *testing.T) {
 	}
 	put(root, `{"code":"TEST-SECOND","name":"TEST Second Outlet","country_code":"IN","timezone":"Asia/Kolkata"}`)
 	put(root+"/access/user-editor", `{"level":"editor"}`)
+	put(root+"/access/user-reviewer", `{"level":"editor"}`)
 	product2, location2, batch2, take2 := uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
 	put(root+"/catalogue/products/"+product2, productBody(0, "TEST Second product"))
 	put(root+"/stock/locations/"+location2, `{"code":"TEST-Q","name":"TEST Second quarantine"}`)
@@ -105,6 +107,24 @@ func TestStocktakeSnapshotAuditAndStatementScopedAuthority(t *testing.T) {
 	put(root+"/stock/movements/"+uuid.Must(uuid.NewV7()).String(), stockBody(location2, batch2, "receipt", "TEST second scope", 10))
 	put(root+"/stock/stocktakes/"+take2, fmt.Sprintf(`{"selection":"all","product_ids":[],"quarantine_location_id":%q,"reason":"TEST second count"}`, location2))
 
+	for _, path := range []string{outletPath("/stock/stocktakes/") + take, root + "/stock/stocktakes/" + take2} {
+		lines := do(r, "GET", path+"/lines", "editor", "")
+		require.Equal(t, 200, lines.Code, lines.Body.String())
+		var page struct {
+			Data []struct {
+				ID string `json:"id"`
+			} `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal(lines.Body.Bytes(), &page))
+		require.Len(t, page.Data, 1)
+		response := do(r, "PUT", path+"/counts/"+uuid.Must(uuid.NewV7()).String(), "editor", fmt.Sprintf(`{"expected_version":0,"counts":[{"line_id":%q,"counted_units":9}],"reason":"TEST scoped observation"}`, page.Data[0].ID))
+		require.Equal(t, 200, response.Code, response.Body.String())
+		response = do(r, "PUT", path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "editor", `{"decision":"submit","expected_version":1,"reason":"TEST scoped submission"}`)
+		require.Equal(t, 200, response.Code, response.Body.String())
+		response = do(r, "PUT", path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "reviewer", `{"decision":"approve","expected_version":2,"reason":"TEST independent scoped approval","extra_units_disposition":"no_extra_units"}`)
+		require.Equal(t, 200, response.Code, response.Body.String())
+	}
+	rowsPerOutlet := map[string]int64{"pharmacy_stocktakes": 1, "pharmacy_stocktake_lines": 1, "pharmacy_stocktake_commands": 3, "pharmacy_stocktake_counts": 1, "pharmacy_stocktake_adjustments": 1}
 	for _, tc := range []struct {
 		name, tenant, subject, outlet, pharmacy string
 		want                                    int64
@@ -124,11 +144,13 @@ func TestStocktakeSnapshotAuditAndStatementScopedAuthority(t *testing.T) {
 				if err := tx.Exec(`SELECT set_config('app.pharmacy_subject',?,true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)`, tc.subject, tc.outlet, tc.pharmacy).Error; err != nil {
 					return err
 				}
-				var count int64
-				if err := tx.Table("pharmacy_stocktake_lines").Count(&count).Error; err != nil {
-					return err
+				for table, rows := range rowsPerOutlet {
+					var count int64
+					if err := tx.Table(table).Count(&count).Error; err != nil {
+						return err
+					}
+					require.Equal(t, tc.want*rows, count, "%s unfiltered reads must retain row scope", table)
 				}
-				require.Equal(t, tc.want, count, "unfiltered table reads must retain row scope")
 				return nil
 			}))
 		})

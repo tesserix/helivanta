@@ -32,14 +32,18 @@ CREATE TRIGGER pharmacy_stocktake_line_guard AFTER INSERT ON pharmacy_stocktake_
  REFERENCING NEW TABLE AS inserted_lines FOR EACH STATEMENT
  EXECUTE FUNCTION pharmacy_stocktake_snapshot_insert_guard();
 
-ALTER POLICY tenant_isolation ON pharmacy_stocktake_lines
- USING(hms_tenant_visible(tenant_id)
-  AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid
-  AND outlet_id=NULLIF(current_setting('app.pharmacy_outlet',true),'')::uuid
-  AND(SELECT pharmacy_outlet_allowed(NULLIF(current_setting('app.tenant_id',true),'')::uuid,NULLIF(current_setting('app.pharmacy_outlet',true),'')::uuid,false)))
- WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid
-  AND outlet_id=NULLIF(current_setting('app.pharmacy_outlet',true),'')::uuid
-  AND(SELECT pharmacy_outlet_allowed(NULLIF(current_setting('app.tenant_id',true),'')::uuid,NULLIF(current_setting('app.pharmacy_outlet',true),'')::uuid,true)));
+DO $scope$DECLARE target text;BEGIN
+ FOREACH target IN ARRAY ARRAY['pharmacy_stocktakes','pharmacy_stocktake_lines','pharmacy_stocktake_commands','pharmacy_stocktake_counts','pharmacy_stocktake_adjustments'] LOOP
+  EXECUTE format($policy$ALTER POLICY tenant_isolation ON %I
+   USING(hms_tenant_visible(tenant_id)
+    AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid
+    AND outlet_id=NULLIF(current_setting('app.pharmacy_outlet',true),'')::uuid
+    AND(SELECT pharmacy_outlet_allowed(NULLIF(current_setting('app.tenant_id',true),'')::uuid,NULLIF(current_setting('app.pharmacy_outlet',true),'')::uuid,false)))
+   WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid
+    AND outlet_id=NULLIF(current_setting('app.pharmacy_outlet',true),'')::uuid
+    AND(SELECT pharmacy_outlet_allowed(NULLIF(current_setting('app.tenant_id',true),'')::uuid,NULLIF(current_setting('app.pharmacy_outlet',true),'')::uuid,true)))$policy$,target);
+ END LOOP;
+END $scope$;
 
 CREATE FUNCTION pharmacy_stocktake_snapshot_insert_audit()RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE actor text:=NULLIF(current_setting('app.actor_subject',true),'');

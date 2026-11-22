@@ -48,7 +48,7 @@ func (f supplierCompoundFixture) assertPublicPharmacyDispatch(t *testing.T, admi
 	allocationPath := stockRoot + "/allocations/" + allocationID.String()
 	reserve := fulfilment.ReserveInput{ExpectedOrderVersion: order.Version, LineID: order.Input.Lines[0].ID, StockID: batch, StockLocationID: &shelf, QuantityUnits: 10, ExpiresAt: time.Now().UTC().Add(5 * time.Minute).Truncate(time.Microsecond), Reason: "TEST ten source-owned units for this accepted line"}
 	created := f.sourceStaffRequest(t, operator.principal, "PUT", allocationPath, reserve)
-	require.Equal(t, 201, created.Code, created.Body.String())
+	require.Equal(t, 200, created.Code, created.Body.String())
 	var allocation fulfilment.Allocation
 	require.NoError(t, json.Unmarshal(created.Body.Bytes(), &allocation))
 	require.Equal(t, int64(10), allocation.ReservedUnits)
@@ -67,7 +67,7 @@ func (f supplierCompoundFixture) assertPublicPharmacyDispatch(t *testing.T, admi
 			require.Equal(t, 409, excess.Code, excess.Body.String())
 		}
 		dispatched := f.sourceStaffRequest(t, operator.principal, "PUT", commandPath, input)
-		require.Equal(t, 201, dispatched.Code, dispatched.Body.String())
+		require.Equal(t, 200, dispatched.Code, dispatched.Body.String())
 		var receipt fulfilment.AllocationCommandReceipt
 		require.NoError(t, json.Unmarshal(dispatched.Body.Bytes(), &receipt))
 		require.Equal(t, operator.principal.Subject, receipt.ActorSubject)

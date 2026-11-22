@@ -46,8 +46,15 @@ migration 0064 were changed.
 A separate diagnostic run 45070964833 uses opt-in test-only statement timings,
 template hashes and SQLSTATE/constraint metadata; it emits neither SQL values nor
 request payloads. It does not establish capacity acceptance. Both original
-budgets and the gateway timeout remain unchanged. Diagnose the reviewed start
-and submission failures before removing the probes and rerunning clean gates.
+budgets and the gateway timeout remain unchanged. Its first attempt stopped
+before jobs with a GitHub internal-server error; the retry ran normally. Legacy
+capacity/submission passed in that diagnostic run, but the reviewed snapshot
+SELECT ran for 4.884 s before cancellation and the start returned 504. Diagnostic
+run 45071888071 captures the actual parameterized snapshot and purpose settings,
+then executes a separately bounded EXPLAIN ANALYZE after the command has ended.
+It reports operator/index/row/loop/buffer metrics without SQL values. Diagnose the
+reviewed plan and unresolved submission failure before removing probes and
+rerunning clean gates.
 
 Read-contract red run 45069725952 failed as intended on the missing header
 route (expected 200, actual 404). Candidate `1faa7059` adds current reviewed
@@ -55,7 +62,13 @@ header/list/register reads and excludes legacy counts, including from line
 reads. The bounded, locked CSV loader and response metadata are reused by both
 legacy and reviewed routes; current reviewed read authority and attributable
 evidence are required before returning bytes. Focused validation 45070732446
-is running. No new read acceptance is claimed yet.
+failed at the list read because the shared receiving/fulfilment audit vocabulary
+cannot represent a Stocktake collection. Candidate `fcbab7f7` instead records
+outlet-level `list_read` provenance in the Stocktake evidence table. A constraint
+requires a null count reference only for collection evidence; all record/command
+reads retain their foreign keys. Focused run 45071343169 validates the correction.
+Commit `83ce2c75` also adds provenance/audit failure and rollback assertions, not
+yet executed. No full read acceptance is claimed yet.
 
 Eligibility remains false. Hospital authority, withdrawal continuations,
 operational UI/SDK and both-model live acceptance remain open in #1686. All new

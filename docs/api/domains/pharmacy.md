@@ -113,7 +113,10 @@ counts. Legacy counts are excluded from these headers, lists, line reads and
 registers. The existing CSV loader retains its shared lock, row/byte bounds,
 complete-row check, digest and retained version metadata. Read/audit failure
 withholds results and bytes. Red run 45069725952 returned the expected missing
-header 404; implementation validation 45070732446 is running. These routes remain
+header 404. Implementation run 45070732446 passed header/register assertions but
+failed the list audit vocabulary; candidate `fcbab7f7` stores collection provenance
+in the Stocktake evidence table instead. Run 45071343169 checks this correction.
+Added audit/provenance fault-injection tests remain unexecuted. These routes remain
 Stocktake-gated and do not yet meet withdrawal-continuation acceptance.
 
 Corrected actual reviewed-capacity run 45068914714 failed start at the unchanged

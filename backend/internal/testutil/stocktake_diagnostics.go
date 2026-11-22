@@ -35,7 +35,10 @@ func StocktakeDiagnostics(t *testing.T, db *tenantdb.DB) {
 			snapshot = tx.Statement.SQL.String()
 			args = append([]any(nil), tx.Statement.Vars...)
 			err := tx.Statement.ConnPool.QueryRowContext(tx.Statement.Context, `SELECT jsonb_object_agg(key,COALESCE(current_setting(key,true),''))::text FROM unnest(ARRAY['app.actor_subject','app.pharmacy_subject','app.pharmacy_id','app.pharmacy_outlet','app.pharmacy_stock_access','app.pharmacy_stock_pharmacy','app.pharmacy_stock_outlet','app.pharmacy_stock_permission'])AS key`).Scan(&settings)
-			require.NoError(t, err)
+			if err != nil {
+				t.Errorf("stocktake diagnostic scope capture: %T", err)
+				snapshot = ""
+			}
 		}
 		capture.Unlock()
 		tx.Statement.Settings.Store(key, time.Now())

@@ -88,6 +88,21 @@ receiving/corrections need a separately bounded retained-transaction purpose,
 current local authority and the exact established shipment. A viewing grant
 cannot place or approve an order, reserve stock, dispatch goods or post receipt.
 
+Independent pharmacy fulfilment admission records the current duty, snapshot,
+authority epoch and reviewed Staff/account link in the owner's append-only
+operating-stock audit. Migration `0062_pharmacy_operating_fulfilment_audit`
+adds only the `supplier_fulfilment_access` / `supplier_order` /
+`pharmacy.stock.fulfil` combination with a required order reference. Existing
+receiving/read combinations and the audit's RLS remain enforced; the fulfilment
+duty does not become a receiving duty. A failed audit denies the complete
+admission. The real Staff/product regression reproduced the previous constraint
+failure in hosted run `44978021214`; fixed validation remains pending.
+
+This additive migration preserves existing evidence and validates the expanded
+checks. It requires the normal approved migration rollout. After new fulfilment
+audit records exist, a code rollback keeps the widened audit schema and retained
+records; there is no destructive down migration or removal of completed evidence.
+
 ## Remaining implementation and verification
 
 The candidate implements order owner APIs, permissions and reviewed Staff

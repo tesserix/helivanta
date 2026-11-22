@@ -120,6 +120,28 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 	require.Equal(t, 200, response.Code, response.Body.String())
 	approvalPath := path + "/decisions/" + uuid.Must(uuid.NewV7()).String()
 	body := `{"decision":"approve","expected_version":101,"reason":"TEST independent capacity review","extra_units_disposition":"no_extra_units"}`
+	if os.Getenv("HELIVANTA_STOCKTAKE_PLANS") == "1" {
+		require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.pharmacy_subject','user-reviewer',true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)`, pharmaOutlet, pharmaOrganization).Error; err != nil {
+				return err
+			}
+			take := strings.TrimPrefix(path, outletPath("/stock/stocktakes/"))
+			for _, query := range []struct {
+				sql  string
+				args []any
+			}{
+				{"SELECT * FROM pharmacy_stocktake_differences(?,?,?)", []any{testutil.TenantA, pharmaOutlet, take}},
+				{"SELECT count(*) FROM pharmacy_stock_movements WHERE tenant_id=? AND outlet_id=? AND location_id=? AND batch_id=?", []any{testutil.TenantA, pharmaOutlet, location, firstBatch}},
+			} {
+				var plan []string
+				if err := tx.Raw("EXPLAIN(ANALYZE,BUFFERS,VERBOSE) "+query.sql, query.args...).Scan(&plan).Error; err != nil {
+					return err
+				}
+				t.Logf("DIAGNOSTIC PLAN %s\n%s", query.sql, strings.Join(plan, "\n"))
+			}
+			return nil
+		}))
+	}
 	start = time.Now()
 	response = do(r, "PUT", approvalPath, "reviewer", body)
 	postElapsed := time.Since(start)

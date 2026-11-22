@@ -20,6 +20,8 @@ func operatingStocktakeRoutes(g *platform.Router, h *catalogueHandlers) {
 	s := g.Group("/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes")
 	s.PUT("/:stocktake", authz.Public, h.putOperatingStocktake)
 	platform.ListRoute(s, "/:stocktake/lines", authz.Public, h.listOperatingStocktakeLines)
+	s.PUT("/:stocktake/counts/:command", authz.Public, h.putOperatingStocktakeCount)
+	s.GET("/:stocktake/counts/:command", authz.Public, h.getOperatingStocktakeCount)
 }
 
 func stocktakeOperatingError(c *gin.Context, err error) {
@@ -32,17 +34,19 @@ func stocktakeOperatingError(c *gin.Context, err error) {
 	operatingStockError(c, err)
 }
 
-func (u operatingStockUse) stocktakeEvidence(tx *gorm.DB, take uuid.UUID, kind string) error {
+func (u operatingStockUse) stocktakeEvidence(tx *gorm.DB, take uuid.UUID, kind string, command *uuid.UUID) error {
 	id, err := uuid.NewV7()
 	if err != nil {
 		return operatingAuditFailure{err}
 	}
 	if kind == "start" {
 		id = take
+	} else if kind == "count" && command != nil {
+		id = *command
 	}
 	g := u.grant
-	if err := tx.Exec(`INSERT INTO pharmacy_stocktake_operating_evidence(tenant_id,outlet_id,id,pharmacy_id,stocktake_id,kind,permission,duty_id,snapshot_version,authority_epoch,staff_id,staff_version,link_id,link_version,actor_subject)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		u.tenant, u.outlet, id, u.pharmacy, take, kind, g.Permission, g.DutyID, g.SnapshotVersion, g.AuthorityEpoch,
+	if err := tx.Exec(`INSERT INTO pharmacy_stocktake_operating_evidence(tenant_id,outlet_id,id,pharmacy_id,stocktake_id,kind,command_id,permission,duty_id,snapshot_version,authority_epoch,staff_id,staff_version,link_id,link_version,actor_subject)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		u.tenant, u.outlet, id, u.pharmacy, take, kind, command, g.Permission, g.DutyID, g.SnapshotVersion, g.AuthorityEpoch,
 		g.Identity.StaffID, g.Identity.StaffVersion, g.Identity.LinkID, g.Identity.LinkVersion, u.subject).Error; err != nil {
 		return operatingAuditFailure{err}
 	}
@@ -93,7 +97,7 @@ func (h *catalogueHandlers) putOperatingStocktake(c *gin.Context) {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
-		if err := use.stocktakeEvidence(tx, id, "start"); err != nil {
+		if err := use.stocktakeEvidence(tx, id, "start", nil); err != nil {
 			return err
 		}
 		if err := startStocktake(tx, p, outlet, id, in, hash); err != nil {
@@ -130,7 +134,7 @@ func (h *catalogueHandlers) listOperatingStocktakeLines(c *gin.Context, params p
 		if err := tenantdb.ApplyKeyset(tx, params).Select(stocktakeLineColumns+",observed.counted_units,observed.counted_by,observed.count_reason,observed.counted_at,observed.counted_units-book_units difference_units").Joins(stocktakeObservedJoin).Where("tenant_id=? AND outlet_id=? AND stocktake_id=?", p.TenantID, outlet, id).Find(&rows).Error; err != nil {
 			return err
 		}
-		if err := use.stocktakeEvidence(tx, id, "lines_read"); err != nil {
+		if err := use.stocktakeEvidence(tx, id, "lines_read", nil); err != nil {
 			return err
 		}
 		return stocktakeReadAudit(c, tx, p, "stocktake_lines", id, "list_read")

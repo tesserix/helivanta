@@ -70,7 +70,9 @@ func TestStocktakeReviewedIndependentCounterFreezesReceivedStock(t *testing.T) {
 		"reason": "TEST changed physical shelf count",
 	}
 	f.call("PUT", countPath, "receiver", changedCount, 409)
-	f.call("PUT", path+"/counts/"+v7(), "receiver", count, 409)
+	stalePath := path + "/counts/" + v7()
+	f.call("PUT", stalePath, "receiver", count, 409)
+	f.call("GET", stalePath, "receiver", nil, 404)
 	var receipt struct {
 		Version    int64  `json:"version"`
 		RecordedBy string `json:"recorded_by"`
@@ -82,7 +84,15 @@ func TestStocktakeReviewedIndependentCounterFreezesReceivedStock(t *testing.T) {
 	require.EqualValues(t, 1, receipt.Version)
 	require.Len(t, receipt.Counts, 1)
 	require.EqualValues(t, 27, receipt.Counts[0].CountedUnits)
-	require.NotEmpty(t, receipt.RecordedBy)
+	f.checks.down.Store(true)
+	f.call("GET", countPath, "receiver", nil, 503)
+	f.checks.down.Store(false)
+	require.Equal(t, "user-receiver", receipt.RecordedBy)
+	legacyCount := map[string]any{
+		"expected_version": 1, "counts": []map[string]any{{"line_id": page.Data[0].ID, "counted_units": 25}},
+		"reason": "TEST legacy editor cannot enter reviewed history",
+	}
+	f.call("PUT", "/v1/pharmacy/pharmacies/"+f.pharmacy+"/outlets/"+f.outlet+"/stock/stocktakes/"+path[len(root)+1:]+"/counts/"+v7(), "owner", legacyCount, 409)
 	f.call("PUT", f.duty+"/commands/"+v7(), "owner", map[string]any{
 		"expected_version": 3, "decision": "revoke", "reason": "TEST end the reviewed counting duty",
 	}, 201)

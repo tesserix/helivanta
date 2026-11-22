@@ -1929,3 +1929,24 @@ refunds and inventory-mode vouchers are also excluded. No import has been run
 against a real TallyPrime company. See the
 [design](../../superpowers/specs/2026-11-21-tally-accounting-export-design.md)
 and [delivery plan](../../superpowers/plans/2026-11-21-tally-accounting-export.md).
+
+
+Reviewed independent count-entry development follows the same scoped route root:
+`PUT/GET /:stocktake/counts/:command`. It consumes current `pharmacy.stocktake.count`
+for entry and `.read` for original receipt reads. Inputs, limits, version-zero
+semantics and immutable receipts reuse the canonical count contract above.
+The command stores current duty/Staff/link evidence atomically before recording
+observations, validates completeness while that authority is held, and binds
+exact replay to the original Staff and account. Conflicting reuse or stale
+versions return 409; missing scope/current authority is 404, dependency failure
+503. No command is retried automatically.
+
+Forward candidate migration0065 adds an immutable header authority discriminator:
+existing rows remain legacy; reviewed starts are marked only under held authority.
+Legacy editor commands cannot modify reviewed counts, and reviewed count commands
+cannot adopt legacy history or invent historical Staff evidence. Count receipts
+require retained reviewed provenance. These routes remain compiled ineligible;
+the first hosted count-entry test failed with the expected missing route (run
+45058843484). The implementation and additional rollback/cutoff checks await
+hosted validation. Independent approval/posting, hospital authority, operational
+UI and live acceptance remain unfinished.

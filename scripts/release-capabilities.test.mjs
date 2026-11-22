@@ -62,7 +62,8 @@ test("disabling new Pharmacy payables preserves retained bill credit evidence", 
     "selected-bill credit history must have an explicit release binding",
   );
   for (const route of routes) {
-    const retained = route.method === "GET" && route.path === `${base}/:id/supplier-credit-allocations`;
+    const retained =
+      route.method === "GET" && route.path === `${base}/:id/supplier-credit-allocations`;
     assert.equal(
       route.capability,
       retained ? "baseline" : "pharmacy_payables",

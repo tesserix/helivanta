@@ -7,7 +7,7 @@ on:
         type: choice
         required: true
         default: focused
-        options: [focused, full, batch-source]
+        options: [focused, full, batch-source, retained-safety]
   pull_request:
     paths:
       - "backend/pkg/supplieraccess/**"
@@ -18,6 +18,8 @@ on:
       - "backend/pkg/suppliertrade/**"
       - "backend/pkg/supplierorder/**"
       - "backend/pkg/supplierfulfilment/**"
+      - "backend/pkg/tenantdb/**"
+      - "backend/internal/modules/drugmaster/**"
       - "backend/internal/supplierstock/**"
       - "contracts/supplier-fulfilment.json"
       - "contracts/supplier-stock-schema.sql.tmpl"
@@ -43,6 +45,28 @@ concurrency:
   group: supplier-workflow-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  retained-safety:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.validation_scope == 'retained-safety' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - run: printf 'GOCACHE=%s/helivanta-retained-safety-cache\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version-file: backend/go.mod
+          cache: false
+      - name: Verify selected supplier tests and source triggers
+        run: node --test ../scripts/supplier-workflow.test.mjs
+      - name: Retained safety frames under forced RLS
+        run: go test -race -v -count=1 -timeout 5m ./pkg/tenantdb -run '^TestRetained'
+      - name: Distinct source guards exceed the app pool without exhausting it
+        run: go test -race -v -count=1 -timeout 12m ./internal/globalapi -run '^TestShipmentSafetyRetainsEightDistinctSourceShipments$'
   batch-source:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.validation_scope == 'batch-source' }}
     runs-on: ubuntu-latest
@@ -62,7 +86,7 @@ jobs:
       - name: Batch source receipt binding and unique safety proofs
         run: go test -race -count=1 ./internal/modules/pharmacy -run '^TestSupplierBatchSources'
   compound-admission:
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.validation_scope != 'batch-source' }}
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.validation_scope == 'focused' || inputs.validation_scope == 'full' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:

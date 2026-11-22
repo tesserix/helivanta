@@ -6,6 +6,18 @@
 This is source-review tooling. No employment guard, grant classification in a live
 database, migration, account change or runtime activation is performed by it.
 
+## Retained catalogue source frame recheck — 22 November 2026
+
+The stock-reference registration, permission, barcode validation and current
+published active product/formulation projection are unchanged. Its source guard
+now retains a DB-bound app-role transaction across synchronous source callbacks;
+global catalogue frames clear tenant scope, restore tenant/actor on return and
+reject escaped or concurrent reuse. No BYPASSRLS/admin connection or new access
+grant is introduced. The existing `mixed` review pins the new frame implementation
+as well as the catalogue guard. Its remaining runtime/Staff, supplier and release
+activation obligations are preserved; this recheck does not assert that source
+classification proves deployed receiver or clinical/regulatory acceptance.
+
 ## Fulfilment audit source recheck — 22 November 2026
 
 Eight independent pharmacy stock read/receipt reviews pin `operating_stock.go`.

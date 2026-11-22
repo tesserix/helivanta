@@ -19,7 +19,7 @@ func (g outletShipmentSafety) WithSafeShipment(ctx context.Context, s f.Shipment
 	if g.deps.DB == nil || action == nil || tenantdb.ActorFrom(ctx) == "" || f.ValidateShipment(s) != nil || s.Product.Owner != "pharmacy" {
 		return f.ErrUnavailable
 	}
-	return g.deps.DB.WithTenant(ctx, s.SourceTenantID.String(), func(tx *gorm.DB) (err error) {
+	return g.deps.DB.WithRetainedTenantFrame(ctx, s.SourceTenantID.String(), func(ctx context.Context, tx *gorm.DB) (err error) {
 		return pharmacyStockFrame(tx, tenantdb.ActorFrom(ctx), s.SourceOrganizationID, s.SourceLocationID, PermStockFulfil, func() error {
 			store := supplierstock.Store{Owner: supplierstock.Outlet}
 			return store.Frame(tx, supplierstock.Scope{TenantID: s.SourceTenantID, OrganizationID: s.SourceOrganizationID, LocationID: s.SourceLocationID, AllocationID: s.AllocationID, Subject: tenantdb.ActorFrom(ctx), Mode: "safety"}, func() error {

@@ -57,6 +57,8 @@ type ReceivingAuthority interface {
 
 // ShipmentSafety freezes current source product/lot safety for a retained transaction.
 // The caller must already hold the verified destination shipment/Staff guard.
+// Nested checks must use the callback context synchronously; it retains scoped
+// source transactions and is invalid after that callback returns.
 type ShipmentSafety interface {
 	WithSafeShipment(context.Context, Shipment, func(context.Context) error) error
 }

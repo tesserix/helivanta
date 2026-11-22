@@ -28,7 +28,7 @@ func (g stockProductGuard) WithCurrentStockProduct(ctx context.Context, version 
 	if g.db == nil || action == nil {
 		return stockproduct.ErrUnavailable
 	}
-	return g.db.WithSystem(ctx, func(tx *gorm.DB) error {
+	return g.db.WithRetainedSystemFrame(ctx, func(ctx context.Context, tx *gorm.DB) error {
 		// Publication uses the exclusive counterpart; this process-local callback does no source I/O.
 		if err := tx.Exec(`SELECT pg_advisory_xact_lock_shared(?)`, publicationLock).Error; err != nil {
 			return stockproduct.ErrUnavailable

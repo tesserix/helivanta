@@ -156,20 +156,26 @@ func (h *catalogueHandlers) safeSupplierBatches(ctx context.Context, tx *gorm.DB
 	if err := tx.Raw(`SELECT COALESCE(current_setting('app.pharmacy_supplier_safe_receipts',true),'')`).Scan(&old).Error; err != nil {
 		return err
 	}
-	var run func(int) error
-	run = func(index int) error {
-		if index == len(shipments) {
-			safe := "|"
-			for _, row := range rows {
-				safe += row.ID.String() + "|"
-			}
-			if err := tx.Exec(`SELECT set_config('app.pharmacy_supplier_safe_receipts',?,true)`, safe).Error; err != nil {
-				return err
-			}
-			err := action()
-			return errors.Join(err, tx.Exec(`SELECT set_config('app.pharmacy_supplier_safe_receipts',?,true)`, old).Error)
+	return withSupplierShipmentSafety(ctx, h.supplierSafety, shipments, func() error {
+		safe := "|"
+		for _, row := range rows {
+			safe += row.ID.String() + "|"
 		}
-		return h.supplierSafety.WithSafeShipment(ctx, shipments[index], func(context.Context) error { return run(index + 1) })
+		if err := tx.Exec(`SELECT set_config('app.pharmacy_supplier_safe_receipts',?,true)`, safe).Error; err != nil {
+			return err
+		}
+		err := action()
+		return errors.Join(err, tx.Exec(`SELECT set_config('app.pharmacy_supplier_safe_receipts',?,true)`, old).Error)
+	})
+}
+
+func withSupplierShipmentSafety(ctx context.Context, safety f.ShipmentSafety, shipments []f.Shipment, action func() error) error {
+	var run func(context.Context, int) error
+	run = func(ctx context.Context, index int) error {
+		if index == len(shipments) {
+			return action()
+		}
+		return safety.WithSafeShipment(ctx, shipments[index], func(next context.Context) error { return run(next, index+1) })
 	}
-	return run(0)
+	return run(ctx, 0)
 }

@@ -325,6 +325,20 @@ path returns retained release evidence under current review authority. The SDK's
 recovery additionally checks original account and frozen input. The journal is
 physical evidence, distinct from `review_recorded` clearance. See ADR-0068.
 
+The retained source-check chain keeps at most 1,000 destination receipt bindings
+and deduplicates identical source shipments without dropping receipt IDs. Each
+distinct dispatch is still rederived by its source owner. The Go safety port's
+callback context must be propagated synchronously: source-owner checks and global
+published-product checks use a single retained app-role transaction, setting and
+restoring exact tenant/actor scope for each frame. This bounds source connections
+independently of the number of shipments; destination and authorization
+transactions remain separate. Source locks remain held through the protected
+continuation. Wrong-DB, concurrent, cancelled or escaped frames fail closed.
+This does not expand stock authority, enable supplier features or assert that the
+1,000-source worst case meets the 800ms planning target. See the
+[capacity design](../superpowers/specs/2026-11-22-retained-supplier-capacity.md)
+for the boundary, failure model and hosted validation requirements.
+
 Supplier responses now use `ReceivingSharedResponse` in directed delivery and
 buyer history; private source Staff identity remains only in source records.
 Source and buyer parsers remain strict. The received-response table has non-null
@@ -390,7 +404,6 @@ revocation and graph checks retain their fail-closed outcomes. The real IAM /
 Workforce / OpenFGA source scenario covers hidden objects, denied duties, outage,
 revocation, original recovery and once-only callback error propagation.
 
-
 ### Warehouse dispatch-balance repair candidate
 
 Forward Supply migration `0021_supply_fulfilment_balance_guard` repairs the
@@ -424,7 +437,6 @@ history; a schema rollback would reinstate a known broken dispatch path and is
 not automated. Deployment requires the separately approved Supply0021 migration
 in addition to the already pending Pharmacy migrations and Kargo rollout.
 
-
 Warehouse source-safety callbacks now hold shared receipt locks while validating
 buyer release, rather than reusing the exclusive allocation/dispatch snapshot.
 Two dispatched shipments from one source receipt can therefore be verified in
@@ -434,7 +446,6 @@ that receipt; they cannot change the verified facts during the held safety read.
 Drugmaster publication remains protected by its existing shared publication lock.
 The composed two-shipment destination release is the regression; no safety or
 maker/checker condition is skipped.
-
 
 ### Partial-receipt source-safety normalization
 

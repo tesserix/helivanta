@@ -77,13 +77,12 @@ rollback/cutoff/legacy-boundary checks. Submission and independent approval/post
 hospital authority, operational UI and live acceptance remain unfinished.
 
 Reviewed submission is a further unreleased candidate at
-`PUT/GET /{stocktake}/decisions/{command}`. Only `decision: submit` is implemented
-in this candidate. It requires the current counter duty, the exact version and
+`PUT/GET /{stocktake}/decisions/{command}`. Submission requires the current counter duty, the exact version and
 complete physical observations, retains current Staff/link/duty evidence, and
 returns the original receipt on exact replay or GET recovery. Reusing a count
 command ID conflicts. Submission posts no adjustment and cannot be used to
-approve a count. Other decisions remain unavailable pending their reviewed
-implementation. The hosted submission red test 45060564552 returned the expected
+approve a count. Review/rejection and counter cancellation are added in the next candidate
+below; their new acceptance is still pending. The hosted submission red test 45060564552 returned the expected
 missing-route 404. The implementation, replay/recovery, count-ID conflict and
 submitted-edit rollback passed Global API, native PostgreSQL and IAM release
 checks in hosted run 45061412084. Clean capacity validation also passed: 10,000-bucket start 4.670 s, page p99

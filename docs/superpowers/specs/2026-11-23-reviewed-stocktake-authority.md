@@ -40,10 +40,10 @@ grants and participant account subjects. Their frozen snapshots, independent
 subject checks, linked adjustments and recovery remain authoritative. Hosted
 tests of those handlers do not establish reviewed Staff authority.
 
-Neither canonical IAM template catalogue currently declares stocktake duties:
+At the proposal baseline, neither canonical IAM template catalogue declared stocktake duties:
 `contracts/staff-access.json` owns hospital assignments and
-`contracts/operating-assignments.json` owns independent duties. Reviewed hospital
-employment cannot be repaired by adding legacy inventory roles. An independent
+`contracts/operating-assignments.json` owns independent duties. The branch now declares the independent templates; hospital stocktake templates
+remain unfinished. Reviewed hospital employment cannot be repaired by adding legacy inventory roles. An independent
 pharmacy establishment must not be fabricated for hospital employees:
 `pharmacy/employer_guard.go` rejects hospital-owned pharmacies as independent
 employers.

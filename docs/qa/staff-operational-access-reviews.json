@@ -4437,7 +4437,7 @@
       "registration_sha256": "cf4b6c94081a3135942c86e7d6dc59c663f5584dac3b705d4b2eb255604b9efd",
       "authority_kind": "mixed",
       "resource_scope": "Verified tenant, exact pharmacy and outlet, accounts-read permission and current private outlet reader grant.",
-      "rationale": "The financial owner exposes bounded acquisition/invoice lineage for direct receipts and both supplier stock owners. It pins expected account/workspace, locks the current outlet grant, enters a SELECT-only acquisition purpose, verifies retained owner evidence and audits disclosure. This is a source classification, not approved employment enforcement or live supplier acceptance. No physical, financial-write, clinical or external partner authority is created by this read. Source rechecked for #1685 on 2026-11-20: catalogue.go only registers the additional reorder routes. Existing catalogue handlers, transaction, outletAccess and grants are unchanged; this registration and its recorded authority remain unchanged. Source rechecked for #1687 on 2026-11-21: payableRoutes additionally registers supplier-return draft/read/cancellation routes with separate permissions. The acquisition-receipts registration, expected-account checks, projection, SELECT-only purpose and read audit are unchanged. Source rechecked for #1784 on 2026-11-21: payableRoutes only adds the separate supplier-credit route group with accounts-read/adjust permissions. The existing acquisition registration and its handler, projection, SELECT-only purpose, outlet authorization and audit sources are unchanged. New credit surfaces are not classified or activated by this pin refresh. Source rechecked for #1690 on 2026-11-21: payableRoutes additionally registers the four owner-only Tally export routes under pharmacy.accounts.export (ADR-0076); catalogue.go only splits decodeCatalogue into decodeCatalogueWithin so the Tally ledger-map PUT can take a larger bounded body; existing callers keep the 32 KiB cap. Transaction, outletAccess, grants and this registration's recorded authority are unchanged. payableSubject now takes the refused action so its session_changed message names it; bills keep their wording and the expected-subject check is unchanged. Source rechecked for #1784 bill credit history on 2026-11-22: payableRoutes adds only a separate accounts-read resource collection for a selected bill. The acquisition registration and its handler, projection, SELECT-only purpose, outlet authorization and audit sources remain unchanged. This pin refresh does not classify the new bill journal or activate reviewed Staff finance authority.",
+      "rationale": "The financial owner exposes bounded acquisition/invoice lineage for direct receipts and both supplier stock owners. It pins expected account/workspace, locks the current outlet grant, enters a SELECT-only acquisition purpose, verifies retained owner evidence and audits disclosure. This is a source classification, not approved employment enforcement or live supplier acceptance. No physical, financial-write, clinical or external partner authority is created by this read. Source rechecked for #1685 on 2026-11-20: catalogue.go only registers the additional reorder routes. Existing catalogue handlers, transaction, outletAccess and grants are unchanged; this registration and its recorded authority remain unchanged. Source rechecked for #1687 on 2026-11-21: payableRoutes additionally registers supplier-return draft/read/cancellation routes with separate permissions. The acquisition-receipts registration, expected-account checks, projection, SELECT-only purpose and read audit are unchanged. Source rechecked for #1784 on 2026-11-21: payableRoutes only adds the separate supplier-credit route group with accounts-read/adjust permissions. The existing acquisition registration and its handler, projection, SELECT-only purpose, outlet authorization and audit sources are unchanged. New credit surfaces are not classified or activated by this pin refresh. Source rechecked for #1690 on 2026-11-21: payableRoutes additionally registers the four owner-only Tally export routes under pharmacy.accounts.export (ADR-0076); catalogue.go only splits decodeCatalogue into decodeCatalogueWithin so the Tally ledger-map PUT can take a larger bounded body; existing callers keep the 32 KiB cap. Transaction, outletAccess, grants and this registration's recorded authority are unchanged. payableSubject now takes the refused action so its session_changed message names it; bills keep their wording and the expected-subject check is unchanged. Source rechecked for #1784 bill credit history on 2026-11-22: payableRoutes adds only a separate accounts-read resource collection for a selected bill. The acquisition registration and its handler, projection, SELECT-only purpose, outlet authorization and audit sources remain unchanged. This pin refresh does not classify the new bill journal or activate reviewed Staff finance authority. Source rechecked for #1686 retained participant history on 2026-11-23: catalogue.go only adds a private IndependentStaffHistoryGuard dependency field. catalogueRoutes, outletAccess and the legacy transaction body are unchanged; only the separate reviewed inventory constructor wires the optional guard, and new reviewed approval fails closed when it is unavailable. This review does not establish migration or runtime acceptance and preserves all remaining obligations.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/pharmacy/payables.go",
@@ -4461,12 +4461,12 @@
         },
         {
           "path": "backend/internal/modules/pharmacy/catalogue.go",
-          "sha256": "d30f47e82684269f19dfcf16775c570f5a86eb6f7863f708f712eb59389542e6",
+          "sha256": "1421426e65e2149a6301bb4cfb599f78a651f71406a4beb1e510847403bd50a5",
           "symbol": "func (h *catalogueHandlers) transaction("
         },
         {
           "path": "backend/internal/modules/pharmacy/catalogue.go",
-          "sha256": "d30f47e82684269f19dfcf16775c570f5a86eb6f7863f708f712eb59389542e6",
+          "sha256": "1421426e65e2149a6301bb4cfb599f78a651f71406a4beb1e510847403bd50a5",
           "symbol": "func outletAccess("
         }
       ],
@@ -6636,16 +6636,16 @@
       "registration_sha256": "ae122b8e4ead6096d05eac115859be4e2da28bd18b0fc1b9287d41660710aa50",
       "authority_kind": "mixed",
       "resource_scope": "Verified tenant, exact pharmacy and outlet; catalogue-read with reader access for search, catalogue-write with current editor access for import.",
-      "rationale": "Uses the existing private outlet grant and reauthorizes import under the global medicine source publication lock until the outlet commit. Client data cannot define medicine identity or legal classifications. Replay reads the immutable first receipt under current outlet access. This legacy outlet grant is not proof of reviewed Staff employment, clinical or dispensing authority. Source rechecked for #1685 on 2026-11-20: catalogue.go only registers the additional reorder routes. Existing catalogue handlers, transaction, outletAccess and grants are unchanged; this registration and its recorded authority remain unchanged. Source rechecked for #1690 on 2026-11-21: catalogue.go only splits decodeCatalogue into decodeCatalogueWithin so the Tally ledger-map PUT can take a larger bounded body; existing callers keep the 32 KiB cap. Transaction, outletAccess, grants and this registration's recorded authority are unchanged.",
+      "rationale": "Uses the existing private outlet grant and reauthorizes import under the global medicine source publication lock until the outlet commit. Client data cannot define medicine identity or legal classifications. Replay reads the immutable first receipt under current outlet access. This legacy outlet grant is not proof of reviewed Staff employment, clinical or dispensing authority. Source rechecked for #1685 on 2026-11-20: catalogue.go only registers the additional reorder routes. Existing catalogue handlers, transaction, outletAccess and grants are unchanged; this registration and its recorded authority remain unchanged. Source rechecked for #1690 on 2026-11-21: catalogue.go only splits decodeCatalogue into decodeCatalogueWithin so the Tally ledger-map PUT can take a larger bounded body; existing callers keep the 32 KiB cap. Transaction, outletAccess, grants and this registration's recorded authority are unchanged. Source rechecked for #1686 retained participant history on 2026-11-23: catalogue.go only adds a private IndependentStaffHistoryGuard dependency field. catalogueRoutes, outletAccess and the legacy transaction body are unchanged; only the separate reviewed inventory constructor wires the optional guard, and new reviewed approval fails closed when it is unavailable. This review does not establish migration or runtime acceptance and preserves all remaining obligations.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/pharmacy/catalogue.go",
-          "sha256": "d30f47e82684269f19dfcf16775c570f5a86eb6f7863f708f712eb59389542e6",
+          "sha256": "1421426e65e2149a6301bb4cfb599f78a651f71406a4beb1e510847403bd50a5",
           "symbol": "func catalogueRoutes("
         },
         {
           "path": "backend/internal/modules/pharmacy/catalogue.go",
-          "sha256": "d30f47e82684269f19dfcf16775c570f5a86eb6f7863f708f712eb59389542e6",
+          "sha256": "1421426e65e2149a6301bb4cfb599f78a651f71406a4beb1e510847403bd50a5",
           "symbol": "func outletAccess("
         },
         {
@@ -6670,16 +6670,16 @@
       "registration_sha256": "819eda146222c7887e5eed9b4572ea396349914faf6aeba8971fec030859e6bf",
       "authority_kind": "mixed",
       "resource_scope": "Verified tenant, exact pharmacy and outlet; catalogue-read with reader access for search, catalogue-write with current editor access for import.",
-      "rationale": "Uses the existing private outlet grant and reauthorizes import under the global medicine source publication lock until the outlet commit. Client data cannot define medicine identity or legal classifications. Replay reads the immutable first receipt under current outlet access. This legacy outlet grant is not proof of reviewed Staff employment, clinical or dispensing authority. Source rechecked for #1685 on 2026-11-20: catalogue.go only registers the additional reorder routes. Existing catalogue handlers, transaction, outletAccess and grants are unchanged; this registration and its recorded authority remain unchanged. Source rechecked for #1690 on 2026-11-21: catalogue.go only splits decodeCatalogue into decodeCatalogueWithin so the Tally ledger-map PUT can take a larger bounded body; existing callers keep the 32 KiB cap. Transaction, outletAccess, grants and this registration's recorded authority are unchanged.",
+      "rationale": "Uses the existing private outlet grant and reauthorizes import under the global medicine source publication lock until the outlet commit. Client data cannot define medicine identity or legal classifications. Replay reads the immutable first receipt under current outlet access. This legacy outlet grant is not proof of reviewed Staff employment, clinical or dispensing authority. Source rechecked for #1685 on 2026-11-20: catalogue.go only registers the additional reorder routes. Existing catalogue handlers, transaction, outletAccess and grants are unchanged; this registration and its recorded authority remain unchanged. Source rechecked for #1690 on 2026-11-21: catalogue.go only splits decodeCatalogue into decodeCatalogueWithin so the Tally ledger-map PUT can take a larger bounded body; existing callers keep the 32 KiB cap. Transaction, outletAccess, grants and this registration's recorded authority are unchanged. Source rechecked for #1686 retained participant history on 2026-11-23: catalogue.go only adds a private IndependentStaffHistoryGuard dependency field. catalogueRoutes, outletAccess and the legacy transaction body are unchanged; only the separate reviewed inventory constructor wires the optional guard, and new reviewed approval fails closed when it is unavailable. This review does not establish migration or runtime acceptance and preserves all remaining obligations.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/pharmacy/catalogue.go",
-          "sha256": "d30f47e82684269f19dfcf16775c570f5a86eb6f7863f708f712eb59389542e6",
+          "sha256": "1421426e65e2149a6301bb4cfb599f78a651f71406a4beb1e510847403bd50a5",
           "symbol": "func catalogueRoutes("
         },
         {
           "path": "backend/internal/modules/pharmacy/catalogue.go",
-          "sha256": "d30f47e82684269f19dfcf16775c570f5a86eb6f7863f708f712eb59389542e6",
+          "sha256": "1421426e65e2149a6301bb4cfb599f78a651f71406a4beb1e510847403bd50a5",
           "symbol": "func outletAccess("
         },
         {
@@ -6704,7 +6704,7 @@
       "registration_sha256": "551e4dedf268abcab1d2c323eeae6f57d5db548e2dd821b631df03e5f454b152",
       "authority_kind": "hospital_operational",
       "resource_scope": "Verified tenant, pharmacy, outlet and scoped catalogue product; explicit current outlet grant.",
-      "rationale": "Source review for #1685: the registered stock-read or catalogue-write permission is followed by catalogueScope and transaction/outletAccess. Every read locks the current outlet grant; writes additionally require stock-read permission, an editor grant and the scoped product row. Receipts reauthorize and compare the original product, payload and actor; history, actor, version and product/unit constraints are enforced by the database. The list/count uses current available outlet stock only and creates no order. This classification records source behavior, not employment cutoff or deployment acceptance. Source rechecked for #1690 on 2026-11-21: catalogue.go only splits decodeCatalogue into decodeCatalogueWithin so the Tally ledger-map PUT can take a larger bounded body; existing callers keep the 32 KiB cap. Transaction, outletAccess, grants and this registration's recorded authority are unchanged.",
+      "rationale": "Source review for #1685: the registered stock-read or catalogue-write permission is followed by catalogueScope and transaction/outletAccess. Every read locks the current outlet grant; writes additionally require stock-read permission, an editor grant and the scoped product row. Receipts reauthorize and compare the original product, payload and actor; history, actor, version and product/unit constraints are enforced by the database. The list/count uses current available outlet stock only and creates no order. This classification records source behavior, not employment cutoff or deployment acceptance. Source rechecked for #1690 on 2026-11-21: catalogue.go only splits decodeCatalogue into decodeCatalogueWithin so the Tally ledger-map PUT can take a larger bounded body; existing callers keep the 32 KiB cap. Transaction, outletAccess, grants and this registration's recorded authority are unchanged. Source rechecked for #1686 retained participant history on 2026-11-23: catalogue.go only adds a private IndependentStaffHistoryGuard dependency field. catalogueRoutes, outletAccess and the legacy transaction body are unchanged; only the separate reviewed inventory constructor wires the optional guard, and new reviewed approval fails closed when it is unavailable. This review does not establish migration or runtime acceptance and preserves all remaining obligations.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/pharmacy/reorder_levels.go",
@@ -6713,7 +6713,7 @@
         },
         {
           "path": "backend/internal/modules/pharmacy/catalogue.go",
-          "sha256": "d30f47e82684269f19dfcf16775c570f5a86eb6f7863f708f712eb59389542e6",
+          "sha256": "1421426e65e2149a6301bb4cfb599f78a651f71406a4beb1e510847403bd50a5",
           "symbol": "func outletAccess("
         },
         {
@@ -6733,7 +6733,7 @@
       "registration_sha256": "71104fd93ef47150ae8e200e3f67b5dfa070618abeb48a86f0facd047d494c87",
       "authority_kind": "hospital_operational",
       "resource_scope": "Verified tenant, pharmacy, outlet and scoped catalogue product; explicit current outlet grant.",
-      "rationale": "Source review for #1685: the registered stock-read or catalogue-write permission is followed by catalogueScope and transaction/outletAccess. Every read locks the current outlet grant; writes additionally require stock-read permission, an editor grant and the scoped product row. Receipts reauthorize and compare the original product, payload and actor; history, actor, version and product/unit constraints are enforced by the database. The list/count uses current available outlet stock only and creates no order. This classification records source behavior, not employment cutoff or deployment acceptance. Source rechecked for #1690 on 2026-11-21: catalogue.go only splits decodeCatalogue into decodeCatalogueWithin so the Tally ledger-map PUT can take a larger bounded body; existing callers keep the 32 KiB cap. Transaction, outletAccess, grants and this registration's recorded authority are unchanged.",
+      "rationale": "Source review for #1685: the registered stock-read or catalogue-write permission is followed by catalogueScope and transaction/outletAccess. Every read locks the current outlet grant; writes additionally require stock-read permission, an editor grant and the scoped product row. Receipts reauthorize and compare the original product, payload and actor; history, actor, version and product/unit constraints are enforced by the database. The list/count uses current available outlet stock only and creates no order. This classification records source behavior, not employment cutoff or deployment acceptance. Source rechecked for #1690 on 2026-11-21: catalogue.go only splits decodeCatalogue into decodeCatalogueWithin so the Tally ledger-map PUT can take a larger bounded body; existing callers keep the 32 KiB cap. Transaction, outletAccess, grants and this registration's recorded authority are unchanged. Source rechecked for #1686 retained participant history on 2026-11-23: catalogue.go only adds a private IndependentStaffHistoryGuard dependency field. catalogueRoutes, outletAccess and the legacy transaction body are unchanged; only the separate reviewed inventory constructor wires the optional guard, and new reviewed approval fails closed when it is unavailable. This review does not establish migration or runtime acceptance and preserves all remaining obligations.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/pharmacy/reorder_levels.go",
@@ -6742,7 +6742,7 @@
         },
         {
           "path": "backend/internal/modules/pharmacy/catalogue.go",
-          "sha256": "d30f47e82684269f19dfcf16775c570f5a86eb6f7863f708f712eb59389542e6",
+          "sha256": "1421426e65e2149a6301bb4cfb599f78a651f71406a4beb1e510847403bd50a5",
           "symbol": "func outletAccess("
         },
         {
@@ -6762,7 +6762,7 @@
       "registration_sha256": "62daa7e77c2ea3d9f10746e6671936cb2d5386b9391a88f8a59da76be9bd8514",
       "authority_kind": "hospital_operational",
       "resource_scope": "Verified tenant, pharmacy, outlet and scoped catalogue product; explicit current outlet grant.",
-      "rationale": "Source review for #1685: the registered stock-read or catalogue-write permission is followed by catalogueScope and transaction/outletAccess. Every read locks the current outlet grant; writes additionally require stock-read permission, an editor grant and the scoped product row. Receipts reauthorize and compare the original product, payload and actor; history, actor, version and product/unit constraints are enforced by the database. The list/count uses current available outlet stock only and creates no order. This classification records source behavior, not employment cutoff or deployment acceptance. Source rechecked for #1690 on 2026-11-21: catalogue.go only splits decodeCatalogue into decodeCatalogueWithin so the Tally ledger-map PUT can take a larger bounded body; existing callers keep the 32 KiB cap. Transaction, outletAccess, grants and this registration's recorded authority are unchanged.",
+      "rationale": "Source review for #1685: the registered stock-read or catalogue-write permission is followed by catalogueScope and transaction/outletAccess. Every read locks the current outlet grant; writes additionally require stock-read permission, an editor grant and the scoped product row. Receipts reauthorize and compare the original product, payload and actor; history, actor, version and product/unit constraints are enforced by the database. The list/count uses current available outlet stock only and creates no order. This classification records source behavior, not employment cutoff or deployment acceptance. Source rechecked for #1690 on 2026-11-21: catalogue.go only splits decodeCatalogue into decodeCatalogueWithin so the Tally ledger-map PUT can take a larger bounded body; existing callers keep the 32 KiB cap. Transaction, outletAccess, grants and this registration's recorded authority are unchanged. Source rechecked for #1686 retained participant history on 2026-11-23: catalogue.go only adds a private IndependentStaffHistoryGuard dependency field. catalogueRoutes, outletAccess and the legacy transaction body are unchanged; only the separate reviewed inventory constructor wires the optional guard, and new reviewed approval fails closed when it is unavailable. This review does not establish migration or runtime acceptance and preserves all remaining obligations.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/pharmacy/reorder_levels.go",
@@ -6771,7 +6771,7 @@
         },
         {
           "path": "backend/internal/modules/pharmacy/catalogue.go",
-          "sha256": "d30f47e82684269f19dfcf16775c570f5a86eb6f7863f708f712eb59389542e6",
+          "sha256": "1421426e65e2149a6301bb4cfb599f78a651f71406a4beb1e510847403bd50a5",
           "symbol": "func outletAccess("
         },
         {
@@ -6791,7 +6791,7 @@
       "registration_sha256": "36ed3383169fbbd2db2fba80cf068f623dd045d38b82835ccf7a8d275c1e2c44",
       "authority_kind": "hospital_operational",
       "resource_scope": "Verified tenant, pharmacy, outlet and scoped catalogue product; explicit current outlet grant.",
-      "rationale": "Source review for #1685: the registered stock-read or catalogue-write permission is followed by catalogueScope and transaction/outletAccess. Every read locks the current outlet grant; writes additionally require stock-read permission, an editor grant and the scoped product row. Receipts reauthorize and compare the original product, payload and actor; history, actor, version and product/unit constraints are enforced by the database. The list/count uses current available outlet stock only and creates no order. This classification records source behavior, not employment cutoff or deployment acceptance. Source rechecked for #1690 on 2026-11-21: catalogue.go only splits decodeCatalogue into decodeCatalogueWithin so the Tally ledger-map PUT can take a larger bounded body; existing callers keep the 32 KiB cap. Transaction, outletAccess, grants and this registration's recorded authority are unchanged.",
+      "rationale": "Source review for #1685: the registered stock-read or catalogue-write permission is followed by catalogueScope and transaction/outletAccess. Every read locks the current outlet grant; writes additionally require stock-read permission, an editor grant and the scoped product row. Receipts reauthorize and compare the original product, payload and actor; history, actor, version and product/unit constraints are enforced by the database. The list/count uses current available outlet stock only and creates no order. This classification records source behavior, not employment cutoff or deployment acceptance. Source rechecked for #1690 on 2026-11-21: catalogue.go only splits decodeCatalogue into decodeCatalogueWithin so the Tally ledger-map PUT can take a larger bounded body; existing callers keep the 32 KiB cap. Transaction, outletAccess, grants and this registration's recorded authority are unchanged. Source rechecked for #1686 retained participant history on 2026-11-23: catalogue.go only adds a private IndependentStaffHistoryGuard dependency field. catalogueRoutes, outletAccess and the legacy transaction body are unchanged; only the separate reviewed inventory constructor wires the optional guard, and new reviewed approval fails closed when it is unavailable. This review does not establish migration or runtime acceptance and preserves all remaining obligations.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/pharmacy/reorder_levels.go",
@@ -6800,7 +6800,7 @@
         },
         {
           "path": "backend/internal/modules/pharmacy/catalogue.go",
-          "sha256": "d30f47e82684269f19dfcf16775c570f5a86eb6f7863f708f712eb59389542e6",
+          "sha256": "1421426e65e2149a6301bb4cfb599f78a651f71406a4beb1e510847403bd50a5",
           "symbol": "func outletAccess("
         },
         {

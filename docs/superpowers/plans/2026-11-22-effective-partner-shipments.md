@@ -59,16 +59,24 @@ The first native run exposed a real fulfilment-audit constraint failure after
 account and duty review. The forward audit migration and its database negative
 matrix passed in run
 [44978972536](https://github.com/tesserix/helivanta/actions/runs/44978972536);
-the full both-owner Staff scenario in that run remains pending.
+the full both-owner Staff scenario also passed under the race detector
+(`1045.633s`). Both source products denied unreviewed and wrong-scope duties,
+then admitted their real reviewed Staff through the actual stock-owner adapter.
+The fix and forward migration are in draft PR
+[#1806](https://github.com/tesserix/helivanta/pull/1806); protected checks and
+specifically approved migration/Kargo/live acceptance remain open.
 
 Dispatch-preflight regression-only run
 [44978473013](https://github.com/tesserix/helivanta/actions/runs/44978473013)
 then reproduced an unsupported `receive` peer operation. The caller now uses
 the existing `dispatch` operation. Fixed run
 [44979352134](https://github.com/tesserix/helivanta/actions/runs/44979352134)
-must prove that an order policy cannot substitute for current buyer dispatch
-eligibility. Its canonical accepted-order records isolate preflight and do not
-prove public procurement or physical dispatch.
+passed the full native root under the race detector (`1001.301s`), including
+both source products' refusal without a buyer dispatch policy and success after
+independent TEST policy approval. An order policy cannot substitute for this
+activity. These canonical accepted-order records isolate preflight; physical
+dispatch remains a separate gate. The fix is in draft PR
+[#1807](https://github.com/tesserix/helivanta/pull/1807).
 
 The separate public-order candidate
 [44979749923](https://github.com/tesserix/helivanta/actions/runs/44979749923)
@@ -76,7 +84,10 @@ uses actual department-scoped hospital preparer/reviewer grants, source catalogu
 creation, Global API procurement commands, directed order delivery and a separately
 reviewed source order-acceptor duty. It checks that a fulfiller cannot approve
 orders, command replay/conflicts and accepted-state delivery back to the buyer.
-That result is pending; no public-order acceptance is claimed yet.
+That full native root passed under the race detector (`854.157s`), including
+the actual public hospital order/source acceptance journey (`1.74s`). Bilateral
+relationship and sharing consent are still state-machine fixtures, not a proven
+public consent journey. This test creates no reservation or physical dispatch.
 
 Still exercise reservation and physical dispatch for each stock owner, then
 consume the published shipment in hospital receiving,

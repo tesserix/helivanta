@@ -229,3 +229,13 @@ Receiving PR #1811 now has passing browser E2E, web, supplier, API-client, sourc
 presentation, Staff-query-plan and compound-admission checks; its broad Go gate
 remains running. Nothing here establishes an approved main/Kargo/migration rollout
 or deployed acceptance.
+
+
+Public grant retry [44988930145](https://github.com/tesserix/helivanta/actions/runs/44988930145)
+subsequently passed the actual Supply named-recipient (`6.74s`) and group-recipient
+(`6.20s`) public grant subtests. These follow the public source/hospital relationship
+approvals and retain current Staff, recipient-basis, source, graph and audit
+checks. The run then stopped on the older warehouse reservation UUID scan bug;
+it is not a passing full root or Pharma public-consent result. The complete retry
+[44989863836](https://github.com/tesserix/helivanta/actions/runs/44989863836) includes
+both the explicit warehouse contract authority and the receipt-scan fix.

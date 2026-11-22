@@ -6424,6 +6424,11 @@
               ]
             }
           ]
+        },
+        {
+          "id": "0062_pharmacy_operating_fulfilment_audit",
+          "sql_sha256": "36be3016ff358c387696af3fb65fe767e0f9ed4827b3813a4fc315e751acdc44",
+          "creates_tables": []
         }
       ]
     },

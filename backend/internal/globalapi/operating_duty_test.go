@@ -37,7 +37,7 @@ func (v operatingVerifier) Verify(_ context.Context, token string) (authn.Princi
 	if token == "foreign" {
 		tenant = testutil.TenantB
 	}
-	if token != "owner" && token != "reviewer" && token != "receiver" && token != "foreign" {
+	if token != "owner" && token != "reviewer" && token != "receiver" && token != "foreign" && token != "stock-reviewer" {
 		return authn.Principal{}, fmt.Errorf("TEST unknown credential")
 	}
 	return authn.Principal{TenantID: tenant, Subject: "user-" + token, AuthTime: v.at, IdleDeadline: v.at.Add(time.Hour)}, nil
@@ -117,7 +117,7 @@ func newOperatingDutyFixtureWithOwners(t *testing.T, documents *attachments.GCS,
 		return iam.NewSourceAdministrationGuard(db, graph)
 	}, Verifier: operatingVerifier{at: authenticatedAt}, Writer: projection, Roles: graph, OperatingAuthorizer: func(db *tenantdb.DB) authz.OperatingScopeAuthorizer {
 		return iam.NewOperatingAuthorizer(db, checks, platform.IndependentStaffIdentities(modules, db), platform.OperatingLocations(modules, db))
-	}, Tokens: map[string]string{"owner": testutil.TenantA, "reviewer": testutil.TenantA, "receiver": testutil.TenantA, "foreign": testutil.TenantB}, Perms: map[string][]authz.Permission{"owner": admin, "reviewer": admin, "foreign": admin}, Modules: modules})
+	}, Tokens: map[string]string{"owner": testutil.TenantA, "reviewer": testutil.TenantA, "receiver": testutil.TenantA, "foreign": testutil.TenantB, "stock-reviewer": testutil.TenantA}, Perms: map[string][]authz.Permission{"owner": admin, "reviewer": admin, "foreign": admin}, Modules: modules})
 
 	for _, m := range modules {
 		for _, grant := range m.Permissions() {

@@ -3,8 +3,13 @@ package globalapi
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
+
+	"github.com/tesserix/helivanta/internal/testutil"
 )
 
 func TestStocktakeReviewedIndependentCounterFreezesReceivedStock(t *testing.T) {
@@ -117,6 +122,49 @@ func TestStocktakeReviewedIndependentCounterFreezesReceivedStock(t *testing.T) {
 	f.call("PUT", path+"/decisions/"+v7(), "receiver", map[string]any{
 		"decision": "approve", "expected_version": 2, "reason": "TEST counter cannot independently approve", "extra_units_disposition": "no_extra_units",
 	}, 404)
+	counterDuty := f.duty
+	f.call("POST", "/v1/iam/members/user-stock-reviewer", "owner", map[string]any{"role": "staff_member"}, 202)
+	require.Eventually(t, func() bool {
+		member, err := f.graph.IsMember(t.Context(), "user-stock-reviewer", testutil.TenantA)
+		return err == nil && member
+	}, 3*time.Second, 10*time.Millisecond)
+	reviewStaff, reviewLink := v7(), v7()
+	staffRoot := "/v1/workforce/pharmacy-employers/" + f.pharmacy + "/staff"
+	f.call("PUT", staffRoot+"/"+reviewStaff, "owner", map[string]any{
+		"expected_directory_version": 1, "expected_version": 0, "display_name": "TEST Independent Stock Reviewer", "job_category": "pharmacist", "state": "active", "reason": "TEST separate reviewed stock approver",
+	}, 201)
+	reviewStaffRoot := staffRoot + "/" + reviewStaff
+	f.call("PUT", reviewStaffRoot+"/account-links/"+reviewLink, "owner", map[string]any{
+		"subject": "user-stock-reviewer", "expected_staff_version": 1, "expected_link_version": 0, "reason": "TEST distinct approver account",
+	}, 201)
+	f.call("PUT", reviewStaffRoot+"/account-links/"+reviewLink+"/commands/"+v7(), "reviewer", map[string]any{
+		"decision": "approve", "expected_staff_version": 1, "expected_link_version": 1, "reason": "TEST approve distinct account proof",
+	}, 201)
+	f.input.TemplateKey = "pharmacy.stocktake_reviewer.v1"
+	f.input.Subject = "user-stock-reviewer"
+	f.input.Identity.StaffID, f.input.Identity.LinkID = uuid.MustParse(reviewStaff), uuid.MustParse(reviewLink)
+	f.input.Identity.StaffVersion, f.input.Identity.LinkVersion = 1, 2
+	f.duty = "/v1/iam/pharmacy-employers/" + f.pharmacy + "/operating-duties/" + v7()
+	f.activate(t)
+	approvalPath := path + "/decisions/" + v7()
+	approval := map[string]any{"decision": "approve", "expected_version": 2, "reason": "TEST independently approve observed shortage", "extra_units_disposition": "no_extra_units"}
+	posted := f.call("PUT", approvalPath, "stock-reviewer", approval, 200)
+	require.JSONEq(t, posted, f.call("PUT", approvalPath, "stock-reviewer", approval, 200))
+	require.JSONEq(t, posted, f.call("GET", approvalPath, "stock-reviewer", nil, 200))
+	require.NoError(t, json.Unmarshal([]byte(posted), &decision))
+	require.Equal(t, "posted", decision.State)
+	require.EqualValues(t, 3, decision.Version)
+	require.EqualValues(t, 1, decision.AdjustmentCount)
+	f.ownerOutletTx(t, func(tx *gorm.DB) error {
+		var ledger struct{ Corrections, Units int64 }
+		if err := tx.Raw(`SELECT count(*) FILTER(WHERE kind='correction') corrections, COALESCE(sum(quantity_units),0) units FROM pharmacy_stock_movements WHERE tenant_id=? AND outlet_id=?`, testutil.TenantA, f.outlet).Scan(&ledger).Error; err != nil {
+			return err
+		}
+		require.EqualValues(t, 1, ledger.Corrections)
+		require.EqualValues(t, 27, ledger.Units)
+		return nil
+	})
+	f.duty = counterDuty
 	f.call("PUT", f.duty+"/commands/"+v7(), "owner", map[string]any{
 		"expected_version": 3, "decision": "revoke", "reason": "TEST end the reviewed counting duty",
 	}, 201)

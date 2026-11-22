@@ -293,7 +293,7 @@ func (f supplierCompoundFixture) assertAdmission(t *testing.T, subject, reviewer
 			if source.endpoint.Product == "pharmacy" {
 				f.assertPublicPharmacyOrder(t, buyerActor, sellerActor, operator, relationship, member.Input.DepartmentID, subject, reviewer)
 			} else {
-				f.assertPublicWarehouseFulfilment(t, sellerActor, operator, relationship, member.Input.DepartmentID, subject, reviewer)
+				f.assertPublicWarehouseFulfilment(t, buyerActor, sellerActor, operator, relationship, member.Input.DepartmentID, subject, reviewer)
 			}
 			for _, kind := range []string{"subject", "group"} {
 				base := paths[source.endpoint.Product+"/"+kind] + "/shipment-orders"

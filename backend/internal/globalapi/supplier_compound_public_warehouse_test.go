@@ -13,7 +13,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/suppliertrade"
 )
 
-func (f supplierCompoundFixture) assertPublicWarehouseFulfilment(t *testing.T, admin, operator operatingDutyFixture, relationship suppliertrade.Relationship, department uuid.UUID, preparer, reviewer string) {
+func (f supplierCompoundFixture) assertPublicWarehouseFulfilment(t *testing.T, buyerAdmin, admin, operator operatingDutyFixture, relationship suppliertrade.Relationship, department uuid.UUID, preparer, reviewer string) {
 	t.Helper()
 	publishStockProduct(t, f.db, "active")
 	var found struct {
@@ -51,4 +51,7 @@ func (f supplierCompoundFixture) assertPublicWarehouseFulfilment(t *testing.T, a
 		require.Equal(t, product.UnitOfIssue, shipment.UnitCode)
 		require.Nil(t, shipment.MrpMinor, "the warehouse does not claim pharmacy-owned printed MRP")
 	}
+	require.True(t, t.Run("warehouse hospital count quarantine discrepancies and independent release", func(t *testing.T) {
+		f.assertHospitalSupplierReceiving(t, buyerAdmin, shipments, department, preparer, reviewer)
+	}))
 }

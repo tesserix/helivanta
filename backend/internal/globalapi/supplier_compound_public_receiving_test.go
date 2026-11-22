@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/url"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,15 +22,16 @@ func (f supplierCompoundFixture) assertHospitalSupplierReceiving(t *testing.T, a
 	product, batch, quarantine, shelf := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 	var target map[string]any
 	require.NoError(t, json.Unmarshal([]byte(receiverProduct), &target))
-	target["sku"] = "TEST-RECEIVING-PHARMACY"
+	source := strings.ToUpper(first.Product.Owner)
+	target["sku"] = "TEST-RECEIVING-" + source
 	admin.call("PUT", root+"/catalogue/products/"+product.String(), "owner", target, 200)
 	classification := uuid.Must(uuid.NewV7()).String()
 	productPath := root + "/catalogue/products/" + product.String()
 	admin.call("PUT", productPath+"/schedule/"+classification, "owner", map[string]any{"regulatory_class": "H", "ndps": false, "source": "TEST source-matched capsule label"}, 201)
 	admin.call("POST", productPath+"/schedule/"+classification+"/review", "reviewer", map[string]any{"decision": "approved", "reason": "TEST independent destination classification review"}, 200)
 	admin.call("PUT", productPath+"/tax-classifications/"+uuid.Must(uuid.NewV7()).String(), "owner", map[string]any{"classification_code": "30041010", "supply_nature": "taxable", "rate_percent": "5", "effective_from": time.Now().In(time.FixedZone("Asia/Kolkata", 19800)).Format(time.DateOnly)}, 201)
-	admin.call("PUT", root+"/stock/locations/"+quarantine.String(), "owner", map[string]any{"code": "TEST-RECEIVING-Q", "name": "TEST Receiving Quarantine"}, 200)
-	admin.call("PUT", root+"/stock/locations/"+shelf.String(), "owner", map[string]any{"code": "TEST-RECEIVING-SHELF", "name": "TEST Receiving Shelf", "stock_status": "sellable"}, 200)
+	admin.call("PUT", root+"/stock/locations/"+quarantine.String(), "owner", map[string]any{"code": "TEST-RECEIVING-Q-" + source, "name": "TEST Receiving Quarantine"}, 200)
+	admin.call("PUT", root+"/stock/locations/"+shelf.String(), "owner", map[string]any{"code": "TEST-RECEIVING-SHELF-" + source, "name": "TEST Receiving Shelf", "stock_status": "sellable"}, 200)
 	stock := func(location uuid.UUID, want int64) {
 		t.Helper()
 		path := root + "/stock/positions?as_of=" + url.QueryEscape(time.Now().UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano)) + "&balance=on_hand&batch_id=" + batch.String() + "&location_id=" + location.String()
@@ -50,7 +52,13 @@ func (f supplierCompoundFixture) assertHospitalSupplierReceiving(t *testing.T, a
 		require.Equal(t, first.BuyerTenantID, shipment.BuyerTenantID)
 		require.Equal(t, first.BuyerLocationID, shipment.BuyerLocationID)
 		require.Equal(t, first.LotNumber, shipment.LotNumber)
-		require.NotNil(t, shipment.MrpMinor)
+		mrp := shipment.MrpMinor
+		if shipment.Product.Owner == "supply" {
+			require.Nil(t, mrp, "retain original warehouse evidence without a pharmacy printed MRP")
+			mrp = ptr(int64(12500))
+		} else {
+			require.NotNil(t, mrp)
+		}
 		base := "/v1/pharmacy/hospitals/" + shipment.HospitalID.String() + "/departments/" + department.String() + "/outlets/" + shipment.BuyerLocationID.String() + "/supplier-shipments/" + shipment.ID.String()
 		choices := f.hospitalCall(t, "GET", base+"/receiving/product-choices", receiver, nil, 200)["data"].([]any)
 		found := false
@@ -66,7 +74,12 @@ func (f supplierCompoundFixture) assertHospitalSupplierReceiving(t *testing.T, a
 		}
 		receiptID := uuid.Must(uuid.NewV7())
 		receiptPath := base + "/receipts/" + receiptID.String()
-		input := fulfilment.ReceivingInput{DestinationProductID: &product, DestinationProductVersion: ptr(int64(1)), DestinationBatchID: &batch, QuarantineLocationID: &quarantine, MrpMinor: shipment.MrpMinor, CountedUnits: counted, AcceptedUnits: accepted, RejectedUnits: rejected, ObservedLotNumber: shipment.LotNumber, ObservedExpiresOn: shipment.ExpiresOn, IdentityConfirmed: true, Reason: "TEST counted delivery with separate accepted rejected and short evidence"}
+		input := fulfilment.ReceivingInput{DestinationProductID: &product, DestinationProductVersion: ptr(int64(1)), DestinationBatchID: &batch, QuarantineLocationID: &quarantine, MrpMinor: mrp, CountedUnits: counted, AcceptedUnits: accepted, RejectedUnits: rejected, ObservedLotNumber: shipment.LotNumber, ObservedExpiresOn: shipment.ExpiresOn, IdentityConfirmed: true, Reason: "TEST counted delivery with separate accepted rejected and short evidence"}
+		if shipment.Product.Owner == "supply" {
+			uninspected := input
+			uninspected.MrpMinor = nil
+			f.hospitalCall(t, "PUT", receiptPath, receiver, uninspected, 400)
+		}
 		received := f.hospitalCall(t, "PUT", receiptPath, receiver, input, 200)
 		require.Equal(t, receiver, received["actor_subject"])
 		require.Equal(t, float64(accepted), received["cumulative_accepted_units"])

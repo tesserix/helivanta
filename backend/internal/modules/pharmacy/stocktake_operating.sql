@@ -79,7 +79,7 @@ END $$;
 CREATE TABLE pharmacy_stocktake_operating_evidence(
  tenant_id uuid NOT NULL,outlet_id uuid NOT NULL,id uuid NOT NULL CHECK(substring(id::text,15,1)='7'),
  pharmacy_id uuid NOT NULL,stocktake_id uuid NOT NULL,
- kind text NOT NULL CHECK(kind IN('start','lines_read','count','count_read','submit','cancel','approve','reject','decision_read')),
+ kind text NOT NULL CHECK(kind IN('start','record_read','register_read','lines_read','count','count_read','submit','cancel','approve','reject','decision_read')),
  command_id uuid,
  permission text NOT NULL CHECK(permission IN('pharmacy.stocktake.read','pharmacy.stocktake.count','pharmacy.stocktake.review')),
  duty_id uuid NOT NULL CHECK(duty_id<>'00000000-0000-0000-0000-000000000000'),
@@ -98,7 +98,7 @@ CREATE TABLE pharmacy_stocktake_operating_evidence(
  CHECK(kind NOT IN('count','submit','cancel','approve','reject')OR id=command_id),
  CHECK(kind NOT IN('count','submit','cancel')OR permission='pharmacy.stocktake.count'),
  CHECK(kind NOT IN('approve','reject')OR permission='pharmacy.stocktake.review'),
- CHECK(kind NOT IN('lines_read','count_read','decision_read')OR permission='pharmacy.stocktake.read'),
+ CHECK(kind NOT IN('record_read','register_read','lines_read','count_read','decision_read')OR permission='pharmacy.stocktake.read'),
  CHECK(kind<>'start'OR(id=stocktake_id AND permission='pharmacy.stocktake.count'))
 );
 CREATE INDEX ON pharmacy_stocktake_operating_evidence(tenant_id,outlet_id,stocktake_id,staff_id,kind);

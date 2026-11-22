@@ -20,6 +20,9 @@ import (
 func operatingStocktakeRoutes(g *platform.Router, h *catalogueHandlers) {
 	s := g.Group("/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes")
 	s.PUT("/:stocktake", authz.Public, h.putOperatingStocktake)
+	platform.ListRoute(s, "", authz.Public, h.listOperatingStocktakes)
+	s.GET("/:stocktake", authz.Public, h.getOperatingStocktake)
+	s.GET("/:stocktake/register.csv", authz.Public, h.exportOperatingStocktakeRegister)
 	platform.ListRoute(s, "/:stocktake/lines", authz.Public, h.listOperatingStocktakeLines)
 	s.PUT("/:stocktake/counts/:command", authz.Public, h.putOperatingStocktakeCount)
 	s.GET("/:stocktake/counts/:command", authz.Public, h.getOperatingStocktakeCount)
@@ -139,7 +142,7 @@ func (h *catalogueHandlers) listOperatingStocktakeLines(c *gin.Context, params p
 	}
 	rows := []stocktakeLineRow{}
 	err := h.operatingStock(c.Request.Context(), p, pharmacy, outlet, PermStocktakeRead, func(tx *gorm.DB, use operatingStockUse) error {
-		if _, err := readStocktakeHeader(tx, p.TenantID, outlet, id); err != nil {
+		if _, err := readStocktakeHeader(tx.Where("authority_kind='operating'"), p.TenantID, outlet, id); err != nil {
 			return err
 		}
 		if err := tenantdb.ApplyKeyset(tx, params).Select(stocktakeLineColumns+",observed.counted_units,observed.counted_by,observed.count_reason,observed.counted_at,observed.counted_units-book_units difference_units").Joins(stocktakeObservedJoin).Where("tenant_id=? AND outlet_id=? AND stocktake_id=?", p.TenantID, outlet, id).Find(&rows).Error; err != nil {

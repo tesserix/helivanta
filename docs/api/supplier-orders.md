@@ -96,7 +96,11 @@ adds only the `supplier_fulfilment_access` / `supplier_order` /
 receiving/read combinations and the audit's RLS remain enforced; the fulfilment
 duty does not become a receiving duty. A failed audit denies the complete
 admission. The real Staff/product regression reproduced the previous constraint
-failure in hosted run `44978021214`; fixed validation remains pending.
+failure in hosted run `44978021214`. Fixed hosted run `44978972536` passed the
+focused database negative matrix and the full native root under the race
+detector (`1045.633s`), including real independently reviewed source Staff,
+account links and operating-duty admission for both owner products. This proves
+current stock-owner admission, not public procurement or physical dispatch.
 
 This additive migration preserves existing evidence and validates the expanded
 checks. It requires the normal approved migration rollout. After new fulfilment

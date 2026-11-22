@@ -54,6 +54,6 @@ func TestShipmentSafetyRetainsEightDistinctSourceShipments(t *testing.T) {
 	require.NoError(t, err, "eight distinct retained source checks must not exhaust the five-connection pool")
 	require.Equal(t, 1, checked, "the destination continuation runs once, after every current source check")
 	shipments[len(shipments)-1].QuantityUnits++
-	require.ErrorIs(t, run(ctx, 0), f.ErrConflict, "the final immutable receipt must still be rederived, not trusted from its capture")
+	require.ErrorIs(t, run(ctx, 0), f.ErrUnavailable, "the final immutable receipt must still be rederived, not trusted from its capture")
 	require.Equal(t, 1, checked, "late source denial must prevent destination continuation")
 }

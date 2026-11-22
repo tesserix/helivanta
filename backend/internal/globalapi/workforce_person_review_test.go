@@ -126,7 +126,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			return iam.NewSourceAdministrationGuard(db, graph)
 		},
 		TradingRelationships: func(deps platform.Deps) suppliertrade.CurrentRelationshipGuard {
-			return supply.NewRelationshipAuthority(deps.DB, deps.TradingEndpoints, tradingSourcePeerForTest(t, deps), deps.OrganizationIdentity)
+			return observedCompoundRelationships{CurrentRelationshipGuard: supply.NewRelationshipAuthority(deps.DB, deps.TradingEndpoints, tradingSourcePeerForTest(t, deps), deps.OrganizationIdentity), t: t}
 		},
 		PartnerScopes: func(deps platform.Deps) authz.PartnerScopeAuthorizer {
 			t.Logf("compound partner dependencies: writer=%T members=%T relationships=%T endpoints=%T", deps.Authz, deps.PartnerMembers, deps.TradingRelationships, deps.TradingEndpoints)

@@ -34,12 +34,27 @@ func (transport tradingOwnerTransport) RoundTrip(request *http.Request) (*http.R
 	return response.Result(), nil
 }
 
+type observedTradingOwnerTransport struct {
+	tradingOwnerTransport
+	t *testing.T
+}
+
+func (transport observedTradingOwnerTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	response, err := transport.tradingOwnerTransport.RoundTrip(request)
+	if err != nil {
+		transport.t.Logf("current-owner protocol: path=%s error=%v", request.URL.Path, err)
+	} else {
+		transport.t.Logf("current-owner protocol: path=%s status=%d", request.URL.Path, response.StatusCode)
+	}
+	return response, err
+}
+
 func tradingSourcePeerForTest(t *testing.T, deps platform.Deps) *suppliertrade.CurrentSourceClient {
 	t.Helper()
 	owner := gin.New()
 	owner.POST(suppliertrade.SourceCheckPath, supply.NewTradingSourceCheckHandler(deps, tradingWorkloadFixture{}))
 	owner.POST(suppliertrade.RelationshipCheckPath, supply.NewRelationshipCheckHandler(deps, tradingWorkloadFixture{}))
-	client, err := suppliertrade.NewCurrentSourceClient("https://current-owner.example.invalid"+suppliertrade.SourceCheckPath, tradingOwnerTransport{owner}, func(context.Context) (string, error) { return "TEST-CURRENT-OWNER", nil })
+	client, err := suppliertrade.NewCurrentSourceClient("https://current-owner.example.invalid"+suppliertrade.SourceCheckPath, observedTradingOwnerTransport{tradingOwnerTransport: tradingOwnerTransport{owner}, t: t}, func(context.Context) (string, error) { return "TEST-CURRENT-OWNER", nil })
 	require.NoError(t, err)
 	return client
 }

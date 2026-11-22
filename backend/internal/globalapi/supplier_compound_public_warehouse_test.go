@@ -35,7 +35,7 @@ func (f supplierCompoundFixture) assertPublicWarehouseFulfilment(t *testing.T, a
 	qualityPath := receiptPath + "/quality-decisions/" + uuid.Must(uuid.NewV7()).String()
 	quality := map[string]any{"expected_version": 0, "identity_check_id": identity, "identity_version": 1, "decision": "release", "reason": "TEST independent warehouse physical quality release"}
 	denied := f.sourceStaffRequest(t, operator.principal, "PUT", qualityPath, quality)
-	require.Equal(t, 403, denied.Code, "fulfilment/order-acceptance duties cannot release unreviewed stock: %s", denied.Body.String())
+	require.Equal(t, 404, denied.Code, "stock owner hides quality evidence without an independently reviewed quality duty: %s", denied.Body.String())
 	f.approveSourceOperatingDuty(t, admin, operator, "supply.stock_quality_reviewer.v1", "TEST separate warehouse stock quality authority")
 	approved := f.sourceStaffRequest(t, operator.principal, "PUT", qualityPath, quality)
 	require.Equal(t, 201, approved.Code, approved.Body.String())

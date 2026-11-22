@@ -86,9 +86,12 @@ func (f supplierCompoundFixture) assertPublicPharmacyDispatch(t *testing.T, admi
 	var shipments struct {
 		Data []fulfilment.Shipment `json:"data"`
 	}
-	response := f.sourceStaffRequest(t, operator.principal, "GET", "/v1/supply/stock-owners/pharmacy/organizations/"+seller.OrganizationID.String()+"/locations/"+seller.LocationID.String()+"/supplier-orders/"+order.ID.String()+"/shipments", nil)
-	require.Equal(t, 200, response.Code, response.Body.String())
-	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &shipments))
+	require.Eventually(t, func() bool {
+		response := f.sourceStaffRequest(t, operator.principal, "GET", "/v1/supply/stock-owners/pharmacy/organizations/"+seller.OrganizationID.String()+"/locations/"+seller.LocationID.String()+"/supplier-orders/"+order.ID.String()+"/shipments", nil)
+		require.Equal(t, 200, response.Code, response.Body.String())
+		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &shipments))
+		return len(shipments.Data) == 2
+	}, 20*time.Second, 100*time.Millisecond, "source publication must retain both committed physical dispatches")
 	require.Len(t, shipments.Data, 2)
 	var total int64
 	for _, shipment := range shipments.Data {

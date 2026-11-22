@@ -45,15 +45,13 @@ BEGIN
  END LOOP;
 END $policies$;
 
-DO $$DECLARE prior text;BEGIN
+DO $$DECLARE prior text;reading text;active text:='(SELECT starts_with(COALESCE(current_setting(''app.pharmacy_stock_permission'',true),''''),''pharmacy.stocktake.''))';BEGIN
+ reading:='tenant_id=NULLIF(current_setting(''app.tenant_id'',true),'''')::uuid AND location_id=NULLIF(current_setting(''app.pharmacy_stock_outlet'',true),'''')::uuid AND(SELECT pharmacy_stocktake_operating_scope(NULLIF(current_setting(''app.tenant_id'',true),'''')::uuid,NULLIF(current_setting(''app.pharmacy_stock_outlet'',true),'''')::uuid,''review''))';
  SELECT pg_get_expr(polqual,polrelid)INTO STRICT prior FROM pg_policy WHERE polrelid='pharmacy_supplier_holds'::regclass AND polname='tenant_isolation';
- EXECUTE format('ALTER POLICY tenant_isolation ON pharmacy_supplier_holds USING((%s)OR pharmacy_stocktake_operating_scope(tenant_id,location_id,''review''))',prior);
+ EXECUTE format('ALTER POLICY tenant_isolation ON pharmacy_supplier_holds USING(hms_tenant_visible(tenant_id)AND CASE WHEN %s THEN(%s)ELSE(%s)END)',active,reading,prior);
+ EXECUTE format('CREATE POLICY stocktake_operating_purpose ON pharmacy_supplier_holds AS RESTRICTIVE USING(CASE WHEN %s THEN(%s)ELSE true END)WITH CHECK(NOT %s)',active,reading,active);
+ EXECUTE format('CREATE POLICY stocktake_operating_delete ON pharmacy_supplier_holds AS RESTRICTIVE FOR DELETE USING(NOT %s)',active);
 END $$;
-CREATE POLICY stocktake_operating_purpose ON pharmacy_supplier_holds AS RESTRICTIVE
- USING(CASE WHEN(SELECT starts_with(COALESCE(current_setting('app.pharmacy_stock_permission',true),''),'pharmacy.stocktake.'))THEN pharmacy_stocktake_operating_scope(tenant_id,location_id,'review')ELSE true END)
- WITH CHECK(NOT(SELECT starts_with(COALESCE(current_setting('app.pharmacy_stock_permission',true),''),'pharmacy.stocktake.')));
-CREATE POLICY stocktake_operating_delete ON pharmacy_supplier_holds AS RESTRICTIVE FOR DELETE
- USING(NOT(SELECT starts_with(COALESCE(current_setting('app.pharmacy_stock_permission',true),''),'pharmacy.stocktake.')));
 
 CREATE TABLE pharmacy_stocktake_operating_evidence(
  tenant_id uuid NOT NULL,outlet_id uuid NOT NULL,id uuid NOT NULL CHECK(substring(id::text,15,1)='7'),

@@ -16,6 +16,7 @@ import (
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"

@@ -125,10 +125,11 @@ The unreleased independent/chain development path includes start, line reads,
 counting, submission, independent posting, rejection, cancellation and original
 command recovery with retained Staff/link/duty evidence. Current reviewed
 header/list/register reads also passed hosted scope, audit-failure and rollback
-tests. Full reviewed capacity, hospital department admission, withdrawal
-continuations, the operational page/SDK and positive live acceptance remain
-required by #1686. Keep eligibility false until those gates
-and the capacity regression checks pass.
+tests. Clean independent reviewed capacity also passed in hosted 45075494219.
+Hospital department admission/capacity, withdrawal continuations, the operational
+page/SDK and both-model live acceptance remain required by #1686. Keep eligibility
+false until those gates pass. A passing independent backend gate does not enable
+these capabilities by itself.
 
 ### Pending Staff authenticator recovery control
 

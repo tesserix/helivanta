@@ -43,9 +43,16 @@ Global API workflow measured start 4.348 s, page p99 110.18 ms and posting 500
 corrections in 1.433 s, with replay and 99,500 retained units. Legacy measurements were
 start 2.752 s, page p99 5.71 ms and post 1.343 s. These instrumented measurements are
 **not clean acceptance evidence**. All temporary diagnostic hooks/options were
-removed in `55e10301`. Clean full Stocktake run 45075494219 is running with the
-original 5 s start/post and 300 ms page-p99 gates. The unchanged Staff UI source
-passed tests/lint/types/Shell build in 45069240276.
+removed in `55e10301`. Clean full Stocktake run 45075494219 passed build/vet,
+contracts, Workforce history, Global API/native regression, corruption/rollback,
+IAM admission and both capacity gates. Actual reviewed measurements were
+start 4.331 s, page p99 108.30 ms and posting 500 corrections in 1.432 s; legacy
+measurements were 2.650 s, 7.47 ms and 1.303 s. Both preserved exact replay and
+stock conservation at the original 5 s start/post and 300 ms page-p99 limits.
+Application/test sources match that tested commit; later changes update only
+reference metadata, documentation and exact public-key scanner exceptions.
+The unchanged Staff UI source passed tests/lint/types/Shell build in
+45069240276. PR #1818 additionally enforces the required protected checks.
 
 Eligibility remains false. Hospital authority, withdrawal continuations,
 named choices, operational SDK/UI, full modern reservation/concurrency evidence

@@ -52,11 +52,13 @@ is held, before its transaction settings are restored. Purpose restrictions
 deny general stock, catalogue and receipt writes even if the account separately
 holds a legacy editor grant.
 
-The legacy 10,000-bucket / 500-adjustment capacity fixture is a regression gate,
-not maximum-scale acceptance of the new reviewed path. Core reviewed counting,
-posting and same-Staff alias refusal passed hosted acceptance. Full reviewed
-capacity, hospital department admission, withdrawal continuations, header/list/
-export, operational UI and positive live acceptance remain open in #1686. See the
+Legacy and actual reviewed-duty capacity are separate acceptance gates. Clean
+run 45075494219 passed both, together with core source/command, corruption,
+rollback, dependency-failure and IAM admission regression. Header/list/register
+and Staff-aware participation reads also passed focused acceptance. Hospital
+department admission/capacity, withdrawal continuations, operational SDK/UI,
+full modern reservation/concurrency evidence and both-model browser/live
+acceptance remain open in #1686. See the
 [reviewed authority proposal](../../superpowers/specs/2026-11-23-reviewed-stocktake-authority.md).
 
 Reviewed independent count-entry development follows the same scoped route root:
@@ -116,10 +118,13 @@ is executed, after observations exist. Diagnostic 45074658896 passed the actual
 reviewed 10,000-bucket workflow: start 4.348 s, page p99 110.18 ms and posting 500
 corrections in 1.433 s, including exact replay and 99,500 retained units. Diagnostic
 results are not clean capacity acceptance. Temporary probes/options were
-removed; clean full regression 45075494219 is running at the unchanged 5 s
-start/post and 300 ms page-p99 limits.
+removed; clean full regression 45075494219 passed at the unchanged 5 s
+start/post and 300 ms page-p99 limits. Its actual reviewed measurements were
+start 4.331 s, page p99 108.30 ms and post 1.432 s; both capacity paths retained
+exact replay and conservation. Later reference/documentation/scanner changes
+do not alter the tested application code; protected PR checks remain mandatory.
 
-Draft PR #1818 remains unreleased. Compiled eligibility stays false. Hospital
+PR #1818 contains this unreleased backend slice. Compiled eligibility stays false. Hospital
 admission, withdrawal-safe continuations, named choices, SDK/UI, full modern
 reservation/concurrency coverage and both-model browser/live acceptance remain
 open. New read routes are still Stocktake-gated and do not yet meet withdrawal

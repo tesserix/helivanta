@@ -119,7 +119,7 @@ not add private provenance to v1 responses. Focused Workforce/gateway fixtures u
 an explicit IAM protocol double; bootstrap acceptance uses the actual IAM grant
 and owner guards, FGA membership, PharmaConnect/SupplyConnect owner APIs and
 Workforce employer registration. The independent Stocktake consumer passed core
-history/command and focused read/failure acceptance; its clean capacity,
-hospital path and live acceptance remain separate gates. This evidence does not
+history/command, focused read/failure and clean capacity acceptance. Hospital
+admission and live acceptance remain separate gates. This evidence does not
 establish first employment activation, unrelated consumers or live recipient
 login.

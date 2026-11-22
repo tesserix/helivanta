@@ -50,8 +50,15 @@ func assertHospitalPartnerMembership(t *testing.T, call func(*testing.T, string,
 
 	sourceEnd, err := time.Parse(time.RFC3339Nano, source["ends_at"].(string))
 	require.NoError(t, err)
-	require.True(t, sourceEnd.After(time.Now().Add(time.Minute)), "fixture must retain enough current source validity for review")
-	input := map[string]any{"kind": "subject", "subject": actors.Member, "staff_id": source["staff_id"], "posting_id": source["id"], "posting_revision_id": source["revision_id"], "posting_version": source["version"], "department_id": source["department_id"], "department_revision_id": source["department_revision_id"], "expected_group_version": publication["group"].(map[string]any)["version"], "valid_from": time.Now().UTC(), "expires_at": sourceEnd.Add(-time.Second), "reason": "Named current reviewed hospital staff for receiving only", "sources_examined": true}
+	groupEnd, err := time.Parse(time.RFC3339Nano, publication["group"].(map[string]any)["expires_at"].(string))
+	require.NoError(t, err)
+	// A member may outlast neither its posting nor its group.
+	memberEnd := sourceEnd
+	if groupEnd.Before(memberEnd) {
+		memberEnd = groupEnd
+	}
+	require.True(t, memberEnd.After(time.Now().Add(time.Minute)), "fixture must retain enough current source and group validity for review")
+	input := map[string]any{"kind": "subject", "subject": actors.Member, "staff_id": source["staff_id"], "posting_id": source["id"], "posting_revision_id": source["revision_id"], "posting_version": source["version"], "department_id": source["department_id"], "department_revision_id": source["department_revision_id"], "expected_group_version": publication["group"].(map[string]any)["version"], "valid_from": time.Now().UTC(), "expires_at": memberEnd.Add(-time.Second), "reason": "Named current reviewed hospital staff for receiving only", "sources_examined": true}
 	call(t, "PUT", memberBase+uuid.Must(uuid.NewV7()).String(), actors.Member, input, 403)
 	nominationPath := memberBase + uuid.Must(uuid.NewV7()).String()
 	nomination := call(t, "PUT", nominationPath, actors.Preparer, input, 200)

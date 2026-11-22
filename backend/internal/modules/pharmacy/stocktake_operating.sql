@@ -124,6 +124,7 @@ CREATE TABLE pharmacy_stocktake_operating_evidence(
  created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
  PRIMARY KEY(tenant_id,outlet_id,id),
  CHECK((kind='list_read')=(stocktake_id IS NULL)),
+ FOREIGN KEY(tenant_id,outlet_id)REFERENCES pharmacy_outlets(tenant_id,id)ON DELETE RESTRICT,
  FOREIGN KEY(tenant_id,outlet_id,stocktake_id)REFERENCES pharmacy_stocktakes(tenant_id,outlet_id,id)DEFERRABLE INITIALLY DEFERRED,
  FOREIGN KEY(tenant_id,outlet_id,stocktake_id,command_id)REFERENCES pharmacy_stocktake_commands(tenant_id,outlet_id,stocktake_id,id)DEFERRABLE INITIALLY DEFERRED,
  CHECK((kind IN('count','count_read','submit','cancel','approve','reject','decision_read'))=(command_id IS NOT NULL)),

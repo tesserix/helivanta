@@ -87,4 +87,19 @@ func TestIndependentStaffHistoryReview(t *testing.T) {
 	failure := errors.New("TEST downstream command rolled back")
 	require.ErrorIs(t, run(participant, func(context.Context) error { return failure }), failure)
 	require.EqualValues(t, 2, audits())
+
+	// A current different Staff row cannot erase the reviewer's known historical account alias.
+	reviewerPath := root + "/staff/" + reviewer.StaffID.String()
+	call("PUT", reviewerPath+"/account-links/"+reviewer.LinkID.String()+"/commands/"+uuid.Must(uuid.NewV7()).String(), "admin", map[string]any{"expected_version": 2, "decision": "revoke", "reason": "TEST retire current reviewer account before source rotation"}, 201)
+	alias := uuid.Must(uuid.NewV7())
+	participantPath := root + "/staff/" + participant.Reference.StaffID.String()
+	call("PUT", participantPath+"/account-links/"+alias.String(), "admin", map[string]any{"subject": scope.Subject, "expected_staff_version": 1, "reason": "TEST reviewer account previously identified this participant"}, 201)
+	call("PUT", participantPath+"/account-links/"+alias.String()+"/commands/"+uuid.Must(uuid.NewV7()).String(), "profiler", map[string]any{"expected_version": 1, "decision": "approve", "reason": "TEST reviewed historical alias"}, 201)
+	call("PUT", participantPath+"/account-links/"+alias.String()+"/commands/"+uuid.Must(uuid.NewV7()).String(), "admin", map[string]any{"expected_version": 2, "decision": "revoke", "reason": "TEST retain historical alias after retirement"}, 201)
+	reviewer.LinkID = uuid.Must(uuid.NewV7())
+	call("PUT", reviewerPath+"/account-links/"+reviewer.LinkID.String(), "admin", map[string]any{"subject": scope.Subject, "expected_staff_version": 1, "reason": "TEST new current Staff link for the same account"}, 201)
+	call("PUT", reviewerPath+"/account-links/"+reviewer.LinkID.String()+"/commands/"+uuid.Must(uuid.NewV7()).String(), "profiler", map[string]any{"expected_version": 1, "decision": "approve", "reason": "TEST independently verify the new current source"}, 201)
+	require.ErrorIs(t, run(participant, accept), authz.ErrScopedCommandDenied)
+	require.Equal(t, 2, calls)
+	require.EqualValues(t, 2, audits())
 }

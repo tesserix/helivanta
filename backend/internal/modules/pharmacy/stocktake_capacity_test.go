@@ -46,7 +46,7 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 			if tx.Statement.Table == "pharmacy_stocktake_lines" && !profiledInsert {
 				profiledInsert = true
 				tx.InstanceSet("stocktake-insert-profile", true)
-				tx.AddError(tx.Exec("SAVEPOINT stocktake_insert_profile").Error)
+				tx.AddError(tx.Session(&gorm.Session{NewDB: true}).Exec("SAVEPOINT stocktake_insert_profile").Error)
 			}
 			if strings.HasPrefix(tx.Statement.SQL.String(), "WITH products AS") {
 				bookQuery = tx.Statement.SQL.String()
@@ -199,16 +199,17 @@ func profileStocktakeInsert(t *testing.T, tx *gorm.DB) {
 	t.Helper()
 	query := tx.Statement.SQL.String()
 	arguments := append([]any(nil), tx.Statement.Vars...)
-	if err := tx.Exec("ROLLBACK TO SAVEPOINT stocktake_insert_profile").Error; err != nil {
+	probe := tx.Session(&gorm.Session{NewDB: true})
+	if err := probe.Exec("ROLLBACK TO SAVEPOINT stocktake_insert_profile").Error; err != nil {
 		tx.AddError(err)
 		return
 	}
 	var document string
-	if err := tx.Raw("EXPLAIN(ANALYZE,BUFFERS,FORMAT JSON) "+query, arguments...).Row().Scan(&document); err != nil {
+	if err := probe.Raw("EXPLAIN(ANALYZE,BUFFERS,FORMAT JSON) "+query, arguments...).Row().Scan(&document); err != nil {
 		tx.AddError(err)
 		return
 	}
-	if err := tx.Exec("RELEASE SAVEPOINT stocktake_insert_profile").Error; err != nil {
+	if err := probe.Exec("RELEASE SAVEPOINT stocktake_insert_profile").Error; err != nil {
 		tx.AddError(err)
 		return
 	}

@@ -2,6 +2,7 @@ package globalapi
 
 import (
 	"encoding/json"
+	"strconv"
 	"testing"
 	"time"
 
@@ -11,7 +12,7 @@ import (
 	fulfilment "github.com/tesserix/helivanta/pkg/supplierfulfilment"
 )
 
-func assertSupplierReceiptFinancials(t *testing.T, admin operatingDutyFixture, shipment fulfilment.Shipment, receipt, product, batch uuid.UUID, accepted, discrepancy int64) {
+func assertSupplierReceiptFinancials(t *testing.T, admin operatingDutyFixture, shipment fulfilment.Shipment, receipt, product, batch uuid.UUID, accepted, acceptedTotal, discrepancy int64) {
 	t.Helper()
 	root := "/v1/pharmacy/pharmacies/" + shipment.BuyerOrganizationID.String() + "/outlets/" + shipment.BuyerLocationID.String() + "/accounts"
 	acquisition := func() pharmacy.AcquisitionReceipt {
@@ -50,6 +51,51 @@ func assertSupplierReceiptFinancials(t *testing.T, admin operatingDutyFixture, s
 	id := uuid.Must(uuid.NewV7())
 	path := root + "/payables/" + id.String()
 	total := accepted * 1000
+	inventory := func(costed, credited bool) {
+		t.Helper()
+		var page struct {
+			Data []struct {
+				ID       uuid.UUID `json:"id"`
+				OnHand   int64     `json:"on_hand_units"`
+				Received int64     `json:"received_units"`
+				Uncosted int64     `json:"uncosted_receipt_units"`
+				Cost     string    `json:"acquisition_cost_minor"`
+				Value    *string   `json:"valuation_minor"`
+				Status   string    `json:"valuation_status"`
+			} `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(admin.call("GET", root+"/inventory-audit?limit=50", "owner", nil, 200)), &page))
+		for _, row := range page.Data {
+			if row.ID != batch {
+				continue
+			}
+			require.Equal(t, acceptedTotal, row.OnHand)
+			require.Equal(t, acceptedTotal, row.Received)
+			cost := acceptedTotal * 1000
+			status := "complete"
+			uncosted := int64(0)
+			if !costed {
+				cost -= total
+				uncosted = accepted
+				status = "cost_missing"
+			} else if credited {
+				status = "valuation_review"
+			}
+			require.Equal(t, uncosted, row.Uncosted)
+			require.Equal(t, strconv.FormatInt(cost, 10), row.Cost)
+			require.Equal(t, status, row.Status)
+			if status == "complete" {
+				require.NotNil(t, row.Value)
+				require.Equal(t, strconv.FormatInt(cost, 10), *row.Value)
+			} else {
+				require.Nil(t, row.Value, "missing cost or credit review cannot be presented as a known stock valuation")
+			}
+			return
+		}
+		t.Fatal("accepted supplier batch is missing from the owner's stock cost audit")
+	}
+	priorCredit := acceptedTotal > accepted
+	inventory(false, priorCredit)
 	bill := map[string]any{
 		"payee_reference": shipment.SourceOrganizationID.String(), "payee_name": "TEST independently owned source",
 		"document_reference": "TEST-COMPOUND-" + receipt.String(), "issued_on": today.Format(time.DateOnly), "due_on": today.AddDate(0, 0, 30).Format(time.DateOnly), "currency": "INR",
@@ -79,6 +125,7 @@ func assertSupplierReceiptFinancials(t *testing.T, admin operatingDutyFixture, s
 		require.Equal(t, outstanding, row.Outstanding)
 	}
 	balance(0, 0, total)
+	inventory(true, priorCredit)
 	payment := uuid.Must(uuid.NewV7())
 	settlement := func(kind string, amount int64, reversal *uuid.UUID) map[string]any {
 		return map[string]any{"kind": kind, "amount_minor": amount, "currency": "INR", "paid_by": "TEST buyer finance owner", "method": "bank", "source_reference": "TEST-" + kind + "-" + receipt.String(), "occurred_on": today.Format(time.DateOnly), "reason": "TEST retained financial evidence; no real bank transaction", "reversal_of": reversal}
@@ -88,6 +135,7 @@ func assertSupplierReceiptFinancials(t *testing.T, admin operatingDutyFixture, s
 	paid := admin.call("PUT", paymentPath, "owner", input, 200)
 	require.JSONEq(t, paid, admin.call("PUT", paymentPath, "owner", input, 200))
 	balance(1000, 0, total-1000)
+	inventory(true, priorCredit)
 	input["amount_minor"] = int64(999)
 	admin.call("PUT", paymentPath, "owner", input, 409)
 	for _, kind := range []string{"credit", "payment_reversal"} {
@@ -103,4 +151,5 @@ func assertSupplierReceiptFinancials(t *testing.T, admin operatingDutyFixture, s
 		require.JSONEq(t, recorded, admin.call("PUT", command, "owner", input, 200))
 	}
 	balance(0, 100, total-100)
+	inventory(true, true)
 }

@@ -233,6 +233,7 @@ func (f supplierCompoundFixture) assertAdmission(t *testing.T, subject, reviewer
 	buyer := approveCompoundPharmacyEndpoint(t, buyerActor, f.files, uuid.MustParse(parts[4]), uuid.MustParse(parts[6]))
 	bindingVersion := int64(2)
 	buyer.HospitalID, buyer.BindingID, buyer.BindingVersion = &member.HospitalID, &bindingID, &bindingVersion
+	f.assertHospitalBuyerOwnership(t, buyerActor, buyer, member.Input.DepartmentID)
 	sellerActor := f.actors(t, testutil.TenantB)
 	organization, outlet := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 	sourceRoot := "/v1/pharmacy/pharmacies/" + organization.String()

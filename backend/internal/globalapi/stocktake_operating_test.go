@@ -54,7 +54,7 @@ func TestStocktakeReviewedIndependentCounterFreezesReceivedStock(t *testing.T) {
 	require.NotContains(t, unavailable, "TEST-COUNT-LOT")
 	f.checks.down.Store(false)
 	f.call("GET", path+"/lines", "receiver", nil, 200)
-	f.call("PUT", f.duty+"/commands/"+v7(), "reviewer", map[string]any{
+	f.call("PUT", f.duty+"/commands/"+v7(), "owner", map[string]any{
 		"expected_version": 3, "decision": "revoke", "reason": "TEST end the reviewed counting duty",
 	}, 201)
 	f.call("GET", path+"/lines", "receiver", nil, 404)

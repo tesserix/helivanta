@@ -88,6 +88,12 @@ receiving/corrections need a separately bounded retained-transaction purpose,
 current local authority and the exact established shipment. A viewing grant
 cannot place or approve an order, reserve stock, dispatch goods or post receipt.
 
+Dispatch preflight checks the buyer's current endpoint through the canonical
+bulk `dispatch` operation, including the buyer's reviewed dispatch policy. Its
+earlier `order` policy does not substitute for that activity. The peer contract
+does not define a `receive` operation; hospital receiving remains the separate
+destination-owned command and retained-shipment authority described above.
+
 Independent pharmacy fulfilment admission records the current duty, snapshot,
 authority epoch and reviewed Staff/account link in the owner's append-only
 operating-stock audit. Migration `0062_pharmacy_operating_fulfilment_audit`

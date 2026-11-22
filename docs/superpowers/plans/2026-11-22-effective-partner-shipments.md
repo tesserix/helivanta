@@ -63,6 +63,16 @@ scope, then admit their own reviewed Staff through the actual physical-owner
 adapter. Staff hold the baseline Staff role, not tenant-wide source administration.
 This is current admission evidence, not a completed stock movement.
 
+Dispatch-preflight regression-only run
+[44978473013](https://github.com/tesserix/helivanta/actions/runs/44978473013)
+reproduced an unsupported `receive` current-source operation. The caller now
+uses the existing `dispatch` operation. Fixed run
+[44979352134](https://github.com/tesserix/helivanta/actions/runs/44979352134)
+passed the full native root under the race detector (`1001.301s`), including
+both owner types' refusal without a buyer dispatch policy and success after
+independent TEST policy approval. These canonical accepted-order fixtures isolate
+preflight; public procurement and physical stock movement remain separate gates.
+
 Still exercise public order acceptance, reservation and physical dispatch for each
 stock owner, then consume the published shipment in hospital receiving,
 discrepancy handling, quality release and financial records. The existing empty

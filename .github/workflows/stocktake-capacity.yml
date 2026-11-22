@@ -39,11 +39,11 @@ jobs:
           name: stocktake-contract-references
           path: docs/api/reference
           retention-days: 7
-      - name: Snapshot guards and native stocktake regression
-        run: go test -race -count=1 -timeout=15m ./internal/modules/pharmacy -run '^TestStocktake'
-      - name: Global API stocktake and reservation conservation
-        run: go test -race -count=1 -timeout=10m ./internal/globalapi -run '^TestStocktake'
       - name: Measure 10000 buckets and 500 reviewed adjustments
         env:
           HELIVANTA_STOCKTAKE_CAPACITY: "1"
         run: go test -v -count=1 -timeout=35m ./internal/modules/pharmacy -run '^TestStocktakeCapacityAt10000Buckets$'
+      - name: Snapshot guards and native stocktake regression
+        run: go test -race -count=1 -timeout=15m ./internal/modules/pharmacy -run '^TestStocktake'
+      - name: Global API stocktake and reservation conservation
+        run: go test -race -count=1 -timeout=10m ./internal/globalapi -run '^TestStocktake'

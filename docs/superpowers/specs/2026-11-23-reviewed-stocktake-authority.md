@@ -27,24 +27,41 @@ thresholds are part of clean acceptance. Earlier instrumented diagnostic timings
 are not acceptance evidence.
 
 Run 45067289212 passed the legacy capacity gate and core regressions, but the
-new **actual reviewed-duty Global API** capacity fixture failed before measuring
-anything: its synthetic batch insert omitted mandatory `product_version`.
-Commit `8572b75f` supplies the canonical product version and price, decodes the
-actual `page.next_cursor` / `page.has_more` envelope, escapes cursors and bounds
-pagination. Hosted run 45068914714 validates this correction. The fixture seeds
-synthetic bulk stock for capacity; separate Global API acceptance creates stock
-through normal receiving commands. Reviewed-path capacity remains unproven.
+new actual reviewed-duty Global API fixture failed before measurement because
+its synthetic batches omitted mandatory `product_version`. Commit `8572b75f`
+corrected that field, price and canonical pagination. Baseline run 45068914714
+then passed legacy capacity (start 4.705 s, page p99 10.52 ms, post 4.858 s), but
+**actual reviewed start failed with HTTP 504 at 5.001 s**. This is a real
+five-second gateway failure, not reviewed-path acceptance.
 
-A proposed candidate-0065 optimization validates linked movement evidence once
-per inserted statement, while retaining quantity/reservation/location guards,
-forced RLS, audit, foreign keys and deferred command completeness. It must pass
-mixed-valid/invalid batch corruption regressions and both unchanged capacity
-gates before acceptance. Historical migration 0064 is unchanged.
+Candidate `d3a55b24` validates linked movement evidence once per inserted
+statement, retaining quantity/reservation/location guards, RLS, audit, foreign
+keys and deferred completeness. Run 45069240276 passed build/vet, contract
+checks, Workforce history, Global API regressions, native mixed-batch corruption
+checks, IAM admission and Staff UI checks/build. Its legacy capacity start passed
+at 3.425 s and page p99 at 7.76 ms, but submission failed with HTTP 500 before
+posting. The optimization remains unaccepted. Neither thresholds nor historical
+migration 0064 were changed.
 
-Eligibility remains false. Hospital authority, reviewed header/list/export,
-withdrawal continuations, operational UI/SDK and live acceptance remain open in
-#1686. The implemented independent slice does not establish either ownership
-model's complete release acceptance.
+A separate diagnostic run 45070964833 uses opt-in test-only statement timings,
+template hashes and SQLSTATE/constraint metadata; it emits neither SQL values nor
+request payloads. It does not establish capacity acceptance. Both original
+budgets and the gateway timeout remain unchanged. Diagnose the reviewed start
+and submission failures before removing the probes and rerunning clean gates.
+
+Read-contract red run 45069725952 failed as intended on the missing header
+route (expected 200, actual 404). Candidate `1faa7059` adds current reviewed
+header/list/register reads and excludes legacy counts, including from line
+reads. The bounded, locked CSV loader and response metadata are reused by both
+legacy and reviewed routes; current reviewed read authority and attributable
+evidence are required before returning bytes. Focused validation 45070732446
+is running. No new read acceptance is claimed yet.
+
+Eligibility remains false. Hospital authority, withdrawal continuations,
+operational UI/SDK and both-model live acceptance remain open in #1686. All new
+read routes are still Stocktake-gated pending continuation design/acceptance;
+they do not yet satisfy withdrawal recovery. Source implementation alone does
+not establish either ownership model's complete release acceptance.
 
 ## Problem verified against source
 

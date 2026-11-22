@@ -28,10 +28,9 @@ The [runtime reference](../reference/README.md#pharmacy) lists every implemented
 
 The independent/chain route root is
 `/v1/pharmacy/pharmacies/{pharmacy}/operating-locations/{outlet}/stocktakes`.
-`PUT /{stocktake}`, `GET /{stocktake}/lines` and
-`PUT/GET /{stocktake}/counts/{command}` and
-`PUT/GET /{stocktake}/decisions/{command}` are registered in this
-slice. They reuse the canonical stocktake input/output schemas and the existing
+`PUT/GET /{stocktake}`, `GET /`, `GET /{stocktake}/lines`,
+`GET /{stocktake}/register.csv`, `PUT/GET /{stocktake}/counts/{command}` and
+`PUT/GET /{stocktake}/decisions/{command}` are registered in this slice. They reuse the canonical stocktake input/output schemas and the existing
 physical ledger; they are not a second stock master. These routes bind to the
 compiled-ineligible `pharmacy_stocktake` capability. No new operational page
 or production availability is established by their registration.
@@ -107,6 +106,21 @@ conservation. Extended rejection/cancellation and dependency-failure checks awai
 the next run; full reviewed capacity and both ownership models remain open.
 Reviewed correction guards can read exact-outlet supplier holds; they cannot
 change them or remove reservations to satisfy a shortage.
+
+Reviewed header/list/register reads are a further unreleased candidate. They
+require current `.stocktake.read` at the exact outlet and disclose only operating
+counts. Legacy counts are excluded from these headers, lists, line reads and
+registers. The existing CSV loader retains its shared lock, row/byte bounds,
+complete-row check, digest and retained version metadata. Read/audit failure
+withholds results and bytes. Red run 45069725952 returned the expected missing
+header 404; implementation validation 45070732446 is running. These routes remain
+Stocktake-gated and do not yet meet withdrawal-continuation acceptance.
+
+Corrected actual reviewed-capacity run 45068914714 failed start at the unchanged
+five-second gateway deadline with 504. The movement-validation candidate passed
+core/regression checks in 45069240276, but legacy capacity failed at submission
+with 500 before posting. Both failures remain unresolved; diagnostic run
+45070964833 is separate from clean capacity acceptance.
 
 ## Current contract families
 

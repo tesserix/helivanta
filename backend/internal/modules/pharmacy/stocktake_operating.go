@@ -99,6 +99,10 @@ func (h *catalogueHandlers) putOperatingStocktake(c *gin.Context) {
 		if err := startStocktake(tx, p, outlet, id, in, hash); err != nil {
 			return err
 		}
+		// The receiving frame is restored before commit; validate the sealed snapshot while its reviewed purpose is held.
+		if err := tx.Exec("SET CONSTRAINTS pharmacy_stocktake_commit_guard IMMEDIATE").Error; err != nil {
+			return err
+		}
 		result, err = readStocktakeHeader(tx, p.TenantID, outlet, id)
 		return err
 	})

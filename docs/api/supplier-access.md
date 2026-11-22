@@ -79,23 +79,31 @@ After a grant or relationship ends, retained hospital obligations remain governe
 by their own financial/receipt owner permissions; historical consent is not a
 replacement user grant.
 
-The current consent/store/API implementation still needs its consuming authorizer,
-product projections, SDK/UI and complete shared-environment acceptance before any
-claim of the full supplier workflow. The owner protocol tests are component
-acceptance, not substitutes for those gates.
+The development candidate includes the consuming authorizer, shipment
+projections and their SDK/UI. Positive admission through the composed current
+owners and complete shared-environment acceptance remain unproven. Catalogue
+and source-issued invoice consumers are still unfinished; the presence of their
+closed disclosure templates does not establish an API or a financial record.
+Owner protocol tests are component acceptance, not substitutes for these gates.
 
 ## Effective shipment disclosure candidate (ADR-0076)
 
 The current authorizer is now consumed by the development candidate in
-`internal/modules/supply/partner_shipments.go`. Both reads use
+`internal/modules/supply/partner_shipments.go`. All shipment reads use
 `PartnerScopes.WithPartnerScope`, not the hospital-local eligibility port. They
 operate on SupplyConnect's retained owner-published dispatch projection for
 PharmaConnect outlet and SupplyConnect warehouse sources; neither reads another
 module's stock tables nor moves stock.
 
 Candidate paths under `/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms`:
-`GET /shipment-orders` and `GET /shipment-orders/:order/shipments`.
-Both are sealed resource collections capped at 50, under `partner.shipment.read`,
+`GET /shipment-source`, `GET /shipment-orders` and
+`GET /shipment-orders/:order/shipments`.
+The source singleton returns current organization/location names under the same
+compound authority even before the first published dispatch. It commits its own
+disclosure audit before returning metadata; it does not expose an empty or
+fabricated order, catalogue, invoice or stock balance.
+The two collections use sealed resource pagination capped at 50. All three reads
+require `partner.shipment.read`,
 with current expected account, exact hospital/grant/product, bilateral relationship,
 current Staff/group/graph and source guards on every page. Only orders with
 published dispatch facts become choices. A source SELECT purpose binds exact

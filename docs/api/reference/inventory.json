@@ -6600,7 +6600,7 @@
         },
         {
           "id": "0065_pharmacy_stocktake_operating",
-          "sql_sha256": "65a725672163547c10a888722372e5536c6000f12d81951d4b0ada939be45abd",
+          "sql_sha256": "2dad754a997207df0656b64108472048b6fb6abdc6aed17a6e548756470e007d",
           "creates_tables": [
             "pharmacy_stocktake_operating_evidence"
           ]

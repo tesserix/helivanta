@@ -8,9 +8,12 @@ BEGIN
  )i ON(s.tenant_id,s.outlet_id,s.id)=(i.tenant_id,i.outlet_id,i.stocktake_id)
  ORDER BY s.tenant_id,s.outlet_id,s.id FOR UPDATE OF s;
  IF EXISTS(
-  SELECT 1 FROM inserted_lines i LEFT JOIN pharmacy_stocktakes s
+  SELECT 1 FROM(
+   SELECT tenant_id,outlet_id,stocktake_id,min(created_at) first_created,max(created_at) last_created
+   FROM inserted_lines GROUP BY tenant_id,outlet_id,stocktake_id
+  )i LEFT JOIN pharmacy_stocktakes s
    ON(s.tenant_id,s.outlet_id,s.id)=(i.tenant_id,i.outlet_id,i.stocktake_id)
-  WHERE s.id IS NULL OR s.sealed OR s.actor_subject IS DISTINCT FROM NULLIF(current_setting('app.pharmacy_subject',true),'')OR i.created_at<>s.created_at
+  WHERE s.id IS NULL OR s.sealed OR s.actor_subject IS DISTINCT FROM NULLIF(current_setting('app.pharmacy_subject',true),'')OR i.first_created<>s.created_at OR i.last_created<>s.created_at
  )THEN
   RAISE EXCEPTION 'stocktake snapshot is sealed or unavailable' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_sealed';
  END IF;
@@ -28,3 +31,27 @@ DROP TRIGGER pharmacy_stocktake_line_guard ON pharmacy_stocktake_lines;
 CREATE TRIGGER pharmacy_stocktake_line_guard AFTER INSERT ON pharmacy_stocktake_lines
  REFERENCING NEW TABLE AS inserted_lines FOR EACH STATEMENT
  EXECUTE FUNCTION pharmacy_stocktake_snapshot_insert_guard();
+
+ALTER POLICY tenant_isolation ON pharmacy_stocktake_lines
+ USING(hms_tenant_visible(tenant_id)
+  AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid
+  AND outlet_id=NULLIF(current_setting('app.pharmacy_outlet',true),'')::uuid
+  AND(SELECT pharmacy_outlet_allowed(NULLIF(current_setting('app.tenant_id',true),'')::uuid,NULLIF(current_setting('app.pharmacy_outlet',true),'')::uuid,false)))
+ WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid
+  AND outlet_id=NULLIF(current_setting('app.pharmacy_outlet',true),'')::uuid
+  AND(SELECT pharmacy_outlet_allowed(NULLIF(current_setting('app.tenant_id',true),'')::uuid,NULLIF(current_setting('app.pharmacy_outlet',true),'')::uuid,true)));
+
+CREATE FUNCTION pharmacy_stocktake_snapshot_insert_audit()RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE actor text:=NULLIF(current_setting('app.actor_subject',true),'');
+BEGIN
+ IF actor IS NULL THEN
+  RAISE EXCEPTION 'actor subject is required for an audited write' USING ERRCODE='42501';
+ END IF;
+ INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id,changed_fields)
+ SELECT tenant_id,actor,'insert','pharmacy_stocktake_lines',id,'{}'::text[] FROM inserted_lines;
+ RETURN NULL;
+END $$;
+DROP TRIGGER pharmacy_stocktake_lines_audit ON pharmacy_stocktake_lines;
+CREATE TRIGGER pharmacy_stocktake_lines_audit AFTER INSERT ON pharmacy_stocktake_lines
+ REFERENCING NEW TABLE AS inserted_lines FOR EACH STATEMENT
+ EXECUTE FUNCTION pharmacy_stocktake_snapshot_insert_audit();

@@ -137,6 +137,24 @@ remain unchanged. Retaining per-row validation was rejected after its measured
 failure at the already declared limit; increasing deadlines would not meet the
 five-second planning target.
 
+Further profiling measured a 500-line insert at 188 ms: 43 ms in snapshot
+validation, 27 ms in 500 audit-trigger calls and 55 ms in foreign-key checks.
+Parent validation now groups inserted rows by parent and checks both the minimum
+and maximum creation time against that parent's frozen timestamp. Audit writes
+are set-based but retain one insert event per line, the verified actor and the
+same empty changed-fields list. A missing audit actor still aborts the statement.
+Foreign keys remain unchanged.
+
+The snapshot-line tenant policy evaluates its existing outlet grant function as
+an uncorrelated subquery, once per statement. Every row must still equal the
+selected tenant and outlet; read visibility and editor requirements are retained.
+This caches no authority across commands or transactions. It does not change
+operating-purpose policies, roles, permission names or grant/revocation semantics.
+Regression cases include a writer granted two outlets, missing selected scope,
+another tenant, an ungranted reader, and a previously privileged writer whose
+grant was downgraded before the next statement. These checks accompany the
+malformed-statement and audit-cardinality cases.
+
 The migration changes no stored rows and uses a five-second lock timeout. Its
 trigger replacement is transactional; a failed migration retains the old guard.
 An older API uses the same inserts and remains compatible. Any later restoration

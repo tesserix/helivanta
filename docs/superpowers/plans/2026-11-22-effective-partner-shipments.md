@@ -59,7 +59,12 @@ The first native run exposed a real fulfilment-audit constraint failure after
 account and duty review. The forward audit migration and its database negative
 matrix passed in run
 [44978972536](https://github.com/tesserix/helivanta/actions/runs/44978972536);
-the full both-owner Staff scenario in that run remains pending.
+the full both-owner Staff scenario also passed under the race detector
+(`1045.633s`). Both source products denied unreviewed and wrong-scope duties,
+then admitted their real reviewed Staff through the actual stock-owner adapter.
+The fix and forward migration are in draft PR
+[#1806](https://github.com/tesserix/helivanta/pull/1806); protected checks and
+specifically approved migration/Kargo/live acceptance remain open.
 
 Dispatch-preflight regression-only run
 [44978473013](https://github.com/tesserix/helivanta/actions/runs/44978473013)

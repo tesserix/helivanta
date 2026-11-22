@@ -42,6 +42,11 @@ func TestStocktakeReviewedReadsAndRegisterStayWithinReviewedHistory(t *testing.T
 	f.call("GET", path+"/register.csv?limit=1", "receiver", nil, 400)
 	f.call("GET", root+"?scope=all", "receiver", nil, 400)
 	activateReviewedStocktakeReviewer(t, &f)
+	var reviewer struct {
+		Relationship string `json:"review_relationship"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(f.call("GET", path, "stock-reviewer", nil, 200)), &reviewer))
+	require.Equal(t, "independent", reviewer.Relationship)
 	f.call("PUT", path+"/decisions/"+v7(), "stock-reviewer", map[string]any{"decision": "approve", "expected_version": 2, "reason": "TEST independently reviewed register", "extra_units_disposition": "no_extra_units"}, 200)
 	readHeader("posted", 3)
 	register := f.call("GET", path+"/register.csv", "receiver", nil, 200)

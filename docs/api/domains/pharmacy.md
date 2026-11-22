@@ -24,6 +24,38 @@ The hierarchy is tenant → pharmacy organization → outlet, with optional hosp
 
 The [runtime reference](../reference/README.md#pharmacy) lists every implemented path. The outlet root is `/v1/pharmacy/pharmacies/{pharmacy}/outlets/{outlet}`. Organization/outlet administration and the legacy `/medications`/`dispenses` surfaces are separate route families; do not equate the legacy dispense task with the outlet stock ledger.
 
+## Reviewed operating stocktakes — unreleased development slice
+
+The independent/chain route root is
+`/v1/pharmacy/pharmacies/{pharmacy}/operating-locations/{outlet}/stocktakes`.
+Only `PUT /{stocktake}` and `GET /{stocktake}/lines` are registered in this
+slice. They reuse the canonical stocktake input/output schemas and the existing
+physical ledger; they are not a second stock master. Both routes bind to the
+compiled-ineligible `pharmacy_stocktake` capability. No new operational page
+or production availability is established by their registration.
+
+IAM must consume an acknowledged current independent duty for
+`pharmacy.stocktake.count` or `pharmacy.stocktake.read`, with the current
+Workforce Staff/link and owner-issued outlet scope. Existing receiver rights,
+tenant ownership, supplied IDs and legacy editor grants cannot substitute.
+Hospital-owned pharmacies remain ineligible independent employers. Current
+expected tenant/subject preconditions and nondisclosing scope errors follow the
+operating stock contract. Exact start replay is actor/intent-bound; changed reuse
+conflicts. Graph/source or audit failure withholds results and writes.
+
+Start/read evidence retains the consumed duty version/epoch and Staff/link
+identity under forced RLS, without adding those private facts to the public
+count payload. Snapshot completeness is validated while the reviewed purpose
+is held, before its transaction settings are restored. Purpose restrictions
+deny general stock, catalogue and receipt writes even if the account separately
+holds a legacy editor grant.
+
+The legacy 10,000-bucket / 500-adjustment capacity fixture is a regression gate,
+not maximum-scale acceptance of the new reviewed path. Full reviewed count and
+decision commands, same-Staff alias independence, hospital department admission,
+operational UI and positive live acceptance remain open in #1686. See the
+[reviewed authority proposal](../../superpowers/specs/2026-11-23-reviewed-stocktake-authority.md).
+
 ## Current contract families
 
 | Family                                        | Owning records / schema                                                                                                                                                          | Rules and consumer boundary                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |

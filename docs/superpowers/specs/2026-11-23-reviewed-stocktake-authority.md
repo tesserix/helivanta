@@ -4,6 +4,16 @@ Status: implementation proposal, not an activated API or release approval.
 Depends on the tested capacity change in PR #1817. This document does not close
 #1686, grant operating access, or enable Stock/Catalogue.
 
+Development checkpoint: PR #1817 is merged as `0189efde`. The follow-up branch
+implements only reviewed independent start/line reads, immutable source evidence
+and canonical duty release bindings. Hosted tests have exercised a real
+IAM/Workforce/Global API start with received stock and deferred snapshot
+validation; duty-picker tests, type checks and the focused shell build passed.
+The additional scope policies regressed the legacy maximum-capacity post gate;
+the indexable predicate correction and broader denial/revocation tests are under
+hosted validation. Eligibility remains false. Counting, independent approval,
+hospital authority, operational UI and live acceptance below remain unfinished.
+
 ## Problem verified against source
 
 The existing stocktake handlers consume `pharmacy.stock.read` /

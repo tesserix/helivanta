@@ -190,3 +190,42 @@ and financial runtime results, required protected checks, specifically approved
 main/Kargo/migration rollout, effective feature flags and authenticated deployed
 browser tests remain completion gates. Do not enable supplier collaboration or
 close the umbrella issues from this checkpoint.
+
+
+### Observed warehouse and public-consent failures
+
+The first warehouse runs `44987139551` and `44987469985` stopped on an
+incorrect negative-test status: `wholesaleStockError` deliberately returns 404
+for `ErrScopedCommandDenied`, hiding the receipt from an actor without quality
+review authority. The test now expects that exact denial; product authorization
+was not changed.
+
+Corrected run [44988340105](https://github.com/tesserix/helivanta/actions/runs/44988340105)
+passed real order acceptance, source intake, explicit pack/base identity checks,
+independently assigned quality release and stock discovery of one hundred base
+units. Reservation then returned 503 with a reproducible UUID scan error:
+GORM treated a bare `uuid.UUID` scan destination as an array of bytes. The owner's
+`Lock` now scans an `ID` field in a row struct, preserving the exact tenant,
+organization, premise, receipt and `FOR UPDATE` query and the existing missing-row
+result. The public regression also checks that a nonexistent receipt returns 404
+and does not prevent the valid reservation using the same command identity.
+The fix is committed as `a6125b98` and propagated through every continuation
+branch. Hosted [run 44989322954](https://github.com/tesserix/helivanta/actions/runs/44989322954)
+validates the fixed warehouse journey; its runtime result is still pending.
+
+The first public relationship/grant candidates stopped at warehouse contract
+review before the grant journey. A licence-compliance grant is insufficient for
+`WithTradingAdministration(..., write=true)`, which requires the exact party's
+administrator authority. The test retains this 404 denial, then has the current
+source owner explicitly assign that authority to the independent source
+signatory through the actual access API. Fulfilment Staff receive no such
+administration grant. Public relationship retry `44988901751` and public grant
+retry `44988930145` are pending; they started before the later receipt-scan fix.
+The corrected finance retry `44988940713` also started before that scan fix.
+A downstream failure in those older runs must be attributed to its actual first
+error, not counted as executed financial or complete consent acceptance.
+
+Receiving PR #1811 now has passing browser E2E, web, supplier, API-client, source
+presentation, Staff-query-plan and compound-admission checks; its broad Go gate
+remains running. Nothing here establishes an approved main/Kargo/migration rollout
+or deployed acceptance.

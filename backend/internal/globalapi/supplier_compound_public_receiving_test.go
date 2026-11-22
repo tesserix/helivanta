@@ -105,7 +105,9 @@ func (f supplierCompoundFixture) assertHospitalSupplierReceiving(t *testing.T, a
 		acceptedTotal += accepted
 		stock(quarantine, 0)
 		stock(shelf, acceptedTotal)
-		head := f.hospitalCall(t, "GET", base+"/receiving", receiver, nil, 200)
+		current := f.hospitalCall(t, "GET", base+"/receiving", receiver, nil, 200)
+		require.Equal(t, "recorded", current["state"])
+		head := current["summary"].(map[string]any)
 		require.Equal(t, true, head["closed"])
 		require.Equal(t, float64(short), head["short_units"])
 		require.Equal(t, float64(rejected), head["rejected_units"])

@@ -41,8 +41,14 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 	t.Logf("created 10000 distinct stocked batches through normal APIs in %s", time.Since(fixtureStart))
 	var bookQuery string
 	var bookArguments []any
+	profiledAdjustment := false
 	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 		before := func(tx *gorm.DB) {
+			if tx.Statement.Table == "pharmacy_stocktake_adjustments" && !profiledAdjustment {
+				profiledAdjustment = true
+				tx.InstanceSet("stocktake-adjustment-profile", true)
+				tx.AddError(tx.Session(&gorm.Session{NewDB: true}).Exec("SAVEPOINT stocktake_adjustment_profile").Error)
+			}
 
 			if strings.HasPrefix(tx.Statement.SQL.String(), "WITH products AS") {
 				bookQuery = tx.Statement.SQL.String()
@@ -51,6 +57,10 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 			tx.InstanceSet("stocktake-capacity-start", time.Now())
 		}
 		after := func(tx *gorm.DB) {
+			if value, ok := tx.InstanceGet("stocktake-adjustment-profile"); ok && value == true && tx.Error == nil {
+				tx.InstanceSet("stocktake-adjustment-profile", false)
+				profileStocktakeAdjustmentInsert(t, tx)
+			}
 
 			value, ok := tx.InstanceGet("stocktake-capacity-start")
 			if !ok {
@@ -180,7 +190,7 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 		response = do(r, "PUT", path+"/counts/"+uuid.Must(uuid.NewV7()).String(), "editor", string(body))
 		require.Equal(t, 200, response.Code, "count command %d: %s", offset/100, response.Body.String())
 	}
-	stocktakePostingPlans(t, db, strings.TrimPrefix(path, outletPath("/stock/stocktakes/")))
+	stocktakePostingPlans(t, db, strings.TrimPrefix(path, outletPath("/stock/stocktakes/")), all[0].ID)
 	response = do(r, "PUT", path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "editor", `{"decision":"submit","expected_version":100,"reason":"TEST capacity submission"}`)
 	require.Equal(t, 200, response.Code, response.Body.String())
 	approvalPath := path + "/decisions/" + uuid.Must(uuid.NewV7()).String()
@@ -215,7 +225,7 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 	require.Less(t, postElapsed, 5*time.Second, "ADR-0073 post budget")
 }
 
-func stocktakePostingPlans(t *testing.T, db *tenantdb.DB, take string) {
+func stocktakePostingPlans(t *testing.T, db *tenantdb.DB, take, line string) {
 	t.Helper()
 	var definition string
 	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
@@ -227,7 +237,8 @@ func stocktakePostingPlans(t *testing.T, db *tenantdb.DB, take string) {
 	require.True(t, ok)
 	body = strings.NewReplacer("NEW.tenant_id", "@tenant", "NEW.outlet_id", "@outlet", "NEW.stocktake_id", "@take").Replace(body)
 	require.NotContains(t, body, "NEW.")
-	for label, query := range map[string]string{"submit": "SELECT EXISTS(" + body + ")", "differences": "SELECT * FROM pharmacy_stocktake_differences(@tenant::uuid,@outlet::uuid,@take::uuid)"} {
+	differences := "SELECT * FROM pharmacy_stocktake_differences(CAST(@tenant AS uuid),CAST(@outlet AS uuid),CAST(@take AS uuid))"
+	for label, query := range map[string]string{"submit": "SELECT EXISTS(" + body + ")", "differences": differences, "one_difference": differences + " WHERE line_id=CAST(@line AS uuid)"} {
 		for _, analyze := range []bool{false, true} {
 			ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
 			var document string
@@ -239,7 +250,7 @@ func stocktakePostingPlans(t *testing.T, db *tenantdb.DB, take string) {
 				if analyze {
 					options = "ANALYZE,BUFFERS,FORMAT JSON"
 				}
-				return tx.Raw("EXPLAIN("+options+") "+query, map[string]any{"tenant": testutil.TenantA, "outlet": pharmaOutlet, "take": take}).Row().Scan(&document)
+				return tx.Raw("EXPLAIN("+options+") "+query, map[string]any{"tenant": testutil.TenantA, "outlet": pharmaOutlet, "take": take, "line": line}).Row().Scan(&document)
 			})
 			cancel()
 			if err != nil {
@@ -273,6 +284,54 @@ func stocktakePostingPlans(t *testing.T, db *tenantdb.DB, take string) {
 			t.Logf("%s execution plan analyze=%t (no SQL or conditions): %s", label, analyze, data)
 		}
 	}
+}
+
+func profileStocktakeAdjustmentInsert(t *testing.T, tx *gorm.DB) {
+	t.Helper()
+	query := tx.Statement.SQL.String()
+	arguments := append([]any(nil), tx.Statement.Vars...)
+	probe := tx.Session(&gorm.Session{NewDB: true})
+	if err := probe.Exec("ROLLBACK TO SAVEPOINT stocktake_adjustment_profile").Error; err != nil {
+		tx.AddError(err)
+		return
+	}
+	var document string
+	if err := probe.Raw("EXPLAIN(ANALYZE,BUFFERS,FORMAT JSON) "+query, arguments...).Row().Scan(&document); err != nil {
+		tx.AddError(err)
+		return
+	}
+	if err := probe.Exec("RELEASE SAVEPOINT stocktake_adjustment_profile").Error; err != nil {
+		tx.AddError(err)
+		return
+	}
+	var plans []struct {
+		ExecutionTime float64          `json:"Execution Time"`
+		Triggers      []map[string]any `json:"Triggers"`
+	}
+	if err := json.Unmarshal([]byte(document), &plans); err != nil {
+		tx.AddError(err)
+		return
+	}
+	if len(plans) != 1 {
+		tx.AddError(fmt.Errorf("expected one adjustment execution plan"))
+		return
+	}
+	var triggers []map[string]any
+	for _, trigger := range plans[0].Triggers {
+		safe := map[string]any{}
+		for _, key := range []string{"Trigger Name", "Constraint Name", "Relation", "Time", "Calls"} {
+			if value, ok := trigger[key]; ok {
+				safe[key] = value
+			}
+		}
+		triggers = append(triggers, safe)
+	}
+	data, err := json.Marshal(map[string]any{"execution_ms": plans[0].ExecutionTime, "triggers": triggers})
+	if err != nil {
+		tx.AddError(err)
+		return
+	}
+	t.Logf("adjustment insert trigger metrics (no SQL or values): %s", data)
 }
 
 func stocktakeSnapshotPlan(t *testing.T, db *tenantdb.DB, query string, arguments []any) {

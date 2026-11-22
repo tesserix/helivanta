@@ -54,4 +54,7 @@ func (f supplierCompoundFixture) assertPublicWarehouseFulfilment(t *testing.T, b
 	require.True(t, t.Run("warehouse hospital count quarantine discrepancies and independent release", func(t *testing.T) {
 		f.assertHospitalSupplierReceiving(t, buyerAdmin, shipments, department, preparer, reviewer)
 	}))
+	require.True(t, t.Run("source responses reach only the directed hospital", func(t *testing.T) {
+		f.assertPublicReceivingResponses(t, operator, shipments, department, preparer)
+	}))
 }

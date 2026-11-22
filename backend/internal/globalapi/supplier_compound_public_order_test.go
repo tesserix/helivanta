@@ -49,6 +49,9 @@ func (f supplierCompoundFixture) assertPublicPharmacyOrder(t *testing.T, buyerAd
 	require.True(t, t.Run("hospital count quarantine discrepancies and independent release", func(t *testing.T) {
 		f.assertHospitalSupplierReceiving(t, buyerAdmin, shipments, department, preparer, reviewer)
 	}))
+	require.True(t, t.Run("source responses reach only the directed hospital", func(t *testing.T) {
+		f.assertPublicReceivingResponses(t, operator, shipments, department, preparer)
+	}))
 }
 
 func (f supplierCompoundFixture) assertPublicSupplierOrder(t *testing.T, admin, operator operatingDutyFixture, relationship suppliertrade.Relationship, department uuid.UUID, preparer, reviewer string, product supplierorder.SupplierOrderProduct, unit, reference string) supplierorder.SupplierOrder {

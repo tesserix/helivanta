@@ -1,9 +1,7 @@
 package pharmacy_test
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -13,10 +11,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/testutil"
-	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
 )
 
@@ -39,81 +35,11 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 		require.Equal(t, 200, response.Code, "receipt %d", i)
 	}
 	t.Logf("created 10000 distinct stocked batches through normal APIs in %s", time.Since(fixtureStart))
-	var bookQuery string
-	var bookArguments []any
-	profiledAdjustment := false
-	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
-		before := func(tx *gorm.DB) {
-			if tx.Statement.Table == "pharmacy_stocktake_adjustments" && !profiledAdjustment {
-				profiledAdjustment = true
-				tx.InstanceSet("stocktake-adjustment-profile", true)
-				tx.AddError(tx.Session(&gorm.Session{NewDB: true}).Exec("SAVEPOINT stocktake_adjustment_profile").Error)
-			}
-
-			if strings.HasPrefix(tx.Statement.SQL.String(), "WITH products AS") {
-				bookQuery = tx.Statement.SQL.String()
-				bookArguments = append([]any(nil), tx.Statement.Vars...)
-			}
-			tx.InstanceSet("stocktake-capacity-start", time.Now())
-		}
-		after := func(tx *gorm.DB) {
-			if value, ok := tx.InstanceGet("stocktake-adjustment-profile"); ok && value == true && tx.Error == nil {
-				tx.InstanceSet("stocktake-adjustment-profile", false)
-				profileStocktakeAdjustmentInsert(t, tx)
-			}
-
-			value, ok := tx.InstanceGet("stocktake-capacity-start")
-			if !ok {
-				return
-			}
-			elapsed := time.Since(value.(time.Time))
-			if elapsed < 50*time.Millisecond && tx.Error == nil {
-				return
-			}
-			stage := "other"
-			query := tx.Statement.SQL.String()
-			for _, table := range []string{"pharmacy_stocktake_lines", "pharmacy_stocktake_commands", "pharmacy_stocktake_counts", "pharmacy_stocktake_adjustments", "pharmacy_stocktakes", "pharmacy_stock_movements", "audit_events"} {
-				if strings.Contains(query, table) {
-					stage = table
-					break
-				}
-			}
-			if strings.HasPrefix(query, "WITH products AS") {
-				stage = "book_snapshot"
-			}
-			code := "none"
-			var pg *pgconn.PgError
-			if errors.As(tx.Error, &pg) {
-				code = pg.Code
-			} else if tx.Error != nil {
-				code = "non_sql_error"
-			}
-			t.Logf("database stage=%s elapsed=%s error_class=%s", stage, elapsed, code)
-		}
-		if err := tx.Callback().Create().Before("gorm:create").Register("test:stocktake-capacity-before", before); err != nil {
-			return err
-		}
-		if err := tx.Callback().Create().After("gorm:create").Register("test:stocktake-capacity-after", after); err != nil {
-			return err
-		}
-		if err := tx.Callback().Raw().Before("gorm:raw").Register("test:stocktake-capacity-before", before); err != nil {
-			return err
-		}
-		if err := tx.Callback().Raw().After("gorm:raw").Register("test:stocktake-capacity-after", after); err != nil {
-			return err
-		}
-		if err := tx.Callback().Row().Before("gorm:row").Register("test:stocktake-capacity-before", before); err != nil {
-			return err
-		}
-		return tx.Callback().Row().After("gorm:row").Register("test:stocktake-capacity-after", after)
-	}))
 	path := outletPath("/stock/stocktakes/") + uuid.Must(uuid.NewV7()).String()
 	start := time.Now()
 	response := do(r, "PUT", path, "editor", fmt.Sprintf(`{"selection":"all","product_ids":[],"quarantine_location_id":%q,"reason":"TEST capacity count"}`, location))
 	startElapsed := time.Since(start)
 	t.Logf("10000-bucket start returned HTTP %d in %s", response.Code, startElapsed)
-	require.NotEmpty(t, bookQuery)
-	stocktakeSnapshotPlan(t, db, bookQuery, bookArguments)
 	require.Equal(t, 200, response.Code, response.Body.String())
 	var header struct {
 		SnapshotRows int `json:"snapshot_rows"`
@@ -190,7 +116,6 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 		response = do(r, "PUT", path+"/counts/"+uuid.Must(uuid.NewV7()).String(), "editor", string(body))
 		require.Equal(t, 200, response.Code, "count command %d: %s", offset/100, response.Body.String())
 	}
-	stocktakePostingPlans(t, db, strings.TrimPrefix(path, outletPath("/stock/stocktakes/")), all[0].ID)
 	response = do(r, "PUT", path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "editor", `{"decision":"submit","expected_version":100,"reason":"TEST capacity submission"}`)
 	require.Equal(t, 200, response.Code, response.Body.String())
 	approvalPath := path + "/decisions/" + uuid.Must(uuid.NewV7()).String()
@@ -223,149 +148,4 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 		return nil
 	}))
 	require.Less(t, postElapsed, 5*time.Second, "ADR-0073 post budget")
-}
-
-func stocktakePostingPlans(t *testing.T, db *tenantdb.DB, take, line string) {
-	t.Helper()
-	var definition string
-	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
-		return tx.Raw(`SELECT pg_get_functiondef('pharmacy_stocktake_command_guard()'::regprocedure)`).Row().Scan(&definition)
-	}))
-	_, body, ok := strings.Cut(definition, "IF NEW.kind='submit'AND EXISTS(")
-	require.True(t, ok, "submission plan must come from the installed guard")
-	body, _, ok = strings.Cut(body, ")THEN")
-	require.True(t, ok)
-	body = strings.NewReplacer("NEW.tenant_id", "@tenant", "NEW.outlet_id", "@outlet", "NEW.stocktake_id", "@take").Replace(body)
-	require.NotContains(t, body, "NEW.")
-	differences := "SELECT * FROM pharmacy_stocktake_differences(CAST(@tenant AS uuid),CAST(@outlet AS uuid),CAST(@take AS uuid))"
-	for label, query := range map[string]string{"submit": "SELECT EXISTS(" + body + ")", "differences": differences, "one_difference": differences + " WHERE line_id=CAST(@line AS uuid)"} {
-		for _, analyze := range []bool{false, true} {
-			ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
-			var document string
-			err := db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-				if err := tx.Exec(`SELECT set_config('app.pharmacy_subject','user-editor',true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)`, pharmaOutlet, pharmaOrganization).Error; err != nil {
-					return err
-				}
-				options := "FORMAT JSON"
-				if analyze {
-					options = "ANALYZE,BUFFERS,FORMAT JSON"
-				}
-				return tx.Raw("EXPLAIN("+options+") "+query, map[string]any{"tenant": testutil.TenantA, "outlet": pharmaOutlet, "take": take, "line": line}).Row().Scan(&document)
-			})
-			cancel()
-			if err != nil {
-				t.Logf("%s execution-plan probe analyze=%t unavailable (SQL/values withheld)", label, analyze)
-				continue
-			}
-			var plans []struct {
-				Plan map[string]any `json:"Plan"`
-			}
-			require.NoError(t, json.Unmarshal([]byte(document), &plans))
-			require.Len(t, plans, 1)
-			var safe func(map[string]any) map[string]any
-			safe = func(node map[string]any) map[string]any {
-				out := map[string]any{}
-				for _, key := range []string{"Node Type", "Relation Name", "Index Name", "Subplan Name", "Plan Rows", "Total Cost", "Actual Rows", "Actual Loops", "Actual Total Time", "Shared Hit Blocks", "Shared Read Blocks"} {
-					if value, ok := node[key]; ok {
-						out[key] = value
-					}
-				}
-				if children, ok := node["Plans"].([]any); ok {
-					var nested []map[string]any
-					for _, child := range children {
-						nested = append(nested, safe(child.(map[string]any)))
-					}
-					out["Plans"] = nested
-				}
-				return out
-			}
-			data, err := json.Marshal(safe(plans[0].Plan))
-			require.NoError(t, err)
-			t.Logf("%s execution plan analyze=%t (no SQL or conditions): %s", label, analyze, data)
-		}
-	}
-}
-
-func profileStocktakeAdjustmentInsert(t *testing.T, tx *gorm.DB) {
-	t.Helper()
-	query := tx.Statement.SQL.String()
-	arguments := append([]any(nil), tx.Statement.Vars...)
-	probe := tx.Session(&gorm.Session{NewDB: true})
-	if err := probe.Exec("ROLLBACK TO SAVEPOINT stocktake_adjustment_profile").Error; err != nil {
-		tx.AddError(err)
-		return
-	}
-	var document string
-	if err := probe.Raw("EXPLAIN(ANALYZE,BUFFERS,FORMAT JSON) "+query, arguments...).Row().Scan(&document); err != nil {
-		tx.AddError(err)
-		return
-	}
-	if err := probe.Exec("RELEASE SAVEPOINT stocktake_adjustment_profile").Error; err != nil {
-		tx.AddError(err)
-		return
-	}
-	var plans []struct {
-		ExecutionTime float64          `json:"Execution Time"`
-		Triggers      []map[string]any `json:"Triggers"`
-	}
-	if err := json.Unmarshal([]byte(document), &plans); err != nil {
-		tx.AddError(err)
-		return
-	}
-	if len(plans) != 1 {
-		tx.AddError(fmt.Errorf("expected one adjustment execution plan"))
-		return
-	}
-	var triggers []map[string]any
-	for _, trigger := range plans[0].Triggers {
-		safe := map[string]any{}
-		for _, key := range []string{"Trigger Name", "Constraint Name", "Relation", "Time", "Calls"} {
-			if value, ok := trigger[key]; ok {
-				safe[key] = value
-			}
-		}
-		triggers = append(triggers, safe)
-	}
-	data, err := json.Marshal(map[string]any{"execution_ms": plans[0].ExecutionTime, "triggers": triggers})
-	if err != nil {
-		tx.AddError(err)
-		return
-	}
-	t.Logf("adjustment insert trigger metrics (no SQL or values): %s", data)
-}
-
-func stocktakeSnapshotPlan(t *testing.T, db *tenantdb.DB, query string, arguments []any) {
-	t.Helper()
-	var document string
-	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
-		if err := tx.Exec(`SELECT set_config('app.pharmacy_subject','user-editor',true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)`, pharmaOutlet, pharmaOrganization).Error; err != nil {
-			return err
-		}
-		return tx.Raw("EXPLAIN(ANALYZE,BUFFERS,FORMAT JSON) "+query, arguments...).Row().Scan(&document)
-	}))
-	var plans []struct {
-		Plan map[string]any `json:"Plan"`
-	}
-	require.NoError(t, json.Unmarshal([]byte(document), &plans))
-	require.Len(t, plans, 1)
-	var summarize func(map[string]any) map[string]any
-	summarize = func(node map[string]any) map[string]any {
-		result := map[string]any{}
-		for _, key := range []string{"Node Type", "Relation Name", "Actual Rows", "Actual Loops", "Actual Total Time", "Shared Hit Blocks", "Shared Read Blocks"} {
-			if value, ok := node[key]; ok {
-				result[key] = value
-			}
-		}
-		if children, ok := node["Plans"].([]any); ok {
-			var nested []map[string]any
-			for _, child := range children {
-				nested = append(nested, summarize(child.(map[string]any)))
-			}
-			result["Plans"] = nested
-		}
-		return result
-	}
-	safe, err := json.Marshal(summarize(plans[0].Plan))
-	require.NoError(t, err)
-	t.Logf("snapshot execution plan (no SQL or conditions): %s", safe)
 }

@@ -183,12 +183,19 @@ adjustment audit rows or physical corrections. An unmodified retry must succeed
 with the original command timestamps. Temporary write profiling is excluded from
 final acceptance.
 
+The profiled set-validation run measured 447 ms for the 500-adjustment insert,
+with 207 ms in the retained timestamp trigger and 204 ms in the single set guard.
+The complete instrumented workflow passed: start 2.07 seconds, page p99 6.5 ms,
+post 2.87 seconds, exact replay and 99,500 closing units. These measurements are
+isolated hosted evidence. Final acceptance removes both write-replay and read
+plan probes and must pass without their effects on timing or prepared plans.
+
 The subsequent hosted profile returned HTTP 200 for 10,000-bucket start in
 2.14 seconds. Its first 500-line insert measured 49 ms, including one audit-trigger
 call instead of 500; the book query itself was unchanged. These isolated
 measurements are not a production latency claim. The write-replay profiler is
-removed from the final acceptance test; its read-only plan and strict audit
-checks remain. The final workflow must still prove every gate without write
+removed from the final acceptance test, as are the read-only pre-submit plan
+probes; strict audit checks remain. The final workflow must still prove every gate without write
 instrumentation before merge.
 
 The migration changes no stored rows and uses a five-second lock timeout. Its

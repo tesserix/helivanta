@@ -138,7 +138,11 @@ posting remain separate unfinished steps. Run `44984160694` passed the physical
 subtest (`3.89s`) and created the first hospital receipt, then stopped on a fixture
 stock-query timestamp exceeding the owner's microsecond precision. Corrected run
 [44985411548](https://github.com/tesserix/helivanta/actions/runs/44985411548)
-is pending; receipt clearance/release is not yet proven.
+passed: fresh Linux race compilation, contract generation/check, native audit
+and the complete root (`1130.74s`). Actual receiving, closure, clearance and
+release passed (`8.78s`), with the recorded eight/one/one stock outcome. Draft
+[PR #1811](https://github.com/tesserix/helivanta/pull/1811) retains the change;
+protected checks and live acceptance remain required.
 
 Still exercise warehouse reservation/dispatch and consume the published shipment
 through completed hospital receiving,
@@ -147,3 +151,42 @@ shared-order assertions do not prove those steps; actual Pharmacy dispatched
 sharing is recorded above. Public consent,
 catalogue and source-issued invoice consumers and authenticated browser/live
 acceptance also remain open.
+
+
+## Both-owner continuation: candidates awaiting runtime evidence
+
+The following committed branches build on the verified Pharmacy source/receiving
+journey. Their hosted runs are pending; the test descriptions below are intended
+assertions, not passing or deployed behavior.
+
+| Candidate | Hosted run | Intended additional evidence |
+| --- | --- | --- |
+| `test/supplier-warehouse-fulfilment-runtime` (`a1625687`) | [44987139551](https://github.com/tesserix/helivanta/actions/runs/44987139551) | Odisha source, published Drugmaster reference, ten packs explicitly verified as one hundred base capsules, independent source quality duty, actual reservation and split dispatch |
+| `test/supplier-warehouse-receiving-runtime` (`2e0bbede`) | [44987469985](https://github.com/tesserix/helivanta/actions/runs/44987469985) | Maharashtra hospital receives both stock owners; warehouse shipment retains absent MRP while the hospital records inspected printed MRP; same discrepancy and independent physical-release checks |
+| `test/supplier-receiving-response-runtime` (`f00f1eda`) | [44987593627](https://github.com/tesserix/helivanta/actions/runs/44987593627) | Source reads actual closed receiving, refuses stale versions, confirms/disputes with current Staff evidence, recovers original commands and delivers a private-Staff-minimized hospital projection without changing counts or asserting financial effects |
+| `test/supplier-receipt-finance-runtime` (`bb9bd3ab`) | [44987677605](https://github.com/tesserix/helivanta/actions/runs/44987677605) | Actual accepted-stock acquisition choices, receipt-linked bills, duplicate receipt billing refusal, partial payment, credit, payment reversal, exact balances and unchanged physical stock |
+| `test/supplier-public-relationship-runtime` (`3d143874`) | [44987872897](https://github.com/tesserix/helivanta/actions/runs/44987872897) | Public source proposal, independent approval, hospital acceptance, directed acknowledgements, matching terms/epochs, same-signatory denial and replay/conflicts |
+| `test/supplier-public-grants-runtime` (`d054bc01`) | [44988074056](https://github.com/tesserix/helivanta/actions/runs/44988074056) | Public named/group source grants and current independently reviewed hospital recipient bases instead of seeded consent in the composed journey |
+
+The warehouse source is an independent Supply owner in Bhubaneswar, Odisha; the
+Pharmacy source and hospital destination remain in Maharashtra. Policies, licences,
+prices, tax inputs, counterparties and payments are marked synthetic TEST evidence,
+not regulatory certification or real bank instructions. Drugmaster publication
+uses its existing independently staged/approved owner component data fixture;
+its actual public reference API and stock-reference guard are then used. This is
+not public master-catalogue authoring acceptance.
+
+Hospital stock and operational payables remain Pharma-owned. The financial tests
+use the independently authorized destination owner, not the goods receiver's
+permission as finance authority. Supply source stock stays Supply-owned, Pharmacy
+source stock stays Pharmacy-owned, and directed replies cannot mutate hospital
+counts. External identity, workload transport and object-storage protocols remain
+synthetic boundaries in the hosted native test; owned authorization, database,
+stock, event and financial implementations remain actual.
+
+Source-issued invoice and catalogue disclosure consumers are still missing, even
+though the closed grant templates exist. Actual public consent, both-owner physical
+and financial runtime results, required protected checks, specifically approved
+main/Kargo/migration rollout, effective feature flags and authenticated deployed
+browser tests remain completion gates. Do not enable supplier collaboration or
+close the umbrella issues from this checkpoint.

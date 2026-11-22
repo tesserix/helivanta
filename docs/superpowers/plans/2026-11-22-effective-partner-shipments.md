@@ -112,6 +112,21 @@ production. The peer handler and owner guards remain real; no source check is
 bypassed. This is fixture parity, not a claimed production dependency failure.
 Physical dispatch acceptance remains pending.
 
+The receiving candidate extends the same public journey with a separate named
+physical-dispatch subtest and then actual destination commands. Buyer-owned
+catalogue/classification/quarantine/shelf setup precedes counted receipts,
+idempotent recovery, short/rejected closure, current independent clearance and
+release. Tests compare immutable source MRP/lot evidence and actual stock-ledger
+positions: ten dispatched units become eight accepted/released, one rejected and
+one short. Rejected/short units never enter sellable stock.
+
+The receiver intentionally also holds the scoped reviewer capability in this
+fixture. Same-Staff clearance/release must still conflict; a different current
+Staff reviewer succeeds. This verifies business independence beyond UI or a
+missing permission. Release before closure/clearance and excess release must also
+fail without changing stock. Source discrepancy acknowledgement and financial
+posting remain separate unfinished steps. This candidate has no passing result yet.
+
 Still exercise reservation and physical dispatch for each stock owner, then
 consume the published shipment in hospital receiving,
 discrepancy handling, quality release and financial records. The existing empty

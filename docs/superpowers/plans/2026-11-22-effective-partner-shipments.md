@@ -51,13 +51,35 @@ grant consent records remain state-machine fixtures; this is composed
 current-authority evidence, not public-consent, physical fulfilment or deployed
 browser acceptance.
 
-After admission passes, connect independent source Staff/account links and
-reviewed, acknowledged operating duties to the same fixture. Its harness must
-explicitly supply the real `OperatingAuthorizer`; that optional dependency is
-currently absent. Reuse the existing owner interfaces and independently reviewed
-identity workflow, rather than a fake operating guard or tenant-wide operator
-grant. Exercise order acceptance, reservation and physical dispatch for each
-stock owner, then consume the published shipment in hospital receiving,
+The continuation now connects independent source Staff/account links and
+reviewed operating duties to the same fixture, explicitly supplying the real
+`OperatingAuthorizer`. Source Staff have the baseline Staff role and receive
+source/outlet-scoped duties rather than tenant-wide product administration.
+The first native run exposed a real fulfilment-audit constraint failure after
+account and duty review. The forward audit migration and its database negative
+matrix passed in run
+[44978972536](https://github.com/tesserix/helivanta/actions/runs/44978972536);
+the full both-owner Staff scenario in that run remains pending.
+
+Dispatch-preflight regression-only run
+[44978473013](https://github.com/tesserix/helivanta/actions/runs/44978473013)
+then reproduced an unsupported `receive` peer operation. The caller now uses
+the existing `dispatch` operation. Fixed run
+[44979352134](https://github.com/tesserix/helivanta/actions/runs/44979352134)
+must prove that an order policy cannot substitute for current buyer dispatch
+eligibility. Its canonical accepted-order records isolate preflight and do not
+prove public procurement or physical dispatch.
+
+The separate public-order candidate
+[44979749923](https://github.com/tesserix/helivanta/actions/runs/44979749923)
+uses actual department-scoped hospital preparer/reviewer grants, source catalogue
+creation, Global API procurement commands, directed order delivery and a separately
+reviewed source order-acceptor duty. It checks that a fulfiller cannot approve
+orders, command replay/conflicts and accepted-state delivery back to the buyer.
+That result is pending; no public-order acceptance is claimed yet.
+
+Still exercise reservation and physical dispatch for each stock owner, then
+consume the published shipment in hospital receiving,
 discrepancy handling, quality release and financial records. The existing empty
 shared-order assertions do not prove any of those steps. Public consent,
 catalogue and source-issued invoice consumers and authenticated browser/live

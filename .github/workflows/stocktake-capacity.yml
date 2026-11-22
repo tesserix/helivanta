@@ -6,7 +6,7 @@ on:
         description: Focused validation suite
         type: choice
         default: all
-        options: [all, go, web, reviewed-reads]
+        options: [all, go, web, reviewed-reads, capacity-diagnostics]
   pull_request:
     paths:
       - "backend/internal/modules/pharmacy/**"
@@ -58,32 +58,35 @@ jobs:
           path: docs/api/reference
           retention-days: 7
       - name: Workforce retained identity history
-        if: inputs.suite != 'reviewed-reads'
+        if: inputs.suite != 'reviewed-reads' && inputs.suite != 'capacity-diagnostics'
         run: go test -race -count=1 -timeout=10m ./internal/modules/workforce -run '^TestIndependentStaffHistoryReview$'
       - name: Global API stocktake and reservation conservation
-        if: inputs.suite != 'reviewed-reads'
+        if: inputs.suite != 'reviewed-reads' && inputs.suite != 'capacity-diagnostics'
         run: go test -race -count=1 -timeout=10m ./internal/globalapi -run '^TestStocktake'
       - name: Reviewed stocktake read contracts
         if: inputs.suite == 'reviewed-reads'
         run: go test -race -count=1 -timeout=10m ./internal/globalapi -run '^TestStocktakeReviewedReads'
       - name: Snapshot guards and native stocktake regression
-        if: inputs.suite != 'reviewed-reads'
+        if: inputs.suite != 'reviewed-reads' && inputs.suite != 'capacity-diagnostics'
         run: go test -race -count=1 -timeout=15m ./internal/modules/pharmacy -run '^TestStocktake'
       - name: Operating duty release admission
-        if: inputs.suite != 'reviewed-reads'
+        if: inputs.suite != 'reviewed-reads' && inputs.suite != 'capacity-diagnostics'
         run: go test -race -count=1 -timeout=5m ./internal/modules/iam -run '^TestOperatingTemplateRelease'
       - name: Measure 10000 buckets and 500 reviewed adjustments
+        id: legacy-capacity
         if: inputs.suite != 'reviewed-reads'
         env:
           HELIVANTA_STOCKTAKE_CAPACITY: "1"
+          HELIVANTA_STOCKTAKE_DIAGNOSTICS: ${{ inputs.suite == 'capacity-diagnostics' && '1' || '0' }}
         run: go test -v -count=1 -timeout=35m ./internal/modules/pharmacy -run '^TestStocktakeCapacityAt10000Buckets$'
       - name: Measure actual reviewed duties at 10000 buckets and 500 corrections
-        if: inputs.suite != 'reviewed-reads'
+        if: inputs.suite != 'reviewed-reads' && (success() || (inputs.suite == 'capacity-diagnostics' && steps.legacy-capacity.outcome == 'failure'))
         env:
           HELIVANTA_STOCKTAKE_CAPACITY: "1"
+          HELIVANTA_STOCKTAKE_DIAGNOSTICS: ${{ inputs.suite == 'capacity-diagnostics' && '1' || '0' }}
         run: go test -v -count=1 -timeout=35m ./internal/globalapi -run '^TestStocktakeReviewedCapacityAt10000Buckets$'
   stocktake-staff-ui:
-    if: inputs.suite != 'go' && inputs.suite != 'reviewed-reads'
+    if: inputs.suite != 'go' && inputs.suite != 'reviewed-reads' && inputs.suite != 'capacity-diagnostics'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

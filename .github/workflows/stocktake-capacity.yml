@@ -7,10 +7,6 @@ on:
         type: choice
         default: all
         options: [all, go, web]
-      query_plans:
-        description: Diagnostic EXPLAIN only; timings are not clean acceptance
-        type: boolean
-        default: false
   pull_request:
     paths:
       - "backend/internal/modules/pharmacy/**"
@@ -68,7 +64,6 @@ jobs:
       - name: Measure 10000 buckets and 500 reviewed adjustments
         env:
           HELIVANTA_STOCKTAKE_CAPACITY: "1"
-          HELIVANTA_STOCKTAKE_PLANS: ${{ inputs.query_plans && '1' || '0' }}
         run: go test -v -count=1 -timeout=35m ./internal/modules/pharmacy -run '^TestStocktakeCapacityAt10000Buckets$'
   stocktake-staff-ui:
     if: inputs.suite != 'go'

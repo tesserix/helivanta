@@ -8,18 +8,22 @@ Development checkpoint: PR #1817 is merged as `0189efde`. The follow-up branch
 implements reviewed independent start/line reads and count entry/original receipt
 recovery with immutable Staff/link/duty evidence and canonical release bindings.
 The first count-entry hosted test failed as intended (45058843484, positive PUT
-expected 200/actual 404). The implementation adds an immutable header authority
-model to prevent legacy/reviewed command mixing. Hosted validation 45059958549
-has passed build/vet, contract generation and the Staff web tests/lint/types/build;
-native count and Global API acceptance are still running. Eligibility remains
-false. Independent review/posting, hospital authority, operational UI and live
-acceptance below remain unfinished.
+expected 200/actual 404). Hosted validation 45059958549 passed build/vet, contract
+generation/check, native PostgreSQL stocktake regressions, Global API count and
+recovery/cutoff/rollback/legacy-boundary checks, IAM release admission and the
+Staff web tests/lint/types/build. A separate submission/recovery test is pushed
+and awaiting its red result. Eligibility remains false. Submission, independent
+review/posting, hospital authority, operational UI and live acceptance below
+remain unfinished.
 
-The existing capacity regression 45058563586 passed start at 4.624 s and page p99
-at approximately 10 ms, but 500 adjustments took 5.167 s and failed the unchanged five-second gate.
-Correct posting, replay and conservation passed. Optional hosted query-plan
-diagnostics are running; their timings cannot establish clean acceptance. No
-capacity completion, merge or deployment approval is claimed for this branch.
+Capacity regression 45058563586 passed start at 4.624 s and page p99 at approximately
+10 ms, but 500 adjustments took 5.167 s and failed the unchanged five-second gate.
+Correct posting, replay and conservation passed. Diagnostic run 45059958549 used
+indexed movement bucket lookups and statement InitPlans for scope, with the
+10,000-line difference query taking approximately 44 ms. Its start/post timings
+were 2.585/2.727 s; these are diagnostic timings, not clean acceptance. All query
+probes and their workflow option were removed afterward. The unchanged clean
+capacity gate still must pass before merge. No deployment approval is claimed.
 
 ## Problem verified against source
 

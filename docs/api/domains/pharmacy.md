@@ -72,9 +72,9 @@ Legacy editor commands cannot modify reviewed counts, and reviewed count command
 cannot adopt legacy history or invent historical Staff evidence. Count receipts
 require retained reviewed provenance. These routes remain compiled ineligible;
 the first hosted count-entry test failed with the expected missing route (run
-45058843484). The implementation and additional rollback/cutoff checks await
-hosted validation. Independent approval/posting, hospital authority, operational
-UI and live acceptance remain unfinished.
+45058843484). Hosted run 45059958549 passed the count-entry implementation and
+rollback/cutoff/legacy-boundary checks. Submission and independent approval/posting,
+hospital authority, operational UI and live acceptance remain unfinished.
 
 ## Current contract families
 

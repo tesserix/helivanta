@@ -20,6 +20,37 @@ CREATE FUNCTION pharmacy_stocktake_operating_scope(t uuid,o uuid,operation text)
  AND x.pharmacy_id=NULLIF(current_setting('app.pharmacy_stock_pharmacy',true),'')::uuid),false)
 $$;
 
+-- Compile submission completeness only when submitting, after observations exist.
+CREATE OR REPLACE FUNCTION pharmacy_stocktake_command_guard()RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE parent pharmacy_stocktakes;prior_version bigint;prior_state text;actual bigint;extras bigint;bounded boolean;
+BEGIN
+ SELECT *INTO parent FROM pharmacy_stocktakes WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND id=NEW.stocktake_id AND sealed FOR UPDATE;
+ SELECT version,state INTO prior_version,prior_state FROM pharmacy_stocktake_commands WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND stocktake_id=NEW.stocktake_id ORDER BY version DESC LIMIT 1;
+ prior_version:=COALESCE(prior_version,0);prior_state:=COALESCE(prior_state,'counting');
+ IF parent.id IS NULL OR NEW.actor_subject IS DISTINCT FROM NULLIF(current_setting('app.pharmacy_subject',true),'')OR NEW.expected_version<>prior_version OR NEW.posted_xact<>pg_current_xact_id()THEN
+  RAISE EXCEPTION 'stocktake command or version changed' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_command';
+ END IF;
+ IF NOT((NEW.kind IN('count','submit')AND prior_state='counting')OR(NEW.kind IN('approve','reject')AND prior_state='submitted')OR(NEW.kind='cancel'AND prior_state IN('counting','submitted')))THEN
+  RAISE EXCEPTION 'stocktake transition is unavailable' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_transition';
+ END IF;
+ IF NEW.kind='submit'THEN
+ IF EXISTS(SELECT 1 FROM pharmacy_stocktake_lines l WHERE l.tenant_id=NEW.tenant_id AND l.outlet_id=NEW.outlet_id AND l.stocktake_id=NEW.stocktake_id
+  AND NOT EXISTS(SELECT 1 FROM pharmacy_stocktake_counts e WHERE e.tenant_id=l.tenant_id AND e.outlet_id=l.outlet_id AND e.stocktake_id=l.stocktake_id AND e.line_id=l.id))THEN
+  RAISE EXCEPTION 'every snapshot bucket needs an observation' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_incomplete';
+ END IF;
+ END IF;
+ IF NEW.kind IN('approve','reject')AND(parent.actor_subject=NEW.actor_subject OR EXISTS(SELECT 1 FROM pharmacy_stocktake_commands c WHERE c.tenant_id=NEW.tenant_id AND c.outlet_id=NEW.outlet_id AND c.stocktake_id=NEW.stocktake_id AND c.kind='count'AND c.actor_subject=NEW.actor_subject))THEN
+  RAISE EXCEPTION 'stocktake review must be independent' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_independent';
+ END IF;
+ IF NEW.kind='approve'THEN
+  SELECT COUNT(*),COUNT(*)FILTER(WHERE quantity_units>0),COALESCE(bool_and(quantity_units BETWEEN -1000000000 AND 1000000000),true)INTO actual,extras,bounded FROM pharmacy_stocktake_differences(NEW.tenant_id,NEW.outlet_id,NEW.stocktake_id);
+  IF actual<>NEW.item_count OR actual>500 OR NOT bounded OR NEW.extra_units_disposition IS DISTINCT FROM(CASE WHEN extras>0 THEN 'moved_to_quarantine'ELSE 'no_extra_units'END)THEN
+   RAISE EXCEPTION 'stocktake corrections exceed the reviewed posting scope' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_posting_scope';
+  END IF;
+ END IF;
+ RETURN NEW;
+END $$;
+
 CREATE FUNCTION pharmacy_stocktake_movement_insert_guard()RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE reviewed boolean:=COALESCE(current_setting('app.pharmacy_stock_permission',true),'')='pharmacy.stocktake.review';
 BEGIN

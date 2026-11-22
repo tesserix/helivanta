@@ -86,7 +86,10 @@ approve a count. Other decisions remain unavailable pending their reviewed
 implementation. The hosted submission red test 45060564552 returned the expected
 missing-route 404. The implementation, replay/recovery, count-ID conflict and
 submitted-edit rollback passed Global API, native PostgreSQL and IAM release
-checks in hosted run 45061412084. Clean capacity validation remains pending.
+checks in hosted run 45061412084. Clean capacity validation also passed: 10,000-bucket start 4.670 s, page p99
+12.53 ms and posting 500 adjustments 4.954 s, with exact replay and conservation.
+Original thresholds remain unchanged. Independent review/posting remains
+unimplemented and release eligibility remains false.
 
 ## Current contract families
 

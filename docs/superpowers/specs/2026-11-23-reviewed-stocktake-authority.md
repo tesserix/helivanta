@@ -15,7 +15,9 @@ Staff web tests/lint/types/build. The submission/recovery test first failed as i
 (expected 200/actual 404). Its implementation, cross-command conflict, submitted
 edit rollback, original recovery and counter approval denial passed Global API,
 native PostgreSQL and IAM release checks in clean run 45061412084; capacity is
-still running. Canonical contracts are synced from that hosted artifact. A new
+now green: start 4.670 s, page p99 12.53 ms, and posting 500 corrections
+4.954 s, with exact replay and stock conservation. All original gates are
+unchanged and the run contains no query probes. Canonical contracts are synced from that hosted artifact. A new
 independent approval/posting red test is pushed in 18fbadff and running in
 45062256483, with a separate Staff/account and exact one-time stock conservation.
 Eligibility remains false. Independent review/posting, same-Staff alias proof,
@@ -27,8 +29,8 @@ Correct posting, replay and conservation passed. Diagnostic run 45059958549 used
 indexed movement bucket lookups and statement InitPlans for scope, with the
 10,000-line difference query taking approximately 44 ms. Its start/post timings
 were 2.585/2.727 s; these are diagnostic timings, not clean acceptance. All query
-probes and their workflow option were removed afterward. The unchanged clean
-capacity gate still must pass before merge. No deployment approval is claimed.
+probes and their workflow option were removed afterward. Clean acceptance run 45061412084 subsequently passed all original gates as
+recorded above. No deployment approval is claimed.
 
 ## Problem verified against source
 

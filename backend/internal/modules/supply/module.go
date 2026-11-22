@@ -101,6 +101,9 @@ var fulfilmentShipmentsSchema string
 //go:embed fulfilment_stock.sql
 var fulfilmentStockSchema string
 
+//go:embed fulfilment_balance_guard.sql
+var fulfilmentBalanceGuardSchema string
+
 //go:embed supplier_fulfilment.sql
 var supplierFulfilmentSchema string
 
@@ -154,7 +157,7 @@ func (*Module) Permissions() []authz.Grant {
 	return grants
 }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_supply", SQL: partySchema}, {ID: "0002_supply", SQL: registrationSchema}, {ID: "0003_supply", SQL: evidenceSchema}, {ID: "0004_supply", SQL: reviewSchema}, {ID: "0005_supply", SQL: binSchema}, {ID: "0006_supply", SQL: branchSchema}, {ID: "0007_supply", SQL: accessScopeSchema + corporateSchema + territorySchema}, {ID: "0008_supply", SQL: operationsSchema + deliveryTaskSchema + supportAccessSchema + accessLimitsSchema}, {ID: "0009_supply", SQL: indiaOnlySchema}, {ID: "0010_supply_stock", SQL: stockSchema}, {ID: "0011_supply_employer_guard", SQL: employerGuardSchema}, {ID: "0012_supply_trading_source", SQL: tradingSourceSchema}, {ID: "0013_supply_trade_relationships", SQL: tradeRelationshipsSchema}, {ID: "0014_supply_stock_quality", SQL: stockQualitySchema}, {ID: "0015_supply_purchase_orders", SQL: purchaseOrdersSchema}, {ID: "0016_supply_supplier_fulfilment", SQL: supplierFulfilmentSchema + fulfilmentStockSchema + fulfilmentShipmentsSchema + fulfilmentReceivingExchangeSchema}, {ID: "0017_supply_supplier_response_exchange", SQL: receivingResponseExchangeSchema}, {ID: "0018_supply_operating_location_choices", SQL: operatingLocationChoicesSchema}, {ID: "0019_supply_partner_shipments", SQL: partnerShipmentsSchema}, {ID: "0020_supply_partner_shipment_order_index", ConcurrentIndexes: partnerShipmentIndexes()}}
+	return []tenantdb.Migration{{ID: "0001_supply", SQL: partySchema}, {ID: "0002_supply", SQL: registrationSchema}, {ID: "0003_supply", SQL: evidenceSchema}, {ID: "0004_supply", SQL: reviewSchema}, {ID: "0005_supply", SQL: binSchema}, {ID: "0006_supply", SQL: branchSchema}, {ID: "0007_supply", SQL: accessScopeSchema + corporateSchema + territorySchema}, {ID: "0008_supply", SQL: operationsSchema + deliveryTaskSchema + supportAccessSchema + accessLimitsSchema}, {ID: "0009_supply", SQL: indiaOnlySchema}, {ID: "0010_supply_stock", SQL: stockSchema}, {ID: "0011_supply_employer_guard", SQL: employerGuardSchema}, {ID: "0012_supply_trading_source", SQL: tradingSourceSchema}, {ID: "0013_supply_trade_relationships", SQL: tradeRelationshipsSchema}, {ID: "0014_supply_stock_quality", SQL: stockQualitySchema}, {ID: "0015_supply_purchase_orders", SQL: purchaseOrdersSchema}, {ID: "0016_supply_supplier_fulfilment", SQL: supplierFulfilmentSchema + fulfilmentStockSchema + fulfilmentShipmentsSchema + fulfilmentReceivingExchangeSchema}, {ID: "0017_supply_supplier_response_exchange", SQL: receivingResponseExchangeSchema}, {ID: "0018_supply_operating_location_choices", SQL: operatingLocationChoicesSchema}, {ID: "0019_supply_partner_shipments", SQL: partnerShipmentsSchema}, {ID: "0020_supply_partner_shipment_order_index", ConcurrentIndexes: partnerShipmentIndexes()}, {ID: "0021_supply_fulfilment_balance_guard", SQL: fulfilmentBalanceGuardSchema}}
 }
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	h := &handlers{operating: deps.OperatingAuthorizer, db: deps.DB, bus: deps.Bus, identity: deps.OrganizationIdentity, roles: deps.Roles, stockProducts: deps.StockProducts}

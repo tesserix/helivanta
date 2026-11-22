@@ -389,3 +389,37 @@ under another duty. Current-duty, current-identity, credential, source/location,
 revocation and graph checks retain their fail-closed outcomes. The real IAM /
 Workforce / OpenFGA source scenario covers hidden objects, denied duties, outage,
 revocation, original recovery and once-only callback error propagation.
+
+
+### Warehouse dispatch-balance repair candidate
+
+Forward Supply migration `0021_supply_fulfilment_balance_guard` repairs the
+physical dispatch counter policy without changing migration 0016. The dispatch
+journal's AFTER INSERT trigger writes the derived balance at trigger depth one;
+the old depth-greater-than-one write check rejected that legitimate operation.
+The repaired check still requires the verified tenant, exact party/premise,
+current fulfilment permission and operator/Staff frame. Forced RLS stays enabled.
+
+A new balance trigger refuses direct writes, changed receipt identity, deletion
+and truncation. The dispatch-count trigger binds its exact new journal ID in a
+transaction-local frame. Balance validation reads that journal by primary key,
+requires the same tenant/party/premise/receipt/actor and current transaction xmin,
+and checks the exact first-insert or increment amount. An already-written balance
+in that command cannot be counted twice. The current API runs one physical
+command per transaction; batching multiple dispatches of the same receipt into
+one transaction is not an exposed contract. Point lookups avoid rescanning a
+receipt's complete dispatch history. The frame is restored on success; any error
+rolls back the dispatch statement and its local settings.
+
+The regression uses real source Staff admission and owner storage to attempt
+manual insert/update/delete/truncate and an unrelated temporary trigger carrying
+an old journal ID. None may change the actual balance. Public split dispatch and
+replay must still produce exactly ten dispatched units. These are candidate
+assertions until hosted execution passes. Run `44989322954` reproduced the original
+RLS denial after the earlier UUID-lock fix had admitted real reservation/recovery.
+
+This is a forward-only policy/trigger repair, with no data deletion or inverse
+physical movement. A code rollback retains the derived balance guard and journal
+history; a schema rollback would reinstate a known broken dispatch path and is
+not automated. Deployment requires the separately approved Supply0021 migration
+in addition to the already pending Pharmacy migrations and Kargo rollout.

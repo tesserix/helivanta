@@ -71,3 +71,34 @@ func TestStockProductCommandReferenceHoldsPublicationUntilConsumerCommit(t *test
 	}))
 	require.True(t, canPublish())
 }
+
+func TestStockProductReferencesShareRetainedPublicationFrame(t *testing.T) {
+	s := newStack(t)
+	s.publish(t, amoxicillin("retained-stock-reference", "2020-01-01", "H", "active"))
+	status, product := s.get(t, "/products/by-gtin/8901234567890")
+	require.Equal(t, 200, status)
+	version := uuid.MustParse(product["version_id"].(string))
+	guard := drugmaster.New().StockProducts(s.db)
+	canPublish := func() bool {
+		var acquired bool
+		require.NoError(t, s.db.WithSystem(t.Context(), func(tx *gorm.DB) error {
+			return tx.Raw(`SELECT pg_try_advisory_xact_lock(476001)`).Scan(&acquired).Error
+		}))
+		return acquired
+	}
+	var descend func(context.Context, int) error
+	descend = func(ctx context.Context, remaining int) error {
+		return guard.WithCurrentStockProduct(ctx, version, func(next context.Context, ref stockproduct.Reference) error {
+			require.Equal(t, version, ref.VersionID)
+			if remaining == 0 {
+				require.False(t, canPublish(), "all nested references must retain the publisher fence")
+				return nil
+			}
+			return descend(next, remaining-1)
+		})
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
+	defer cancel()
+	require.NoError(t, descend(ctx, 7), "catalogue guards must not spend one connection per source shipment")
+	require.True(t, canPublish(), "the publisher fence must release after the entire continuation")
+}

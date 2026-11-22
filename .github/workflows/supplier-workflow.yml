@@ -65,6 +65,10 @@ jobs:
         run: node --test ../scripts/supplier-workflow.test.mjs
       - name: Retained safety frames under forced RLS
         run: go test -race -v -count=1 -timeout 5m ./pkg/tenantdb -run '^TestRetained'
+      - name: Retained source context propagation and receipt binding
+        run: go test -race -count=1 ./internal/modules/pharmacy -run '^TestSupplier(BatchSources|Retained)'
+      - name: Published catalogue source guards and consumer commit fence
+        run: go test -race -v -count=1 -timeout 5m ./internal/modules/drugmaster -run '^TestStockProduct'
       - name: Distinct source guards exceed the app pool without exhausting it
         run: go test -race -v -count=1 -timeout 12m ./internal/globalapi -run '^TestShipmentSafetyRetainsEightDistinctSourceShipments$'
   batch-source:

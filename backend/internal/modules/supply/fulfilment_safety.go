@@ -20,7 +20,7 @@ func (g warehouseShipmentSafety) WithSafeShipment(ctx context.Context, s f.Shipm
 	if g.deps.DB == nil || g.deps.StockProducts == nil || action == nil || tenantdb.ActorFrom(ctx) == "" || f.ValidateShipment(s) != nil || s.Product.Owner != "supply" || s.Product.VersionID == nil || s.MrpMinor != nil {
 		return f.ErrUnavailable
 	}
-	return g.deps.DB.WithTenant(ctx, s.SourceTenantID.String(), func(tx *gorm.DB) (err error) {
+	return g.deps.DB.WithRetainedTenantFrame(ctx, s.SourceTenantID.String(), func(ctx context.Context, tx *gorm.DB) (err error) {
 		var old string
 		if err = tx.Raw(`SELECT jsonb_object_agg(key,COALESCE(current_setting(key,true),''))::text FROM unnest(ARRAY['app.supply_subject','app.supply_party','app.supply_stock_access','app.supply_stock_party','app.supply_stock_premise','app.supply_stock_permission'])AS key`).Scan(&old).Error; err != nil {
 			return err

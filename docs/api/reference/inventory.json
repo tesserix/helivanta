@@ -6521,6 +6521,11 @@
               ]
             }
           ]
+        },
+        {
+          "id": "0064_pharmacy_stocktake_snapshot_validation",
+          "sql_sha256": "79e882264e26904be75fadf687df264609fa7769a44eec38f440c14ff526cc45",
+          "creates_tables": []
         }
       ]
     },

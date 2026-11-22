@@ -267,3 +267,41 @@ func TestStocktakeReviewedDifferentStaffCanReviewRetiredCounterEvidence(t *testi
 		return nil
 	})
 }
+
+func TestStocktakeReviewedCancellationAndRejectionRetainPhysicalStock(t *testing.T) {
+	for _, decision := range []string{"cancel", "reject"} {
+		t.Run(decision, func(t *testing.T) {
+			f, path := newSubmittedReviewedStocktake(t)
+			actor := "receiver"
+			state := "cancelled"
+			if decision == "reject" {
+				activateReviewedStocktakeReviewer(t, &f)
+				actor = "stock-reviewer"
+				state = "rejected"
+			}
+			command := path + "/decisions/" + v7()
+			input := map[string]any{"decision": decision, "expected_version": 2, "reason": "TEST end review without a physical correction"}
+			saved := f.call("PUT", command, actor, input, 200)
+			require.JSONEq(t, saved, f.call("PUT", command, actor, input, 200))
+			require.JSONEq(t, saved, f.call("GET", command, actor, nil, 200))
+			var receipt struct {
+				State           string `json:"state"`
+				Version         int64  `json:"version"`
+				AdjustmentCount int64  `json:"adjustment_count"`
+			}
+			require.NoError(t, json.Unmarshal([]byte(saved), &receipt))
+			require.Equal(t, state, receipt.State)
+			require.EqualValues(t, 3, receipt.Version)
+			require.Zero(t, receipt.AdjustmentCount)
+			f.ownerOutletTx(t, func(tx *gorm.DB) error {
+				var ledger struct{ Corrections, Units int64 }
+				if err := tx.Raw(`SELECT count(*) FILTER(WHERE kind='correction') corrections,COALESCE(sum(quantity_units),0) units FROM pharmacy_stock_movements WHERE tenant_id=? AND outlet_id=?`, testutil.TenantA, f.outlet).Scan(&ledger).Error; err != nil {
+					return err
+				}
+				require.Zero(t, ledger.Corrections)
+				require.EqualValues(t, 30, ledger.Units)
+				return nil
+			})
+		})
+	}
+}

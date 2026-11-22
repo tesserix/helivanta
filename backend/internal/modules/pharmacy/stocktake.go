@@ -343,7 +343,8 @@ func startStocktake(tx *gorm.DB, p authn.Principal, outlet, id uuid.UUID, in Sto
 	}
 	if len(rows) > 0 {
 		columns := []string{"tenant_id", "outlet_id", "id", "stocktake_id", "product_id", "product_version", "sku", "brand_name", "unit_of_issue", "batch_id", "lot_number", "expires_on", "location_id", "location_code", "location_name", "stock_status", "book_units", "movement_count", "regulatory_class", "ndps_status", "schedule_declaration_id", "created_at"}
-		if err := tx.Select(columns).CreateInBatches(&rows, 500).Error; err != nil {
+		batchSize := min(2000, 65535/len(columns))
+		if err := tx.Select(columns).CreateInBatches(&rows, batchSize).Error; err != nil {
 			return err
 		}
 	}

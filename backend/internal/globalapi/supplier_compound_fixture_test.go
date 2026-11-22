@@ -211,7 +211,22 @@ func (f supplierCompoundFixture) assertAdmission(t *testing.T, subject, reviewer
 	require.NotNil(t, f.binding)
 	bindingID := uuid.Must(uuid.NewV7())
 	bindingPath := f.binding.base + "/hospitals/" + member.HospitalID.String() + "/staff-department-bindings/" + bindingID.String()
-	f.hospitalCall(t, "PUT", bindingPath, f.binding.preparer, map[string]any{"department_id": member.Input.DepartmentID, "department_revision_id": member.Input.DepartmentRevisionID, "replaces_binding_id": nil, "replaces_binding_version": nil, "reason": "TEST current hospital buyer binding"}, 200)
+	retained := f.hospitalCall(t, "GET", f.binding.base+"/staff-department-bindings?limit=50", reviewer, nil, 200)
+	require.Equal(t, false, retained["page"].(map[string]any)["has_more"])
+	var current map[string]any
+	for _, raw := range retained["data"].([]any) {
+		row := raw.(map[string]any)
+		if row["status"] == "approved" {
+			require.Nil(t, current, "only one current department binding may own the outlet")
+			current = row
+		}
+	}
+	require.NotNil(t, current, "replace the retained approval from the earlier binding scenario")
+	f.hospitalCall(t, "PUT", bindingPath, f.binding.preparer, map[string]any{
+		"department_id": member.Input.DepartmentID, "department_revision_id": member.Input.DepartmentRevisionID,
+		"replaces_binding_id": current["id"], "replaces_binding_version": current["version"],
+		"reason": "TEST replace retained binding with current compound supplier recipient",
+	}, 200)
 	f.hospitalCall(t, "POST", bindingPath+"/commands", reviewer, map[string]any{"id": uuid.Must(uuid.NewV7()).String(), "operation": "approve", "expected_version": 1, "reason": "TEST independent hospital buyer approval", "attest_department_responsibility": true}, 200)
 	buyerActor := f.actors(t, testutil.TenantA)
 	parts := strings.Split(f.binding.base, "/")

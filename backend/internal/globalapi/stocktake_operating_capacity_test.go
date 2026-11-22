@@ -3,6 +3,7 @@ package globalapi
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"sort"
 	"testing"
@@ -20,8 +21,8 @@ func TestStocktakeReviewedCapacityAt10000Buckets(t *testing.T) {
 	}
 	f := newPharmacyReceiverFixture(t)
 	f.ownerOutletTx(t, func(tx *gorm.DB) error {
-		if err := tx.Exec(`INSERT INTO pharmacy_stock_batches(tenant_id,outlet_id,id,product_id,lot_number,expires_on,mrp_minor)
-   SELECT ?,?,('019a2b00-1000-7000-8000-'||lpad(i::text,12,'0'))::uuid,?,'TEST-REVIEWED-CAP-'||i,'2030-12-31',10000 FROM generate_series(1,10000)i`, testutil.TenantA, f.outlet, f.product).Error; err != nil {
+		if err := tx.Exec(`INSERT INTO pharmacy_stock_batches(tenant_id,outlet_id,id,product_id,product_version,lot_number,expires_on,mrp_minor)
+   SELECT ?,?,('019a2b00-1000-7000-8000-'||lpad(i::text,12,'0'))::uuid,?,1,'TEST-REVIEWED-CAP-'||i,'2030-12-31',12500 FROM generate_series(1,10000)i`, testutil.TenantA, f.outlet, f.product).Error; err != nil {
 			return err
 		}
 		return tx.Exec(`INSERT INTO pharmacy_stock_movements(tenant_id,outlet_id,id,location_id,batch_id,kind,quantity_units,reason,source_reference,actor_subject)
@@ -44,10 +45,11 @@ func TestStocktakeReviewedCapacityAt10000Buckets(t *testing.T) {
 	seen := make(map[string]bool, 10000)
 	var timings []time.Duration
 	cursor := ""
-	for {
+	for pages := 0; ; pages++ {
+		require.Less(t, pages, 101, "pagination must terminate")
 		request := path + "/lines?limit=100"
 		if cursor != "" {
-			request += "&cursor=" + cursor
+			request += "&cursor=" + url.QueryEscape(cursor)
 		}
 		start := time.Now()
 		raw := f.call("GET", request, "receiver", nil, 200)
@@ -57,9 +59,10 @@ func TestStocktakeReviewedCapacityAt10000Buckets(t *testing.T) {
 				ID        string `json:"id"`
 				BookUnits int64  `json:"book_units"`
 			} `json:"data"`
-			PageInfo struct {
-				Next string `json:"nextCursor"`
-			} `json:"pageInfo"`
+			Page struct {
+				Next    string `json:"next_cursor"`
+				HasMore bool   `json:"has_more"`
+			} `json:"page"`
 		}
 		require.NoError(t, json.Unmarshal([]byte(raw), &page))
 		require.Len(t, page.Data, 100)
@@ -73,10 +76,11 @@ func TestStocktakeReviewedCapacityAt10000Buckets(t *testing.T) {
 			}
 			entries = append(entries, map[string]any{"line_id": line.ID, "counted_units": units})
 		}
-		cursor = page.PageInfo.Next
-		if cursor == "" {
+		if !page.Page.HasMore {
 			break
 		}
+		cursor = page.Page.Next
+		require.NotEmpty(t, cursor)
 	}
 	require.Len(t, seen, 10000)
 	require.Len(t, timings, 100)

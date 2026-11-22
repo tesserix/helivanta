@@ -129,16 +129,16 @@ func TestStocktakeReviewedIndependentCounterFreezesReceivedStock(t *testing.T) {
 		return err == nil && member
 	}, 20*time.Second, 50*time.Millisecond)
 	reviewStaff, reviewLink := v7(), v7()
-	staffRoot := "/v1/workforce/pharmacy-employers/" + f.pharmacy + "/staff"
-	f.call("PUT", staffRoot+"/"+reviewStaff, "owner", map[string]any{
-		"expected_directory_version": 1, "expected_version": 0, "display_name": "TEST Independent Stock Reviewer", "job_category": "pharmacist", "state": "active", "reason": "TEST separate reviewed stock approver",
-	}, 201)
+	staffRoot := "/v1/workforce/pharmacies/" + f.pharmacy + "/staff"
+	f.call("PUT", staffRoot+"/"+reviewStaff+"?directory_context=v1", "owner", map[string]any{
+		"employee_code": "TEST-PH-REVIEW", "expected_version": 0, "display_name": "TEST Independent Stock Reviewer", "job_category": "pharmacist", "employment_status": "active", "directory_context_version": "v1",
+	}, 200)
 	reviewStaffRoot := staffRoot + "/" + reviewStaff
 	f.call("PUT", reviewStaffRoot+"/account-links/"+reviewLink, "owner", map[string]any{
-		"subject": "user-stock-reviewer", "expected_staff_version": 1, "expected_link_version": 0, "reason": "TEST distinct approver account",
+		"subject": "user-stock-reviewer", "expected_staff_version": 1, "reason": "TEST distinct approver account",
 	}, 201)
 	f.call("PUT", reviewStaffRoot+"/account-links/"+reviewLink+"/commands/"+v7(), "reviewer", map[string]any{
-		"decision": "approve", "expected_staff_version": 1, "expected_link_version": 1, "reason": "TEST approve distinct account proof",
+		"decision": "approve", "expected_version": 1, "reason": "TEST approve distinct account proof",
 	}, 201)
 	f.input.TemplateKey = "pharmacy.stocktake_reviewer.v1"
 	f.input.Subject = "user-stock-reviewer"

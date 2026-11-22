@@ -32,6 +32,13 @@ were 2.585/2.727 s; these are diagnostic timings, not clean acceptance. All quer
 probes and their workflow option were removed afterward. Clean acceptance run 45061412084 subsequently passed all original gates as
 recorded above. No deployment approval is claimed.
 
+Capacity scope clarification: run 45061412084 measures the existing shared ledger
+handlers after installing the added policies. It proves the legacy engine's
+unchanged regression gates, not the actual reviewed-duty IAM/source-history path.
+An additional uninstrumented 10,000-bucket/500-correction run through actual
+reviewed duties and the Global API is still required before claiming that path's
+latency acceptance. No broader capacity completion follows from the earlier run.
+
 ## Problem verified against source
 
 The existing stocktake handlers consume `pharmacy.stock.read` /

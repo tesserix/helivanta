@@ -44,7 +44,8 @@ func newSaleWorld(t *testing.T, ready bool) saleWorld {
 	files, err := attachments.NewGCS(cloud.Client, cloud.Quarantine, cloud.Released)
 	require.NoError(t, err)
 	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
-		Tokens: map[string]string{"editor": testutil.TenantA, "pharmacist": testutil.TenantA, "clerk": testutil.TenantA, "owner": testutil.TenantA, "stocker": testutil.TenantA, "rxreader": testutil.TenantA, "foreign": testutil.TenantB},
+		Tokens: map[string]string{"editor": testutil.TenantA, "pharmacist": testutil.TenantA, "clerk": testutil.TenantA, "owner": testutil.TenantA, "stocker": testutil.TenantA, "rxreader": testutil.TenantA, "foreign": testutil.TenantB,
+			"exporter": testutil.TenantA, "auditor": testutil.TenantA, "finance": testutil.TenantA, "stranger": testutil.TenantA, "outsider": testutil.TenantB},
 		Perms: map[string][]authz.Permission{
 			"editor":     salePerms,
 			"pharmacist": salePerms,
@@ -55,6 +56,12 @@ func newSaleWorld(t *testing.T, ready bool) saleWorld {
 			// The owner's sale and catalogue reads, without prescriptions.
 			"owner":   {"pharmacy.catalogue.read", "pharmacy.sale.read", "pharmacy.tax.manage", "pharmacy.discount.manage"},
 			"foreign": salePerms,
+			// #1690: the Tally export is owner-only; supplier accounts alone do not reach it.
+			"exporter": {"pharmacy.accounts.export"},
+			"auditor":  {"pharmacy.accounts.export"},
+			"stranger": {"pharmacy.accounts.export"},
+			"outsider": {"pharmacy.accounts.export"},
+			"finance":  {"pharmacy.accounts.read", "pharmacy.accounts.write", "pharmacy.accounts.payment", "pharmacy.accounts.adjust"},
 		}, Modules: []platform.Module{pharmacy.New()}, Documents: files, PharmacyEvidenceEnabled: true,
 	})
 	seedPharmacyOutlet(t, r)
@@ -96,11 +103,16 @@ func (w saleWorld) profile(t *testing.T, prefix string) {
 // product makes an active product of the given class, taxed at 12%.
 func (w saleWorld) product(t *testing.T, sku, class string) string {
 	t.Helper()
+	return w.productAt(t, sku, class, "12")
+}
+
+func (w saleWorld) productAt(t *testing.T, sku, class, rate string) string {
+	t.Helper()
 	id := uuid.Must(uuid.NewV7()).String()
 	body := strings.Replace(productBody(0, "TEST "+sku), `"TEST-AMOX-500"`, fmt.Sprintf("%q", sku), 1)
 	res := do(w.r, "PUT", productPath(id), "editor", body)
 	require.Equal(t, 200, res.Code, res.Body.String())
-	res = do(w.r, "PUT", taxCommandPath(productPath(id)+"/tax-classifications"), "editor", classificationBody("30049099", "taxable", "12", "", w.taxFrom, ""))
+	res = do(w.r, "PUT", taxCommandPath(productPath(id)+"/tax-classifications"), "editor", classificationBody("30049099", "taxable", rate, "", w.taxFrom, ""))
 	require.Equal(t, http.StatusCreated, res.Code, res.Body.String())
 	approveClass(t, w.r, id, class, false)
 	return id

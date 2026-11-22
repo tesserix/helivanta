@@ -370,7 +370,7 @@ including when new operating Payables admission is paused. No new write authorit
 or money movement is introduced. Wrong/missing bill scope is 404; unavailable
 identity/audit releases no rows. Use sealed financial keyset cursors and a 50-row cap.
 
-Add forward concurrent index migration0062 for tenant/outlet/bill/created_at/id
+Add forward concurrent index migration 0063 for tenant/outlet/bill/created_at/id
 ordering. Existing RLS, deadlines and pool budgets apply; no infrastructure/cost
 allocation change. Hosted migration/native tests and actual EXPLAIN evidence are
 required; a small synthetic plan is not proof of large-cardinality performance.

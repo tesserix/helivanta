@@ -562,6 +562,10 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/original-bills` | `pharmacy.supplier_returns.prepare` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns/preparation/:payable` | `pharmacy.supplier_returns.prepare` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-returns` | `pharmacy.supplier_returns.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/ledger-maps/:map` | `pharmacy.accounts.export` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/ledger-maps/:map` | `pharmacy.accounts.export` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/preview` | `pharmacy.accounts.export` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/vouchers.xml` | `pharmacy.accounts.export` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/admission-occupant` | `pharmacy.sale.create` | false | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories/:id/retire` | `pharmacy.category.declare` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories/:id` | `pharmacy.category.declare` | false | false |
@@ -801,7 +805,8 @@ Migration table declarations:
 - `0060_pharmacy_supplier_credit_allocations`: `pharmacy_supplier_credit_allocations`, `pharmacy_supplier_credit_allocation_reversals`.
 - `0061_pharmacy_supplier_credit_source_indexes`: concurrent index `pharmacy_supplier_credit_payable_choices` on `pharmacy_payables (tenant_id, outlet_id, payee_reference, currency, created_at DESC, id DESC)`.
 - `0061_pharmacy_supplier_credit_source_indexes`: concurrent index `pharmacy_supplier_credit_return_choices` on `pharmacy_supplier_returns (tenant_id, outlet_id, payee_reference, currency, created_at DESC, id DESC)`.
-- `0062_pharmacy_payable_credit_journal`: concurrent index `pharmacy_payable_credit_journal` on `pharmacy_supplier_credit_allocations (tenant_id, outlet_id, payable_id, created_at DESC, id DESC)`.
+- `0062_pharmacy_tally_ledger_maps`: `pharmacy_tally_ledger_maps`, `pharmacy_tally_ledger_map_entries`.
+- `0063_pharmacy_payable_credit_journal`: concurrent index `pharmacy_payable_credit_journal` on `pharmacy_supplier_credit_allocations (tenant_id, outlet_id, payable_id, created_at DESC, id DESC)`.
 
 ## payments
 

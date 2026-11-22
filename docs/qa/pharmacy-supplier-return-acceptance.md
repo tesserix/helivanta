@@ -339,7 +339,7 @@ Document entry and matching are not bill settlement.
    environment for this purpose.
 
 The candidate reuses `SupplierCreditAllocationView` with a 50-row resource cursor,
-baseline retained-read admission and accounts-read authority. Migration 0062
+baseline retained-read admission and accounts-read authority. Migration 0063
 adds its concurrent bill-history index. Hosted native tests inspect a two-row
 synthetic query plan; this is not a large-cardinality performance measurement.
 Record actual hosted and live evidence before marking these cases passed.

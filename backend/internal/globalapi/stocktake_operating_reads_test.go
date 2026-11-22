@@ -93,7 +93,7 @@ func TestStocktakeReviewedReadsWithholdDataWhenAuditCannotCommit(t *testing.T) {
 		t.Helper()
 		var count int64
 		f.ownerOutletTx(t, func(tx *gorm.DB) error {
-			if err := tx.Exec(`SELECT set_config('app.pharmacy_stock_access','current_independent_outlet_actor_v1',true),
+			if err := tx.Exec(`SELECT set_config('app.pharmacy_stock_access','authorized',true),
  set_config('app.pharmacy_stock_pharmacy',?,true),set_config('app.pharmacy_stock_outlet',?,true),
  set_config('app.pharmacy_stock_permission','pharmacy.stocktake.read',true)`, f.pharmacy, f.outlet).Error; err != nil {
 				return err

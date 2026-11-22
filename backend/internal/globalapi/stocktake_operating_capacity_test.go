@@ -1,11 +1,13 @@
 package globalapi
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 
@@ -30,6 +32,9 @@ func TestStocktakeReviewedCapacityAt10000Buckets(t *testing.T) {
 	})
 	f.input.TemplateKey = "pharmacy.stocktake_counter.v1"
 	f.activate(t)
+	if os.Getenv("HELIVANTA_STOCKTAKE_INSERT_PLAN") == "1" {
+		diagnoseStocktakeInsert(t, f)
+	}
 	path := "/v1/pharmacy/pharmacies/" + f.pharmacy + "/operating-locations/" + f.outlet + "/stocktakes/" + v7()
 	measure := func(name string, run func() string) string {
 		start := time.Now()
@@ -123,4 +128,74 @@ func TestStocktakeReviewedCapacityAt10000Buckets(t *testing.T) {
 		require.EqualValues(t, 100, commands)
 		return nil
 	})
+}
+
+func diagnoseStocktakeInsert(t *testing.T, f pharmacyReceiverFixture) {
+	t.Helper()
+	const callback = "test:stocktake-insert-plan"
+	var once sync.Once
+	var hooks *gorm.DB
+	f.ownerOutletTx(t, func(tx *gorm.DB) error {
+		hooks = tx
+		return tx.Callback().Create().Before("gorm:create").Register(callback, func(tx *gorm.DB) {
+			if tx.DryRun || tx.Statement.Table != "pharmacy_stocktake_lines" {
+				return
+			}
+			once.Do(func() {
+				dry := tx.Session(&gorm.Session{DryRun: true, SkipHooks: true, SkipDefaultTransaction: true}).Create(tx.Statement.Dest)
+				if dry.Error != nil {
+					t.Errorf("compile diagnostic insert: %T", dry.Error)
+					return
+				}
+				conn := tx.Statement.ConnPool
+				if _, err := conn.ExecContext(tx.Statement.Context, "SAVEPOINT diagnostic_stocktake_insert"); err != nil {
+					t.Errorf("open diagnostic savepoint: %T", err)
+					return
+				}
+				defer func() {
+					ctx, cancel := context.WithTimeout(context.WithoutCancel(tx.Statement.Context), 3*time.Second)
+					defer cancel()
+					if _, err := conn.ExecContext(ctx, "ROLLBACK TO SAVEPOINT diagnostic_stocktake_insert"); err != nil {
+						t.Errorf("rollback diagnostic insert: %T", err)
+						return
+					}
+					if _, err := conn.ExecContext(ctx, "RELEASE SAVEPOINT diagnostic_stocktake_insert"); err != nil {
+						t.Errorf("release diagnostic savepoint: %T", err)
+					}
+				}()
+				rows, err := conn.QueryContext(tx.Statement.Context, "EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) "+dry.Statement.SQL.String(), dry.Statement.Vars...)
+				if err != nil {
+					t.Errorf("explain diagnostic insert: %T", err)
+					return
+				}
+				defer rows.Close()
+				for rows.Next() {
+					var raw []byte
+					if err := rows.Scan(&raw); err != nil {
+						t.Errorf("read diagnostic insert plan: %T", err)
+						return
+					}
+					var plans []map[string]any
+					if err := json.Unmarshal(raw, &plans); err != nil {
+						t.Errorf("decode diagnostic insert plan: %T", err)
+						return
+					}
+					for _, plan := range plans {
+						t.Logf("diagnostic snapshot insert planning_ms=%v execution_ms=%v", plan["Planning Time"], plan["Execution Time"])
+						if triggers, ok := plan["Triggers"].([]any); ok {
+							for _, trigger := range triggers {
+								if trigger, ok := trigger.(map[string]any); ok {
+									t.Logf("diagnostic snapshot trigger name=%v time_ms=%v calls=%v", trigger["Trigger Name"], trigger["Time"], trigger["Calls"])
+								}
+							}
+						}
+					}
+				}
+				if err := rows.Err(); err != nil {
+					t.Errorf("finish diagnostic insert plan: %T", err)
+				}
+			})
+		})
+	})
+	t.Cleanup(func() { require.NoError(t, hooks.Callback().Create().Remove(callback)) })
 }

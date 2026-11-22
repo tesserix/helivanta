@@ -11,7 +11,6 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/tesserix/helivanta/internal/platform/respond"
-	"github.com/tesserix/helivanta/pkg/authz"
 )
 
 func (h *catalogueHandlers) putOperatingStocktakeCount(c *gin.Context) {

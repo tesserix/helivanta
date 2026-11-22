@@ -31,12 +31,13 @@ func (h *catalogueHandlers) putOperatingStocktakeDecision(c *gin.Context) {
 		return
 	}
 	if !normalizeStocktakeDecision(&in) {
-		respond.Error(c, 400, "invalid_request", "Provide the current version and a reason for submission.")
+		respond.Error(c, 400, "invalid_request", "Provide the current version and a reason for the decision.")
 		return
 	}
-	if in.Decision != "submit" {
-		respond.NotFound(c, "stocktake decision")
-		return
+	permission := PermStocktakeCount
+	review := in.Decision == "approve" || in.Decision == "reject"
+	if review {
+		permission = PermStocktakeReview
 	}
 	hash, err := stocktakeHash(p.Subject, in)
 	if err != nil {
@@ -46,7 +47,7 @@ func (h *catalogueHandlers) putOperatingStocktakeDecision(c *gin.Context) {
 	var result StocktakeDecisionReceipt
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
-	err = h.operatingStock(ctx, p, pharmacy, outlet, PermStocktakeCount, func(tx *gorm.DB, use operatingStockUse) error {
+	err = h.operatingStock(ctx, p, pharmacy, outlet, permission, func(tx *gorm.DB, use operatingStockUse) error {
 		var parent struct{ ID uuid.UUID }
 		if err := tx.Table("pharmacy_stocktakes").Clauses(clause.Locking{Strength: "UPDATE"}).Select("id").Where("tenant_id=? AND outlet_id=? AND id=? AND sealed AND authority_kind='operating'", p.TenantID, outlet, take).Take(&parent).Error; err != nil {
 			return err
@@ -54,7 +55,7 @@ func (h *catalogueHandlers) putOperatingStocktakeDecision(c *gin.Context) {
 		saved, savedHash, err := readStocktakeDecision(tx, p.TenantID, outlet, take, command)
 		if err == nil {
 			var evidence int64
-			if err := tx.Table("pharmacy_stocktake_operating_evidence").Where("tenant_id=? AND outlet_id=? AND stocktake_id=? AND command_id=? AND kind='submit' AND staff_id=? AND actor_subject=?", p.TenantID, outlet, take, command, use.grant.Identity.StaffID, p.Subject).Count(&evidence).Error; err != nil {
+			if err := tx.Table("pharmacy_stocktake_operating_evidence").Where("tenant_id=? AND outlet_id=? AND stocktake_id=? AND command_id=? AND kind=? AND staff_id=? AND actor_subject=?", p.TenantID, outlet, take, command, in.Decision, use.grant.Identity.StaffID, p.Subject).Count(&evidence).Error; err != nil {
 				return err
 			}
 			if savedHash != hash || saved.RecordedBy != p.Subject || evidence != 1 {
@@ -69,7 +70,12 @@ func (h *catalogueHandlers) putOperatingStocktakeDecision(c *gin.Context) {
 		if err := stocktakeCommandUnused(tx, p.TenantID, outlet, command); err != nil {
 			return err
 		}
-		if err := use.stocktakeEvidence(tx, take, "submit", &command); err != nil {
+		if review {
+			if err := h.reviewStocktakeParticipants(tx, use, take); err != nil {
+				return err
+			}
+		}
+		if err := use.stocktakeEvidence(tx, take, in.Decision, &command); err != nil {
 			return err
 		}
 		if err := postStocktakeDecision(tx, p, pharmacy, outlet, take, command, in, hash); err != nil {
@@ -105,7 +111,7 @@ func (h *catalogueHandlers) getOperatingStocktakeDecision(c *gin.Context) {
 	var result StocktakeDecisionReceipt
 	err := h.operatingStock(c.Request.Context(), p, pharmacy, outlet, PermStocktakeRead, func(tx *gorm.DB, use operatingStockUse) error {
 		var evidence int64
-		if err := tx.Table("pharmacy_stocktake_operating_evidence").Where("tenant_id=? AND outlet_id=? AND stocktake_id=? AND command_id=? AND kind='submit'", p.TenantID, outlet, take, command).Count(&evidence).Error; err != nil {
+		if err := tx.Table("pharmacy_stocktake_operating_evidence").Where("tenant_id=? AND outlet_id=? AND stocktake_id=? AND command_id=? AND kind IN('submit','cancel','approve','reject')", p.TenantID, outlet, take, command).Count(&evidence).Error; err != nil {
 			return err
 		}
 		if evidence != 1 {
@@ -116,7 +122,7 @@ func (h *catalogueHandlers) getOperatingStocktakeDecision(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		if err := use.stocktakeEvidence(tx, take, "submit_read", &command); err != nil {
+		if err := use.stocktakeEvidence(tx, take, "decision_read", &command); err != nil {
 			return err
 		}
 		return stocktakeReadAudit(c, tx, p, "stocktake_decision", command, "command_recovered")

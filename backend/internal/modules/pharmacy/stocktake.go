@@ -153,6 +153,10 @@ func stocktakeRead(c *gin.Context, paged bool) bool {
 }
 
 func stocktakeError(c *gin.Context, err error) {
+	if errors.Is(err, errStocktakeIndependence) {
+		respond.Conflict(c, "Review requires independent Staff and verifiable participant identity history.")
+		return
+	}
 	if errors.Is(err, errStocktakePostingLimit) {
 		respond.Error(c, 409, "stocktake_posting_limit", "These differences exceed posting limits. Retain the observations and ask the responsible stock owner to review them.")
 		return

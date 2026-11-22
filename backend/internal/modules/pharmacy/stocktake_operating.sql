@@ -13,8 +13,9 @@ CREATE FUNCTION pharmacy_stocktake_operating_scope(t uuid,o uuid,operation text)
  AND current_setting('app.pharmacy_stock_access',true)='authorized'
  AND NULLIF(current_setting('app.pharmacy_subject',true),'')IS NOT NULL
  AND current_setting('app.pharmacy_subject',true)=current_setting('app.actor_subject',true)
- AND((operation='read'AND current_setting('app.pharmacy_stock_permission',true)IN('pharmacy.stocktake.read','pharmacy.stocktake.count'))
- OR(operation='count'AND current_setting('app.pharmacy_stock_permission',true)='pharmacy.stocktake.count'))
+ AND((operation='read'AND current_setting('app.pharmacy_stock_permission',true)IN('pharmacy.stocktake.read','pharmacy.stocktake.count','pharmacy.stocktake.review'))
+ OR(operation='count'AND current_setting('app.pharmacy_stock_permission',true)='pharmacy.stocktake.count')
+ OR(operation='review'AND current_setting('app.pharmacy_stock_permission',true)='pharmacy.stocktake.review'))
  AND EXISTS(SELECT 1 FROM pharmacy_outlets x WHERE x.tenant_id=t AND x.id=o
  AND x.pharmacy_id=NULLIF(current_setting('app.pharmacy_stock_pharmacy',true),'')::uuid),false)
 $$;
@@ -29,10 +30,10 @@ BEGIN
  FROM pg_policy WHERE polrelid=tab::regclass AND polname='tenant_isolation'AND polpermissive AND polcmd='*';
  IF prior.reading IS NULL OR prior.writing IS NULL THEN RAISE EXCEPTION 'reviewed stocktake requires explicit prior tenant checks';END IF;
  writing:='false';
- IF tab IN('pharmacy_stocktakes','pharmacy_stocktake_lines','pharmacy_stocktake_commands','pharmacy_stocktake_counts')THEN
- writing:=replace(reading,'''read''','''count''');
- IF tab='pharmacy_stocktake_commands'THEN writing:='('||writing||')AND kind IN(''count'',''submit'')';END IF;
- END IF;
+ IF tab IN('pharmacy_stocktakes','pharmacy_stocktake_lines','pharmacy_stocktake_counts')THEN writing:=replace(reading,'''read''','''count''');END IF;
+ IF tab='pharmacy_stocktake_commands'THEN writing:='(('||replace(reading,'''read''','''count''')||')AND kind IN(''count'',''submit'',''cancel''))OR(('||replace(reading,'''read''','''review''')||')AND kind IN(''approve'',''reject''))';END IF;
+ IF tab='pharmacy_stocktake_adjustments'THEN writing:=replace(reading,'''read''','''review''');END IF;
+ IF tab='pharmacy_stock_movements'THEN writing:='('||replace(reading,'''read''','''review''')||')AND kind=''correction''AND actor_subject=current_setting(''app.actor_subject'',true)AND pharmacy_stocktake_movement_matches(pharmacy_stock_movements)';END IF;
  IF tab IN('pharmacy_stocktakes','pharmacy_stocktake_lines','pharmacy_stocktake_commands','pharmacy_stocktake_counts','pharmacy_stocktake_adjustments')THEN
  scope:=format('tenant_id=NULLIF(current_setting(''app.tenant_id'',true),'''')::uuid AND outlet_id=(SELECT CASE WHEN %s THEN NULLIF(current_setting(''app.pharmacy_stock_outlet'',true),'''')::uuid ELSE NULLIF(current_setting(''app.pharmacy_outlet'',true),'''')::uuid END)',active);
  EXECUTE format('ALTER POLICY tenant_isolation ON %I USING((%s)AND CASE WHEN %s THEN(%s)ELSE(%s)END)WITH CHECK((%s)AND CASE WHEN %s THEN(%s)ELSE(%s)END)',tab,scope,active,reading,prior.reading,scope,active,writing,prior.writing);
@@ -44,12 +45,22 @@ BEGIN
  END LOOP;
 END $policies$;
 
+DO $$DECLARE prior text;BEGIN
+ SELECT pg_get_expr(polqual,polrelid)INTO STRICT prior FROM pg_policy WHERE polrelid='pharmacy_supplier_holds'::regclass AND polname='tenant_isolation';
+ EXECUTE format('ALTER POLICY tenant_isolation ON pharmacy_supplier_holds USING((%s)OR pharmacy_stocktake_operating_scope(tenant_id,location_id,''review''))',prior);
+END $$;
+CREATE POLICY stocktake_operating_purpose ON pharmacy_supplier_holds AS RESTRICTIVE
+ USING(CASE WHEN(SELECT starts_with(COALESCE(current_setting('app.pharmacy_stock_permission',true),''),'pharmacy.stocktake.'))THEN pharmacy_stocktake_operating_scope(tenant_id,location_id,'review')ELSE true END)
+ WITH CHECK(NOT(SELECT starts_with(COALESCE(current_setting('app.pharmacy_stock_permission',true),''),'pharmacy.stocktake.')));
+CREATE POLICY stocktake_operating_delete ON pharmacy_supplier_holds AS RESTRICTIVE FOR DELETE
+ USING(NOT(SELECT starts_with(COALESCE(current_setting('app.pharmacy_stock_permission',true),''),'pharmacy.stocktake.')));
+
 CREATE TABLE pharmacy_stocktake_operating_evidence(
  tenant_id uuid NOT NULL,outlet_id uuid NOT NULL,id uuid NOT NULL CHECK(substring(id::text,15,1)='7'),
  pharmacy_id uuid NOT NULL,stocktake_id uuid NOT NULL,
- kind text NOT NULL CHECK(kind IN('start','lines_read','count','count_read','submit','submit_read')),
+ kind text NOT NULL CHECK(kind IN('start','lines_read','count','count_read','submit','cancel','approve','reject','decision_read')),
  command_id uuid,
- permission text NOT NULL CHECK(permission IN('pharmacy.stocktake.read','pharmacy.stocktake.count')),
+ permission text NOT NULL CHECK(permission IN('pharmacy.stocktake.read','pharmacy.stocktake.count','pharmacy.stocktake.review')),
  duty_id uuid NOT NULL CHECK(duty_id<>'00000000-0000-0000-0000-000000000000'),
  snapshot_version bigint NOT NULL CHECK(snapshot_version BETWEEN 1 AND 9007199254740991),
  authority_epoch bigint NOT NULL CHECK(authority_epoch BETWEEN 1 AND 9007199254740991),
@@ -62,8 +73,11 @@ CREATE TABLE pharmacy_stocktake_operating_evidence(
  PRIMARY KEY(tenant_id,outlet_id,id),
  FOREIGN KEY(tenant_id,outlet_id,stocktake_id)REFERENCES pharmacy_stocktakes(tenant_id,outlet_id,id)DEFERRABLE INITIALLY DEFERRED,
  FOREIGN KEY(tenant_id,outlet_id,stocktake_id,command_id)REFERENCES pharmacy_stocktake_commands(tenant_id,outlet_id,stocktake_id,id)DEFERRABLE INITIALLY DEFERRED,
- CHECK((kind IN('count','count_read','submit','submit_read'))=(command_id IS NOT NULL)),
- CHECK(kind NOT IN('count','submit')OR(id=command_id AND permission='pharmacy.stocktake.count')),
+ CHECK((kind IN('count','count_read','submit','cancel','approve','reject','decision_read'))=(command_id IS NOT NULL)),
+ CHECK(kind NOT IN('count','submit','cancel','approve','reject')OR id=command_id),
+ CHECK(kind NOT IN('count','submit','cancel')OR permission='pharmacy.stocktake.count'),
+ CHECK(kind NOT IN('approve','reject')OR permission='pharmacy.stocktake.review'),
+ CHECK(kind NOT IN('lines_read','count_read','decision_read')OR permission='pharmacy.stocktake.read'),
  CHECK(kind<>'start'OR(id=stocktake_id AND permission='pharmacy.stocktake.count'))
 );
 CREATE INDEX ON pharmacy_stocktake_operating_evidence(tenant_id,outlet_id,stocktake_id,staff_id,kind);
@@ -73,7 +87,7 @@ ALTER TABLE pharmacy_stocktake_operating_evidence FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON pharmacy_stocktake_operating_evidence
  USING(hms_tenant_visible(tenant_id)AND pharmacy_stocktake_operating_scope(tenant_id,outlet_id,'read'))
  WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid
- AND pharmacy_stocktake_operating_scope(tenant_id,outlet_id,CASE WHEN kind IN('start','count','submit')THEN 'count'ELSE 'read'END)
+ AND pharmacy_stocktake_operating_scope(tenant_id,outlet_id,CASE WHEN kind IN('start','count','submit','cancel')THEN 'count'WHEN kind IN('approve','reject')THEN 'review'ELSE 'read'END)
  AND pharmacy_id=NULLIF(current_setting('app.pharmacy_stock_pharmacy',true),'')::uuid
  AND permission=current_setting('app.pharmacy_stock_permission',true)
  AND actor_subject=NULLIF(current_setting('app.actor_subject',true),''));
@@ -89,7 +103,7 @@ BEGIN
  IF NEW.kind='start'AND EXISTS(SELECT 1 FROM pharmacy_stocktakes WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND id=NEW.stocktake_id)THEN
  RAISE EXCEPTION 'historical stocktake authority cannot be invented' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_operating_provenance';
  END IF;
- IF NEW.kind IN('count','submit')AND EXISTS(SELECT 1 FROM pharmacy_stocktake_commands WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND id=NEW.command_id)THEN
+ IF NEW.kind IN('count','submit','cancel','approve','reject')AND EXISTS(SELECT 1 FROM pharmacy_stocktake_commands WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND id=NEW.command_id)THEN
  RAISE EXCEPTION 'historical count authority cannot be invented' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_operating_provenance';
  END IF;
  RETURN NEW;
@@ -115,15 +129,28 @@ END $$;
 CREATE TRIGGER pharmacy_stocktake_operating_start_guard BEFORE INSERT ON pharmacy_stocktakes FOR EACH ROW EXECUTE FUNCTION pharmacy_stocktake_operating_start_guard();
 
 CREATE FUNCTION pharmacy_stocktake_operating_command_guard()RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE model text;reviewed boolean;
+DECLARE model text;reviewed boolean;operation text;
 BEGIN
  SELECT authority_kind INTO STRICT model FROM pharmacy_stocktakes WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND id=NEW.stocktake_id;
  reviewed:=starts_with(COALESCE(current_setting('app.pharmacy_stock_permission',true),''),'pharmacy.stocktake.');
  IF model='operating'OR reviewed THEN
- IF model<>'operating'OR NOT pharmacy_stocktake_operating_scope(NEW.tenant_id,NEW.outlet_id,'count')OR NEW.kind NOT IN('count','submit')OR NOT EXISTS(
+ operation:=CASE WHEN NEW.kind IN('approve','reject')THEN 'review'ELSE 'count'END;
+ IF model<>'operating'OR NOT pharmacy_stocktake_operating_scope(NEW.tenant_id,NEW.outlet_id,operation)OR NEW.kind NOT IN('count','submit','cancel','approve','reject')OR NOT EXISTS(
  SELECT 1 FROM pharmacy_stocktake_operating_evidence WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND stocktake_id=NEW.stocktake_id
  AND id=NEW.id AND command_id=NEW.id AND kind=NEW.kind AND actor_subject=NEW.actor_subject)THEN
- RAISE EXCEPTION 'reviewed count needs original source evidence' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_operating_provenance';
+ RAISE EXCEPTION 'reviewed command needs original source evidence' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_operating_provenance';
+ END IF;
+ IF operation='review'THEN
+ IF NOT EXISTS(SELECT 1 FROM pharmacy_stocktake_operating_evidence WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND stocktake_id=NEW.stocktake_id AND id=NEW.stocktake_id AND kind='start')
+ OR EXISTS(SELECT 1 FROM pharmacy_stocktake_commands c WHERE c.tenant_id=NEW.tenant_id AND c.outlet_id=NEW.outlet_id AND c.stocktake_id=NEW.stocktake_id AND c.kind IN('count','submit')
+ AND NOT EXISTS(SELECT 1 FROM pharmacy_stocktake_operating_evidence e WHERE e.tenant_id=c.tenant_id AND e.outlet_id=c.outlet_id AND e.stocktake_id=c.stocktake_id AND e.command_id=c.id AND e.kind=c.kind AND e.actor_subject=c.actor_subject))THEN
+ RAISE EXCEPTION 'reviewed participant history is incomplete' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_operating_provenance';
+ END IF;
+ IF EXISTS(SELECT 1 FROM pharmacy_stocktake_operating_evidence p JOIN pharmacy_stocktake_operating_evidence r ON(r.tenant_id,r.outlet_id,r.stocktake_id)=(p.tenant_id,p.outlet_id,p.stocktake_id)
+ WHERE r.tenant_id=NEW.tenant_id AND r.outlet_id=NEW.outlet_id AND r.stocktake_id=NEW.stocktake_id AND r.id=NEW.id AND r.kind=NEW.kind
+ AND p.kind IN('start','count','submit')AND p.staff_id=r.staff_id)THEN
+ RAISE EXCEPTION 'reviewer Staff participated in the count' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_independent';
+ END IF;
  END IF;
  END IF;
  RETURN NEW;

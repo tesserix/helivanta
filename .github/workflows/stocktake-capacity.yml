@@ -11,6 +11,8 @@ on:
     paths:
       - "backend/internal/modules/pharmacy/**"
       - "backend/internal/modules/iam/**"
+      - "backend/internal/modules/workforce/independent_staff*"
+      - "backend/pkg/authz/independent_staff.go"
       - "backend/internal/globalapi/stocktake*"
       - "apps/shell/components/workforce/operating-duty*"
       - "apps/shell/components/workforce/independent-operating-duties*"
@@ -43,8 +45,8 @@ jobs:
           cache: false
       - name: Build and vet the affected package
         run: |
-          go build ./internal/modules/pharmacy ./internal/modules/iam
-          go vet ./internal/modules/pharmacy ./internal/modules/iam
+          go build ./internal/modules/pharmacy ./internal/modules/iam ./internal/modules/workforce
+          go vet ./internal/modules/pharmacy ./internal/modules/iam ./internal/modules/workforce
       - name: Regenerate and verify registered contracts
         run: |
           go run ./cmd/contractdocs
@@ -55,6 +57,8 @@ jobs:
           name: stocktake-contract-references
           path: docs/api/reference
           retention-days: 7
+      - name: Workforce retained identity history
+        run: go test -race -count=1 -timeout=10m ./internal/modules/workforce -run '^TestIndependentStaffHistoryReview$'
       - name: Global API stocktake and reservation conservation
         run: go test -race -count=1 -timeout=10m ./internal/globalapi -run '^TestStocktake'
       - name: Snapshot guards and native stocktake regression

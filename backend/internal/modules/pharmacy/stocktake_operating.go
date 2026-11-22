@@ -30,6 +30,10 @@ func operatingStocktakeRoutes(g *platform.Router, h *catalogueHandlers) {
 func stocktakeOperatingError(c *gin.Context, err error) {
 	var failure operatingStockFailure
 	var audit operatingAuditFailure
+	if errors.Is(err, errStocktakeParticipantSource) {
+		respond.Error(c, 503, "authorization_unavailable", "Stocktake participant identity could not be verified.")
+		return
+	}
 	if errors.As(err, &failure) && !errors.As(err, &audit) {
 		stocktakeError(c, failure.err)
 		return
@@ -44,7 +48,7 @@ func (u operatingStockUse) stocktakeEvidence(tx *gorm.DB, take uuid.UUID, kind s
 	}
 	if kind == "start" {
 		id = take
-	} else if (kind == "count" || kind == "submit") && command != nil {
+	} else if (kind == "count" || kind == "submit" || kind == "cancel" || kind == "approve" || kind == "reject") && command != nil {
 		id = *command
 	}
 	g := u.grant

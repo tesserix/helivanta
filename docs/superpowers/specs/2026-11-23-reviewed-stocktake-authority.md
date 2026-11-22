@@ -142,6 +142,29 @@ history. Two separately entered Staff records are not proof of two real people;
 fixture approval and source identity review must establish distinct individuals.
 No new automatic person-matching system is proposed.
 
+The history comparison uses the separate callback-only
+`authz.IndependentStaffHistoryGuard`, not the current-target duty approval
+operation. A completed observation remains attributable after its author account
+is retired. Workforce verifies the exact historically active link/version and
+unchanged link-to-Staff basis, checks the current reviewer and all historical
+account aliases, and audits source use in the same guarded transaction. Retired
+accounts gain no access. The consumer keeps current reviewer admission and pages
+its own distinct participant references at 200 per query while holding the count
+lock; every starter, accepted counter and submitter must pass before review.
+Missing provenance refuses with 409 and unavailable source/audit with 503.
+
+The initial positive reviewer red test reached the intended missing decision
+(expected 200, actual 404) in run 45063570066 after correcting fixture contracts.
+The same-Staff alias scenario is added; its setup input was corrected to the
+canonical start selection/quarantine fields after run 45063696866. The current
+implementation candidate adds review/reject and counter cancellation, original
+decision recovery, and exact correction-only purpose checks. It has not yet passed
+its new native/source and Global API acceptance.
+
+The reviewed correction purpose also reads exact-outlet supplier holds for the
+existing ledger quantity guard. It cannot insert, update, delete or release those
+holds. This preserves commitments without broad supplier allocation access.
+
 ## Database and release boundary
 
 Add forward migrations after the actually merged migration registry. Keep prior
@@ -211,7 +234,7 @@ reverting application code never deletes count or participant history.
    counter and a relinked alias of the same Staff cannot approve. An unresolved
    legacy participant cannot be accepted as independent Staff evidence.
 4. Foreign tenant, sibling outlet/department, hospital-owned-as-independent,
-   unapproved/replaced binding, stale department/source revisions, Staff/link or
+   unapproved/replaced binding, stale department/source revisions, current actor Staff/link or
    employment changes, duty revocation/expiry, membership interruption and graph
    or audit failures all refuse without partial rows/movements/disclosure.
 5. PostgreSQL statements prove exact purpose/scope isolation and rollback,

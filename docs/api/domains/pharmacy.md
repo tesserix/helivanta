@@ -91,6 +91,18 @@ checks in hosted run 45061412084. Clean capacity validation also passed: 10,000-
 Original thresholds remain unchanged. Independent review/posting remains
 unimplemented and release eligibility remains false.
 
+The next unreleased candidate admits `approve`/`reject` only through current
+`pharmacy.stocktake.review`; `submit`/`cancel` use `.count`. It verifies all retained
+participant history through Workforce's callback-only history guard, retains the
+reviewer's Staff/link/duty evidence, and posts only existing linked corrections
+within the original command/line guards and deferred completeness check. Retained
+participant accounts may be retired; their exact historical approved identity
+must remain provable. The current reviewer must still be active, independent and
+unchanged. Native source and actual Global API tests remain pending for this
+candidate, including same-Staff account rotation and one-time stock conservation.
+Reviewed correction guards can read exact-outlet supplier holds; they cannot
+change them or remove reservations to satisfy a shortage.
+
 ## Current contract families
 
 | Family                                        | Owning records / schema                                                                                                                                                          | Rules and consumer boundary                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |

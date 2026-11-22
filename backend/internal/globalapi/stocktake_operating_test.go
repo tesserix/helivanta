@@ -186,7 +186,7 @@ func newSubmittedReviewedStocktake(t *testing.T) (pharmacyReceiverFixture, strin
 	f.input.TemplateKey = "pharmacy.stocktake_counter.v1"
 	f.activate(t)
 	path := "/v1/pharmacy/pharmacies/" + f.pharmacy + "/operating-locations/" + f.outlet + "/stocktakes/" + v7()
-	f.call("PUT", path, "receiver", map[string]any{"scope": "all", "product_ids": []string{}, "reason": "TEST reviewed participant count"}, 200)
+	f.call("PUT", path, "receiver", map[string]any{"selection": "all", "product_ids": []string{}, "quarantine_location_id": f.quarantine, "reason": "TEST reviewed participant count"}, 200)
 	var page struct {
 		Data []struct {
 			ID string `json:"id"`

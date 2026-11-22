@@ -66,7 +66,7 @@ func (g *fulfilmentOrderOwner) VerifyOrder(ctx context.Context, s f.SourceScope,
 			if g.deps.SourceChecks == nil {
 				return nil, f.ErrUnavailable
 			}
-			if _, err = g.deps.SourceChecks.Check(ctx, suppliertrade.SourceCheckInput{Endpoint: snapshot.Terms.Buyer, Category: snapshot.Terms.Category, Operation: "receive"}); err != nil {
+			if _, err = g.deps.SourceChecks.Check(ctx, suppliertrade.SourceCheckInput{Endpoint: snapshot.Terms.Buyer, Category: snapshot.Terms.Category, Operation: "dispatch"}); err != nil {
 				return nil, err
 			}
 		}

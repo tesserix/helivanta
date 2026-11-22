@@ -73,7 +73,7 @@ jobs:
         run: go test -race -count=1 -timeout=15m ./internal/modules/pharmacy -run '^TestStocktake'
       - name: Operating duty release admission
         if: inputs.suite != 'reviewed-reads'
-        run: go test -race -count=1 -timeout=5m ./internal/modules/iam -run '^TestOperatingTemplateRelease'
+        run: go test -race -count=1 -timeout=5m ./internal/modules/iam -run '^(TestOperatingTemplateRelease|TestMigrationIDIsPhaseScoped)'
       - name: Measure 10000 buckets and 500 reviewed adjustments
         if: inputs.suite != 'reviewed-reads'
         env:

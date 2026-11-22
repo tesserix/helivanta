@@ -23,3 +23,36 @@ This is an execution plan, not a completion record.
    required approval and record authenticated acceptance. Keep catalogue/invoice
    consumers and wider supplier acceptance explicit; do not close the whole goal
    from this shipment checkpoint.
+
+## Composed owner-check checkpoint
+
+The hosted native regression at `9c1f2830` reproduced SQLSTATE `42703` in
+the hospital buyer eligibility check: `pharmacy_staff_department_bindings`
+does not own a `pharmacy_id` column. Both the trading endpoint and hospital
+department guard must resolve pharmacy ownership through `pharmacy_outlets`,
+joining on tenant and outlet while retaining the exact hospital, binding,
+department where applicable, approved status and binding-version predicates.
+The corrected queries share-lock both binding and outlet rows. This needs no
+schema, permission or route change.
+
+`supplier_compound_department_test.go` exercises both real owner ports inside
+the real IAM source-administration guard. It covers the current buyer and denial
+for another organization, outlet, hospital, binding, stale binding version and
+another department. The pre-fix run is
+[44975782135](https://github.com/tesserix/helivanta/actions/runs/44975782135);
+fixed-head validation is
+[44976648133](https://github.com/tesserix/helivanta/actions/runs/44976648133).
+The latter result is pending; these references are not a completed acceptance
+record.
+
+After admission passes, connect independent source Staff/account links and
+reviewed, acknowledged operating duties to the same fixture. Its harness must
+explicitly supply the real `OperatingAuthorizer`; that optional dependency is
+currently absent. Reuse the existing owner interfaces and independently reviewed
+identity workflow, rather than a fake operating guard or tenant-wide operator
+grant. Exercise order acceptance, reservation and physical dispatch for each
+stock owner, then consume the published shipment in hospital receiving,
+discrepancy handling, quality release and financial records. The existing empty
+shared-order assertions do not prove any of those steps. Public consent,
+catalogue and source-issued invoice consumers and authenticated browser/live
+acceptance also remain open.

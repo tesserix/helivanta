@@ -3,6 +3,49 @@ package pharmacy
 
 import "github.com/google/uuid"
 
+type TallyLedgerMapEntryInput struct {
+	Head       string `json:"head" binding:"required,min=1,max=109"`
+	LedgerName string `json:"ledger_name" binding:"required,min=1,max=100"`
+}
+
+type TallyLedgerMapInput struct {
+	Replaces *uuid.UUID                 `json:"replaces" binding:"omitempty"`
+	Entries  []TallyLedgerMapEntryInput `json:"entries" binding:"required,min=1,max=1000,dive" gorm:"-"`
+}
+
+type TallyLedgerMapEntry struct {
+	Label string `json:"label" binding:"required,min=1,max=120"`
+	TallyLedgerMapEntryInput
+}
+
+type TallyLedgerMapReceipt struct {
+	ID         uuid.UUID             `json:"id" binding:"required"`
+	OutletID   uuid.UUID             `json:"outlet_id" binding:"required"`
+	Replaces   *uuid.UUID            `json:"replaces" binding:"omitempty"`
+	Entries    []TallyLedgerMapEntry `json:"entries" binding:"required,min=1,max=1000,dive" gorm:"-"`
+	RecordedBy string                `json:"recorded_by" binding:"required,min=1,max=200"`
+	RecordedAt string                `json:"recorded_at"`
+}
+
+type TallyExportHead struct {
+	Head         string  `json:"head" binding:"required,min=1,max=109"`
+	Label        string  `json:"label" binding:"required,min=1,max=120"`
+	LedgerName   *string `json:"ledger_name" binding:"omitempty,min=1,max=100"`
+	SupplierName *string `json:"supplier_name" binding:"omitempty,min=1,max=200"`
+}
+
+type TallyExportPreview struct {
+	OutletID             uuid.UUID         `json:"outlet_id" binding:"required"`
+	From                 string            `json:"from"`
+	To                   string            `json:"to"`
+	LedgerMapID          *uuid.UUID        `json:"ledger_map_id" binding:"omitempty"`
+	SaleCount            int64             `json:"sale_count" binding:"min=0,max=5000"`
+	CreditNoteCount      int64             `json:"credit_note_count" binding:"min=0,max=5000"`
+	SupplierPaymentCount int64             `json:"supplier_payment_count" binding:"min=0,max=5000"`
+	PaymentReversalCount int64             `json:"payment_reversal_count" binding:"min=0,max=5000"`
+	Heads                []TallyExportHead `json:"heads" binding:"required,min=0,max=1000,dive" gorm:"-"`
+}
+
 type SupplierCreditAllocationInput struct {
 	PayableID                uuid.UUID `json:"payable_id" binding:"required"`
 	ExpectedVersion          *int64    `json:"expected_version" binding:"required,min=1,max=999999999999"`

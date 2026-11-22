@@ -474,6 +474,10 @@ var routeCapabilities = map[string]string{"POST /v1/workforce/hospitals/:hospita
 	"PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/payments/:entry":                                    "pharmacy_payables",
 	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/settlements":                                        "pharmacy_payables",
 	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/counted":                                                "pharmacy_payables",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/ledger-maps/:map":                                          "pharmacy_payables",
+	"PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/ledger-maps/:map":                                          "pharmacy_payables",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/preview":                                                   "pharmacy_payables",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/vouchers.xml":                                              "pharmacy_payables",
 	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/admission-occupant":                                                       "pharmacy_counter",
 	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories":                                                     "pharmacy_catalogue",
 	"PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories/:id":                                                 "pharmacy_catalogue",
@@ -1172,6 +1176,7 @@ var routeCapabilities = map[string]string{"POST /v1/workforce/hospitals/:hospita
 	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/allocations/:allocation/context":                   "baseline",
 	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit/matches/:match/context":                            "baseline",
 	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/source-returns":                                            "pharmacy_payables",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/supplier-credit-allocations":                                   "baseline",
 	"GET /v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders":                                            "supplier_collaboration",
 	"GET /v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders/:order/shipments":                           "supplier_collaboration",
 	"GET /v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-source":                                            "supplier_collaboration"}

@@ -2421,6 +2421,26 @@
     },
     {
       "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/ledger-maps/:map",
+      "capability": "pharmacy_payables"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/ledger-maps/:map",
+      "capability": "pharmacy_payables"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/preview",
+      "capability": "pharmacy_payables"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/vouchers.xml",
+      "capability": "pharmacy_payables"
+    },
+    {
+      "method": "GET",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/admission-occupant",
       "capability": "pharmacy_counter"
     },
@@ -5911,6 +5931,11 @@
     },
     {
       "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/supplier-credit-allocations",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
       "path": "/v1/supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-orders",
       "capability": "supplier_collaboration"
     },
@@ -6330,6 +6355,10 @@
     },
     {
       "key": "pharmacy.supplier_return_history",
+      "capability": "pharmacy_payables"
+    },
+    {
+      "key": "pharmacy.tally_export",
       "capability": "pharmacy_payables"
     }
   ],

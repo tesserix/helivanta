@@ -1659,6 +1659,44 @@ Latest hosted execution is required before claiming these scenarios passed.
 Hosted SQL/native acceptance, finance UI/report explanations and actual Global API/browser/live acceptance are still required in
 #1784.
 
+### Bill-scoped supplier-credit journal (candidate)
+
+`GET /accounts/payables/:id/supplier-credit-allocations` returns the existing
+canonical `SupplierCreditAllocationView` collection for one visible bill. It
+requires `pharmacy.accounts.read`, verified tenant/expected subject, current
+exact pharmacy/outlet authority and a visible parent bill. It is a baseline
+retained-history read, not a new-write or release-activation permission. A reader
+may inspect another authorised recorder's application. Recovery remains bound
+to the original actor through its existing separate route.
+
+The resource collection is bounded to 50 rows per page, ordered by creation time
+and identifier descending. Sealed cursors bind the actor, resource path and bill
+parameters; unknown query fields, limits above 50 and a cursor from another bill
+are refused. Invisible bill/outlet/tenant is 404, missing permission is 403,
+changed expected actor is 409 and unavailable authority/audit is 503. Each page's
+`list_read` audit names the selected bill under
+`pharmacy_payable_supplier_credit_allocations` and must commit before disclosure.
+The response retains an application after reversal with its unique reversal
+identity; exact reversal evidence is loaded through the existing selected-credit
+read, under fresh authority. No per-row reversal query is performed.
+
+The bill UI displays human credit references and authorised recorder names. It
+formats application amounts in the parent bill's currency, hides cached private
+evidence after current read failures and resets selected details on an account or
+resource switch. Current totals come from the owner bill projection, never a sum
+of partial history pages. Legacy direct adjustments and managed applications
+remain distinct. A reversal retains recorded payments and restores only its
+original credit/liability amount. Receipt and reversal UUIDs stay internal.
+
+Forward migration `0063_pharmacy_payable_credit_journal` adds the concurrent
+`(tenant_id,outlet_id,payable_id,created_at DESC,id DESC)` index using the existing
+runner. No old migration, balance master, write authority or flag changes. Hosted
+native tests include hospital-owned, independent and chain scopes, multi-document
+pagination, a fully paid bill's reversal, denial/revocation, audit failure and a
+small synthetic `EXPLAIN (ANALYZE, BUFFERS)` result. That small plan is not
+large-cardinality performance evidence. Hosted execution, visual review and live
+acceptance remain separate gates in #1784.
+
 ### Supplier-credit entry and retained history UI (candidate)
 
 Accounts includes a Supplier credits tab under current accounts-read authority.
@@ -1687,6 +1725,174 @@ actual-credit response and recovery, actual versus expected amounts, unchanged
 bill liability and human-only rendered references. Latest hosted evidence is
 required before claiming that journey passed.
 
-Matching, allocation, void/correction and reversal UI, complete bill history/report
-integration, remaining Global API E2E and approved live acceptance remain open in
-#1784.
+Return matching now has a candidate workspace beneath the selected credit.
+Its retained, bounded history uses return numbers, human reasons and authorised
+recorder names. New matching requires Payables availability and current financial
+editor authority; it chooses a dispatched financial source and keeps the amount
+blank until entered. Current credit version and total return attribution come
+from owner reads. Amounts cannot exceed remaining credit attribution; exceeding
+the expected return value requires explicit evidence. Matching never applies the
+credit to a bill. A stale refusal preserves the visible amount and offers a
+refresh of current credit/source observations before another command.
+
+Only the scope/credit-bound command reference is retained in session storage.
+Uncertain writes are never retried automatically. Recovery checks the original
+actor, scope and retained in-memory intent; after reload it rechecks the same
+immutable command. If session cleanup fails, the same verified reference remains
+recoverable and another match is blocked. Retained recovery still works when new
+matching is disabled or all actual credit has already been attributed. Failed
+history or source reads hide cached private evidence. The hosted browser journey
+extends actual credit entry with full-amount matching, response-loss reload
+recovery and proof that bill liability and unused credit remain unchanged.
+
+A candidate **Review match** control now opens the exact original match and
+current owner observations, including attribution from other credit documents.
+Full reversal requires an explicit reason, the current credit version and current
+return total; it preserves the original amount and leaves other credit matches,
+unused credit, bill liability and physical stock unchanged. A stale refusal
+preserves the reason and offers the shared authorised refresh control. Retained
+reversal evidence remains readable after void and with new writes unavailable.
+
+Reversal recovery persists only the command/match references under the verified
+scope and credit. It reopens without scanning history pages, survives reload and
+works when new writes are disabled. Normal retained reads bind evidence to the
+original return, amount and reversal reference. Recovery additionally verifies
+the original actor/command and any retained submitted intent. Private evidence
+is hidden on failed owner reads; a storage cleanup failure preserves same-command
+recovery and blocks another reversal. The hosted browser scenario now covers a
+lost committed reversal, reload, one-write recovery and unchanged bill/stock.
+
+Candidate bill application controls now select a named eligible outstanding bill
+for the same supplier/currency. The actual amount starts blank and must fit both
+the unused credit pool and current bill liability. Return attribution does not
+spend that pool. The explicit application date must be on/after both documents
+and no later than the owner-provided outlet date. Submission includes current
+credit/bill versions and both observed balances. Financial editor authority,
+accounts-adjust and Payables admission remain necessary for new commands.
+
+Bounded immutable application history retains the original bill reference,
+amount, date, reason and named recorder. Exact application context supports review
+even after a bill is fully paid and absent from eligible choices. Full reversal
+requires an explicit reason/date and current observations; it restores only the
+original applied amount to credit and liability, retaining subsequent payments.
+Its date cannot precede the original application or exceed the outlet date.
+Neither command changes physical stock or captures/refunds cash.
+
+Application recovery stores only its scoped command reference. Reversal recovery
+stores only the scoped command and original application references, reopening the
+exact review after reload without scanning eligible bills. In-memory intent is
+checked when retained; the SDK also binds recovered reversal evidence to the
+original bill, amount and human references. Unknown outcomes never retry
+automatically. Missing originals reuse the same identity; failed storage prevents
+submission, and failed cleanup blocks another command. Retained history/recovery
+continues with new writes disabled under current read authority. Failed history
+or current context reads conceal cached financial evidence.
+
+The hosted browser candidate additionally covers a fully paid source bill,
+partial application to a later bill, payment of its remainder, full application
+reversal, unchanged payments/stock and same-command reload recovery for both
+writes. Latest hosted/visual evidence and approved live acceptance remain
+required. Complete bill history/report integration and the remaining supplier
+acceptance remain open in #1784.
+
+Candidate **Credit void** controls retain a separate reason and authorised
+recorder without deleting the original note. A new void requires an active credit
+with zero current net return attribution and zero current bill applications, the
+current version, explicit reason and existing financial editor/accounts-adjust/
+Payables authority. Active matches and applications must first be reversed through
+their owning commands. Voiding removes the unused pool; it never changes physical
+stock, bill liability, recorded payments or cash. A replacement/correction note
+remains a separate explicit command and is not automatically generated.
+
+Void recovery stores only the scope/credit-bound command reference, checks the
+original actor and any retained version/reason, and remains available after reload
+or withdrawal of new-write authority. Retained void history is available for
+voided/corrected credits under current read authority; failed current reads hide
+cached evidence. Stale refusals preserve the entered reason for review and explicit
+refresh. Unknown outcomes retain their original identity without automatic retry;
+storage and cleanup failures use the same financial-command safeguards. The
+hosted candidate journey loses the committed void response after reversing all
+applications/matches and verifies one-write recovery and unchanged bill payment.
+Latest hosted/visual/live acceptance remains open in #1784.
+
+Candidate **Replace voided credit** entry reuses the canonical actual-credit
+form beneath the named original. It binds `correction_of` and the original
+dispatched return internally; supplier/currency come from the current finance
+context. The actual replacement amount, reference, date and reason are explicit,
+not defaults copied from the original note. This control corrects the note on
+that original return; it does not reassign an existing note to another supplier
+or return. The owning command atomically verifies current voided state, same
+supplier/currency, source/date validity and the unique correction. The original
+becomes corrected with zero unused pool; the replacement has its own actual
+amount, active pool and immutable receipt. Neither creates a bill application,
+payment or stock movement.
+
+Correction recovery is scoped additionally to its original note. After reload,
+the recovered immutable receipt must still identify that original, return,
+supplier and currency, even when no submitted form intent survives. Recovery
+remains available when the original has become corrected or new writes are
+disabled, including after closing and resuming the form. Stale refusal preserves
+entered values and offers explicit refresh of the original observations.
+Normal document entry retains its original recovery namespace and cannot accept
+a correction receipt as an unrelated original note. The hosted candidate extends
+void recovery with replacement response loss, one-write recovery, retained
+original history and unchanged payments/stock. Latest hosted/visual evidence,
+payable journal/report integration and approved live acceptance remain open.
+
+## Tally accounting export (#1690, unreleased source)
+
+The export slice adds `PUT/GET /accounts/tally/ledger-maps/{map}`,
+`GET /accounts/tally/preview` and `GET /accounts/tally/vouchers.xml` under the
+existing pharmacy/outlet prefix ([ADR-0076](../../adr/0076-pharmacy-tally-accounting-export.md)).
+They remain unreleased behind the `pharmacy_payables` capability, panel
+`pharmacy.tally_export`. Migration `0062_pharmacy_tally_ledger_maps` is not
+approved for live application.
+
+`pharmacy.accounts.export` covers all four routes. Module grants name pharmacy
+owners only, because the file discloses both sales and supplier payments; the
+platform grant reconciler also adds tenant administrators. Each request still
+requires verified tenant membership and a current exact-outlet grant: editor to
+write a map, reader otherwise. Cross-tenant and foreign-outlet requests are 404.
+
+A ledger map is an immutable, versioned record naming a Tally ledger for each
+closed account head: voucher type, tender, sales goods or own-service by
+treatment and `rate_ppm`, CGST/SGST by rate, supplier payment method and
+supplier. A PUT names the map it `replaces` (null for the first) and the entries
+to set; the server stores the complete merged map. A stale `replaces` or second
+successor is `409 tally_ledger_map_conflict`, an identical replay returns the
+original receipt and changed intent is `409`. An `X-Helivanta-Expected-Subject`
+for another session is `409 session_changed`, as for supplier bills. Names are
+1–100 characters without
+control characters or surrounding spaces, which are refused rather than trimmed.
+A map holds at most 1,000 entries (`409 tally_ledger_map_full`) and its body is
+strict and capped at 3 MiB.
+
+Preview and export take `from`/`to` outlet dates over 1–366 days and run the same
+bounded read under a 10-second deadline and 8-second statement timeout. The
+preview returns document counts, the current map id and every head the period
+needs with its label, mapped ledger name or null and, for suppliers, the latest
+supplier name. The export writes TallyPrime import XML: one balanced accounting
+voucher per sale, credit note, supplier payment and payment reversal, with GST
+split into CGST and SGST per recorded rate. No record can carry IGST, so none is
+written. It refuses `409 tally_ledgers_unmapped` while any head lacks a name,
+`409 tally_currency_unsupported` for non-INR records and
+`413 accounting_export_too_large` beyond 5,000 vouchers or 8 MiB; it never writes
+a placeholder or a cut-off file. An optional single `ledger_map` names the map
+the preview returned (empty for none); any other current map is
+`409 tally_ledger_map_changed`, so names saved after the preview never reach the
+file.
+
+Voucher identity (`REMOTEID helivanta-<document uuid>`), numbers, order and
+amounts are stable, so the same records and map give byte-identical files. Both
+preview and export commit a purpose read audit in their read transaction and
+fail closed without it. The file response is `private, no-store`, an attachment,
+`nosniff` and carries voucher count, ledger map and sha256 headers. No buyer,
+patient, prescriber, tender reference or return reason appears.
+
+Supplier purchase vouchers are not covered: supplier bills record no GST rate,
+component split or supplier GSTIN, and an unsplit input-tax entry would misstate
+input tax credit. #1690 stays open for them. Supplier credits, unused-payment
+refunds and inventory-mode vouchers are also excluded. No import has been run
+against a real TallyPrime company. See the
+[design](../../superpowers/specs/2026-11-21-tally-accounting-export-design.md)
+and [delivery plan](../../superpowers/plans/2026-11-21-tally-accounting-export.md).

@@ -333,7 +333,7 @@ func TestOverlappingStaysChargeEachMidnightOnceToTheNewerBed(t *testing.T) {
 	admission, patient := uuid.NewString(), uuid.NewString()
 	general := stay{uuid.NewString(), uuid.NewString(), "general"}
 	icu := stay{uuid.NewString(), uuid.NewString(), "icu"}
-	today := time.Now().In(ist)
+	today := time.Now().Add(-15 * time.Minute).In(ist)
 	day := func(back, hour, minute int) time.Time {
 		return time.Date(today.Year(), today.Month(), today.Day()-back, hour, minute, 0, 0, ist)
 	}

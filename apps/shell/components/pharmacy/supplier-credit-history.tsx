@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@tesserix/web";
 import {
@@ -14,6 +14,9 @@ import { AccountName, Pager, Panel, RequestFailure, useConfirmLeave } from "@hel
 import { useUrlPage } from "@/lib/use-url-page";
 import { formatPharmacyMoney } from "./currency-amount-field";
 import { SupplierCreditRecord } from "./supplier-credit-record";
+import { SupplierCreditMatching } from "./supplier-credit-matching";
+import { SupplierCreditApplications } from "./supplier-credit-applications";
+import { SupplierCreditVoid } from "./supplier-credit-void";
 
 const states: Record<PharmacySupplierCredit["state"], string> = {
   active: "Active",
@@ -132,6 +135,8 @@ export function SupplierCreditHistory({
           scope={scope}
           id={selected}
           timeZone={timeZone}
+          canManage={canRecord}
+          onRecorded={setSelected}
           close={() => confirmLeave(() => setSelected(null))}
         />
       )}
@@ -142,11 +147,15 @@ function CreditDetail({
   scope,
   id,
   timeZone,
+  canManage,
+  onRecorded,
   close,
 }: {
   scope: PharmacyActorScope;
   id: string;
   timeZone: string;
+  canManage: boolean;
+  onRecorded: (id: string) => void;
   close: () => void;
 }) {
   const detail = useQuery({
@@ -155,6 +164,10 @@ function CreditDetail({
     gcTime: 0,
     retry: false,
   });
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (detail.data?.id) heading.current?.focus();
+  }, [detail.data?.id]);
   return (
     <section aria-label="Supplier credit details">
       <Panel>
@@ -171,7 +184,7 @@ function CreditDetail({
           <p role="status">Loading supplier credit details…</p>
         ) : (
           <>
-            <h3 className="mt-3 font-semibold">
+            <h3 ref={heading} tabIndex={-1} className="mt-3 font-semibold focus:outline-none">
               Credit {detail.data.document_reference} · {detail.data.payee_name}
             </h3>
             <p className="mt-2 text-sm">
@@ -207,6 +220,21 @@ function CreditDetail({
           </>
         )}
       </Panel>
+      {!detail.isError && !detail.isPending && (
+        <>
+          <SupplierCreditMatching scope={scope} credit={detail.data} canManage={canManage} />
+          <SupplierCreditApplications scope={scope} credit={detail.data} canManage={canManage} />
+          <SupplierCreditVoid scope={scope} credit={detail.data} canManage={canManage} />
+          {detail.data.state !== "active" && (
+            <SupplierCreditRecord
+              scope={scope}
+              canRecord={canManage}
+              correction={detail.data}
+              onRecorded={onRecorded}
+            />
+          )}
+        </>
+      )}
     </section>
   );
 }

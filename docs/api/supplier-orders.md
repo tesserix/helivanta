@@ -102,7 +102,7 @@ first-operation versus recovery behavior.
 
 Independent pharmacy fulfilment admission records the current duty, snapshot,
 authority epoch and reviewed Staff/account link in the owner's append-only
-operating-stock audit. Migration `0062_pharmacy_operating_fulfilment_audit`
+operating-stock audit. Migration `0064_pharmacy_operating_fulfilment_audit`
 adds only the `supplier_fulfilment_access` / `supplier_order` /
 `pharmacy.stock.fulfil` combination with a required order reference. Existing
 receiving/read combinations and the audit's RLS remain enforced; the fulfilment

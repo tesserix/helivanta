@@ -43,6 +43,7 @@ import {
   supportedCurrencies,
 } from "./currency-amount-field";
 import { useReportState, type FormState } from "@/lib/use-list-detail";
+import { PayableCreditJournal } from "./payable-credit-journal";
 
 const categories = [
   { value: "inventory", label: "Inventory purchase" },
@@ -495,6 +496,7 @@ export function PayableHistory({
   next: { disabled: boolean; onClick: () => void };
   onStateChange?: FormState;
 }) {
+  const { subject, tenantId, can, isLoading: checkingAccount } = usePermissions();
   const detail = useApiQuery<PharmacyPayableDetail>(
     pharmacyKey(scope, "accounts", "detail", id),
     `${pharmacyRoot(scope)}/accounts/payables/${id}`,
@@ -581,7 +583,7 @@ export function PayableHistory({
               </p>
               {line.receipt_id && (
                 <p className="mt-1 break-all text-xs text-muted-foreground">
-                  Receipt {line.receipt_id}
+                  Inventory receipt retained with the original bill evidence.
                 </p>
               )}
             </li>
@@ -625,7 +627,9 @@ export function PayableHistory({
                   <p className="mt-2 text-xs text-muted-foreground">{entry.reason}</p>
                   {entry.reversal_of && (
                     <p className="mt-1 break-all text-xs text-muted-foreground">
-                      Reverses payment {entry.reversal_of}
+                      Reverses {entry.kind === "payment_reversal" ? "payment" : "credit"} ·{" "}
+                      {history.items.find((original) => original.id === entry.reversal_of)
+                        ?.source_reference ?? "Reference outside loaded history"}
                     </p>
                   )}
                 </li>
@@ -640,6 +644,20 @@ export function PayableHistory({
           onClick={history.loadMore}
         />
       </div>
+      {subject && tenantId === scope.tenantId && can("pharmacy.accounts.read") ? (
+        <PayableCreditJournal
+          scope={{ ...scope, subject }}
+          payable={id}
+          currency={doc.currency}
+          timeZone={timeZone}
+        />
+      ) : (
+        <p role="status">
+          {checkingAccount
+            ? "Checking current financial access…"
+            : "Supplier credit history requires current financial read access."}
+        </p>
+      )}
       {writable && (
         <SettlementForm
           key={`${id}:${history.items.length}`}

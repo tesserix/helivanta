@@ -3791,6 +3791,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/supplier-credit-allocations",
+          "permission": "pharmacy.accounts.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id",
           "permission": "pharmacy.accounts.read",
           "authentication_required": true,
@@ -4165,6 +4174,42 @@
           "authentication_required": true,
           "membership_required": true,
           "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/ledger-maps/:map",
+          "permission": "pharmacy.accounts.export",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/ledger-maps/:map",
+          "permission": "pharmacy.accounts.export",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/preview",
+          "permission": "pharmacy.accounts.export",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/vouchers.xml",
+          "permission": "pharmacy.accounts.export",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
           "counted": false
         },
         {
@@ -5589,6 +5634,12 @@
           ]
         },
         {
+          "permission": "pharmacy.accounts.export",
+          "roles": [
+            "pharmacy_owner"
+          ]
+        },
+        {
           "permission": "pharmacy.stock.read",
           "roles": [
             "pharmacist",
@@ -6426,7 +6477,48 @@
           ]
         },
         {
-          "id": "0062_pharmacy_operating_fulfilment_audit",
+          "id": "0062_pharmacy_tally_ledger_maps",
+          "sql_sha256": "aa9ace100272c1cc78042fb9661353a9b8054682b5625c2607fa594025e5fa12",
+          "creates_tables": [
+            "pharmacy_tally_ledger_maps",
+            "pharmacy_tally_ledger_map_entries"
+          ]
+        },
+        {
+          "id": "0063_pharmacy_payable_credit_journal",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "pharmacy_payable_credit_journal",
+              "table": "pharmacy_supplier_credit_allocations",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "outlet_id",
+                  "descending": false
+                },
+                {
+                  "name": "payable_id",
+                  "descending": false
+                },
+                {
+                  "name": "created_at",
+                  "descending": true
+                },
+                {
+                  "name": "id",
+                  "descending": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "0064_pharmacy_operating_fulfilment_audit",
           "sql_sha256": "36be3016ff358c387696af3fb65fe767e0f9ed4827b3813a4fc315e751acdc44",
           "creates_tables": []
         }

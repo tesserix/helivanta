@@ -13,13 +13,22 @@ Against the preceding reviewed revision `38cb5514`, that file is byte-identical
 after removing only the new migration embed declaration. Their authority functions,
 tenant/outlet scope, classification and remaining acceptance obligations are unchanged.
 
-Migration `0062_pharmacy_operating_fulfilment_audit` preserves every original
+Migration `0064_pharmacy_operating_fulfilment_audit` preserves every original
 read/receipt action-resource-permission combination and the audit RLS. Its only new
 combination requires fulfilment permission, a supplier-order resource and an order
 ID. Each affected review additionally pins this forward migration. Hosted run
 `44978972536` passed its invalid-shape/RLS database matrix and real both-owner Staff
 admission. This recheck does not close these routes' separate runtime cutoff,
 receiver navigation, browser or clinical/regulatory acceptance obligations.
+
+## Bill credit-history registration recheck — 22 November 2026
+
+`payableRoutes` adds the separate selected-bill supplier-credit history read.
+The acquisition-receipt registration, handler, projection, SELECT-only purpose,
+current outlet authorization and disclosure audit retain their existing source.
+Only its registration-file pin is refreshed after comparing the one-line route
+addition. The new journal remains unclassified by this source review; this does
+not activate reviewed Staff finance authority or record live acceptance.
 
 ## Supplier-credit registration recheck — 21 November 2026
 

@@ -178,6 +178,27 @@ const voidReceipt = {
   recorded_by: scope.subject,
   recorded_at: receipt.recorded_at,
 };
+it("rejects void recovery whose retained version or reason differs from submitted intent", async () => {
+  vi.mocked(apiFetch).mockResolvedValue(voidReceipt);
+  await expect(
+    client.recoverPharmacySupplierCreditVoid(scope, credit, entry, undefined, {
+      ...voidInput,
+      reason: "TEST different void reason",
+    }),
+  ).rejects.toThrow();
+  await expect(
+    client.recoverPharmacySupplierCreditVoid(scope, credit, entry, undefined, {
+      ...voidInput,
+      expected_version: 2,
+    }),
+  ).rejects.toThrow();
+  expect(
+    await client.recoverPharmacySupplierCreditVoid(scope, credit, entry, undefined, {
+      ...voidInput,
+      reason: ` ${voidInput.reason} `,
+    }),
+  ).toEqual(voidReceipt);
+});
 
 it("voids only the observed version and verifies the actor-bound original intent", async () => {
   vi.mocked(apiFetch).mockResolvedValue(voidReceipt);

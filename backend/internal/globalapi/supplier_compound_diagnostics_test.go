@@ -13,6 +13,26 @@ type observedCompoundPartnerScopes struct {
 	t *testing.T
 }
 
+type observedTradingEndpoints struct {
+	suppliertrade.CurrentEndpointGuard
+	t *testing.T
+}
+
+func (a observedTradingEndpoints) WithCurrentTradingEndpoint(ctx context.Context, endpoint suppliertrade.Endpoint, category, operation string, action func(context.Context, suppliertrade.EndpointReference) error) error {
+	if action == nil {
+		return a.CurrentEndpointGuard.WithCurrentTradingEndpoint(ctx, endpoint, category, operation, nil)
+	}
+	entered := false
+	err := a.CurrentEndpointGuard.WithCurrentTradingEndpoint(ctx, endpoint, category, operation, func(current context.Context, reference suppliertrade.EndpointReference) error {
+		entered = true
+		return action(current, reference)
+	})
+	if err != nil {
+		a.t.Logf("current-owner eligibility: product=%s hospital_owned=%t consumer_entered=%t error=%v", endpoint.Product, endpoint.HospitalID != nil, entered, err)
+	}
+	return err
+}
+
 type observedCompoundRelationships struct {
 	suppliertrade.CurrentRelationshipGuard
 	t *testing.T

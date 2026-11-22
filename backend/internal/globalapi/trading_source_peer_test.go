@@ -52,7 +52,9 @@ func (transport observedTradingOwnerTransport) RoundTrip(request *http.Request) 
 func tradingSourcePeerForTest(t *testing.T, deps platform.Deps) *suppliertrade.CurrentSourceClient {
 	t.Helper()
 	owner := gin.New()
-	owner.POST(suppliertrade.SourceCheckPath, supply.NewTradingSourceCheckHandler(deps, tradingWorkloadFixture{}))
+	sourceDeps := deps
+	sourceDeps.TradingEndpoints = observedTradingEndpoints{CurrentEndpointGuard: deps.TradingEndpoints, t: t}
+	owner.POST(suppliertrade.SourceCheckPath, supply.NewTradingSourceCheckHandler(sourceDeps, tradingWorkloadFixture{}))
 	owner.POST(suppliertrade.RelationshipCheckPath, supply.NewRelationshipCheckHandler(deps, tradingWorkloadFixture{}))
 	client, err := suppliertrade.NewCurrentSourceClient("https://current-owner.example.invalid"+suppliertrade.SourceCheckPath, observedTradingOwnerTransport{tradingOwnerTransport: tradingOwnerTransport{owner}, t: t}, func(context.Context) (string, error) { return "TEST-CURRENT-OWNER", nil })
 	require.NoError(t, err)

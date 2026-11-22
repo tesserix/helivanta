@@ -126,9 +126,17 @@ func TestStocktakeReviewedIndependentCounterFreezesReceivedStock(t *testing.T) {
 	activateReviewedStocktakeReviewer(t, &f)
 	approvalPath := path + "/decisions/" + v7()
 	approval := map[string]any{"decision": "approve", "expected_version": 2, "reason": "TEST independently approve observed shortage", "extra_units_disposition": "no_extra_units"}
+	f.call("PUT", path+"/counts/"+v7(), "stock-reviewer", afterSubmission, 404)
+	f.checks.down.Store(true)
+	f.call("PUT", approvalPath, "stock-reviewer", approval, 503)
+	f.checks.down.Store(false)
+	f.call("GET", approvalPath, "stock-reviewer", nil, 404)
 	posted := f.call("PUT", approvalPath, "stock-reviewer", approval, 200)
 	require.JSONEq(t, posted, f.call("PUT", approvalPath, "stock-reviewer", approval, 200))
 	require.JSONEq(t, posted, f.call("GET", approvalPath, "stock-reviewer", nil, 200))
+	changedApproval := map[string]any{"decision": "approve", "expected_version": 2, "reason": "TEST changed recorded review reason", "extra_units_disposition": "no_extra_units"}
+	f.call("PUT", approvalPath, "stock-reviewer", changedApproval, 409)
+	f.call("PUT", path+"/decisions/"+v7(), "receiver", approval, 404)
 	require.NoError(t, json.Unmarshal([]byte(posted), &decision))
 	require.Equal(t, "posted", decision.State)
 	require.EqualValues(t, 3, decision.Version)
@@ -234,4 +242,28 @@ func activateReviewedStocktakeReviewer(t *testing.T, f *pharmacyReceiverFixture)
 	f.input.Identity.StaffVersion, f.input.Identity.LinkVersion = 1, 2
 	f.duty = "/v1/iam/operating-duties/" + v7()
 	f.activate(t)
+}
+
+func TestStocktakeReviewedDifferentStaffCanReviewRetiredCounterEvidence(t *testing.T) {
+	f, path := newSubmittedReviewedStocktake(t)
+	oldLink := "/v1/workforce/pharmacies/" + f.pharmacy + "/staff/" + f.staff + "/account-links/" + f.input.Identity.LinkID.String()
+	f.call("PUT", oldLink+"/commands/"+v7(), "owner", map[string]any{"expected_version": 2, "decision": "revoke", "reason": "TEST counter login retired after accepted physical observations"}, 201)
+	f.call("GET", path+"/lines", "receiver", nil, 404)
+	activateReviewedStocktakeReviewer(t, &f)
+	posted := f.call("PUT", path+"/decisions/"+v7(), "stock-reviewer", map[string]any{"decision": "approve", "expected_version": 2, "reason": "TEST independent current reviewer validates retained retired participant history", "extra_units_disposition": "no_extra_units"}, 200)
+	var receipt struct {
+		State           string `json:"state"`
+		AdjustmentCount int64  `json:"adjustment_count"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(posted), &receipt))
+	require.Equal(t, "posted", receipt.State)
+	require.EqualValues(t, 1, receipt.AdjustmentCount)
+	f.ownerOutletTx(t, func(tx *gorm.DB) error {
+		var units int64
+		if err := tx.Raw(`SELECT COALESCE(sum(quantity_units),0) FROM pharmacy_stock_movements WHERE tenant_id=? AND outlet_id=?`, testutil.TenantA, f.outlet).Scan(&units).Error; err != nil {
+			return err
+		}
+		require.EqualValues(t, 27, units)
+		return nil
+	})
 }

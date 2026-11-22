@@ -1,6 +1,7 @@
 # Retained supplier source capacity
 
-Status: proposed implementation; #490 remains open. No availability change.
+Status: implemented candidate; hosted verification pending. #490 remains open.
+No availability change.
 
 ## Current defect and boundary
 

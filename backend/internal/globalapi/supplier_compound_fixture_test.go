@@ -85,6 +85,7 @@ func (f supplierCompoundFixture) actors(t *testing.T, tenant string) operatingDu
 		return response.Body.String()
 	}
 	current := operatingDutyFixture{ctx: t.Context(), db: f.db, graph: f.graph, handler: handler, call: call, principal: authn.Principal{TenantID: tenant, Subject: subjects["owner"], AuthTime: authenticated, IdleDeadline: authenticated.Add(time.Hour)}}
+	call("POST", "/v1/iam/members", "owner", map[string]any{"subject": subjects["owner"], "role_key": string(authz.RoleTenantAdmin)}, 202)
 	call("POST", "/v1/iam/members", "owner", map[string]any{"subject": subjects["reviewer"], "role_key": string(authz.RolePharmacyOwner)}, 202)
 	reviewer := current.principal
 	reviewer.Subject = subjects["reviewer"]
@@ -210,7 +211,7 @@ func (f supplierCompoundFixture) assertAdmission(t *testing.T, subject, reviewer
 	require.NotNil(t, f.binding)
 	bindingID := uuid.Must(uuid.NewV7())
 	bindingPath := f.binding.base + "/hospitals/" + member.HospitalID.String() + "/staff-department-bindings/" + bindingID.String()
-	f.hospitalCall(t, "PUT", bindingPath, f.binding.preparer, map[string]any{"department_id": f.binding.pending["department_id"], "department_revision_id": f.binding.pending["department_revision_id"], "replaces_binding_id": nil, "replaces_binding_version": nil, "reason": "TEST current hospital buyer binding"}, 200)
+	f.hospitalCall(t, "PUT", bindingPath, f.binding.preparer, map[string]any{"department_id": member.Input.DepartmentID, "department_revision_id": member.Input.DepartmentRevisionID, "replaces_binding_id": nil, "replaces_binding_version": nil, "reason": "TEST current hospital buyer binding"}, 200)
 	f.hospitalCall(t, "POST", bindingPath+"/commands", reviewer, map[string]any{"id": uuid.Must(uuid.NewV7()).String(), "operation": "approve", "expected_version": 1, "reason": "TEST independent hospital buyer approval", "attest_department_responsibility": true}, 200)
 	buyerActor := f.actors(t, testutil.TenantA)
 	parts := strings.Split(f.binding.base, "/")
@@ -223,46 +224,60 @@ func (f supplierCompoundFixture) assertAdmission(t *testing.T, subject, reviewer
 	sellerActor.call("PUT", sourceRoot, "owner", map[string]any{"code": "TEST-COMPOUND-SOURCE", "name": "TEST Independent Compound Pharmacy", "ownership_type": "independent"}, 200)
 	sellerActor.call("PUT", sourceRoot+"/outlets/"+outlet.String(), "owner", map[string]any{"code": "TEST-COMPOUND-MH", "name": "TEST Compound Nagpur Premise", "country_code": "IN", "timezone": "Asia/Kolkata"}, 200)
 	seller := approveCompoundPharmacyEndpoint(t, sellerActor, f.files, organization, outlet)
-	relationship := confirmedCompoundRelationship(t, f.db, seller, buyer)
-	paths := map[string]string{}
-
-	for _, kind := range []string{"subject", "group"} {
-		require.True(t, t.Run("effective pharmacy shipment grant for "+kind, func(t *testing.T) {
-			request := seedSupplierRecipientFixture(t, f.db, testutil.TenantA, subject, member, kind, "pharmacy", "partner.shipment_reader.v1", relationship)
-			base := fmt.Sprintf("/v1/supply/hospitals/%s/partner-grants/pharmacy/%s/terms/%s", member.HospitalID, request.GrantID, relationship.TermsSha256)
-			paths[kind] = base
-			result := f.hospitalCall(t, "GET", base+"/shipment-source", subject, nil, 200)
-			require.Equal(t, "TEST Independent Compound Pharmacy", result["source_organization_name"])
-			require.Equal(t, "TEST Compound Nagpur Premise", result["source_location_name"])
-			require.Equal(t, request.GrantID.String(), result["grant_id"])
-			require.Equal(t, relationship.ID.String(), result["relationship_id"])
-			require.Equal(t, relationship.TermsSha256, result["terms_sha256"])
-			sharedScope := result["scope"].(map[string]any)
-			require.Equal(t, testutil.TenantB, sharedScope["source_tenant_id"])
-			require.Equal(t, testutil.TenantA, sharedScope["recipient_tenant_id"])
-			require.Equal(t, member.HospitalID.String(), sharedScope["hospital_id"])
-			require.Equal(t, seller.OrganizationID.String(), sharedScope["source_organization_id"])
-			require.Equal(t, seller.LocationID.String(), sharedScope["source_location_id"])
-			orders := f.hospitalCall(t, "GET", base+"/shipment-orders", subject, nil, 200)
-			require.Contains(t, orders, "data")
-			require.IsType(t, []any{}, orders["data"])
-			require.Empty(t, orders["data"])
-			require.Equal(t, false, orders["page"].(map[string]any)["has_more"])
-			f.hospitalCall(t, "GET", strings.Replace(base, relationship.TermsSha256, strings.Repeat("f", 64), 1)+"/shipment-source", subject, nil, 404)
-		}))
-		sellerActor.call("GET", paths[kind]+"/shipment-source", "owner", nil, 404)
+	warehouse, warehouseEvidence := approveCompoundWarehouseEndpoint(t, sellerActor, f.files)
+	sources := []struct {
+		endpoint         suppliertrade.Endpoint
+		organizationName string
+		locationName     string
+	}{
+		{seller, "TEST Independent Compound Pharmacy", "TEST Compound Nagpur Premise"},
+		{warehouse, "TEST Independent Compound Distributor", "TEST Compound Nagpur Warehouse"},
 	}
-	require.True(t, t.Run("current compound grant fails closed during graph outage", func(t *testing.T) {
+	paths := map[string]string{}
+	for _, source := range sources {
+		relationship := confirmedCompoundRelationship(t, f.db, source.endpoint, buyer)
+		for _, kind := range []string{"subject", "group"} {
+			require.True(t, t.Run("effective "+source.endpoint.Product+" shipment grant for "+kind, func(t *testing.T) {
+				request := seedSupplierRecipientFixture(t, f.db, testutil.TenantA, subject, member, kind, source.endpoint.Product, "partner.shipment_reader.v1", relationship)
+				base := fmt.Sprintf("/v1/supply/hospitals/%s/partner-grants/%s/%s/terms/%s", member.HospitalID, source.endpoint.Product, request.GrantID, relationship.TermsSha256)
+				paths[source.endpoint.Product+"/"+kind] = base
+				result := f.hospitalCall(t, "GET", base+"/shipment-source", subject, nil, 200)
+				require.Equal(t, source.organizationName, result["source_organization_name"])
+				require.Equal(t, source.locationName, result["source_location_name"])
+				require.Equal(t, request.GrantID.String(), result["grant_id"])
+				require.Equal(t, relationship.ID.String(), result["relationship_id"])
+				require.Equal(t, relationship.TermsSha256, result["terms_sha256"])
+				sharedScope := result["scope"].(map[string]any)
+				require.Equal(t, testutil.TenantB, sharedScope["source_tenant_id"])
+				require.Equal(t, testutil.TenantA, sharedScope["recipient_tenant_id"])
+				require.Equal(t, member.HospitalID.String(), sharedScope["hospital_id"])
+				require.Equal(t, source.endpoint.OrganizationID.String(), sharedScope["source_organization_id"])
+				require.Equal(t, source.endpoint.LocationID.String(), sharedScope["source_location_id"])
+				orders := f.hospitalCall(t, "GET", base+"/shipment-orders", subject, nil, 200)
+				require.Contains(t, orders, "data")
+				require.IsType(t, []any{}, orders["data"])
+				require.Empty(t, orders["data"])
+				require.Equal(t, false, orders["page"].(map[string]any)["has_more"])
+				f.hospitalCall(t, "GET", strings.Replace(base, relationship.TermsSha256, strings.Repeat("f", 64), 1)+"/shipment-source", subject, nil, 404)
+				sellerActor.call("GET", base+"/shipment-source", "owner", nil, 404)
+			}))
+		}
+	}
+	require.True(t, t.Run("current compound grants fail closed during graph outage", func(t *testing.T) {
 		require.NotNil(t, f.graphUnavailable)
 		f.graphUnavailable.Store(true)
 		t.Cleanup(func() { f.graphUnavailable.Store(false) })
-		unavailable := f.hospitalCall(t, "GET", paths["subject"]+"/shipment-source", subject, nil, 503)
-		require.NotContains(t, unavailable, "scope")
-		require.NotContains(t, unavailable, "source_organization_name")
+		for _, source := range sources {
+			unavailable := f.hospitalCall(t, "GET", paths[source.endpoint.Product+"/subject"]+"/shipment-source", subject, nil, 503)
+			require.NotContains(t, unavailable, "scope")
+			require.NotContains(t, unavailable, "source_organization_name")
+		}
 		f.graphUnavailable.Store(false)
-		f.hospitalCall(t, "GET", paths["subject"]+"/shipment-source", subject, nil, 200)
+		for _, source := range sources {
+			f.hospitalCall(t, "GET", paths[source.endpoint.Product+"/subject"]+"/shipment-source", subject, nil, 200)
+		}
 	}))
-	require.True(t, t.Run("compound source disclosure requires its committed audit", func(t *testing.T) {
+	require.True(t, t.Run("compound source disclosures require their committed audits", func(t *testing.T) {
 		apply := func(sql string) {
 			t.Helper()
 			require.NoError(t, f.db.Migrate(context.WithoutCancel(t.Context()), []tenantdb.Migration{{ID: "synthetic_compound_audit_" + uuid.Must(uuid.NewV7()).String(), SQL: sql}}))
@@ -270,18 +285,27 @@ func (f supplierCompoundFixture) assertAdmission(t *testing.T, subject, reviewer
 		clear := func() { apply(`ALTER TABLE audit_events DROP CONSTRAINT IF EXISTS synthetic_compound_source_audit`) }
 		t.Cleanup(clear)
 		apply(`ALTER TABLE audit_events ADD CONSTRAINT synthetic_compound_source_audit CHECK(action<>'partner_shipment_source_read') NOT VALID`)
-		unavailable := f.hospitalCall(t, "GET", paths["subject"]+"/shipment-source", subject, nil, 503)
-		require.NotContains(t, unavailable, "scope")
-		require.NotContains(t, unavailable, "source_organization_name")
+		for _, source := range sources {
+			unavailable := f.hospitalCall(t, "GET", paths[source.endpoint.Product+"/subject"]+"/shipment-source", subject, nil, 503)
+			require.NotContains(t, unavailable, "scope")
+			require.NotContains(t, unavailable, "source_organization_name")
+		}
 		clear()
-		f.hospitalCall(t, "GET", paths["subject"]+"/shipment-source", subject, nil, 200)
+		for _, source := range sources {
+			f.hospitalCall(t, "GET", paths[source.endpoint.Product+"/subject"]+"/shipment-source", subject, nil, 200)
+		}
 	}))
-
 	return func() {
-		f.hospitalCall(t, "GET", paths["group"]+"/shipment-source", subject, nil, 404)
-		f.hospitalCall(t, "GET", paths["subject"]+"/shipment-source", subject, nil, 200)
+		for _, source := range sources {
+			f.hospitalCall(t, "GET", paths[source.endpoint.Product+"/group"]+"/shipment-source", subject, nil, 404)
+			f.hospitalCall(t, "GET", paths[source.endpoint.Product+"/subject"]+"/shipment-source", subject, nil, 200)
+		}
 		licencePath := sourceRoot + "/outlets/" + outlet.String() + "/licences/" + seller.LicenceID.String() + "/revocations/" + uuid.Must(uuid.NewV7()).String()
-		sellerActor.call("PUT", licencePath, "reviewer", suppliertrade.PharmacyLicenceRevocationInput{Reason: "TEST immediate compound source withdrawal"}, 201)
-		f.hospitalCall(t, "GET", paths["subject"]+"/shipment-source", subject, nil, 404)
+		sellerActor.call("PUT", licencePath, "reviewer", suppliertrade.PharmacyLicenceRevocationInput{Reason: "TEST immediate physical owner cutoff"}, 201)
+		f.hospitalCall(t, "GET", paths["pharmacy/subject"]+"/shipment-source", subject, nil, 404)
+		f.hospitalCall(t, "GET", paths["supply/subject"]+"/shipment-source", subject, nil, 200)
+		sellerActor.call("POST", warehouseEvidence+"/revoke", "owner", nil, 200)
+		f.hospitalCall(t, "GET", paths["supply/subject"]+"/shipment-source", subject, nil, 404)
+		f.hospitalCall(t, "POST", bindingPath+"/commands", reviewer, map[string]any{"id": uuid.Must(uuid.NewV7()).String(), "operation": "end", "expected_version": 2, "reason": "TEST completed compound admission fixture", "attest_department_responsibility": false}, 200)
 	}
 }

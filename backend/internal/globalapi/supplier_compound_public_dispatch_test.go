@@ -52,6 +52,12 @@ func (f supplierCompoundFixture) assertPublicStockDispatch(t *testing.T, operato
 	allocationID := uuid.Must(uuid.NewV7())
 	allocationPath := stockRoot + "/allocations/" + allocationID.String()
 	reserve := fulfilment.ReserveInput{ExpectedOrderVersion: order.Version, LineID: order.Input.Lines[0].ID, StockID: stockID, StockLocationID: location, QuantityUnits: 10, ExpiresAt: time.Now().UTC().Add(5 * time.Minute).Truncate(time.Microsecond), Reason: "TEST ten source-owned units for this accepted line"}
+	if seller.Product == "supply" {
+		missing := reserve
+		missing.StockID = uuid.Must(uuid.NewV7())
+		refused := f.sourceStaffRequest(t, operator.principal, "PUT", allocationPath, missing)
+		require.Equal(t, 404, refused.Code, "a missing receipt cannot reserve warehouse stock: %s", refused.Body.String())
+	}
 	created := f.sourceStaffRequest(t, operator.principal, "PUT", allocationPath, reserve)
 	require.Equal(t, 200, created.Code, created.Body.String())
 	var allocation fulfilment.Allocation

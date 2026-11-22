@@ -173,3 +173,60 @@ func TestStocktakeReviewedIndependentCounterFreezesReceivedStock(t *testing.T) {
 	f.call("GET", submitPath, "receiver", nil, 404)
 	f.call("PUT", path+"/counts/"+v7(), "receiver", count, 404)
 }
+
+func newSubmittedReviewedStocktake(t *testing.T) (pharmacyReceiverFixture, string) {
+	t.Helper()
+	f := newPharmacyReceiverFixture(t)
+	f.activate(t)
+	stockRoot := f.stock(f.pharmacy, f.outlet, "")
+	batch := v7()
+	f.call("PUT", stockRoot+"/batches/"+batch, "receiver", f.batch("TEST-REVIEW-PARTICIPANT"), 200)
+	f.call("PUT", stockRoot+"/receipts/"+v7(), "receiver", f.receipt(batch, f.quarantine, "TEST reviewed participant receipt"), 200)
+	f.duty = "/v1/iam/operating-duties/" + v7()
+	f.input.TemplateKey = "pharmacy.stocktake_counter.v1"
+	f.activate(t)
+	path := "/v1/pharmacy/pharmacies/" + f.pharmacy + "/operating-locations/" + f.outlet + "/stocktakes/" + v7()
+	f.call("PUT", path, "receiver", map[string]any{"scope": "all", "product_ids": []string{}, "reason": "TEST reviewed participant count"}, 200)
+	var page struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(f.call("GET", path+"/lines", "receiver", nil, 200)), &page))
+	require.Len(t, page.Data, 1)
+	f.call("PUT", path+"/counts/"+v7(), "receiver", map[string]any{"expected_version": 0, "counts": []map[string]any{{"line_id": page.Data[0].ID, "counted_units": 27}}, "reason": "TEST observed shortage"}, 200)
+	f.call("PUT", path+"/decisions/"+v7(), "receiver", map[string]any{"decision": "submit", "expected_version": 1, "reason": "TEST submit for independent review"}, 200)
+	return f, path
+}
+
+func TestStocktakeReviewedCounterAliasCannotApprove(t *testing.T) {
+	f, path := newSubmittedReviewedStocktake(t)
+	f.call("POST", "/v1/iam/members", "owner", map[string]any{"subject": "user-stock-reviewer", "role_key": "staff_member"}, 202)
+	require.Eventually(t, func() bool {
+		member, err := f.graph.IsMember(t.Context(), "user-stock-reviewer", testutil.TenantA)
+		return err == nil && member
+	}, 20*time.Second, 50*time.Millisecond)
+	staffPath := "/v1/workforce/pharmacies/" + f.pharmacy + "/staff/" + f.staff
+	f.call("PUT", staffPath+"/account-links/"+f.input.Identity.LinkID.String()+"/commands/"+v7(), "owner", map[string]any{"decision": "revoke", "expected_version": 2, "reason": "TEST rotate counter account"}, 201)
+	link := v7()
+	f.call("PUT", staffPath+"/account-links/"+link, "owner", map[string]any{"subject": "user-stock-reviewer", "expected_staff_version": 1, "reason": "TEST relink the same Staff under a new account"}, 201)
+	f.call("PUT", staffPath+"/account-links/"+link+"/commands/"+v7(), "reviewer", map[string]any{"decision": "approve", "expected_version": 1, "reason": "TEST verify rotated account"}, 201)
+	f.duty = "/v1/iam/operating-duties/" + v7()
+	f.input.Subject = "user-stock-reviewer"
+	f.input.TemplateKey = "pharmacy.stocktake_reviewer.v1"
+	f.input.Identity.LinkID = uuid.MustParse(link)
+	f.input.Identity.LinkVersion = 2
+	f.activate(t)
+	approval := path + "/decisions/" + v7()
+	f.call("PUT", approval, "stock-reviewer", map[string]any{"decision": "approve", "expected_version": 2, "reason": "TEST same Staff is not independent", "extra_units_disposition": "no_extra_units"}, 409)
+	f.call("GET", approval, "stock-reviewer", nil, 404)
+	f.ownerOutletTx(t, func(tx *gorm.DB) error {
+		var ledger struct{ Corrections, Units int64 }
+		if err := tx.Raw(`SELECT count(*) FILTER(WHERE kind='correction') corrections,COALESCE(sum(quantity_units),0) units FROM pharmacy_stock_movements WHERE tenant_id=? AND outlet_id=?`, testutil.TenantA, f.outlet).Scan(&ledger).Error; err != nil {
+			return err
+		}
+		require.Zero(t, ledger.Corrections)
+		require.EqualValues(t, 30, ledger.Units)
+		return nil
+	})
+}

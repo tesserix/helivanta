@@ -1,6 +1,182 @@
 {
   "models": [
     {
+      "name": "TallyLedgerMapEntryInput",
+      "schema": "pharmacyTallyLedgerMapEntryInputSchema",
+      "fields": [
+        {
+          "name": "head",
+          "type": "string",
+          "min": 1,
+          "max": 109
+        },
+        {
+          "name": "ledger_name",
+          "type": "string",
+          "min": 1,
+          "min_message": "Enter the Tally ledger name.",
+          "max": 100,
+          "max_message": "Use at most 100 characters."
+        }
+      ]
+    },
+    {
+      "name": "TallyLedgerMapInput",
+      "schema": "pharmacyTallyLedgerMapInputSchema",
+      "fields": [
+        {
+          "name": "replaces",
+          "type": "uuid",
+          "nullable": true
+        },
+        {
+          "name": "entries",
+          "type": "[]TallyLedgerMapEntryInput",
+          "min": 1,
+          "max": 1000,
+          "gorm": "-"
+        }
+      ]
+    },
+    {
+      "name": "TallyLedgerMapEntry",
+      "schema": "pharmacyTallyLedgerMapEntrySchema",
+      "embed": "TallyLedgerMapEntryInput",
+      "fields": [
+        {
+          "name": "label",
+          "type": "string",
+          "min": 1,
+          "max": 120
+        }
+      ]
+    },
+    {
+      "name": "TallyLedgerMapReceipt",
+      "schema": "pharmacyTallyLedgerMapReceiptSchema",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid"
+        },
+        {
+          "name": "outlet_id",
+          "type": "uuid"
+        },
+        {
+          "name": "replaces",
+          "type": "uuid",
+          "nullable": true
+        },
+        {
+          "name": "entries",
+          "type": "[]TallyLedgerMapEntry",
+          "min": 1,
+          "max": 1000,
+          "gorm": "-"
+        },
+        {
+          "name": "recorded_by",
+          "type": "string",
+          "min": 1,
+          "max": 200
+        },
+        {
+          "name": "recorded_at",
+          "type": "string",
+          "format": "datetime"
+        }
+      ]
+    },
+    {
+      "name": "TallyExportHead",
+      "schema": "pharmacyTallyExportHeadSchema",
+      "fields": [
+        {
+          "name": "head",
+          "type": "string",
+          "min": 1,
+          "max": 109
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "min": 1,
+          "max": 120
+        },
+        {
+          "name": "ledger_name",
+          "type": "string",
+          "min": 1,
+          "max": 100,
+          "nullable": true
+        },
+        {
+          "name": "supplier_name",
+          "type": "string",
+          "min": 1,
+          "max": 200,
+          "nullable": true
+        }
+      ]
+    },
+    {
+      "name": "TallyExportPreview",
+      "schema": "pharmacyTallyExportPreviewSchema",
+      "fields": [
+        {
+          "name": "outlet_id",
+          "type": "uuid"
+        },
+        {
+          "name": "from",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "to",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "ledger_map_id",
+          "type": "uuid",
+          "nullable": true
+        },
+        {
+          "name": "sale_count",
+          "type": "int64",
+          "min": 0,
+          "max": 5000
+        },
+        {
+          "name": "credit_note_count",
+          "type": "int64",
+          "min": 0,
+          "max": 5000
+        },
+        {
+          "name": "supplier_payment_count",
+          "type": "int64",
+          "min": 0,
+          "max": 5000
+        },
+        {
+          "name": "payment_reversal_count",
+          "type": "int64",
+          "min": 0,
+          "max": 5000
+        },
+        {
+          "name": "heads",
+          "type": "[]TallyExportHead",
+          "min": 0,
+          "max": 1000,
+          "gorm": "-"
+        }
+      ]
+    },
+    {
       "name": "SupplierCreditAllocationInput",
       "schema": "pharmacySupplierCreditAllocationInputSchema",
       "fields": [

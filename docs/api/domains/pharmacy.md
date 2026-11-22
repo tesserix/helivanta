@@ -1710,3 +1710,61 @@ recovery and proof that bill liability and unused credit remain unchanged.
 Allocation, void/correction and reversal UI, complete bill history/report
 integration, hosted acceptance of the new matching workspace, remaining Global
 API E2E and approved live acceptance remain open in #1784.
+
+## Tally accounting export (#1690, unreleased source)
+
+The export slice adds `PUT/GET /accounts/tally/ledger-maps/{map}`,
+`GET /accounts/tally/preview` and `GET /accounts/tally/vouchers.xml` under the
+existing pharmacy/outlet prefix ([ADR-0076](../../adr/0076-pharmacy-tally-accounting-export.md)).
+They remain unreleased behind the `pharmacy_payables` capability, panel
+`pharmacy.tally_export`. Migration `0062_pharmacy_tally_ledger_maps` is not
+approved for live application.
+
+`pharmacy.accounts.export` covers all four routes. Module grants name pharmacy
+owners only, because the file discloses both sales and supplier payments; the
+platform grant reconciler also adds tenant administrators. Each request still
+requires verified tenant membership and a current exact-outlet grant: editor to
+write a map, reader otherwise. Cross-tenant and foreign-outlet requests are 404.
+
+A ledger map is an immutable, versioned record naming a Tally ledger for each
+closed account head: voucher type, tender, sales goods or own-service by
+treatment and `rate_ppm`, CGST/SGST by rate, supplier payment method and
+supplier. A PUT names the map it `replaces` (null for the first) and the entries
+to set; the server stores the complete merged map. A stale `replaces` or second
+successor is `409 tally_ledger_map_conflict`, an identical replay returns the
+original receipt and changed intent is `409`. An `X-Helivanta-Expected-Subject`
+for another session is `409 session_changed`, as for supplier bills. Names are
+1–100 characters without
+control characters or surrounding spaces, which are refused rather than trimmed.
+A map holds at most 1,000 entries (`409 tally_ledger_map_full`) and its body is
+strict and capped at 3 MiB.
+
+Preview and export take `from`/`to` outlet dates over 1–366 days and run the same
+bounded read under a 10-second deadline and 8-second statement timeout. The
+preview returns document counts, the current map id and every head the period
+needs with its label, mapped ledger name or null and, for suppliers, the latest
+supplier name. The export writes TallyPrime import XML: one balanced accounting
+voucher per sale, credit note, supplier payment and payment reversal, with GST
+split into CGST and SGST per recorded rate. No record can carry IGST, so none is
+written. It refuses `409 tally_ledgers_unmapped` while any head lacks a name,
+`409 tally_currency_unsupported` for non-INR records and
+`413 accounting_export_too_large` beyond 5,000 vouchers or 8 MiB; it never writes
+a placeholder or a cut-off file. An optional single `ledger_map` names the map
+the preview returned (empty for none); any other current map is
+`409 tally_ledger_map_changed`, so names saved after the preview never reach the
+file.
+
+Voucher identity (`REMOTEID helivanta-<document uuid>`), numbers, order and
+amounts are stable, so the same records and map give byte-identical files. Both
+preview and export commit a purpose read audit in their read transaction and
+fail closed without it. The file response is `private, no-store`, an attachment,
+`nosniff` and carries voucher count, ledger map and sha256 headers. No buyer,
+patient, prescriber, tender reference or return reason appears.
+
+Supplier purchase vouchers are not covered: supplier bills record no GST rate,
+component split or supplier GSTIN, and an unsplit input-tax entry would misstate
+input tax credit. #1690 stays open for them. Supplier credits, unused-payment
+refunds and inventory-mode vouchers are also excluded. No import has been run
+against a real TallyPrime company. See the
+[design](../../superpowers/specs/2026-11-21-tally-accounting-export-design.md)
+and [delivery plan](../../superpowers/plans/2026-11-21-tally-accounting-export.md).

@@ -118,7 +118,7 @@ func TestPayableSubjectPreconditionPreservesLegacyAndRejectsSwitchedAccounts(t *
 			for _, v := range test.values {
 				c.Request.Header.Add("X-Helivanta-Expected-Subject", v)
 			}
-			require.Equal(t, test.allowed, payableSubject(c, "TEST-finance"))
+			require.Equal(t, test.allowed, payableSubject(c, "TEST-finance", "recording or recovering a bill"))
 			if !test.allowed {
 				require.Equal(t, 409, recorder.Code)
 			}

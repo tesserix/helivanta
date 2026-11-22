@@ -125,15 +125,17 @@ function Entries({ scope, period }: { scope: PharmacyScope; period: Period }) {
   );
 }
 
-/** A CSV download of a register or report; download fetches it for the shown filter. */
+/** A file download of a register or report; download fetches it for the shown filter. */
 export function RegisterExport({
   label,
   noun = "register",
+  format = "CSV",
   download: fetchFile,
 }: {
   label: string;
   /** What the file is, as the button and a failure name it. */
   noun?: string;
+  format?: "CSV" | "XML";
   download: (signal: AbortSignal) => Promise<{ blob: Blob; filename: string }>;
 }) {
   const controller = useRef<AbortController | null>(null);
@@ -161,13 +163,13 @@ export function RegisterExport({
       } finally {
         URL.revokeObjectURL(url);
       }
-      setMessage("CSV download started.");
+      setMessage(`${format} download started.`);
     } catch (cause) {
       if (!current.signal.aborted)
         setError(
           cause instanceof ApiError
             ? cause.message
-            : `Could not download the ${noun} CSV. Try again.`,
+            : `Could not download the ${noun} ${format}. Try again.`,
         );
     } finally {
       if (!current.signal.aborted) {
@@ -179,7 +181,7 @@ export function RegisterExport({
   return (
     <div className="space-y-1">
       <Button variant="outline" disabled={pending} onClick={download}>
-        {pending ? "Preparing CSV…" : `Download ${noun} CSV`}
+        {pending ? `Preparing ${format}…` : `Download ${noun} ${format}`}
       </Button>
       <p role="status" aria-label={label} className="text-sm text-muted-foreground">
         {message}

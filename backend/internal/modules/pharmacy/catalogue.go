@@ -117,8 +117,10 @@ func catalogueRoutes(g *platform.Router, deps platform.Deps) {
 	licenceEvidenceRoutes(s, h, evidence)
 }
 
-func decodeCatalogue(c *gin.Context, in any) bool {
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 32768)
+func decodeCatalogue(c *gin.Context, in any) bool { return decodeCatalogueWithin(c, in, 32768) }
+
+func decodeCatalogueWithin(c *gin.Context, in any, limit int64) bool {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, limit)
 	d := json.NewDecoder(c.Request.Body)
 	d.DisallowUnknownFields()
 	if err := d.Decode(in); err != nil {

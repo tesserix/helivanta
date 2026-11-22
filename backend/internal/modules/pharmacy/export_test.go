@@ -86,3 +86,24 @@ var (
 
 // StockMovementKinds exposes the reconciled movement kinds (#1638).
 var StockMovementKinds = stockMovementKinds
+
+// SetTallyExportVouchers lowers the Tally export's voucher bound for one test.
+func SetTallyExportVouchers(t interface{ Cleanup(func()) }, n int) {
+	was := tallyExportVouchers
+	tallyExportVouchers = n
+	t.Cleanup(func() { tallyExportVouchers = was })
+}
+
+// SetTallyExportBytes lowers the Tally file's size bound for one test.
+func SetTallyExportBytes(t interface{ Cleanup(func()) }, n int) {
+	was := tallyExportBytes
+	tallyExportBytes = n
+	t.Cleanup(func() { tallyExportBytes = was })
+}
+
+// SetTallyMapEntries lowers the heads a ledger map holds for one test.
+func SetTallyMapEntries(t interface{ Cleanup(func()) }, n int) {
+	was := tallyMapEntries
+	tallyMapEntries = n
+	t.Cleanup(func() { tallyMapEntries = was })
+}

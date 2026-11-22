@@ -40,6 +40,7 @@ func TestStocktakeReviewedIndependentCounterFreezesReceivedStock(t *testing.T) {
 	f.call("PUT", root+"/"+v7(), "receiver", input, 409)
 	var page struct {
 		Data []struct {
+			ID        string `json:"id"`
 			BatchID   string `json:"batch_id"`
 			BookUnits int64  `json:"book_units"`
 		} `json:"data"`
@@ -54,8 +55,38 @@ func TestStocktakeReviewedIndependentCounterFreezesReceivedStock(t *testing.T) {
 	require.NotContains(t, unavailable, "TEST-COUNT-LOT")
 	f.checks.down.Store(false)
 	f.call("GET", path+"/lines", "receiver", nil, 200)
+	countPath := path + "/counts/" + v7()
+	count := map[string]any{
+		"expected_version": 0, "counts": []map[string]any{{"line_id": page.Data[0].ID, "counted_units": 27}},
+		"reason": "TEST reviewed physical shelf count",
+	}
+	f.call("PUT", countPath, "owner", count, 404)
+	f.call("PUT", countPath, "foreign", count, 404)
+	recorded := f.call("PUT", countPath, "receiver", count, 200)
+	require.JSONEq(t, recorded, f.call("PUT", countPath, "receiver", count, 200))
+	require.JSONEq(t, recorded, f.call("GET", countPath, "receiver", nil, 200))
+	changedCount := map[string]any{
+		"expected_version": 0, "counts": []map[string]any{{"line_id": page.Data[0].ID, "counted_units": 26}},
+		"reason": "TEST changed physical shelf count",
+	}
+	f.call("PUT", countPath, "receiver", changedCount, 409)
+	f.call("PUT", path+"/counts/"+v7(), "receiver", count, 409)
+	var receipt struct {
+		Version    int64  `json:"version"`
+		RecordedBy string `json:"recorded_by"`
+		Counts     []struct {
+			CountedUnits int64 `json:"counted_units"`
+		} `json:"counts"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(recorded), &receipt))
+	require.EqualValues(t, 1, receipt.Version)
+	require.Len(t, receipt.Counts, 1)
+	require.EqualValues(t, 27, receipt.Counts[0].CountedUnits)
+	require.NotEmpty(t, receipt.RecordedBy)
 	f.call("PUT", f.duty+"/commands/"+v7(), "owner", map[string]any{
 		"expected_version": 3, "decision": "revoke", "reason": "TEST end the reviewed counting duty",
 	}, 201)
 	f.call("GET", path+"/lines", "receiver", nil, 404)
+	f.call("GET", countPath, "receiver", nil, 404)
+	f.call("PUT", path+"/counts/"+v7(), "receiver", count, 404)
 }

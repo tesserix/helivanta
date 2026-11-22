@@ -89,6 +89,19 @@ func TestStocktakeReviewedReadsAndRegisterStayWithinReviewedHistory(t *testing.T
 func TestStocktakeReviewedReadsWithholdDataWhenAuditCannotCommit(t *testing.T) {
 	f, path := newSubmittedReviewedStocktake(t)
 	root := path[:len(path)-37]
+	evidenceCount := func() int64 {
+		t.Helper()
+		var count int64
+		f.ownerOutletTx(t, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.pharmacy_stock_access','current_independent_outlet_actor_v1',true),
+ set_config('app.pharmacy_stock_pharmacy',?,true),set_config('app.pharmacy_stock_outlet',?,true),
+ set_config('app.pharmacy_stock_permission','pharmacy.stocktake.read',true)`, f.pharmacy, f.outlet).Error; err != nil {
+				return err
+			}
+			return tx.Table("pharmacy_stocktake_operating_evidence").Where("tenant_id=? AND outlet_id=? AND kind IN('record_read','list_read','register_read')", testutil.TenantA, f.outlet).Count(&count).Error
+		})
+		return count
+	}
 	for _, fault := range []struct{ table, check string }{
 		{"pharmacy_stocktake_operating_evidence", "kind NOT IN('record_read','list_read','register_read')"},
 		{"audit_events", "resource_type NOT IN('pharmacy_stocktake','pharmacy_stocktakes','pharmacy_stocktake_register')"},
@@ -110,19 +123,13 @@ func TestStocktakeReviewedReadsWithholdDataWhenAuditCannotCommit(t *testing.T) {
 			require.NotContains(t, unavailable, "synthetic_stocktake_read_failure")
 			require.NotContains(t, unavailable, "user-receiver")
 		}
-		require.NoError(t, f.db.WithAdmin(t.Context(), func(tx *gorm.DB) error {
-			var count int64
-			if err := tx.Table("pharmacy_stocktake_operating_evidence").Where("tenant_id=? AND outlet_id=? AND kind IN('record_read','list_read','register_read')", testutil.TenantA, f.outlet).Count(&count).Error; err != nil {
-				return err
-			}
-			require.Zero(t, count, "failed reads must roll back their new duty/source evidence")
-			return nil
-		}))
+		require.Zero(t, evidenceCount(), "failed reads must roll back their new duty/source evidence")
 		clear()
 	}
 	require.Contains(t, f.call("GET", path, "receiver", nil, 200), `"state":"submitted"`)
 	f.call("GET", root, "receiver", nil, 200)
 	f.call("GET", path+"/register.csv", "receiver", nil, 200)
+	require.EqualValues(t, 3, evidenceCount(), "the scoped inspection must see successful provenance rather than silently hide every row")
 	f.ownerOutletTx(t, func(tx *gorm.DB) error {
 		var ledger struct{ Corrections, Units int64 }
 		if err := tx.Raw(`SELECT count(*) FILTER(WHERE kind='correction') corrections,COALESCE(sum(quantity_units),0) units FROM pharmacy_stock_movements WHERE tenant_id=? AND outlet_id=?`, testutil.TenantA, f.outlet).Scan(&ledger).Error; err != nil {

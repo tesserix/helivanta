@@ -787,10 +787,14 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /workforce/hospitals/:hospital/staff/:id/attendance":                                                                 "one person's derived days over a bounded range of at most 42 days",
 	"GET /workforce/pharmacies/:pharmacy":                                                                                     "one standalone pharmacy's employer registration",
 
-	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake":                    "one sealed count header with at most 100 selected product references; snapshot buckets and count history are not embedded",
-	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/counts/:command":    "one immutable original count-command receipt with at most 100 observations, not a command collection",
-	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/decisions/:command": "one immutable decision-command receipt with scalar posting totals, not a decision collection",
-	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/register.csv":       "explicit complete register export; refuses more than 10000 buckets or 8 MiB before any attachment, never truncates; JSON lists and buckets remain cursor-paginated",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake":                          "one sealed count header with at most 100 selected product references; snapshot buckets and count history are not embedded",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/counts/:command":          "one immutable original count-command receipt with at most 100 observations, not a command collection",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/decisions/:command":       "one immutable decision-command receipt with scalar posting totals, not a decision collection",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake/register.csv":             "explicit complete register export; refuses more than 10000 buckets or 8 MiB before any attachment, never truncates; JSON lists and buckets remain cursor-paginated",
+	"GET /pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake":                    "one reviewed count header with at most 100 selected products; lines and history are not embedded",
+	"GET /pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/counts/:command":    "one original Staff/account-bound receipt with at most 100 observations, not a collection",
+	"GET /pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/decisions/:command": "one original Staff/account-bound decision receipt with scalar totals, not a collection",
+	"GET /pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/register.csv":       "complete reviewed register export; refuses more than 10000 rows or 8 MiB before disclosure, with audited provenance; JSON lists and lines are cursor-paginated",
 }
 
 // TestEveryCollectionGETIsPaginated is the one hole platform.ListRoute's

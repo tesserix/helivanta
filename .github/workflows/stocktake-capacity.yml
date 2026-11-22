@@ -14,7 +14,7 @@ concurrency:
 jobs:
   stocktake-capacity:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: backend
@@ -29,6 +29,20 @@ jobs:
         run: |
           go build ./internal/modules/pharmacy
           go vet ./internal/modules/pharmacy
+      - name: Regenerate and verify registered contracts
+        run: |
+          go run ./cmd/contractdocs
+          go run ./cmd/contractdocs -check
+      - name: Export generated contract references
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: stocktake-contract-references
+          path: docs/api/reference
+          retention-days: 7
+      - name: Snapshot guards and native stocktake regression
+        run: go test -race -count=1 -timeout=15m ./internal/modules/pharmacy -run '^TestStocktake'
+      - name: Global API stocktake and reservation conservation
+        run: go test -race -count=1 -timeout=10m ./internal/globalapi -run '^TestStocktake'
       - name: Measure 10000 buckets and 500 reviewed adjustments
         env:
           HELIVANTA_STOCKTAKE_CAPACITY: "1"

@@ -115,6 +115,36 @@ introducing a new persistence service or copying private inputs into storage.
 
 ## Failure, consistency and recovery
 
+### Snapshot validation at the declared bucket bound
+
+The first isolated hosted capacity run created 10,000 stocked batches through
+normal APIs, but starting their count returned HTTP 500 at the existing ten-second
+deadline. A second run measured 1.46 seconds for the book query and roughly
+0.75 seconds for each 500-line insert. Repeated per-row snapshot validation was
+still running when the deadline expired; no count was committed. These are
+observations from hosted synthetic acceptance, not production latency figures.
+
+Migration `0064_pharmacy_stocktake_snapshot_validation` replaces the snapshot
+line's row trigger with an AFTER INSERT statement trigger over its transition
+table. It locks every affected parent in tenant/outlet/count order and rejects
+the entire statement if any parent is missing, sealed, belongs to another actor
+or has another snapshot time. A set join verifies every batch's product, lot and
+expiry. Existing RLS, foreign keys, row audit, immutable-line rules and deferred
+seal/commit checks remain authoritative. A malformed row rolls back the complete
+statement, including its audit writes; there is no accepted unchecked interval
+outside the transaction. The API, snapshot source, page bounds and deadlines
+remain unchanged. Retaining per-row validation was rejected after its measured
+failure at the already declared limit; increasing deadlines would not meet the
+five-second planning target.
+
+The migration changes no stored rows and uses a five-second lock timeout. Its
+trigger replacement is transactional; a failed migration retains the old guard.
+An older API uses the same inserts and remains compatible. Any later restoration
+of the old trigger must be a separately reviewed forward migration; do not edit
+an applied migration or drop snapshot history. The hosted regression must prove
+batch/actor/time/seal refusals and complete rollback before this change can roll
+out. Capacity results and live Staff/release acceptance remain separate gates.
+
 The count, count revisions, approval, adjustments, audit and outbox are local to
 the pharmacy database. A single transaction decides posting. Unavailable current
 authority, failed audit/outbox writes, stale count input and failed reservation

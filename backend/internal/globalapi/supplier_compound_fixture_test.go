@@ -258,7 +258,7 @@ func (f supplierCompoundFixture) assertAdmission(t *testing.T, subject, reviewer
 		require.True(t, t.Run(source.endpoint.Product+" reviewed source fulfilment Staff", func(t *testing.T) {
 			operator = f.assertSourceFulfilmentStaff(t, sellerActor, source.endpoint)
 		}))
-		relationship := confirmedCompoundRelationship(t, f.db, source.endpoint, buyer)
+		relationship := f.assertPublicSupplierRelationship(t, sellerActor, buyerActor, source.endpoint, buyer)
 		for _, kind := range []string{"subject", "group"} {
 			require.True(t, t.Run("effective "+source.endpoint.Product+" shipment grant for "+kind, func(t *testing.T) {
 				request := seedSupplierRecipientFixture(t, f.db, testutil.TenantA, subject, member, kind, source.endpoint.Product, "partner.shipment_reader.v1", relationship)

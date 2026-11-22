@@ -223,6 +223,7 @@ type HarnessOptions struct {
 	ScopedAuthorizer            func(*tenantdb.DB) authz.ScopedAuthorizer
 	OperatingAuthorizer         func(*tenantdb.DB) authz.OperatingScopeAuthorizer
 	SourceAdministration        func(*tenantdb.DB) authz.SourceAdministrationGuard
+	SourceChecks                func(platform.Deps) suppliertrade.SourceChecker
 	TradingRelationships        func(platform.Deps) suppliertrade.CurrentRelationshipGuard
 	PartnerScopes               func(platform.Deps) authz.PartnerScopeAuthorizer
 	Resolver                    authz.Resolver
@@ -470,6 +471,9 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 		SessionTTL:          opts.SessionTTL,
 		SessionSecureCookie: opts.SessionSecureCookie,
 		IdleTimeout:         idleTimeout,
+	}
+	if opts.SourceChecks != nil {
+		deps.SourceChecks = opts.SourceChecks(deps)
 	}
 	if opts.TradingRelationships != nil {
 		deps.TradingRelationships = opts.TradingRelationships(deps)

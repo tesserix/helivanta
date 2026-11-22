@@ -94,6 +94,12 @@ earlier `order` policy does not substitute for that activity. The peer contract
 does not define a `receive` operation; hospital receiving remains the separate
 destination-owned command and retained-shipment authority described above.
 
+The current physical allocation `PUT` and allocation-command `PUT` return `200`
+for both a successful first operation and exact recovery. Inspect the returned
+allocation/receipt, version, quantities and actor attribution; `201` is not their
+current wire contract. Public purchase proposals/decisions retain their separate
+first-operation versus recovery behavior.
+
 Independent pharmacy fulfilment admission records the current duty, snapshot,
 authority epoch and reviewed Staff/account link in the owner's append-only
 operating-stock audit. Migration `0062_pharmacy_operating_fulfilment_audit`

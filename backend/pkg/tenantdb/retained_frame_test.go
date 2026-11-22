@@ -16,7 +16,7 @@ import (
 type retainedState struct {
 	Tenant string
 	Actor  string
-	PID    int
+	PID    int `gorm:"column:pid"`
 }
 
 func retainedScope(tx *gorm.DB) (retainedState, error) {

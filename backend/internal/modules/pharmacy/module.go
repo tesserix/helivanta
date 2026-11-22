@@ -167,6 +167,9 @@ const (
 	PermStockRead       authz.Permission = "pharmacy.stock.read"
 	PermStockReceive    authz.Permission = "pharmacy.stock.receive"
 	PermStockCorrect    authz.Permission = "pharmacy.stock.correct"
+	PermStocktakeRead   authz.Permission = "pharmacy.stocktake.read"
+	PermStocktakeCount  authz.Permission = "pharmacy.stocktake.count"
+	PermStocktakeReview authz.Permission = "pharmacy.stocktake.review"
 	PermStockQuarantine authz.Permission = "pharmacy.stock.quarantine"
 	PermCatalogueRead   authz.Permission = "pharmacy.catalogue.read"
 	PermCatalogueWrite  authz.Permission = "pharmacy.catalogue.write"
@@ -242,7 +245,7 @@ var supplierFulfilmentSchema string
 func (m *Module) Name() string { return "pharmacy" }
 
 func (m *Module) Permissions() []authz.Grant {
-	return []authz.Grant{{Permission: PermStockFulfil}, {Permission: PermHospitalFulfilmentUse}, {Permission: PermHospitalReceivingUse}, {Permission: PermHospitalReceivingReview},
+	return []authz.Grant{{Permission: PermStocktakeRead}, {Permission: PermStocktakeCount}, {Permission: PermStocktakeReview}, {Permission: PermStockFulfil}, {Permission: PermHospitalFulfilmentUse}, {Permission: PermHospitalReceivingUse}, {Permission: PermHospitalReceivingReview},
 		{Permission: PermStaffBindingRead},
 		{Permission: PermStaffBindingPrepare},
 		{Permission: PermStaffBindingReview},

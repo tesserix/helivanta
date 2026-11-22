@@ -158,8 +158,11 @@ var supplierAcceptanceTemplatesSchema string
 //go:embed assignment_supplier_receiving_templates_generated.sql
 var supplierReceivingTemplatesSchema string
 
-//go:embed operating_templates_generated.sql
+//go:embed operating_templates_v4.sql
 var operatingTemplatesFulfilmentSchema string
+
+//go:embed operating_templates_generated.sql
+var operatingTemplatesStocktakeSchema string
 
 //go:embed staff_mfa_fences.sql
 var staffMFAFencesSchema string
@@ -346,7 +349,7 @@ CREATE TABLE IF NOT EXISTS login_account_choice (
 );
 CREATE INDEX IF NOT EXISTS login_account_choice_expires_at_idx ON login_account_choice (expires_at);
 `,
-	}, {ID: "0054_iam_staff_mfa_fences", SQL: staffMFAFencesSchema}}
+	}, {ID: "0054_iam_staff_mfa_fences", SQL: staffMFAFencesSchema}, {ID: "0055_iam_stocktake_operating_templates", SQL: operatingTemplatesStocktakeSchema}}
 }
 
 type role struct {

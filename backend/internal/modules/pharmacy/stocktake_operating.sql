@@ -20,7 +20,7 @@ CREATE FUNCTION pharmacy_stocktake_operating_scope(t uuid,o uuid,operation text)
  AND x.pharmacy_id=NULLIF(current_setting('app.pharmacy_stock_pharmacy',true),'')::uuid),false)
 $$;
 
--- Compile submission completeness only when submitting, after observations exist.
+-- Compare the two scoped sets once, after observations exist.
 CREATE OR REPLACE FUNCTION pharmacy_stocktake_command_guard()RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE parent pharmacy_stocktakes;prior_version bigint;prior_state text;actual bigint;extras bigint;bounded boolean;
 BEGIN
@@ -34,8 +34,8 @@ BEGIN
   RAISE EXCEPTION 'stocktake transition is unavailable' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_transition';
  END IF;
  IF NEW.kind='submit'THEN
- IF EXISTS(SELECT 1 FROM pharmacy_stocktake_lines l WHERE l.tenant_id=NEW.tenant_id AND l.outlet_id=NEW.outlet_id AND l.stocktake_id=NEW.stocktake_id
-  AND NOT EXISTS(SELECT 1 FROM pharmacy_stocktake_counts e WHERE e.tenant_id=l.tenant_id AND e.outlet_id=l.outlet_id AND e.stocktake_id=l.stocktake_id AND e.line_id=l.id))THEN
+ IF EXISTS(SELECT id FROM pharmacy_stocktake_lines WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND stocktake_id=NEW.stocktake_id
+  EXCEPT SELECT line_id FROM pharmacy_stocktake_counts WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND stocktake_id=NEW.stocktake_id)THEN
   RAISE EXCEPTION 'every snapshot bucket needs an observation' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_incomplete';
  END IF;
  END IF;

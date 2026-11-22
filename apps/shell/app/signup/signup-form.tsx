@@ -268,19 +268,6 @@ function SignupStatus({
     heading.current?.focus({ preventScroll: true });
     heading.current?.scrollIntoView({ block: "center", behavior: "instant" });
   }, [receipt.state]);
-  // Someone who watched this page while the workspace was set up is signed in
-  // as soon as it is ready; someone who comes back to a ready workspace later
-  // still gets the button, so "Create another workspace" stays reachable.
-  const waited = useRef(false);
-  const autoStarted = useRef(false);
-  useEffect(() => {
-    if (receipt.state === "provisioning") waited.current = true;
-    if (receipt.state !== "ready" || !waited.current || autoStarted.current) return;
-    autoStarted.current = true;
-    void signin();
-    // signin only reads the receipt it was rendered with.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [receipt.state]);
 
   return (
     <div aria-live="polite" className="space-y-6">
@@ -314,7 +301,9 @@ function SignupStatus({
         {receipt.state === "provisioning" && (
           <div className="flex items-start gap-3 text-sm text-muted-foreground">
             <Loader2 aria-hidden className="mt-0.5 size-4 shrink-0 animate-spin" />
-            <p>This can take up to 2 minutes. We&apos;ll sign you in as soon as it&apos;s ready.</p>
+            {/* No sign-in promise here: since one-email signup (#1763) the tab
+                that opens the email link signs in, not this one (#1767). */}
+            <p>This can take up to 2 minutes.</p>
           </div>
         )}
       </div>
@@ -334,8 +323,11 @@ function SignupStatus({
       {(receipt.state === "email_action_required" ||
         receipt.state === "password_action_required") && (
         <div className="space-y-3">
+          {/* Opening the inbox is the next step, so resending is secondary;
+              a legacy receipt's password link is still the only way on. */}
           <Button
             type="button"
+            variant={receipt.state === "password_action_required" ? undefined : "outline"}
             className="w-full"
             disabled={resend.isPending}
             onClick={() => resend.mutate()}

@@ -228,7 +228,9 @@ function ValidatedCredentialForm({ authRequestId }: { authRequestId: string }) {
       authRequestId={authRequestId}
       policies={authRequest.data.policies}
       loginHint={authRequest.data.login_hint}
-      scoped={authRequest.data.scope.some((scope) => scope.startsWith(ORGANIZATION_SCOPE_PREFIX))}
+      organization={authRequest.data.scope
+        .find((scope) => scope.startsWith(ORGANIZATION_SCOPE_PREFIX))
+        ?.slice(ORGANIZATION_SCOPE_PREFIX.length)}
     />
   );
 }
@@ -291,12 +293,13 @@ function LoginFlow({
   authRequestId,
   policies,
   loginHint,
-  scoped,
+  organization,
 }: {
   authRequestId: string;
   policies: AuthPoliciesInfo;
   loginHint?: string;
-  scoped: boolean;
+  // The organisation the auth request is pinned to, if any.
+  organization?: string;
 }) {
   const [step, setStep] = useState<LoginStep>({ kind: "credential" });
   // Set by either step when the sign-in cannot continue: the attempt
@@ -427,7 +430,7 @@ function LoginFlow({
       authRequestId={authRequestId}
       policies={policies}
       loginHint={loginHint}
-      scoped={scoped}
+      organization={organization}
       onResult={advance}
     />
   );
@@ -462,7 +465,11 @@ const credentialsSchema = z.object({
 });
 
 const rememberedUsernameKey = "helivanta.login.remembered-username";
-const rememberedUsernameSchema = z.object({ enabled: z.boolean(), username: z.string().max(320) });
+const rememberedUsernameSchema = z.object({
+  enabled: z.boolean(),
+  username: z.string().max(320),
+  organization: z.string().max(64).optional(),
+});
 
 function readRememberedUsername(): z.infer<typeof rememberedUsernameSchema> {
   try {
@@ -475,11 +482,11 @@ function readRememberedUsername(): z.infer<typeof rememberedUsernameSchema> {
   return { enabled: true, username: "" };
 }
 
-function saveRememberedUsername(enabled: boolean, username: string) {
+function saveRememberedUsername(enabled: boolean, username: string, organization?: string) {
   try {
     window.localStorage.setItem(
       rememberedUsernameKey,
-      JSON.stringify({ enabled, username: enabled ? username : "" }),
+      JSON.stringify({ enabled, username: enabled ? username : "", organization }),
     );
   } catch {
     // Sign-in stays available when browser storage is blocked.
@@ -507,24 +514,33 @@ function CredentialForm({
   authRequestId,
   policies,
   loginHint,
-  scoped,
+  organization,
   onResult,
 }: {
   authRequestId: string;
   policies: AuthPoliciesInfo;
   loginHint?: string;
-  // Whether the auth request names one organisation (a workspace link or a
-  // remembered account). Unscoped, the API resolves the account from the
-  // email after the password (#1751 spec D1).
-  scoped: boolean;
+  // The organisation the auth request names (a workspace link or a
+  // remembered account), if any. Unscoped, the API resolves the account from
+  // the email after the password (#1751 spec D1).
+  organization?: string;
   onResult: (result: PasswordCheckResult, currentPassword: string) => void;
 }) {
   // Lazy reads are hydration-safe: this form only mounts after a client-side request check.
+  const scoped = organization !== undefined;
   const [remembered] = useState(readRememberedUsername);
+  // Each workspace has its own login (ADR-0070): a pinned card offers only a
+  // name remembered for that same workspace (#1780). A name saved on the
+  // unscoped card, or before names carried a workspace, belongs to no known
+  // workspace, so a pinned card leaves the field empty rather than guess.
+  const rememberedName =
+    remembered.enabled && (!scoped || remembered.organization === organization)
+      ? remembered.username
+      : "";
   // The email discovery just proved beats a name remembered from an earlier visit.
   // Bounded like the remembered name: the hint is whatever the authorize URL carried.
   const [values, setValues] = useState<AuthCredentialValues>(() => ({
-    loginName: loginHint?.slice(0, 320) || (remembered.enabled ? remembered.username : ""),
+    loginName: loginHint?.slice(0, 320) || rememberedName,
     password: "",
   }));
   const [loginNameError, setLoginNameError] = useState<string | undefined>();
@@ -553,7 +569,8 @@ function CredentialForm({
       // LoginFlow's advance decides the next step; this form only records
       // the name it was given.
       onSuccess: ({ result, password, loginName }) => {
-        if (result.outcome !== "blocked") saveRememberedUsername(rememberUsername, loginName);
+        if (result.outcome !== "blocked")
+          saveRememberedUsername(rememberUsername, loginName, organization);
         onResult(result, password);
       },
       // AuthCredentialForm's own `error` prop is this mutation's error

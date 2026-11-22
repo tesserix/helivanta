@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within, waitFor } from "@testing-library/react";
 import { renderWithProviders as renderBase } from "@helivanta/api/testing";
 import { NavigationGuardProvider } from "@helivanta/ui";
 import type { ReactElement } from "react";
@@ -55,7 +55,10 @@ it("shows separate actual, matched, applied and unused values with human referen
                 as_of: "2026-11-21T20:00:00Z",
                 timezone: "Asia/Kolkata",
               }
-            : { data: [row], page: { has_more: false, next_cursor: null } },
+            : {
+                data: url.includes("/matches?") || url.includes("/allocations?") ? [] : [row],
+                page: { has_more: false, next_cursor: null },
+              },
         ),
       ),
   );
@@ -65,13 +68,22 @@ it("shows separate actual, matched, applied and unused values with human referen
   );
   await user.click(await screen.findByRole("button", { name: "Open credit TEST-CN-ONE" }));
   const detail = within(await screen.findByRole("region", { name: "Supplier credit details" }));
+  await waitFor(() =>
+    expect(
+      detail.getByRole("heading", { name: `Credit ${row.document_reference} · ${row.payee_name}` }),
+    ).toHaveFocus(),
+  );
   expect(await detail.findByText("Actual credit")).toBeInTheDocument();
   expect(detail.getByText("Matched to returns")).toBeInTheDocument();
   expect(detail.getByText("Applied to bills")).toBeInTheDocument();
   expect(detail.getByText("Unused credit")).toBeInTheDocument();
+  expect(await detail.findByRole("heading", { name: "Credit void" })).toBeInTheDocument();
   for (const value of ["INR 7.50", "INR 3.00", "INR 2.00", "INR 5.50"])
     expect(detail.getByText(value)).toBeInTheDocument();
   expect(detail.getByText(/Original bill TEST-ORIGINAL-BILL/)).toBeInTheDocument();
+  expect(
+    await detail.findByText("No bill applications recorded for this credit."),
+  ).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Record supplier credit" })).not.toBeInTheDocument();
   expect(fetcher.mock.calls.some(([url]) => url.includes("source-returns"))).toBe(false);
   for (const value of [
@@ -147,4 +159,66 @@ it("hides a previously verified credit reference when financial history access i
   ).toBeInTheDocument();
   expect(document.body).not.toHaveTextContent("TEST-CN-REVOKED");
   expect(screen.queryByRole("region", { name: "Supplier credit details" })).not.toBeInTheDocument();
+});
+
+it("opens replacement entry from a named voided credit detail without any raw-ID or supplier lookup", async () => {
+  let contextReads = 0;
+  const voided = {
+    ...row,
+    state: "voided",
+    version: 4,
+    matched_minor: 0,
+    allocated_minor: 0,
+    available_minor: 0,
+  };
+  const fetcher = vi.fn(
+    async (url: string) =>
+      new Response(
+        JSON.stringify(
+          url.endsWith("/context")
+            ? {
+                ...voided,
+                local_date: "2026-11-22",
+                timezone: "Asia/Kolkata",
+                as_of: contextReads++ === 0 ? "2026-11-22T00:00:00Z" : "2026-11-22T00:00:01Z",
+              }
+            : url.endsWith("/void")
+              ? {
+                  id: "0199e000-0000-7000-8000-000000000009",
+                  outlet_id: scope.outletId,
+                  credit_id: row.id,
+                  expected_version: 3,
+                  version: 4,
+                  reason: "TEST incorrect supplier amount",
+                  recorded_by: scope.subject,
+                  recorded_at: row.recorded_at,
+                }
+              : {
+                  data: url.includes("/matches?") || url.includes("/allocations?") ? [] : [voided],
+                  page: { has_more: false, next_cursor: null },
+                },
+        ),
+      ),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = render(
+    <SupplierCreditHistory scope={scope} canRecord timeZone="Asia/Kolkata" />,
+  );
+  await user.click(await screen.findByRole("button", { name: "Open credit TEST-CN-ONE" }));
+  await user.click(await screen.findByRole("button", { name: "Replace voided credit" }));
+  expect(
+    await screen.findByRole("heading", { name: "Replace voided supplier credit" }),
+  ).toBeInTheDocument();
+  expect(screen.getByText(/Replacing TEST-CN-ONE/)).toBeInTheDocument();
+  expect(fetcher.mock.calls.some(([url]) => url.includes("source-returns"))).toBe(false);
+  const amount = screen.getByLabelText("Actual credit amount (INR)");
+  await user.type(amount, "8.00");
+  const refresh = screen.getByRole("button", { name: "Refresh original credit observations" });
+  await user.click(refresh);
+  await waitFor(() => expect(contextReads).toBe(2));
+  await waitFor(() => expect(refresh).not.toBeDisabled());
+  expect(
+    screen.getByRole("heading", { name: `Credit ${row.document_reference} · ${row.payee_name}` }),
+  ).not.toHaveFocus();
+  expect(amount).toHaveValue("8.00");
 });

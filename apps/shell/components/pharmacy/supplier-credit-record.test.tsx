@@ -336,3 +336,209 @@ it("does not expose another account's retained recovery or create a replacement 
   expect(document.body).not.toHaveTextContent(command);
   await user.click(screen.getByRole("button", { name: "Close credit form" }));
 });
+
+const voidedCredit = {
+  id: "0199e000-0000-7000-8000-000000000008",
+  outlet_id: scope.outletId,
+  return_id: source.id,
+  return_number: source.number,
+  payee_reference: "TEST-SUPPLIER",
+  payee_name: source.payee_name,
+  original_bill_reference: source.original_bill_reference,
+  document_reference: "TEST-INCORRECT-NOTE",
+  issued_on: "2026-11-18",
+  amount_minor: 750,
+  currency: "INR" as const,
+  reason: "TEST wrong original amount",
+  correction_of: null,
+  recorded_by: scope.subject,
+  recorded_at: "2026-11-19T00:00:00Z",
+  version: 2,
+  state: "voided" as const,
+  matched_minor: 0,
+  allocated_minor: 0,
+  available_minor: 0,
+  local_date: "2026-11-22",
+  timezone: "Asia/Kolkata",
+  as_of: "2026-11-22T00:00:00Z",
+};
+it("records an explicit replacement linked to the named voided note and original return without raw identifier entry", async () => {
+  const writes: Record<string, unknown>[] = [];
+  const fetcher = vi.fn(async (url: string, options?: RequestInit) => {
+    if (options?.method !== "PUT")
+      throw new Error(
+        "TEST correction must use its verified original, not selectable supplier names",
+      );
+    const row = receiptFor(url, options);
+    writes.push(row);
+    return new Response(JSON.stringify(row));
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const completed = vi.fn();
+  const { user } = render(
+    <SupplierCreditRecord
+      scope={scope}
+      canRecord
+      correction={voidedCredit}
+      onRecorded={completed}
+    />,
+  );
+  await user.click(await screen.findByRole("button", { name: "Replace voided credit" }));
+  expect(screen.getByText(/TEST-INCORRECT-NOTE/)).toBeInTheDocument();
+  expect(
+    screen.queryByRole("combobox", { name: "Dispatched supplier return" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByLabelText("Actual credit amount (INR)")).toHaveValue("");
+  await user.type(screen.getByLabelText("Supplier credit reference"), "TEST-CORRECTED-NOTE");
+  fireEvent.change(screen.getByLabelText("Credit issue date"), { target: { value: "2026-11-20" } });
+  await user.type(screen.getByLabelText("Actual credit amount (INR)"), "8.00");
+  await user.type(
+    screen.getByLabelText("Credit record reason"),
+    "TEST corrected actual supplier amount",
+  );
+  await user.click(screen.getByRole("button", { name: "Save replacement credit" }));
+  await waitFor(() => expect(completed).toHaveBeenCalledWith(writes[0]?.id));
+  expect(writes).toHaveLength(1);
+  expect(writes[0]).toMatchObject({
+    correction_of: voidedCredit.id,
+    return_id: source.id,
+    document_reference: "TEST-CORRECTED-NOTE",
+    amount_minor: 800,
+    currency: "INR",
+  });
+  for (const value of [voidedCredit.id, source.id, scope.subject])
+    expect(document.body).not.toHaveTextContent(value);
+});
+
+it("recovers the same replacement after reload when the original is corrected and new writes are disabled", async () => {
+  const posted: ReturnType<typeof receiptFor>[] = [];
+  const fetcher = vi.fn(async (url: string, options?: RequestInit) => {
+    if (options?.method === "PUT") {
+      posted.push(receiptFor(url, options));
+      throw new TypeError("TEST committed replacement response lost");
+    }
+    if (url.endsWith("/recovery")) return new Response(JSON.stringify(posted[0]));
+    throw new Error("TEST no replacement source selection is required");
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const first = render(<SupplierCreditRecord scope={scope} canRecord correction={voidedCredit} />);
+  await first.user.click(await screen.findByRole("button", { name: "Replace voided credit" }));
+  await first.user.type(screen.getByLabelText("Supplier credit reference"), "TEST-CORRECTED-NOTE");
+  fireEvent.change(screen.getByLabelText("Credit issue date"), { target: { value: "2026-11-20" } });
+  await first.user.type(screen.getByLabelText("Actual credit amount (INR)"), "8.00");
+  await first.user.type(
+    screen.getByLabelText("Credit record reason"),
+    "TEST corrected supplier amount",
+  );
+  await first.user.click(screen.getByRole("button", { name: "Save replacement credit" }));
+  expect(await screen.findByText(/credit outcome is unconfirmed/)).toBeInTheDocument();
+  expect(sessionStorage.length).toBe(1);
+  expect(sessionStorage.getItem(sessionStorage.key(0)!)).toBe(posted[0]?.id);
+  expect(sessionStorage.key(0)).toContain(voidedCredit.id);
+  first.unmount();
+  const completed = vi.fn();
+  const second = render(
+    <SupplierCreditRecord
+      scope={scope}
+      canRecord={false}
+      correction={{ ...voidedCredit, state: "corrected", version: 3 }}
+      onRecorded={completed}
+    />,
+  );
+  await second.user.click(await screen.findByRole("button", { name: "Check original credit" }));
+  await waitFor(() => expect(completed).toHaveBeenCalledWith(posted[0]?.id));
+  expect(posted).toHaveLength(1);
+  expect(sessionStorage.length).toBe(0);
+  expect(fetcher.mock.calls.some(([url]) => url.includes("source-returns"))).toBe(false);
+});
+it("refuses a recovered replacement for a different original even without retained form intent", async () => {
+  const entry = "0199e000-0000-7000-8000-000000000009";
+  sessionStorage.setItem(
+    `helivanta:supplier-credit-document:v1:${JSON.stringify([scope.tenantId, scope.subject, scope.pharmacyId, scope.outletId, voidedCredit.id])}`,
+    entry,
+  );
+  const receipt = receiptFor(`/supplier-credits/${entry}`, {
+    body: JSON.stringify({
+      return_id: source.id,
+      document_reference: "TEST-REPLACEMENT",
+      issued_on: "2026-11-20",
+      amount_minor: 800,
+      currency: "INR",
+      reason: "TEST replacement for different original",
+      correction_of: "0199e000-0000-7000-8000-000000000007",
+    }),
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(JSON.stringify(receipt))),
+  );
+  const completed = vi.fn();
+  const { user } = render(
+    <SupplierCreditRecord
+      scope={scope}
+      canRecord={false}
+      correction={voidedCredit}
+      onRecorded={completed}
+    />,
+  );
+  await user.click(await screen.findByRole("button", { name: "Check original credit" }));
+  expect(await screen.findByText(/original credit could not be verified/)).toBeInTheDocument();
+  expect(completed).not.toHaveBeenCalled();
+  expect(sessionStorage.length).toBe(1);
+});
+it.each(["active", "corrected"] as const)(
+  "does not offer a new replacement for an original that is %s",
+  (state) => {
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    render(
+      <SupplierCreditRecord scope={scope} canRecord correction={{ ...voidedCredit, state }} />,
+    );
+    expect(screen.queryByRole("button", { name: "Replace voided credit" })).not.toBeInTheDocument();
+    expect(fetcher).not.toHaveBeenCalled();
+  },
+);
+
+it("keeps replacement recovery available after closing when new writes are withdrawn", async () => {
+  let posted: ReturnType<typeof receiptFor> | undefined;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, options?: RequestInit) => {
+      if (options?.method === "PUT") {
+        posted = receiptFor(url, options);
+        throw new TypeError("TEST committed response lost");
+      }
+      return new Response(JSON.stringify(posted));
+    }),
+  );
+  function Availability() {
+    const [enabled, setEnabled] = useState(true);
+    return (
+      <>
+        <button onClick={() => setEnabled(false)}>Withdraw replacement writes</button>
+        <SupplierCreditRecord
+          scope={scope}
+          canRecord={enabled}
+          correction={{ ...voidedCredit, state: enabled ? "voided" : "corrected" }}
+        />
+      </>
+    );
+  }
+  const { user } = render(<Availability />);
+  await user.click(await screen.findByRole("button", { name: "Replace voided credit" }));
+  await user.type(screen.getByLabelText("Supplier credit reference"), "TEST-CORRECTED-NOTE");
+  fireEvent.change(screen.getByLabelText("Credit issue date"), { target: { value: "2026-11-20" } });
+  await user.type(screen.getByLabelText("Actual credit amount (INR)"), "8.00");
+  await user.type(screen.getByLabelText("Credit record reason"), "TEST corrected supplier amount");
+  await user.click(screen.getByRole("button", { name: "Save replacement credit" }));
+  expect(await screen.findByText(/credit outcome is unconfirmed/)).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Close credit form" }));
+  await user.click(await screen.findByRole("button", { name: "Discard" }));
+  await user.click(screen.getByRole("button", { name: "Withdraw replacement writes" }));
+  await user.click(await screen.findByRole("button", { name: "Resume supplier credit recovery" }));
+  await user.click(await screen.findByRole("button", { name: "Check original credit" }));
+  expect(
+    await screen.findByText(/Supplier credit TEST-CORRECTED-NOTE verified/),
+  ).toBeInTheDocument();
+  expect(sessionStorage.length).toBe(0);
+});

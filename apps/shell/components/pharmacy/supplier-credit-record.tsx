@@ -3,6 +3,7 @@
 import "@/lib/csp-zod";
 
 import { useRef, useState, useSyncExternalStore } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button, Input } from "@tesserix/web";
 import {
   ApiError,
@@ -16,6 +17,7 @@ import {
   usePagedQuery,
   type PharmacyActorScope,
   type PharmacySupplierCreditInput,
+  type PharmacySupplierCreditContext,
 } from "@helivanta/api";
 import {
   Field,
@@ -24,15 +26,23 @@ import {
   RequestFailure,
   Controller,
   FormSelectField,
+  RefreshButton,
   useZodForm,
   useConfirmLeave,
   useLeaveGuard,
 } from "@helivanta/ui";
 import { CurrencyAmountField, formatPharmacyMoney } from "./currency-amount-field";
 
-type Props = { scope: PharmacyActorScope; canRecord: boolean; onRecorded?: (id: string) => void };
-function recoveryKey(scope: PharmacyActorScope) {
-  return `helivanta:supplier-credit-document:v1:${JSON.stringify([scope.tenantId, scope.subject, scope.pharmacyId, scope.outletId])}`;
+type Props = {
+  scope: PharmacyActorScope;
+  canRecord: boolean;
+  correction?: PharmacySupplierCreditContext;
+  onRecorded?: (id: string) => void;
+};
+function recoveryKey(scope: PharmacyActorScope, correction?: string) {
+  const binding = [scope.tenantId, scope.subject, scope.pharmacyId, scope.outletId];
+  if (correction) binding.push(correction);
+  return `helivanta:supplier-credit-document:v1:${JSON.stringify(binding)}`;
 }
 const subscribeHydration = () => () => {};
 const clientHydrated = () => true;
@@ -40,7 +50,7 @@ const serverHydrated = () => false;
 export function SupplierCreditRecord(props: Props) {
   const ready = useSyncExternalStore(subscribeHydration, clientHydrated, serverHydrated);
   if (!ready) return <p role="status">Checking supplier credit recovery…</p>;
-  return <RecordController key={recoveryKey(props.scope)} {...props} />;
+  return <RecordController key={recoveryKey(props.scope, props.correction?.id)} {...props} />;
 }
 function readRecovery(key: string) {
   try {
@@ -63,8 +73,9 @@ function readRecovery(key: string) {
     };
   }
 }
-function RecordController({ scope, canRecord, onRecorded }: Props) {
-  const key = recoveryKey(scope);
+function RecordController({ scope, canRecord, onRecorded, correction }: Props) {
+  const key = recoveryKey(scope, correction?.id);
+  const allowed = canRecord && (!correction || correction.state === "voided");
   const [recovery, setRecovery] = useState(() => readRecovery(key));
   const { saved, error } = recovery;
   const [open, setOpen] = useState(saved !== null);
@@ -87,10 +98,14 @@ function RecordController({ scope, canRecord, onRecorded }: Props) {
       ) : open ? (
         <CreditForm
           scope={scope}
-          canRecord={canRecord}
+          canRecord={allowed}
+          correction={correction}
           saved={saved}
           storageKey={key}
-          close={() => setOpen(false)}
+          close={() => {
+            restore();
+            setOpen(false);
+          }}
           completed={(id, reference) => {
             setOpen(false);
             setRecovery({ saved: null, error: "" });
@@ -101,14 +116,18 @@ function RecordController({ scope, canRecord, onRecorded }: Props) {
           }}
         />
       ) : (
-        canRecord && (
+        (allowed || saved !== null) && (
           <Button
             onClick={() => {
               restore();
               setOpen(true);
             }}
           >
-            Record supplier credit
+            {saved
+              ? "Resume supplier credit recovery"
+              : correction
+                ? "Replace voided credit"
+                : "Record supplier credit"}
           </Button>
         )
       )}
@@ -122,6 +141,7 @@ function CreditForm({
   storageKey,
   close,
   completed,
+  correction,
 }: {
   scope: PharmacyActorScope;
   canRecord: boolean;
@@ -129,8 +149,10 @@ function CreditForm({
   storageKey: string;
   close: () => void;
   completed: (id: string, reference: string) => void;
+  correction?: PharmacySupplierCreditContext;
 }) {
   const confirmLeave = useConfirmLeave();
+  const queryClient = useQueryClient();
   const [command, setCommand] = useState<string | null>(saved);
   const [attempt, setAttempt] = useState<{ id: string; input: PharmacySupplierCreditInput } | null>(
     null,
@@ -138,13 +160,13 @@ function CreditForm({
   const [missing, setMissing] = useState(false),
     [notice, setNotice] = useState("");
   const defaults = {
-    return_id: "",
+    return_id: correction?.return_id ?? "",
     document_reference: "",
     issued_on: "",
     reason: "",
     amount_minor: undefined,
-    currency: "INR" as const,
-    correction_of: null,
+    currency: correction?.currency ?? ("INR" as const),
+    correction_of: correction?.id ?? null,
   };
   const form = useZodForm(pharmacySupplierCreditDocumentInputSchema, defaults);
   const sourceId = form.watch("return_id");
@@ -154,9 +176,19 @@ function CreditForm({
   const sources = usePagedQuery(
     pharmacySupplierCreditKey(scope, "initial-sources"),
     (cursor, signal) => listPharmacySupplierCreditInitialSources(scope, cursor, signal),
-    { enabled: visible, gcTime: 0, retry: false },
+    { enabled: visible && !correction, gcTime: 0, retry: false },
   );
-  const source = !sources.isError ? sources.items.find((row) => row.id === sourceId) : undefined;
+  const source = correction
+    ? {
+        id: correction.return_id,
+        number: correction.return_number,
+        currency: correction.currency,
+        payee_name: correction.payee_name,
+        original_bill_reference: correction.original_bill_reference,
+      }
+    : !sources.isError
+      ? sources.items.find((row) => row.id === sourceId)
+      : undefined;
   function finish(row: { id: string; document_reference: string }) {
     working.current = false;
     try {
@@ -203,7 +235,18 @@ function CreditForm({
     },
   );
   const recover = useApiMutation(
-    (id: string) => recoverPharmacySupplierCredit(scope, id, undefined, attempt?.input),
+    async (id: string) => {
+      const row = await recoverPharmacySupplierCredit(scope, id, undefined, attempt?.input);
+      if (
+        row.correction_of !== (correction?.id ?? null) ||
+        (correction &&
+          (row.return_id !== correction.return_id ||
+            row.payee_reference !== correction.payee_reference ||
+            row.currency !== correction.currency))
+      )
+        throw new Error("Original correction evidence could not be verified.");
+      return row;
+    },
     {
       gcTime: 0,
       suppressErrorToast: true,
@@ -234,7 +277,8 @@ function CreditForm({
       !source ||
       sources.isError ||
       input.return_id !== source.id ||
-      input.currency !== source.currency
+      input.currency !== source.currency ||
+      input.correction_of !== (correction?.id ?? null)
     )
       return;
     const id = command ?? newPharmacyId();
@@ -267,7 +311,11 @@ function CreditForm({
     <Panel>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-semibold">
-          {command ? "Supplier credit recovery" : "Record actual supplier credit"}
+          {command
+            ? "Supplier credit recovery"
+            : correction
+              ? "Replace voided supplier credit"
+              : "Record actual supplier credit"}
         </h3>
         <Button variant="ghost" disabled={pending} onClick={() => confirmLeave(close)}>
           Close credit form
@@ -309,13 +357,13 @@ function CreditForm({
             </Button>
           )}
         </div>
-      ) : sources.isError ? (
+      ) : !correction && sources.isError ? (
         <RequestFailure
           message="Dispatched financial sources are unavailable. Previously loaded choices are hidden."
           error={sources.error}
           retry={sources.retry}
         />
-      ) : sources.isPending ? (
+      ) : !correction && sources.isPending ? (
         <p role="status">Loading dispatched financial sources…</p>
       ) : (
         <form
@@ -325,37 +373,49 @@ function CreditForm({
             void form.handleSubmit(submit)(event);
           }}
         >
-          <FormSelectField
-            control={form.control}
-            name="return_id"
-            id="supplier-credit-source"
-            label="Dispatched supplier return"
-            disabled={pending}
-            options={sources.items.map((row) => ({
-              value: row.id,
-              label: `Return ${row.number} · ${row.payee_name} · ${row.original_bill_reference}`,
-            }))}
-            onValueChange={(value) => {
-              form.reset(defaults);
-              form.setValue("return_id", value, { shouldDirty: true });
-              const selected = sources.items.find((row) => row.id === value);
-              if (selected) form.setValue("currency", selected.currency);
-            }}
-          />
-          <LoadMore
-            label="Load more dispatched returns"
-            hasMore={sources.hasMore}
-            isLoading={sources.isFetchingMore}
-            onClick={sources.loadMore}
-          />
-          {!sources.items.length && <p>No dispatched returns are available for this outlet.</p>}
+          {correction ? (
+            <p className="text-sm">
+              Replacing {correction.document_reference} · {correction.payee_name} · Return{" "}
+              {correction.return_number} · {correction.original_bill_reference}. Original note and
+              void evidence remain in history.
+            </p>
+          ) : (
+            <>
+              <FormSelectField
+                control={form.control}
+                name="return_id"
+                id="supplier-credit-source"
+                label="Dispatched supplier return"
+                disabled={pending}
+                options={sources.items.map((row) => ({
+                  value: row.id,
+                  label: `Return ${row.number} · ${row.payee_name} · ${row.original_bill_reference}`,
+                }))}
+                onValueChange={(value) => {
+                  form.reset(defaults);
+                  form.setValue("return_id", value, { shouldDirty: true });
+                  const selected = sources.items.find((row) => row.id === value);
+                  if (selected) form.setValue("currency", selected.currency);
+                }}
+              />
+              <LoadMore
+                label="Load more dispatched returns"
+                hasMore={sources.hasMore}
+                isLoading={sources.isFetchingMore}
+                onClick={sources.loadMore}
+              />
+              {!sources.items.length && <p>No dispatched returns are available for this outlet.</p>}
+            </>
+          )}
           {source && (
             <>
-              <p className="text-sm text-muted-foreground">
-                Expected return value:{" "}
-                {formatPharmacyMoney(source.expected_credit_minor, source.currency)}. Enter the
-                actual amount on the supplier credit note below.
-              </p>
+              {!correction && "expected_credit_minor" in source && (
+                <p className="text-sm text-muted-foreground">
+                  Expected return value:{" "}
+                  {formatPharmacyMoney(source.expected_credit_minor, source.currency)}. Enter the
+                  actual amount on the supplier credit note below.
+                </p>
+              )}
               <Field
                 id="supplier-credit-reference"
                 label="Supplier credit reference"
@@ -376,6 +436,7 @@ function CreditForm({
                 <Input
                   id="supplier-credit-issued"
                   type="date"
+                  max={correction?.local_date}
                   {...form.register("issued_on")}
                   disabled={pending}
                 />
@@ -411,8 +472,23 @@ function CreditForm({
                 />
               </Field>
               <Button type="submit" disabled={pending || !canRecord}>
-                {command ? "Retry original supplier credit" : "Save supplier credit"}
+                {command
+                  ? "Retry original supplier credit"
+                  : correction
+                    ? "Save replacement credit"
+                    : "Save supplier credit"}
               </Button>
+              {correction && (
+                <RefreshButton
+                  refresh={() =>
+                    queryClient.invalidateQueries({ queryKey: pharmacySupplierCreditKey(scope) })
+                  }
+                  error={save.error}
+                  busy={pending}
+                >
+                  Refresh original credit observations
+                </RefreshButton>
+              )}
             </>
           )}
         </form>

@@ -290,3 +290,34 @@ it("preserves an uncertain command outcome without an automatic second intent", 
   await expect(client.matchPharmacySupplierCredit(scope, credit, match, input)).rejects.toBe(error);
   expect(apiFetch).toHaveBeenCalledTimes(1);
 });
+
+it("binds retained reversal evidence to the original source and submitted intent when supplied", async () => {
+  vi.mocked(apiFetch).mockResolvedValue({ ...reversal, return_id: entry });
+  await expect(
+    client.readPharmacySupplierCreditMatchReversal(scope, credit, match, undefined, receipt),
+  ).rejects.toThrow();
+  await expect(
+    client.recoverPharmacySupplierCreditMatchReversal(scope, credit, match, entry, undefined, {
+      original: receipt,
+      input: reverseInput,
+    }),
+  ).rejects.toThrow();
+  vi.mocked(apiFetch).mockResolvedValue({ ...reversal, reason: "TEST changed reversal reason" });
+  await expect(
+    client.recoverPharmacySupplierCreditMatchReversal(scope, credit, match, entry, undefined, {
+      original: receipt,
+      input: reverseInput,
+    }),
+  ).rejects.toThrow();
+  vi.mocked(apiFetch).mockResolvedValue(reversal);
+  expect(
+    await client.recoverPharmacySupplierCreditMatchReversal(
+      scope,
+      credit,
+      match,
+      entry,
+      undefined,
+      { original: receipt, input: { ...reverseInput, reason: ` ${reverseInput.reason} ` } },
+    ),
+  ).toEqual(reversal);
+});

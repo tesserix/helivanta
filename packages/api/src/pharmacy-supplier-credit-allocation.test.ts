@@ -295,3 +295,109 @@ it("preserves unavailable outcomes and cancellation without automatic financial 
   expect(apiFetch).toHaveBeenCalledTimes(1);
   expect(vi.mocked(apiFetch).mock.calls[0]![1]!.signal?.aborted).toBe(true);
 });
+
+it("verifies retained allocation and reversal intent and exact original bill when supplied", async () => {
+  vi.mocked(apiFetch).mockResolvedValue({ ...receipt, reason: "TEST changed allocation" });
+  await expect(
+    client.recoverPharmacySupplierCreditAllocation(scope, credit, allocation, undefined, input),
+  ).rejects.toThrow();
+  vi.mocked(apiFetch).mockResolvedValue({ ...reversal, payable_id: entry });
+  await expect(
+    client.readPharmacySupplierCreditAllocationReversal(
+      scope,
+      credit,
+      allocation,
+      undefined,
+      receipt,
+    ),
+  ).rejects.toThrow();
+  await expect(
+    client.recoverPharmacySupplierCreditAllocationReversal(
+      scope,
+      credit,
+      allocation,
+      entry,
+      undefined,
+      { original: receipt, input: reverseInput },
+    ),
+  ).rejects.toThrow();
+  vi.mocked(apiFetch).mockResolvedValue({ ...reversal, reason: "TEST changed reversal" });
+  await expect(
+    client.recoverPharmacySupplierCreditAllocationReversal(
+      scope,
+      credit,
+      allocation,
+      entry,
+      undefined,
+      { original: receipt, input: reverseInput },
+    ),
+  ).rejects.toThrow();
+  vi.mocked(apiFetch).mockResolvedValue(reversal);
+  expect(
+    await client.recoverPharmacySupplierCreditAllocationReversal(
+      scope,
+      credit,
+      allocation,
+      entry,
+      undefined,
+      { original: receipt, input: reverseInput },
+    ),
+  ).toEqual(reversal);
+});
+
+it("reads a bounded bill journal across credit documents with current actor/outlet preconditions", async () => {
+  const row = { ...receipt, reversal_id: null };
+  const page = {
+    data: [
+      row,
+      {
+        ...row,
+        id: entry,
+        credit_id: entry,
+        credit_document_reference: "TEST-CN-TWO",
+        recorded_by: "TEST-other-finance",
+      },
+    ],
+    page: { has_more: false, next_cursor: null },
+  };
+  vi.mocked(apiFetch).mockResolvedValue(page);
+  expect(await client.listPharmacyPayableCreditAllocations(scope, payable)).toEqual(page);
+  expect(apiFetch).toHaveBeenCalledWith(
+    `/pharmacy/pharmacies/${scope.pharmacyId}/outlets/${scope.outletId}/accounts/payables/${payable}/supplier-credit-allocations?limit=50`,
+    expect.objectContaining({
+      cache: "no-store",
+      headers: {
+        "X-Helivanta-Expected-Tenant": scope.tenantId,
+        "X-Helivanta-Expected-Subject": scope.subject,
+      },
+    }),
+  );
+});
+it.each([
+  { payable_id: entry },
+  { outlet_id: entry },
+  { version: 3 },
+  { available_minor: 251 },
+  { outstanding_minor: 681 },
+])("refuses contradictory or wrong-scope bill journal evidence %j", async (patch) => {
+  vi.mocked(apiFetch).mockResolvedValue({
+    data: [{ ...receipt, reversal_id: null, ...patch }],
+    page: { has_more: false, next_cursor: null },
+  });
+  await expect(client.listPharmacyPayableCreditAllocations(scope, payable)).rejects.toThrow();
+});
+it("rejects duplicate journal entries and non-advancing continuation", async () => {
+  const row = { ...receipt, reversal_id: null };
+  vi.mocked(apiFetch).mockResolvedValue({
+    data: [row, row],
+    page: { has_more: false, next_cursor: null },
+  });
+  await expect(client.listPharmacyPayableCreditAllocations(scope, payable)).rejects.toThrow();
+  vi.mocked(apiFetch).mockResolvedValue({
+    data: [row],
+    page: { has_more: true, next_cursor: "TEST-cursor" },
+  });
+  await expect(
+    client.listPharmacyPayableCreditAllocations(scope, payable, "TEST-cursor"),
+  ).rejects.toThrow();
+});

@@ -226,6 +226,7 @@ export async function recoverPharmacySupplierCreditVoid(
   credit: string,
   entry: string,
   signal?: AbortSignal,
+  expectedInput?: PharmacySupplierCreditVoidInput,
 ) {
   const row = checkedVoid(
     scope,
@@ -236,6 +237,11 @@ export async function recoverPharmacySupplierCreditVoid(
     ),
   );
   if (!sameID(row.id, entry) || row.recorded_by !== scope.subject) return mismatch();
+  if (expectedInput) {
+    const input = pharmacySupplierCreditVoidInputSchema.parse(expectedInput);
+    if (row.expected_version !== input.expected_version || row.reason !== input.reason)
+      return mismatch();
+  }
   return row;
 }
 
@@ -244,6 +250,8 @@ export {
   pharmacySupplierCreditVoidInputSchema,
   pharmacySupplierCreditMatchInputSchema,
   pharmacySupplierCreditMatchReversalInputSchema,
+  pharmacySupplierCreditAllocationInputSchema,
+  pharmacySupplierCreditAllocationReversalInputSchema,
 };
 
 export type PharmacySupplierCreditMatchInput = z.infer<
@@ -442,8 +450,9 @@ export async function readPharmacySupplierCreditMatchReversal(
   credit: string,
   match: string,
   signal?: AbortSignal,
+  original?: PharmacySupplierCreditMatch,
 ) {
-  return checkedMatchReversal(
+  const row = checkedMatchReversal(
     scope,
     credit,
     match,
@@ -452,6 +461,26 @@ export async function readPharmacySupplierCreditMatchReversal(
       request(scope, signal),
     ),
   );
+  checkMatchReversalSource(scope, credit, match, row, original);
+  return row;
+}
+
+function checkMatchReversalSource(
+  scope: PharmacyActorScope,
+  credit: string,
+  match: string,
+  row: PharmacySupplierCreditMatchReversalReceipt,
+  original?: PharmacySupplierCreditMatch,
+) {
+  if (!original) return;
+  const source = checkedMatchView(scope, credit, match, original);
+  if (
+    !sameID(row.return_id, source.return_id) ||
+    row.return_number !== source.return_number ||
+    row.amount_minor !== source.amount_minor ||
+    (source.reversal_id != null && !sameID(row.id, source.reversal_id))
+  )
+    return mismatch();
 }
 
 export async function recoverPharmacySupplierCreditMatchReversal(
@@ -460,6 +489,10 @@ export async function recoverPharmacySupplierCreditMatchReversal(
   match: string,
   entry: string,
   signal?: AbortSignal,
+  expected?: {
+    original: PharmacySupplierCreditMatch;
+    input?: PharmacySupplierCreditMatchReversalInput;
+  },
 ) {
   const row = checkedMatchReversal(
     scope,
@@ -471,6 +504,16 @@ export async function recoverPharmacySupplierCreditMatchReversal(
     ),
   );
   if (!sameID(row.id, entry) || row.recorded_by !== scope.subject) return mismatch();
+  checkMatchReversalSource(scope, credit, match, row, expected?.original);
+  if (expected?.input) {
+    const input = pharmacySupplierCreditMatchReversalInputSchema.parse(expected.input);
+    if (
+      row.expected_version !== input.expected_version ||
+      row.expected_return_matched_minor !== input.expected_return_matched_minor ||
+      row.reason !== input.reason
+    )
+      return mismatch();
+  }
   return row;
 }
 
@@ -488,6 +531,9 @@ export type PharmacySupplierCreditAllocationInput = z.infer<
 >;
 export type PharmacySupplierCreditAllocationReceipt = z.infer<
   typeof pharmacySupplierCreditAllocationReceiptSchema
+>;
+export type PharmacySupplierCreditAllocation = z.infer<
+  typeof pharmacySupplierCreditAllocationViewSchema
 >;
 function checkedAllocation(
   scope: PharmacyActorScope,
@@ -576,6 +622,7 @@ export async function recoverPharmacySupplierCreditAllocation(
   credit: string,
   allocation: string,
   signal?: AbortSignal,
+  expectedInput?: PharmacySupplierCreditAllocationInput,
 ) {
   const row = checkedAllocation(
     scope,
@@ -586,7 +633,11 @@ export async function recoverPharmacySupplierCreditAllocation(
       request(scope, signal),
     ),
   );
-  if (row.recorded_by !== scope.subject) return mismatch();
+  if (
+    row.recorded_by !== scope.subject ||
+    (expectedInput && allocationIntent(row) !== allocationIntent(expectedInput))
+  )
+    return mismatch();
   return row;
 }
 
@@ -681,13 +732,36 @@ export async function listPharmacySupplierCreditAllocations(
   for (const row of page.data) checkedAllocationView(scope, credit, row.id, row);
   return page;
 }
+export async function listPharmacyPayableCreditAllocations(
+  scope: PharmacyActorScope,
+  payable: string,
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  const bill = pharmacySupplierCreditAllocationInputSchema.shape.payable_id.parse(payable);
+  const query = new URLSearchParams({ limit: "50" });
+  if (cursor !== null) query.set("cursor", cursorSchema.parse(cursor));
+  const page = allocationPage.parse(
+    await apiFetch(
+      `${pharmacyRoot(scope)}/accounts/payables/${bill}/supplier-credit-allocations?${query}`,
+      request(scope, signal),
+    ),
+  );
+  checkCreditContinuation(page, cursor);
+  for (const row of page.data) {
+    checkedAllocationView(scope, row.credit_id, row.id, row);
+    if (!sameID(row.payable_id, bill)) return mismatch();
+  }
+  return page;
+}
 export async function readPharmacySupplierCreditAllocationReversal(
   scope: PharmacyActorScope,
   credit: string,
   allocation: string,
   signal?: AbortSignal,
+  original?: PharmacySupplierCreditAllocation,
 ) {
-  return checkedAllocationReversal(
+  const row = checkedAllocationReversal(
     scope,
     credit,
     allocation,
@@ -696,6 +770,27 @@ export async function readPharmacySupplierCreditAllocationReversal(
       request(scope, signal),
     ),
   );
+  checkAllocationReversalSource(scope, credit, allocation, row, original);
+  return row;
+}
+function checkAllocationReversalSource(
+  scope: PharmacyActorScope,
+  credit: string,
+  allocation: string,
+  row: PharmacySupplierCreditAllocationReversalReceipt,
+  original?: PharmacySupplierCreditAllocation,
+) {
+  if (!original) return;
+  const source = checkedAllocationView(scope, credit, allocation, original);
+  if (
+    !sameID(row.payable_id, source.payable_id) ||
+    row.amount_minor !== source.amount_minor ||
+    row.payable_reference !== source.payable_reference ||
+    row.credit_document_reference !== source.credit_document_reference ||
+    row.payee_name !== source.payee_name ||
+    (source.reversal_id != null && !sameID(row.id, source.reversal_id))
+  )
+    return mismatch();
 }
 export async function recoverPharmacySupplierCreditAllocationReversal(
   scope: PharmacyActorScope,
@@ -703,6 +798,10 @@ export async function recoverPharmacySupplierCreditAllocationReversal(
   allocation: string,
   entry: string,
   signal?: AbortSignal,
+  expected?: {
+    original: PharmacySupplierCreditAllocation;
+    input?: PharmacySupplierCreditAllocationReversalInput;
+  },
 ) {
   const row = checkedAllocationReversal(
     scope,
@@ -714,6 +813,13 @@ export async function recoverPharmacySupplierCreditAllocationReversal(
     ),
   );
   if (!sameID(row.id, entry) || row.recorded_by !== scope.subject) return mismatch();
+  checkAllocationReversalSource(scope, credit, allocation, row, expected?.original);
+  if (
+    expected?.input &&
+    JSON.stringify(pharmacySupplierCreditAllocationReversalInputSchema.strip().parse(row)) !==
+      JSON.stringify(pharmacySupplierCreditAllocationReversalInputSchema.parse(expected.input))
+  )
+    return mismatch();
   return row;
 }
 

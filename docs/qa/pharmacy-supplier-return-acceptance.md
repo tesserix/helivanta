@@ -162,8 +162,10 @@ SDK suite must pass together; they do not establish browser or live acceptance.
 The hosted spec extends the existing dispatch journey with real credit entry and
 response-loss recovery, then captures `supplier-credit-recovered` for visual review.
 Local component/SDK tests do not substitute for that hosted run or live acceptance.
-Matching is now a development UI candidate; bill application, reversal and
-void/correction controls still require finance UI and complete browser acceptance.
+Matching, full match reversal and bill application/reversal are development UI
+candidates pending their latest hosted/visual and live acceptance. Credit void is
+also a candidate control, as is explicit replacement of a voided note on its
+original return. Latest hosted/visual/live acceptance remains required.
 Document entry and matching are not bill settlement.
 
 ### Match actual credit to dispatched returns
@@ -193,8 +195,160 @@ Document entry and matching are not bill settlement.
    hide cached private references. Changing a retained in-memory matching intent
    must not turn an unrelated recovered receipt into a verified match.
 
+### Review and reverse an original match
+
+1. Open **Review match** from the named return's matching history. Verify its
+   original amount/reason and the current total return attribution across credit
+   documents. Review remains available without new-write authority. Current
+   observations come from the exact owner context, never the original receipt's
+   historical totals or a scan of eligible-source pages.
+2. With current financial editor authority and Payables availability, enter an
+   explicit reversal reason and choose **Reverse full match**. A stale observation
+   must refuse without a partial reversal; preserve the reason, refresh current
+   observations, review them and explicitly submit a new command.
+3. Verify the original match is marked reversed and retains its immutable amount,
+   recorder and reason. Retained reversal evidence identifies its own reason and
+   named recorder. Other credit documents' attribution, unused actual credit,
+   bill liability and physical stock remain unchanged. A financial reversal does
+   not receive dispatched medicines back into stock.
+4. Lose the committed reversal response in the hosted fixture, reload and reopen
+   the named credit. The pending reversal must reopen from only its scoped
+   command/match references, even when its original match has left the active
+   set or new writes are disabled. Choose **Check original reversal** and verify
+   the same command, one PUT and no automatic retry. Re-enter a missing original
+   only with its retained reference; never generate a replacement command while
+   its outcome remains uncertain.
+5. Repeat after void: original and reversal evidence remains readable, with no
+   new reversal offered. Wrong-source/actor/intent results or failed current
+   disclosure must not be presented as verified. A storage failure must prevent
+   submission or preserve the existing reference for recovery.
+
+### Apply actual credit and reverse after bill payment
+
+1. Fully pay the original source bill through the normal owning payment API.
+   Verify the credit remains unused. Create a separate later receipt and inventory
+   bill for that supplier; do not reuse the same receipt on two bills.
+2. Open the named credit and choose **Apply credit to bill**. Select the named
+   eligible bill. The amount must start blank; enter it, a date and reason
+   explicitly. Verify unused credit and outstanding liability are distinct.
+   Exceeding either balance or using a date before either document or after the
+   current outlet date must prevent submission. Matching the entire credit to
+   returns must not incorrectly remove its unused pool.
+3. Apply INR 5.00 from a INR 7.50 credit to a INR 11.80 later bill. Verify unused
+   credit becomes INR 2.50, applied credit INR 5.00 and outstanding INR 6.80.
+   The original fully paid bill remains unchanged. In the disposable hosted
+   fixture, lose the committed response, reload, reopen the credit and choose
+   **Check original bill application**. Verify one PUT and the same original.
+4. Record INR 6.80 against the later bill through the normal payment API. The
+   bill is now fully paid and absent from eligible choices. From application
+   history choose **Review application**: exact original context must still
+   show INR 0.00 outstanding and INR 6.80 retained payment.
+5. Enter a reversal reason/date on or after the original application and no later
+   than the outlet date. Choose **Reverse full bill application**. Verify INR
+   7.50 unused credit, zero applied credit, INR 5.00 restored liability and INR
+   6.80 retained payment. Original application amount/reason/recorder remain
+   immutable, with separate named reversal evidence. Stock, cash and matching
+   remain unchanged.
+6. Lose the committed reversal response in the hosted fixture, reload and reopen
+   the named credit. The original review reopens from its scoped references;
+   choose **Check original bill application reversal**. Verify one PUT and the
+   same reversal. Recovery for both commands must also work when writes are
+   disabled, without querying eligible choices. Reference storage contains no
+   supplier, amount or reason. No unknown outcome may cause automatic retry.
+7. Exercise stale credit/bill observations, scope/actor changes, source/history
+   refusal and storage failure. New commands fail closed; cached private evidence
+   is hidden on refusal. After confirmed not-found recovery, only the exact
+   original command/intent may retry. After reload, re-entry must keep the same
+   command identity. A cleanup failure retains recovery and blocks another write.
+
+### Void an unused note without erasing evidence
+
+1. Confirm the note has zero active return matches and zero bill applications.
+   **Void unused credit** must be unavailable while either remains, when the
+   note is already voided/corrected, or when write authority is unavailable.
+   Reverse matches and applications through their own explicit commands first.
+2. Open **Void unused credit**, enter a reason and confirm. A current version is
+   required. Stale refusal preserves the reason; refresh observations and review
+   before explicitly submitting a new command. No automatic replacement is made.
+3. Verify the note is retained as Voided with its immutable original amount,
+   separate void reason and named recorder. Unused credit becomes zero. Bill
+   liability, payment history and stock remain unchanged. Original matching and
+   application/reversal history remains readable under current read authority.
+4. In the hosted fixture, lose the committed response, reload and reopen the
+   named credit. Choose **Check original credit void** and verify one PUT and the
+   same actor-bound original. Recovery remains available with writes disabled;
+   only its scoped command reference is stored. Wrong retained reason/version,
+   actor or scope cannot be accepted as successful recovery.
+5. Refuse a refreshed retained-void read: hide cached reason/recorder and recheck
+   current access. Unavailable reference storage prevents submission. Failed
+   cleanup retains the same recovery reference and blocks another command.
+
+### Replace the voided note with explicit corrected evidence
+
+1. Open the named voided credit and choose **Replace voided credit**. Current
+   financial editor authority and Payables admission remain required. Active or
+   already corrected originals cannot offer another replacement. Original note
+   and return references are displayed by name; there is no raw-ID entry or
+   supplier-name lookup. This corrects the note on its original dispatched return.
+2. Enter the replacement's reference, issue date, actual amount and reason
+   explicitly. Amount and date must start blank. Confirm the owning API preserves
+   the original supplier/currency and enforces a unique correction. A stale
+   refusal must keep the entered values; refresh original observations and review
+   before another explicit submission.
+3. In the hosted fixture, replace the voided INR 7.50 note with an explicit INR
+   8.00 note. Lose the committed response, reload and reopen the original, which
+   is now Corrected. Choose **Check original credit**. Verify one PUT, selection
+   of the new named credit, exact `correction_of` linkage in authorised API
+   evidence, INR 8.00 unused new credit and zero unused original credit. The
+   original amount and void evidence remain immutable. Bill liability, retained
+   payment and physical stock remain unchanged.
+4. Repeat recovery with new writes disabled and after closing/resuming the
+   correction form. Only the original command reference is stored, additionally
+   bound to the original note and current actor/outlet. A response for another
+   original, return, supplier or currency must not be called verified, even when
+   no submitted intent survives reload. Account/outlet changes must not expose
+   another correction reference. Unknown outcomes never automatically retry.
+5. Recheck current disclosure before exposing the original/form. Unavailable or
+   refused current owner context hides cached evidence. A replacement is not a
+   payment, return attribution, bill application, tax decision or automatic credit
+   accepted from the platform supplier; those remain separate commands/boundaries.
+
+## Review credits from the original bill
+
+1. After applying an actual credit, open **Accounts → All bills** and choose the
+   named target bill. In **Supplier credit applications**, verify the human note
+   reference, original applied amount, date, reason, recorder name and Active
+   status. Receipt and account UUIDs must not appear in rendered content.
+2. Compare the owner's bill totals with the application; do not sum a partial
+   history page as the bill balance. Direct legacy adjustments remain in their
+   separate settlement history. Use read-only finance staff to confirm that
+   reviewing history needs no adjustment authority or Stock permission.
+3. After a retained payment and full application reversal, reopen that bill.
+   Verify Reversed status and use **View reversal** to inspect its exact reason,
+   date and recorder. The original applied amount remains visible, payment is
+   retained, and owner liability reflects the reversal. The hosted journey
+   captures `bill-supplier-credit-history` at this point.
+4. Check multiple actual documents applied to one bill, pagination, a bill with
+   no managed credit and a fully paid bill subsequently reopened by reversal.
+   A cursor from another bill, foreign outlet/tenant, revoked current authority
+   and failed read audit must not disclose journal evidence. A changed account
+   must immediately lose the previous account's selected reversal.
+5. Refuse a current history/reversal read after loading it: cached private rows
+   and affected reversal details must be hidden until a fresh authorised retry.
+   Use the hosted harness for injected failures. Never disrupt the shared live
+   environment for this purpose.
+
+The candidate reuses `SupplierCreditAllocationView` with a 50-row resource cursor,
+baseline retained-read admission and accounts-read authority. Migration 0063
+adds its concurrent bill-history index. Hosted native tests inspect a two-row
+synthetic query plan; this is not a large-cardinality performance measurement.
+Record actual hosted and live evidence before marking these cases passed.
+
 CI retains only the named synthetic `commercial-return-note-print`,
-`supplier-credit-recovered` and `supplier-credit-matched` PNGs in the
+`supplier-credit-recovered`, `supplier-credit-matched`,
+`supplier-credit-match-reversed`, `supplier-credit-applied` and
+`supplier-credit-application-reversed`, `supplier-credit-voided` and
+`supplier-credit-corrected` and `bill-supplier-credit-history` PNGs in the
 `supplier-return-visual-evidence` artifact for seven days. The capture runs before
 later Playwright phases overwrite their reports; missing required images fail
 capture. Download and visually inspect that artifact before accepting the UI.
@@ -204,8 +358,11 @@ No live patient, staff or supplier data belongs in these fixtures.
 
 `e2e/tests/pharmacy-supplier-return-dispatch.spec.ts` exercises the real browser,
 Global API and owning backend for preparation and dispatch response-loss recovery,
-then commercial-note download/print-media rendering and actual credit-entry
-response-loss recovery through the Supplier credits workspace.
+then commercial-note download/print-media rendering, actual credit entry,
+matching/reversal, application/paid-bill reversal, void and replacement with response-loss recovery
+through the Supplier credits workspace, plus retained applications/reversal
+from the actual target bill. Inspect the latest hosted run before
+recording any of these candidate journeys as passed.
 `TestSupplierReturn*` includes native ownership, authority, concurrency, receipt
 cap and audit/outbox cases. Local compilation/targeted tests alone do not prove
 hosted or deployed acceptance.

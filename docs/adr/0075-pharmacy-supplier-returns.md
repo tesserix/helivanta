@@ -336,3 +336,45 @@ credit and future-bill setup for all ownership models (44907683241/job1368566466
 Current wired SQL/handler behavior is pending hosted execution. Source selectors,
 financial UI/SDK, expanded concurrency/rollback/report checks and live acceptance
 remain required; these journals alone do not complete #1784 or activate payables.
+
+### Correction entry in Accounts
+
+The candidate replacement control starts from the current finance context of a
+named voided note. It binds the original note and dispatched return internally;
+it cannot select a supplier by name or accept raw identifiers. A replacement
+enters its own reference, date, amount and reason explicitly. Existing owner
+commands enforce same supplier/currency, unique correction, source validity and
+the original voided state atomically. No new service, query, data master, endpoint
+or infrastructure is introduced; existing one-command deadlines, bounded payloads
+and financial-read/write release gates apply, with no deployment cost change.
+
+Reuse the actual-credit form and canonical input rather than maintain a second
+note schema. Isolate correction recovery by original note as well as actor/outlet,
+validate recovered linkage against that original even after reload, and keep
+recovery readable after the original becomes corrected or new writes pause.
+Unknown outcomes retain the command identity without automatic retry. Current
+disclosure failures hide the form; stale state refuses without changing history.
+An application to another bill remains a separate command after replacement.
+Tests must cover explicit linkage, wrong-original recovery, lost committed response,
+withdrawn writes and unchanged stock/payments. Hosted and live acceptance remain
+required before release; this UI does not establish statutory credit-note policy.
+
+### Bill-scoped supplier-credit journal
+
+Accounts reads `GET /payables/:id/supplier-credit-allocations` from PharmaConnect
+through Global API. Reuse the canonical allocation view and retained reversal
+identity; do not scan all credits client-side or create a second settlement master.
+Verify the bill in the current tenant/exact outlet and validate retained evidence.
+Each page requires a committed disclosure audit and current accounts-read authority,
+including when new operating Payables admission is paused. No new write authority
+or money movement is introduced. Wrong/missing bill scope is 404; unavailable
+identity/audit releases no rows. Use sealed financial keyset cursors and a 50-row cap.
+
+Add forward concurrent index migration 0063 for tenant/outlet/bill/created_at/id
+ordering. Existing RLS, deadlines and pool budgets apply; no infrastructure/cost
+allocation change. Hosted migration/native tests and actual EXPLAIN evidence are
+required; a small synthetic plan is not proof of large-cardinality performance.
+The bill UI separates direct settlements from managed applications, displays owner
+totals rather than partial-page sums, hides refused cached evidence, and uses
+human references/named recorders instead of receipt/reversal UUIDs. Extend the
+hosted journey to inspect bill history after application and paid-bill reversal.

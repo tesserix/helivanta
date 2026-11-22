@@ -118,6 +118,43 @@ func (f supplierCompoundFixture) assertHospitalSupplierReceiving(t *testing.T, a
 		acceptedTotal += accepted
 		stock(quarantine, 0)
 		stock(shelf, acceptedTotal)
+		receiptVersion, summaryVersion := int64(1), int64(2)
+		if index == 1 {
+			require.True(t, t.Run("independent recount preserves released stock and original receipt", func(t *testing.T) {
+				correctionPath := receiptPath + "/corrections/" + uuid.Must(uuid.NewV7()).String()
+				correction := fulfilment.ReceivingCorrectionInput{ExpectedSummaryVersion: 2, ExpectedReceiptVersion: 1, CountedUnits: 4, AcceptedUnits: 2, RejectedUnits: 2, Reason: "TEST recount identifies the previously short unit as rejected custody"}
+				f.hospitalCall(t, "PUT", correctionPath, receiver, correction, 409)
+				stale := correction
+				stale.ExpectedSummaryVersion = 1
+				f.hospitalCall(t, "PUT", correctionPath, reviewer, stale, 409)
+				recount := f.hospitalCall(t, "PUT", correctionPath, reviewer, correction, 200)
+				require.Equal(t, float64(2), recount["version"])
+				require.Equal(t, float64(0), recount["accepted_delta_units"])
+				require.Equal(t, float64(4), recount["cumulative_counted_units"])
+				require.Equal(t, float64(2), recount["cumulative_rejected_units"])
+				require.Equal(t, recount, f.hospitalCall(t, "PUT", correctionPath, reviewer, correction, 200))
+				require.Equal(t, recount, f.hospitalCall(t, "GET", correctionPath, receiver, nil, 200))
+				changed := correction
+				changed.Reason = "TEST conflicting correction intent"
+				f.hospitalCall(t, "PUT", correctionPath, reviewer, changed, 409)
+				original := f.hospitalCall(t, "GET", receiptPath+"/creation-receipt", receiver, nil, 200)
+				require.Equal(t, received, original, "recount cannot rewrite original receipt evidence")
+				open := f.hospitalCall(t, "GET", base+"/receiving", receiver, nil, 200)["summary"].(map[string]any)
+				require.Equal(t, float64(3), open["version"])
+				require.Equal(t, false, open["closed"], "recount requires a new explicit closure")
+				stock(quarantine, 0)
+				stock(shelf, acceptedTotal)
+				require.Equal(t, released, f.hospitalCall(t, "GET", releasePath, reviewer, nil, 200), "original release evidence survives a later recount")
+				reclose := fulfilment.ReceivingClosureInput{ExpectedCountedUnits: 4, ExpectedSummaryVersion: ptr(int64(3)), Reason: "TEST independently recounted rejected unit explicitly closed"}
+				reclosePath := base + "/closures/" + uuid.Must(uuid.NewV7()).String()
+				closed := f.hospitalCall(t, "PUT", reclosePath, receiver, reclose, 200)
+				require.Equal(t, float64(2), closed["rejected_units"])
+				require.Equal(t, float64(0), closed["short_units"])
+				require.Equal(t, closed, f.hospitalCall(t, "PUT", reclosePath, receiver, reclose, 200))
+			}))
+			receiptVersion, summaryVersion = 2, 4
+			rejected, short = 2, 0
+		}
 		current := f.hospitalCall(t, "GET", base+"/receiving", receiver, nil, 200)
 		require.Equal(t, "recorded", current["state"])
 		head := current["summary"].(map[string]any)
@@ -125,7 +162,7 @@ func (f supplierCompoundFixture) assertHospitalSupplierReceiving(t *testing.T, a
 		require.Equal(t, float64(short), head["short_units"])
 		require.Equal(t, float64(rejected), head["rejected_units"])
 		require.True(t, t.Run("actual acquisition bill payment credit and reversal", func(t *testing.T) {
-			assertSupplierReceiptFinancials(t, admin, shipment, receiptID, product, batch, accepted, acceptedTotal, rejected+short)
+			assertSupplierReceiptFinancials(t, admin, shipment, receiptID, product, batch, accepted, acceptedTotal, rejected+short, receiptVersion, summaryVersion)
 		}))
 		stock(quarantine, 0)
 		stock(shelf, acceptedTotal)

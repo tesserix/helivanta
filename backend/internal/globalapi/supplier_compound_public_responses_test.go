@@ -15,6 +15,9 @@ func (f supplierCompoundFixture) assertPublicReceivingResponses(t *testing.T, op
 	for _, shipment := range shipments {
 		source := "/v1/supply/stock-owners/" + shipment.Product.Owner + "/organizations/" + shipment.SourceOrganizationID.String() + "/locations/" + shipment.SourceLocationID.String() + "/supplier-orders/" + shipment.OrderID.String()
 		path := source + "/shipments/" + shipment.ID.String() + "/receiving"
+		buyerHead := f.hospitalCall(t, "GET", "/v1/pharmacy/hospitals/"+shipment.HospitalID.String()+"/departments/"+department.String()+"/outlets/"+shipment.BuyerLocationID.String()+"/supplier-shipments/"+shipment.ID.String()+"/receiving", receiver, nil, 200)["summary"].(map[string]any)
+		wantedVersion := int64(buyerHead["version"].(float64))
+		require.True(t, buyerHead["closed"].(bool))
 		var summary fulfilment.ReceivingSummary
 		require.Eventually(t, func() bool {
 			response := f.sourceStaffRequest(t, operator.principal, "GET", path, nil)
@@ -23,7 +26,7 @@ func (f supplierCompoundFixture) assertPublicReceivingResponses(t *testing.T, op
 				return false
 			}
 			require.NoError(t, json.Unmarshal(response.Body.Bytes(), &summary))
-			return summary.Closed && summary.Version == 2
+			return summary.Closed && summary.Version == wantedVersion
 		}, 20*time.Second, 100*time.Millisecond)
 		require.Equal(t, shipment.BuyerTenantID, summary.OwnerTenantID)
 		require.Equal(t, shipment.ID, summary.ShipmentID)

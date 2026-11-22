@@ -35,7 +35,6 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 		require.Equal(t, 200, response.Code, "receipt %d", i)
 	}
 	t.Logf("created 10000 distinct stocked batches through normal APIs in %s", time.Since(fixtureStart))
-	testutil.StocktakeDiagnostics(t, db)
 	path := outletPath("/stock/stocktakes/") + uuid.Must(uuid.NewV7()).String()
 	start := time.Now()
 	response := do(r, "PUT", path, "editor", fmt.Sprintf(`{"selection":"all","product_ids":[],"quarantine_location_id":%q,"reason":"TEST capacity count"}`, location))

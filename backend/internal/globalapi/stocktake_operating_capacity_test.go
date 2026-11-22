@@ -30,7 +30,6 @@ func TestStocktakeReviewedCapacityAt10000Buckets(t *testing.T) {
 	})
 	f.input.TemplateKey = "pharmacy.stocktake_counter.v1"
 	f.activate(t)
-	testutil.StocktakeDiagnostics(t, f.db)
 	path := "/v1/pharmacy/pharmacies/" + f.pharmacy + "/operating-locations/" + f.outlet + "/stocktakes/" + v7()
 	measure := func(name string, run func() string) string {
 		start := time.Now()

@@ -2513,7 +2513,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 						grantDepartment(recipient, purchaseDepartment.String(), purchasePathStrings, "supply.department_purchase_order_preparer.v1", supply.PermPurchaseOrderPrepare)
 						grantDepartment(postingRootApprover, purchaseDepartment.String(), purchasePathStrings, "supply.department_purchase_order_reviewer.v1", supply.PermPurchaseOrderReview)
 						grantDepartment(recipient, purchaseDepartment.String(), purchasePathStrings, "supply.department_goods_receiver.v1", supply.PermGoodsReceiptRecord)
-						grantDepartment(postingRootApprover, purchaseDepartment.String(), purchasePathStrings, "supply.department_goods_receipt_reviewer.v1", supply.PermGoodsReceiptReview)
+						grantDepartment(postingRootApprover, purchaseDepartment.String(), purchasePathStrings, "supply.department_goods_reviewer.v1", supply.PermGoodsReceiptReview)
 						cutoff := (supplierCompoundFixture{graphUnavailable: &authorizationUnavailable, db: db, graph: graph, registry: registry, signer: signer, handler: gateway, files: documents, binding: pharmacyBindingPrepared, hospitalCall: call}).assertAdmission(t, recipient, postingRootApprover, member)
 						assertSupplierRecipientCurrentMembership(t, db, authority, platform.PartnerMembers([]platform.Module{workforce.New(), organization.New()}, db), testutil.TenantA, recipient, member, call, postingRootApprover)
 						cutoff()

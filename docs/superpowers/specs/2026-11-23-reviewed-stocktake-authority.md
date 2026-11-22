@@ -57,24 +57,51 @@ reviewed plan and unresolved submission failure before removing probes and
 rerunning clean gates.
 
 Read-contract red run 45069725952 failed as intended on the missing header
-route (expected 200, actual 404). Candidate `1faa7059` adds current reviewed
-header/list/register reads and excludes legacy counts, including from line
-reads. The bounded, locked CSV loader and response metadata are reused by both
-legacy and reviewed routes; current reviewed read authority and attributable
-evidence are required before returning bytes. Focused validation 45070732446
-failed at the list read because the shared receiving/fulfilment audit vocabulary
-cannot represent a Stocktake collection. Candidate `fcbab7f7` instead records
-outlet-level `list_read` provenance in the Stocktake evidence table. A constraint
-requires a null count reference only for collection evidence; all record/command
-reads retain their foreign keys. Focused run 45071343169 validates the correction.
-Commit `83ce2c75` also adds provenance/audit failure and rollback assertions, not
-yet executed. No full read acceptance is claimed yet.
+(expected 200, actual 404). Candidate `1faa7059` added current reviewed
+header/list/register reads and excludes legacy counts, including from line reads.
+It reuses the bounded, locked CSV loader and response metadata. Run 45070732446
+passed header/register assertions but failed because the existing receiving/
+fulfilment audit vocabulary cannot represent Stocktake collections. Candidate
+`fcbab7f7` records outlet-level `list_read` provenance in the Stocktake evidence
+table instead; only collection evidence may omit its count reference. Run
+45071343169 passed the complete reviewed-read flow.
+
+Commit `83ce2c75` added provenance/audit failure and rollback assertions. Run
+45072028740 passed those assertions but failed fixture cleanup, because the test
+context is canceled before cleanup. `e68434c7` gives cleanup its own bounded
+context. Run 45072841622 then passed build/vet, contract generation/check and both
+reviewed-read tests, including scope/legacy separation, actual posted register,
+failed provenance/audit rollback, unchanged physical stock, retry and cleanup.
+
+The snapshot plan from diagnostic 45071888071 took 9.569 s with 10,000 batch
+lookups, each filtering approximately 5,000 same-product batches, plus repeated
+legacy/receiving purpose checks. Candidate `b20a609b` selects the reviewed RLS
+branch directly, preserving prior behavior for all other purposes. Diagnostic
+45072654770 reduced the reviewed snapshot to 4.728 s: movement lookup time fell
+from approximately 1.524 s to 27 ms and repeated location lookup from 0.302 ms
+to 0.005 ms per loop. Start still timed out at the unchanged five-second gateway
+limit; the batch lookup/filter problem remained.
+
+Candidate `90b32a88` registers forward concurrent migration0066 with the exact
+`(tenant_id,outlet_id,product_id,id)` batch index. It does not replace existing
+indexes or block live writers during index creation. Diagnostic45073576675 is
+running; no improvement or live application of this index is claimed yet.
+
+A separate submission failure was localized to the command insert, canceled at
+approximately 10 s. Candidate `2b6abb2f` compiles the completeness query only when
+submission occurs, rather than preparing it during early count commands before
+observations exist. Its expected effect on stale cached plans remains a
+hypothesis pending clean capacity. The replacement preserves every original
+transition, independence, posting-bound and completeness condition. Clean hosted
+regression45072870012 runs with diagnostics disabled and includes this change;
+it predates the new index. No threshold or deadline was relaxed.
 
 Eligibility remains false. Hospital authority, withdrawal continuations,
 operational UI/SDK and both-model live acceptance remain open in #1686. All new
-read routes are still Stocktake-gated pending continuation design/acceptance;
-they do not yet satisfy withdrawal recovery. Source implementation alone does
-not establish either ownership model's complete release acceptance.
+read routes are still Stocktake-gated and do not yet satisfy withdrawal recovery.
+The implemented independent slice does not establish either ownership model's
+complete release acceptance. Candidate migrations0065/0066 and IAM0055 are not
+live; migration0064/main rollout remains separately pending named approval.
 
 ## Problem verified against source
 

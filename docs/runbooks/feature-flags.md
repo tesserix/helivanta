@@ -123,10 +123,11 @@ bindings control availability, and do not assign Staff or confer stock authority
 
 The unreleased independent/chain development path includes start, line reads,
 counting, submission, independent posting, rejection, cancellation and original
-command recovery with retained Staff/link/duty evidence. Core hosted acceptance
-has passed; full reviewed capacity, hospital department admission, withdrawal
-continuations, header/list/export, the operational page and positive live
-acceptance remain required by #1686. Keep eligibility false until those gates
+command recovery with retained Staff/link/duty evidence. Current reviewed
+header/list/register reads also passed hosted scope, audit-failure and rollback
+tests. Full reviewed capacity, hospital department admission, withdrawal
+continuations, the operational page/SDK and positive live acceptance remain
+required by #1686. Keep eligibility false until those gates
 and the capacity regression checks pass.
 
 ### Pending Staff authenticator recovery control

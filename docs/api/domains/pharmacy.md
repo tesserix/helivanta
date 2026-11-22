@@ -113,17 +113,25 @@ counts. Legacy counts are excluded from these headers, lists, line reads and
 registers. The existing CSV loader retains its shared lock, row/byte bounds,
 complete-row check, digest and retained version metadata. Read/audit failure
 withholds results and bytes. Red run 45069725952 returned the expected missing
-header 404. Implementation run 45070732446 passed header/register assertions but
-failed the list audit vocabulary; candidate `fcbab7f7` stores collection provenance
-in the Stocktake evidence table instead. Run 45071343169 checks this correction.
-Added audit/provenance fault-injection tests remain unexecuted. These routes remain
-Stocktake-gated and do not yet meet withdrawal-continuation acceptance.
+header 404. Run 45070732446 passed header/register assertions but failed the list
+audit vocabulary. Candidate `fcbab7f7` stores collection provenance in the
+Stocktake evidence table; only collection evidence can omit a count reference.
+Run 45071343169 passed that correction. Run 45072841622 additionally passed
+provenance/audit failure nondisclosure, rollback, unchanged stock, retry and
+fixture cleanup after correcting the canceled cleanup context. These routes are
+still Stocktake-gated; withdrawal-continuation acceptance remains open.
 
 Corrected actual reviewed-capacity run 45068914714 failed start at the unchanged
-five-second gateway deadline with 504. The movement-validation candidate passed
-core/regression checks in 45069240276, but legacy capacity failed at submission
-with 500 before posting. Both failures remain unresolved; diagnostic run
-45070964833 is separate from clean capacity acceptance.
+five-second gateway deadline with 504. Statement diagnostics and EXPLAIN in
+45071888071 identified repeated purpose checks and a batch join that filtered
+approximately 5,000 rows per lookup across 10,000 lookups. Candidate `b20a609b`
+selects reviewed RLS directly. Diagnostic45072654770 reduced snapshot time from
+9.569 s to 4.728 s, but total start still timed out. Forward concurrent
+migration0066 adds an exact tenant/outlet/product/batch index; validation
+45073576675 is running. A separate submission timeout prompted deferred
+completeness-query planning in `2b6abb2f`; clean regression45072870012 is running
+without diagnostics and predates the index. No capacity completion is claimed,
+no threshold was relaxed, and no candidate migration was applied live.
 
 ## Current contract families
 

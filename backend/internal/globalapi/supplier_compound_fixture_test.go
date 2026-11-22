@@ -249,6 +249,9 @@ func (f supplierCompoundFixture) assertAdmission(t *testing.T, subject, reviewer
 		{seller, "TEST Independent Compound Pharmacy", "TEST Compound Nagpur Premise"},
 		{warehouse, "TEST Independent Compound Distributor", "TEST Compound Nagpur Warehouse"},
 	}
+	require.True(t, t.Run("dispatch preflight checks the current buyer bulk policy", func(t *testing.T) {
+		f.assertDispatchBuyerPreflight(t, buyerActor, buyer, seller, warehouse)
+	}))
 	paths := map[string]string{}
 	for _, source := range sources {
 		require.True(t, t.Run(source.endpoint.Product+" reviewed source fulfilment Staff", func(t *testing.T) {

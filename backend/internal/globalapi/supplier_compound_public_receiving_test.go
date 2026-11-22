@@ -125,7 +125,7 @@ func (f supplierCompoundFixture) assertHospitalSupplierReceiving(t *testing.T, a
 		require.Equal(t, float64(short), head["short_units"])
 		require.Equal(t, float64(rejected), head["rejected_units"])
 		require.True(t, t.Run("actual acquisition bill payment credit and reversal", func(t *testing.T) {
-			assertSupplierReceiptFinancials(t, admin, shipment, receiptID, product, batch, accepted, rejected+short)
+			assertSupplierReceiptFinancials(t, admin, shipment, receiptID, product, batch, accepted, acceptedTotal, rejected+short)
 		}))
 		stock(quarantine, 0)
 		stock(shelf, acceptedTotal)

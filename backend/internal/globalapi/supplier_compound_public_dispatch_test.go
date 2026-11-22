@@ -84,6 +84,9 @@ func (f supplierCompoundFixture) assertPublicStockDispatch(t *testing.T, operato
 		require.Equal(t, operator.principal.Subject, receipt.ActorSubject)
 		require.Equal(t, operator.input.Identity.StaffID, receipt.ActorStaffID)
 		require.Equal(t, int64(10), receipt.Allocation.ReservedUnits+receipt.Allocation.DispatchedUnits)
+		if seller.Product == "supply" && index == 0 {
+			f.assertWarehouseDerivedBalanceIsProtected(t, operator, receipt)
+		}
 		replay := f.sourceStaffRequest(t, operator.principal, "PUT", commandPath, input)
 		require.Equal(t, 200, replay.Code, replay.Body.String())
 		require.JSONEq(t, dispatched.Body.String(), replay.Body.String())

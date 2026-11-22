@@ -64,7 +64,11 @@ func assertPostingRetainedAncestorCutoff(t *testing.T, db *tenantdb.DB, observer
 	call(t, "GET", postingLifecycleHistoryPath(childRoot, child), reviewer, nil, 409)
 	call(t, "GET", childRoot+selector, reviewer, nil, 200)
 	path := parentRoot + "/cutoffs/commands/" + uuid.Must(uuid.NewV7()).String()
-	input := map[string]any{"expected_revision_id": parent["revision_id"], "expected_cutoff_version": 0, "mode": "scheduled", "cutoff_at": time.Now().UTC().Add(5 * time.Minute).Format(time.RFC3339Nano), "reason": "Synthetic scheduled ancestor ending requires explicit lifecycle review", "sources_examined": true}
+	scheduledCutoff := time.Now().UTC().Add(5 * time.Minute)
+	childEnd, err := time.Parse(time.RFC3339Nano, fmt.Sprint(childTemplate["ends_at"]))
+	require.NoError(t, err)
+	require.True(t, childEnd.After(scheduledCutoff.Add(time.Minute)), "the child posting must outlast the scheduled ancestor cutoff and the posting drafted a minute after it; the fixture window is too short for this run")
+	input := map[string]any{"expected_revision_id": parent["revision_id"], "expected_cutoff_version": 0, "mode": "scheduled", "cutoff_at": scheduledCutoff.Format(time.RFC3339Nano), "reason": "Synthetic scheduled ancestor ending requires explicit lifecycle review", "sources_examined": true}
 	cutoff := call(t, "PUT", path, administrator, input, 200)
 	require.Equal(t, "scheduled", cutoff["mode"])
 	before := postingRootApprovalEffects(t, db, tenant, reviewer)

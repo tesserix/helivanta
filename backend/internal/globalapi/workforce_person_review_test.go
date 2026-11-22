@@ -2414,7 +2414,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 					postingIntent["ends_at"] = sourceCutoff.UTC().Format(time.RFC3339Nano)
 				}
 				if scenario == "posting_chain_child" {
-					postingIntent["ends_at"] = time.Now().UTC().Add(10 * time.Minute).Format(time.RFC3339Nano)
+					postingIntent["ends_at"] = time.Now().UTC().Add(30 * time.Minute).Format(time.RFC3339Nano)
 				}
 				scopedReceipt := call(t, "PUT", scopedCommandPath, recipient, postingIntent, 200)
 				require.Equal(t, "draft", scopedReceipt["status"])

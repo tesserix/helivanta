@@ -4,40 +4,47 @@ Status: implementation proposal, not an activated API or release approval.
 Depends on the tested capacity change in PR #1817. This document does not close
 #1686, grant operating access, or enable Stock/Catalogue.
 
-Development checkpoint: PR #1817 is merged as `0189efde`. The follow-up branch
-implements reviewed independent start/line reads and count entry/original receipt
-recovery with immutable Staff/link/duty evidence and canonical release bindings.
-The first count-entry hosted test failed as intended (45058843484, positive PUT
-expected 200/actual 404). Hosted validation 45059958549 passed build/vet, contract
-generation/check, native PostgreSQL stocktake regressions, Global API count and
-recovery/cutoff/rollback/legacy-boundary checks, IAM release admission and the
-Staff web tests/lint/types/build. The submission/recovery test first failed as intended in run 45060564552
-(expected 200/actual 404). Its implementation, cross-command conflict, submitted
-edit rollback, original recovery and counter approval denial passed Global API,
-native PostgreSQL and IAM release checks in clean run 45061412084; capacity is
-now green: start 4.670 s, page p99 12.53 ms, and posting 500 corrections
-4.954 s, with exact replay and stock conservation. All original gates are
-unchanged and the run contains no query probes. Canonical contracts are synced from that hosted artifact. A new
-independent approval/posting red test is pushed in 18fbadff and running in
-45062256483, with a separate Staff/account and exact one-time stock conservation.
-Eligibility remains false. Independent review/posting, same-Staff alias proof,
-hospital authority, operational UI and live acceptance below remain unfinished.
+Development checkpoint: PR #1817 is merged as `0189efde`; main CI
+45055181362 and signed-image run 45055181387 passed. Migration 0064 and its
+protected release/Kargo rollout still require named approval. No new live
+migration, identity, stock or release-flag change has been made.
 
-Capacity regression 45058563586 passed start at 4.624 s and page p99 at approximately
-10 ms, but 500 adjustments took 5.167 s and failed the unchanged five-second gate.
-Correct posting, replay and conservation passed. Diagnostic run 45059958549 used
-indexed movement bucket lookups and statement InitPlans for scope, with the
-10,000-line difference query taking approximately 44 ms. Its start/post timings
-were 2.585/2.727 s; these are diagnostic timings, not clean acceptance. All query
-probes and their workflow option were removed afterward. Clean acceptance run 45061412084 subsequently passed all original gates as
-recorded above. No deployment approval is claimed.
+The follow-up branch implements independent/chain start, paged line reads,
+counting, submission, review/rejection, cancellation and original command
+recovery. All commands retain immutable Staff/link/duty provenance. Hosted
+run 45066520716 passed native Workforce history, actual Global API independent
+posting/replay, same-Staff alias refusal, reservation-purpose visibility, native
+stocktake regression and IAM release admission. A distinct current reviewer can
+use exact retained evidence after the counter's account retires; historical
+aliases across separate current Staff records remain denied. Extended
+cancellation, rejection and dependency-failure assertions await the next run.
 
-Capacity scope clarification: run 45061412084 measures the existing shared ledger
-handlers after installing the added policies. It proves the legacy engine's
-unchanged regression gates, not the actual reviewed-duty IAM/source-history path.
-An additional uninstrumented 10,000-bucket/500-correction run through actual
-reviewed duties and the Global API is still required before claiming that path's
-latency acceptance. No broader capacity completion follows from the earlier run.
+Capacity evidence is deliberately separate. Clean run 45061412084 passed the
+**legacy/shared ledger** 10,000-bucket start (4.670 s), page p99 (12.53 ms) and
+500-correction post (4.954 s), with replay and conservation. Run 45066520716
+subsequently failed the unchanged posting budget at 5.021 s. No probes or relaxed
+thresholds are part of clean acceptance. Earlier instrumented diagnostic timings
+are not acceptance evidence.
+
+Run 45067289212 passed the legacy capacity gate and core regressions, but the
+new **actual reviewed-duty Global API** capacity fixture failed before measuring
+anything: its synthetic batch insert omitted mandatory `product_version`.
+Commit `8572b75f` supplies the canonical product version and price, decodes the
+actual `page.next_cursor` / `page.has_more` envelope, escapes cursors and bounds
+pagination. Hosted run 45068914714 validates this correction. The fixture seeds
+synthetic bulk stock for capacity; separate Global API acceptance creates stock
+through normal receiving commands. Reviewed-path capacity remains unproven.
+
+A proposed candidate-0065 optimization validates linked movement evidence once
+per inserted statement, while retaining quantity/reservation/location guards,
+forced RLS, audit, foreign keys and deferred command completeness. It must pass
+mixed-valid/invalid batch corruption regressions and both unchanged capacity
+gates before acceptance. Historical migration 0064 is unchanged.
+
+Eligibility remains false. Hospital authority, reviewed header/list/export,
+withdrawal continuations, operational UI/SDK and live acceptance remain open in
+#1686. The implemented independent slice does not establish either ownership
+model's complete release acceptance.
 
 ## Problem verified against source
 

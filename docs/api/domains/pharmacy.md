@@ -29,14 +29,16 @@ The [runtime reference](../reference/README.md#pharmacy) lists every implemented
 The independent/chain route root is
 `/v1/pharmacy/pharmacies/{pharmacy}/operating-locations/{outlet}/stocktakes`.
 `PUT /{stocktake}`, `GET /{stocktake}/lines` and
-`PUT/GET /{stocktake}/counts/{command}` are registered in this
+`PUT/GET /{stocktake}/counts/{command}` and
+`PUT/GET /{stocktake}/decisions/{command}` are registered in this
 slice. They reuse the canonical stocktake input/output schemas and the existing
 physical ledger; they are not a second stock master. These routes bind to the
 compiled-ineligible `pharmacy_stocktake` capability. No new operational page
 or production availability is established by their registration.
 
 IAM must consume an acknowledged current independent duty for
-`pharmacy.stocktake.count` or `pharmacy.stocktake.read`, with the current
+`pharmacy.stocktake.count`, `pharmacy.stocktake.review` or
+`pharmacy.stocktake.read`, with the current
 Workforce Staff/link and owner-issued outlet scope. Existing receiver rights,
 tenant ownership, supplied IDs and legacy editor grants cannot substitute.
 Hospital-owned pharmacies remain ineligible independent employers. Current
@@ -52,9 +54,10 @@ deny general stock, catalogue and receipt writes even if the account separately
 holds a legacy editor grant.
 
 The legacy 10,000-bucket / 500-adjustment capacity fixture is a regression gate,
-not maximum-scale acceptance of the new reviewed path. Full reviewed count and
-decision commands, same-Staff alias independence, hospital department admission,
-operational UI and positive live acceptance remain open in #1686. See the
+not maximum-scale acceptance of the new reviewed path. Core reviewed counting,
+posting and same-Staff alias refusal passed hosted acceptance. Full reviewed
+capacity, hospital department admission, withdrawal continuations, header/list/
+export, operational UI and positive live acceptance remain open in #1686. See the
 [reviewed authority proposal](../../superpowers/specs/2026-11-23-reviewed-stocktake-authority.md).
 
 Reviewed independent count-entry development follows the same scoped route root:
@@ -73,8 +76,9 @@ cannot adopt legacy history or invent historical Staff evidence. Count receipts
 require retained reviewed provenance. These routes remain compiled ineligible;
 the first hosted count-entry test failed with the expected missing route (run
 45058843484). Hosted run 45059958549 passed the count-entry implementation and
-rollback/cutoff/legacy-boundary checks. Submission and independent approval/posting,
-hospital authority, operational UI and live acceptance remain unfinished.
+rollback/cutoff/legacy-boundary checks. Submission and independent approval/posting
+are implemented in the unreleased candidate described below. Hospital authority,
+operational UI and live acceptance remain unfinished.
 
 Reviewed submission is a further unreleased candidate at
 `PUT/GET /{stocktake}/decisions/{command}`. Submission requires the current counter duty, the exact version and
@@ -87,8 +91,8 @@ missing-route 404. The implementation, replay/recovery, count-ID conflict and
 submitted-edit rollback passed Global API, native PostgreSQL and IAM release
 checks in hosted run 45061412084. Clean capacity validation also passed: 10,000-bucket start 4.670 s, page p99
 12.53 ms and posting 500 adjustments 4.954 s, with exact replay and conservation.
-Original thresholds remain unchanged. Independent review/posting remains
-unimplemented and release eligibility remains false.
+Original thresholds remain unchanged. These timings cover the legacy/shared
+ledger path; reviewed-duty capacity remains unproven. Release eligibility is false.
 
 The next unreleased candidate admits `approve`/`reject` only through current
 `pharmacy.stocktake.review`; `submit`/`cancel` use `.count`. It verifies all retained
@@ -97,8 +101,10 @@ reviewer's Staff/link/duty evidence, and posts only existing linked corrections
 within the original command/line guards and deferred completeness check. Retained
 participant accounts may be retired; their exact historical approved identity
 must remain provable. The current reviewer must still be active, independent and
-unchanged. Native source and actual Global API tests remain pending for this
-candidate, including same-Staff account rotation and one-time stock conservation.
+unchanged. Native source and actual Global API core tests passed in hosted
+run 45066520716, including same-Staff account rotation refusal and one-time stock
+conservation. Extended rejection/cancellation and dependency-failure checks await
+the next run; full reviewed capacity and both ownership models remain open.
 Reviewed correction guards can read exact-outlet supplier holds; they cannot
 change them or remove reservations to satisfy a shortage.
 

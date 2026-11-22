@@ -121,9 +121,11 @@ When adding a template, update its canonical panel binding in
 The operating generator refuses a missing or unknown release binding. These
 bindings control availability, and do not assign Staff or confer stock authority.
 
-Only a reviewed independent/chain start and line-read development path currently
-exists. Full reviewed counting, independent posting, hospital department
-admission, withdrawal continuations, the operational page and positive live
+The unreleased independent/chain development path includes start, line reads,
+counting, submission, independent posting, rejection, cancellation and original
+command recovery with retained Staff/link/duty evidence. Core hosted acceptance
+has passed; full reviewed capacity, hospital department admission, withdrawal
+continuations, header/list/export, the operational page and positive live
 acceptance remain required by #1686. Keep eligibility false until those gates
 and the capacity regression checks pass.
 

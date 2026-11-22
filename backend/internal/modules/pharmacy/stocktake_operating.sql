@@ -61,7 +61,7 @@ BEGIN
  scope:=format('tenant_id=NULLIF(current_setting(''app.tenant_id'',true),'''')::uuid AND outlet_id=(SELECT CASE WHEN %s THEN NULLIF(current_setting(''app.pharmacy_stock_outlet'',true),'''')::uuid ELSE NULLIF(current_setting(''app.pharmacy_outlet'',true),'''')::uuid END)',active);
  EXECUTE format('ALTER POLICY tenant_isolation ON %I USING((%s)AND CASE WHEN %s THEN(%s)ELSE(%s)END)WITH CHECK((%s)AND CASE WHEN %s THEN(%s)ELSE(%s)END)',tab,scope,active,reading,prior.reading,scope,active,writing,prior.writing);
  ELSE
- EXECUTE format('ALTER POLICY tenant_isolation ON %I USING((%s)OR(%s))WITH CHECK((%s)OR(%s))',tab,prior.reading,reading,prior.writing,writing);
+ EXECUTE format('ALTER POLICY tenant_isolation ON %I USING(CASE WHEN %s THEN(%s)ELSE(%s)END)WITH CHECK(CASE WHEN %s THEN(%s)ELSE(%s)END)',tab,active,reading,prior.reading,active,writing,prior.writing);
  END IF;
  EXECUTE format('CREATE POLICY stocktake_operating_purpose ON %I AS RESTRICTIVE USING(CASE WHEN %s THEN(%s)ELSE true END)WITH CHECK(CASE WHEN %s THEN(%s)ELSE true END)',tab,active,reading,active,writing);
  EXECUTE format('CREATE POLICY stocktake_operating_delete ON %I AS RESTRICTIVE FOR DELETE USING(NOT(%s))',tab,active);

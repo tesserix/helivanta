@@ -93,10 +93,29 @@ func TestStocktakeReviewedIndependentCounterFreezesReceivedStock(t *testing.T) {
 		"reason": "TEST legacy editor cannot enter reviewed history",
 	}
 	f.call("PUT", "/v1/pharmacy/pharmacies/"+f.pharmacy+"/outlets/"+f.outlet+"/stock/stocktakes/"+path[len(root)+1:]+"/counts/"+v7(), "owner", legacyCount, 409)
+	submitPath := path + "/decisions/" + v7()
+	submit := map[string]any{"decision": "submit", "expected_version": 1, "reason": "TEST physical observations ready for independent review"}
+	f.call("PUT", submitPath, "owner", submit, 404)
+	submitted := f.call("PUT", submitPath, "receiver", submit, 200)
+	require.JSONEq(t, submitted, f.call("PUT", submitPath, "receiver", submit, 200))
+	require.JSONEq(t, submitted, f.call("GET", submitPath, "receiver", nil, 200))
+	var decision struct {
+		State           string `json:"state"`
+		Version         int64  `json:"version"`
+		AdjustmentCount int64  `json:"adjustment_count"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(submitted), &decision))
+	require.Equal(t, "submitted", decision.State)
+	require.EqualValues(t, 2, decision.Version)
+	require.Zero(t, decision.AdjustmentCount)
+	f.call("PUT", path+"/decisions/"+v7(), "receiver", map[string]any{
+		"decision": "approve", "expected_version": 2, "reason": "TEST counter cannot independently approve", "extra_units_disposition": "no_extra_units",
+	}, 404)
 	f.call("PUT", f.duty+"/commands/"+v7(), "owner", map[string]any{
 		"expected_version": 3, "decision": "revoke", "reason": "TEST end the reviewed counting duty",
 	}, 201)
 	f.call("GET", path+"/lines", "receiver", nil, 404)
 	f.call("GET", countPath, "receiver", nil, 404)
+	f.call("GET", submitPath, "receiver", nil, 404)
 	f.call("PUT", path+"/counts/"+v7(), "receiver", count, 404)
 }

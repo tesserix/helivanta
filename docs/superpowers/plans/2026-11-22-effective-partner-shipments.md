@@ -110,10 +110,19 @@ asserts that existing response contract and supplies the harness's optional
 current-source client before constructing relationship/fulfilment owners, as in
 production. The peer handler and owner guards remain real; no source check is
 bypassed. This is fixture parity, not a claimed production dependency failure.
-Physical dispatch acceptance remains pending.
+Corrected run
+[44983715570](https://github.com/tesserix/helivanta/actions/runs/44983715570)
+passed the full native root under the race detector (`1081.241s`). The actual
+public hospital order, source acceptance, stock setup, reservation and split
+dispatch journey passed (`9.67s`). It retained both source publications, both
+directed hospital shipments and both named/group disclosures, with exact stock
+balances and replay/over-dispatch checks. Source projection is asynchronous;
+the test waits at most twenty seconds for both committed dispatches, then checks
+the actual records. This proves the Pharmacy source path, not warehouse physical
+fulfilment, public consent, financial or live/browser acceptance.
 
-Still exercise reservation and physical dispatch for each stock owner, then
-consume the published shipment in hospital receiving,
+Still exercise warehouse reservation/dispatch and consume the published shipment
+through completed hospital receiving,
 discrepancy handling, quality release and financial records. The existing empty
 shared-order assertions do not prove any of those steps. Public consent,
 catalogue and source-issued invoice consumers and authenticated browser/live

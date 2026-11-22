@@ -7,7 +7,7 @@ on:
         type: choice
         required: true
         default: focused
-        options: [focused, full]
+        options: [focused, full, batch-source]
   pull_request:
     paths:
       - "backend/pkg/supplieraccess/**"
@@ -43,7 +43,26 @@ concurrency:
   group: supplier-workflow-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  batch-source:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.validation_scope == 'batch-source' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      GOTOOLCHAIN: auto
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - run: printf 'GOCACHE=%s/helivanta-batch-source-cache\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version-file: backend/go.mod
+          cache: false
+      - name: Batch source receipt binding and unique safety proofs
+        run: go test -race -count=1 ./internal/modules/pharmacy -run '^TestSupplierBatchSources'
   compound-admission:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.validation_scope != 'batch-source' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:

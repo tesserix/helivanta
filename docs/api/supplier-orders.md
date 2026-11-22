@@ -434,3 +434,21 @@ that receipt; they cannot change the verified facts during the held safety read.
 Drugmaster publication remains protected by its existing shared publication lock.
 The composed two-shipment destination release is the regression; no safety or
 maker/checker condition is skipped.
+
+
+### Partial-receipt source-safety normalization
+
+A destination batch can contain several partial receiving records for the same
+immutable shipment. The safety planner retains every receipt ID in the destination
+write scope, but checks each identical shipment once while the owner keeps its
+current safety guard active. The captured receipt ID and shipment ID must be
+nonzero, the row's shipment ID must match its decoded body, and the body's buyer
+tenant/outlet must match the destination. Conflicting copies of one shipment fail
+closed; neither the newest nor the first copy is treated as authoritative.
+
+This normalization reduces duplicate held source connections without relaxing a
+source-safety condition. It does not establish capacity for a batch containing
+many distinct shipments or source owners; grouped owner safety validation remains
+an open acceptance item. Hosted focused unit tests cover partial receipt scope,
+contradictory captures, malformed bodies and foreign buyer identities. The full
+composed journey must also pass before this change is release-eligible.

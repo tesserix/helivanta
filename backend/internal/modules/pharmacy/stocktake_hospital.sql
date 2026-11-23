@@ -232,3 +232,27 @@ BEGIN
  AND NOT EXISTS(SELECT 1 FROM(VALUES %s)expected(name,digest)LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.name)WHERE p.oid IS NULL OR md5(pg_get_functiondef(p.oid))<>expected.digest)
  $body$ $definition$,policies,policy_count,functions);
 END $integrity$;
+
+-- Capture only owner metadata. No customer rows or private Workforce facts enter this seal.
+CREATE FUNCTION pharmacy_stocktake_hospital_support_state()RETURNS jsonb LANGUAGE sql STABLE AS $$
+ WITH targets AS(
+  SELECT oid,relname,relkind,relpersistence,relrowsecurity,relforcerowsecurity FROM pg_class
+  WHERE relnamespace=current_schema()::regnamespace
+  AND(starts_with(relname,'pharmacy_stocktake')OR relname IN('pharmacy_staff_department_bindings','pharmacy_stock_movements'))
+  AND relkind IN('r','p')
+ )SELECT jsonb_build_object(
+ 'tables',(SELECT jsonb_agg(jsonb_build_array(relname,relkind,relpersistence,relrowsecurity,relforcerowsecurity)ORDER BY relname)FROM targets),
+ 'policies',(SELECT jsonb_agg(jsonb_build_array(t.relname,p.polname,p.polcmd,p.polpermissive,p.polroles,pg_get_expr(p.polqual,p.polrelid),pg_get_expr(p.polwithcheck,p.polrelid))ORDER BY t.relname,p.polname)FROM pg_policy p JOIN targets t ON t.oid=p.polrelid),
+ 'constraints',(SELECT jsonb_agg(jsonb_build_array(t.relname,c.conname,c.contype,c.convalidated,c.condeferrable,c.condeferred,pg_get_constraintdef(c.oid))ORDER BY t.relname,c.conname)FROM pg_constraint c JOIN targets t ON t.oid=c.conrelid),
+ 'triggers',(SELECT jsonb_agg(jsonb_build_array(t.relname,g.tgname,g.tgenabled,pg_get_triggerdef(g.oid))ORDER BY t.relname,g.tgname)FROM pg_trigger g JOIN targets t ON t.oid=g.tgrelid WHERE NOT g.tgisinternal),
+ 'functions',(SELECT jsonb_agg(jsonb_build_array(p.proname,pg_get_function_identity_arguments(p.oid),md5(pg_get_functiondef(p.oid)))ORDER BY p.proname,pg_get_function_identity_arguments(p.oid))FROM pg_proc p
+ WHERE p.pronamespace=current_schema()::regnamespace AND p.prokind='f'
+ AND(starts_with(p.proname,'pharmacy_stocktake_')OR starts_with(p.proname,'pharmacy_staff_binding_')OR starts_with(p.proname,'pharmacy_operating_choice_')OR p.proname='hms_forbid_mutation')
+ AND p.proname<>'pharmacy_stocktake_hospital_integrity'))
+$$;
+DO $hospital_integrity$
+DECLARE reviewed jsonb;BEGIN
+ reviewed:=pharmacy_stocktake_hospital_support_state();
+ EXECUTE format('CREATE FUNCTION pharmacy_stocktake_hospital_integrity()RETURNS boolean LANGUAGE sql STABLE AS %L',
+ format('SELECT COALESCE(pharmacy_operating_choice_integrity()AND pharmacy_stocktake_hospital_support_state()=%L::jsonb,false)',reviewed::text));
+END $hospital_integrity$;

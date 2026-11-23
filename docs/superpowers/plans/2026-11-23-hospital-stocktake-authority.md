@@ -240,12 +240,12 @@ the later receipt, and explicitly rejects a recount after that movement. The
 frozen book remains 30, the accepted observation is 27, and approval must preserve
 the later 5-unit receipt for a final balance of 32. No stock safety guard changed.
 
-### Runtime schema guard (red-first, pending implementation)
+### Runtime schema guard (hosted red observed, candidate implemented)
 
 The dedicated hosted `hospital-schema` suite exercises the new integrity boundary
 without running the full employment journey. Pharmacy must refuse hospital work
 when its hospital evidence isolation, immutable triggers, approved-binding policy
-or source helper definitions drift. The planned guard captures reviewed metadata
+or source helper definitions drift. The guard captures reviewed metadata
 for the hospital evidence/binding/stocktake tables, source functions and immutable
 command triggers after the candidate migration; it retains the existing selection
 integrity check. It returns false on drift and is checked inside the held source
@@ -253,3 +253,14 @@ transaction before the consumer runs. Missing functions/query failures also retu
 503; metadata is not a substitute for actual IAM/Workforce/Organization proofs.
 Legitimate future schema changes must deliberately reseal the owner guard in a
 forward migration. No live schema has been changed for these tests.
+
+Hosted schema run 45193701385 observed the intended red: the new drift fixture
+failed because `pharmacy_stocktake_hospital_integrity()` did not exist (42883).
+The candidate now captures owner table RLS, policies, constraints, immutable
+triggers and function definitions after selection fingerprints are sealed. Every
+hospital admission checks it inside the held source transaction. During deliberate
+constraint drift, both command and receipt reads return 503; only after exact
+schema restoration does a missing receipt return 404 and the retry proceed.
+Hosted green verification remains pending. The schema-only workflow is now
+restricted to its selected job and validated by `actionlint` against repository
+pinned actions; the first setup failure was not counted as the TDD red.

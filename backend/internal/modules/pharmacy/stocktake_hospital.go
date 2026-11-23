@@ -109,6 +109,13 @@ func (h *catalogueHandlers) stocktakeWork(ctx context.Context, p authn.Principal
 				}
 				use := stocktakeWorkUse{operatingStockUse: operatingStockUse{tenant: p.TenantID, subject: p.Subject, pharmacy: pharmacy, outlet: outlet}, hospital: &hospitalStocktakeUse{hospital: hospitalID, department: departmentID, path: pathStrings, actor: actor, operation: checks[0].Grant, source: checks[1].Grant, permission: permission}}
 				err := h.db.WithTenantCommand(actorCtx, p.TenantID, func(tx *gorm.DB) error {
+					var intact bool
+					if err := tx.Raw(`SELECT pharmacy_stocktake_hospital_integrity()`).Scan(&intact).Error; err != nil {
+						return errors.Join(authz.ErrScopedAuthorizationUnavailable, err)
+					}
+					if !intact {
+						return authz.ErrScopedAuthorizationUnavailable
+					}
 					return pharmacyStockFrame(tx, p.Subject, pharmacy, outlet, permission, func() error {
 						return hospitalStocktakeFrame(tx, hospital, department, func() error {
 							if err := tx.Exec(`SELECT pg_advisory_xact_lock_shared(hashtextextended(?,0))`, p.TenantID+":pharmacy-staff-bindings:"+outlet.String()).Error; err != nil {

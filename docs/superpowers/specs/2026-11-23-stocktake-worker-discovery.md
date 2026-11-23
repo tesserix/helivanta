@@ -78,8 +78,14 @@ No prior migration or immutable command history may be rewritten.
 Named product and quarantine-location projections remain Pharmacy-owned,
 read-only, exact-outlet stocktake purposes. Reuse canonical owner schemas and
 existing snapshot-selection rules, including inactive products with physical
-stock; do not substitute general catalogue or receiving authority. Their actual
-handlers/contracts need verification before implementation.
+stock; do not substitute general catalogue or receiving authority. The candidate adds `GET /product-choices` and `GET /quarantine-choices` beneath
+the reviewed stocktake root. They reuse receiving product/location wire models,
+retain discontinued products, and filter quarantine locations server-side. Both
+are stocktake-gated collections (maximum 200) with actor/outlet-bound cursors,
+current read-duty admission, stocktake provenance and read audit. They grant no
+receiving permission. The SDK validates owner schemas, outlet, quarantine
+status, duplicate IDs, page bounds and cursor progress before exposing choices.
+Hosted backend validation remains required before acceptance.
 
 The SDK and UI use authority/account/outlet namespaces from #1822. A scope change
 removes private results and actions until the next scope is checked. No ID entry,

@@ -100,6 +100,11 @@ adjustments or export inventory while Stock is disabled.
 
 ### Reviewed Stocktake duties — development only
 
+The reviewed `/stocktakes/product-choices` and `/stocktakes/quarantine-choices`
+collections use the same stocktake capability as new work. They do not expose
+general catalogue/receiving access and are unavailable when that capability is
+withdrawn. Existing retained-work discovery remains a baseline continuation.
+
 `pharmacy_stocktake` is a separate capability, dependent on `pharmacy_setup`
 and compiled **ineligible**. Its provider key is
 `helivanta.release.pharmacy_stocktake`. A Console value of true cannot override

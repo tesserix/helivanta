@@ -206,7 +206,7 @@ jobs:
       - name: Canonical hospital templates and source-use guards
         run: |
           go test -race -count=1 -timeout=5m ./internal/platform -run '^TestStocktakeActorsRequiresOneWorkforceOwner$'
-          go test -race -count=1 -timeout=5m ./internal/modules/pharmacy -run '^TestStocktakeHospitalMigrationPreservesSelectionAuthority$'
+          go test -race -count=1 -timeout=5m ./internal/modules/pharmacy -run '^TestStocktakeHospital(MigrationPreservesSelectionAuthority|AuthorityIntegrityRejectsDrift)$'
           go test -race -count=1 -timeout=5m ./internal/modules/iam -run '^(TestHospitalStocktake|TestEveryOwnerTemplateHasAnExplicitReleaseFamily|TestMigrationIDIsPhaseScoped)'
           go test -race -count=1 -timeout=5m ./internal/modules/workforce -run '^TestHospitalStocktakeActor'
       - name: Actual reviewed hospital employment and department assignment

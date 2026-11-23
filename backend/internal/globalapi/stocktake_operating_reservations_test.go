@@ -3,6 +3,7 @@ package globalapi
 import (
 	"encoding/csv"
 	"encoding/json"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -19,7 +20,17 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestStocktakeReviewedReadsPreserveModernReservationAndFrozenScheduledRegister(t *testing.T) {
+type reviewedStocktakeReservationFixture struct {
+	f                  pharmacyReceiverFixture
+	path, approvalPath string
+	approval           map[string]any
+	reserve            func() (int64, error)
+	release            func() error
+	held               func() (int64, error)
+}
+
+func newReviewedStocktakeReservationFixture(t *testing.T) reviewedStocktakeReservationFixture {
+	t.Helper()
 	f := newPharmacyReceiverFixture(t)
 	f.activate(t)
 	legacy := "/v1/pharmacy/pharmacies/" + f.pharmacy + "/outlets/" + f.outlet
@@ -87,47 +98,67 @@ func TestStocktakeReviewedReadsPreserveModernReservationAndFrozenScheduledRegist
 			return store.Frame(tx, scope, func() error { return action(tx) })
 		})
 	}
-	require.NoError(t, supplier(func(tx *gorm.DB) error {
-		_, _, err := store.Create(tx, allocation, order, input, actor, func(tx *gorm.DB, plan fulfilment.AllocationPlan) (fulfilment.StockEvidence, error) {
-			evidence, err := adapter.Snapshot(tx, plan)
-			require.NoError(t, err)
-			require.EqualValues(t, 30, evidence.AvailableUnits)
-			return evidence, err
+	reserve := func() (int64, error) {
+		var available int64
+		err := supplier(func(tx *gorm.DB) error {
+			_, _, err := store.Create(tx, allocation, order, input, actor, func(tx *gorm.DB, plan fulfilment.AllocationPlan) (fulfilment.StockEvidence, error) {
+				evidence, err := adapter.Snapshot(tx, plan)
+				available = evidence.AvailableUnits
+				return evidence, err
+			})
+			return err
 		})
-		return err
-	}))
-	activateReviewedStocktakeReviewer(t, &f)
-	f.call("GET", legacy+"/stock/balance?location_id="+f.shelf+"&batch_id="+batch, "stock-reviewer", nil, 403)
-	approvalPath := path + "/decisions/" + v7()
-	approval := map[string]any{"decision": "approve", "expected_version": 2, "extra_units_disposition": "no_extra_units", "reason": "TEST independent shortage review with live holds"}
-	f.call("PUT", approvalPath, "stock-reviewer", approval, 409)
-	f.call("GET", approvalPath, "stock-reviewer", nil, 404)
-	assertLedger := func(corrections, units int64) {
-		t.Helper()
-		f.ownerOutletTx(t, func(tx *gorm.DB) error {
-			var row struct{ Corrections, Units int64 }
-			if err := tx.Raw(`SELECT count(*) FILTER(WHERE kind='correction') corrections,COALESCE(sum(quantity_units),0) units FROM pharmacy_stock_movements WHERE tenant_id=? AND outlet_id=? AND location_id=? AND batch_id=?`, testutil.TenantA, f.outlet, f.shelf, batch).Scan(&row).Error; err != nil {
-				return err
-			}
-			require.Equal(t, corrections, row.Corrections)
-			require.Equal(t, units, row.Units)
-			return nil
+		return available, err
+	}
+	release := func() error {
+		return supplier(func(tx *gorm.DB) error {
+			_, _, err := store.Command(tx, order.OwnerTenantID, allocation, uuid.Must(uuid.NewV7()), fulfilment.AllocationDecisionInput{ExpectedVersion: 1, Decision: "release", QuantityUnits: 20, Reason: "TEST source released held units"}, actor, adapter)
+			return err
 		})
 	}
-	assertLedger(0, 30)
-	require.NoError(t, supplier(func(tx *gorm.DB) error {
-		held, err := store.Held(tx, order.OwnerTenantID, fixture.location, fixture.stock, shelf)
-		if err != nil {
+	held := func() (int64, error) {
+		var held int64
+		err := supplier(func(tx *gorm.DB) error {
+			var err error
+			held, err = store.Held(tx, order.OwnerTenantID, fixture.location, fixture.stock, shelf)
+			return err
+		})
+		return held, err
+	}
+	activateReviewedStocktakeReviewer(t, &f)
+	f.call("GET", legacy+"/stock/balance?location_id="+f.shelf+"&batch_id="+batch, "stock-reviewer", nil, 403)
+	return reviewedStocktakeReservationFixture{f: f, path: path, approvalPath: path + "/decisions/" + v7(), approval: map[string]any{"decision": "approve", "expected_version": 2, "extra_units_disposition": "no_extra_units", "reason": "TEST independent shortage review with live holds"}, reserve: reserve, release: release, held: held}
+}
+
+func (fixture reviewedStocktakeReservationFixture) assertLedger(t *testing.T, corrections, units int64) {
+	t.Helper()
+	fixture.f.ownerOutletTx(t, func(tx *gorm.DB) error {
+		var row struct{ Corrections, Units int64 }
+		if err := tx.Raw(`SELECT count(*) FILTER(WHERE kind='correction') corrections,COALESCE(sum(quantity_units),0) units FROM pharmacy_stock_movements WHERE tenant_id=? AND outlet_id=? AND location_id=?`, testutil.TenantA, fixture.f.outlet, fixture.f.shelf).Scan(&row).Error; err != nil {
 			return err
 		}
-		require.EqualValues(t, 20, held)
-		_, _, err = store.Command(tx, order.OwnerTenantID, allocation, uuid.Must(uuid.NewV7()), fulfilment.AllocationDecisionInput{ExpectedVersion: 1, Decision: "release", QuantityUnits: 20, Reason: "TEST source released held units"}, actor, adapter)
-		return err
-	}))
-	posted := f.call("PUT", approvalPath, "stock-reviewer", approval, 200)
-	require.JSONEq(t, posted, f.call("PUT", approvalPath, "stock-reviewer", approval, 200))
-	assertLedger(1, 15)
-	records, err := csv.NewReader(strings.NewReader(f.call("GET", path+"/register.csv", "stock-reviewer", nil, 200))).ReadAll()
+		require.Equal(t, corrections, row.Corrections)
+		require.Equal(t, units, row.Units)
+		return nil
+	})
+}
+
+func TestStocktakeReviewedReadsPreserveModernReservationAndFrozenScheduledRegister(t *testing.T) {
+	fixture := newReviewedStocktakeReservationFixture(t)
+	available, err := fixture.reserve()
+	require.NoError(t, err)
+	require.EqualValues(t, 30, available)
+	fixture.f.call("PUT", fixture.approvalPath, "stock-reviewer", fixture.approval, 409)
+	fixture.f.call("GET", fixture.approvalPath, "stock-reviewer", nil, 404)
+	fixture.assertLedger(t, 0, 30)
+	held, err := fixture.held()
+	require.NoError(t, err)
+	require.EqualValues(t, 20, held)
+	require.NoError(t, fixture.release())
+	posted := fixture.f.call("PUT", fixture.approvalPath, "stock-reviewer", fixture.approval, 200)
+	require.JSONEq(t, posted, fixture.f.call("PUT", fixture.approvalPath, "stock-reviewer", fixture.approval, 200))
+	fixture.assertLedger(t, 1, 15)
+	records, err := csv.NewReader(strings.NewReader(fixture.f.call("GET", fixture.path+"/register.csv", "stock-reviewer", nil, 200))).ReadAll()
 	require.NoError(t, err)
 	require.Greater(t, len(records), 1)
 	section := -1
@@ -140,4 +171,70 @@ func TestStocktakeReviewedReadsPreserveModernReservationAndFrozenScheduledRegist
 	for _, row := range records[1:] {
 		require.Equal(t, "H1", row[section], "the count's frozen schedule must survive a later H classification")
 	}
+}
+
+func TestStocktakeReviewedReadsPostedStockRejectsIncompatibleSupplierReservation(t *testing.T) {
+	fixture := newReviewedStocktakeReservationFixture(t)
+	posted := fixture.f.call("PUT", fixture.approvalPath, "stock-reviewer", fixture.approval, 200)
+	available, err := fixture.reserve()
+	require.ErrorIs(t, err, fulfilment.ErrConflict)
+	require.EqualValues(t, 15, available)
+	held, err := fixture.held()
+	require.NoError(t, err)
+	require.Zero(t, held)
+	fixture.assertLedger(t, 1, 15)
+	require.JSONEq(t, posted, fixture.f.call("PUT", fixture.approvalPath, "stock-reviewer", fixture.approval, 200))
+}
+
+func TestStocktakeReviewedReadsReservationRaceNeverOvercommitsPhysicalStock(t *testing.T) {
+	fixture := newReviewedStocktakeReservationFixture(t)
+	body, err := json.Marshal(fixture.approval)
+	require.NoError(t, err)
+	request := httptest.NewRequest("PUT", fixture.approvalPath, strings.NewReader(string(body)))
+	request.Header.Set("Authorization", "Bearer stock-reviewer")
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantA)
+	request.Header.Set("X-Helivanta-Expected-Subject", "user-stock-reviewer")
+	type reservationResult struct {
+		available int64
+		err       error
+	}
+	start := make(chan struct{})
+	reservations := make(chan reservationResult, 1)
+	approvals := make(chan *httptest.ResponseRecorder, 1)
+	go func() {
+		<-start
+		available, err := fixture.reserve()
+		reservations <- reservationResult{available, err}
+	}()
+	go func() {
+		<-start
+		response := httptest.NewRecorder()
+		fixture.f.handler.ServeHTTP(response, request)
+		approvals <- response
+	}()
+	close(start)
+	reserved := <-reservations
+	response := <-approvals
+	if reserved.err == nil {
+		require.Equal(t, 409, response.Code, response.Body.String())
+		require.EqualValues(t, 30, reserved.available)
+		fixture.f.call("GET", fixture.approvalPath, "stock-reviewer", nil, 404)
+		fixture.assertLedger(t, 0, 30)
+		held, err := fixture.held()
+		require.NoError(t, err)
+		require.EqualValues(t, 20, held)
+		require.NoError(t, fixture.release())
+	} else {
+		require.ErrorIs(t, reserved.err, fulfilment.ErrConflict)
+		require.Equal(t, 200, response.Code, response.Body.String())
+		require.EqualValues(t, 15, reserved.available)
+		fixture.assertLedger(t, 1, 15)
+	}
+	posted := fixture.f.call("PUT", fixture.approvalPath, "stock-reviewer", fixture.approval, 200)
+	require.JSONEq(t, posted, fixture.f.call("PUT", fixture.approvalPath, "stock-reviewer", fixture.approval, 200))
+	fixture.assertLedger(t, 1, 15)
+	held, err := fixture.held()
+	require.NoError(t, err)
+	require.Zero(t, held)
 }

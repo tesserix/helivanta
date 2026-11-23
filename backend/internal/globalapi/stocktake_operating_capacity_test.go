@@ -226,6 +226,48 @@ func diagnoseStocktakeInsert(t *testing.T, f pharmacyReceiverFixture) {
 				if err := rows.Err(); err != nil {
 					t.Errorf("finish diagnostic insert plan: %T", err)
 				}
+				if err := rows.Close(); err != nil {
+					t.Errorf("close diagnostic insert plan: %T", err)
+					return
+				}
+				lookup, err := conn.QueryContext(tx.Statement.Context, `EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON)
+ SELECT id FROM pharmacy_stock_batches WHERE tenant_id=$1 AND outlet_id=$2 AND id=$3 FOR KEY SHARE`, testutil.TenantA, f.outlet, "019a2b00-1000-7000-8000-000000005000")
+				if err != nil {
+					t.Errorf("explain diagnostic batch lookup: %T", err)
+					return
+				}
+				defer lookup.Close()
+				for lookup.Next() {
+					var raw []byte
+					if err := lookup.Scan(&raw); err != nil {
+						t.Errorf("read batch lookup plan: %T", err)
+						return
+					}
+					var plans []map[string]any
+					if err := json.Unmarshal(raw, &plans); err != nil {
+						t.Errorf("decode batch lookup plan: %T", err)
+						return
+					}
+					var visit func(map[string]any)
+					visit = func(node map[string]any) {
+						t.Logf("diagnostic batch lookup node=%v index=%v estimate=%v rows=%v loops=%v filtered=%v time_ms=%v", node["Node Type"], node["Index Name"], node["Plan Rows"], node["Actual Rows"], node["Actual Loops"], node["Rows Removed by Filter"], node["Actual Total Time"])
+						if children, ok := node["Plans"].([]any); ok {
+							for _, child := range children {
+								if child, ok := child.(map[string]any); ok {
+									visit(child)
+								}
+							}
+						}
+					}
+					for _, plan := range plans {
+						if node, ok := plan["Plan"].(map[string]any); ok {
+							visit(node)
+						}
+					}
+				}
+				if err := lookup.Err(); err != nil {
+					t.Errorf("finish batch lookup plan: %T", err)
+				}
 			}()
 		})
 	})

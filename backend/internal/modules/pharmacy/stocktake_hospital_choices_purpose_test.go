@@ -28,14 +28,14 @@ func TestStocktakeHospitalChoicePurposeIsReadOnly(t *testing.T) {
 	ctx := tenantdb.WithActor(context.Background(), "user-editor")
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		var before int64
-		require.NoError(t, tx.Table("pharmacy_catalogue_entries").Count(&before).Error)
+		require.NoError(t, tx.Table("pharmacy_catalogue_products").Count(&before).Error)
 		require.Positive(t, before)
 		require.NoError(t, tx.Exec(`SELECT set_config('app.pharmacy_stocktake_choices',?,true)`, string(proof)).Error)
 		var valid bool
 		require.NoError(t, tx.Raw(`SELECT pharmacy_stocktake_hospital_choices_context(?,?,?)`, testutil.TenantA, hospital, department).Scan(&valid).Error)
 		require.True(t, valid)
 		var hidden int64
-		require.NoError(t, tx.Table("pharmacy_catalogue_entries").Count(&hidden).Error)
+		require.NoError(t, tx.Table("pharmacy_catalogue_products").Count(&hidden).Error)
 		require.Zero(t, hidden)
 		var outlets []string
 		require.NoError(t, tx.Table("pharmacy_outlets").Pluck("id", &outlets).Error)
@@ -58,7 +58,7 @@ func TestStocktakeHospitalChoicePurposeIsReadOnly(t *testing.T) {
 		require.Equal(t, "42501", denied.Code)
 		require.NoError(t, tx.Exec(`SELECT set_config('app.pharmacy_stocktake_choices','',true)`).Error)
 		var after int64
-		require.NoError(t, tx.Table("pharmacy_catalogue_entries").Count(&after).Error)
+		require.NoError(t, tx.Table("pharmacy_catalogue_products").Count(&after).Error)
 		require.Equal(t, before, after)
 		var name string
 		require.NoError(t, tx.Table("pharmacy_organizations").Select("name").Where("tenant_id=? AND id=?", testutil.TenantA, pharmaOrganization).Scan(&name).Error)

@@ -444,3 +444,10 @@ integrity snapshot; runtime choice admission still requires application-role
 support and complete projection policy integrity. The prior-drift rejection
 assertion remains unchanged. This was a migration setup failure, not a passing
 outlet workflow or a reason to relax current runtime authority.
+
+In **45216199800**, unchanged migration admission and prior-drift refusal now
+passed. The remaining failures were test setup: I had used a nonexistent
+`pharmacy_catalogue_entries` name in two new assertions. The actual catalogue
+owner schema defines `pharmacy_catalogue_products`; the fixtures now use that
+verified table. This changes tests only. Read-mode and complete drift acceptance
+are pending the corrected hosted run, not inferred from migration admission.

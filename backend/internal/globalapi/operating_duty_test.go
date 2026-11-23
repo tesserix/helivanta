@@ -29,7 +29,6 @@ import (
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
-	"github.com/tesserix/helivanta/pkg/events"
 )
 
 type operatingVerifier struct{ at time.Time }

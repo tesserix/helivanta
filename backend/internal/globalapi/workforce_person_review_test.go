@@ -2589,10 +2589,10 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 					}, func(binding map[string]any) {
 						require.Equal(t, departmentID, binding["department_id"])
 						require.Equal(t, departmentRevision, binding["department_revision_id"])
-						grantDepartment(postingRootReviewer, departmentID, []string{departmentID}, "pharmacy.department_stocktake_counter.v1", authz.StocktakeActorUse)
-						grantDepartment(recipient, departmentID, []string{departmentID}, "pharmacy.department_stocktake_reviewer.v1", authz.StocktakeActorUse)
+						grantDepartment(postingRootReviewer, departmentID, []string{departmentID}, "pharmacy.department_stocktake_counter.v1", pharmacy.PermStocktakeCount)
+						grantDepartment(recipient, departmentID, []string{departmentID}, "pharmacy.department_stocktake_reviewer.v1", pharmacy.PermStocktakeReview)
 						assertHospitalStocktakeWorkflow(t, db, call, hospital, departmentID, departmentRevision, maker, postingRootReviewer, recipient, func() {
-							grantDepartment(postingRootReviewer, departmentID, []string{departmentID}, "pharmacy.department_stocktake_reviewer.v1", authz.StocktakeActorUse)
+							grantDepartment(postingRootReviewer, departmentID, []string{departmentID}, "pharmacy.department_stocktake_reviewer.v1", pharmacy.PermStocktakeReview)
 						})
 					})
 					return

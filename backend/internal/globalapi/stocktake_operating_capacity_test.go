@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"sort"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -251,6 +252,8 @@ func diagnoseStocktakeInsert(t *testing.T, f pharmacyReceiverFixture) {
 					var visit func(map[string]any)
 					visit = func(node map[string]any) {
 						t.Logf("diagnostic batch lookup node=%v index=%v estimate=%v rows=%v loops=%v filtered=%v time_ms=%v", node["Node Type"], node["Index Name"], node["Plan Rows"], node["Actual Rows"], node["Actual Loops"], node["Rows Removed by Filter"], node["Actual Total Time"])
+						condition, _ := node["Index Cond"].(string)
+						t.Logf("diagnostic batch index identity_predicate=%t tenant_predicate=%t outlet_predicate=%t shared_hits=%v shared_reads=%v", strings.Contains(condition, "(id ="), strings.Contains(condition, "(tenant_id ="), strings.Contains(condition, "(outlet_id ="), node["Shared Hit Blocks"], node["Shared Read Blocks"])
 						if children, ok := node["Plans"].([]any); ok {
 							for _, child := range children {
 								if child, ok := child.(map[string]any); ok {
@@ -267,6 +270,30 @@ func diagnoseStocktakeInsert(t *testing.T, f pharmacyReceiverFixture) {
 				}
 				if err := lookup.Err(); err != nil {
 					t.Errorf("finish batch lookup plan: %T", err)
+				}
+				if err := lookup.Close(); err != nil {
+					t.Errorf("close batch lookup plan: %T", err)
+					return
+				}
+				stats, err := conn.QueryContext(tx.Statement.Context, `SELECT c.relname,c.relpages,c.reltuples,i.indisvalid,i.indisready FROM pg_class c JOIN pg_index i ON i.indexrelid=c.oid WHERE i.indrelid='pharmacy_stock_batches'::regclass ORDER BY c.relname`)
+				if err != nil {
+					t.Errorf("read batch index statistics: %T", err)
+					return
+				}
+				defer stats.Close()
+				for stats.Next() {
+					var name string
+					var pages int
+					var tuples float64
+					var valid, ready bool
+					if err := stats.Scan(&name, &pages, &tuples, &valid, &ready); err != nil {
+						t.Errorf("read batch index statistics row: %T", err)
+						return
+					}
+					t.Logf("diagnostic batch index name=%s pages=%d tuples=%f valid=%t ready=%t", name, pages, tuples, valid, ready)
+				}
+				if err := stats.Err(); err != nil {
+					t.Errorf("finish batch index statistics: %T", err)
 				}
 			}()
 		})

@@ -552,3 +552,16 @@ rejected by a local race-tested guard.
 
 This is test infrastructure awaiting hosted execution, not hospital browser
 acceptance evidence. Production release eligibility remains unchanged.
+
+The first combined-directory independent browser run **45230848524** failed
+before counting: its old independent fixture had no Organization owner or scoped
+authorizer, so the hospital directory correctly returned unavailable. The
+browser fixture now installs the real Organization module and IAM scoped
+authorizer and explicitly requires empty hospital directories for its owner and
+independent worker. It does not manufacture an empty HTTP projection or suppress
+the workspace error. The corrected hosted browser must pass before acceptance.
+
+The hospital browser test's direct named-assignment lookup now supplies both
+expected-account headers, and its private-stock path check distinguishes the
+`stock` segment from `stocktakes`. Superseded hospital runs were cancelled before
+acceptance; they are not evidence of a passing hospital browser.

@@ -122,6 +122,8 @@ func newOperatingDutyFixtureWithAdmission(t *testing.T, documents *attachments.G
 	authenticatedAt := time.Now().Add(-time.Minute)
 	backend, db, bus, fixtureCtx := testutil.NewHarness(t, testutil.HarnessOptions{ReleaseAdmission: admission, GovernanceSources: testutil.GovernanceReviewProtocol, Documents: documents, PharmacyEvidenceEnabled: documents != nil, SourceAdministration: func(db *tenantdb.DB) authz.SourceAdministrationGuard {
 		return iam.NewSourceAdministrationGuard(db, graph)
+	}, ScopedAuthorizer: func(db *tenantdb.DB) authz.ScopedAuthorizer {
+		return iam.NewScopedAuthorizer(db, graph)
 	}, Verifier: operatingVerifier{at: authenticatedAt}, Writer: projection, Roles: graph, OperatingAuthorizer: func(db *tenantdb.DB) authz.OperatingScopeAuthorizer {
 		return iam.NewOperatingAuthorizer(db, checks, platform.IndependentStaffIdentities(modules, db), platform.OperatingLocations(modules, db))
 	}, Tokens: map[string]string{"owner": testutil.TenantA, "reviewer": testutil.TenantA, "receiver": testutil.TenantA, "foreign": testutil.TenantB, "stock-reviewer": testutil.TenantA}, Perms: map[string][]authz.Permission{"owner": admin, "reviewer": admin, "foreign": admin}, Modules: modules})

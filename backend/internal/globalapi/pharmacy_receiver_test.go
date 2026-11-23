@@ -15,6 +15,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
 	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
+	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
@@ -35,9 +36,9 @@ func newPharmacyReceiverFixture(t *testing.T) pharmacyReceiverFixture {
 	return newPharmacyReceiverFixtureWithAdmission(t, nil)
 }
 
-func newPharmacyReceiverFixtureWithAdmission(t *testing.T, admission func(string, string) gin.HandlerFunc) pharmacyReceiverFixture {
+func newPharmacyReceiverFixtureWithAdmission(t *testing.T, admission func(string, string) gin.HandlerFunc, extra ...platform.Module) pharmacyReceiverFixture {
 	t.Helper()
-	f := pharmacyReceiverFixture{operatingDutyFixture: newOperatingDutyFixtureWithAdmission(t, nil, admission, pharmacy.New())}
+	f := pharmacyReceiverFixture{operatingDutyFixture: newOperatingDutyFixtureWithAdmission(t, nil, admission, append([]platform.Module{pharmacy.New()}, extra...)...)}
 	call := f.call
 	f.pharmacy, f.outlet, f.sibling, f.product, f.quarantine, f.shelf = v7(), v7(), v7(), v7(), v7(), v7()
 	root := "/v1/pharmacy/pharmacies/" + f.pharmacy

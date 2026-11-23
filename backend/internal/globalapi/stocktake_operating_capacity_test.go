@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"os"
 	"sort"
-	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -134,7 +134,7 @@ func TestStocktakeReviewedCapacityAt10000Buckets(t *testing.T) {
 func diagnoseStocktakeInsert(t *testing.T, f pharmacyReceiverFixture) {
 	t.Helper()
 	const callback = "test:stocktake-insert-plan"
-	var once sync.Once
+	var batches atomic.Int32
 	var hooks *gorm.DB
 	f.ownerOutletTx(t, func(tx *gorm.DB) error {
 		hooks = tx
@@ -170,10 +170,10 @@ func diagnoseStocktakeInsert(t *testing.T, f pharmacyReceiverFixture) {
 			}
 		}
 		return tx.Callback().Create().Before("gorm:create").Register(callback, func(tx *gorm.DB) {
-			if tx.DryRun || tx.Statement.Table != "pharmacy_stocktake_lines" {
+			if tx.DryRun || tx.Statement.Table != "pharmacy_stocktake_lines" || batches.Add(1) != 3 {
 				return
 			}
-			once.Do(func() {
+			func() {
 				dry := tx.Session(&gorm.Session{DryRun: true, SkipHooks: true, SkipDefaultTransaction: true}).Create(tx.Statement.Dest)
 				if dry.Error != nil {
 					t.Errorf("compile diagnostic insert: %T", dry.Error)
@@ -226,7 +226,7 @@ func diagnoseStocktakeInsert(t *testing.T, f pharmacyReceiverFixture) {
 				if err := rows.Err(); err != nil {
 					t.Errorf("finish diagnostic insert plan: %T", err)
 				}
-			})
+			}()
 		})
 	})
 	t.Cleanup(func() {

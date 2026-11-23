@@ -204,6 +204,45 @@ export const StaffBindingOutletChoiceContract = z
   .strict();
 export type StaffBindingOutletChoice = z.infer<typeof StaffBindingOutletChoiceContract>;
 
+export const HospitalStocktakeOutletChoiceContract = z
+  .object({
+    owner_tenant_id: identifier,
+    hospital_id: identifier,
+    department_id: identifier,
+    department_revision_id: identifier,
+    pharmacy_id: identifier,
+    outlet_id: identifier,
+    binding_id: identifier,
+    binding_version: z.number().int().min(2).max(9007199254740991),
+    pharmacy_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    outlet_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    outlet_code: z
+      .string()
+      .min(1)
+      .max(40)
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    time_zone: z
+      .string()
+      .min(1)
+      .max(64)
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    country_code: z.enum(["IN"]),
+  })
+  .strict();
+export type HospitalStocktakeOutletChoice = z.infer<typeof HospitalStocktakeOutletChoiceContract>;
+
 export const StaffDepartmentBindingChangedDataContract = z
   .object({
     pharmacy_id: identifier,

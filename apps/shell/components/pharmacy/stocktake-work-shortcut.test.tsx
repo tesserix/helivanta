@@ -49,13 +49,19 @@ afterEach(() => {
   vi.unstubAllGlobals();
   localStorage.clear();
 });
-function serve(rows: unknown[], cursor: string | null = null) {
+function serve(
+  rows: unknown[],
+  cursor: string | null = null,
+  hospitalCursor: string | null = null,
+) {
   let unavailable = false;
   const fetch = vi.fn(async (url: string) => {
     if (url === "/api/v1/iam/me/permissions")
       return Response.json({ data: [], tenant_id: scope.tenantId, subject: scope.subject });
     if (url === "/api/v1/workspace/release-capabilities")
       return Response.json(releaseSnapshotForTest(scope, ["team_accounts", "pharmacy_setup"]));
+    if (url === "/api/v1/iam/me/hospital-pharmacy-stocktake-scopes?limit=20")
+      return Response.json(page([], hospitalCursor));
     if (url === "/api/v1/iam/me/pharmacy-stocktake-locations?limit=20")
       return unavailable
         ? new Response(JSON.stringify({ error: "unavailable" }), { status: 503 })
@@ -129,4 +135,17 @@ it("removes personal work during a tenant transition or failed directory refresh
   await waitFor(() =>
     expect(screen.queryByRole("link", { name: /^My stocktakes/ })).not.toBeInTheDocument(),
   );
+});
+
+it("offers hospital worker navigation when an empty filtered assignment page has continuation", async () => {
+  const { fetch } = serve([], null, "TEST-hospital-next");
+  renderWithProviders(<Dashboard />);
+  expect(await screen.findByRole("link", { name: /^My stocktakes/ })).toHaveAttribute(
+    "href",
+    "/pharmacy/working-stocktakes",
+  );
+  expect(fetch.mock.calls.some(([url]) => url.includes("hospital-pharmacy-stocktake-scopes"))).toBe(
+    true,
+  );
+  expect(fetch.mock.calls.some(([url]) => url.includes("stocktake-outlet-choices"))).toBe(false);
 });

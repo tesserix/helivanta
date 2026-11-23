@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "policy_version": "2026-11-23.stocktake-worker-workspace.v1",
+  "policy_version": "2026-11-24.hospital-stocktake-outlet-choices.v1",
   "capabilities": [
     {
       "key": "onboarding",
@@ -19,92 +19,70 @@
     {
       "key": "staff_core",
       "owner": "workforce",
-      "dependencies": [
-        "team_accounts"
-      ],
+      "dependencies": ["team_accounts"],
       "eligible": true,
       "review_after": "2027-02-16"
     },
     {
       "key": "staff_mfa_recovery",
       "owner": "workforce",
-      "dependencies": [
-        "staff_core",
-        "team_accounts"
-      ],
+      "dependencies": ["staff_core", "team_accounts"],
       "eligible": true,
       "review_after": "2027-02-16"
     },
     {
       "key": "department_teams",
       "owner": "workforce",
-      "dependencies": [
-        "staff_core"
-      ],
+      "dependencies": ["staff_core"],
       "eligible": true,
       "review_after": "2027-02-16"
     },
     {
       "key": "pharmacy_setup",
       "owner": "pharmacy",
-      "dependencies": [
-        "team_accounts"
-      ],
+      "dependencies": ["team_accounts"],
       "eligible": true,
       "review_after": "2027-02-16"
     },
     {
       "key": "pharmacy_staff",
       "owner": "pharmacy",
-      "dependencies": [
-        "staff_core",
-        "pharmacy_setup"
-      ],
+      "dependencies": ["staff_core", "pharmacy_setup"],
       "eligible": true,
       "review_after": "2027-02-16"
     },
     {
       "key": "pharmacy_catalogue",
       "owner": "pharmacy",
-      "dependencies": [
-        "pharmacy_setup"
-      ],
+      "dependencies": ["pharmacy_setup"],
       "eligible": false,
       "review_after": "2027-02-16"
     },
     {
       "key": "pharmacy_stock",
       "owner": "pharmacy",
-      "dependencies": [
-        "pharmacy_catalogue"
-      ],
+      "dependencies": ["pharmacy_catalogue"],
       "eligible": false,
       "review_after": "2027-02-16"
     },
     {
       "key": "pharmacy_prescriptions",
       "owner": "pharmacy",
-      "dependencies": [
-        "pharmacy_staff"
-      ],
+      "dependencies": ["pharmacy_staff"],
       "eligible": false,
       "review_after": "2027-02-16"
     },
     {
       "key": "pharmacy_returns",
       "owner": "pharmacy",
-      "dependencies": [
-        "pharmacy_stock"
-      ],
+      "dependencies": ["pharmacy_stock"],
       "eligible": false,
       "review_after": "2027-02-16"
     },
     {
       "key": "pharmacy_reports",
       "owner": "pharmacy",
-      "dependencies": [
-        "pharmacy_stock"
-      ],
+      "dependencies": ["pharmacy_stock"],
       "eligible": false,
       "review_after": "2027-02-16"
     },
@@ -124,46 +102,35 @@
     {
       "key": "pharmacy_payables",
       "owner": "pharmacy",
-      "dependencies": [
-        "pharmacy_setup"
-      ],
+      "dependencies": ["pharmacy_setup"],
       "eligible": false,
       "review_after": "2027-02-16"
     },
     {
       "key": "workforce_scheduling",
       "owner": "workforce",
-      "dependencies": [
-        "staff_core"
-      ],
+      "dependencies": ["staff_core"],
       "eligible": false,
       "review_after": "2027-02-16"
     },
     {
       "key": "workforce_payroll",
       "owner": "workforce",
-      "dependencies": [
-        "staff_core"
-      ],
+      "dependencies": ["staff_core"],
       "eligible": false,
       "review_after": "2027-02-16"
     },
     {
       "key": "workforce_advanced",
       "owner": "workforce",
-      "dependencies": [
-        "staff_core"
-      ],
+      "dependencies": ["staff_core"],
       "eligible": false,
       "review_after": "2027-02-16"
     },
     {
       "key": "supplier_collaboration",
       "owner": "platform",
-      "dependencies": [
-        "pharmacy_setup",
-        "staff_core"
-      ],
+      "dependencies": ["pharmacy_setup", "staff_core"],
       "eligible": false,
       "review_after": "2027-02-16"
     },
@@ -205,9 +172,7 @@
     {
       "key": "pharmacy_stocktake",
       "owner": "pharmacy",
-      "dependencies": [
-        "pharmacy_setup"
-      ],
+      "dependencies": ["pharmacy_setup"],
       "eligible": false,
       "review_after": "2027-02-16"
     }
@@ -6022,6 +5987,81 @@
       "method": "GET",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/quarantine-choices",
       "capability": "pharmacy_stocktake"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/pharmacy-stocktake-assignment-proposals",
+      "capability": "pharmacy_stocktake"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake",
+      "capability": "pharmacy_stocktake"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/lines",
+      "capability": "pharmacy_stocktake"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/counts/:command",
+      "capability": "pharmacy_stocktake"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/counts/:command",
+      "capability": "baseline"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/decisions/:command",
+      "capability": "pharmacy_stocktake"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/decisions/:command",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/register.csv",
+      "capability": "pharmacy_stocktake"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/cancellations/:command",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/product-choices",
+      "capability": "pharmacy_stocktake"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/quarantine-choices",
+      "capability": "pharmacy_stocktake"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/me/hospital-pharmacy-stocktake-scopes",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-outlet-choices",
+      "capability": "baseline"
     }
   ],
   "pages": [
@@ -6477,6 +6517,10 @@
     },
     {
       "key": "staff.operating.pharmacy.stocktake_reviewer.v1",
+      "capability": "pharmacy_stocktake"
+    },
+    {
+      "key": "staff.assignments.pharmacy_stocktake",
       "capability": "pharmacy_stocktake"
     }
   ],

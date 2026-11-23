@@ -27,6 +27,40 @@ const proposal = {
 };
 afterEach(() => vi.unstubAllGlobals());
 
+it.each(["reader", "counter", "reviewer"])(
+  "reads hospital stocktake %s assignments through their own bounded list",
+  async (role) => {
+    const stocktake = {
+      ...proposal,
+      scope_kind: "department",
+      input: {
+        ...input,
+        department_id: id,
+        template_key: `pharmacy.department_stocktake_${role}.v1`,
+      },
+    };
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json({ data: [stocktake], page: { has_more: false, next_cursor: null } }),
+      );
+    vi.stubGlobal("fetch", fetch);
+    const result = await listStaffAssignments(
+      { tenantId, subject: "reviewer" },
+      { family: "pharmacy_stocktake", cursor: "opaque+/=" },
+    );
+    expect(result.data).toEqual([stocktake]);
+    const [url, options] = fetch.mock.calls[0]!;
+    const parsed = new URL(url, "https://example.invalid");
+    expect(parsed.pathname).toBe("/api/v1/iam/pharmacy-stocktake-assignment-proposals");
+    expect(parsed.searchParams.get("limit")).toBe("50");
+    expect(parsed.searchParams.get("cursor")).toBe("opaque+/=");
+    expect(new Headers(options.headers).get("X-Helivanta-Expected-Tenant")).toBe(tenantId);
+    expect(new Headers(options.headers).get("X-Helivanta-Expected-Subject")).toBe("reviewer");
+    expect(options.cache).toBe("no-store");
+  },
+);
+
 it.each(["pharmacy.department_binding_preparer.v1", "pharmacy.department_binding_reviewer.v1"])(
   "reads %s through the Pharmacy relationship assignment list",
   async (template_key) => {

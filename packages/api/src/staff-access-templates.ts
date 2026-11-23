@@ -406,6 +406,44 @@ export const staffAccessTemplates = [
     scope_kinds: ["department"],
     establishment_kinds: ["hospital"],
   },
+  {
+    key: "pharmacy.department_stocktake_reader.v1",
+    name: "Hospital pharmacy stocktake reader",
+    description:
+      "Read retained physical count evidence for this hospital department and its approved pharmacy outlet; no quantity entry, review, dispensing or financial authority.",
+    family: "pharmacy_stocktake",
+    permissions: ["pharmacy.stocktake.read", "workforce.stocktake_actor.use"],
+    scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
+  },
+  {
+    key: "pharmacy.department_stocktake_counter.v1",
+    name: "Hospital pharmacy stocktake counter",
+    description:
+      "Start, count, submit or cancel physical stocktakes at this department's approved hospital pharmacy outlet; cannot independently approve differences or dispense.",
+    family: "pharmacy_stocktake",
+    permissions: [
+      "pharmacy.stocktake.read",
+      "pharmacy.stocktake.count",
+      "workforce.stocktake_actor.use",
+    ],
+    scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
+  },
+  {
+    key: "pharmacy.department_stocktake_reviewer.v1",
+    name: "Hospital pharmacy stocktake reviewer",
+    description:
+      "Independently approve or reject physical stocktakes at this department's approved hospital pharmacy outlet; cannot start or count stock, dispense or post financial entries.",
+    family: "pharmacy_stocktake",
+    permissions: [
+      "pharmacy.stocktake.read",
+      "pharmacy.stocktake.review",
+      "workforce.stocktake_actor.use",
+    ],
+    scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
+  },
 ] as const;
 export const staffAccessTemplateCatalogs = {
   "legacy-v1": [
@@ -553,4 +591,9 @@ export const staffAccessTemplateCatalogs = {
     "supply.department_goods_pharmacy_fulfiller.v1",
   ],
   "department-supplier-commercial-v1": ["supply.department_goods_pharmacy_acceptor.v1"],
+  "department-pharmacy-stocktakes-v1": [
+    "pharmacy.department_stocktake_reader.v1",
+    "pharmacy.department_stocktake_counter.v1",
+    "pharmacy.department_stocktake_reviewer.v1",
+  ],
 } as const;

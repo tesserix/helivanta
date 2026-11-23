@@ -6,21 +6,41 @@ on:
         description: Focused validation suite
         type: choice
         default: all
-        options: [all, go, web, reviewed-reads, browser]
+        options:
+          [
+            all,
+            go,
+            web,
+            reviewed-reads,
+            browser,
+            hospital-browser,
+            hospital-source,
+            hospital-schema,
+            merge-regressions,
+            capacity-only,
+          ]
   pull_request:
     paths:
       - "backend/internal/modules/pharmacy/**"
       - "backend/internal/modules/iam/**"
       - "backend/internal/modules/workforce/independent_staff*"
+      - "backend/internal/modules/workforce/stocktake_actor*"
+      - "backend/internal/modules/workforce/stocktake_identity*"
+      - "backend/internal/modules/workforce/login_links.go"
+      - "backend/internal/modules/workforce/handlers.go"
+      - "backend/internal/modules/workforce/staff_actor*"
+      - "backend/pkg/authz/stocktake_actor.go"
       - "backend/pkg/authz/independent_staff.go"
       - "backend/internal/globalapi/stocktake*"
       - "scripts/verify-stocktake-worker.mjs"
       - "apps/shell/components/workforce/operating-duty*"
       - "apps/shell/components/workforce/independent-operating-duties*"
       - "apps/shell/components/pharmacy/stocktake*"
+      - "apps/shell/components/pharmacy/hospital-stocktake*"
       - "apps/shell/app/(workspace)/pharmacy/working-stocktakes/**"
       - "packages/api/src/pharmacy-stocktake*"
       - "packages/api/src/stocktake-worker-locations*"
+      - "packages/api/src/hospital-stocktake-locations*"
       - "contracts/operating-assignments.json"
       - "contracts/release-capabilities.json"
       - "scripts/generate-operating-assignments.mjs"
@@ -34,8 +54,92 @@ concurrency:
   group: stocktake-capacity-${{ github.ref }}-${{ inputs.suite || 'all' }}
   cancel-in-progress: true
 jobs:
+  capacity-regressions:
+    if: ${{ inputs.suite == 'capacity-only' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version-file: backend/go.mod
+          cache: true
+          cache-dependency-path: backend/go.sum
+      - name: Native 10000-bucket snapshot and 500 adjustments
+        env:
+          HELIVANTA_STOCKTAKE_CAPACITY: "1"
+        run: go test -v -count=1 -timeout=15m ./internal/modules/pharmacy -run '^TestStocktakeCapacityAt10000Buckets$'
+      - name: Reviewed 10000-bucket snapshot and 500 adjustments
+        env:
+          HELIVANTA_STOCKTAKE_CAPACITY: "1"
+        run: go test -v -count=1 -timeout=15m ./internal/globalapi -run '^TestStocktakeReviewedCapacityAt10000Buckets$'
+  merge-regressions:
+    if: ${{ inputs.suite == 'merge-regressions' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version-file: backend/go.mod
+          cache: true
+          cache-dependency-path: backend/go.sum
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: "24"
+      - name: Existing platform review and hospital directory isolation
+        run: >-
+          go test -v -race -count=1 -timeout=5m ./internal/modules/pharmacy
+          -run '^(TestHospitalStocktakeChoicesPreservePlatformScheduleReview|TestHelivanta.*|TestTheScheduleScreenShowsAHelivantaDecision|TestTheReviewerIsNotTheDeclarerOrCountersigner|TestADecidedLoweringCannotBeDecidedAgain|TestALaterRaiseWinsOverAnOldLowering|TestASaleFollowsAnApprovedLowering|TestStocktakeHospital.*)$'
+      - name: Billing final bill and deposit regression
+        run: >-
+          go test -v -race -count=1 -timeout=8m ./internal/modules/billing
+          -run '^(TestAFinalBill.*|TestAWithdrawnDischarge.*|TestBillTablesHoldTheFinalBillRules|TestAnAppliedCardDepositIsNotVoided)$'
+      - name: Build, vet and regenerate affected contracts
+        run: |
+          go build -o "$RUNNER_TEMP/helivanta-merge-api" ./cmd/api
+          go vet ./internal/modules/pharmacy ./internal/modules/billing
+          go run ./cmd/contractdocs
+          go run ./cmd/contractdocs -check
+          node ../scripts/staff-operational-access-inventory.mjs
+          node ../scripts/staff-operational-access-inventory.mjs --check
+          rm "$RUNNER_TEMP/helivanta-merge-api"
+      - name: Export generated contract references
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: merge-regression-contract-references
+          path: docs/api/reference
+          retention-days: 7
+      - name: Export dependent access inventory
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: merge-regression-access-inventory
+          path: docs/qa/staff-operational-access-inventory.json
+          retention-days: 7
+  hospital-stocktake-schema:
+    if: ${{ inputs.suite == 'hospital-schema' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - run: printf 'GOCACHE=%s/helivanta-stocktake-hospital-schema-cache\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version-file: backend/go.mod
+          cache: false
+      - name: Hospital stocktake migration and runtime drift
+        working-directory: backend
+        run: >-
+          go test -race -count=1 -timeout=5m ./internal/modules/pharmacy
+          -run '^TestStocktakeHospital(MigrationPreservesSelectionAuthority|AuthorityIntegrityRejectsDrift|ChoiceMigrationPreservesAuthority|ChoicePurposeIsReadOnly)$'
   stocktake-capacity:
-    if: inputs.suite != 'web' && inputs.suite != 'browser'
+    if: inputs.suite == '' || inputs.suite == 'all' || inputs.suite == 'go' || inputs.suite == 'reviewed-reads'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     defaults:
@@ -67,6 +171,8 @@ jobs:
       - name: Workforce retained identity history
         if: inputs.suite != 'reviewed-reads'
         run: go test -race -count=1 -timeout=10m ./internal/modules/workforce -run '^TestIndependentStaffHistoryReview$'
+      - name: Hospital stocktake actor source-use isolation
+        run: go test -race -count=1 -timeout=5m ./internal/modules/workforce -run '^(TestHospitalStocktakeActor|TestStaffActorSourceRejectsCommandsWithoutCurrentIAMEvidence|TestPurchaseOrderActorCannotManufactureEligibilityOrBorrowGovernancePurpose)'
       - name: Global API stocktake and reservation conservation
         if: inputs.suite != 'reviewed-reads'
         run: go test -race -count=1 -timeout=10m ./internal/globalapi -run '^TestStocktake'
@@ -92,9 +198,9 @@ jobs:
           HELIVANTA_STOCKTAKE_CAPACITY: "1"
         run: go test -v -count=1 -timeout=35m ./internal/globalapi -run '^TestStocktakeReviewedCapacityAt10000Buckets$'
   stocktake-staff-ui:
-    if: inputs.suite != 'go' && inputs.suite != 'reviewed-reads'
+    if: inputs.suite == '' || inputs.suite == 'all' || inputs.suite == 'web' || inputs.suite == 'browser' || inputs.suite == 'hospital-browser'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115
@@ -112,19 +218,19 @@ jobs:
       - name: Stocktake SDK routes and retained command isolation
         run: |
           stocktake_failed=0
-          if ! pnpm --filter @helivanta/api exec vitest run src/pharmacy-stocktakes.test.ts src/pharmacy-stocktake-export.test.ts src/pharmacy-stocktake-contract.test.ts src/stocktake-worker-locations.test.ts src/pharmacy-stocktake-choices.test.ts; then stocktake_failed=1; fi
-          if ! pnpm --filter @helivanta/shell exec vitest run components/pharmacy/stocktake-recovery.test.ts components/pharmacy/stocktake-recovery-panel.test.tsx components/pharmacy/stocktake-start.test.tsx components/pharmacy/stocktake-worker-workspace.test.tsx components/pharmacy/stocktake-decision.test.tsx components/pharmacy/stocktake-detail.test.tsx components/pharmacy/stocktake-list.test.tsx components/pharmacy/stocktake-work-shortcut.test.tsx "app/(workspace)/dashboard/page.test.tsx" "app/(workspace)/dashboard/page.release.test.tsx"; then stocktake_failed=1; fi
+          if ! pnpm --filter @helivanta/api exec vitest run src/pharmacy-stocktakes.test.ts src/pharmacy-stocktake-export.test.ts src/pharmacy-stocktake-contract.test.ts src/stocktake-worker-locations.test.ts src/hospital-stocktake-locations.test.ts src/pharmacy-stocktake-choices.test.ts; then stocktake_failed=1; fi
+          if ! pnpm --filter @helivanta/shell exec vitest run components/pharmacy/stocktake-recovery.test.ts components/pharmacy/stocktake-recovery-panel.test.tsx components/pharmacy/stocktake-start.test.tsx components/pharmacy/stocktake-worker-workspace.test.tsx components/pharmacy/hospital-stocktake-worker-workspace.test.tsx components/pharmacy/stocktake-decision.test.tsx components/pharmacy/stocktake-detail.test.tsx components/pharmacy/stocktake-list.test.tsx components/pharmacy/stocktake-work-shortcut.test.tsx "app/(workspace)/dashboard/page.test.tsx" "app/(workspace)/dashboard/page.release.test.tsx"; then stocktake_failed=1; fi
           exit "$stocktake_failed"
       - name: Lint affected Staff and release files
         run: |
           pnpm --filter @helivanta/shell exec eslint components/workforce/operating-duty-preparation.tsx components/workforce/operating-duty-preparation.test.tsx components/workforce/independent-operating-duties.tsx components/workforce/independent-operating-duties.test.tsx
           pnpm --filter @helivanta/api exec eslint src/operating-assignments-contract.ts src/release-capabilities-contract.ts src/release-capabilities.ts
           pnpm --filter @helivanta/api exec eslint src/pharmacy-stocktakes.ts src/pharmacy-stocktake-export.ts src/pharmacy-stocktakes.test.ts src/pharmacy-stocktake-export.test.ts
-          pnpm --filter @helivanta/api exec eslint src/stocktake-worker-locations.ts src/stocktake-worker-locations.test.ts
+          pnpm --filter @helivanta/api exec eslint src/stocktake-worker-locations.ts src/stocktake-worker-locations.test.ts src/hospital-stocktake-locations.ts src/hospital-stocktake-locations.test.ts
           pnpm --filter @helivanta/api exec eslint src/pharmacy-stocktake-choices.ts src/pharmacy-stocktake-choices.test.ts
           pnpm --filter @helivanta/shell exec eslint components/pharmacy/stocktake-recovery.ts components/pharmacy/stocktake-recovery.test.ts
           pnpm --filter @helivanta/shell exec eslint components/pharmacy/stocktake-start.tsx components/pharmacy/stocktake-start.test.tsx
-          pnpm --filter @helivanta/shell exec eslint components/pharmacy/stocktake-worker-workspace.tsx components/pharmacy/stocktake-worker-workspace.test.tsx
+          pnpm --filter @helivanta/shell exec eslint components/pharmacy/stocktake-worker-workspace.tsx components/pharmacy/stocktake-worker-workspace.test.tsx components/pharmacy/hospital-stocktake-worker-workspace.test.tsx components/pharmacy/hospital-stocktake-working-locations.tsx components/pharmacy/stocktake-outlet-work.tsx
           pnpm --filter @helivanta/shell exec eslint components/pharmacy/stocktake-work-shortcut.tsx components/pharmacy/stocktake-work-shortcut.test.tsx "app/(workspace)/dashboard/page.tsx" "app/(workspace)/dashboard/page.release.test.tsx"
           pnpm --filter @helivanta/shell exec eslint components/pharmacy/stocktake-decision.tsx components/pharmacy/stocktake-decision.test.tsx
           pnpm --filter @helivanta/shell exec eslint components/pharmacy/stocktake-detail.tsx components/pharmacy/stocktake-detail.test.tsx components/pharmacy/stocktake-list.tsx components/pharmacy/stocktake-list.test.tsx
@@ -148,6 +254,7 @@ jobs:
           PORT: "4344"
           API_URL: http://127.0.0.1:8081
           HELIVANTA_OPERATING_BROWSER_URL: http://127.0.0.1:4344
+          HELIVANTA_HOSPITAL_STOCKTAKE_BROWSER_URL: http://127.0.0.1:4344
         run: |
           set -euo pipefail
           standalone=apps/shell/.next/standalone/apps/shell
@@ -168,7 +275,11 @@ jobs:
             sleep 1
           done
           curl --fail --silent --max-time 2 "$HELIVANTA_OPERATING_BROWSER_URL/login" > /dev/null
-          go -C backend test -tags stocktakebrowser -race -count=1 -timeout=8m -run '^TestStocktakeReviewedBrowser$' -v ./internal/globalapi
+          if [ "${{ inputs.suite }}" = "hospital-browser" ]; then
+            go -C backend test -race -count=1 -timeout=35m -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$' -v ./internal/globalapi
+          else
+            go -C backend test -tags stocktakebrowser -race -count=1 -timeout=8m -run '^TestStocktakeReviewedBrowser$' -v ./internal/globalapi
+          fi
       - name: Retain reviewed browser evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -176,5 +287,31 @@ jobs:
           name: stocktake-worker-browser
           path: |
             /tmp/helivanta-stocktake-worker.png
+            /tmp/helivanta-hospital-stocktake-worker.png
             ${{ runner.temp }}/stocktake-web.log
           retention-days: 7
+  hospital-stocktake-source:
+    if: inputs.suite == 'hospital-source'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version-file: backend/go.mod
+          cache: false
+      - name: Build and vet hospital stocktake authority
+        run: |
+          go build ./internal/modules/iam ./internal/modules/workforce ./internal/modules/pharmacy ./internal/globalapi
+          go vet ./internal/modules/iam ./internal/modules/workforce ./internal/modules/pharmacy ./internal/globalapi
+      - name: Canonical hospital templates and source-use guards
+        run: |
+          go test -race -count=1 -timeout=5m ./internal/platform -run '^TestStocktakeActorsRequiresOneWorkforceOwner$'
+          go test -race -count=1 -timeout=5m ./internal/modules/pharmacy -run '^TestStocktakeHospital(MigrationPreservesSelectionAuthority|AuthorityIntegrityRejectsDrift|ChoiceMigrationPreservesAuthority|ChoicePurposeIsReadOnly)$'
+          go test -race -count=1 -timeout=5m ./internal/modules/iam -run '^(TestHospitalStocktake|TestEveryOwnerTemplateHasAnExplicitReleaseFamily|TestMigrationIDIsPhaseScoped)'
+          go test -race -count=1 -timeout=5m ./internal/modules/workforce -run '^TestHospitalStocktakeActor'
+      - name: Actual reviewed hospital employment and department assignment
+        run: go test -race -v -count=1 -failfast -timeout=35m ./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'

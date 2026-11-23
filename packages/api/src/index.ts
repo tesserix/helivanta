@@ -283,6 +283,14 @@ export {
   type StocktakeWorkerLocation,
 } from "./stocktake-worker-locations";
 export {
+  listHospitalStocktakeScopes,
+  listHospitalStocktakeOutlets,
+  hospitalStocktakeScopesKey,
+  hospitalStocktakeOutletsKey,
+  type HospitalStocktakeOutletScope,
+} from "./hospital-stocktake-locations";
+export type { HospitalStocktakeScopeChoice } from "./staff-access-contract";
+export {
   pharmacyStocktakeCountInputSchema,
   pharmacyStocktakeCountEntrySchema,
   pharmacyStocktakeDecisionInputSchema,

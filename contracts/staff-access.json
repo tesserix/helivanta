@@ -917,6 +917,73 @@
         "min": 1,
         "max": 20
       }
+    ],
+    "HospitalStocktakeScopeChoice": [
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "department_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_name",
+        "type": "string",
+        "min": 1,
+        "max": 150,
+        "no_nul": true
+      },
+      {
+        "name": "department_name",
+        "type": "string",
+        "min": 1,
+        "max": 120,
+        "no_nul": true
+      },
+      {
+        "name": "template_key",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "template_label",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "no_nul": true
+      },
+      {
+        "name": "assigned_permissions",
+        "type": "[]string",
+        "min": 2,
+        "max": 3
+      },
+      {
+        "name": "snapshot_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "authority_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "expires_at",
+        "type": "time"
+      }
     ]
   },
   "template_migrations": [
@@ -1412,6 +1479,52 @@
       ],
       "definitions_sha256": "2627516cd3c3c78a2965a074f58b647cd680998ced31879bc0fc7af43e0fb447",
       "sql_sha256": "bdcb68a24ffe6041c92db8c1b7e57687106b9a5b877a056cab2a43d018a15672"
+    },
+    {
+      "id": "0056_iam_pharmacy_stocktake_templates",
+      "file": "assignment_pharmacy_stocktake_templates_generated.sql",
+      "templates": [
+        {
+          "key": "pharmacy.department_stocktake_reader.v1",
+          "name": "Hospital pharmacy stocktake reader",
+          "description": "Read retained physical count evidence for this hospital department and its approved pharmacy outlet; no quantity entry, review, dispensing or financial authority.",
+          "family": "pharmacy_stocktake",
+          "permissions": [
+            "pharmacy.stocktake.read",
+            "workforce.stocktake_actor.use"
+          ],
+          "scope_kinds": ["department"],
+          "establishment_kinds": ["hospital"]
+        },
+        {
+          "key": "pharmacy.department_stocktake_counter.v1",
+          "name": "Hospital pharmacy stocktake counter",
+          "description": "Start, count, submit or cancel physical stocktakes at this department's approved hospital pharmacy outlet; cannot independently approve differences or dispense.",
+          "family": "pharmacy_stocktake",
+          "permissions": [
+            "pharmacy.stocktake.read",
+            "pharmacy.stocktake.count",
+            "workforce.stocktake_actor.use"
+          ],
+          "scope_kinds": ["department"],
+          "establishment_kinds": ["hospital"]
+        },
+        {
+          "key": "pharmacy.department_stocktake_reviewer.v1",
+          "name": "Hospital pharmacy stocktake reviewer",
+          "description": "Independently approve or reject physical stocktakes at this department's approved hospital pharmacy outlet; cannot start or count stock, dispense or post financial entries.",
+          "family": "pharmacy_stocktake",
+          "permissions": [
+            "pharmacy.stocktake.read",
+            "pharmacy.stocktake.review",
+            "workforce.stocktake_actor.use"
+          ],
+          "scope_kinds": ["department"],
+          "establishment_kinds": ["hospital"]
+        }
+      ],
+      "definitions_sha256": "c0a94967684ae2124c37a7436b70b4fdcca14f26d90232c44fbcfee464314ade",
+      "sql_sha256": "ff9ba7e6ae67b6b9c613e8853833adc8df3b073967fa30d8f4299ee9cce74bf2"
     }
   ],
   "template_catalogs": [
@@ -1631,6 +1744,16 @@
       "name": "Department pharmacy supplier order review",
       "template_keys": ["supply.department_goods_pharmacy_acceptor.v1"],
       "definitions_sha256": "2627516cd3c3c78a2965a074f58b647cd680998ced31879bc0fc7af43e0fb447"
+    },
+    {
+      "key": "department-pharmacy-stocktakes-v1",
+      "name": "Hospital department pharmacy stocktakes",
+      "template_keys": [
+        "pharmacy.department_stocktake_reader.v1",
+        "pharmacy.department_stocktake_counter.v1",
+        "pharmacy.department_stocktake_reviewer.v1"
+      ],
+      "definitions_sha256": "c0a94967684ae2124c37a7436b70b4fdcca14f26d90232c44fbcfee464314ade"
     }
   ]
 }

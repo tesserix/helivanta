@@ -61,6 +61,17 @@ func TestOperatingTemplateReleaseClassifiesEveryDeclaredDuty(t *testing.T) {
 	}
 }
 
+func TestHospitalStocktakeAssignmentsRemainLockedWhenProviderEnablesThem(t *testing.T) {
+	policy, err := release.New(release.Config{URL: "https://synthetic-release.invalid", ClientKey: "sdk-test", Client: &http.Client{Transport: assignmentReleaseTransport(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"features":{"helivanta.release.team_accounts":{"defaultValue":true},"helivanta.release.pharmacy_setup":{"defaultValue":true},"helivanta.release.pharmacy_stocktake":{"defaultValue":true}}}`)), Header: http.Header{}}, nil
+	})}})
+	require.NoError(t, err)
+	require.NoError(t, policy.Refresh(t.Context()))
+	enabled, err := policy.AssignmentEnabled(t.Context(), uuid.MustParse("11111111-1111-4111-8111-111111111111"), "synthetic-owner", "pharmacy_stocktake")
+	require.NoError(t, err)
+	require.False(t, enabled, "provider desired state cannot release unfinished hospital stocktakes")
+}
+
 func TestOperatingTemplateReleaseFailsClosedForLockedOrUnknownDuty(t *testing.T) {
 	principal := authn.Principal{TenantID: "11111111-1111-4111-8111-111111111111", Subject: "synthetic-owner"}
 	h := &operatingHandlers{}

@@ -125,11 +125,15 @@ it("does not start a count if its recovery reference cannot be retained", async 
   await screen.findByText(/No start request was sent/i);
   expect(fetch.mock.calls.some((call) => call[1]?.method === "PUT")).toBe(false);
 });
-it.each(["legacy", "operating"] as const)(
+it.each(["legacy", "operating", "hospital"] as const)(
   "starts a %s selected-product snapshot with named choices and no extra authority",
   async (authority) => {
-    const account = { ...scope, authority };
-    const reviewed = authority === "operating";
+    const account = {
+      ...scope,
+      authority,
+      ...(authority === "hospital" ? { hospitalId: product, departmentId: location } : {}),
+    };
+    const reviewed = authority !== "legacy";
     const fetch = vi.fn(async (url: string, init?: RequestInit) => {
       if (url.includes(reviewed ? "/quarantine-choices" : "/stock/locations"))
         return json(
@@ -215,7 +219,11 @@ it.each(["legacy", "operating"] as const)(
     if (reviewed) {
       expect(
         fetch.mock.calls.every(([url]) =>
-          url.includes(`/operating-locations/${scope.outletId}/stocktakes/`),
+          url.includes(
+            authority === "hospital"
+              ? `/hospitals/${product}/departments/${location}/pharmacies/${scope.pharmacyId}/outlets/${scope.outletId}/stocktakes/`
+              : `/operating-locations/${scope.outletId}/stocktakes/`,
+          ),
         ),
       ).toBe(true);
       for (const [, init] of fetch.mock.calls) {

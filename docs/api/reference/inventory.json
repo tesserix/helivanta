@@ -367,6 +367,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/me/hospital-pharmacy-stocktake-scopes",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/me/permissions",
           "permission": "no_tenant_membership",
           "authentication_required": true,
@@ -737,6 +746,15 @@
         {
           "method": "GET",
           "path": "/v1/iam/pharmacy-binding-assignment-proposals",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/pharmacy-stocktake-assignment-proposals",
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
@@ -1501,6 +1519,11 @@
         {
           "id": "0055_iam_stocktake_operating_templates",
           "sql_sha256": "1e5302f8b18805ed0698f159405caa29970a75e1e6f158cb6a017919fb8003f1",
+          "creates_tables": []
+        },
+        {
+          "id": "0056_iam_pharmacy_stocktake_templates",
+          "sql_sha256": "d2e0c355c44510117899f0f1e8ca67cb3c288988ffa3f7017f856768083d69a4",
           "creates_tables": []
         }
       ]
@@ -3478,6 +3501,114 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/cancellations/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/counts/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/counts/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/decisions/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/decisions/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/lines",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/register.csv",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/product-choices",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/quarantine-choices",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/commands/:command",
           "permission": "public",
@@ -3543,6 +3674,15 @@
         {
           "method": "GET",
           "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/lines/:line/stock-choices",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-outlet-choices",
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
@@ -6666,6 +6806,55 @@
           "sql_sha256": "75f511fcdb6913efa9174cd936df36c649fe81c5f9b602bb28f99a03b9972e35",
           "creates_tables": [
             "pharmacy_stocktake_operating_evidence"
+          ]
+        },
+        {
+          "id": "0066_pharmacy_stocktake_hospital",
+          "sql_sha256": "13e7c9f419f82f59f107e44dfb98e97c116184967f08ab3116f479a4838339f3",
+          "creates_tables": [
+            "pharmacy_stocktake_hospital_evidence"
+          ]
+        },
+        {
+          "id": "0067_pharmacy_stocktake_hospital_choices",
+          "sql_sha256": "56b11a22991959fed82a21b9a7017a8fdbe71cf16a1c146e0491e3f4fae49cb0",
+          "creates_tables": []
+        },
+        {
+          "id": "0068_pharmacy_stocktake_hospital_choice_index",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "pharmacy_stocktake_hospital_choice_page",
+              "table": "pharmacy_staff_department_bindings",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "department_id",
+                  "descending": false
+                },
+                {
+                  "name": "status",
+                  "descending": false
+                },
+                {
+                  "name": "created_at",
+                  "descending": true
+                },
+                {
+                  "name": "id",
+                  "descending": true
+                }
+              ]
+            }
           ]
         }
       ]
@@ -13644,6 +13833,10 @@
           "roles": []
         },
         {
+          "permission": "workforce.stocktake_actor.use",
+          "roles": []
+        },
+        {
           "permission": "workforce.posting.proposal.read",
           "roles": []
         },
@@ -15121,6 +15314,44 @@
           "id": "0121_workforce_staff_generic_plans",
           "sql_sha256": "3ac9ae0f905fabf86238c4637ee4f42fe0d2c2b52587ee5745017fe5b5da2b7c",
           "creates_tables": []
+        },
+        {
+          "id": "0122_workforce_stocktake_actor_history",
+          "sql_sha256": "4864aea28c5edd9a3209ad854f59bdffd5c3a91821e13645bf05d73cc146b840",
+          "creates_tables": []
+        },
+        {
+          "id": "0123_workforce_stocktake_actor_history_index",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "workforce_stocktake_history_subject",
+              "table": "workforce_login_links",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "subject",
+                  "descending": false
+                },
+                {
+                  "name": "staff_id",
+                  "descending": false
+                },
+                {
+                  "name": "id",
+                  "descending": false
+                }
+              ]
+            }
+          ]
         }
       ]
     },

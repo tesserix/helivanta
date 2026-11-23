@@ -75,6 +75,7 @@ type Deps struct {
 	StaffActors               authz.CurrentStaffActorGuard
 	AssignmentTargets         authz.GovernedAssignmentTargetReader
 	PurchaseOrderActors       authz.CurrentPurchaseOrderActorGuard
+	StocktakeActors           authz.HospitalStocktakeActorGuard
 	StaffPostingSources       authz.CurrentStaffPostingSourceGuard
 	PartnerMembers            authz.CurrentPartnerMemberGuard
 	DepartmentReferences      authz.DepartmentReferenceGuard

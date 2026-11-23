@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import {
   capabilityForPage,
   listStocktakeWorkerLocations,
+  listHospitalStocktakeScopes,
+  hospitalStocktakeScopesKey,
   stocktakeWorkerLocationsKey,
   useApiQuery,
   useReleaseCapabilities,
@@ -46,13 +48,21 @@ function CurrentWork({ scope }: { scope: StocktakeWorkerScope }) {
     staleTime: 0,
     gcTime: 0,
   });
-  if (
-    work.error ||
-    work.isFetching ||
-    !work.data ||
-    (work.data.data.length === 0 && !work.data.page.has_more)
-  )
-    return null;
+  const hospitals = useQuery({
+    queryKey: [...hospitalStocktakeScopesKey(scope), "shortcut"],
+    queryFn: ({ signal }) => listHospitalStocktakeScopes(scope, null, signal),
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+  });
+  const hasWork = [work, hospitals].some(
+    (source) =>
+      !source.error &&
+      !source.isFetching &&
+      source.data &&
+      (source.data.data.length > 0 || source.data.page.has_more),
+  );
+  if (!hasWork) return null;
   return (
     <nav aria-label="My work" className="mb-6">
       <PanelLink href={destination}>

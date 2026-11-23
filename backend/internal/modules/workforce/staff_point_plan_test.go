@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"slices"
 	"testing"
 
 	"github.com/google/uuid"
@@ -37,7 +38,7 @@ type staffPointPlanPreviousModule struct{ *workforce.Module }
 
 func (module staffPointPlanPreviousModule) Migrations() []tenantdb.Migration {
 	all := module.Module.Migrations()
-	return all[:len(all)-2]
+	return all[:slices.IndexFunc(all, func(m tenantdb.Migration) bool { return m.ID == "0120_workforce_staff_policy_plans" })]
 }
 
 type staffPointPolicyWriteRule struct {
@@ -48,7 +49,10 @@ type staffPointPolicyWriteRule struct {
 func TestStaffPointReadPlansPreserveTenantIsolation(t *testing.T) {
 	module := workforce.New()
 	migrations := module.Migrations()
-	barrier, forward := migrations[len(migrations)-2], migrations[len(migrations)-1]
+	index := slices.IndexFunc(migrations, func(m tenantdb.Migration) bool { return m.ID == "0120_workforce_staff_policy_plans" })
+	require.GreaterOrEqual(t, index, 0)
+	require.Less(t, index+1, len(migrations))
+	barrier, forward := migrations[index], migrations[index+1]
 	require.Equal(t, "0120_workforce_staff_policy_plans", barrier.ID)
 	require.Equal(t, "0121_workforce_staff_generic_plans", forward.ID)
 	router, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{

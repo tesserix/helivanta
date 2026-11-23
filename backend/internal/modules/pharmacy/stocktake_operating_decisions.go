@@ -22,7 +22,7 @@ func (h *catalogueHandlers) putOperatingStocktakeCancellation(c *gin.Context) {
 }
 
 func (h *catalogueHandlers) writeOperatingStocktakeDecision(c *gin.Context, cancelOnly bool) {
-	p, pharmacy, outlet, ok := operatingStockScope(c)
+	p, pharmacy, outlet, ok := stocktakeWorkScope(c)
 	if !ok {
 		return
 	}
@@ -59,15 +59,15 @@ func (h *catalogueHandlers) writeOperatingStocktakeDecision(c *gin.Context, canc
 	var result StocktakeDecisionReceipt
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
-	err = h.operatingStock(ctx, p, pharmacy, outlet, permission, func(tx *gorm.DB, use operatingStockUse) error {
+	err = h.stocktakeWork(ctx, p, pharmacy, outlet, c.Param("hospital"), c.Param("department"), permission, func(tx *gorm.DB, use stocktakeWorkUse) error {
 		var parent struct{ ID uuid.UUID }
-		if err := tx.Table("pharmacy_stocktakes").Clauses(clause.Locking{Strength: "UPDATE"}).Select("id").Where("tenant_id=? AND outlet_id=? AND id=? AND sealed AND authority_kind='operating'", p.TenantID, outlet, take).Take(&parent).Error; err != nil {
+		if err := tx.Table("pharmacy_stocktakes").Clauses(clause.Locking{Strength: "UPDATE"}).Select("id").Where("tenant_id=? AND outlet_id=? AND id=? AND sealed AND authority_kind=?", p.TenantID, outlet, take, use.authorityKind()).Take(&parent).Error; err != nil {
 			return err
 		}
 		saved, savedHash, err := readStocktakeDecision(tx, p.TenantID, outlet, take, command)
 		if err == nil {
 			var evidence int64
-			if err := tx.Table("pharmacy_stocktake_operating_evidence").Where("tenant_id=? AND outlet_id=? AND stocktake_id=? AND command_id=? AND kind=? AND staff_id=? AND actor_subject=?", p.TenantID, outlet, take, command, in.Decision, use.grant.Identity.StaffID, p.Subject).Count(&evidence).Error; err != nil {
+			if err := tx.Table(use.evidenceTable()).Where("tenant_id=? AND outlet_id=? AND stocktake_id=? AND command_id=? AND kind=? AND staff_id=? AND actor_subject=?", p.TenantID, outlet, take, command, in.Decision, use.staffID(), p.Subject).Count(&evidence).Error; err != nil {
 				return err
 			}
 			if savedHash != hash || saved.RecordedBy != p.Subject || evidence != 1 {
@@ -108,7 +108,7 @@ func (h *catalogueHandlers) writeOperatingStocktakeDecision(c *gin.Context, canc
 }
 
 func (h *catalogueHandlers) getOperatingStocktakeDecision(c *gin.Context) {
-	p, pharmacy, outlet, ok := operatingStockScope(c)
+	p, pharmacy, outlet, ok := stocktakeWorkScope(c)
 	if !ok {
 		return
 	}
@@ -121,9 +121,9 @@ func (h *catalogueHandlers) getOperatingStocktakeDecision(c *gin.Context) {
 		return
 	}
 	var result StocktakeDecisionReceipt
-	err := h.operatingStock(c.Request.Context(), p, pharmacy, outlet, PermStocktakeRead, func(tx *gorm.DB, use operatingStockUse) error {
+	err := h.stocktakeWork(c.Request.Context(), p, pharmacy, outlet, c.Param("hospital"), c.Param("department"), PermStocktakeRead, func(tx *gorm.DB, use stocktakeWorkUse) error {
 		var evidence int64
-		if err := tx.Table("pharmacy_stocktake_operating_evidence").Where("tenant_id=? AND outlet_id=? AND stocktake_id=? AND command_id=? AND kind IN('submit','cancel','approve','reject')", p.TenantID, outlet, take, command).Count(&evidence).Error; err != nil {
+		if err := tx.Table(use.evidenceTable()).Where("tenant_id=? AND outlet_id=? AND stocktake_id=? AND command_id=? AND kind IN('submit','cancel','approve','reject')", p.TenantID, outlet, take, command).Count(&evidence).Error; err != nil {
 			return err
 		}
 		if evidence != 1 {

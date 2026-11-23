@@ -23,6 +23,7 @@ func TestStaffActorAuthorizationHasOnlyReviewedConsumers(t *testing.T) {
 			"internal/modules/workforce/staff_actor_guard_test.go":            true,
 			"internal/bootstrap/staff_actor_test.go":                          true,
 			"internal/globalapi/workforce_person_review_test.go":              true,
+			"internal/globalapi/stocktake_hospital_actor_test.go":             true, // Reviewed negative cross-purpose admission tests.
 			"internal/globalapi/workforce_posting_authority_test.go":          true,
 		},
 		message: "ADRs0052/0060 permit only reviewed posting/source-use and department-choice authorization consumers, not general product business calls.",
@@ -43,6 +44,7 @@ func TestStaffActorProviderIsResolvedOnlyAtWiringBoundaries(t *testing.T) {
 			"internal/modules/workforce/staff_actor_guard_test.go":   true,
 			"internal/bootstrap/staff_actor_test.go":                 true,
 			"internal/globalapi/workforce_person_review_test.go":     true,
+			"internal/globalapi/stocktake_hospital_actor_test.go":    true, // Reviewed negative cross-purpose admission tests.
 			"internal/globalapi/workforce_posting_authority_test.go": true,
 		},
 		message: "Resolve the Workforce-owned source provider at application wiring; product modules may consume only the injected authorization interface.",

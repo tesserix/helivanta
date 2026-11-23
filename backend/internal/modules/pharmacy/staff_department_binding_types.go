@@ -94,3 +94,19 @@ type StaffBindingOutletChoice struct {
 	PharmacyName string    `json:"pharmacy_name"`
 	OutletName   string    `json:"outlet_name"`
 }
+
+type HospitalStocktakeOutletChoice struct {
+	OwnerTenantID        uuid.UUID `json:"owner_tenant_id"`
+	HospitalID           uuid.UUID `json:"hospital_id"`
+	DepartmentID         uuid.UUID `json:"department_id"`
+	DepartmentRevisionID uuid.UUID `json:"department_revision_id"`
+	PharmacyID           uuid.UUID `json:"pharmacy_id"`
+	OutletID             uuid.UUID `json:"outlet_id"`
+	BindingID            uuid.UUID `json:"binding_id"`
+	BindingVersion       int64     `json:"binding_version"`
+	PharmacyName         string    `json:"pharmacy_name"`
+	OutletName           string    `json:"outlet_name"`
+	OutletCode           string    `json:"outlet_code"`
+	TimeZone             string    `json:"time_zone"`
+	CountryCode          string    `json:"country_code"`
+}

@@ -16,6 +16,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
+	"github.com/tesserix/helivanta/internal/modules/organization"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"gorm.io/gorm"
 )
@@ -23,7 +24,10 @@ import (
 func TestStocktakeReviewedBrowser(t *testing.T) {
 	appURL := os.Getenv("HELIVANTA_OPERATING_BROWSER_URL")
 	require.NotEmpty(t, appURL, "the hosted built shell must be running")
-	f := newPharmacyReceiverFixture(t)
+	f := newPharmacyReceiverFixtureWithAdmission(t, nil, organization.New())
+	for _, actor := range []string{"owner", "receiver"} {
+		require.JSONEq(t, `{"data":[],"page":{"has_more":false,"next_cursor":null}}`, f.call("GET", "/v1/iam/me/hospital-pharmacy-stocktake-scopes?limit=20", actor, nil, 200))
+	}
 	f.activate(t)
 	batch := v7()
 	f.call("PUT", f.stock(f.pharmacy, f.outlet, "/batches/"+batch), "receiver", f.batch("TEST-BROWSER-COUNT"), 200)

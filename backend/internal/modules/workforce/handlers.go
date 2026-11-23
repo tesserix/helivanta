@@ -349,6 +349,11 @@ func (h *handlers) putDirectoryStaff(c *gin.Context, p authn.Principal, e establ
 		if err := lockDirectoryManager(tx, p, e.id); err != nil {
 			return err
 		}
+		if in.EmploymentStatus == "inactive" {
+			if err := tx.Exec(`SELECT workforce_lock_supervision(?::uuid,?::uuid)`, p.TenantID, e.id).Error; err != nil {
+				return err
+			}
+		}
 		if projection {
 			if err := checkDirectoryVersion(tx, p, e.id, id, in); err != nil {
 				return err

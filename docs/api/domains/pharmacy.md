@@ -24,6 +24,34 @@ The hierarchy is tenant → pharmacy organization → outlet, with optional hosp
 
 The [runtime reference](../reference/README.md#pharmacy) lists every implemented path. The outlet root is `/v1/pharmacy/pharmacies/{pharmacy}/outlets/{outlet}`. Organization/outlet administration and the legacy `/medications`/`dispenses` surfaces are separate route families; do not equate the legacy dispense task with the outlet stock ledger.
 
+## Hospital stocktake assignment preparation — development candidate
+
+Canonical `staff-access.json` now declares department-only
+`pharmacy.department_stocktake_reader.v1`, `.department_stocktake_counter.v1`
+and `.department_stocktake_reviewer.v1`. Each has read authority and the separate
+Workforce-owned `workforce.stocktake_actor.use`; only the counter has count and
+only the reviewer has review. They cannot apply to an independent pharmacy root,
+operate from a hospital-wide assignment, or borrow procurement/governance
+source-use permission. Existing current membership, reviewed assignment,
+employment and source checks remain necessary.
+
+`GET /v1/iam/pharmacy-stocktake-assignment-proposals` lists only this IAM-owned
+family through the existing authenticated assignment administration and bounded
+pagination contract. The SDK sends account preconditions and uses no-store reads.
+Generic proposal/decision/history contracts retain their current semantics.
+The family panel and list bind to `pharmacy_stocktake`, still compiled ineligible;
+provider desired state cannot release it. Candidate forward IAM migration
+`0056_iam_pharmacy_stocktake_templates` preserves all historical template SQL.
+
+Workforce's separate callback guard consumes only the exact held department
+stocktake actor-use grant, current digital Staff link and effective employment
+generation, with retained source audit and downstream rollback. No legacy role
+establishes that source basis. The actual hospital count/participant-history
+consumer, named working-location UI, complete hospital acceptance and live
+rollout remain unfinished. These templates and the list alone do not authorize
+hospital stock movements or establish a deployed workflow. See the
+[hospital delivery plan](../../superpowers/plans/2026-11-23-hospital-stocktake-authority.md).
+
 ## Reviewed operating stocktakes — unreleased development slice
 
 The independent/chain route root is
@@ -2035,3 +2063,121 @@ refunds and inventory-mode vouchers are also excluded. No import has been run
 against a real TallyPrime company. See the
 [design](../../superpowers/specs/2026-11-21-tally-accounting-export-design.md)
 and [delivery plan](../../superpowers/plans/2026-11-21-tally-accounting-export.md).
+
+### Hospital stocktake command candidate — #1686
+
+The development branch adds the same stocktake suffixes under
+`/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes`.
+Each request requires its own current department assignment for stocktake
+read/count/review, a separate `workforce.stocktake_actor.use` assignment, reviewed
+hospital Staff and the current approved hospital-owned outlet binding at the
+current Organization revision. Each held assignment's actual department scope is
+rechecked through commit. Legacy outlet editor access and procurement authority
+do not establish this authority.
+
+The existing physical snapshot, counts, decisions, version conflicts and exactly
+once ledger protocol are shared; immutable hospital evidence retains the current
+IAM snapshots, binding/revision and Workforce link/generation/epoch. Historical
+review is verified by Workforce, including retired counters and Staff/account
+aliases. Hospital, independent and legacy count history cannot be adopted across
+authority models. Out-of-scope/hidden structure returns 404, changed structure
+returns 409 `source_changed`, and unavailable authorization returns 503. Existing
+verified tenant/account preconditions remain in force.
+
+New-work/lines/export routes remain `pharmacy_stocktake` gated and compiled
+ineligible. Header/list/original command receipts and cancellation retain baseline
+classification with full current authority. This is candidate code, not deployed
+hospital release acceptance. Real hospital command integration passed in hosted
+runs 45197016258 and 45224688258, including current named scope/outlet discovery.
+Binding-change recovery, hierarchy coverage, hospital browser/capacity and live
+verification remain tracked in the
+[hospital delivery plan](../../superpowers/plans/2026-11-23-hospital-stocktake-authority.md).
+
+Hospital candidate commands also verify the Pharmacy owner schema seal inside the
+held source transaction. Changed evidence isolation/constraints, immutable
+triggers or bound source definitions return 503 `authorization_unavailable`
+before the consumer can proceed; receipt reads fail closed until exact restoration.
+This runtime check adds no hospital read or work permission by itself.
+
+### Hospital worker scope discovery — development candidate
+
+`GET /v1/iam/me/hospital-pharmacy-stocktake-scopes` returns a sealed,
+subject-bound keyset page of the signed-in member's actual department stocktake
+assignments (default and maximum 20). It accepts only one nonempty `limit` and
+`cursor`, no body, and exact expected-tenant/expected-subject headers. Session
+mismatch is 409, invalid pagination/filtering is 400 and unavailable current
+identity, authorization, owner projection or disclosure audit is 503. No partial
+page is returned on a dependency failure.
+
+IAM scans its own assignments, checks each canonical permission snapshot against
+its immutable stocktake role template, checks the graph, then holds the exact
+read and `workforce.stocktake_actor.use` grants through one guarded commit.
+Workforce checks the current reviewed digital Staff source and discloses its
+hospital name. Organization locks and rechecks the complete current ancestry and
+each actual grant department before disclosing its department name. Both owners
+record read evidence; IAM records the assignment disclosure. Tenant ownership
+alone produces no working scope. Expired, withdrawn, unacknowledged or ineligible
+assignments are omitted, with an empty page retaining its continuation cursor.
+
+The canonical `HospitalStocktakeScopeChoice` in `contracts/staff-access.json`
+contains reference IDs, hospital/department display names, the actual role name
+and permission snapshot, version, authority epoch and expiry. It exposes no
+Staff ID, login subject, email, generation or employment epoch. These assignment
+choices confer no stock authority and do not imply that a department has an
+approved pharmacy outlet. Outlet discovery is a separate Pharmacy-owned page;
+flattening many outlets into this assignment cursor would lose results. The
+endpoint is baseline recovery/discovery; stocktake commands and workspace remain
+release locked pending the remaining hospital acceptance gates.
+
+### Hospital bound-outlet discovery — development candidate
+
+`GET /v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-outlet-choices`
+returns a sealed page of up to 20 currently approved bindings for the selected
+exact department, with Pharmacy-owned outlet/pharmacy names, outlet code,
+country/timezone and the actual binding version and department revision. Its
+canonical DTO is `HospitalStocktakeOutletChoice` in
+`contracts/pharmacy-staff-bindings.json`. IDs are references, never fallback
+labels. The page exposes no stock, catalogue, Staff, login or financial records.
+
+The private cursor binds the tenant, signed-in subject, route, hospital and
+department. Exact expected-account headers are required; unsupported/duplicate
+filters and request bodies are rejected. Current read and Workforce source-use
+grants, each actual grant's current ancestry, and reviewed Staff are required
+before the candidate binding-reference scan. Each retained binding is rechecked
+and shared-locked before either name is read; Organization pins its actual
+current department revision and Pharmacy records disclosure evidence. Ended,
+replaced, stale-revision and no-longer-hospital-owned sources produce no named
+choice. Authorization or owner/evidence/schema failures release no partial page.
+
+Candidate migration **0067_pharmacy_stocktake_hospital_choices** requires intact
+preceding hospital and selection authority before installing a read-only database
+projection context. It restricts every Pharmacy table, permits names only for
+internally selected reference IDs, and blocks all Pharmacy writes/deletes and
+private stock/catalogue reads in that context. It restores the previous context
+on return. Dedicated integrity snapshots cover the projection policies and owner
+functions; migration **0068_pharmacy_stocktake_hospital_choice_index** adds the
+concurrent bounded-page index. No live migration or production rollout is implied.
+
+This is exact-department discovery. Inherited ancestor grants still require a
+separate authorized descendant-department selection before exposing a worker UI
+for that hierarchy; this endpoint does not invent Organization-owned hierarchy
+projections. Hierarchy coverage, binding/source replacement recovery, hospital
+browser/capacity and live acceptance remain release gates.
+
+### Hospital worker workspace — development candidate
+
+`/pharmacy/working-stocktakes` loads current hospital department assignments and
+independent pharmacy duties through their separate Global API projections. A
+hospital worker chooses a named hospital/department/role, then an approved named
+pharmacy/outlet. Internal account and resource IDs are not display labels.
+Only one authority/location is selected at a time. Assignment version/epoch and
+binding version/department revision isolate component and cache contexts; a
+withdrawn or unverifiable selection removes its work view.
+
+The selected canonical permissions control counter/reviewer UI affordances; every
+command still reauthorizes on the server. Hospital and independent work reuse the
+same start, count, review and retained-recovery components with explicit authority
+coordinates. Release unavailability removes new work while retaining authorized
+outcome checks. The dashboard advertises current work from either model,
+including filtered pages with continuation, without fetching outlet or stock
+records. This UI remains unreleased while the acceptance gates above are open.

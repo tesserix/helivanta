@@ -1,18 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@tesserix/web";
 import {
   listStocktakeWorkerLocations,
   stocktakeWorkerLocationsKey,
-  stocktakeKey,
+  listHospitalStocktakeScopes,
+  hospitalStocktakeScopesKey,
   useReleaseCapabilities,
   useApiQuery,
   usePagedQuery,
   useTenantTransition,
   type StocktakeWorkerScope,
-  type PharmacyStocktakeScope,
+  type StocktakeWorkerLocation,
 } from "@helivanta/api";
 import {
   LoadMore,
@@ -22,12 +22,8 @@ import {
   RequestFailure,
   useConfirmLeave,
 } from "@helivanta/ui";
-import { StocktakeContinuations } from "./stocktake-continuations";
-import { StocktakeList } from "./stocktake-list";
-import { StocktakeStart } from "./stocktake-start";
-import { StocktakeDetail } from "./stocktake-detail";
-import { StocktakeRecoveryPanel } from "./stocktake-recovery-panel";
-import { useStocktakeRecovery } from "./stocktake-recovery";
+import { HospitalStocktakeLocations } from "./hospital-stocktake-working-locations";
+import { StocktakeOutletWork } from "./stocktake-outlet-work";
 
 export function StocktakeWorkerWorkspace() {
   const transition = useTenantTransition();
@@ -35,6 +31,7 @@ export function StocktakeWorkerWorkspace() {
   const identity = useApiQuery<{ tenant_id: string; subject: string }>(
     ["iam", "me", "permissions"],
     "/iam/me/permissions",
+    { enabled: !transition },
   );
   if (transition) return <p role="status">Changing workspace…</p>;
   if (identity.error)
@@ -59,12 +56,83 @@ export function StocktakeWorkerWorkspace() {
 
 function WorkingLocations({ scope, released }: { scope: StocktakeWorkerScope; released: boolean }) {
   const leave = useConfirmLeave();
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<{
+    authority: "operating" | "hospital";
+    id: string;
+  } | null>(null);
   const locations = usePagedQuery(
     [...stocktakeWorkerLocationsKey(scope)],
     (cursor, signal) => listStocktakeWorkerLocations(scope, cursor, signal),
     { retry: false, gcTime: 0 },
   );
+  const hospitals = usePagedQuery(
+    [...hospitalStocktakeScopesKey(scope)],
+    (cursor, signal) => listHospitalStocktakeScopes(scope, cursor, signal),
+    { retry: false, gcTime: 0 },
+  );
+  const choose = (authority: "operating" | "hospital", id: string) => {
+    if (selected?.authority === authority && selected.id === id) return;
+    leave(() => setSelected({ authority, id }));
+  };
+  const showLocations =
+    Boolean(locations.error) ||
+    locations.isPending ||
+    locations.isRefreshing ||
+    locations.hasMore ||
+    locations.items.length > 0;
+  const showHospitals =
+    Boolean(hospitals.error) ||
+    hospitals.isPending ||
+    hospitals.isRefreshing ||
+    hospitals.hasMore ||
+    hospitals.items.length > 0;
+  return (
+    <div className="flex flex-col gap-5">
+      <PageHeading
+        title="My stocktakes"
+        description="Choose a current hospital department or reviewed pharmacy duty."
+      />
+      {!showLocations && !showHospitals && (
+        <Panel>
+          <p>No current reviewed stocktake assignment is available to this account.</p>
+        </Panel>
+      )}
+      {showHospitals && (
+        <HospitalStocktakeLocations
+          scope={scope}
+          released={released}
+          locations={hospitals}
+          selected={selected?.authority === "hospital" ? selected.id : null}
+          onSelect={(id) => choose("hospital", id)}
+        />
+      )}
+      {showLocations && (
+        <IndependentLocations
+          scope={scope}
+          released={released}
+          locations={locations}
+          selected={selected?.authority === "operating" ? selected.id : null}
+          onSelect={(id) => choose("operating", id)}
+        />
+      )}
+    </div>
+  );
+}
+
+function IndependentLocations({
+  scope,
+  released,
+  locations,
+  selected,
+  onSelect,
+}: {
+  scope: StocktakeWorkerScope;
+  released: boolean;
+  locations: ReturnType<typeof usePagedQuery<StocktakeWorkerLocation>>;
+  selected: string | null;
+  onSelect: (id: string) => void;
+}) {
+  const leave = useConfirmLeave();
   if (locations.error)
     return (
       <RequestFailure
@@ -77,16 +145,12 @@ function WorkingLocations({ scope, released }: { scope: StocktakeWorkerScope; re
     return <p role="status">Checking current working locations…</p>;
   const choice = locations.items.find((item) => item.duty_id === selected);
   return (
-    <div className="flex flex-col gap-5">
-      <PageHeading
-        title="My stocktakes"
-        description="Choose a current reviewed duty at its pharmacy outlet."
-      />
+    <>
       <Panel aria-label="Stocktake working locations">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-semibold">Working locations</h2>
+          <h2 className="font-semibold">Independent pharmacy duties</h2>
           <RefreshButton
-            refresh={() => leave(locations.retry)}
+            refresh={() => (selected ? leave(locations.retry) : locations.retry())}
             error={locations.error}
             busy={locations.isRefreshing}
           >
@@ -104,9 +168,10 @@ function WorkingLocations({ scope, released }: { scope: StocktakeWorkerScope; re
           {locations.items.map((item) => (
             <li key={item.duty_id}>
               <Button
+                className="h-auto min-h-10 w-full justify-start whitespace-normal text-left"
                 variant="outline"
                 aria-pressed={selected === item.duty_id}
-                onClick={() => leave(() => setSelected(item.duty_id))}
+                onClick={() => onSelect(item.duty_id)}
               >
                 {item.employer_name} · {item.location_name} · {item.location_code} ·{" "}
                 {item.template_label}
@@ -137,103 +202,20 @@ function WorkingLocations({ scope, released }: { scope: StocktakeWorkerScope; re
           <h2 className="mb-3 font-semibold">
             {choice.employer_name} · {choice.location_name}
           </h2>
-          {released ? (
-            <WorkingStocktakes
-              scope={{
-                ...scope,
-                authority: "operating",
-                pharmacyId: choice.employer_id,
-                outletId: choice.location_id,
-              }}
-              timeZone={choice.time_zone}
-              canCount={choice.assigned_permissions.includes("pharmacy.stocktake.count")}
-              canReview={choice.assigned_permissions.includes("pharmacy.stocktake.review")}
-            />
-          ) : (
-            <>
-              <p className="mb-3 text-sm">
-                New stocktake work is not available. Retained status and recovery remain accessible.
-              </p>
-              <StocktakeContinuations
-                scope={{
-                  ...scope,
-                  authority: "operating",
-                  pharmacyId: choice.employer_id,
-                  outletId: choice.location_id,
-                }}
-                timeZone={choice.time_zone}
-                canCancel={choice.assigned_permissions.includes("pharmacy.stocktake.count")}
-              />
-            </>
-          )}
+          <StocktakeOutletWork
+            scope={{
+              ...scope,
+              authority: "operating",
+              pharmacyId: choice.employer_id,
+              outletId: choice.location_id,
+            }}
+            released={released}
+            timeZone={choice.time_zone}
+            canCount={choice.assigned_permissions.includes("pharmacy.stocktake.count")}
+            canReview={choice.assigned_permissions.includes("pharmacy.stocktake.review")}
+          />
         </section>
       )}
-    </div>
-  );
-}
-
-function WorkingStocktakes({
-  scope,
-  timeZone,
-  canCount,
-  canReview,
-}: {
-  scope: PharmacyStocktakeScope;
-  timeZone: string;
-  canCount: boolean;
-  canReview: boolean;
-}) {
-  const client = useQueryClient();
-  const leave = useConfirmLeave();
-  const recovery = useStocktakeRecovery(scope);
-  const blocked = recovery.unavailable || recovery.markers.length > 0;
-  const [starting, setStarting] = useState(false);
-  const [selected, setSelected] = useState<string | null>(null);
-  const refresh = () => void client.invalidateQueries({ queryKey: stocktakeKey(scope) });
-  return (
-    <div className="flex flex-col gap-4">
-      <StocktakeRecoveryPanel scope={scope} timeZone={timeZone} />
-      {(starting || selected) && (
-        <Button
-          variant="outline"
-          onClick={() =>
-            leave(() => {
-              setStarting(false);
-              setSelected(null);
-            })
-          }
-        >
-          Back to stocktakes
-        </Button>
-      )}
-      {starting && canCount ? (
-        <StocktakeStart
-          scope={scope}
-          onStarted={(take) => {
-            setStarting(false);
-            setSelected(take.id);
-            refresh();
-          }}
-        />
-      ) : selected ? (
-        <StocktakeDetail
-          key={selected}
-          scope={scope}
-          takeId={selected}
-          timeZone={timeZone}
-          canConfigure={!blocked && (canCount || canReview)}
-          canCount={canCount}
-          canReview={canReview}
-        />
-      ) : (
-        <StocktakeList
-          scope={scope}
-          timeZone={timeZone}
-          retainedOnly={false}
-          onStart={canCount && !blocked ? () => setStarting(true) : undefined}
-          onOpen={(take) => setSelected(take.id)}
-        />
-      )}
-    </div>
+    </>
   );
 }

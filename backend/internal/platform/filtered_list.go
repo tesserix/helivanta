@@ -136,3 +136,27 @@ func filteredListRoute[T Keyed](r *Router, path string, permission authz.Permiss
 		respond.OK(c, gin.H{"data": rows, "page": gin.H{"has_more": hasMore, "next_cursor": next}})
 	}})
 }
+
+// SealedFilteredResourceListRoute binds a filter-free private page to every resource coordinate.
+func SealedFilteredResourceListRoute[T Keyed](r *Router, path string, permission authz.Permission, maxCandidates int, scan ListHandler[T], filter func(*gin.Context, []T) ([]T, error), resourceParams ...string) {
+	if len(resourceParams) == 0 {
+		panic("platform: a private resource list requires coordinates")
+	}
+	resources := append([]string(nil), resourceParams...)
+	seen := make(map[string]bool, len(resources))
+	for _, resource := range resources {
+		if seen[resource] || !hasSegment(r.group.BasePath()+path, resource) {
+			panic("platform: a private resource list requires distinct route coordinates")
+		}
+		seen[resource] = true
+	}
+	scopeFor := func(c *gin.Context, p authn.Principal) string {
+		key := p.Subject + "\x00" + c.FullPath()
+		for _, resource := range resources {
+			key += "\x00" + strings.ToLower(c.Param(resource))
+		}
+		digest := sha256.Sum256([]byte(key))
+		return hex.EncodeToString(digest[:])
+	}
+	filteredListRoute(r, path, permission, maxCandidates, scan, filter, true, scopeFor)
+}

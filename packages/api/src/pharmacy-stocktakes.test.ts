@@ -461,3 +461,51 @@ it("refuses a paged line from another stocktake", async () => {
   expect(page.data[0]?.counted_units).toBeNull();
   await expect(fetchStocktakeLines(scope, take, null)).rejects.toThrow(/stocktake/i);
 });
+
+it("uses the exact hospital and department route for a hospital counter", async () => {
+  const hospital = {
+    ...scope,
+    authority: "hospital",
+    hospitalId: "0199e000-0000-7000-8000-000000000011",
+    departmentId: "0199e000-0000-7000-8000-000000000012",
+  } as unknown as PharmacyStocktakeScope;
+  const fetch = vi.fn().mockResolvedValue(json(receipt));
+  vi.stubGlobal("fetch", fetch);
+  await startStocktake(hospital, take, input);
+  expect(fetch.mock.calls[0]?.[0]).toBe(
+    `/api/v1/pharmacy/hospitals/0199e000-0000-7000-8000-000000000011/departments/0199e000-0000-7000-8000-000000000012/pharmacies/${scope.pharmacyId}/outlets/${scope.outletId}/stocktakes/${take}`,
+  );
+});
+
+it("separates hospital cache identity from other departments, hospitals and authority models", () => {
+  const hospital: PharmacyStocktakeScope = {
+    ...scope,
+    authority: "hospital",
+    hospitalId: command,
+    departmentId: take,
+  };
+  for (const other of [
+    scope,
+    { ...scope, authority: "operating" as const },
+    { ...hospital, hospitalId: take },
+    { ...hospital, departmentId: command },
+    { ...hospital, subject: "TEST other counter" },
+  ])
+    expect(stocktakeKey(hospital, take)).not.toEqual(stocktakeKey(other, take));
+});
+
+it.each([
+  { authority: "hospital", hospitalId: take },
+  { authority: "hospital", departmentId: take },
+  { authority: "hospital", hospitalId: "", departmentId: take },
+  { authority: "hospital", hospitalId: command, departmentId: "invalid" },
+  { authority: "operating", hospitalId: command, departmentId: take },
+  { hospitalId: command, departmentId: take },
+])("refuses incomplete or ambiguous hospital scope before traffic: %j", async (value) => {
+  const invalid = { ...scope, ...value } as PharmacyStocktakeScope;
+  const fetch = vi.fn();
+  vi.stubGlobal("fetch", fetch);
+  await expect(readStocktake(invalid, take)).rejects.toThrow();
+  expect(() => stocktakeKey(invalid, take)).toThrow();
+  expect(fetch).not.toHaveBeenCalled();
+});

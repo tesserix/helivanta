@@ -118,3 +118,28 @@ it("refuses private inputs, corrupt storage and unavailable persistence without 
   expect(() => retainStocktakeCommand(scope, marker)).toThrow(/recovery/i);
   expect(sessionStorage.length).toBe(0);
 });
+
+it("isolates hospital recovery by hospital, department and authority through hook switches", () => {
+  const hospital: PharmacyStocktakeScope = {
+    ...scope,
+    authority: "hospital",
+    hospitalId: "0199e000-0000-7000-8000-000000000011",
+    departmentId: "0199e000-0000-7000-8000-000000000012",
+  };
+  const moved = { ...hospital, departmentId: "0199e000-0000-7000-8000-000000000013" };
+  retainStocktakeCommand(hospital, marker);
+  expect(pendingStocktakeCommands(scope)).toEqual([]);
+  expect(pendingStocktakeCommands({ ...scope, authority: "operating" })).toEqual([]);
+  expect(pendingStocktakeCommands(moved)).toEqual([]);
+  expect(pendingStocktakeCommands({ ...hospital, hospitalId: scope.pharmacyId })).toEqual([]);
+  const { result, rerender } = renderHook(
+    ({ value }: { value: PharmacyStocktakeScope }) => useStocktakeRecovery(value),
+    { initialProps: { value: hospital } },
+  );
+  expect(result.current.unavailable).toBe(false);
+  expect(result.current.markers).toEqual([marker]);
+  rerender({ value: moved });
+  expect(result.current.markers).toEqual([]);
+  rerender({ value: hospital });
+  expect(result.current.markers).toEqual([marker]);
+});

@@ -14,9 +14,17 @@ import {
 } from "./pharmacy-contract";
 
 export type PharmacyStocktake = z.infer<typeof pharmacyStocktakeSchema>;
-export type PharmacyStocktakeScope = PharmacyActorScope;
+const authoritySchema = z.enum(["legacy", "operating"]);
+export type PharmacyStocktakeScope = PharmacyActorScope & {
+  authority?: z.infer<typeof authoritySchema>;
+};
+export function stocktakeAuthority(scope: PharmacyStocktakeScope) {
+  return authoritySchema.parse(scope.authority ?? "legacy");
+}
 export function stocktakeKey(scope: PharmacyStocktakeScope, ...parts: unknown[]) {
-  return pharmacyKey(scope, "stocktake-actor", scope.subject, ...parts);
+  const namespace =
+    stocktakeAuthority(scope) === "operating" ? "operating-stocktake-actor" : "stocktake-actor";
+  return pharmacyKey(scope, namespace, scope.subject, ...parts);
 }
 export function stocktakeHeaders(scope: PharmacyStocktakeScope) {
   return pharmacyActorHeaders(scope);
@@ -50,7 +58,7 @@ export async function fetchStocktakes(
   const query = new URLSearchParams();
   if (cursor) query.set("cursor", cursor);
   const page = takePage.parse(
-    await apiFetch(`${pharmacyRoot(scope)}/stock/stocktakes?${query}`, request(scope, signal)),
+    await apiFetch(`${stocktakeCollectionRoot(scope)}?${query}`, request(scope, signal)),
   );
   if (page.data.some((take) => take.outlet_id !== scope.outletId))
     throw new Error("The stocktake page does not match this outlet.");
@@ -68,8 +76,13 @@ function request(scope: PharmacyStocktakeScope, signal?: AbortSignal): RequestIn
   };
 }
 
+export function stocktakeCollectionRoot(scope: PharmacyStocktakeScope) {
+  return stocktakeAuthority(scope) === "operating"
+    ? `/pharmacy/pharmacies/${id.parse(scope.pharmacyId)}/operating-locations/${id.parse(scope.outletId)}/stocktakes`
+    : `${pharmacyRoot(scope)}/stock/stocktakes`;
+}
 function root(scope: PharmacyStocktakeScope, take: string) {
-  return `${pharmacyRoot(scope)}/stock/stocktakes/${id.parse(take)}`;
+  return `${stocktakeCollectionRoot(scope)}/${id.parse(take)}`;
 }
 
 function countIntent(input: PharmacyStocktakeCountInput) {

@@ -367,6 +367,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/me/hospital-pharmacy-stocktake-scopes",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/me/permissions",
           "permission": "no_tenant_membership",
           "authentication_required": true,

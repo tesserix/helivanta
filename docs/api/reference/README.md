@@ -52,6 +52,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/hospitals/:hospital/supplier-shipment-grants` | `public` | true | false |
 | GET | `/v1/iam/identity-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/intake-assignment-proposals` | `public` | true | false |
+| GET | `/v1/iam/me/hospital-pharmacy-stocktake-scopes` | `public` | true | false |
 | GET | `/v1/iam/me/permissions` | `no_tenant_membership` | false | false |
 | GET | `/v1/iam/me/pharmacy-stocktake-locations` | `public` | true | false |
 | GET | `/v1/iam/me/profile` | `no_tenant_membership` | false | false |

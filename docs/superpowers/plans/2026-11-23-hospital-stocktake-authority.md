@@ -1,25 +1,28 @@
 # Hospital-owned pharmacy stocktake delivery — #1686
 
-Status: implementation plan, not implemented authority or release approval.
-Depends on the independent worker continuation in #1823. This completes the
-hospital side of the [reviewed authority design](../specs/2026-11-23-reviewed-stocktake-authority.md);
-it does not redefine the issue around the independent path already implemented.
+Status: implemented development candidate, still unreleased. The independent
+foundation in #1823 is merged; hospital work remains in draft #1826 and its
+continuation branch. This implements part of the
+[reviewed authority design](../specs/2026-11-23-reviewed-stocktake-authority.md),
+not the full #1686 release.
 
-Development checkpoint: the candidate now declares Workforce-owned
-`workforce.stocktake_actor.use` and a separate callback guard using the existing
-current-employment checks. Source declaration and missing-basis unit checks are
-tested. The module declares no legacy role grant; the independent permission
-matrix records the platform's existing automatic tenant-admin reconciliation,
-which cannot establish the exact guarded assignment or current Staff basis.
-Canonical department-only reader/counter/reviewer templates and their separate
-assignment-list route are now candidates under forward IAM migration
-`0056_iam_pharmacy_stocktake_templates`. SDK family routing and release locking
-have focused tests. An actual reviewed-employment fixture now additionally
-exercises this guard under the precise department assignment, including purpose
-separation, scope/escaped-context denial and audit rollback. The prior current-source fixture passed hosted execution in run 45133937513.
-A hospital historical-participant guard and regression fixtures are now candidates;
-their complete hosted fixture passed in run 45181539642. These changes do not yet provide a
-hospital count consumer or operating UI.
+The hospital command path and separate immutable evidence are implemented. The
+actual reviewed employment/department-assignment fixture passed start, count,
+submit, independent approval, exact retries and receipt recovery, source/evidence
+failure, movement/stale rejection, ledger conservation and binding withdrawal in
+hosted run **45197016258**. The schema integrity and exact-restoration cases passed
+in **45197010131**. These runs do not establish hospital browser or capacity
+acceptance.
+
+Current-account named assignment discovery is a newer candidate with narrow
+Workforce hospital-name and Organization department-name projections. Its
+missing-endpoint red is recorded in **45203058085**. Hosted run
+**45207440232** on **c0d66d85** passed the entire actual hospital workflow and
+name/role/private-field, owner-exclusion and subject-bound pagination assertions. Local focused race tests, canonical
+checks, affected builds, typechecks and linters pass. New work remains compiled
+ineligible. Pharmacy-owned bound-outlet discovery, hospital worker entry UI,
+binding/department/ownership-change recovery, hospital browser/capacity and
+approved rollout/live acceptance remain open.
 
 ## Verified starting point
 
@@ -341,24 +344,59 @@ hospital choices. These are remaining gates, not completed capabilities.
 | Independent built UI, actual owners and lost-response recovery            | [45191932101](https://github.com/tesserix/helivanta/actions/runs/45191932101) | Passed                           |
 | Independent regression, 10,000 buckets and 500 adjustments                | [45190810380](https://github.com/tesserix/helivanta/actions/runs/45190810380) | Passed                           |
 | Hospital migration refusal, selection integrity and runtime drift/restore | [45197010131](https://github.com/tesserix/helivanta/actions/runs/45197010131) | Passed                           |
-| Hospital employment/source plus actual count, review and withdrawal       | [45197016258](https://github.com/tesserix/helivanta/actions/runs/45197016258) | Passed |
+| Hospital employment/source plus actual count, review and withdrawal       | [45197016258](https://github.com/tesserix/helivanta/actions/runs/45197016258) | Running; do not infer acceptance |
 
 The application code tested in the last two runs is `b3d314bb`. Subsequent edits
 at this checkpoint are documentation only. Local API/shell builds passed and their
 generated outputs were removed. Hospital discovery/UI, binding-change recovery,
 hospital browser/capacity and live migration/rollout remain open release gates.
 
-The next integration slice will add an assertion after the complete hospital count,
+The next red-first integration assertion runs after the complete hospital count,
 independent approval, ledger verification and binding withdrawal. It requires
 named own scope rows for the counter's two real assignments and the reviewer's
 one assignment, exact canonical permission sets and no private identity facts.
-The unassigned tenant owner must receive an empty collection. That planned assertion
-will require the unimplemented IAM scope endpoint; do not infer a passing route from
+The unassigned tenant owner must receive an empty collection. It intentionally
+requires the unimplemented IAM scope endpoint; do not infer a passing route from
 this test declaration or from the prior physical-workflow run.
 
-The full reviewed-employment and hospital stocktake fixture passed in run
-45197016258 on application commit `b3d314bb`. This draft PR contains that tested
-hospital command/client implementation and documentation. The separate command
-branch has begun red-first scope-discovery tests; they are not included in this
-completed command checkpoint. Discovery/UI, transfer recovery, hospital browser
-and hospital capacity remain release gates. No live rollout or migration ran.
+### 24 November continuation: discovery red and CI repairs
+
+Hosted run **45203058085**, commands head **29c0aae9**, reached the new named
+hospital scope assertion after physical count/approval and source withdrawal.
+Its intended red is `GET /v1/iam/me/hospital-pharmacy-stocktake-scopes?limit=20`
+returning **404 instead of 200**. It is not a stock-math failure.
+
+PR #1826 CI exposed a historical query-plan fixture that assumed migrations
+0120/0121 were the last pair. The fixture now selects its named boundary and
+retains its real before/after forced-RLS assertions. Workforce 0122/0123 are
+later history migrations, so they must not move that earlier boundary. Source
+review pins were refreshed after reviewing: IAM's additive template migration;
+Workforce's additive stocktake permission/history migration and source-purpose
+allowlist; the supervision lock before Staff inactivation; and Pharmacy's new
+hospital stocktake dependencies. Existing classification and unfulfilled runtime
+obligations remain unchanged.
+
+The discovery implementation adds narrow owner name projections, not borrowed
+organization-management authority or cross-module SQL. It uses the existing
+IAM sealed filtered-list primitive and actual assignment snapshots. New unit
+checks first failed on absent projection interfaces, then passed after adding
+the guarded owner implementations. The full hosted discovery green must still
+be observed before consolidating this candidate into PR #1826. Bound-outlet
+choices, hospital worker UI, source-replacement recovery, hospital browser and
+capacity acceptance, migration/rollout approval and live acceptance remain open.
+
+### Named hospital discovery accepted in the hosted fixture
+
+Run **45207440232** passed on **c0d66d85**. The full reviewed-employment and
+hospital physical workflow ran together with named current-account scope choices,
+canonical role/permission snapshots, multiple assignments, bounded paging,
+cross-subject cursor rejection, duplicate/unsupported query rejection and an
+empty collection for the unassigned tenant owner. This checkpoint includes that
+application code and the reviewed CI test fixes. The 107 immutable-template
+migration tests pass after updating only their synthetic append golden fixture.
+The newer real disclosure-audit failure/rollback case is still on the continuation
+branch and has a separate hosted run; it is not claimed by this checkpoint.
+
+Bound-outlet discovery, hospital worker UI, source-replacement recovery, hospital
+browser/capacity, current-head required CI and approved rollout/live acceptance
+remain open. No live migration or rollout has been performed.

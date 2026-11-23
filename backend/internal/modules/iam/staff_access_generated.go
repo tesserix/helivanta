@@ -256,3 +256,18 @@ type AccountPresentations struct {
 	ActorSubject string                `json:"actor_subject"`
 	Data         []AccountPresentation `json:"data"`
 }
+
+type HospitalStocktakeScopeChoice struct {
+	OwnerTenantID       uuid.UUID `json:"owner_tenant_id"`
+	ID                  uuid.UUID `json:"id"`
+	HospitalID          uuid.UUID `json:"hospital_id"`
+	DepartmentID        uuid.UUID `json:"department_id"`
+	HospitalName        string    `json:"hospital_name"`
+	DepartmentName      string    `json:"department_name"`
+	TemplateKey         string    `json:"template_key"`
+	TemplateLabel       string    `json:"template_label"`
+	AssignedPermissions []string  `json:"assigned_permissions"`
+	SnapshotVersion     int64     `json:"snapshot_version"`
+	AuthorityEpoch      int64     `json:"authority_epoch"`
+	ExpiresAt           time.Time `json:"expires_at"`
+}

@@ -2096,3 +2096,33 @@ held source transaction. Changed evidence isolation/constraints, immutable
 triggers or bound source definitions return 503 `authorization_unavailable`
 before the consumer can proceed; receipt reads fail closed until exact restoration.
 This runtime check adds no hospital read or work permission by itself.
+
+### Hospital worker scope discovery — development candidate
+
+`GET /v1/iam/me/hospital-pharmacy-stocktake-scopes` returns a sealed,
+subject-bound keyset page of the signed-in member's actual department stocktake
+assignments (default and maximum 20). It accepts only one nonempty `limit` and
+`cursor`, no body, and exact expected-tenant/expected-subject headers. Session
+mismatch is 409, invalid pagination/filtering is 400 and unavailable current
+identity, authorization, owner projection or disclosure audit is 503. No partial
+page is returned on a dependency failure.
+
+IAM scans its own assignments, checks each canonical permission snapshot against
+its immutable stocktake role template, checks the graph, then holds the exact
+read and `workforce.stocktake_actor.use` grants through one guarded commit.
+Workforce checks the current reviewed digital Staff source and discloses its
+hospital name. Organization locks and rechecks the complete current ancestry and
+each actual grant department before disclosing its department name. Both owners
+record read evidence; IAM records the assignment disclosure. Tenant ownership
+alone produces no working scope. Expired, withdrawn, unacknowledged or ineligible
+assignments are omitted, with an empty page retaining its continuation cursor.
+
+The canonical `HospitalStocktakeScopeChoice` in `contracts/staff-access.json`
+contains reference IDs, hospital/department display names, the actual role name
+and permission snapshot, version, authority epoch and expiry. It exposes no
+Staff ID, login subject, email, generation or employment epoch. These assignment
+choices confer no stock authority and do not imply that a department has an
+approved pharmacy outlet. Outlet discovery is a separate Pharmacy-owned page;
+flattening many outlets into this assignment cursor would lose results. The
+endpoint is baseline recovery/discovery; stocktake commands and workspace remain
+release locked pending the remaining hospital acceptance gates.

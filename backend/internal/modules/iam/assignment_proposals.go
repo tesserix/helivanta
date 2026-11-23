@@ -454,6 +454,7 @@ func settleProposalScope(tx *gorm.DB, deps platform.Deps, tenant string, row ass
 }
 func (m *Module) registerAssignmentProposals(g *platform.Router, deps platform.Deps) {
 	registerGovernanceAssignments(g, deps, m.assignmentIdentity)
+	registerHospitalStocktakeScopes(g, deps)
 	h := &assignmentProposalHandlers{db: deps.DB, bus: deps.Bus, releasePolicy: deps.ReleasePolicy}
 	g.POST("/assignment-proposals/:id/decision", authz.Public, h.decide)
 	platform.ListRoute(g, "/assignment-proposals/:id/decisions", authz.Public, h.decisions)

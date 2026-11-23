@@ -27,6 +27,7 @@ func TestStocktakeHospitalChoicePurposeIsReadOnly(t *testing.T) {
 	require.NoError(t, err)
 	ctx := tenantdb.WithActor(context.Background(), "user-editor")
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		require.NoError(t, tx.Exec(`SELECT set_config('app.pharmacy_subject','user-editor',true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)`, pharmaOutlet, pharmaOrganization).Error)
 		var before int64
 		require.NoError(t, tx.Table("pharmacy_catalogue_products").Count(&before).Error)
 		require.Positive(t, before)

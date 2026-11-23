@@ -451,3 +451,11 @@ passed. The remaining failures were test setup: I had used a nonexistent
 owner schema defines `pharmacy_catalogue_products`; the fixtures now use that
 verified table. This changes tests only. Read-mode and complete drift acceptance
 are pending the corrected hosted run, not inferred from migration admission.
+
+Run **45217460541** passed migration and schema drift/restoration cases; the
+remaining purpose-test control correctly saw zero products without a catalogue
+outlet context. Its fixture now uses the existing real editor grant and standard
+outlet context before asserting positive catalogue access, exclusion during the
+projection, and restoration afterward. The restriction remains unchanged and the
+control now also tests that a valid legacy purpose cannot broaden projection
+access. This is still awaiting its hosted read-mode result.

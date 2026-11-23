@@ -608,3 +608,10 @@ a cache defect. This is native/independent evidence, not hospital capacity.
 
 The fixes and generated output are ready for the protected current-head PR
 checks. They do not enable Stocktake, close #1686 or perform a live migration.
+
+The first post-repair web check found the dependent Staff operational access
+ledger still recorded the old registry hash. Local Node `--check` reproduced
+that failure; regenerating after the hosted contract output updates only
+`registry_sha256`, and the check passes. The focused hosted generator now also
+regenerates/checks and exports that dependent ledger, in the correct order.
+No classifications, route reviews or release availability were changed.

@@ -79,7 +79,7 @@ func newReviewedStocktakeReservationFixture(t *testing.T) reviewedStocktakeReser
 	}
 	f.call("PUT", path+"/counts/"+v7(), "receiver", map[string]any{"expected_version": 0, "counts": entries, "reason": "TEST observed synthetic shortage"}, 200)
 	f.call("PUT", path+"/decisions/"+v7(), "receiver", map[string]any{"decision": "submit", "expected_version": 1, "reason": "TEST ready for independent review"}, 200)
-	classify("H")
+	classify("X")
 	shelf := uuid.MustParse(f.shelf)
 	version := int64(1)
 	fixture := supplierStockFixture{organization: uuid.MustParse(f.pharmacy), location: uuid.MustParse(f.outlet), stock: uuid.MustParse(batch), quarantine: uuid.MustParse(f.quarantine), bucket: &shelf, product: supplierorder.SupplierOrderProduct{Owner: "pharmacy", ProductID: uuid.MustParse(f.product), Version: &version}}
@@ -169,7 +169,7 @@ func TestStocktakeReviewedReadsPreserveModernReservationAndFrozenScheduledRegist
 	}
 	require.NotEqual(t, -1, section)
 	for _, row := range records[1:] {
-		require.Equal(t, "H1", row[section], "the count's frozen schedule must survive a later H classification")
+		require.Equal(t, "H1", row[section], "the count's frozen schedule must survive a later X classification")
 	}
 }
 

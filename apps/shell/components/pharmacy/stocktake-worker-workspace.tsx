@@ -10,7 +10,14 @@ import {
   useTenantTransition,
   type StocktakeWorkerScope,
 } from "@helivanta/api";
-import { LoadMore, PageHeading, Panel, RequestFailure, useConfirmLeave } from "@helivanta/ui";
+import {
+  LoadMore,
+  PageHeading,
+  Panel,
+  RefreshButton,
+  RequestFailure,
+  useConfirmLeave,
+} from "@helivanta/ui";
 import { StocktakeContinuations } from "./stocktake-continuations";
 
 export function StocktakeWorkerWorkspace() {
@@ -64,9 +71,13 @@ function WorkingLocations({ scope }: { scope: StocktakeWorkerScope }) {
       <Panel aria-label="Stocktake working locations">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-semibold">Working locations</h2>
-          <Button variant="outline" onClick={() => leave(locations.retry)}>
+          <RefreshButton
+            refresh={() => leave(locations.retry)}
+            error={locations.error}
+            busy={locations.isRefreshing}
+          >
             Refresh working locations
-          </Button>
+          </RefreshButton>
         </div>
         {locations.items.length === 0 && (
           <p className="mt-3 text-sm">

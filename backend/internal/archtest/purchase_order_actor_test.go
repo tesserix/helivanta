@@ -10,7 +10,7 @@ import (
 )
 
 func TestPurchaseOrderActorHasOnlyReviewedProcurementConsumers(t *testing.T) {
-	assertPoolMethodIsAllowlisted(t, privilegedPoolRule{method: "WithCurrentPurchaseOrderActor", allowlist: map[string]bool{"internal/modules/supply/order_authority.go": true, "internal/modules/workforce/purchase_order_actor_guard_test.go": true}, message: "The procurement actor purpose is separate from governance Staff actor admission and cannot confer order, stock, clinical or financial authority."})
+	assertPoolMethodIsAllowlisted(t, privilegedPoolRule{method: "WithCurrentPurchaseOrderActor", allowlist: map[string]bool{"internal/modules/supply/order_authority.go": true, "internal/modules/workforce/purchase_order_actor_guard_test.go": true, "internal/globalapi/stocktake_hospital_actor_test.go": true}, message: "The procurement actor purpose is separate from governance Staff actor admission and cannot confer order, stock, clinical or financial authority."})
 }
 func TestPurchaseOrderActorInterfaceStaysNarrow(t *testing.T) {
 	guard := reflect.TypeFor[authz.CurrentPurchaseOrderActorGuard]()

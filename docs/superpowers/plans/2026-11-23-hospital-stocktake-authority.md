@@ -18,8 +18,8 @@ Current-account named assignment discovery is a newer candidate with narrow
 Workforce hospital-name and Organization department-name projections. Its
 missing-endpoint red is recorded in **45203058085**. The implementation passed
 together with the complete hospital fixture in **45207440232** on **c0d66d85**
-and is consolidated into draft #1826 at **65892125**. New real audit-rollback and
-bound-outlet cases are verified separately; their greens are not implied here. Local focused race tests, canonical
+and is consolidated into draft #1826 at **65892125**. Real audit-rollback also passed in **45212938828** on **6602018c**. The
+bound-outlet candidate is verified separately; its green is not implied here. Local focused race tests, canonical
 checks, affected builds, typechecks and linters pass. New work remains compiled
 ineligible. Pharmacy-owned bound-outlet discovery, hospital worker entry UI,
 binding/department/ownership-change recovery, hospital browser/capacity and
@@ -468,3 +468,17 @@ owner error and verifies that projection mode cannot update/delete an existing
 mutable outlet-access grant, cannot insert an organization (42501), and restores
 the original editor grant and product reads afterward. No production restriction
 was relaxed for these fixture corrections.
+
+### Disclosure rollback accepted; architecture consumers reviewed
+
+Run **45212938828** passed the complete hospital source/physical workflow with
+an injected IAM disclosure-audit failure: 503 without named data, rollback of
+Workforce source/name evidence, exact restoration and subsequent success.
+
+The general Go check on #1826 separately rejected references to governance and
+procurement source methods in `stocktake_hospital_actor_test.go`. Reviewed that
+exact file: its calls assert those purposes cannot use the held stocktake proof
+and that no forbidden callback runs. Added only this negative integration-test
+file to the existing explicit architecture allowlists; production consumers and
+provider interfaces are unchanged. The three architecture failures were
+reproduced locally before updating the reviewed test consumers.

@@ -111,6 +111,7 @@ jobs:
           pnpm --filter @helivanta/shell exec eslint components/workforce/operating-duty-preparation.tsx components/workforce/operating-duty-preparation.test.tsx components/workforce/independent-operating-duties.tsx components/workforce/independent-operating-duties.test.tsx
           pnpm --filter @helivanta/api exec eslint src/operating-assignments-contract.ts src/release-capabilities-contract.ts src/release-capabilities.ts
           pnpm --filter @helivanta/api exec eslint src/pharmacy-stocktakes.ts src/pharmacy-stocktake-export.ts src/pharmacy-stocktakes.test.ts src/pharmacy-stocktake-export.test.ts
+          pnpm --filter @helivanta/api exec eslint src/stocktake-worker-locations.ts src/stocktake-worker-locations.test.ts
           pnpm --filter @helivanta/shell exec eslint components/pharmacy/stocktake-recovery.ts components/pharmacy/stocktake-recovery.test.ts
       - name: Affected API and shell type checks
         run: |

@@ -62,7 +62,9 @@ func (h *operatingHandlers) scanStocktakeWorkerLocations(c *gin.Context, page pa
 	if !ok {
 		return nil, nil
 	}
-	if c.GetHeader("X-Helivanta-Expected-Tenant") != p.TenantID || c.GetHeader("X-Helivanta-Expected-Subject") != p.Subject {
+	tenants := c.Request.Header.Values("X-Helivanta-Expected-Tenant")
+	subjects := c.Request.Header.Values("X-Helivanta-Expected-Subject")
+	if len(tenants) != 1 || tenants[0] != p.TenantID || len(subjects) != 1 || subjects[0] != p.Subject {
 		respond.Error(c, 409, "session_changed", "Your signed-in account changed. Reload before choosing a working location.")
 		return nil, nil
 	}

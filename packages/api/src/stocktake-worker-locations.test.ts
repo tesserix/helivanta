@@ -28,7 +28,7 @@ type ChoicePage = {
 function list() {
   expect(api).toHaveProperty("listStocktakeWorkerLocations");
   return Reflect.get(api, "listStocktakeWorkerLocations") as (
-    scope: typeof scope,
+    account: typeof scope,
     cursor?: string | null,
     signal?: AbortSignal,
   ) => Promise<ChoicePage>;

@@ -10,7 +10,7 @@ BEGIN
  END IF;
  SELECT jsonb_agg(jsonb_build_object('table',c.relname,'policy',p.polname,'digest',md5(p.polcmd::text||p.polpermissive::text||p.polroles::text||COALESCE(pg_get_expr(p.polqual,p.polrelid),'')||COALESCE(pg_get_expr(p.polwithcheck,p.polrelid),''))))INTO policies
  FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid JOIN pg_namespace n ON n.oid=c.relnamespace
- WHERE n.nspname=current_schema()ANDc.relname IN('workforce_login_links','workforce_login_link_history','workforce_employment_generations')
+ WHERE n.nspname=current_schema()AND c.relname IN('workforce_login_links','workforce_login_link_history','workforce_employment_generations')
  AND p.polname=CASE WHEN c.relname='workforce_employment_generations' THEN 'generation_isolation' ELSE 'login_link_isolation' END;
  IF jsonb_array_length(policies)<>3 THEN RAISE EXCEPTION 'hospital identity policies are unavailable';END IF;
  SELECT jsonb_object_agg(name,pg_get_functiondef(name::regprocedure))INTO guards
@@ -87,7 +87,7 @@ DECLARE policies text;functions text;triggers text;policy_count bigint;function_
 BEGIN
  SELECT string_agg(format('(%L::regclass,%L,%L)',p.polrelid::regclass::text,p.polname,md5(p.polcmd::text||p.polpermissive::text||p.polroles::text||COALESCE(pg_get_expr(p.polqual,p.polrelid),'')||COALESCE(pg_get_expr(p.polwithcheck,p.polrelid),''))),','),count(*)INTO policies,policy_count
  FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid JOIN pg_namespace n ON n.oid=c.relnamespace
- WHERE n.nspname=current_schema()ANDc.relname IN('workforce_login_links','workforce_login_link_history','workforce_employment_generations')
+ WHERE n.nspname=current_schema()AND c.relname IN('workforce_login_links','workforce_login_link_history','workforce_employment_generations')
  AND p.polname=CASE WHEN c.relname='workforce_employment_generations' THEN 'generation_isolation' ELSE 'login_link_isolation' END;
  SELECT string_agg(format('(%L,%L)',p.oid::regprocedure::text,md5(pg_get_functiondef(p.oid))),','),count(*)INTO functions,function_count
  FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname=current_schema()AND p.proname IN('workforce_stocktake_history_context','workforce_stocktake_history_link','workforce_stocktake_history_link_revision','workforce_stocktake_history_generation','workforce_prevent_removal','workforce_login_link_history_guard');

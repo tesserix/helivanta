@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders, releaseSnapshotForTest } from "@helivanta/api/testing";
 import { NavigationGuardProvider } from "@helivanta/ui";
@@ -42,7 +42,7 @@ it("finds named reviewed work through an empty candidate page and retains recove
       return Response.json(url.includes("cursor=") ? page([choice]) : page([], "TEST-next"));
     }
     if (
-      url ===
+      new URL(url, "https://stocktake.test").pathname ===
       `/api/v1/pharmacy/pharmacies/${choice.employer_id}/operating-locations/${choice.location_id}/stocktakes`
     )
       return Response.json(page([]));
@@ -67,11 +67,15 @@ it("finds named reviewed work through an empty candidate page and retains recove
   expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   expect(document.body.textContent).not.toContain(choice.employer_id);
   expect(document.body.textContent).not.toContain(choice.location_id);
-  expect(
-    fetch.mock.calls.some(([url]) =>
-      url.endsWith(`/operating-locations/${choice.location_id}/stocktakes`),
-    ),
-  ).toBe(true);
+  await waitFor(() =>
+    expect(
+      fetch.mock.calls.some(
+        ([url]) =>
+          new URL(url, "https://stocktake.test").pathname ===
+          `/api/v1/pharmacy/pharmacies/${choice.employer_id}/operating-locations/${choice.location_id}/stocktakes`,
+      ),
+    ).toBe(true),
+  );
   expect(
     fetch.mock.calls.some(
       ([url]) =>

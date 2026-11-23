@@ -47,10 +47,20 @@ func TestStocktakeHospitalChoicePurposeIsReadOnly(t *testing.T) {
 		require.Error(t, err, "a projection must never update even its selected organization")
 		var denied *pgconn.PgError
 		require.ErrorAs(t, err, &denied)
-		require.Equal(t, "42501", denied.Code)
-		deleted := tx.Exec(`DELETE FROM pharmacy_outlets WHERE tenant_id=? AND id=?`, testutil.TenantA, pharmaOutlet)
+		require.Equal(t, "23514", denied.Code)
+		require.Contains(t, denied.Message, "pharmacy catalogue history cannot be removed or changed")
+		err = tx.Transaction(func(inner *gorm.DB) error {
+			return inner.Exec(`DELETE FROM pharmacy_outlets WHERE tenant_id=? AND id=?`, testutil.TenantA, pharmaOutlet).Error
+		})
+		require.ErrorAs(t, err, &denied)
+		require.Equal(t, "23514", denied.Code)
+		require.Contains(t, denied.Message, "pharmacy catalogue history cannot be removed or changed")
+		updated := tx.Exec(`UPDATE pharmacy_outlet_access SET level='reader'WHERE tenant_id=? AND outlet_id=? AND subject='user-editor'`, testutil.TenantA, pharmaOutlet)
+		require.NoError(t, updated.Error)
+		require.Zero(t, updated.RowsAffected, "projection mode cannot update the existing mutable access grant")
+		deleted := tx.Exec(`DELETE FROM pharmacy_outlet_access WHERE tenant_id=? AND outlet_id=? AND subject='user-editor'`, testutil.TenantA, pharmaOutlet)
 		require.NoError(t, deleted.Error)
-		require.Zero(t, deleted.RowsAffected)
+		require.Zero(t, deleted.RowsAffected, "projection mode cannot delete the existing mutable access grant")
 		err = tx.Transaction(func(inner *gorm.DB) error {
 			return inner.Exec(`INSERT INTO pharmacy_organizations(tenant_id,id,code,name,ownership_type)VALUES(?,?,'TEST-FORBIDDEN-CHOICE','TEST forbidden choice insert','hospital_owned')`, testutil.TenantA, uuid.Must(uuid.NewV7())).Error
 		})
@@ -61,6 +71,9 @@ func TestStocktakeHospitalChoicePurposeIsReadOnly(t *testing.T) {
 		var after int64
 		require.NoError(t, tx.Table("pharmacy_catalogue_products").Count(&after).Error)
 		require.Equal(t, before, after)
+		var level string
+		require.NoError(t, tx.Table("pharmacy_outlet_access").Select("level").Where("tenant_id=? AND outlet_id=? AND subject='user-editor'", testutil.TenantA, pharmaOutlet).Scan(&level).Error)
+		require.Equal(t, "editor", level, "the original grant survives failed projection writes")
 		var name string
 		require.NoError(t, tx.Table("pharmacy_organizations").Select("name").Where("tenant_id=? AND id=?", testutil.TenantA, pharmaOrganization).Scan(&name).Error)
 		require.Equal(t, "TEST Count Pharmacy", name)

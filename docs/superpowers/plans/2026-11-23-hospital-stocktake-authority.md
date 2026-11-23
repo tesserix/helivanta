@@ -459,3 +459,12 @@ outlet context before asserting positive catalogue access, exclusion during the
 projection, and restoration afterward. The restriction remains unchanged and the
 control now also tests that a valid legacy purpose cannot broaden projection
 access. This is still awaiting its hosted read-mode result.
+
+In **45218653921**, the real read-mode context, private-product exclusion and
+exact selected-outlet visibility passed. The mutation assertion encountered the
+existing statement-level catalogue immutability trigger (23514) before the row
+policy's expected 42501. The test now separately preserves that exact immutable
+owner error and verifies that projection mode cannot update/delete an existing
+mutable outlet-access grant, cannot insert an organization (42501), and restores
+the original editor grant and product reads afterward. No production restriction
+was relaxed for these fixture corrections.

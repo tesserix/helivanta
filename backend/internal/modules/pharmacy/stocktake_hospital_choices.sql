@@ -28,7 +28,7 @@ DO $$DECLARE prior text;BEGIN
  EXECUTE format('ALTER POLICY pharmacy_staff_binding_scope ON pharmacy_staff_department_bindings USING((%s)OR(status=''approved''AND pharmacy_stocktake_hospital_choices_context(tenant_id,hospital_id,department_id)))',prior);
 END $$;
 DO $policies$
-DECLARE target record;reading text;BEGIN
+DECLARE target record;reading text;predicate text;BEGIN
  FOR target IN SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
  WHERE n.nspname=current_schema()AND c.relkind IN('r','p')AND starts_with(c.relname,'pharmacy_')
  AND EXISTS(SELECT 1 FROM pg_attribute a WHERE a.attrelid=c.oid AND a.attname='tenant_id'AND NOT a.attisdropped)LOOP
@@ -36,7 +36,12 @@ DECLARE target record;reading text;BEGIN
  IF target.relname='pharmacy_staff_department_bindings'THEN reading:='status=''approved''AND pharmacy_stocktake_hospital_choices_context(tenant_id,hospital_id,department_id)';
  ELSIF target.relname='pharmacy_outlets'THEN reading:='country_code=''IN''AND id=(NULLIF(current_setting(''app.pharmacy_stocktake_choices'',true),'''')::jsonb->>''outlet_id'')::uuid AND pharmacy_stocktake_hospital_choices_context(tenant_id,(NULLIF(current_setting(''app.pharmacy_stocktake_choices'',true),'''')::jsonb->>''hospital_id'')::uuid,(NULLIF(current_setting(''app.pharmacy_stocktake_choices'',true),'''')::jsonb->>''department_id'')::uuid)';
  ELSIF target.relname='pharmacy_organizations'THEN reading:='ownership_type=''hospital_owned''AND id=(NULLIF(current_setting(''app.pharmacy_stocktake_choices'',true),'''')::jsonb->>''pharmacy_id'')::uuid AND pharmacy_stocktake_hospital_choices_context(tenant_id,(NULLIF(current_setting(''app.pharmacy_stocktake_choices'',true),'''')::jsonb->>''hospital_id'')::uuid,(NULLIF(current_setting(''app.pharmacy_stocktake_choices'',true),'''')::jsonb->>''department_id'')::uuid)';END IF;
- EXECUTE format('CREATE POLICY hospital_stocktake_choice_purpose ON %I AS RESTRICTIVE USING(hms_tenant_visible(tenant_id)AND(COALESCE(current_setting(''app.pharmacy_stocktake_choices'',true),'''')=''''OR(%s)))WITH CHECK(tenant_id=NULLIF(current_setting(''app.tenant_id'',true),'''')::uuid AND COALESCE(current_setting(''app.pharmacy_stocktake_choices'',true),'''')='''')',target.relname,reading);
+ predicate:=format('hms_tenant_visible(tenant_id)AND(COALESCE(current_setting(''app.pharmacy_stocktake_choices'',true),'''')=''''OR(%s))',reading);
+ -- Preserve the existing column-limited platform review path only outside directory mode.
+ IF target.relname=ANY(ARRAY['pharmacy_product_schedule_declarations','pharmacy_product_schedule_countersigns','pharmacy_product_schedule_reviews','pharmacy_catalogue_products'])THEN
+  predicate:=format('CASE WHEN current_user=''helivanta_drug_approver''AND COALESCE(current_setting(''app.pharmacy_stocktake_choices'',true),'''')=''''THEN true ELSE(%s)END',predicate);
+ END IF;
+ EXECUTE format('CREATE POLICY hospital_stocktake_choice_purpose ON %I AS RESTRICTIVE USING(%s)WITH CHECK(tenant_id=NULLIF(current_setting(''app.tenant_id'',true),'''')::uuid AND COALESCE(current_setting(''app.pharmacy_stocktake_choices'',true),'''')='''')',target.relname,predicate);
  EXECUTE format('CREATE POLICY hospital_stocktake_choice_delete ON %I AS RESTRICTIVE FOR DELETE USING(hms_tenant_visible(tenant_id)AND COALESCE(current_setting(''app.pharmacy_stocktake_choices'',true),'''')='''')',target.relname);
  END LOOP;
 END $policies$;

@@ -75,10 +75,19 @@ jobs:
         run: >-
           go test -v -race -count=1 -timeout=8m ./internal/modules/billing
           -run '^(TestAFinalBill.*|TestAWithdrawnDischarge.*|TestBillTablesHoldTheFinalBillRules|TestAnAppliedCardDepositIsNotVoided)$'
-      - name: Build and vet affected targets
+      - name: Build, vet and regenerate affected contracts
         run: |
-          go build ./cmd/api
+          go build -o "$RUNNER_TEMP/helivanta-merge-api" ./cmd/api
           go vet ./internal/modules/pharmacy ./internal/modules/billing
+          go run ./cmd/contractdocs
+          go run ./cmd/contractdocs -check
+          rm "$RUNNER_TEMP/helivanta-merge-api"
+      - name: Export generated contract references
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: merge-regression-contract-references
+          path: docs/api/reference
+          retention-days: 7
   hospital-stocktake-schema:
     if: ${{ inputs.suite == 'hospital-schema' }}
     runs-on: ubuntu-24.04

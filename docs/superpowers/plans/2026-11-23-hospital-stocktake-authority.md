@@ -565,3 +565,29 @@ The hospital browser test's direct named-assignment lookup now supplies both
 expected-account headers, and its private-stock path check distinguishes the
 `stock` segment from `stocktakes`. Superseded hospital runs were cancelled before
 acceptance; they are not evidence of a passing hospital browser.
+
+### Merge regression repair
+
+Hosted red **45264545681** reproduces the platform review regression on the
+unfixed candidate: the dedicated `helivanta_drug_approver` sees zero instead of
+one countersigned request; the existing approval/rejection tests also fail.
+Migration 0067's restrictive directory policy must preserve the existing 0050
+column-limited platform path on the four schedule-review source tables when the
+directory context is absent. The candidate policy now includes that exact-role
+branch only outside hospital directory mode. It does not change grants, tenant
+write checks, review triggers, normal tenant visibility or any deployed migration.
+A regression checks normal review, zero visibility in directory mode and restored
+review afterward. The candidate migration has not been deployed.
+
+The earlier full Go run's billing failures occurred at 00:12 Asia/Kolkata,
+inside the documented 15-minute census grace. Positive final-bill fixtures had
+open stays yet assumed the census was settled. Those fixtures now end their
+stays before the grace; all final-bill assertions remain, and the separate
+open-stay grace refusal test remains unchanged. No billing runtime behavior,
+pricing, tax, ledger or safety rule changes.
+
+Hosted `merge-regressions` builds/vets the affected API, runs actual Pharmacy
+platform/directory and Billing final-bill/deposit tests and regenerates contracts.
+No local application, database, container, Colima or local build is used.
+Acceptance still requires green hosted results, current protected checks and
+the unchanged capacity budgets; no merge bypass is authorized by this plan.

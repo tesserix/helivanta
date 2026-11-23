@@ -158,7 +158,7 @@ func TestAnAppliedCardDepositIsNotVoided(t *testing.T) {
 	w := newBedWorld(t)
 	w.priced(t)
 	admission, patient := uuid.NewString(), uuid.NewString()
-	require.NoError(t, w.start(admission, patient, stay{uuid.NewString(), uuid.NewString(), "general"}, time.Now().Add(-time.Hour)))
+	w.completedStay(admission, patient)
 	counter, _ := w.counterWithShift(t, "clerk", "IPD-1", 0)
 	status, body := w.switchMode("admin", counter, "card", true)
 	require.Equal(t, http.StatusOK, status, body)

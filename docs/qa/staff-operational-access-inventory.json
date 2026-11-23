@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "28fcade835bc5a2dbb25757679427309805fd05f6c53a1b59aec21ca63e7a1d5",
+  "registry_sha256": "4cd28aec2a3bb5551d3dc5ce76b5e59449794b47474c4cd8177b0e09561fbb77",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1235,
-    "unclassified": 1084
+    "total": 1237,
+    "unclassified": 1086
   },
   "entries": [
     {
@@ -8423,6 +8423,38 @@
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/product-choices",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/product-choices",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/quarantine-choices",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/quarantine-choices",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
         "counted": false
       },
       "review": null

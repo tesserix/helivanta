@@ -520,6 +520,8 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/register.csv` | `public` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake` | `public` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake` | `public` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/product-choices` | `public` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/quarantine-choices` | `public` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes` | `public` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access-grants` | `pharmacy.access.manage` | true | false |
 | DELETE | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access/:subject` | `pharmacy.access.manage` | false | false |

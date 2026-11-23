@@ -15,7 +15,7 @@ func TestStocktakeHospitalAuthorityIntegrityRejectsDrift(t *testing.T) {
 	read := func() bool {
 		var intact bool
 		require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
-			return tx.Raw(`SELECT pharmacy_stocktake_hospital_integrity()`).Scan(&intact).Error
+			return tx.Raw(`SELECT pharmacy_stocktake_hospital_integrity()AND pharmacy_stocktake_hospital_choice_integrity()`).Scan(&intact).Error
 		}))
 		return intact
 	}
@@ -26,6 +26,10 @@ func TestStocktakeHospitalAuthorityIntegrityRejectsDrift(t *testing.T) {
 		{name: "broadened binding selection", tamper: `ALTER POLICY pharmacy_staff_binding_scope ON pharmacy_staff_department_bindings USING(true);`, restorationQuery: `SELECT format('ALTER POLICY pharmacy_staff_binding_scope ON pharmacy_staff_department_bindings USING(%s);',pg_get_expr(polqual,polrelid))FROM pg_policy WHERE polrelid='pharmacy_staff_department_bindings'::regclass AND polname='pharmacy_staff_binding_scope'`},
 		{name: "replaced immutable source function", tamper: `CREATE OR REPLACE FUNCTION pharmacy_catalogue_immutable()RETURNS trigger LANGUAGE plpgsql AS $$BEGIN RETURN NULL;END$$;`, restorationQuery: `SELECT pg_get_functiondef('pharmacy_catalogue_immutable()'::regprocedure)`},
 		{name: "replaced hospital source function", tamper: `CREATE OR REPLACE FUNCTION pharmacy_stocktake_hospital_scope(t uuid,o uuid,operation text)RETURNS boolean LANGUAGE sql STABLE AS $$SELECT true$$;`, restorationQuery: `SELECT pg_get_functiondef('pharmacy_stocktake_hospital_scope(uuid,uuid,text)'::regprocedure)`},
+
+		{name: "missing private choice restriction", tamper: `DROP POLICY hospital_stocktake_choice_purpose ON pharmacy_catalogue_entries;`, restorationQuery: `SELECT format('CREATE POLICY hospital_stocktake_choice_purpose ON pharmacy_catalogue_entries AS RESTRICTIVE USING(%s)WITH CHECK(%s);',pg_get_expr(polqual,polrelid),pg_get_expr(polwithcheck,polrelid))FROM pg_policy WHERE polrelid='pharmacy_catalogue_entries'::regclass AND polname='hospital_stocktake_choice_purpose'`},
+		{name: "missing choice delete restriction", tamper: `DROP POLICY hospital_stocktake_choice_delete ON pharmacy_outlets;`, restorationQuery: `SELECT format('CREATE POLICY hospital_stocktake_choice_delete ON pharmacy_outlets AS RESTRICTIVE FOR DELETE USING(%s);',pg_get_expr(polqual,polrelid))FROM pg_policy WHERE polrelid='pharmacy_outlets'::regclass AND polname='hospital_stocktake_choice_delete'`},
+		{name: "replaced choice proof function", tamper: `CREATE OR REPLACE FUNCTION pharmacy_stocktake_hospital_choices_context(t uuid,h uuid,d uuid)RETURNS boolean LANGUAGE sql STABLE AS $$SELECT true$$;`, restorationQuery: `SELECT pg_get_functiondef('pharmacy_stocktake_hospital_choices_context(uuid,uuid,uuid)'::regprocedure)`},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
 			restore := scenario.restore

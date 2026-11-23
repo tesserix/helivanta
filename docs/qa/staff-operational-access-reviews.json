@@ -4774,7 +4774,7 @@
         },
         {
           "path": "backend/internal/platform/filtered_list.go",
-          "sha256": "981532fbbe4527156bd24be06729be8c75a2d774d6e0f43bc38ee2b15031f622",
+          "sha256": "357d82d559ca33517fae3a86f19059270ddc4fb1aa85d2b8efcb5ef475162948",
           "symbol": "func SealedFilteredListRoute["
         },
         {
@@ -4967,7 +4967,7 @@
         {
           "path": "backend/internal/platform/filtered_list.go",
           "symbol": "SealedFilteredQueryListRoute",
-          "sha256": "981532fbbe4527156bd24be06729be8c75a2d774d6e0f43bc38ee2b15031f622"
+          "sha256": "357d82d559ca33517fae3a86f19059270ddc4fb1aa85d2b8efcb5ef475162948"
         },
         {
           "path": "backend/internal/platform/listroute.go",
@@ -5030,7 +5030,7 @@
         {
           "path": "backend/internal/platform/filtered_list.go",
           "symbol": "SealedFilteredQueryListRoute",
-          "sha256": "981532fbbe4527156bd24be06729be8c75a2d774d6e0f43bc38ee2b15031f622"
+          "sha256": "357d82d559ca33517fae3a86f19059270ddc4fb1aa85d2b8efcb5ef475162948"
         },
         {
           "path": "backend/internal/bootstrap/staff_governance_person_test.go",
@@ -5093,7 +5093,7 @@
         {
           "path": "backend/internal/platform/filtered_list.go",
           "symbol": "SealedFilteredQueryListRoute",
-          "sha256": "981532fbbe4527156bd24be06729be8c75a2d774d6e0f43bc38ee2b15031f622"
+          "sha256": "357d82d559ca33517fae3a86f19059270ddc4fb1aa85d2b8efcb5ef475162948"
         },
         {
           "path": "backend/internal/bootstrap/staff_governance_person_test.go",
@@ -5161,7 +5161,7 @@
         {
           "path": "backend/internal/platform/filtered_list.go",
           "symbol": "SealedFilteredQueryListRoute",
-          "sha256": "981532fbbe4527156bd24be06729be8c75a2d774d6e0f43bc38ee2b15031f622"
+          "sha256": "357d82d559ca33517fae3a86f19059270ddc4fb1aa85d2b8efcb5ef475162948"
         },
         {
           "path": "backend/internal/bootstrap/staff_governance_person_test.go",
@@ -5229,7 +5229,7 @@
         {
           "path": "backend/internal/platform/filtered_list.go",
           "symbol": "SealedFilteredQueryListRoute",
-          "sha256": "981532fbbe4527156bd24be06729be8c75a2d774d6e0f43bc38ee2b15031f622"
+          "sha256": "357d82d559ca33517fae3a86f19059270ddc4fb1aa85d2b8efcb5ef475162948"
         },
         {
           "path": "backend/internal/bootstrap/staff_governance_person_test.go",
@@ -5297,7 +5297,7 @@
         {
           "path": "backend/internal/platform/filtered_list.go",
           "symbol": "SealedFilteredQueryListRoute",
-          "sha256": "981532fbbe4527156bd24be06729be8c75a2d774d6e0f43bc38ee2b15031f622"
+          "sha256": "357d82d559ca33517fae3a86f19059270ddc4fb1aa85d2b8efcb5ef475162948"
         },
         {
           "path": "backend/internal/bootstrap/staff_governance_person_test.go",
@@ -5365,7 +5365,7 @@
         {
           "path": "backend/internal/platform/filtered_list.go",
           "symbol": "SealedFilteredQueryListRoute",
-          "sha256": "981532fbbe4527156bd24be06729be8c75a2d774d6e0f43bc38ee2b15031f622"
+          "sha256": "357d82d559ca33517fae3a86f19059270ddc4fb1aa85d2b8efcb5ef475162948"
         },
         {
           "path": "backend/internal/bootstrap/staff_governance_person_test.go",

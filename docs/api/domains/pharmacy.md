@@ -2127,3 +2127,38 @@ approved pharmacy outlet. Outlet discovery is a separate Pharmacy-owned page;
 flattening many outlets into this assignment cursor would lose results. The
 endpoint is baseline recovery/discovery; stocktake commands and workspace remain
 release locked pending the remaining hospital acceptance gates.
+
+### Hospital bound-outlet discovery — development candidate
+
+`GET /v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-outlet-choices`
+returns a sealed page of up to 20 currently approved bindings for the selected
+exact department, with Pharmacy-owned outlet/pharmacy names, outlet code,
+country/timezone and the actual binding version and department revision. Its
+canonical DTO is `HospitalStocktakeOutletChoice` in
+`contracts/pharmacy-staff-bindings.json`. IDs are references, never fallback
+labels. The page exposes no stock, catalogue, Staff, login or financial records.
+
+The private cursor binds the tenant, signed-in subject, route, hospital and
+department. Exact expected-account headers are required; unsupported/duplicate
+filters and request bodies are rejected. Current read and Workforce source-use
+grants, each actual grant's current ancestry, and reviewed Staff are required
+before the candidate binding-reference scan. Each retained binding is rechecked
+and shared-locked before either name is read; Organization pins its actual
+current department revision and Pharmacy records disclosure evidence. Ended,
+replaced, stale-revision and no-longer-hospital-owned sources produce no named
+choice. Authorization or owner/evidence/schema failures release no partial page.
+
+Candidate migration **0067_pharmacy_stocktake_hospital_choices** requires intact
+preceding hospital and selection authority before installing a read-only database
+projection context. It restricts every Pharmacy table, permits names only for
+internally selected reference IDs, and blocks all Pharmacy writes/deletes and
+private stock/catalogue reads in that context. It restores the previous context
+on return. Dedicated integrity snapshots cover the projection policies and owner
+functions; migration **0068_pharmacy_stocktake_hospital_choice_index** adds the
+concurrent bounded-page index. No live migration or production rollout is implied.
+
+This is exact-department discovery. Inherited ancestor grants still require a
+separate authorized descendant-department selection before exposing a worker UI
+for that hierarchy; this endpoint does not invent Organization-owned hierarchy
+projections. Hospital worker UI, hierarchy coverage, binding/source replacement
+recovery, hospital browser/capacity and live acceptance remain release gates.

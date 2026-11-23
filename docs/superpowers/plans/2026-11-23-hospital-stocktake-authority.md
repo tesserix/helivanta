@@ -396,3 +396,40 @@ disclosure constraints; focused race tests pass and no SQL/private fields appear
 in the response. The next hosted candidate additionally injects a real IAM
 disclosure-audit failure, expects 503 without a named partial page, and checks
 that Workforce source/name evidence rolls back before successful restoration.
+
+### Bound-outlet candidate (separate continuation branch)
+
+The next branch `feat/1686-hospital-stocktake-outlets` first recorded the absent
+route's **404 instead of authenticated admission** in a focused HTTP test, then
+added real reviewed-hospital assertions for counter/reviewer name discovery,
+owner/foreign-scope denial, canonical metadata, private-field exclusion and
+immediate disappearance after binding withdrawal. The hosted red is separate
+from the accepted named-assignment checkpoint; do not count fixture setup as a
+behavioral red or infer database success from local compilation.
+
+The candidate implements the Pharmacy-owned exact-department page described in
+the Pharmacy contract. The shared hospital actor admission was extracted and is
+used by both commands and discovery, preserving actual-grant ancestry checks,
+held IAM/Organization proofs and current Workforce Staff. A new private-list
+primitive binds every route coordinate without introducing a fictitious query
+filter. Existing list implementations remain unchanged; their pinned source
+reviews were refreshed only after reviewing that additive primitive. Focused
+crypto/pagination tests reject other hospitals, departments and accounts before
+the scan. A page-index migration is separate from the fail-closed schema change.
+
+Database acceptance must prove prior-authority drift refusal, intact independent
+selection and hospital seals, private catalogue exclusion, exact selected-name
+visibility, forbidden writes/deletes and context restoration. The source fixture
+must then prove actual names and withdrawal through the owner APIs. Those hosted
+results, descendant-department selection, source-change recovery and hospital
+UI/browser/capacity/live acceptance are still required before enabling release.
+
+The actual outlet HTTP red is now observed in hosted run **45211045286** on
+**997da7cc**: the reviewed hospital setup reached the new named-outlet assertion
+and received **404 instead of 200**. The earlier synthetic outbox errors in its
+log belong to existing negative cases, not this failure. The implementation's
+focused HTTP/private-cursor race tests, API typecheck, Go vet/lint, architecture
+and contract checks, actionlint and SQL/PLpgSQL parsing pass locally. The affected
+API and shell builds also pass; their generated binaries and `.next`/incremental
+metadata were removed. Actual migration/read-mode and owner-workflow greens are
+still required for this branch. Nothing in this candidate was applied live.

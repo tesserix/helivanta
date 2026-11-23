@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-const PolicyVersion = "2026-11-24.hospital-stocktake-discovery.v1"
+const PolicyVersion = "2026-11-24.hospital-stocktake-outlet-choices.v1"
 
 var definitions = []Definition{{Key: "onboarding", Eligible: true, Dependencies: []string{}},
 	{Key: "team_accounts", Eligible: true, Dependencies: []string{}},
@@ -1207,7 +1207,8 @@ var routeCapabilities = map[string]string{"POST /v1/workforce/hospitals/:hospita
 	"PUT /v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/cancellations/:command": "baseline",
 	"GET /v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/product-choices":                   "pharmacy_stocktake",
 	"GET /v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/quarantine-choices":                "pharmacy_stocktake",
-	"GET /v1/iam/me/hospital-pharmacy-stocktake-scopes":                                                                                              "baseline"}
+	"GET /v1/iam/me/hospital-pharmacy-stocktake-scopes":                                                                                              "baseline",
+	"GET /v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-outlet-choices":                                                          "baseline"}
 var internalRouteCapabilities = map[string]string{"POST /v1/supply/internal/trading-source/check": "baseline",
 	"POST /v1/supply/internal/relationship/check": "baseline",
 	"POST /internal/v1/mediconnect/current-claim": "baseline",

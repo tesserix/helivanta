@@ -49,11 +49,49 @@ func (u stocktakeWorkUse) staffID() uuid.UUID {
 }
 
 func (h *catalogueHandlers) stocktakeWork(ctx context.Context, p authn.Principal, pharmacy, outlet uuid.UUID, hospital, department string, permission authz.Permission, action func(*gorm.DB, stocktakeWorkUse) error) error {
+	if action == nil {
+		return authz.ErrScopedAuthorizationUnavailable
+	}
 	if hospital == "" && department == "" {
 		return h.operatingStock(ctx, p, pharmacy, outlet, permission, func(tx *gorm.DB, u operatingStockUse) error {
 			return action(tx, stocktakeWorkUse{operatingStockUse: u})
 		})
 	}
+	return h.withHospitalStocktakeActor(ctx, p, hospital, department, permission, func(actorCtx context.Context, source *hospitalStocktakeUse) error {
+		use := stocktakeWorkUse{operatingStockUse: operatingStockUse{tenant: p.TenantID, subject: p.Subject, pharmacy: pharmacy, outlet: outlet}, hospital: source}
+		err := h.db.WithTenantCommand(actorCtx, p.TenantID, func(tx *gorm.DB) error {
+			var intact bool
+			if err := tx.Raw(`SELECT pharmacy_stocktake_hospital_integrity()`).Scan(&intact).Error; err != nil {
+				return errors.Join(authz.ErrScopedAuthorizationUnavailable, err)
+			}
+			if !intact {
+				return authz.ErrScopedAuthorizationUnavailable
+			}
+			return pharmacyStockFrame(tx, p.Subject, pharmacy, outlet, permission, func() error {
+				return hospitalStocktakeFrame(tx, hospital, department, func() error {
+					if err := tx.Exec(`SELECT pg_advisory_xact_lock_shared(hashtextextended(?,0))`, p.TenantID+":pharmacy-staff-bindings:"+outlet.String()).Error; err != nil {
+						return err
+					}
+					var binding struct {
+						ID, DepartmentRevisionID uuid.UUID
+						Version                  int64
+					}
+					if err := tx.Raw(`SELECT b.id,b.version,b.department_revision_id FROM pharmacy_staff_department_bindings b JOIN pharmacy_outlets o ON(o.tenant_id,o.id)=(b.tenant_id,b.outlet_id) JOIN pharmacy_organizations p ON(p.tenant_id,p.id)=(o.tenant_id,o.pharmacy_id) WHERE b.tenant_id=? AND b.outlet_id=? AND b.hospital_id=? AND b.department_id=? AND b.status='approved' AND o.pharmacy_id=? AND p.ownership_type='hospital_owned' FOR SHARE OF b,o,p`, p.TenantID, outlet, source.hospital, source.department, pharmacy).Take(&binding).Error; err != nil {
+						return err
+					}
+					source.binding, source.bindingVersion, source.revision = binding.ID, binding.Version, binding.DepartmentRevisionID
+					return h.stocktakeReferences.WithCurrentDepartment(actorCtx, authz.DepartmentReference{TenantID: p.TenantID, HospitalID: source.hospital, DepartmentID: source.department, DepartmentRevision: binding.DepartmentRevisionID}, func(context.Context) error { return action(tx, use) })
+				})
+			})
+		})
+		if err != nil {
+			return operatingStockFailure{err}
+		}
+		return nil
+	})
+}
+
+func (h *catalogueHandlers) withHospitalStocktakeActor(ctx context.Context, p authn.Principal, hospital, department string, permission authz.Permission, action func(context.Context, *hospitalStocktakeUse) error) error {
 	guard, ok := h.stocktakeAuthority.(authz.CompoundScopedCommandGuard)
 	if !ok || h.db == nil || h.stocktakeActors == nil || h.stocktakeDepartments == nil || h.stocktakeReferences == nil || action == nil {
 		return authz.ErrScopedAuthorizationUnavailable
@@ -107,40 +145,8 @@ func (h *catalogueHandlers) stocktakeWork(ctx context.Context, p authn.Principal
 				if actor.StaffID == uuid.Nil || actor.LinkID == uuid.Nil || actor.GenerationID == uuid.Nil || actor.LinkVersion < 2 || actor.EmploymentEpoch < 1 {
 					return authz.ErrScopedAuthorizationUnavailable
 				}
-				use := stocktakeWorkUse{operatingStockUse: operatingStockUse{tenant: p.TenantID, subject: p.Subject, pharmacy: pharmacy, outlet: outlet}, hospital: &hospitalStocktakeUse{hospital: hospitalID, department: departmentID, path: pathStrings, actor: actor, operation: checks[0].Grant, source: checks[1].Grant, permission: permission}}
-				err := h.db.WithTenantCommand(actorCtx, p.TenantID, func(tx *gorm.DB) error {
-					var intact bool
-					if err := tx.Raw(`SELECT pharmacy_stocktake_hospital_integrity()`).Scan(&intact).Error; err != nil {
-						return errors.Join(authz.ErrScopedAuthorizationUnavailable, err)
-					}
-					if !intact {
-						return authz.ErrScopedAuthorizationUnavailable
-					}
-					return pharmacyStockFrame(tx, p.Subject, pharmacy, outlet, permission, func() error {
-						return hospitalStocktakeFrame(tx, hospital, department, func() error {
-							if err := tx.Exec(`SELECT pg_advisory_xact_lock_shared(hashtextextended(?,0))`, p.TenantID+":pharmacy-staff-bindings:"+outlet.String()).Error; err != nil {
-								return err
-							}
-							var binding struct {
-								ID, DepartmentRevisionID uuid.UUID
-								Version                  int64
-							}
-							if err := tx.Raw(`SELECT b.id,b.version,b.department_revision_id FROM pharmacy_staff_department_bindings b JOIN pharmacy_outlets o ON(o.tenant_id,o.id)=(b.tenant_id,b.outlet_id) JOIN pharmacy_organizations p ON(p.tenant_id,p.id)=(o.tenant_id,o.pharmacy_id) WHERE b.tenant_id=? AND b.outlet_id=? AND b.hospital_id=? AND b.department_id=? AND b.status='approved' AND o.pharmacy_id=? AND p.ownership_type='hospital_owned' FOR SHARE OF b,o,p`, p.TenantID, outlet, hospitalID, departmentID, pharmacy).Take(&binding).Error; err != nil {
-								return err
-							}
-							use.hospital.binding = binding.ID
-							use.hospital.bindingVersion = binding.Version
-							use.hospital.revision = binding.DepartmentRevisionID
-							return h.stocktakeReferences.WithCurrentDepartment(actorCtx, authz.DepartmentReference{TenantID: p.TenantID, HospitalID: hospitalID, DepartmentID: departmentID, DepartmentRevision: binding.DepartmentRevisionID}, func(context.Context) error {
-								return action(tx, use)
-							})
-						})
-					})
-				})
-				if err != nil {
-					return operatingStockFailure{err}
-				}
-				return nil
+
+				return action(actorCtx, &hospitalStocktakeUse{hospital: hospitalID, department: departmentID, path: pathStrings, actor: actor, operation: checks[0].Grant, source: checks[1].Grant, permission: permission})
 			})
 		}
 		return within(current, 0)

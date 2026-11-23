@@ -376,6 +376,75 @@
         "max": 200,
         "format": "text"
       }
+    ],
+    "HospitalStocktakeOutletChoice": [
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "department_id",
+        "type": "uuid"
+      },
+      {
+        "name": "department_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "pharmacy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "outlet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "binding_id",
+        "type": "uuid"
+      },
+      {
+        "name": "binding_version",
+        "type": "int64",
+        "min": 2,
+        "max": 9007199254740991
+      },
+      {
+        "name": "pharmacy_name",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "no_nul": true
+      },
+      {
+        "name": "outlet_name",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "no_nul": true
+      },
+      {
+        "name": "outlet_code",
+        "type": "string",
+        "min": 1,
+        "max": 40,
+        "no_nul": true
+      },
+      {
+        "name": "time_zone",
+        "type": "string",
+        "min": 1,
+        "max": 64,
+        "no_nul": true
+      },
+      {
+        "name": "country_code",
+        "type": "string",
+        "enum": ["IN"]
+      }
     ]
   },
   "subject": "helivanta.in.pharmacy.staff_department_binding_changed.v1",

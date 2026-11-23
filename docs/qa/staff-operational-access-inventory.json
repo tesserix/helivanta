@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "bffbf9ebba4f4fc30ac092d235efa5792dd68befaab42e84ec40016c89b67b41",
+  "registry_sha256": "f45aeaa3c8a59f623d4ab52341184f341255b6108b49da18129920fabf851c95",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1251,
-    "unclassified": 1100
+    "total": 1252,
+    "unclassified": 1101
   },
   "entries": [
     {
@@ -7995,6 +7995,22 @@
         "source": "backend/internal/modules/pharmacy/module.go",
         "method": "GET",
         "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/lines/:line/stock-choices/:stock/locations",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-outlet-choices",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-outlet-choices",
         "permission": "public",
         "authentication_required": true,
         "membership_required": true,
@@ -16332,7 +16348,7 @@
           {
             "path": "backend/internal/platform/filtered_list.go",
             "symbol": "SealedFilteredQueryListRoute",
-            "sha256": "981532fbbe4527156bd24be06729be8c75a2d774d6e0f43bc38ee2b15031f622"
+            "sha256": "357d82d559ca33517fae3a86f19059270ddc4fb1aa85d2b8efcb5ef475162948"
           },
           {
             "path": "backend/internal/platform/listroute.go",
@@ -18550,7 +18566,7 @@
           {
             "path": "backend/internal/platform/filtered_list.go",
             "symbol": "SealedFilteredQueryListRoute",
-            "sha256": "981532fbbe4527156bd24be06729be8c75a2d774d6e0f43bc38ee2b15031f622"
+            "sha256": "357d82d559ca33517fae3a86f19059270ddc4fb1aa85d2b8efcb5ef475162948"
           },
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
@@ -18936,7 +18952,7 @@
           {
             "path": "backend/internal/platform/filtered_list.go",
             "symbol": "SealedFilteredQueryListRoute",
-            "sha256": "981532fbbe4527156bd24be06729be8c75a2d774d6e0f43bc38ee2b15031f622"
+            "sha256": "357d82d559ca33517fae3a86f19059270ddc4fb1aa85d2b8efcb5ef475162948"
           },
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
@@ -19019,7 +19035,7 @@
           {
             "path": "backend/internal/platform/filtered_list.go",
             "symbol": "SealedFilteredQueryListRoute",
-            "sha256": "981532fbbe4527156bd24be06729be8c75a2d774d6e0f43bc38ee2b15031f622"
+            "sha256": "357d82d559ca33517fae3a86f19059270ddc4fb1aa85d2b8efcb5ef475162948"
           },
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
@@ -19102,7 +19118,7 @@
           {
             "path": "backend/internal/platform/filtered_list.go",
             "symbol": "SealedFilteredQueryListRoute",
-            "sha256": "981532fbbe4527156bd24be06729be8c75a2d774d6e0f43bc38ee2b15031f622"
+            "sha256": "357d82d559ca33517fae3a86f19059270ddc4fb1aa85d2b8efcb5ef475162948"
           },
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
@@ -19249,7 +19265,7 @@
           {
             "path": "backend/internal/platform/filtered_list.go",
             "symbol": "SealedFilteredQueryListRoute",
-            "sha256": "981532fbbe4527156bd24be06729be8c75a2d774d6e0f43bc38ee2b15031f622"
+            "sha256": "357d82d559ca33517fae3a86f19059270ddc4fb1aa85d2b8efcb5ef475162948"
           },
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",
@@ -20629,7 +20645,7 @@
           },
           {
             "path": "backend/internal/platform/filtered_list.go",
-            "sha256": "981532fbbe4527156bd24be06729be8c75a2d774d6e0f43bc38ee2b15031f622",
+            "sha256": "357d82d559ca33517fae3a86f19059270ddc4fb1aa85d2b8efcb5ef475162948",
             "symbol": "func SealedFilteredListRoute["
           },
           {
@@ -24641,7 +24657,7 @@
           {
             "path": "backend/internal/platform/filtered_list.go",
             "symbol": "SealedFilteredQueryListRoute",
-            "sha256": "981532fbbe4527156bd24be06729be8c75a2d774d6e0f43bc38ee2b15031f622"
+            "sha256": "357d82d559ca33517fae3a86f19059270ddc4fb1aa85d2b8efcb5ef475162948"
           },
           {
             "path": "backend/internal/bootstrap/staff_governance_person_test.go",

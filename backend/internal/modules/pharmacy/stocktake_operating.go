@@ -18,6 +18,7 @@ import (
 )
 
 func operatingStocktakeRoutes(g *platform.Router, h *catalogueHandlers) {
+	platform.SealedFilteredResourceListRoute(g, "/hospitals/:hospital/departments/:department/stocktake-outlet-choices", authz.Public, 20, h.scanHospitalStocktakeOutlets, h.filterHospitalStocktakeOutlets, "hospital", "department")
 	for _, root := range []string{"/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes", "/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes"} {
 		s := g.Group(root)
 		platform.ResourceListRoute(s, "/product-choices", authz.Public, 200, h.listStocktakeProductChoices)

@@ -3681,6 +3681,15 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-outlet-choices",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "scope_kind": "hospital",
           "scope_parameter": "hospital",
           "method": "GET",
@@ -6804,6 +6813,48 @@
           "sql_sha256": "13e7c9f419f82f59f107e44dfb98e97c116184967f08ab3116f479a4838339f3",
           "creates_tables": [
             "pharmacy_stocktake_hospital_evidence"
+          ]
+        },
+        {
+          "id": "0067_pharmacy_stocktake_hospital_choices",
+          "sql_sha256": "00846cc0020d4d0aff4b3dba6d79c2242e2fe8f3b9c8ddd352dd93943af9c204",
+          "creates_tables": []
+        },
+        {
+          "id": "0068_pharmacy_stocktake_hospital_choice_index",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "pharmacy_stocktake_hospital_choice_page",
+              "table": "pharmacy_staff_department_bindings",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "department_id",
+                  "descending": false
+                },
+                {
+                  "name": "status",
+                  "descending": false
+                },
+                {
+                  "name": "created_at",
+                  "descending": true
+                },
+                {
+                  "name": "id",
+                  "descending": true
+                }
+              ]
+            }
           ]
         }
       ]

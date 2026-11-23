@@ -94,6 +94,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/partner-groups` | `iam.assignment.manage` | true | false |
 | GET | `/v1/iam/partner-membership-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/pharmacy-binding-assignment-proposals` | `public` | true | false |
+| GET | `/v1/iam/pharmacy-stocktake-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/posting-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/purchase-order-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/roles` | `iam.member.manage` | false | false |

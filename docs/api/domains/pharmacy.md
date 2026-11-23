@@ -24,6 +24,34 @@ The hierarchy is tenant → pharmacy organization → outlet, with optional hosp
 
 The [runtime reference](../reference/README.md#pharmacy) lists every implemented path. The outlet root is `/v1/pharmacy/pharmacies/{pharmacy}/outlets/{outlet}`. Organization/outlet administration and the legacy `/medications`/`dispenses` surfaces are separate route families; do not equate the legacy dispense task with the outlet stock ledger.
 
+## Hospital stocktake assignment preparation — development candidate
+
+Canonical `staff-access.json` now declares department-only
+`pharmacy.department_stocktake_reader.v1`, `.department_stocktake_counter.v1`
+and `.department_stocktake_reviewer.v1`. Each has read authority and the separate
+Workforce-owned `workforce.stocktake_actor.use`; only the counter has count and
+only the reviewer has review. They cannot apply to an independent pharmacy root,
+operate from a hospital-wide assignment, or borrow procurement/governance
+source-use permission. Existing current membership, reviewed assignment,
+employment and source checks remain necessary.
+
+`GET /v1/iam/pharmacy-stocktake-assignment-proposals` lists only this IAM-owned
+family through the existing authenticated assignment administration and bounded
+pagination contract. The SDK sends account preconditions and uses no-store reads.
+Generic proposal/decision/history contracts retain their current semantics.
+The family panel and list bind to `pharmacy_stocktake`, still compiled ineligible;
+provider desired state cannot release it. Candidate forward IAM migration
+`0056_iam_pharmacy_stocktake_templates` preserves all historical template SQL.
+
+Workforce's separate callback guard consumes only the exact held department
+stocktake actor-use grant, current digital Staff link and effective employment
+generation, with retained source audit and downstream rollback. No legacy role
+establishes that source basis. The actual hospital count/participant-history
+consumer, named working-location UI, complete hospital acceptance and live
+rollout remain unfinished. These templates and the list alone do not authorize
+hospital stock movements or establish a deployed workflow. See the
+[hospital delivery plan](../../superpowers/plans/2026-11-23-hospital-stocktake-authority.md).
+
 ## Reviewed operating stocktakes — unreleased development slice
 
 The independent/chain route root is

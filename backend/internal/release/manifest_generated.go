@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-const PolicyVersion = "2026-11-23.stocktake-worker-workspace.v1"
+const PolicyVersion = "2026-11-23.hospital-stocktake-templates.v1"
 
 var definitions = []Definition{{Key: "onboarding", Eligible: true, Dependencies: []string{}},
 	{Key: "team_accounts", Eligible: true, Dependencies: []string{}},
@@ -1193,7 +1193,8 @@ var routeCapabilities = map[string]string{"POST /v1/workforce/hospitals/:hospita
 	"PUT /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/cancellations/:command":                            "baseline",
 	"GET /v1/iam/me/pharmacy-stocktake-locations":                                                                                               "baseline",
 	"GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/product-choices":                                              "pharmacy_stocktake",
-	"GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/quarantine-choices":                                           "pharmacy_stocktake"}
+	"GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/quarantine-choices":                                           "pharmacy_stocktake",
+	"GET /v1/iam/pharmacy-stocktake-assignment-proposals":                                                                                       "pharmacy_stocktake"}
 var internalRouteCapabilities = map[string]string{"POST /v1/supply/internal/trading-source/check": "baseline",
 	"POST /v1/supply/internal/relationship/check": "baseline",
 	"POST /internal/v1/mediconnect/current-claim": "baseline",
@@ -1209,7 +1210,8 @@ var assignmentFamilyCapabilities = map[string]string{"leave": "workforce_schedul
 	"posting":            "department_teams",
 	"activation":         "staff_core",
 	"purchase_order":     "supplier_collaboration",
-	"supplier_receiving": "supplier_collaboration"}
+	"supplier_receiving": "supplier_collaboration",
+	"pharmacy_stocktake": "pharmacy_stocktake"}
 var operatingTemplateCapabilities = map[string]string{"supply.inventory_receiver.v1": "baseline",
 	"pharmacy.inventory_receiver.v1":   "baseline",
 	"supply.stock_quality_reviewer.v1": "baseline",

@@ -745,6 +745,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/pharmacy-stocktake-assignment-proposals",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/posting-assignment-proposals",
           "permission": "public",
           "authentication_required": true,
@@ -1501,6 +1510,11 @@
         {
           "id": "0055_iam_stocktake_operating_templates",
           "sql_sha256": "1e5302f8b18805ed0698f159405caa29970a75e1e6f158cb6a017919fb8003f1",
+          "creates_tables": []
+        },
+        {
+          "id": "0056_iam_pharmacy_stocktake_templates",
+          "sql_sha256": "ff9ba7e6ae67b6b9c613e8853833adc8df3b073967fa30d8f4299ee9cce74bf2",
           "creates_tables": []
         }
       ]

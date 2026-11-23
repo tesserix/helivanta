@@ -11,8 +11,14 @@ current-employment checks. Source declaration and missing-basis unit checks are
 tested. The module declares no legacy role grant; the independent permission
 matrix records the platform's existing automatic tenant-admin reconciliation,
 which cannot establish the exact guarded assignment or current Staff basis.
-No hospital count consumer, historical-participant guard, template, route or UI
-has been delivered by this checkpoint. Hosted real-source tests remain required.
+Canonical department-only reader/counter/reviewer templates and their separate
+assignment-list route are now candidates under forward IAM migration
+`0056_iam_pharmacy_stocktake_templates`. SDK family routing and release locking
+have focused tests. An actual reviewed-employment fixture now additionally
+exercises this guard under the precise department assignment, including purpose
+separation, scope/escaped-context denial and audit rollback. Hosted execution
+remains required; these additions do not provide a hospital count consumer,
+historical-participant guard or operating UI.
 
 ## Verified starting point
 

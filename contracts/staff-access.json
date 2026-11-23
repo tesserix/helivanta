@@ -1336,7 +1336,7 @@
         {
           "key": "supply.department_goods_reader.v1",
           "name": "Department supplier goods reader",
-          "description": "Read or record this department\u2019s verified supplier delivery, quarantine custody and independent receiving review; no stock sale, clinical prescribing or financial authority.",
+          "description": "Read or record this department’s verified supplier delivery, quarantine custody and independent receiving review; no stock sale, clinical prescribing or financial authority.",
           "family": "supplier_receiving",
           "permissions": [
             "pharmacy.hospital_receiving.use",
@@ -1349,7 +1349,7 @@
         {
           "key": "supply.department_goods_receiver.v1",
           "name": "Department supplier goods receiver",
-          "description": "Read or record this department\u2019s verified supplier delivery, quarantine custody and independent receiving review; no stock sale, clinical prescribing or financial authority.",
+          "description": "Read or record this department’s verified supplier delivery, quarantine custody and independent receiving review; no stock sale, clinical prescribing or financial authority.",
           "family": "supplier_receiving",
           "permissions": [
             "pharmacy.hospital_receiving.use",
@@ -1363,7 +1363,7 @@
         {
           "key": "supply.department_goods_reviewer.v1",
           "name": "Department supplier receiving reviewer",
-          "description": "Read or record this department\u2019s verified supplier delivery, quarantine custody and independent receiving review; no stock sale, clinical prescribing or financial authority.",
+          "description": "Read or record this department’s verified supplier delivery, quarantine custody and independent receiving review; no stock sale, clinical prescribing or financial authority.",
           "family": "supplier_receiving",
           "permissions": [
             "pharmacy.hospital_receiving.review",
@@ -1377,7 +1377,7 @@
         {
           "key": "supply.department_goods_pharmacy_fulfiller.v1",
           "name": "Hospital-owned pharmacy fulfilment operator",
-          "description": "Commit only stock owned by this department\u2019s governed pharmacy and exact outlet under current source licence/order fences; no independent partner administration, clinical prescribing or financial authority.",
+          "description": "Commit only stock owned by this department’s governed pharmacy and exact outlet under current source licence/order fences; no independent partner administration, clinical prescribing or financial authority.",
           "family": "supplier_receiving",
           "permissions": [
             "pharmacy.hospital_fulfilment.use",
@@ -1398,7 +1398,7 @@
         {
           "key": "supply.department_goods_pharmacy_acceptor.v1",
           "name": "Hospital pharmacy supplier order reviewer",
-          "description": "Accept or reject supplier orders and reconcile hospital receiving evidence for this department\u2019s governed pharmacy outlet; no physical stock, prescribing or financial authority.",
+          "description": "Accept or reject supplier orders and reconcile hospital receiving evidence for this department’s governed pharmacy outlet; no physical stock, prescribing or financial authority.",
           "family": "supplier_receiving",
           "permissions": [
             "supply.receiving_response.record",
@@ -1412,6 +1412,52 @@
       ],
       "definitions_sha256": "2627516cd3c3c78a2965a074f58b647cd680998ced31879bc0fc7af43e0fb447",
       "sql_sha256": "bdcb68a24ffe6041c92db8c1b7e57687106b9a5b877a056cab2a43d018a15672"
+    },
+    {
+      "id": "0056_iam_pharmacy_stocktake_templates",
+      "file": "assignment_pharmacy_stocktake_templates_generated.sql",
+      "templates": [
+        {
+          "key": "pharmacy.department_stocktake_reader.v1",
+          "name": "Hospital pharmacy stocktake reader",
+          "description": "Read retained physical count evidence for this hospital department and its approved pharmacy outlet; no quantity entry, review, dispensing or financial authority.",
+          "family": "pharmacy_stocktake",
+          "permissions": [
+            "pharmacy.stocktake.read",
+            "workforce.stocktake_actor.use"
+          ],
+          "scope_kinds": ["department"],
+          "establishment_kinds": ["hospital"]
+        },
+        {
+          "key": "pharmacy.department_stocktake_counter.v1",
+          "name": "Hospital pharmacy stocktake counter",
+          "description": "Start, count, submit or cancel physical stocktakes at this department's approved hospital pharmacy outlet; cannot independently approve differences or dispense.",
+          "family": "pharmacy_stocktake",
+          "permissions": [
+            "pharmacy.stocktake.read",
+            "pharmacy.stocktake.count",
+            "workforce.stocktake_actor.use"
+          ],
+          "scope_kinds": ["department"],
+          "establishment_kinds": ["hospital"]
+        },
+        {
+          "key": "pharmacy.department_stocktake_reviewer.v1",
+          "name": "Hospital pharmacy stocktake reviewer",
+          "description": "Independently approve or reject physical stocktakes at this department's approved hospital pharmacy outlet; cannot start or count stock, dispense or post financial entries.",
+          "family": "pharmacy_stocktake",
+          "permissions": [
+            "pharmacy.stocktake.read",
+            "pharmacy.stocktake.review",
+            "workforce.stocktake_actor.use"
+          ],
+          "scope_kinds": ["department"],
+          "establishment_kinds": ["hospital"]
+        }
+      ],
+      "definitions_sha256": "c0a94967684ae2124c37a7436b70b4fdcca14f26d90232c44fbcfee464314ade",
+      "sql_sha256": "ff9ba7e6ae67b6b9c613e8853833adc8df3b073967fa30d8f4299ee9cce74bf2"
     }
   ],
   "template_catalogs": [
@@ -1631,6 +1677,16 @@
       "name": "Department pharmacy supplier order review",
       "template_keys": ["supply.department_goods_pharmacy_acceptor.v1"],
       "definitions_sha256": "2627516cd3c3c78a2965a074f58b647cd680998ced31879bc0fc7af43e0fb447"
+    },
+    {
+      "key": "department-pharmacy-stocktakes-v1",
+      "name": "Hospital department pharmacy stocktakes",
+      "template_keys": [
+        "pharmacy.department_stocktake_reader.v1",
+        "pharmacy.department_stocktake_counter.v1",
+        "pharmacy.department_stocktake_reviewer.v1"
+      ],
+      "definitions_sha256": "c0a94967684ae2124c37a7436b70b4fdcca14f26d90232c44fbcfee464314ade"
     }
   ]
 }

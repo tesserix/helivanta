@@ -170,6 +170,9 @@ var stocktakeTemplatesBeforeSchema string
 //go:embed stocktake_templates_after.sql
 var stocktakeTemplatesAfterSchema string
 
+//go:embed assignment_pharmacy_stocktake_templates_generated.sql
+var hospitalStocktakeTemplatesSchema string
+
 //go:embed staff_mfa_fences.sql
 var staffMFAFencesSchema string
 
@@ -355,7 +358,7 @@ CREATE TABLE IF NOT EXISTS login_account_choice (
 );
 CREATE INDEX IF NOT EXISTS login_account_choice_expires_at_idx ON login_account_choice (expires_at);
 `,
-	}, {ID: "0054_iam_staff_mfa_fences", SQL: staffMFAFencesSchema}, {ID: "0055_iam_stocktake_operating_templates", SQL: stocktakeTemplatesBeforeSchema + operatingTemplatesStocktakeSchema + stocktakeTemplatesAfterSchema}}
+	}, {ID: "0054_iam_staff_mfa_fences", SQL: staffMFAFencesSchema}, {ID: "0055_iam_stocktake_operating_templates", SQL: stocktakeTemplatesBeforeSchema + operatingTemplatesStocktakeSchema + stocktakeTemplatesAfterSchema}, {ID: "0056_iam_pharmacy_stocktake_templates", SQL: hospitalStocktakeTemplatesSchema}}
 }
 
 type role struct {

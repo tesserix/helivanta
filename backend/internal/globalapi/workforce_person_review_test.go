@@ -2342,6 +2342,11 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				call(t, "PUT", departmentPath, maker, departmentInput, 200)
 				if scenario == "actor_enforcement" {
 					grantDepartment(recipient, departmentID, []string{departmentID}, "pharmacy.department_stocktake_counter.v1", authz.StocktakeActorUse)
+					staleCalled := false
+					require.ErrorIs(t, useSource(func(context.Context, authz.StaffActorReference) error { staleCalled = true; return nil }), authz.ErrScopedCommandDenied)
+					require.False(t, staleCalled, "a new assignment invalidates the previously captured source grant")
+					sourceGrant, sourceErr = authority.AuthorizeScope(ctx, sourceRequest)
+					require.NoError(t, sourceErr)
 					assertHospitalStocktakeActorSource(t, ctx, db, authority, authz.StaffActorScope{TenantID: testutil.TenantA, Subject: recipient, HospitalID: uuid.MustParse(hospital), DepartmentPath: []string{departmentID}}, authz.StaffActorReference{StaffID: uuid.MustParse(joiner), LinkID: uuid.MustParse(loginPath[strings.LastIndex(loginPath, "/")+1:]), LinkVersion: 2, GenerationID: uuid.MustParse(activationID), EmploymentEpoch: int64(generation["employment_epoch"].(float64))}, useSource)
 				}
 				if scenario == "posting_submission" || scenario == "posting_ongoing" || scenario == "posting_supervision" || scenario == "posting_chain_child" || strings.HasPrefix(scenario, "posting_root_") {

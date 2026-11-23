@@ -18,8 +18,10 @@ func TestHospitalStocktakeActorSerializesLegacyLoginMutation(t *testing.T) {
 	ctx := t.Context()
 	hospital := strings.TrimPrefix(f.base, "/v1/workforce/hospitals/")
 	ready, released, done := make(chan int, 1), make(chan struct{}), make(chan error, 1)
+	holderFinished := make(chan struct{})
 	unlock := sync.OnceFunc(func() { close(released) })
 	go func() {
+		defer close(holderFinished)
 		done <- f.db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 			if err := tx.Exec(`SELECT workforce_lock_supervision(?::uuid,?::uuid)`, testutil.TenantA, hospital).Error; err != nil {
 				return err
@@ -33,7 +35,14 @@ func TestHospitalStocktakeActorSerializesLegacyLoginMutation(t *testing.T) {
 			return nil
 		})
 	}()
-	t.Cleanup(unlock)
+	t.Cleanup(func() {
+		unlock()
+		select {
+		case <-holderFinished:
+		case <-time.After(5 * time.Second):
+			t.Error("source lock holder did not finish")
+		}
+	})
 	var holder int
 	select {
 	case holder = <-ready:
@@ -47,10 +56,20 @@ func TestHospitalStocktakeActorSerializesLegacyLoginMutation(t *testing.T) {
 		body string
 	}
 	result := make(chan response, 1)
+	writerFinished := make(chan struct{})
 	go func() {
+		defer close(writerFinished)
 		reply := testutil.Do(f.r, http.MethodPut, f.path+"/"+uuid.Must(uuid.NewV7()).String(), "manager", `{"subject":"user-candidate","reason":"Synthetic alias introduction must wait for retained count review"}`)
 		result <- response{reply.Code, reply.Body.String()}
 	}()
+	t.Cleanup(func() {
+		unlock()
+		select {
+		case <-writerFinished:
+		case <-time.After(5 * time.Second):
+			t.Error("identity writer did not finish")
+		}
+	})
 	require.Eventually(t, func() bool {
 		var waiting bool
 		require.NoError(t, f.db.WithSystem(ctx, func(tx *gorm.DB) error {

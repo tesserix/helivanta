@@ -102,9 +102,14 @@ adjustments or export inventory while Stock is disabled.
 
 The candidate **My retained stocktakes** page (`/pharmacy/working-stocktakes`)
 uses `pharmacy_setup` and current-user reviewed-duty discovery, without general
-Stock/Catalogue access. It offers retained status/recovery and current-counter
-cancellation only. Its worker command UI and deployed acceptance remain open;
-`pharmacy_stocktake` must stay ineligible.
+Stock/Catalogue access. With `pharmacy_stocktake` unavailable it offers retained
+status/recovery and current-counter cancellation only. The worker-command
+continuation connects operational controls under `pharmacy_stocktake`: counters
+start/count/submit/cancel, independent reviewers approve/reject and readers have
+no command controls. Release refresh failure removes those new-work controls
+while retaining recovery. Hosted acceptance does not enable production: compiled
+eligibility must stay false until the remaining issue and deployed acceptance
+gates pass.
 
 The reviewed `/stocktakes/product-choices` and `/stocktakes/quarantine-choices`
 collections use the same stocktake capability as new work. They do not expose

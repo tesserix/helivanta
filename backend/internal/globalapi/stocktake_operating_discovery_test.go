@@ -299,7 +299,7 @@ func TestStocktakeReviewedReadsInspectActualCandidateQueryPlan(t *testing.T) {
 		if err := tx.Exec(`SELECT set_config('app.iam_operating_access','authorized',true)`).Error; err != nil {
 			return err
 		}
-		return tx.Raw("EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) "+statement, parameters...).Row().Scan(&raw)
+		return tx.Statement.ConnPool.QueryRowContext(tx.Statement.Context, "EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) "+statement, parameters...).Scan(&raw)
 	}))
 	type node struct {
 		Kind     string  `json:"Node Type"`

@@ -40,6 +40,21 @@ concurrency:
   group: stocktake-capacity-${{ github.ref }}-${{ inputs.suite || 'all' }}
   cancel-in-progress: true
 jobs:
+  hospital-stocktake-schema:
+    if: ${{ inputs.suite == 'hospital-schema' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@e0519ad6e2b13d6074a0691b03c5b4153fe8e9f8 # v7.0.0
+      - uses: actions/setup-go@924d574a3e7d5c96ba455b26b6f559257a2a443d # v7.0.0
+        with:
+          go-version-file: backend/go.mod
+          cache: false
+      - name: Hospital stocktake migration and runtime drift
+        working-directory: backend
+        run: >-
+          go test -race -count=1 -timeout=5m ./internal/modules/pharmacy
+          -run '^TestStocktakeHospital(MigrationPreservesSelectionAuthority|AuthorityIntegrityRejectsDrift)$'
   stocktake-capacity:
     if: inputs.suite != 'web' && inputs.suite != 'browser' && inputs.suite != 'hospital-source'
     runs-on: ubuntu-latest

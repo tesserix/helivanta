@@ -138,3 +138,25 @@ it.each(cases)("refuses legacy or aborted $name requests before transport", asyn
   await expect(load(member)(scope, null, controller.signal)).rejects.toThrow();
   expect(fetch).not.toHaveBeenCalled();
 });
+
+it.each(cases)(
+  "loads hospital $name choices through its exact department scope",
+  async ({ member, suffix, row }) => {
+    const hospital: PharmacyStocktakeScope = {
+      ...scope,
+      authority: "hospital",
+      hospitalId: product.id,
+      departmentId: location.id,
+    };
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json({ data: [row], page: { has_more: false, next_cursor: null } }),
+      );
+    vi.stubGlobal("fetch", fetch);
+    expect((await load(member)(hospital, null)).data).toEqual([row]);
+    expect(fetch.mock.calls[0]?.[0]).toBe(
+      `/api/v1/pharmacy/hospitals/${product.id}/departments/${location.id}/pharmacies/${scope.pharmacyId}/outlets/${scope.outletId}/stocktakes/${suffix}?limit=100`,
+    );
+  },
+);

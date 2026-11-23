@@ -14,16 +14,36 @@ import {
 } from "./pharmacy-contract";
 
 export type PharmacyStocktake = z.infer<typeof pharmacyStocktakeSchema>;
-const authoritySchema = z.enum(["legacy", "operating"]);
+const authoritySchema = z.enum(["legacy", "operating", "hospital"]);
 export type PharmacyStocktakeScope = PharmacyActorScope & {
   authority?: z.infer<typeof authoritySchema>;
+  hospitalId?: string;
+  departmentId?: string;
 };
 export function stocktakeAuthority(scope: PharmacyStocktakeScope) {
-  return authoritySchema.parse(scope.authority === undefined ? "legacy" : scope.authority);
+  const authority = authoritySchema.parse(
+    scope.authority === undefined ? "legacy" : scope.authority,
+  );
+  if (authority === "hospital") {
+    id.parse(scope.hospitalId);
+    id.parse(scope.departmentId);
+  } else if (scope.hospitalId !== undefined || scope.departmentId !== undefined) {
+    throw new Error("Hospital coordinates require explicit hospital stocktake authority.");
+  }
+  return authority;
 }
 export function stocktakeKey(scope: PharmacyStocktakeScope, ...parts: unknown[]) {
-  const namespace =
-    stocktakeAuthority(scope) === "operating" ? "operating-stocktake-actor" : "stocktake-actor";
+  const authority = stocktakeAuthority(scope);
+  if (authority === "hospital")
+    return pharmacyKey(
+      scope,
+      "hospital-stocktake-actor",
+      scope.subject,
+      id.parse(scope.hospitalId),
+      id.parse(scope.departmentId),
+      ...parts,
+    );
+  const namespace = authority === "operating" ? "operating-stocktake-actor" : "stocktake-actor";
   return pharmacyKey(scope, namespace, scope.subject, ...parts);
 }
 export function stocktakeHeaders(scope: PharmacyStocktakeScope) {
@@ -77,7 +97,10 @@ function request(scope: PharmacyStocktakeScope, signal?: AbortSignal): RequestIn
 }
 
 export function stocktakeCollectionRoot(scope: PharmacyStocktakeScope) {
-  return stocktakeAuthority(scope) === "operating"
+  const authority = stocktakeAuthority(scope);
+  if (authority === "hospital")
+    return `/pharmacy/hospitals/${id.parse(scope.hospitalId)}/departments/${id.parse(scope.departmentId)}/pharmacies/${id.parse(scope.pharmacyId)}/outlets/${id.parse(scope.outletId)}/stocktakes`;
+  return authority === "operating"
     ? `/pharmacy/pharmacies/${id.parse(scope.pharmacyId)}/operating-locations/${id.parse(scope.outletId)}/stocktakes`
     : `${pharmacyRoot(scope)}/stock/stocktakes`;
 }

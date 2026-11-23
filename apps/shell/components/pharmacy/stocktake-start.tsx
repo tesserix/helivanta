@@ -70,12 +70,12 @@ export function StocktakeStart({
     reason: "",
   });
   const selected = form.watch("selection") === "selected";
-  const operating = stocktakeAuthority(scope) === "operating";
+  const reviewed = stocktakeAuthority(scope) !== "legacy";
   const request = { headers: stocktakeHeaders(scope), cache: "no-store" as const };
   const locations = usePagedQuery<Pick<PharmacyLocation, "id" | "name" | "code" | "stock_status">>(
     stocktakeKey(scope, "stocktake-locations"),
     (cursor, signal) =>
-      operating
+      reviewed
         ? fetchStocktakeQuarantineChoices(scope, cursor, signal)
         : apiFetch<Page<PharmacyLocation>>(
             `${pharmacyRoot(scope)}/stock/locations${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
@@ -85,7 +85,7 @@ export function StocktakeStart({
   const products = usePagedQuery<Pick<PharmacyProduct, "id" | "brand_name" | "sku">>(
     stocktakeKey(scope, "stocktake-products"),
     (cursor, signal) =>
-      operating
+      reviewed
         ? fetchStocktakeProductChoices(scope, cursor, signal)
         : apiFetch<Page<PharmacyProduct>>(
             `${pharmacyRoot(scope)}/catalogue/products${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,

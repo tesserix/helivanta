@@ -29,10 +29,13 @@ function markerIdentity(value: StocktakeRecoveryMarker) {
   return `${value.kind}:${value.stocktakeId}:${value.commandId}`;
 }
 function storageKey(scope: PharmacyStocktakeScope) {
+  const authority = stocktakeAuthority(scope);
   const namespace =
-    stocktakeAuthority(scope) === "operating"
-      ? "helivanta:stocktake-recovery:operating:v1:"
-      : "helivanta:stocktake-recovery:v1:";
+    authority === "hospital"
+      ? "helivanta:stocktake-recovery:hospital:v1:"
+      : authority === "operating"
+        ? "helivanta:stocktake-recovery:operating:v1:"
+        : "helivanta:stocktake-recovery:v1:";
   return (
     namespace +
     JSON.stringify([
@@ -40,6 +43,9 @@ function storageKey(scope: PharmacyStocktakeScope) {
       z.string().min(1).max(200).parse(scope.subject),
       id.parse(scope.pharmacyId),
       id.parse(scope.outletId),
+      ...(authority === "hospital"
+        ? [id.parse(scope.hospitalId), id.parse(scope.departmentId)]
+        : []),
     ])
   );
 }
@@ -103,7 +109,7 @@ function serverSnapshot() {
   return null;
 }
 export function useStocktakeRecovery(scope: PharmacyStocktakeScope) {
-  const { tenantId, subject, pharmacyId, outletId, authority } = scope;
+  const { tenantId, subject, pharmacyId, outletId, authority, hospitalId, departmentId } = scope;
   const getSnapshot = useCallback(() => {
     try {
       const values = pendingStocktakeCommands({
@@ -112,12 +118,14 @@ export function useStocktakeRecovery(scope: PharmacyStocktakeScope) {
         pharmacyId,
         outletId,
         authority,
+        hospitalId,
+        departmentId,
       });
       return values.length ? JSON.stringify(values) : null;
     } catch {
       return unavailable;
     }
-  }, [tenantId, subject, pharmacyId, outletId, authority]);
+  }, [tenantId, subject, pharmacyId, outletId, authority, hospitalId, departmentId]);
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, serverSnapshot);
   return {
     markers:

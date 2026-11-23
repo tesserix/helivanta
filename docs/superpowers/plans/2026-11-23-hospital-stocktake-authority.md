@@ -202,3 +202,17 @@ and reviewed assignments. Positive command acceptance, binding-change recovery,
 hospital discovery/UI/capacity and authenticated live release verification remain
 pending. No readiness or rollout claim follows from compilation or static SQL
 parsing.
+
+### Hospital client scope checkpoint
+
+The SDK now selects hospital routes only from explicit hospital authority plus
+both hospital and department coordinates. Incomplete or ambiguous authority fails
+before traffic/cache access. Cache and tab-local recovery keys include authority,
+account, tenant, hospital, department, pharmacy and outlet; existing independent
+and legacy recovery keys retain their prior bytes. Recovery hooks observe
+hospital/department changes. Selected-product start consumes the hospital
+stocktake's named product/quarantine choices without general inventory grants.
+Red-first SDK, selected-product form and recovery tests exposed the unsupported
+route and the legacy recovery-key collision before these were corrected.
+Hospital working-location discovery and the real built-browser journey remain
+pending; these reusable components alone do not create hospital worker access.

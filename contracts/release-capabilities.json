@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "policy_version": "2026-11-23.hospital-stocktake-templates.v1",
+  "policy_version": "2026-11-24.hospital-stocktake-commands.v1",
   "capabilities": [
     {
       "key": "onboarding",

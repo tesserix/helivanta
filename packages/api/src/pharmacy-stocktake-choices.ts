@@ -27,7 +27,7 @@ async function choices<T extends { id: string; outlet_id: string }>(
   signal?: AbortSignal,
 ) {
   signal?.throwIfAborted();
-  if (stocktakeAuthority(scope) !== "operating")
+  if (stocktakeAuthority(scope) === "legacy")
     throw new Error("A current reviewed stocktake scope is required.");
   const query = new URLSearchParams({ limit: "100" });
   if (cursor !== null) query.set("cursor", cursorContract.parse(cursor));

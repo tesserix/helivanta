@@ -2,6 +2,7 @@
 
 import { usePermissions, useReleaseCapabilities } from "@helivanta/api";
 import { PanelLink, visibleZones, type Zone, type ZoneHue } from "@helivanta/ui";
+import { StocktakeWorkShortcut } from "@/components/pharmacy/stocktake-work-shortcut";
 import { OperationalDashboard } from "@/components/dashboard/operational-dashboard";
 
 // Per-page descriptions, keyed by href — the registry (packages/ui/src/zones.ts)
@@ -85,6 +86,7 @@ export default function Dashboard() {
   return (
     <>
       {release.available("unreleased") && <OperationalDashboard />}
+      <StocktakeWorkShortcut />
       <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
         <h2 className="text-sm font-semibold text-muted-foreground">Jump into a department</h2>
         <p className="text-xs text-muted-foreground">Manage your team and available departments.</p>

@@ -32,11 +32,13 @@ export function StocktakeList({
   timeZone,
   onStart,
   onOpen,
+  retainedOnly = onOpen !== undefined,
 }: {
   scope: PharmacyStocktakeScope;
   timeZone: string;
   onStart?: () => void;
   onOpen?: (count: PharmacyStocktakeSummary) => void;
+  retainedOnly?: boolean;
 }) {
   const counts = usePagedQuery(stocktakeKey(scope, "stocktakes"), (cursor, signal) =>
     fetchStocktakes(scope, cursor, signal),
@@ -46,14 +48,14 @@ export function StocktakeList({
     (count) => count.state === "counting" || count.state === "submitted",
   );
   const root = `/pharmacy/stock?pharmacy=${encodeURIComponent(scope.pharmacyId)}&outlet=${encodeURIComponent(scope.outletId)}&view=counts`;
-  if (onOpen && !counts.isPending && !counts.error && counts.items.length === 0) return null;
+  if (retainedOnly && !counts.isPending && !counts.error && counts.items.length === 0) return null;
   return (
     <Panel aria-label="Stocktakes">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-semibold">{onOpen ? "Retained stocktakes" : "Stocktakes"}</h2>
+          <h2 className="font-semibold">{retainedOnly ? "Retained stocktakes" : "Stocktakes"}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {onOpen
+            {retainedOnly
               ? "Inspect retained count status or cancel abandoned work. Starting, counting and approval require the Stock workspace."
               : "Freeze the book, record physical counts, then have an independent reviewer post the differences."}
           </p>
@@ -84,7 +86,7 @@ export function StocktakeList({
         </p>
       ) : counts.items.length === 0 ? (
         <p className="mt-4 text-sm">
-          {onOpen
+          {retainedOnly
             ? "No retained stocktakes for this outlet."
             : "No stocktakes yet. Start a count when this outlet is ready."}
         </p>
@@ -131,7 +133,7 @@ export function StocktakeList({
                     <td className="p-2">
                       {onOpen ? (
                         <Button variant="outline" onClick={() => onOpen(count)}>
-                          Inspect stocktake {count.number}
+                          {retainedOnly ? "Inspect" : "Open"} stocktake {count.number}
                         </Button>
                       ) : (
                         <GuardedLink

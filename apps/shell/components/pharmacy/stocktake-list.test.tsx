@@ -108,3 +108,20 @@ it("starts only when the authorized caller has no open count", async () => {
   await user.click(screen.getByRole("button", { name: "Start stocktake" }));
   expect(start).toHaveBeenCalledTimes(1);
 });
+
+it("keeps the released worker's empty list visible without advertising creation to a reader", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(page([]))));
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <StocktakeList
+        scope={{ ...scope, authority: "operating" }}
+        timeZone="Asia/Kolkata"
+        onOpen={vi.fn()}
+        retainedOnly={false}
+      />
+    </NavigationGuardProvider>,
+  );
+  expect(await screen.findByText(/No stocktakes yet/)).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Stocktakes" })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Start stocktake" })).not.toBeInTheDocument();
+});

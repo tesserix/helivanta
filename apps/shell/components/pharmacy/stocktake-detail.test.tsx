@@ -278,3 +278,37 @@ it("shows refusal rather than an outage when concurrent reads fail differently",
   expect(screen.queryByText("TEST Product")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
 });
+
+it("does not offer physical entry or counter decisions to a review-only duty", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("account-presentations"))
+        return json({ tenant_id: scope.tenantId, actor_subject: scope.subject, data: [] });
+      if (url.includes("/lines"))
+        return json({ data: [line], page: { next_cursor: null, has_more: false } });
+      return json(header);
+    }),
+  );
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <AccountPresentationsProvider scope={{ tenantId: scope.tenantId, subject: scope.subject }}>
+        <StocktakeDetail
+          scope={{ ...scope, authority: "operating" }}
+          takeId={id}
+          timeZone="Asia/Kolkata"
+          canConfigure
+          canCount={false}
+          canReview
+        />
+      </AccountPresentationsProvider>
+    </NavigationGuardProvider>,
+  );
+  await screen.findByText(/TEST-ZERO · expires/);
+  expect(
+    screen.queryByRole("button", { name: "Record count · TEST-ZERO" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Review or close stocktake" }),
+  ).not.toBeInTheDocument();
+});

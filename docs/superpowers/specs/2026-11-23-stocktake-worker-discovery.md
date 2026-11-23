@@ -103,7 +103,7 @@ hosted builds/race/unit/browser checks, protected PR checks, approved migration 
 Kargo rollout, and actual deployed browser acceptance. Keep #1686 open until its
 complete requested workflow is verified.
 
-## Worker retained-work page
+## Worker stocktake page
 
 The candidate `/pharmacy/working-stocktakes` page is classified under
 `pharmacy_setup`. It resolves the current account, then uses only the current-user
@@ -117,13 +117,52 @@ access APIs. General Stock and Catalogue remain disabled.
 Account transition, identity refresh/failure, directory refresh/failure, or a
 changed duty snapshot removes the prior outlet panel. The panel and recovery
 state are keyed by account, tenant, duty, snapshot version and authority epoch.
-Current action permissions remain enforced by the owning APIs. Starting, physical
-entry and reviewer controls still need integration into this worker page before
-operational release; the start form itself now selects reviewed named-choice SDK
-readers when `authority: "operating"` is supplied.
+Current action permissions remain enforced by the owning APIs. The worker-command continuation connects starting, physical entry, independent
+review and register export to this page under `pharmacy_stocktake`. Counter
+choices expose creation, entry, submission and cancellation; reviewers expose
+approval/rejection only for an independent submitted count; readers expose no
+commands. These are current-duty presentation hints, never server authority.
+The start form selects reviewed named-choice SDK readers when
+`authority: "operating"` is supplied. Legacy consumers preserve their existing
+behavior. Empty operational lists remain visible even without creation rights.
+
+A missing, expired, withdrawn or failed release snapshot returns to baseline
+retained status, original command recovery and counter-authorized cancellation.
+An unconfirmed start retains its original open form as well as its tab-local
+reference; creating that reference cannot unmount the form. An outlet/account
+change removes the old command interface. Compiled eligibility remains false;
+this implementation does not claim merged, deployed or browser acceptance.
 
 Hosted 45106386216 passed the named-choice Global API contracts, actual directory
 query-plan inspection and existing receiving consumers on `69fdd874`. That plan
 uses a small fixture and is not subject-page scale acceptance. UI regression
 45106877670 reproduced the legacy catalogue lookup in operating mode. Follow-up
 UI validation is running; no merged or deployed UI acceptance is claimed.
+
+Hosted worker-command evidence: 45107898992 reproduced a reviewer receiving
+counter-only cancellation; 45108121437 passed after permission separation.
+45108396545 reproduced missing released creation, hidden empty reader lists and
+review-only physical-entry controls; 45108665090 passed the affected SDK/UI tests,
+lint, type checks and shell build after integration. 45108976853 reproduced lost
+open-form recovery and retained new-work controls after a failed flag refresh;
+45109143051 passed the fixes with 77 SDK and 49 shell tests, Staff visibility
+checks, lint, type checks and the affected shell build. Broader protected checks remain required.
+
+## Personal dashboard navigation
+
+The navigation continuation adds **My stocktakes** to the dashboard using one
+bounded current-account directory page. It uses the destination page's canonical
+`pharmacy_setup` classification, so retained work stays discoverable when new
+stocktake commands are withdrawn. A verified current row, or an empty filtered
+page with a continuation, offers a link to check the working-location directory.
+No background pagination loop is used. An account without candidates receives no
+shortcut. The shortcut displays neither owner names nor identifiers and supplies
+no authority to the destination.
+
+Identity refresh/failure, account transition, release refresh failure or directory
+refresh/failure hides the shortcut. Its query is separated from the infinite
+workspace-directory cache and keyed by tenant and subject. No management,
+receiving, catalogue, legacy outlet-access or direct-product discovery is used.
+45109897459 reproduced missing current-duty navigation; 45110111746 passed the
+navigation, existing dashboard and worker UI tests, lint, type checks and shell
+build after integration. No deployed browser acceptance is claimed.

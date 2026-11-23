@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/tesserix/helivanta/pkg/attachments"
+	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
 	"net/http"
@@ -28,7 +29,6 @@ import (
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
-	"github.com/tesserix/helivanta/pkg/events"
 )
 
 type operatingVerifier struct{ at time.Time }
@@ -91,6 +91,7 @@ type operatingDutyFixture struct {
 	projection *operatingProjectionGate
 	checks     *operatingCheckGate
 	db         *tenantdb.DB
+	bus        *events.Bus
 	ctx        context.Context
 	call       func(string, string, string, any, int) string
 	input      iam.OperatingDutyInput
@@ -119,7 +120,7 @@ func newOperatingDutyFixtureWithAdmission(t *testing.T, documents *attachments.G
 		}
 	}
 	authenticatedAt := time.Now().Add(-time.Minute)
-	backend, db, _, fixtureCtx := testutil.NewHarness(t, testutil.HarnessOptions{ReleaseAdmission: admission, GovernanceSources: testutil.GovernanceReviewProtocol, Documents: documents, PharmacyEvidenceEnabled: documents != nil, SourceAdministration: func(db *tenantdb.DB) authz.SourceAdministrationGuard {
+	backend, db, bus, fixtureCtx := testutil.NewHarness(t, testutil.HarnessOptions{ReleaseAdmission: admission, GovernanceSources: testutil.GovernanceReviewProtocol, Documents: documents, PharmacyEvidenceEnabled: documents != nil, SourceAdministration: func(db *tenantdb.DB) authz.SourceAdministrationGuard {
 		return iam.NewSourceAdministrationGuard(db, graph)
 	}, Verifier: operatingVerifier{at: authenticatedAt}, Writer: projection, Roles: graph, OperatingAuthorizer: func(db *tenantdb.DB) authz.OperatingScopeAuthorizer {
 		return iam.NewOperatingAuthorizer(db, checks, platform.IndependentStaffIdentities(modules, db), platform.OperatingLocations(modules, db))
@@ -195,7 +196,7 @@ func newOperatingDutyFixtureWithAdmission(t *testing.T, documents *attachments.G
 	now := time.Now().UTC().Truncate(time.Second)
 	input := iam.OperatingDutyInput{Scope: iam.OperatingDutyScope{EmployerKind: "supplier", EmployerID: party, LocationID: premise, ExpectedEmployerVersion: 1, ExpectedLocationVersion: 1}, Identity: iam.OperatingDutyIdentity{StaffID: staff, StaffVersion: 1, LinkID: link, LinkVersion: 2}, Subject: "user-receiver", TemplateKey: "supply.inventory_receiver.v1", Reason: "TEST scoped warehouse receiving duty", ValidFrom: now.Add(-time.Minute), ExpiresAt: now.Add(time.Hour)}
 	duty := "/v1/iam/operating-duties/" + uuid.Must(uuid.NewV7()).String()
-	return operatingDutyFixture{handler: gateway, call: call, input: input, duty: duty, graph: graph, projection: projection, checks: checks, db: db, ctx: fixtureCtx, authority: iam.NewOperatingAuthorizer(db, checks, platform.IndependentStaffIdentities(modules, db), platform.OperatingLocations(modules, db)), principal: authn.Principal{TenantID: testutil.TenantA, Subject: "user-receiver", AuthTime: authenticatedAt, IdleDeadline: authenticatedAt.Add(time.Hour)}}
+	return operatingDutyFixture{handler: gateway, call: call, input: input, duty: duty, graph: graph, projection: projection, checks: checks, db: db, bus: bus, ctx: fixtureCtx, authority: iam.NewOperatingAuthorizer(db, checks, platform.IndependentStaffIdentities(modules, db), platform.OperatingLocations(modules, db)), principal: authn.Principal{TenantID: testutil.TenantA, Subject: "user-receiver", AuthTime: authenticatedAt, IdleDeadline: authenticatedAt.Add(time.Hour)}}
 }
 func TestIndependentOperatingDutyPreparationBindsCurrentSourceAndIdentity(t *testing.T) {
 	fixture := newOperatingDutyFixture(t)

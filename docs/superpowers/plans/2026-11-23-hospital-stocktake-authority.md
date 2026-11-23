@@ -16,8 +16,10 @@ acceptance.
 
 Current-account named assignment discovery is a newer candidate with narrow
 Workforce hospital-name and Organization department-name projections. Its
-missing-endpoint red is recorded in **45203058085**; hosted verification of the
-implementation is running separately. Local focused race tests, canonical
+missing-endpoint red is recorded in **45203058085**. The implementation passed
+together with the complete hospital fixture in **45207440232** on **c0d66d85**
+and is consolidated into draft #1826 at **65892125**. New real audit-rollback and
+bound-outlet cases are verified separately; their greens are not implied here. Local focused race tests, canonical
 checks, affected builds, typechecks and linters pass. New work remains compiled
 ineligible. Pharmacy-owned bound-outlet discovery, hospital worker entry UI,
 binding/department/ownership-change recovery, hospital browser/capacity and
@@ -433,7 +435,6 @@ and contract checks, actionlint and SQL/PLpgSQL parsing pass locally. The affect
 API and shell builds also pass; their generated binaries and `.next`/incremental
 metadata were removed. Actual migration/read-mode and owner-workflow greens are
 still required for this branch. Nothing in this candidate was applied live.
-
 
 The first outlet-schema run **45215392320** reached real PostgreSQL and rejected
 unchanged input at the migration admission check. The candidate incorrectly

@@ -59,7 +59,7 @@ it("binds the recovery hook to authority changes without losing retained referen
   const operating = { ...scope, authority: "operating" as const };
   const { result, rerender } = renderHook(
     ({ value }: { value: PharmacyStocktakeScope }) => useStocktakeRecovery(value),
-    { initialProps: { value: operating } },
+    { initialProps: { value: operating as PharmacyStocktakeScope } },
   );
   act(() => retainStocktakeCommand(operating, marker));
   expect(result.current.markers).toEqual([marker]);

@@ -2090,3 +2090,9 @@ classification with full current authority. This is candidate code, not deployed
 hospital stocktake acceptance: real command integration, binding-change recovery,
 worker discovery/UI, capacity and live verification remain tracked in the
 [hospital delivery plan](../../superpowers/plans/2026-11-23-hospital-stocktake-authority.md).
+
+Hospital candidate commands also verify the Pharmacy owner schema seal inside the
+held source transaction. Changed evidence isolation/constraints, immutable
+triggers or bound source definitions return 503 `authorization_unavailable`
+before the consumer can proceed; receipt reads fail closed until exact restoration.
+This runtime check adds no hospital read or work permission by itself.

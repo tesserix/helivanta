@@ -261,7 +261,7 @@ triggers and function definitions after selection fingerprints are sealed. Every
 hospital admission checks it inside the held source transaction. During deliberate
 constraint drift, both command and receipt reads return 503; only after exact
 schema restoration does a missing receipt return 404 and the retry proceed.
-Hosted green verification remains pending. The schema-only workflow is now
+Hosted schema run 45197010131 passed all migration and runtime drift cases. The schema-only workflow is now
 restricted to its selected job and validated by `actionlint` against repository
 pinned actions; the first setup failure was not counted as the TDD red.
 
@@ -326,3 +326,17 @@ or approving an old hospital's snapshot must not bypass its original source;
 recovery/cancellation must preserve history and never silently adjust stock.
 Record the exact supported recovery policy and negative tests before exposing
 hospital choices. These are remaining gates, not completed capabilities.
+
+### Verified checkpoint
+
+| Scope                                                                     | Hosted evidence                                                               | Result                           |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------- |
+| Independent built UI, actual owners and lost-response recovery            | [45191932101](https://github.com/tesserix/helivanta/actions/runs/45191932101) | Passed                           |
+| Independent regression, 10,000 buckets and 500 adjustments                | [45190810380](https://github.com/tesserix/helivanta/actions/runs/45190810380) | Passed                           |
+| Hospital migration refusal, selection integrity and runtime drift/restore | [45197010131](https://github.com/tesserix/helivanta/actions/runs/45197010131) | Passed                           |
+| Hospital employment/source plus actual count, review and withdrawal       | [45197016258](https://github.com/tesserix/helivanta/actions/runs/45197016258) | Running; do not infer acceptance |
+
+The application code tested in the last two runs is `b3d314bb`. Subsequent edits
+at this checkpoint are documentation only. Local API/shell builds passed and their
+generated outputs were removed. Hospital discovery/UI, binding-change recovery,
+hospital browser/capacity and live migration/rollout remain open release gates.

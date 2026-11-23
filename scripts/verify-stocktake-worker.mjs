@@ -6,6 +6,7 @@ const fixture = JSON.parse(material);
 const browser = await chromium.launch({ headless: true });
 const contexts = [];
 const commands = [];
+let lostCount = false;
 const root = `/v1/pharmacy/pharmacies/${fixture.pharmacy}/operating-locations/${fixture.outlet}/stocktakes`;
 try {
   async function open(actor) {
@@ -29,7 +30,16 @@ try {
         url: fixture.gateway_url + path,
         headers: { ...request.headers(), authorization: `Bearer ${actor}` },
       });
-      await route.fulfill({ response });
+      if (
+        actor === "receiver" &&
+        request.method() === "PUT" &&
+        path.includes("/counts/") &&
+        response.ok() &&
+        !lostCount
+      ) {
+        lostCount = true;
+        await route.abort("connectionreset");
+      } else await route.fulfill({ response });
     });
     const page = await context.newPage();
     page.setDefaultTimeout(20_000);
@@ -62,6 +72,14 @@ try {
     .getByRole("textbox", { name: "Count reason", exact: true })
     .fill("TEST counted three missing units");
   await counter.getByRole("button", { name: "Save physical count", exact: true }).click();
+  await expect(counter.getByText(/The save could not be confirmed/)).toBeVisible();
+  counter.once("dialog", (dialog) => dialog.accept());
+  await counter.reload();
+  await counter.getByRole("button", { name: /TEST Independent Pharmacy.*TEST-RX-MAIN/ }).click();
+  await counter.getByRole("button", { name: "Check original count result", exact: true }).click();
+  await expect(counter.getByText(/Original physical count was recorded/)).toBeVisible();
+  await counter.getByRole("button", { name: "Acknowledge saved result", exact: true }).click();
+  await counter.getByRole("button", { name: "Open stocktake 1", exact: true }).click();
   await expect(counter.getByText(/1 of 1 buckets counted/)).toBeVisible();
   await counter.getByRole("button", { name: "Review or close stocktake", exact: true }).click();
   await counter
@@ -107,6 +125,7 @@ try {
     "receiver",
     "stock-reviewer",
   ]);
+  expect(lostCount).toBe(true);
   expect(commands.at(-1).body).toMatchObject({
     decision: "approve",
     expected_version: 2,

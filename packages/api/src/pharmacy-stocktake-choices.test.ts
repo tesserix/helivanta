@@ -108,26 +108,22 @@ it.each(cases)("refuses foreign, duplicate and broken $name pages", async ({ mem
 it("refuses sellable quarantine choices and editor-only product facts", async () => {
   vi.stubGlobal(
     "fetch",
-    vi
-      .fn()
-      .mockResolvedValue(
-        Response.json({
-          data: [{ ...location, stock_status: "sellable" }],
-          page: { has_more: false, next_cursor: null },
-        }),
-      ),
+    vi.fn().mockResolvedValue(
+      Response.json({
+        data: [{ ...location, stock_status: "sellable" }],
+        page: { has_more: false, next_cursor: null },
+      }),
+    ),
   );
   await expect(load("fetchStocktakeQuarantineChoices")(scope, null)).rejects.toThrow();
   vi.stubGlobal(
     "fetch",
-    vi
-      .fn()
-      .mockResolvedValue(
-        Response.json({
-          data: [{ ...product, mrp_minor: 100 }],
-          page: { has_more: false, next_cursor: null },
-        }),
-      ),
+    vi.fn().mockResolvedValue(
+      Response.json({
+        data: [{ ...product, mrp_minor: 100 }],
+        page: { has_more: false, next_cursor: null },
+      }),
+    ),
   );
   await expect(load("fetchStocktakeProductChoices")(scope, null)).rejects.toThrow();
 });

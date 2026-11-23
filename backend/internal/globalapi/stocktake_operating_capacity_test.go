@@ -1,15 +1,11 @@
 package globalapi
 
 import (
-	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
 	"sort"
-	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -33,12 +29,10 @@ func TestStocktakeReviewedCapacityAt10000Buckets(t *testing.T) {
 		return tx.Exec(`INSERT INTO pharmacy_stock_movements(tenant_id,outlet_id,id,location_id,batch_id,kind,quantity_units,reason,source_reference,actor_subject)
    SELECT ?,?,('019a2b01-1000-7000-8000-'||lpad(i::text,12,'0'))::uuid,?,('019a2b00-1000-7000-8000-'||lpad(i::text,12,'0'))::uuid,'receipt',10,'TEST reviewed capacity fixture','TEST-reviewed-capacity:'||i,'user-owner' FROM generate_series(1,10000)i`, testutil.TenantA, f.outlet, f.quarantine).Error
 	})
+	// Bulk fixture loading bypasses normal intake; refresh planner statistics before measurement.
+	require.NoError(t, f.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_stocktake_capacity_batch_statistics", SQL: "ANALYZE pharmacy_stock_batches"}}))
 	f.input.TemplateKey = "pharmacy.stocktake_counter.v1"
 	f.activate(t)
-	if os.Getenv("HELIVANTA_STOCKTAKE_INSERT_PLAN") == "1" {
-		require.NoError(t, f.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_stocktake_capacity_batch_statistics", SQL: "ANALYZE pharmacy_stock_batches"}}))
-		diagnoseStocktakeInsert(t, f)
-	}
 	path := "/v1/pharmacy/pharmacies/" + f.pharmacy + "/operating-locations/" + f.outlet + "/stocktakes/" + v7()
 	measure := func(name string, run func() string) string {
 		start := time.Now()
@@ -131,182 +125,5 @@ func TestStocktakeReviewedCapacityAt10000Buckets(t *testing.T) {
 		}
 		require.EqualValues(t, 100, commands)
 		return nil
-	})
-}
-
-func diagnoseStocktakeInsert(t *testing.T, f pharmacyReceiverFixture) {
-	t.Helper()
-	const callback = "test:stocktake-insert-plan"
-	var batches atomic.Int32
-	var hooks *gorm.DB
-	f.ownerOutletTx(t, func(tx *gorm.DB) error {
-		hooks = tx
-		before := func(tx *gorm.DB) {
-			if !tx.DryRun {
-				tx.Statement.Settings.Store(callback+":time", time.Now())
-			}
-		}
-		after := func(tx *gorm.DB) {
-			if tx.DryRun {
-				return
-			}
-			if start, ok := tx.Statement.Settings.LoadAndDelete(callback + ":time"); ok {
-				elapsed := time.Since(start.(time.Time))
-				if elapsed >= 50*time.Millisecond || tx.Error != nil {
-					hash := sha256.Sum256([]byte(tx.Statement.SQL.String()))
-					t.Logf("diagnostic statement table=%s elapsed=%s template=%x error=%T", tx.Statement.Table, elapsed, hash[:8], tx.Error)
-				}
-			}
-		}
-		for _, register := range []func() error{
-			func() error { return tx.Callback().Create().Before("*").Register(callback+":before", before) },
-			func() error { return tx.Callback().Create().After("*").Register(callback+":after", after) },
-			func() error { return tx.Callback().Query().Before("*").Register(callback+":before", before) },
-			func() error { return tx.Callback().Query().After("*").Register(callback+":after", after) },
-			func() error { return tx.Callback().Row().Before("*").Register(callback+":before", before) },
-			func() error { return tx.Callback().Row().After("*").Register(callback+":after", after) },
-			func() error { return tx.Callback().Raw().Before("*").Register(callback+":before", before) },
-			func() error { return tx.Callback().Raw().After("*").Register(callback+":after", after) },
-		} {
-			if err := register(); err != nil {
-				return err
-			}
-		}
-		return tx.Callback().Create().Before("gorm:create").Register(callback, func(tx *gorm.DB) {
-			if tx.DryRun || tx.Statement.Table != "pharmacy_stocktake_lines" || batches.Add(1) != 3 {
-				return
-			}
-			func() {
-				dry := tx.Session(&gorm.Session{DryRun: true, SkipHooks: true, SkipDefaultTransaction: true}).Create(tx.Statement.Dest)
-				if dry.Error != nil {
-					t.Errorf("compile diagnostic insert: %T", dry.Error)
-					return
-				}
-				conn := tx.Statement.ConnPool
-				if _, err := conn.ExecContext(tx.Statement.Context, "SAVEPOINT diagnostic_stocktake_insert"); err != nil {
-					t.Errorf("open diagnostic savepoint: %T", err)
-					return
-				}
-				defer func() {
-					ctx, cancel := context.WithTimeout(context.WithoutCancel(tx.Statement.Context), 3*time.Second)
-					defer cancel()
-					if _, err := conn.ExecContext(ctx, "ROLLBACK TO SAVEPOINT diagnostic_stocktake_insert"); err != nil {
-						t.Errorf("rollback diagnostic insert: %T", err)
-						return
-					}
-					if _, err := conn.ExecContext(ctx, "RELEASE SAVEPOINT diagnostic_stocktake_insert"); err != nil {
-						t.Errorf("release diagnostic savepoint: %T", err)
-					}
-				}()
-				rows, err := conn.QueryContext(tx.Statement.Context, "EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) "+dry.Statement.SQL.String(), dry.Statement.Vars...)
-				if err != nil {
-					t.Errorf("explain diagnostic insert: %T", err)
-					return
-				}
-				defer rows.Close()
-				for rows.Next() {
-					var raw []byte
-					if err := rows.Scan(&raw); err != nil {
-						t.Errorf("read diagnostic insert plan: %T", err)
-						return
-					}
-					var plans []map[string]any
-					if err := json.Unmarshal(raw, &plans); err != nil {
-						t.Errorf("decode diagnostic insert plan: %T", err)
-						return
-					}
-					for _, plan := range plans {
-						t.Logf("diagnostic snapshot insert planning_ms=%v execution_ms=%v", plan["Planning Time"], plan["Execution Time"])
-						if triggers, ok := plan["Triggers"].([]any); ok {
-							for _, trigger := range triggers {
-								if trigger, ok := trigger.(map[string]any); ok {
-									t.Logf("diagnostic snapshot trigger name=%v time_ms=%v calls=%v", trigger["Trigger Name"], trigger["Time"], trigger["Calls"])
-								}
-							}
-						}
-					}
-				}
-				if err := rows.Err(); err != nil {
-					t.Errorf("finish diagnostic insert plan: %T", err)
-				}
-				if err := rows.Close(); err != nil {
-					t.Errorf("close diagnostic insert plan: %T", err)
-					return
-				}
-				lookup, err := conn.QueryContext(tx.Statement.Context, `EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON)
- SELECT id FROM pharmacy_stock_batches WHERE tenant_id=$1 AND outlet_id=$2 AND id=$3 FOR KEY SHARE`, testutil.TenantA, f.outlet, "019a2b00-1000-7000-8000-000000005000")
-				if err != nil {
-					t.Errorf("explain diagnostic batch lookup: %T", err)
-					return
-				}
-				defer lookup.Close()
-				for lookup.Next() {
-					var raw []byte
-					if err := lookup.Scan(&raw); err != nil {
-						t.Errorf("read batch lookup plan: %T", err)
-						return
-					}
-					var plans []map[string]any
-					if err := json.Unmarshal(raw, &plans); err != nil {
-						t.Errorf("decode batch lookup plan: %T", err)
-						return
-					}
-					var visit func(map[string]any)
-					visit = func(node map[string]any) {
-						t.Logf("diagnostic batch lookup node=%v index=%v estimate=%v rows=%v loops=%v filtered=%v time_ms=%v", node["Node Type"], node["Index Name"], node["Plan Rows"], node["Actual Rows"], node["Actual Loops"], node["Rows Removed by Filter"], node["Actual Total Time"])
-						condition, _ := node["Index Cond"].(string)
-						t.Logf("diagnostic batch index identity_predicate=%t tenant_predicate=%t outlet_predicate=%t shared_hits=%v shared_reads=%v", strings.Contains(condition, "(id ="), strings.Contains(condition, "(tenant_id ="), strings.Contains(condition, "(outlet_id ="), node["Shared Hit Blocks"], node["Shared Read Blocks"])
-						if children, ok := node["Plans"].([]any); ok {
-							for _, child := range children {
-								if child, ok := child.(map[string]any); ok {
-									visit(child)
-								}
-							}
-						}
-					}
-					for _, plan := range plans {
-						if node, ok := plan["Plan"].(map[string]any); ok {
-							visit(node)
-						}
-					}
-				}
-				if err := lookup.Err(); err != nil {
-					t.Errorf("finish batch lookup plan: %T", err)
-				}
-				if err := lookup.Close(); err != nil {
-					t.Errorf("close batch lookup plan: %T", err)
-					return
-				}
-				stats, err := conn.QueryContext(tx.Statement.Context, `SELECT c.relname,c.relpages,c.reltuples,i.indisvalid,i.indisready FROM pg_class c JOIN pg_index i ON i.indexrelid=c.oid WHERE i.indrelid='pharmacy_stock_batches'::regclass ORDER BY c.relname`)
-				if err != nil {
-					t.Errorf("read batch index statistics: %T", err)
-					return
-				}
-				defer stats.Close()
-				for stats.Next() {
-					var name string
-					var pages int
-					var tuples float64
-					var valid, ready bool
-					if err := stats.Scan(&name, &pages, &tuples, &valid, &ready); err != nil {
-						t.Errorf("read batch index statistics row: %T", err)
-						return
-					}
-					t.Logf("diagnostic batch index name=%s pages=%d tuples=%f valid=%t ready=%t", name, pages, tuples, valid, ready)
-				}
-				if err := stats.Err(); err != nil {
-					t.Errorf("finish batch index statistics: %T", err)
-				}
-			}()
-		})
-	})
-	t.Cleanup(func() {
-		require.NoError(t, hooks.Callback().Create().Remove(callback))
-		for _, name := range []string{callback + ":before", callback + ":after"} {
-			require.NoError(t, hooks.Callback().Create().Remove(name))
-			require.NoError(t, hooks.Callback().Query().Remove(name))
-			require.NoError(t, hooks.Callback().Row().Remove(name))
-			require.NoError(t, hooks.Callback().Raw().Remove(name))
-		}
 	})
 }

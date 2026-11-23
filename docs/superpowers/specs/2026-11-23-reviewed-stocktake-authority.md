@@ -39,9 +39,15 @@ A second trial narrow `id` index was also not selected. Diagnostic 45089686272
 found all batch index statistics still at zero tuples after fixture bulk loading,
 despite valid indexes, and the expiry scan touched 100 shared index blocks for
 one exact identity lookup. Both trial indexes and migration 0066 are removed.
-The next diagnostic refreshes only disposable fixture batch statistics to verify
-whether the existing primary key restores bounded identity lookups. No fixture
-statistics result is clean capacity acceptance or deployment evidence.
+Diagnostic 45090299106 refreshed only disposable fixture batch statistics and
+selected the existing primary key: seven shared blocks instead of 100, with
+third-batch snapshot validation at 13.941 ms instead of 834.326 ms. The full
+instrumented reviewed workflow passed: start 2.223 s, page p99 151.13 ms and
+500-correction post 2.273 s. These diagnostic timings are not clean acceptance.
+The bulk-created reviewed fixture now refreshes statistics before measurement;
+the native test still creates all stock through normal APIs without this step.
+All diagnostic callbacks, EXPLAIN queries, environment switches and workflow
+choices are removed. Fresh clean-head protected acceptance remains required.
 The snapshot query aggregates physical movements per
 selected batch/location before metadata projection, retaining selection,
 zero-balance buckets, cutoff, ordering, units, row cap and regulatory source.

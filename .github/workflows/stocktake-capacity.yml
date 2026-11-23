@@ -46,7 +46,7 @@ jobs:
       - name: Build and vet the affected package
         run: |
           go build ./internal/modules/pharmacy ./internal/modules/iam ./internal/modules/workforce
-          go vet ./internal/modules/pharmacy ./internal/modules/iam ./internal/modules/workforce
+          go vet ./internal/modules/pharmacy ./internal/modules/iam ./internal/modules/workforce ./internal/globalapi
       - name: Regenerate and verify registered contracts
         run: |
           go run ./cmd/contractdocs

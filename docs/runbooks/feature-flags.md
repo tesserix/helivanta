@@ -101,7 +101,10 @@ adjustments or export inventory while Stock is disabled.
 ### Reviewed Stocktake duties — development only
 
 The candidate **My stocktakes** page (`/pharmacy/working-stocktakes`)
-uses `pharmacy_setup` and current-user reviewed-duty discovery, without general
+uses `pharmacy_setup` and current-user reviewed-duty discovery. The navigation
+continuation offers a personal dashboard shortcut only after current-account
+discovery; it also preserves filtered-page continuations without background
+scanning. This requires no general
 Stock/Catalogue access. With `pharmacy_stocktake` unavailable it offers retained
 status/recovery and current-counter cancellation only. The worker-command
 continuation connects operational controls under `pharmacy_stocktake`: counters

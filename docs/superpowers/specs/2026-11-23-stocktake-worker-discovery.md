@@ -147,3 +147,22 @@ lint, type checks and shell build after integration. 45108976853 reproduced lost
 open-form recovery and retained new-work controls after a failed flag refresh;
 45109143051 passed the fixes with 77 SDK and 49 shell tests, Staff visibility
 checks, lint, type checks and the affected shell build. Broader protected checks remain required.
+
+## Personal dashboard navigation
+
+The navigation continuation adds **My stocktakes** to the dashboard using one
+bounded current-account directory page. It uses the destination page's canonical
+`pharmacy_setup` classification, so retained work stays discoverable when new
+stocktake commands are withdrawn. A verified current row, or an empty filtered
+page with a continuation, offers a link to check the working-location directory.
+No background pagination loop is used. An account without candidates receives no
+shortcut. The shortcut displays neither owner names nor identifiers and supplies
+no authority to the destination.
+
+Identity refresh/failure, account transition, release refresh failure or directory
+refresh/failure hides the shortcut. Its query is separated from the infinite
+workspace-directory cache and keyed by tenant and subject. No management,
+receiving, catalogue, legacy outlet-access or direct-product discovery is used.
+45109897459 reproduced missing current-duty navigation; 45110111746 passed the
+navigation, existing dashboard and worker UI tests, lint, type checks and shell
+build after integration. No deployed browser acceptance is claimed.

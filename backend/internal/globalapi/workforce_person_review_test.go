@@ -2593,7 +2593,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 						grantDepartment(recipient, departmentID, []string{departmentID}, "pharmacy.department_stocktake_reviewer.v1", pharmacy.PermStocktakeReview)
 						assertHospitalStocktakeWorkflow(t, db, call, hospital, departmentID, departmentRevision, maker, postingRootReviewer, recipient, func() {
 							grantDepartment(postingRootReviewer, departmentID, []string{departmentID}, "pharmacy.department_stocktake_reviewer.v1", pharmacy.PermStocktakeReview)
-						})
+						}, hospitalStocktakeBrowserAcceptance(t, db, gateway, tokens, hospital, departmentID, maker, postingRootReviewer, recipient))
 					})
 					return
 				}

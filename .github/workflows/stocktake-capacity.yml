@@ -6,7 +6,17 @@ on:
         description: Focused validation suite
         type: choice
         default: all
-        options: [all, go, web, reviewed-reads, browser, hospital-source, hospital-schema]
+        options:
+          [
+            all,
+            go,
+            web,
+            reviewed-reads,
+            browser,
+            hospital-browser,
+            hospital-source,
+            hospital-schema,
+          ]
   pull_request:
     paths:
       - "backend/internal/modules/pharmacy/**"
@@ -118,9 +128,9 @@ jobs:
           HELIVANTA_STOCKTAKE_CAPACITY: "1"
         run: go test -v -count=1 -timeout=35m ./internal/globalapi -run '^TestStocktakeReviewedCapacityAt10000Buckets$'
   stocktake-staff-ui:
-    if: inputs.suite == '' || inputs.suite == 'all' || inputs.suite == 'web' || inputs.suite == 'browser'
+    if: inputs.suite == '' || inputs.suite == 'all' || inputs.suite == 'web' || inputs.suite == 'browser' || inputs.suite == 'hospital-browser'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115
@@ -174,6 +184,7 @@ jobs:
           PORT: "4344"
           API_URL: http://127.0.0.1:8081
           HELIVANTA_OPERATING_BROWSER_URL: http://127.0.0.1:4344
+          HELIVANTA_HOSPITAL_STOCKTAKE_BROWSER_URL: http://127.0.0.1:4344
         run: |
           set -euo pipefail
           standalone=apps/shell/.next/standalone/apps/shell
@@ -194,7 +205,11 @@ jobs:
             sleep 1
           done
           curl --fail --silent --max-time 2 "$HELIVANTA_OPERATING_BROWSER_URL/login" > /dev/null
-          go -C backend test -tags stocktakebrowser -race -count=1 -timeout=8m -run '^TestStocktakeReviewedBrowser$' -v ./internal/globalapi
+          if [ "${{ inputs.suite }}" = "hospital-browser" ]; then
+            go -C backend test -race -count=1 -timeout=35m -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$' -v ./internal/globalapi
+          else
+            go -C backend test -tags stocktakebrowser -race -count=1 -timeout=8m -run '^TestStocktakeReviewedBrowser$' -v ./internal/globalapi
+          fi
       - name: Retain reviewed browser evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -202,6 +217,7 @@ jobs:
           name: stocktake-worker-browser
           path: |
             /tmp/helivanta-stocktake-worker.png
+            /tmp/helivanta-hospital-stocktake-worker.png
             ${{ runner.temp }}/stocktake-web.log
           retention-days: 7
   hospital-stocktake-source:

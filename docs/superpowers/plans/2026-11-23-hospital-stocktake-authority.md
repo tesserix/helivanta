@@ -535,3 +535,20 @@ This remains an unreleased candidate: current-head hosted browser checks, actual
 hospital browser/capacity, ancestor/descendant selection, source-change recovery
 and reviewable migration/rollout approval plus live acceptance remain required.
 `pharmacy_stocktake` eligibility stays disabled and #1686 stays open.
+
+### Hosted hospital browser candidate
+
+A dedicated `hospital-browser` workflow input now runs the actual reviewed
+hospital fixture against the built shell. It reuses the worker browser journey
+with real signed fixture sessions and the hospital route, selects exact named
+department roles and outlets, loses one successful physical-count response,
+recovers without replaying the count, independently approves a three-unit
+shortage and checks the downloaded register. A database assertion requires
+exactly one additional correction and the final 29-unit balance after the prior
+32-unit workflow. The optional callback executes before binding withdrawal;
+ordinary source tests do not invoke a browser. Only a disposable HTTP loopback
+shell is admitted; remote, credential-bearing, query and fragment URLs are
+rejected by a local race-tested guard.
+
+This is test infrastructure awaiting hosted execution, not hospital browser
+acceptance evidence. Production release eligibility remains unchanged.

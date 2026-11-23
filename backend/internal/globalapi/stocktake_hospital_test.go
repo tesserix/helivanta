@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func assertHospitalStocktakeWorkflow(t *testing.T, db *tenantdb.DB, call func(*testing.T, string, string, string, any, int) map[string]any, hospital, department, revision, owner, counter, reviewer string, allowCounterReview func()) {
+func assertHospitalStocktakeWorkflow(t *testing.T, db *tenantdb.DB, call func(*testing.T, string, string, string, any, int) map[string]any, hospital, department, revision, owner, counter, reviewer string, allowCounterReview func(), browser func(string, string)) {
 	t.Helper()
 	pharmacy, outlet := v7(), v7()
 	pharmacyBase := "/v1/pharmacy/pharmacies/" + pharmacy
@@ -102,6 +102,9 @@ func assertHospitalStocktakeWorkflow(t *testing.T, db *tenantdb.DB, call func(*t
 		require.EqualValues(t, 32, ledger.Units, "the frozen shortage correction preserves later receipts")
 		return nil
 	}))
+	if browser != nil {
+		browser(pharmacy, outlet)
+	}
 	call(t, "PUT", base+"/access/"+reviewer, owner, map[string]any{"level": "editor"}, 200)
 	bindingRecord := approved["binding"].(map[string]any)
 	call(t, "POST", binding+"/commands", reviewer, map[string]any{"id": v7(), "operation": "end", "expected_version": bindingRecord["version"], "reason": "Synthetic source withdrawal after completed physical count"}, 200)

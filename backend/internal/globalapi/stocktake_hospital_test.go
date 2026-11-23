@@ -53,6 +53,10 @@ func assertHospitalStocktakeWorkflow(t *testing.T, db *tenantdb.DB, call func(*t
 	line := lines[0].(map[string]any)
 	require.Equal(t, float64(30), line["book_units"], "receipts after the snapshot must not change the frozen book quantity")
 	count := map[string]any{"expected_version": 0, "reason": "Synthetic shelf observation", "counts": []map[string]any{{"line_id": line["id"], "counted_units": 27}}}
+	staleCount := map[string]any{"expected_version": started["version"].(float64) + 1, "counts": count["counts"], "reason": count["reason"]}
+	staleCommand := path + "/counts/" + v7()
+	call(t, "PUT", staleCommand, counter, staleCount, 409)
+	call(t, "GET", staleCommand, counter, nil, 404)
 	countPath := path + "/counts/" + v7()
 	require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_hospital_count_evidence_failure", SQL: `ALTER TABLE pharmacy_stocktake_hospital_evidence ADD CONSTRAINT synthetic_hospital_count_evidence_failure CHECK(kind<>'count')NOT VALID;`}}))
 	call(t, "PUT", countPath, counter, count, 503)

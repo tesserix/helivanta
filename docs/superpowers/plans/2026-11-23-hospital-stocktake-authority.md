@@ -229,3 +229,11 @@ unrelated source/policy tampering refuses the hospital migration transaction, an
 checks that adding the hospital evidence table preserves operating-choice
 integrity. These database cases run only on hosted Linux; their acceptance is
 pending until the matching run completes.
+
+Hosted run 45188557765 successfully created and recovered the hospital snapshot
+with no legacy editor authority and preserved its frozen quantity after a later
+receipt. It then rejected the fixture's count input: the fixture incorrectly
+hardcoded version 1 although the canonical header returned version 0. The journey
+now derives each write precondition from the actual prior receipt and separately
+asserts that an incorrect future version returns 409 and leaves no receipt. This
+corrects the test precondition without changing the established stocktake protocol.

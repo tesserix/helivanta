@@ -17,6 +17,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 func TestStocktakeReviewedCapacityAt10000Buckets(t *testing.T) {
@@ -35,6 +36,7 @@ func TestStocktakeReviewedCapacityAt10000Buckets(t *testing.T) {
 	f.input.TemplateKey = "pharmacy.stocktake_counter.v1"
 	f.activate(t)
 	if os.Getenv("HELIVANTA_STOCKTAKE_INSERT_PLAN") == "1" {
+		require.NoError(t, f.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_stocktake_capacity_batch_statistics", SQL: "ANALYZE pharmacy_stock_batches"}}))
 		diagnoseStocktakeInsert(t, f)
 	}
 	path := "/v1/pharmacy/pharmacies/" + f.pharmacy + "/operating-locations/" + f.outlet + "/stocktakes/" + v7()

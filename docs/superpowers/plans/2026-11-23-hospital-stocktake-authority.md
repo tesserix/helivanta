@@ -216,3 +216,16 @@ Red-first SDK, selected-product form and recovery tests exposed the unsupported
 route and the legacy recovery-key collision before these were corrected.
 Hospital working-location discovery and the real built-browser journey remain
 pending; these reusable components alone do not create hospital worker access.
+
+### Failure and migration regression coverage
+
+The hospital journey additionally injects a database evidence-write failure and
+requires 503 plus a missing command receipt before an exact retry can succeed.
+After the completed count, the fixture explicitly authorizes the binding reviewer
+for the existing binding-administration surface, ends the source binding, removes
+that administration access and verifies that old reads and new counts are denied.
+A separate migration fixture applies the real prior Pharmacy migrations, proves
+unrelated source/policy tampering refuses the hospital migration transaction, and
+checks that adding the hospital evidence table preserves operating-choice
+integrity. These database cases run only on hosted Linux; their acceptance is
+pending until the matching run completes.

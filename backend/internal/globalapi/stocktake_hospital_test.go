@@ -54,6 +54,10 @@ func assertHospitalStocktakeWorkflow(t *testing.T, db *tenantdb.DB, call func(*t
 	require.Equal(t, float64(30), line["book_units"], "receipts after the snapshot must not change the frozen book quantity")
 	count := map[string]any{"expected_version": 0, "reason": "Synthetic shelf observation", "counts": []map[string]any{{"line_id": line["id"], "counted_units": 27}}}
 	countPath := path + "/counts/" + v7()
+	require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_hospital_count_evidence_failure", SQL: `ALTER TABLE pharmacy_stocktake_hospital_evidence ADD CONSTRAINT synthetic_hospital_count_evidence_failure CHECK(kind<>'count')NOT VALID;`}}))
+	call(t, "PUT", countPath, counter, count, 503)
+	call(t, "GET", countPath, counter, nil, 404)
+	require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_hospital_count_evidence_restore", SQL: `ALTER TABLE pharmacy_stocktake_hospital_evidence DROP CONSTRAINT synthetic_hospital_count_evidence_failure;`}}))
 	counted := call(t, "PUT", countPath, counter, count, 200)
 	require.Equal(t, counted, call(t, "PUT", countPath, counter, count, 200))
 	require.Equal(t, counted, call(t, "GET", countPath, counter, nil, 200))
@@ -85,4 +89,10 @@ func assertHospitalStocktakeWorkflow(t *testing.T, db *tenantdb.DB, call func(*t
 		require.EqualValues(t, 32, ledger.Units, "the frozen shortage correction preserves later receipts")
 		return nil
 	}))
+	call(t, "PUT", base+"/access/"+reviewer, owner, map[string]any{"level": "editor"}, 200)
+	bindingRecord := approved["binding"].(map[string]any)
+	call(t, "POST", binding+"/commands", reviewer, map[string]any{"id": v7(), "operation": "end", "expected_version": bindingRecord["version"], "reason": "Synthetic source withdrawal after completed physical count"}, 200)
+	call(t, "DELETE", base+"/access/"+reviewer, owner, nil, 200)
+	call(t, "GET", path, reviewer, nil, 404)
+	call(t, "PUT", root+"/"+v7(), counter, start, 404)
 }

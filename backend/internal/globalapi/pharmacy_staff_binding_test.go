@@ -140,7 +140,7 @@ func assertPharmacyDepartmentBindingPreparation(t *testing.T, db *tenantdb.DB, c
 	return &pharmacyBindingPreparation{base: base, path: path, preparer: preparer, pending: saved}
 }
 
-func assertPharmacyDepartmentBindingReview(t *testing.T, db *tenantdb.DB, call func(*testing.T, string, string, string, any, int) map[string]any, prepared *pharmacyBindingPreparation, administrator, reviewer, reviewerStaff, department, revision string, allowProposerReview func()) {
+func assertPharmacyDepartmentBindingReview(t *testing.T, db *tenantdb.DB, call func(*testing.T, string, string, string, any, int) map[string]any, prepared *pharmacyBindingPreparation, administrator, reviewer, reviewerStaff, department, revision string, allowProposerReview func(), whenApproved func(map[string]any)) {
 	t.Helper()
 	require.NotNil(t, prepared, "include the preceding normal preparer scenario")
 	call(t, "PUT", prepared.base+"/access/"+reviewer, administrator, map[string]any{"level": "editor"}, 200)
@@ -184,6 +184,7 @@ func assertPharmacyDepartmentBindingReview(t *testing.T, db *tenantdb.DB, call f
 	current := call(t, "GET", path, prepared.preparer, nil, 200)
 	require.Equal(t, "current", current["source_state"])
 	require.Equal(t, row, current["binding"])
+	whenApproved(row)
 	collection := path[:strings.LastIndex(path, "/")]
 	page := call(t, "GET", collection+"?limit=1", reviewer, nil, 200)
 	require.Len(t, page["data"], 1)

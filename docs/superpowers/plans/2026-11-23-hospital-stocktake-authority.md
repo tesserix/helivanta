@@ -271,3 +271,58 @@ used a nonexistent trigger suffix (`_frozen`); it is corrected to the actual
 `_immutable` trigger. The seal also includes the actual shared
 `pharmacy_catalogue_immutable()` implementation, with a separate function-tamper
 case, so a matching trigger name alone is insufficient proof of immutability.
+
+### Next bounded slice: hospital worker discovery and UI (not implemented)
+
+Source verification confirms independent discovery is owned by IAM at
+`/v1/iam/me/pharmacy-stocktake-locations`, not a Pharmacy `/me` route. Preserve that
+contract and its independent employer/duty semantics. Add a separate hospital
+choice contract and endpoint, proposed as
+`/v1/iam/me/hospital-pharmacy-stocktake-locations`; this proposed route is not yet
+registered or deployed.
+
+```mermaid
+flowchart LR
+  I[IAM: own current department assignments] --> C[Candidate coordinates only]
+  C --> P[Pharmacy: approved outlet binding]
+  P --> G[Held operation and Staff-source grants]
+  G --> O[Organization: current assignment ancestry and revision]
+  O --> W[Workforce: reviewed current hospital Staff]
+  W --> N[Authorized names and role labels]
+  N --> U[Hospital stocktake workspace]
+  U --> A[Reauthorize every command through Global API]
+```
+
+- IAM owns current membership, department assignments and immutable template
+  labels/permission snapshots. An assignment candidate is never authority.
+- Pharmacy owns the approved binding and outlet/pharmacy names. Candidate scans
+  expose only bounded internal coordinates; no names or business data reach the
+  consumer until complete current source admission succeeds.
+- Organization supplies hospital/department names through a narrow authorized
+  reference projection and retains hierarchy/revision ownership. Do not add
+  broad Organization read permissions to make a selector work.
+- Workforce retains all current/historical Staff, alias and generation facts.
+  Neither the choice schema nor Pharmacy creates a second identity master.
+- Compose owner interfaces through the existing sole-owner platform factories;
+  update the real application and test harness together. Match the existing
+  independent discovery pattern rather than creating a new service or browser
+  bypass.
+- Define a new canonical hospital choice schema with named hospital, department,
+  pharmacy, outlet and role, exact resource coordinates and timezone. Bound pages
+  to 20 and bind cursors/cache/recovery to the current tenant/account and hospital
+  authority. Do not reinterpret independent employer IDs as hospital IDs.
+- Discover current canonical counter/reviewer assignments, handle multiple
+  assignments/outlets without cursor omissions, and reauthorize every actual
+  command. Disabled new work must retain authorized receipt/cancellation recovery.
+  Missing dependencies or disclosure audit return unavailable, not an empty page.
+- Verify the built UI with actual reviewed counter/reviewer Staff, approved
+  binding, named selections, lost responses, withdrawal, self-review rejection,
+  later movement and exactly-once posting. No user should enter or see account or
+  resource IDs as a substitute for names.
+
+Before enabling release eligibility, characterize binding replacement, department
+retirement and hospital ownership changes with real owner workflows. Continuing
+or approving an old hospital's snapshot must not bypass its original source;
+recovery/cancellation must preserve history and never silently adjust stock.
+Record the exact supported recovery policy and negative tests before exposing
+hospital choices. These are remaining gates, not completed capabilities.

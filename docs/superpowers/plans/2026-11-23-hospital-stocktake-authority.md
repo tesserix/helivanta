@@ -277,9 +277,13 @@ case, so a matching trigger name alone is insufficient proof of immutability.
 Source verification confirms independent discovery is owned by IAM at
 `/v1/iam/me/pharmacy-stocktake-locations`, not a Pharmacy `/me` route. Preserve that
 contract and its independent employer/duty semantics. Add a separate hospital
-choice contract and endpoint, proposed as
-`/v1/iam/me/hospital-pharmacy-stocktake-locations`; this proposed route is not yet
-registered or deployed.
+scope contract and endpoint, proposed as
+`/v1/iam/me/hospital-pharmacy-stocktake-scopes`. It pages actual own department
+assignments, each with current authorized hospital/department and role names.
+A separate Pharmacy-owned bound-outlet page will follow selection of that scope.
+This keeps each owner collection on the existing bounded two-column keyset instead
+of omitting outlets under a many-outlet assignment. Neither proposed endpoint is
+yet registered or deployed.
 
 ```mermaid
 flowchart LR
@@ -298,11 +302,14 @@ flowchart LR
 - Pharmacy owns the approved binding and outlet/pharmacy names. Candidate scans
   expose only bounded internal coordinates; no names or business data reach the
   consumer until complete current source admission succeeds.
-- Organization supplies hospital/department names through a narrow authorized
-  reference projection and retains hierarchy/revision ownership. Do not add
-  broad Organization read permissions to make a selector work.
-- Workforce retains all current/historical Staff, alias and generation facts.
-  Neither the choice schema nor Pharmacy creates a second identity master.
+- Organization supplies department names through a narrow authorized reference
+  projection and retains hierarchy/revision ownership. Do not add broad
+  Organization read permissions to make a selector work.
+- Workforce owns the current hospital name in `workforce_hospitals` as verified
+  in `staff_actor_scopes.go`; its narrow stocktake-purpose projection must supply
+  that name without borrowing governance actor authority. Workforce retains all
+  current/historical Staff, alias and generation facts. Neither the choice schema
+  nor Pharmacy creates a second hospital or identity master.
 - Compose owner interfaces through the existing sole-owner platform factories;
   update the real application and test harness together. Match the existing
   independent discovery pattern rather than creating a new service or browser
@@ -340,3 +347,11 @@ The application code tested in the last two runs is `b3d314bb`. Subsequent edits
 at this checkpoint are documentation only. Local API/shell builds passed and their
 generated outputs were removed. Hospital discovery/UI, binding-change recovery,
 hospital browser/capacity and live migration/rollout remain open release gates.
+
+The next red-first integration assertion runs after the complete hospital count,
+independent approval, ledger verification and binding withdrawal. It requires
+named own scope rows for the counter's two real assignments and the reviewer's
+one assignment, exact canonical permission sets and no private identity facts.
+The unassigned tenant owner must receive an empty collection. It intentionally
+requires the unimplemented IAM scope endpoint; do not infer a passing route from
+this test declaration or from the prior physical-workflow run.

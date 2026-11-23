@@ -100,6 +100,8 @@ func TestStocktakeReviewedReadsSurviveReleaseWithdrawal(t *testing.T) {
 			}
 			f.call("GET", path+"/lines", "receiver", nil, blocked)
 			f.call("GET", path+"/register.csv", "receiver", nil, blocked)
+			f.call("GET", root+"/product-choices", "receiver", nil, blocked)
+			f.call("GET", root+"/quarantine-choices", "receiver", nil, blocked)
 			f.call("PUT", countPath, "receiver", countInput, blocked)
 			f.call("PUT", submitPath, "receiver", submitInput, blocked)
 			f.call("PUT", root+"/"+v7(), "receiver", map[string]any{"selection": "all", "product_ids": []string{}, "quarantine_location_id": f.quarantine, "reason": "TEST withdrawal prevents a new count"}, blocked)

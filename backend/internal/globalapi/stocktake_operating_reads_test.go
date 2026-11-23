@@ -104,7 +104,7 @@ func TestStocktakeReviewedReadsWithholdDataWhenAuditCannotCommit(t *testing.T) {
 	}
 	for _, fault := range []struct{ table, check string }{
 		{"pharmacy_stocktake_operating_evidence", "kind NOT IN('record_read','list_read','register_read')"},
-		{"audit_events", "resource_type NOT IN('pharmacy_stocktake','pharmacy_stocktakes','pharmacy_stocktake_register')"},
+		{"audit_events", "resource_type NOT IN('pharmacy_stocktake','pharmacy_stocktakes','pharmacy_stocktake_register','pharmacy_stocktake_product_choices','pharmacy_stocktake_quarantine_choices')"},
 	} {
 		apply := func(sql string) {
 			t.Helper()
@@ -117,11 +117,13 @@ func TestStocktakeReviewedReadsWithholdDataWhenAuditCannotCommit(t *testing.T) {
 		}
 		t.Cleanup(clear)
 		apply("ALTER TABLE " + fault.table + " ADD CONSTRAINT synthetic_stocktake_read_failure CHECK(" + fault.check + ") NOT VALID")
-		for _, read := range []string{path, root, path + "/register.csv"} {
+		for _, read := range []string{path, root, path + "/register.csv", root + "/product-choices", root + "/quarantine-choices"} {
 			unavailable := f.call("GET", read, "receiver", nil, 503)
 			require.NotContains(t, unavailable, "TEST-REVIEW-PARTICIPANT")
 			require.NotContains(t, unavailable, "synthetic_stocktake_read_failure")
 			require.NotContains(t, unavailable, "user-receiver")
+			require.NotContains(t, unavailable, `"data":`)
+			require.NotContains(t, unavailable, "TEST Quarantine")
 		}
 		require.Zero(t, evidenceCount(), "failed reads must roll back their new duty/source evidence")
 		clear()
@@ -129,7 +131,9 @@ func TestStocktakeReviewedReadsWithholdDataWhenAuditCannotCommit(t *testing.T) {
 	require.Contains(t, f.call("GET", path, "receiver", nil, 200), `"state":"submitted"`)
 	f.call("GET", root, "receiver", nil, 200)
 	f.call("GET", path+"/register.csv", "receiver", nil, 200)
-	require.EqualValues(t, 3, evidenceCount(), "the scoped inspection must see successful provenance rather than silently hide every row")
+	f.call("GET", root+"/product-choices", "receiver", nil, 200)
+	f.call("GET", root+"/quarantine-choices", "receiver", nil, 200)
+	require.EqualValues(t, 5, evidenceCount(), "the scoped inspection must see successful provenance rather than silently hide every row")
 	f.ownerOutletTx(t, func(tx *gorm.DB) error {
 		var ledger struct{ Corrections, Units int64 }
 		if err := tx.Raw(`SELECT count(*) FILTER(WHERE kind='correction') corrections,COALESCE(sum(quantity_units),0) units FROM pharmacy_stock_movements WHERE tenant_id=? AND outlet_id=?`, testutil.TenantA, f.outlet).Scan(&ledger).Error; err != nil {

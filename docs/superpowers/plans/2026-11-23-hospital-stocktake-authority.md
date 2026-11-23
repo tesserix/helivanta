@@ -16,9 +16,10 @@ assignment-list route are now candidates under forward IAM migration
 `0056_iam_pharmacy_stocktake_templates`. SDK family routing and release locking
 have focused tests. An actual reviewed-employment fixture now additionally
 exercises this guard under the precise department assignment, including purpose
-separation, scope/escaped-context denial and audit rollback. Hosted execution
-remains required; these additions do not provide a hospital count consumer,
-historical-participant guard or operating UI.
+separation, scope/escaped-context denial and audit rollback. The prior current-source fixture passed hosted execution in run 45133937513.
+A hospital historical-participant guard and regression fixtures are now candidates;
+their hosted acceptance remains pending. These changes do not yet provide a
+hospital count consumer or operating UI.
 
 ## Verified starting point
 

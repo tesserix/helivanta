@@ -111,13 +111,17 @@ func assertHospitalStocktakeActorHistory(t *testing.T, ctx context.Context, db *
 	called := false
 	require.ErrorIs(t, use(checks[:1], current, participant, func(context.Context) error { called = true; return nil }), authz.ErrScopedAuthorizationUnavailable)
 	require.False(t, called, "source eligibility alone cannot review a historical participant")
-	for _, change := range []string{"subject", "staff", "link", "version", "generation", "epoch", "self"} {
+	require.ErrorIs(t, use(checks[1:], current, participant, func(context.Context) error { called = true; return nil }), authz.ErrScopedAuthorizationUnavailable)
+	require.False(t, called, "operation permission alone cannot establish current hospital Staff")
+	for _, change := range []string{"subject", "staff", "same_staff", "link", "version", "generation", "epoch", "self"} {
 		observed := participant
 		switch change {
 		case "subject":
 			observed.Subject = "TEST-unrelated-historical-account"
 		case "staff":
 			observed.Reference.StaffID = uuid.Must(uuid.NewV7())
+		case "same_staff":
+			observed.Reference.StaffID = current.StaffID
 		case "link":
 			observed.Reference.LinkID = uuid.Must(uuid.NewV7())
 		case "version":
@@ -168,4 +172,17 @@ func assertHospitalStocktakeActorHistory(t *testing.T, ctx context.Context, db *
 	require.ErrorIs(t, use(checks, stale, participant, func(context.Context) error { called = true; return nil }), authz.ErrScopedCommandDenied)
 	require.False(t, called)
 	require.Equal(t, before+1, audits())
+	faultName := "test_stocktake_history_audit_" + uuid.Must(uuid.NewV7()).String()
+	clear := func() {
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		require.NoError(t, db.Migrate(cleanupCtx, []tenantdb.Migration{{ID: faultName + "_clear_" + uuid.Must(uuid.NewV7()).String(), SQL: `ALTER TABLE workforce_audit DROP CONSTRAINT IF EXISTS stocktake_history_audit_fault`}}))
+	}
+	t.Cleanup(clear)
+	require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: faultName, SQL: `ALTER TABLE workforce_audit ADD CONSTRAINT stocktake_history_audit_fault CHECK(action<>'workforce.stocktake_actor.review_history') NOT VALID`}}))
+	called = false
+	require.ErrorIs(t, use(checks, current, participant, func(context.Context) error { called = true; return nil }), authz.ErrScopedAuthorizationUnavailable)
+	require.False(t, called, "history audit failure must withhold the consumer callback")
+	require.Equal(t, before+1, audits())
+	clear()
 }

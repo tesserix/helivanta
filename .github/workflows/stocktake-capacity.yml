@@ -103,7 +103,7 @@ jobs:
       - name: Stocktake SDK routes and retained command isolation
         run: |
           stocktake_failed=0
-          if ! pnpm --filter @helivanta/api exec vitest run src/pharmacy-stocktakes.test.ts src/pharmacy-stocktake-export.test.ts src/pharmacy-stocktake-contract.test.ts src/stocktake-worker-locations.test.ts; then stocktake_failed=1; fi
+          if ! pnpm --filter @helivanta/api exec vitest run src/pharmacy-stocktakes.test.ts src/pharmacy-stocktake-export.test.ts src/pharmacy-stocktake-contract.test.ts src/stocktake-worker-locations.test.ts src/pharmacy-stocktake-choices.test.ts; then stocktake_failed=1; fi
           if ! pnpm --filter @helivanta/shell exec vitest run components/pharmacy/stocktake-recovery.test.ts components/pharmacy/stocktake-recovery-panel.test.tsx; then stocktake_failed=1; fi
           exit "$stocktake_failed"
       - name: Lint affected Staff and release files

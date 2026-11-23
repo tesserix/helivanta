@@ -639,3 +639,40 @@ export const AccountPresentationsContract = z
   })
   .strict();
 export type AccountPresentations = z.infer<typeof AccountPresentationsContract>;
+
+export const HospitalStocktakeScopeChoiceContract = z
+  .object({
+    owner_tenant_id: identifier,
+    id: identifier,
+    hospital_id: identifier,
+    department_id: identifier,
+    hospital_name: z
+      .string()
+      .min(1)
+      .max(150)
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    department_name: z
+      .string()
+      .min(1)
+      .max(120)
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    template_key: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    template_label: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    assigned_permissions: z.array(z.string()).min(2).max(3),
+    snapshot_version: z.number().int().min(1).max(9007199254740991),
+    authority_epoch: z.number().int().min(1).max(9007199254740991),
+    expires_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type HospitalStocktakeScopeChoice = z.infer<typeof HospitalStocktakeScopeChoiceContract>;

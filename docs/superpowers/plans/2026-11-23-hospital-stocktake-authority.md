@@ -355,3 +355,29 @@ one assignment, exact canonical permission sets and no private identity facts.
 The unassigned tenant owner must receive an empty collection. It intentionally
 requires the unimplemented IAM scope endpoint; do not infer a passing route from
 this test declaration or from the prior physical-workflow run.
+
+### 24 November continuation: discovery red and CI repairs
+
+Hosted run **45203058085**, commands head **29c0aae9**, reached the new named
+hospital scope assertion after physical count/approval and source withdrawal.
+Its intended red is `GET /v1/iam/me/hospital-pharmacy-stocktake-scopes?limit=20`
+returning **404 instead of 200**. It is not a stock-math failure.
+
+PR #1826 CI exposed a historical query-plan fixture that assumed migrations
+0120/0121 were the last pair. The fixture now selects its named boundary and
+retains its real before/after forced-RLS assertions. Workforce 0122/0123 are
+later history migrations, so they must not move that earlier boundary. Source
+review pins were refreshed after reviewing: IAM's additive template migration;
+Workforce's additive stocktake permission/history migration and source-purpose
+allowlist; the supervision lock before Staff inactivation; and Pharmacy's new
+hospital stocktake dependencies. Existing classification and unfulfilled runtime
+obligations remain unchanged.
+
+The discovery implementation adds narrow owner name projections, not borrowed
+organization-management authority or cross-module SQL. It uses the existing
+IAM sealed filtered-list primitive and actual assignment snapshots. New unit
+checks first failed on absent projection interfaces, then passed after adding
+the guarded owner implementations. The full hosted discovery green must still
+be observed before consolidating this candidate into PR #1826. Bound-outlet
+choices, hospital worker UI, source-replacement recovery, hospital browser and
+capacity acceptance, migration/rollout approval and live acceptance remain open.

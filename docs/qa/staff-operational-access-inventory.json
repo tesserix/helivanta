@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "38da74d8d993b16098074672ce25241dac1d22ad35179dcb37d7dce3a98c8311",
+  "registry_sha256": "bffbf9ebba4f4fc30ac092d235efa5792dd68befaab42e84ec40016c89b67b41",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1250,
-    "unclassified": 1099
+    "total": 1251,
+    "unclassified": 1100
   },
   "entries": [
     {
@@ -3557,6 +3557,22 @@
         "source": "backend/internal/modules/iam/module.go",
         "method": "GET",
         "path": "/v1/iam/intake-assignment-proposals",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http iam GET /v1/iam/me/hospital-pharmacy-stocktake-scopes",
+      "kind": "http",
+      "module": "iam",
+      "registration": {
+        "source": "backend/internal/modules/iam/module.go",
+        "method": "GET",
+        "path": "/v1/iam/me/hospital-pharmacy-stocktake-scopes",
         "permission": "public",
         "authentication_required": true,
         "membership_required": true,

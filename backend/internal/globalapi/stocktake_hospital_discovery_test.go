@@ -1,6 +1,7 @@
 package globalapi
 
 import (
+	"net/url"
 	"strings"
 	"testing"
 
@@ -52,6 +53,32 @@ func assertHospitalStocktakeScopeDiscovery(t *testing.T, call func(*testing.T, s
 			require.Equal(t, 1, matches[operation], "each actual counter/reviewer assignment needs a named choice")
 		}
 	}
+
+	first := call(t, "GET", endpoint+"&limit=1", counter, nil, 400)
+	require.NotEmpty(t, first, "duplicate pagination keys must not become an unbounded query")
+	pagePath := "/v1/iam/me/hospital-pharmacy-stocktake-scopes?limit=1"
+	seen := map[string]bool{}
+	for attempt := 0; ; attempt++ {
+		require.Less(t, attempt, 10, "scope discovery must make bounded keyset progress")
+		page := call(t, "GET", pagePath, counter, nil, 200)
+		rows := page["data"].([]any)
+		require.LessOrEqual(t, len(rows), 1)
+		for _, raw := range rows {
+			id := raw.(map[string]any)["id"].(string)
+			require.False(t, seen[id], "paging must not repeat an assignment")
+			seen[id] = true
+		}
+		state := page["page"].(map[string]any)
+		if !state["has_more"].(bool) {
+			break
+		}
+		cursor := state["next_cursor"].(string)
+		require.NotEmpty(t, cursor)
+		pagePath = "/v1/iam/me/hospital-pharmacy-stocktake-scopes?limit=1&cursor=" + url.QueryEscape(cursor)
+		call(t, "GET", pagePath, reviewer, nil, 400)
+	}
+	require.GreaterOrEqual(t, len(seen), 2, "both counter assignments must survive separate pages")
+	call(t, "GET", endpoint+"&subject="+url.QueryEscape(reviewer), counter, nil, 400)
 	ownerPage := call(t, "GET", endpoint, owner, nil, 200)
 	require.Empty(t, ownerPage["data"], "tenant ownership alone must not manufacture a hospital Staff scope")
 }

@@ -86,3 +86,13 @@ func TestHospitalStocktakeActorHistoryMigrationIsForwardOnly(t *testing.T) {
 	require.Equal(t, 1, history)
 	require.Equal(t, 1, index)
 }
+
+func TestStocktakeHospitalNamesCannotBypassHeldReadAndStaffSource(t *testing.T) {
+	reader, ok := workforce.New().StocktakeActors(nil).(interface {
+		StocktakeHospitalName(context.Context, authz.StaffActorScope) (string, error)
+	})
+	require.True(t, ok, "Workforce owns the narrow hospital display-name projection")
+	name, err := reader.StocktakeHospitalName(t.Context(), authz.StaffActorScope{})
+	require.ErrorIs(t, err, authz.ErrScopedAuthorizationUnavailable)
+	require.Empty(t, name)
+}

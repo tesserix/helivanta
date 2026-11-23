@@ -16,6 +16,7 @@ import (
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
@@ -80,9 +81,11 @@ const movementColumns = "id,tenant_id,outlet_id,location_id,batch_id,kind,quanti
 var errStockIdentity = errors.New("stock identity is immutable")
 
 func inventoryRoutes(g *platform.Router, deps platform.Deps) {
-	h := &catalogueHandlers{db: deps.DB, bus: deps.Bus, operating: deps.OperatingAuthorizer, supplierSafety: deps.SupplierShipmentSafety}
+	history, _ := deps.IndependentStaff.(authz.IndependentStaffHistoryGuard)
+	h := &catalogueHandlers{db: deps.DB, bus: deps.Bus, operating: deps.OperatingAuthorizer, staffHistory: history, supplierSafety: deps.SupplierShipmentSafety}
 	stockOverviewRoutes(g, h)
 	operatingStockRoutes(g, h)
+	operatingStocktakeRoutes(g, h)
 	s := g.Group("/pharmacies/:pharmacy/outlets/:outlet/stock")
 	stocktakeRoutes(s, h)
 	stockHoldRoutes(s, h)

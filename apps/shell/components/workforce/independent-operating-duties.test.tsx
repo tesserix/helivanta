@@ -54,6 +54,40 @@ const row = {
   updated_at: "2026-11-07T00:00:00Z",
 };
 afterEach(() => vi.unstubAllGlobals());
+it("hides unreleased stocktake approval and retains rejection and revocation", async () => {
+  const pharmacyScope = { ...scope, employerKind: "pharmacy" as const };
+  const retained = {
+    ...row,
+    input: {
+      ...row.input,
+      scope: { ...row.input.scope, employer_kind: "pharmacy" },
+      template_key: "pharmacy.stocktake_counter.v1",
+    },
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.endsWith("permissions"))
+        return Response.json({
+          tenant_id: scope.tenantId,
+          subject: scope.subject,
+          data: ["iam.operating.read", "iam.operating.review", "iam.operating.revoke"],
+        });
+      if (url.endsWith("release-capabilities"))
+        return Response.json({ error: "release_unavailable" }, { status: 503 });
+      return Response.json({ data: [retained], page: { has_more: false, next_cursor: null } });
+    }),
+  );
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <IndependentOperatingDuties scope={pharmacyScope} staffVersion={1} staffActive />
+    </NavigationGuardProvider>,
+  );
+  await screen.findByText(row.input.reason);
+  expect(screen.queryByRole("button", { name: "Approve duty" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Reject duty" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Revoke duty" })).toBeInTheDocument();
+});
 it("recovers the exact decision after response loss without another PUT", async () => {
   let receipt: unknown;
   let writes = 0;

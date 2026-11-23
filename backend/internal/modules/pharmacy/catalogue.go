@@ -35,6 +35,7 @@ type catalogueHandlers struct {
 	db             *tenantdb.DB
 	bus            *events.Bus
 	operating      authz.OperatingScopeAuthorizer
+	staffHistory   authz.IndependentStaffHistoryGuard
 	supplierSafety f.ShipmentSafety
 	drugCatalogue  stockproduct.CatalogueSource
 }

@@ -130,21 +130,22 @@ func TestStocktakeAdjustmentBatchValidationIsAtomic(t *testing.T) {
 	require.Equal(t, 200, response.Code, response.Body.String())
 	path, _ := prepare(9)
 	var fault, observedConstraint string
+	faultTable := "pharmacy_stocktake_adjustments"
 	var callbackDB *gorm.DB
 	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 		callbackDB = tx
 		if err := tx.Callback().Create().Before("gorm:create").Register("test:stocktake-adjustment-corruption", func(tx *gorm.DB) {
-			if tx.Statement.Table != "pharmacy_stocktake_adjustments" || fault == "" {
+			if tx.Statement.Table != faultTable || fault == "" {
 				return
 			}
 			rows := tx.Statement.ReflectValue
 			if rows.Len() != 2 {
-				tx.AddError(fmt.Errorf("expected two adjustment rows"))
+				tx.AddError(fmt.Errorf("expected two stocktake rows"))
 				return
 			}
 			field := tx.Statement.Schema.LookUpField(fault)
 			if field == nil {
-				tx.AddError(fmt.Errorf("missing adjustment field"))
+				tx.AddError(fmt.Errorf("missing stocktake field %s", fault))
 				return
 			}
 			var value any = int64(-2)
@@ -154,12 +155,20 @@ func TestStocktakeAdjustmentBatchValidationIsAtomic(t *testing.T) {
 			if fault == "location_id" {
 				value = otherLocation
 			}
+			switch fault {
+			case "batch_id":
+				value = rows.Index(0).FieldByName("MovementFields").FieldByName("BatchID").Interface()
+			case "reason", "source_reference":
+				value = "TEST mismatched movement evidence"
+			case "actor_subject":
+				value = "user-editor"
+			}
 			tx.AddError(field.Set(tx.Statement.Context, rows.Index(1), value))
 		}); err != nil {
 			return err
 		}
 		return tx.Callback().Create().After("gorm:create").Register("test:stocktake-adjustment-constraint", func(tx *gorm.DB) {
-			if tx.Statement.Table != "pharmacy_stocktake_adjustments" {
+			if tx.Statement.Table != faultTable {
 				return
 			}
 			var pg *pgconn.PgError
@@ -172,12 +181,21 @@ func TestStocktakeAdjustmentBatchValidationIsAtomic(t *testing.T) {
 		require.NoError(t, callbackDB.Callback().Create().Remove("test:stocktake-adjustment-corruption"))
 		require.NoError(t, callbackDB.Callback().Create().Remove("test:stocktake-adjustment-constraint"))
 	})
-	for _, column := range []string{"quantity_units", "line_id", "location_id"} {
-		t.Run(column, func(t *testing.T) {
-			fault, observedConstraint = column, ""
+	for _, test := range []struct{ table, column, constraint string }{
+		{"pharmacy_stocktake_adjustments", "quantity_units", "pharmacy_stocktake_adjustment"},
+		{"pharmacy_stocktake_adjustments", "line_id", "pharmacy_stocktake_adjustment"},
+		{"pharmacy_stocktake_adjustments", "location_id", "pharmacy_stocktake_adjustment"},
+		{"pharmacy_stock_movements", "quantity_units", "pharmacy_stocktake_movement"},
+		{"pharmacy_stock_movements", "batch_id", "pharmacy_stocktake_movement"},
+		{"pharmacy_stock_movements", "reason", "pharmacy_stocktake_movement"},
+		{"pharmacy_stock_movements", "source_reference", "pharmacy_stocktake_movement"},
+		{"pharmacy_stock_movements", "actor_subject", "pharmacy_stocktake_movement"},
+	} {
+		t.Run(test.table+"/"+test.column, func(t *testing.T) {
+			faultTable, fault, observedConstraint = test.table, test.column, ""
 			response := do(r, "PUT", path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "reviewer", `{"decision":"approve","expected_version":2,"reason":"TEST malformed mixed adjustments","extra_units_disposition":"no_extra_units"}`)
 			require.Equal(t, 409, response.Code, response.Body.String())
-			require.Equal(t, "pharmacy_stocktake_adjustment", observedConstraint, "the adjustment insert itself must reject the malformed row")
+			require.Equal(t, test.constraint, observedConstraint, "the insert itself must reject the malformed row")
 			header := do(r, "GET", path, "editor", "")
 			require.Equal(t, 200, header.Code, header.Body.String())
 			var state struct {

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
 	"github.com/tesserix/helivanta/internal/platform"
@@ -78,6 +79,30 @@ func TestStocktakePreservesSupplierReservations(t *testing.T) {
 		})
 		return err
 	}))
+	// This is a native purpose-policy check; the reviewed gateway tests separately prove actual IAM admission.
+	reviewPurpose := func(action func(*gorm.DB) error) error {
+		return db.WithTenant(tenantdb.WithActor(t.Context(), "user-reviewed-stock-only"), order.OwnerTenantID.String(), func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.pharmacy_subject','user-reviewed-stock-only',true),set_config('app.pharmacy_stock_pharmacy',?,true),set_config('app.pharmacy_stock_outlet',?,true),set_config('app.pharmacy_stock_access','authorized',true),set_config('app.pharmacy_stock_permission','pharmacy.stocktake.review',true)`, fixture.organization.String(), fixture.location.String()).Error; err != nil {
+				return err
+			}
+			return action(tx)
+		})
+	}
+	require.NoError(t, reviewPurpose(func(tx *gorm.DB) error {
+		var held int64
+		if err := tx.Raw(`SELECT pharmacy_supplier_reserved(?,?,?,?)`, order.OwnerTenantID, fixture.location, fixture.bucket, fixture.stock).Scan(&held).Error; err != nil {
+			return err
+		}
+		require.EqualValues(t, 60, held, "reviewed corrections must see holds without legacy outlet access")
+		return nil
+	}))
+	err = reviewPurpose(func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO pharmacy_stock_movements(tenant_id,outlet_id,id,location_id,batch_id,kind,quantity_units,reason,source_reference,actor_subject)
+ VALUES(?,?,?,?,?,'correction',1,'TEST reject general correction','TEST-unlinked-reviewed-correction','user-reviewed-stock-only')`, order.OwnerTenantID, fixture.location, uuid.Must(uuid.NewV7()), fixture.quarantine, fixture.stock).Error
+	})
+	var refusal *pgconn.PgError
+	require.ErrorAs(t, err, &refusal)
+	require.Equal(t, "pharmacy_stocktake_movement", refusal.ConstraintName)
 	call("PUT", path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "owner", `{"decision":"submit","expected_version":1,"reason":"TEST all shelves counted"}`, 200)
 	approvalPath := path + "/decisions/" + uuid.Must(uuid.NewV7()).String()
 	approval := `{"decision":"approve","expected_version":2,"extra_units_disposition":"no_extra_units","reason":"TEST independent reservation check"}`

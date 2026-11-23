@@ -15,6 +15,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/csvsafe"
 )
 
@@ -43,33 +44,46 @@ func (h *catalogueHandlers) exportStocktakeRegister(c *gin.Context) {
 	var header stocktakeHeaderRow
 	var data []byte
 	err := h.transaction(ctx, p, outlet, false, func(tx *gorm.DB) error {
-		var parent struct{ ID uuid.UUID }
-		if err := tx.Table("pharmacy_stocktakes").Clauses(clause.Locking{Strength: "SHARE"}).Select("id").Where("tenant_id=? AND outlet_id=? AND id=? AND sealed", p.TenantID, outlet, id).Take(&parent).Error; err != nil {
-			return err
-		}
 		var err error
-		header, err = readCurrentStocktakeHeader(tx, p.TenantID, outlet, id)
-		if err != nil {
-			return err
-		}
-		var rows []stocktakeRegisterRow
-		columns := stocktakeLineColumns + `,observed.counted_units,observed.counted_by,observed.count_reason,observed.counted_at,observed.counted_units-book_units difference_units,
- adjustment.movement_id,adjustment.adjustment_location_id,adjustment.adjustment_location_code,adjustment.adjustment_units,adjustment.approved_by,adjustment.approved_at,adjustment.approval_reason`
-		if err := tx.Select(columns).Joins(stocktakeObservedJoin).Joins(stocktakeAdjustmentJoin).Where("tenant_id=? AND outlet_id=? AND stocktake_id=?", p.TenantID, outlet, id).Order("id").Limit(10001).Find(&rows).Error; err != nil {
-			return err
-		}
-		if len(rows) > 10000 {
-			return csvsafe.ErrTooLarge
-		}
-		if int64(len(rows)) != header.SnapshotRows {
-			return errStocktakeExportIncomplete
-		}
-		data, err = encodeStocktakeCSV(Stocktake{StocktakeSummary: header.StocktakeSummary, CountedRows: header.CountedRows, DifferenceRows: header.DifferenceRows, PositiveDifferenceRows: header.PositiveDifferenceRows, ReviewRelationship: header.ReviewRelationship}, rows)
+		header, data, err = loadStocktakeRegister(tx, p.TenantID, outlet, id)
 		if err != nil {
 			return err
 		}
 		return stocktakeReadAudit(c, tx, p, "stocktake_register", id, "exported")
 	})
+	respondStocktakeRegister(c, ctx, p, outlet, id, header, data, err, stocktakeError)
+}
+
+func loadStocktakeRegister(tx *gorm.DB, tenant string, outlet, id uuid.UUID) (header stocktakeHeaderRow, data []byte, err error) {
+	var parent struct{ ID uuid.UUID }
+	if err := tx.Table("pharmacy_stocktakes").Clauses(clause.Locking{Strength: "SHARE"}).Select("id").Where("tenant_id=? AND outlet_id=? AND id=? AND sealed", tenant, outlet, id).Take(&parent).Error; err != nil {
+		return header, nil, err
+	}
+	header, err = readCurrentStocktakeHeader(tx, tenant, outlet, id)
+	if err != nil {
+		return header, nil, err
+	}
+	var rows []stocktakeRegisterRow
+	columns := stocktakeLineColumns + `,observed.counted_units,observed.counted_by,observed.count_reason,observed.counted_at,observed.counted_units-book_units difference_units,
+ adjustment.movement_id,adjustment.adjustment_location_id,adjustment.adjustment_location_code,adjustment.adjustment_units,adjustment.approved_by,adjustment.approved_at,adjustment.approval_reason`
+	if err := tx.Select(columns).Joins(stocktakeObservedJoin).Joins(stocktakeAdjustmentJoin).Where("tenant_id=? AND outlet_id=? AND stocktake_id=?", tenant, outlet, id).Order("id").Limit(10001).Find(&rows).Error; err != nil {
+		return header, nil, err
+	}
+	if len(rows) > 10000 {
+		return header, nil, csvsafe.ErrTooLarge
+	}
+	if int64(len(rows)) != header.SnapshotRows {
+		return header, nil, errStocktakeExportIncomplete
+	}
+	data, err = encodeStocktakeCSV(Stocktake{StocktakeSummary: header.StocktakeSummary, CountedRows: header.CountedRows, DifferenceRows: header.DifferenceRows, PositiveDifferenceRows: header.PositiveDifferenceRows, ReviewRelationship: header.ReviewRelationship}, rows)
+	if err != nil {
+		return header, nil, err
+	}
+
+	return header, data, nil
+}
+
+func respondStocktakeRegister(c *gin.Context, ctx context.Context, p authn.Principal, outlet, id uuid.UUID, header stocktakeHeaderRow, data []byte, err error, report func(*gin.Context, error)) {
 	if errors.Is(err, csvsafe.ErrTooLarge) {
 		respond.Error(c, http.StatusRequestEntityTooLarge, "stocktake_export_too_large", "The stocktake register exceeds 10000 rows or 8 MiB. No partial file was exported; use the paged record to examine the retained observations.")
 		return
@@ -79,11 +93,11 @@ func (h *catalogueHandlers) exportStocktakeRegister(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		stocktakeError(c, err)
+		report(c, err)
 		return
 	}
 	if err := ctx.Err(); err != nil {
-		stocktakeError(c, err)
+		report(c, err)
 		return
 	}
 	c.Header("Cache-Control", "private, no-store")

@@ -6,6 +6,15 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const contract = JSON.parse(
   await readFile(path.join(root, "contracts/operating-assignments.json"), "utf8"),
 );
+const releases = JSON.parse(
+  await readFile(path.join(root, "contracts/release-capabilities.json"), "utf8"),
+);
+const capabilityKeys = new Set(["baseline", ...releases.capabilities.map((row) => row.key)]);
+for (const template of contract.templates) {
+  const bindings = releases.panels.filter((row) => row.key === `staff.operating.${template.key}`);
+  if (bindings.length !== 1 || !capabilityKeys.has(bindings[0].capability))
+    throw new Error(`Operating duty needs one known release binding: ${template.key}`);
+}
 const identity = [];
 for (const ref of contract.identity_fields) {
   const source = JSON.parse(await readFile(path.join(root, "contracts", ref.file), "utf8"));

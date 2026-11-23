@@ -106,6 +106,13 @@ it("prepares a pharmacy dispatch duty for the exact reviewed account and outlet"
   await user.click(await screen.findByRole("button", { name: "Assign operating duty" }));
   await user.click(await screen.findByLabelText("Operating role"));
   expect(screen.queryByRole("option", { name: /Warehouse reservation/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole("option", { name: "Outlet stocktake reader" })).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("option", { name: "Outlet stocktake counter" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("option", { name: "Outlet independent stocktake reviewer" }),
+  ).not.toBeInTheDocument();
   await user.click(
     await screen.findByRole("option", { name: "Outlet reservation and physical dispatch" }),
   );

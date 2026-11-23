@@ -116,8 +116,12 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 		response = do(r, "PUT", path+"/counts/"+uuid.Must(uuid.NewV7()).String(), "editor", string(body))
 		require.Equal(t, 200, response.Code, "count command %d: %s", offset/100, response.Body.String())
 	}
+	submitStarted := time.Now()
 	response = do(r, "PUT", path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "editor", `{"decision":"submit","expected_version":100,"reason":"TEST capacity submission"}`)
+	submitElapsed := time.Since(submitStarted)
+	t.Logf("10000-bucket submit returned HTTP %d in %s", response.Code, submitElapsed)
 	require.Equal(t, 200, response.Code, response.Body.String())
+	require.Less(t, submitElapsed, 5*time.Second, "complete snapshot submission must fit the command budget")
 	approvalPath := path + "/decisions/" + uuid.Must(uuid.NewV7()).String()
 	body := `{"decision":"approve","expected_version":101,"reason":"TEST independent capacity review","extra_units_disposition":"no_extra_units"}`
 	start = time.Now()

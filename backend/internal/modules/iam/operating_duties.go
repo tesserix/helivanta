@@ -18,6 +18,7 @@ import (
 	iamcontract "github.com/tesserix/helivanta/internal/modules/iam/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/internal/release"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
@@ -49,6 +50,7 @@ var operatingTemplatesCurrentSchema string
 var operatingTemplatesOrderSchema string
 
 type operatingHandlers struct {
+	releasePolicy     *release.Service
 	governanceSources authz.CurrentGovernanceSourceGuard
 	native            *operatingNativeRequest
 	db                *tenantdb.DB
@@ -69,7 +71,7 @@ type operatingDutyRow struct {
 
 func registerOperatingDutyRoutes(r *platform.Router, deps platform.Deps) {
 	r = r.Group("/iam")
-	h := &operatingHandlers{db: deps.DB, bus: deps.Bus, staff: deps.IndependentStaff, locations: deps.OperatingLocations, governanceSources: deps.GovernanceSources}
+	h := &operatingHandlers{db: deps.DB, bus: deps.Bus, staff: deps.IndependentStaff, locations: deps.OperatingLocations, governanceSources: deps.GovernanceSources, releasePolicy: deps.ReleasePolicy}
 	h.graph, _ = deps.Authz.(currentGraph)
 	platform.ListRoute(r, "/operating-employers/:kind/:employer/staff/:staff/duties", PermOperatingRead, h.list)
 	r.PUT("/operating-duties/:id", PermOperatingPrepare, h.prepare)
@@ -296,6 +298,10 @@ func (h *operatingHandlers) prepare(c *gin.Context) {
 	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
+	if err := h.templateAvailability(ctx, p, in.TemplateKey); err != nil {
+		h.operatingError(c, err)
+		return
+	}
 	proof, err := h.actorProof(ctx, p, PermOperatingPrepare)
 	if err != nil {
 		h.operatingError(c, err)

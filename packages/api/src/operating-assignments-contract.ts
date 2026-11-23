@@ -224,4 +224,25 @@ export const operatingDutyTemplates: readonly OperatingDutyTemplate[] = [
     ],
     max_validity_hours: 8784,
   },
+  {
+    key: "pharmacy.stocktake_reader.v1",
+    employer_kind: "pharmacy",
+    label: "Outlet stocktake reader",
+    permissions: ["pharmacy.stocktake.read"],
+    max_validity_hours: 8784,
+  },
+  {
+    key: "pharmacy.stocktake_counter.v1",
+    employer_kind: "pharmacy",
+    label: "Outlet stocktake counter",
+    permissions: ["pharmacy.stocktake.read", "pharmacy.stocktake.count"],
+    max_validity_hours: 8784,
+  },
+  {
+    key: "pharmacy.stocktake_reviewer.v1",
+    employer_kind: "pharmacy",
+    label: "Outlet independent stocktake reviewer",
+    permissions: ["pharmacy.stocktake.read", "pharmacy.stocktake.review"],
+    max_validity_hours: 8784,
+  },
 ];

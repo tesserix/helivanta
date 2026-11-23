@@ -27,6 +27,8 @@ import {
   operatingDutiesKey,
   OperatingDutyInputContract,
   operatingDutyTemplates,
+  capabilityForPanel,
+  useReleaseCapabilities,
   type OperatingDutyInput,
   type OperatingDutyStaffScope,
   type SupplyParty,
@@ -281,7 +283,12 @@ function DutyForm({
 }: Props & { source: Source; accounts: Accounts }) {
   const field = useId();
 
-  const templates = operatingDutyTemplates.filter((t) => t.employer_kind === scope.employerKind);
+  const release = useReleaseCapabilities();
+  const templates = operatingDutyTemplates.filter(
+    (t) =>
+      t.employer_kind === scope.employerKind &&
+      release.available(capabilityForPanel(`staff.operating.${t.key}`)),
+  );
   const [template, setTemplate] = useState(templates[0]?.key ?? "");
   const fixedAccount = accounts.fixed ? (accounts.rows[0]?.id ?? "") : "";
   const [account, setAccount] = useState(fixedAccount);

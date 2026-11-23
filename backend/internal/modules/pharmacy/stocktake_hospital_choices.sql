@@ -1,7 +1,7 @@
 SET LOCAL lock_timeout='5s';
 SET LOCAL statement_timeout='60s';
 DO $$BEGIN
- IF pharmacy_stocktake_hospital_integrity()IS DISTINCT FROM true OR pharmacy_operating_choice_support()IS DISTINCT FROM true THEN
+ IF pharmacy_stocktake_hospital_integrity()IS DISTINCT FROM true OR pharmacy_operating_choice_integrity()IS DISTINCT FROM true THEN
  RAISE EXCEPTION 'hospital outlet choices require unchanged owner authority';
  END IF;
 END $$;

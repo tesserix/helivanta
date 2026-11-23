@@ -433,3 +433,13 @@ and contract checks, actionlint and SQL/PLpgSQL parsing pass locally. The affect
 API and shell builds also pass; their generated binaries and `.next`/incremental
 metadata were removed. Actual migration/read-mode and owner-workflow greens are
 still required for this branch. Nothing in this candidate was applied live.
+
+
+The first outlet-schema run **45215392320** reached real PostgreSQL and rejected
+unchanged input at the migration admission check. The candidate incorrectly
+called the application-role support check as the schema owner (which has
+TRUNCATE privileges). Migration admission now checks the reviewed structural
+integrity snapshot; runtime choice admission still requires application-role
+support and complete projection policy integrity. The prior-drift rejection
+assertion remains unchanged. This was a migration setup failure, not a passing
+outlet workflow or a reason to relax current runtime authority.

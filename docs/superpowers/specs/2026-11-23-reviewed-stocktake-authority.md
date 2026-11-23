@@ -31,8 +31,16 @@ the full Workforce-owned historical independence check.
 Performance diagnostics exposed repeated older-purpose checks and a join doing
 10,000 batch lookups, each filtering approximately 5,000 rows. Direct reviewed
 RLS selection reduced that work, but total start still timed out. A trial
-concurrent index was not chosen and was removed; no new stock-batch index or
-migration 0066 remains. The final query aggregates physical movements per
+concurrent `(tenant_id,outlet_id,product_id,id)` index was not chosen and was
+removed. Diagnostic 45088497678 subsequently measured an exact batch lookup
+using `pharmacy_stock_batch_expiry` at 1.189 ms, with 641.575 ms of snapshot
+validation and 225.580 ms of batch FK checks in the third 2,000-row insert.
+Candidate migration 0066 now adds a narrow, non-unique `id` index concurrently
+to give exact identity checks an alternative to the expiry-ordered scan.
+Tenant/outlet predicates, existing composite keys, RLS and all FK checks remain
+mandatory. Its query plan and clean capacity acceptance are still pending;
+this is not deployment evidence or permission to apply the migration live.
+The snapshot query aggregates physical movements per
 selected batch/location before metadata projection, retaining selection,
 zero-balance buckets, cutoff, ordering, units, row cap and regulatory source.
 The submission guard also defers compilation of completeness SQL until submit,

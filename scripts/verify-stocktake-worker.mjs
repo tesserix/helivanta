@@ -62,7 +62,13 @@ try {
         .context()
         .request.get(
           `${fixture.gateway_url}/v1/iam/me/hospital-pharmacy-stocktake-scopes?limit=20`,
-          { headers: { authorization: `Bearer ${fixture.accounts[actor].token}` } },
+          {
+            headers: {
+              authorization: `Bearer ${fixture.accounts[actor].token}`,
+              "X-Helivanta-Expected-Tenant": fixture.tenant_id,
+              "X-Helivanta-Expected-Subject": fixture.accounts[actor].subject,
+            },
+          },
         );
       expect(response.ok()).toBe(true);
       const scopes = await response.json();

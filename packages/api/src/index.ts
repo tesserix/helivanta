@@ -270,6 +270,12 @@ export {
 } from "./pharmacy-stocktakes";
 export { fetchStocktakeCSV } from "./pharmacy-stocktake-export";
 export {
+  fetchStocktakeProductChoices,
+  fetchStocktakeQuarantineChoices,
+  type StocktakeProductChoice,
+  type StocktakeQuarantineChoice,
+} from "./pharmacy-stocktake-choices";
+export {
   listStocktakeWorkerLocations,
   stocktakeWorkerLocationsKey,
   type StocktakeWorkerScope,

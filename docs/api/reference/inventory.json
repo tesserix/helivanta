@@ -376,6 +376,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/me/pharmacy-stocktake-locations",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/me/profile",
           "permission": "no_tenant_membership",
           "authentication_required": true,

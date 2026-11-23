@@ -102,8 +102,13 @@ func TestStocktakeReviewedReadsSurviveReleaseWithdrawal(t *testing.T) {
 			f.call("GET", path+"/register.csv", "receiver", nil, blocked)
 			f.call("PUT", countPath, "receiver", countInput, blocked)
 			f.call("PUT", submitPath, "receiver", submitInput, blocked)
+			f.call("PUT", root+"/"+v7(), "receiver", map[string]any{"selection": "all", "product_ids": []string{}, "quarantine_location_id": f.quarantine, "reason": "TEST withdrawal prevents a new count"}, blocked)
 			cancelPath := path + "/cancellations/" + v7()
 			cancelInput := map[string]any{"decision": "cancel", "expected_version": 2, "reason": "TEST end interrupted stocktake safely"}
+			for _, actor := range []string{"owner", "foreign"} {
+				f.call("PUT", path+"/cancellations/"+v7(), actor, cancelInput, 404)
+			}
+			f.call("PUT", strings.Replace(cancelPath, f.outlet, f.sibling, 1), "receiver", cancelInput, 404)
 			f.call("PUT", strings.Replace(submitPath, "/decisions/", "/cancellations/", 1), "receiver", cancelInput, 409)
 			saved := f.call("PUT", cancelPath, "receiver", cancelInput, 200)
 			var cancellation struct {
@@ -119,6 +124,7 @@ func TestStocktakeReviewedReadsSurviveReleaseWithdrawal(t *testing.T) {
 			require.Zero(t, cancellation.AdjustmentCount)
 			require.JSONEq(t, saved, f.call("PUT", cancelPath, "receiver", cancelInput, 200))
 			require.JSONEq(t, saved, f.call("GET", strings.Replace(cancelPath, "/cancellations/", "/decisions/", 1), "receiver", nil, 200))
+			f.call("PUT", path+"/cancellations/"+v7(), "receiver", map[string]any{"decision": "cancel", "expected_version": 3, "reason": "TEST terminal count cannot be cancelled twice"}, 409)
 			for _, decision := range []string{"submit", "approve", "reject"} {
 				f.call("PUT", path+"/cancellations/"+v7(), "receiver", map[string]any{"decision": decision, "expected_version": 3, "reason": "TEST cancellation cannot admit another command"}, 400)
 			}

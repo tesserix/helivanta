@@ -107,5 +107,5 @@ func assertHospitalStocktakeWorkflow(t *testing.T, db *tenantdb.DB, call func(*t
 	call(t, "DELETE", base+"/access/"+reviewer, owner, nil, 200)
 	call(t, "GET", path, reviewer, nil, 404)
 	call(t, "PUT", root+"/"+v7(), counter, start, 404)
-	assertHospitalStocktakeScopeDiscovery(t, call, owner, counter, reviewer, hospital, department)
+	assertHospitalStocktakeScopeDiscovery(t, db, call, owner, counter, reviewer, hospital, department)
 }

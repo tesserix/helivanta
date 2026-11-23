@@ -381,3 +381,15 @@ the guarded owner implementations. The full hosted discovery green must still
 be observed before consolidating this candidate into PR #1826. Bound-outlet
 choices, hospital worker UI, source-replacement recovery, hospital browser and
 capacity acceptance, migration/rollout approval and live acceptance remain open.
+
+The next broad web check reached the immutable-template tests and exposed a
+stale synthetic append golden file (it omitted the three new hospital stocktake
+templates). Reproduced locally before correction; the test fixture was rebuilt
+from the latest canonical generated migration plus its existing synthetic
+`workforce.leave_reviewer.v2` extension. All **107 template-migration tests** now
+pass without changing production migration digests. Added HTTP error-boundary
+coverage for revoked credentials, deadlines, unavailable owners and failed
+disclosure constraints; focused race tests pass and no SQL/private fields appear
+in the response. The next hosted candidate additionally injects a real IAM
+disclosure-audit failure, expects 503 without a named partial page, and checks
+that Workforce source/name evidence rolls back before successful restoration.

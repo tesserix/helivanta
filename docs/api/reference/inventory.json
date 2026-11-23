@@ -15139,6 +15139,44 @@
           "id": "0121_workforce_staff_generic_plans",
           "sql_sha256": "3ac9ae0f905fabf86238c4637ee4f42fe0d2c2b52587ee5745017fe5b5da2b7c",
           "creates_tables": []
+        },
+        {
+          "id": "0122_workforce_stocktake_actor_history",
+          "sql_sha256": "112ec7c083c137e27b78cfd6d026033357c083d04f5fba7a80067d3f4c4167ca",
+          "creates_tables": []
+        },
+        {
+          "id": "0123_workforce_stocktake_actor_history_index",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "workforce_stocktake_history_subject",
+              "table": "workforce_login_links",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "subject",
+                  "descending": false
+                },
+                {
+                  "name": "staff_id",
+                  "descending": false
+                },
+                {
+                  "name": "id",
+                  "descending": false
+                }
+              ]
+            }
+          ]
         }
       ]
     },

@@ -1786,6 +1786,7 @@ Migration table declarations:
 - `0103_workforce_login_review_authority`: `workforce_login_link_authorities`.
 - `0108_workforce_employment_inbox_staff_index`: concurrent index `workforce_employment_inbox_staff` on `workforce_employment_reviews (tenant_id, hospital_id, staff_id)`.
 - `0111_workforce_employment_preparation_receipt`: concurrent index `workforce_employment_preparation_receipt` on `workforce_audit (tenant_id, hospital_id, resource_id, action)`.
+- `0123_workforce_stocktake_actor_history_index`: concurrent index `workforce_stocktake_history_subject` on `workforce_login_links (tenant_id, hospital_id, subject, staff_id, id)`.
 
 ## workspace
 

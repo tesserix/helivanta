@@ -145,3 +145,23 @@ shortcut. After the reviewed release change, use Console's audited desired-state
 control and verify effective UI/API behavior under real authorized synthetic
 Staff, including both owners and negative scope checks. Record pending cases
 explicitly. Close #1686 only after its requested end state is demonstrated live.
+
+
+### Hospital historical participant verification (candidate)
+
+Workforce retains ownership of canonical login-link history and employment
+generations. A stocktake reviewer must carry both a current department-scoped
+`workforce.stocktake_actor.use` assignment and `pharmacy.stocktake.review`.
+The historical check binds the saved counter link version, generation and
+employment epoch, rejects the same Staff or subject and shared historical Staff
+aliases, and does not require the former counter to remain employed. It restores
+its narrow read context before calling the Pharmacy consumer; failed consumer
+work rolls back the Workforce audit too.
+
+Candidate migrations `0122_workforce_stocktake_actor_history` and
+`0123_workforce_stocktake_actor_history_index` preserve the previous selection
+integrity checks, update only the three explicitly changed policy fingerprints,
+and refuse prior authority drift. Runtime checks require canonical immutable
+history and forced row-level security. These are development changes only:
+hospital commands, positive fixture acceptance, UI and live migration/rollout
+remain pending; the release capability stays compiled ineligible.

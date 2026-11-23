@@ -2087,8 +2087,9 @@ verified tenant/account preconditions remain in force.
 New-work/lines/export routes remain `pharmacy_stocktake` gated and compiled
 ineligible. Header/list/original command receipts and cancellation retain baseline
 classification with full current authority. This is candidate code, not deployed
-hospital stocktake acceptance: real command integration, binding-change recovery,
-worker discovery/UI, capacity and live verification remain tracked in the
+hospital release acceptance. Real hospital command integration passed in hosted
+run 45197016258; binding-change recovery, complete worker discovery/UI, hospital
+browser/capacity and live verification remain tracked in the
 [hospital delivery plan](../../superpowers/plans/2026-11-23-hospital-stocktake-authority.md).
 
 Hospital candidate commands also verify the Pharmacy owner schema seal inside the

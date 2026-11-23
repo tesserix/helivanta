@@ -36,11 +36,12 @@ approved rollout/live acceptance remain open.
 - Workforce's `staffActorGuard.withCurrentEmployeeActor` locks current Staff,
   account link and employment generation, requires an already-held exact IAM
   source-use grant, constrains its guarded transaction deadline and audits the
-  consumed source. It currently permits governance and procurement purposes only.
+  consumed source. Before this candidate it permitted governance and procurement purposes only;
+  the candidate adds the separate stocktake purpose.
 - `IndependentStaffHistoryGuard` verifies retired observation evidence and known
   Staff/account aliases. It does not establish hospital employment history.
-- Pharmacy's current header discriminator permits legacy and independent
-  operating counts. Independent evidence records duty, Staff revision and link
+- Pharmacy's preceding header discriminator permitted legacy and independent
+  operating counts; the candidate adds hospital authority. Independent evidence records duty, Staff revision and link
   revision; hospital evidence needs assignment and employment generation instead.
 
 ## Owners, authority and invariants
@@ -394,9 +395,35 @@ cross-subject cursor rejection, duplicate/unsupported query rejection and an
 empty collection for the unassigned tenant owner. This checkpoint includes that
 application code and the reviewed CI test fixes. The 107 immutable-template
 migration tests pass after updating only their synthetic append golden fixture.
-The newer real disclosure-audit failure/rollback case is still on the continuation
-branch and has a separate hosted run; it is not claimed by this checkpoint.
+The real disclosure-audit failure/rollback case also passed in **45212938828**
+on **6602018c** and is now included in this checkpoint.
 
 Bound-outlet discovery, hospital worker UI, source-replacement recovery, hospital
 browser/capacity, current-head required CI and approved rollout/live acceptance
 remain open. No live migration or rollout has been performed.
+
+The next broad web check reached the immutable-template tests and exposed a
+stale synthetic append golden file (it omitted the three new hospital stocktake
+templates). Reproduced locally before correction; the test fixture was rebuilt
+from the latest canonical generated migration plus its existing synthetic
+`workforce.leave_reviewer.v2` extension. All **107 template-migration tests** now
+pass without changing production migration digests. Added HTTP error-boundary
+coverage for revoked credentials, deadlines, unavailable owners and failed
+disclosure constraints; focused race tests pass and no SQL/private fields appear
+in the response. The next hosted candidate additionally injects a real IAM
+disclosure-audit failure, expects 503 without a named partial page, and checks
+that Workforce source/name evidence rolls back before successful restoration.
+
+### Disclosure rollback accepted; architecture consumers reviewed
+
+Run **45212938828** passed the complete hospital source/physical workflow with
+an injected IAM disclosure-audit failure: 503 without named data, rollback of
+Workforce source/name evidence, exact restoration and subsequent success.
+
+The general Go check on #1826 separately rejected references to governance and
+procurement source methods in `stocktake_hospital_actor_test.go`. Reviewed that
+exact file: its calls assert those purposes cannot use the held stocktake proof
+and that no forbidden callback runs. Added only this negative integration-test
+file to the existing explicit architecture allowlists; production consumers and
+provider interfaces are unchanged. The three architecture failures were
+reproduced locally before updating the reviewed test consumers.

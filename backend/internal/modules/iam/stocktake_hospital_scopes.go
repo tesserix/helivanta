@@ -69,7 +69,7 @@ func (h *hospitalStocktakeScopeHandlers) scan(c *gin.Context, page pagination.Pa
 		return nil, nil
 	}
 	if h.db == nil || h.graph == nil || h.authority == nil || h.hospitals == nil || h.departments == nil || h.paths == nil || p.IdleDeadline.IsZero() {
-		operatingError(c, authz.ErrScopedAuthorizationUnavailable)
+		hospitalStocktakeScopeError(c, authz.ErrScopedAuthorizationUnavailable)
 		return nil, nil
 	}
 	deadline := time.Now().Add(4 * time.Second)
@@ -101,7 +101,7 @@ AND s.valid_from<=clock_timestamp() AND s.expires_at>clock_timestamp()`
 		return tx.Raw(query, args...).Scan(&rows).Error
 	})
 	if err != nil {
-		operatingError(c, authz.ErrScopedAuthorizationUnavailable)
+		hospitalStocktakeScopeError(c, authz.ErrScopedAuthorizationUnavailable)
 		return nil, nil
 	}
 	for i := range rows {
@@ -135,14 +135,14 @@ func (h *hospitalStocktakeScopeHandlers) filter(c *gin.Context, candidates []hos
 			assigned[i] = string(value)
 		}
 		if definition.Key == "" || !slices.Equal(assigned, definition.Permissions) || snapshot.Subject != p.Subject || snapshot.ScopeKind != "department" || snapshot.DepartmentID == nil {
-			operatingError(c, authz.ErrScopedAuthorizationUnavailable)
+			hospitalStocktakeScopeError(c, authz.ErrScopedAuthorizationUnavailable)
 			return nil, nil
 		}
 		allowed := true
 		for _, permission := range []authz.Permission{stocktakeWorkerRead, authz.StocktakeActorUse} {
 			current, err := h.graph.CheckScopedAssignment(ctx, snapshot.scoped(p.TenantID), p.Subject, permission)
 			if err != nil {
-				operatingError(c, authz.ErrScopedAuthorizationUnavailable)
+				hospitalStocktakeScopeError(c, authz.ErrScopedAuthorizationUnavailable)
 				return nil, nil
 			}
 			allowed = allowed && current
@@ -155,7 +155,7 @@ func (h *hospitalStocktakeScopeHandlers) filter(c *gin.Context, candidates []hos
 			continue
 		}
 		if err != nil {
-			operatingError(c, authz.ErrScopedAuthorizationUnavailable)
+			hospitalStocktakeScopeError(c, authz.ErrScopedAuthorizationUnavailable)
 			return nil, nil
 		}
 		scope := authz.StaffActorScope{TenantID: p.TenantID, Subject: p.Subject, HospitalID: snapshot.HospitalID, DepartmentPath: make([]string, len(path))}
@@ -194,10 +194,18 @@ func (h *hospitalStocktakeScopeHandlers) filter(c *gin.Context, candidates []hos
 			continue
 		}
 		if err != nil {
-			operatingError(c, err)
+			hospitalStocktakeScopeError(c, err)
 			return nil, nil
 		}
 		rows = append(rows, candidate)
 	}
 	return rows, nil
+}
+
+func hospitalStocktakeScopeError(c *gin.Context, err error) {
+	if errors.Is(err, authz.ErrScopedCredentialRevoked) {
+		respond.Error(c, 401, "credentials_revoked", "Your credentials changed. Sign in again.")
+		return
+	}
+	respond.Error(c, 503, "scoped_authorization_unavailable", "Current hospital stocktake access or disclosure evidence is unavailable.")
 }

@@ -16,6 +16,7 @@ on:
             hospital-browser,
             hospital-source,
             hospital-schema,
+            merge-regressions,
           ]
   pull_request:
     paths:
@@ -52,6 +53,32 @@ concurrency:
   group: stocktake-capacity-${{ github.ref }}-${{ inputs.suite || 'all' }}
   cancel-in-progress: true
 jobs:
+  merge-regressions:
+    if: ${{ inputs.suite == 'merge-regressions' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version-file: backend/go.mod
+          cache: true
+          cache-dependency-path: backend/go.sum
+      - name: Existing platform review and hospital directory isolation
+        run: >-
+          go test -v -race -count=1 -timeout=5m ./internal/modules/pharmacy
+          -run '^(TestHospitalStocktakeChoicesPreservePlatformScheduleReview|TestHelivanta.*|TestTheScheduleScreenShowsAHelivantaDecision|TestTheReviewerIsNotTheDeclarerOrCountersigner|TestADecidedLoweringCannotBeDecidedAgain|TestALaterRaiseWinsOverAnOldLowering|TestASaleFollowsAnApprovedLowering|TestStocktakeHospital.*)$'
+      - name: Billing final bill and deposit regression
+        run: >-
+          go test -v -race -count=1 -timeout=8m ./internal/modules/billing
+          -run '^(TestAFinalBill.*|TestAWithdrawnDischarge.*|TestBillTablesHoldTheFinalBillRules|TestAnAppliedCardDepositIsNotVoided)$'
+      - name: Build and vet affected targets
+        run: |
+          go build ./cmd/api
+          go vet ./internal/modules/pharmacy ./internal/modules/billing
   hospital-stocktake-schema:
     if: ${{ inputs.suite == 'hospital-schema' }}
     runs-on: ubuntu-24.04

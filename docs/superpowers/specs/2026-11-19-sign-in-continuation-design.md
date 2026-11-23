@@ -18,6 +18,8 @@ Resolves tesserix/helivanta#1750. Refines
 
 ## Decisions
 
+- **Superseded (D1, D2):** the remembered workspace was removed by
+  [sign-in never routes by memory](2026-11-24-no-sign-in-routing-by-memory-design.md) (#1820).
 - **D1. Remember at selection.** `rememberWorkspace` runs when an account is
   chosen (discovery choice, remembered-account button, workspace-link button),
   not only after session exchange. A start-again landing then offers "Sign in to

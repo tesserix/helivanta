@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import {
   AccountDiscoveryCodeContract,
   AccountDiscoveryRequestContract,
@@ -11,17 +11,10 @@ import {
   type AccountDiscoveryChoice,
 } from "@helivanta/api";
 import { Button, Field, useZodForm } from "@helivanta/ui";
-import {
-  forgetWorkspace,
-  readRememberedWorkspace,
-  rememberWorkspace,
-  subscribeWorkspace,
-} from "@/lib/workspace-signin";
 
 type Props = { onSelect: (tenantId: string, email?: string) => Promise<void> };
 
 export function AccountDiscovery({ onSelect }: Props) {
-  const remembered = useSyncExternalStore(subscribeWorkspace, readRememberedWorkspace, () => null);
   const [phase, setPhase] = useState<"email" | "code" | "choices">("email");
   const [choices, setChoices] = useState<AccountDiscoveryChoice[]>([]);
   const emailForm = useZodForm(AccountDiscoveryRequestContract, { email: "" });
@@ -33,10 +26,7 @@ export function AccountDiscovery({ onSelect }: Props) {
       setPhase("code");
     },
   });
-  // Remembered at selection, not only after sign-in, so a start-again landing
-  // offers this account again instead of another mailbox code.
   async function choose(tenantId: string) {
-    rememberWorkspace(tenantId);
     return onSelect(tenantId, emailForm.getValues("email") || undefined);
   }
   async function loadChoices() {
@@ -60,27 +50,7 @@ export function AccountDiscovery({ onSelect }: Props) {
 
   return (
     <div className="space-y-4">
-      {phase === "email" && remembered ? (
-        <>
-          <p className="text-sm text-muted-foreground">
-            Continue with your previous account using its password and configured two-step
-            verification.
-          </p>
-          <Button className="w-full" disabled={pending} onClick={() => select.mutate(remembered)}>
-            Sign in to your previous account
-          </Button>
-          <Button
-            variant="ghost"
-            disabled={pending}
-            onClick={() => {
-              forgetWorkspace();
-              select.reset();
-            }}
-          >
-            Use another account
-          </Button>
-        </>
-      ) : phase === "email" ? (
+      {phase === "email" ? (
         <form
           noValidate
           onSubmit={emailForm.handleSubmit(({ email }) => send.mutate(email))}

@@ -32,12 +32,16 @@ import (
 )
 
 type catalogueHandlers struct {
-	db             *tenantdb.DB
-	bus            *events.Bus
-	operating      authz.OperatingScopeAuthorizer
-	staffHistory   authz.IndependentStaffHistoryGuard
-	supplierSafety f.ShipmentSafety
-	drugCatalogue  stockproduct.CatalogueSource
+	stocktakeAuthority   authz.ScopedAuthorizer
+	stocktakeActors      authz.HospitalStocktakeActorGuard
+	stocktakeDepartments authz.DepartmentScopeGuard
+	stocktakeReferences  authz.DepartmentReferenceGuard
+	db                   *tenantdb.DB
+	bus                  *events.Bus
+	operating            authz.OperatingScopeAuthorizer
+	staffHistory         authz.IndependentStaffHistoryGuard
+	supplierSafety       f.ShipmentSafety
+	drugCatalogue        stockproduct.CatalogueSource
 }
 
 type catalogueProduct struct {

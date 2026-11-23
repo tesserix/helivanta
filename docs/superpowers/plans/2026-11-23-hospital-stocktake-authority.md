@@ -147,7 +147,6 @@ control and verify effective UI/API behavior under real authorized synthetic
 Staff, including both owners and negative scope checks. Record pending cases
 explicitly. Close #1686 only after its requested end state is demonstrated live.
 
-
 ### Hospital historical participant verification (candidate)
 
 Workforce retains ownership of canonical login-link history and employment
@@ -176,3 +175,30 @@ The provider retains the existing Workforce factory and does not expose
 procurement authority. The real-owner platform test verifies these refusals and
 that neither current nor historical source callbacks run without guarded IAM
 authority. This wiring adds no hospital route or stock write admission by itself.
+
+### Hospital command candidate
+
+The command branch now registers the hospital stocktake route family, reuses the
+single stocktake snapshot/observation/decision/ledger implementation and retains
+separate hospital evidence. Admission holds the actual operation and Staff-source
+assignments, locks each assignment's department scope against current ancestry,
+verifies current reviewed Staff, and pins the approved hospital-owned outlet
+binding and Organization revision through the command transaction. Historical
+review consumes only Workforce's hospital identity boundary. Independent employer
+admission and its evidence remain separate.
+
+Source verification found the current last Pharmacy migration is **0065**, so the
+new forward-only candidate is `0066_pharmacy_stocktake_hospital`. No live migration
+has run. Its new evidence table has forced RLS, composite source/command foreign
+keys, immutable history, bounded participant indexes and operating-choice
+restrictions. The prior choice integrity is verified before adding the new table's
+policy fingerprints. Hospital and independent command triggers require original
+source evidence; legacy commands cannot adopt either count. Explicit route
+capability bindings preserve authorized recovery while new work remains locked.
+
+Hosted run 45183518049 observed the intended red at the hospital start route
+(404, expected 200), after real owner setup, department approval, stock receipt
+and reviewed assignments. Positive command acceptance, binding-change recovery,
+hospital discovery/UI/capacity and authenticated live release verification remain
+pending. No readiness or rollout claim follows from compilation or static SQL
+parsing.

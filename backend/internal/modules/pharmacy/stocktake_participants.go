@@ -21,7 +21,10 @@ type stocktakeParticipant struct {
 	LinkVersion  int64
 }
 
-func (h *catalogueHandlers) reviewStocktakeParticipants(tx *gorm.DB, use operatingStockUse, take uuid.UUID) error {
+func (h *catalogueHandlers) reviewStocktakeParticipants(tx *gorm.DB, use stocktakeWorkUse, take uuid.UUID) error {
+	if use.hospital != nil {
+		return h.reviewHospitalStocktakeParticipants(tx, use, take)
+	}
 	if h.staffHistory == nil {
 		return errStocktakeParticipantSource
 	}

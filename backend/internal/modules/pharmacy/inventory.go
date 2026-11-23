@@ -82,7 +82,7 @@ var errStockIdentity = errors.New("stock identity is immutable")
 
 func inventoryRoutes(g *platform.Router, deps platform.Deps) {
 	history, _ := deps.IndependentStaff.(authz.IndependentStaffHistoryGuard)
-	h := &catalogueHandlers{db: deps.DB, bus: deps.Bus, operating: deps.OperatingAuthorizer, staffHistory: history, supplierSafety: deps.SupplierShipmentSafety}
+	h := &catalogueHandlers{db: deps.DB, bus: deps.Bus, operating: deps.OperatingAuthorizer, staffHistory: history, supplierSafety: deps.SupplierShipmentSafety, stocktakeAuthority: deps.ScopedAuthorizer, stocktakeActors: deps.StocktakeActors, stocktakeDepartments: deps.DepartmentScopes, stocktakeReferences: deps.DepartmentReferences}
 	stockOverviewRoutes(g, h)
 	operatingStockRoutes(g, h)
 	operatingStocktakeRoutes(g, h)

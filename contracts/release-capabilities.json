@@ -5992,6 +5992,66 @@
       "method": "GET",
       "path": "/v1/iam/pharmacy-stocktake-assignment-proposals",
       "capability": "pharmacy_stocktake"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake",
+      "capability": "pharmacy_stocktake"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/lines",
+      "capability": "pharmacy_stocktake"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/counts/:command",
+      "capability": "pharmacy_stocktake"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/counts/:command",
+      "capability": "baseline"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/decisions/:command",
+      "capability": "pharmacy_stocktake"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/decisions/:command",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/register.csv",
+      "capability": "pharmacy_stocktake"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/cancellations/:command",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/product-choices",
+      "capability": "pharmacy_stocktake"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/quarantine-choices",
+      "capability": "pharmacy_stocktake"
     }
   ],
   "pages": [

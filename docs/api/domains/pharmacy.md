@@ -2063,3 +2063,30 @@ refunds and inventory-mode vouchers are also excluded. No import has been run
 against a real TallyPrime company. See the
 [design](../../superpowers/specs/2026-11-21-tally-accounting-export-design.md)
 and [delivery plan](../../superpowers/plans/2026-11-21-tally-accounting-export.md).
+
+### Hospital stocktake command candidate — #1686
+
+The development branch adds the same stocktake suffixes under
+`/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes`.
+Each request requires its own current department assignment for stocktake
+read/count/review, a separate `workforce.stocktake_actor.use` assignment, reviewed
+hospital Staff and the current approved hospital-owned outlet binding at the
+current Organization revision. Each held assignment's actual department scope is
+rechecked through commit. Legacy outlet editor access and procurement authority
+do not establish this authority.
+
+The existing physical snapshot, counts, decisions, version conflicts and exactly
+once ledger protocol are shared; immutable hospital evidence retains the current
+IAM snapshots, binding/revision and Workforce link/generation/epoch. Historical
+review is verified by Workforce, including retired counters and Staff/account
+aliases. Hospital, independent and legacy count history cannot be adopted across
+authority models. Out-of-scope/hidden structure returns 404, changed structure
+returns 409 `source_changed`, and unavailable authorization returns 503. Existing
+verified tenant/account preconditions remain in force.
+
+New-work/lines/export routes remain `pharmacy_stocktake` gated and compiled
+ineligible. Header/list/original command receipts and cancellation retain baseline
+classification with full current authority. This is candidate code, not deployed
+hospital stocktake acceptance: real command integration, binding-change recovery,
+worker discovery/UI, capacity and live verification remain tracked in the
+[hospital delivery plan](../../superpowers/plans/2026-11-23-hospital-stocktake-authority.md).

@@ -486,6 +486,18 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receiving/quarantine-locations` | `public` | true | false |
 | GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receiving/sellable-locations` | `public` | true | false |
 | GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receiving` | `public` | false | false |
+| PUT | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/cancellations/:command` | `public` | false | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/counts/:command` | `public` | false | false |
+| PUT | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/counts/:command` | `public` | false | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/decisions/:command` | `public` | false | false |
+| PUT | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/decisions/:command` | `public` | false | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/lines` | `public` | true | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/register.csv` | `public` | false | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake` | `public` | false | false |
+| PUT | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake` | `public` | false | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/product-choices` | `public` | true | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/quarantine-choices` | `public` | true | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes` | `public` | true | false |
 | GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/commands/:command` | `public` | false | false |
 | PUT | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/commands/:command` | `public` | false | false |
 | GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations/:allocation/creation-receipt` | `public` | false | false |
@@ -823,6 +835,7 @@ Migration table declarations:
 - `0062_pharmacy_tally_ledger_maps`: `pharmacy_tally_ledger_maps`, `pharmacy_tally_ledger_map_entries`.
 - `0063_pharmacy_payable_credit_journal`: concurrent index `pharmacy_payable_credit_journal` on `pharmacy_supplier_credit_allocations (tenant_id, outlet_id, payable_id, created_at DESC, id DESC)`.
 - `0065_pharmacy_stocktake_operating`: `pharmacy_stocktake_operating_evidence`.
+- `0066_pharmacy_stocktake_hospital`: `pharmacy_stocktake_hospital_evidence`.
 
 ## payments
 

@@ -15,7 +15,7 @@ func (h *catalogueHandlers) readStocktakeChoices(c *gin.Context, kind string, re
 	if !ok || !stocktakeRead(c, true) {
 		return false
 	}
-	err := h.operatingStock(c.Request.Context(), p, pharmacy, outlet, PermStocktakeRead, func(tx *gorm.DB, use operatingStockUse) error {
+	err := h.stocktakeWork(c.Request.Context(), p, pharmacy, outlet, c.Param("hospital"), c.Param("department"), PermStocktakeRead, func(tx *gorm.DB, use stocktakeWorkUse) error {
 		if err := read(tx, p, outlet); err != nil {
 			return err
 		}

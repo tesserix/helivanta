@@ -23,17 +23,17 @@ func (h *catalogueHandlers) getOperatingStocktake(c *gin.Context) {
 		return
 	}
 	var result stocktakeHeaderRow
-	err := h.operatingStock(c.Request.Context(), p, pharmacy, outlet, PermStocktakeRead, func(tx *gorm.DB, use operatingStockUse) error {
+	err := h.stocktakeWork(c.Request.Context(), p, pharmacy, outlet, c.Param("hospital"), c.Param("department"), PermStocktakeRead, func(tx *gorm.DB, use stocktakeWorkUse) error {
 		var err error
-		result, err = readCurrentStocktakeHeader(tx.Where("authority_kind='operating'"), p.TenantID, outlet, id)
+		result, err = readCurrentStocktakeHeader(tx.Where("authority_kind=?", use.authorityKind()), p.TenantID, outlet, id)
 		if err != nil {
 			return err
 		}
 		if err := tx.Raw(`SELECT CASE WHEN COALESCE(bool_or(kind='start'),false)THEN 'starter'
  WHEN COALESCE(bool_or(kind IN('count','submit')),false)THEN 'counter' ELSE 'independent' END
- FROM pharmacy_stocktake_operating_evidence WHERE tenant_id=? AND outlet_id=? AND stocktake_id=?
+ FROM `+use.evidenceTable()+` WHERE tenant_id=? AND outlet_id=? AND stocktake_id=?
  AND kind IN('start','count','submit')AND(staff_id=? OR actor_subject=?)`,
-			p.TenantID, outlet, id, use.grant.Identity.StaffID, p.Subject).Scan(&result.ReviewRelationship).Error; err != nil {
+			p.TenantID, outlet, id, use.staffID(), p.Subject).Scan(&result.ReviewRelationship).Error; err != nil {
 			return err
 		}
 		if err := use.stocktakeEvidence(tx, id, "record_read", nil); err != nil {
@@ -54,8 +54,8 @@ func (h *catalogueHandlers) listOperatingStocktakes(c *gin.Context, params pagin
 		return nil, nil
 	}
 	rows := []stocktakeHeaderRow{}
-	err := h.operatingStock(c.Request.Context(), p, pharmacy, outlet, PermStocktakeRead, func(tx *gorm.DB, use operatingStockUse) error {
-		if err := tenantdb.ApplyKeyset(tx, params).Select(stocktakeCurrentHeaderColumns).Where("tenant_id=? AND outlet_id=? AND sealed AND authority_kind='operating'", p.TenantID, outlet).Find(&rows).Error; err != nil {
+	err := h.stocktakeWork(c.Request.Context(), p, pharmacy, outlet, c.Param("hospital"), c.Param("department"), PermStocktakeRead, func(tx *gorm.DB, use stocktakeWorkUse) error {
+		if err := tenantdb.ApplyKeyset(tx, params).Select(stocktakeCurrentHeaderColumns).Where("tenant_id=? AND outlet_id=? AND sealed AND authority_kind=?", p.TenantID, outlet, use.authorityKind()).Find(&rows).Error; err != nil {
 			return err
 		}
 		for i := range rows {
@@ -88,8 +88,8 @@ func (h *catalogueHandlers) exportOperatingStocktakeRegister(c *gin.Context) {
 	defer cancel()
 	var header stocktakeHeaderRow
 	var data []byte
-	err := h.operatingStock(ctx, p, pharmacy, outlet, PermStocktakeRead, func(tx *gorm.DB, use operatingStockUse) error {
-		if _, err := readStocktakeHeader(tx.Where("authority_kind='operating'"), p.TenantID, outlet, id); err != nil {
+	err := h.stocktakeWork(ctx, p, pharmacy, outlet, c.Param("hospital"), c.Param("department"), PermStocktakeRead, func(tx *gorm.DB, use stocktakeWorkUse) error {
+		if _, err := readStocktakeHeader(tx.Where("authority_kind=?", use.authorityKind()), p.TenantID, outlet, id); err != nil {
 			return err
 		}
 		var err error

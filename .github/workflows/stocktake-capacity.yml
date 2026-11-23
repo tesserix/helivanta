@@ -116,6 +116,7 @@ jobs:
           pnpm --filter @helivanta/shell exec eslint components/pharmacy/stocktake-recovery.ts components/pharmacy/stocktake-recovery.test.ts
           pnpm --filter @helivanta/shell exec eslint components/pharmacy/stocktake-start.tsx components/pharmacy/stocktake-start.test.tsx
           pnpm --filter @helivanta/shell exec eslint components/pharmacy/stocktake-worker-workspace.tsx components/pharmacy/stocktake-worker-workspace.test.tsx
+          pnpm --filter @helivanta/shell exec eslint components/pharmacy/stocktake-decision.tsx components/pharmacy/stocktake-decision.test.tsx
       - name: Affected API and shell type checks
         run: |
           pnpm --filter @helivanta/api exec tsc --noEmit --incremental false

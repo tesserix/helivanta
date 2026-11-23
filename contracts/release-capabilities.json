@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "policy_version": "2026-11-23.stocktake-worker-choices.v1",
+  "policy_version": "2026-11-23.stocktake-worker-workspace.v1",
   "capabilities": [
     {
       "key": "onboarding",
@@ -6316,6 +6316,10 @@
     {
       "path": "/workforce/shared-shipments",
       "capability": "supplier_collaboration"
+    },
+    {
+      "path": "/pharmacy/working-stocktakes",
+      "capability": "pharmacy_setup"
     }
   ],
   "panels": [

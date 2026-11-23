@@ -126,3 +126,24 @@ it("does not offer submission while any snapshot bucket is uncounted", async () 
   expect(screen.queryByRole("option", { name: /Submit/ })).not.toBeInTheDocument();
   expect(screen.getByRole("option", { name: "Cancel stocktake" })).toBeInTheDocument();
 });
+
+it("offers reviewer decisions without counter-only cancellation", async () => {
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <StocktakeDecision
+        scope={{ ...scope, authority: "operating" }}
+        take={take}
+        onSaved={vi.fn()}
+        canCount={false}
+        canReview
+      />
+    </NavigationGuardProvider>,
+  );
+  await user.click(screen.getByRole("combobox", { name: "Decision" }));
+  expect(screen.getByRole("option", { name: "Approve and post differences" })).toBeInTheDocument();
+  expect(screen.getByRole("option", { name: "Reject stocktake" })).toBeInTheDocument();
+  expect(screen.queryByRole("option", { name: "Cancel stocktake" })).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("option", { name: "Submit for independent review" }),
+  ).not.toBeInTheDocument();
+});

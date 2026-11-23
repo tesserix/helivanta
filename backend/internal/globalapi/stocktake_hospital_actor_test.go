@@ -85,3 +85,87 @@ func assertHospitalStocktakeActorSource(t *testing.T, ctx context.Context, db *t
 	require.ErrorIs(t, use(func(context.Context, authz.StaffActorReference) error { return rollback }), rollback)
 	require.EqualValues(t, 1, audits(), "failed consumer work must roll back its Workforce source audit too")
 }
+
+func assertHospitalStocktakeActorHistory(t *testing.T, ctx context.Context, db *tenantdb.DB, authority authz.ScopedAuthorizer, scope authz.StaffActorScope, current authz.StaffActorReference, participant authz.StocktakeActorObservation) {
+	t.Helper()
+	require.NotEmpty(t, participant.Subject)
+	require.NotEmpty(t, scope.DepartmentPath)
+	guard, ok := workforce.New().StocktakeActors(db).(authz.StocktakeActorHistoryGuard)
+	require.True(t, ok)
+	compound, ok := authority.(authz.CompoundScopedCommandGuard)
+	require.True(t, ok)
+	ctx = tenantdb.WithActor(ctx, scope.Subject)
+	var checks []authz.ScopeCheck
+	for _, permission := range []authz.Permission{authz.StocktakeActorUse, "pharmacy.stocktake.review"} {
+		request := authz.ScopeRequest{TenantID: scope.TenantID, Subject: scope.Subject, HospitalID: scope.HospitalID.String(), DepartmentPath: scope.DepartmentPath, Permission: permission}
+		grant, err := authority.AuthorizeScope(ctx, request)
+		require.NoError(t, err)
+		require.Equal(t, "department", grant.ScopeKind)
+		checks = append(checks, authz.ScopeCheck{Request: request, Grant: grant})
+	}
+	use := func(proofs []authz.ScopeCheck, expected authz.StaffActorReference, observed authz.StocktakeActorObservation, callback func(context.Context) error) error {
+		return compound.WithScopeGrants(ctx, proofs, time.Now(), func(commandCtx context.Context) error {
+			return guard.WithStocktakeActorHistoryReview(commandCtx, scope, expected, observed, callback)
+		})
+	}
+	called := false
+	require.ErrorIs(t, use(checks[:1], current, participant, func(context.Context) error { called = true; return nil }), authz.ErrScopedAuthorizationUnavailable)
+	require.False(t, called, "source eligibility alone cannot review a historical participant")
+	for _, change := range []string{"subject", "staff", "link", "version", "generation", "epoch", "self"} {
+		observed := participant
+		switch change {
+		case "subject":
+			observed.Subject = "TEST-unrelated-historical-account"
+		case "staff":
+			observed.Reference.StaffID = uuid.Must(uuid.NewV7())
+		case "link":
+			observed.Reference.LinkID = uuid.Must(uuid.NewV7())
+		case "version":
+			observed.Reference.LinkVersion++
+		case "generation":
+			observed.Reference.GenerationID = uuid.Must(uuid.NewV7())
+		case "epoch":
+			observed.Reference.EmploymentEpoch++
+		case "self":
+			observed = authz.StocktakeActorObservation{Subject: scope.Subject, Reference: current}
+		}
+		called = false
+		require.ErrorIs(t, use(checks, current, observed, func(context.Context) error { called = true; return nil }), authz.ErrScopedCommandDenied, change)
+		require.False(t, called, change)
+	}
+	audits := func() int64 {
+		var count int64
+		require.NoError(t, db.WithTenant(ctx, scope.TenantID, func(tx *gorm.DB) error {
+			return tx.Table("workforce_audit").Where("hospital_id=? AND actor_subject=? AND action=? AND resource_id=?", scope.HospitalID, scope.Subject, "workforce.stocktake_actor.review_history", current.StaffID).Count(&count).Error
+		}))
+		return count
+	}
+	before := audits()
+	var escaped context.Context
+	require.NoError(t, use(checks, current, participant, func(commandCtx context.Context) error {
+		called = true
+		escaped = commandCtx
+		return db.WithTenantCommand(commandCtx, scope.TenantID, func(tx *gorm.DB) error {
+			var mode string
+			if err := tx.Raw(`SELECT COALESCE(current_setting('app.workforce_stocktake_history',true),'')`).Scan(&mode).Error; err != nil {
+				return err
+			}
+			require.Empty(t, mode, "consumer must not inherit Workforce history authority")
+			return nil
+		})
+	}))
+	require.True(t, called)
+	require.Equal(t, before+1, audits())
+	called = false
+	require.ErrorIs(t, guard.WithStocktakeActorHistoryReview(escaped, scope, current, participant, func(context.Context) error { called = true; return nil }), authz.ErrScopedAuthorizationUnavailable)
+	require.False(t, called)
+	rollback := errors.New("TEST hospital stocktake history consumer rollback")
+	require.ErrorIs(t, use(checks, current, participant, func(context.Context) error { return rollback }), rollback)
+	require.Equal(t, before+1, audits(), "consumer failure must roll back history evidence")
+	stale := current
+	stale.LinkVersion++
+	called = false
+	require.ErrorIs(t, use(checks, stale, participant, func(context.Context) error { called = true; return nil }), authz.ErrScopedCommandDenied)
+	require.False(t, called)
+	require.Equal(t, before+1, audits())
+}

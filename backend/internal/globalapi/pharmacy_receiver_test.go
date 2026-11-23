@@ -31,6 +31,7 @@ func v7() string { return uuid.Must(uuid.NewV7()).String() }
 
 // newPharmacyReceiverFixture prepares one independent outlet, a reviewed pharmacist account and an unapproved receiver duty.
 func newPharmacyReceiverFixture(t *testing.T) pharmacyReceiverFixture {
+	t.Helper()
 	return newPharmacyReceiverFixtureWithAdmission(t, nil)
 }
 

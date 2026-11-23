@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-const PolicyVersion = "2026-11-23.stocktake-authority.v1"
+const PolicyVersion = "2026-11-23.stocktake-continuations.v1"
 
 var definitions = []Definition{{Key: "onboarding", Eligible: true, Dependencies: []string{}},
 	{Key: "team_accounts", Eligible: true, Dependencies: []string{}},
@@ -1184,12 +1184,13 @@ var routeCapabilities = map[string]string{"POST /v1/workforce/hospitals/:hospita
 	"PUT /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake":                                                   "pharmacy_stocktake",
 	"GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/lines":                                             "pharmacy_stocktake",
 	"PUT /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/counts/:command":                                   "pharmacy_stocktake",
-	"GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/counts/:command":                                   "pharmacy_stocktake",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/counts/:command":                                   "baseline",
 	"PUT /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/decisions/:command":                                "pharmacy_stocktake",
-	"GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/decisions/:command":                                "pharmacy_stocktake",
-	"GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes":                                                              "pharmacy_stocktake",
-	"GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake":                                                   "pharmacy_stocktake",
-	"GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/register.csv":                                      "pharmacy_stocktake"}
+	"GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/decisions/:command":                                "baseline",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes":                                                              "baseline",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake":                                                   "baseline",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/register.csv":                                      "pharmacy_stocktake",
+	"PUT /v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/cancellations/:command":                            "baseline"}
 var internalRouteCapabilities = map[string]string{"POST /v1/supply/internal/trading-source/check": "baseline",
 	"POST /v1/supply/internal/relationship/check": "baseline",
 	"POST /internal/v1/mediconnect/current-claim": "baseline",

@@ -126,7 +126,15 @@ counting, submission, independent posting, rejection, cancellation and original
 command recovery with retained Staff/link/duty evidence. Current reviewed
 header/list/register reads also passed hosted scope, audit-failure and rollback
 tests. Clean independent reviewed capacity also passed in hosted 45075494219.
-Hospital department admission/capacity, withdrawal continuations, the operational
+Reviewed header/list and original count/decision receipts are baseline
+continuations. A dedicated `PUT /stocktakes/{stocktake}/cancellations/{command}`
+accepts only cancellation under a current counter duty; it cannot admit submit,
+approval or rejection. These continuations do not need a release-provider
+snapshot, but still require the current account, Staff/link, exact outlet,
+command ownership and audit evidence. New starts/counts/decisions, line browsing
+and CSV export remain gated; retrying a blocked write is not the recovery path.
+
+Hospital department admission/capacity, the operational
 page/SDK and both-model live acceptance remain required by #1686. Keep eligibility
 false until those gates pass. A passing independent backend gate does not enable
 these capabilities by itself.

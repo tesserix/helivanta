@@ -104,7 +104,19 @@ func TestStocktakeReviewedReadsSurviveReleaseWithdrawal(t *testing.T) {
 			f.call("PUT", submitPath, "receiver", submitInput, blocked)
 			cancelPath := path + "/cancellations/" + v7()
 			cancelInput := map[string]any{"decision": "cancel", "expected_version": 2, "reason": "TEST end interrupted stocktake safely"}
+			f.call("PUT", strings.Replace(submitPath, "/decisions/", "/cancellations/", 1), "receiver", cancelInput, 409)
 			saved := f.call("PUT", cancelPath, "receiver", cancelInput, 200)
+			var cancellation struct {
+				State           string `json:"state"`
+				Decision        string `json:"decision"`
+				Version         int64  `json:"version"`
+				AdjustmentCount int64  `json:"adjustment_count"`
+			}
+			require.NoError(t, json.Unmarshal([]byte(saved), &cancellation))
+			require.Equal(t, "cancelled", cancellation.State)
+			require.Equal(t, "cancel", cancellation.Decision)
+			require.EqualValues(t, 3, cancellation.Version)
+			require.Zero(t, cancellation.AdjustmentCount)
 			require.JSONEq(t, saved, f.call("PUT", cancelPath, "receiver", cancelInput, 200))
 			require.JSONEq(t, saved, f.call("GET", strings.Replace(cancelPath, "/cancellations/", "/decisions/", 1), "receiver", nil, 200))
 			for _, decision := range []string{"submit", "approve", "reject"} {

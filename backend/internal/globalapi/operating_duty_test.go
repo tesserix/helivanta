@@ -101,6 +101,7 @@ func newOperatingDutyFixture(t *testing.T) operatingDutyFixture {
 	return newOperatingDutyFixtureWithOwners(t, nil)
 }
 func newOperatingDutyFixtureWithOwners(t *testing.T, documents *attachments.GCS, extra ...platform.Module) operatingDutyFixture {
+	t.Helper()
 	return newOperatingDutyFixtureWithAdmission(t, documents, nil, extra...)
 }
 

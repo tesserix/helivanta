@@ -27,6 +27,7 @@ func operatingStocktakeRoutes(g *platform.Router, h *catalogueHandlers) {
 	s.PUT("/:stocktake/counts/:command", authz.Public, h.putOperatingStocktakeCount)
 	s.GET("/:stocktake/counts/:command", authz.Public, h.getOperatingStocktakeCount)
 	s.PUT("/:stocktake/decisions/:command", authz.Public, h.putOperatingStocktakeDecision)
+	s.PUT("/:stocktake/cancellations/:command", authz.Public, h.putOperatingStocktakeCancellation)
 	s.GET("/:stocktake/decisions/:command", authz.Public, h.getOperatingStocktakeDecision)
 }
 

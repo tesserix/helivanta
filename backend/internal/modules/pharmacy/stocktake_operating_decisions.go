@@ -14,6 +14,14 @@ import (
 )
 
 func (h *catalogueHandlers) putOperatingStocktakeDecision(c *gin.Context) {
+	h.writeOperatingStocktakeDecision(c, false)
+}
+
+func (h *catalogueHandlers) putOperatingStocktakeCancellation(c *gin.Context) {
+	h.writeOperatingStocktakeDecision(c, true)
+}
+
+func (h *catalogueHandlers) writeOperatingStocktakeDecision(c *gin.Context, cancelOnly bool) {
 	p, pharmacy, outlet, ok := operatingStockScope(c)
 	if !ok {
 		return
@@ -32,6 +40,10 @@ func (h *catalogueHandlers) putOperatingStocktakeDecision(c *gin.Context) {
 	}
 	if !normalizeStocktakeDecision(&in) {
 		respond.Error(c, 400, "invalid_request", "Provide the current version and a reason for the decision.")
+		return
+	}
+	if cancelOnly && in.Decision != "cancel" {
+		respond.Error(c, 400, "invalid_request", "This continuation only cancels an existing stocktake.")
 		return
 	}
 	permission := PermStocktakeCount

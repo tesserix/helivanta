@@ -47,12 +47,11 @@ func assertHospitalStocktakeWorkflow(t *testing.T, db *tenantdb.DB, call func(*t
 	call(t, "PUT", strings.Replace(path, department, v7(), 1), counter, start, 404)
 	call(t, "PUT", strings.Replace(path, outlet, v7(), 1), counter, start, 404)
 	call(t, "PUT", "/v1/pharmacy/pharmacies/"+pharmacy+"/operating-locations/"+outlet+"/stocktakes/"+take, counter, start, 404)
-	receipt(5)
 	lines := call(t, "GET", path+"/lines", counter, nil, 200)["data"].([]any)
 	require.Len(t, lines, 1)
 	line := lines[0].(map[string]any)
-	require.Equal(t, float64(30), line["book_units"], "receipts after the snapshot must not change the frozen book quantity")
-	count := map[string]any{"expected_version": 0, "reason": "Synthetic shelf observation", "counts": []map[string]any{{"line_id": line["id"], "counted_units": 27}}}
+	require.Equal(t, float64(30), line["book_units"], "the snapshot uses the opening book quantity")
+	count := map[string]any{"expected_version": started["version"], "reason": "Synthetic shelf observation", "counts": []map[string]any{{"line_id": line["id"], "counted_units": 27}}}
 	staleCount := map[string]any{"expected_version": started["version"].(float64) + 1, "counts": count["counts"], "reason": count["reason"]}
 	staleCommand := path + "/counts/" + v7()
 	call(t, "PUT", staleCommand, counter, staleCount, 409)
@@ -65,15 +64,23 @@ func assertHospitalStocktakeWorkflow(t *testing.T, db *tenantdb.DB, call func(*t
 	counted := call(t, "PUT", countPath, counter, count, 200)
 	require.Equal(t, counted, call(t, "PUT", countPath, counter, count, 200))
 	require.Equal(t, counted, call(t, "GET", countPath, counter, nil, 200))
+	receipt(5)
+	laterLines := call(t, "GET", path+"/lines", counter, nil, 200)["data"].([]any)
+	require.Equal(t, float64(30), laterLines[0].(map[string]any)["book_units"], "a later receipt must not rewrite the frozen book quantity")
+	movedCount := map[string]any{"expected_version": counted["version"], "reason": "Synthetic recount after a physical movement", "counts": count["counts"]}
+	movedCommand := path + "/counts/" + v7()
+	call(t, "PUT", movedCommand, counter, movedCount, 409)
+	call(t, "GET", movedCommand, counter, nil, 404)
+
 	legacyCount := map[string]any{"expected_version": 1, "reason": "Synthetic legacy authority cannot adopt a hospital count", "counts": []map[string]any{{"line_id": line["id"], "counted_units": 26}}}
 	call(t, "PUT", base+"/stock/stocktakes/"+take+"/counts/"+v7(), owner, legacyCount, 409)
-	submit := map[string]any{"expected_version": 1, "decision": "submit", "reason": "Synthetic count ready for independent review"}
+	submit := map[string]any{"expected_version": counted["version"], "decision": "submit", "reason": "Synthetic count ready for independent review"}
 	submitPath := path + "/decisions/" + v7()
 	submitted := call(t, "PUT", submitPath, counter, submit, 200)
 	require.Equal(t, "submitted", submitted["state"])
 	require.Equal(t, submitted, call(t, "PUT", submitPath, counter, submit, 200))
 	allowCounterReview()
-	approval := map[string]any{"expected_version": 2, "decision": "approve", "reason": "Synthetic independent shortage approval", "extra_units_disposition": "no_extra_units"}
+	approval := map[string]any{"expected_version": submitted["version"], "decision": "approve", "reason": "Synthetic independent shortage approval", "extra_units_disposition": "no_extra_units"}
 	call(t, "PUT", path+"/decisions/"+v7(), counter, approval, 409)
 	approvalPath := path + "/decisions/" + v7()
 	posted := call(t, "PUT", approvalPath, reviewer, approval, 200)

@@ -37,7 +37,7 @@ func assertHospitalStocktakeWorkflow(t *testing.T, db *tenantdb.DB, call func(*t
 	for _, subject := range []string{counter, reviewer} {
 		call(t, "DELETE", base+"/access/"+subject, owner, nil, 200)
 	}
-	assertHospitalStocktakeOutletDiscovery(t, call, hospital, department, revision, pharmacy, outlet, owner, counter, reviewer, approved["binding"].(map[string]any))
+	survivingChoices := assertHospitalStocktakeOutletDiscovery(t, call, hospital, department, revision, pharmacy, outlet, owner, counter, reviewer, approved["binding"].(map[string]any))
 	root := "/v1/pharmacy/hospitals/" + hospital + "/departments/" + department + "/pharmacies/" + pharmacy + "/outlets/" + outlet + "/stocktakes"
 	take := v7()
 	path := root + "/" + take
@@ -109,6 +109,6 @@ func assertHospitalStocktakeWorkflow(t *testing.T, db *tenantdb.DB, call func(*t
 	call(t, "GET", path, reviewer, nil, 404)
 	call(t, "PUT", root+"/"+v7(), counter, start, 404)
 	endedChoices := call(t, "GET", "/v1/pharmacy/hospitals/"+hospital+"/departments/"+department+"/stocktake-outlet-choices?limit=20", counter, nil, 200)
-	require.Empty(t, endedChoices["data"], "ended bindings must immediately remove their named outlet choices")
+	require.Equal(t, survivingChoices, endedChoices["data"], "ending the counting binding must preserve the other approved outlet")
 	assertHospitalStocktakeScopeDiscovery(t, db, call, owner, counter, reviewer, hospital, department)
 }

@@ -482,3 +482,12 @@ and that no forbidden callback runs. Added only this negative integration-test
 file to the existing explicit architecture allowlists; production consumers and
 provider interfaces are unchanged. The three architecture failures were
 reproduced locally before updating the reviewed test consumers.
+
+The full fixture in **45220838827** reached current outlet discovery and returned
+both legitimate approved bindings: the pre-existing hospital outlet plus the
+new counting outlet. The new assertion had incorrectly expected one. It now
+verifies both named choices, single-row paging without lost/duplicate bindings,
+other-account/hospital/department cursor rejection, and preservation of the
+unrelated approved outlet when only the counting binding ends. The production
+query's multi-outlet behavior is retained. This was an incorrect fixture count,
+not an authorization failure or a reason to filter away valid outlets.

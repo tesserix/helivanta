@@ -30,9 +30,24 @@ The independent/chain route root is
 `/v1/pharmacy/pharmacies/{pharmacy}/operating-locations/{outlet}/stocktakes`.
 `PUT/GET /{stocktake}`, `GET /`, `GET /{stocktake}/lines`,
 `GET /{stocktake}/register.csv`, `PUT/GET /{stocktake}/counts/{command}` and
-`PUT/GET /{stocktake}/decisions/{command}` are registered in this slice. They reuse the canonical stocktake input/output schemas and the existing
-physical ledger; they are not a second stock master. These routes bind to the
-compiled-ineligible `pharmacy_stocktake` capability. No new operational page
+`PUT/GET /{stocktake}/decisions/{command}` and
+`PUT /{stocktake}/cancellations/{command}` are registered in this slice. They reuse the canonical stocktake input/output schemas and the existing
+physical ledger; they are not a second stock master. New writes, lines and CSV
+bind to the compiled-ineligible `pharmacy_stocktake` capability. Retained header,
+paged list, exact original count/decision receipts and the dedicated cancellation
+route are baseline continuations. They remain subject to current IAM duty,
+Workforce Staff/link, exact pharmacy/outlet and attributable audit checks even
+when the feature is disabled or release configuration is unavailable. The
+cancellation route accepts only `decision=cancel`; other decisions return 400,
+and reusing an existing command for another intent returns 409. Cancellation uses
+the existing protocol and never changes physical stock. The SDK selects this
+route family explicitly with `authority: "operating"`; omitted or `"legacy"`
+authority retains the legacy route and persisted-reference contract. Unknown or
+null authority is refused before traffic or cache use. Reviewed cache keys and
+reference-only browser recovery queues are separated by authority, tenant,
+account, pharmacy and outlet. Switching scope clears previously confirmed
+recovery results until they are checked under the new scope. This selector grants
+no server authority. No new operational page
 or production availability is established by their registration.
 
 IAM must consume an acknowledged current independent duty for
@@ -56,7 +71,7 @@ Legacy and actual reviewed-duty capacity are separate acceptance gates. Clean
 run 45075494219 passed both, together with core source/command, corruption,
 rollback, dependency-failure and IAM admission regression. Header/list/register
 and Staff-aware participation reads also passed focused acceptance. Hospital
-department admission/capacity, withdrawal continuations, operational SDK/UI,
+department admission/capacity, operational SDK/UI,
 full modern reservation/concurrency evidence and both-model browser/live
 acceptance remain open in #1686. See the
 [reviewed authority proposal](../../superpowers/specs/2026-11-23-reviewed-stocktake-authority.md).

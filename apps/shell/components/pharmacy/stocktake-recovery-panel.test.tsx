@@ -1,7 +1,9 @@
 import { screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { AccountPresentationsProvider } from "@helivanta/ui";
+import type { PharmacyStocktakeScope } from "@helivanta/api";
 import { StocktakeRecoveryPanel } from "./stocktake-recovery-panel";
 import { pendingStocktakeCommands, retainStocktakeCommand } from "./stocktake-recovery";
 const scope = {
@@ -40,6 +42,56 @@ function panel(current = scope) {
     </AccountPresentationsProvider>,
   );
 }
+
+it("clears a confirmed recovery result when the authority changes and rechecks the new route", async () => {
+  const operating = { ...scope, authority: "operating" as const };
+  retainStocktakeCommand(scope, marker);
+  retainStocktakeCommand(operating, marker);
+  const fetch = vi.fn(async (url: string) => {
+    if (url.includes("account-presentations"))
+      return json({
+        tenant_id: scope.tenantId,
+        actor_subject: scope.subject,
+        data: [
+          {
+            subject: scope.subject,
+            available: true,
+            name: "TEST Stock Lead",
+            email: "test@example.invalid",
+            roles: [],
+          },
+        ],
+      });
+    return url.includes("/operating-locations/")
+      ? json({ error: "not_found" }, 404)
+      : json(receipt);
+  });
+  vi.stubGlobal("fetch", fetch);
+  function AuthoritySwitch() {
+    const [current, setCurrent] = useState<PharmacyStocktakeScope>(scope);
+    return (
+      <AccountPresentationsProvider
+        scope={{ tenantId: current.tenantId, subject: current.subject }}
+      >
+        <button type="button" onClick={() => setCurrent(operating)}>
+          Use reviewed duty
+        </button>
+        <StocktakeRecoveryPanel scope={current} timeZone="Asia/Kolkata" />
+      </AccountPresentationsProvider>
+    );
+  }
+  const { user } = renderWithProviders(<AuthoritySwitch />);
+  await user.click(screen.getByRole("button", { name: "Check original count result" }));
+  expect(await screen.findByText(/Original physical count was recorded/i)).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "Use reviewed duty" }));
+  expect(screen.queryByText(/Original physical count was recorded/i)).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Acknowledge saved result" }),
+  ).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Check original count result" }));
+  expect(await screen.findByText(/original request may still finish/i)).toBeVisible();
+  expect(fetch.mock.calls.some(([url]) => url.includes("/operating-locations/"))).toBe(true);
+});
 
 it("recovers an original count after its form is gone without sending another stock command", async () => {
   retainStocktakeCommand(scope, marker);

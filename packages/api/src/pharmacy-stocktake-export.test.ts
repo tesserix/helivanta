@@ -33,6 +33,20 @@ async function response(overrides: Record<string, string> = {}, body = bytes) {
 }
 afterEach(() => vi.unstubAllGlobals());
 
+it("verifies reviewed register bytes through the operating route without legacy fallback", async () => {
+  const operating = { ...scope, authority: "operating" as const };
+  const fetch = vi.fn().mockResolvedValue(await response());
+  vi.stubGlobal("fetch", fetch);
+  const result = await fetchStocktakeCSV(operating, take, new AbortController().signal);
+  expect(await result.blob.text()).toBe("TEST register\r\n");
+  expect(fetch.mock.calls[0]?.[0]).toBe(
+    `/api/v1/pharmacy/pharmacies/${scope.pharmacyId}/operating-locations/${scope.outletId}/stocktakes/${take.id}/register.csv`,
+  );
+  expect(new Headers(fetch.mock.calls[0]?.[1].headers).get("X-Helivanta-Expected-Subject")).toBe(
+    scope.subject,
+  );
+});
+
 it("downloads only a byte-verified register for the displayed outlet and revision", async () => {
   const fetch = vi.fn().mockResolvedValue(await response());
   vi.stubGlobal("fetch", fetch);

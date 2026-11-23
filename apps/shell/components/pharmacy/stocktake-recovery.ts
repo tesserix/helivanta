@@ -2,7 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import { z } from "@/lib/csp-zod";
-import type { PharmacyStocktakeScope } from "@helivanta/api";
+import { stocktakeAuthority, type PharmacyStocktakeScope } from "@helivanta/api";
 
 const id = z.string().guid();
 const markerSchema = z
@@ -29,8 +29,12 @@ function markerIdentity(value: StocktakeRecoveryMarker) {
   return `${value.kind}:${value.stocktakeId}:${value.commandId}`;
 }
 function storageKey(scope: PharmacyStocktakeScope) {
+  const namespace =
+    stocktakeAuthority(scope) === "operating"
+      ? "helivanta:stocktake-recovery:operating:v1:"
+      : "helivanta:stocktake-recovery:v1:";
   return (
-    "helivanta:stocktake-recovery:v1:" +
+    namespace +
     JSON.stringify([
       id.parse(scope.tenantId),
       z.string().min(1).max(200).parse(scope.subject),
@@ -99,15 +103,21 @@ function serverSnapshot() {
   return null;
 }
 export function useStocktakeRecovery(scope: PharmacyStocktakeScope) {
-  const { tenantId, subject, pharmacyId, outletId } = scope;
+  const { tenantId, subject, pharmacyId, outletId, authority } = scope;
   const getSnapshot = useCallback(() => {
     try {
-      const values = pendingStocktakeCommands({ tenantId, subject, pharmacyId, outletId });
+      const values = pendingStocktakeCommands({
+        tenantId,
+        subject,
+        pharmacyId,
+        outletId,
+        authority,
+      });
       return values.length ? JSON.stringify(values) : null;
     } catch {
       return unavailable;
     }
-  }, [tenantId, subject, pharmacyId, outletId]);
+  }, [tenantId, subject, pharmacyId, outletId, authority]);
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, serverSnapshot);
   return {
     markers:

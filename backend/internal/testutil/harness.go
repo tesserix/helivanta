@@ -200,6 +200,7 @@ func (neverRevoked) RevokedAfter(context.Context, string) (time.Time, error) {
 // NewSessionSignerForTest.
 type HarnessOptions struct {
 	ReleasePolicy               *release.Service
+	ReleaseAdmission            func(string, string) gin.HandlerFunc
 	StaffAccounts               *staffclient.Client
 	EmploymentActivationEnabled bool
 	ProxyClinicalCaptureEnabled bool
@@ -514,6 +515,9 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 		requestid.PrincipalMiddleware(),
 		authz.Middleware(resolver)),
 		membership).WithScopedAuthorizer(scopedAuthorizer).WithCursorSealer(CursorSealer(t))
+	if opts.ReleaseAdmission != nil {
+		api.WithReleaseAdmission(opts.ReleaseAdmission)
+	}
 	// Consumers and the dispatcher live as long as the test, not as long as
 	// ctx: ctx's 90s bound would stop them silently mid-test, and every
 	// later wait on an event would time out instead of failing here (#1517).

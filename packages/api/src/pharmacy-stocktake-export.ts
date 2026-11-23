@@ -1,7 +1,7 @@
 import { apiFetchResponse } from "./client";
 import { sha256Hex } from "./attachment-file";
-import { pharmacyRoot } from "./pharmacy";
 import {
+  stocktakeCollectionRoot,
   stocktakeHeaders,
   type PharmacyStocktakeScope,
   type PharmacyStocktakeSummary,
@@ -17,7 +17,7 @@ export async function fetchStocktakeCSV(
   const active = AbortSignal.any([signal, AbortSignal.timeout(15000)]);
   active.throwIfAborted();
   const response = await apiFetchResponse(
-    `${pharmacyRoot(scope)}/stock/stocktakes/${encodeURIComponent(take.id)}/register.csv`,
+    `${stocktakeCollectionRoot(scope)}/${encodeURIComponent(take.id)}/register.csv`,
     {
       headers: stocktakeHeaders(scope),
       cache: "no-store",

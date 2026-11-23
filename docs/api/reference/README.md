@@ -510,6 +510,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts/:id` | `public` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts/:id` | `public` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stock/receipts` | `public` | true | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/cancellations/:command` | `public` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/counts/:command` | `public` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/counts/:command` | `public` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/decisions/:command` | `public` | false | false |

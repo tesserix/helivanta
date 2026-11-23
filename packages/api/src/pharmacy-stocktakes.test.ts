@@ -9,6 +9,8 @@ import {
   fetchStocktakes,
   startStocktake,
   recoverStocktakeStart,
+  stocktakeKey,
+  type PharmacyStocktakeScope,
 } from "./index";
 
 const scope = {
@@ -42,6 +44,148 @@ const receipt = {
 };
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
 afterEach(() => vi.unstubAllGlobals());
+
+const observed = {
+  expected_version: 0,
+  counts: [{ line_id: command, counted_units: 0 }],
+  reason: "TEST reviewed physical observation",
+};
+const counted = {
+  ...observed,
+  id: command,
+  stocktake_id: take,
+  outlet_id: scope.outletId,
+  version: 1,
+  state: "counting",
+  recorded_by: scope.subject,
+  recorded_at: receipt.started_at,
+};
+const submitted = {
+  decision: "submit" as const,
+  expected_version: 1,
+  reason: "TEST reviewed submission",
+};
+const decided = {
+  ...submitted,
+  extra_units_disposition: null,
+  id: command,
+  stocktake_id: take,
+  outlet_id: scope.outletId,
+  version: 2,
+  state: "submitted",
+  adjustment_count: 0,
+  recorded_by: scope.subject,
+  recorded_at: receipt.started_at,
+};
+const cancelled = { ...submitted, decision: "cancel" as const };
+it.each([
+  {
+    operation: "start",
+    method: "PUT",
+    suffix: `/${take}`,
+    body: receipt,
+    call: (s: typeof scope) => startStocktake(s, take, input),
+  },
+  {
+    operation: "recover start",
+    method: "GET",
+    suffix: `/${take}`,
+    body: receipt,
+    call: (s: typeof scope) => recoverStocktakeStart(s, take, input),
+  },
+  {
+    operation: "status",
+    method: "GET",
+    suffix: `/${take}`,
+    body: receipt,
+    call: (s: typeof scope) => readStocktake(s, take),
+  },
+  {
+    operation: "history",
+    method: "GET",
+    suffix: "?",
+    body: { data: [], page: { has_more: false, next_cursor: null } },
+    call: (s: typeof scope) => fetchStocktakes(s, null),
+  },
+  {
+    operation: "lines",
+    method: "GET",
+    suffix: `/${take}/lines?`,
+    body: { data: [], page: { has_more: false, next_cursor: null } },
+    call: (s: typeof scope) => fetchStocktakeLines(s, take, null),
+  },
+  {
+    operation: "count",
+    method: "PUT",
+    suffix: `/${take}/counts/${command}`,
+    body: counted,
+    call: (s: typeof scope) => recordStocktakeCount(s, take, command, observed),
+  },
+  {
+    operation: "count receipt",
+    method: "GET",
+    suffix: `/${take}/counts/${command}`,
+    body: counted,
+    call: (s: typeof scope) => readStocktakeCount(s, take, command),
+  },
+  {
+    operation: "submit",
+    method: "PUT",
+    suffix: `/${take}/decisions/${command}`,
+    body: decided,
+    call: (s: typeof scope) => recordStocktakeDecision(s, take, command, submitted),
+  },
+  {
+    operation: "decision receipt",
+    method: "GET",
+    suffix: `/${take}/decisions/${command}`,
+    body: decided,
+    call: (s: typeof scope) => readStocktakeDecision(s, take, command),
+  },
+  {
+    operation: "cancel",
+    method: "PUT",
+    suffix: `/${take}/cancellations/${command}`,
+    body: { ...decided, ...cancelled, state: "cancelled" },
+    call: (s: typeof scope) => recordStocktakeDecision(s, take, command, cancelled),
+  },
+])("uses only reviewed routes for operating $operation", async ({ method, suffix, body, call }) => {
+  const operating = { ...scope, authority: "operating" as const };
+  const fetch = vi.fn().mockResolvedValue(json(body));
+  vi.stubGlobal("fetch", fetch);
+  await call(operating);
+  expect(fetch.mock.calls[0]?.[0]).toBe(
+    `/api/v1/pharmacy/pharmacies/${scope.pharmacyId}/operating-locations/${scope.outletId}/stocktakes${suffix}`,
+  );
+  const request = fetch.mock.calls[0]?.[1] as RequestInit;
+  expect(request.method ?? "GET").toBe(method);
+  expect(new Headers(request.headers).get("X-Helivanta-Expected-Subject")).toBe(scope.subject);
+  expect(new Headers(request.headers).get("X-Helivanta-Expected-Tenant")).toBe(scope.tenantId);
+  expect(request.cache).toBe("no-store");
+});
+
+it("separates reviewed cache keys from legacy, other accounts and other outlets", () => {
+  const operating = { ...scope, authority: "operating" as const };
+  expect(stocktakeKey(operating, take)).not.toEqual(stocktakeKey(scope, take));
+  expect(stocktakeKey(operating, take)).not.toEqual(
+    stocktakeKey({ ...operating, subject: "TEST other account" }, take),
+  );
+  expect(stocktakeKey(operating, take)).not.toEqual(
+    stocktakeKey({ ...operating, outletId: take }, take),
+  );
+});
+
+it.each([null, "", "unknown"])(
+  "refuses invalid authority %s before traffic or cache use",
+  async (authority) => {
+    const invalid = { ...scope, authority } as unknown as PharmacyStocktakeScope;
+    const fetch = vi.fn().mockResolvedValue(json(receipt));
+    vi.stubGlobal("fetch", fetch);
+    await expect(readStocktake(invalid, take)).rejects.toThrow();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(() => stocktakeKey(invalid, take)).toThrow();
+  },
+);
 
 it.each(["start", "count", "decision"] as const)(
   "refuses a %s write receipt recorded by another account",

@@ -247,7 +247,7 @@ CREATE FUNCTION pharmacy_stocktake_hospital_support_state()RETURNS jsonb LANGUAG
  'triggers',(SELECT jsonb_agg(jsonb_build_array(t.relname,g.tgname,g.tgenabled,pg_get_triggerdef(g.oid))ORDER BY t.relname,g.tgname)FROM pg_trigger g JOIN targets t ON t.oid=g.tgrelid WHERE NOT g.tgisinternal),
  'functions',(SELECT jsonb_agg(jsonb_build_array(p.proname,pg_get_function_identity_arguments(p.oid),md5(pg_get_functiondef(p.oid)))ORDER BY p.proname,pg_get_function_identity_arguments(p.oid))FROM pg_proc p
  WHERE p.pronamespace=current_schema()::regnamespace AND p.prokind='f'
- AND(starts_with(p.proname,'pharmacy_stocktake_')OR starts_with(p.proname,'pharmacy_staff_binding_')OR starts_with(p.proname,'pharmacy_operating_choice_')OR p.proname='hms_forbid_mutation')
+ AND(starts_with(p.proname,'pharmacy_stocktake_')OR starts_with(p.proname,'pharmacy_staff_binding_')OR starts_with(p.proname,'pharmacy_operating_choice_')OR p.proname IN('hms_forbid_mutation','pharmacy_catalogue_immutable'))
  AND p.proname<>'pharmacy_stocktake_hospital_integrity'))
 $$;
 DO $hospital_integrity$

@@ -264,3 +264,10 @@ schema restoration does a missing receipt return 404 and the retry proceed.
 Hosted green verification remains pending. The schema-only workflow is now
 restricted to its selected job and validated by `actionlint` against repository
 pinned actions; the first setup failure was not counted as the TDD red.
+
+The first guard-candidate run (45195113044) verified the baseline, RLS-disable,
+binding-policy replacement and hospital-function replacement cases. One fixture
+used a nonexistent trigger suffix (`_frozen`); it is corrected to the actual
+`_immutable` trigger. The seal also includes the actual shared
+`pharmacy_catalogue_immutable()` implementation, with a separate function-tamper
+case, so a matching trigger name alone is insufficient proof of immutability.

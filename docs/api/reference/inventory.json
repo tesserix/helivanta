@@ -6792,7 +6792,7 @@
         },
         {
           "id": "0066_pharmacy_stocktake_hospital",
-          "sql_sha256": "7b5dd7814a5a13473678efa82fed0b8964ccf86dcad602edbd03e32c5ddbadb5",
+          "sql_sha256": "13e7c9f419f82f59f107e44dfb98e97c116184967f08ab3116f479a4838339f3",
           "creates_tables": [
             "pharmacy_stocktake_hospital_evidence"
           ]

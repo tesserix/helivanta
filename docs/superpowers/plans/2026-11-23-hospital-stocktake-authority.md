@@ -491,3 +491,16 @@ other-account/hospital/department cursor rejection, and preservation of the
 unrelated approved outlet when only the counting binding ends. The production
 query's multi-outlet behavior is retained. This was an incorrect fixture count,
 not an authorization failure or a reason to filter away valid outlets.
+
+### Hospital worker client continuation
+
+The separate `feat/1686-hospital-stocktake-workspace` branch consumes the canonical
+hospital assignment and outlet models through the Global API. The missing public
+client entry points first failed their transport tests, then passed after adding
+validated account headers, exact role/permission labels, tenant/resource matching,
+private-field/schema rejection, bounded pages, private-cursor progress, duplicate
+binding/outlet rejection, timezone checks and abort handling. The **22 new client
+cases plus 17 independent-location cases** pass with API typecheck and focused
+ESLint. These client tests are not a substitute for the actual owner workflow or
+hospital browser acceptance. Workspace integration remains a development candidate
+and release eligibility is unchanged.

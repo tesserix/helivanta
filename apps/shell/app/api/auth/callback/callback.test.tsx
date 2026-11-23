@@ -126,7 +126,7 @@ describe("AuthCallbackPage", () => {
     render(<AuthCallbackPage />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "No matching state found in storage",
+      "Your sign-in took too long. Sign in again.",
     );
     expect(fetchMock).not.toHaveBeenCalled();
     expect(replace).not.toHaveBeenCalled();
@@ -162,7 +162,10 @@ describe("AuthCallbackPage", () => {
 
     render(<AuthCallbackPage />);
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(/id_token/);
+    // Never the library's or provider's own text (#1767).
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Sign-in didn't finish. Sign in again.",
+    );
     expect(fetchMock).not.toHaveBeenCalled();
     expect(replace).not.toHaveBeenCalled();
     vi.unstubAllGlobals();

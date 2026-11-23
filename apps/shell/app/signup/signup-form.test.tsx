@@ -379,12 +379,11 @@ it("focuses a new signup after a delayed availability decision permits the form"
   );
 });
 
-// #1767: someone who waited on this page while the workspace was set up is
-// signed in as soon as it is ready, without an "Open workspace" click.
-it("signs in by itself after waiting through setup", async () => {
+// #1767: since one-email signup the tab that opens the email link signs in.
+// This page waits honestly and never starts a second sign-in of its own.
+it("waits without promising or starting a sign-in", async () => {
   const tenantId = "11111111-1111-4111-8111-111111111111";
   let ready = false;
-  signinRedirect.mockResolvedValue(undefined);
   stubSignupApi(
     "fetch",
     vi.fn(
@@ -406,10 +405,27 @@ it("signs in by itself after waiting through setup", async () => {
     ),
   );
   renderWithProviders(<SignupForm />);
-  expect(await screen.findByText(/up to 2 minutes/)).toBeVisible();
-  expect(signinRedirect).not.toHaveBeenCalled();
+  expect(await screen.findByText("This can take up to 2 minutes.")).toBeVisible();
+  expect(screen.queryByText(/sign you in/)).not.toBeInTheDocument();
   ready = true;
-  await waitFor(() => expect(signinRedirect).toHaveBeenCalledTimes(1), { timeout: 6000 });
+  expect(
+    await screen.findByRole("button", { name: "Open workspace" }, { timeout: 6000 }),
+  ).toBeVisible();
+  expect(signinRedirect).not.toHaveBeenCalled();
+});
+
+// Opening the inbox is the next step, so resending is the secondary action.
+it("keeps Resend email secondary while waiting for the email", async () => {
+  stubSignupApi(
+    "fetch",
+    vi.fn(
+      async () => new Response(JSON.stringify({ state: "email_action_required" }), { status: 200 }),
+    ),
+  );
+  renderWithProviders(<SignupForm />);
+  const resend = await screen.findByRole("button", { name: "Resend email" });
+  expect(resend.className).toMatch(/\bborder\b/);
+  expect(resend.className).not.toMatch(/\bbg-primary\b/);
 });
 
 // Coming back later to a ready workspace still offers the button, so the

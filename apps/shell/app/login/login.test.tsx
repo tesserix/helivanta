@@ -803,6 +803,49 @@ describe("LoginPage", () => {
       expect(screen.getByText("Enter your password to continue.")).toBeInTheDocument();
     });
 
+    // #1780: each workspace has its own login, so a pinned card offers only a
+    // name remembered for that same workspace, and stores it against it.
+    it.each([
+      ["another workspace", "helivanta-22222222-2222-4222-8222-222222222222", ""],
+      ["no known workspace", undefined, ""],
+      ["this workspace", "helivanta-11111111-1111-4111-8111-111111111111", "owner@example.test"],
+    ])(
+      "pins the remembered username to its workspace (%s)",
+      async (_case, organization, expected) => {
+        const pinned = "helivanta-11111111-1111-4111-8111-111111111111";
+        window.localStorage.setItem(
+          "helivanta.login.remembered-username",
+          JSON.stringify({ enabled: true, username: "owner@example.test", organization }),
+        );
+        stubAuthFlow({
+          authRequest: () =>
+            jsonResponse(200, {
+              id: AUTH_REQUEST_ID,
+              client_id: "helivanta-web",
+              redirect_uri: "http://localhost:4301/api/auth/callback",
+              scope: ["openid", "profile", "email", `urn:zitadel:iam:org:id:${pinned}`],
+              policies: {
+                allow_password: true,
+                second_factors: ["totp"],
+                ignore_unknown_usernames: false,
+              },
+            }),
+        });
+        vi.stubGlobal("location", { ...window.location, assign: vi.fn() });
+        const { user } = renderWithProviders(<LoginPage />);
+        const field = await screen.findByLabelText("Email or username");
+        expect(field).toHaveValue(expected);
+        await user.clear(field);
+        await user.type(field, "b-owner@example.test");
+        await user.type(screen.getByLabelText("Password"), "synthetic-password");
+        await user.click(screen.getByRole("button", { name: "Sign in" }));
+        await waitFor(() => expect(window.location.assign).toHaveBeenCalled());
+        expect(
+          JSON.parse(window.localStorage.getItem("helivanta.login.remembered-username")!),
+        ).toEqual({ enabled: true, username: "b-owner@example.test", organization: pinned });
+      },
+    );
+
     // Repo-wide: native browser validation is banned (docs/standards/
     // frontend.md §4), so every Helivanta form must disable it explicitly. This
     // pins the login form to that rule rather than relying on the zod

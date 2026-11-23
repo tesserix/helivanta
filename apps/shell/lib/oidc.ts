@@ -51,6 +51,11 @@ function settings(): UserManagerSettings {
     // now exists solely for the initial signinRedirect() (login/page.tsx)
     // and its signinRedirectCallback() (app/api/auth/callback/page.tsx).
     automaticSilentRenew: false,
+    // A started sign-in survives an hour, not the library's 15 minutes: a
+    // first sign-in includes finding and setting up an authenticator app,
+    // and an expired one strands the person after every step succeeded
+    // (#1767). The stored state is single-use and PKCE-bound either way.
+    staleStateAgeInSeconds: 60 * 60,
     // sessionStorage, not localStorage: the stored value includes the
     // raw id_token, and a tab-scoped lifetime is the more conservative
     // default for a system holding patient records — it does not

@@ -67,5 +67,6 @@ export const DEFAULT_BRANDING: Branding = {
   welcome_text: "A connected workspace for exceptional care.",
   logo_url: "",
   theme: "teal",
-  login_layout: "split",
+  // One centred card unless a workspace chooses its own story (#1767).
+  login_layout: "centered",
 };

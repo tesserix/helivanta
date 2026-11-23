@@ -3,6 +3,7 @@ package globalapi
 import (
 	"context"
 	"encoding/json"
+	"net/http/httptest"
 	"net/url"
 	"sync/atomic"
 	"testing"
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/release"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
@@ -175,4 +177,87 @@ func TestStocktakeReviewedReadsWithholdLocationNamesWhenAuditFails(t *testing.T)
 	require.Len(t, success.Data, 1)
 	require.Equal(t, "TEST Independent Pharmacy", success.Data[0].EmployerName)
 	require.EqualValues(t, 1, audits())
+}
+
+func TestStocktakeReviewedReadsContinuePastChangedStaffAndLinks(t *testing.T) {
+	f := newPharmacyReceiverFixture(t)
+	f.input.TemplateKey = "pharmacy.stocktake_counter.v1"
+	f.activate(t)
+	f.duty = "/v1/iam/operating-duties/" + v7()
+	f.input.TemplateKey = "pharmacy.stocktake_reader.v1"
+	f.activate(t)
+	staff := "/v1/workforce/pharmacies/" + f.pharmacy + "/staff/" + f.staff
+	f.call("PUT", staff+"?directory_context=v1", "owner", map[string]any{"employee_code": "TEST-PH-RX", "display_name": "TEST Updated Worker", "job_category": "pharmacist", "employment_status": "active", "expected_version": 1, "directory_context_version": "v1"}, 200)
+	oldLink := staff + "/account-links/" + f.input.Identity.LinkID.String()
+	f.call("PUT", oldLink+"/commands/"+v7(), "owner", map[string]any{"expected_version": 2, "decision": "revoke", "reason": "TEST retire changed worker basis"}, 201)
+	link := v7()
+	newLink := staff + "/account-links/" + link
+	f.call("PUT", newLink, "owner", map[string]any{"expected_staff_version": 2, "subject": "user-receiver", "reason": "TEST confirm updated worker account"}, 201)
+	f.call("PUT", newLink+"/commands/"+v7(), "reviewer", map[string]any{"expected_version": 1, "decision": "approve", "reason": "TEST independently reviewed changed identity"}, 201)
+	f.input.Identity.StaffVersion, f.input.Identity.LinkID, f.input.Identity.LinkVersion = 2, uuid.MustParse(link), 2
+	f.duty = "/v1/iam/operating-duties/" + v7()
+	f.input.TemplateKey = "pharmacy.stocktake_reviewer.v1"
+	f.activate(t)
+	const path = "/v1/iam/me/pharmacy-stocktake-locations"
+	type page struct {
+		Data []struct {
+			DutyID string `json:"duty_id"`
+		} `json:"data"`
+		Page struct {
+			HasMore    bool    `json:"has_more"`
+			NextCursor *string `json:"next_cursor"`
+		} `json:"page"`
+	}
+	query := path + "?limit=1"
+	for i := range 2 {
+		var empty page
+		require.NoError(t, json.Unmarshal([]byte(f.call("GET", query, "receiver", nil, 200)), &empty))
+		require.Empty(t, empty.Data, "changed basis must not be an accessible duty")
+		require.True(t, empty.Page.HasMore, "empty candidate page %d must continue", i)
+		require.NotNil(t, empty.Page.NextCursor)
+		query = path + "?limit=1&cursor=" + url.QueryEscape(*empty.Page.NextCursor)
+	}
+	var current page
+	require.NoError(t, json.Unmarshal([]byte(f.call("GET", query, "receiver", nil, 200)), &current))
+	require.Len(t, current.Data, 1)
+	require.Equal(t, f.duty[len(f.duty)-36:], current.Data[0].DutyID)
+	require.False(t, current.Page.HasMore)
+	require.Nil(t, current.Page.NextCursor)
+	f.call("PUT", f.duty+"/commands/"+v7(), "owner", iam.OperatingDutyDecisionInput{ExpectedVersion: 3, Decision: "revoke", Reason: "TEST remove remaining current duty"}, 201)
+	var revoked page
+	require.NoError(t, json.Unmarshal([]byte(f.call("GET", path, "receiver", nil, 200)), &revoked))
+	require.Empty(t, revoked.Data)
+	require.False(t, revoked.Page.HasMore)
+	require.Nil(t, revoked.Page.NextCursor)
+}
+
+func TestStocktakeReviewedReadsRequireOneExactAccountHeader(t *testing.T) {
+	f := newPharmacyReceiverFixture(t)
+	f.input.TemplateKey = "pharmacy.stocktake_counter.v1"
+	f.activate(t)
+	for _, tc := range []struct {
+		name              string
+		tenants, subjects []string
+	}{
+		{name: "missing"},
+		{name: "other tenant", tenants: []string{testutil.TenantB}, subjects: []string{"user-receiver"}},
+		{name: "other actor", tenants: []string{testutil.TenantA}, subjects: []string{"user-owner"}},
+		{name: "duplicate tenant", tenants: []string{testutil.TenantA, testutil.TenantA}, subjects: []string{"user-receiver"}},
+		{name: "duplicate actor", tenants: []string{testutil.TenantA}, subjects: []string{"user-receiver", "user-receiver"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			request := httptest.NewRequest("GET", "/v1/iam/me/pharmacy-stocktake-locations", nil)
+			request.Header.Set("Authorization", "Bearer receiver")
+			for _, value := range tc.tenants {
+				request.Header.Add("X-Helivanta-Expected-Tenant", value)
+			}
+			for _, value := range tc.subjects {
+				request.Header.Add("X-Helivanta-Expected-Subject", value)
+			}
+			response := httptest.NewRecorder()
+			f.handler.ServeHTTP(response, request)
+			require.Equal(t, 409, response.Code)
+			require.NotContains(t, response.Body.String(), "TEST Independent Pharmacy")
+		})
+	}
 }
